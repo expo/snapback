@@ -1,0 +1,269 @@
+{
+  "corpusVersion": 1,
+  "name": "tombstones-log-schema-identity",
+  "category": "scenario",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "deliveries": {
+        "columns": {
+          "at": "Time",
+          "id": "Id",
+          "kind": {
+            "Enum": {
+              "variants": [
+                "message",
+                "edit",
+                "removed",
+                "expired"
+              ]
+            }
+          },
+          "messageId": {
+            "Ref": {
+              "table": "messages"
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          },
+          "byMessageAt": {
+            "columns": [
+              "messageId",
+              "at",
+              "id"
+            ],
+            "unique": false
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked",
+        "tombstones": [
+          {
+            "table": "messages",
+            "column": "messageId",
+            "when": {
+              "Or": [
+                {
+                  "Eq": [
+                    {
+                      "Field": "kind"
+                    },
+                    {
+                      "Literal": {
+                        "String": "removed"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "Eq": [
+                    {
+                      "Field": "kind"
+                    },
+                    {
+                      "Literal": {
+                        "String": "expired"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "messages": {
+        "columns": {
+          "body": {
+            "Text": {
+              "max": 256
+            }
+          },
+          "id": "Id"
+        },
+        "indexes": {
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "tombstones-log-schema-identity",
+    "kind": "Query",
+    "args": {},
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Return": {
+          "Scan": {
+            "site": "deliveries.forMessage",
+            "table": "deliveries",
+            "index": "byMessageAt",
+            "prefix": [
+              {
+                "Literal": {
+                  "Id": "m1"
+                }
+              }
+            ],
+            "order": "Asc",
+            "take": {
+              "Literal": 10
+            },
+            "after": null,
+            "before": null,
+            "range": null,
+            "merge_site": null,
+            "provenance": "Const"
+          }
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "tombstones-log-schema-identity",
+    "plan_hash": "e15daa02d73e9300a446ea5f86c186fc2f5229048462cd41dd36a520a580712d",
+    "schema_hash": "1f8d7c5539f8c4bdf96bb3d00662fe0a3a2d1335ab84e31b5affdbb9dbe8da21",
+    "tables": {
+      "deliveries": {
+        "retain": "until-revoked"
+      },
+      "messages": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "deliveries.read": "3f7058341962a7a1dfcda8c4cad9bde0704110c2b09eef21f0eeb9b52a63e495"
+    },
+    "evaluator_version": "bounded-spike-rust-1",
+    "value_model_version": "i53-codepoint-bytes-v2",
+    "read_sites": [
+      {
+        "site": "deliveries.forMessage",
+        "table": "deliveries",
+        "index": "byMessageAt",
+        "prefix_template": "Const",
+        "take": 10,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": true,
+        "decided_true": true,
+        "complete": false
+      }
+    ],
+    "write_sites": [],
+    "maintained_amplification": 0,
+    "constraint_checks": [],
+    "max_examined": 12,
+    "max_index_entries": 12,
+    "max_rule_probes": 0,
+    "max_steps": 63,
+    "max_heap_bytes": 2016,
+    "max_output_bytes": 3882,
+    "max_closure_bytes": 3860,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "deliveries.byMessageAt"
+    ],
+    "disclosures": [],
+    "bound_product": "deliveries.forMessage take 10 (+2 reserve) × 1 calls on deliveries = 12"
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": null,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "1f8d7c5539f8c4bdf96bb3d00662fe0a3a2d1335ab84e31b5affdbb9dbe8da21",
+    "rows": [],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": {
+      "Array": []
+    },
+    "errorCode": null,
+    "localState": "partial",
+    "partialSites": [
+      "deliveries.forMessage"
+    ],
+    "canonicalResult": "{\"Array\":[]}",
+    "digest": "62db520212cc069676ef47ebdcb00c4ab646bb477ec4065963f0f9f9f8ee1c66",
+    "rangeStops": {
+      "deliveries.forMessage": [
+        "exhausted"
+      ]
+    },
+    "evictedRows": null,
+    "next": null
+  }
+}

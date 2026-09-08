@@ -270,7 +270,7 @@ fn update_tsconfig(path: &Path) -> Result<(), Refusal> {
                 "strict": true,
                 "jsx": "react-jsx"
             },
-            "include": ["src", "shared", "App.tsx", "snapback"]
+            "include": ["src", "App.tsx", "snapback"]
         })
     };
     let object = value

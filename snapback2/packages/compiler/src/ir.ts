@@ -206,6 +206,7 @@ export type DiagnosticCode =
   | "E_QUARRY_PLACEMENT"
   | "E_QUARRY_TYPE"
   | "E_QUARRY_RETAIN"
+  | "E_QUARRY_TOMBSTONE"
   | "E_QUARRY_ONLY";
 
 export type RefusalFamily = "schedule" | "bound" | "opaque" | "schema" | "rule" | "effect" | "args" | "op" | "input" | "quarry";
@@ -222,6 +223,8 @@ export type FrontendDiagnostic = {
 
 export type TableJson = {
   retain: RetentionPolicy;
+  /** Present only when the table declares `tombstones`; `when` is the rule-expression encoding. */
+  tombstones?: Array<{ table: string; column: string; when: unknown }>;
   [key: string]: unknown;
 };
 

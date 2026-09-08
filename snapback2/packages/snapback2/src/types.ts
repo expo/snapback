@@ -1,7 +1,8 @@
 import type { AssetFetchOptions } from "./store/byte-cache.js";
 import type { Channel as ChannelRef, Op } from "./api.js";
 import type { AssetCache, ByteCacheEntry, ByteCacheStatus } from "./store/byte-cache.js";
-import type { OutboxEntry, RangeStoreFactory, RowRef, StoredRow } from "./store/range-store.js";
+import type { OutboxEntry, RangeStoreFactory } from "./store/range-store.js";
+import type { Snapshot } from "./snapshot.js";
 import { canonical } from "./store/canonical.js";
 
 export type { OutboxEntry, OutboxGrant, OutboxState, OutboxTrace } from "./store/range-store.js";
@@ -75,6 +76,8 @@ export type ServerQueryResult<Result> =
   | QueryPartial<Result>
   | QueryDenied;
 
+/** One row a queued intent predicted, with the intent that minted it (LLP 1018.003 §4). */
+export type PredictedRow = { table: string; id: string; intent: string };
 export type OfflineFacts = {
   live: false;
   connection: "offline";
@@ -82,8 +85,8 @@ export type OfflineFacts = {
   retained?: boolean;
   caughtUp?: boolean;
   watermark?: Cursor | null;
-  /** Queued intents whose predicted rows are inside `data`, in order (the twin, LLP 1012 §7). */
-  predicted?: string[];
+  /** Rows the partition's queued intents predicted at evaluation time, each with its intent (the twin, LLP 1012 §7); match `id` against the rows you render. */
+  predicted?: PredictedRow[];
   /** A local `partial`: the uncovered site and every uncovered site with its reason. */
   site?: string;
   sites?: Array<{ site: string; reason: "never-held" | "evicted" | "computed-key" }>;
@@ -288,7 +291,6 @@ export interface OfflineClientOptions {
   fenceDays?: number;
   /** Ceiling on cached asset bytes per partition, LRU by each rendition's own last read; default 256 MiB. */
   maxAssetBytes?: number;
-  onTombstone?: (row: StoredRow) => RowRef[];
 }
 
 /** A client has exactly one authority source: a dev persona or bearer custody. */
@@ -406,7 +408,32 @@ export interface SnapbackClient {
   close(): Promise<void>;
 }
 
-type ViewFacts = { live: boolean; stale?: { since: number }; retained?: boolean; caughtUp?: boolean; watermark?: Cursor | null; predicted?: string[] };
+export type ReceiptSource = "server" | "twin";
+type ViewFacts = {
+  live: boolean;
+  /** Whose certified evaluation produced this answer: the owner's receipt, or the twin over held rows (LLP 1018.003 §1). */
+  source?: ReceiptSource;
+  stale?: { since: number };
+  retained?: boolean;
+  caughtUp?: boolean;
+  watermark?: Cursor | null;
+  predicted?: PredictedRow[];
+  /** A local partial's uncovered sites, as the twin published them (LLP 1012 §6). */
+  site?: string;
+  sites?: Array<{ site: string; reason: "never-held" | "evicted" | "computed-key" }>;
+};
+/** A stale view keeps the last receipt's outcome and facts beside `since` (LLP 1018.003 §2, transition invariants). */
+export type StaleView<Result> = {
+  state: "stale";
+  live: false;
+  since: number;
+  data?: Result;
+  seq?: number;
+  next?: Cursor | null;
+  outcome?: "complete" | "capped" | "partial" | "denied";
+  reason?: string;
+  rule?: string;
+} & Omit<ViewFacts, "live" | "stale">;
 export type QueryView<Result> =
   | (QueryHeld<Result> & ViewFacts)
   | (QueryComplete<Result> & ViewFacts)
@@ -414,14 +441,13 @@ export type QueryView<Result> =
   | (QueryPartial<Result> & ViewFacts)
   | (QueryDenied & ViewFacts)
   | { state: "refused"; live: false; refusal: RefusalEnvelope }
-  | { state: "stale"; live: false; data?: Result; seq?: number; since: number }
-  | { state: "hydrating"; live: false };
-export type QueryViewState = QueryView<unknown>["state"];
-export type QueryHookResult<Result> = QueryView<Result> & { connection: ConnectionState };
+  | StaleView<Result>
+  /** `offline`: the twin had nothing held for this query (LLP 1012 §6), as opposed to the first render. */
+  | { state: "hydrating"; live: false; offline?: true };
 export type QueryMachineEvent<Result> = QueryResult<Result> | SubscriptionDelivery<Result>;
 export interface ObservedQuery<Result> {
   /** Referentially stable and recursively frozen until the shared query publishes a different view. */
-  getSnapshot(): QueryView<Result>;
+  getSnapshot(): Snapshot<Result>;
   /** Observes snapshot identity changes; read the value with `getSnapshot()`. */
   subscribe(notify: () => void): () => void;
 }
@@ -433,6 +459,9 @@ export function initialQueryState<Result>(): QueryView<Result> {
 export { canonical as stableSerialize };
 
 // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test — React preserves data identity while exposing every receipt-backed state.
+// @ref LLP 1018.003#2-derive-never-add — the transition invariants: a stale
+// event keeps the last receipt and never scrubs delivered data; denial,
+// refusal, and reset scrub; the provenance axis records who evaluated.
 export function reduceQueryState<Result>(
   current: QueryView<Result>,
   event: QueryMachineEvent<Result>,
@@ -441,32 +470,36 @@ export function reduceQueryState<Result>(
   const currentData = "data" in current ? current.data : undefined;
   const data = canonical(eventData) === canonical(currentData) ? currentData : eventData;
   const live = "live" in event ? event.live : false;
+  const offline = "connection" in event && event.connection === "offline";
+  const source: ReceiptSource = offline ? "twin" : "server";
   const facts = {
     ...("stale" in event && event.stale !== undefined ? { stale: event.stale } : {}),
     ...("retained" in event && event.retained !== undefined ? { retained: event.retained } : {}),
     ...("caughtUp" in event && event.caughtUp !== undefined ? { caughtUp: event.caughtUp } : {}),
     ...("watermark" in event && event.watermark !== undefined ? { watermark: event.watermark } : {}),
     ...("predicted" in event && event.predicted !== undefined ? { predicted: event.predicted } : {}),
+    ...("site" in event && event.site !== undefined ? { site: event.site } : {}),
+    ...("sites" in event && event.sites !== undefined ? { sites: event.sites } : {}),
   };
   let next: QueryView<Result>;
   switch (event.state) {
     case "complete":
-      next = { state: "complete", live, data: data as Result, seq: event.seq, next: event.next, ...facts };
+      next = { state: "complete", live, source, data: data as Result, seq: event.seq, next: event.next, ...facts };
       break;
     case "held":
     case "capped":
-      next = { state: event.state, live, data: data as Result, seq: event.seq, next: event.next, ...facts };
+      next = { state: event.state, live, source, data: data as Result, seq: event.seq, next: event.next, ...facts };
       break;
     case "partial":
       next = data === undefined
-        ? { state: "partial", live, seq: event.seq, reason: event.reason, ...facts }
-        : { state: "partial", live, data: data as Result, seq: event.seq, reason: event.reason, ...facts };
+        ? { state: "partial", live, source, seq: event.seq, reason: event.reason, ...facts }
+        : { state: "partial", live, source, data: data as Result, seq: event.seq, reason: event.reason, ...facts };
       break;
     case "denied":
-      next = { state: "denied", live, rule: event.rule, seq: event.seq, ...facts };
+      next = { state: "denied", live, source, rule: event.rule, seq: event.seq, ...facts };
       break;
     case "hydrating":
-      next = { state: "hydrating", live: false };
+      next = offline ? { state: "hydrating", live: false, offline: true } : { state: "hydrating", live: false };
       break;
     case "refused": {
       const refusal: RefusalEnvelope = {
@@ -483,17 +516,44 @@ export function reduceQueryState<Result>(
       next = { state: "refused", live: false, refusal };
       break;
     }
-    case "stale":
-      next = data === undefined
-        ? { state: "stale", live: false, ...(event.seq === undefined ? {} : { seq: event.seq }), since: event.since }
-        : {
-            state: "stale",
-            live: false,
-            data: data as Result,
-            ...(event.seq === undefined ? {} : { seq: event.seq }),
-            since: event.since,
-          };
+    case "stale": {
+      // The last receipt survives only when the stale event names no other
+      // sequence: a different seq means the event's data is held data the
+      // receipt does not describe. A kept denial keeps no data.
+      const receipted = current.state === "complete" || current.state === "capped" || current.state === "partial" || current.state === "denied"
+        ? current : undefined;
+      const outcome = receipted !== undefined ? receipted.state : current.state === "stale" ? current.outcome : undefined;
+      const receiptSeq = "seq" in current ? current.seq : undefined;
+      const keep = outcome !== undefined && (event.seq === undefined || event.seq === receiptSeq);
+      const kept: Omit<StaleView<Result>, "state" | "live" | "since" | "data" | "seq"> = !keep ? {}
+        : current.state === "stale"
+          ? (({ state: _s, live: _l, since: _c, data: _d, seq: _q, ...rest }) => rest)(current)
+          : receipted === undefined ? {} : {
+              outcome: receipted.state,
+              ...(receipted.source === undefined ? {} : { source: receipted.source }),
+              ...("next" in receipted ? { next: receipted.next } : {}),
+              ...("reason" in receipted ? { reason: receipted.reason } : {}),
+              ...("rule" in receipted ? { rule: receipted.rule } : {}),
+              ...(receipted.retained === undefined ? {} : { retained: receipted.retained }),
+              ...(receipted.caughtUp === undefined ? {} : { caughtUp: receipted.caughtUp }),
+              ...(receipted.watermark === undefined ? {} : { watermark: receipted.watermark }),
+              ...(receipted.predicted === undefined ? {} : { predicted: receipted.predicted }),
+              ...(receipted.site === undefined ? {} : { site: receipted.site }),
+              ...(receipted.sites === undefined ? {} : { sites: receipted.sites }),
+            };
+      const keptOutcome = keep ? outcome : undefined;
+      const staleData = keptOutcome === "denied" ? undefined : data !== undefined ? data : currentData;
+      const seq = keep ? receiptSeq : event.seq !== undefined ? event.seq : receiptSeq;
+      next = {
+        state: "stale",
+        live: false,
+        since: event.since,
+        ...(staleData === undefined ? {} : { data: staleData as Result }),
+        ...(seq === undefined ? {} : { seq }),
+        ...kept,
+      };
       break;
+    }
   }
   return canonical(current) === canonical(next) ? current : next;
 }

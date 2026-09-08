@@ -1503,3 +1503,23 @@ within its 82,000 ceiling but above the 80,000 working target. The full client
 entry grows by 8,473 gzip bytes against the recorded pre-forwarding baseline.
 The existing first-doctor and blocking-suite time targets still miss; no new
 publication or holistic benchmark score follows from these source checks.
+
+## 2026-09-07 — Prediction authority and target arrival
+
+Broader review after the earlier checkpoint exposed two assumptions a warm
+count demo hid. An unrelated query can advance the client's global sequence,
+so that counter cannot authorize a predicted creation over an absent row.
+And an answer already held when a prediction begins cannot confirm the
+prediction merely because its sequence equals the returned commit sequence.
+The latter briefly rendered three chat messages with count two in Chrome.
+
+The corrected store binds each prediction to its original row or absence
+authority, preserves revocation even inside one combined negative/positive
+delivery, and waits for fresh aggregate authority before removing that
+prediction. The application needs no extra count workaround. At `3a66182cd`,
+all 781 Node tests, 16 browser steps, seven browser-session steps and ten Expo
+steps pass. Complete-runtime size is 81,373 gzip bytes, and the separate full
+client costs 9,024 gzip bytes over the measured baseline. These results replace
+the earlier checkpoint for the changed client code; failed samples remain
+recorded. The concurrently landed LLP 1018.003 now requires a further integration
+of its snapshot record and declared tombstones before this branch is delivered.

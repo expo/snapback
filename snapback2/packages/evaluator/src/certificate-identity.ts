@@ -110,14 +110,26 @@ function normalizeMaintainKind(kind: any): any {
 }
 
 function normalizeTable(table: any): any {
-  known(table, ["columns", "indexes", "rules", "constraints", "retain"], "table");
-  return {
+  known(table, ["columns", "indexes", "rules", "constraints", "retain", "tombstones"], "table");
+  const canonical: Record<string, any> = {
     columns: sortedMap(table.columns ?? {}, normalizeColumnType),
     indexes: sortedMap(table.indexes ?? {}, normalizeIndex),
     rules: normalizeRules(table.rules),
     constraints: (table.constraints ?? []).map(normalizeConstraint),
     retain: table.retain ?? "until-revoked",
   };
+  // @ref LLP 1012#5-retention-revocation-and-the-fence — serde skips an empty
+  // list, so a table without the word keeps the bytes it had before it existed.
+  if (table.tombstones !== undefined && table.tombstones.length > 0) {
+    canonical.tombstones = table.tombstones.map(normalizeTombstone);
+  }
+  return canonical;
+}
+
+function normalizeTombstone(tombstone: any): any {
+  const out = pick(tombstone, ["table", "column", "when"], "tombstone");
+  out.when = normalizeRule(tombstone.when);
+  return out;
 }
 
 function normalizeIndex(index: any): any {

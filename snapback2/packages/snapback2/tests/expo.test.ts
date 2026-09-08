@@ -385,8 +385,8 @@ test("replacing a supplied client clears authentication, mutations, and outbox r
     await act(async () => { await assert.rejects(current.mutation.run({ stage: "transport" })); });
     assert.equal(current.auth.viewer, "dev:alice");
     assert.equal(current.mutation.last.data, "alice");
-    assert.equal(current.mutation.transport, transport);
-    assert.equal(current.mutation.ready, true);
+    assert.equal(current.mutation.detail.transport, transport);
+    assert.equal(current.mutation.can.send, true);
     assert.deepEqual(current.mutation.pending.map((entry) => entry.intent), ["alice"]);
     let oldSuccess, oldFailure;
     await act(async () => {
@@ -404,9 +404,9 @@ test("replacing a supplied client clears authentication, mutations, and outbox r
       assert.equal(view.auth.viewer, undefined);
       assert.equal(view.auth.state, "hydrating");
       assert.equal(view.mutation.last, undefined);
-      assert.equal(view.mutation.transport, undefined);
+      assert.equal(view.mutation.detail.transport, undefined);
       assert.equal(view.mutation.inFlight, false);
-      assert.equal(view.mutation.ready, false);
+      assert.equal(view.mutation.can.send, false);
       assert.deepEqual(view.mutation.pending, []);
       assert.deepEqual(view.outbox.entries, []);
     }
@@ -425,9 +425,9 @@ test("replacing a supplied client clears authentication, mutations, and outbox r
     });
     assert.equal(current.auth.viewer, "dev:bob");
     assert.equal(current.mutation.last, undefined);
-    assert.equal(current.mutation.transport, undefined);
+    assert.equal(current.mutation.detail.transport, undefined);
     assert.equal(current.mutation.inFlight, true, "Alice's completion cannot decrement Bob's pending run");
-    assert.equal(current.outbox.ready, true);
+    assert.equal(current.outbox.can.send, true);
     assert.deepEqual(current.outbox.entries.map((entry) => entry.intent), ["bob"]);
     assert.deepEqual(current.mutation.pending.map((entry) => entry.intent), ["bob"]);
     await act(async () => { bobMutation.resolve({ state: "committed", seq: 3, data: "bob" }); await newRun; });

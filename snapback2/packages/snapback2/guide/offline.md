@@ -44,13 +44,12 @@ queued proves durable admission. A sent request unanswered for
 `recoverMutation(op, sameArgs, recovery)` retries the identity. Only a durable
 receipt returns queued; unreachable writer/expired miss remains unknown.
 
-`useOutbox()`: entries/dismiss/ready/status/fence. Readiness:
-`useMutation(op).status` or `client.outbox.status(op)`. Reasons:
-ready/sealed/grant-missing/grant-expired/ids-exhausted/program-missing/follower/
-writer-discovery/writer-capacity/writer-unresponsive. Actions:
-none/login/resume/load-program. `remaining`: queued; `fence`: inside/past.
-Expired grants stop admission; owner judges queued writes. Prediction previews;
-commit confirms.
+`useMutation(op).can`/`useOutbox().can` derive `send`, action, and reason;
+`detail.status` keeps ready/sealed/grant-missing/grant-expired/ids-exhausted/
+program-missing/follower/writer-discovery/writer-capacity/writer-unresponsive,
+remaining, and fence. `intentLabel` labels entries. Dismiss a committed intent
+only after its predicted row `arrived` and its pinned id rendered;
+rejected/expired entries wait for `dismiss`. Expired grants stop admission.
 
 `outbox.drain()`/`settled()`: `{ stopped, remaining }`; false is drained.
 Fence/transport/authority/offline/pending pauses; queued bytes stay. Retry

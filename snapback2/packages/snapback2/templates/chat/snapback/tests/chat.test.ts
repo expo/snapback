@@ -405,14 +405,7 @@ journey("scoped roles reject non-admin and stale membership authority", async ({
 });
 
 journey("offline drain removes an unsent body and survives a cold restart", async ({ as }) => {
-  const alice = as("alice", {
-    store: "file",
-    onTombstone: (item) => item.table === "deliveries"
-      && (item.row.kind === "removed" || item.row.kind === "expired")
-      && typeof item.row.messageId === "string"
-      ? [{ table: "messages", id: item.row.messageId }]
-      : [],
-  });
+  const alice = as("alice", { store: "file" });
   const drain = alice.subscribe(
     api.deliveries.inbox,
     { c: null },
@@ -449,14 +442,7 @@ journey("offline drain removes an unsent body and survives a cold restart", asyn
 // leave with the row on resume (lane O4, the web half of §10's witness).
 journey("viewed photos render from the byte cache offline; a view-once photo and an unsent row do not", async ({ as }) => {
   let viewOnceId: string | undefined;
-  const alice = as("alice", {
-    store: "file",
-    onTombstone: (item) => item.table === "deliveries"
-      && (item.row.kind === "removed" || item.row.kind === "expired")
-      && typeof item.row.messageId === "string"
-      ? [{ table: "messages", id: item.row.messageId }]
-      : [],
-  });
+  const alice = as("alice", { store: "file" });
   const owner = as("alice");
   try {
     const validJpeg = fixtureJpeg();
@@ -531,18 +517,12 @@ journey("viewed photos render from the byte cache offline; a view-once photo and
   }
 });
 
-const tombstones = (item: { table: string; row: Record<string, unknown> }) =>
-  item.table === "deliveries"
-    && (item.row.kind === "removed" || item.row.kind === "expired")
-    && typeof item.row.messageId === "string"
-    ? [{ table: "messages", id: item.row.messageId }]
-    : [];
-
+// @ref LLP 1018.003#3-tombstones-are-declared-certified-and-shared — eviction follows the schema's `tombstones` line; devices pass no callback.
 // @ref LLP 1012#10-carriers-the-fast-loop-and-the-witness — the send step:
 // queued offline, on screen across a cold start, replayed in order, and a 503
 // after the commit is never a double send.
 journey("offline sends queue, survive a restart, replay in order, and a 503 after a commit is exactly once", async ({ as }) => {
-  const alice = as("alice", { store: "file", onTombstone: tombstones });
+  const alice = as("alice", { store: "file" });
   const drain = alice.subscribe(api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
   await drain.until((value) => (value.state === "complete" || value.state === "capped") && value.caughtUp === true);
   drain.close();
@@ -580,7 +560,7 @@ journey("offline sends queue, survive a restart, replay in order, and a 503 afte
 });
 
 journey("offline edits reject stale reads by trace, and past-fence edits by the program CONFLICT", async ({ as }) => {
-  const alice = as("alice", { store: "file", onTombstone: tombstones });
+  const alice = as("alice", { store: "file" });
   const drain = alice.subscribe(api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
   await drain.until((value) => (value.state === "complete" || value.state === "capped") && value.caughtUp === true);
   const posted = await alice.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "original" });
@@ -654,7 +634,7 @@ journey("offline edits reject stale reads by trace, and past-fence edits by the 
 // through `thread`, and a send queued offline appears inside that thread's
 // result as predicted, in order, then settles under the same pinned id.
 journey("a never-opened chat renders offline from the drained log and an offline send is predicted into it in order", async ({ as }) => {
-  const bob = as("bob", { store: "file", onTombstone: tombstones });
+  const bob = as("bob", { store: "file" });
   const drain = bob.subscribe(api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
   await drain.until((value) => (value.state === "complete" || value.state === "capped") && value.caughtUp === true);
   drain.close();
@@ -680,7 +660,7 @@ journey("a never-opened chat renders offline from the drained log and an offline
   if (predicted.data[0]?.message?.id !== sent.ids[0] || predicted.data[0]?.message?.body !== "from the train") {
     throw new Error(`the queued send is not inside the thread in order: ${JSON.stringify(bodies(predicted.data))}`);
   }
-  if (!("predicted" in predicted) || !predicted.predicted?.includes(sent.intent)) throw new Error("the thread did not mark the send predicted");
+  if (!("predicted" in predicted) || !predicted.predicted?.some((row) => row.intent === sent.intent)) throw new Error("the thread did not mark the send predicted");
   await bob.online();
   await bob.settled();
   const settled = (await bob.outbox.entries()).find((item) => item.intent === sent.intent);
@@ -702,7 +682,7 @@ journey("a never-opened chat renders offline from the drained log and an offline
 journey("a send queued offline into a three-member group shows one bubble, keeps its message id, leaves no duplicate delivery, and reaches both other members once", async ({ as }) => {
   const alice = as("alice");
   const charlie = as("charlie");
-  const bob = as("bob", { store: "file", onTombstone: tombstones });
+  const bob = as("bob", { store: "file" });
   try {
     const bobPrincipal = (await bob.auth.me()).viewer;
     const charliePrincipal = (await charlie.auth.me()).viewer;
@@ -742,7 +722,7 @@ journey("a send queued offline into a three-member group shows one bubble, keeps
     if (!("data" in replayed) || !Array.isArray(replayed.data)) throw new Error("the offline thread did not return rows");
     const duplicates = replayed.data.filter((row: LogRow) => row.messageId === sent.ids[0]);
     if (duplicates.length !== 1) throw new Error(`the prediction's delivery row survived beside the server's: ${duplicates.length} rows`);
-    if ("predicted" in replayed && replayed.predicted?.includes(sent.intent)) throw new Error("a settled send is still marked predicted");
+    if ("predicted" in replayed && replayed.predicted?.some((row) => row.intent === sent.intent)) throw new Error("a settled send is still marked predicted");
     await bob.online();
     for (const [name, member] of [["alice", alice], ["charlie", charlie]] as const) {
       const inbox = await member.query(api.deliveries.inbox, { c: null });

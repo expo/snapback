@@ -1,9 +1,8 @@
 import React, { useState } from "react";
 import { Button, Text, TextInput, View } from "react-native";
 import { api } from "snapback2/client";
-import { useConnection, useMutation, useSnapbackClient, useSnapbackSnapshot } from "snapback2/react-native";
-import type { SendUncertainty } from "../shared/offline.js";
-import type { RecoveryCustody } from "../shared/recovery";
+import { useMutation, useSnapbackClient, useSnapbackSnapshot } from "snapback2/react-native";
+import type { RecoveryCustody, SendUncertainty } from "../shared/recovery";
 import { useSendController } from "../shared/send";
 
 // @ref LLP 1018.000#8-account-sessions-and-durable-follower-admission — the
@@ -16,19 +15,11 @@ export function Composer({ conversationId, custody }: {
   const client = useSnapbackClient();
   const generation = useSnapbackSnapshot().authGeneration;
   const [note, setNote] = useState("");
-  const controller = useSendController({
-    conversationId,
-    client,
-    generation,
-    connection: useConnection(),
-    post,
-    custody,
-    onNote: setNote,
-  });
+  const controller = useSendController({ conversationId, client, generation, post, custody, onNote: setNote });
   return <View style={{ padding: 16 }}>
     <TextInput accessibilityLabel="Message" placeholder="Message" value={controller.body}
       onChangeText={controller.setBody} multiline />
-    <Button title="Send" disabled={controller.busy || !post.ready || post.inFlight || !controller.body.trim()
+    <Button title="Send" disabled={controller.busy || !post.can.send || post.inFlight || !controller.body.trim()
       || controller.uncertainty !== undefined} onPress={() => { void controller.send(); }} />
     {controller.uncertainty ? <><Text accessibilityRole="alert">
       {controller.canRecover

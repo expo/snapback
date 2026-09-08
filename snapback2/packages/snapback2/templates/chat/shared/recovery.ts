@@ -1,5 +1,27 @@
 import { useCallback, useMemo, useReducer, useRef } from "react";
-import type { SnapbackClient } from "snapback2/client";
+import type { MutationRecovery, SnapbackClient } from "snapback2/client";
+
+/** Account-owned custody for one send whose writer admission is unresolved. */
+export interface SendUncertainty {
+  conversationId: string;
+  args: { conversationId: string; body: string };
+  draft: string;
+  recovery: MutationRecovery;
+}
+
+export type MessageChangeUncertainty =
+  | {
+      kind: "edit";
+      conversationId: string;
+      args: { messageId: string; body: string; baseBody: string };
+      recovery: MutationRecovery;
+    }
+  | {
+      kind: "unsend";
+      conversationId: string;
+      args: { messageId: string };
+      recovery: MutationRecovery;
+    };
 
 export interface RecoveryAction {
   conversationId: string;

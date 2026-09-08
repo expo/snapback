@@ -409,7 +409,7 @@ test("useMutation treats malformed successful bodies as ambiguous transport", as
     });
     assert.equal(attempts, expectedAttempt, "mutation response decoding retried the write");
     assert.strictEqual(current.last, committed);
-    assert.strictEqual(current.transport, ambiguous);
+    assert.strictEqual(current.detail.transport, ambiguous);
   }
   await act(async () => { renderer!.unmount(); });
 });

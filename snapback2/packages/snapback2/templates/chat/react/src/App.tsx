@@ -1,16 +1,16 @@
 import { useState } from "react";
 import { api } from "snapback2/client";
 import { DevOverlay, useAuth, useConnection, useQuery, useSnapbackClient, useSnapbackSnapshot } from "snapback2/react";
-import { Inbox } from "./Inbox";
+import { Inbox, type LogRow } from "./Inbox";
 import { Search } from "./Search";
 import { Thread } from "./Thread";
-import type { LogRow } from "../shared/log.js";
-import type { MessageChangeUncertainty, SendUncertainty } from "../shared/offline.js";
-import { useAccountRecoveryCustody } from "../shared/recovery";
+import { useAccountRecoveryCustody, type MessageChangeUncertainty, type SendUncertainty } from "../shared/recovery";
 
 // @ref LLP 1012#3-the-model-on-one-page-and-the-program-shape — one drained
-// delivery log is "everything on the phone"; the inbox, every thread, and
-// search read the same held rows.
+// delivery log is "everything on the phone"; the inbox and retained-history
+// fallback read the same held rows while named search stays indexed.
+// @ref LLP 1018.003#1-the-snapshot-record — screens read the snapshot axes;
+// status and reason are derived by the SDK.
 export function App() {
   const connection = useConnection();
   const auth = useAuth();
@@ -19,17 +19,16 @@ export function App() {
   const sendCustody = useAccountRecoveryCustody<SendUncertainty>(client, authGeneration);
   const changeCustody = useAccountRecoveryCustody<MessageChangeUncertainty>(client, authGeneration);
   const inbox = useQuery(api.deliveries.inbox, { c: null }, { drain: true });
-  const rows: LogRow[] = "data" in inbox && Array.isArray(inbox.data) ? inbox.data : [];
+  const rows = (inbox.data ?? []) as LogRow[];
   const [selected, setSelected] = useState<string>();
   const [note, setNote] = useState("");
-  const caughtUp = "caughtUp" in inbox && inbox.caughtUp === true;
   return (
     <main>
       <header>
         <h1>Snapback 2 chat</h1>
         <p role="status" data-connection={connection}>
           {connection === "connected" ? "Connected" : connection === "offline" ? "Offline" : "Reconnecting…"}
-          {caughtUp ? " · log downloaded" : inbox.state === "hydrating" ? " · loading" : ""}
+          {inbox.local.caughtUp ? " · log downloaded" : inbox.status === "loading" ? " · loading" : ""}
         </p>
         {note ? <p role="alert">{note}</p> : null}
       </header>

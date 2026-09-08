@@ -1314,6 +1314,16 @@ pub fn validate_schema(schema: &Schema) -> Result<(), Vec<RuntimeError>> {
     }
 
     errors.extend(
+        crate::schema::tombstone_issues(schema)
+            .into_iter()
+            .map(|issue| {
+                RuntimeError::Schema(format!(
+                    "schema.tables.{}.tombstones[{}]: {}",
+                    issue.table, issue.position, issue.message
+                ))
+            }),
+    );
+    errors.extend(
         crate::schema::maintain_issues(schema)
             .into_iter()
             .map(|issue| {

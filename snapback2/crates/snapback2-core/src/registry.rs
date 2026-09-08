@@ -1424,6 +1424,7 @@ mod tests {
                     },
                     constraints: Vec::new(),
                     retain: Default::default(),
+                    tombstones: Vec::new(),
                 },
             )]),
             ..Schema::default()
@@ -1494,6 +1495,5 @@ pub use operator::OperatorId;
 
 #[path = "registry_jobs.rs"]
 mod registry_jobs;
-
 #[path = "registry_timers.rs"]
 mod registry_timers;

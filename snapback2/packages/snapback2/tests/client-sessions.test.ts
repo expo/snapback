@@ -19,6 +19,9 @@ async function until(condition: () => Promise<boolean> | boolean, what: string, 
   }
 }
 
+const observedOutcome = (snapshot: any): string => snapshot.refusal !== undefined
+  ? "refused" : snapshot.receipt?.outcome ?? snapshot.status;
+
 class MemoryBroadcastChannel {
   static members = new Map<string, Set<MemoryBroadcastChannel>>();
   static messages: any[] = [];
@@ -75,7 +78,7 @@ test("two React queries read one client-owned snapshot and release it by refcoun
       React.createElement(React.Fragment, null, React.createElement(First), React.createElement(Second))));
     await new Promise(resolve => setTimeout(resolve, 20));
   });
-  assert.equal(first.state, "complete"); assert.equal(second.state, "complete");
+  assert.equal(first.receipt?.outcome, "complete"); assert.equal(second.receipt?.outcome, "complete");
   assert.strictEqual(first.data, second.data, "both hooks select the same client-owned value");
   assert.equal(opens, 1); assert.equal((client as any).sharedConsumers(api.messages.thread, args), 2);
   await act(async () => { renderer!.unmount(); });
@@ -390,6 +393,7 @@ test("a current local reevaluation refusal publishes while an obsolete-authority
   const queries = new ClientQueries({
     identity: () => identity,
     active: (fence: readonly [number, number]) => fence[0] === identity[0] && fence[1] === identity[1],
+    connection: () => "connected",
     open: (_ref: unknown, _args: unknown, listener: (event: any) => void) => {
       publish = listener;
       return { close: () => undefined, until: async () => { throw new Error("must use shared until"); } };
@@ -405,7 +409,7 @@ test("a current local reevaluation refusal publishes while an obsolete-authority
   const waiting = raw.until(() => false, 1_000);
   queries.refresh();
   await assert.rejects(waiting, (error: unknown) => isSnapbackRefusal(error) && error.code === "E_OFFLINE_CARRIER");
-  await until(() => observed.getSnapshot().state === "refused", "the shared local refusal snapshot");
+  await until(() => observed.getSnapshot().refusal?.code === "E_OFFLINE_CARRIER", "the shared local refusal snapshot");
   assert.equal((observed.getSnapshot() as any).refusal.code, "E_OFFLINE_CARRIER");
   raw.close(); stop();
 
@@ -416,7 +420,7 @@ test("a current local reevaluation refusal publishes while an obsolete-authority
   local = async () => { markStarted(); await delayed; throw refusal(); };
   const old = queries.observe(api.messages.search, { term: "old", c: null });
   const states: string[] = [];
-  const stopOld = old.subscribe(() => { states.push(old.getSnapshot().state); });
+  const stopOld = old.subscribe(() => { states.push(old.getSnapshot().receipt?.outcome ?? old.getSnapshot().status); });
   publish({ state: "complete", live: true, data: [], next: null, seq: 2 });
   queries.refresh();
   await started;
@@ -424,8 +428,8 @@ test("a current local reevaluation refusal publishes while an obsolete-authority
   queries.clear();
   failObsolete();
   await new Promise<void>((resolve) => setTimeout(resolve, 20));
-  assert.equal(old.getSnapshot().state, "hydrating");
-  assert.deepEqual(states.slice(-2), ["complete", "hydrating"], "obsolete local failure published no refusal");
+  assert.equal(old.getSnapshot().status, "loading");
+  assert.deepEqual(states.slice(-2), ["complete", "loading"], "obsolete local failure published no refusal");
   stopOld();
 });
 
@@ -435,6 +439,7 @@ test("a live indexed query preserves its authoritative state until its effective
   const queries = new ClientQueries({
     identity: () => [1, 1] as const,
     active: () => true,
+    connection: () => "connected",
     open: (_ref: unknown, _args: unknown, listener: (event: any) => void) => {
       publish = listener;
       return { close: () => undefined, until: async () => { throw new Error("must use shared until"); } };
@@ -453,23 +458,26 @@ test("a live indexed query preserves its authoritative state until its effective
   localData = [{ id: "predicted" }];
   queries.refresh();
   await until(() => (observed.getSnapshot() as any).data?.[0]?.id === "predicted", "the local indexed revision");
-  assert.deepEqual(observed.getSnapshot(), {
-    state: "held", live: true, data: [{ id: "predicted" }], next: null, seq: 2,
-  });
+  assert.equal(observed.getSnapshot().status, "ready");
+  assert.equal(observed.getSnapshot().reason?.code, "held");
+  assert.equal(observed.getSnapshot().freshness.live, true);
+  assert.deepEqual(observed.getSnapshot().data, [{ id: "predicted" }]);
 
   localData = [{ id: "server" }];
   queries.refresh();
-  await until(() => observed.getSnapshot().state === "complete", "settlement returns to the authoritative value");
+  await until(() => observed.getSnapshot().receipt?.outcome === "complete", "settlement returns to the authoritative value");
   stop();
 });
 
 test("new local prediction and revocation remain visible under an older held answer sequence", async () => {
   let publish!: (event: any) => void;
   let local = { state: "capped", live: false, connection: "offline", seq: 7, next: null,
-    data: { messages: [{ id: "predicted", message: { id: "message" } }], count: 3, preview: [] }, predicted: ["intent"] };
+    data: { messages: [{ id: "predicted", message: { id: "message" } }], count: 3, preview: [] },
+    predicted: [{ table: "messages", id: "message", intent: "intent" }] };
   const queries = new ClientQueries({
     identity: () => [1, 1] as const,
     active: () => true,
+    connection: () => "connected",
     open: (_ref: unknown, _args: unknown, listener: (event: any) => void) => {
       publish = listener;
       return { close: () => undefined, until: async () => { throw new Error("must use shared until"); } };
@@ -482,7 +490,7 @@ test("new local prediction and revocation remain visible under an older held ans
   publish({ state: "capped", live: true, seq: 8, next: null,
     data: { messages: [{ id: "server", message: { id: "server" } }], count: 2, preview: [] } });
   queries.refresh();
-  await until(() => (observed.getSnapshot() as any).predicted?.[0] === "intent", "older-sequence prediction");
+  await until(() => observed.getSnapshot().local.predicted[0]?.intent === "intent", "older-sequence prediction");
   assert.equal((observed.getSnapshot() as any).data.count, 3,
     "owner sequence is not a carrier revision fence for a new overlay");
 
@@ -501,6 +509,7 @@ test("a drain local refresh cannot claim caught-up before its mark finishes", as
   const queries = new ClientQueries({
     identity: () => [1, 1] as const,
     active: () => true,
+    connection: () => "connected",
     open: (_ref: unknown, _args: unknown, listener: (event: any) => void) => {
       publish = listener;
       return { close: () => undefined, until: async () => { throw new Error("must use shared until"); } };
@@ -634,14 +643,14 @@ test("observed queries are lazy and share one snapshot and source with raw subsc
   lateOptions.drain = true;
 
   assert.strictEqual(first.getSnapshot(), first.getSnapshot(), "an unused observer has one stable hydrating snapshot");
-  assert.equal(first.getSnapshot().state, "hydrating");
+  assert.equal(first.getSnapshot().status, "loading");
   assert.equal(counts.subscribes, 0, "obtaining an observer opens no transport");
   assert.equal(client.sharedConsumers(api.deliveries.thread, args), 0, "an unused observer retains no entry");
 
   const seen: string[] = [];
-  const stopFirst = first.subscribe(() => { seen.push(`first:${first.getSnapshot().state}`); });
-  const stopSecond = second.subscribe(() => { seen.push(`second:${second.getSnapshot().state}`); });
-  await until(() => first.getSnapshot().state === "complete", "the observed delivery");
+  const stopFirst = first.subscribe(() => { seen.push(`first:${observedOutcome(first.getSnapshot())}`); });
+  const stopSecond = second.subscribe(() => { seen.push(`second:${observedOutcome(second.getSnapshot())}`); });
+  await until(() => first.getSnapshot().receipt?.outcome === "complete", "the observed delivery");
   assert.strictEqual(first.getSnapshot(), second.getSnapshot(), "both observers own the same immutable snapshot");
   assert.ok((first.getSnapshot() as any).data.every((row: any) => row.conversationId === "conversation-1"),
     "late attach uses the arguments and mode captured when observe returned");
@@ -666,10 +675,10 @@ test("observed queries are lazy and share one snapshot and source with raw subsc
   assert.equal(client.sharedConsumers(api.deliveries.thread, args), 3);
 
   (subscription as typeof subscription & { reset(): void }).reset();
-  assert.equal(first.getSnapshot().state, "hydrating", "program reset synchronously forgets predecessor data");
-  assert.equal(seen.at(-2), "first:hydrating");
-  assert.equal(seen.at(-1), "second:hydrating");
-  await until(() => first.getSnapshot().state === "complete", "the successor delivery");
+  assert.equal(first.getSnapshot().status, "loading", "program reset synchronously forgets predecessor data");
+  assert.equal(seen.at(-2), "first:loading");
+  assert.equal(seen.at(-1), "second:loading");
+  await until(() => first.getSnapshot().receipt?.outcome === "complete", "the successor delivery");
   assert.equal(counts.subscribes, 2, "program reset reopens the one shared source");
 
   stopFirst();
@@ -689,11 +698,11 @@ test("closing a client retires an observed authority snapshot before later deliv
   const observed = client.observe(api.deliveries.thread, { conversationId: "conversation-1", c: null });
   const unused = client.observe(api.deliveries.thread, { conversationId: "conversation-unused", c: null });
   const states: string[] = [];
-  const stop = observed.subscribe(() => { states.push(observed.getSnapshot().state); });
-  await until(() => observed.getSnapshot().state === "complete", "the predecessor snapshot");
+  const stop = observed.subscribe(() => { states.push(observedOutcome(observed.getSnapshot())); });
+  await until(() => observed.getSnapshot().receipt?.outcome === "complete", "the predecessor snapshot");
   await client.close();
-  assert.equal(observed.getSnapshot().state, "hydrating", "retirement forgot the predecessor value");
-  assert.deepEqual(states.slice(-2), ["complete", "hydrating"]);
+  assert.equal(observed.getSnapshot().status, "loading", "retirement forgot the predecessor value");
+  assert.deepEqual(states.slice(-2), ["complete", "loading"]);
   const opened = counts.subscribes;
   const stopRetired = observed.subscribe(() => assert.fail("a retired observer notified again"));
   const stopUnused = unused.subscribe(() => assert.fail("an unused old-authority observer notified"));
@@ -721,11 +730,11 @@ test("account open and wipe retire the old headless query snapshot through the a
   await client.auth.login({ email: "alice@example.test", password: "correct horse" });
   const observed = client.observe(api.deliveries.thread, { conversationId: "conversation-1", c: null });
   const states: string[] = [];
-  const stop = observed.subscribe(() => { states.push(observed.getSnapshot().state); });
-  await until(() => observed.getSnapshot().state === "complete", "the authenticated account query");
+  const stop = observed.subscribe(() => { states.push(observedOutcome(observed.getSnapshot())); });
+  await until(() => observed.getSnapshot().receipt?.outcome === "complete", "the authenticated account query");
   await client.auth.logout();
-  assert.equal(observed.getSnapshot().state, "hydrating", "the wiped account cannot remain visible");
-  assert.deepEqual(states.slice(-2), ["complete", "hydrating"]);
+  assert.equal(observed.getSnapshot().status, "loading", "the wiped account cannot remain visible");
+  assert.deepEqual(states.slice(-2), ["complete", "loading"]);
   const staleStop = observed.subscribe(() => assert.fail("the wiped authority observer reopened"));
   staleStop(); stop();
   await client.close();
@@ -748,14 +757,18 @@ test("mounted query snapshots follow committed prediction and settlement revisio
   let firstNotifies = 0, secondNotifies = 0;
   const stopFirst = first.subscribe(() => { firstNotifies += 1; });
   const stopSecond = second.subscribe(() => { secondNotifies += 1; });
-  await until(() => first.getSnapshot().state === "complete", "the held thread");
+  await until(() => first.getSnapshot().receipt?.outcome === "complete", "the held thread");
   await new Promise<void>((resolve) => setTimeout(resolve, 20));
   assert.strictEqual(first.getSnapshot(), second.getSnapshot());
   assert.deepEqual([firstNotifies, secondNotifies], [1, 1], "the delivery's store commit does not publish a duplicate snapshot");
   const initial = (first.getSnapshot() as any).data[0].message;
+  const onlineData = first.getSnapshot().data;
+  const beforeOffline = firstNotifies;
   await client.offline();
-  await until(() => first.getSnapshot().live === false, "the mounted offline view");
+  await until(() => first.getSnapshot().freshness.connection === "offline", "the mounted offline view");
   assert.strictEqual(first.getSnapshot(), second.getSnapshot());
+  assert.strictEqual(first.getSnapshot().data, onlineData, "connection-only publication preserves shared data identity");
+  assert.equal(firstNotifies, beforeOffline + 1, "connection-only publication notifies the shared observers once");
   const intent = "local-prediction";
   const entry = {
     intent, grant: "test-grant", offset: 0, count: 1, ids: ["predicted-id"],
@@ -768,7 +781,7 @@ test("mounted query snapshots follow committed prediction and settlement revisio
   await physical.commit({ outbox: { put: [entry] }, overlay: { put: { [intent]: [{
     table: "messages", id: initial.id, row: { ...initial, body: "Predicted edit" }, fields: ["body"],
   }] } } });
-  await until(() => (first.getSnapshot() as any).predicted?.[0] === intent, "the shared local prediction");
+  await until(() => first.getSnapshot().local.predicted.some((row) => row.intent === intent), "the shared local prediction");
   assert.equal((first.getSnapshot() as any).data[0].message.body, "Predicted edit");
   assert.equal((await rawPrediction as any).data[0].message.body, "Predicted edit",
     "imperative until observes the same committed local prediction");
@@ -784,7 +797,7 @@ test("mounted query snapshots follow committed prediction and settlement revisio
 
   await physical.commit({ outbox: { put: [{ ...entry, state: "rejected", predicted: false, updatedAt: 11 }] } });
   await until(() => (first.getSnapshot() as any).data?.[0]?.message?.body === "Welcome", "prediction settlement rollback");
-  assert.equal((first.getSnapshot() as any).predicted, undefined);
+  assert.deepEqual(first.getSnapshot().local.predicted, []);
   assert.strictEqual(first.getSnapshot(), second.getSnapshot(), "settlement is one coherent shared snapshot");
   assert.equal(firstNotifies, beforeBookkeeping + 1);
   assert.equal(secondNotifies, firstNotifies);

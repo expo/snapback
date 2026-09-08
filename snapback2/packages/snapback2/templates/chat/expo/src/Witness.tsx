@@ -5,8 +5,20 @@ import { api, SnapbackRefusal, type AssetRecord, type ImageAsset, type RangeStor
 import { createExpoClient, expoSqliteStore, expoSqliteDriver, SnapbackProvider } from "snapback2/expo";
 import { MediaView, type Media } from "./MediaView";
 import { witnessControl, runSqliteDriverConformance, type WitnessHooks } from "snapback2/expo/witness";
-import { chatOffline } from "../shared/offline.js";
-import { threadBubbles } from "../shared/log.js";
+// @ref LLP 1018.003#4-pending-rows-attribution-settlement-and-failure — the witness reports the
+// same projection the thread screen renders: live message events keyed by pinned id, plus the
+// intents the twin could not place, so the driver's bubble assertions bind to product behavior.
+type LogRow = { kind?: string; messageId: string; conversationId: string; message?: { body?: string | null } | null };
+type Entry = { op: string; state: string; ids: string[]; intent: string; args: unknown };
+function bubbles(rows: LogRow[], entries: Entry[], conversationId: string) {
+  const live = rows.filter((row) => row.kind === "message" && row.message);
+  const placed = live.map((row) => ({ key: row.messageId,
+    kind: entries.some((entry) => entry.op === "deliveries.post" && entry.state === "queued" && entry.ids[0] === row.messageId) ? "pending" : "row" }));
+  const unplaced = entries.filter((entry) => entry.op === "deliveries.post"
+    && (entry.args as { conversationId?: string }).conversationId === conversationId && !live.some((row) => row.messageId === entry.ids[0]))
+    .map((entry) => ({ key: entry.ids[0] ?? entry.intent, kind: "pending" }));
+  return [...placed, ...unplaced];
+}
 import { configuration, persist, databaseState, markerSwap, listFiles, DATABASE } from "./witness-state";
 import { Chat } from "./Chat";
 
@@ -37,7 +49,7 @@ export default function Witness({ url, controlUrl }: { url: string; controlUrl: 
         rewrite: "send fault(none), then construct", guide: "offline",
       }); };
       live = createExpoClient({ url, as: config.name, startOffline: config.offline,
-        offline: { ...chatOffline, store: () => store! } });
+        offline: { store: () => store! } });
       try { await live.ready; setClient(live); setError(undefined); return live; }
       catch (error) { setError(String(error)); throw error; }
     };
@@ -67,8 +79,7 @@ export default function Witness({ url, controlUrl }: { url: string; controlUrl: 
           first.close();
           const one = client.sharedConsumers(api.deliveries.conversationView, queryArgs);
           subscriptions.push(second);
-          // Retain the existing paginated read's independent receipt for the
-          // partial-history fallback; it is not a field of the composite.
+          // Retain the paginated read's independent receipt for partial-history fallback.
           await client.query(api.deliveries.thread, { conversationId: selected, c: null });
           // Media mutations predate the delivery recipe; drain this named read to
           // hold their row leases too (messages.sendPhoto has no delivery fanout).
@@ -138,7 +149,7 @@ export default function Witness({ url, controlUrl }: { url: string; controlUrl: 
             ["ascii", diagnosticTerms[0]], ["precomposed", diagnosticTerms[1]],
           ].map(async ([name, term]) => [name, await client.query(api.messages.search, { term, c: null })]))) : undefined;
           return { snapshot: client.snapshot, coverage: await store.coverage(), outbox: entries,
-            bubbles: typeof args.conversationId === "string" ? threadBubbles(rows, entries, args.conversationId) : [],
+            bubbles: typeof args.conversationId === "string" ? bubbles(rows as LogRow[], entries as Entry[], args.conversationId) : [],
             search, searchVariants, searchProbe: args.searchDiagnostics === true
               ? witnessSearchProbe(client, [...diagnosticTerms, String(args.search)]) : undefined,
             answer, conversationView, twin: twinLastDecline(), stores: await databaseState(), files: listFiles(),

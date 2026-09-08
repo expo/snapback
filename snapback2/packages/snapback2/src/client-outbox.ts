@@ -117,23 +117,51 @@ export async function submitMutation<Result>(options: SubmitMutationOptions): Pr
     if (stopped) return queued(await enqueue());
   }
   const entry = await enqueue();
-  let stopped: boolean;
+  const slot = openTerminal(runtime, entry.intent);
   try {
-    ({ stopped } = await options.drain());
-  } catch (error) {
-    // A refusal that stopped the replay belongs to the intent that drew it;
-    // this one is durable and reports through its entry.
-    // Session expiry sealed the store; preserve its refusal instead of reading through that seal.
-    if (isSnapbackRefusal(error) && isTerminalSession(error.envelope)) throw error;
-    const own = await runtime.store.outbox.get(entry.intent);
-    if (own && own.state !== "queued") return settledResult<Result>(own, runtime);
-    throw error;
+    let stopped: boolean;
+    try {
+      ({ stopped } = await options.drain());
+    } catch (error) {
+      // A refusal that stopped the replay belongs to the intent that drew it;
+      // this one is durable and reports through its entry.
+      // Session expiry sealed the store; preserve its refusal instead of reading through that seal.
+      if (isSnapbackRefusal(error) && isTerminalSession(error.envelope)) throw error;
+      const own = (await runtime.store.outbox.get(entry.intent)) ?? slot.entry;
+      if (own && own.state !== "queued") return settledResult<Result>(own, runtime);
+      throw error;
+    }
+    const settled = (await runtime.store.outbox.get(entry.intent)) ?? slot.entry;
+    // A transport failure mid-drain leaves the intent queued: the retry is the same envelope.
+    if (!settled || settled.state === "queued") return queued(entry);
+    void stopped;
+    return settledResult<Result>(settled, runtime);
+  } finally {
+    closeTerminal(runtime, entry.intent);
   }
-  const settled = await runtime.store.outbox.get(entry.intent);
-  // A transport failure mid-drain leaves the intent queued: the retry is the same envelope.
-  if (!settled || settled.state === "queued") return queued(entry);
-  void stopped;
-  return settledResult<Result>(settled, runtime);
+}
+
+// @ref LLP 1018.003#4-pending-rows-attribution-settlement-and-failure — a mounted hook
+// retires a committed entry the moment its row arrives, which can be before the
+// call that issued the write reads the entry back; the drain records each terminal
+// outcome so that call answers from it rather than mistaking absence for "still queued".
+// Only a call that is waiting on its own intent holds a slot, and it closes the
+// slot on every exit, so the record is bounded by in-flight calls and cannot
+// outlive a partition, reset, or principal change.
+const terminalWaiters = new WeakMap<OfflineRuntime, Map<string, { entry?: OutboxEntry }>>();
+function openTerminal(runtime: OfflineRuntime, intent: string): { entry?: OutboxEntry } {
+  let waiters = terminalWaiters.get(runtime);
+  if (!waiters) terminalWaiters.set(runtime, (waiters = new Map()));
+  const slot: { entry?: OutboxEntry } = {};
+  waiters.set(intent, slot);
+  return slot;
+}
+function closeTerminal(runtime: OfflineRuntime, intent: string): void {
+  terminalWaiters.get(runtime)?.delete(intent);
+}
+function recordTerminal(runtime: OfflineRuntime, entry: OutboxEntry): void {
+  const slot = terminalWaiters.get(runtime)?.get(entry.intent);
+  if (slot) slot.entry = entry;
 }
 
 /** An online write that settled in its own call: the terminal answer, with the entry retired from the queue. */
@@ -254,6 +282,7 @@ async function settle(
     const superseded = await options.runtime.commitMany(tail ? [tail] : [], undefined, { put: [settled] }, revision,
       () => !options.signal?.aborted);
     throwIfAborted(options.signal);
+    if (!superseded) recordTerminal(options.runtime, settled);
     return !superseded && revision === options.runtime.coverageRevision;
   } catch (error) {
     throw options.failure(error);

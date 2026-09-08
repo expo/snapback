@@ -7,9 +7,10 @@ query inbox(c: cursor ?):
   page = deliveries[viewer] after c first 50 by byRecipientAt
   return page { *, message: messages[.messageId] }
 
+-- @ref LLP 1018.003#5-the-certified-thread-projection — one event per live message: a deleted or evicted body is a null nested read the screen drops.
 query thread(conversationId: conversations, c: cursor ?):
   require isMember(conversationId, viewer) else MEMBERSHIP_REQUIRED
-  page = deliveries[viewer, conversationId] after c last 50 by byRecipientConversationAt
+  page = deliveries[viewer, conversationId, 'message'] after c last 50 by byRecipientConversationKindAt
   return page { *, message: messages[.messageId] }
 
 query conversationView(conversationId: conversations):

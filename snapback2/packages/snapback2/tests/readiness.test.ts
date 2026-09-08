@@ -43,7 +43,7 @@ async function mounted() {
     client = useSnapbackClient();
     mutation = useMutation((api as any).deliveries[op]);
     outbox = useOutbox();
-    rendered.push({ op, ready: mutation.ready });
+    rendered.push({ op, ready: mutation.can.send });
     return null;
   }
   const view = (op: string) => React.createElement(SnapbackProvider,
@@ -61,13 +61,13 @@ test("bound adoption alone updates useMutation.ready without an entries change",
   try {
     const ledger = f.client.offlineRuntime.outbox;
     await act(async () => { await ledger.recordBounds({}); await ledger.adopt(grant()); await pause(); });
-    assert.equal(f.outbox.ready, true);
-    assert.equal(f.mutation.ready, false);
+    assert.equal(f.outbox.can.send, true);
+    assert.equal(f.mutation.can.send, false);
     await act(async () => { await ledger.recordBounds({ "deliveries.post": 51 }); await pause(); });
-    assert.equal(f.mutation.ready, true);
+    assert.equal(f.mutation.can.send, true);
     assert.deepEqual(f.outbox.entries, []);
     await act(async () => { await ledger.recordBounds({ "deliveries.post": 100 }); await pause(); });
-    assert.equal(f.mutation.ready, false, "a larger bound no longer fits the same grant");
+    assert.equal(f.mutation.can.send, false, "a larger bound no longer fits the same grant");
   } finally { await f.close(); }
 });
 
@@ -76,7 +76,7 @@ test("operation change mid-probe hides old readiness and ignores superseded comp
   try {
     const ledger = f.client.offlineRuntime.outbox;
     await act(async () => { await ledger.adopt(grant()); await pause(); });
-    assert.equal(f.mutation.ready, true);
+    assert.equal(f.mutation.can.send, true);
     const probes: Array<(ready: boolean) => void> = [];
     const original = f.client.outbox.status;
     f.client.outbox.status = (op: unknown) => op === undefined ? original() : new Promise<boolean>(resolve => probes.push(resolve))
@@ -89,11 +89,11 @@ test("operation change mid-probe hides old readiness and ignores superseded comp
     assert.equal(probes.length, 2);
     assert.ok(f.rendered.filter(x => x.op === "unbound").every(x => !x.ready), "no frame exposes the old operation's true value");
     await act(async () => { probes[1](false); await Promise.resolve(); probes[0](true); await Promise.resolve(); });
-    assert.equal(f.mutation.ready, false);
+    assert.equal(f.mutation.can.send, false);
     await act(async () => { ledger.notify(); await pause(); ledger.notify(); await pause(); });
     assert.equal(probes.length, 4);
     await act(async () => { probes[3](false); await Promise.resolve(); probes[2](true); await Promise.resolve(); });
-    assert.equal(f.mutation.ready, false);
+    assert.equal(f.mutation.can.send, false);
   } finally { await f.close(); }
 });
 
@@ -106,9 +106,9 @@ for (const boundary of ["fence", "expiresAt"]) {
       const held = grant(boundary === "fence" ? now - 7 * DAY + 10 : now);
       if (boundary === "expiresAt") held.expiresAt = now + 11;
       await act(async () => { await f.client.offlineRuntime.outbox.adopt(held); });
-      assert.equal(f.outbox.ready, true);
-      assert.equal(f.outbox.fence, "inside");
-      assert.equal(f.mutation.ready, true);
+      assert.equal(f.outbox.can.send, true);
+      assert.equal(f.outbox.detail.status.fence, "inside");
+      assert.equal(f.mutation.can.send, true);
       await act(async () => { t.mock.timers.tick(11); });
       if (boundary === "fence") {
         // Merged with lane F (LLP 1012 revision (i)): the fence bounds trust —
@@ -116,13 +116,13 @@ for (const boundary of ["fence", "expiresAt"]) {
         // the hook's `fence` reports the crossing; only expiry unreadies a write.
         assert.equal(await f.client.outbox.ready(), true);
         assert.equal(await f.client.outbox.fence(), "past");
-        assert.equal(f.outbox.ready, true);
-        assert.equal(f.outbox.fence, "past");
-        assert.equal(f.mutation.ready, true);
+        assert.equal(f.outbox.can.send, true);
+        assert.equal(f.outbox.detail.status.fence, "past");
+        assert.equal(f.mutation.can.send, true);
       } else {
         assert.equal(await f.client.outbox.ready(), false);
-        assert.equal(f.outbox.ready, false);
-        assert.equal(f.mutation.ready, false);
+        assert.equal(f.outbox.can.send, false);
+        assert.equal(f.mutation.can.send, false);
       }
       assert.deepEqual(f.outbox.entries, []);
     } finally { t.mock.timers.reset(); await f.close(); }

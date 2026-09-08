@@ -47,6 +47,8 @@ interface EntrySpec<Event, Snapshot> {
   /** Isolate the event once before reduction, replay, callbacks, or waiters see it. */
   publication?(event: Event): Event;
   reduce(current: Snapshot, event: Event): Snapshot;
+  /** Reproject client-level facts without fabricating a query delivery. */
+  reproject?(current: Snapshot): Snapshot;
   open(fanout: (event: Event) => void): Subscription<Event>;
   /** Reevaluate this query after a committed local input revision. */
   refresh?(current: Snapshot, authoritative?: Event): Promise<Event | undefined>;
@@ -294,6 +296,18 @@ export class SharedSubscriptions {
       entry.epoch += 1;
       entry.refreshPending = true;
       this.scheduleRefresh(key, entry, entry.spec);
+    }
+  }
+
+  /** Reproject active snapshots after a client-level status fact changes. */
+  reproject(): void {
+    for (const entry of this.entries.values()) {
+      const next = entry.spec.reproject?.(entry.snapshot);
+      if (next === undefined || next === entry.snapshot) continue;
+      entry.snapshot = next;
+      for (const each of [...entry.observations]) {
+        try { each.notify(); } catch { /* a snapshot observer cannot starve its peers */ }
+      }
     }
   }
 

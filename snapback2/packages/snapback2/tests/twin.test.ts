@@ -568,7 +568,7 @@ test("an offline send is predicted into the thread in order with its trace, a de
     const local: any = await client.query((api as any)["named-thread"], threadArgs);
     assert.equal(local.state, "capped");
     assert.deepEqual(threadIds(local), [sent.ids[0], "message-00004", "message-00003"], "the queued send is inside the thread, in order");
-    assert.deepEqual(local.predicted, [entry!.intent]);
+    assert.deepEqual(local.predicted, [{ table: "messages", id: entry!.ids[0], intent: entry!.intent }]);
     assert.equal(local.data[0].message.body, "hello");
     // A delete is predicted out of the thread.
     const removed = await client.mutation((api as any)["named-delete-message"], { id: "message-00004" });
@@ -1244,7 +1244,7 @@ for (const carrier of ["file", "SQLite", "IndexedDB"] as const) {
       const runtime = client.offlineRuntime;
       const entry = (await client.outbox.entries())[0];
       assert.equal(entry.predicted, true);
-      assert.deepEqual((await client.query((api as any)["named-thread"], threadArgs)).predicted, [entry.intent]);
+      assert.deepEqual((await client.query((api as any)["named-thread"], threadArgs)).predicted, [{ table: "messages", id: entry.ids[0], intent: entry.intent }]);
       const schema = structuredClone(m.schema);
       schema.tables.messages.columns.body = "Int";
       const schemaHash = schemaDigest(schema);

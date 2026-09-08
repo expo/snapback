@@ -40,7 +40,7 @@ before(async () => {
         'export { Composer } from "./Composer";',
         'export { Thread } from "./Thread";',
         'export { useAccountRecoveryCustody } from "../shared/recovery";',
-        'export { usableConversationView, authorizedHistoryRows } from "../shared/offline.js";',
+        'export { usableConversationView, authorizedHistoryRows } from "./Thread";',
       ].join("\n"),
       resolveDir: resolve(packageRoot, "templates/chat/react/src"),
       sourcefile: "screens.tsx",

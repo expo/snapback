@@ -99,7 +99,7 @@ test("a real indexed observation stays authoritative across persistent local ref
     const observed = client.observe(api.messages.search, args);
     stop = observed.subscribe(() => {
       const value: any = observed.getSnapshot();
-      snapshots.push({ state: value.state, live: value.live, seq: value.seq,
+      snapshots.push({ state: value.receipt?.outcome ?? value.status, live: value.freshness.live, seq: value.receipt?.seq,
         rows: Array.isArray(value.data) ? value.data.map((row: any) => row.body) : undefined });
     });
     raw = client.subscribe(api.messages.search, args, (value: any) => {
@@ -115,8 +115,8 @@ test("a real indexed observation stays authoritative across persistent local ref
     await client.query(api.messages.thread, { conversationId: "conversation-1", c: null });
     await new Promise<void>((resolve) => setTimeout(resolve, 100));
     const current: any = observed.getSnapshot();
-    assert.ok(current.state === "complete" || current.state === "capped", JSON.stringify(current));
-    assert.equal(current.live, true);
+    assert.ok(current.receipt?.outcome === "complete" || current.receipt?.outcome === "capped", JSON.stringify(current));
+    assert.equal(current.freshness.live, true);
     assert.ok(current.data.some((row: any) => row.body === "Welcome"));
     const authoritative = rawEvents.findIndex((value) => value.live === true
       && (value.state === "complete" || value.state === "capped"));
@@ -368,4 +368,3 @@ test("sixty live queries and a channel share one connection through add, remove 
     throw error;
   } finally { for (const sub of subscriptions) sub.close(); await client.close(); }
 });
-

@@ -655,17 +655,17 @@ test("useOutbox exposes fence inside and past while ready stays true, then updat
       }, React.createElement(Harness)));
     });
     await act(async () => { await client.ready; await client.offline(); });
-    assert.equal(outbox.ready, true);
-    assert.equal(outbox.fence, "inside");
+    assert.equal(outbox.can.send, true);
+    assert.equal(outbox.detail.status.fence, "inside");
     Date.now = () => originalNow() + 3 * DAY;
     await act(async () => { await client.mutation(api.deliveries.post as any, post("past")); });
-    assert.equal(outbox.ready, true, "fence does not disable accepting a write");
-    assert.equal(outbox.fence, "past");
+    assert.equal(outbox.can.send, true, "fence does not disable accepting a write");
+    assert.equal(outbox.detail.status.fence, "past");
     assert.equal(outbox.entries[0].reason, "fence");
     assert.equal(outbox.entries[0].predicted, false);
     await act(async () => { await client.online(); });
-    assert.equal(outbox.ready, true);
-    assert.equal(outbox.fence, "inside");
+    assert.equal(outbox.can.send, true);
+    assert.equal(outbox.detail.status.fence, "inside");
     assert.equal(outbox.entries[0].state, "committed");
   } finally {
     await act(async () => { renderer?.unmount(); await client?.close(); });
@@ -745,7 +745,7 @@ test("a grant arriving without an outbox entry change flips useOutbox().ready", 
   function Harness() {
     client = useSnapbackClient();
     outbox = useOutbox();
-    observed.push([outbox.ready, outbox.entries.length]);
+    observed.push([outbox.can.send, outbox.entries.length]);
     return null;
   }
   let renderer: TestRenderer.ReactTestRenderer;
@@ -757,14 +757,14 @@ test("a grant arriving without an outbox entry change flips useOutbox().ready", 
     ));
   });
   await act(async () => { await client.ready; await new Promise((resolve) => setTimeout(resolve, 10)); });
-  assert.deepEqual([outbox.ready, outbox.entries.length], [false, 0], "no grant means not ready");
+  assert.deepEqual([outbox.can.send, outbox.entries.length], [false, 0], "no grant means not ready");
   let drain: any;
   await act(async () => {
     drain = client.subscribe(api.deliveries.inbox as any, { c: null }, () => undefined, { drain: true });
     await drain.until((value: any) => value.state === "complete" && value.caughtUp === true, 2_000);
     await new Promise((resolve) => setTimeout(resolve, 10));
   });
-  assert.deepEqual([outbox.ready, outbox.entries.length], [true, 0], "the grant notification changed readiness without adding an entry");
+  assert.deepEqual([outbox.can.send, outbox.entries.length], [true, 0], "the grant notification changed readiness without adding an entry");
   assert.ok(observed.some(([ready, entries]) => ready && entries === 0), "React never observed the grant-only readiness change");
   drain.close();
   await act(async () => { renderer!.unmount(); });
@@ -1000,6 +1000,35 @@ test("online writes carry the replay envelope under custody; a transport failure
   // Every write under custody entered the ledger, in order.
   assert.deepEqual(owner.executions.map((item) => (item.args as any).body), ["plain", "after failure", "behind"]);
   assert.deepEqual((await client.outbox.entries()).map((entry) => [entry.state, (entry.args as any).body]), [["committed", "after failure"]]);
+  client.close();
+  await rm(root, { recursive: true, force: true });
+});
+
+// @ref LLP 1018.003#4-pending-rows-attribution-settlement-and-failure — a mounted hook
+// retires a committed entry as soon as its row arrives, which can land before the
+// call that issued the write reads the entry back; that call answers from the
+// drain's recorded terminal outcome and never mistakes the retired entry for a
+// queued one.
+test("an online write settles in its own call even when a subscriber retires the committed entry the moment it settles", async () => {
+  const root = await tempRoot();
+  const owner = fakeOwner();
+  await seededStore(fileRangeStore(root));
+  const client = createClient({ url: "http://retire.test", as: "alice", fetch: owner.fetch, offline: { store: fileRangeStore(root) } });
+  await client.ready;
+  const retired: string[] = [];
+  const unsubscribe = client.outbox.subscribe((entries) => {
+    for (const entry of entries) {
+      if (entry.state !== "committed" || retired.includes(entry.intent)) continue;
+      retired.push(entry.intent);
+      void client.outbox.dismiss(entry.intent);
+    }
+  });
+  const result = await client.mutation(api.deliveries.post as any, post("racing the hook"));
+  assert.equal(result.state, "committed", "the settling call answers committed, not queued, after the subscriber retired its entry");
+  assert.equal(owner.executions.length, 1, "exactly one execution");
+  assert.ok(retired.length >= 1, "the subscriber retired the committed entry");
+  assert.deepEqual(await client.outbox.entries(), []);
+  unsubscribe();
   client.close();
   await rm(root, { recursive: true, force: true });
 });

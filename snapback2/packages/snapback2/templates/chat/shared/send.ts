@@ -2,28 +2,27 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   api,
   isSnapbackRefusal,
-  type ConnectionState,
   type MutationResult,
-  type OutboxStatus,
   type SnapbackClient,
 } from "snapback2/client";
-import { sendingStatus, type SendUncertainty } from "./offline.js";
-import { useAccountRecoveryCustody, type RecoveryCustody } from "./recovery";
+import { useAccountRecoveryCustody, type RecoveryCustody, type SendUncertainty } from "./recovery";
 
 type SendArgs = { conversationId: string; body: string };
 type PostMutation = {
   run(args: SendArgs): Promise<MutationResult<unknown>>;
-  readonly ready: boolean;
   readonly inFlight: boolean;
   readonly pending: readonly unknown[];
-  readonly status: OutboxStatus;
+  readonly can: {
+    readonly send: boolean;
+    readonly action?: string;
+    readonly reason?: { readonly code: string; readonly message: string };
+  };
 };
 
 export function useSendController({
   conversationId,
   client,
   generation,
-  connection,
   post,
   custody: ownedCustody,
   onNote,
@@ -31,7 +30,6 @@ export function useSendController({
   conversationId: string;
   client: SnapbackClient;
   generation: number;
-  connection: ConnectionState;
   post: PostMutation;
   custody?: RecoveryCustody<SendUncertainty>;
   onNote(note: string): void;
@@ -65,7 +63,11 @@ export function useSendController({
   const sameAccount = (captured: typeof visit) => captured.client.snapshot.authGeneration === captured.generation;
   const uncertainty = custody.unknown;
   const busy = custody.active !== undefined;
-  const status = sendingStatus(post.status, connection, post.pending.length);
+  const status = post.can.reason ? {
+    reason: post.can.reason.code,
+    message: post.can.reason.message,
+    canSync: post.can.action === "connect",
+  } : undefined;
 
   const sync = async () => {
     if (syncToken.current) return;
@@ -87,7 +89,7 @@ export function useSendController({
 
   const send = async () => {
     const text = body.trim();
-    if (!text || !post.ready || post.inFlight || busy || uncertainty) return;
+    if (!text || !post.can.send || post.inFlight || busy || uncertainty) return;
     const captured = visit;
     const draft = body;
     const args = { conversationId, body: text };
@@ -105,7 +107,7 @@ export function useSendController({
       custody.finish(token);
       if (!current(captured)) return;
       if (result.state !== "rejected") setBody((currentBody) => currentBody === draft ? "" : currentBody);
-      if (result.state === "queued") note.current(post.status.fence === "past" ? "Queued until the next sync." : "Queued; use Sync now to retry delivery.");
+      if (result.state === "queued") note.current(post.can.reason?.code === "fence" ? "Queued until the next sync." : "Queued; use Sync now to retry delivery.");
       else if (result.state === "rejected") note.current(`Not sent: ${result.rewrite ?? result.message}`);
       else note.current("");
     } catch (error) {

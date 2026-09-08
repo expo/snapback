@@ -4,6 +4,13 @@ import { collectRefs, rowKey } from "./row-values.js";
 import type { OverlayRow, PersistedRangeState, StoreSwap, StoredAnswer, WatermarkRecord } from "./range-store.js";
 import { canonical } from "./canonical.js";
 
+// @ref LLP 1018.003#4-pending-rows-attribution-settlement-and-failure — record arrival after outbox puts, so settlement and its tail count together.
+export function markDeliveredArrivals(state: PersistedRangeState, deliveredIds: Set<string>): void {
+  if (deliveredIds.size === 0) return;
+  for (const entry of Object.values(state.outbox))
+    if (entry.state === "committed" && entry.arrived !== true && entry.ids.some(id => deliveredIds.has(id))) entry.arrived = true;
+}
+
 export interface OverlayWatermark extends Pick<WatermarkRecord, "op" | "args" | "watermark"> {
   cursorArg: string;
   /** Last proven progress, and positions already consumed, survive a remount/reopen. */
@@ -158,8 +165,7 @@ export function retireOverlays(
     for (const row of state.overlay[intent]!) {
       const key = rowKey(row), evidence = authoritativeEvidence.get(key);
       const previous = state.overlayNegatives[intent]?.[key];
-      if (evidence !== undefined && (evidence.seq > (previous?.seq ?? -1)
-        || (evidence.seq === previous?.seq && evidence.source === "tombstone"))) {
+      if (evidence !== undefined) {
         const basis = previous?.basis ?? (previous?.admitted ? "absence" : undefined);
         const admittedSeq = previous?.admittedSeq ?? previous?.seq;
         const negativeContradicts = admittedSeq !== undefined && evidence.negative !== undefined && (basis === "absence"
@@ -171,11 +177,17 @@ export function retireOverlays(
           : basis === "row" && evidence.source !== "row" && evidence.seq >= admittedSeq);
         const contradictionSeq = Math.max(negativeContradicts ? (evidence.negative?.seq ?? -1) : -1,
           latestContradicts ? evidence.seq : -1);
-        (state.overlayNegatives[intent] ??= {})[key] = {
-          ...evidence, ...(previous?.admitted ? { admitted: true, basis, admittedSeq,
-            ...((previous.contradictedAt !== undefined || contradictionSeq >= 0)
-              ? { contradictedAt: Math.max(previous.contradictedAt ?? -1, contradictionSeq) } : {}) } : {}),
-        };
+        const advances = evidence.seq > (previous?.seq ?? -1)
+          || (evidence.seq === previous?.seq && evidence.source === "tombstone");
+        const contradictionAdvances = previous?.admitted && contradictionSeq > (previous.contradictedAt ?? -1);
+        if (advances || contradictionAdvances) {
+          const latest = advances ? evidence : previous!;
+          (state.overlayNegatives[intent] ??= {})[key] = {
+            seq: latest.seq, source: latest.source, ...(previous?.admitted ? { admitted: true, basis, admittedSeq,
+              ...((previous.contradictedAt !== undefined || contradictionSeq >= 0)
+                ? { contradictedAt: Math.max(previous.contradictedAt ?? -1, contradictionSeq) } : {}) } : {}),
+          };
+        }
       }
     }
     if (entry.state !== "committed") continue;
@@ -238,6 +250,7 @@ export function retireOverlays(
       continue;
     }
     if (!arrived && misses < OVERLAY_PATIENCE) { if (misses > 0) state.overlayMisses[intent] = misses; continue; }
+    if (arrived) entry.arrived = true;
     delete state.overlay[intent]; delete state.overlayMisses[intent]; delete state.overlayWatermarks[intent];
     delete state.overlayNegatives[intent]; delete entry.predicted;
   }

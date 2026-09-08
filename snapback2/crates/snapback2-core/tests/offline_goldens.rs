@@ -24,6 +24,7 @@ fn schema() -> Schema {
             "messages".to_owned(),
             Table {
                 retain: Default::default(),
+                tombstones: Vec::new(),
                 columns: BTreeMap::from([
                     ("at".to_owned(), ColumnType::Time),
                     ("body".to_owned(), ColumnType::Text { max: 256 }),
@@ -521,6 +522,7 @@ fn oracle_schema() -> Schema {
         },
         constraints: Vec::new(),
         retain: Default::default(),
+        tombstones: Vec::new(),
     };
     let secrets = Table {
         columns: BTreeMap::from([
@@ -566,6 +568,7 @@ fn oracle_schema() -> Schema {
         },
         constraints: Vec::new(),
         retain: Default::default(),
+        tombstones: Vec::new(),
     };
     let grants = Table {
         columns: BTreeMap::from([("id".to_owned(), ColumnType::Id)]),
@@ -582,6 +585,7 @@ fn oracle_schema() -> Schema {
         rules: allow_rules(),
         constraints: Vec::new(),
         retain: Default::default(),
+        tombstones: Vec::new(),
     };
     Schema {
         tables: BTreeMap::from([
@@ -835,6 +839,7 @@ fn hidden_candidate_memo_rollback_preserves_envelope_receipt_replay() {
                     },
                     constraints: Vec::new(),
                     retain: Default::default(),
+                    tombstones: Vec::new(),
                 },
             ),
             (
@@ -848,6 +853,7 @@ fn hidden_candidate_memo_rollback_preserves_envelope_receipt_replay() {
                     },
                     constraints: Vec::new(),
                     retain: Default::default(),
+                    tombstones: Vec::new(),
                 },
             ),
         ]),
@@ -1030,6 +1036,7 @@ fn engine_result_provenance_distinguishes_identical_rows_from_two_tables() {
         rules: allow_rules(),
         constraints: Vec::new(),
         retain: Default::default(),
+        tombstones: Vec::new(),
     };
     let schema = Schema {
         tables: BTreeMap::from([
@@ -1158,6 +1165,7 @@ fn all_types_schema() -> Schema {
                 rules: allow_rules(),
                 constraints: Vec::new(),
                 retain: Default::default(),
+                tombstones: Vec::new(),
             },
         )]),
         ..Schema::default()

@@ -670,6 +670,7 @@ fn cursor_schema() -> Schema {
                 },
                 constraints: vec![],
                 retain: Default::default(),
+                tombstones: Vec::new(),
             },
         )]),
         ..Schema::default()

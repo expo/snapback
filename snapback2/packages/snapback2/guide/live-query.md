@@ -19,15 +19,17 @@ Subscribe through `client.subscribe(api.messages.thread, args, listener)`.
 Each SSE data frame is a query response or refusal. Connection `live`/`stale`
 facts belong to the client and never replace `complete`/`capped`/`denied`.
 
-`client.observe` lazily shares one immutable snapshot with raw and React.
-Effective local commits (prediction, settlement, coverage, authority) reevaluate
-once; bookkeeping stays silent. Resets publish `hydrating`; `{live:false}` never
-follows revisions.
+`client.observe` shares one immutable snapshot with headless and React.
+`useQuery` returns it: `data`; certified `receipt` (`outcome`, `source`, `seq`,
+`next`); `freshness`; local prediction/retention/catch-up facts; and refusal.
+`status` (`loading`, `ready`, `unavailable`) and `reason` are derived. Effective
+local commits reevaluate once; bookkeeping stays silent. Resets load; transport
+state does not replace the certified outcome.
 
 When a screen needs a list, count, and preview coherently, return all three from
-one named query and mount that same ref and arguments in each consumer. A
-partial composite stays one partial value. If separate held history is useful as
-a fallback, hide its count and preview until the composite is usable.
+one named query and mount that ref/arguments in each consumer. Chat's
+`deliveries.conversationView` does this. A partial composite stays partial;
+fallback held history must hide count/preview until it is usable.
 
 One SSE connection carries up to 256 query/channel subscriptions per client,
 including HTTP/1.1. Adding/closing one leaves peers active. Unmount unused

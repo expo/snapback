@@ -506,6 +506,39 @@ test('primary absence admission survives answer custody changes but not later ro
     assert.equal(saved.overlayNegatives[intent]?.['events\0one']?.contradictedAt,5);
     await runtime.close();
   }
+  for (const issuedSeq of [0,10]) for (const style of ['field','full'] as const) for (const revocation of ['absence','tombstone'] as const) {
+    let saved: any;
+    const factory = () => new PersistentRangeStore({carrier:'memory',open:async()=>saved,replace:async state=>{saved=structuredClone(state);},close(){},wipe:async()=>{}});
+    let runtime = new OfflineRuntime({store:factory});
+    await runtime.open(movement.first.authority.principal,true); await runtime.program(movement.packet);
+    const initialAbsence = structuredClone(movement.hole); initialAbsence.receipt.absences = [['events','byId',['one']]];
+    await runtime.commit('clock.bounded',{},await runtime.accept('clock.bounded',{},initialAbsence));
+    const base = structuredClone(movement.moved); base.seq = 3; base.readTime += 1;
+    await runtime.commit('clock.read',{},await runtime.accept('clock.read',{},base));
+    const intent = `delayed-${style}-${revocation}-${issuedSeq}`;
+    await runtime.store.commit({outbox:{put:[{...entry(intent),predicted:true,issuedSeq}]},overlay:{put:{[intent]:[{
+      table:'events',id:'one',row:{id:'one',at:9},...(style === 'field' ? {fields:['at']} : {}),
+    }]}}});
+    const positive = structuredClone(movement.moved); positive.seq = 6; positive.readTime += 4;
+    await runtime.commit('clock.read',{},await runtime.accept('clock.read',{},positive));
+    if (revocation === 'tombstone') await runtime.store.commit({tombstones:[{table:'events',id:'one',seq:5}]});
+    else {
+      const delayedAbsence = structuredClone(movement.hole); delayedAbsence.seq = 5; delayedAbsence.readTime += 3;
+      delayedAbsence.receipt.absences = [['events','byId',['one']]];
+      await runtime.commit('clock.bounded',{},await runtime.accept('clock.bounded',{},delayedAbsence));
+    }
+    const rows = async () => (await runtime.twin.evaluate('clock.read',{}) as any)?.data?.rows ?? [];
+    assert.equal(saved.overlayNegatives[intent]?.['events\0one']?.seq,6,
+      `a delayed ${revocation} does not replace the newer accepted positive`);
+    assert.equal(saved.overlayNegatives[intent]?.['events\0one']?.contradictedAt,5,
+      `a delayed ${revocation} still revokes the admitted ${style} update`);
+    assert.deepEqual((await rows()).map((row:any)=>row.at),[5],
+      `positive-before-${revocation} join order cannot revive the admitted ${style} update at global seq ${issuedSeq}`);
+    await runtime.close(); runtime = new OfflineRuntime({store:factory}); await runtime.open(movement.first.authority.principal,true);
+    assert.deepEqual((await rows()).map((row:any)=>row.at),[5],
+      `the positive-before-${revocation} ${style} join remains revoked cold at global seq ${issuedSeq}`);
+    await runtime.close();
+  }
 });
 
 test('native-certified Unicode search accepts scope movement in either arrival order and retains exact Q custody cold', async () => {

@@ -102,7 +102,8 @@ function coldAssertions(state) {
     searchVariants: Object.fromEntries(Object.entries(state.searchVariants ?? {}).map(([name, answer]) => [name, queryFacts(answer)])),
     searchProbe: state.searchProbe, twin: state.twin,
     roomCoverage: state.coverage.rows.filter((row) => row.row?.conversationId === seed.rooms[3]) };
-  assert.ok((state.answer?.predicted ?? []).includes(queued[0].intent), `predicted intent must be on the query result; answer facts: ${JSON.stringify(facts)}; outbox: ${JSON.stringify(state.outbox.map((entry) => ({ state: entry.state, predicted: entry.predicted, intent: entry.intent })))}`);
+  assert.ok((state.answer?.predicted ?? []).some((row) => row.intent === queued[0].intent
+    && row.table === "messages" && row.id === queued[0].ids[0]), `predicted row must be on the query result; answer facts: ${JSON.stringify(facts)}; outbox: ${JSON.stringify(state.outbox.map((entry) => ({ state: entry.state, predicted: entry.predicted, intent: entry.intent })))}`);
   assert.ok(state.answer.data.some((row) => row.message?.body === "Café offline first"), "queued send must be inside the never-opened query's data");
   assert.ok(state.bubbles.some((bubble) => bubble.key === queued[0].ids[0] && bubble.kind === "pending"));
   assert.equal(state.conversationView.state, "partial", "missing count authority keeps the whole composite partial");

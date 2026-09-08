@@ -3,26 +3,26 @@ import { Pressable, Text, TextInput, View } from "react-native";
 import { api } from "snapback2/client";
 import { useQuery } from "snapback2/react-native";
 
-function Results({ term, onOpen }: { term: string; onOpen(id: string): void }) {
+function Results({ term, onOpen }: { term: string; onOpen(conversationId: string): void }) {
   const result = useQuery(api.messages.search, { term, c: null });
-  const hits = "data" in result && Array.isArray(result.data) ? result.data : [];
-  const next = "next" in result && result.next !== null;
-  const status = result.state === "hydrating" ? "Searching…"
-    : result.state === "held" ? "Downloaded indexed results"
-    : result.state === "partial" ? `Partial indexed results · ${result.reason}`
-    : result.state === "capped" ? (next ? "Indexed result limit reached · more available" : "Indexed result limit reached")
-    : result.state === "denied" ? `Search denied · ${result.rule}`
-    : result.state === "refused" ? (result.refusal.rewrite ?? result.refusal.message)
-    : result.state === "stale" ? "Showing stale indexed results"
-    : result.live ? "Live indexed results" : "Indexed results";
-  return <><Text accessibilityLabel={`Search state ${result.state}`}>{status}</Text>
-    {hits.map((row) => <Pressable key={row.id} onPress={() => onOpen(row.conversationId)}><Text>{row.body}</Text></Pressable>)}</>;
+  const hits = result.data ?? [];
+  const next = result.receipt?.next !== null && result.receipt?.next !== undefined;
+  const status = result.status === "loading" ? "Searching…"
+    : result.reason?.code === "held" ? "Downloaded indexed results"
+    : result.reason?.code === "partial" ? `Partial indexed results · ${result.reason.detail ?? result.reason.message}`
+    : result.receipt?.outcome === "capped" ? (next ? "Indexed result limit reached · more available" : "Indexed result limit reached")
+    : result.status === "unavailable" ? (result.reason?.message ?? "Search unavailable")
+    : result.reason?.code === "stale" ? "Showing stale indexed results"
+    : result.freshness.live ? "Live indexed results" : "Indexed results";
+  return <View><Text testID="search-state">{status}</Text>{hits.map((row) =>
+    <Pressable key={row.id} testID={`search-${row.id}`} onPress={() => onOpen(row.conversationId)}><Text>{row.body}</Text></Pressable>)}</View>;
 }
 
-export function Search({ onOpen }: { onOpen(id: string): void }) {
+// @ref LLP 1012#6-reads-offline — the native screen uses the same named
+// Unicode index and retains held/partial/capped provenance.
+export function Search({ onOpen }: { onOpen(conversationId: string): void }) {
   const [term, setTerm] = useState("");
   const normalized = term.trim();
-  return <View><TextInput accessibilityLabel="Search messages" maxLength={128} placeholder="Search" value={term} onChangeText={setTerm} />
-    {normalized ? <Results term={normalized} onOpen={onOpen} /> : null}
-  </View>;
+  return <View accessibilityLabel="Search"><TextInput accessibilityLabel="Search messages" placeholder="Search"
+    maxLength={128} value={term} onChangeText={setTerm} />{normalized ? <Results term={normalized} onOpen={onOpen} /> : null}</View>;
 }

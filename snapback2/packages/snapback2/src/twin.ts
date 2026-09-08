@@ -1,4 +1,5 @@
 import { nullOnceMedia } from "./store/asset-policy.js";
+import type { PredictedRow } from "./types.js";
 // @ref LLP 1012#6-reads-offline — the twin is the client: with the backend
 // unreachable the certified program runs here over incremental carrier snapshots; a read inside
 // coverage is exact, a read outside is `partial` at that site with its reason.
@@ -34,8 +35,8 @@ export interface LocalAnswer {
   site?: string;
   /** Every uncovered site with its reason (`partial`). */
   sites?: PartialSite[];
-  /** Queued intents whose predicted rows are visible in `data`, in order. */
-  predicted?: string[];
+  /** Rows the partition's queued intents predicted, each with its intent; match `id` against rendered rows. */
+  predicted?: PredictedRow[];
   /** The newest delivery the answer was computed from. */
   since?: number;
 }

@@ -20,7 +20,6 @@ export type JourneyDevice = Omit<SnapbackClient, "restart"> & {
 export declare function journey(name: string, body: (context: {
   as(name: string, options?: {
     store?: "file";
-    onTombstone?: OfflineClientOptions["onTombstone"];
   }): JourneyDevice;
   tick(ms: number): Promise<Record<string, unknown>>;
   url: string;

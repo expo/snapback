@@ -48,6 +48,7 @@ pub fn spike_schema() -> Schema {
                 },
             ],
             retain: RetentionPolicy::default(),
+            tombstones: Vec::new(),
         },
     );
 
@@ -86,6 +87,7 @@ pub fn spike_schema() -> Schema {
             },
             constraints: Vec::new(),
             retain: RetentionPolicy::default(),
+            tombstones: Vec::new(),
         },
     );
 
@@ -109,6 +111,7 @@ pub fn spike_schema() -> Schema {
             },
             constraints: Vec::new(),
             retain: RetentionPolicy::default(),
+            tombstones: Vec::new(),
         },
     );
 
@@ -125,6 +128,7 @@ pub fn spike_schema() -> Schema {
             },
             constraints: Vec::new(),
             retain: RetentionPolicy::default(),
+            tombstones: Vec::new(),
         },
     );
     tables.insert(
@@ -148,6 +152,7 @@ pub fn spike_schema() -> Schema {
             },
             constraints: Vec::new(),
             retain: RetentionPolicy::default(),
+            tombstones: Vec::new(),
         },
     );
 

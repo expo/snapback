@@ -1,5 +1,6 @@
 import { decodeHeldProgram, queryClock } from "./held-program.js";
 export { decodeHeldProgram } from "./held-program.js";
+import { tombstonesFor } from "./tombstones.js";
 import { SnapbackRefusal, throwIfAborted, isSnapbackRefusal } from "./client-wire.js";
 import { ClockCoverageReset, FullRevalidationRequired } from './store/fact-integrity.js';
 import {
@@ -676,9 +677,10 @@ export class OfflineRuntime {
           ...("rule" in source && typeof source.rule === "string" ? { rule: source.rule } : {}),
           deliveredAt: Date.now(),
         });
-        for (const row of envelope?.rows ?? []) {
-          for (const ref of this.options.onTombstone?.(row) ?? []) tombstones.push({ ...ref, seq: envelope!.seq });
-        }
+        // @ref LLP 1018.003#3-tombstones-are-declared-certified-and-shared — rule 3 fires on the
+        // rows the held program's schema declares; no application callback decides eviction.
+        for (const row of envelope?.rows ?? [])
+          for (const ref of tombstonesFor(this.held?.schema, row)) tombstones.push({ ...ref, seq: envelope!.seq });
       }
       // A settlement may only persist beside a tail actually admitted under
       // this coverage. A successor tail leaves the intent queued for replay.

@@ -646,10 +646,13 @@ test("an offline query hook leaves hydration when the stored bearer is confirmed
   try {
     await restored(client);
     await act(async () => { renderer = TestRenderer.create(React.createElement(SnapbackProvider, { client }, React.createElement(Probe))); await flush(); });
-    assert.equal(view.state, "hydrating");
+    // @ref LLP 1018.003#2-derive-never-add — the twin held nothing and the network is cut: unavailable, offline; never a fabricated receipt.
+    assert.equal(view.status, "unavailable");
+    assert.equal(view.reason?.code, "offline");
+    assert.equal(view.receipt, undefined);
     assert.equal(owner.requests.includes("/api/query"), false);
     await act(async () => { cut = false; await client.auth.me(); await flush(); });
-    assert.equal(view.state, "complete");
+    assert.equal(view.receipt.outcome, "complete");
     assert.equal(view.data.length, 2);
     assert.equal(owner.requests.filter(path => path === "/api/query").length, 1);
   } finally { if (renderer) await act(async () => renderer.unmount()); await client.close(); }

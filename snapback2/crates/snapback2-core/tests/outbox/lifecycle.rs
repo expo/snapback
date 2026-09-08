@@ -353,6 +353,7 @@ fn then_generation_with_cap(
             vec![]
         },
         retain: Default::default(),
+        tombstones: Vec::new(),
     };
     let emit = Program {
         name: "notifications.emit".to_owned(),

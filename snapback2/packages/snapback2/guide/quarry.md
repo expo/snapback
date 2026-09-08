@@ -1,21 +1,20 @@
 # Quarry v0.3
 
-Quarry is the backend language. `check` compiles `.q` in memory; inspection copies
-go in `.snapback/build/quarry/`, never `snapback/`.
+Quarry is the backend language. `check` compiles in memory; inspection goes in
+`.snapback/build/quarry/`, never `snapback/`.
 
 ## Project
 
 `snapback/schema.q` holds `use identity`, tables, maintains and channels.
-Other `.q` files hold operations or reusable shapes; stems are API namespaces:
-`snapback/messages.q` exports `api.messages.thread`.
+Other `.q` files hold operations/shapes; stems name API namespaces:
+`messages.q` exports `api.messages.thread`.
 
-TypeScript in `snapback/` is limited to `seed.ts`, `tests/*.test.ts`, and
-effect-only I/O modules. Tables, rules, channels, maintains and operations use
-Quarry. Effect module stems must differ from every `.q` stem.
+TypeScript in `snapback/` is only seeds, tests, and effect I/O. Tables, rules,
+channels, maintains, and operations use Quarry. Effect/`.q` stems must differ.
 
 ## Types and tables
 
-Built-in virtual tables: `connected` supports only `exists connected[p]` and
+Virtual `connected` supports only `exists connected[p]` and
 `#connected[p]` for `p: principal`; see `guide connected`.
 
 Columns and arguments use `principal`, `id`, table references, `int`, `time`,
@@ -74,6 +73,10 @@ accepts an optional reason string. An insert
 postcondition is `after insert <- exists table[...] [by index]`.
 
 `retain delivered-history` keeps rows that went hidden; the default evicts them.
+`tombstones messages[.messageId] if .kind = 'removed' or .kind = 'expired'`
+declares delivered-row eviction. Its column references the target; its predicate
+uses this table's `enum`/`bool`/`text`, literals, `=`, `!=`, `and`, `or`, `not`,
+and parentheses. Lines union. Schema hash/certificate bind owner and twin.
 
 Rules are `allow`, `deny`, `public`, `exists`, `created`, `and`,
 `or`, `not`, and `=`/`!=` over `viewer`, literals, `.field`, and channel
@@ -118,17 +121,15 @@ page `complete`/`capped`; hidden rows yield `null`. Early exit, count or `requir
 inside a shape refuses. Canonical JSON byte bounds price selected fields
 (`*` selects all) at declared maxima (text: `4·max + 16`).
 
-`shape card = { fields }` works on rows, pages and fields; `...card` splices it
-and `shape card from cards` imports it. Shapes resolve in their defining module,
-use focal/context names but no caller locals, and retain sites. Cycles, depth >8
-and >4,096 nodes refuse.
+`shape card = { fields }` works on rows/pages/fields; `...card` splices it and
+`shape card from cards` imports it. Shapes use their defining module's focal
+row/context, never caller locals. Cycles, depth >8, and >4,096 nodes refuse.
 
 `fn member(c: conversations, p: principal) = exists memberships[c,p]` is an
 expression helper; `fn member from access` imports it. Arguments evaluate once
-left-to-right. Parameters, `viewer`, query read time and bounded reads are valid;
-capture/focal, allocation, commit time, write/emit, `!` assertions and
-recursion refuse. Nested shapes keep that boundary. Caller `require` or
-`! else CODE` owns its code.
+left-to-right. Parameters, context, and bounded reads are valid; capture,
+allocation, commit time, writes, assertions, and recursion refuse. Callers own
+their `require`/`! else CODE`.
 
 `after` follows scan order: `after c` with `c: cursor ?`; `null` starts page one.
 Pass `next` unchanged. It encodes table/index/order, typed suffix, and last returned

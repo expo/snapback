@@ -676,6 +676,7 @@ fn visibility_probe_case(
         },
         constraints: Vec::new(),
         retain: Default::default(),
+        tombstones: Vec::new(),
     };
     let relationships = Table {
         columns: BTreeMap::from([
@@ -714,6 +715,7 @@ fn visibility_probe_case(
         },
         constraints: Vec::new(),
         retain: Default::default(),
+        tombstones: Vec::new(),
     };
     let schema = Schema {
         schedules: Vec::new(),
@@ -1377,11 +1379,12 @@ fn every_frozen_corpus_case_replays_its_certification_outcome() {
         }
     }
     // Public Words retirement removed exactly edge-ascii-words,
-    // search-words-optional-null, and search-words-unicode; no replacement
-    // case was added. Unicode index/search coverage remains in this corpus.
+    // search-words-optional-null, and search-words-unicode. The declared
+    // tombstone schema-identity scenario was added later; Unicode index/search
+    // coverage remains in the retained cases.
     assert_eq!(
         cases.len(),
-        249,
+        250,
         "the complete frozen corpus must be checked"
     );
     assert!(

@@ -988,20 +988,30 @@ test("held and unheld offline reads expose since and fenceDays never blocks read
   }
 });
 
-test("the client tombstone hook evicts the named body in the same delivery swap", async () => {
+// @ref LLP 1018.003#3-tombstones-are-declared-certified-and-shared — rule 3 reads the
+// held program's `tombstones` declaration; the schema JSON carries the rule encoding.
+test("the schema's tombstones declaration evicts the named body in the same delivery swap", async () => {
   const root = await tempRoot();
   let call = 0;
+  const declared = async (input: RequestInfo | URL) => {
+    const metadata = metadataResponse(input);
+    if (!metadata || !String(input).includes("/api/program?")) return metadata;
+    const program = await metadata.json();
+    program.schema.tables.deliveries = {
+      columns: { id: "Id", messageId: { Ref: { table: "messages" } }, kind: { Enum: { variants: ["message", "edit", "removed", "expired"] } } },
+      indexes: { byId: { columns: ["id"], unique: true } },
+      tombstones: [{ table: "messages", column: "messageId", when: { Or: [
+        { Eq: [{ Field: "kind" }, { Literal: { String: "removed" } }] },
+        { Eq: [{ Field: "kind" }, { Literal: { String: "expired" } }] },
+      ] } }],
+    };
+    return new Response(JSON.stringify(program), { status: 200 });
+  };
   const client = createClient({
     url: "http://tombstone.test", as: "alice",
-    offline: {
-      store: fileRangeStore(root),
-      onTombstone: (item) => item.table === "deliveries"
-        && (item.row.kind === "removed" || item.row.kind === "expired")
-        && typeof item.row.messageId === "string"
-        ? [{ table: "messages", id: item.row.messageId }] : [],
-    },
+    offline: { store: fileRangeStore(root) },
     fetch: async (input) => {
-      const metadata = metadataResponse(input);
+      const metadata = await declared(input);
       if (metadata) return metadata;
       call += 1;
       const delivered = envelope(

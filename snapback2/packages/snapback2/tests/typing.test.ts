@@ -85,14 +85,14 @@ test("generated Api rejects typos, extra query args, and wrong channel args", as
     const sample = join(root, "sample.ts");
     const apiDts = join(root, "api.d.ts");
     await writeFile(sample, `
-      import { api, browserTokenStore, createClient, type AuthTokenStore, type QueryView } from "snapback2/client";
+      import { api, browserTokenStore, createClient, type AuthTokenStore, type QueryView, type Snapshot } from "snapback2/client";
       const tokenStore: AuthTokenStore = { load: () => null, save: (_token) => undefined };
       const client = createClient({ url: "http://127.0.0.1:3210", tokenStore });
       const ready: Promise<void> = client.ready;
       const authGeneration: number = client.snapshot.authGeneration;
       const browserStore: AuthTokenStore = browserTokenStore(localStorage, "snapback2:http://127.0.0.1:3210:auth");
       const observed = client.observe(api.messages.thread, { conversationId: "general" });
-      const observedView: QueryView<unknown> = observed.getSnapshot();
+      const observedView: Snapshot<unknown> = observed.getSnapshot();
       const stopObserved: () => void = observed.subscribe(() => undefined);
       client.observe(api.messages.thread, { conversationId: "general" }, { live: false });
       void ready; void authGeneration; void browserStore; void observedView; void stopObserved;

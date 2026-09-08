@@ -1,6 +1,7 @@
 import { isSnapbackRefusal } from "./client-wire.js";
 import { referenceName, referencePath, type Op } from "./api.js";
 import { SharedSubscriptions } from "./client-sessions.js";
+import { summarize, type Snapshot } from "./snapshot.js";
 import {
   initialQueryState,
   reduceQueryState,
@@ -12,6 +13,8 @@ import {
   type Subscription,
   type SubscriptionDelivery,
 } from "./types.js";
+
+type QuerySnapshot<Result> = { view: QueryView<Result>; snapshot: Snapshot<Result> };
 
 interface Waiter<Event> {
   predicate: (event: Event) => boolean;
@@ -69,15 +72,22 @@ export function queryEntry<Result, Event extends QueryMachineEvent<Result>>(
   key: string,
   open: (fanout: (event: Event) => void) => Subscription<Event>,
   refresh?: (current: QueryView<Result>, authoritative?: Event) => Promise<Event | undefined>,
+  connection: () => import("./types.js").ConnectionState = () => "reconnecting",
 ) {
-  const initial = immutablePublication(initialQueryState<Result>());
+  const view = immutablePublication(initialQueryState<Result>());
+  const initial = freezeTree({ view, snapshot: summarize(view, connection()) });
   return {
     key,
     initial,
     publication: immutablePublication,
-    reduce: (current: QueryView<Result>, event: Event) => freezeTree(reduceQueryState(current, event)),
+    reduce: (current: QuerySnapshot<Result>, event: Event) => {
+      const next = freezeTree(reduceQueryState(current.view, event));
+      return next === current.view ? current : freezeTree({ view: next, snapshot: summarize(next, connection()) });
+    },
+    reproject: (current: QuerySnapshot<Result>) => current.snapshot.freshness.connection === connection()
+      ? current : freezeTree({ view: current.view, snapshot: summarize(current.view, connection()) }),
     open,
-    ...(refresh === undefined ? {} : { refresh }),
+    ...(refresh === undefined ? {} : { refresh: (current: QuerySnapshot<Result>, authoritative?: Event) => refresh(current.view, authoritative) }),
   };
 }
 
@@ -87,6 +97,7 @@ type QueryFence = readonly [authGeneration: number, operationFence: number];
 interface QueryHost {
   identity(): QueryFence;
   active(fence: QueryFence): boolean;
+  connection(): import("./types.js").ConnectionState;
   open<Args, Result>(ref: Op<Args, Result>, args: Args, callback: (event: SubscriptionDelivery<Result>) => void, drain: boolean): Subscription<SubscriptionDelivery<Result>>;
   query<Args, Result>(ref: Op<Args, Result>, args: Args): Promise<QueryResult<Result>>;
   local<Args, Result>(ref: Op<Args, Result>, args: Args, drain: boolean): Promise<QueryMachineEvent<Result>>;
@@ -142,14 +153,16 @@ export class ClientQueries {
     const active = () => this.host.active(fence);
     const mode: QueryMode = once ? "once" : drain ? "drain" : "live";
     const key = queryIdentity(fence[0], fence[1], mode, request.op, request.args);
-    if (once) return this.shared.observe(queryEntry<Result, QueryMachineEvent<Result>>(
+    const observed = once ? this.shared.observe(queryEntry<Result, QueryMachineEvent<Result>>(
       key, (fanout) => oneShotQuery(() => this.host.query(request.ref, request.args), fanout),
-    ), active);
-    return this.shared.observe(queryEntry<Result, SubscriptionDelivery<Result>>(
+      undefined, this.host.connection,
+    ), active) : this.shared.observe(queryEntry<Result, SubscriptionDelivery<Result>>(
       key,
       (fanout) => this.host.open(request.ref, request.args, fanout, drain),
       (current, authoritative) => this.local(request, drain, current, fence, authoritative),
+      this.host.connection,
     ), active);
+    return { getSnapshot: () => observed.getSnapshot().snapshot, subscribe: observed.subscribe };
   }
 
   subscribe<Args, Result>(
@@ -161,6 +174,7 @@ export class ClientQueries {
       queryIdentity(fence[0], fence[1], mode, request.op, request.args),
       (fanout) => this.host.open(request.ref, request.args, fanout, drain),
       (current, authoritative) => this.local(request, drain, current, fence, authoritative),
+      this.host.connection,
     ), callback);
   }
 
@@ -169,6 +183,7 @@ export class ClientQueries {
     return this.shared.consumers(queryIdentity(generation, fence, drain ? "drain" : "live", referenceName(ref), args));
   }
   refresh(): void { this.shared.refresh(); }
+  reproject(): void { this.shared.reproject(); }
   retireInactive(): void { this.shared.retireInactive(); }
   clear(except?: Subscription<unknown>): void { this.shared.clear(except); }
 }

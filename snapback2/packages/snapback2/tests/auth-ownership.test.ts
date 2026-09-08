@@ -1356,10 +1356,10 @@ test("React query identity moves to a hydrating auth-generation partition", asyn
     views.push({
       auth: auth.state,
       ...(auth.token === undefined ? {} : { token: auth.token }),
-      query: query.state,
-      ...(query.state === "complete" ? { data: query.data } : {}),
+      query: query.receipt?.outcome ?? query.status,
+      ...(query.receipt?.outcome === "complete" ? { data: query.data } : {}),
     });
-    return React.createElement("output", null, `${auth.state}:${query.state}`);
+    return React.createElement("output", null, `${auth.state}:${query.status}`);
   }
 
   let renderer!: TestRenderer.ReactTestRenderer;
@@ -1384,7 +1384,7 @@ test("React query identity moves to a hydrating auth-generation partition", asyn
   assert.equal(newQueryStarted, true);
   const successorViews = views.filter((view) => view.token === "new-token");
   assert.ok(successorViews.length > 0);
-  assert.equal(successorViews[0]?.query, "hydrating");
+  assert.equal(successorViews[0]?.query, "loading", "the successor identity starts from nothing: no receipt leaks across partitions");
   assert.equal(successorViews.some((view) => view.data === "old-private"), false);
 
   nextQuery.resolve(json({ state: "complete", data: "new-private", seq: 2, next: null }));

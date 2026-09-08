@@ -36,9 +36,8 @@ before(async () => {
       contents: [
         'export { App } from "./App";',
         'export { Composer } from "./Composer";',
-        'export { Thread } from "./Thread";',
+        'export { Thread, usableConversationView, authorizedHistoryRows } from "./Thread";',
         'export { useAccountRecoveryCustody } from "../shared/recovery";',
-        'export { usableConversationView, authorizedHistoryRows } from "../shared/offline.js";',
       ].join("\n"),
       resolveDir: resolve(packageRoot, "templates/chat/react/src"),
       sourcefile: "screens.tsx",
@@ -154,21 +153,20 @@ async function type(input: HTMLInputElement, value: string): Promise<void> {
 
 test("the composite selector admits only complete outcomes and never bypasses denial with history", () => {
   const composite = { messages: [{ message: { id: "m" } }], count: 1, preview: [] };
-  assert.strictEqual(usableConversationView({ state: "complete", data: composite }), composite);
-  assert.strictEqual(usableConversationView({ state: "capped", data: composite }), composite);
-  for (const state of ["partial", "denied", "refused", "hydrating", "stale"]) {
-    assert.equal(usableConversationView({ state, data: composite }), undefined,
-      `${state} cannot supply messages, count, or preview`);
+  assert.strictEqual(usableConversationView({ receipt: { outcome: "complete" }, data: composite }), composite);
+  assert.strictEqual(usableConversationView({ receipt: { outcome: "capped" }, data: composite }), composite);
+  for (const outcome of ["partial", "denied"]) {
+    assert.equal(usableConversationView({ receipt: { outcome }, data: composite }), undefined,
+      `${outcome} cannot supply messages, count, or preview`);
   }
+  assert.equal(usableConversationView({ data: composite }), undefined, "held data cannot supply an unproved count or preview");
   const history = [{ message: { id: "independent" } }];
-  for (const state of ["complete", "capped", "held", "partial", "stale"]) {
-    assert.strictEqual(authorizedHistoryRows({ state, data: history }), history,
-      `${state} history remains an independently authorized row result`);
-  }
-  for (const state of ["denied", "refused", "hydrating"]) {
-    assert.deepEqual(authorizedHistoryRows({ state, data: history }), [],
-      `${state} cannot expose fallback rows even when stale data is attached`);
-  }
+  assert.strictEqual(authorizedHistoryRows({ status: "ready", data: history }), history,
+    "readable history remains an independently authorized row result");
+  for (const status of ["loading", "unavailable"]) assert.deepEqual(
+    authorizedHistoryRows({ status, data: history }), [],
+    `${status} cannot expose fallback rows even when stale data is attached`,
+  );
 });
 
 // @ref LLP 1012#7-writes-offline — a device with a store writes only under a

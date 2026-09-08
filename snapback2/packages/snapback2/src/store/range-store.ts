@@ -26,7 +26,7 @@ import {
   type ByteSwapRequest,
   type ViewedRecord,
 } from "./byte-cache.js";
-import { admitOverlayAuthority, pagePosition, recordOverlayAuthorityEvidence, retireOverlays,
+import { admitOverlayAuthority, markDeliveredArrivals, pagePosition, recordOverlayAuthorityEvidence, retireOverlays,
   type OverlayAuthorityEvidence, type OverlayWatermark } from "./overlay-retirement.js";
 import { canonical } from "./canonical.js";
 import { sha256 } from "../../../evaluator/src/hash.js";
@@ -213,6 +213,8 @@ export interface OutboxEntry {
   state: OutboxState;
   response?: unknown;
   predicted?: boolean;
+  /** A pinned or confirmed authoritative row arrived; dismiss only after rendering it. */
+  arrived?: true;
   /** Prediction and its trace were skipped; the program will check this write on the server. */
   reason?: "fence";
   /** Engine-owned aggregate targets the prediction's overlay omits by design (the server writes them); absent when none. */
@@ -886,7 +888,6 @@ export class PersistentRangeStore implements RangeStore {
       await this.backend.close();
     });
   }
-
   private applySwap(state: PersistedRangeState, swap: StoreSwap, bytes: ByteDelta): PersistedRangeState {
     if (state.sealed) throw new OfflineStoreFailure("E_OFFLINE_CARRIER", "range store is sealed");
     if (swap.resetCoverage && swap.factLimitReset !== undefined && swap.factLimitReset === state.factLimitReset)
@@ -919,12 +920,11 @@ export class PersistentRangeStore implements RangeStore {
     if (swap.factLimitReset !== undefined) state.factLimitReset = swap.factLimitReset;
     const schema = swap.schema ?? (swap.programs && Object.values(swap.programs)[0]?.schema);
     if (schema) { const columns = onceColumns(schema); if (canonical(columns) !== canonical(state.onceColumns)) state.onceColumns = columns; }
-    const clockOnly = new Set<string>();
-    const authoritativeEvidence = changesCoverage(swap) ? this.applyCoverage(state, swap, bytes, clockOnly) : new Map<string, OverlayAuthorityEvidence>();
+    const clockOnly = new Set<string>(), deliveredIds = new Set<string>();
+    const authoritativeEvidence = changesCoverage(swap) ? this.applyCoverage(state, swap, bytes, clockOnly, deliveredIds) : new Map<string, OverlayAuthorityEvidence>();
     if (swap.facts && canonical(state.facts) !== canonical(swap.facts)) state.facts = clone(swap.facts);
     if (swap.superseded === null) delete state.superseded;
     else if (swap.superseded) state.superseded = clone(swap.superseded);
-
     const previousTail = tailWatermark(Object.values(state.watermarks));
     const clockMark = swap.watermark && (swap.deliveries ?? []).some(d => clockOnly.has(canonicalAnswerKey(d.op, d.args))
       && (canonicalAnswerKey(d.op, d.args) === canonicalAnswerKey(swap.watermark!.op, swap.watermark!.args)
@@ -936,8 +936,7 @@ export class PersistentRangeStore implements RangeStore {
       state.watermarks[key] = { ...clone(swap.watermark), order };
     }
     const tail = tailWatermark(Object.values(state.watermarks));
-    // The outbox, its grants, its write bounds, and the prediction overlay are
-    // custody of unsent work: a coverage reset above never touches them.
+    // Coverage resets never touch unsent outbox/grant/bound/overlay custody.
     for (const intent of swap.outbox?.remove ?? []) {
       delete state.outbox[intent];
       delete state.overlayMisses[intent];
@@ -954,6 +953,7 @@ export class PersistentRangeStore implements RangeStore {
       state.outbox[entry.intent] = { ...clone(entry), order };
     }
     applyForwarding(state, swap.forwarding);
+    markDeliveredArrivals(state, deliveredIds);
     if (swap.bounds) state.bounds = clone(swap.bounds);
     if (swap.programs) state.programs = clone(swap.programs);
     for (const id of swap.grants?.remove ?? []) {
@@ -986,7 +986,7 @@ export class PersistentRangeStore implements RangeStore {
     return state;
   }
 
-  private applyCoverage(state: PersistedRangeState, swap: StoreSwap, bytes: ByteDelta, clockOnly: Set<string>) {
+  private applyCoverage(state: PersistedRangeState, swap: StoreSwap, bytes: ByteDelta, clockOnly: Set<string>, deliveredIds: Set<string>) {
     if (swap.resetCoverage) {
       state.rows = {};
       // Sequence guards belong to this generation's coverage, just like rows.
@@ -1201,6 +1201,7 @@ export class PersistentRangeStore implements RangeStore {
         state.rows[storageKey] = RowImage.is(row.row) ? { ...row } : clone(row);
         state.rowSeq[storageKey] = delivery.seq;
         recordOverlayAuthorityEvidence(authoritativeEvidence, storageKey, { seq: delivery.seq, source: "row" });
+        deliveredIds.add(row.id);
       }
       let data = clone(delivery.data);
       let answerState = delivery.state;

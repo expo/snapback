@@ -154,6 +154,7 @@ function materializeMaintains(documents: Document[]): void {
       immutable: [],
       caps: [],
       finalExists: [],
+      tombstones: [],
       site: declaration.site,
     };
     schema.tables.push(target);

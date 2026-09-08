@@ -67,6 +67,7 @@ export { SnapbackRefusal, isSnapbackRefusal };
 export { browserTokenStore } from "./token-store.js";
 export type { Api, ApiProxy, ChannelRef as Channel, Op };
 export * from "./types.js";
+export * from "./snapshot.js";
 export type {
   Coverage,
   CoverageFacts,
@@ -191,6 +192,7 @@ class Client implements SnapbackClient {
     this.queries = new ClientQueries({
       identity: () => [this.authGeneration, this.operationFence],
       active: ([generation, fence]) => !this.closed && this.authGeneration === generation && this.operationFence === fence,
+      connection: () => this.currentSnapshot.connection,
       open: (ref, args, callback, drain) => drain ? this.drain(ref, args, callback) : this.subscribeRegular(ref, args, callback),
       query: (ref, args) => this.query(ref, args),
       local: (ref, args, drain) => answerOffline(this.offlineRuntime, referenceName(ref), args, error => this.offlineRefusal(error), drain),
@@ -1474,6 +1476,7 @@ class Client implements SnapbackClient {
     if (JSON.stringify(next) === JSON.stringify(this.currentSnapshot)) return this.currentSnapshot;
     const connection = this.currentSnapshot.connection;
     this.currentSnapshot = next;
+    if (connection !== next.connection) this.queries.reproject();
     for (const listener of this.statusListeners) {
       try {
         listener(next);

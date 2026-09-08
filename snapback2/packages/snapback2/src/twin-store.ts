@@ -10,6 +10,7 @@ import { onceAssetIds, onceColumns, RowAssets } from './store/asset-policy.js';
 import type { Context } from '../../evaluator/src/types.js';
 import type { HeldProgram, PersistedRangeState, StoredAnswer, StoredRow, OutboxEntry, OverlayRow } from './store/range-store.js';
 import type { StoreChange, StoreRevision } from './store/swap-journal.js';
+import type { PredictedRow } from './types.js';
 
 // Generic sources retain no mutable aliases; owned image leaves are already deeply isolated.
 function isolate<T>(value: T): T {
@@ -54,7 +55,10 @@ export class TwinStore {
   constructor(private sources: TwinStoreSources) {}
   get facts() { return this.state.facts; }
   get deliveredAt(): number | undefined { return this.deliveries.seek(() => 0, true).next().value?.[1]; }
-  get predicted(): string[] { return [...this.pending.seek(() => 0)].map(r => r[1]); }
+  get predicted(): PredictedRow[] {
+    return [...this.pending.seek(() => 0)].flatMap(([, intent]) => (this.state.overlay[intent] ?? [])
+      .filter(row => !row.removed).map(row => ({ table: row.table, id: row.id, intent })));
+  }
 
   async sync(): Promise<boolean> {
     const program = this.sources.program(), principal = this.sources.principal();

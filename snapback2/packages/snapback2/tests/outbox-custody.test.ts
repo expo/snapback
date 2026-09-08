@@ -402,7 +402,7 @@ test("SnapbackProvider constructs exactly one client across StrictMode's double 
       SnapbackProvider,
       {
         url: "http://one-client.test", as: "alice", fetch: owner.fetch,
-        offline: { store: held.factory, fenceDays: 3, onTombstone: () => [] },
+        offline: { store: held.factory, fenceDays: 3 },
       },
       React.createElement(Harness, { key: pass }),
     );

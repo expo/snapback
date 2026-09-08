@@ -15,7 +15,7 @@ export function buildCatalog(documents: Document[]): TableCatalog {
       { name: "value", type: { kind: "int", optional: false }, site },
     ],
     indexes: [{ name: "byPrincipal", components: columnComponents(["principal"]), unique: true, site }],
-    rules: [], immutable: [], caps: [], finalExists: [],
+    rules: [], immutable: [], caps: [], finalExists: [], tombstones: [],
   };
   catalog.set("connected", { declaration, columns: new Map(declaration.columns.map(c => [c.name, c.type])), indexes: declaration.indexes });
   for (const document of documents) {

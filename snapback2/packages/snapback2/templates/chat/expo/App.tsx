@@ -3,7 +3,8 @@ import { createExpoClient, SnapbackProvider } from "snapback2/expo";
 import type { SnapbackClient } from "snapback2/client";
 import { Text } from "react-native";
 import { Chat } from "./src/Chat";
-import { chatOffline } from "./shared/offline.js";
+// @ref LLP 1018.003#3-tombstones-are-declared-certified-and-shared — eviction follows the schema's `tombstones` line.
+const chatOffline = {};
 
 const url = process.env.EXPO_PUBLIC_SNAPBACK_URL ?? "http://127.0.0.1:3210";
 // Metro inlines this in app source, never at simctl launch or inside node_modules.

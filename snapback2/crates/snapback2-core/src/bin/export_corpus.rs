@@ -25,6 +25,8 @@ mod merge_cases;
 mod twin_cases;
 #[path = "export_corpus/visibility_cases.rs"]
 mod visibility_cases;
+#[path = "export_corpus/tombstone_cases.rs"]
+mod tombstone_cases;
 #[path = "export_corpus/write_cases.rs"]
 mod write_cases;
 
@@ -134,6 +136,7 @@ fn main() {
     add_value_edges(&mut cases);
     add_time_arithmetic_case(&mut cases);
     visibility_cases::add_visibility_cases(&mut cases);
+    tombstone_cases::add_tombstone_case(&mut cases);
     enriched_pages::add_enriched_page_case(&mut cases);
     cap_cases::add_cap_cases(&mut cases);
     bytes_cases::add_bytes_cases(&mut cases);
@@ -544,6 +547,7 @@ fn named_emit_case() -> CorpusCase {
                 },
                 constraints: Vec::new(),
                 retain: Default::default(),
+                tombstones: Vec::new(),
             },
         )]),
         maintains: Vec::new(),

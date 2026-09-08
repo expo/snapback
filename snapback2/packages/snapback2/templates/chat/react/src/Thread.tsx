@@ -1,116 +1,28 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { api, isSnapbackRefusal, type OutboxEntry } from "snapback2/client";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useCallback } from "react";
+import { api, intentLabel, isSnapbackRefusal, type Api } from "snapback2/client";
 import { AssetImage, useMutation, useOutbox, useQuery, useSnapbackClient, useSnapbackSnapshot } from "snapback2/react";
 import { Composer } from "./Composer";
-import { intentLabel, settledByRows, threadBubbles, type Bubble, type LogRow } from "../shared/log.js";
-import {
-  authorizedHistoryRows,
-  usableConversationView,
-  type MessageChangeUncertainty,
-  type SendUncertainty,
-} from "../shared/offline.js";
-import { useAccountRecoveryCustody, type RecoveryCustody } from "../shared/recovery";
+import { useAccountRecoveryCustody, type MessageChangeUncertainty, type RecoveryCustody, type SendUncertainty } from "../shared/recovery";
 
-function when(at: number): string {
-  return new Date(at).toLocaleTimeString();
+type Args = { conversationId?: string; messageId?: string; body?: string };
+type ResultOf<T> = T extends { readonly __result?: infer Result } ? NonNullable<Result> : never;
+type ConversationView = ResultOf<Api["deliveries"]["conversationView"]>;
+type LogRow = ConversationView["messages"][number];
+const when = (at: number) => new Date(at).toLocaleTimeString();
+const describe = (error: unknown) => (isSnapbackRefusal(error) ? error.envelope.rewrite ?? error.message : String(error));
+
+export function usableConversationView(result: { data?: unknown; receipt?: { outcome: string } }): ConversationView | undefined {
+  if (result.receipt?.outcome !== "complete" && result.receipt?.outcome !== "capped") return undefined;
+  const data = result.data as Partial<ConversationView> | undefined;
+  return data && Array.isArray(data.messages) && typeof data.count === "number" && Array.isArray(data.preview)
+    ? data as ConversationView : undefined;
 }
 
-function describe(error: unknown): string {
-  return isSnapbackRefusal(error) ? (error.envelope.rewrite ?? error.message) : String(error);
+export function authorizedHistoryRows(result: { data?: unknown; status: string }): readonly LogRow[] {
+  return result.status === "ready" && Array.isArray(result.data) ? result.data as LogRow[] : [];
 }
 
-// @ref LLP 1018.000#4-one-observed-query-one-coherent-snapshot — summary and
-// list are separate mounted consumers of one named composite query snapshot.
-function ThreadSummary({ conversationId }: { conversationId: string }) {
-  const result = useQuery(api.deliveries.conversationView, { conversationId });
-  const view = usableConversationView(result);
-  const count = view && typeof view.count === "number" ? view.count : undefined;
-  const preview = view && Array.isArray(view.preview) ? view.preview[0] : undefined;
-  const previewBody = preview?.message?.body;
-  return (
-    <p className="thread-summary" data-view-state={result.state}
-      data-view-seq={"seq" in result ? result.seq : undefined} data-count={count}
-      data-preview-message={preview?.message?.id}>
-      {count === undefined ? "Message count unavailable" : `${count} message${count === 1 ? "" : "s"}`}
-      {previewBody ? ` · Latest: ${previewBody}` : null}
-    </p>
-  );
-}
-
-// @ref LLP 1012#7-writes-offline — a pending bubble shows `args.body` and
-// "Sending…" with no time; the same key becomes the server row on `committed`.
-function BubbleView({ bubble, viewer, onDismiss, onEdit, onUnsend, writesBlocked }: {
-  bubble: Bubble;
-  viewer: string | undefined;
-  onDismiss(intent: string): void;
-  onEdit(messageId: string, body: string): void;
-  onUnsend(messageId: string): void;
-  writesBlocked?: boolean;
-}) {
-  const [opened, setOpened] = useState(false);
-  if (bubble.kind === "pending") {
-    const settled = bubble.entry.state !== "queued";
-    return (
-      <li data-message={bubble.key} data-state={bubble.entry.state} className="bubble pending">
-        <p>{bubble.body}</p>
-        <small>{intentLabel(bubble.entry)}</small>
-        {settled ? <button type="button" onClick={() => onDismiss(bubble.entry.intent)}>Dismiss</button> : null}
-      </li>
-    );
-  }
-  const own = viewer !== undefined && bubble.message.authorId === viewer;
-  const body = bubble.message.body ?? "";
-  return (
-    <li data-message={bubble.key} data-state="row" className={own ? "bubble own" : "bubble"}>
-      <p>{body || (bubble.message.photo ? "[photo]" : bubble.message.clip ? "[clip]" : "")}</p>
-      {bubble.message.oncePhoto ? opened
-        ? <AssetImage asset={bubble.message.oncePhoto} width={240} />
-        : <button type="button" onClick={() => setOpened(true)}>View photo once</button> : null}
-      <time dateTime={new Date(bubble.at).toISOString()}>{when(bubble.at)}</time>
-      {bubble.edit ? (
-        <small data-edit={bubble.edit.state}>
-          {`Edit ${intentLabel(bubble.edit).toLowerCase()}`}
-          {bubble.edit.state !== "queued"
-            ? <button type="button" onClick={() => onDismiss(bubble.edit!.intent)}>Dismiss</button>
-            : null}
-        </small>
-      ) : null}
-      {own && body ? (
-        <span className="actions">
-          <button type="button" disabled={writesBlocked} onClick={() => onEdit(bubble.key, body)}>Edit</button>
-          <button type="button" disabled={writesBlocked} onClick={() => onUnsend(bubble.key)}>Unsend</button>
-        </span>
-      ) : null}
-    </li>
-  );
-}
-
-function BubbleList({ rows, entries, conversationId, viewer, onDismiss, onEdit, onUnsend, state, seq, source, writesBlocked }: {
-  rows: readonly LogRow[];
-  entries: readonly OutboxEntry[];
-  conversationId: string;
-  viewer: string | undefined;
-  onDismiss(intent: string): void;
-  onEdit(messageId: string, body: string): void;
-  onUnsend(messageId: string): void;
-  state: string;
-  seq: number | undefined;
-  source: "composite" | "partial-history";
-  writesBlocked?: boolean;
-}) {
-  const bubbles = useMemo(() => threadBubbles(rows, entries, conversationId), [rows, entries, conversationId]);
-  useEffect(() => {
-    for (const entry of settledByRows(rows, entries)) onDismiss(entry.intent);
-  }, [rows, entries, onDismiss]);
-  return <ol className="bubbles" data-view-state={state} data-view-seq={seq} data-view-source={source}>
-    {bubbles.map((bubble) => (
-      <BubbleView key={bubble.key} bubble={bubble} viewer={viewer} onDismiss={onDismiss}
-        onEdit={onEdit} onUnsend={onUnsend} writesBlocked={writesBlocked} />
-    ))}
-  </ol>;
-}
-
-/** Opens the existing shared observation only while the composite needs its fallback. */
+/** Opens the existing paginated query only while the composite cannot vouch for all three fields. */
 function usePartialHistory(conversationId: string, active: boolean) {
   const client = useSnapbackClient();
   const generation = useSnapbackSnapshot().authGeneration;
@@ -119,15 +31,11 @@ function usePartialHistory(conversationId: string, active: boolean) {
   return useSyncExternalStore(subscribe, observed.getSnapshot, observed.getSnapshot);
 }
 
-function historyStatus(result: ReturnType<typeof usePartialHistory>): string {
-  if (result.state === "refused") return `Downloaded history unavailable · ${result.refusal.rewrite ?? result.refusal.message}`;
-  if (result.state === "denied") return `Downloaded history denied · ${result.rule}`;
-  if (result.state === "hydrating") return "Loading downloaded history · Count and preview unavailable.";
-  if (result.state === "partial") return `Partial downloaded history · ${result.reason} · Count and preview unavailable.`;
-  if (result.state === "stale") return "Showing stale downloaded history · Count and preview unavailable.";
-  return "Downloaded history · Count and preview unavailable.";
-}
-
+// @ref LLP 1018.000#4-one-observed-query-one-coherent-snapshot — the list,
+// count, and preview come from one named composite; partial custody falls back
+// to the independently authorized paginated thread without inventing a count.
+// @ref LLP 1018.003#5-the-certified-thread-projection — both pages contain
+// message events only, so the screen filters null nested rows and reverses once.
 export function Thread({ conversationId, viewer, onNote, sendCustody, changeCustody: ownedChangeCustody }: {
   conversationId: string;
   viewer: string | undefined;
@@ -135,7 +43,11 @@ export function Thread({ conversationId, viewer, onNote, sendCustody, changeCust
   sendCustody?: RecoveryCustody<SendUncertainty>;
   changeCustody?: RecoveryCustody<MessageChangeUncertainty>;
 }) {
-  const thread = useQuery(api.deliveries.conversationView, { conversationId });
+  const snapshot = useQuery(api.deliveries.conversationView, { conversationId });
+  const [opened, setOpened] = useState<string[]>([]);
+  const composite = usableConversationView(snapshot);
+  const usingHistory = !composite && snapshot.status === "ready";
+  const history = usePartialHistory(conversationId, usingHistory);
   const { entries, dismiss } = useOutbox();
   const edit = useMutation(api.deliveries.edit);
   const unsend = useMutation(api.deliveries.unsend);
@@ -151,23 +63,21 @@ export function Thread({ conversationId, viewer, onNote, sendCustody, changeCust
   const current = (captured: typeof visit) => activeVisit.current === captured
     && captured.client.snapshot.authGeneration === captured.generation;
   const sameAccount = (captured: typeof visit) => captured.client.snapshot.authGeneration === captured.generation;
-  const view = usableConversationView(thread);
-  const usingHistory = thread.state === "partial";
-  const history = usePartialHistory(conversationId, usingHistory);
-  const compositeRows = (view?.messages ?? []) as LogRow[];
-  const historyRows = authorizedHistoryRows(history) as LogRow[];
-  const rows = usingHistory ? historyRows : compositeRows;
+  const sourceRows = composite?.messages ?? (usingHistory ? authorizedHistoryRows(history) : []);
+  const rows = sourceRows.flatMap((row) => row.message ? [{ ...row, message: row.message }] : []).reverse();
+  const postFor = (messageId: string) => entries.find((entry) => entry.op === "deliveries.post" && entry.ids[0] === messageId);
+  const editFor = (messageId: string) => entries.find((entry) => entry.op === "deliveries.edit" && (entry.args as Args).messageId === messageId);
+  const unsendFor = (messageId: string) => entries.find((entry) => entry.op === "deliveries.unsend" && (entry.args as Args).messageId === messageId);
+  const unplaced = entries.filter((entry) => entry.op === "deliveries.post"
+    && (entry.args as Args).conversationId === conversationId && !rows.some((row) => row.messageId === entry.ids[0]));
+  const items = [...rows.map((row) => ({ key: row.messageId, row })), ...unplaced.map((entry) => ({ key: entry.ids[0] ?? entry.intent, entry }))];
 
-  const status = thread.state === "hydrating"
-    ? "Loading…"
-    : thread.state === "refused"
-      ? `Refused: ${thread.refusal.rewrite ?? thread.refusal.message}`
-      : thread.state === "denied"
-        ? "You are not a member of this conversation."
-        : [
-            thread.state === "partial" ? "Some messages are no longer held." : undefined,
-            "stale" in thread && thread.stale ? "Showing downloaded messages." : undefined,
-          ].filter(Boolean).join(" ");
+  // @ref LLP 1018.003#4-pending-rows-attribution-settlement-and-failure —
+  // arrival plus the rendered pinned id retires presentation, never arrival alone.
+  useEffect(() => {
+    for (const entry of entries) if (entry.state === "committed" && entry.arrived
+      && rows.some((row) => row.messageId === entry.ids[0])) void dismiss(entry.intent);
+  }, [entries, rows, dismiss]);
 
   const onEdit = async (messageId: string, body: string) => {
     if (busy || unknown) return;
@@ -180,21 +90,15 @@ export function Thread({ conversationId, viewer, onNote, sendCustody, changeCust
     try {
       const result = await edit.run(args);
       if (result.state === "admission-unknown" && sameAccount(captured)) {
-        const pending: MessageChangeUncertainty = { kind: "edit", conversationId: captured.conversationId, args, recovery: result.recovery };
-        if (changeCustody.hold(token, pending) && current(captured)) {
+        if (changeCustody.hold(token, { kind: "edit", conversationId, args, recovery: result.recovery }) && current(captured))
           onNote("Edit confirmation was lost. Check this edit before changing messages again.");
-        }
       } else if (current(captured)) {
         changeCustody.finish(token);
-        if (result.state === "queued") onNote("Edit queued; it sends when the connection returns.");
-        else if (result.state === "rejected") onNote(`Edit not sent: ${result.rewrite ?? result.message}`);
+        onNote(result.state === "queued" ? "Edit queued; it sends when the connection returns."
+          : result.state === "rejected" ? `Edit not sent: ${result.rewrite ?? result.message}` : "");
       }
-    } catch (error) {
-      changeCustody.finish(token);
-      if (current(captured)) onNote(describe(error));
-    } finally {
-      changeCustody.finish(token);
-    }
+    } catch (error) { changeCustody.finish(token); if (current(captured)) onNote(describe(error)); }
+    finally { changeCustody.finish(token); }
   };
   const onUnsend = async (messageId: string) => {
     if (busy || unknown) return;
@@ -205,30 +109,21 @@ export function Thread({ conversationId, viewer, onNote, sendCustody, changeCust
     try {
       const result = await unsend.run(args);
       if (result.state === "admission-unknown" && sameAccount(captured)) {
-        const pending: MessageChangeUncertainty = { kind: "unsend", conversationId: captured.conversationId, args, recovery: result.recovery };
-        if (changeCustody.hold(token, pending) && current(captured)) {
+        if (changeCustody.hold(token, { kind: "unsend", conversationId, args, recovery: result.recovery }) && current(captured))
           onNote("Unsend confirmation was lost. Check this unsend before changing messages again.");
-        }
       } else if (current(captured)) {
         changeCustody.finish(token);
-        if (result.state === "queued") onNote("Unsend queued; it sends when the connection returns.");
-        else if (result.state === "rejected") onNote(`Unsend refused: ${result.rewrite ?? result.message}`);
+        onNote(result.state === "queued" ? "Unsend queued; it sends when the connection returns."
+          : result.state === "rejected" ? `Unsend refused: ${result.rewrite ?? result.message}` : "");
       }
-    } catch (error) {
-      changeCustody.finish(token);
-      if (current(captured)) onNote(describe(error));
-    } finally {
-      changeCustody.finish(token);
-    }
+    } catch (error) { changeCustody.finish(token); if (current(captured)) onNote(describe(error)); }
+    finally { changeCustody.finish(token); }
   };
-
-  // @ref LLP 1018.000#8-account-sessions-and-durable-follower-admission —
-  // edit and unsend recover the exact forwarded request after a lost answer.
   const recover = async () => {
     if (!unknown || unknown.conversationId !== conversationId) return;
     const captured = visit;
     const pending = unknown;
-    const token = changeCustody.beginRecovery(pending, { conversationId: pending.conversationId });
+    const token = changeCustody.beginRecovery(pending, { conversationId });
     if (!token) return;
     try {
       const result = pending.kind === "edit"
@@ -236,44 +131,61 @@ export function Thread({ conversationId, viewer, onNote, sendCustody, changeCust
         : await client.recoverMutation(api.deliveries.unsend, pending.args, pending.recovery);
       if (!sameAccount(captured)) return;
       if (result.state === "admission-unknown") {
-        if (changeCustody.hold(token, { ...pending, recovery: result.recovery }) && current(captured)) {
-          onNote(`${pending.kind === "edit" ? "Edit" : "Unsend"} confirmation is still unknown. Check the same change again when the sending tab responds.`);
-        }
+        if (changeCustody.hold(token, { ...pending, recovery: result.recovery }) && current(captured))
+          onNote(`${pending.kind === "edit" ? "Edit" : "Unsend"} confirmation is still unknown. Check the same change again.`);
       } else if (changeCustody.resolve(token, pending) && current(captured)) {
-        onNote(`${pending.kind === "edit" ? "Edit" : "Unsend"} in ${pending.conversationId} is queued; it sends when the connection returns.`);
+        onNote(`${pending.kind === "edit" ? "Edit" : "Unsend"} in ${conversationId} is queued; it sends when the connection returns.`);
       }
-    } catch (error) {
-      changeCustody.finish(token);
-      if (current(captured)) onNote(describe(error));
-    } finally {
-      changeCustody.finish(token);
-    }
+    } catch (error) { changeCustody.finish(token); if (current(captured)) onNote(describe(error)); }
+    finally { changeCustody.finish(token); }
   };
 
+  const preview = composite?.preview[0]?.message?.body;
+  const state = usingHistory ? history.receipt?.outcome ?? history.status : snapshot.receipt?.outcome ?? snapshot.status;
+  const seq = usingHistory ? history.receipt?.seq : snapshot.receipt?.seq;
   return (
     <section aria-label="Thread">
-      <header>
-        <h2>{conversationId}</h2>
-        <ThreadSummary conversationId={conversationId} />
-        {status ? <p role="status">{status}</p> : null}
+      <header><h2>{conversationId}</h2>
+        <p className="thread-summary" data-view-state={snapshot.receipt?.outcome ?? snapshot.status}
+          data-view-seq={snapshot.receipt?.seq} data-count={composite?.count}
+          data-preview-message={composite?.preview[0]?.message?.id}>
+          {composite ? `${composite.count} message${composite.count === 1 ? "" : "s"}${preview ? ` · Latest: ${preview}` : ""}` : "Message count unavailable"}
+        </p>
+        {snapshot.status === "loading" ? <p role="status">Loading…</p> : snapshot.reason ? <p role="status">{snapshot.reason.message}</p> : null}
+        {usingHistory ? <p className="thread-history-note" data-history-state={state}>Downloaded history · Count and preview unavailable.</p> : null}
       </header>
       {unknown ? <p role="alert" data-mutation-unknown={unknown.kind}>
-        {unknown.conversationId === conversationId
-          ? `${unknown.kind === "edit" ? "Edit" : "Unsend"} confirmation is unknown in ${unknown.conversationId}. `
-          : `${unknown.kind === "edit" ? "Edit" : "Unsend"} confirmation is unknown in ${unknown.conversationId}. Return there to check it. `}
+        {`${unknown.kind === "edit" ? "Edit" : "Unsend"} confirmation is unknown in ${unknown.conversationId}. `}
         {unknown.conversationId === conversationId ? <button type="button" disabled={busy} onClick={() => { void recover(); }}>
           {busy ? "Checking…" : `Check ${unknown.kind}`}
-        </button> : null}
+        </button> : "Return there to check it."}
       </p> : null}
-      {usingHistory ? <p className="thread-history-note" data-history-state={history.state}>{historyStatus(history)}</p> : null}
-      <BubbleList rows={rows} entries={entries} conversationId={conversationId} viewer={viewer}
-        onDismiss={dismiss}
-        onEdit={(messageId, body) => { void onEdit(messageId, body); }}
-        onUnsend={(messageId) => { void onUnsend(messageId); }} state={usingHistory ? history.state : thread.state}
-        seq={usingHistory ? ("seq" in history ? history.seq : undefined) : ("seq" in thread ? thread.seq : undefined)}
-        source={usingHistory ? "partial-history" : "composite"} writesBlocked={busy || unknown !== undefined} />
-      <Composer conversationId={conversationId} onNote={onNote}
-        custody={sendCustody} />
+      <ol className="bubbles" data-view-state={state} data-view-seq={seq} data-view-source={usingHistory ? "partial-history" : "composite"}>
+        {items.map((item) => {
+          if (!("row" in item)) return <li key={item.key} data-message={item.key} data-state={item.entry.state} className="bubble pending">
+            <p>{(item.entry.args as Args).body ?? ""}</p><small>{intentLabel(item.entry)}</small>
+            {item.entry.state !== "queued" ? <button type="button" onClick={() => { void dismiss(item.entry.intent); }}>Dismiss</button> : null}
+          </li>;
+          const { messageId, message, at } = item.row;
+          const post = postFor(messageId), pendingEdit = editFor(messageId), pendingUnsend = unsendFor(messageId), own = message.authorId === viewer;
+          return <li key={messageId} data-message={messageId} data-state={post?.state ?? "row"} className={own ? "bubble own" : "bubble"}>
+            <p>{message.body || (message.photo ? "[photo]" : message.clip ? "[clip]" : "")}</p>
+            {message.oncePhoto ? opened.includes(messageId)
+              ? <AssetImage asset={message.oncePhoto} width={240} />
+              : <button type="button" onClick={() => setOpened((ids) => [...ids, messageId])}>View photo once</button> : null}
+            {post ? <small>{intentLabel(post)}</small> : <time dateTime={new Date(at).toISOString()}>{when(at)}</time>}
+            {pendingEdit ? <small data-edit={pendingEdit.state}>{`Edit ${intentLabel(pendingEdit).toLowerCase()}`}
+              {pendingEdit.state !== "queued" ? <button type="button" onClick={() => { void dismiss(pendingEdit.intent); }}>Dismiss</button> : null}</small> : null}
+            {pendingUnsend ? <small data-unsend={pendingUnsend.state}>{`Unsend ${intentLabel(pendingUnsend).toLowerCase()}`}
+              {pendingUnsend.state !== "queued" ? <button type="button" onClick={() => { void dismiss(pendingUnsend.intent); }}>Dismiss</button> : null}</small> : null}
+            {own && message.body && !post ? <span className="actions">
+              <button type="button" disabled={busy || !!unknown} onClick={() => { void onEdit(messageId, message.body!); }}>Edit</button>
+              <button type="button" disabled={busy || !!unknown} onClick={() => { void onUnsend(messageId); }}>Unsend</button>
+            </span> : null}
+          </li>;
+        })}
+      </ol>
+      <Composer conversationId={conversationId} onNote={onNote} custody={sendCustody} />
     </section>
   );
 }

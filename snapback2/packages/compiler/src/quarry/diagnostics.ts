@@ -59,6 +59,10 @@ export function retention(site: Site, message: string): never {
   );
 }
 
+export function tombstone(site: Site, message: string, rewrite: string): never {
+  throw new QuarryError(site, message, "E_QUARRY_TOMBSTONE", rewrite);
+}
+
 export function formatDiagnostic(item: QuarryDiagnostic): string {
   return `${item.file}:${item.line}:${item.col} — ${item.message}`;
 }
@@ -74,7 +78,7 @@ function guideFor(code: QuarryCode): string {
   if (code === "E_QUARRY_UNSUPPORTED") return "quarry/refusals";
   if (code === "E_QUARRY_PLACEMENT") return "quarry/projects";
   if (code === "E_QUARRY_TYPE") return "quarry/types";
-  if (code === "E_QUARRY_RETAIN") return "quarry/grammar";
+  if (code === "E_QUARRY_RETAIN" || code === "E_QUARRY_TOMBSTONE") return "quarry/grammar";
   return "quarry/names";
 }
 
