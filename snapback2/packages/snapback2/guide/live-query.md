@@ -28,8 +28,11 @@ state does not replace the certified outcome.
 
 When a screen needs a list, count, and preview coherently, return all three from
 one named query and mount that ref/arguments in each consumer. Chat's
-`deliveries.conversationView` does this. A partial composite stays partial;
-fallback held history must hide count/preview until it is usable.
+`deliveries.conversationView` does this. A partial receipt, including one
+without data, can enable independently observed history. That history never
+supplies count or preview. Once complete/capped composite data supplies all
+three fields, both screens detach the fallback subscription. Denial, refusal
+and account reset do not enable fallback; derived `status` grants no authority.
 
 One SSE connection carries up to 256 query/channel subscriptions per client,
 including HTTP/1.1. Adding/closing one leaves peers active. Unmount unused

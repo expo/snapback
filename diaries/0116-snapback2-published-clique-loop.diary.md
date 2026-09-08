@@ -1523,3 +1523,34 @@ client costs 9,024 gzip bytes over the measured baseline. These results replace
 the earlier checkpoint for the changed client code; failed samples remain
 recorded. The concurrently landed LLP 1018.003 now requires a further integration
 of its snapshot record and declared tombstones before this branch is delivered.
+
+
+## 2026-09-08 — One Snapshot and declared retention meet the architecture lane
+
+The integrated recipe uses schema-declared tombstones and the certified
+kind-scoped thread page. The screens no longer need the shared log reducer or
+application callback that explained which delivery kinds evicted messages.
+The count, messages and preview still come from one observed composite; when
+its authority is incomplete, an independently authorized history page can
+show messages without inventing the count. This reduces application plumbing
+and makes retention semantics travel with the schema and its certificate.
+
+Integration exposed two meanings that presentation must keep separate. An
+arrived message does not prove that its maintained count has arrived, so the
+screen must preserve the count prediction until its custody clears. And a
+summary status is not an authority decision: a partial composite with no data
+is unavailable, even when the separate thread page can show downloaded rows.
+Review also caught an unconditional Expo fallback subscription, unnecessary
+once the complete composite supplies all fields. These paired fallback
+corrections and their transition checks are the final outstanding template
+work; the original failure observations remain in LLP 1018.000.
+
+The preceding complete source `c20a37e22` passes 795 Node tests, 865 native
+tests, evaluator/compiler checks, 16 actual Chrome steps and ten Expo steps.
+The installed consumer takes 24.57 seconds, project check 0.568 seconds and
+first doctor 0.159 seconds on the reserved Mac. Native tests take 78.009
+seconds and still miss their 60-second target. The complete runtime is 82,085
+gzip bytes under the explicit 82,500 allocation, above its 80,000 working
+target. The separately measured full client adds 11,384 gzip bytes against
+the recorded baseline. These source checks do not publish a release or change
+the parent benchmark scores.

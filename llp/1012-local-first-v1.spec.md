@@ -477,11 +477,15 @@ unreachable runs the certified program through the twin
 (`snapback2-evaluator`) hydrated from `coverage()`: rows, ranges, absences,
 and verdicts. A read inside coverage is exact; a read outside is `partial`
 at that site with `reason: 'never-held' | 'evicted' | 'computed-key'`. The
-view carries `live: false`, `connection: 'offline'`, `stale: { since }`, and
-`retained: true` when §5 rule 4 kept a row. A query whose every read is
-covered replays exactly, which is what a stored answer is — the covered
-case, not a separate mechanism. A query the store cannot cover at all is
-`hydrating` with `connection: 'offline'`, exactly as today. The evaluator
+published Snapshot carries `freshness.live: false`,
+`freshness.connection: 'offline'`, `freshness.staleSince` when stale, and
+`local.retained: true` when §5 rule 4 kept a row. Its receipt preserves the
+certified outcome and partial sites. A query whose every read is covered
+replays exactly, which is what a stored answer is — the covered case, not a
+separate mechanism. A partial without data is `status: 'unavailable'` with
+reason `partial`; the twin's no-held-data marker while disconnected is
+`unavailable` with reason `offline`. Snapshot summaries follow LLP 1018.003;
+the internal hydrating event is not the hook's public status. The evaluator
 ticket's "done when" list is lane O2's acceptance verbatim: the certified
 program and certificate on the wire (§8), receipt custody, successor and
 auth-epoch fences, canonical hashing, and the five outcome classes proven
@@ -507,9 +511,9 @@ in the design's sense: only named programs, only the viewer's own
 partition, completeness proven rather than assumed — the design's own
 `replica` notion for owner partitions, reached from the log.
 
-**`drain: true`.** One subscription option (§3). It exposes `{ caughtUp,
-watermark }` beside the view. Offline, `caughtUp` means the last online
-drain reached `next: null`, and `since` stays visible. This is the only new
+**`drain: true`.** One subscription option (§3). Its Snapshot exposes
+`local.caughtUp` and `local.watermark`. Offline, `caughtUp` means the last
+online drain reached `next: null`, and `freshness.staleSince` stays visible. This is the only new
 read surface in v1; a `useDrain` hook is the same thing with a second name
 and is not added.
 The cursor argument is restored from the held program on cold offline
@@ -778,17 +782,20 @@ The state machine is `queued → committed | rejected | expired`, with
 `predicted` an orthogonal flag on `queued`. `useOutbox()` returns
 the durable entries `[{ intent, ids, op, args, state, refusal? }]` with
 `dismiss(intent)` for settled ones; the `chat` template renders a pending
-bubble from `args`, keyed by the intent, labeled "Sending…", **with no time**
-— the bubble never shows a client clock — and the same bubble turns into the
-server row on `committed`, keyed by its first pinned id, so nothing jumps.
+bubble from `args`, keyed by its first pinned id when available (the intent
+is only a fallback key), labeled "Sending…", **with no time**. It never shows
+a client clock. The rendered server row keeps that pinned id through
+settlement, so the same mounted element survives.
 Because the outbox opens before the first request, a queued message is on
 screen at cold start before the network is tried.
 
-**Recovery surface (2026-09-05 review fixes).** `outbox.status(op?)` and the
-React outbox/mutation hooks expose readiness, a reason (`ready`, `sealed`,
-`grant-missing`, `grant-expired`, `ids-exhausted`, `program-missing`), the
-next action (`none`, `login`, `resume`, `load-program`), queued count, and
-fence state. New admission agrees with readiness when a grant has expired;
+**Recovery surface (2026-09-05 review fixes; Snapshot integration).**
+`outbox.status(op?)` exposes the underlying readiness reason (`ready`,
+`sealed`, `grant-missing`, `grant-expired`, `ids-exhausted`, `program-missing`),
+mechanism action (`none`, `login`, `resume`, `load-program`), queued count and
+fence state. Hooks retain those facts under `detail.status` and derive the
+public `can.send`, `can.reason`, and optional `can.action` (`sign-in`,
+`connect`, `other-tab`, or `wait`). New admission agrees with readiness when a grant has expired;
 existing queued writes still await the server's verdict. `drain()` and
 `settled()` return `{ stopped, remaining }`, with `stopped: false` for a
 drained queue or `fence | transport | authority | offline | pending` for a pause.
