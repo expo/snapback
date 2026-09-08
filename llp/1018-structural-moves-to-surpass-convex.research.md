@@ -9,7 +9,7 @@ Clique benchmark
 2026-09-06); revised by Claude Fable 5.1 after the five-model panel of
 2026-09-06/07 (§9), which the author convened
 **Date:** 2026-09-06
-**Revised:** 2026-09-07 (bounded lifecycle/consumer closeout and zero-proof integration audit); 2026-09-07 (public zero-count proof repair and cold prediction witness); 2026-09-07 (implemented finite compiler/declaration reconciliation); 2026-09-07 (follow-on LLP 1018.000 linked; closed-ticket links repaired); 2026-09-07 (focused panel: witness-first sequence and finite compiler closeout, §13); 2026-09-07 (two focused draft RFCs and three bounded architecture investigations, §12); 2026-09-07 (pending-client schema conflict exercise and formal M7 handoff); 2026-09-07 (surviving-row uniqueness checked against each actual rebuild); 2026-09-07 (panel revision: a second measure, move one rewritten
+**Revised:** 2026-09-08 (LLP 1018.000 implemented; separate cold-run obligations retained); 2026-09-07 (bounded lifecycle/consumer closeout and zero-proof integration audit); 2026-09-07 (public zero-count proof repair and cold prediction witness); 2026-09-07 (implemented finite compiler/declaration reconciliation); 2026-09-07 (follow-on LLP 1018.000 linked; closed-ticket links repaired); 2026-09-07 (focused panel: witness-first sequence and finite compiler closeout, §13); 2026-09-07 (two focused draft RFCs and three bounded architecture investigations, §12); 2026-09-07 (pending-client schema conflict exercise and formal M7 handoff); 2026-09-07 (surviving-row uniqueness checked against each actual rebuild); 2026-09-07 (panel revision: a second measure, move one rewritten
 around what already exists, the browser-tab policy decided, count-backed cap
 probes decided, the typed IR cut, move four evidence-led, move zero added, the
 Muse scores cited, the clock repair marked landed; implementation record §10);
@@ -523,8 +523,13 @@ and `caps`); capability claims stay gated on a published cold run.
 
 Follow-on research: [LLP 1018.000](./1018.000-composable-architecture-next-moves.research.md)
 records further architectural directions after the three implementation slices
-above. Its original Draft assessment preserves this document's decisions and
-outstanding cold-run measures.
+above. All six commissioned directions are now implemented and qualified,
+including durable follower forwarding, indexed query execution, direct typed
+Quarry and the combined Snapshot/tombstone contract. The child's §10 records
+actual reviews, tests and limits, including closure of the zero-proof/prediction
+integration concern below. This completion supersedes the earlier filed-only
+forwarding and in-progress integration checkpoints. It preserves this parent's
+decisions and outstanding cold-run measures.
 
 This document entered `llp/current/` in place of the link to implemented
 LLP 1016, keeping the working set at 59. LLP 1016 stays at its original path,
