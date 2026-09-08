@@ -1,4 +1,4 @@
-// @ref LLP 1018.003#8-declare-correspondence-once-keep-mechanics-in-the-sdk —
+// @ref LLP 1018.003.000#2-correspondence —
 // the app names correspondence; the shared query publication attaches work.
 import { referenceName, type Op } from "./api.js";
 import { intentLabel, type Snapshot } from "./snapshot.js";
@@ -119,7 +119,7 @@ export interface ItemInputs {
   readonly values?: ReadonlyMap<object, string>;
 }
 
-// @ref LLP 1018.003#10-retirement-is-a-read-model-decision-dismissal-is-a-write —
+// @ref LLP 1018.003.000#4-observation-and-retention —
 // successful projection is a causal read, not equality with submitted arguments.
 function observed(entry: OutboxEntry, observation: ItemObservation | undefined, kind: ItemActionKind): boolean {
   const seq = (entry.response as { seq?: unknown } | undefined)?.seq;

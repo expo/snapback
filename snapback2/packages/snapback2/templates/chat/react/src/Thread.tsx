@@ -38,7 +38,7 @@ function usePartialHistory(conversationId: string, active: boolean) {
 // @ref LLP 1018.000#4-one-observed-query-one-coherent-snapshot — the list,
 // count, and preview come from one named composite; partial custody falls back
 // to the independently authorized paginated thread without inventing a count.
-// @ref LLP 1018.003#8-declare-correspondence-once-keep-mechanics-in-the-sdk —
+// @ref LLP 1018.003.000#2-correspondence —
 // items already carry their own work and prediction provenance.
 export function Thread({ conversationId, viewer, onNote, sendCustody, changeCustody: ownedChangeCustody }: {
   conversationId: string;

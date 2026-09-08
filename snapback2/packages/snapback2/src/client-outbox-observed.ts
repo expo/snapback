@@ -1,4 +1,4 @@
-// @ref LLP 1018.003#10-retirement-is-a-read-model-decision-dismissal-is-a-write —
+// @ref LLP 1018.003.000#4-observation-and-retention —
 // one read model per client, no settlement effects in mounted hooks.
 import { referenceName, type Op } from "./api.js";
 import type { ObservedOutbox, OutboxEntry, OutboxSnapshot, OutboxStatus } from "./types.js";

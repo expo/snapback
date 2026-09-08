@@ -488,7 +488,7 @@ export function hasOwn(value: object, key: PropertyKey): boolean {
 }
 
 export function clone<T>(value: T): T {
-  // @ref LLP 1018.003#9-attribute-and-publish-at-the-shared-entry — immutable
+  // @ref LLP 1018.003.000#3-shared-publication — immutable
   // row ownership survives expression aliases and nested point reads.
   if (value === null || typeof value !== "object" || RowImage.is(value)) return value;
   return (Array.isArray(value) ? value.map(clone) : Object.fromEntries(Object.entries(value)

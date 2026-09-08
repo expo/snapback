@@ -1,4 +1,4 @@
-// @ref LLP 1018.003#9-attribute-and-publish-at-the-shared-entry — private input custody follows the query value.
+// @ref LLP 1018.003.000#3-shared-publication — private input custody follows the query value.
 import type { ItemInputs } from "./client-items.js";
 
 const frames = new WeakMap<object, ItemInputs>();

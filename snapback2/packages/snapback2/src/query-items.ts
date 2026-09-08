@@ -1,4 +1,4 @@
-// @ref LLP 1018.003#10-retirement-is-a-read-model-decision-dismissal-is-a-write —
+// @ref LLP 1018.003.000#4-observation-and-retention —
 // a row's evidence travels with its image, through decoding, reduction, and publication.
 import { RowImage } from "../../evaluator/src/row-image.js";
 import { fieldOrNull, wireJson } from "../../evaluator/src/value-runtime.js";

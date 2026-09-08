@@ -1006,7 +1006,7 @@ test("online writes carry the replay envelope under custody; a transport failure
   await rm(root, { recursive: true, force: true });
 });
 
-// @ref LLP 1018.003#10-retirement-is-a-read-model-decision-dismissal-is-a-write —
+// @ref LLP 1018.003.000#4-observation-and-retention —
 // explicit dismissal may race the issuing call; its response still comes from
 // the bounded terminal waiter. Readers themselves never initiate dismissal.
 test("an online write settles in its own call even when an explicit dismissal races its terminal response", async () => {

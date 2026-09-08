@@ -1,6 +1,6 @@
 import { api, defineItems } from "snapback2/client";
 
-// @ref LLP 1018.003#8-declare-correspondence-once-keep-mechanics-in-the-sdk —
+// @ref LLP 1018.003.000#2-correspondence —
 // only the head page owns drafts; post inserts its message before its fan-out.
 export const threadItems = defineItems(api.deliveries.thread, {
   table: "messages",

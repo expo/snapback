@@ -122,7 +122,7 @@ export interface StoredAnswer extends Omit<HeldAnswer, "data"> {
   verdictProofs?: Record<string, string>;
   extentProofs?: ExtentProof[];
   clockOnly?: true;
-  /** @ref LLP 1018.003#10-retirement-is-a-read-model-decision-dismissal-is-a-write — uncertainty preserves past membership evidence. */
+  /** @ref LLP 1018.003.000#4-observation-and-retention — uncertainty preserves past membership evidence. */
   selection?: { through: number; order: number };
 }
 

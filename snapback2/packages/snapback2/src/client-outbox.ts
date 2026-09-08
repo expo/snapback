@@ -142,7 +142,7 @@ export async function submitMutation<Result>(options: SubmitMutationOptions): Pr
   }
 }
 
-// @ref LLP 1018.003#10-retirement-is-a-read-model-decision-dismissal-is-a-write —
+// @ref LLP 1018.003.000#4-observation-and-retention —
 // explicit dismissal may precede the issuing call reading its entry back;
 // the drain records each terminal
 // outcome so that call answers from it rather than mistaking absence for "still queued".
@@ -165,7 +165,7 @@ function recordTerminal(runtime: OfflineRuntime, entry: OutboxEntry): void {
   if (slot) slot.entry = entry;
 }
 
-// @ref LLP 1018.003#10-retirement-is-a-read-model-decision-dismissal-is-a-write —
+// @ref LLP 1018.003.000#4-observation-and-retention —
 // settlement does not prove that a query can display the target. Online and
 // initially queued writes keep the same durable terminal until explicit dismissal.
 function settledResult<Result>(entry: OutboxEntry): MutationResult<Result> {

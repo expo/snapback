@@ -26,7 +26,7 @@ function usePartialHistory(conversationId: string, active: boolean) {
 // @ref LLP 1018.000#4-one-observed-query-one-coherent-snapshot — list, count,
 // and preview render from one named composite when its receipt is complete;
 // the paginated query contributes history only when that composite is partial.
-// @ref LLP 1018.003#8-declare-correspondence-once-keep-mechanics-in-the-sdk —
+// @ref LLP 1018.003.000#2-correspondence —
 // the same item declaration supplies row attribution in both platform arms.
 export function Thread({ conversationId, sendCustody }: {
   conversationId: string;
