@@ -23,7 +23,7 @@ for (const observers of [0, 1, 4]) {
     let release!: () => void, entered!: () => void, attempts = 0;
     const held = new Promise<void>(resolve => { release = resolve; });
     const sent = new Promise<void>(resolve => { entered = resolve; });
-    const client = createClient({ url: "http://ready-drain.test", as: "alice", offline: { store },
+    const client = createClient({ url: "http://ready-drain.test", persona: "alice", offline: { store },
       fetch: async (input, init) => {
         if (new URL(String(input)).pathname === "/api/mutation") { attempts += 1; entered(); await held; }
         return owner.fetch(input, init);
@@ -65,13 +65,13 @@ test("follower readiness keeps its inbox contract while detail.writer observes r
   let release!: () => void, entered!: () => void;
   const held = new Promise<void>(resolve => { release = resolve; });
   const sent = new Promise<void>(resolve => { entered = resolve; });
-  const writer = createClient({ url: "http://ready-writer.test", as: "alice", offline: { store },
+  const writer = createClient({ url: "http://ready-writer.test", persona: "alice", offline: { store },
     fetch: async (input, init) => {
       if (new URL(String(input)).pathname === "/api/mutation") { entered(); await held; }
       return owner.fetch(input, init);
     } });
   await writer.ready;
-  const follower = createClient({ url: "http://ready-writer.test", as: "alice", fetch: owner.fetch, offline: { store } });
+  const follower = createClient({ url: "http://ready-writer.test", persona: "alice", fetch: owner.fetch, offline: { store } });
   const view = follower.outbox.observe(api.deliveries.post), close = view.subscribe(() => undefined);
   let mutation: any, outbox: any, renderer: TestRenderer.ReactTestRenderer | undefined, delivery: Promise<void>;
   function Harness() { mutation = useMutation(api.deliveries.post); outbox = useOutbox(); return null; }
@@ -88,10 +88,10 @@ test("follower readiness keeps its inbox contract while detail.writer observes r
       delivery = writer.online();
       await sent; await until(() => view.getSnapshot().writer?.draining === true);
     });
-    assert.equal(mutation.detail.writer.draining, true);
     assert.equal(outbox.detail.writer.draining, true);
-    assert.equal(mutation.detail.status.reason, "forwarding");
-    assert.equal(mutation.detail.status.draining, undefined, "writer activity is separate from this tab's admission readiness");
+    assert.equal(outbox.detail.writer.draining, true);
+    assert.equal(outbox.detail.status.reason, "forwarding");
+    assert.equal(outbox.detail.status.draining, undefined, "writer activity is separate from this tab's admission readiness");
     assert.equal(mutation.can.send, true); assert.equal(mutation.can.action, "wait");
     assert.match(mutation.can.reason.message, /Waiting for the sending tab/);
     await act(async () => {
@@ -99,8 +99,8 @@ test("follower readiness keeps its inbox contract while detail.writer observes r
       await until(() => view.getSnapshot().writer?.draining === undefined);
     });
     assert.equal((await writer.outbox.settled()).stopped, "transport");
-    assert.equal(mutation.detail.writer.draining, undefined, "a stop publishes even when no durable entry changes");
-    assert.equal(mutation.detail.status.reason, "forwarding");
+    assert.equal(outbox.detail.writer.draining, undefined, "a stop publishes even when no durable entry changes");
+    assert.equal(outbox.detail.status.reason, "forwarding");
     assert.equal(mutation.can.action, "wait");
     await act(async () => { await writer.outbox.drain(); });
     assert.equal(owner.executions.length, 1);
@@ -117,7 +117,7 @@ for (const carrier of ["file", "IndexedDB"]) {
       : indexedDbRangeStore({ indexedDB: new FakeIndexedDb() as any, locks: new FakeLocks() as any });
     await seededStore(factory);
     let store: any;
-    const client = createClient({ url: "http://ready.test", as: "alice", fetch: fakeOwner().fetch, offline: { store: () => (store = factory()) } });
+    const client = createClient({ url: "http://ready.test", persona: "alice", fetch: fakeOwner().fetch, offline: { store: () => (store = factory()) } });
     try {
       await client.ready;
       assert.equal(await client.outbox.ready(api.deliveries.post), true);
@@ -142,7 +142,7 @@ async function mounted() {
     return null;
   }
   const view = (op: string) => React.createElement(SnapbackProvider,
-    { url: "http://react-ready.test", as: "alice", fetch: owner.fetch, offline: { store } }, React.createElement(Harness, { op }));
+    { url: "http://react-ready.test", persona: "alice", fetch: owner.fetch, offline: { store } }, React.createElement(Harness, { op }));
   await act(async () => { renderer = TestRenderer.create(view("post")); });
   await act(async () => { await client.ready; await pause(); });
   return { get client() { return client; }, get mutation() { return mutation; }, get outbox() { return outbox; }, rendered,

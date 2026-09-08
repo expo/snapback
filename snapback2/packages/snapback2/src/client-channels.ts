@@ -1,6 +1,6 @@
 // @ref LLP 1001.000#observable-client-surface — one owned handle exposes current ephemeral state and privately holds its live lease.
 import {
-  SnapbackRefusal, copyRefusal, isTerminalSession, wireChannelFrame, wireChannelWrite,
+  RefusalError, copyRefusal, isTerminalSession, wireChannelFrame, wireChannelWrite,
   type ChannelFrame,
 } from "./client-wire.js";
 import { referenceName, type Channel as ChannelRef } from "./api.js";
@@ -8,7 +8,7 @@ import { ReconnectingSse } from "./sse.js";
 import type { SseResponse } from "./sse-parser.js";
 import type {
   ChannelHandle, ChannelSnapshot, ChannelWriteResult, ClientSnapshot,
-  RefusalEnvelope, Subscription,
+  Refusal, Subscription,
 } from "./types.js";
 
 /** Authority and transport custody remain with the ordinary client. */
@@ -22,12 +22,12 @@ export interface ChannelHost<Authority, Expiration> {
   validated(authority: Authority): void;
   expireSession(authority: Authority): Promise<Expiration>;
   expirationCurrent(expiration: Expiration): boolean;
-  supersededRefusal(): SnapbackRefusal;
-  recordRefusal(refusal: RefusalEnvelope): void;
+  supersededRefusal(): RefusalError;
+  recordRefusal(refusal: Refusal): void;
   patchSnapshot(patch: Partial<ClientSnapshot>): void;
   transportFailureState(): "reconnecting" | "offline";
   subscriptionError(error: unknown, authority: Authority | undefined, origin: Subscription<unknown>):
-    Promise<{ event?: unknown; retry: boolean; refusal?: SnapbackRefusal }>;
+    Promise<{ event?: unknown; retry: boolean; refusal?: RefusalError }>;
   track<Event>(subscription: Subscription<Event>): Subscription<Event>;
 }
 
@@ -48,8 +48,8 @@ interface Connection<Authority, Value> {
   pending: Set<{ resolve(lease: Lease): void; reject(error: Error): void }>;
 }
 
-function refusal(code: string, message: string): SnapbackRefusal {
-  return new SnapbackRefusal({ code, family: "op", message, guide: "live-query",
+function refusal(code: string, message: string): RefusalError {
+  return new RefusalError({ code, family: "op", message, guide: "live-query",
     rewrite: "use a ready channel handle; reconnect or create a new handle after closing it" });
 }
 function freeze<Value>(value: Value): Value {
@@ -105,7 +105,7 @@ export function createChannel<Authority, Expiration, Args, Value>(
     // The registered close sees that this connection has already been retired.
     current.tracked.close();
   }
-  function terminal(current: Connection<Authority, Value>, error: Error, envelope?: RefusalEnvelope): void {
+  function terminal(current: Connection<Authority, Value>, error: Error, envelope?: Refusal): void {
     if (connection !== current) return;
     failure = error;
     rejectWaiters(error);
@@ -163,7 +163,7 @@ export function createChannel<Authority, Expiration, Args, Value>(
       decode: ({ data }, active) => {
         const frame = wireChannelFrame<Value>(data);
         if (frame.state === "refused" && (isTerminalSession(frame) || frame.code === "E_CHANNEL_RESET")) {
-          throw new SnapbackRefusal(copyRefusal(frame), frame.code === "E_CHANNEL_RESET");
+          throw new RefusalError(copyRefusal(frame), frame.code === "E_CHANNEL_RESET");
         }
         host.ensureAuthority(current.authority);
         if (!active() || connection !== current) throw host.supersededRefusal();
@@ -179,13 +179,13 @@ export function createChannel<Authority, Expiration, Args, Value>(
       bufferedTerminal: ({ data }) => {
         const frame = wireChannelFrame<Value>(data);
         return frame.state === "refused" && isTerminalSession(frame)
-          ? new SnapbackRefusal(copyRefusal(frame)) : undefined;
+          ? new RefusalError(copyRefusal(frame)) : undefined;
       },
       onEvent: frame => {
         if (connection !== current) return;
         if (frame.state === "refused") {
           host.recordRefusal(copyRefusal(frame));
-          terminal(current, new SnapbackRefusal(copyRefusal(frame)), frame);
+          terminal(current, new RefusalError(copyRefusal(frame)), frame);
         } else {
           publish({ status: "ready", key: frame.key, entries: frame.entries });
           if (connection !== current) return;
@@ -203,7 +203,7 @@ export function createChannel<Authority, Expiration, Args, Value>(
         return { retry: decision.retry, failure: decision.refusal };
       },
       onLoss: () => { loss(current); return undefined; },
-      terminal: frame => frame.state === "refused" ? new SnapbackRefusal(copyRefusal(frame)) : undefined,
+      terminal: frame => frame.state === "refused" ? new RefusalError(copyRefusal(frame)) : undefined,
     });
     return current;
   }

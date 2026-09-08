@@ -21,23 +21,18 @@ export type VideoAsset = { readonly __asset: "video"; readonly id: string; reado
 export type Principal = string & { readonly __snapbackPrincipal: "Principal" };
 export type Cursor = string & { readonly __snapbackCursor: "Cursor" };
 
-export interface RefusalEnvelope {
+export interface Refusal {
   code: string;
   family: string;
   message: string;
+  rewrite?: string;
+  guide?: string;
   site?: string;
   rule?: string;
-  rewrite?: string;
-  guide: string;
-  /** Offline resume detail identifying the request member that exceeded a cap. */
-  which?: string;
-  /** Stable resume discrimination; only limit/mounted is automatically adjustable. */
+  retryable?: boolean;
   reason?: string;
-  op?: string;
-  shape?: string;
-  /** Offline resume detail limiting the next bounded request. */
-  cap?: number;
 }
+export type Action = "sign-in" | "connect" | "other-tab" | "wait" | "none";
 
 /** Opt-in body fields for a query request that asks for local-first custody. */
 export interface QueryReceiptRequest {
@@ -101,30 +96,17 @@ export type OfflineQueryResult<Result> =
   | (QueryPartial<Result> & OfflineFacts & RetainedContinuation)
   | (QueryDenied & OfflineFacts)
   | { state: "hydrating"; live: false; connection: "offline" };
-export type QueryResult<Result> = ServerQueryResult<Result> | OfflineQueryResult<Result>;
+export type QueryResult<Result> = ServerQueryResult<Result> | OfflineQueryResult<Result> | RefusedDelivery;
 
 export type MutationCommitted<Result> = { state: "committed"; seq: number; data: Result; intent?: string;
   program?: import("./mutation-targets.js").MutationProgramIdentity };
-export type MutationRejected = {
-  state: "rejected";
-  code: string;
-  family: string;
-  message: string;
-  retryable?: boolean;
-  rewrite?: string;
-  site?: string;
-  rule?: string;
-  guide: string;
-  /** `conflict` when trace validation rolled a replayed write back (LLP 1012 §7). */
-  reason?: string;
-  intent?: string;
-};
+export type MutationRejected = { state: "rejected"; intent?: string } & Refusal;
 /**
  * The write is durable on this device and will replay after the next resume:
  * in this tab's outbox, or, from a browser tab that is not the account's
  * writer, as an inbox row named `inbox:<key>` with no ids until the writer
  * admits it (LLP 1018.004 §1). Every member of `MutationResult` is terminal
- * or durable; there is no fourth outcome.
+ * or durable; there is no fourth verdict.
  */
 export type MutationQueued = { state: "queued"; intent: string; ids: string[] };
 export type MutationResult<Result> = MutationCommitted<Result> | MutationRejected | MutationQueued;
@@ -138,7 +120,7 @@ export type StaleDelivery<Result> = {
   data?: Result;
   seq?: number;
 };
-export type RefusedDelivery = RefusalEnvelope & {
+export type RefusedDelivery = Refusal & {
   state: "refused";
   seq?: number;
 };
@@ -178,11 +160,11 @@ export interface ChannelSnapshot<Value> {
   readonly key?: string;
   readonly status: "loading" | "ready" | "unavailable";
   readonly reason?: "reconnecting" | "offline" | "refused" | "closed";
-  readonly refusal?: RefusalEnvelope;
+  readonly refusal?: Refusal;
 }
 export type ChannelWriteResult =
   | { ok: true }
-  | ({ state: "refused" } & RefusalEnvelope);
+  | ({ state: "refused" } & Refusal);
 export interface ChannelHandle<Value> {
   getSnapshot(): ChannelSnapshot<Value>;
   subscribe(callback: (snapshot: ChannelSnapshot<Value>) => void): Subscription<ChannelSnapshot<Value>>;
@@ -276,7 +258,7 @@ export interface AuthSnapshot {
   authEpoch?: number;
   /** Previously confirmed for this token; display only, never fresh authorization. */
   restoringViewer?: Principal;
-  refusal?: RefusalEnvelope;
+  refusal?: Refusal;
   /** Unix milliseconds; present only while a restoration retry is scheduled. */
   retryAt?: number;
 }
@@ -288,7 +270,7 @@ export interface ClientSnapshot {
   persona?: string;
   connection: ConnectionState;
   generation?: string;
-  lastRefusal?: RefusalEnvelope;
+  lastRefusal?: Refusal;
 }
 
 export interface AuthTokenStore {
@@ -318,8 +300,8 @@ export interface OfflineClientOptions {
 
 /** A client has exactly one authority source: a dev persona or bearer custody. */
 export type CreateClientOptions = ClientLocationOptions & (
-  | { as: string; token?: never; tokenStore?: never }
-  | { as?: never; token?: string; tokenStore?: AuthTokenStore }
+  | { persona: string; token?: never; tokenStore?: never }
+  | { persona?: never; token?: string; tokenStore?: AuthTokenStore }
 );
 
 // @ref LLP 1012#7-writes-offline — the outbox is readable before the first
@@ -336,7 +318,7 @@ export interface OutboxStatus {
    */
   reason: "ready" | "sealed" | "grant-missing" | "grant-expired" | "ids-exhausted" | "program-missing"
     | "follower" | "forwarding" | "inbox-full" | "writer-unresponsive";
-  action: "none" | "login" | "resume" | "load-program";
+  action: Action;
   /** Number of queued intents, including a follower's unadmitted rows; settled entries are excluded. */
   remaining: number;
   fence: "inside" | "past";
@@ -410,8 +392,6 @@ export interface SnapbackClient {
     args: NoInfer<Args>,
     options?: { live?: false; drain?: boolean; items?: undefined },
   ): ObservedQuery<Result>;
-  /** Diagnostic count of consumers attached to one shared observed-query identity. */
-  sharedConsumers<Args, Result>(ref: Op<Args, Result>, args: NoInfer<Args>, drain?: boolean): number;
   mutation<Args, Result>(ref: Op<Args, Result>, args: NoInfer<AssetInput<Args>>): Promise<MutationResult<Result>>;
   /** Uploads one browser File or Expo URI-backed File and returns its closed asset record. */
   upload(source: AssetUploadSource, options: AssetUploadOptions & { readonly kind: "image" }): Promise<ImageAsset>;
@@ -431,16 +411,6 @@ export interface SnapbackClient {
   assetBytes(url: string, options?: AssetFetchOptions): Promise<import("./store/byte-cache.js").AssetBytes>;
   /** The partition's byte cache when the client has an offline store; components read it before the network. */
   readonly assetCache: AssetCache | undefined;
-  /** Delivers validated query receipt states with `live: true`; transport loss is client-made `stale`. */
-  /** Drain follows an ascending append log (after c first N, N <= 50), then watches its tail.
-   * Each event is one page. Unsupported returned-page shapes refuse E_OFFLINE_RESUME;
-   * use an ordinary c:null subscription for newest-first data and fetch older pages separately. */
-  subscribe<Args, Result>(
-    ref: Op<Args, Result>,
-    args: NoInfer<Args>,
-    callback: (delivery: SubscriptionDelivery<Result>) => void,
-    options?: { drain?: boolean },
-  ): Subscription<SubscriptionDelivery<Result>>;
   channel<Args, Value>(ref: ChannelRef<Args, Value>, args: NoInfer<Args>): ChannelHandle<Value>;
   manifest(): Promise<Manifest>;
   subscribeStatus(callback: (snapshot: ClientSnapshot) => void): () => void;
@@ -468,7 +438,7 @@ type ViewFacts = {
   site?: string;
   sites?: Array<{ site: string; reason: "never-held" | "evicted" | "computed-key" }>;
 };
-/** A stale view keeps the last receipt's outcome and facts beside `since` (LLP 1018.003 §2, transition invariants). */
+/** A stale view keeps the last receipt's verdict and facts beside `since` (LLP 1018.003 §2, transition invariants). */
 export type StaleView<Result> = {
   state: "stale";
   live: false;
@@ -476,7 +446,7 @@ export type StaleView<Result> = {
   data?: Result;
   seq?: number;
   next?: Cursor | null;
-  outcome?: "complete" | "capped" | "partial" | "denied";
+  verdict?: "complete" | "capped" | "partial" | "denied";
   reason?: string;
   rule?: string;
 } & Omit<ViewFacts, "live" | "stale">;
@@ -486,7 +456,7 @@ export type QueryView<Result> =
   | (QueryCapped<Result> & ViewFacts)
   | (QueryPartial<Result> & ViewFacts & RetainedContinuation)
   | (QueryDenied & ViewFacts)
-  | { state: "refused"; live: false; refusal: RefusalEnvelope }
+  | { state: "refused"; live: false; refusal: Refusal }
   | StaleView<Result>
   /** `offline`: the twin had nothing held for this query (LLP 1012 §6), as opposed to the first render. */
   | { state: "hydrating"; live: false; offline?: true };
@@ -507,7 +477,7 @@ export { canonical as stableSerialize };
 const LOCAL_FACT_KEYS = ["retained", "caughtUp", "watermark", "predicted", "site", "sites"] as const;
 const VIEW_FACT_KEYS = ["stale", ...LOCAL_FACT_KEYS] as const;
 const RECEIPT_FACT_KEYS = ["source", "next", "reason", "rule", ...LOCAL_FACT_KEYS] as const;
-const REFUSAL_FACT_KEYS = ["site", "rule", "rewrite", "reason", "op", "shape", "which", "cap"] as const;
+const REFUSAL_FACT_KEYS = ["site", "rule", "rewrite", "reason", "retryable"] as const;
 
 /** Copy only present facts; an omitted fact stays omitted across every projection. */
 function defined(source: Record<string, any>, keys: readonly string[]): Record<string, any> {
@@ -550,7 +520,7 @@ export function reduceQueryState<Result>(
       next = offline ? { state: "hydrating", live: false, offline: true } : { state: "hydrating", live: false };
       break;
     case "refused": {
-      const refusal: RefusalEnvelope = {
+      const refusal: Refusal = {
         code: event.code, family: event.family, message: event.message, guide: event.guide,
         ...defined(event, REFUSAL_FACT_KEYS),
       };
@@ -564,16 +534,16 @@ export function reduceQueryState<Result>(
       const previous = current;
       const receipted = current.state === "complete" || current.state === "capped" || current.state === "partial" || current.state === "denied"
         ? current : undefined;
-      const outcome = receipted !== undefined ? receipted.state : current.state === "stale" ? current.outcome : undefined;
+      const verdict = receipted !== undefined ? receipted.state : current.state === "stale" ? current.verdict : undefined;
       const receiptSeq = "seq" in current ? current.seq : undefined;
-      const keep = outcome !== undefined && (event.seq === undefined || event.seq === receiptSeq);
-      const staleData = keep && outcome === "denied" ? undefined : data !== undefined ? data : currentData;
+      const keep = verdict !== undefined && (event.seq === undefined || event.seq === receiptSeq);
+      const staleData = keep && verdict === "denied" ? undefined : data !== undefined ? data : currentData;
       const seq = keep ? receiptSeq : event.seq !== undefined ? event.seq : receiptSeq;
       const stale: StaleView<Result> = { state: "stale", live: false, since: event.since };
       if (staleData !== undefined) stale.data = staleData;
       if (seq !== undefined) stale.seq = seq;
       if (keep) {
-        stale.outcome = outcome;
+        stale.verdict = verdict;
         Object.assign(stale, defined(previous, RECEIPT_FACT_KEYS));
       }
       next = stale;

@@ -4,7 +4,7 @@ import { referenceName, type Op } from "./api.js";
 import type { ObservedOutbox, OutboxEntry, OutboxSnapshot, OutboxStatus } from "./types.js";
 
 const initial: OutboxSnapshot = Object.freeze({ entries: Object.freeze([]) as unknown as OutboxEntry[],
-  status: Object.freeze({ ready: false, reason: "grant-missing", action: "resume", remaining: 0, fence: "inside" }) });
+  status: Object.freeze({ ready: false, reason: "grant-missing", action: "connect", remaining: 0, fence: "inside" }) });
 interface Slot {
   op?: Op<any, any>;
   identity?: string;

@@ -1,4 +1,5 @@
-import { isSnapbackRefusal } from "./client-wire.js";
+import { queryArgs } from "./store/canonical.js";
+import { isRefusalError } from "./client-wire.js";
 import { referenceName, referencePath, type Op } from "./api.js";
 import { SharedSubscriptions } from "./client-sessions.js";
 import { summarize, type Snapshot } from "./snapshot.js";
@@ -73,12 +74,12 @@ export function bindQueryRequest<Args, Result>(ref: Op<Args, Result>, args: Args
   return {
     op,
     ref: Object.freeze({ op, [referencePath]: op }) as Op<Args, Result>,
-    args: structuredClone(args),
+    args: structuredClone(queryArgs(args)),
   };
 }
 
 export function queryIdentity(authGeneration: number, fence: number, mode: "live" | "drain" | "once", op: string, args: unknown): string {
-  return `${authGeneration}\u0000${fence}\u0000${mode}\u0000${op}\u0000${stableSerialize(args)}`;
+  return `${authGeneration}\u0000${fence}\u0000${mode}\u0000${op}\u0000${stableSerialize(queryArgs(args))}`;
 }
 
 export function queryEntry<Result, Event extends QueryMachineEvent<Result>>(
@@ -142,7 +143,7 @@ function historyCore<Result, Row extends ItemRow, Draft, History>(
   };
   const reconcile = () => {
     if (primaryOff === undefined) return;
-    if (primary.getSnapshot().receipt?.outcome === "partial") historyOff ??= history.subscribe(broadcast);
+    if (primary.getSnapshot().receipt?.state === "partial") historyOff ??= history.subscribe(broadcast);
     else if (historyOff !== undefined) { historyOff(); historyOff = undefined; }
   };
   const broadcast = () => { reconcile(); notify(); };
@@ -154,7 +155,7 @@ function historyCore<Result, Row extends ItemRow, Draft, History>(
     get retired() { return retired; },
     getSnapshot: () => {
       const current = primary.getSnapshot();
-      const fallback = current.receipt?.outcome === "partial" ? history.getSnapshot() : undefined;
+      const fallback = current.receipt?.state === "partial" ? history.getSnapshot() : undefined;
       if (basis.value !== undefined && basis.primary === current && basis.history === fallback) return basis.value;
       basis = { primary: current, history: fallback, value: composeHistory(current, fallback, basis.value) };
       return basis.value!;
@@ -220,8 +221,8 @@ export class ClientQueries {
     try {
       event = await this.host.local(request.ref, request.args, drain);
     } catch (error) {
-      if (!this.host.active(fence) || (isSnapbackRefusal(error) && error.code === "E_AUTH_SUPERSEDED")) return undefined;
-      const envelope = isSnapbackRefusal(error)
+      if (!this.host.active(fence) || (isRefusalError(error) && error.code === "E_AUTH_SUPERSEDED")) return undefined;
+      const envelope = isRefusalError(error)
         ? error.envelope
         : { code: "E_CLIENT", family: "owner", message: String(error), guide: "owner/connect" };
       return { state: "refused", live: false, ...envelope };
@@ -408,8 +409,8 @@ export function oneShotQuery<Result>(
         deliver(await query());
         return;
       } catch (error) {
-        if (closed || (isSnapbackRefusal(error) && error.code === "E_AUTH_SUPERSEDED")) return;
-        if (isSnapbackRefusal(error) && error.retryable) {
+        if (closed || (isRefusalError(error) && error.code === "E_AUTH_SUPERSEDED")) return;
+        if (isRefusalError(error) && error.retryable) {
           await new Promise<void>((resolve) => {
             wake = resolve;
             timer = setTimeout(resolve, backoff);
@@ -419,7 +420,7 @@ export function oneShotQuery<Result>(
           backoff = Math.min(backoff * 2, 5_000);
           continue;
         }
-        const envelope = isSnapbackRefusal(error)
+        const envelope = isRefusalError(error)
           ? error.envelope
           : { code: "E_CLIENT", family: "owner", message: String(error), guide: "owner/connect" };
         deliver({ state: "refused", live: false, ...envelope });

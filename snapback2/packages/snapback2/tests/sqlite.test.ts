@@ -1,3 +1,5 @@
+import { assertRefused } from "./live-fixture.ts";
+import { isRefusalError } from "../dist/client-observed-test.mjs";
 import assert from "node:assert/strict";
 import { fork } from "node:child_process";
 import { once } from "node:events";
@@ -6,7 +8,8 @@ import { DatabaseSync } from "node:sqlite";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { createClient, SnapbackRefusal } from "../dist/client.mjs";
+import { createClient } from "../dist/client.mjs";
+import { RefusalError } from "../dist/client-observed-test.mjs";
 import { indexedDbRangeStore } from "../dist/react.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
 import { nodeSqliteDriver, sqliteRangeStore, SqliteBackend, inProcessLocks, projectState, unprojectState,
@@ -226,11 +229,11 @@ for (const stage of ["before", "after"]) {
 test("in-process locks refuse a second client on the partition and release on close", async () => {
   const root = await temporary();
   const store = sqliteFactory(join(root, "locks.db"));
-  const first = createClient({ url: "http://lock.test", as: "alice", offline: { store } });
+  const first = createClient({ url: "http://lock.test", persona: "alice", offline: { store } });
   await first.ready;
-  const second = createClient({ url: "http://lock.test", as: "alice", offline: { store } });
+  const second = createClient({ url: "http://lock.test", persona: "alice", offline: { store } });
   try {
-    await assert.rejects(second.ready, (error) => error instanceof SnapbackRefusal && error.code === "E_OFFLINE_LOCK"
+    await assert.rejects(second.ready, (error) => isRefusalError(error) && error.code === "E_OFFLINE_LOCK"
       && error.envelope.rewrite.includes("another client"));
     second.close();
     first.close();
@@ -313,9 +316,9 @@ test("SQLite refuses an identity-less custom driver before reading or writing th
     async get() { assert.fail("identity must be checked before reading"); },
     async exec() { assert.fail("identity must be checked before writing"); },
   }));
-  const client = createClient({ url: "http://identity.test", as: "alice", offline: { store: factory } });
+  const client = createClient({ url: "http://identity.test", persona: "alice", offline: { store: factory } });
   try {
-    await assert.rejects(client.ready, (error: any) => error instanceof SnapbackRefusal
+    await assert.rejects(client.ready, (error: any) => isRefusalError(error)
       && error.code === "E_OFFLINE_CARRIER" && /driver has no database identity/.test(error.message)
       && error.envelope.family === "offline" && error.envelope.guide === "offline"
       && /database identity/.test(error.envelope.rewrite));
@@ -339,9 +342,9 @@ test("SQLite refuses unopenable files, a journal mismatch, and competing writes 
       await tx.run("INSERT INTO state VALUES (?, ?)", ["other", "{}"]);
       await assert.rejects(backend.replace(sqliteState(), noBytes), (error: any) => carrierFailure(error)
         && error.rewrite === "another writer holds the store; close it or wait");
-      const client = createClient({ url: "http://busy.test", as: "alice", offline: { store: sqliteFactory(path) } });
+      const client = createClient({ url: "http://busy.test", persona: "alice", offline: { store: sqliteFactory(path) } });
       try {
-        await assert.rejects(client.ready, (error: any) => error instanceof SnapbackRefusal && carrierFailure(error)
+        await assert.rejects(client.ready, (error: any) => isRefusalError(error) && carrierFailure(error)
           && error.envelope.rewrite === "another writer holds the store; close it or wait"
           && error.envelope.family === "offline" && error.envelope.guide === "offline" && !!error.envelope.site);
       } finally { await client.close(); }

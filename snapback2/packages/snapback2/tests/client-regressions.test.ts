@@ -1,10 +1,14 @@
+import { assertRefused } from "./live-fixture.ts";
+import { isRefusalError } from "../dist/client-observed-test.mjs";
+import { subscribe } from "../src/internal.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createRequire } from "node:module";
 import { channelFrame } from "./live-fixture.ts";
 import React from "react";
 import TestRenderer, { act } from "react-test-renderer";
-import { SnapbackRefusal, api, createClient } from "../dist/client.mjs";
+import { api, createClient } from "../dist/client.mjs";
+import { RefusalError } from "../dist/client-observed-test.mjs";
 import { SnapbackProvider, useAuth, useMutation } from "../dist/react.mjs";
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
@@ -243,9 +247,9 @@ async function waitForNative(predicate: () => boolean): Promise<void> {
 
 test("native Response preserves shared query/channel delivery and independent terminal refusals", async context => {
   const wire = nativeLive(context);
-  const value = createClient({ url: "http://native.test", as: "alice", fetch: wire.fetch });
+  const value = createClient({ url: "http://native.test", persona: "alice", fetch: wire.fetch });
   const queries: unknown[] = [], channels: unknown[] = [];
-  const query = value.subscribe(api.messages.thread, {}, event => queries.push(event));
+  const query = subscribe(value, api.messages.thread, {}, event => queries.push(event));
   const channel = value.channel(api.typing, {}).subscribe(event => channels.push(event));
   try {
     await waitForNative(() => wire.controls.flatMap(command => command.add ?? []).length === 2);
@@ -264,7 +268,7 @@ test("native Response preserves shared query/channel delivery and independent te
 
     const denied = { state: "refused", code: "E_RULE", family: "rule", guide: "rule/runtime", message: "membership removed" };
     wire.send({ id: queryId, seq: null, data: denied, terminal: true });
-    await assert.rejects(query.until(() => false, 1_000), error => error instanceof SnapbackRefusal && error.code === "E_RULE");
+    await assert.rejects(query.until(() => false, 1_000), error => isRefusalError(error) && error.code === "E_RULE");
     wire.send({ id: queryId, seq: 2, data: { ...row, seq: 2 }, terminal: false });
     const updated = { ...typing, entries: [{ ...typing.entries[0], expiresAt: 11 }] };
     wire.send({ id: channelId, seq: null, data: updated, terminal: false });
@@ -272,7 +276,7 @@ test("native Response preserves shared query/channel delivery and independent te
     assert.deepEqual(queries, [{ ...row, live: true }, { ...denied, live: false }]);
     assert.deepEqual(channels, [{ status: "loading", entries: [] }, ready, { ...ready, entries: updated.entries }]);
     wire.send({ id: channelId, seq: null, data: denied, terminal: true });
-    await assert.rejects(channel.until(() => false, 1_000), error => error instanceof SnapbackRefusal && error.code === "E_RULE");
+    await assert.rejects(channel.until(() => false, 1_000), error => isRefusalError(error) && error.code === "E_RULE");
     const { state: _state, ...refusal } = denied;
     assert.deepEqual(channels.at(-1), { status: "unavailable", reason: "refused", entries: [], refusal });
     await waitForNative(() => [queryId, channelId].every(id => wire.controls.some(command => command.remove?.includes(id))));
@@ -292,7 +296,7 @@ test("native Response cancellation keeps peers live and preserves removed-child 
   const queries: unknown[] = [], channels: unknown[] = [];
   try {
     await value.ready;
-    const query = value.subscribe(api.messages.thread, {}, event => queries.push(event));
+    const query = subscribe(value, api.messages.thread, {}, event => queries.push(event));
     const room = value.channel(api.typing, {});
     const channel = room.subscribe(event => channels.push(event));
     await waitForNative(() => wire.controls.flatMap(command => command.add ?? []).length === 2);
@@ -403,19 +407,18 @@ test("useMutation treats malformed successful bodies as ambiguous transport", as
   for (const expectedAttempt of [2, 3]) {
     let ambiguous: unknown;
     await act(async () => {
-      await assert.rejects(
+      await assertRefused(
         () => current.run({}),
         (error: unknown) => {
           ambiguous = error;
-          return error instanceof SnapbackRefusal
+          return (error.state === "rejected" || error.state === "refused")
             && error.code === "E_WIRE_SHAPE"
             && error.retryable === true;
         },
       );
     });
     assert.equal(attempts, expectedAttempt, "mutation response decoding retried the write");
-    assert.strictEqual(current.last, committed);
-    assert.strictEqual(current.detail.transport, ambiguous);
+    assert.strictEqual(current.last, ambiguous);
   }
   await act(async () => { renderer!.unmount(); });
 });

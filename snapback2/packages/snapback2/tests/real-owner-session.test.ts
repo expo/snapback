@@ -1,12 +1,13 @@
+import { assertRefused } from "./live-fixture.ts";
+import { isRefusalError } from "../dist/client-observed-test.mjs";
+import { subscribe } from "../src/internal.js";
 import assert from "node:assert/strict";
 import { after, test } from "node:test";
-import {
-  SnapbackRefusal,
-  api,
+import { api,
   createClient,
   initialQueryState,
-  reduceQueryState,
-} from "../dist/client.mjs";
+  reduceQueryState } from "../dist/client.mjs";
+import { RefusalError } from "../dist/client-observed-test.mjs";
 import { configureRealOwner, RealOwnerHarness } from "./owner-harness.ts";
 
 const owner = await configureRealOwner();
@@ -83,9 +84,9 @@ test("a real rejected mutation carries the complete refusal envelope", async (co
 
 test("real owner stop and restart yields stale then a full first re-delivery", async (context) => {
   if (!owner.owned) return context.skip("external SNAPBACK_URL does not grant process control");
-  const value = createClient({ url: owner.url, as: "alice" });
+  const value = createClient({ url: owner.url, persona: "alice" });
   const deliveries: any[] = [];
-  const sub = value.subscribe(api.messages.thread, { conversationId: "conversation-1", c: null }, (delivery) => deliveries.push(delivery));
+  const sub = subscribe(value, api.messages.thread, { conversationId: "conversation-1", c: null }, (delivery) => deliveries.push(delivery));
   const initial = await sub.until((delivery) => delivery.state === "complete", 2_000);
   assert.equal(initial.live, true);
   const stalePromise = sub.until((delivery) => delivery.state === "stale", 3_000);
@@ -114,9 +115,9 @@ test("React-free hook driver reduces eight real-owner transitions including live
     view = reduceQueryState(view, delivery);
     transitions.push(view.state);
   };
-  const reader = createClient({ url: owner.url, as: "alice" });
-  const writer = createClient({ url: owner.url, as: "bob" });
-  const live = reader.subscribe(api.messages.thread, { conversationId: "conversation-1", c: null }, drive);
+  const reader = createClient({ url: owner.url, persona: "alice" });
+  const writer = createClient({ url: owner.url, persona: "bob" });
+  const live = subscribe(reader, api.messages.thread, { conversationId: "conversation-1", c: null }, drive);
   const first = await live.until((delivery) => delivery.state === "complete", 2_000);
   const committed = await writer.mutation(api.messages.send, {
     conversationId: "conversation-1",
@@ -132,28 +133,28 @@ test("React-free hook driver reduces eight real-owner transitions including live
   await live.until((delivery) => delivery.state === "complete" && delivery.live && delivery.seq === updated.seq, 4_000);
   live.close();
 
-  const capped = reader.subscribe(api.integration.capped, {}, drive);
+  const capped = subscribe(reader, api.integration.capped, {}, drive);
   const cappedDelivery = await capped.until((delivery) => delivery.state === "capped", 2_000);
   assert.equal(cappedDelivery.live, true);
   // LLP 1011: capped deliveries carry the forward cursor like complete ones.
   assert.deepEqual(Object.keys(cappedDelivery).sort(), ["data", "live", "next", "seq", "state"]);
   capped.close();
 
-  const outsider = createClient({ url: owner.url, as: "charlie" });
-  const denied = outsider.subscribe(api.integration.denied, { conversationId: "conversation-1" }, drive);
+  const outsider = createClient({ url: owner.url, persona: "charlie" });
+  const denied = subscribe(outsider, api.integration.denied, { conversationId: "conversation-1" }, drive);
   const deniedDelivery = await denied.until((delivery) => delivery.state === "denied", 2_000);
   assert.equal(deniedDelivery.live, true);
   assert.equal(deniedDelivery.rule, "MEMBERSHIP_REQUIRED");
   denied.close();
 
   let refusal: any;
-  const refused = reader.subscribe(api.integration.missing, {}, (delivery) => {
+  const refused = subscribe(reader, api.integration.missing, {}, (delivery) => {
     refusal = delivery;
     drive(delivery);
   });
   await assert.rejects(
     () => refused.until(() => false, 2_000),
-    (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_OP_UNKNOWN",
+    (error: unknown) => isRefusalError(error) && error.code === "E_OP_UNKNOWN",
   );
   assert.equal(refusal.state, "refused");
   assert.deepEqual(transitions, ["hydrating", "complete", "complete", "stale", "complete", "capped", "denied", "refused"]);
@@ -166,8 +167,8 @@ test("React-free hook driver reduces eight real-owner transitions including live
 
 test("real channel membership revocation ends the subscriber with a refusal", async (context) => {
   if (!owner.owned) return context.skip("the enhanced temporary chat fixture belongs to the self-started harness");
-  const alice = createClient({ url: owner.url, as: "alice" });
-  const bob = createClient({ url: owner.url, as: "bob" });
+  const alice = createClient({ url: owner.url, persona: "alice" });
+  const bob = createClient({ url: owner.url, persona: "bob" });
   context.after(async () => { await alice.close(); await bob.close(); });
   const channel = bob.channel(api.typing, { conversationId: "conversation-1" });
   const snapshots: any[] = [];
@@ -189,7 +190,7 @@ test("real channel membership revocation ends the subscriber with a refusal", as
   });
   assert.equal(removed.state, "committed");
   const terminalError = await terminal;
-  assert.ok(terminalError instanceof SnapbackRefusal);
+  assert.ok(isRefusalError(terminalError));
   assert.equal(terminalError.code, "E_RULE_CHANNEL_SUBSCRIBE");
   assert.equal(snapshots.at(-1)?.status, "unavailable");
   assert.equal(snapshots.at(-1)?.reason, "refused");
@@ -246,16 +247,16 @@ test("serve mode refuses a persona-bound real client", async (context) => {
   if (!owner.owned) return context.skip("external SNAPBACK_URL does not grant mode control");
   await owner.stop();
   await owner.start(true);
-  const value = createClient({ url: owner.url, as: "alice" });
-  await assert.rejects(
+  const value = createClient({ url: owner.url, persona: "alice" });
+  await assertRefused(
     () => value.query(api.integration.capped, {}),
-    (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_AUTH_PERSONA_NOT_DEV",
+    (error: unknown) => (error.state === "rejected" || error.state === "refused") && error.code === "E_AUTH_PERSONA_NOT_DEV",
   );
   let delivered: any;
-  const sub = value.subscribe(api.integration.capped, {}, (event) => { delivered = event; });
+  const sub = subscribe(value, api.integration.capped, {}, (event) => { delivered = event; });
   await assert.rejects(
     () => sub.until(() => false, 2_000),
-    (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_AUTH_PERSONA_NOT_DEV",
+    (error: unknown) => isRefusalError(error) && error.code === "E_AUTH_PERSONA_NOT_DEV",
   );
   assert.equal(delivered.state, "refused");
   sub.close();

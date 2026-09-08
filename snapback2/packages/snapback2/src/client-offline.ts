@@ -7,9 +7,9 @@ import { drainOutbox } from "./client-outbox.js";
 import { DrainSubscription } from "./drain.js";
 import { DeliveryEnvelopeDecodeError } from "./offline-protocol.js";
 import {
-  SnapbackRefusal,
+  RefusalError,
   copyRefusal,
-  isSnapbackRefusal,
+  isRefusalError,
   isTerminalSession,
   sseObject,
   wireQuery,
@@ -28,7 +28,7 @@ import {
   type LiveQueryDelivery,
   type QueryResult,
   type QueryRefusedDelivery,
-  type RefusalEnvelope,
+  type Refusal,
   type SnapbackClient,
   type Subscription,
   type SubscriptionDelivery,
@@ -55,12 +55,12 @@ export function createOfflineRuntime(options: OfflineClientOptions | undefined):
   return options ? new OfflineRuntime(options) : undefined;
 }
 
-export function offlineRefusal(error: unknown, carrier: string, site = "client.offline"): SnapbackRefusal {
-  if (isSnapbackRefusal(error)) return error;
+export function offlineRefusal(error: unknown, carrier: string, site = "client.offline"): RefusalError {
+  if (isRefusalError(error)) return error;
   const candidate = error && typeof error === "object" ? (error as { code?: unknown }).code : undefined;
   if (candidate === "E_OFFLINE_ID_BLOCK") {
     const local = error as { message: string; site?: string; rewrite?: string };
-    return new SnapbackRefusal({
+    return new RefusalError({
       code: candidate,
       family: "offline",
       message: local.message,
@@ -70,7 +70,7 @@ export function offlineRefusal(error: unknown, carrier: string, site = "client.o
     });
   }
   if (candidate === "E_OFFLINE_AUTHORITY") {
-    return new SnapbackRefusal({
+    return new RefusalError({
       code: candidate,
       family: "offline",
       message: error instanceof Error ? error.message : String(error),
@@ -94,15 +94,15 @@ export function offlineRefusal(error: unknown, carrier: string, site = "client.o
     : code === "E_OFFLINE_LOCK" ? (carrier === "SQLite" ? "this account is open in another client; close it and try again" : "this account is open in another tab")
     : code === "E_OFFLINE_CARRIER" ? `install or configure the ${carrier} carrier`
     : "retry this local operation; preserve queued writes and inspect the reported state error if it repeats");
-  return new SnapbackRefusal({
+  return new RefusalError({
     code, family: "offline", message, site: supplied?.site ?? site, rewrite, guide: "offline",
   });
 }
 
-export function offlineNetworkRefusal(): SnapbackRefusal {
-  return new SnapbackRefusal({
-    code: "E_NETWORK",
-    family: "owner",
+export function offlineNetworkRefusal(): RefusalError {
+  return new RefusalError({
+    code: "E_TRANSPORT",
+    family: "transport",
     message: "client transport is offline",
     rewrite: "call client.online() to restore this device transport",
     guide: "offline",
@@ -170,10 +170,10 @@ export async function decodeOfflineSubscription<Result>(options: {
 export function settleSubscription<Result>(
   value: LiveQueryDelivery<Result> | QueryRefusedDelivery,
   ensureAuthority: () => void,
-  patch: (value: { connection: "connected"; lastRefusal: RefusalEnvelope | undefined }) => void,
+  patch: (value: { connection: "connected"; lastRefusal: Refusal | undefined }) => void,
 ): { seq: number; data?: Result } | undefined {
   if (value.state === "refused" && isTerminalSession(value)) {
-    throw new SnapbackRefusal(copyRefusal(value));
+    throw new RefusalError(copyRefusal(value));
   }
   ensureAuthority();
   patch({
@@ -255,7 +255,7 @@ export function createOfflineDrain<Args, Result>(options: {
       if (options.resume && !(await options.runtime.outbox.grant())) {
         await options.resume().catch(error => {
           // A different drain's refusal does not invalidate this admitted log.
-          if (isSnapbackRefusal(error) && error.envelope.reason === "unsupported-log" && error.envelope.op !== options.op) return;
+          if (isRefusalError(error) && error.envelope.reason === "unsupported-log" && error.envelope.op !== options.op) return;
           throw error;
         });
       }
@@ -333,7 +333,7 @@ export async function restartOffline(options: {
 type RefusalLike = Error & {
   code?: string;
   status?: number;
-  envelope?: RefusalEnvelope;
+  envelope?: Refusal & Record<string, unknown>;
 };
 
 function refusal(error: unknown): RefusalLike | undefined {
@@ -352,7 +352,7 @@ function resumeAdjustment(error: RefusalLike): ResumeAdjustment | undefined {
     && Number(value.cap) >= 0 && Number(value.cap) < 32 ? { cap: Number(value.cap) } : undefined;
 }
 
-export function refuseDrains(mounted: Map<string, MountedQuery>, envelope: RefusalEnvelope): void {
+export function refuseDrains(mounted: Map<string, MountedQuery>, envelope: Refusal & { which?: unknown; op?: unknown }): void {
   if (envelope.code !== "E_OFFLINE_RESUME" || (envelope.which !== "log" && envelope.reason !== "unsupported-log")) return;
   for (const query of mounted.values()) if (query.drain && query.op === envelope.op) query.refuse?.(envelope);
 }
@@ -523,8 +523,8 @@ export async function performOfflineResume<Authority>(options: {
   return false;
 }
 
-function resumeUnavailable(message: string): SnapbackRefusal {
-  return new SnapbackRefusal({
+function resumeUnavailable(message: string): RefusalError {
+  return new RefusalError({
     code: "E_OFFLINE_RESUME", family: "offline", message,
     site: "client.online.resume", guide: "offline",
     rewrite: "query an authorized operation online with receipt support, then call online() again; queued writes are kept",

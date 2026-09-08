@@ -1,3 +1,6 @@
+import { assertRefused } from "./live-fixture.ts";
+import { isRefusalError } from "../dist/client-observed-test.mjs";
+import { subscribe } from "../src/internal.js";
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -5,7 +8,8 @@ import { join } from "node:path";
 import { test } from "node:test";
 import React, { StrictMode, useState } from "react";
 import TestRenderer, { act } from "react-test-renderer";
-import { SnapbackRefusal, api, createClient } from "../dist/client.mjs";
+import { api, createClient } from "../dist/client.mjs";
+import { RefusalError } from "../dist/client-observed-test.mjs";
 import { SnapbackProvider, indexedDbRangeStore, useSnapbackClient } from "../dist/react.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
 import { sqliteFactory } from "./sqlite-fixture.ts";
@@ -112,7 +116,7 @@ test("two overlapping enqueues consume distinct grant slices: both entries exist
     const owner = fakeOwner();
     await seededStore(carrier.factory());
     const held = capturing(carrier.factory());
-    const client = createClient({ url: "http://atomic-grant.test", as: "alice", fetch: owner.fetch, offline: { store: held.factory } });
+    const client = createClient({ url: "http://atomic-grant.test", persona: "alice", fetch: owner.fetch, offline: { store: held.factory } });
     await client.ready;
     await client.offline();
     // No await between the two: both read the grant before either swap lands unless enqueue is a critical section.
@@ -143,7 +147,7 @@ test("a committed reply whose tail fetch fails leaves the intent queued with no 
     let cutTail = false;
     const bodies: string[] = [];
     const client = createClient({
-      url: "http://tail-fetch.test", as: "alice", offline: { store: held.factory },
+      url: "http://tail-fetch.test", persona: "alice", offline: { store: held.factory },
       fetch: async (input, init) => {
         const path = new URL(String(input)).pathname;
         if (path === "/api/mutation") bodies.push(String(init?.body));
@@ -187,7 +191,7 @@ test("the settlement tail and the resume log both name the first-mounted drained
     const queries: any[] = [];
     const resumes: any[] = [];
     const client = createClient({
-      url: "http://tail-chooser.test", as: "alice", offline: { store: carrier.factory() },
+      url: "http://tail-chooser.test", persona: "alice", offline: { store: carrier.factory() },
       fetch: async (input, init) => {
         const path = new URL(String(input)).pathname;
         if (path === "/api/query") queries.push(JSON.parse(String(init?.body)));
@@ -196,12 +200,12 @@ test("the settlement tail and the resume log both name the first-mounted drained
       },
     });
     await client.ready;
-    const inbox = client.subscribe(api.deliveries.inbox as any, { c: null }, () => undefined, { drain: true });
+    const inbox = subscribe(client, api.deliveries.inbox as any, { c: null }, () => undefined, { drain: true });
     await inbox.until(caughtUp, 2_000);
     await tick();
     assert.equal(owner.grantsMinted(), 1, `${carrier.name}: the first drain earned the grant`);
     // Mounted second and marked later: its watermark is the newest by updatedAt.
-    const thread = client.subscribe((api as any).deliveries.inboxAlternate, { c: null }, () => undefined, { drain: true });
+    const thread = subscribe(client, (api as any).deliveries.inboxAlternate, { c: null }, () => undefined, { drain: true });
     await thread.until(caughtUp, 2_000);
     await client.offline();
     const queued = await client.mutation(api.deliveries.post as any, post("chosen tail"));
@@ -249,11 +253,11 @@ test("settled() rejects with the non-retryable refusal that stopped the replay a
       : undefined,
   });
   await seededStore(fileRangeStore(root));
-  const client = createClient({ url: "http://settled.test", as: "alice", fetch: owner.fetch, offline: { store: fileRangeStore(root) } });
+  const client = createClient({ url: "http://settled.test", persona: "alice", fetch: owner.fetch, offline: { store: fileRangeStore(root) } });
   await client.ready;
   await client.offline();
   await client.mutation(api.deliveries.post as any, post("refused"));
-  const refused = (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_PROGRAM_GENERATION" && !error.retryable;
+  const refused = (error: unknown) => isRefusalError(error) && error.code === "E_PROGRAM_GENERATION" && !error.retryable;
   await assert.rejects(() => client.online(), refused, "the resume's drain surfaces the refusal");
   await assert.rejects(() => client.outbox.settled(), refused, "settled() rejects with the refusal, not with intents still queued");
   assert.deepEqual((await client.outbox.entries()).map((entry) => entry.state), ["queued"], "the refused intent stays queued");
@@ -286,7 +290,7 @@ test("the prediction overlay is dropped in the same swap as a rejected or server
     });
     await seededStore(carrier.factory());
     const held = capturing(carrier.factory());
-    const client = createClient({ url: "http://overlay.test", as: "alice", fetch: owner.fetch, offline: { store: held.factory, fenceDays: 1 } });
+    const client = createClient({ url: "http://overlay.test", persona: "alice", fetch: owner.fetch, offline: { store: held.factory, fenceDays: 1 } });
     await client.ready;
     await client.offline();
     const rejected = await client.mutation(api.deliveries.post as any, post("rejected"));
@@ -327,7 +331,7 @@ test("a cold start with the owner cut prices its slice from the persisted write 
   for (const carrier of await carriers()) {
     const owner = fakeOwner();
     await seededStore(carrier.factory());
-    const warm = createClient({ url: "http://bound.test", as: "alice", fetch: owner.fetch, offline: { store: carrier.factory() } });
+    const warm = createClient({ url: "http://bound.test", persona: "alice", fetch: owner.fetch, offline: { store: carrier.factory() } });
     await warm.ready;
     assert.equal(owner.grantsMinted(), 1, `${carrier.name}: the warm start earned a grant and recorded /api/program`);
     await warm.close();
@@ -335,7 +339,7 @@ test("a cold start with the owner cut prices its slice from the persisted write 
     let dead = true;
     const held = capturing(carrier.factory());
     const cold = createClient({
-      url: "http://bound.test", as: "alice", offline: { store: held.factory },
+      url: "http://bound.test", persona: "alice", offline: { store: held.factory },
       fetch: async (input, init) => {
         if (dead) throw new TypeError("fetch failed");
         return owner.fetch(input, init);
@@ -365,14 +369,14 @@ test("a cold start with the owner cut prices its slice from the persisted write 
     await seed.close?.();
     await tick();
     const cold = createClient({
-      url: "http://no-bound.test", as: "alice", offline: { store: carrier.factory() },
+      url: "http://no-bound.test", persona: "alice", offline: { store: carrier.factory() },
       fetch: async () => { throw new TypeError("fetch failed"); },
     });
     await cold.ready;
-    await assert.rejects(
+    await assertRefused(
       () => cold.mutation(api.deliveries.post as any, post("unpriced")),
-      (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_OFFLINE_ID_BLOCK"
-        && error.envelope.family === "offline" && /bound .* unknown/.test(error.message),
+      (error: unknown) => (error.state === "rejected" || error.state === "refused") && error.code === "E_OFFLINE_ID_BLOCK"
+        && error.family === "offline" && /bound .* unknown/.test(error.message),
       `${carrier.name}: no bound is a loud refusal, not a guessed slice`,
     );
     assert.deepEqual(await cold.outbox.entries(), [], `${carrier.name}: nothing was enqueued`);
@@ -401,7 +405,7 @@ test("SnapbackProvider constructs exactly one client across StrictMode's double 
     return React.createElement(
       SnapbackProvider,
       {
-        url: "http://one-client.test", as: "alice", fetch: owner.fetch,
+        url: "http://one-client.test", persona: "alice", fetch: owner.fetch,
         offline: { store: held.factory, fenceDays: 3 },
       },
       React.createElement(Harness, { key: pass }),

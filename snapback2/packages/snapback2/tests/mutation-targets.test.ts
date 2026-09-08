@@ -60,7 +60,7 @@ test("certified sources resolve without a prediction; ambiguous, missing, and ma
 test("a mounted mutation hook captures a changed semantic target of the same operation", async () => {
   const root = await mkdtemp(join(tmpdir(), "snapback-hook-target-")), store = fileRangeStore(root);
   await seededStore(store);
-  const client = createClient({ url: "http://hook-target.test", as: "alice", fetch: fakeOwner().fetch, offline: { store } });
+  const client = createClient({ url: "http://hook-target.test", persona: "alice", fetch: fakeOwner().fetch, offline: { store } });
   let hook: ReturnType<typeof useMutation>, rendered: TestRenderer.ReactTestRenderer | undefined;
   function Harness({ reference }: { reference: any }) { hook = useMutation(reference); return null; }
   const show = (reference: any) => React.createElement(SnapbackProvider, { client }, React.createElement(Harness, { reference }));

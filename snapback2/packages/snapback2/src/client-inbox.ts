@@ -5,10 +5,10 @@
 // message costs latency, never custody.
 // @ref LLP 1018.004#4-liveness-nudges-polls-and-where-admission-runs — polls
 // on both sides cover a lost nudge and a browser without BroadcastChannel.
-import { followerRefusal, SnapbackRefusal } from "./client-wire.js";
+import { followerRefusal, RefusalError } from "./client-wire.js";
 import { inboxAlias, inboxKeyOf, InboxFull, INBOX_LIMIT } from "./store/inbox.js";
 import type { OfflineRuntime } from "./offline.js";
-import type { MutationQueued, OutboxStatus, RefusalEnvelope } from "./types.js";
+import type { MutationQueued, OutboxStatus, Refusal } from "./types.js";
 
 const PROTOCOL = 2;
 /** How long a follower's oldest queued row may go unadmitted after a nudge before the writer counts as unresponsive. */
@@ -33,8 +33,8 @@ export interface ClientInboxHost {
   runtime?: OfflineRuntime;
   closed(): boolean;
   fence(): number;
-  superseded(): SnapbackRefusal;
-  failure(error: unknown, site: string): RefusalEnvelope;
+  superseded(): RefusalError;
+  failure(error: unknown, site: string): Refusal;
   /** Ordinary readiness of the writer's ledger, for announcements. */
   writerStatus(): Promise<OutboxStatus>;
   /** Every change of the writer's ledger, so followers can be nudged; subscribed only while this tab is the writer. */
@@ -170,15 +170,15 @@ export class ClientInbox {
   // capacity is sendable; `writer-unresponsive` is a reason on a ready status.
   async status(): Promise<OutboxStatus> {
     const follower = this.follower, runtime = this.host.runtime;
-    if (!follower || !runtime) return { ready: false, reason: "follower", action: "none", remaining: 0, fence: "inside" };
+    if (!follower || !runtime) return { ready: false, reason: "follower", action: "other-tab", remaining: 0, fence: "inside" };
     // Ledger entries are the ones not named by an alias; an admitted row's entry counts as the ledger's.
     const ledgerQueued = (await runtime.itemEntries()).filter((entry) => entry.state === "queued" && inboxKeyOf(entry.intent) === undefined).length;
     const remaining = runtime.inboxPending + ledgerQueued;
     const fence = this.writerAnnounced?.status.fence ?? "inside";
-    if (!follower.established) return { ready: false, reason: "sealed", action: "login", remaining, fence };
-    if (!runtime.inboxAvailable) return { ready: false, reason: "follower", action: "none", remaining, fence };
-    if (runtime.inboxPending >= INBOX_LIMIT) return { ready: false, reason: "inbox-full", action: "none", remaining, fence };
-    return { ready: true, reason: this.unresponsive ? "writer-unresponsive" : "forwarding", action: "none", remaining, fence };
+    if (!follower.established) return { ready: false, reason: "sealed", action: "sign-in", remaining, fence };
+    if (!runtime.inboxAvailable) return { ready: false, reason: "follower", action: "other-tab", remaining, fence };
+    if (runtime.inboxPending >= INBOX_LIMIT) return { ready: false, reason: "inbox-full", action: "wait", remaining, fence };
+    return { ready: true, reason: this.unresponsive ? "writer-unresponsive" : "forwarding", action: this.unresponsive || remaining > 0 ? "wait" : "none", remaining, fence };
   }
 
   /** A follower's write: a durable row before this resolves (LLP 1018.004 §2). */
@@ -186,7 +186,7 @@ export class ClientInbox {
     const follower = this.follower, runtime = this.host.runtime;
     if (!follower || !runtime) return Promise.reject(followerRefusal("client.mutation.inbox"));
     if (!follower.established) {
-      return Promise.reject(new SnapbackRefusal({ code: "E_OFFLINE_FOLLOWER", family: "offline",
+      return Promise.reject(new RefusalError({ code: "E_OFFLINE_FOLLOWER", family: "offline",
         message: "this tab's account is not established yet; sign in before writing", site: "client.mutation.inbox",
         rewrite: "authenticate this tab, then send again", guide: "offline" }));
     }
@@ -202,14 +202,14 @@ export class ClientInbox {
       } catch (error) {
         // Compared by name: the carrier may come from another bundle of the same source (`snapback2/react`).
         if (error instanceof InboxFull || (error instanceof Error && error.name === "InboxFull")) {
-          throw new SnapbackRefusal({ code: "E_OFFLINE_INBOX_FULL", family: "offline", message: (error as Error).message,
+          throw new RefusalError({ code: "E_OFFLINE_INBOX_FULL", family: "offline", message: (error as Error).message,
             site: "client.mutation.inbox", rewrite: "wait for the sending tab to admit queued writes", guide: "offline" });
         }
         if (error instanceof TypeError) {
-          throw new SnapbackRefusal({ code: "E_OFFLINE_ARGUMENTS", family: "offline", message: error.message,
+          throw new RefusalError({ code: "E_OFFLINE_ARGUMENTS", family: "offline", message: error.message,
             site: "client.mutation.inbox", rewrite: "send JSON-representable arguments", guide: "offline" });
         }
-        throw new SnapbackRefusal(this.host.failure(error, "client.mutation.inbox"));
+        throw new RefusalError(this.host.failure(error, "client.mutation.inbox"));
       }
       if (this.host.closed() || this.host.fence() !== fence || this.generation !== generation) {
         // The row is durable regardless; only this call's publication rights ended.
@@ -270,11 +270,11 @@ export class ClientInbox {
         const custody = () => {
           if (this.host.closed() || this.host.fence() !== fence || runtime.principal !== principal) throw this.host.superseded();
         };
-        let outcome: { admitted: number; stopped?: string } = { admitted: 0 };
-        try { outcome = await runtime.admitInbox({ scope, custody }); }
+        let verdict: { admitted: number; stopped?: string } = { admitted: 0 };
+        try { verdict = await runtime.admitInbox({ scope, custody }); }
         catch (error) { if (!this.host.closed()) this.host.failure(error, "client.inbox.admit"); }
-        if (outcome.admitted > 0) this.host.admitted();
-        last = outcome.stopped === undefined ? {} : { stopped: outcome.stopped };
+        if (verdict.admitted > 0) this.host.admitted();
+        last = verdict.stopped === undefined ? {} : { stopped: verdict.stopped };
         this.post({ protocol: PROTOCOL, type: "ledger", scope });
         if (this.writerScope === scope) await this.announce();
       } while (this.admitAgain && !this.host.closed());

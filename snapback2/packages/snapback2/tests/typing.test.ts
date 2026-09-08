@@ -50,8 +50,10 @@ channel typing(todoId: todos):
     assert.equal(output.ok, true, compiled.stdout);
     assert.equal(typeof output.apiDts, "string", "built worker did not return the generated API");
     await writeFile(join(root, ".snapback/build/api.d.ts"), output.apiDts);
-    await writeFile(join(root, "App.tsx"), `import { api, createClient } from "snapback2/client";
-type Result = NonNullable<(typeof api.todos.add)["__result"]>;
+    await writeFile(join(root, "App.tsx"), `import { api, createClient, type ResultOf, type ArgsOf } from "snapback2/client";
+type Result = ResultOf<typeof api.todos.add>;
+const args: ArgsOf<typeof api.todos.add> = { done: true };
+void args;
 declare const result: Result;
 const done: boolean = result.row.done;
 // @ts-expect-error a boolean field is not a number, even with skipLibCheck
@@ -120,9 +122,9 @@ test("generated Api rejects typos, extra query args, and wrong channel args", as
       const historyRows: { message: { id: string; body: string } | null }[] | undefined = custody.history?.data;
       if (custody.itemsFrom === "query") {
         const count: number = custody.data.count;
-        const outcome: "complete" | "capped" = custody.receipt.outcome;
+        const verdict: "complete" | "capped" = custody.receipt.state;
         const noHistory: undefined = custody.history;
-        void [count, outcome, noHistory];
+        void [count, verdict, noHistory];
       } else {
         // @ts-expect-error history and drafts cannot assert the composite's data is present
         const count: number = custody.data.count;
@@ -192,7 +194,7 @@ test("generated Api rejects typos, extra query args, and wrong channel args", as
       client.query(api.messages.thread, { conversationId: "general", extra: true });
       client.channel(api.typing, { bogus: true });
       createClient({ url: "http://127.0.0.1:3210", persist: (_token: string | null) => undefined });
-      createClient({ url: "http://127.0.0.1:3210", as: "alice", token: "bearer" });
+      createClient({ url: "http://127.0.0.1:3210", persona: "alice", token: "bearer" });
     `);
     await writeFile(apiDts, `
       import type { ImageAsset, VideoAsset } from "snapback2";
@@ -248,7 +250,7 @@ test("generated Api rejects typos, extra query args, and wrong channel args", as
   }
 });
 
-test("public refusal types require family and guide", async (context) => {
+test("public refusals require family and accept an optional guide", async (context) => {
   const root = await mkdtemp(join(tmpdir(), "snapback2-refusal-types-"));
   try {
     const sample = join(root, "sample.ts");
@@ -256,11 +258,11 @@ test("public refusal types require family and guide", async (context) => {
       import type {
         ChannelWriteResult,
         MutationRejected,
-        RefusalEnvelope,
+        Refusal,
         RefusedDelivery,
       } from "snapback2/client";
-      const envelopeWithoutGuide: RefusalEnvelope = { code: "E_NO", family: "op", message: "no" };
-      const envelopeWithoutFamily: RefusalEnvelope = { code: "E_NO", message: "no", guide: "op/no" };
+      const envelopeWithoutGuide: Refusal = { code: "E_NO", family: "op", message: "no" };
+      const envelopeWithoutFamily: Refusal = { code: "E_NO", message: "no", guide: "op/no" };
       const rejectedWithoutGuide: MutationRejected = { state: "rejected", code: "E_NO", family: "op", message: "no" };
       const rejectedWithoutFamily: MutationRejected = { state: "rejected", code: "E_NO", message: "no", guide: "op/no" };
       const deliveryWithoutGuide: RefusedDelivery = { state: "refused", code: "E_NO", family: "op", message: "no" };
@@ -291,8 +293,8 @@ test("public refusal types require family and guide", async (context) => {
     });
     const diagnostics = ts.getPreEmitDiagnostics(program).filter((item) => item.file?.fileName === sample);
     const rendered = diagnostics.map((item) => ts.flattenDiagnosticMessageText(item.messageText, "\n"));
-    assert.equal(diagnostics.length, 8, `expected family/guide diagnostics for four refusal types:\n${rendered.join("\n")}`);
-    assert.ok(rendered.filter((message) => message.includes("guide")).length >= 4, rendered.join("\n"));
+    assert.equal(diagnostics.length, 4, `expected family diagnostics for four refusal types:\n${rendered.join("\n")}`);
+    
     assert.ok(rendered.filter((message) => message.includes("family")).length >= 4, rendered.join("\n"));
     context.diagnostic(diagnostics.map((item, index) => `TS${item.code}: ${rendered[index]}`).join("\n"));
   } finally {

@@ -1054,7 +1054,7 @@ test("unchanged quiet-tail resumes strictly past commit consume one miss across 
       await store.commit({ facts: { generation, schemaHash, authEpoch: 7 } });
       await store.close?.();
       for (let count = 1; count <= 2; count++) {
-        const client = createClient({ url: "http://quiet.test", as: "alice", offline: { store: create },
+        const client = createClient({ url: "http://quiet.test", persona: "alice", offline: { store: create },
           fetch: resumeFetch("c", { unchanged: true }, () => resumes++),
         });
         try { await client.ready; } finally { await client.close(); }
@@ -1083,7 +1083,7 @@ test("repeated online resumes at the commit seq do not consume misses in one ses
     await seed(store, "dev:alice", item, { op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark: "quiet", updatedAt: 1 });
     await store.commit({ facts: { generation, schemaHash, authEpoch: 7 } });
     await store.close?.();
-    const client = createClient({ url: "http://same-seq.test", as: "alice", offline: { store: () => (store = create()) },
+    const client = createClient({ url: "http://same-seq.test", persona: "alice", offline: { store: () => (store = create()) },
       fetch: (input, init) => resumeFetch("c", { unchanged: true }, () => resumes++, seq)(input, init),
     });
     try {
@@ -1118,7 +1118,7 @@ test("a pre-manifest c snapshot needs fresh correctly named links after reopenin
       await store.close?.();
       let request: any;
       const held = row("deliveries", "authoritative-tail");
-      const client = createClient({ url: "http://fallback.test", as: "alice", offline: { store: create },
+      const client = createClient({ url: "http://fallback.test", persona: "alice", offline: { store: create },
         fetch: resumeFetch("after", {
           protocol: 1, generation, schemaHash, planHash, authority: { principal: "dev:alice", authEpoch: 7 },
           state: "complete", data: [ref(held.table, held.id)], rows: [held], receipt: receipt(),

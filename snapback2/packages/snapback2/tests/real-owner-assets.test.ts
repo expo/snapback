@@ -1,12 +1,11 @@
+import { assertRefused } from "./live-fixture.ts";
 import assert from "node:assert/strict";
 import { after, test } from "node:test";
-import {
-  SnapbackRefusal,
-  api,
+import { api,
   createClient,
   initialQueryState,
-  reduceQueryState,
-} from "../dist/client.mjs";
+  reduceQueryState } from "../dist/client.mjs";
+import { RefusalError } from "../dist/client-observed-test.mjs";
 import { configureRealOwner, RealOwnerHarness } from "./owner-harness.ts";
 
 const owner = await configureRealOwner();
@@ -14,7 +13,7 @@ after(async () => owner.close());
 
 test("real owner private asset bytes and conditional responses forbid HTTP cache storage", async () => {
   const { readFile } = await import("node:fs/promises");
-  const client = createClient({ url: owner.url, as: "alice" });
+  const client = createClient({ url: owner.url, persona: "alice" });
   try {
     const png = await readFile(new URL("../../../scripts/witness-expo/view-once.png", import.meta.url));
     const photo = await client.upload(new Blob([png], { type: "image/png" }), { kind: "image" });
@@ -40,7 +39,7 @@ test("real owner private asset bytes and conditional responses forbid HTTP cache
 
 test("twenty-four refused File mutations recover their staging quota immediately", async () => {
   const { readFile } = await import("node:fs/promises");
-  const client = createClient({ url: owner.url, as: "upload-refusals" });
+  const client = createClient({ url: owner.url, persona: "upload-refusals" });
   try {
     const png = await readFile(new URL("../../../scripts/witness-expo/view-once.png", import.meta.url));
     for (let index = 0; index < 24; index++) {
@@ -59,7 +58,7 @@ test("cyclic mutation arguments release uploaded bytes without sending a mutatio
   const { readFile } = await import("node:fs/promises");
   let mutations = 0;
   let uploads = 0;
-  const client = createClient({ url: owner.url, as: "upload-serialization", fetch: async (input, init) => {
+  const client = createClient({ url: owner.url, persona: "upload-serialization", fetch: async (input, init) => {
     const path = new URL(String(input)).pathname;
     if (path === "/api/mutation") mutations++;
     if (path === "/api/upload") uploads++;
@@ -70,7 +69,7 @@ test("cyclic mutation arguments release uploaded bytes without sending a mutatio
   try {
     const png = await readFile(new URL("../../../scripts/witness-expo/view-once.png", import.meta.url));
     for (let index = 0; index < 24; index++) {
-      await assert.rejects(client.mutation(api.messages.sendPhoto, {
+      await assertRefused(client.mutation(api.messages.sendPhoto, {
         conversationId: "conversation-1", photo: new File([png], "photo.png"), metadata,
       } as any), TypeError);
       const listing = await client.listUploads();

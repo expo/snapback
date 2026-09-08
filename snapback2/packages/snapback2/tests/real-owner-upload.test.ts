@@ -1,12 +1,12 @@
+import { assertRefused } from "./live-fixture.ts";
+import { subscribe } from "../src/internal.js";
 import assert from "node:assert/strict";
 import { after, test } from "node:test";
-import {
-  SnapbackRefusal,
-  api,
+import { api,
   createClient,
   initialQueryState,
-  reduceQueryState,
-} from "../dist/client.mjs";
+  reduceQueryState } from "../dist/client.mjs";
+import { RefusalError } from "../dist/client-observed-test.mjs";
 import { configureRealOwner, RealOwnerHarness } from "./owner-harness.ts";
 
 const owner = await configureRealOwner();
@@ -19,7 +19,7 @@ test("failed outbox admission or prediction leaves no upload, intent, or mutatio
   const { fileRangeStore } = await import("../dist/test.mjs");
   const directory = await mkdtemp(join(tmpdir(), "snapback-upload-admission-"));
   let mutations = 0;
-  const client = createClient({ url: owner.url, as: "alice", offline: { store: fileRangeStore(directory) },
+  const client = createClient({ url: owner.url, persona: "alice", offline: { store: fileRangeStore(directory) },
     fetch: async (input, init) => {
       if (new URL(String(input)).pathname === "/api/mutation") mutations++;
       return fetch(input, init);
@@ -29,17 +29,17 @@ test("failed outbox admission or prediction leaves no upload, intent, or mutatio
     const png = await readFile(new URL("../../../scripts/witness-expo/view-once.png", import.meta.url));
     const initial = (await client.listUploads()).usage;
     for (let index = 0; index < 24; index++) {
-      await assert.rejects(client.mutation(api.messages.sendPhoto, {
+      await assertRefused(client.mutation(api.messages.sendPhoto, {
         conversationId: "conversation-1", photo: new File([png], "photo.png"),
       }), (error: any) => error.code === "E_OFFLINE_ID_BLOCK");
       assert.deepEqual((await client.listUploads()).usage, initial);
       assert.deepEqual(await client.outbox.entries(), []);
     }
-    const drain = client.subscribe(api.integration.inbox, { c: null }, () => {}, { drain: true });
+    const drain = subscribe(client, api.integration.inbox, { c: null }, () => {}, { drain: true });
     await drain.until((event: any) => event.live === true, 3_000);
     drain.close();
     (client as any).offlineRuntime.predict = async () => { throw new Error("prediction failed before custody"); };
-    await assert.rejects(client.mutation(api.messages.sendPhoto, {
+    await assertRefused(client.mutation(api.messages.sendPhoto, {
       conversationId: "conversation-1", photo: new File([png], "photo.png"),
     }), /prediction failed before custody/);
     assert.deepEqual((await client.listUploads()).usage, initial);
@@ -54,9 +54,9 @@ test("an outbox persistence failure after commit retains media for replay", asyn
   const { join } = await import("node:path");
   const { fileRangeStore } = await import("../dist/test.mjs");
   const directory = await mkdtemp(join(tmpdir(), "snapback-upload-durable-"));
-  const client = createClient({ url: owner.url, as: "alice", offline: { store: fileRangeStore(directory) } });
+  const client = createClient({ url: owner.url, persona: "alice", offline: { store: fileRangeStore(directory) } });
   try {
-    const drain = client.subscribe(api.integration.inbox, { c: null }, () => {}, { drain: true });
+    const drain = subscribe(client, api.integration.inbox, { c: null }, () => {}, { drain: true });
     await drain.until((event: any) => event.live === true, 3_000);
     drain.close();
     const runtime = (client as any).offlineRuntime;
@@ -66,7 +66,7 @@ test("an outbox persistence failure after commit retains media for replay", asyn
       if (change.outbox?.put?.length) throw new Error("storage acknowledgement lost after commit");
     };
     const png = await readFile(new URL("../../../scripts/witness-expo/view-once.png", import.meta.url));
-    await assert.rejects(client.mutation(api.messages.sendPhoto, {
+    await assertRefused(client.mutation(api.messages.sendPhoto, {
       conversationId: "conversation-1", photo: new File([png], "photo.png"),
     }), /storage acknowledgement lost/);
     const entries = await client.outbox.entries();
@@ -84,7 +84,7 @@ test("a lost committed media response retains the claimed asset and explicit dis
   const { readFile } = await import("node:fs/promises");
   let photo: any;
   let discards = 0;
-  const client = createClient({ url: owner.url, as: "alice", fetch: async (input, init) => {
+  const client = createClient({ url: owner.url, persona: "alice", fetch: async (input, init) => {
     const path = new URL(String(input)).pathname;
     if (path === "/api/uploads/discard") discards++;
     const response = await fetch(input, init);
@@ -97,7 +97,7 @@ test("a lost committed media response retains the claimed asset and explicit dis
   } });
   try {
     const png = await readFile(new URL("../../../scripts/witness-expo/view-once.png", import.meta.url));
-    await assert.rejects(client.mutation(api.messages.sendPhoto, {
+    await assertRefused(client.mutation(api.messages.sendPhoto, {
       conversationId: "conversation-1", photo: new File([png], "photo.png"),
     }), (error: any) => error.code === "E_NETWORK");
     assert.equal(discards, 0, "an ambiguous response never triggers cleanup");
@@ -118,7 +118,7 @@ test("queued media retains its uploaded bytes until the outbox commits", async (
   let cut = false;
   let photo: any;
   let discards = 0;
-  const client = createClient({ url: owner.url, as: "alice", offline: { store: fileRangeStore(directory) },
+  const client = createClient({ url: owner.url, persona: "alice", offline: { store: fileRangeStore(directory) },
     fetch: async (input, init) => {
       const path = new URL(String(input)).pathname;
       if (path === "/api/uploads/discard") discards++;
@@ -129,7 +129,7 @@ test("queued media retains its uploaded bytes until the outbox commits", async (
     },
   });
   try {
-    const drain = client.subscribe(api.integration.inbox, { c: null }, () => {}, { drain: true });
+    const drain = subscribe(client, api.integration.inbox, { c: null }, () => {}, { drain: true });
     await drain.until((event: any) => event.live === true, 3_000);
     drain.close();
     const png = await readFile(new URL("../../../scripts/witness-expo/view-once.png", import.meta.url));

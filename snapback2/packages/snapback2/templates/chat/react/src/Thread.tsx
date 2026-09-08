@@ -1,11 +1,11 @@
 import { useRef, useState } from "react";
-import { api, isSnapbackRefusal } from "snapback2/client";
+import { api } from "snapback2/client";
 import { AssetImage, useMutation, useOutbox, useQuery, useSnapbackClient, useSnapbackSnapshot } from "snapback2/react";
 import { Composer } from "./Composer";
 import { conversationItems, messageWrites } from "../shared/thread";
 
 const when = (at: number) => new Date(at).toLocaleTimeString();
-const describe = (error: unknown) => (isSnapbackRefusal(error) ? error.envelope.rewrite ?? error.message : String(error));
+const describe = (error: unknown) => error instanceof Error ? error.message : String(error);
 
 // @ref LLP 1018.000#4-one-observed-query-one-coherent-snapshot — the list,
 // count, and preview come from one named composite; partial custody falls back
@@ -16,7 +16,7 @@ const describe = (error: unknown) => (isSnapbackRefusal(error) ? error.envelope.
 // @ref LLP 1018.003.000#2-correspondence —
 // items already carry their own work and prediction provenance.
 // @ref LLP 1018.004#5-hooks-and-templates — edit and unsend are short handlers:
-// every `run()` outcome is terminal or durable, so there is nothing to recover.
+// every `run()` verdict is terminal or durable, so there is nothing to recover.
 export function Thread({ conversationId, viewer, onNote }: {
   conversationId: string;
   viewer: string | undefined;
@@ -53,12 +53,12 @@ export function Thread({ conversationId, viewer, onNote }: {
   };
 
   const preview = composite?.preview[0]?.message?.body;
-  const state = history ? history.receipt?.outcome ?? history.status : snapshot.receipt?.outcome ?? snapshot.status;
+  const state = history ? history.receipt?.state ?? history.status : snapshot.receipt?.state ?? snapshot.status;
   const seq = history ? history.receipt?.seq : snapshot.receipt?.seq;
   return (
     <section aria-label="Thread">
       <header><h2>{conversationId}</h2>
-        <p className="thread-summary" data-view-state={snapshot.receipt?.outcome ?? snapshot.status}
+        <p className="thread-summary" data-view-state={snapshot.receipt?.state ?? snapshot.status}
           data-view-seq={snapshot.receipt?.seq} data-count={composite?.count}
           data-preview-message={composite?.preview[0]?.message?.id}>
           {composite ? `${composite.count} message${composite.count === 1 ? "" : "s"}${preview ? ` · Latest: ${preview}` : ""}` : "Message count unavailable"}

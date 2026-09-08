@@ -1,9 +1,13 @@
+import { assertRefused } from "./live-fixture.ts";
+import { isRefusalError } from "../dist/client-observed-test.mjs";
+import { subscribe } from "../src/internal.js";
 import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { SnapbackRefusal, api } from "../dist/client.mjs";
+import { api } from "../dist/client.mjs";
+import { RefusalError } from "../dist/client-observed-test.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
 import { OfflineRuntime } from "../dist/sqlite-test.mjs";
 import { fixtureClient as createClient } from "./live-fixture.ts";
@@ -81,7 +85,7 @@ test('conditional public query states preserve denial/partial shape and complete
         next: state === 'capped' ? 'server-page' : null,
         ...(state === 'denied' ? { rule: 'MEMBERSHIP_REQUIRED' } : state === 'partial' ? { reason: 'missing-authority' } : {}) };
       const factory = fileRangeStore(root);
-      const options = { url: 'http://conditional-state.test', as: 'alice', offline: { store: factory },
+      const options = { url: 'http://conditional-state.test', persona: 'alice', offline: { store: factory },
         fetch: async (input: any, init: any) => {
           const metadata = metadataResponse(input); if (metadata) return metadata;
           if (String(input).endsWith('/api/resume')) return Response.json({ seq: 3, generation, schemaHash,
@@ -105,9 +109,9 @@ test('conditional public query states preserve denial/partial shape and complete
         await store.close();
       } finally { await client.close(); await rm(root, { recursive: true, force: true }); }
     });
-  const client = createClient({ url: 'http://strict-denied.test', as: 'alice',
+  const client = createClient({ url: 'http://strict-denied.test', persona: 'alice',
     fetch: async () => Response.json({ state: 'denied', rule: 'NO', seq: 1, next: null }) });
-  try { await assert.rejects(client.query(api.example.read as any, {}), /must not carry next/); }
+  try { await assertRefused(client.query(api.example.read as any, {}), /must not carry next/); }
   finally { await client.close(); }
 });
 
@@ -128,7 +132,7 @@ test('held public query states omit denied payload and nonpage cursors through o
         requests++; if (fail) throw new TypeError('offline transport');
         return Response.json(full);
       };
-      let client = createClient({ url: 'http://held-state.test', as: 'alice', offline: { store: factory }, fetch });
+      let client = createClient({ url: 'http://held-state.test', persona: 'alice', offline: { store: factory }, fetch });
       let sub: ReturnType<typeof client.subscribe> | undefined;
       try {
         await client.ready; await client.query(api.example.read as any, {});
@@ -151,7 +155,7 @@ test('held public query states omit denied payload and nonpage cursors through o
         check(result);
         if (mode === 'forced') {
           let delivered!: (answer: any) => void; const update = new Promise<any>(resolve => { delivered = resolve; });
-          sub = client.subscribe(api.example.read as any, {}, answer => { if (answer.state === state) delivered(answer); });
+          sub = subscribe(client, api.example.read as any, {}, answer => { if (answer.state === state) delivered(answer); });
           check(await update); sub.close();
         }
         unblock(); await client.close();
@@ -170,7 +174,7 @@ test('resume rejects equivocation with the same typed refusal exposed by query a
   const disk = fileRangeStore(root), full = envelope(['before']); let active: any;
   const factory = () => active = disk();
   const pending = { intent: 'keep', ids: [], op: 'send', args: { body: 'pending' }, state: 'queued', createdAt: 1, updatedAt: 1 };
-  const client = createClient({ url: 'http://typed-resume.test', as: 'alice', offline: { store: factory },
+  const client = createClient({ url: 'http://typed-resume.test', persona: 'alice', offline: { store: factory },
     fetch: async (input, init) => {
       const metadata = metadataResponse(input); if (metadata) return metadata;
       const bad = envelope(['equivocation'], '2'.repeat(64));
@@ -181,14 +185,14 @@ test('resume rejects equivocation with the same typed refusal exposed by query a
     } });
   try {
     await client.ready; await client.query(api.messages.body as any, {});
-    const sub = client.subscribe(api.messages.body as any, {}, () => undefined);
+    const sub = subscribe(client, api.messages.body as any, {}, () => undefined);
     await new Promise(resolve => setTimeout(resolve, 5)); await client.offline();
     await active.outbox.put(pending);
     let refusal: any;
-    await assert.rejects(client.online(), error => { refusal = error; return error instanceof SnapbackRefusal && error.code === 'E_OFFLINE_DELIVERY'; });
+    await assert.rejects(client.online(), error => { refusal = error; return isRefusalError(error) && error.code === 'E_OFFLINE_DELIVERY'; });
     assert.deepEqual(client.snapshot.lastRefusal, refusal.envelope);
     conflicting = true;
-    await assert.rejects(client.query(api.messages.body as any, {}), error => error instanceof SnapbackRefusal && error.code === refusal.code);
+    await assertRefused(client.query(api.messages.body as any, {}), error => (error.state === "rejected" || error.state === "refused") && error.code === refusal.code);
     await client.offline(); assert.deepEqual((await client.query(api.messages.body as any, {})).data, ['before']);
     sub.close();
   } finally {
@@ -202,7 +206,7 @@ test('aborting an in-flight resume preserves AbortError without publishing a del
   const root = await tempRoot(); await seededResumeStore(root);
   let resumes = 0, release!: () => void;
   const waiting = new Promise<void>(resolve => { release = resolve; });
-  const client = createClient({ url: 'http://abort-resume.test', as: 'alice', offline: { store: fileRangeStore(root) },
+  const client = createClient({ url: 'http://abort-resume.test', persona: 'alice', offline: { store: fileRangeStore(root) },
     fetch: async (input,init) => {
       const metadata = metadataResponse(input); if (metadata) return metadata;
       if (String(input).endsWith('/api/resume')) {
@@ -218,7 +222,7 @@ test('aborting an in-flight resume preserves AbortError without publishing a del
     } });
   try {
     await client.ready; await client.offline();
-    const resumed = client.online(); const rejection = assert.rejects(resumed,error => error.name === 'AbortError' && !(error instanceof SnapbackRefusal));
+    const resumed = client.online(); const rejection = assert.rejects(resumed,error => error.name === 'AbortError' && !(isRefusalError(error)));
     await waiting; await client.offline(); await rejection;
     assert.equal(client.snapshot.lastRefusal,undefined);
     assert.equal((await client.query(api.deliveries.inbox as any,{ c: null })).state,'complete');

@@ -1,12 +1,10 @@
 import assert from "node:assert/strict";
 import { after, test } from "node:test";
-import {
-  SnapbackRefusal,
-  api,
+import { api,
   createClient,
   initialQueryState,
-  reduceQueryState,
-} from "../dist/client.mjs";
+  reduceQueryState } from "../dist/client.mjs";
+import { RefusalError } from "../dist/client-observed-test.mjs";
 import { configureRealOwner, RealOwnerHarness } from "./owner-harness.ts";
 
 const owner = await configureRealOwner();
@@ -18,9 +16,9 @@ test("chat once photo uses one message and upload, each member gets one server d
   const { join } = await import("node:path");
   const { fileRangeStore } = await import("../dist/test.mjs");
   const directory = await mkdtemp(join(tmpdir(), "snapback-once-owner-"));
-  const sender = createClient({ url: owner.url, as: "alice" });
-  const alice = createClient({ url: owner.url, as: "alice", offline: { store: fileRangeStore(join(directory, "alice")) } });
-  const bob = createClient({ url: owner.url, as: "bob", offline: { store: fileRangeStore(join(directory, "bob")) } });
+  const sender = createClient({ url: owner.url, persona: "alice" });
+  const alice = createClient({ url: owner.url, persona: "alice", offline: { store: fileRangeStore(join(directory, "alice")) } });
+  const bob = createClient({ url: owner.url, persona: "bob", offline: { store: fileRangeStore(join(directory, "bob")) } });
   try {
     const png = await readFile(new URL("../../../scripts/witness-expo/view-once.png", import.meta.url));
     const photo = await sender.upload(new Blob([png], { type: "image/png" }), { kind: "image" });
@@ -69,7 +67,7 @@ test("offline sendOncePhoto prediction under the message alias has null media an
   const { engineId } = await import("./fake-owner.ts");
   const directory = await mkdtemp(join(tmpdir(), "snapback-once-predict-"));
   let assetFetches = 0;
-  const client: any = createClient({ url: owner.url, as: "alice", offline: { store: fileRangeStore(directory) }, fetch: (input, init) => {
+  const client: any = createClient({ url: owner.url, persona: "alice", offline: { store: fileRangeStore(directory) }, fetch: (input, init) => {
     if (new URL(String(input)).pathname.startsWith("/api/asset/")) assetFetches++;
     return fetch(input, init);
   } });

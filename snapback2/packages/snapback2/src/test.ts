@@ -248,7 +248,7 @@ async function runCheck(
   try {
     if (storeRoot) await rm(storeRoot, { recursive: true, force: true });
     await within(5_000, async () => check.body({
-      as: (name, options = {}) => {
+      persona: (name, options = {}) => {
         if (options.store !== undefined && options.store !== "file") {
           throw new TypeError("journey as(...).store must be 'file'");
         }
@@ -259,7 +259,7 @@ async function runCheck(
         const client = createClient(options.store === "file"
           ? {
               url,
-              as: name,
+              persona: name,
               fetch,
               offline: {
                 store: fileRangeStore(join(storeRoot!, name)),
@@ -271,7 +271,7 @@ async function runCheck(
                 records.set(key, { ref, args, expected });
               },
             } as Parameters<typeof createClient>[0]
-          : { url, as: name, fetch });
+          : { url, persona: name, fetch });
         clients.add(client);
         const device = { client, records, durable: options.store === "file", faults };
         devices.add(device);

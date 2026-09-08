@@ -1,3 +1,4 @@
+import { internalSubscribe, internalConsumers } from "./internal.js";
 import { mayNeedAssetPlanning } from "./assets.js";
 import { ClientAuth, anonymousAuth, restoreAuthToken, saveAuthToken, storageRefusal, ensureBearerTransition } from "./client-auth.js";
 import { SharedSse } from "./live.js";
@@ -30,10 +31,10 @@ import {
   type Authority,
 } from "./client-upload.js";
 import {
-  SnapbackRefusal,
-  copyRefusal,
+  RefusalError,
+  copyRefusal, toRefusal,
   fallbackRefusal,
-  isSnapbackRefusal,
+  isRefusalError,
   isTerminalSession,
   responseRefusal, type JsonRequestOptions,
   sseObject,
@@ -59,34 +60,28 @@ import type {
   AuthMe, AuthSession, AuthTokenStore, ChannelHandle,
   ClientSnapshot, CreateClientOptions, ImageAsset, LiveQueryDelivery, Manifest,
   MutationResult, ObservedQuery, OutboxApi, Principal,
-  QueryResult, QueryRefusedDelivery, RefusalEnvelope, RefusedDelivery,
+  QueryResult, QueryRefusedDelivery, Refusal, RefusedDelivery,
   SnapbackClient, Subscription, SubscriptionDelivery, VideoAsset,
 } from "./types.js";
 export { api };
 export { mutationTarget, type MutationTargetRef, type MutationProgramIdentity, type AdmittedMutationTargets } from "./mutation-targets.js";
-export { SnapbackRefusal, isSnapbackRefusal };
 export { browserTokenStore } from "./token-store.js";
 export type { Api, ApiProxy, ChannelRef as Channel, Op };
+export type { ResultOf, ArgsOf } from "./api.js";
 export * from "./types.js";
 export * from "./snapshot.js";
 export { defineItems, withHistory, type Items, type ItemsWithHistory, type QueryItem, type ItemAction, type ItemSnapshot, type HistorySnapshot } from "./client-items.js";
 export type {
-  Coverage,
   CoverageFacts,
-  HeldAnswer,
   HeldOperation,
-  HeldProgram,
   OutboxEntry,
   OutboxStore,
-  OverlayRow,
   RangeStore,
   RangeStoreFactory,
   Receipt,
   ReceiptRange,
-  StoreSwap,
 } from "./store/range-store.js";
-export type { LocalAnswer, Prediction } from "./twin.js";
-export type { PartialReason, PartialSite } from "./twin-hydrate.js";
+export type { PartialReason } from "./twin-hydrate.js";
 type SessionExpiration =
   | { cleared: false }
   | { cleared: true; authGeneration: number; fence: number };
@@ -124,7 +119,7 @@ class Client implements SnapbackClient {
   private resumeFlight?: Promise<void>;
   private resumeController?: AbortController;
   private readonly drainControllers = new Set<AbortController>();
-  private resetRefusal?: RefusalEnvelope;
+  private resetRefusal?: Refusal;
   // Pending reads, never buffered authority-bearing responses. Custody is per principal.
   private readonly supersessionQueries = new Map<string, { principal: string; op: string; args: unknown }>();
   private forcedOffline = false;
@@ -152,8 +147,8 @@ class Client implements SnapbackClient {
 
   constructor(options: InternalClientOptions) {
     if (!options?.url) throw new TypeError("createClient requires url");
-    if (options.as !== undefined && (options.token !== undefined || options.tokenStore !== undefined)) {
-      throw new TypeError("createClient cannot combine dev persona `as` with bearer token custody");
+    if (options.persona !== undefined && (options.token !== undefined || options.tokenStore !== undefined)) {
+      throw new TypeError("createClient cannot combine dev persona `persona` with bearer token custody");
     }
     this.createOptions = options;
     this.url = options.url.replace(/\/+$/, "");
@@ -162,9 +157,9 @@ class Client implements SnapbackClient {
     if (typeof this.fetchImpl !== "function") throw new TypeError("createClient requires a fetch implementation");
     this.live = new SharedSse(this.url, (...args) => this.fetchImpl(...args));
     this.tokenStore = options.tokenStore;
-    this.persona = options.as;
+    this.persona = options.persona;
     this.forcedOffline = options.startOffline === true;
-    this.currentSnapshot = { auth: { state: "hydrating" }, authGeneration: 0, persona: options.as, connection: this.forcedOffline ? "offline" : "reconnecting" };
+    this.currentSnapshot = { auth: { state: "hydrating" }, authGeneration: 0, persona: options.persona, connection: this.forcedOffline ? "offline" : "reconnecting" };
     this.authState = new ClientAuth(() => this.publishAuthSnapshot(), () => ({ token: this.currentToken, principal: this.currentPrincipal }), current => this.me(current), () => !this.forcedOffline);
     validateOfflineOptions(options.offline);
     try {
@@ -201,7 +196,7 @@ class Client implements SnapbackClient {
       active: ([generation, fence]) => !this.closed && this.authGeneration === generation && this.operationFence === fence,
       connection: () => this.currentSnapshot.connection,
       open: (ref, args, callback, drain) => drain ? this.drain(ref, args, callback) : this.subscribeRegular(ref, args, callback),
-      query: (ref, args) => this.query(ref, args),
+      query: (ref, args) => this.queryInternal(ref, args),
       local: (ref, args, drain) => answerOffline(this.offlineRuntime, referenceName(ref), args, error => this.offlineRefusal(error), drain),
       entries: () => this.offlineRuntime?.itemEntries() ?? Promise.resolve([]),
     });
@@ -233,7 +228,12 @@ class Client implements SnapbackClient {
     return this.currentSnapshot;
   }
 
-  async query<Args, Result>(ref: Op<Args, Result>, args: Args, drain = false): Promise<QueryResult<Result>> {
+  async query<Args, Result>(ref: Op<Args, Result>, args: Args): Promise<QueryResult<Result>> {
+    try { return await this.queryInternal(ref, args); }
+    catch (error) { return { state: "refused", ...toRefusal(error) }; }
+  }
+
+  private async queryInternal<Args, Result>(ref: Op<Args, Result>, args: Args, drain = false): Promise<QueryResult<Result>> {
     await this.localReady;
     // Cold held reads may bypass restoration, never an explicit account transition.
     const localAuthority = await this.transitionAuthority();
@@ -290,12 +290,12 @@ class Client implements SnapbackClient {
         // Every typed receipt, including an empty capped page, terminates this request.
         return result;
       } catch (error) {
-        if (isSnapbackRefusal(error) && error.retryable && this.offlineRuntime && attempt >= 3) {
+        if (isRefusalError(error) && error.retryable && this.offlineRuntime && attempt >= 3) {
           this.patchSnapshot({ connection: "offline" });
           return answerOffline(this.offlineRuntime, op, args, (failure) => this.offlineRefusal(failure));
         }
-        if (!isSnapbackRefusal(error)
-          || (error.code !== "E_TRANSPORT" && error.code !== "E_NETWORK")
+        if (!isRefusalError(error)
+          || error.code !== "E_TRANSPORT"
           || !error.retryable
           || attempt >= 3) throw error;
         await new Promise<void>((resolve) => setTimeout(resolve, backoff));
@@ -306,7 +306,8 @@ class Client implements SnapbackClient {
   }
 
   async mutation<Args, Result>(ref: Op<Args, Result>, args: AssetInput<Args>): Promise<MutationResult<Result>> {
-    return performMutation(this as unknown as MutationClient, ref, args);
+    try { return await performMutation(this as unknown as MutationClient, ref, args); }
+    catch (error) { return { state: "rejected", ...toRefusal(error) }; }
   }
 
 
@@ -316,7 +317,7 @@ class Client implements SnapbackClient {
   async upload(source: AssetUploadSource, options: AssetUploadOptions = {}): Promise<AssetRecord> {
     const authority = await this.operationAuthority();
     return this.trackWrite(() => uploadAsset(this, source, options, authority).catch(async error => {
-      if (isSnapbackRefusal(error) && isTerminalSession(error.envelope)) await this.terminalRefusal(authority, error.envelope);
+      if (isRefusalError(error) && isTerminalSession(error.envelope)) await this.terminalRefusal(authority, error.envelope);
       throw error;
     }));
   }
@@ -359,7 +360,7 @@ class Client implements SnapbackClient {
   ): ObservedQuery<Result> {
     return this.queries.observe(ref, args, options as { live?: false; drain?: boolean; items: Items<Args, Result, Row, Draft> });
   }
-  subscribe<Args, Result>(
+  [internalSubscribe]<Args, Result>(
     ref: Op<Args, Result>,
     args: Args,
     callback: (delivery: SubscriptionDelivery<Result>) => void,
@@ -367,7 +368,7 @@ class Client implements SnapbackClient {
   ): Subscription<SubscriptionDelivery<Result>> {
     return this.queries.subscribe(ref, args, callback, options);
   }
-  sharedConsumers(ref: Op<any, any>, args: unknown, drain = false): number {
+  [internalConsumers](ref: Op<any, any>, args: unknown, drain = false): number {
     return this.queries.consumers(ref, args, drain);
   }
   private subscribeRegular<Args, Result>(
@@ -430,7 +431,7 @@ class Client implements SnapbackClient {
       bufferedTerminal: ({ data }) => {
         const value = wireSubscription<Result>(data);
         return value.state === "refused" && isTerminalSession(value)
-          ? new SnapbackRefusal(copyRefusal(value))
+          ? new RefusalError(copyRefusal(value))
           : undefined;
       },
       onError: async (error) => {
@@ -462,7 +463,7 @@ class Client implements SnapbackClient {
           : { state: "stale", live: false, since: Date.now(), seq: lastPair.seq };
       },
       terminal: (event) => event.state === "refused"
-        ? new SnapbackRefusal(copyRefusal(event))
+        ? new RefusalError(copyRefusal(event))
         : undefined,
       onEvent: callback,
     });
@@ -505,7 +506,7 @@ class Client implements SnapbackClient {
       mounted: this.mounted,
       cursor: async () => this.offlineRuntime && !this.offlineRuntime.following
         ? this.offlineRuntime.drainCursor(op) : admitDrain(op, (await this.manifest()).ops[op]?.drain),
-      query: (pageArgs: Args) => this.query(ref, pageArgs, true),
+      query: (pageArgs: Args) => this.queryInternal(ref, pageArgs, true),
       subscribe: (tailArgs, onEvent) => this.subscribeRegular(ref, tailArgs, onEvent, true),
       track: (subscription) => this.track(subscription),
       resume: async () => this.performResume(await this.operationAuthority()),
@@ -597,7 +598,7 @@ class Client implements SnapbackClient {
       create: () => {
         const offline = this.createOptions.offline;
         const options: InternalClientOptions = this.persona !== undefined
-          ? { url: this.url, as: this.persona, fetch: this.fetchImpl, offline, startOffline: this.forcedOffline,
+          ? { url: this.url, persona: this.persona, fetch: this.fetchImpl, offline, startOffline: this.forcedOffline,
               offlineReadObserver: this.createOptions.offlineReadObserver }
           : { url: this.url, token: this.currentToken, tokenStore: this.tokenStore, fetch: this.fetchImpl, offline,
               offlinePrincipal: this.currentPrincipal, startOffline: this.forcedOffline,
@@ -751,7 +752,7 @@ class Client implements SnapbackClient {
     let manifest: Manifest;
     // Unreachable at cold start: held answers and the outbox still serve; the metadata loads on the next reach.
     try { manifest = await this.manifestFor(authority, signal); throwIfAborted(signal); } catch (error) {
-      if (!force && isSnapbackRefusal(error) && error.retryable) return;
+      if (!force && isRefusalError(error) && error.retryable) return;
       throw error;
     }
     if (this.offlineRuntime.programGeneration !== manifest.programGeneration || this.offlineRuntime.needsDrainMetadata || force) {
@@ -765,7 +766,7 @@ class Client implements SnapbackClient {
         await this.offlineRuntime.program(program, signal);
         throwIfAborted(signal);
       } catch (error) {
-        if (!isSnapbackRefusal(error) || error.status !== 404) throw error;
+        if (!isRefusalError(error) || error.status !== 404) throw error;
         if (force) {
           // The owner can advance between manifest and program. Coalesce that
           // successor into this reset; repeated churn keeps the reset pending.
@@ -777,14 +778,14 @@ class Client implements SnapbackClient {
     this.offlineMetadataLoaded = true;
   }
 
-  networkRefusal(message: string): SnapbackRefusal {
-    const refusal = new SnapbackRefusal(fallbackRefusal("E_NETWORK", message), true);
+  networkRefusal(message: string): RefusalError {
+    const refusal = new RefusalError(fallbackRefusal("E_TRANSPORT", message), true);
     this.patchSnapshot({ connection: this.transportFailureState(), lastRefusal: refusal.envelope });
     return refusal;
   }
 
-  transportRefusal(message: string): SnapbackRefusal {
-    const refusal = new SnapbackRefusal(fallbackRefusal("E_TRANSPORT", message), true);
+  transportRefusal(message: string): RefusalError {
+    const refusal = new RefusalError(fallbackRefusal("E_TRANSPORT", message), true);
     this.patchSnapshot({ connection: this.transportFailureState(), lastRefusal: refusal.envelope });
     return refusal;
   }
@@ -809,8 +810,8 @@ class Client implements SnapbackClient {
       throwIfAborted(init.signal);
       if (enforceAuthority) this.ensureAuthority(authority);
       else this.ensureOpen();
-      const refusal = new SnapbackRefusal(
-        fallbackRefusal("E_NETWORK", error instanceof Error ? error.message : String(error)),
+      const refusal = new RefusalError(
+        fallbackRefusal("E_TRANSPORT", error instanceof Error ? error.message : String(error)),
         true,
       );
       this.patchSnapshot({ connection: this.transportFailureState(), lastRefusal: refusal.envelope });
@@ -819,12 +820,12 @@ class Client implements SnapbackClient {
     if (!authRestoration) throwIfAborted(init.signal);
     if (!response.ok) {
       if (response.status >= 400 && response.status < 500) {
-        let refusal: SnapbackRefusal;
+        let refusal: RefusalError;
         try {
           refusal = await responseRefusal(response);
         } catch (error) {
           throwIfAborted(init.signal);
-          if (isSnapbackRefusal(error)) {
+          if (isRefusalError(error)) {
             if (enforceAuthority) this.ensureAuthority(authority);
             else this.ensureOpen();
             if (error.retryable) {
@@ -838,7 +839,7 @@ class Client implements SnapbackClient {
       }
       if (enforceAuthority) this.ensureAuthority(authority);
       else this.ensureOpen();
-      const refusal = new SnapbackRefusal(
+      const refusal = new RefusalError(
         fallbackRefusal("E_TRANSPORT", `${path} returned HTTP ${response.status}`),
         true,
       );
@@ -857,7 +858,7 @@ class Client implements SnapbackClient {
       throw refusal;
     }
     if (!authRestoration) throwIfAborted(init.signal);
-    let terminal: RefusalEnvelope | undefined;
+    let terminal: Refusal | undefined;
     try {
       terminal = terminalSession !== "keep" ? terminalSessionEnvelope(value) : undefined;
     } catch (error) {
@@ -867,7 +868,7 @@ class Client implements SnapbackClient {
       throw error;
     }
     if (terminal && (terminalSession === "expire" || (enforceAuthority && !this.authorityCurrent(authority)))) {
-      return this.refuseJson(new SnapbackRefusal(terminal), authority, init.signal, options);
+      return this.refuseJson(new RefusalError(terminal), authority, init.signal, options);
     }
     if (enforceAuthority) this.ensureAuthority(authority);
     else this.ensureOpen();
@@ -877,7 +878,7 @@ class Client implements SnapbackClient {
   }
 
   // @ref LLP 1012#7-writes-offline — typed session terminals and HTTP refusals stop before settlement; cancellation preserves the exact queued envelope.
-  private async refuseJson(refusal: SnapbackRefusal, authority: Authority, signal: AbortSignal | null | undefined, options: JsonRequestOptions): Promise<never> {
+  private async refuseJson(refusal: RefusalError, authority: Authority, signal: AbortSignal | null | undefined, options: JsonRequestOptions): Promise<never> {
     const { enforceAuthority = true, terminalSession = "expire", authRestoration = false } = options;
     // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test — me() retains late terminal evidence across cancellation.
     if (!authRestoration) throwIfAborted(signal);
@@ -912,20 +913,20 @@ class Client implements SnapbackClient {
       this.patchSnapshot({ connection: "connected" });
       return response;
     } catch (error) {
-      if (isSnapbackRefusal(error) && isTerminalSession(error.envelope)) throw error;
+      if (isRefusalError(error) && isTerminalSession(error.envelope)) throw error;
       // An aborted transport can still settle when a custom fetch ignores its
       // signal. Fence it before interpreting or publishing the late result.
       this.ensureAuthority(authority);
       if (signal.aborted) throw error;
-      if (isSnapbackRefusal(error)) {
+      if (isRefusalError(error)) {
         this.patchSnapshot({
           connection: error.retryable ? this.transportFailureState() : "connected",
           lastRefusal: error.envelope,
         });
         throw error;
       }
-      const refusal = new SnapbackRefusal(
-        fallbackRefusal("E_NETWORK", error instanceof Error ? error.message : String(error)),
+      const refusal = new RefusalError(
+        fallbackRefusal("E_TRANSPORT", error instanceof Error ? error.message : String(error)),
         true,
       );
       this.patchSnapshot({ connection: this.transportFailureState(), lastRefusal: refusal.envelope });
@@ -936,11 +937,11 @@ class Client implements SnapbackClient {
     error: unknown,
     authority: Authority | undefined,
     origin: Subscription<unknown>,
-  ): Promise<{ event?: RefusedDelivery; retry: boolean; refusal?: SnapbackRefusal }> {
-    const refusal = isSnapbackRefusal(error)
+  ): Promise<{ event?: RefusedDelivery; retry: boolean; refusal?: RefusalError }> {
+    const refusal = isRefusalError(error)
       ? error
-      : new SnapbackRefusal(
-          fallbackRefusal("E_NETWORK", error instanceof Error ? error.message : String(error)),
+      : new RefusalError(
+          fallbackRefusal("E_TRANSPORT", error instanceof Error ? error.message : String(error)),
           true,
         );
     if (refusal.code === "E_AUTH_SUPERSEDED") {
@@ -955,9 +956,9 @@ class Client implements SnapbackClient {
         if (this.closed) {
           return { retry: false, refusal: supersededRefusal() };
         }
-        const terminal = isSnapbackRefusal(error)
+        const terminal = isRefusalError(error)
           ? error
-          : new SnapbackRefusal({
+          : new RefusalError({
               code: "E_AUTH_TOKEN_STORE",
               family: "auth",
               message: `token store clear failed: ${error instanceof Error ? error.message : String(error)}`,
@@ -1041,7 +1042,7 @@ class Client implements SnapbackClient {
       await this.ensureOfflineMetadata(authority);
       await this.performResume(authority);
     } catch (error) {
-      if (!(isSnapbackRefusal(error)
+      if (!(isRefusalError(error)
         && (error.retryable || error.code === "E_OFFLINE_RESUME" || error.code === "E_OFFLINE_RESET"))) throw error;
     }
     return authority;
@@ -1065,7 +1066,7 @@ class Client implements SnapbackClient {
     catch (error) { throw this.offlineRefusal(error, "RangeStore.wipe"); }
   }
 
-  /** A live read never waits for reset. online() joins it and reports its outcome. */
+  /** A live read never waits for reset. online() joins it and reports its verdict. */
   private scheduleSupersessionReset(authority: Authority, item?: { op: string; args: unknown }): void {
     const principal = this.offlineRuntime?.principal;
     if (!this.authorityCurrent(authority) || principal === undefined) return;
@@ -1182,7 +1183,7 @@ class Client implements SnapbackClient {
       for (const [key, item] of pending) if (this.supersessionQueries.get(key) === item) this.supersessionQueries.delete(key);
       if (this.supersessionQueries.size === 0 && !runtime.resetNeeded && !fenced) return;
     }
-    throw new SnapbackRefusal({
+    throw new RefusalError({
       code: "E_OFFLINE_RESET", family: "offline", message: "the program changed during three coverage rebuild attempts",
       site: "client.resume", rewrite: "retry online() after the program stops rotating", guide: "offline",
     });
@@ -1193,7 +1194,7 @@ class Client implements SnapbackClient {
     if (this.forcedOffline) {
       const remaining = (await this.offlineRuntime?.queuedIntents())?.length ?? 0;
       const reason = await this.offlineRuntime?.outbox.fence() === "past" ? "fence" : "offline";
-      if (this.offlineRuntime) this.offlineRuntime.drainOutcome = Promise.resolve({ stopped: reason, remaining });
+      if (this.offlineRuntime) this.offlineRuntime.drainVerdict = Promise.resolve({ stopped: reason, remaining });
       return { stopped: true, reason, remaining };
     }
     const authority = captured ?? await this.operationAuthority();
@@ -1209,15 +1210,15 @@ class Client implements SnapbackClient {
     } finally { this.drainControllers.delete(controller); }
   }
 
-  async terminalRefusal(authority: Authority, refusal: RefusalEnvelope, options: { preserveOutcome?: boolean } = {}): Promise<void> {
-    // Discard first; cleanup expiry preserves the already settled outcome.
+  async terminalRefusal(authority: Authority, refusal: Refusal, options: { preserveVerdict?: boolean } = {}): Promise<void> {
+    // Discard first; cleanup expiry preserves the already settled verdict.
     const wasCurrent = this.authorityCurrent(authority);
     const expiration = await this.expireSession(authority);
-    if (expiration.cleared ? (!wasCurrent || !this.expirationCurrent(expiration)) : (!wasCurrent && !options.preserveOutcome)) throw supersededRefusal();
+    if (expiration.cleared ? (!wasCurrent || !this.expirationCurrent(expiration)) : (!wasCurrent && !options.preserveVerdict)) throw supersededRefusal();
     this.recordRefusal(refusal);
   }
 
-  private offlineRefusal(error: unknown, site = "client.offline"): SnapbackRefusal {
+  private offlineRefusal(error: unknown, site = "client.offline"): RefusalError {
     const carrier = this.createOptions?.offline?.store.carrier
       ?? this.createOptions?.offline?.store.name
       ?? "configured";
@@ -1226,7 +1227,7 @@ class Client implements SnapbackClient {
     return refusal;
   }
 
-  recordRefusal(envelope: RefusalEnvelope): void {
+  recordRefusal(envelope: Refusal): void {
     this.patchSnapshot({ lastRefusal: envelope });
   }
 
@@ -1389,7 +1390,7 @@ class Client implements SnapbackClient {
   }
 
   private async clearTokenNow(): Promise<void> {
-    let failure: SnapbackRefusal | undefined;
+    let failure: RefusalError | undefined;
     if (this.tokenStore) {
       try {
         await this.tokenStore.save(null);
@@ -1453,7 +1454,7 @@ class Client implements SnapbackClient {
 
   private ensureOpen(): void {
     if (this.closed) {
-      throw new SnapbackRefusal({
+      throw new RefusalError({
         code: "E_CLIENT_CLOSED",
         family: "owner",
         message: "client is closed",

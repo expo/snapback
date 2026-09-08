@@ -9,5 +9,12 @@ export function jsonState<T>(value: T): T {
 }
 
 export function canonicalAnswerKey(op: string, args: unknown): string {
-  return `${op}\u0000${canonical(args === undefined ? args : jsonState(args))}`;
+  return `${op}\u0000${canonical(args === undefined ? args : jsonState(queryArgs(args)))}`;
+}
+
+/** A missing first-page cursor and an explicit null name the same observation. */
+export function queryArgs<Args>(args: Args): Args {
+  if (!args || typeof args !== "object" || !("c" in args) || args.c != null) return args;
+  const { c: _cursor, ...rest } = args;
+  return rest as Args;
 }

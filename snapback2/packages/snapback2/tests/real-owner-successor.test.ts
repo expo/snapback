@@ -1,3 +1,4 @@
+import { subscribe } from "../src/internal.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { api, createClient } from "../dist/client.mjs";
@@ -38,14 +39,14 @@ test("durable client intents survive a schema successor and a lost acknowledgeme
   try {
     local = await RealOwnerHarness.create({ withDeliveries: true });
     const makeClient = () => {
-      const client = createClient({ url: local!.url, as: "alice", fetch: observe,
+      const client = createClient({ url: local!.url, persona: "alice", fetch: observe,
         offline: { store: fileRangeStore(directory) } });
       clients.push(client);
       return client;
     };
     const warm = async (client: ReturnType<typeof createClient>) => {
       await client.ready;
-      const sub = client.subscribe(api.deliveries.inbox, { c: null }, () => {}, { drain: true });
+      const sub = subscribe(client, api.deliveries.inbox, { c: null }, () => {}, { drain: true });
       subscriptions.push(sub);
       await sub.until(event => event.live === true, 5_000);
       assert.equal((await client.outbox.status(api.deliveries.post)).ready, true);

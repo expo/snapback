@@ -1,9 +1,11 @@
+import { subscribe } from "../src/internal.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { api, createClient, SnapbackRefusal } from "../dist/client.mjs";
+import { api, createClient } from "../dist/client.mjs";
+import { RefusalError } from "../dist/client-observed-test.mjs";
 import { initialQueryState, reduceQueryState } from "../dist/react-core.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
 import { fakeOwner, seededStore } from "./fake-owner.ts";
@@ -15,7 +17,7 @@ const unsupported = { code: "E_OFFLINE_RESUME", family: "offline", guide: "offli
 
 test("unsupported drain reaches callback and matching waiter; current and later success waiters reject, ordinary query remains valid", async () => {
   let queries = 0;
-  const client = createClient({ url: "http://drain-admission.test", as: "alice", fetch: async input => {
+  const client = createClient({ url: "http://drain-admission.test", persona: "alice", fetch: async input => {
     const path = new URL(String(input)).pathname;
     if (path === "/api/manifest") return json({ generation: "g", programGeneration: "p", channels: {}, auth: {},
       ops: { "deliveries.inbox": { kind: "query", args: { c: { Optional: "Cursor" } }, planHash: "p", drain: { reason: "descending" } } } });
@@ -25,13 +27,13 @@ test("unsupported drain reaches callback and matching waiter; current and later 
   const events: any[] = [];
   try {
     await client.ready;
-    const sub = client.subscribe(api.deliveries.inbox as any, { c: null }, event => events.push(event), { drain: true });
+    const sub = subscribe(client, api.deliveries.inbox as any, { c: null }, event => events.push(event), { drain: true });
     const waiting = assert.rejects(sub.until(event => event.caughtUp === true, 500), (error: any) => error.code === unsupported.code);
     const refused = await sub.until(event => event.state === "refused", 500);
     assert.equal(refused.state, "refused");
     assert.equal((refused as any).shape, "descending");
     await waiting;
-    await assert.rejects(sub.until(event => event.caughtUp === true, 500), SnapbackRefusal);
+    await assert.rejects(sub.until(event => event.caughtUp === true, 500), RefusalError);
     assert.equal(queries, 0, "refusal precedes pages and a watermark");
     assert.equal(events.length, 1);
     assert.equal((await client.query(api.deliveries.inbox as any, { c: null })).state, "capped");
@@ -48,7 +50,7 @@ test("legacy backward resume stays refused across offline reopen; coverage, queu
   const requests: any[] = [];
   let refuseResume = false;
   let physical: ReturnType<typeof factory>;
-  const options = { url: "http://legacy-drain.test", as: "alice", offline: { store: () => (physical = factory()) },
+  const options = { url: "http://legacy-drain.test", persona: "alice", offline: { store: () => (physical = factory()) },
     fetch: async (input: any, init?: RequestInit) => {
       const path = new URL(String(input)).pathname;
       if (path === "/api/resume") { requests.push(JSON.parse(String(init?.body))); return refuseResume ? json(unsupported, 413) : owner.fetch(input, init); }
@@ -70,7 +72,7 @@ test("legacy backward resume stays refused across offline reopen; coverage, queu
     const entries = await client.outbox.entries();
     const grant = await physical!.outbox.grant();
     const events: any[] = [];
-    const sub = client.subscribe(api.deliveries.inbox as any, { c: null }, event => events.push(event), { drain: true });
+    const sub = subscribe(client, api.deliveries.inbox as any, { c: null }, event => events.push(event), { drain: true });
     await sub.until(event => event.state === "refused", 500);
     for (let i = 0; i < 2; i++) {
       const count = requests.length;
@@ -91,16 +93,16 @@ test("legacy backward resume stays refused across offline reopen; coverage, queu
     assert.deepEqual(committed[0].ids, entries[0].ids);
     assert.equal(committed[0].intent, entries[0].intent);
     assert.equal(client.snapshot.lastRefusal?.reason, "unsupported-log");
-    await assert.rejects(client.online(), SnapbackRefusal);
+    await assert.rejects(client.online(), RefusalError);
     sub.close();
     await client.close();
     client = createClient(options);
     await client.ready;
     await client.offline();
     assert.deepEqual((await client.outbox.entries()).map(e => [e.intent, e.ids, e.state]), committed.map(e => [e.intent, e.ids, e.state]));
-    const reopened = client.subscribe(api.deliveries.inbox as any, { c: null }, () => {}, { drain: true });
+    const reopened = subscribe(client, api.deliveries.inbox as any, { c: null }, () => {}, { drain: true });
     assert.equal((await reopened.until(event => event.state === "refused", 500)).state, "refused");
-    await assert.rejects(client.online(), SnapbackRefusal);
+    await assert.rejects(client.online(), RefusalError);
     reopened.close();
     assert.equal(owner.executions.length, 1);
   } finally { await client.close(); }

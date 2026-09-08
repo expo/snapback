@@ -1,3 +1,6 @@
+import { assertRefused } from "./live-fixture.ts";
+import { isRefusalError } from "../dist/client-observed-test.mjs";
+import { subscribe } from "../src/internal.js";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
@@ -5,7 +8,8 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
-import { SnapbackRefusal, api, createClient } from "../dist/client.mjs";
+import { api, createClient } from "../dist/client.mjs";
+import { RefusalError } from "../dist/client-observed-test.mjs";
 import { decodeDeliveryEnvelope, schemaDigest, toClosureReceipt } from "../dist/index.mjs";
 import { indexedDbRangeStore } from "../dist/react.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
@@ -362,7 +366,7 @@ test("every corpus query round-trips through atomic carrier snapshots and replay
       }
       const local: any = await client.query((api as any)[testCase.name], args).catch((error: unknown) => {
         assert.equal(testCase.expected.localState, "refused", `${testCase.name}: unexpected refusal`);
-        assert.ok(error instanceof SnapbackRefusal && error.message.includes(testCase.expected.errorCode), `${testCase.name}: ${error}`);
+        assert.ok(isRefusalError(error) && error.message.includes(testCase.expected.errorCode), `${testCase.name}: ${error}`);
         return { state: "refused" };
       });
       const expected = testCase.expected;
@@ -679,7 +683,7 @@ test("a committed intent's ordinary overlay retires as one group and two resumes
   }
 });
 
-// `hydrating` and an empty trace are typed outcomes, never catch-alls: a bug in
+// `hydrating` and an empty trace are typed verdicts, never catch-alls: a bug in
 // `tagArguments` surfaces from both query evaluation and mutation prediction.
 test("a ReferenceError from tagArguments surfaces on query and mutation, never as hydrating or an empty trace", async () => {
   const messengerCorpus = await messenger();
@@ -698,10 +702,10 @@ test("a ReferenceError from tagArguments surfaces on query and mutation, never a
     // Inject after custody admission, at the actual query/mutation argument boundary.
     const runtime = (client as any).offlineRuntime;
     for (const entry of Object.values<any>(runtime.held.programs)) entry.ir.args = throwingArgs;
-    await assert.rejects(client.query((api as any)["named-thread"], threadArgs), (error: unknown) =>
-      error instanceof SnapbackRefusal && /tagArguments bug/.test(error.message), "the ReferenceError was swallowed as hydrating");
-    await assert.rejects(client.mutation((api as any)["named-send"], { conversationId: "c1", body: "bug", at: 30 }), (error: unknown) =>
-      error instanceof SnapbackRefusal && /tagArguments bug/.test(error.message), "the ReferenceError was swallowed as an unpredicted empty trace");
+    await assertRefused(client.query((api as any)["named-thread"], threadArgs), (error: unknown) =>
+      (error.state === "rejected" || error.state === "refused") && /tagArguments bug/.test(error.message), "the ReferenceError was swallowed as hydrating");
+    await assertRefused(client.mutation((api as any)["named-send"], { conversationId: "c1", body: "bug", at: 30 }), (error: unknown) =>
+      (error.state === "rejected" || error.state === "refused") && /tagArguments bug/.test(error.message), "the ReferenceError was swallowed as an unpredicted empty trace");
     assert.deepEqual(await client.outbox.entries(), [], "a tagger bug did not enqueue an intent with an empty trace");
     await client.close();
   } finally {
@@ -1016,7 +1020,7 @@ test("evicting a middle row of a drained page makes the never-opened thread part
 test("a connected subscription without a local store becomes hydrating on transport loss", async () => {
   let stream: ReadableStreamDefaultController<Uint8Array> | undefined;
   let dead = false;
-  const client = fixtureClient({ url: "http://connected-live.test", as: "alice", fetch: async input => {
+  const client = fixtureClient({ url: "http://connected-live.test", persona: "alice", fetch: async input => {
     if (dead) throw new TypeError("offline");
     const path = new URL(String(input)).pathname;
     if (path === "/api/manifest") return new Response(JSON.stringify({ ops: { online: { kind: "query", args: {} } }, auth: {}, channels: {} }));
@@ -1026,7 +1030,7 @@ test("a connected subscription without a local store becomes hydrating on transp
     } }), { headers: { "content-type": "text/event-stream" } });
   } });
   const events: any[] = [];
-  const subscription = client.subscribe((api as any).online, {}, event => events.push(event));
+  const subscription = subscribe(client, (api as any).online, {}, event => events.push(event));
   try {
     await subscription.until(event => event.state === "complete", 2_000);
     const offline = subscription.until(event => event.state === "hydrating", 2_000);
@@ -1040,7 +1044,7 @@ test("a no-store subscription clears connected on its next ordinary frame before
   let stream: ReadableStreamDefaultController<Uint8Array> | undefined;
   let dead = false;
   const frame = (value: object) => new TextEncoder().encode(`data: ${JSON.stringify(value)}\n\n`);
-  const client = fixtureClient({ url: "http://connected-frame.test", as: "alice", fetch: async input => {
+  const client = fixtureClient({ url: "http://connected-frame.test", persona: "alice", fetch: async input => {
     if (dead) throw new TypeError("offline");
     if (new URL(String(input)).pathname === "/api/manifest") return new Response(JSON.stringify({ ops: { online: { kind: "query", args: {} } }, auth: {}, channels: {} }));
     return new Response(new ReadableStream({ start(controller) {
@@ -1048,7 +1052,7 @@ test("a no-store subscription clears connected on its next ordinary frame before
       controller.enqueue(frame({ state: "complete", data: 1, seq: 1, next: null, connected: true }));
     } }), { headers: { "content-type": "text/event-stream" } });
   } });
-  const subscription = client.subscribe((api as any).online, {}, () => {});
+  const subscription = subscribe(client, (api as any).online, {}, () => {});
   try {
     await subscription.until(event => event.state === "complete", 2_000);
     const ordinary = subscription.until((event: any) => event.state === "complete" && event.seq === 2, 2_000);
@@ -1215,7 +1219,7 @@ test("covered evaluation errors surface; typed local mutation refusals omit pred
     const EvalError = sample.constructor; assert.equal(EvalError,SharedError);
     twin.hydrate = async () => hydrated;
     hydrated.store.reexecute = () => { throw new EvalError("E_OVERFLOW", "covered overflow"); };
-    await assert.rejects(client.query((api as any)["named-thread"], threadArgs), /E_OVERFLOW/);
+    await assertRefused(client.query((api as any)["named-thread"], threadArgs), /E_OVERFLOW/);
     for (const code of ["E_REQUIRE", "E_RULE", "E_CONSTRAINT", "E_INPUT", "E_TYPE", "E_FIELD", "E_DIV_ZERO", "E_OVERFLOW", "E_SCHEMA", "E_OPAQUE"]) {
       hydrated.store.applyMutation = () => { throw new EvalError(code, "modeled refusal"); };
       const result = await twin.predict("named-send", { conversationId: "c1", body: "test", at: 30 }, [engineId(1)]);
@@ -1334,7 +1338,7 @@ test('h1 stays local across query transport, subscription reconnect and cold reo
   assert.equal(first.state, 'capped'); assert(first.next.startsWith('h1.'));
   const second: any = await client.query((api as any)[op], { term: 'CAFE\u0301', c: first.next });
   assert.equal(second.state, 'held'); assert.equal(second.data.length, 5);
-  const sub = client.subscribe((api as any)[op], { term: 'Café', c: first.next }, () => {}); context.after(() => sub.close());
+  const sub = subscribe(client, (api as any)[op], { term: 'Café', c: first.next }, () => {}); context.after(() => sub.close());
   await client.online(); await sub.until(value => value.state === 'complete', 1000);
   await client.query((api as any)[op], { term: 'Café', c: first.next });
   assert(requests.some(r => r.path === '/api/subscribe')); assert(requests.some(r => r.path === '/api/query'));
@@ -1384,11 +1388,11 @@ test('enrolled ordinary conditionals fetch one authenticated full reply without 
     try {
       await client.ready;
       if (mode === 'subscription') {
-        const sub = client.subscribe((api as any).ordinary, ordinary.args, () => {});
+        const sub = subscribe(client, (api as any).ordinary, ordinary.args, () => {});
         try { const next: any = await sub.until(value => value.state === 'complete' && value.data?.[0]?.at === 2, 1000); assert.equal(next.data[0].at, 2); }
         finally { sub.close(); }
       } else if (mode === 'failed-full') {
-        await assert.rejects(client.query((api as any).ordinary, ordinary.args), (error: any) => error.code === 'E_OFFLINE_DELIVERY');
+        await assertRefused(client.query((api as any).ordinary, ordinary.args), (error: any) => error.code === 'E_OFFLINE_DELIVERY');
         await client.offline(); const held: any = await client.query((api as any).ordinary, ordinary.args); assert.equal(held.data[0].at, 1);
       } else assert.equal((await client.query((api as any).ordinary, ordinary.args)).data[0].at, 2);
       assert.equal(requests.length, 2, 'one conditional followed by exactly one full revalidation');
@@ -1426,7 +1430,7 @@ test('native-certified derived page keeps its public local cursor after halo rep
     assert(page.next?.startsWith('h1.'),'the last returned p20 remains a local page anchor');
     const tail = await runtime.twin.evaluate(op,{ term: 'e\u0301',c: page.next });
     assert.equal(tail.state,'held','held iterator exhaustion never proves the unheld server tail'); assert.deepEqual(tail.data,[]);
-    assert.equal(saved.answers[op+'\0'+canonical(args)].next,null,'local cursor never becomes stored server progress');
+    assert.equal(saved.answers[op+'\0'+canonical({ term: args.term })].next,null,'local cursor never becomes stored server progress');
   }
   await runtime.close();
 });
@@ -1462,14 +1466,14 @@ test('public offline movement propagates detected partial coverage and the known
       if (path === '/api/resume') return Response.json({ seq: moved.seq,generation: moved.generation,schemaHash: moved.schemaHash,authority: moved.authority,log: { unchanged: true },mounted: [] });
       requests++; throw new TypeError('synthetic offline transport');
     };
-    const client = createClient({ url: 'http://movement.test',as: halo.first.authority.principal,startOffline: mode === 'forced',offline: { store: factory },fetch });
+    const client = createClient({ url: 'http://movement.test',persona: halo.first.authority.principal,startOffline: mode === 'forced',offline: { store: factory },fetch });
     try {
       await client.ready;
       const check = (answer: any) => { assert.equal(answer.state,'partial'); assert(!Object.hasOwn(answer,'next'));
         assert.equal(answer.connection,'offline'); assert.deepEqual(answer.data.rows.map((r: any) => r.at),[0,1,2,3,4,5,6,7,10,100]); };
       check(await client.query(api.clock.fixed as any,{})); assert.equal(requests,mode === 'forced' ? 0 : 3);
       if (mode === 'forced') {
-        const sub = client.subscribe(api.clock.fixed as any,{},() => {});
+        const sub = subscribe(client, api.clock.fixed as any,{},() => {});
         try { check(await sub.until((r: any) => r.state === 'partial',2000)); } finally { sub.close(); }
         check(await client.query(api.clock.fixed as any,{}));
       }

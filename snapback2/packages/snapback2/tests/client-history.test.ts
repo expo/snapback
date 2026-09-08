@@ -1,3 +1,4 @@
+import { subscribe } from "../src/internal.js";
 import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -18,17 +19,17 @@ const row = (id: string): Row => ({ id, body: id });
 const item = (id: string, extra: Record<string, unknown> = {}) => ({ key: id, data: row(id), predicted: false, pending: [], ...extra });
 const partial = (data?: unknown, items: unknown[] = []) => ({
   status: data === undefined ? "unavailable" : "ready", ...(data === undefined ? {} : { data }),
-  receipt: { outcome: "partial", source: "twin", seq: 1, next: null, reason: "count" }, ...offline, items,
+  receipt: { state: "partial", source: "twin", seq: 1, next: null, reason: "count" }, ...offline, items,
 });
-const usable = (outcome: "complete" | "capped") => ({
-  status: "ready", data: { messages: [], count: 0, preview: [] }, receipt: { outcome, source: "server", seq: 2, next: null },
+const usable = (verdict: "complete" | "capped") => ({
+  status: "ready", data: { messages: [], count: 0, preview: [] }, receipt: { state: verdict, source: "server", seq: 2, next: null },
   ...offline, items: [item("server")],
 });
 const ready = { status: "ready", data: [], ...offline, items: [item("history")] };
 
 test("the derivation: usable composites own the items, partial ones lend to a readable history, everything else keeps drafts only", () => {
-  for (const outcome of ["complete", "capped"] as const) {
-    const composed = composeHistory(usable(outcome) as any, ready as any);
+  for (const verdict of ["complete", "capped"] as const) {
+    const composed = composeHistory(usable(verdict) as any, ready as any);
     assert.equal(composed.itemsFrom, "query");
     assert.equal(composed.history, undefined, "a usable composite never republishes history");
     assert.equal(composed.items[0]?.key, "server");
@@ -45,7 +46,7 @@ test("the derivation: usable composites own the items, partial ones lend to a re
   }
   for (const primary of [
     { status: "ready", data: { messages: [row("held")], count: 1, preview: [] }, ...offline, items: [item("held")] },
-    { status: "unavailable", receipt: { outcome: "denied", source: "server", seq: 3, next: null, rule: "r" }, ...offline, items: [] },
+    { status: "unavailable", receipt: { state: "denied", source: "server", seq: 3, next: null, rule: "r" }, ...offline, items: [] },
     { status: "unavailable", refusal: { code: "E_TEST" }, ...offline, items: [] },
     { status: "loading", ...offline, items: [] },
   ]) {
@@ -143,10 +144,10 @@ test("retained projections stay partial while their certified page boundary and 
       publish("deliveries.thread", offlineView(history, { state: "denied", rule: "MEMBERSHIP_REQUIRED", seq: 12 }));
       const snapshot = observed.getSnapshot();
       assert.equal(snapshot.itemsFrom, "history", "partial custody never lends a retained count to the composite");
-      assert.equal(snapshot.receipt?.outcome, "partial");
+      assert.equal(snapshot.receipt?.state, "partial");
       assert.equal(snapshot.receipt?.next, "composite-page-2", "the primary keeps its own boundary, never history's");
       assert.equal(snapshot.history?.status, "ready", "downloaded row bodies remain readable");
-      assert.equal(snapshot.history?.receipt?.outcome, "partial");
+      assert.equal(snapshot.history?.receipt?.state, "partial");
       assert.equal(snapshot.history?.receipt?.next, "history-page-2");
       assert.equal(snapshot.history?.local.retained, true);
       assert.equal(snapshot.items.find(item => item.key === "m1")?.data?.body, "m1");

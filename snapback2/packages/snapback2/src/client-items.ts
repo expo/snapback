@@ -86,7 +86,7 @@ export function defineItems<Args, Result, Source, Row extends ItemRow,
   if (spec.create) {
     const { target, belongs, draft } = spec.create;
     bindings.push(Object.freeze({ op: target.op, kind: "create", key: address(target, "create"),
-      belongs: (entry: OutboxEntry, args: Args) => belongs(entry.args as CreateArgs, args),
+      belongs: (entry: OutboxEntry, args: Args) => belongs(entry.args as CreateArgs, { ...args, c: (args as { c?: unknown }).c ?? null }),
       draft: (entry: OutboxEntry) => draft(entry.args as CreateArgs) }));
   }
   const target = <A, K extends "update" | "remove">(kind: K, binding: Target<A, K> | undefined) => {
@@ -130,16 +130,18 @@ export type HistorySnapshot<Result, Row extends ItemRow, Draft, History = unknow
     /** This query supplied a usable result; its fields need no second shape check. */
     readonly itemsFrom: "query";
     readonly data: Result;
-    readonly receipt: NonNullable<Snapshot<Result>["receipt"]> & { outcome: "complete" | "capped" };
+    readonly receipt: NonNullable<Snapshot<Result>["receipt"]> & { state: "complete" | "capped" };
     readonly history?: undefined;
   }
   | {
     /** The independently authorized history supplies rows, never count or preview. */
     readonly itemsFrom: "history";
+    readonly data: undefined;
     readonly history: Snapshot<History>;
   }
   | {
     readonly itemsFrom: "drafts";
+    readonly data: undefined;
     /** Present exactly while the query's receipt is partial, even if history is unavailable. */
     readonly history?: Snapshot<History>;
   }
@@ -155,17 +157,17 @@ export function composeHistory<Result, Row extends ItemRow, Draft, History>(
   previous?: HistorySnapshot<Result, Row, Draft, History>,
 ): HistorySnapshot<Result, Row, Draft, History> {
   const receipt = primary.receipt;
-  const outcome = receipt?.outcome;
-  const eligible = outcome === "partial" ? history : undefined;
-  if ((outcome === "complete" || outcome === "capped") && primary.data !== undefined) {
+  const verdict = receipt?.state;
+  const eligible = verdict === "partial" ? history : undefined;
+  if ((verdict === "complete" || verdict === "capped") && primary.data !== undefined) {
     return Object.freeze({ ...primary, data: primary.data, itemsFrom: "query",
-      receipt: receipt as NonNullable<typeof receipt> & { outcome: "complete" | "capped" } });
+      receipt: receipt as NonNullable<typeof receipt> & { state: "complete" | "capped" } });
   }
   if (eligible?.status === "ready") {
-    return Object.freeze({ ...primary, items: eligible.items, itemsFrom: "history", history: eligible });
+    return Object.freeze({ ...primary, data: undefined, partial: true, items: eligible.items, itemsFrom: "history", history: eligible });
   }
   const items = draftsOnly(primary.items, previous?.itemsFrom === "drafts" ? previous.items : undefined);
-  return Object.freeze({ ...primary, items, itemsFrom: "drafts", ...(eligible === undefined ? {} : { history: eligible }) });
+  return Object.freeze({ ...primary, data: undefined, partial: false, items, itemsFrom: "drafts", ...(eligible === undefined ? {} : { history: eligible }) });
 }
 
 function draftsOnly<Row extends ItemRow, Draft>(

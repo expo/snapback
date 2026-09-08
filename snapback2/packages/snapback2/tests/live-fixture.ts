@@ -77,3 +77,17 @@ export function multiplexFetch(source: typeof fetch): typeof fetch {
     return json({ ok: true });
   };
 }
+
+/** Public reads/writes resolve a complete refusal value; a thrown promise fails this assertion. */
+export async function assertRefused(request: Promise<any> | (() => Promise<any>), expected?: any, message?: string): Promise<void> {
+  const assert = (await import('node:assert/strict')).default;
+  const value = await (typeof request === 'function' ? request() : request);
+  assert.ok(value?.state === 'refused' || value?.state === 'rejected', message ?? `expected a refusal, received ${JSON.stringify(value)}`);
+  for (const field of ['code', 'family', 'message']) assert.equal(typeof value[field], 'string', field);
+  if (expected instanceof RegExp) assert.match(value.message, expected, message);
+  else if (typeof expected === 'function') assert.equal(expected(value), true, message);
+  else if (expected && typeof expected === 'object') for (const [field, wanted] of Object.entries(expected)) {
+    if (wanted instanceof RegExp) assert.match(value[field], wanted, message);
+    else assert.deepEqual(value[field], wanted, message);
+  }
+}

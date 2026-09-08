@@ -1,3 +1,4 @@
+import { sharedConsumers } from "../src/internal.js";
 import assert from "node:assert/strict";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -155,7 +156,7 @@ test("the chat screens render the log, queue offline sends as pinned bubbles, se
   const restore = installDom();
   const root = await mkdtemp(join(tmpdir(), "snapback2-screens-"));
   const mutationBodies: any[] = [];
-  const writer = createClient({ url: screenOwner.url, as: "alice" });
+  const writer = createClient({ url: screenOwner.url, persona: "alice" });
   let moved = false;
   const fetch = async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
     const body = requestBody(init);
@@ -186,7 +187,7 @@ test("the chat screens render the log, queue offline sends as pinned bubbles, se
     await act(async () => {
       reactRoot.render(React.createElement(
         SnapbackProvider,
-        { url: screenOwner.url, as: "alice", fetch, offline: { store: fileRangeStore(root), fenceDays: 2 } },
+        { url: screenOwner.url, persona: "alice", fetch, offline: { store: fileRangeStore(root), fenceDays: 2 } },
         React.createElement(Probe),
         React.createElement(App),
       ));
@@ -241,7 +242,7 @@ test("the chat screens render the log, queue offline sends as pinned bubbles, se
     assert.equal(summary.getAttribute("data-view-state"), bubbles.getAttribute("data-view-state"));
     assert.equal(summary.getAttribute("data-view-seq"), bubbles.getAttribute("data-view-seq"));
     assert.equal(bubbles.getAttribute("data-view-source"), "composite");
-    assert.equal(client.sharedConsumers(api.deliveries.conversationView, { conversationId: "conversation-1" }), 1,
+    assert.equal(sharedConsumers(client, api.deliveries.conversationView, { conversationId: "conversation-1" }), 1,
       "one composite observer feeds both the summary and message list");
     assert.equal(summary.hasAttribute("data-count"), true);
     assert.equal(Number.isSafeInteger(Number(summary.getAttribute("data-count"))), true);

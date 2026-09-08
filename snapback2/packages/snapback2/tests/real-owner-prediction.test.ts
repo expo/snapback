@@ -1,12 +1,10 @@
 import assert from "node:assert/strict";
 import { after, test } from "node:test";
-import {
-  SnapbackRefusal,
-  api,
+import { api,
   createClient,
   initialQueryState,
-  reduceQueryState,
-} from "../dist/client.mjs";
+  reduceQueryState } from "../dist/client.mjs";
+import { RefusalError } from "../dist/client-observed-test.mjs";
 import { configureRealOwner, RealOwnerHarness } from "./owner-harness.ts";
 
 const owner = await configureRealOwner();
@@ -97,7 +95,7 @@ mutation allocateRef(realms: [realmCounts] <=3):
       capEntries: rows, realmMemberships: [{ id: "long-realm", principal: "dev:alice", realm: longRealm }],
     } })});\n`);
     local = await RealOwnerHarness.create({ fixture });
-    const observer = createClient({ url: local.url, as: "alice" });
+    const observer = createClient({ url: local.url, persona: "alice" });
     clients.push(observer);
     const count = async (client: ReturnType<typeof createClient>, principal: string) => {
       const result: any = await client.query(api.caps.countFor, { principal: `dev:${principal}` });

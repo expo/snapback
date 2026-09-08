@@ -1,3 +1,4 @@
+import { subscribe } from "../src/internal.js";
 // Fresh process: no built client/Expo entry is imported until these methods are absent.
 import assert from "node:assert/strict";
 import { register } from "node:module";
@@ -60,7 +61,7 @@ let renderer: ReturnType<typeof TestRenderer.create> | undefined;
 let drain: ReturnType<typeof client.subscribe> | undefined;
 try {
   await client.ready; await client.auth.login({ email: "alice@example.test", password: "password" });
-  drain = client.subscribe(api.deliveries.inbox, { c: null }, () => {}, { drain: true });
+  drain = subscribe(client, api.deliveries.inbox, { c: null }, () => {}, { drain: true });
   await drain.until((value: any) => value.caughtUp === true);
   await store.commit({ deliveries: [{ op: "photo", args: {}, state: "complete", seq: 5, next: null,
     rows: [{ table: "messages", id: "photo", row: { id: "photo", photo } }], data: [{ $row: { table: "messages", id: "photo" } }],

@@ -1,3 +1,6 @@
+import { assertRefused } from "./live-fixture.ts";
+import { isRefusalError } from "../dist/client-observed-test.mjs";
+import { subscribe } from "../src/internal.js";
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -5,7 +8,8 @@ import { join } from "node:path";
 import { test } from "node:test";
 import React, { StrictMode } from "react";
 import TestRenderer, { act } from "react-test-renderer";
-import { SnapbackRefusal, api, createClient } from "../dist/client.mjs";
+import { api, createClient } from "../dist/client.mjs";
+import { RefusalError } from "../dist/client-observed-test.mjs";
 import { SnapbackProvider, indexedDbRangeStore, useMutation, useOutbox, useSnapbackClient } from "../dist/react.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
 import { sqliteFactory } from "./sqlite-fixture.ts";
@@ -183,8 +187,8 @@ test("no-facts recovery chooses the mounted drain ahead of another mounted candi
           }
           client = createClient({ url: "http://seed-choice.test", fetch, token: "alice-token", offline: { store: carrier.factory(), fenceDays: 1 } });
           if (choice === "mounted") {
-            subscriptions.push(client.subscribe(api.feed.global as any, { c: null }, () => {}));
-            subscriptions.push(client.subscribe(api.deliveries.inbox as any, { c: null }, () => {}, { drain: true }));
+            subscriptions.push(subscribe(client, api.feed.global as any, { c: null }, () => {}));
+            subscriptions.push(subscribe(client, api.deliveries.inbox as any, { c: null }, () => {}, { drain: true }));
           }
           await client.ready;
           const expected = choice === "optional" ? "account.mine" : choice === "cursor" ? "feed.global" : "deliveries.inbox";
@@ -487,7 +491,7 @@ test("missing grant trust waits for resume and the client clock never expires an
     await seededStore(carrier.factory());
     const factory = carrier.factory();
     let store: ReturnType<typeof factory>;
-    const client = createClient({ url: "http://missing-trust.test", fetch: owner.fetch, as: "alice",
+    const client = createClient({ url: "http://missing-trust.test", fetch: owner.fetch, persona: "alice",
       offline: { store: () => (store = factory()), fenceDays: 1 },
     });
     try {
@@ -522,7 +526,7 @@ test("useOutbox exposes fence inside and past while ready stays true, then updat
   try {
     await act(async () => {
       renderer = TestRenderer.create(React.createElement(SnapbackProvider, {
-        url: "http://fence-hook.test", as: "alice", offline: { store: fileRangeStore(root), fenceDays: 1 },
+        url: "http://fence-hook.test", persona: "alice", offline: { store: fileRangeStore(root), fenceDays: 1 },
         fetch: async (input, init) => {
           const response = await owner.fetch(input, init);
           if (new URL(String(input)).pathname !== "/api/resume" || owner.grantsMinted() === 1) return response;
@@ -555,7 +559,7 @@ test("enqueue consumes a grant slice of 1 + maxNewIds and refuses E_OFFLINE_ID_B
   for (const carrier of await carriers()) {
     const owner = fakeOwner({ grantCount: 110 });
     await seededStore(carrier.factory());
-    const client = createClient({ url: "http://outbox.test", as: "alice", fetch: owner.fetch, offline: { store: carrier.factory() } });
+    const client = createClient({ url: "http://outbox.test", persona: "alice", fetch: owner.fetch, offline: { store: carrier.factory() } });
     await client.ready;
     assert.equal(owner.grantsMinted(), 1, `${carrier.name}: cold start resumed and earned a grant`);
     assert.equal(await client.outbox.ready(), true, `${carrier.name}: the grant itself is ready`);
@@ -577,10 +581,10 @@ test("enqueue consumes a grant slice of 1 + maxNewIds and refuses E_OFFLINE_ID_B
     assert.equal(first.state === "queued" && first.ids[0], engineId(100));
     assert.equal(await client.outbox.ready(), true, `${carrier.name}: a spent-down grant remains present`);
     assert.equal(await client.outbox.ready(api.deliveries.post as any), false, `${carrier.name}: the remaining six ids cannot hold this op's slice`);
-    await assert.rejects(
+    await assertRefused(
       () => client.mutation(api.deliveries.post as any, post("three")),
-      (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_OFFLINE_ID_BLOCK"
-        && error.envelope.family === "offline" && typeof error.envelope.rewrite === "string",
+      (error: unknown) => (error.state === "rejected" || error.state === "refused") && error.code === "E_OFFLINE_ID_BLOCK"
+        && error.family === "offline" && typeof error.rewrite === "string",
       `${carrier.name}: 110 - 104 = 6 ids left cannot hold 52`,
     );
     assert.equal((await client.outbox.entries()).length, 2, "a refused enqueue writes nothing");
@@ -592,16 +596,16 @@ test("enqueue consumes a grant slice of 1 + maxNewIds and refuses E_OFFLINE_ID_B
 test("a fresh partition without a grant refuses offline writes loudly and earns one on the drained log", async () => {
   const root = await tempRoot();
   const owner = fakeOwner();
-  const client = createClient({ url: "http://grantless.test", as: "alice", fetch: owner.fetch, offline: { store: fileRangeStore(root) } });
+  const client = createClient({ url: "http://grantless.test", persona: "alice", fetch: owner.fetch, offline: { store: fileRangeStore(root) } });
   await client.ready;
   assert.equal(owner.grantsMinted(), 0, "nothing held, nothing to resume");
   await client.offline();
-  await assert.rejects(
+  await assertRefused(
     () => client.mutation(api.deliveries.post as any, post("no grant")),
-    (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_OFFLINE_ID_BLOCK",
+    (error: unknown) => (error.state === "rejected" || error.state === "refused") && error.code === "E_OFFLINE_ID_BLOCK",
   );
   await client.online();
-  const drain = client.subscribe(api.deliveries.inbox as any, { c: null }, () => undefined, { drain: true });
+  const drain = subscribe(client, api.deliveries.inbox as any, { c: null }, () => undefined, { drain: true });
   await drain.until((value) => value.state === "complete" && value.caughtUp === true, 2_000);
   await new Promise((resolve) => setTimeout(resolve, 20));
   assert.equal(owner.grantsMinted(), 1, "the drain reaching its watermark asked for a grant");
@@ -629,7 +633,7 @@ test("a grant arriving without an outbox entry change flips useOutbox().ready", 
   await act(async () => {
     renderer = TestRenderer.create(React.createElement(
       SnapbackProvider,
-      { url: "http://grant-notify.test", as: "alice", fetch: owner.fetch, offline: { store: fileRangeStore(root) } },
+      { url: "http://grant-notify.test", persona: "alice", fetch: owner.fetch, offline: { store: fileRangeStore(root) } },
       React.createElement(Harness),
     ));
   });
@@ -637,7 +641,7 @@ test("a grant arriving without an outbox entry change flips useOutbox().ready", 
   assert.deepEqual([outbox.can.send, outbox.entries.length], [false, 0], "no grant means not ready");
   let drain: any;
   await act(async () => {
-    drain = client.subscribe(api.deliveries.inbox as any, { c: null }, () => undefined, { drain: true });
+    drain = subscribe(client, api.deliveries.inbox as any, { c: null }, () => undefined, { drain: true });
     await drain.until((value: any) => value.state === "complete" && value.caughtUp === true, 2_000);
     await new Promise((resolve) => setTimeout(resolve, 10));
   });
@@ -653,7 +657,7 @@ test("the drain replays FIFO after resume, one envelope per request, and both se
   for (const carrier of await carriers()) {
     const owner = fakeOwner();
     await seededStore(carrier.factory());
-    const client = createClient({ url: "http://fifo.test", as: "alice", fetch: owner.fetch, offline: { store: carrier.factory() } });
+    const client = createClient({ url: "http://fifo.test", persona: "alice", fetch: owner.fetch, offline: { store: carrier.factory() } });
     await client.ready;
     await client.offline();
     await client.mutation(api.deliveries.post as any, post("one"));
@@ -675,7 +679,7 @@ test("a 503 after a commit leaves the intent queued, stops the drain, and the re
   for (const carrier of await carriers()) {
     const owner = fakeOwner({ failAfterCommit: 1 });
     await seededStore(carrier.factory());
-    const client = createClient({ url: "http://exactly-once.test", as: "alice", fetch: owner.fetch, offline: { store: carrier.factory() } });
+    const client = createClient({ url: "http://exactly-once.test", persona: "alice", fetch: owner.fetch, offline: { store: carrier.factory() } });
     await client.ready;
     await client.offline();
     await client.mutation(api.deliveries.post as any, post("one"));
@@ -702,7 +706,7 @@ test("a rejection and a trace conflict settle only their own intent and the drai
       conflict: (_intent, body) => body.op === "deliveries.edit",
     });
     await seededStore(carrier.factory());
-    const client = createClient({ url: "http://settle.test", as: "alice", fetch: owner.fetch, offline: { store: carrier.factory() } });
+    const client = createClient({ url: "http://settle.test", persona: "alice", fetch: owner.fetch, offline: { store: carrier.factory() } });
     await client.ready;
     await client.offline();
     await client.mutation(api.deliveries.post as any, post("rejected"));
@@ -729,7 +733,7 @@ test("a three-day-old queue under fenceDays 1 waits for resume without predictio
   for (const carrier of await carriers()) {
     const owner = fakeOwner();
     await seededStore(carrier.factory());
-    const client = createClient({ url: "http://fence.test", as: "alice", fetch: owner.fetch, offline: { store: carrier.factory(), fenceDays: 1 } });
+    const client = createClient({ url: "http://fence.test", persona: "alice", fetch: owner.fetch, offline: { store: carrier.factory(), fenceDays: 1 } });
     const originalNow = Date.now;
     try {
       await client.ready;
@@ -772,7 +776,7 @@ test("only the owner's E_OFFLINE_INTENT_EXPIRED refusal expires an intent and th
         : undefined,
     });
     await seededStore(carrier.factory());
-    const client = createClient({ url: "http://server-expiry.test", as: "alice", fetch: owner.fetch, offline: { store: carrier.factory() } });
+    const client = createClient({ url: "http://server-expiry.test", persona: "alice", fetch: owner.fetch, offline: { store: carrier.factory() } });
     await client.ready;
     await client.offline();
     await client.mutation(api.deliveries.post as any, post("server expired"));
@@ -810,7 +814,7 @@ test("a committed settlement lands in the same swap as the log tail rows, or not
       }
     },
   });
-  const client = createClient({ url: "http://atomic.test", as: "alice", fetch: owner.fetch, offline: { store } });
+  const client = createClient({ url: "http://atomic.test", persona: "alice", fetch: owner.fetch, offline: { store } });
   await client.ready;
   await client.offline();
   const queued = await client.mutation(api.deliveries.post as any, post("atomic"));
@@ -818,7 +822,7 @@ test("a committed settlement lands in the same swap as the log tail rows, or not
   const pinned = queued.state === "queued" ? queued.ids[0]! : "";
   // Target the settlement, after the resume event and grant adoption writes.
   failSettlement = true;
-  await assert.rejects(() => client.online(), (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_OFFLINE_STATE");
+  await assert.rejects(() => client.online(), (error: unknown) => isRefusalError(error) && error.code === "E_OFFLINE_STATE");
   assert.equal(owner.executions.length, 1, "the owner committed before the local swap failed");
   const inspect = fileRangeStore(root)();
   await inspect.open("dev:alice");
@@ -847,11 +851,11 @@ test("online writes carry the replay envelope under custody; a transport failure
   let dead = false;
   const owner = fakeOwner({ dead: () => dead });
   await seededStore(fileRangeStore(root));
-  const client = createClient({ url: "http://bytes.test", as: "alice", fetch: owner.fetch, offline: { store: fileRangeStore(root) } });
+  const client = createClient({ url: "http://bytes.test", persona: "alice", fetch: owner.fetch, offline: { store: fileRangeStore(root) } });
   await client.ready;
   const bodies: string[] = [];
   const spying = createClient({
-    url: "http://bytes.test", as: "alice", offline: { store: fileRangeStore(root) },
+    url: "http://bytes.test", persona: "alice", offline: { store: fileRangeStore(root) },
     fetch: async (input, init) => {
       if (new URL(String(input)).pathname === "/api/mutation") bodies.push(String(init?.body));
       return owner.fetch(input, init);
@@ -891,7 +895,7 @@ test("an online write settles in its own call even when an explicit dismissal ra
   const root = await tempRoot();
   const owner = fakeOwner();
   await seededStore(fileRangeStore(root));
-  const client = createClient({ url: "http://retire.test", as: "alice", fetch: owner.fetch, offline: { store: fileRangeStore(root) } });
+  const client = createClient({ url: "http://retire.test", persona: "alice", fetch: owner.fetch, offline: { store: fileRangeStore(root) } });
   await client.ready;
   const retired: string[] = [];
   const unsubscribe = client.outbox.subscribe((entries) => {
@@ -918,7 +922,7 @@ test("an online terminal survives zero, one, and four readers, missing target de
     const factory = fileRangeStore(root);
     await seededStore(factory);
     let opened: ReturnType<typeof factory>;
-    const client = createClient({ url: "http://retained-terminal.test", as: "alice", offline: { store: () => (opened = factory()) },
+    const client = createClient({ url: "http://retained-terminal.test", persona: "alice", offline: { store: () => (opened = factory()) },
       fetch: async (input, init) => {
         const response = await owner.fetch(input, init);
         if (new URL(String(input)).pathname !== "/api/query") return response;
@@ -961,13 +965,13 @@ test("a store with an open partition never sends plain bytes: no grant or no bou
   };
   // No grant: a fresh partition that neither logged in nor drained a query.
   const grantlessRoot = await tempRoot();
-  const grantless = createClient({ url: "http://custody.test", as: "alice", fetch: spy, offline: { store: fileRangeStore(grantlessRoot) } });
+  const grantless = createClient({ url: "http://custody.test", persona: "alice", fetch: spy, offline: { store: fileRangeStore(grantlessRoot) } });
   await grantless.ready;
   assert.equal(owner.grantsMinted(), 0);
-  await assert.rejects(
+  await assertRefused(
     () => grantless.mutation(api.deliveries.post as any, post("no grant")),
-    (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_OFFLINE_ID_BLOCK"
-      && error.envelope.family === "offline" && /grant/.test(error.message) && typeof error.envelope.rewrite === "string",
+    (error: unknown) => (error.state === "rejected" || error.state === "refused") && error.code === "E_OFFLINE_ID_BLOCK"
+      && error.family === "offline" && /grant/.test(error.message) && typeof error.rewrite === "string",
   );
   assert.deepEqual(bodies, [], "no grant: no request left the device");
   grantless.close();
@@ -976,7 +980,7 @@ test("a store with an open partition never sends plain bytes: no grant or no bou
   const unboundRoot = await tempRoot();
   await seededStore(fileRangeStore(unboundRoot));
   const unbound = createClient({
-    url: "http://custody.test", as: "alice", offline: { store: fileRangeStore(unboundRoot) },
+    url: "http://custody.test", persona: "alice", offline: { store: fileRangeStore(unboundRoot) },
     fetch: async (input, init) => new URL(String(input)).pathname === "/api/program"
       ? new Response(JSON.stringify({ code: "E_OP_UNKNOWN", family: "op", message: "not active", guide: "op/manifest" }), { status: 404, headers: { "content-type": "application/json" } })
       : spy(input, init),
@@ -985,22 +989,22 @@ test("a store with an open partition never sends plain bytes: no grant or no bou
   assert.equal(owner.grantsMinted(), 1, "the resume minted a grant");
   assert.equal(await unbound.outbox.ready(), true, "grant-only readiness does not promise a write bound");
   assert.equal(await unbound.outbox.ready(api.deliveries.post as any), false, "the op form refuses readiness until its bound is recorded");
-  await assert.rejects(
+  await assertRefused(
     () => unbound.mutation(api.deliveries.post as any, post("no bound")),
-    (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_OFFLINE_ID_BLOCK" && /bound/.test(error.message),
+    (error: unknown) => (error.state === "rejected" || error.state === "refused") && error.code === "E_OFFLINE_ID_BLOCK" && /bound/.test(error.message),
   );
   assert.deepEqual(bodies, [], "no bound: no request left the device");
   assert.deepEqual(await unbound.outbox.entries(), [], "a refused write is not an intent");
   unbound.close();
   await rm(unboundRoot, { recursive: true, force: true });
   // No store: today's bytes, byte-identical.
-  const plain = createClient({ url: "http://custody.test", as: "alice", fetch: spy });
+  const plain = createClient({ url: "http://custody.test", persona: "alice", fetch: spy });
   assert.equal((await plain.mutation(api.deliveries.post as any, post("no store"))).state, "committed");
   assert.deepEqual(bodies, [JSON.stringify({ op: "deliveries.post", args: post("no store") })], "no store, no envelope");
   plain.close();
 });
 
-test("useMutation resolves last queued offline with pending filtered by op, and useOutbox lists the outbox at cold start", async () => {
+test("useMutation resolves last queued offline, and useOutbox lists the outbox at cold start", async () => {
   const root = await tempRoot();
   const owner = fakeOwner();
   await seededStore(fileRangeStore(root));
@@ -1020,7 +1024,7 @@ test("useMutation resolves last queued offline with pending filtered by op, and 
   await act(async () => {
     renderer = TestRenderer.create(React.createElement(
       SnapbackProvider,
-      { url: "http://hooks.test", as: "alice", fetch: owner.fetch, offline },
+      { url: "http://hooks.test", persona: "alice", fetch: owner.fetch, offline },
       React.createElement(Harness),
     ));
   });
@@ -1032,8 +1036,6 @@ test("useMutation resolves last queued offline with pending filtered by op, and 
   await act(async () => { await new Promise((resolve) => setTimeout(resolve, 10)); });
   assert.equal(posting.last.state, "queued");
   assert.equal(posting.last.intent, result.intent);
-  assert.deepEqual(posting.pending.map((entry: any) => entry.op), ["deliveries.post"], "pending is this op's queued intents");
-  assert.deepEqual(editing.pending.map((entry: any) => entry.op), ["deliveries.edit"]);
   assert.equal(posting.inFlight, false);
   assert.deepEqual(outbox.entries.map((entry: any) => [entry.op, entry.state]), [["deliveries.post", "queued"], ["deliveries.edit", "queued"]]);
   await act(async () => { renderer!.unmount(); });
@@ -1044,13 +1046,13 @@ test("useMutation resolves last queued offline with pending filtered by op, and 
   await act(async () => {
     renderer = TestRenderer.create(React.createElement(
       SnapbackProvider,
-      { url: "http://hooks-cold.test", as: "alice", fetch: deadOwner.fetch, offline },
+      { url: "http://hooks-cold.test", persona: "alice", fetch: deadOwner.fetch, offline },
       React.createElement(Harness),
     ));
   });
   await act(async () => { await new Promise((resolve) => setTimeout(resolve, 30)); });
   assert.deepEqual(outbox.entries.map((entry: any) => entry.state), ["queued", "queued"], "durable across a cold start");
-  assert.equal(posting.pending.length, 1);
+  assert.equal(outbox.entries.filter(entry => entry.op === "deliveries.post").length, 1);
   await act(async () => { renderer!.unmount(); });
   dead = false;
   await rm(root, { recursive: true, force: true });
@@ -1060,7 +1062,7 @@ test("useOutbox survives restart(): the queue is intact and settles through the 
   const root = await tempRoot();
   const owner = fakeOwner();
   await seededStore(fileRangeStore(root));
-  const client = createClient({ url: "http://restart.test", as: "alice", fetch: owner.fetch, offline: { store: fileRangeStore(root) } });
+  const client = createClient({ url: "http://restart.test", persona: "alice", fetch: owner.fetch, offline: { store: fileRangeStore(root) } });
   await client.ready;
   await client.offline();
   await client.mutation(api.deliveries.post as any, post("before restart"));
@@ -1098,7 +1100,7 @@ test("SnapbackProvider under StrictMode creates one lock-holding client and surv
       null,
       React.createElement(
         SnapbackProvider,
-        { url: "http://strict.test", as: "alice", fetch: owner.fetch, offline },
+        { url: "http://strict.test", persona: "alice", fetch: owner.fetch, offline },
         React.createElement(Harness),
       ),
     ));
@@ -1117,9 +1119,9 @@ test("a cold start with the owner unreachable serves the held log and the outbox
   const root = await tempRoot();
   const owner = fakeOwner({ seed: true });
   await seededStore(fileRangeStore(root));
-  const warm = createClient({ url: "http://cold.test", as: "alice", fetch: owner.fetch, offline: { store: fileRangeStore(root) } });
+  const warm = createClient({ url: "http://cold.test", persona: "alice", fetch: owner.fetch, offline: { store: fileRangeStore(root) } });
   await warm.ready;
-  const drain = warm.subscribe(api.deliveries.inbox as any, { c: null }, () => undefined, { drain: true });
+  const drain = subscribe(warm, api.deliveries.inbox as any, { c: null }, () => undefined, { drain: true });
   await drain.until((value) => value.state === "complete" && value.caughtUp === true, 2_000);
   drain.close();
   await warm.offline();
@@ -1127,7 +1129,7 @@ test("a cold start with the owner unreachable serves the held log and the outbox
   assert.equal(queued.state, "queued");
   warm.close();
   let dead = true;
-  const cold = createClient({ url: "http://cold.test", as: "alice", fetch: async (input, init) => {
+  const cold = createClient({ url: "http://cold.test", persona: "alice", fetch: async (input, init) => {
     if (dead) throw new TypeError("fetch failed");
     return owner.fetch(input, init);
   }, offline: { store: fileRangeStore(root) } });
@@ -1137,7 +1139,7 @@ test("a cold start with the owner unreachable serves the held log and the outbox
   assert.equal("connection" in held && held.connection, "offline");
   assert.ok(Array.isArray(held.data) && held.data.some((row: any) => row.message?.body === "Welcome"), "the drained log answers from the store");
   assert.deepEqual((await cold.outbox.entries()).map((entry) => entry.state), ["queued"]);
-  const tail = cold.subscribe(api.deliveries.inbox as any, { c: null }, () => undefined, { drain: true });
+  const tail = subscribe(cold, api.deliveries.inbox as any, { c: null }, () => undefined, { drain: true });
   const caught = await tail.until((value) => (value.state === "complete" || value.state === "capped") && value.caughtUp === true, 3_000);
   assert.equal("connection" in caught && caught.connection, "offline", "the drain reaches its held watermark without the owner");
   tail.close();

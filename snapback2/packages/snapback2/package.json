@@ -45,6 +45,10 @@
     "./expo/witness": {
       "types": "./dist/expo/witness.d.ts",
       "import": "./dist/expo/witness.mjs"
+    },
+    "./internal": {
+      "types": "./src/internal.d.ts",
+      "import": "./src/internal.js"
     }
   },
   "bin": {
@@ -56,7 +60,9 @@
     "ios",
     "expo-module.config.json",
     "android/build.gradle",
-    "android/src"
+    "android/src",
+    "src/internal.js",
+    "src/internal.d.ts"
   ],
   "scripts": {
     "build": "node build.mjs",

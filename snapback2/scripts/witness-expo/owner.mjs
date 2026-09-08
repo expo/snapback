@@ -52,8 +52,8 @@ export async function ownerHarness(port) {
 
 export async function seedWitness(url) {
   const { createClient, api } = await import(resolve(dist, "client.mjs"));
-  const alice = createClient({ url, as: "alice" });
-  const bob = createClient({ url, as: "bob" });
+  const alice = createClient({ url, persona: "alice" });
+  const bob = createClient({ url, persona: "bob" });
   const committed = (result) => { if (result.state !== "committed") throw new Error(JSON.stringify(result)); return result.data; };
   try {
     const rooms = ["conversation-1", "conversation-2"];

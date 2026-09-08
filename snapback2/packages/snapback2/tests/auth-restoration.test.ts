@@ -1,3 +1,5 @@
+import { assertRefused } from "./live-fixture.ts";
+import { subscribe } from "../src/internal.js";
 import assert from "node:assert/strict";
 import { test, type TestContext } from "node:test";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -227,7 +229,7 @@ test("mounted queries during restoration use held coverage and only me retries c
     let sub: ReturnType<SnapbackClient["subscribe"]> | undefined;
     try {
       await restored(client);
-      sub = client.subscribe(api.current, {}, answer => answers.push(answer));
+      sub = subscribe(client, api.current, {}, answer => answers.push(answer));
       answers.push(await client.query(api.current, {})); await flush();
       assert.equal(client.snapshot.auth.restoringViewer, bound ? "alice" : undefined);
       assert.equal(client.snapshot.auth.viewer, undefined);
@@ -398,7 +400,7 @@ test("two persona hooks share the lazy me flight", async context => {
   context.mock.timers.enable({ apis: ["setTimeout", "Date"] });
   const response = deferred<Response>();
   let requests = 0;
-  const client = createClient({ url: "http://auth.test", as: "alice", fetch: async (input, init) => {
+  const client = createClient({ url: "http://auth.test", persona: "alice", fetch: async (input, init) => {
     assert.equal(new Headers(init?.headers).get("X-Snapback-As"), "alice");
     assert.equal(new Headers(init?.headers).get("Authorization"), null);
     if (String(input).endsWith("/api/auth/me")) { requests++; return response.promise; }
@@ -443,7 +445,7 @@ test("explicit me cancels the old backoff deadline and schedules its own retry",
   try {
     await restored(client);
     context.mock.timers.tick(500);
-    await assert.rejects(client.auth.me(), (error: any) => error.code === "E_NETWORK");
+    await assert.rejects(client.auth.me(), (error: any) => error.code === "E_TRANSPORT");
     assert.equal(requests, 2);
     assert.equal(client.snapshot.auth.retryAt, 3_500);
     context.mock.timers.tick(500); await flush();
@@ -652,7 +654,7 @@ test("an offline query hook leaves hydration when the stored bearer is confirmed
     assert.equal(view.receipt, undefined);
     assert.equal(owner.requests.includes("/api/query"), false);
     await act(async () => { cut = false; await client.auth.me(); await flush(); });
-    assert.equal(view.receipt.outcome, "complete");
+    assert.equal(view.receipt.state, "complete");
     assert.equal(view.data.length, 2);
     assert.equal(owner.requests.filter(path => path === "/api/query").length, 1);
   } finally { if (renderer) await act(async () => renderer.unmount()); await client.close(); }
@@ -668,9 +670,9 @@ test("a terminal write wakes a read waiting on restoration without dispatching i
   try {
     await restored(client);
     const read = client.query(api.current, {});
-    const rejected = assert.rejects(read, (error: any) => error.code === "E_AUTH_SUPERSEDED");
+    const rejected = assertRefused(read, (error: any) => error.code === "E_AUTH_SUPERSEDED");
     await flush();
-    await assert.rejects(client.mutation(api.write, {}), (error: any) => error.code === "E_AUTH_SESSION");
+    await assertRefused(client.mutation(api.write, {}), (error: any) => error.code === "E_AUTH_SESSION");
     await rejected;
     assert.deepEqual(paths, ["/api/auth/me", "/api/mutation"]);
     assert.equal(client.snapshot.auth.state, "anonymous");
@@ -717,11 +719,11 @@ test("logout custody-clear failure cannot keep an authenticated view after clear
   } finally { await client.close(); }
 });
 
-for (const outcome of ["failed", "successful"] as const) for (const timing of ["before hydrate", "pending me"] as const) {
-  test(`${outcome} startup login ${timing} restores metadata and resumes the durable outbox`, async context => {
+for (const verdict of ["failed", "successful"] as const) for (const timing of ["before hydrate", "pending me"] as const) {
+  test(`${verdict} startup login ${timing} restores metadata and resumes the durable outbox`, async context => {
     const factory = offlineStore(context), owner = fakeOwner();
     await seededStore(factory);
-    const seed = createClient({ url: "http://auth.test", as: "alice", offline: { store: factory }, fetch: owner.fetch });
+    const seed = createClient({ url: "http://auth.test", persona: "alice", offline: { store: factory }, fetch: owner.fetch });
     await seed.ready;
     await seed.offline();
     const queued = await seed.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "before restart" });
@@ -734,14 +736,14 @@ for (const outcome of ["failed", "successful"] as const) for (const timing of ["
     const client = createClient({ url: "http://auth.test", tokenStore: custody("dev:alice"), offline: { store: factory },
       fetch: async (input, init) => {
         const path = new URL(String(input)).pathname; paths.push(path);
-        if (path === "/api/auth/login" && outcome === "failed") return refusal("E_AUTH_INVALID");
+        if (path === "/api/auth/login" && verdict === "failed") return refusal("E_AUTH_INVALID");
         if (path === "/api/auth/me" && holdMe) { holdMe = false; started.resolve(); return oldResponse.promise; }
         return owner.fetch(input, init);
       } });
     try {
       if (timing === "pending me") await started.promise;
-      const login = client.auth.login({ email: "alice@example.com", password: outcome === "failed" ? "wrong" : "password" });
-      if (outcome === "failed") await assert.rejects(login, (error: any) => error.code === "E_AUTH_INVALID");
+      const login = client.auth.login({ email: "alice@example.com", password: verdict === "failed" ? "wrong" : "password" });
+      if (verdict === "failed") await assert.rejects(login, (error: any) => error.code === "E_AUTH_INVALID");
       else await login;
       context.mock.timers.tick(1_000);
       for (let i = 0; i < 20 && owner.executions.length === 0; i++) await flush();
@@ -783,7 +785,7 @@ for (const action of ["login", "signup", "guest"] as const) {
   });
 }
 
-for (const outcome of ["failed", "successful"] as const) test(`held queries during a ${outcome} startup login wait for its authority`, async context => {
+for (const verdict of ["failed", "successful"] as const) test(`held queries during a ${verdict} startup login wait for its authority`, async context => {
   const factory = offlineStore(context);
   await seededPrivateStore(factory);
   const loginResponse = deferred<Response>(), started = deferred<void>();
@@ -797,7 +799,7 @@ for (const outcome of ["failed", "successful"] as const) test(`held queries duri
       throw new TypeError("cut");
     } });
   const attempt = client.auth.login({ email: "bob@example.com", password: "password" });
-  const login = outcome === "failed" ? assert.rejects(attempt, (error: any) => error.code === "E_AUTH_INVALID") : attempt;
+  const login = verdict === "failed" ? assert.rejects(attempt, (error: any) => error.code === "E_AUTH_INVALID") : attempt;
   let settled = false;
   let read: Promise<unknown> | undefined;
   try {
@@ -805,12 +807,12 @@ for (const outcome of ["failed", "successful"] as const) test(`held queries duri
     read = client.query(api.deliveries.inbox, { c: null }).then(value => { settled = true; return value; });
     await flush(); await flush();
     assert.equal(settled, false, "the predecessor's held answer cannot bypass an active login");
-    loginResponse.resolve(outcome === "failed" ? refusal("E_AUTH_INVALID")
+    loginResponse.resolve(verdict === "failed" ? refusal("E_AUTH_INVALID")
       : json({ token: "token-b", viewer: "bob", kind: "user", authEpoch: 8 }));
     await login;
     const held: any = await read;
     assert.equal(held.state, "complete");
-    assert.deepEqual(held.data, outcome === "failed" ? [{ body: "Alice's private held message" }] : ["bob's answer"]);
+    assert.deepEqual(held.data, verdict === "failed" ? [{ body: "Alice's private held message" }] : ["bob's answer"]);
   } finally { loginResponse.resolve(refusal("E_AUTH_INVALID")); await login; await read?.catch(() => undefined); await client.close(); }
 });
 
@@ -838,7 +840,7 @@ for (const failure of ["expired", "closed"] as const) test(`metadata cannot repo
 async function queuedStartup(context: TestContext, bodies = ["held before startup"]) {
   const factory = offlineStore(context), owner = fakeOwner();
   await seededStore(factory);
-  const seed = createClient({ url: "http://auth.test", as: "alice", offline: { store: factory }, fetch: owner.fetch });
+  const seed = createClient({ url: "http://auth.test", persona: "alice", offline: { store: factory }, fetch: owner.fetch });
   try {
     await seed.ready; await seed.offline();
     for (const body of bodies) await seed.mutation(api.deliveries.post, { conversationId: "conversation-1", body });
@@ -874,7 +876,7 @@ test("startup session retries one failed metadata fetch through the pending reco
   } finally { await client.close(); }
 });
 
-for (const outcome of ["failed", "successful"] as const) test(`live held reads wait for a ${outcome} startup login`, async context => {
+for (const verdict of ["failed", "successful"] as const) test(`live held reads wait for a ${verdict} startup login`, async context => {
   const factory = offlineStore(context);
   await seededPrivateStore(factory);
   const started = deferred<void>(), loginResponse = deferred<Response>();
@@ -885,18 +887,18 @@ for (const outcome of ["failed", "successful"] as const) test(`live held reads w
       throw new TypeError("cut");
     } });
   const attempt = client.auth.login({ email: "bob@example.com", password: "password" });
-  const login = outcome === "failed" ? assert.rejects(attempt, (error: any) => error.code === "E_AUTH_INVALID") : attempt;
+  const login = verdict === "failed" ? assert.rejects(attempt, (error: any) => error.code === "E_AUTH_INVALID") : attempt;
   let subscription: ReturnType<SnapbackClient["subscribe"]> | undefined;
   try {
     await started.promise;
-    subscription = client.subscribe(api.deliveries.inbox, { c: null }, event => events.push(event));
+    subscription = subscribe(client, api.deliveries.inbox, { c: null }, event => events.push(event));
     await flush(); await flush();
     assert.equal(events.some(event => event.data?.length), false, "live reads cannot flash predecessor rows during login");
-    loginResponse.resolve(outcome === "failed" ? refusal("E_AUTH_INVALID")
+    loginResponse.resolve(verdict === "failed" ? refusal("E_AUTH_INVALID")
       : json({ token: "token-b", viewer: "bob", kind: "user", authEpoch: 8 }));
     await login; await flush(); await flush();
     const data = events.flatMap(event => event.data ?? []);
-    assert.deepEqual(data, outcome === "failed" ? [{ body: "Alice's private held message" }] : []);
+    assert.deepEqual(data, verdict === "failed" ? [{ body: "Alice's private held message" }] : []);
   } finally { loginResponse.resolve(refusal("E_AUTH_INVALID")); await login; subscription?.close(); await client.close(); }
 });
 
@@ -954,8 +956,8 @@ test("failed login during authenticated deferred resume restarts pending startup
   } finally { oldResponse.resolve(saved ?? json({})); await client.close(); }
 });
 
-for (const stage of ["manifest", "resume"] as const) for (const outcome of ["failed", "successful"] as const) {
-  test(`${outcome} login cuts pending initial ${stage} without poisoning ready`, async context => {
+for (const stage of ["manifest", "resume"] as const) for (const verdict of ["failed", "successful"] as const) {
+  test(`${verdict} login cuts pending initial ${stage} without poisoning ready`, async context => {
     const { factory, owner } = await queuedStartup(context);
     const started = deferred<void>(), oldResponse = deferred<Response>();
     let held = false, saved: Response | undefined;
@@ -963,7 +965,7 @@ for (const stage of ["manifest", "resume"] as const) for (const outcome of ["fai
     const client = createClient({ url: "http://auth.test", tokenStore: custody("dev:alice"), offline: { store: factory },
       fetch: async (input, init) => {
         const path = new URL(String(input)).pathname;
-        if (path === "/api/auth/login" && outcome === "failed") return refusal("E_AUTH_INVALID");
+        if (path === "/api/auth/login" && verdict === "failed") return refusal("E_AUTH_INVALID");
         const response = await owner.fetch(input, init);
         if (path === `/api/${stage}` && !held) {
           held = true; saved = response; started.resolve(); return oldResponse.promise;
@@ -975,7 +977,7 @@ for (const stage of ["manifest", "resume"] as const) for (const outcome of ["fai
       assert.equal(client.snapshot.auth.state, "authenticated");
       const login = client.auth.login({ email: "alice@example.com", password: "password" });
       let settled = false;
-      completion = (outcome === "failed" ? assert.rejects(login, (error: any) => error.code === "E_AUTH_INVALID") : login)
+      completion = (verdict === "failed" ? assert.rejects(login, (error: any) => error.code === "E_AUTH_INVALID") : login)
         .finally(() => { settled = true; });
       void completion.catch(() => undefined);
       for (let i = 0; i < 20 && !settled; i++) await flush();
@@ -1037,7 +1039,7 @@ for (const state of ["hydrating", "confirmed"] as const) test(`${state} held rea
   let read: Promise<void> | undefined;
   try {
     if (state === "hydrating") await restored(client); else await metadataStarted.promise;
-    read = assert.rejects(client.query(api.deliveries.inbox, { c: null }), (error: any) => error.code === "E_AUTH_SUPERSEDED");
+    read = assertRefused(client.query(api.deliveries.inbox, { c: null }), (error: any) => error.code === "E_AUTH_SUPERSEDED");
     await readStarted.promise;
     await assert.rejects(client.auth.login({ email: "alice@example.com", password: "wrong" }), (error: any) => error.code === "E_AUTH_INVALID");
     releaseRead.resolve();
@@ -1402,7 +1404,7 @@ for (const format of ["HTTP 401", "typed HTTP 200"] as const) for (const stage o
       const queued = await client.outbox.entries();
       assert.equal(queued.length, 1); assert.equal(queued[0].state, "queued");
       mode = "expiry";
-      await assert.rejects(client.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "new unaccepted intent" }),
+      await assertRefused(client.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "new unaccepted intent" }),
         (error: any) => error.code === "E_AUTH_SESSION", "FIFO session death is not an older intent's ordinary refusal");
       await assert.rejects(client.outbox.settled(), (error: any) => error.code === "E_AUTH_SESSION");
       assert.equal(client.snapshot.lastRefusal?.code, "E_AUTH_SESSION");

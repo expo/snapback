@@ -31,7 +31,7 @@ export interface ByteCacheStatus { entries: ByteCacheEntry[]; totalBytes: number
 export interface AssetBytes { bytes: Uint8Array; type: string }
 /** An opaque identity held by one mounted viewing instance, never shared by asset id. */
 export interface AssetFetchOptions { signal?: AbortSignal; viewing?: object }
-export type ByteCacheOutcome = "cached" | "viewed" | "unleased" | "refused";
+export type ByteCacheVerdict = "cached" | "viewed" | "unleased" | "refused";
 
 /** The byte surface the swap engine exposes beside `RangeStore`; only the carriers implement it. */
 export interface ByteCarrier {
@@ -52,7 +52,7 @@ export interface AssetCache {
   subscribeCustody?(listener: () => void): () => void;
   getCustody?(): number;
   getBytes(assetId: string, width: number | null, viewing?: object): Promise<AssetBytes | undefined>;
-  putBytes(assetId: string, width: number | null, value: AssetBytes, viewing?: object): Promise<ByteCacheOutcome>;
+  putBytes(assetId: string, width: number | null, value: AssetBytes, viewing?: object): Promise<ByteCacheVerdict>;
   canServe(assetId: string, viewing?: object): Promise<boolean>;
   /** The held bytes for an asset at a width, or nothing: never fetched, evicted with its row, viewed, or sealed. */
   get(assetId: string, width: number | null, viewing?: object): Promise<Blob | undefined>;
@@ -333,14 +333,14 @@ export class ByteCache implements AssetCache {
   }
 
   /** After a network fetch: cache under the row's lease, or mark the view-once rows viewed and cache nothing. */
-  async put(assetId: string, width: number | null, blob: Blob, viewing?: object): Promise<ByteCacheOutcome> {
+  async put(assetId: string, width: number | null, blob: Blob, viewing?: object): Promise<ByteCacheVerdict> {
     const custody = this.custody;
     const bytes = new Uint8Array(await blob.arrayBuffer());
     if (custody !== this.custody) return "refused";
     return this.putBytes(assetId, width, { bytes, type: blob.type }, viewing);
   }
 
-  putBytes(assetId: string, width: number | null, value: AssetBytes, viewing?: object): Promise<ByteCacheOutcome> {
+  putBytes(assetId: string, width: number | null, value: AssetBytes, viewing?: object): Promise<ByteCacheVerdict> {
     const custody = this.custody;
     // Two concurrent consumers may fetch; only one can acquire the viewing allowance.
     const result = this.admissions.then(() => custody === this.custody
@@ -349,7 +349,7 @@ export class ByteCache implements AssetCache {
     return result;
   }
 
-  private async admit(assetId: string, width: number | null, value: AssetBytes, viewing?: object): Promise<ByteCacheOutcome> {
+  private async admit(assetId: string, width: number | null, value: AssetBytes, viewing?: object): Promise<ByteCacheVerdict> {
     const custody = this.custody;
     checkedAssetId(assetId);
     checkedPut({ assetId, width, ...value });

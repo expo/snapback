@@ -298,7 +298,7 @@ for (const carrier of ["file", "indexeddb"]) test(`${carrier}: four shared obser
   const store = carrier === "file" ? fileRangeStore(root)()
     : indexedDbRangeStore({ indexedDB: new FakeIndexedDb() as never, locks: new FakeLocks() as never })();
   const owner = fakeOwner({ seed: true, cursorArg: "c" });
-  const client = createClient({ url: "http://items.test", as: "alice", fetch: owner.fetch, offline: { store: () => store } });
+  const client = createClient({ url: "http://items.test", persona: "alice", fetch: owner.fetch, offline: { store: () => store } });
   await client.ready;
   const spec = publicItems(api.deliveries.thread, { table: "messages", select: (value: any) => value.message,
     update: { target: mutationTarget(api.deliveries.edit, "messages") } });

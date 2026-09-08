@@ -10,39 +10,39 @@ import type {
   MutationResult,
   Principal,
   QueryRefusedDelivery,
-  RefusalEnvelope,
+  Refusal,
   RefusedDelivery,
   ServerQueryResult,
 } from "./types.js";
 
-export function fallbackRefusal(code: string, message: string): RefusalEnvelope {
-  return { code, family: "owner", message, guide: "owner/connect" };
+export function fallbackRefusal(code: string, message: string): Refusal {
+  return { code: code,
+    family: code === "E_TRANSPORT" ? "transport" : "owner", message, guide: "owner/connect" };
 }
 
-const snapbackRefusalBrand = Symbol.for("snapback2.SnapbackRefusal");
+const snapbackRefusalBrand = Symbol.for("snapback2.RefusalError");
 
-export class SnapbackRefusal extends Error {
+export class RefusalError extends Error {
   readonly [snapbackRefusalBrand] = true;
-  readonly envelope: RefusalEnvelope;
+  readonly envelope: Refusal & Record<string, unknown>;
   readonly code: string;
 
-  constructor(envelope: RefusalEnvelope, readonly retryable = false, readonly status?: number) {
+  constructor(envelope: Refusal & { which?: string; cap?: number; op?: string; shape?: string }, readonly retryable = false, readonly status?: number) {
     super(envelope.message);
-    this.name = "SnapbackRefusal";
-    this.envelope = envelope;
+    this.name = "RefusalError";
+    this.envelope = { ...envelope, ...(retryable ? { retryable: true } : {}) };
     this.code = envelope.code;
   }
 }
 
-export function isSnapbackRefusal(value: unknown): value is SnapbackRefusal {
-  return typeof value === "object"
-    && value !== null
-    && (value as { name?: unknown }).name === "SnapbackRefusal"
+export function isRefusalError(value: unknown): value is RefusalError {
+  return value != null
+    && (value as { name?: unknown }).name === "RefusalError"
     && (value as Record<symbol, unknown>)[snapbackRefusalBrand] === true;
 }
 
-export function wireShape(message: string): SnapbackRefusal {
-  return new SnapbackRefusal({ code: "E_WIRE_SHAPE", family: "op", message, guide: "op/wire-shape" });
+export function wireShape(message: string): RefusalError {
+  return new RefusalError({ code: "E_WIRE_SHAPE", family: "op", message, guide: "op/wire-shape" });
 }
 
 export function wireObject(value: unknown, surface: string): Record<string, unknown> {
@@ -91,13 +91,13 @@ function nullableString(record: Record<string, unknown>, field: string, surface:
   return value;
 }
 
-export function wireRefusalEnvelope(value: unknown, surface: string): RefusalEnvelope {
+export function wireRefusal(value: unknown, surface: string): Refusal & Record<string, unknown> {
   const record = wireObject(value, surface);
-  const envelope: RefusalEnvelope = {
+  const envelope: Refusal & Record<string, unknown> = {
     code: stringField(record, "code", surface),
     family: stringField(record, "family", surface),
     message: stringField(record, "message", surface),
-    guide: stringField(record, "guide", surface),
+    ...(record.guide === undefined ? {} : { guide: stringField(record, "guide", surface) }),
   };
   for (const field of ["site", "rule", "rewrite", "reason", "op", "shape"] as const) {
     const item = optionalString(record, field, surface);
@@ -107,23 +107,31 @@ export function wireRefusalEnvelope(value: unknown, surface: string): RefusalEnv
   if (which !== undefined) envelope.which = which;
   const cap = optionalNumber(record, "cap", surface);
   if (cap !== undefined) envelope.cap = cap;
+  if (envelope.family === "input" && envelope.message.startsWith(`E_REQUIRE:${envelope.code}:`)) envelope.family = "rule";
+  if (record.retryable !== undefined) {
+    if (typeof record.retryable !== "boolean") throw wireShape(`${surface}.retryable must be a boolean`);
+    envelope.retryable = record.retryable;
+  }
   return envelope;
 }
 
-export function copyRefusal(envelope: RefusalEnvelope): RefusalEnvelope {
-  const refusal: RefusalEnvelope = {
-    code: envelope.code, family: envelope.family, message: envelope.message, guide: envelope.guide,
-  };
-  if (envelope.site !== undefined) refusal.site = envelope.site;
-  if (envelope.rule !== undefined) refusal.rule = envelope.rule;
-  if (envelope.rewrite !== undefined) refusal.rewrite = envelope.rewrite;
-  for (const field of ["reason", "op", "shape"] as const) if (envelope[field] !== undefined) refusal[field] = envelope[field];
-  if (envelope.which !== undefined) refusal.which = envelope.which;
-  if (envelope.cap !== undefined) refusal.cap = envelope.cap;
+export function copyRefusal(envelope: Refusal): Refusal {
+  const refusal = {} as Refusal;
+  for (const key of ["code", "family", "message", "guide", "site", "rule", "rewrite", "reason", "retryable"] as const) {
+    if (envelope[key] !== undefined) (refusal as any)[key] = envelope[key];
+  }
   return refusal;
 }
 
-export function isTerminalSession(envelope: Pick<RefusalEnvelope, "code" | "family">): boolean {
+/** The plain boundary catches every failure and retains only the one public shape. */
+export function toRefusal(error: unknown): Refusal {
+  if (isRefusalError(error)) return copyRefusal(error.envelope);
+  if (error && typeof error === "object" && "code" in error && "family" in error && "message" in error
+    && typeof error.code === "string" && typeof error.family === "string" && typeof error.message === "string") return copyRefusal(error as Refusal);
+  return { code: "E_TRANSPORT", family: "transport", message: error instanceof Error ? error.message : String(error), retryable: true };
+}
+
+export function isTerminalSession(envelope: Pick<Refusal, "code" | "family">): boolean {
   return envelope.code === "E_AUTH_SESSION" && envelope.family === "auth";
 }
 
@@ -168,7 +176,7 @@ export function wireMutation<Result>(value: unknown): MutationResult<Result> {
     case "committed":
       return { state: "committed", data: present(record, "data", surface) as Result, seq: numberField(record, "seq", surface) };
     case "rejected":
-      return { state: "rejected", ...wireRefusalEnvelope(record, "mutation rejected response") };
+      return { state: "rejected", ...wireRefusal(record, "mutation rejected response") };
     default:
       throw wireShape(`${surface}.state must be committed or rejected`);
   }
@@ -181,7 +189,7 @@ export function wireSubscription<Result>(data: string, connected?: (value: boole
   connected?.(record.connected === true);
   if (stringField(record, "state", surface) === "refused") {
     if (has(record, "next")) throw wireShape(`${surface}.refused must not carry next`);
-    const refusal = wireRefusalEnvelope(record, `${surface} refusal`);
+    const refusal = wireRefusal(record, `${surface} refusal`);
     const seq = optionalNumber(record, "seq", surface);
     return { state: "refused", live: false, ...refusal, ...(seq === undefined ? {} : { seq }) };
   }
@@ -197,7 +205,7 @@ export function wireChannelFrame<Value>(data: string): ChannelFrame<Value> {
   const surface = "channel delivery";
   const record = sseObject(data, surface);
   if (record.state === "refused") {
-    return { state: "refused", ...wireRefusalEnvelope(record, `${surface} refusal`) } as RefusedDelivery;
+    return { state: "refused", ...wireRefusal(record, `${surface} refusal`) } as RefusedDelivery;
   }
   if (record.state !== "snapshot" || !Array.isArray(record.entries) || record.entries.length > 64) {
     throw wireShape(`${surface} requires a bounded snapshot`);
@@ -223,16 +231,16 @@ export function wireChannelWrite(value: unknown): ChannelWriteResult {
   const record = wireObject(value, surface);
   if (record.ok === true) return { ok: true };
   if (record.state !== "refused") throw wireShape(`${surface} must contain ok: true or state: refused`);
-  return { state: "refused", ...wireRefusalEnvelope(record, `${surface} refusal`) };
+  return { state: "refused", ...wireRefusal(record, `${surface} refusal`) };
 }
 
-export function terminalSessionEnvelope(value: unknown): RefusalEnvelope | undefined {
+export function terminalSessionEnvelope(value: unknown): Refusal | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
   const record = value as Record<string, unknown>;
   if (record.state !== "rejected" && record.state !== "refused") return undefined;
   // A replayed write's trace conflict carries no code (LLP 1012 §7); it is never a session terminal.
   if (record.state === "rejected" && record.reason === "conflict") return undefined;
-  const refusal = wireRefusalEnvelope(record, "terminal session response");
+  const refusal = wireRefusal(record, "terminal session response");
   return isTerminalSession(refusal) ? refusal : undefined;
 }
 
@@ -293,12 +301,12 @@ export function wireAssetSession(value: unknown): { token: string; expiresAt: nu
   return { token: stringField(record, "token", surface), expiresAt: numberField(record, "expiresAt", surface) };
 }
 
-export async function responseRefusal(response: Response): Promise<SnapbackRefusal> {
+export async function responseRefusal(response: Response): Promise<RefusalError> {
   let value: unknown;
   try {
     value = await response.json();
   } catch {
-    throw new SnapbackRefusal(
+    throw new RefusalError(
       fallbackRefusal("E_TRANSPORT", `HTTP ${response.status} did not contain a refusal envelope`),
       true,
       response.status,
@@ -306,20 +314,20 @@ export async function responseRefusal(response: Response): Promise<SnapbackRefus
   }
   if (!value || typeof value !== "object" || Array.isArray(value)
     || !["code", "family", "guide"].some((field) => has(value as Record<string, unknown>, field))) {
-    throw new SnapbackRefusal(
+    throw new RefusalError(
       fallbackRefusal("E_TRANSPORT", `HTTP ${response.status} did not contain a refusal envelope`),
       true,
       response.status,
     );
   }
-  return new SnapbackRefusal(wireRefusalEnvelope(value, `HTTP ${response.status} refusal`), false, response.status);
+  return new RefusalError(wireRefusal(value, `HTTP ${response.status} refusal`), false, response.status);
 }
 
 export function sseObject(data: string, surface: string): Record<string, unknown> {
   try {
     return wireObject(JSON.parse(data), surface);
   } catch (error) {
-    if (isSnapbackRefusal(error)) throw error;
+    if (isRefusalError(error)) throw error;
     throw wireShape(`${surface} must contain valid JSON`);
   }
 }
@@ -361,8 +369,8 @@ export interface JsonRequestOptions {
 // @ref LLP 1018#3-move-one-one-coherent-reactive-client — a follower tab's
 // write is refused before any bytes leave: a plain write landing ahead of the
 // writer tab's queued intents would invert their order once the queue is inherited.
-export function followerRefusal(site = "client.mutation"): SnapbackRefusal {
-  return new SnapbackRefusal({
+export function followerRefusal(site = "client.mutation"): RefusalError {
+  return new RefusalError({
     code: "E_OFFLINE_FOLLOWER",
     family: "offline",
     message: "this account is open for writing in another tab; this tab reads live and takes over when that tab closes",
@@ -372,8 +380,8 @@ export function followerRefusal(site = "client.mutation"): SnapbackRefusal {
   });
 }
 
-export function supersededRefusal(): SnapbackRefusal {
-  return new SnapbackRefusal({
+export function supersededRefusal(): RefusalError {
+  return new RefusalError({
     code: "E_AUTH_SUPERSEDED",
     family: "auth",
     message: "operation belonged to a previous authentication generation",

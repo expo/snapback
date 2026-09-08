@@ -1,3 +1,5 @@
+import { assertRefused } from "./live-fixture.ts";
+import { subscribe } from "../src/internal.js";
 import assert from "node:assert/strict";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -25,7 +27,7 @@ test("transport stops and successful retries report their remaining queue and pr
   const root = await mkdtemp(join(tmpdir(), "s2-recovery-"));
   const owner = fakeOwner({ failAfterCommit: 1 });
   await seededStore(fileRangeStore(root));
-  const client = createClient({ url: "http://recovery.test", as: "alice", fetch: owner.fetch, offline: { store: fileRangeStore(root) } });
+  const client = createClient({ url: "http://recovery.test", persona: "alice", fetch: owner.fetch, offline: { store: fileRangeStore(root) } });
   try {
     await client.ready;
     const result = await client.mutation(api.deliveries.post as any, { conversationId: "conversation-1", body: "retry once" });
@@ -48,7 +50,7 @@ test("grant expiry and exhausted IDs expose actionable admission without consumi
   const factory = fileRangeStore(root);
   await seededStore(factory);
   let store: ReturnType<typeof factory>;
-  const client = createClient({ url: "http://admission.test", as: "alice", fetch: owner.fetch, offline: { store: () => (store = factory()) } });
+  const client = createClient({ url: "http://admission.test", persona: "alice", fetch: owner.fetch, offline: { store: () => (store = factory()) } });
   try {
     await client.ready;
     await client.offline();
@@ -56,9 +58,9 @@ test("grant expiry and exhausted IDs expose actionable admission without consumi
     await store!.commit({ grants: { put: [{ ...grant, expiresAt: Date.now() - 1 }] } });
     const status = await client.outbox.status(api.deliveries.post as any);
     assert.equal(status.reason, "grant-expired");
-    assert.equal(status.action, "resume");
+    assert.equal(status.action, "connect");
     assert.equal(await client.outbox.ready(api.deliveries.post as any), false);
-    await assert.rejects(client.mutation(api.deliveries.post as any, { conversationId: "conversation-1", body: "expired" }), (error: any) => error.code === "E_OFFLINE_ID_BLOCK" && /expired/.test(error.message));
+    await assertRefused(client.mutation(api.deliveries.post as any, { conversationId: "conversation-1", body: "expired" }), (error: any) => error.code === "E_OFFLINE_ID_BLOCK" && /expired/.test(error.message));
     assert.equal((await client.outbox.entries()).length, 0);
     assert.equal((await store!.outbox.grant())!.used, grant.used);
     await store!.commit({ grants: { put: [{ ...grant, used: grant.count - 1 }] } });
@@ -104,7 +106,7 @@ test("repeated drain cursors refuse instead of looping or replacing the server w
   await seededStore(factory);
   let requests = 0;
   let store: ReturnType<typeof factory>;
-  const client = createClient({ url: "http://cursor-loop.test", as: "alice", offline: { store: () => (store = factory()) },
+  const client = createClient({ url: "http://cursor-loop.test", persona: "alice", offline: { store: () => (store = factory()) },
     fetch: async (input, init) => {
       const response = await owner.fetch(input, init);
       if (new URL(String(input)).pathname !== "/api/query") return response;
@@ -117,7 +119,7 @@ test("repeated drain cursors refuse instead of looping or replacing the server w
   try {
     await client.ready;
     const before = (await store!.coverage()).watermarks;
-    subscription = client.subscribe(api.deliveries.inbox as any, { nextPage: null }, () => {}, { drain: true });
+    subscription = subscribe(client, api.deliveries.inbox as any, { nextPage: null }, () => {}, { drain: true });
     const event = await subscription.until((value: any) => value.state === "refused", 2_000);
     assert.equal(event.code, "E_OFFLINE_RESUME");
     assert.match(event.message, /cursor/);
@@ -159,7 +161,7 @@ test("real sessions change epochs across re-login, seal and cold auth; custom cu
     const first = await client.auth.signup(account);
     // Signup carries no grant; a completed drain earns it without using an
     // extra password login while testing token restoration.
-    const initialDrain = client.subscribe(api.recovery.page as any, { nextPage: null }, () => {}, { drain: true });
+    const initialDrain = subscribe(client, api.recovery.page as any, { nextPage: null }, () => {}, { drain: true });
     await initialDrain.until(caughtUp, 2_000);
     initialDrain.close();
     await client.query(api.integration.capped as any, {});
@@ -203,20 +205,20 @@ test("real sessions change epochs across re-login, seal and cold auth; custom cu
     const db = new FakeIndexedDb(), locks = new FakeLocks();
     const factories = [fileRangeStore(join(root, "cursor")), sqliteFactory(join(root, "cursor.db")), indexedDbRangeStore({ indexedDB: db as any, locks: locks as any })];
     for (const store of factories) {
-      const warm = createClient({ url: owner.url, as: "alice", offline: { store } }); clients.push(warm);
+      const warm = createClient({ url: owner.url, persona: "alice", offline: { store } }); clients.push(warm);
       await warm.ready;
       const expected: string[] = [];
-      const drain = warm.subscribe(api.recovery.page as any, { nextPage: null }, (event: any) => { if (event.data) expected.push(...event.data.map((row: any) => row.id)); }, { drain: true });
+      const drain = subscribe(warm, api.recovery.page as any, { nextPage: null }, (event: any) => { if (event.data) expected.push(...event.data.map((row: any) => row.id)); }, { drain: true });
       await drain.until(caughtUp, 2_000);
       drain.close(); await warm.close();
       const inspect = store();
       await inspect.open("dev:alice");
       const saved = (await inspect.coverage()).watermarks;
       await inspect.close?.();
-      const cold = createClient({ url: owner.url, as: "alice", startOffline: true, offline: { store } }); clients.push(cold);
+      const cold = createClient({ url: owner.url, persona: "alice", startOffline: true, offline: { store } }); clients.push(cold);
       await cold.ready;
       const actual: string[] = [];
-      const restored = cold.subscribe(api.recovery.page as any, { nextPage: null }, (event: any) => { if (event.data) actual.push(...event.data.map((row: any) => row.id)); }, { drain: true });
+      const restored = subscribe(cold, api.recovery.page as any, { nextPage: null }, (event: any) => { if (event.data) actual.push(...event.data.map((row: any) => row.id)); }, { drain: true });
       const end = await restored.until(caughtUp, 2_000);
       assert.deepEqual([...new Set(actual)], [...new Set(expected)], "cold and warm drains cover the same row identities");
       assert.equal(end.watermark, saved.find((entry) => entry.op === "recovery.page")?.watermark, "offline cursor chain uses the persisted server watermark");
@@ -270,7 +272,7 @@ test("readiness still observes grant expiry after the earlier fence timer fired"
   const factory = fileRangeStore(root);
   await seededStore(factory);
   let store: ReturnType<typeof factory>;
-  const client = createClient({ url: "http://expiry-observer.test", as: "alice", fetch: fakeOwner().fetch, offline: { fenceDays: 1, store: () => (store = factory()) } });
+  const client = createClient({ url: "http://expiry-observer.test", persona: "alice", fetch: fakeOwner().fetch, offline: { fenceDays: 1, store: () => (store = factory()) } });
   let unsubscribe = () => {};
   try {
     await client.ready;
@@ -364,14 +366,14 @@ test("settled waits for cold local custody before reporting an offline queue", a
   const root = await mkdtemp(join(tmpdir(), "s2-cold-settled-"));
   const factory = fileRangeStore(root);
   await seededStore(factory);
-  let client = createClient({ url: "http://cold-settled.test", as: "alice", fetch: fakeOwner().fetch, offline: { store: factory } });
+  let client = createClient({ url: "http://cold-settled.test", persona: "alice", fetch: fakeOwner().fetch, offline: { store: factory } });
   try {
     await client.ready;
     await client.offline();
     await client.mutation(api.deliveries.post as any, { conversationId: "conversation-1", body: "cold queued" });
     await client.close();
     const openStarted = Promise.withResolvers<void>(), releaseOpen = Promise.withResolvers<void>();
-    client = createClient({ url: "http://cold-settled.test", as: "alice", startOffline: true, offline: { store: () => {
+    client = createClient({ url: "http://cold-settled.test", persona: "alice", startOffline: true, offline: { store: () => {
       const store = factory(), open = store.open.bind(store);
       store.open = async (partition) => { openStarted.resolve(); await releaseOpen.promise; await open(partition); };
       return store;

@@ -27,7 +27,7 @@
     "family": "auth",
     "code": "E_AUTH_REQUIRED",
     "wrong": "client.query(api.todos.list, {})",
-    "right": "createClient({ url, as: \"alice\" }).query(api.todos.list, {})"
+    "right": "createClient({ url, persona: \"alice\" }).query(api.todos.list, {})"
   },
   {
     "family": "args",

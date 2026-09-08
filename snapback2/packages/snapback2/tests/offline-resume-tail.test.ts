@@ -1,3 +1,4 @@
+import { subscribe } from "../src/internal.js";
 import { fixtureClient as createClient } from "./live-fixture.ts";
 // The resume log is the page after the watermark (writer_resume log_args) and is
 // held under that cursor's args; the drained first page under `c: null` survives.
@@ -58,7 +59,7 @@ test("a resume answered with the tail after the watermark is held under the curs
     await store.close?.();
     let request: any;
     const client = createClient({
-      url: "http://resume-tail.test", as: "alice", offline: { store: fileRangeStore(root) },
+      url: "http://resume-tail.test", persona: "alice", offline: { store: fileRangeStore(root) },
       fetch: async (input, init) => {
         const url = new URL(String(input));
         const metadata = metadataResponse(url);
@@ -119,7 +120,7 @@ test("the returned-page cursor drives drain and resume, ahead of an auxiliary Cu
     const pages: unknown[] = [];
     const tails: unknown[] = [];
     const client = createClient({
-      url: "http://cursor-name.test", as: "alice", offline: { store: fileRangeStore(root) },
+      url: "http://cursor-name.test", persona: "alice", offline: { store: fileRangeStore(root) },
       fetch: async (input, init) => {
         const url = new URL(String(input));
         const metadata = afterManifest(url);
@@ -151,7 +152,7 @@ test("the returned-page cursor drives drain and resume, ahead of an auxiliary Cu
     await client.ready;
     // The drain is mounted before ready settles on a fresh client too: the name resolves after the manifest.
     const early = createClient({
-      url: "http://cursor-name.test", as: "alice", offline: { store: fileRangeStore(root) },
+      url: "http://cursor-name.test", persona: "alice", offline: { store: fileRangeStore(root) },
       fetch: async (input, init) => {
         const url = new URL(String(input));
         const metadata = afterManifest(url);
@@ -170,12 +171,12 @@ test("the returned-page cursor drives drain and resume, ahead of an auxiliary Cu
       },
     });
     open.push(early);
-    const earlyDrain = early.subscribe(api.deliveries.inbox as any, { after: null }, () => undefined, { drain: true });
+    const earlyDrain = subscribe(early, api.deliveries.inbox as any, { after: null }, () => undefined, { drain: true });
     await earlyDrain.until((value) => value.caughtUp === true, 2_000);
     earlyDrain.close();
     early.close();
 
-    const drain = client.subscribe(api.deliveries.inbox as any, { after: null }, () => undefined, { drain: true });
+    const drain = subscribe(client, api.deliveries.inbox as any, { after: null }, () => undefined, { drain: true });
     await drain.until((value) => value.state === "complete" && value.caughtUp === true && value.watermark === "k1", 2_000);
     // The tail subscription opens a tick after the caught-up delivery.
     for (let attempt = 0; attempt < 100 && tails.length === 0; attempt += 1) await new Promise((resolve) => setTimeout(resolve, 10));
@@ -195,7 +196,7 @@ test("the returned-page cursor drives drain and resume, ahead of an auxiliary Cu
     // A cold resume answers the tail after k1; it is filed under { after: "k1" }, never { c: "k1" }.
     let request: any;
     const cold = createClient({
-      url: "http://cursor-name.test", as: "alice", offline: { store: fileRangeStore(root) },
+      url: "http://cursor-name.test", persona: "alice", offline: { store: fileRangeStore(root) },
       fetch: async (input, init) => {
         const url = new URL(String(input));
         const metadata = afterManifest(url);
@@ -255,14 +256,14 @@ test("an offline cold-start drain keeps the drained first page on screen while r
     await store.close?.();
     // The owner is unreachable: every request fails as a network cut.
     const client = createClient({
-      url: "http://cold-drain.test", as: "alice", startOffline: true, offline: { store: fileRangeStore(root) },
+      url: "http://cold-drain.test", persona: "alice", startOffline: true, offline: { store: fileRangeStore(root) },
       fetch: async () => { throw new TypeError("fetch failed: owner cut"); },
     });
     let drain: { close(): void } | undefined;
     try {
       await client.ready.catch(() => undefined);
       const views: any[] = [];
-      const subscription = client.subscribe((api as any)[certifiedCompleteDrain.op], { c: null }, (view) => views.push(view), { drain: true });
+      const subscription = subscribe(client, (api as any)[certifiedCompleteDrain.op], { c: null }, (view) => views.push(view), { drain: true });
       drain = subscription;
       await subscription.until((view: any) => view.caughtUp === true, 2_000);
       // The tail subscription opens a tick after the caught-up delivery; let it settle.
@@ -287,7 +288,7 @@ test("a conditional unchanged reply on a held denied answer is a typed denied, n
   const root = await mkdtemp(join(tmpdir(), "snapback2-denied-unchanged-"));
   const asks: unknown[] = [];
   const client = createClient({
-    url: "http://denied-unchanged.test", as: "alice", offline: { store: fileRangeStore(root) },
+    url: "http://denied-unchanged.test", persona: "alice", offline: { store: fileRangeStore(root) },
     fetch: async (input, init) => {
       const url = new URL(String(input));
       const metadata = metadataResponse(url);

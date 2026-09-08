@@ -1,3 +1,6 @@
+import { assertRefused } from "./live-fixture.ts";
+import { isRefusalError } from "../dist/client-observed-test.mjs";
+import { subscribe } from "../src/internal.js";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
@@ -5,7 +8,8 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
-import { SnapbackRefusal, api, browserTokenStore } from "../dist/client.mjs";
+import { api, browserTokenStore } from "../dist/client.mjs";
+import { RefusalError } from "../dist/client-observed-test.mjs";
 import { fixtureClient as createClient } from "./live-fixture.ts";
 import { decodeDeliveryEnvelope, schemaDigest } from "../dist/index.mjs";
 import { indexedDbRangeStore } from "../dist/react.mjs";
@@ -648,15 +652,15 @@ test("carrier open failures and a second web lock holder refuse loudly", async (
     outbox: { all: async () => [], get: async () => undefined, put: async () => undefined, remove: async () => undefined },
   });
   Object.defineProperty(badFactory, "carrier", { value: "broken-test" });
-  const bad = createClient({ url: "http://offline.test", as: "alice", offline: { store: badFactory } });
-  await assert.rejects(bad.ready, (error: unknown) => error instanceof SnapbackRefusal
+  const bad = createClient({ url: "http://offline.test", persona: "alice", offline: { store: badFactory } });
+  await assert.rejects(bad.ready, (error: unknown) => isRefusalError(error)
     && error.code === "E_OFFLINE_CARRIER" && error.envelope.rewrite?.includes("broken-test") === true);
 
   // A second web tab of the same account follows with a durable inbox route: sendable (LLP 1018.004 §3).
   const shared = indexedFactory();
-  const first = createClient({ url: "http://offline.test", as: "alice", offline: { store: shared.factory } });
+  const first = createClient({ url: "http://offline.test", persona: "alice", offline: { store: shared.factory } });
   await first.ready;
-  const second = createClient({ url: "http://offline.test", as: "alice", offline: { store: shared.factory } });
+  const second = createClient({ url: "http://offline.test", persona: "alice", offline: { store: shared.factory } });
   await second.ready;
   assert.deepEqual(await second.outbox.status().then((status) => [status.reason, status.ready]), ["forwarding", true]);
   first.close();
@@ -667,12 +671,12 @@ test("offline option shape and fenceDays bounds are TypeErrors", () => {
   const rootFactory = fileRangeStore("/tmp/snapback2-option-shape-test");
   for (const fenceDays of [0, 31, 1.5, "7", null]) {
     assert.throws(
-      () => createClient({ url: "http://options.test", as: "alice", offline: { store: rootFactory, fenceDays } } as any),
+      () => createClient({ url: "http://options.test", persona: "alice", offline: { store: rootFactory, fenceDays } } as any),
       TypeError,
     );
   }
   assert.throws(
-    () => createClient({ url: "http://options.test", as: "alice", offline: { store: {} } } as any),
+    () => createClient({ url: "http://options.test", persona: "alice", offline: { store: {} } } as any),
     TypeError,
   );
 });
@@ -707,7 +711,7 @@ test("offline setup accepts unbranded custom and callable stores, invoking each 
     };
     // Inherited methods and callable objects both satisfy the structural contract.
     const custom = callable ? Object.assign(() => {}, methods) : Object.create(methods);
-    const client = createClient({ url: "http://custom.test", as: "alice", startOffline: true,
+    const client = createClient({ url: "http://custom.test", persona: "alice", startOffline: true,
       offline: { store: () => { calls++; return custom; } } });
     try {
       await client.ready;
@@ -725,16 +729,16 @@ test("offline setup preserves throwing factories and unavailable carrier refusal
     let calls = 0;
     const factory = Object.assign(() => { calls++; throw failure; }, { carrier: "custom-test" });
     assert.throws(() => createClient({ url: "http://factory.test", offline: { store: factory } }),
-      (error: unknown) => error instanceof SnapbackRefusal && error.message === failure.message
+      (error: unknown) => isRefusalError(error) && error.message === failure.message
         && error.code === ((failure as any).code ?? "E_OFFLINE_STATE") && error.envelope.site === "client.offline");
     assert.equal(calls, 1);
   }
   let calls = 0;
   const unavailable = indexedDbRangeStore({ indexedDB: {} as any, locks: {} as any });
-  const client = createClient({ url: "http://unavailable.test", as: "alice", startOffline: true,
+  const client = createClient({ url: "http://unavailable.test", persona: "alice", startOffline: true,
     offline: { store: Object.assign(() => { calls++; return unavailable(); }, { carrier: "IndexedDB" }) } });
   try {
-    await assert.rejects(client.ready, (error: unknown) => error instanceof SnapbackRefusal
+    await assert.rejects(client.ready, (error: unknown) => isRefusalError(error)
       && error.code === "E_OFFLINE_CARRIER" && error.envelope.site === "RangeStore.open"
       && error.message === "IndexedDB and Web Locks are required"
       && error.envelope.rewrite === "install or configure the IndexedDB carrier");
@@ -795,7 +799,7 @@ test("an envelope cannot switch the open principal partition: E_OFFLINE_AUTHORIT
   const root = await tempRoot();
   let reads = 0;
   const client = createClient({
-    url: "http://authority.test", as: "alice", offline: { store: fileRangeStore(root) },
+    url: "http://authority.test", persona: "alice", offline: { store: fileRangeStore(root) },
     fetch: async (input) => {
       const metadata = metadataResponse(input);
       if (metadata) return metadata;
@@ -806,9 +810,9 @@ test("an envelope cannot switch the open principal partition: E_OFFLINE_AUTHORIT
   });
   await client.ready;
   await client.query(api.messages.thread, {});
-  await assert.rejects(client.query(api.messages.thread, {}), (error: unknown) =>
-    error instanceof SnapbackRefusal && error.code === "E_OFFLINE_AUTHORITY" && error.envelope.family === "offline"
-      && error.envelope.site === "RangeStore.commit" && typeof error.envelope.rewrite === "string");
+  await assertRefused(client.query(api.messages.thread, {}), (error: unknown) =>
+    (error.state === "rejected" || error.state === "refused") && error.code === "E_OFFLINE_AUTHORITY" && error.family === "offline"
+      && error.site === "RangeStore.commit" && typeof error.rewrite === "string");
   await client.offline();
   const held = await client.query<any, any>(api.messages.thread as any, {});
   assert.deepEqual("data" in held ? held.data : undefined, ["held"], "the held coverage survived the refused delivery");
@@ -833,7 +837,7 @@ test("manifest retention is loaded before the first commit without an app manife
   hidden.authority.principal = "dev:alice";
   let reads = 0;
   const client = createClient({
-    url: "http://retention.test", as: "alice", offline: { store: fileRangeStore(root) },
+    url: "http://retention.test", persona: "alice", offline: { store: fileRangeStore(root) },
     fetch: async (input) => {
       const metadata = metadataResponse(input);
       if (metadata) {
@@ -861,7 +865,7 @@ test("conditional unchanged branches before envelope decoding and refreshes the 
   const validator = "7".repeat(64);
   let reads = 0;
   const client = createClient({
-    url: "http://conditional.test", as: "alice", offline: { store: fileRangeStore(root) },
+    url: "http://conditional.test", persona: "alice", offline: { store: fileRangeStore(root) },
     fetch: async (input, init) => {
       const metadata = metadataResponse(input);
       if (metadata) return metadata;
@@ -886,7 +890,7 @@ test("a subscription conditional unchanged frame reuses the held pooled answer",
   const root = await tempRoot();
   const validator = "9".repeat(64);
   const client = createClient({
-    url: "http://conditional-sse.test", as: "alice", offline: { store: fileRangeStore(root) },
+    url: "http://conditional-sse.test", persona: "alice", offline: { store: fileRangeStore(root) },
     fetch: async (input) => {
       const metadata = metadataResponse(input);
       if (metadata) return metadata;
@@ -898,7 +902,7 @@ test("a subscription conditional unchanged frame reuses the held pooled answer",
   });
   await client.ready;
   await client.query(api.messages.thread, {});
-  const sub = client.subscribe(api.messages.thread, {}, () => undefined);
+  const sub = subscribe(client, api.messages.thread, {}, () => undefined);
   const unchanged = await sub.until((item) => item.state === "complete", 1_000);
   assert.equal(unchanged.live, true);
   assert.equal(unchanged.seq, 4);
@@ -916,7 +920,7 @@ test("an auth-epoch mismatch cannot replace held coverage; a generation mismatch
   const root = await tempRoot();
   let reads = 0;
   const client = createClient({
-    url: "http://epoch.test", as: "alice", offline: { store: fileRangeStore(root) },
+    url: "http://epoch.test", persona: "alice", offline: { store: fileRangeStore(root) },
     fetch: async (input) => {
       if (String(input).endsWith("/api/resume") && reads >= 3) {
         throw new TypeError("the reset transport closed after the live delivery");
@@ -932,8 +936,8 @@ test("an auth-epoch mismatch cannot replace held coverage; a generation mismatch
   });
   await client.ready;
   await client.query(api.messages.thread, {});
-  await assert.rejects(client.query(api.messages.thread, {}), (error: unknown) =>
-    error instanceof SnapbackRefusal && error.code === "E_OFFLINE_AUTHORITY");
+  await assertRefused(client.query(api.messages.thread, {}), (error: unknown) =>
+    (error.state === "rejected" || error.state === "refused") && error.code === "E_OFFLINE_AUTHORITY");
   await client.offline();
   const held = await client.query<any, any>(api.messages.thread as any, {});
   assert.deepEqual("data" in held ? held.data : undefined, ["held"], "the fence refused the delivery and kept the coverage");
@@ -961,7 +965,7 @@ test("held and unheld offline reads expose since and fenceDays never blocks read
   Date.now = () => now;
   try {
     const client = createClient({
-      url: "http://query.test", as: "alice", offline: { store: fileRangeStore(root), fenceDays: 1 },
+      url: "http://query.test", persona: "alice", offline: { store: fileRangeStore(root), fenceDays: 1 },
       fetch: async (_input, init) => {
         const metadata = metadataResponse(_input);
         if (metadata) return metadata;
@@ -1008,7 +1012,7 @@ test("the schema's tombstones declaration evicts the named body in the same deli
     return new Response(JSON.stringify(program), { status: 200 });
   };
   const client = createClient({
-    url: "http://tombstone.test", as: "alice",
+    url: "http://tombstone.test", persona: "alice",
     offline: { store: fileRangeStore(root) },
     fetch: async (input) => {
       const metadata = await declared(input);
@@ -1042,11 +1046,11 @@ test("the frozen delivery decoder rejects malformed custody facts", async () => 
   const malformed: any = envelope([]);
   delete malformed.planHash;
   const client = createClient({
-    url: "http://envelope.test", as: "alice", offline: { store: fileRangeStore(root) },
+    url: "http://envelope.test", persona: "alice", offline: { store: fileRangeStore(root) },
     fetch: async (input) => metadataResponse(input) ?? new Response(JSON.stringify(malformed), { status: 200 }),
   });
-  await assert.rejects(client.query(api.messages.thread, {}), (error: unknown) =>
-    error instanceof SnapbackRefusal && error.code === "E_WIRE_SHAPE" && error.message.includes("planHash"));
+  await assertRefused(client.query(api.messages.thread, {}), (error: unknown) =>
+    (error.state === "rejected" || error.state === "refused") && error.code === "E_WIRE_SHAPE" && error.message.includes("planHash"));
   await client.close();
   await rm(root, { recursive: true, force: true });
 });
@@ -1067,7 +1071,7 @@ test("drain true follows five pages, persists the watermark, and follows a new t
   let subscriptions = 0;
   const nextByCursor = new Map<any, string | null>([[null, "c1"], ["c1", "c2"], ["c2", "c3"], ["c3", "c4"], ["c4", null], ["c5", null]]);
   const client = createClient({
-    url: "http://drain.test", as: "alice", offline: { store: fileRangeStore(root) },
+    url: "http://drain.test", persona: "alice", offline: { store: fileRangeStore(root) },
     fetch: async (input, init) => {
       const url = String(input);
       const metadata = certifiedDrainMetadataResponse(input);
@@ -1094,7 +1098,7 @@ test("drain true follows five pages, persists the watermark, and follows a new t
   });
   await client.ready;
   const seen: any[] = [];
-  const drain = client.subscribe((api as any).local.partial, { c: null }, (value) => seen.push(value), { drain: true });
+  const drain = subscribe(client, (api as any).local.partial, { c: null }, (value) => seen.push(value), { drain: true });
   const caught = await drain.until((value) => value.state === "complete" && value.caughtUp === true && value.watermark === "c5", 2_000);
   assert.equal(caught.state, "complete");
   assert.deepEqual(cursors, [null, "c1", "c2", "c3", "c4", "c5"]);
@@ -1113,11 +1117,11 @@ test("drain true follows five pages, persists the watermark, and follows a new t
   // A cold reopen adopts the persisted watermark instead of the twin's own
   // page chain, and records nothing (LLP 1012 §6).
   const cold = createClient({
-    url: "http://drain.test", as: "alice", offline: { store: fileRangeStore(root) }, startOffline: true,
+    url: "http://drain.test", persona: "alice", offline: { store: fileRangeStore(root) }, startOffline: true,
     fetch: async () => { throw new TypeError("network cut"); },
   } as Parameters<typeof createClient>[0]);
   await cold.ready;
-  const coldDrain = cold.subscribe((api as any).local.partial, { c: null }, () => undefined, { drain: true });
+  const coldDrain = subscribe(cold, (api as any).local.partial, { c: null }, () => undefined, { drain: true });
   const coldCaught = await coldDrain.until((value) => (value.state === "complete" || value.state === "capped") && value.caughtUp === true, 2_000);
   assert.equal(coldCaught.watermark, "c5", "an offline drain adopts the persisted watermark");
   assert.equal(coldCaught.connection, "offline");
@@ -1161,7 +1165,7 @@ test("cold resume sends the bounded shape before subscribe and a 404 falls back 
   const order: string[] = [];
   let request: any;
   const client = createClient({
-    url: "http://resume.test", as: "alice", offline: { store: fileRangeStore(root) },
+    url: "http://resume.test", persona: "alice", offline: { store: fileRangeStore(root) },
     fetch: async (input, init) => {
       const url = String(input);
       const metadata = metadataResponse(input);
@@ -1177,7 +1181,7 @@ test("cold resume sends the bounded shape before subscribe and a 404 falls back 
     },
   });
   await client.ready;
-  const sub = client.subscribe(api.deliveries.inbox as any, { c: null }, () => undefined);
+  const sub = subscribe(client, api.deliveries.inbox as any, { c: null }, () => undefined);
   await new Promise((resolve) => setTimeout(resolve, 20));
   assert.deepEqual(order.slice(0, 2), ["resume", "subscribe"]);
   assert.deepEqual(request, {
@@ -1196,7 +1200,7 @@ test("resume excludes its drain mount and atomically preserves a full log waterm
   let resumes = 0;
   let reconnectRequest: any;
   const client = createClient({
-    url: "http://resume-watermark.test", as: "alice", offline: { store: fileRangeStore(root) },
+    url: "http://resume-watermark.test", persona: "alice", offline: { store: fileRangeStore(root) },
     fetch: async (input, init) => {
       const url = String(input);
       const metadata = certifiedDrainMetadataResponse(input);
@@ -1221,7 +1225,7 @@ test("resume excludes its drain mount and atomically preserves a full log waterm
     },
   });
   await client.ready;
-  const drain = client.subscribe((api as any).local.partial, { c: null }, () => undefined, { drain: true });
+  const drain = subscribe(client, (api as any).local.partial, { c: null }, () => undefined, { drain: true });
   await drain.until((value) => value.state === "complete" && value.caughtUp === true);
   await client.offline();
   await client.online();
@@ -1245,7 +1249,7 @@ test("E_OFFLINE_RESET drops coverage but preserves the durable outbox slot", asy
   await store.outbox.put({ intent: "i1", ids: [], op: "send", args: {}, state: "queued", createdAt: 1, updatedAt: 1 });
   await store.close?.();
   const client = createClient({
-    url: "http://reset.test", as: "alice", offline: { store: fileRangeStore(root) },
+    url: "http://reset.test", persona: "alice", offline: { store: fileRangeStore(root) },
     fetch: async (input) => metadataResponse(input) ?? new Response(JSON.stringify({
       code: "E_OFFLINE_RESET", family: "offline", message: "generation moved", rewrite: "cold drain", guide: "offline",
     }), { status: 409 }),
@@ -1269,7 +1273,7 @@ test("E_OFFLINE_RESET cold-drains a mounted drain from the null cursor", async (
   let sawResetDrain!: () => void;
   const resetDrain = new Promise<void>((resolve) => { sawResetDrain = resolve; });
   const client = createClient({
-    url: "http://reset-drain.test", as: "alice", offline: { store: fileRangeStore(root) },
+    url: "http://reset-drain.test", persona: "alice", offline: { store: fileRangeStore(root) },
     fetch: async (input, init) => {
       const url = String(input);
       const metadata = certifiedDrainMetadataResponse(input);
@@ -1302,7 +1306,7 @@ test("E_OFFLINE_RESET cold-drains a mounted drain from the null cursor", async (
   let caughtUpEvents = 0;
   let sawResetSettled!: () => void;
   const resetSettled = new Promise<void>((resolve) => { sawResetSettled = resolve; });
-  const drain = client.subscribe((api as any).local.partial, { c: null }, (event: any) => {
+  const drain = subscribe(client, (api as any).local.partial, { c: null }, (event: any) => {
     if (event.caughtUp === true && ++caughtUpEvents === 2) sawResetSettled();
   }, { drain: true });
   await drain.until((value) => value.state === "complete" && value.caughtUp === true);
@@ -1335,7 +1339,7 @@ test("E_OFFLINE_RESUME adjusts only structured mounted limits and never drops th
   let resumes = 0;
   const requests: any[] = [];
   const client = createClient({
-    url: "http://resume-cap.test", as: "alice", offline: { store: fileRangeStore(root) },
+    url: "http://resume-cap.test", persona: "alice", offline: { store: fileRangeStore(root) },
     fetch: async (input, init) => {
       if (new URL(String(input)).pathname === "/api/subscribe") return sse(undefined, true);
       const metadata = metadataResponse(input);
@@ -1352,7 +1356,7 @@ test("E_OFFLINE_RESUME adjusts only structured mounted limits and never drops th
       }), { status: 200 });
     },
   });
-  const mounted = client.subscribe(api.old.value as any, {}, () => {});
+  const mounted = subscribe(client, api.old.value as any, {}, () => {});
   await client.ready;
   assert.equal(resumes, 2);
   assert.ok(requests[0].log);
@@ -1372,7 +1376,7 @@ test("an unstructured legacy E_OFFLINE_RESUME refuses once and leaves the client
   await seededResumeStore(root);
   let resumes = 0;
   const client = createClient({
-    url: "http://resume-refusal.test", as: "alice", offline: { store: fileRangeStore(root) },
+    url: "http://resume-refusal.test", persona: "alice", offline: { store: fileRangeStore(root) },
     fetch: async (input) => {
       const metadata = metadataResponse(input);
       if (metadata) return metadata;
@@ -1390,7 +1394,7 @@ test("an unstructured legacy E_OFFLINE_RESUME refuses once and leaves the client
   await client.ready;
   await client.offline();
   await assert.rejects(client.online(), (error: unknown) =>
-    error instanceof SnapbackRefusal && error.code === "E_OFFLINE_RESUME");
+    isRefusalError(error) && error.code === "E_OFFLINE_RESUME");
   assert.equal(resumes, 2, "unstructured refusal is never retried without its log");
   await client.offline();
   assert.equal((await client.query(api.deliveries.inbox as any, { c: null })).state, "complete");
@@ -1410,7 +1414,7 @@ test("resume applies its mounted swap before online resolves", async () => {
   await seeded.close?.();
   let resumes = 0;
   const client = createClient({
-    url: "http://resume-swap.test", as: "alice", offline: { store: fileRangeStore(root) },
+    url: "http://resume-swap.test", persona: "alice", offline: { store: fileRangeStore(root) },
     fetch: async (input) => {
       const metadata = metadataResponse(input);
       if (metadata) return metadata;
@@ -1430,7 +1434,7 @@ test("resume applies its mounted swap before online resolves", async () => {
     },
   });
   await client.ready;
-  const sub = client.subscribe(api.messages.body as any, {}, () => undefined);
+  const sub = subscribe(client, api.messages.body as any, {}, () => undefined);
   await new Promise((resolve) => setTimeout(resolve, 10));
   await client.offline();
   await client.online();
@@ -1446,7 +1450,7 @@ test("clients without offline storage preserve query bytes and logical subscript
   let body = "";
   let subscribeUrl = "";
   const client = createClient({
-    url: "http://bytes.test", as: "alice",
+    url: "http://bytes.test", persona: "alice",
     fetch: async (_input, init) => {
       if (!init?.body) {
         subscribeUrl = String(_input);
@@ -1458,7 +1462,7 @@ test("clients without offline storage preserve query bytes and logical subscript
   });
   await client.query(api.messages.thread, { c: null });
   assert.equal(body, JSON.stringify({ op: "messages.thread", args: { c: null } }));
-  const sub = client.subscribe(api.messages.thread, { c: "space here" }, () => undefined);
+  const sub = subscribe(client, api.messages.thread, { c: "space here" }, () => undefined);
   await new Promise((resolve) => setTimeout(resolve, 5));
   assert.equal(
     subscribeUrl,

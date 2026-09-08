@@ -77,6 +77,8 @@ import { StrictMode, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { indexedDbRangeStore, SnapbackProvider, useSnapbackClient } from "snapback2/react";
 import { api } from "snapback2/client";
+import * as diagnostics from "snapback2/internal";
+(window as any).__diagnostics = diagnostics;
 (window as any).__api = api;
 import { App } from "${resolve(packageRoot, "templates/chat/react/src/App.tsx")}";
 
@@ -123,7 +125,7 @@ function Expose() {
   return null;
 }
 createRoot(document.getElementById("root")!).render(
-  <StrictMode><SnapbackProvider url=${JSON.stringify(url)} as="alice" fetch={transport} offline={offline}><Expose /><App /></SnapbackProvider></StrictMode>,
+  <StrictMode><SnapbackProvider url=${JSON.stringify(url)} persona="alice" fetch={transport} offline={offline}><Expose /><App /></SnapbackProvider></StrictMode>,
 );
 `);
   try {
@@ -194,8 +196,8 @@ async function startOwner(project) {
 
 async function seed(url) {
   const { createClient, api } = await import(resolve(dist, "client.mjs"));
-  const alice = createClient({ url, as: "alice" });
-  const bob = createClient({ url, as: "bob" });
+  const alice = createClient({ url, persona: "alice" });
+  const bob = createClient({ url, persona: "bob" });
   const bobPrincipal = (await bob.auth.me()).viewer;
   const group = await alice.mutation(api.groups.groupCreate, { title: "Witness room", members: [bobPrincipal] });
   if (group.state !== "committed") throw new Error(`group creation was ${group.state}`);
@@ -228,7 +230,7 @@ async function openChat(page, conversationId) {
     const summary = document.querySelector("section[aria-label=Thread] .thread-summary");
     const messages = document.querySelector("section[aria-label=Thread] ol.bubbles");
     const source = messages?.getAttribute("data-view-source");
-    return window.__snapback.sharedConsumers(window.__api.deliveries.conversationView, { conversationId: id }) === 1
+    return window.__diagnostics.sharedConsumers(window.__snapback, window.__api.deliveries.conversationView, { conversationId: id }) === 1
       && (source === "composite"
         ? summary?.getAttribute("data-view-state") === messages?.getAttribute("data-view-state")
           && summary?.getAttribute("data-view-seq") === messages?.getAttribute("data-view-seq")
@@ -239,7 +241,7 @@ async function openChat(page, conversationId) {
     const summary = document.querySelector("section[aria-label=Thread] .thread-summary");
     const messages = document.querySelector("section[aria-label=Thread] ol.bubbles");
     return { conversationId: id,
-      consumers: window.__snapback.sharedConsumers(window.__api.deliveries.conversationView, { conversationId: id }),
+      consumers: window.__diagnostics.sharedConsumers(window.__snapback, window.__api.deliveries.conversationView, { conversationId: id }),
       state: summary?.getAttribute("data-view-state"), seq: summary?.getAttribute("data-view-seq"),
       count: summary?.getAttribute("data-count"), previewMessage: summary?.getAttribute("data-preview-message"),
       source: messages?.getAttribute("data-view-source"),
@@ -270,18 +272,18 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
   const shared = await writer.evaluate(async (args) => {
     const client = window.__snapback;
     const op = window.__api.deliveries.conversationView;
-    const first = client.subscribe(op, args, () => undefined);
-    const second = client.subscribe(op, args, () => undefined);
+    const first = window.__diagnostics.subscribe(client, op, args, () => undefined);
+    const second = window.__diagnostics.subscribe(client, op, args, () => undefined);
     let firstOpen = true, secondOpen = true;
     try {
       const resolved = e => e.state === "complete" || e.state === "capped";
       const [a, b] = await Promise.all([first.until(resolved, 5000), second.until(resolved, 5000)]);
-      const two = client.sharedConsumers(op, args);
+      const two = window.__diagnostics.sharedConsumers(client, op, args);
       first.close(); firstOpen = false;
-      const one = client.sharedConsumers(op, args);
+      const one = window.__diagnostics.sharedConsumers(client, op, args);
       const survivor = await second.until(resolved, 5000);
       second.close(); secondOpen = false;
-      return { two, one, zero: client.sharedConsumers(op, args), seq: [a.seq, b.seq, survivor.seq],
+      return { two, one, zero: window.__diagnostics.sharedConsumers(client, op, args), seq: [a.seq, b.seq, survivor.seq],
         next: [a.next, b.next, survivor.next], sameIdentity: a.data === b.data && b.data === survivor.data,
         data: [a.data, b.data, survivor.data] };
     } finally {
@@ -399,7 +401,7 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
   assert.deepEqual(inboxWrites.map(request => request.args.body), inboxBodies, `each row executed once, in order: ${JSON.stringify(inboxWrites)}`);
   await follower.waitForFunction(() => document.querySelectorAll("section[aria-label=Thread] li[data-state=queued]").length === 0, null, { timeout: 15_000 });
   const inboxVerification = await import(resolve(dist, "client.mjs"));
-  const inboxVerifier = inboxVerification.createClient({ url: ownerUrl, as: "alice" });
+  const inboxVerifier = inboxVerification.createClient({ url: ownerUrl, persona: "alice" });
   try {
     const thread = await inboxVerifier.query(inboxVerification.api.deliveries.thread, { conversationId: "conversation-1", c: null });
     assert.equal(thread.state, "complete");
@@ -480,7 +482,7 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
   assert.ok(replayed.slice(beforeWrites).indexOf(takeoverAdmitted[0]) > replayed.slice(beforeWrites).indexOf(inherited[2]),
     "the inherited intents replay before the row admitted on takeover");
   const { createClient, api } = await import(resolve(dist, "client.mjs"));
-  const verifier = createClient({ url: ownerUrl, as: "alice" });
+  const verifier = createClient({ url: ownerUrl, persona: "alice" });
   try {
     const thread = await verifier.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
     assert.equal(thread.state, "complete");
@@ -745,7 +747,7 @@ async function main() {
     await page.waitForFunction(() => document.querySelectorAll("li[data-state=queued]").length === 0, null, { timeout: 10_000 });
     await page.waitForSelector(`li[data-message="${queued.id}"][data-state=row]`, { timeout: 10_000 });
     const { createClient, api } = await import(resolve(dist, "client.mjs"));
-    const verifier = createClient({ url: owner.url, as: "alice" });
+    const verifier = createClient({ url: owner.url, persona: "alice" });
     const thread = await verifier.query(api.deliveries.thread, { conversationId: neverOpened, c: null });
     verifier.close();
     const bodies = thread.data.map((row) => row.message?.body);
@@ -762,7 +764,7 @@ async function main() {
       return state === "complete" || state === "capped";
     }, null, { timeout: 10_000 });
     await page.evaluate(() => window.__snapback.offline());
-    const revoker = createClient({ url: owner.url, as: "alice" });
+    const revoker = createClient({ url: owner.url, persona: "alice" });
     const unsent = await revoker.mutation(api.deliveries.unsend, { messageId: seeded.doomedMessageId });
     revoker.close();
     if (unsent.state !== "committed") throw new Error(`unsend was ${unsent.state}`);

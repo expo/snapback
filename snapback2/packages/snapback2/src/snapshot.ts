@@ -3,26 +3,30 @@
 // three-way status and one-sentence reason come from, and every fact they
 // project stays on the record one property down.
 import type {
+  Action,
   ConnectionState,
   Cursor,
   OutboxEntry,
   OutboxStatus,
   PredictedRow,
   QueryView,
-  RefusalEnvelope,
+  Refusal,
   ReceiptSource,
 } from "./types.js";
 
-export type ReceiptOutcome = "complete" | "capped" | "partial" | "denied";
+export type ReceiptState = "complete" | "capped" | "partial" | "denied";
 export type SnapshotStatus = "loading" | "ready" | "unavailable";
 export type SnapshotReasonCode = "refused" | "denied" | "partial" | "stale" | "offline" | "predicted" | "held";
 
 /** One observed query, as a screen reads it (LLP 1018.003 §1). */
 export type Snapshot<T> = {
   data: T | undefined;
+  next: Cursor | null;
+  /** Items are supplied by declared history instead of this query. */
+  partial: boolean;
   /** What a certified evaluation said about this value, and whose evaluation it was. */
   receipt?: {
-    outcome: ReceiptOutcome;
+    state: ReceiptState;
     source: ReceiptSource;
     seq: number;
     next: Cursor | null;
@@ -41,7 +45,7 @@ export type Snapshot<T> = {
     caughtUp?: boolean;
     watermark?: Cursor | null;
   };
-  refusal?: RefusalEnvelope;
+  refusal?: Refusal;
   /** Derived, never stored: `ready` means readable data, not server confirmation or a usable composite. */
   status: SnapshotStatus;
   /** `detail` carries the rule a denial named or the reason a partial gave; the sentence stays generic. */
@@ -62,18 +66,18 @@ const EMPTY_PREDICTED: readonly PredictedRow[] = Object.freeze([]);
 
 function receiptOf<T>(view: QueryView<T>): Snapshot<T>["receipt"] | undefined {
   if (view.state === "complete" || view.state === "capped") {
-    return { outcome: view.state, source: view.source ?? "server", seq: view.seq, next: view.next };
+    return { state: view.state, source: view.source ?? "server", seq: view.seq, next: view.next };
   }
   if (view.state === "partial") {
-    return { outcome: "partial", source: view.source ?? "server", seq: view.seq,
+    return { state: "partial", source: view.source ?? "server", seq: view.seq,
       next: view.retained === true ? view.next ?? null : null, reason: view.reason, ...(view.sites === undefined ? {} : { sites: view.sites }) };
   }
   if (view.state === "denied") {
-    return { outcome: "denied", source: view.source ?? "server", seq: view.seq, next: null, rule: view.rule };
+    return { state: "denied", source: view.source ?? "server", seq: view.seq, next: null, rule: view.rule };
   }
-  if (view.state === "stale" && view.outcome !== undefined && view.seq !== undefined) {
+  if (view.state === "stale" && view.verdict !== undefined && view.seq !== undefined) {
     return {
-      outcome: view.outcome,
+      state: view.verdict,
       source: view.source ?? "server",
       seq: view.seq,
       next: view.next ?? null,
@@ -101,7 +105,7 @@ export function summarize<T>(view: QueryView<T>, connection: ConnectionState): S
     ...("watermark" in view && view.watermark !== undefined ? { watermark: view.watermark } : {}),
   };
   const base = {
-    data,
+    data, next: receipt?.next ?? null, partial: false,
     ...(receipt === undefined ? {} : { receipt }),
     freshness: { live: view.live, ...(staleSince === undefined ? {} : { staleSince }), connection },
     local,
@@ -111,14 +115,14 @@ export function summarize<T>(view: QueryView<T>, connection: ConnectionState): S
     return { ...base, refusal, status: "unavailable", reason: { code: "refused", message: refusal.rewrite ?? refusal.message } };
   }
   const detail = (value: string | undefined) => (value === undefined ? {} : { detail: value });
-  if (receipt?.outcome === "denied") {
+  if (receipt?.state === "denied") {
     return { ...base, status: "unavailable", reason: { code: "denied", message: reasonMessages.denied, ...detail(receipt.rule) } };
   }
-  if (receipt?.outcome === "partial" && data === undefined) {
+  if (receipt?.state === "partial" && data === undefined) {
     return { ...base, status: "unavailable", reason: { code: "partial", message: reasonMessages.partial, ...detail(receipt.reason) } };
   }
   if (data !== undefined && receipt !== undefined) {
-    const code: SnapshotReasonCode | undefined = receipt.outcome === "partial" ? "partial"
+    const code: SnapshotReasonCode | undefined = receipt.state === "partial" ? "partial"
       : staleSince !== undefined ? "stale"
         : local.predicted.length > 0 ? "predicted"
           : undefined;
@@ -140,12 +144,11 @@ export function summarize<T>(view: QueryView<T>, connection: ConnectionState): S
   return { ...base, status: "loading" };
 }
 
-export type ReadinessAction = "sign-in" | "connect" | "other-tab" | "wait";
 export type ReadinessCode = OutboxStatus["reason"] | "fence" | "pending" | (string & {});
 /** Whether a write can be accepted now, and what the user can do if not (LLP 1018.003 §2). */
 export type Readiness = {
   send: boolean;
-  action?: ReadinessAction;
+  action: Action;
   reason?: { code: ReadinessCode; message: string };
 };
 
@@ -188,7 +191,7 @@ export function readiness(status: OutboxStatus, connection: ConnectionState, que
     return { send: true, action: reason === "forwarding" || status.draining ? "wait" : "connect",
       reason: { code: "pending", message: `${queued} queued · ${waiting}` } };
   }
-  return { send: true };
+  return { send: true, action: "none" };
 }
 
 /** The label a queued or settled intent shows; never a client clock (LLP 1012 §7). */

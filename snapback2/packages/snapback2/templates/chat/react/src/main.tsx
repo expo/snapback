@@ -8,5 +8,5 @@ const url = import.meta.env.VITE_SNAPBACK_URL ?? "http://127.0.0.1:3210";
 // evict which bodies is the schema's `tombstones` line, not an option here.
 const offline = { store: indexedDbRangeStore() };
 createRoot(document.getElementById("root")!).render(
-  <StrictMode><SnapbackProvider url={url} as="alice" offline={offline}><App /></SnapbackProvider></StrictMode>,
+  <StrictMode><SnapbackProvider url={url} persona="alice" offline={offline}><App /></SnapbackProvider></StrictMode>,
 );

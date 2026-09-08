@@ -16,7 +16,7 @@ function Results({ term, onOpen }: { term: string; onOpen(conversationId: string
     : result.reason?.code === "stale" ? "Showing stale indexed results"
     : result.freshness.live ? "Live indexed results" : "Indexed results";
   const status = [primary, predicted ? reasonMessages.predicted : undefined,
-    result.receipt?.outcome === "capped" ? limit : undefined].filter(Boolean).join(" · ");
+    result.receipt?.state === "capped" ? limit : undefined].filter(Boolean).join(" · ");
   return <View><Text testID="search-state">{status}</Text>{hits.map((row) =>
     <Pressable key={row.id} testID={`search-${row.id}`} onPress={() => onOpen(row.conversationId)}><Text>{row.body}</Text></Pressable>)}</View>;
 }

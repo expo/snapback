@@ -13,9 +13,9 @@ const png = await readFile(new URL("../../../scripts/witness-expo/view-once.png"
 const file = () => new File([png], "photo.png", { type: "image/png" });
 
 test("public never-claimed uploads still hit 20 creator and 40 owner slots without disclosing other creators", async (t) => {
-  const a = createClient({ url: owner.url, as: "pending-a" });
-  const b = createClient({ url: owner.url, as: "pending-b" });
-  const guest = createClient({ url: owner.url, as: "pending-guest" });
+  const a = createClient({ url: owner.url, persona: "pending-a" });
+  const b = createClient({ url: owner.url, persona: "pending-b" });
+  const guest = createClient({ url: owner.url, persona: "pending-guest" });
   const owned: [any, string][] = [];
   try {
     for (const client of [a, b]) {
@@ -56,7 +56,7 @@ test("public never-claimed uploads still hit 20 creator and 40 owner slots witho
 });
 
 test("21 public replacements free pending slots and preserve released byte charges", async (t) => {
-  const client = createClient({ url: owner.url, as: "replacements" });
+  const client = createClient({ url: owner.url, persona: "replacements" });
   try {
     const kept = await client.mutation(api.media.keep, { photo: file() });
     assert.equal(kept.state, "committed");

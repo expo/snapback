@@ -1,3 +1,5 @@
+import { assertRefused } from "./live-fixture.ts";
+import { isRefusalError } from "../dist/client-observed-test.mjs";
 import assert from "node:assert/strict";
 import { register } from "node:module";
 import { test } from "node:test";
@@ -25,7 +27,7 @@ harness.__snapbackNative = {
 
 register(new URL("./native-mocks/loader.mjs", import.meta.url));
 
-const { SnapbackRefusal, api, createClient } = await import("../dist/client.mjs");
+const { RefusalError, api, createClient } = await import("../dist/client.mjs");
 const { AssetImage, AssetVideo, SnapbackProvider, useSnapbackClient } = await import("../dist/react-native.mjs");
 const expoFileSystem = await import("expo-file-system") as typeof import("expo-file-system") & {
   setFileConstructorForTest(value: unknown): void;
@@ -77,7 +79,7 @@ test("Expo File mock is Blob-shaped without inheriting from web Blob, and file:/
   const ownerFetch = async (input: string | URL | Request) => {
     throw new Error(`owner fetch must not receive native upload ${input}`);
   };
-  const client = createClient({ url: "http://assets.test", as: "alice", fetch: ownerFetch });
+  const client = createClient({ url: "http://assets.test", persona: "alice", fetch: ownerFetch });
 
   const record = await client.upload({ uri: "file://clip.mov", fileSize: 5, mimeType: "video/quicktime" });
 
@@ -108,7 +110,7 @@ test("a direct Expo File with progress uses expo/fetch and never constructs XMLH
       xhrConstructions += 1;
     }
   };
-  const client = createClient({ url: "http://assets.test", as: "alice" });
+  const client = createClient({ url: "http://assets.test", persona: "alice" });
   try {
     const record = await client.upload(expoFile as any, {
       onProgress: (event) => progress.push(event),
@@ -138,7 +140,7 @@ test("content:// Expo File upload uses Content-Length and whole-body progress", 
   };
   const client = createClient({
     url: "http://assets.test",
-    as: "alice",
+    persona: "alice",
     fetch: async (input) => { throw new Error(`owner fetch must not receive native upload ${input}`); },
   });
 
@@ -162,15 +164,15 @@ test("native source length comes from Expo File and refuses oversize or inaccess
     if (path === "/api/upload") { uploads += 1; return json(image); }
     throw new Error(`unexpected path ${path}`);
   };
-  const client = createClient({ url: "http://assets.test", as: "alice", fetch });
+  const client = createClient({ url: "http://assets.test", persona: "alice", fetch });
 
-  await assert.rejects(
+  await assertRefused(
     () => client.mutation(api.assets.send, { photo: { uri: "content://oversize", mimeType: "image/jpeg" } } as any),
-    (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_ASSET_TOO_LARGE",
+    (error: unknown) => (error.state === "rejected" || error.state === "refused") && error.code === "E_ASSET_TOO_LARGE",
   );
   await assert.rejects(
     () => client.upload({ uri: "file://missing.jpg", mimeType: "image/jpeg" }),
-    (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_ASSET_TYPE",
+    (error: unknown) => isRefusalError(error) && error.code === "E_ASSET_TYPE",
   );
   assert.equal(uploads, 0);
   client.close();
@@ -199,7 +201,7 @@ test("file:// clip runs through Expo File upload, mutation substitution, and car
     }
     throw new Error(`unexpected owner path ${path}`);
   };
-  const client = createClient({ url: "http://assets.test", as: "alice", fetch: ownerFetch });
+  const client = createClient({ url: "http://assets.test", persona: "alice", fetch: ownerFetch });
 
   const sent = await client.mutation(api.assets.send, {
     clip: { uri: "file://journey.mov", fileSize: 5, mimeType: "video/quicktime" },
@@ -216,33 +218,37 @@ test("file:// clip runs through Expo File upload, mutation substitution, and car
   client.close();
 });
 
-test("native AssetImage fetches bytes with persona headers and renders an in-memory source without Blob", async () => {
+test("native AssetImage fetches bytes with persona headers and renders an in-memory source without Blob", async (context) => {
   const requests: RequestInit[] = [];
   const fetch = async (input: string | URL | Request, init?: RequestInit) => {
     if (new URL(String(input)).pathname === "/api/manifest") return json(nativeManifest());
     requests.push(init!);
     return new Response(new Uint8Array([1, 2, 3]), { headers: { "Content-Type": "image/png" } });
   };
+  const plainClient = createClient({ url: "http://assets.test", persona: "alice", fetch });
+  context.after(() => plainClient.close());
   let renderer!: ReactTestRenderer;
   const Original = globalThis.Blob;
   globalThis.Blob = class { constructor() { throw new Error("native Blob is forbidden"); } } as any;
   try {
     await act(async () => { renderer = TestRenderer.create(React.createElement(SnapbackProvider,
-      { url: "http://assets.test", as: "alice", fetch }, React.createElement(AssetImage, { asset: image, width: 100 }))); });
+      { client: plainClient }, React.createElement(AssetImage, { asset: image, width: 100 }))); });
     await settle();
     assert.deepEqual(nativeImage(renderer).props.source, { uri: "data:image/png;base64,AQID" });
     assert.equal(new Headers(requests[0]?.headers).get("X-Snapback-As"), "alice");
   } finally { globalThis.Blob = Original; await act(async () => renderer.unmount()); }
 });
 
-test("native AssetImage exposes bearer restoration failure without fetching unauthenticated bytes", async () => {
+test("native AssetImage exposes bearer restoration failure without fetching unauthenticated bytes", async (context) => {
   let rejectLoad!: (error: Error) => void;
   const load = new Promise<string>((_resolve, reject) => { rejectLoad = reject; });
-  const refusals: InstanceType<typeof SnapbackRefusal>[] = [];
+  const refusals: any[] = [];
+  const plainClient = createClient({ url: "http://assets.test", tokenStore: { load: () => load, save: () => undefined },
+    fetch: async () => { throw new Error("network must wait for token restore"); } });
+  context.after(() => plainClient.close());
   let renderer!: ReactTestRenderer;
   await act(async () => { renderer = TestRenderer.create(React.createElement(SnapbackProvider,
-    { url: "http://assets.test", tokenStore: { load: () => load, save: () => undefined },
-      fetch: async () => { throw new Error("network must wait for token restore"); } },
+    { client: plainClient },
     React.createElement(AssetImage, { asset: image, onRefusal: (error) => refusals.push(error) }))); });
   assert.equal(nativeImage(renderer).props.source, undefined);
   rejectLoad(new Error("secure store unavailable"));
@@ -283,13 +289,13 @@ test("native URI refuses E_ASSET_NATIVE_FILE_API when expo-file-system has no Fi
   expoFileSystem.setFileConstructorForTest(undefined);
   const client = createClient({
     url: "http://assets.test",
-    as: "alice",
+    persona: "alice",
     fetch: async (input) => { throw new Error(`unexpected owner request ${input}`); },
   });
   try {
     await assert.rejects(
       () => client.upload({ uri: "file://clip.mov", fileSize: 5, mimeType: "video/quicktime" }),
-      (error: unknown) => error instanceof SnapbackRefusal
+      (error: unknown) => isRefusalError(error)
         && error.code === "E_ASSET_NATIVE_FILE_API"
         && error.message.includes("expo-file-system >=19")
         && error.message.includes("Expo SDK 54"),
@@ -313,7 +319,7 @@ test("native AssetImage and ordinary AssetVideo serve cached files and clear mou
   const store = new PersistentRangeStore(fileBackend(new SqliteBackend(() => nodeSqliteDriver(join(root, "state.db"))), files));
   attachAssetFiles(store, files);
   let fetches = 0;
-  const client = createClient({ url: "http://assets.test", as: "alice", offline: { store: () => store },
+  const client = createClient({ url: "http://assets.test", persona: "alice", offline: { store: () => store },
     fetch: async (input) => {
       if (new URL(String(input)).pathname === "/api/manifest") return json(nativeManifest());
       if (new URL(String(input)).pathname === "/api/program") return json({ code: "E_ROUTE", family: "op", message: "absent", guide: "op/reference" }, 404);

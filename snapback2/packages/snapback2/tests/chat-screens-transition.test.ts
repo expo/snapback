@@ -1,3 +1,5 @@
+import { subscribe } from "../src/internal.js";
+import { sharedConsumers } from "../src/internal.js";
 import assert from "node:assert/strict";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -159,8 +161,8 @@ test("partial history becomes one coherent view without remounting its pending b
   const restore = installDom();
   const root = await mkdtemp(join(tmpdir(), "snapback2-screens-partial-"));
   const store = fileRangeStore(root);
-  const warm = createClient({ url: screenOwner.url, as: "alice", offline: { store } });
-  const writer = createClient({ url: screenOwner.url, as: "alice" });
+  const warm = createClient({ url: screenOwner.url, persona: "alice", offline: { store } });
+  const writer = createClient({ url: screenOwner.url, persona: "alice" });
   let client: any;
   const reactRoot: Root = createRoot(document.getElementById("root")!);
   try {
@@ -171,17 +173,17 @@ test("partial history becomes one coherent view without remounting its pending b
     const heldThread: any = await warm.query(api.deliveries.thread, { conversationId, c: null });
     assert.ok(heldThread.state === "complete" || heldThread.state === "capped",
       "the fallback's kind-scoped range is independently held before the owner is cut");
-    const drain = warm.subscribe(api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
+    const drain = subscribe(warm, api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
     await drain.until((event: any) => event.live === true && event.caughtUp === true, 5_000);
     drain.close();
     await warm.close();
-    client = createClient({ url: screenOwner.url, as: "alice", startOffline: true, offline: { store } });
+    client = createClient({ url: screenOwner.url, persona: "alice", startOffline: true, offline: { store } });
     await client.ready;
     await act(async () => reactRoot.render(React.createElement(SnapbackProvider, { client },
       React.createElement(Thread, { conversationId, viewer: "dev:alice", onNote: () => undefined }))));
     await waitFor(() => document.querySelector("ol.bubbles")?.getAttribute("data-view-source") === "partial-history",
       "the independently covered history fallback");
-    assert.equal(client.sharedConsumers(api.deliveries.thread, { conversationId, c: null }), 1,
+    assert.equal(sharedConsumers(client, api.deliveries.thread, { conversationId, c: null }), 1,
       "the partial composite opens one independently authorized history observer");
     assert.match(text(document.querySelector(".thread-history-note")), /Count and preview unavailable/);
     assert.match(text(document.querySelector(".thread-summary")), /Message count unavailable/);
@@ -199,9 +201,9 @@ test("partial history becomes one coherent view without remounting its pending b
     assert.equal(document.querySelector(`li[data-message="${result.ids[0]}"]`) === pending, true,
       "the BubbleList ancestor and keyed row survive partial history to composite publication");
     assert.equal(document.querySelector(".thread-history-note"), null, "the fallback unmounts once the composite is usable");
-    assert.equal(client.sharedConsumers(api.deliveries.thread, { conversationId, c: null }), 0,
+    assert.equal(sharedConsumers(client, api.deliveries.thread, { conversationId, c: null }), 0,
       "the history observer detaches once the composite is complete or capped");
-    assert.equal(client.sharedConsumers(api.deliveries.conversationView, { conversationId }), 1,
+    assert.equal(sharedConsumers(client, api.deliveries.conversationView, { conversationId }), 1,
       "the composite alone remains subscribed after the fallback retires");
   } finally {
     await act(async () => reactRoot.unmount());

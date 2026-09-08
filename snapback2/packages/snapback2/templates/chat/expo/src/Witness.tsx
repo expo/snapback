@@ -1,7 +1,8 @@
+import { sharedConsumers, subscribe } from "snapback2/internal";
 import { twinLastDecline, witnessSearchProbe } from "snapback2/expo/witness";
 import React, { useEffect, useState } from "react";
 import { Text, View } from "react-native";
-import { api, SnapbackRefusal, type AssetRecord, type ImageAsset, type RangeStore, type SnapbackClient, type Subscription } from "snapback2/client";
+import { api, type AssetRecord, type ImageAsset, type RangeStore, type SnapbackClient, type Subscription } from "snapback2/client";
 import { createExpoClient, expoSqliteStore, expoSqliteDriver, SnapbackProvider } from "snapback2/expo";
 import { MediaView, type Media } from "./MediaView";
 import { messageWrites } from "../shared/thread";
@@ -46,11 +47,11 @@ export default function Witness({ url, controlUrl }: { url: string; controlUrl: 
       });
       const config = await configuration();
       store = expoSqliteStore(DATABASE, { beforeCommit: hooks.beforeCommit })();
-      if (config.fault === "carrier") store.open = async () => { throw new SnapbackRefusal({
+      if (config.fault === "carrier") store.open = async () => { throw Object.assign(new Error("witness carrier fault"), {
         code: "E_OFFLINE_CARRIER", family: "offline", site: "witness construct", message: "persisted witness carrier fault",
         rewrite: "send fault(none), then construct", guide: "offline",
       }); };
-      live = createExpoClient({ url, as: config.name, startOffline: config.offline,
+      live = createExpoClient({ url, persona: config.name, startOffline: config.offline,
         offline: { store: () => store! } });
       try { await live.ready; setClient(live); setError(undefined); return live; }
       catch (error) { setError(String(error)); throw error; }
@@ -62,24 +63,24 @@ export default function Witness({ url, controlUrl }: { url: string; controlUrl: 
         if (verb === "stores") return { stores: await databaseState(), files: listFiles() };
         if (!client || !store) throw new Error("construct first");
         if (verb === "drain") {
-          const sub = client.subscribe(api.deliveries.inbox, { c: null }, () => {}, { drain: true });
+          const sub = subscribe(client, api.deliveries.inbox, { c: null }, () => {}, { drain: true });
           subscriptions.push(sub);
           return sub.until((value) => "caughtUp" in value && value.caughtUp === true);
         }
         if (verb === "open") {
           selected = String(args.conversationId);
           const queryArgs = { conversationId: selected };
-          const first = client.subscribe(api.deliveries.conversationView, queryArgs, () => {});
-          const second = client.subscribe(api.deliveries.conversationView, queryArgs, () => {});
+          const first = subscribe(client, api.deliveries.conversationView, queryArgs, () => {});
+          const second = subscribe(client, api.deliveries.conversationView, queryArgs, () => {});
           const [left, right] = await Promise.all([
             first.until((value) => value.state === "complete" || value.state === "capped"),
             second.until((value) => value.state === "complete" || value.state === "capped"),
           ]);
           if ((left.state !== "complete" && left.state !== "capped")
             || (right.state !== "complete" && right.state !== "capped")) throw new Error("conversation view did not resolve");
-          const two = client.sharedConsumers(api.deliveries.conversationView, queryArgs);
+          const two = sharedConsumers(client, api.deliveries.conversationView, queryArgs);
           first.close();
-          const one = client.sharedConsumers(api.deliveries.conversationView, queryArgs);
+          const one = sharedConsumers(client, api.deliveries.conversationView, queryArgs);
           subscriptions.push(second);
           // Retain the paginated read's independent receipt for partial-history fallback.
           await client.query(api.deliveries.thread, { conversationId: selected, c: null });

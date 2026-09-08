@@ -25,7 +25,7 @@ function wire(initial = true) {
   const opens: { key: string; lease: string; closed: boolean; lastEventId: string | null; send(value: unknown): void; end(): void }[] = [];
   const writes: { kind: string; body: any }[] = [];
   let respond = async (_kind: string): Promise<Response> => json({ ok: true });
-  const client = fixtureClient({ url: "http://channels.test", as: "alice", fetch: async (input, init) => {
+  const client = fixtureClient({ url: "http://channels.test", persona: "alice", fetch: async (input, init) => {
     const path = new URL(String(input)).pathname;
     if (path === "/api/manifest") return json({ generation: "test", programGeneration: "test", channels: {}, ops: {}, auth: {} });
     if (path.endsWith("/subscribe")) {

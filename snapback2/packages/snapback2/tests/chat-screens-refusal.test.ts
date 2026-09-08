@@ -171,7 +171,7 @@ test("a refused send keeps the draft and shows the recovery advice", async () =>
   try {
     await act(async () => {
       reactRoot.render(React.createElement(SnapbackProvider,
-        { url: screenOwner.url, as: "alice", fetch, offline: { store: fileRangeStore(root) } },
+        { url: screenOwner.url, persona: "alice", fetch, offline: { store: fileRangeStore(root) } },
         React.createElement(Probe), React.createElement(App)));
     });
     await waitFor(() => document.querySelector("nav[aria-label=Inbox] li[data-conversation=conversation-1] button") !== null, "the inbox");

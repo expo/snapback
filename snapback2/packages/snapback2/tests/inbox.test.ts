@@ -1,6 +1,9 @@
+import { assertRefused } from "./live-fixture.ts";
+import { subscribe } from "../src/internal.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { api, isSnapbackRefusal, mutationTarget } from "../dist/client.mjs";
+import { api,  mutationTarget } from "../dist/client.mjs";
+import { isRefusalError } from "../dist/client-observed-test.mjs";
 import { indexedDbRangeStore } from "../dist/react.mjs";
 import { inboxAlias, INBOX_LIMIT } from "../dist/client-observed-test.mjs";
 import { fixtureClient as createClient } from "./live-fixture.ts";
@@ -26,13 +29,13 @@ function tabs(options: { grant?: boolean } = {}) {
   const locks = new FakeLocks();
   const store = indexedDbRangeStore({ indexedDB: database as any, locks: locks as any });
   const owner = fakeOwner({ seed: true, cursorArg: "c" });
-  const open = () => createClient({ url: "http://tabs.test", as: "alice", fetch: owner.fetch, offline: { store } });
+  const open = () => createClient({ url: "http://tabs.test", persona: "alice", fetch: owner.fetch, offline: { store } });
   return { database, locks, store, owner, open, grant: options.grant ?? true };
 }
 
 /** The writer earns its replay grant through the recipe's drain. */
 async function earnGrant(writer: any): Promise<() => void> {
-  const inbox = writer.subscribe(api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
+  const inbox = subscribe(writer, api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
   await inbox.until((event: any) => event.state === "complete" && event.caughtUp === true, 2_000);
   await until(async () => (await writer.outbox.status()).ready, "the writer's grant");
   return () => inbox.close();
@@ -138,13 +141,13 @@ test("the inbox refuses at its bound with no row written, and a row from another
   for (let index = 0; index < INBOX_LIMIT; index += 1) {
     await follower.mutation(api.deliveries.post, { conversationId: "conversation-1", body: `bulk ${index}` });
   }
-  await assert.rejects(follower.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "one too many" }),
-    (error: unknown) => isSnapbackRefusal(error) && error.code === "E_OFFLINE_INBOX_FULL");
+  await assertRefused(follower.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "one too many" }),
+    (error: unknown) => (error.state === "rejected" || error.state === "refused") && error.code === "E_OFFLINE_INBOX_FULL");
   assert.equal((await follower.outbox.status()).reason, "inbox-full");
   assert.equal((await follower.outbox.entries()).length, INBOX_LIMIT, "no row for the refused write");
   // Arguments the ledger cannot persist are refused before any row exists.
-  await assert.rejects(follower.mutation(api.deliveries.post, { conversationId: "conversation-1", body: 10n as any }),
-    (error: unknown) => isSnapbackRefusal(error) && error.code === "E_OFFLINE_ARGUMENTS");
+  await assertRefused(follower.mutation(api.deliveries.post, { conversationId: "conversation-1", body: 10n as any }),
+    (error: unknown) => (error.state === "rejected" || error.state === "refused") && error.code === "E_OFFLINE_ARGUMENTS");
   await follower.close();
   await writer.close();
 

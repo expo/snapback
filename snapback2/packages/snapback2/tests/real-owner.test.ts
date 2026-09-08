@@ -1,12 +1,11 @@
+import { subscribe } from "../src/internal.js";
 import assert from "node:assert/strict";
 import { after, test } from "node:test";
-import {
-  SnapbackRefusal,
-  api,
+import { api,
   createClient,
   initialQueryState,
-  reduceQueryState,
-} from "../dist/client.mjs";
+  reduceQueryState } from "../dist/client.mjs";
+import { RefusalError } from "../dist/client-observed-test.mjs";
 import { configureRealOwner, RealOwnerHarness } from "./owner-harness.ts";
 
 const owner = await configureRealOwner();
@@ -27,7 +26,7 @@ test("reconnect after a conditional refresh replays a queued send for joined and
     const args = { c: null };
     const reads: any[] = [];
     const resumes: any[] = [];
-    const client = createClient({ url: owner.url, as: "alice", offline: { store: fileRangeStore(directory) },
+    const client = createClient({ url: owner.url, persona: "alice", offline: { store: fileRangeStore(directory) },
       fetch: async (input, init) => {
         const response = await fetch(input, init);
         const path = new URL(String(input)).pathname;
@@ -36,16 +35,16 @@ test("reconnect after a conditional refresh replays a queued send for joined and
         return response;
       },
     });
-    const other = createClient({ url: owner.url, as: "alice" });
+    const other = createClient({ url: owner.url, persona: "alice" });
     let drain: any;
     try {
       await client.ready;
-      drain = client.subscribe(query, args, () => {}, { drain: true });
+      drain = subscribe(client, query, args, () => {}, { drain: true });
       await drain.until((event: any) => event.live === true, 3_000);
       drain.close();
       // The grant is now warm. Remounting a drained, nonempty first page
       // records null as its current tail; the next resume re-delivers it.
-      drain = client.subscribe(query, args, () => {}, { drain: true });
+      drain = subscribe(client, query, args, () => {}, { drain: true });
       await drain.until((event: any) => event.live === true, 3_000);
       const first = reads.find((read) => read.protocol === 1);
       assert.ok(first?.data.length > 0);
@@ -88,7 +87,7 @@ test("a real indexed observation stays authoritative across persistent local ref
   const { join } = await import("node:path");
   const { fileRangeStore } = await import("../dist/test.mjs");
   const directory = await mkdtemp(join(tmpdir(), "snapback-indexed-observation-"));
-  const client = createClient({ url: owner.url, as: "alice", offline: { store: fileRangeStore(directory) } });
+  const client = createClient({ url: owner.url, persona: "alice", offline: { store: fileRangeStore(directory) } });
   const rawEvents: Array<Record<string, unknown>> = [];
   const snapshots: Array<Record<string, unknown>> = [];
   const args = { term: "WEL", c: null };
@@ -99,10 +98,10 @@ test("a real indexed observation stays authoritative across persistent local ref
     const observed = client.observe(api.messages.search, args);
     stop = observed.subscribe(() => {
       const value: any = observed.getSnapshot();
-      snapshots.push({ state: value.receipt?.outcome ?? value.status, live: value.freshness.live, seq: value.receipt?.seq,
+      snapshots.push({ state: value.receipt?.state ?? value.status, live: value.freshness.live, seq: value.receipt?.seq,
         rows: Array.isArray(value.data) ? value.data.map((row: any) => row.body) : undefined });
     });
-    raw = client.subscribe(api.messages.search, args, (value: any) => {
+    raw = subscribe(client, api.messages.search, args, (value: any) => {
       rawEvents.push({ state: value.state, live: value.live, seq: value.seq,
         rows: Array.isArray(value.data) ? value.data.map((row: any) => row.body) : undefined });
     });
@@ -115,7 +114,7 @@ test("a real indexed observation stays authoritative across persistent local ref
     await client.query(api.messages.thread, { conversationId: "conversation-1", c: null });
     await new Promise<void>((resolve) => setTimeout(resolve, 100));
     const current: any = observed.getSnapshot();
-    assert.ok(current.receipt?.outcome === "complete" || current.receipt?.outcome === "capped", JSON.stringify(current));
+    assert.ok(current.receipt?.state === "complete" || current.receipt?.state === "capped", JSON.stringify(current));
     assert.equal(current.freshness.live, true);
     assert.ok(current.data.some((row: any) => row.body === "Welcome"));
     const authoritative = rawEvents.findIndex((value) => value.live === true
@@ -142,9 +141,9 @@ test("cold global search includes a queued Unicode row after an unrelated persis
   const factory = sqliteFactory(join(directory, "state.db"));
   let warm: any, cold: any, drain: any;
   try {
-    warm = createClient({ url: owner.url, as: "alice", offline: { store: factory } });
+    warm = createClient({ url: owner.url, persona: "alice", offline: { store: factory } });
     await warm.ready;
-    drain = warm.subscribe(api.deliveries.inbox, { c: null }, () => {}, { drain: true });
+    drain = subscribe(warm, api.deliveries.inbox, { c: null }, () => {}, { drain: true });
     await drain.until((event: any) => event.live === true && event.caughtUp === true, 5_000);
     await warm.offline();
     const queued = await warm.mutation(api.deliveries.post, {
@@ -168,7 +167,7 @@ test("cold global search includes a queued Unicode row after an unrelated persis
     const after: any = await warm.query(api.messages.search, { term: "CAFE\u0301", c: null });
     assert.ok(after.data.some((row: any) => row.id === queued.ids[0]), JSON.stringify(after));
     drain.close(); await warm.close(); warm = undefined;
-    cold = createClient({ url: owner.url, as: "alice", startOffline: true, offline: { store: factory } });
+    cold = createClient({ url: owner.url, persona: "alice", startOffline: true, offline: { store: factory } });
     await cold.ready;
     const reopened: any = await cold.query(api.messages.search, { term: "CAFE\u0301", c: null });
     assert.equal(reopened.state, "held");
@@ -188,7 +187,7 @@ test("real scalar-projected log pages retire predictions using engine-minted cur
   const root = await mkdtemp(join(tmpdir(), "snapback-object-retirement-"));
   const op = "integration.inboxProjected";
   const args = { after: null, label: null };
-  const writer = createClient({ url: owner.url, as: "alice" });
+  const writer = createClient({ url: owner.url, persona: "alice" });
   let store = fileRangeStore(root)();
   const query = async (after: string | null) => {
     const response = await fetch(`${owner.url}/api/query`, { method: "POST",
@@ -238,17 +237,17 @@ test("settlement uses the persisted cursor name when live metadata disagrees, wi
   const root = await mkdtemp(join(tmpdir(), "snapback-recorded-cursor-"));
   const op = "integration.inboxProjected";
   const args = { after: null, label: null };
-  const first = createClient({ url: owner.url, as: "alice", offline: { store: fileRangeStore(root) } });
+  const first = createClient({ url: owner.url, persona: "alice", offline: { store: fileRangeStore(root) } });
   let cold: any;
   let drain: any;
   try {
     await first.ready;
-    drain = first.subscribe(api.integration.inboxProjected, args, () => {}, { drain: true });
+    drain = subscribe(first, api.integration.inboxProjected, args, () => {}, { drain: true });
     await drain.until((event: any) => event.live === true, 3_000);
     drain.close(); await first.close();
     let restore: (() => void) | undefined;
     const tails: any[] = [];
-    cold = createClient({ url: owner.url, as: "alice", offline: { store: fileRangeStore(root) }, fetch: async (input, init) => {
+    cold = createClient({ url: owner.url, persona: "alice", offline: { store: fileRangeStore(root) }, fetch: async (input, init) => {
       const path = new URL(String(input)).pathname;
       if (path === "/api/query" && restore) {
         tails.push(JSON.parse(String(init?.body)).args);
@@ -319,7 +318,7 @@ test("sixty live queries and a channel share one connection through add, remove 
   let streams = 0;
   let controls = 0;
   let session: string | undefined;
-  const client = createClient({ url: owner.url, as: "alice", fetch: async (input, init) => {
+  const client = createClient({ url: owner.url, persona: "alice", fetch: async (input, init) => {
     const path = new URL(String(input)).pathname;
     if (path === "/api/live") { assert.equal(init?.body, "{}"); streams++; }
     if (path === "/api/live/control") { controls++; session = JSON.parse(String(init?.body)).session; }
@@ -335,7 +334,7 @@ test("sixty live queries and a channel share one connection through add, remove 
   });
   let phase = "opening sixty queries";
   try {
-    for (let i = 0; i < 60; i++) subscriptions.push(client.subscribe(
+    for (let i = 0; i < 60; i++) subscriptions.push(subscribe(client, 
       api.messages.thread, { conversationId: "conversation-1", c: null }, remember(`thread-${i}`),
     ));
     await Promise.all(subscriptions.map(sub => sub.until((event: any) => event.live === true, 5_000)));
@@ -345,7 +344,7 @@ test("sixty live queries and a channel share one connection through add, remove 
     const channel = room.subscribe(remember("channel"));
     subscriptions.push(channel);
     // A query registered in the same control batch exercises mixed child admission.
-    const witness = client.subscribe(api.messages.summary, { conversationId: "conversation-1" }, remember("summary"));
+    const witness = subscribe(client, api.messages.summary, { conversationId: "conversation-1" }, remember("summary"));
     subscriptions.push(witness);
     await witness.until((event: any) => event.live === true, 2_000);
     await channel.until(snapshot => snapshot.status === "ready", 2_000);
@@ -353,7 +352,7 @@ test("sixty live queries and a channel share one connection through add, remove 
     await room.set({ typing: true });
     await channel.until(snapshot => snapshot.entries.some((entry: any) => entry.value.typing), 2_000);
     phase = "receiving unknown-operation refusal";
-    const refused = client.subscribe(api.missing.operation, {}, remember("missing"));
+    const refused = subscribe(client, api.missing.operation, {}, remember("missing"));
     subscriptions.push(refused);
     await assert.rejects(refused.until(() => false, 2_000), (error: any) => error.code === "E_OP_UNKNOWN");
     const removed = subscriptions.splice(0, 30);
@@ -394,7 +393,7 @@ test("the shipped composite pages online and after a cold offline reopen", async
   const { fileRangeStore } = await import("../dist/test.mjs");
   const directory = await mkdtemp(join(tmpdir(), "snapback-composite-pages-"));
   const factory = fileRangeStore(directory);
-  const writer = createClient({ url: owner.url, as: "alice" });
+  const writer = createClient({ url: owner.url, persona: "alice" });
   let warm: any, cold: any;
   try {
     // Cross the production page bound; a two-row toy cannot establish that the
@@ -405,7 +404,7 @@ test("the shipped composite pages online and after a cold offline reopen", async
       });
       assert.equal(result.state, "committed");
     }
-    warm = createClient({ url: owner.url, as: "alice", offline: { store: factory } });
+    warm = createClient({ url: owner.url, persona: "alice", offline: { store: factory } });
     await warm.ready;
     const args = { conversationId: "conversation-1", c: null };
     const first = await warm.query(api.deliveries.conversationView, args);
@@ -425,7 +424,7 @@ test("the shipped composite pages online and after a cold offline reopen", async
       assert.equal(end.next, null, "an auxiliary capped preview cannot repeat the last message page");
     }
     await warm.close(); warm = undefined;
-    cold = createClient({ url: owner.url, as: "alice", startOffline: true, offline: { store: factory } });
+    cold = createClient({ url: owner.url, persona: "alice", startOffline: true, offline: { store: factory } });
     await cold.ready;
     const reopenedFirst = await cold.query(api.deliveries.conversationView, args);
     const reopenedSecond = await cold.query(api.deliveries.conversationView, olderArgs);

@@ -1,7 +1,6 @@
 import { useMemo } from "react";
-import type { Api } from "snapback2/client";
+import type { Api, ResultOf } from "snapback2/client";
 
-type ResultOf<T> = T extends { readonly __result?: infer Result } ? NonNullable<Result> : never;
 /** One row of the drained delivery log; the inbox, search, and every thread read the same held rows (LLP 1012 §3). */
 export type LogRow = ResultOf<Api["deliveries"]["inbox"]>[number];
 

@@ -1,3 +1,4 @@
+import { assertRefused } from "./live-fixture.ts";
 import assert from "node:assert/strict";
 import { readFile, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { statSync, realpathSync } from "node:fs";
@@ -10,7 +11,8 @@ import { test } from "node:test";
 import { build } from "esbuild";
 import React, { act } from "react";
 import TestRenderer from "react-test-renderer";
-import { api, browserTokenStore, createClient, SnapbackRefusal } from "../dist/client.mjs";
+import { api, browserTokenStore, createClient } from "../dist/client.mjs";
+import { RefusalError } from "../dist/client-observed-test.mjs";
 import { nodeSqliteDriver } from "../dist/sqlite-test.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
 import { fakeOwner } from "./fake-owner.ts";
@@ -68,7 +70,7 @@ test("Expo renders declared history for a partial composite and the composite on
   const offline = { freshness: { live: false, connection: "offline" }, local: { predicted: [], retained: false } };
   const history = { status: "ready", data: [message], items, ...offline, reason: { code: "held", message: "Held on this device." } };
   // The composed record of LLP 1018.006 §2: the screen never opens history itself.
-  let snapshot: any = { status: "unavailable", receipt: { outcome: "partial", source: "twin", seq: 1 }, ...offline,
+  let snapshot: any = { status: "unavailable", receipt: { state: "partial", source: "twin", seq: 1 }, ...offline,
     items, itemsFrom: "history", history };
   const client: any = {
     ready: Promise.resolve(),
@@ -83,7 +85,7 @@ test("Expo renders declared history for a partial composite and the composite on
     outbox: {
       entries: async () => [],
       subscribe(notify: (entries: any[]) => void) { notify([]); return () => undefined; },
-      status: async () => ({ ready: false, reason: "sealed", action: "login", remaining: 0, fence: "past" }),
+      status: async () => ({ ready: false, reason: "sealed", action: "sign-in", remaining: 0, fence: "past" }),
       dismiss: async () => undefined,
     },
   };
@@ -102,14 +104,14 @@ test("Expo renders declared history for a partial composite and the composite on
     assert.match(partialTree, /Message count unavailable/);
     assert.match(partialTree, /Count and preview unavailable/);
 
-    await publish({ status: "unavailable", receipt: { outcome: "partial", source: "twin", seq: 2 }, ...offline,
+    await publish({ status: "unavailable", receipt: { state: "partial", source: "twin", seq: 2 }, ...offline,
       items: [], itemsFrom: "drafts", history: { status: "loading", ...offline } });
     const loadingTree = JSON.stringify(renderer!.toJSON());
     assert.match(loadingTree, /Count and preview unavailable/, "loading history is still the fallback in force");
     assert.doesNotMatch(loadingTree, /independently held/);
 
     const value = { messages: [message], count: 1, preview: [message] };
-    await publish({ status: "ready", data: value, receipt: { outcome: "complete", source: "server", seq: 3 },
+    await publish({ status: "ready", data: value, receipt: { state: "complete", source: "server", seq: 3 },
       freshness: { live: true, connection: "connected" }, local: { predicted: [], retained: false }, items, itemsFrom: "query" });
     const usableTree = JSON.stringify(renderer!.toJSON());
     assert.match(usableTree, /1 message · Latest: independently held/);
@@ -139,15 +141,15 @@ test("the Expo witness samples the composed observation only once eligible histo
   let history: any = loadingHistory;
   let subscriptions = 0;
   const client: any = { observe: () => ({
-    getSnapshot: () => ({ status: "unavailable", receipt: { outcome: "partial", source: "twin", seq: 1 }, ...offline,
+    getSnapshot: () => ({ status: "unavailable", receipt: { state: "partial", source: "twin", seq: 1 }, ...offline,
       itemsFrom: history.status === "ready" ? "history" : "drafts", items: history.items, history }),
     subscribe: () => { subscriptions += 1; return () => { subscriptions -= 1; }; },
   }) };
   try {
     setTimeout(() => { history = readyHistory; }, 80);
     const settled = await composedFacts(client, "c", 2_000);
-    assert.deepEqual(settled, { itemsFrom: "history", status: "unavailable", outcome: "partial",
-      history: { status: "ready", outcome: null }, keys: ["m"], timedOut: false }, "a data-less partial waits for its history");
+    assert.deepEqual(settled, { itemsFrom: "history", status: "unavailable", verdict: "partial",
+      history: { status: "ready", verdict: null }, keys: ["m"], timedOut: false }, "a data-less partial waits for its history");
     history = loadingHistory;
     const gaveUp = await composedFacts(client, "c", 60);
     assert.equal(gaveUp.timedOut, true, "a sample that gave up says so");
@@ -484,8 +486,8 @@ test("replacing a supplied client clears authentication, mutations, and outbox r
   };
   const bobMe = deferred(), aliceReady = deferred(), bobReady = deferred();
   const owner = fakeOwner();
-  const alice = createClient({ url: "http://swap.test", as: "alice", fetch: owner.fetch });
-  const bob = createClient({ url: "http://swap.test", as: "bob", fetch: async (input, init) =>
+  const alice = createClient({ url: "http://swap.test", persona: "alice", fetch: owner.fetch });
+  const bob = createClient({ url: "http://swap.test", persona: "bob", fetch: async (input, init) =>
     String(input).endsWith("/api/auth/me") ? new Response(JSON.stringify(await bobMe.promise)) : owner.fetch(input, init) });
   await Promise.all([alice.ready, bob.ready]);
   assert.equal(alice.snapshot.authGeneration, bob.snapshot.authGeneration);
@@ -501,7 +503,7 @@ test("replacing a supplied client clears authentication, mutations, and outbox r
   bob.outbox.entries = async () => [{ intent: "bob", op: "send", state: "queued" }];
   bob.outbox.status = () => bobReady.promise.then(readiness);
   observeTestOutbox(alice); observeTestOutbox(bob);
-  const transport = new SnapbackRefusal({ code: "E_TRANSPORT", family: "owner", message: "alice transport", guide: "owner" }, true);
+  const transport = new RefusalError({ code: "E_TRANSPORT", family: "owner", message: "alice transport", guide: "owner" }, true);
   alice.mutation = async (_ref, args: any) => {
     if (args.stage === "last") return { state: "committed", seq: 1, data: "alice" };
     if (args.stage === "transport") throw transport;
@@ -520,12 +522,12 @@ test("replacing a supplied client clears authentication, mutations, and outbox r
   try {
     await act(async () => { renderer = TestRenderer.create(tree(alice)); });
     await act(async () => { await current.mutation.run({ stage: "last" }); });
-    await act(async () => { await assert.rejects(current.mutation.run({ stage: "transport" })); });
+    await act(async () => { await assertRefused(current.mutation.run({ stage: "transport" })); });
     assert.equal(current.auth.viewer, "dev:alice");
-    assert.equal(current.mutation.last.data, "alice");
-    assert.equal(current.mutation.detail.transport, transport);
+    assert.equal(current.mutation.last.code, "E_TRANSPORT");
+    assert.equal(current.mutation.last.retryable, true);
     assert.equal(current.mutation.can.send, true);
-    assert.deepEqual(current.mutation.pending.map((entry) => entry.intent), ["alice"]);
+    assert.deepEqual(current.outbox.entries.map((entry) => entry.intent), ["alice"]);
     let oldSuccess, oldFailure;
     await act(async () => {
       oldSuccess = current.mutation.run({ stage: "late-success" });
@@ -542,10 +544,8 @@ test("replacing a supplied client clears authentication, mutations, and outbox r
       assert.equal(view.auth.viewer, undefined);
       assert.equal(view.auth.state, "hydrating");
       assert.equal(view.mutation.last, undefined);
-      assert.equal(view.mutation.detail.transport, undefined);
       assert.equal(view.mutation.inFlight, false);
       assert.equal(view.mutation.can.send, false);
-      assert.deepEqual(view.mutation.pending, []);
       assert.deepEqual(view.outbox.entries, []);
     }
     let newRun;
@@ -563,11 +563,9 @@ test("replacing a supplied client clears authentication, mutations, and outbox r
     });
     assert.equal(current.auth.viewer, "dev:bob");
     assert.equal(current.mutation.last, undefined);
-    assert.equal(current.mutation.detail.transport, undefined);
     assert.equal(current.mutation.inFlight, true, "Alice's completion cannot decrement Bob's pending run");
     assert.equal(current.outbox.can.send, true);
     assert.deepEqual(current.outbox.entries.map((entry) => entry.intent), ["bob"]);
-    assert.deepEqual(current.mutation.pending.map((entry) => entry.intent), ["bob"]);
     await act(async () => { bobMutation.resolve({ state: "committed", seq: 3, data: "bob" }); await newRun; });
     assert.equal(current.mutation.last.data, "bob");
     assert.equal(current.mutation.inFlight, false);
@@ -575,7 +573,7 @@ test("replacing a supplied client clears authentication, mutations, and outbox r
 });
 
 test("built Expo provider and native hook share one context; supplied client remains caller-owned", async () => {
-  const client = createClient({ url: "http://context.test", as: "alice", fetch: fakeOwner().fetch });
+  const client = createClient({ url: "http://context.test", persona: "alice", fetch: fakeOwner().fetch });
   let observed: unknown;
   function Consumer() { observed = useSnapbackClient(); return React.createElement("status", null, useConnection()); }
   let renderer;
@@ -597,7 +595,7 @@ test("createExpoClient defaults to Expo fetch and secure custody, preserves over
   const fetch = async (input, init) => { requests++; return owner.fetch(input, init); };
   (globalThis as any).__snapbackNative.expoFetch = fetch;
   const offline = { store: fileRangeStore(root) };
-  const persona = createExpoClient({ url: "http://expo.test", as: "alice", offline });
+  const persona = createExpoClient({ url: "http://expo.test", persona: "alice", offline });
   let bearer;
   let customCalls = 0;
   const custom = createExpoClient({ url: "http://expo.test", tokenStore: { load: () => null, save() {} },
@@ -611,7 +609,7 @@ test("createExpoClient defaults to Expo fetch and secure custody, preserves over
     await persona.manifest();
     assert.ok(requests >= 1);
     // An explicit invalid custody combination must fail with createClient's exact error.
-    const invalid = { url: "http://expo.test", as: "alice", tokenStore: { load: () => null, save() {} }, offline };
+    const invalid = { url: "http://expo.test", persona: "alice", tokenStore: { load: () => null, save() {} }, offline };
     let expected;
     try { createClient(invalid as any); } catch (error) { expected = error; }
     assert.throws(() => createExpoClient(invalid as any), (error) => error instanceof TypeError && error.message === expected.message);
@@ -628,7 +626,7 @@ test("createExpoClient defaults to the SQLite carrier and refuses a native open 
   (globalThis as any).__snapbackSecureStore = fake;
   let opened;
   (globalThis as any).__snapbackExpoSqlite = async (name) => { opened = name; throw new Error("native file unavailable"); };
-  const client = createExpoClient({ url: "http://expo.test", as: "sqlite-default", fetch: fakeOwner().fetch });
+  const client = createExpoClient({ url: "http://expo.test", persona: "sqlite-default", fetch: fakeOwner().fetch });
   try {
     await assert.rejects(client.ready, (error: any) => error.code === "E_OFFLINE_CARRIER" && /native file unavailable/.test(error.message));
     assert.equal(opened, "snapback2.db");
@@ -700,4 +698,30 @@ test("Expo provider and two native auth hooks share one cut/reconnect flight", a
     if (renderer) await act(async () => renderer.unmount());
     await client.close();
   }
+});
+
+test("native provider owns one client through StrictMode and inline offline options, then closes it", async () => {
+  const root = await mkdtemp(join(tmpdir(), "s2-native-provider-"));
+  const disk = fileRangeStore(root), owner = fakeOwner();
+  let opens = 0, closes = 0, current: any, renderer: any;
+  const store = () => {
+    const held = disk(), open = held.open.bind(held), close = held.close.bind(held);
+    held.open = async (...args) => { opens++; return open(...args); };
+    held.close = async () => { closes++; await close(); };
+    return held;
+  };
+  function Probe() { current = useSnapbackClient(); return null; }
+  const tree = () => React.createElement(React.StrictMode, {}, React.createElement(SnapbackProvider,
+    { url: "http://native-provider.test", persona: "alice", offline: { store }, fetch: owner.fetch }, React.createElement(Probe)));
+  try {
+    await act(async () => { renderer = TestRenderer.create(tree()); });
+    await current.ready;
+    const first = current;
+    await act(async () => { renderer.update(tree()); });
+    assert.equal(current, first); assert.equal(current.snapshot.persona, "alice"); assert.equal(opens, 1);
+    assert.equal(closes, 0);
+    await act(async () => { renderer.unmount(); }); renderer = undefined;
+    await new Promise(resolve => setTimeout(resolve, 20));
+    assert.equal(closes, 1);
+  } finally { if (renderer) await act(async () => renderer.unmount()); await current?.close(); await rm(root, { recursive: true, force: true }); }
 });

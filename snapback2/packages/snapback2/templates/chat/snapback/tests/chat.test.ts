@@ -1,3 +1,4 @@
+import { subscribe } from "snapback2/internal";
 import { api, mutationTarget, type ImageAsset } from "snapback2/client";
 import { journey } from "snapback2/test";
 const postedMessage = mutationTarget(api.deliveries.post, "messages");
@@ -98,7 +99,7 @@ journey("alice posts to the room and a non-member cannot", async ({ as }) => {
 journey("bob replies and alice's live log thread updates", async ({ as }) => {
   const alice = as("alice");
   const bob = as("bob");
-  const thread = alice.subscribe(
+  const thread = subscribe(alice, 
     api.deliveries.thread,
     { conversationId: "conversation-1", c: null },
     () => {},
@@ -173,7 +174,7 @@ journey("profile ownership, uniqueness, and live public reads", async ({ as }) =
   const alice = as("alice");
   const bob = as("bob");
   const charlie = as("charlie");
-  const profile = bob.subscribe(api.profiles.byHandle, { handle: "alice" }, () => {});
+  const profile = subscribe(bob, api.profiles.byHandle, { handle: "alice" }, () => {});
   try {
     await profile.until((delivery) =>
       delivery.state === "complete"
@@ -213,7 +214,7 @@ journey("unfollow changes Following selection but not Global authorization", asy
   const alice = as("alice");
   const bob = as("bob");
   const alicePrincipal = (await alice.auth.me()).viewer;
-  const following = bob.subscribe(api.feeds.followingFeed, { c: null }, () => {});
+  const following = subscribe(bob, api.feeds.followingFeed, { c: null }, () => {});
   try {
     const before = await following.until((delivery) =>
       delivery.state === "complete"
@@ -407,7 +408,7 @@ journey("scoped roles reject non-admin and stale membership authority", async ({
 
 journey("offline drain removes an unsent body and survives a cold restart", async ({ as }) => {
   const alice = as("alice", { store: "file" });
-  const drain = alice.subscribe(
+  const drain = subscribe(alice, 
     api.deliveries.inbox,
     { c: null },
     () => undefined,
@@ -466,7 +467,7 @@ journey("viewed photos render from the byte cache offline; a view-once photo and
       sent.push({ id: result.data.id, photo });
     }
     viewOnceId = sent[2]!.id;
-    const thread = alice.subscribe(api.messages.thread, { conversationId: "conversation-1", c: null }, () => undefined);
+    const thread = subscribe(alice, api.messages.thread, { conversationId: "conversation-1", c: null }, () => undefined);
     await thread.until((delivery) => (delivery.state === "complete" || delivery.state === "capped")
       && "data" in delivery
       && Array.isArray(delivery.data)
@@ -497,7 +498,7 @@ journey("viewed photos render from the byte cache offline; a view-once photo and
     if (!("data" in held) || !Array.isArray(held.data) || held.data.some((row: { id?: string } | null) => row?.id === viewOnceId)) {
       throw new Error("a viewed view-once row survived in the held thread");
     }
-    const mounted = cold.subscribe(api.messages.thread, { conversationId: "conversation-1", c: null }, () => undefined);
+    const mounted = subscribe(cold, api.messages.thread, { conversationId: "conversation-1", c: null }, () => undefined);
     await mounted.until((delivery) => "data" in delivery && Array.isArray(delivery.data));
     const unsent = await owner.mutation(api.deliveries.unsend, { messageId: sent[0]!.id });
     if (unsent.state !== "committed") throw new Error(`unsend was ${unsent.state}`);
@@ -527,7 +528,7 @@ journey("viewed photos render from the byte cache offline; a view-once photo and
 // after the commit is never a double send.
 journey("offline sends queue, survive a restart, replay in order, and a 503 after a commit is exactly once", async ({ as }) => {
   const alice = as("alice", { store: "file" });
-  const drain = alice.subscribe(api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
+  const drain = subscribe(alice, api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
   await drain.until((value) => (value.state === "complete" || value.state === "capped") && value.caughtUp === true);
   drain.close();
   await alice.offline();
@@ -549,7 +550,7 @@ journey("offline sends queue, survive a restart, replay in order, and a 503 afte
   if (settled.map((entry) => entry.state).join() !== "committed,committed") {
     throw new Error(`replay settled as ${settled.map((entry) => entry.state).join()}`);
   }
-  const tail = cold.subscribe(api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
+  const tail = subscribe(cold, api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
   await tail.until((value) => (value.state === "complete" || value.state === "capped") && value.caughtUp === true);
   const thread = await cold.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
   if (!("data" in thread) || !Array.isArray(thread.data)) throw new Error("thread did not return rows");
@@ -565,7 +566,7 @@ journey("offline sends queue, survive a restart, replay in order, and a 503 afte
 
 journey("offline edits reject stale reads by trace, and past-fence edits by the program CONFLICT", async ({ as }) => {
   const alice = as("alice", { store: "file" });
-  const drain = alice.subscribe(api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
+  const drain = subscribe(alice, api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
   await drain.until((value) => (value.state === "complete" || value.state === "capped") && value.caughtUp === true);
   const posted = await alice.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "original" });
   if (posted.state !== "committed") throw new Error(`post was ${posted.state}`);
@@ -641,7 +642,7 @@ journey("offline edits reject stale reads by trace, and past-fence edits by the 
 // result as predicted, in order, then settles under the same pinned id.
 journey("a never-opened chat renders offline from the drained log and an offline send is predicted into it in order", async ({ as }) => {
   const bob = as("bob", { store: "file" });
-  const drain = bob.subscribe(api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
+  const drain = subscribe(bob, api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
   await drain.until((value) => (value.state === "complete" || value.state === "capped") && value.caughtUp === true);
   drain.close();
   await bob.offline();
@@ -698,7 +699,7 @@ journey("a send queued offline into a three-member group shows one bubble, keeps
     // A first message lands a delivery in bob's log, whose read rule pools his membership: the send below is predictable.
     const opener = await alice.mutation(api.deliveries.post, { conversationId, body: "welcome to the trio" });
     if (opener.state !== "committed") throw new Error(`the opener was ${opener.state}`);
-    const drain = bob.subscribe(api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
+    const drain = subscribe(bob, api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
     await drain.until((value) => (value.state === "complete" || value.state === "capped") && value.caughtUp === true
       && "data" in value && bodies(value.data).includes("welcome to the trio"));
     drain.close();
@@ -757,7 +758,7 @@ journey("an expiring message is purged by the owner's schedule with every client
   alice.close();
   await tick(3_600_001);
   const bob = as("bob");
-  const thread = bob.subscribe(api.deliveries.inbox, { c: null }, () => {});
+  const thread = subscribe(bob, api.deliveries.inbox, { c: null }, () => {});
   try {
     const purged = await thread.until((delivery) => "data" in delivery && Array.isArray(delivery.data)
       && delivery.data.some((row: LogRow) => row.kind === "expired" && row.messageId === sent.data.id));

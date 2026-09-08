@@ -1,3 +1,6 @@
+import { assertRefused } from "./live-fixture.ts";
+import { isRefusalError } from "../dist/client-observed-test.mjs";
+import { subscribe } from "../src/internal.js";
 import { fixtureClient as createClient } from "./live-fixture.ts";
 // Lane O4-web, fix round 1: view-once custody (LLP 1012 §9). The session allowance
 // obeys the partition fence; a clip is viewed at play, never at mount; every byte
@@ -10,7 +13,8 @@ import { join } from "node:path";
 import { test } from "node:test";
 import React, { act, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { SnapbackRefusal, api, browserTokenStore } from "../dist/client.mjs";
+import { api, browserTokenStore } from "../dist/client.mjs";
+import { RefusalError } from "../dist/client-observed-test.mjs";
 import { AssetImage, AssetVideo, SnapbackProvider, useAssetUrl, useSnapbackClient } from "../dist/react.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
 import { OfflineRuntime } from "../dist/sqlite-test.mjs";
@@ -47,7 +51,7 @@ test("web assetBlob and byte fetch read the transport cut after readiness resolv
     const client = createClient({ url: "http://assets.test", tokenStore: { load: () => token, save() {} },
       fetch: async () => { requests++; return new Response(new Uint8Array([1])); } });
     const pending = client[method](`http://assets.test/api/asset/${B}`);
-    const refused = assert.rejects(pending, (error: unknown) => error instanceof SnapbackRefusal);
+    const refused = assert.rejects(pending, (error: unknown) => isRefusalError(error));
     const cut = client.offline(); release("restored");
     try { await cut; await refused; assert.equal(requests, 0); }
     finally { await client.close(); }
@@ -65,9 +69,9 @@ test("web viewed allowance belongs to its viewing instance, never a second consu
     const url = (await client.assetUrl(photo(B)))!;
     const shown = await client.assetBlob(url, { viewing });
     assert.deepEqual(await bytes(shown), [5, 5, 5, 5]);
-    await assert.rejects(client.assetBlob(url), (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_ASSET_VIEWED"
+    await assert.rejects(client.assetBlob(url), (error: unknown) => isRefusalError(error) && error.code === "E_ASSET_VIEWED"
       && error.envelope.rewrite === "render this image once; request a new image for another delivery");
-    await assert.rejects(client.assetBytes(url, { viewing: {} }), (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_ASSET_VIEWED");
+    await assert.rejects(client.assetBytes(url, { viewing: {} }), (error: unknown) => isRefusalError(error) && error.code === "E_ASSET_VIEWED");
     assert.equal(await client.assetCache!.get(B, null), undefined);
     assert.equal(await client.assetUrl(photo(B)), undefined);
     assert.deepEqual(await bytes(await client.assetBlob(url, { viewing })), [5, 5, 5, 5]);
@@ -226,8 +230,8 @@ test("the view-once session allowance obeys custody: a partition switch, a wipe,
 
     // A seal: a terminal session refusal seals the partition; the session is not served past it.
     state.expired = true;
-    await assert.rejects(client.query(api.messages.thread, THREAD_ARGS), (error: unknown) =>
-      error instanceof SnapbackRefusal && error.code === "E_AUTH_SESSION");
+    await assertRefused(client.query(api.messages.thread, THREAD_ARGS), (error: unknown) =>
+      (error.state === "rejected" || error.state === "refused") && error.code === "E_AUTH_SESSION");
     assert.equal(client.snapshot.token, undefined, "the session expired");
     assert.equal(await client.assetCache!.get(B, 8), undefined, "a sealed partition serves no session blob");
     state.expired = false;
@@ -310,16 +314,16 @@ test("blob: URLs are revoked and re-minted when the client identity or the parti
       throw new Error(`unexpected path ${url.pathname}`);
     };
     const offline = { store: fileRangeStore(root) };
-    const seed = createClient({ url: "http://assets.test", as: "alice", offline, fetch });
+    const seed = createClient({ url: "http://assets.test", persona: "alice", offline, fetch });
     await seed.ready;
     await seed.query(api.messages.thread, THREAD_ARGS);
     await seed.assetBlob((await seed.assetUrl(photo(A) as any, { width: 240 }))!);
     seed.close();
     offlinePhase = true;
-    const render = async (as: string) => {
+    const render = async (persona: string) => {
       await act(async () => {
         reactRoot!.render(React.createElement(
-          SnapbackProvider, { url: "http://assets.test", as, fetch, offline } as any,
+          SnapbackProvider, { url: "http://assets.test", persona, fetch, offline } as any,
           React.createElement(AssetImage, { asset: photo(A) as any, alt: "photo" }),
         ));
       });
@@ -394,7 +398,7 @@ test("a viewed view-once row reads null on a fresh query, a conditional read, an
     let conditional = false;
     const frame = () => envelope([ref("messages", "m1"), ref("messages", "m2")], [messageRow("m1", { photo: photo(A) }), messageRow("m2", { photo: photo(B) })]);
     const client = createClient({
-      url: "http://live.test", as: "alice",
+      url: "http://live.test", persona: "alice",
       offline: { store: fileRangeStore(root) },
       fetch: async (input, init) => {
         const url = new URL(String(input));
@@ -420,7 +424,7 @@ test("a viewed view-once row reads null on a fresh query, a conditional read, an
     conditional = true;
     assert.deepEqual(ids(await client.query(api.messages.thread, THREAD_ARGS)), ["m1", null], "a conditional read hides it too");
     const seen: any[] = [];
-    const subscription = client.subscribe(api.messages.thread, THREAD_ARGS, (delivery) => seen.push(delivery));
+    const subscription = subscribe(client, api.messages.thread, THREAD_ARGS, (delivery) => seen.push(delivery));
     const live = await subscription.until((delivery) => "data" in delivery, 2_000);
     assert.deepEqual(ids(live), ["m1", null], "a live frame hides it");
     subscription.close();

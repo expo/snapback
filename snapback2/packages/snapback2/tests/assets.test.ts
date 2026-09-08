@@ -1,14 +1,14 @@
+import { assertRefused } from "./live-fixture.ts";
+import { isRefusalError } from "../dist/client-observed-test.mjs";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { JSDOM } from "jsdom";
-import {
-  SnapbackRefusal,
-  api,
+import { api,
   createClient,
-  type AssetRecord,
-} from "../dist/client.mjs";
+  type AssetRecord } from "../dist/client.mjs";
+import { RefusalError } from "../dist/client-observed-test.mjs";
 import {
   AssetImage,
   AssetVideo,
@@ -73,7 +73,7 @@ test("mutation substitutes scalar, optional, list, and video sources from one ma
     }
     throw new Error(`unexpected path ${path}`);
   };
-  const client = createClient({ url: "http://assets.test", as: "alice", fetch });
+  const client = createClient({ url: "http://assets.test", persona: "alice", fetch });
   const args = {
     photo: new File(["a"], "photo.jpg", { type: "image/jpeg" }),
     optional: new File(["b"], "avatar.jpg", { type: "image/jpeg" }),
@@ -112,7 +112,7 @@ test("mixed records, Files, native URI sources, and optional list members substi
     }
     throw new Error(`unexpected path ${path}`);
   };
-  const client = createClient({ url: "http://assets.test", as: "alice", fetch });
+  const client = createClient({ url: "http://assets.test", persona: "alice", fetch });
   const result = await client.mutation(api.assets.send, {
     photo: new File(["p"], "photo.jpg"),
     optional: image,
@@ -155,7 +155,7 @@ async function assertStructuredUriPasses(
     }
     throw new Error(`unexpected path ${path}`);
   };
-  const client = createClient({ url: "http://assets.test", as: "alice", fetch });
+  const client = createClient({ url: "http://assets.test", persona: "alice", fetch });
 
   const result = await client.mutation(ref, args as any);
 
@@ -201,18 +201,18 @@ test("mutation preflights every source before starting any upload", async () => 
     if (path === "/api/mutation") { mutations += 1; return json({ state: "committed", seq: 1, data: null }); }
     throw new Error(`unexpected path ${path}`);
   };
-  const client = createClient({ url: "http://assets.test", as: "alice", fetch });
+  const client = createClient({ url: "http://assets.test", persona: "alice", fetch });
 
-  await assert.rejects(
+  await assertRefused(
     () => client.mutation(api.assets.send, {
       photo: new File(["a"], "okay.jpg"),
       optional: null,
       gallery: [new File(["too large"], "large.jpg")],
       clip: video,
     } as any),
-    (error: unknown) => error instanceof SnapbackRefusal
+    (error: unknown) => (error.state === "rejected" || error.state === "refused")
       && error.code === "E_ASSET_TOO_LARGE"
-      && error.envelope.family === "input",
+      && error.family === "input",
   );
   assert.equal(uploads, 0);
   assert.equal(mutations, 0);
@@ -233,11 +233,11 @@ test("an upload refusal rejects the call and never invokes the mutation", async 
     if (path === "/api/mutation") { mutations += 1; return json({ state: "committed", seq: 1, data: null }); }
     throw new Error(`unexpected path ${path}`);
   };
-  const client = createClient({ url: "http://assets.test", as: "alice", fetch });
+  const client = createClient({ url: "http://assets.test", persona: "alice", fetch });
 
-  await assert.rejects(
+  await assertRefused(
     () => client.mutation(api.assets.send, { photo: new File(["x"], "bad.jpg") } as any),
-    (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_ASSET_TYPE",
+    (error: unknown) => (error.state === "rejected" || error.state === "refused") && error.code === "E_ASSET_TYPE",
   );
   assert.equal(mutations, 0);
   client.close();
@@ -261,14 +261,14 @@ test("a second sibling upload refusal discards the first and sends no mutation",
     if (path === "/api/mutation") { mutations += 1; return json({ state: "committed", seq: 1, data: null }); }
     throw new Error(`unexpected path ${path}`);
   };
-  const client = createClient({ url: "http://assets.test", as: "alice", fetch });
+  const client = createClient({ url: "http://assets.test", persona: "alice", fetch });
 
-  await assert.rejects(
+  await assertRefused(
     () => client.mutation(api.assets.send, {
       photo: new File(["a"], "first.jpg"),
       gallery: [new File(["b"], "second.jpg")],
     } as any),
-    (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_ASSET_TYPE",
+    (error: unknown) => (error.state === "rejected" || error.state === "refused") && error.code === "E_ASSET_TYPE",
   );
   assert.equal(uploads, 2);
   assert.equal(mutations, 0);
@@ -292,11 +292,11 @@ test("a browser File on a text argument refuses E_ASSET_TYPE with the argument p
     if (path === "/api/mutation") { mutations += 1; return json({ state: "committed", seq: 11, data: null }); }
     throw new Error(`unexpected path ${path}`);
   };
-  const client = createClient({ url: "http://assets.test", as: "alice", fetch });
+  const client = createClient({ url: "http://assets.test", persona: "alice", fetch });
 
-  await assert.rejects(
+  await assertRefused(
     () => client.mutation(api.links.open, { target: new File(["x"], "x.txt") } as any),
-    (error: unknown) => error instanceof SnapbackRefusal
+    (error: unknown) => (error.state === "rejected" || error.state === "refused")
       && error.code === "E_ASSET_TYPE"
       && error.message.includes("target"),
   );
@@ -320,11 +320,11 @@ test("a native URI source on a text argument refuses E_ASSET_TYPE with the argum
     if (path === "/api/mutation") { mutations += 1; return json({ state: "committed", seq: 11, data: null }); }
     throw new Error(`unexpected path ${path}`);
   };
-  const client = createClient({ url: "http://assets.test", as: "alice", fetch });
+  const client = createClient({ url: "http://assets.test", persona: "alice", fetch });
 
-  await assert.rejects(
+  await assertRefused(
     () => client.mutation(api.links.open, { target: { uri: "file://x.txt", fileSize: 1 } } as any),
-    (error: unknown) => error instanceof SnapbackRefusal
+    (error: unknown) => (error.state === "rejected" || error.state === "refused")
       && error.code === "E_ASSET_TYPE"
       && error.message.includes("target"),
   );
@@ -347,11 +347,11 @@ test("a native URI source on an integer argument refuses E_ASSET_TYPE with the a
     if (path === "/api/mutation") { mutations += 1; return json({ state: "committed", seq: 11, data: null }); }
     throw new Error(`unexpected path ${path}`);
   };
-  const client = createClient({ url: "http://assets.test", as: "alice", fetch });
+  const client = createClient({ url: "http://assets.test", persona: "alice", fetch });
 
-  await assert.rejects(
+  await assertRefused(
     () => client.mutation(api.links.open, { target: { uri: "file://x.txt", fileSize: 1 } } as any),
-    (error: unknown) => error instanceof SnapbackRefusal
+    (error: unknown) => (error.state === "rejected" || error.state === "refused")
       && error.code === "E_ASSET_TYPE"
       && error.message.includes("target"),
   );
@@ -374,7 +374,7 @@ test("a server mutation refusal remains a resolved MutationRejected receipt", as
     });
     throw new Error(`unexpected path ${path}`);
   };
-  const client = createClient({ url: "http://assets.test", as: "alice", fetch });
+  const client = createClient({ url: "http://assets.test", persona: "alice", fetch });
 
   const result = await client.mutation(api.assets.send, { photo: new File(["x"], "photo.jpg") } as any);
 
@@ -393,11 +393,11 @@ test("descriptor fence refuses an observed manifest generation change after uplo
     if (path === "/api/mutation") { mutations += 1; return json({ state: "committed", seq: 1, data: null }); }
     throw new Error(`unexpected path ${path}`);
   };
-  const client = createClient({ url: "http://assets.test", as: "alice", fetch });
+  const client = createClient({ url: "http://assets.test", persona: "alice", fetch });
 
-  await assert.rejects(
+  await assertRefused(
     () => client.mutation(api.assets.send, { photo: new File(["x"], "photo.jpg") } as any),
-    (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_ASSET_NOT_READY",
+    (error: unknown) => (error.state === "rejected" || error.state === "refused") && error.code === "E_ASSET_NOT_READY",
   );
   assert.equal(mutations, 0);
   client.close();
@@ -415,7 +415,7 @@ test("client.upload streams a fetchable URI with global fetch and never sends it
     }
     throw new Error(`unexpected URL ${url}`);
   };
-  const client = createClient({ url: "http://assets.test", as: "alice", fetch });
+  const client = createClient({ url: "http://assets.test", persona: "alice", fetch });
 
   const record = await client.upload(
     { uri: "data:video/mp4,video", fileSize: 5, mimeType: "video/mp4" },
@@ -434,14 +434,14 @@ test("client.upload verifies a requested kind against the server's sniffed recor
     if (new URL(String(input)).pathname === "/api/upload") return json(video);
     throw new Error(`unexpected URL ${input}`);
   };
-  const client = createClient({ url: "http://assets.test", as: "alice", fetch });
+  const client = createClient({ url: "http://assets.test", persona: "alice", fetch });
   const source = () => new File(["clip"], "clip.mp4", { type: "video/mp4" });
 
   const clip = await client.upload(source(), { kind: "video" });
   assert.deepEqual(clip, video);
   await assert.rejects(
     () => client.upload(source(), { kind: "image" }),
-    (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_ASSET_TYPE"
+    (error: unknown) => isRefusalError(error) && error.code === "E_ASSET_TYPE"
       && error.message.includes("produced a video asset"),
   );
   client.close();
@@ -452,12 +452,12 @@ test("client.upload's kind check reads own properties only, so a polluted protot
     if (new URL(String(input)).pathname === "/api/upload") return json(image);
     throw new Error(`unexpected URL ${input}`);
   };
-  const client = createClient({ url: "http://assets.test", as: "alice", fetch });
+  const client = createClient({ url: "http://assets.test", persona: "alice", fetch });
   (Object.prototype as any).duration = 2_500;
   try {
     await assert.rejects(
       () => client.upload(new File(["jpg"], "photo.jpg", { type: "image/jpeg" }), { kind: "video" }),
-      (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_ASSET_TYPE"
+      (error: unknown) => isRefusalError(error) && error.code === "E_ASSET_TYPE"
         && error.message.includes("produced an image asset"),
     );
   } finally {
@@ -479,11 +479,11 @@ test("assetUrl rejects every request to put a carrier on an image URL", async ()
 
   await assert.rejects(
     () => client.assetUrl(image, { carrier: true }),
-    (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_ASSET_CARRIER_IMAGE",
+    (error: unknown) => isRefusalError(error) && error.code === "E_ASSET_CARRIER_IMAGE",
   );
   await assert.rejects(
     () => client.assetUrl(image, { download: true }),
-    (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_ASSET_CARRIER_IMAGE",
+    (error: unknown) => isRefusalError(error) && error.code === "E_ASSET_CARRIER_IMAGE",
   );
   assert.equal(carrierCalls, 0);
   client.close();
@@ -597,7 +597,7 @@ test("useAssetUrl and web asset components render in a DOM with the intended aut
     await act(async () => {
       root!.render(React.createElement(
         SnapbackProvider,
-        { url: "http://assets.test", as: "alice", fetch },
+        { url: "http://assets.test", persona: "alice", fetch },
         React.createElement(Harness),
       ));
     });
@@ -644,7 +644,7 @@ test("local serialization failure discards automatic uploads before any mutation
   const staged = new Map<string, number>();
   let uploads = 0;
   let mutations = 0;
-  const client = createClient({ url: "http://assets.test", as: "alice", fetch: async (input, init) => {
+  const client = createClient({ url: "http://assets.test", persona: "alice", fetch: async (input, init) => {
     const path = new URL(String(input)).pathname;
     if (path === "/api/manifest") return json(manifest());
     if (path === "/api/upload") {
@@ -660,9 +660,9 @@ test("local serialization failure discards automatic uploads before any mutation
   cyclic.self = cyclic;
   try {
     for (let attempt = 0; attempt < 3; attempt++) {
-      await assert.rejects(client.mutation(api.assets.send, {
+      await assertRefused(client.mutation(api.assets.send, {
         photo: new File(["a"], "photo.png"), metadata: cyclic,
-      } as any), TypeError);
+      } as any), (result: any) => result.code === "E_TRANSPORT" && result.retryable === true);
       assert.equal(staged.size, 0, "failed local submission must release staged objects and bytes");
     }
     assert.equal(uploads, 3);
@@ -673,7 +673,7 @@ test("local serialization failure discards automatic uploads before any mutation
 for (const status of [200, 422, 503]) {
   test(`automatic uploads are kept for an ambiguous HTTP ${status} mutation response`, async () => {
     let discards = 0;
-    const client = createClient({ url: "http://assets.test", as: "alice", fetch: async (input) => {
+    const client = createClient({ url: "http://assets.test", persona: "alice", fetch: async (input) => {
       const path = new URL(String(input)).pathname;
       if (path === "/api/manifest") return json(manifest());
       if (path === "/api/upload") return json(image);
@@ -682,7 +682,7 @@ for (const status of [200, 422, 503]) {
       throw new Error(`unexpected path ${path}`);
     } });
     try {
-      await assert.rejects(client.mutation(api.assets.send, { photo: new File(["a"], "photo.png") } as any));
+      await assertRefused(client.mutation(api.assets.send, { photo: new File(["a"], "photo.png") } as any));
       assert.equal(discards, 0);
     } finally { client.close(); }
   });
@@ -690,7 +690,7 @@ for (const status of [200, 422, 503]) {
 
 test("a definitive HTTP refusal discards only this call's upload, preserving supplied records", async () => {
   const discarded: string[] = [];
-  const client = createClient({ url: "http://assets.test", as: "alice", fetch: async (input, init) => {
+  const client = createClient({ url: "http://assets.test", persona: "alice", fetch: async (input, init) => {
     const path = new URL(String(input)).pathname;
     if (path === "/api/manifest") return json(manifest());
     if (path === "/api/upload") return json(image);
@@ -699,7 +699,7 @@ test("a definitive HTTP refusal discards only this call's upload, preserving sup
     throw new Error(`unexpected path ${path}`);
   } });
   try {
-    await assert.rejects(client.mutation(api.assets.send, { photo: new File(["a"], "photo.png"), optional: secondImage } as any),
+    await assertRefused(client.mutation(api.assets.send, { photo: new File(["a"], "photo.png"), optional: secondImage } as any),
       (error: any) => error.code === "E_INPUT");
     assert.deepEqual(discarded, [image.id]);
   } finally { client.close(); }
@@ -807,7 +807,7 @@ for (const stage of ["fetch", "body"] as const) {
         assert.equal(cleanupSignal?.aborted, true);
         assert.equal(mutationDone, true, "cleanup must settle while its obsolete fetch or body is still withheld");
         await mutation;
-        if (terminal && replacing) assert.equal(failure?.code, "E_AUTH_SUPERSEDED");
+        if (terminal && replacing) { assert.equal(failure, undefined); assert.equal(result?.code, "E_AUTH_SUPERSEDED"); }
         else { assert.equal(failure, undefined); assert.deepEqual(result, rejected); }
         if (replacing) {
           assert.equal(replacementDone, true, "auth replacement cannot remain behind timed-out cleanup");
@@ -851,8 +851,8 @@ for (const stage of ["mutation", "first-upload", "direct-upload"] as const) {
     try {
       await client.ready; await client.auth.me();
       const source = new File(["a"], "photo.png");
-      await assert.rejects(stage === "direct-upload" ? client.upload(source) : client.mutation(api.assets.send, { photo: source } as any),
-        (error: any) => error.code === "E_AUTH_SESSION");
+      if (stage === "direct-upload") await assert.rejects(client.upload(source), (error: any) => error.code === "E_AUTH_SESSION");
+      else await assertRefused(client.mutation(api.assets.send, { photo: source } as any), (result: any) => result.code === "E_AUTH_SESSION");
       assert.deepEqual(events, stage === "mutation" ? ["discard:Bearer session", "save:null"] : ["save:null"]);
       assert.equal(token, null); assert.equal(client.snapshot.auth.state, "anonymous");
     } finally { await client.close(); }
@@ -940,8 +940,8 @@ for (const arm of ["assetBlob", "assetBytes"] as const) for (const stage of ["fe
   }
 }
 
-for (const outcome of ["valid", "invalid"] as const) {
-  test(`upload fences a delayed ${outcome} successful body before reporting it`, async () => {
+for (const verdict of ["valid", "invalid"] as const) {
+  test(`upload fences a delayed ${verdict} successful body before reporting it`, async () => {
     let begin!: () => void, release!: () => void;
     const started = new Promise<void>(resolve => { begin = resolve; });
     const blocked = new Promise<void>(resolve => { release = resolve; });
@@ -952,7 +952,7 @@ for (const outcome of ["valid", "invalid"] as const) {
       if (path === "/api/manifest") return json(manifest());
       if (path === "/api/upload") {
         const response = json(image);
-        response.json = async () => { begin(); await blocked; if (outcome === "invalid") throw new SyntaxError("lost body"); return image; };
+        response.json = async () => { begin(); await blocked; if (verdict === "invalid") throw new SyntaxError("lost body"); return image; };
         return response;
       }
       throw new Error(`unexpected path ${path}`);

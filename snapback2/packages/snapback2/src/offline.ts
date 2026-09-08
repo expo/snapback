@@ -2,7 +2,7 @@ import { decodeHeldProgram, queryClock } from "./held-program.js";
 import { cursorArgument, serverArguments } from "./local-cursor.js";
 export { decodeHeldProgram } from "./held-program.js";
 import { tombstonesFor } from "./tombstones.js";
-import { SnapbackRefusal, throwIfAborted, isSnapbackRefusal } from "./client-wire.js";
+import { RefusalError, throwIfAborted, isRefusalError } from "./client-wire.js";
 import { ClockCoverageReset, FullRevalidationRequired } from './store/fact-integrity.js';
 import {
   DeliveryEnvelopeDecodeError,
@@ -40,7 +40,7 @@ import { rowKey, mapExpandedRows } from "./store/row-values.js";
 import { Twin, readsConnected, type LocalAnswer, type Prediction } from "./twin.js";
 import { carryItemInputs, emptyItemInputs, itemInputs, withItemInputs } from "./query-frame.js";
 import { deliveredItemInputs } from "./query-items.js";
-import type { DrainContract, Manifest, OfflineClientOptions, OutboxSettlement, RefusalEnvelope } from "./types.js";
+import type { DrainContract, Manifest, OfflineClientOptions, OutboxSettlement, Refusal } from "./types.js";
 
 /**
  * Ids a certified mutation can mint: the certificate's insert/upsert bounds, which
@@ -69,7 +69,7 @@ export interface MountedQuery {
   op: string;
   args: unknown;
   drain: boolean;
-  refuse?(refusal: RefusalEnvelope): void;
+  refuse?(refusal: Refusal): void;
 }
 
 export interface ResumeRequestV1 {
@@ -126,10 +126,10 @@ function object(value: unknown): value is Record<string, unknown> {
 export function admitDrain(op: string, contract: DrainContract | undefined): string {
   if (contract && "cursor" in contract && typeof contract.cursor === "string" && contract.cursor.length > 0) return contract.cursor;
   const shape = contract && "reason" in contract ? contract.reason : "metadata-unavailable";
-  throw new SnapbackRefusal({ code: "E_OFFLINE_RESUME", family: "offline", guide: "offline",
-    reason: "unsupported-log", which: "log", op, shape, site: "client.subscribe.drain",
-    message: `operation ${op} cannot drain/resume a log (${shape}); every returned page must ascend after the same cursor with at most 50 rows`,
-    rewrite: "use an ascending delivery log (after c first N, N <= 50); subscribe normally at c: null for newest-first data; reconnect if metadata is unavailable; queued writes are kept" });
+  throw new RefusalError({ code: "E_OFFLINE_RESUME", family: "offline", guide: "offline",
+    reason: "unsupported-log", which: "log", op, shape, site: "client.observe.drain",
+    message: `${op} cannot drain (${shape})`,
+    rewrite: "use after c first N (N <= 50); omit drain for newest-first queries; connect for missing metadata" });
 }
 
 // @ref LLP 1012#15-diagnostics — invalid options are TypeErrors; carrier-thrown errors retain their refusal semantics.
@@ -147,11 +147,11 @@ export class OfflineRuntime {
   /** Activity of the existing serialized replay owner, independent of live reads. */
   draining = false;
   /**
-   * The last drain's outcome, rejection kept: `settled()` awaits this so a
+   * The last drain's verdict, rejection kept: `settled()` awaits this so a
    * non-retryable refusal that stopped the replay reaches the caller instead of
    * resolving with intents still queued (LLP 1012 §7).
    */
-  drainOutcome: Promise<OutboxSettlement> = Promise.resolve({ stopped: false, remaining: 0 });
+  drainVerdict: Promise<OutboxSettlement> = Promise.resolve({ stopped: false, remaining: 0 });
   /** The twin: the certified program over this partition's coverage (LLP 1012 §6, §7). */
   readonly twin: Twin;
   private partition?: string;
@@ -442,13 +442,13 @@ export class OfflineRuntime {
       }
       try {
         // Custody is checked inside the serial, before and after prediction, and before the commit (LLP 1018.004 §2).
-        const outcome = await this.outbox.admitInbox(row, check.custody, this.seq, async (ids) => {
+        const verdict = await this.outbox.admitInbox(row, check.custody, this.seq, async (ids) => {
           check.custody();
           const prediction = await this.predict(row.op!, row.args, ids);
           check.custody();
           return prediction;
         }, check.custody);
-        if (outcome.outcome === "admitted") admitted += 1;
+        if (verdict.state === "admitted") admitted += 1;
       } catch (error) {
         if (error instanceof OutboxRefusal) { stopped = error.code; break; }
         throw error;
@@ -478,7 +478,7 @@ export class OfflineRuntime {
         this.superseded = undefined;
         this.held = undefined;
         this.operations = {};
-        this.drainOutcome = Promise.resolve({ stopped: false, remaining: 0 });
+        this.drainVerdict = Promise.resolve({ stopped: false, remaining: 0 });
       }
       if (this.partition !== undefined && this.partition !== principal) await this.store.wipe(this.partition);
       if (this.partition !== principal) {
@@ -668,7 +668,7 @@ export class OfflineRuntime {
       let raw: unknown;
       try { raw = await revalidate(); }
       catch (error) {
-        if (isSnapbackRefusal(error) && error.retryable && (error.code === 'E_NETWORK' || error.code === 'E_TRANSPORT'))
+        if (isRefusalError(error) && error.retryable && error.code === 'E_TRANSPORT')
           throw new FullRevalidationRequired(op, args);
         throw error;
       }

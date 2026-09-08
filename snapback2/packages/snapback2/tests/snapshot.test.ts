@@ -28,8 +28,8 @@ const cases: Case[] = [
   { name: "complete from the twin (stale fact)", view: { state: "complete", live: false, source: "twin", seq: 3, next: null, data, stale: { since: 7 } }, status: "ready", reason: "stale", receipt: "complete", source: "twin" },
   { name: "complete with a prediction", view: { state: "complete", live: true, source: "server", seq: 3, next: null, data, predicted }, status: "ready", reason: "predicted", receipt: "complete" },
   { name: "stale and predicted: stale first", view: { state: "complete", live: false, source: "twin", seq: 3, next: null, data, stale: { since: 7 }, predicted }, status: "ready", reason: "stale", receipt: "complete" },
-  { name: "stale view keeping its receipt", view: { state: "stale", live: false, since: 9, data, seq: 3, next: null, outcome: "capped", source: "server" }, status: "ready", reason: "stale", receipt: "capped", source: "server" },
-  { name: "stale view of a denial", view: { state: "stale", live: false, since: 9, seq: 3, outcome: "denied", rule: "members only" }, status: "unavailable", reason: "denied", receipt: "denied" },
+  { name: "stale view keeping its receipt", view: { state: "stale", live: false, since: 9, data, seq: 3, next: null, verdict: "capped", source: "server" }, status: "ready", reason: "stale", receipt: "capped", source: "server" },
+  { name: "stale view of a denial", view: { state: "stale", live: false, since: 9, seq: 3, verdict: "denied", rule: "members only" }, status: "unavailable", reason: "denied", receipt: "denied" },
   { name: "drain exposing data before caughtUp", view: { state: "complete", live: true, source: "server", seq: 3, next: null, data, caughtUp: false, watermark: "w" }, status: "ready", receipt: "complete" },
   { name: "held: data with no receipt (the lane's state)", view: { state: "stale", live: false, since: 9, data }, status: "ready", reason: "held" },
 ];
@@ -46,7 +46,7 @@ test("summarize maps every axis combination the reducer emits to one status and 
       if (snapshot.reason?.code === "denied") assert.equal(snapshot.reason.detail, item.view.rule, label);
       if (snapshot.reason?.code === "partial") assert.equal(snapshot.reason.detail, item.view.reason, label);
       if (item.view.sites) assert.deepEqual(snapshot.receipt?.sites, item.view.sites, label);
-      assert.equal(snapshot.receipt?.outcome, item.receipt, label);
+      assert.equal(snapshot.receipt?.state, item.receipt, label);
       if (item.source) assert.equal(snapshot.receipt?.source, item.source, label);
       assert.equal(snapshot.freshness.connection, connection, label);
       assert.equal(snapshot.freshness.live, item.view.live, label);
@@ -62,7 +62,7 @@ test("summarize maps every axis combination the reducer emits to one status and 
   }
   assert.equal(summarize({ state: "refused", live: false, refusal }, "connected").reason?.message, "Sign in again.", "a refusal's rewrite is the sentence");
   assert.equal(summarize({ state: "complete", live: false, source: "twin", seq: 1, next: null, data, stale: { since: 7 } }, "offline").freshness.staleSince, 7);
-  assert.equal(summarize({ state: "stale", live: false, since: 9, data, seq: 3, outcome: "complete" }, "offline").freshness.staleSince, 9);
+  assert.equal(summarize({ state: "stale", live: false, since: 9, data, seq: 3, verdict: "complete" }, "offline").freshness.staleSince, 9);
   assert.equal(summarize({ state: "complete", live: true, source: "server", seq: 3, next: null, data, caughtUp: false }, "connected").local.caughtUp, false);
   for (const code of Object.keys(reasonMessages)) assert.equal(typeof reasonMessages[code], "string", code);
 });
@@ -71,8 +71,8 @@ test("readiness maps every outbox status, the fence, and the op-scoped queue to 
   const status = (reason: string, over: Record<string, unknown> = {}) =>
     ({ ready: reason === "ready", reason, action: "none", remaining: 0, fence: "inside", ...over }) as any;
   const table: Array<[any, string, number, boolean, string | undefined, string | undefined]> = [
-    [status("ready"), "connected", 0, true, undefined, undefined],
-    [status("ready"), "offline", 0, true, undefined, undefined],
+    [status("ready"), "connected", 0, true, "none", undefined],
+    [status("ready"), "offline", 0, true, "none", undefined],
     [status("ready"), "connected", 2, true, "connect", "pending"],
     [status("ready", { draining: true }), "connected", 2, true, "wait", "pending"],
     [status("ready", { draining: true }), "offline", 1, true, "wait", "pending"],
@@ -88,7 +88,7 @@ test("readiness maps every outbox status, the fence, and the op-scoped queue to 
     [status("program-missing"), "connected", 0, false, "connect", "program-missing"],
     [status("follower"), "connected", 0, false, "other-tab", "follower"],
     // @ref LLP 1018.004#3-readiness-on-a-follower — a follower's rows are durable: forwarding and an unresponsive writer are reasons on a sendable status.
-    [status("forwarding", { ready: true }), "connected", 0, true, undefined, undefined],
+    [status("forwarding", { ready: true }), "connected", 0, true, "none", undefined],
     [status("forwarding", { ready: true }), "connected", 2, true, "wait", "pending"],
     [status("writer-unresponsive", { ready: true, remaining: 1 }), "connected", 1, true, "wait", "writer-unresponsive"],
     [status("inbox-full"), "connected", 256, false, "wait", "inbox-full"],

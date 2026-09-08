@@ -1,3 +1,4 @@
+import { subscribe } from "../src/internal.js";
 import assert from "node:assert/strict";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -167,7 +168,7 @@ test("a follower Composer's send is durable before it resolves, survives a reloa
     return globalThis.fetch(input, init);
   };
   // The writer holds no grant until its drain runs, so rows it cannot admit yet stay durable and visible.
-  const writer = createClient({ url: screenOwner.url, as: "alice", fetch: transport, offline: { store: store() } });
+  const writer = createClient({ url: screenOwner.url, persona: "alice", fetch: transport, offline: { store: store() } });
   let follower: ReturnType<typeof createClient> | undefined;
   let reloaded: ReturnType<typeof createClient> | undefined;
   let drain: any;
@@ -199,7 +200,7 @@ test("a follower Composer's send is durable before it resolves, survives a reloa
     React.createElement(Thread, { conversationId, viewer: "dev:alice", onNote: (note: string) => notes.push(note) }));
   try {
     await writer.ready;
-    follower = createClient({ url: screenOwner.url, as: "alice", fetch: transport, offline: { store: store() } });
+    follower = createClient({ url: screenOwner.url, persona: "alice", fetch: transport, offline: { store: store() } });
     await follower.ready;
     await waitForUi(async () => (await follower!.outbox.status()).reason === "forwarding", "the follower's inbox route");
     flushSync(() => reactRoot.render(render(follower, "conversation-1")));
@@ -222,7 +223,7 @@ test("a follower Composer's send is durable before it resolves, survives a reloa
     // Reload: a new tab on the same device shows the row before any admission.
     flushSync(() => reactRoot.unmount());
     await follower.close();
-    reloaded = createClient({ url: screenOwner.url, as: "alice", fetch: transport, offline: { store: store() } });
+    reloaded = createClient({ url: screenOwner.url, persona: "alice", fetch: transport, offline: { store: store() } });
     await reloaded.ready;
     const reloadRoot: Root = createRoot(document.getElementById("root")!);
     flushSync(() => reloadRoot.render(render(reloaded, "conversation-1")));
@@ -230,7 +231,7 @@ test("a follower Composer's send is durable before it resolves, survives a reloa
     assert.match(text(document.querySelector("li[data-state=queued]")), /one durable send/);
 
     // The writer earns its grant; the row is admitted, replayed once, and becomes the server row under the same body.
-    drain = writer.subscribe(api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
+    drain = subscribe(writer, api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
     await drain.until((event: any) => event.caughtUp === true, 4_000);
     await waitForUi(() => serverPosts.filter((post) => post.args?.body === "one durable send").length === 1, "the writer's single replay");
     await waitForUi(() => document.querySelector("li[data-state=queued]") === null
