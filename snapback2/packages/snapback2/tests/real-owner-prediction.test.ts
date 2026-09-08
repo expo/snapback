@@ -99,7 +99,7 @@ mutation allocate(principals: [principal] <=49):
           table === "principalCounts" && index === "byId"
           && key[0] === JSON.stringify([{ Id: "dev:zero" }])));
         assert.ok(receipt.ranges.some((range: any) => range.table === "principalCounts"
-          && range.prefix[0] === "dev:zero" && range.stop === "Exhausted"
+          && range.prefix[0]?.Scalar === "dev:zero" && range.stop === "Exhausted"
           && range.absence && range.rowIds.length === 0), "the owner supplies independent group absence");
         t.diagnostic(`zero public query receipt: ${JSON.stringify(reads)}`);
       }
