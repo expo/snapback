@@ -287,7 +287,7 @@ test("settlement uses the persisted cursor name when live metadata disagrees, wi
   } finally { drain?.close(); await first.close(); await cold?.close(); await rm(root, { recursive: true, force: true }); }
 });
 
-test("the real owner refuses an object wrapper as a resume log instead of promising a tail", async (context) => {
+test("the real owner pages an object wrapper but refuses it as a resume log", async (context) => {
   if (!owner.owned) return context.skip("requires the self-started projected log fixture");
   const op = "integration.inboxObject";
   const args = { after: null, label: null };
@@ -299,12 +299,13 @@ test("the real owner refuses an object wrapper as a resume log instead of promis
   const page = await request("/api/query", { op, args, receipt: true });
   assert.equal(page.status, 200);
   assert.ok(page.body.data.entries.length > 0);
-  assert.equal(page.body.next, null);
+  assert.equal(typeof page.body.next, "string");
   const programResponse = await fetch(`${owner.url}/api/program?generation=${page.body.generation}`,
     { headers: { "X-Snapback-As": "alice" } });
   assert.equal(programResponse.status, 200);
   const program = await programResponse.json();
-  assert.equal(program.programs[op].certificate.result_pages, undefined, "outer wrapper has no certified result page");
+  assert.equal(Object.keys(program.programs[op].certificate.result_pages).length, 1,
+    "the wrapper certifies a page without certifying an append-log tail");
   const resume = await request("/api/resume", { protocol: 1, generation: page.body.generation,
     schemaHash: page.body.schemaHash, authEpoch: page.body.authority.authEpoch,
     log: { op, args, watermark: null }, mounted: [] });

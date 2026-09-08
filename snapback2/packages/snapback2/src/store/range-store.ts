@@ -14,17 +14,8 @@ import { onceColumns, onceRow, onceAssetIds, nullOnceMedia, type OnceColumns } f
 // @ref LLP 1012#9-asset-bytes-on-the-device — asset bytes leave in the same commit as the row whose lease held them.
 
 import {
-  applyByteSwap,
-  assetIdsIn,
-  byteKey,
-  leasedAssets,
-  viewedOnlyAssets,
-  fullyViewed,
-  type ByteCacheEntry,
-  type ByteCacheStatus,
-  type ByteDelta,
-  type ByteSwapRequest,
-  type ViewedRecord,
+  applyByteSwap, assetIdsIn, byteKey, leasedAssets, viewedOnlyAssets, fullyViewed,
+  type ByteCacheEntry, type ByteCacheStatus, type ByteDelta, type ByteSwapRequest, type ViewedRecord,
 } from "./byte-cache.js";
 import { admitOverlayAuthority, markDeliveredArrivals, pagePosition, recordOverlayAuthorityEvidence, retireOverlays,
   type OverlayAuthorityEvidence, type OverlayWatermark } from "./overlay-retirement.js";
