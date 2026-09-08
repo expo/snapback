@@ -1,0 +1,10 @@
+{
+  "kind": "Actual mechanical observer tool terminal receipt",
+  "toolSessionId": 50941,
+  "launchToolChunk": "dceca0",
+  "completionToolChunk": "657b42",
+  "actualExitCode": 0,
+  "requestedOuterYieldMs": 1000,
+  "role": "Read-only boundary observer; no benchmark or model launch",
+  "source": "Actual tools.exec_command + tools.write_stdin responses in this persistent agent turn"
+}

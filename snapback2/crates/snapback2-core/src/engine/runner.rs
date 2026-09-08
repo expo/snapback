@@ -970,7 +970,7 @@ impl<'a> Runner<'a> {
                 Ok(TrackedValue::plain(Value::Null))
             }
         } else {
-            self.trace.points.push(PointTrace {
+            let point = PointTrace {
                 site: read.site.clone(),
                 table: read.table.clone(),
                 index: read.index.clone(),
@@ -978,7 +978,37 @@ impl<'a> Runner<'a> {
                 examined: false,
                 visible: false,
                 digest: None,
-            });
+            };
+            // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs —
+            // preserve the authored point for OCC; derive only its exact empty
+            // unique-group extent, with a separate actual primary-ID probe.
+            if matches!(self.rule_authority, RuleAuthority::StoreAuthoritative)
+                && let Some(evidence) = crate::cap::count_absence_evidence(
+                    self.schema,
+                    &point,
+                    self.hashes.table(&read.table, Effect::Read),
+                )
+            {
+                self.step(4)?;
+                let primary = self.lookup_raw(&read.table, "byId", &evidence.primary.2)?;
+                self.trace.examined += u64::from(primary.is_some());
+                self.trace.constraint_inputs.push(ConstraintTrace {
+                    table: read.table.clone(),
+                    check: "public-count-absence".to_owned(),
+                    index: "byId".to_owned(),
+                    prefix: evidence.primary.2.clone(),
+                    examined_ids: primary
+                        .as_ref()
+                        .map(|_| vec![canonical_json(&key)])
+                        .unwrap_or_default(),
+                });
+                if primary.is_none() {
+                    self.trace.absences.push(evidence.primary.clone());
+                    self.receipt.absences.push(evidence.primary);
+                    self.receipt.ranges.push(evidence.range);
+                }
+            }
+            self.trace.points.push(point);
             let absence = (read.table.clone(), read.index.clone(), key);
             self.trace.absences.push(absence.clone());
             self.receipt.absences.push(absence);

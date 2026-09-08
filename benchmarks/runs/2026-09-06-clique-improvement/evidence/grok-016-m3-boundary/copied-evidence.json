@@ -1,0 +1,88 @@
+{
+  "copies": [
+    {
+      "source": "/Users/ccheever/clique-improvement/next-run/grok-016/native-observation-r1/m3-original-boundary/observation.json",
+      "copy": "m3-original-boundary/observation.json",
+      "bytes": 2838,
+      "sha256": "3bb3ce0150c058de0145927ae62bb2906731dedd8cdeba4b2437ee497d0b5aa0"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/next-run/grok-016/native-observation-r1/m3-original-boundary/run-log.md",
+      "copy": "m3-original-boundary/run-log.md",
+      "bytes": 5275,
+      "sha256": "dcfe51bc609f1457dfc50d51e354e9d4149beff7f4a2e15830422f853769e201"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/next-run/grok-016/native-observation-r1/m3-original-boundary/receipts__receipts-m3.jsonl",
+      "copy": "m3-original-boundary/receipts__receipts-m3.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/next-run/grok-016/native-observation-r1/m3-original-boundary/receipts__receipts-m3.jsonl.observations.jsonl",
+      "copy": "m3-original-boundary/receipts__receipts-m3.jsonl.observations.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/next-run/grok-016/native-observation-r1/m3-original-boundary/receipts__suite-m3.json",
+      "copy": "m3-original-boundary/receipts__suite-m3.json",
+      "bytes": 472,
+      "sha256": "2956a80ef55e19a65d3c0a47199722d31d261aba40345bd41ec5a99d30c5f9ba"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/next-run/grok-016/native-observation-r1/m3-original-boundary/receipts__suite-status.json",
+      "copy": "m3-original-boundary/receipts__suite-status.json",
+      "bytes": 66,
+      "sha256": "9a6fd0a1e0f0808377f01ad1d963973f8ccaf1c76b05b026b8b9d47c2b985d12"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/next-run/grok-016/native-observation-r1/m3-original-boundary/processes.stdout",
+      "copy": "m3-original-boundary/processes.stdout",
+      "bytes": 270,
+      "sha256": "981322181af601006675387c5a6a042cae24fbbf64f165106679f52b6ab8a5c2"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/next-run/grok-016/native-observation-r1/m3-original-boundary/processes.stderr",
+      "copy": "m3-original-boundary/processes.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/next-run/grok-016/native-observation-r1/m3-original-boundary/plan-from-bound-prefix.json",
+      "copy": "m3-original-boundary/plan-from-bound-prefix.json",
+      "bytes": 1423,
+      "sha256": "01cb2a054466501a717a27195fd3c922faa402590bd4e6a0cae7920265dfd3d8"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/next-run/grok-016/native-observation-r1/m3-original-boundary/outer-tool-receipt.json",
+      "copy": "m3-original-boundary/outer-tool-receipt.json",
+      "bytes": 385,
+      "sha256": "2b4e2dae157f4802982b90295b4c981f3eb8c9e87bb5cf2a9a0e26fbee7dc791"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/next-run/grok-016/native-observation-r1/m3-2344-completion/receipts-m3.jsonl",
+      "copy": "m3-2344-completion/receipts-m3.jsonl",
+      "bytes": 8014,
+      "sha256": "8afa2bfd0de955a0e066ae38913c0bc38aa587c5ad17f2085fca0f38031d17d7"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/next-run/grok-016/native-observation-r1/m3-2344-completion/observation.json",
+      "copy": "m3-2344-completion/observation.json",
+      "bytes": 4983,
+      "sha256": "bc6e504bba835d026990c37d947c29b8e7ee8b1682cdd54ff9b458924cbc2790"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/next-run/grok-016/native-observation-r1/m3-2344-completion/suite-m3.json",
+      "copy": "m3-2344-completion/suite-m3.json",
+      "bytes": 472,
+      "sha256": "2956a80ef55e19a65d3c0a47199722d31d261aba40345bd41ec5a99d30c5f9ba"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/next-run/grok-016/native-observation-r1/m3-2344-completion/suite-status.json",
+      "copy": "m3-2344-completion/suite-status.json",
+      "bytes": 66,
+      "sha256": "9a6fd0a1e0f0808377f01ad1d963973f8ccaf1c76b05b026b8b9d47c2b985d12"
+    }
+  ]
+}

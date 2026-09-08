@@ -1,0 +1,114 @@
+{
+  "sourceCommit": "7b947aa4def19d51ea786783625fb023f3bc891d",
+  "copies": [
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-release-preparation-r1/packet/apartment-results/artifact-receipt.json",
+      "copy": "artifact-receipt.json",
+      "bytes": 3414,
+      "sha256": "b49d4ed46f6e434e70439bcb8db5e14dec76563c0ec356dd6fdd6897be2d9382"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-release-preparation-r1/packet/apartment-results/standard-installed-react-consumer.json",
+      "copy": "standard-installed-react-consumer.json",
+      "bytes": 1871,
+      "sha256": "76f0aab5fc21871f1d0225f9cc789b06f86e3b287da986c4d72eb387885e2bd2"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-release-preparation-r1/packet/apartment-results/full-template-receipt-custody.json",
+      "copy": "full-template-receipt-custody.json",
+      "bytes": 137,
+      "sha256": "4d27a3b40319f237ded69ad37935b57cfcf37a3b1cad1c50c04342273ea19186"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-release-preparation-r1/packet/apartment-results/metric-custody.json",
+      "copy": "metric-custody.json",
+      "bytes": 454,
+      "sha256": "c90ef4cf55d7a13cfa13a5060e4ba5118275b6ca36b3906f5440fec5e81f801a"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-release-preparation-r1/packet/apartment-results/source-before-publisher.json",
+      "copy": "source-before-publisher.json",
+      "bytes": 390,
+      "sha256": "31729a71f8ac6e3b87425e4ff1225e5be0af7660287ba20b79c7584a00b34650"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-release-preparation-r1/packet/apartment-results/source-after-publisher.json",
+      "copy": "source-after-publisher.json",
+      "bytes": 185,
+      "sha256": "ba21c5bf152f97696a24de4becb9568aebb4c51092494fef6e47b169e7c8ac04"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-release-preparation-r1/packet/apartment-results/cleanup.json",
+      "copy": "cleanup.json",
+      "bytes": 26371,
+      "sha256": "5d0d48bcaaa426b1f257cd83beb483ed4db2a6dfe78655ecb9972828729c9679"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-release-preparation-r1/packet/apartment-results/installed-test-receipts.json",
+      "copy": "installed-test-receipts.json",
+      "bytes": 1224,
+      "sha256": "be68d3bb6294d215c521b5d71ae87b135ffdb0898ebcd9f568f03b906e7fbfd4"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-release-preparation-r1/packet/apartment-results/installed-test-receipts/todos-1788824194808.json",
+      "copy": "installed-test-receipts/todos-1788824194808.json",
+      "bytes": 6300,
+      "sha256": "c8c699081ca323c1ef4171540c7572e79b1421097ed3d54fd782b24ccc27cbcd"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-release-preparation-r1/packet/apartment-results/installed-test-receipts/chat-1788824200378.json",
+      "copy": "installed-test-receipts/chat-1788824200378.json",
+      "bytes": 94574,
+      "sha256": "bc1faf4d8b7e685e20f1f5fd4bd5f1847aad305c8df8bf715359216de7ec383b"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-release-preparation-r1/packet/apartment-results/receipts/production-dry-run.json",
+      "copy": "receipts/production-dry-run.json",
+      "bytes": 3097,
+      "sha256": "7b86d6fee9572b4652bdd74d93290beac265f38cd1af24c725e501c2b1172f85"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-release-preparation-r1/packet/apartment-results/receipts/production-dry-run.log",
+      "copy": "receipts/production-dry-run.log",
+      "bytes": 12858,
+      "sha256": "ed7173d219114b162aef050de912dfd2ee09d31df0f43a7c9a184468e47e8fd1"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-release-preparation-r1/packet/apartment-results/receipts/publisher-self-test.json",
+      "copy": "receipts/publisher-self-test.json",
+      "bytes": 1234,
+      "sha256": "0a969d14df88cbce4dec496b68dbb98ec4033c69b1bebfb105acb14df1c1368f"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-release-preparation-r1/packet/apartment-results/receipts/publisher-self-test.log",
+      "copy": "receipts/publisher-self-test.log",
+      "bytes": 1908,
+      "sha256": "5c0459f35cdbe79e635245a4917ed7c870b937e6c18b6977d5db4dce281cc2c4"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-release-preparation-r1/packet/REPORT.md",
+      "copy": "REPORT.md",
+      "bytes": 10904,
+      "sha256": "e598b57b6d8023a7e17f39434b77ef3cd6644d08ae3fa54ba63b0c2e6e1809fd"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-release-preparation-r1/packet/supervisor-launch-identity.json",
+      "copy": "supervisor-launch-identity.json",
+      "bytes": 1534,
+      "sha256": "8eee21d386b3d0d4f1e4226a062e742959ce0d2e195a8404a486b01f4f160143"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-release-preparation-r1/packet/terminal.json",
+      "copy": "terminal.json",
+      "bytes": 616,
+      "sha256": "998f2146650b321a03f769b9fcecb331fc749a689322cad06393a43ee24a1702"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-release-preparation-r1/packet/input-integrity-after.json",
+      "copy": "input-integrity-after.json",
+      "bytes": 145,
+      "sha256": "3daec4da58de7ef6590fed3d84cb2519318189f56299eaa84fe33b56e83e7c39"
+    }
+  ],
+  "status": "Completed immutable result and native terminal copies; outer terminal recorded by supervisor."
+}

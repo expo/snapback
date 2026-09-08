@@ -1,0 +1,239 @@
+{
+  "binary": {
+    "version": "0.0.18",
+    "digest": "rust64:2a76fb298e277863"
+  },
+  "generation": "2c0b7fb023e78d306c0d4e1366e80f2c15ef462452b852fb86374e14113fd35c",
+  "commands": [
+    "snapback2 dev --foreground --port 0",
+    "seed",
+    "snapback2 test"
+  ],
+  "checks": [
+    {
+      "name": "certify",
+      "kind": "derived",
+      "verdict": "pass",
+      "ms": 359,
+      "detail": {
+        "operations": 2
+      }
+    },
+    {
+      "name": "rules",
+      "kind": "derived",
+      "verdict": "pass",
+      "ms": 1,
+      "detail": {
+        "actualBy": "data",
+        "blocked": [],
+        "coverage": "every stored row and seed persona for each completed table; no row sampling",
+        "expectedBy": "engine",
+        "probeLimit": 16384,
+        "probes": 2,
+        "tables": {
+          "todos": {
+            "personas": 2,
+            "probes": 2,
+            "seedRows": 1
+          }
+        }
+      }
+    },
+    {
+      "name": "bounds",
+      "kind": "derived",
+      "verdict": "pass",
+      "ms": 0,
+      "detail": {
+        "blocked": [],
+        "enforcedBy": "engine",
+        "executions": [
+          {
+            "as": "alice",
+            "examined": {
+              "actual": 1,
+              "ceiling": 52
+            },
+            "op": "todos.list",
+            "readSites": [
+              {
+                "calls": {
+                  "actual": 1,
+                  "ceiling": 1
+                },
+                "site": "todos.list.0",
+                "take": 50
+              }
+            ],
+            "ruleProbes": {
+              "actual": 0,
+              "ceiling": 0
+            },
+            "steps": {
+              "actual": 3,
+              "ceiling": 263
+            }
+          }
+        ],
+        "probes": 1
+      }
+    },
+    {
+      "name": "invalidation",
+      "kind": "derived",
+      "verdict": "pass",
+      "ms": 261,
+      "detail": {
+        "attemptLimitPerQuery": 64,
+        "attempts": 3,
+        "blocked": [],
+        "candidateLimit": 12,
+        "coverage": "one physical representative per query and certificate-intersection signature, plus concrete-disjoint silence per query; not every operation pair",
+        "deliveryProbes": 1,
+        "exclusions": 0,
+        "groups": [
+          {
+            "candidates": [
+              "todos.add"
+            ],
+            "query": "todos.list",
+            "sites": [
+              [
+                "todos",
+                "byOwnerId"
+              ]
+            ],
+            "witnessed": true
+          }
+        ],
+        "intersectionLevel": "exact authoritative trace key x commit touched key",
+        "intersections": [
+          {
+            "mutation": "todos.add",
+            "query": "todos.list",
+            "sites": [
+              {
+                "index": "byOwnerId",
+                "table": "todos"
+              }
+            ]
+          }
+        ],
+        "outcomes": [
+          {
+            "changed": true,
+            "delivered": true,
+            "disposition": "physical",
+            "error": null,
+            "invalidated": true,
+            "mutation": "todos.add",
+            "mutationArgs": {
+              "title": "derived test"
+            },
+            "mutationPersona": "alice",
+            "overlaps": true,
+            "probeRole": "pair",
+            "query": "todos.list",
+            "queryArgs": {},
+            "queryPersona": "alice",
+            "selected": true,
+            "seq": 2,
+            "sseDelivered": true,
+            "sseSeq": 2,
+            "staticConcreteMismatch": false,
+            "staticSitesIntersect": true,
+            "writes": 1
+          },
+          {
+            "changed": true,
+            "delivered": true,
+            "disposition": "physical",
+            "error": null,
+            "invalidated": true,
+            "mutation": "todos.add",
+            "mutationArgs": {
+              "title": "derived test"
+            },
+            "mutationPersona": "alice",
+            "overlaps": true,
+            "probeRole": "silence",
+            "query": "todos.list",
+            "queryArgs": {},
+            "queryPersona": "alice",
+            "selected": false,
+            "seq": 2,
+            "sseDelivered": true,
+            "sseSeq": 2,
+            "staticConcreteMismatch": false,
+            "staticSitesIntersect": true,
+            "writes": 1
+          },
+          {
+            "changed": false,
+            "delivered": false,
+            "disposition": "physical",
+            "error": null,
+            "invalidated": false,
+            "mutation": "todos.add",
+            "mutationArgs": {
+              "title": "derived test"
+            },
+            "mutationPersona": "__snapback2_disjoint_todos_list",
+            "overlaps": false,
+            "probeRole": "silence",
+            "query": "todos.list",
+            "queryArgs": {},
+            "queryPersona": "alice",
+            "selected": true,
+            "seq": 2,
+            "sseDelivered": false,
+            "sseSeq": null,
+            "staticConcreteMismatch": true,
+            "staticSitesIntersect": true,
+            "writes": 1
+          }
+        ],
+        "overlapProbes": 1,
+        "probes": 2,
+        "silenceProbes": 1,
+        "skipped": [],
+        "transport": "SSE"
+      }
+    },
+    {
+      "name": "replay",
+      "kind": "derived",
+      "verdict": "pass",
+      "ms": 7,
+      "detail": {
+        "attempts": 1,
+        "blocked": [],
+        "candidateLimit": 12,
+        "candidateSelection": "first two seed scopes and first six personas; exhaustion blocks",
+        "clock": "1700000000000 + mutation index",
+        "comparison": "byte-identical committed execution + authoritative trace",
+        "forks": 2,
+        "newIds": "replay-<mutation>-<ordinal>",
+        "probes": 1,
+        "skipped": []
+      }
+    },
+    {
+      "name": "todos round trip",
+      "kind": "journey",
+      "verdict": "pass",
+      "ms": 27,
+      "detail": {
+        "file": "/Users/ccheever/clique-improvement/revisions/cli-018-release-qualification/tmp/snapback2-consumer-H8IlNC/todos/.snapback/test-run-1788824194808/project/.snapback/build/tests/todos.mjs"
+      }
+    }
+  ],
+  "arms": [
+    "headless"
+  ],
+  "verdict": "pass",
+  "scope": {
+    "changed": []
+  }
+}

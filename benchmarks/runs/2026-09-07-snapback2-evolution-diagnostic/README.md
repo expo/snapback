@@ -185,7 +185,7 @@ queries. No count rows, receipts, grants, or coverage are injected.
 The zero case exposes a conservative coverage gap: the actual complete query
 returns `data: 0`, `rows: []`, and empty `absences`, `ranges`, and `verdicts`.
 The count fast path consequently has no absence evidence to trust. The
-[follow-up](../../../issues/20260907-snapback2-public-zero-count-does-not-enable-offline-cap-prediction.md)
+[follow-up](../../../issues/closed/20260907-snapback2-public-zero-count-does-not-enable-offline-cap-prediction.md)
 records it without claiming unsafe zero inference or a completed repair.
 Held nonzero counts work; an unheld count is never treated as zero.
 

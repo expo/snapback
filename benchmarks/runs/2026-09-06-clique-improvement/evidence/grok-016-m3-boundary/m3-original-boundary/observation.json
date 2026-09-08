@@ -1,0 +1,71 @@
+{
+  "observationStartedEpoch": 1788824883.01284,
+  "observationStartedAt": "2026-09-07T23:48:03.012840+00:00",
+  "observationEndedEpoch": 1788824884.143907,
+  "originalM3StartEpoch": 1788810483,
+  "originalBudgetSeconds": 14400,
+  "originalBoundaryEpoch": 1788824883,
+  "startAfterBoundarySeconds": 0.012840032577514648,
+  "custody": [
+    {
+      "sourcePath": "/Users/ccheever/clique-full-grok-016-20260907/lanes/grok-snapback2/run-log.md",
+      "copy": "run-log.md",
+      "bytes": 5275,
+      "sha256": "dcfe51bc609f1457dfc50d51e354e9d4149beff7f4a2e15830422f853769e201",
+      "mtime": 1788822627.5591025,
+      "stableDuringRead": true
+    },
+    {
+      "sourcePath": "/Users/ccheever/clique-full-grok-016-20260907/lanes/grok-snapback2/receipts/receipts-m3.jsonl",
+      "copy": "receipts__receipts-m3.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "mtime": 1788824870.9854221,
+      "stableDuringRead": true
+    },
+    {
+      "sourcePath": "/Users/ccheever/clique-full-grok-016-20260907/lanes/grok-snapback2/receipts/receipts-m3.jsonl.observations.jsonl",
+      "copy": "receipts__receipts-m3.jsonl.observations.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "mtime": 1788824870.988381,
+      "stableDuringRead": true
+    },
+    {
+      "sourcePath": "/Users/ccheever/clique-full-grok-016-20260907/lanes/grok-snapback2/receipts/suite-m3.json",
+      "copy": "receipts__suite-m3.json",
+      "bytes": 472,
+      "sha256": "2956a80ef55e19a65d3c0a47199722d31d261aba40345bd41ec5a99d30c5f9ba",
+      "mtime": 1788810840.0767882,
+      "stableDuringRead": true
+    },
+    {
+      "sourcePath": "/Users/ccheever/clique-full-grok-016-20260907/lanes/grok-snapback2/receipts/suite-status.json",
+      "copy": "receipts__suite-status.json",
+      "bytes": 66,
+      "sha256": "9a6fd0a1e0f0808377f01ad1d963973f8ccaf1c76b05b026b8b9d47c2b985d12",
+      "mtime": 1788810840.0818388,
+      "stableDuringRead": true
+    }
+  ],
+  "nativePrefix": {
+    "path": "/Users/ccheever/clique-full-grok-016-20260907/logs/grok-snapback2.ndjson",
+    "bytes": 19081282,
+    "sha256": "d718ea346a9fe5b4d86815acd94170069a4c247ae89dc12f3f3f20d9ae9b9df7",
+    "capturedAfterReceiptCopies": true
+  },
+  "processObservation": {
+    "argv": [
+      "/bin/ps",
+      "-p",
+      "25558,25560",
+      "-o",
+      "pid=,ppid=,lstart=,etime=,stat=,comm="
+    ],
+    "exitCode": 0
+  },
+  "latestObservedSegmentSummary": null,
+  "actualNativeTerminalPresent": false,
+  "scope": "Observation at the original milestone boundary; file copies occur sequentially and actual timestamps are retained. Not a model stop, clock extension, acceptance verdict or score inference. No commands sent to builder.",
+  "observerIntervention": false
+}

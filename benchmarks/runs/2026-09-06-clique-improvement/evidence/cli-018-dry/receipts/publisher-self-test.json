@@ -1,0 +1,34 @@
+{
+  "argv": [
+    "/Users/ccheever/clique-improvement/revisions/cli-018-release-qualification/tools/node-22.23.2/bin/node",
+    "scripts/publish.mjs",
+    "--self-test"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-release-018/snapback2",
+  "pid": 30854,
+  "processIdentity": {
+    "pid": 30854,
+    "start": "Mon Sep 7 16:32:11 2026",
+    "executable": "/Users/ccheever/clique-improvement/revisions/cli-018-release-qualification/tools/node-22.23.2/bin/node",
+    "observed": true
+  },
+  "driverIdentity": {
+    "pid": 30853,
+    "start": "Mon Sep 7 16:32:11 2026",
+    "executable": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python",
+    "observed": true
+  },
+  "sourceCommit": "7b947aa4def19d51ea786783625fb023f3bc891d",
+  "outerSeconds": 60,
+  "testTimeoutMilliseconds": 30000,
+  "startedEpoch": 1788823931.994008,
+  "automaticRetry": false,
+  "actualPublication": false,
+  "exitCode": 0,
+  "timedOut": false,
+  "actualProcessWaitCompleted": true,
+  "signals": [],
+  "elapsedSeconds": 1.8524643749999998,
+  "endedEpoch": 1788823933.83617,
+  "logSha256": "5c0459f35cdbe79e635245a4917ed7c870b937e6c18b6977d5db4dce281cc2c4"
+}
