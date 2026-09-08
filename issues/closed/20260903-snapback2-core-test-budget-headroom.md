@@ -39,7 +39,7 @@ measurement and proposed sharding of a duplicate core-test run. It does not
 claim that the replacement meets its budget.
 
 The active [installed-consumer timing issue](../20260907-snapback2-loop-budget-overruns-in-parallel-papercut-lane.md)
-retains the latest 30.52 s / 30 s failure at `170ebacd5411`, alongside earlier
-measurements. The separate [canonical-suite issue](../20260901-snapback2-scripts-test-sh-flakes-under.md)
+retains the 30.52 s / 30 s failure at `170ebacd5411` and the later
+30.40 s failure at `a826919984a9`, alongside earlier measurements. The separate [canonical-suite issue](../20260901-snapback2-scripts-test-sh-flakes-under.md)
 retains the full-suite timing and reliability work. Historical measurements
 and the original landing observations above remain unchanged.

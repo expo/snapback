@@ -101,3 +101,10 @@ product, version, or proposed LLP 1012 contract changes is part of this
 evidence-only landing. Published 0.0.19 remains the cold builder’s pin. The
 [open cumulative issue](../../../issues/20260906-snapback2-offline-entrypoint-isolation-and-projection.md)
 records the first-write baseline defect and pending additional-round decision.
+
+Read-only independent audit `/root/invalidation_audit` returned READY for the
+evidence-only delta `59eae908b`, confirming exclusions, candidate rejection,
+first-write versus full-replacement distinction, links and M3 claim limits.
+Its wording correction is applied: both 30.52s and the later 30.40s consumer
+failures remain visible. `ref-check` passed with 419 documents/7,842 references;
+`caps` passed all seven categories. No product test rerun is claimed.
