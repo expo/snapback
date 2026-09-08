@@ -383,7 +383,7 @@ export interface PersistedRangeState extends ForwardingState {
   /** The commit-time tail snapshot; null after reset until the next drain establishes a new head. */
   overlayWatermarks: Record<string, OverlayWatermark | null>;
   /** Coverage-scoped primary absences and tombstones for each prediction's ids; cleared on reset. */
-  overlayNegatives: Record<string, Record<string, { seq: number; source: "absence" | "tombstone" }>>;
+  overlayNegatives: Record<string, Record<string, { seq: number; source: "absence" | "tombstone"; admitted?: true }>>;
   bounds: Record<string, number>;
   programs: Record<string, HeldProgram>;
   facts?: CoverageFacts;
@@ -978,6 +978,19 @@ export class PersistentRangeStore implements RangeStore {
       delete state.overlayMisses[intent];
       delete state.overlayWatermarks[intent];
       delete state.overlayNegatives[intent];
+      const entry = state.outbox[intent], index = this.referenceIndex;
+      if (entry?.predicted === true && index) for (const row of rows) {
+        if (row.removed || row.fields) continue;
+        const key = rowKey(row), seq = state.negative[key];
+        if (seq === undefined) continue;
+        const ownedBeforeAdmission = [...(index.absences.get(key) ?? [])].some(owner => {
+          const answer = state.answers[owner];
+          return answer?.seq === seq && answer.order < entry.order!;
+        });
+        if (ownedBeforeAdmission) (state.overlayNegatives[intent] ??= {})[key] = {
+          seq, source: "absence", admitted: true,
+        };
+      }
     }
     retireOverlays(state, swap, authoritativeNegatives, clockOnly, previousTail, tail, committedNow, canonicalAnswerKey, clone);
     return state;

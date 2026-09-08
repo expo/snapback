@@ -49,10 +49,6 @@ export class TwinStore {
   private pendingEntries = new Map<string, OutboxEntry>();
   private holes = new Map<string, number>();
   private answerHoles = new Map<string, string[]>();
-  // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — a receipt-owned
-  // exact absence lets a later durable prediction create that row; newer authority still wins.
-  private primaryAbsenceOwners = new Map<string, Map<string, { seq: number; order: number }>>();
-  private answerPrimaryAbsences = new Map<string, string[]>();
   private deliveries = new Ordered<[number, string], number>((a, b) => a[0] - b[0] || a[1].localeCompare(b[1]));
   private answerTimes = new Map<string, number>();
   constructor(private sources: TwinStoreSources) {}
@@ -76,12 +72,10 @@ export class TwinStore {
       this.program = program; this.fence = fence; this.incarnation++;
       this.contributions.clear(); this.intentRows.clear(); this.pendingEntries.clear(); this.pending = new Ordered(fifo);
       this.assets = new RowAssets(onceColumns(program.schema)); this.evicted.clear(); this.holed.clear(); this.holes.clear(); this.answerHoles.clear();
-      this.primaryAbsenceOwners.clear(); this.answerPrimaryAbsences.clear();
       this.deliveries = new Ordered((a, b) => a[0] - b[0] || a[1].localeCompare(b[1])); this.answerTimes.clear();
       this.store = new ClientStore(program.schema, undefined, { readable: Object.entries(program.schema.tables ?? {})
         .filter(([, t]) => t.retain === 'delivered-history').map(([name]) => name) });
       const affected = new Set([...Object.keys(this.state.rows), ...Object.keys(this.state.negative), ...Object.keys(this.state.extentNegative), ...Object.keys(this.state.viewed)]);
-      for (const [key, answer] of Object.entries(this.state.answers)) this.trackPrimaryAbsences(key, answer);
       for (const intent of Object.keys(this.state.overlay)) this.intent(intent, affected);
       for (const key of affected) this.row(key);
       for (const [key, answer] of Object.entries(this.state.answers)) this.answer(key, answer);
@@ -104,7 +98,6 @@ export class TwinStore {
       // Replaced root dictionaries mean a generation reset; request one coherent cold snapshot.
       if (Object.keys(change.records?.['*'] ?? {}).some(k => ['rows', 'answers', 'negative', 'extentNegative', 'overlay', 'viewed', 'facts'].includes(k))
         || change.removed?.['*']?.includes('facts')) { this.revision = undefined; return this.sync(); }
-      for (const key of answers) this.trackPrimaryAbsences(key, this.state.answers[key], rows);
       for (const intent of intents) this.intent(intent, rows);
       let rowChanged = false, authorityChanged = false;
       for (const key of rows) rowChanged = this.row(key) || rowChanged;
@@ -135,36 +128,12 @@ export class TwinStore {
     }
     this.intentRows.set(intent, keys); this.pendingEntries.set(intent, entry); this.pending.set(entry, intent);
   }
-  private trackPrimaryAbsences(owner: string, answer?: StoredAnswer, affected?: Set<string>): void {
-    const previous = new Map((this.answerPrimaryAbsences.get(owner) ?? []).flatMap(key => {
-      const proof = this.primaryAbsenceOwners.get(key)?.get(owner); return proof ? [[key, proof] as const] : [];
-    }));
-    for (const key of this.answerPrimaryAbsences.get(owner) ?? []) {
-      affected?.add(key);
-      const owners = this.primaryAbsenceOwners.get(key);
-      owners?.delete(owner); if (!owners?.size) this.primaryAbsenceOwners.delete(key);
-    }
-    this.answerPrimaryAbsences.delete(owner);
-    if (!answer) return;
-    const keys = answer.receipt?.absences.flatMap(([table, index, values]) =>
-      index === "byId" && values.length === 1 && typeof values[0] === "string"
-        ? [rowKey({ table, id: values[0] })] : []) ?? [];
-    if (!keys.length) return;
-    this.answerPrimaryAbsences.set(owner, keys);
-    for (const key of keys) {
-      affected?.add(key);
-      const owners = this.primaryAbsenceOwners.get(key) ?? new Map();
-      const old = previous.get(key);
-      owners.set(owner, old?.seq === answer.seq ? { seq: old.seq, order: Math.min(old.order, answer.order) }
-        : { seq: answer.seq, order: answer.order });
-      this.primaryAbsenceOwners.set(key, owners);
-    }
-  }
   private provedPrimaryAbsence(key: string, seq: number, entry: OutboxEntry): boolean {
-    if (entry.predicted !== true) return false;
-    for (const proved of this.primaryAbsenceOwners.get(key)?.values() ?? [])
-      if (proved.seq === seq && entry.order !== undefined && entry.order > proved.order) return true;
-    return false;
+    // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — the
+    // durable intent records that this exact absence preceded admission.
+    const proved = this.state.overlayNegatives[entry.intent]?.[key];
+    return entry.predicted === true && proved?.admitted === true
+      && proved.source === "absence" && proved.seq === seq;
   }
   private row(key: string): boolean {
     const { table, id } = ref(key), negative = this.state.negative[key];

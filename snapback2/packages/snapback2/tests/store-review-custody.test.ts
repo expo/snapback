@@ -353,7 +353,7 @@ test('a receipt-owned primary absence admits only a later predicted overlay imag
   }
 });
 
-test('primary absence owner withdrawal and later authority recompute its predicted row', async () => {
+test('primary absence admission survives answer custody changes but not later row authority', async () => {
   const { nativeR8: { movement } } = JSON.parse(await readFile(new URL('../../evaluator/src/test-search-v5-fixtures.json', import.meta.url), 'utf8'));
   const setup = async () => {
     let saved: any;
@@ -378,13 +378,17 @@ test('primary absence owner withdrawal and later authority recompute its predict
     await state.runtime().commit('clock.bounded',{},await state.runtime().accept('clock.bounded',{},equivalent));
     assert.deepEqual((await state.rows()).map((row:any)=>row.at),[9],
       'an equivalent timed refresh at the same database seq preserves earlier proof chronology');
+    await state.reopen(); assert.deepEqual((await state.rows()).map((row:any)=>row.at),[9],
+      'the admission fact survives an equivalent refresh and cold rebuild');
     await state.runtime().close();
   }
   {
     const state = await setup();
     await state.runtime().store.commit({dropAnswers:['clock.bounded\0{}']});
-    assert.deepEqual(await state.rows(),[],'removing the sole receipt owner immediately withdraws creation authority');
-    await state.reopen(); assert.deepEqual(await state.rows(),[],'withdrawn authority stays withdrawn after a cold rebuild');
+    assert.deepEqual((await state.rows()).map((row:any)=>row.at),[9],
+      'answer GC does not discard the exact absence already bound to the durable intent');
+    await state.reopen(); assert.deepEqual((await state.rows()).map((row:any)=>row.at),[9],
+      'the intent-bound fact survives answer GC and a cold rebuild');
     await state.runtime().close();
   }
   {
@@ -392,7 +396,8 @@ test('primary absence owner withdrawal and later authority recompute its predict
     const replacement = structuredClone(movement.hole);
     replacement.seq = 3; replacement.readTime += 1; replacement.receipt.absences = [];
     await state.runtime().commit('clock.bounded',{},await state.runtime().accept('clock.bounded',{},replacement));
-    assert.deepEqual(await state.rows(),[],'replacing an answer without the primary absence withdraws its row authority');
+    assert.deepEqual((await state.rows()).map((row:any)=>row.at),[9],
+      'answer replacement alone does not erase a still-uncontradicted absence held before admission');
     await state.runtime().close();
   }
   {

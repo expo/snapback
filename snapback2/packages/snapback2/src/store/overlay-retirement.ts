@@ -113,7 +113,9 @@ export function retireOverlays(
     }
     for (const row of state.overlay[intent]!) {
       const key = rowKey(row), evidence = authoritativeNegatives.get(key);
-      if (evidence !== undefined && evidence.seq >= (state.overlayNegatives[intent]?.[key]?.seq ?? -1)) {
+      const previous = state.overlayNegatives[intent]?.[key];
+      if (evidence !== undefined && (evidence.seq > (previous?.seq ?? -1)
+        || (evidence.seq === previous?.seq && evidence.source === "tombstone"))) {
         (state.overlayNegatives[intent] ??= {})[key] = evidence;
       }
     }
