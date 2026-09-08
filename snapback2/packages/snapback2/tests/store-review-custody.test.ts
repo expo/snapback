@@ -402,6 +402,17 @@ test('primary absence owner withdrawal and later authority recompute its predict
     await state.reopen(); assert.deepEqual(await state.rows(),[],'the later revocation remains dominant cold');
     await state.runtime().close();
   }
+  {
+    const state = await setup();
+    const newer = structuredClone(movement.moved);
+    newer.seq = 3; newer.readTime += 1;
+    await state.runtime().commit('clock.read',{},await state.runtime().accept('clock.read',{},newer));
+    assert.deepEqual((await state.rows()).map((row:any)=>row.at),[5],
+      'an old absence cannot let an older prediction overwrite a newer authoritative row');
+    await state.reopen(); assert.deepEqual((await state.rows()).map((row:any)=>row.at),[5],
+      'positive authority removes stale raw absence custody before a cold rebuild');
+    await state.runtime().close();
+  }
 });
 
 test('native-certified Unicode search accepts scope movement in either arrival order and retains exact Q custody cold', async () => {

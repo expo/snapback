@@ -50,7 +50,7 @@ export class TwinStore {
   private holes = new Map<string, number>();
   private answerHoles = new Map<string, string[]>();
   // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — a receipt-owned
-  // primary absence lets an intent issued from that exact snapshot create the maintained row.
+  // exact absence lets a later durable prediction create that row; newer authority still wins.
   private primaryAbsenceOwners = new Map<string, Map<string, { seq: number; order: number }>>();
   private answerPrimaryAbsences = new Map<string, string[]>();
   private deliveries = new Ordered<[number, string], number>((a, b) => a[0] - b[0] || a[1].localeCompare(b[1]));
