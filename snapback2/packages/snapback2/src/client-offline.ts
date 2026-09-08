@@ -164,7 +164,7 @@ export async function decodeOfflineSubscription<Result>(options: {
     if (superseded) options.superseded?.();
     if (!options.current || options.current()) await options.observe?.();
   }
-  return options.runtime.withQueryItems(accepted, value());
+  return options.runtime.withQueryItems(options.op, options.args, accepted, value());
 }
 
 export function settleSubscription<Result>(

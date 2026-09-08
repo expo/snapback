@@ -270,7 +270,7 @@ class Client implements SnapbackClient {
           () => this.json("/api/query?receipt=1", { method: "POST", body: JSON.stringify({ op, args: transportArgs }) }, authority));
         const superseded = await commitOffline(this.offlineRuntime, op, transportArgs, accepted, (error) => this.offlineRefusal(error, "client.query.commit"), revision);
         const decoded = wireQuery<Result>(accepted.result);
-        const result = this.offlineRuntime ? await this.offlineRuntime.withQueryItems(accepted, decoded) : decoded;
+        const result = this.offlineRuntime ? await this.offlineRuntime.withQueryItems(op, transportArgs, accepted, decoded) : decoded;
         this.validated(authority);
         if (superseded || revision !== this.offlineRuntime?.coverageRevision) this.scheduleSupersessionReset(authority, { op, args });
         if (this.offlineRuntime && this.createOptions.offlineReadObserver) {

@@ -193,3 +193,14 @@ PR. If nothing can come off, the answer is no.
   limits and Exact 2 deferral stay. Both closing reviews are READY and final
   platform checks pass; the 80,000 target remains missed. LLP 1012 and
   LLP 1018.000 record the trade and source-bound evidence.
+
+- 2026-09-07 — **Composed client items allocation:** 84,000 bytes gzip,
+  retaining the 80,000 target, under the user's client-shape commission.
+  Image-bound row observations and persistent query membership replace screen
+  joins and hook-triggered cleanup; online terminal history remains explicitly
+  dismissible. The prior 82,500 ceiling remains a failed comparison. All three
+  requested reviewers support this explicit allocation; their code verdicts
+  and measured runtime/full-client costs are recorded in LLP 1018.003. The
+  five-root instrument, wire, runtime dependencies and other resource limits
+  stay fixed. This is Root's delegated scope decision, not an earlier author
+  ruling or a claim that qualification has finished.

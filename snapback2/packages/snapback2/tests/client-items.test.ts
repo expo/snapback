@@ -128,13 +128,16 @@ test("held membership survives a local hole; clock-only and unvalidated held abs
     const committed = entry({ state: "committed", response: { seq: 41 } });
     const captured = new ItemCapture(state, "deliveries.thread", args, new Map(), [committed]).inputs();
     assert.deepEqual(attachItems(spec, args, undefined, captured), [], "a temporary local hole does not recreate an excluded success");
-    const baseline = entry({ state: "committed", issuedSeq: 42, response: { seq: 42 }, order: held.order - 1 });
+    let baseline = entry({ state: "committed", issuedSeq: 42, response: { seq: 42 }, order: held.order - 1 });
     const read = () => new ItemCapture(state, "deliveries.thread", args, new Map(), [baseline]).inputs();
     assert.deepEqual(attachItems(spec, args, undefined, read()), [], "a freshly ordered checked absence resolves the create");
+    const selection = { ...held.selection! };
+    baseline = { ...baseline, order: held.order + 1 };
+    held.order += 2;
     for (const flag of ["clockOnly", "needsFactProofs", "retained"] as const) {
       held[flag] = true;
       const unavailable = read();
-      assert.equal(unavailable.selection, undefined, flag);
+      assert.deepEqual(unavailable.selection, selection, `${flag} preserves only the earlier checked membership`);
       assert.equal(unavailable.observations.get(itemAddress("messages", "m"))?.order, undefined, flag);
       assert.equal(attachItems(spec, args, undefined, unavailable).length, 1, `${flag} cannot turn the pre-admission negative into new proof`);
       delete held[flag];
@@ -284,6 +287,7 @@ for (const carrier of ["file", "indexeddb"]) test(`${carrier}: query membership 
     data: [], rows: [], receipt: { ranges: [], absences: [], verdicts: [] }, next: null });
   const items = async () => {
     const answer = await store.answer("deliveries.thread", args);
+    assert.equal(Object.hasOwn(answer!, "selection"), false, "membership metadata stays private to the frame");
     return attachItems(spec, args, answer!.data, capturedInputs(answer)!);
   };
   try {
@@ -293,17 +297,28 @@ for (const carrier of ["file", "indexeddb"]) test(`${carrier}: query membership 
     await store.commit({ deliveries: [{ ...emptyPage(42), op: "messages.other", args: {},
       data: { $row: { table: "messages", id: "m" } }, rows: [{ table: "messages", id: "m", row }] }] });
     assert.equal((await items()).length, 1, "the newer pool does not make the old page current");
-    await store.commit({ deliveries: [emptyPage(43)] });
+    await store.commit({ deliveries: [{ ...emptyPage(43),
+      rows: [{ table: "messages", id: "anchor", row: { ...row, id: "anchor" } }] }] });
     assert.deepEqual(await items(), [], "the query itself now chooses a page without the committed create");
+    await store.commit({ tombstones: [{ table: "messages", id: "anchor", seq: 44 }] });
+    assert.equal((await store.answer("deliveries.thread", args))!.state, "partial", "coverage loss invalidates the held answer");
+    assert.deepEqual(await items(), [], "coverage loss does not revoke the earlier membership observation");
     await store.close?.(); store = factory(); await store.open("dev:alice");
     assert.deepEqual(await items(), [], "cold reopen cannot resurrect an old success");
     assert.equal((await store.outbox.all()).length, 1, "presentation has not dismissed it");
-    await store.commit({ outbox: { put: [entry({ intent: "equal-baseline", order: undefined, issuedSeq: 43,
-      state: "committed", response: { seq: 43 } })] } });
+    for (const [seq, state] of [[45, "partial"], [46, "denied"]] as const) {
+      await store.commit({ deliveries: [{ ...emptyPage(seq), state }] });
+      assert.deepEqual(await items(), [], `${state} cannot revoke an earlier membership observation`);
+      await store.close?.(); store = factory(); await store.open("dev:alice");
+      assert.deepEqual(await items(), [], `${state} followed by cold reopen cannot resurrect an old success`);
+    }
+    await store.commit({ deliveries: [emptyPage(47)] });
+    await store.commit({ outbox: { put: [entry({ intent: "equal-baseline", order: undefined, issuedSeq: 47,
+      state: "committed", response: { seq: 47 } })] } });
     assert.equal((await items()).length, 1, "an older equal-sequence read precedes admission");
-    await store.commit({ deliveries: [emptyPage(43)] });
+    await store.commit({ deliveries: [emptyPage(47)] });
     assert.equal((await items()).length, 1, "an identical envelope replay cannot manufacture a fresh observation");
-    await store.commit({ deliveries: [emptyPage(44)] });
+    await store.commit({ deliveries: [emptyPage(48)] });
     assert.deepEqual(await items(), [], "a fresh query observation resolves the remaining draft");
   } finally { await store.close?.(); await rm(root, { recursive: true, force: true }); }
 });

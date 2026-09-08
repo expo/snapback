@@ -1608,3 +1608,11 @@ runs were poor evidence: changing `dist` underneath readers caused missing
 declarations, compiler failures and fixture timeouts. Verification must use
 one stable build. The runtime/full-client cost and explicit scope amendment
 are documented in that LLP, without calling the increase a saving.
+
+The final membership edge was persistence: losing a cached dependency or
+receiving a partial replacement must not make an old successful send become a
+draft again on reopen. Retaining the query's last valid membership observation
+inside its existing stored answer solved this without per-intent cleanup state.
+The displayed-row proof remains separate. The affected store/item suites passed
+294 cases before final fleet qualification; LLP 1018.003 retains the failed
+local timing sample and records which later checks actually complete.

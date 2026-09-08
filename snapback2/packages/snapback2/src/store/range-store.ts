@@ -28,8 +28,9 @@ import {
 } from "./byte-cache.js";
 import { admitOverlayAuthority, markDeliveredArrivals, pagePosition, recordOverlayAuthorityEvidence, retireOverlays,
   type OverlayAuthorityEvidence, type OverlayWatermark } from "./overlay-retirement.js";
-import { canonical } from "./canonical.js";
-import { ItemCapture } from "../query-items.js";
+import { canonical, canonicalAnswerKey, jsonState } from "./canonical.js";
+export { canonicalAnswerKey, jsonState } from "./canonical.js";
+import { ItemCapture, freshItemSelection } from "../query-items.js";
 import { withItemInputs } from "../query-frame.js";
 import { sha256 } from "../../../evaluator/src/hash.js";
 import { compareArrays, totalCompare } from "../../../evaluator/src/value-runtime.js";
@@ -121,6 +122,8 @@ export interface StoredAnswer extends Omit<HeldAnswer, "data"> {
   verdictProofs?: Record<string, string>;
   extentProofs?: ExtentProof[];
   clockOnly?: true;
+  /** @ref LLP 1018.003#10-retirement-is-a-read-model-decision-dismissal-is-a-write — uncertainty preserves past membership evidence. */
+  selection?: { through: number; order: number };
 }
 
 export interface WatermarkRecord {
@@ -441,10 +444,6 @@ function clone<T>(value: T): T {
   return value === undefined ? value : jsonState(raw(value));
 }
 
-export function canonicalAnswerKey(op: string, args: unknown): string {
-  return `${op}\u0000${canonical(args === undefined ? args : jsonState(args))}`;
-}
-
 function viewedRef(key: string): RowRef {
   const at = key.indexOf(String.fromCharCode(0));
   return { table: key.slice(0, at), id: key.slice(at + 1) };
@@ -461,11 +460,6 @@ export function rowReference(table: string, id: string): { $row: RowRef } {
 
 function expand(value: unknown, rows: Record<string, StoredRow>, viewed?: Record<string, unknown>): unknown {
   return mapRowValues(value, (ref) => viewed?.[rowKey(ref)] ? null : clone(imageWire(rows[rowKey(ref)]?.row ?? null)));
-}
-
-/** One JSON form for warm state and every carrier: omit undefined fields, preserve null. */
-export function jsonState<T>(value: T): T {
-  return JSON.parse(JSON.stringify(value)) as T;
 }
 
 function normalizeState(value: PersistedRangeState | undefined): PersistedRangeState {
@@ -668,7 +662,7 @@ export class PersistentRangeStore implements RangeStore {
       if (!stored) return undefined;
       const watermark = this.state.watermarks[key];
       const media = (this.referenceIndex ??= new CarrierIndex(this.state, this.referenceSchema)).assets;
-      const { refs: _refs, order: _order, fingerprint: _fingerprint, cursorArg: _cursorArg, rowProofs: _rows, verdictProofs: _verdicts, extentProofs: _extents, clockOnly: _clockOnly, ...visible } = stored;
+      const { refs: _refs, order: _order, fingerprint: _fingerprint, cursorArg: _cursorArg, rowProofs: _rows, verdictProofs: _verdicts, extentProofs: _extents, clockOnly: _clockOnly, selection: _selection, ...visible } = stored;
       const { data, ...answer } = clone(visible);
       const value = {
         ...answer,
@@ -1020,7 +1014,11 @@ export class PersistentRangeStore implements RangeStore {
     }
     const changedAnswers = new Set<string>();
     const before = new Map<string, StoredAnswer | undefined>();
-    const remember = (key: string) => { if (!before.has(key)) before.set(key, raw(state.answers[key])); changedAnswers.add(key); };
+    const remember = (key: string) => {
+      const answer = state.answers[key];
+      if (answer && !answer.selection) answer.selection = freshItemSelection(answer);
+      if (!before.has(key)) before.set(key, raw(answer)); changedAnswers.add(key);
+    };
     const candidates = (key: string, absent = false) => new Set([...(absent ? index.absences : index.references).get(key) ?? [], ...changedAnswers]);
     const enrollmentKeys = new Map<string, Set<string>>();
     const enroll = (key: string) => {
@@ -1114,6 +1112,7 @@ export class PersistentRangeStore implements RangeStore {
       answer.validator = refresh.validator;
       answer.deliveredAt = refresh.deliveredAt ?? Date.now();
       answer.order = ++state.clock;
+      answer.selection = freshItemSelection(answer) ?? answer.selection;
       recordAbsences(answer);
     }
     // Only touched images survive this swap's membership checks. A later movement
@@ -1257,6 +1256,7 @@ export class PersistentRangeStore implements RangeStore {
         order: ++state.clock,
         fingerprint,
       };
+      stored.selection = freshItemSelection(stored) ?? old?.selection;
       state.answers[key] = stored;
       frame.answer = stored; applied.push(frame);
       enrollmentKeys.delete(key);

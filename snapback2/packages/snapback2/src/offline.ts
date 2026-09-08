@@ -238,9 +238,19 @@ export class OfflineRuntime {
   get principal(): string | undefined { return this.partition; }
 
   /** Bind a returned owner image to its own receipt after admission into this account. */
-  async withQueryItems<T extends object>(accepted: AcceptedDelivery<unknown>, value: T): Promise<T> {
+  async withQueryItems<T extends object>(op: string, args: unknown, accepted: AcceptedDelivery<unknown>, value: T): Promise<T> {
     const entries = await this.itemEntries();
-    if (accepted.envelope) return withItemInputs(value, deliveredItemInputs(accepted.envelope, (value as { data?: unknown }).data, entries));
+    if (accepted.envelope) {
+      const inputs = deliveredItemInputs(accepted.envelope, (value as { data?: unknown }).data, entries);
+      if (!inputs.selection) {
+        const held = await this.answer(op, args);
+        // Carry a past query observation, never a later concurrent answer into this frame.
+        if (held && held.seq <= accepted.envelope.seq) return withItemInputs(value, {
+          ...inputs, selection: itemInputs(held)?.selection,
+        });
+      }
+      return withItemInputs(value, inputs);
+    }
     // Unchanged carries the held answer's image evidence. A local refresh can
     // subsequently use the newly ordered durable observation of that image.
     return withItemInputs(value, { ...(itemInputs(accepted.result) ?? emptyItemInputs), entries });

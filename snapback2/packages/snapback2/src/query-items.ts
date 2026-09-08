@@ -3,10 +3,17 @@
 import { RowImage } from "../../evaluator/src/row-image.js";
 import { fieldOrNull, wireJson } from "../../evaluator/src/value-runtime.js";
 import { asRowRef, escapedFields } from "./store/row-values.js";
-import { canonicalAnswerKey, type PersistedRangeState, type StoredAnswer } from "./store/range-store.js";
+import type { PersistedRangeState, StoredAnswer } from "./store/range-store.js";
+import { canonicalAnswerKey } from "./store/canonical.js";
 import type { ItemInputs, ItemObservation } from "./client-items.js";
 import { itemAddress } from "./query-frame.js";
 import type { DeliveryEnvelopeV1 } from "./offline-protocol.js";
+
+/** Only a checked, complete owner answer can advance this query's membership evidence. */
+export function freshItemSelection(held: StoredAnswer | undefined): StoredAnswer["selection"] {
+  return held && !held.retained && !held.clockOnly && !held.needsFactProofs
+    && ["complete", "capped"].includes(held.state) ? { through: held.seq, order: held.order } : undefined;
+}
 
 function references(markers: unknown, data: unknown, row: (table: string, id: string, value: unknown) => void): void {
   const ref = asRowRef(markers);
@@ -84,10 +91,9 @@ export class ItemCapture {
     if (entries) for (const key of Object.keys(entries)) this.evaluated((entries as Record<string, unknown>)[key], (data as Record<string, unknown>)[key]);
   }
   inputs(): ItemInputs {
-    const held = this.held;
+    const selection = this.held?.selection ?? freshItemSelection(this.held);
     return { entries: this.entries ?? Object.values(this.state.outbox).sort((a, b) => (a.order ?? a.createdAt) - (b.order ?? b.createdAt)
       || a.intent.localeCompare(b.intent)), observations: this.observations, values: this.values, predicted: new Map(this.predicted),
-      ...(held && !held.retained && !held.clockOnly && !held.needsFactProofs
-        && ["complete", "capped"].includes(held.state) ? { selection: { through: held.seq, order: held.order } } : {}) };
+      ...(selection ? { selection } : {}) };
   }
 }
