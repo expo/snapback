@@ -25,6 +25,10 @@ import { fixtureClient } from "./live-fixture.ts";
 const here = dirname(fileURLToPath(import.meta.url));
 const corpusRoot = process.env.SNAPBACK2_CORPUS ?? resolve(here, "../../../corpus");
 const goldens = resolve(corpusRoot, "offline");
+// Explicit issued metadata for the native search fixtures with a returned page.
+const corpusPageCursors: Record<string, string> = Object.fromEntries([
+  "search-held-global-first-page", "search-held-global-first-page-next", "search-chat-optional-field-union",
+].map(name => [name, "c"]));
 
 type Tagged = "Null" | { Bool: boolean } | { Int: number } | { String: string } | { Id: string } | { Bytes: string }
   | { Row: Record<string, Tagged> } | { Array: Tagged[] } | { Map: Record<string, Tagged> };
@@ -149,9 +153,9 @@ interface CorpusOwnerOptions {
   generation: string;
   schemaHash: string;
   schema: unknown;
-  programs: Record<string, { kind: "query" | "mutation"; ir: unknown; certificate: any }>;
+  programs: Record<string, { kind: "query" | "mutation"; ir: unknown; certificate: any; cursor?: string }>;
   /** A second generation the owner moves to: the first resume answers `E_OFFLINE_RESET`, then serves it. */
-  successor?: { generation: string; programs: Record<string, { kind: "query" | "mutation"; ir: unknown; certificate: any }> };
+  successor?: { generation: string; programs: Record<string, { kind: "query" | "mutation"; ir: unknown; certificate: any; cursor?: string }> };
   dead?: () => boolean;
 }
 
@@ -167,7 +171,7 @@ function corpusOwner(options: CorpusOwnerOptions) {
   const payload = (generation: string, programs: CorpusOwnerOptions["programs"]) => ({
     generation, schemaHash: options.schemaHash, schema: options.schema,
     programs: Object.fromEntries(Object.entries(programs).map(([name, entry]) => [name, {
-      kind: entry.kind, planHash: sha256(canonicalProgramJson(entry.ir)), ir: entry.ir,
+      kind: entry.kind, cursor: entry.cursor, planHash: sha256(canonicalProgramJson(entry.ir)), ir: entry.ir,
       certificate: { ...entry.certificate, plan_hash: sha256(canonicalProgramJson(entry.ir)),
         value_model_version: CURRENT_VALUE_MODEL_VERSION, evaluator_version: CURRENT_EVALUATOR },
     }])),
@@ -186,7 +190,7 @@ function corpusOwner(options: CorpusOwnerOptions) {
       return json({
         generation: "schema-generation", programGeneration: current.generation, channels: {}, auth: {}, tables: {},
         ops: Object.fromEntries(Object.entries(current.programs).map(([name, entry]) => [name, {
-          kind: entry.kind, args: (entry.ir as { args?: unknown }).args ?? {}, planHash: entry.certificate.plan_hash,
+          kind: entry.kind, cursor: entry.cursor, args: (entry.ir as { args?: unknown }).args ?? {}, planHash: entry.certificate.plan_hash,
         }])),
       });
     }
@@ -252,7 +256,7 @@ async function seedCoverage(
     ],
     // Derived descriptors must retain their actual issuing IR/Q even in a direct carrier fixture.
     ...(derived ? { programs: { [facts.generation]: { generation: facts.generation, schemaHash: facts.schemaHash, schema: testCase.schema,
-      programs: { [testCase.name]: { kind: "query", ir: testCase.program, planHash: testCase.certificate.plan_hash, certificate: testCase.certificate } } } } } : {}),
+      programs: { [testCase.name]: { kind: "query", cursor: corpusPageCursors[testCase.name], ir: testCase.program, planHash: testCase.certificate.plan_hash, certificate: testCase.certificate } } } } } : {}),
     facts, schema: testCase.schema,
     ...extra,
   });
@@ -334,7 +338,7 @@ test("every corpus query round-trips through atomic carrier snapshots and replay
       // Local evaluation through the client, offline, against the corpus expectation.
       const owner = corpusOwner({
         viewer: testCase.context.viewer, generation, schemaHash, schema: testCase.schema,
-        programs: { [testCase.name]: { kind: "query", ir: typedProgram(testCase), certificate: testCase.certificate } },
+        programs: { [testCase.name]: { kind: "query", cursor: corpusPageCursors[testCase.name], ir: typedProgram(testCase), certificate: testCase.certificate } },
       });
       const client = createClient({ url: "http://corpus.test", token: "bearer", fetch: owner.fetch, offline: { store: fileRangeStore(root) } });
       await client.ready;
@@ -1301,7 +1305,7 @@ test('h1 stays local across query transport, subscription reconnect and cold reo
   const op = 'search.findPeople', original = fixture.operations[op];
   const schemaHash = schemaDigest(fixture.schema), planHash = original.certificate.plan_hash, generation = hex('9');
   const certificate = original.certificate;
-  const packet = { generation, schemaHash, schema: fixture.schema, programs: { [op]: { kind: 'query', planHash, ir: original.program, certificate } } };
+  const packet = { generation, schemaHash, schema: fixture.schema, programs: { [op]: { kind: 'query', cursor: 'c', planHash, ir: original.program, certificate } } };
   const root = await tempRoot(); context.after(() => rm(root, { recursive: true, force: true }));
   const store = fileRangeStore(root)(); await store.open('viewer');
   await store.commit({ programs: { [generation]: packet }, schema: fixture.schema, facts: { generation, schemaHash, authEpoch: 0 }, deliveries: [{
@@ -1313,7 +1317,7 @@ test('h1 stays local across query transport, subscription reconnect and cold reo
   const fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input));
     if (url.pathname === '/api/auth/me') return Response.json({ viewer: 'viewer', kind: 'user', authEpoch: 0 });
-    if (url.pathname === '/api/manifest') return Response.json({ generation: 'schema', programGeneration: generation, ops: { [op]: { kind: 'query', args: original.program.args, planHash } }, channels: {}, tables: {}, auth: {} });
+    if (url.pathname === '/api/manifest') return Response.json({ generation: 'schema', programGeneration: generation, ops: { [op]: { kind: 'query', cursor: 'c', args: original.program.args, planHash } }, channels: {}, tables: {}, auth: {} });
     if (url.pathname === '/api/program') return Response.json(packet);
     if (url.pathname === '/api/resume') return Response.json({ seq: 1, generation, schemaHash, authority: { principal: 'viewer', authEpoch: 0 }, log: { unchanged: true }, mounted: [] });
     const args = url.pathname === '/api/subscribe' ? JSON.parse(url.searchParams.get('args')!) : JSON.parse(String(init?.body)).args;
@@ -1398,7 +1402,7 @@ test('native-certified derived page keeps its public local cursor after halo rep
   const fixtures = JSON.parse(await readFile(new URL('../../evaluator/src/test-search-v5-fixtures.json',import.meta.url),'utf8'));
   const operation = fixtures.operations['search.findPeople'], op = 'search.findPeople', args = { term: 'É',c: null };
   const program = { generation: 'c'.repeat(64),schemaHash: operation.certificate.schema_hash,schema: fixtures.schema,
-    programs: { [op]: { kind: 'query',ir: operation.program,certificate: operation.certificate,planHash: operation.certificate.plan_hash } } };
+    programs: { [op]: { kind: 'query',cursor: 'c',ir: operation.program,certificate: operation.certificate,planHash: operation.certificate.plan_hash } } };
   const rows = Array.from({ length: 21 },(_,i) => ({ table: 'people',id: `p${String(i).padStart(2,'0')}`,
     row: { id: `p${String(i).padStart(2,'0')}`,name: 'e\u0301 shared',handle: i % 2 ? 'é' : null } }));
   // Actual native26c9 Q2000 certificate; synthetic authenticated pool and queued overlay, not native emission or Client grant admission.
