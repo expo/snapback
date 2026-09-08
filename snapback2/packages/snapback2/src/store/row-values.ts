@@ -19,6 +19,21 @@ export function escapedFields(value: unknown): Record<string, unknown> | undefin
   return Object.keys(value.$row).length === 1 && object(value.$row.$value) ? value.$row.$value : undefined;
 }
 
+/** Walk markers beside their expansion. Observers return the same row; transforms
+ * replace changed slots only, so their caller must own the expanded parents. */
+export function mapExpandedRows(markers: unknown, data: unknown, row: (ref: RowRef, value: unknown) => unknown): unknown {
+  const ref = asRowRef(markers);
+  if (ref) return row(ref, data);
+  markers = escapedFields(markers) ?? markers;
+  if (!markers || !data || typeof markers !== "object" || typeof data !== "object") return data;
+  for (const key of Object.keys(data)) {
+    const before = (data as Record<string, unknown>)[key];
+    const after = mapExpandedRows((markers as Record<string, unknown>)[key], before, row);
+    if (!Object.is(after, before)) (data as Record<string, unknown>)[key] = after;
+  }
+  return data;
+}
+
 export function mapRowValues(value: unknown, resolve: (ref: RowRef) => unknown): unknown {
   const ref = asRowRef(value);
   if (ref) return resolve(ref);

@@ -35,7 +35,7 @@ import {
   tailWatermark,
 } from "./store/range-store.js";
 import { ByteCache } from "./store/byte-cache.js";
-import { rowKey } from "./store/row-values.js";
+import { rowKey, mapExpandedRows } from "./store/row-values.js";
 import { Twin, readsConnected, type LocalAnswer, type Prediction } from "./twin.js";
 import { carryItemInputs, emptyItemInputs, itemInputs, withItemInputs } from "./query-frame.js";
 import { deliveredItemInputs } from "./query-items.js";
@@ -127,29 +127,6 @@ function cursorArgument(args: unknown): string | undefined {
     if (kind === "Cursor" || (object(kind) && kind.Optional === "Cursor")) return name;
   }
   return undefined;
-}
-
-/**
- * Walks the envelope's reference form beside its expansion and nulls every `$row`
- * that names a viewed view-once row, so a live frame or a fresh query never
- * re-renders what `answer()` already hides (LLP 1012 §9).
- */
-function nullViewed(reference: unknown, expanded: unknown, viewed: Set<string>): unknown {
-  if (!object(reference)) {
-    return Array.isArray(reference) && Array.isArray(expanded)
-      ? expanded.map((item, index) => nullViewed(reference[index], item, viewed))
-      : expanded;
-  }
-  const marker = reference.$row;
-  if (object(marker) && Object.keys(reference).length === 1) {
-    if (typeof marker.table === "string" && typeof marker.id === "string" && Object.keys(marker).length === 2) {
-      return viewed.has(rowKey({ table: marker.table, id: marker.id })) ? null : expanded;
-    }
-    if (object(marker.$value) && object(expanded)) return nullViewed(marker.$value, expanded, viewed);
-  }
-  if (!object(expanded)) return expanded;
-  return Object.fromEntries(Object.entries(expanded)
-    .map(([key, item]) => [key, nullViewed(reference[key], item, viewed)]));
 }
 
 // @ref LLP 1012#6-reads-offline — owner-derived returned-page metadata, never a scan/name/cursor heuristic.
@@ -940,11 +917,12 @@ export class OfflineRuntime {
 
   /** The envelope's data with every viewed view-once row read as `null`, on the wire as in the store. */
   private async expandUnviewed(envelope: DeliveryEnvelopeV1): Promise<unknown> {
+    // Own the expansion before awaiting the carrier; callers still own the envelope.
     const expanded = expandRows(envelope);
     const store = this.store as Partial<{ viewedRows(): Promise<RowRef[]> }>;
     if (this.partition === undefined || typeof store.viewedRows !== "function") return expanded;
     const viewed = new Set((await store.viewedRows()).map(rowKey));
-    return viewed.size === 0 ? expanded : nullViewed(envelope.data, expanded, viewed);
+    return viewed.size === 0 ? expanded : mapExpandedRows(envelope.data, expanded, (ref, row) => viewed.has(rowKey(ref)) ? null : row);
   }
 
   async markWatermark(op: string, args: unknown, watermark: string | null, validator?: string, revision = this.coverageRevision): Promise<void> {

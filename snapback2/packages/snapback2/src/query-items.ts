@@ -2,7 +2,7 @@
 // a row's evidence travels with its image, through decoding, reduction, and publication.
 import { RowImage } from "../../evaluator/src/row-image.js";
 import { fieldOrNull, wireJson } from "../../evaluator/src/value-runtime.js";
-import { asRowRef, escapedFields } from "./store/row-values.js";
+import { mapExpandedRows } from "./store/row-values.js";
 import type { PersistedRangeState, StoredAnswer } from "./store/range-store.js";
 import { canonicalAnswerKey } from "./store/canonical.js";
 import type { ItemInputs, ItemObservation } from "./client-items.js";
@@ -16,11 +16,7 @@ export function freshItemSelection(held: StoredAnswer | undefined): StoredAnswer
 }
 
 function references(markers: unknown, data: unknown, row: (table: string, id: string, value: unknown) => void): void {
-  const ref = asRowRef(markers);
-  if (ref) { row(ref.table, ref.id, data); return; }
-  markers = escapedFields(markers) ?? markers;
-  if (!markers || !data || typeof markers !== "object" || typeof data !== "object") return;
-  for (const key of Object.keys(markers)) references((markers as Record<string, unknown>)[key], (data as Record<string, unknown>)[key], row);
+  mapExpandedRows(markers, data, (ref, value) => { row(ref.table, ref.id, value); return value; });
 }
 
 /** A server delivery certifies its own returned images, not later pool versions or halo identities. */

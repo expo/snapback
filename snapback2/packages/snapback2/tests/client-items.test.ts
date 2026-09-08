@@ -15,10 +15,10 @@ import type { OutboxEntry } from "../src/store/range-store.ts";
 import type { ItemInputs } from "../src/client-items.ts";
 
 // Exercise the private join without adding a public test export or a build gate.
-const bundled = await build({ stdin: { contents: "export * from './src/client-items.ts'; export { ItemCapture } from './src/query-items.ts';",
+const bundled = await build({ stdin: { contents: "export * from './src/client-items.ts'; export { ItemCapture, deliveredItemInputs } from './src/query-items.ts';",
   resolveDir: new URL("..", import.meta.url).pathname, loader: "ts" },
   bundle: true, write: false, format: "esm", platform: "node" });
-const { attachItems, itemAddress, defineItems, ItemCapture }: typeof import("../src/client-items.ts") & typeof import("../src/query-items.ts") =
+const { attachItems, itemAddress, defineItems, ItemCapture, deliveredItemInputs }: typeof import("../src/client-items.ts") & typeof import("../src/query-items.ts") =
   await import(`data:text/javascript;base64,${Buffer.from(bundled.outputFiles[0]!.contents).toString("base64")}`);
 
 type Message = { id: string; body: string; at: number };
@@ -268,6 +268,22 @@ test("a contributing media prediction attaches its actual intent without an unpr
   assert.equal(result[0]?.pending[0]?.kind, "create");
   assert.equal(result[0]?.predicted, true);
   assert.deepEqual(attachItems(spec, args, [], state), [], "no unknown media draft or query membership is fabricated");
+});
+
+test("delivery observation preserves frozen row identities and treats escaped markers as application literals", () => {
+  const literal = Object.freeze({ $row: Object.freeze({ table: "messages", id: "m" }) });
+  const nested = Object.freeze({ message: row });
+  const data = Object.freeze([literal, row, nested]);
+  const marker = { $row: { table: "messages", id: "m" } };
+  const envelope = { data: [{ $row: { $value: literal } }, marker, { message: marker }],
+    seq: 42, state: "complete", generation, schemaHash, receipt: { absences: [] } };
+  const captured = deliveredItemInputs(envelope as any, data, []);
+  assert.equal(captured.values!.get(literal), undefined, "an application marker cannot borrow row provenance");
+  assert.equal(captured.values!.get(row), itemAddress("messages", "m"));
+  assert.equal(captured.values!.size, 1);
+  assert.equal(data[1], row);
+  assert.equal(nested.message, row);
+  assert.equal(deliveredItemInputs({ ...envelope, data: marker } as any, row, []).values!.get(row), itemAddress("messages", "m"));
 });
 
 async function until(predicate: () => boolean, label: string): Promise<void> {
