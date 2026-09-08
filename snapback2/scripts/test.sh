@@ -31,9 +31,25 @@ if [ "${1:-}" = "--self-test" ]; then
 fi
 
 status=0
-# Snapback2 has no workerd tests competing for process slots. Eight lets the
-# long owner journeys overlap while remaining overrideable on smaller hosts.
-rust_test_threads="${SNAPBACK_RUST_TEST_THREADS:-8}"
+select_rust_test_threads() {
+  local override="$1"
+  local available="$2"
+  if [ -n "$override" ]; then
+    printf '%s\n' "$override"
+    return
+  fi
+  case "$available" in
+    ''|*[!0-9]*|0) available=8 ;;
+  esac
+  if [ "$available" -lt 8 ]; then
+    available=8
+  elif [ "$available" -gt 16 ]; then
+    available=16
+  fi
+  printf '%s\n' "$available"
+}
+available_cpus="$(node -e 'process.stdout.write(String(require("node:os").availableParallelism()))' 2>/dev/null || getconf _NPROCESSORS_ONLN 2>/dev/null || true)"
+rust_test_threads="$(select_rust_test_threads "${SNAPBACK_RUST_TEST_THREADS:-}" "$available_cpus")"
 nextest_bin="${SNAPBACK_CARGO_NEXTEST_BIN:-cargo-nextest}"
 nextest_config="$(pwd)/../.config/nextest.toml"
 
