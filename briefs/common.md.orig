@@ -1,0 +1,57 @@
+# Common brief for every implementation lane (Clique findings program, 2026-09-05)
+
+You are GPT-6 Astra at xhigh, implementing one lane of a program that fixes findings from the
+Clique benchmark run against `snapback2@0.0.4`. The program plan is `/Users/ccheever/projects/snapback-clique-panel/repo/PANEL/plan.md`
+(read it first: it records what four models agreed on and what the orchestrator decided). Your
+lane brief names your items; nothing else is in scope. The findings' evidence lives under
+`/Users/ccheever/projects/snapback-clique-panel/repo/PANEL/lane/` (the benchmark agent's Quarry
+backend and the raw refusals it hit) — read it there; do not copy it into your worktree.
+
+## Where you are
+
+- Repository root: the worktree you were started in (`git rev-parse --show-toplevel`). Snapback 2
+  lives under `snapback2/` and is fenced: read `snapback2/AGENTS.md`, `rules/RULES.md`,
+  `rules/NOT-DOING.md`, `llp/1000-snapback2.explainer.md`, then the specs your lane names.
+- Run cargo/bun from `snapback2/`. Real node is first on PATH (never the volta shim; the compiler
+  worker hangs behind it). Rust tests: `NEXTEST_TEST_THREADS=8 cargo nextest run --config-file
+  ../.config/nextest.toml --profile local-proof --workspace --no-fail-fast`. Everything blocking:
+  `scripts/test.sh` (~60 s warm). The compiler bundle: `(cd packages/snapback2 && node build.mjs)`
+  — the binary and the package tests load `dist/`, so rebuild after every compiler/package edit.
+  Package tests: `(cd packages/snapback2 && node --test tests/<file>.test.ts)`.
+- The corpus under `snapback2/corpus/` is shared by the Rust engine, the TS evaluator, and the
+  compiler; regenerate with `cargo run -p snapback2-core --bin export_corpus` when you add a case.
+- Guide pages are `snapback2/packages/snapback2/guide/*.md` with byte budgets enforced by
+  `build.mjs` (quarry.md is at its budget: every added sentence replaces one; raise a budget in
+  `build.mjs` only if the plan says so). Diagnostics need a family, a site, a rewrite, and a page
+  (`guide/families.source.json`).
+- `caps` refuses files over 1,500 lines: split on the way in. No new checks, scripts, registries,
+  config files, or design docs (RULES: agents add no apparatus). Delete; do not deprecate: no
+  compat shims, no "deprecated" flags.
+
+## How to work
+
+1. Read the plan item(s) for your lane and the code they name. Reproduce each finding first:
+   `/Users/ccheever/projects/snapback-clique-panel/repo/PANEL/lane` is a real backend;
+   `SNAPBACK2_COMPILER=$PWD/packages/snapback2/dist/compiler.mjs ./target/debug/snapback2 check
+   --project <dir> --json` (from `snapback2/`, after `cargo build` and `node build.mjs`) shows
+   what main says about any project today. Build small fixture projects (a `snapback/schema.q`
+   plus one `.q` of programs) under `/tmp` to reproduce each wart in isolation. Keep a copy of the refusal before and after.
+2. Implement. Every behavior change has a test that fails before and passes after (Rust unit or
+   nextest, compiler `src/test.ts` cases, package `tests/*.test.ts`, or a corpus case). Every
+   user-visible rule gets its sentence on the guide page the plan names, in the same change.
+3. Keep `@ref LLP NNNN#section` annotations current where you touch code that carries one; add
+   one only where the reader could not know the reason from the code.
+4. Run `scripts/test.sh` from `snapback2/`; read the summary lines; fix what is red. Two owner-stop tests always fail inside a sandbox that denies
+   `ps`; note them as sandbox artifacts and move on (the orchestrator re-runs outside).
+5. Do NOT `git commit`, `git stash`, or touch branches (linked worktree: the orchestrator
+   commits). Do not modify files outside your lane's named areas without saying so in the report.
+6. Write your report to `REPORT-<lane>.md` at the repository root: what you changed (files),
+   the tests you added and their results (verbatim counts), every deviation from the plan and
+   why, every open question, and the exact `snapback2 check` output for the reproduced findings
+   before and after.
+
+## What "done" means
+
+Every item in your lane brief implemented with its test and its guide sentence; `scripts/test.sh`
+green apart from the two sandbox owner-stop artifacts; the report written; no file over 1,500
+lines; nothing outside your lane touched without a note.

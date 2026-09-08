@@ -1,0 +1,5 @@
+#!/bin/bash
+# node wrapper for landing verification: serialize `node --test` files (the package stage hangs under load otherwise)
+REAL=/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node
+if [ "$1" = "--test" ]; then exec "$REAL" --test --test-concurrency=1 "${@:2}"; fi
+exec "$REAL" "$@"

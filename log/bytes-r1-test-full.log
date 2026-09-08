@@ -1,0 +1,2231 @@
+== blocking script self-test
+== compiler type checking
+== compiler tests
+test script self-test ok
+== bundle the compiler worker + client (the owner tests load dist/)
+== build the native owner and media helper before parallel package fixtures
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.41s
+== package offline protocol + store + bytes + outbox + twin + real owner
+✔ public never-claimed uploads still hit 20 creator and 40 owner slots without disclosing other creators (1475.7805ms)
+ℹ {"phase":"creator-cap","refusal":{"code":"E_ASSET_TOO_LARGE","family":"input","message":"your pending object ceiling is full: 20 / 20 objects. Inspect client.listUploads(); discard only ids whose future use you have abandoned with client.discardUpload(id), or wait for eligible cleanup. Receiving cleanup may retain its charge","guide":"operator","rewrite":"use bytes within the column bound; for a pending-object or byte admission ceiling, inspect client.listUploads() and discard only abandoned ids with client.discardUpload(id), or wait for eligible cleanup"}}
+ℹ {"phase":"creator-cap","refusal":{"code":"E_ASSET_TOO_LARGE","family":"input","message":"your pending object ceiling is full: 20 / 20 objects. Inspect client.listUploads(); discard only ids whose future use you have abandoned with client.discardUpload(id), or wait for eligible cleanup. Receiving cleanup may retain its charge","guide":"operator","rewrite":"use bytes within the column bound; for a pending-object or byte admission ceiling, inspect client.listUploads() and discard only abandoned ids with client.discardUpload(id), or wait for eligible cleanup"}}
+ℹ {"phase":"owner-cap","refusal":{"code":"E_ASSET_TOO_LARGE","family":"input","message":"the owner pending object ceiling is full (limit 40); your usage is 0 pending objects. Inspect client.listUploads(); discard only ids whose future use you have abandoned with client.discardUpload(id), or wait for eligible cleanup. Receiving cleanup may retain its charge. Other accounts must recover their own abandoned uploads","guide":"operator","rewrite":"use bytes within the column bound; for a pending-object or byte admission ceiling, inspect client.listUploads() and discard only abandoned ids with client.discardUpload(id), or wait for eligible cleanup"}}
+✔ 21 public replacements free pending slots and preserve released byte charges (941.153666ms)
+ℹ {"phase":"21-replacements","usage":{"bytes":3276,"objects":0}}
+{"phase":"40-releases","listing":{"limits":{"bytes":268435456,"objects":20},"next":null,"uploads":[{"bytes":156,"createdAt":1788910631050,"id":"s2id-1d836390fa8cff171156c5c16ec54f30-0000000000000001","kind":"image","reclaiming":false,"releasedAt":1788910632907,"state":"ready"},{"bytes":156,"createdAt":1788910631107,"id":"s2id-1d836390fa8cff171156c5c16ec54f30-0000000000000801","kind":"image","reclaiming":false,"releasedAt":1788910632910,"state":"ready"},{"bytes":156,"createdAt":1788910631160,"id":"s2id-1d836390fa8cff171156c5c16ec54f30-0000000000001001","kind":"image","reclaiming":false,"releasedAt":1788910632913,"state":"ready"},{"bytes":156,"createdAt":1788910631205,"id":"s2id-1d836390fa8cff171156c5c16ec54f30-0000000000001801","kind":"image","reclaiming":false,"releasedAt":1788910632922,"state":"ready"},{"bytes":156,"createdAt":1788910631254,"id":"s2id-1d836390fa8cff171156c5c16ec54f30-0000000000002001","kind":"image","reclaiming":false,"releasedAt":1788910632927,"state":"ready"},{"bytes":156,"createdAt":1788910631303,"id":"s2id-1d836390fa8cff171156c5c16ec54f30-0000000000002801","kind":"image","reclaiming":false,"releasedAt":1788910632930,"state":"ready"},{"bytes":156,"createdAt":1788910631349,"id":"s2id-1d836390fa8cff171156c5c16ec54f30-0000000000003001","kind":"image","reclaiming":false,"releasedAt":1788910632934,"state":"ready"},{"bytes":156,"createdAt":1788910631398,"id":"s2id-1d836390fa8cff171156c5c16ec54f30-0000000000003801","kind":"image","reclaiming":false,"releasedAt":1788910632936,"state":"ready"},{"bytes":156,"createdAt":1788910631447,"id":"s2id-1d836390fa8cff171156c5c16ec54f30-0000000000004001","kind":"image","reclaiming":false,"releasedAt":1788910632940,"state":"ready"},{"bytes":156,"createdAt":1788910631500,"id":"s2id-1d836390fa8cff171156c5c16ec54f30-0000000000004801","kind":"image","reclaiming":false,"releasedAt":1788910632943,"state":"ready"},{"bytes":156,"createdAt":1788910631538,"id":"s2id-1d836390fa8cff171156c5c16ec54f30-0000000000005001","kind":"image","reclaiming":false,"releasedAt":1788910632947,"state":"ready"},{"bytes":156,"createdAt":1788910631583,"id":"s2id-1d836390fa8cff171156c5c16ec54f30-0000000000005801","kind":"image","reclaiming":false,"releasedAt":1788910632950,"state":"ready"},{"bytes":156,"createdAt":1788910631619,"id":"s2id-1d836390fa8cff171156c5c16ec54f30-0000000000006001","kind":"image","reclaiming":false,"releasedAt":1788910632953,"state":"ready"},{"bytes":156,"createdAt":1788910631659,"id":"s2id-1d836390fa8cff171156c5c16ec54f30-0000000000006801","kind":"image","reclaiming":false,"releasedAt":1788910632955,"state":"ready"},{"bytes":156,"createdAt":1788910631695,"id":"s2id-1d836390fa8cff171156c5c16ec54f30-0000000000007001","kind":"image","reclaiming":false,"releasedAt":1788910632958,"state":"ready"},{"bytes":156,"createdAt":1788910631741,"id":"s2id-1d836390fa8cff171156c5c16ec54f30-0000000000007801","kind":"image","reclaiming":false,"releasedAt":1788910632961,"state":"ready"},{"bytes":156,"createdAt":1788910631775,"id":"s2id-1d836390fa8cff171156c5c16ec54f30-0000000000008001","kind":"image","reclaiming":false,"releasedAt":1788910632964,"state":"ready"},{"bytes":156,"createdAt":1788910631810,"id":"s2id-1d836390fa8cff171156c5c16ec54f30-0000000000008801","kind":"image","reclaiming":false,"releasedAt":1788910632967,"state":"ready"},{"bytes":156,"createdAt":1788910631846,"id":"s2id-1d836390fa8cff171156c5c16ec54f30-0000000000009001","kind":"image","reclaiming":false,"releasedAt":1788910632970,"state":"ready"},{"bytes":156,"createdAt":1788910631880,"id":"s2id-1d836390fa8cff171156c5c16ec54f30-0000000000009801","kind":"image","reclaiming":false,"releasedAt":1788910632973,"state":"ready"},{"bytes":156,"createdAt":1788910631920,"id":"s2id-1d836390fa8cff171156c5c16ec54f30-000000000000a001","kind":"image","reclaiming":false,"releasedAt":1788910632976,"state":"ready"},{"bytes":156,"createdAt":1788910631957,"id":"s2id-1d836390fa8cff171156c5c16ec54f30-000000000000a801","kind":"image","reclaiming":false,"releasedAt":1788910632979,"state":"ready"},{"bytes":156,"createdAt":1788910631990,"id":"s2id-1d836390fa8cff171156c5c16ec54f30-000000000000b001","kind":"image","reclaiming":false,"releasedAt":1788910632982,"state":"ready"},{"bytes":156,"createdAt":1788910632020,"id":"s2id-1d836390fa8cff171156c5c16ec54f30-000000000000b801","kind":"image","reclaiming":false,"releasedAt":1788910632985,"state":"ready"},{"bytes":156,"createdAt":1788910632054,"id":"s2id-1d836390fa8cff171156c5c16ec54f30-000000000000c001","kind":"image","reclaiming":false,"releasedAt":1788910632988,"state":"ready"},{"bytes":156,"createdAt":1788910632093,"id":"s2id-1d836390fa8cff171156c5c16ec54f30-000000000000c801","kind":"image","reclaiming":false,"releasedAt":1788910632990,"state":"ready"},{"bytes":156,"createdAt":1788910632132,"id":"s2id-1d836390fa8cff171156c5c16ec54f30-000000000000d001","kind":"image","reclaiming":false,"releasedAt":1788910632993,"state":"ready"},{"bytes":156,"createdAt":1788910632170,"id":"s2id-1d836390fa8cff171156c5c16ec54f30-000000000000d801","kind":"image","reclaiming":false,"releasedAt":1788910632996,"state":"ready"},{"bytes":156,"createdAt":1788910632215,"id":"s2id-1d836390fa8cff171156c5c16ec54f30-000000000000e001","kind":"image","reclaiming":false,"releasedAt":1788910632999,"state":"ready"},{"bytes":156,"createdAt":1788910632258,"id":"s2id-1d836390fa8cff171156c5c16ec54f30-000000000000e801","kind":"image","reclaiming":false,"releasedAt":1788910633002,"state":"ready"},{"bytes":156,"createdAt":1788910632302,"id":"s2id-1d836390fa8cff171156c5c16ec54f30-000000000000f001","kind":"image","reclaiming":false,"releasedAt":1788910633005,"state":"ready"},{"bytes":156,"createdAt":1788910632338,"id":"s2id-1d836390fa8cff171156c5c16ec54f30-000000000000f801","kind":"image","reclaiming":false,"releasedAt":1788910633008,"state":"ready"},{"bytes":156,"createdAt":1788910632385,"id":"s2id-1d836390fa8cff171156c5c16ec54f30-0000000000010001","kind":"image","reclaiming":false,"releasedAt":1788910633011,"state":"ready"},{"bytes":156,"createdAt":1788910632424,"id":"s2id-1d836390fa8cff171156c5c16ec54f30-0000000000010801","kind":"image","reclaiming":false,"releasedAt":1788910633014,"state":"ready"},{"bytes":156,"createdAt":1788910632471,"id":"s2id-1d836390fa8cff171156c5c16ec54f30-0000000000011001","kind":"image","reclaiming":false,"releasedAt":1788910633015,"state":"ready"},{"bytes":156,"createdAt":1788910632514,"id":"s2id-1d836390fa8cff171156c5c16ec54f30-0000000000011801","kind":"image","reclaiming":false,"releasedAt":1788910633018,"state":"ready"},{"bytes":156,"createdAt":1788910632574,"id":"s2id-1d836390fa8cff171156c5c16ec54f30-0000000000012001","kind":"image","reclaiming":false,"releasedAt":1788910633021,"state":"ready"},{"bytes":156,"createdAt":1788910632618,"id":"s2id-1d836390fa8cff171156c5c16ec54f30-0000000000012801","kind":"image","reclaiming":false,"releasedAt":1788910633024,"state":"ready"},{"bytes":156,"createdAt":1788910632662,"id":"s2id-1d836390fa8cff171156c5c16ec54f30-0000000000013001","kind":"image","reclaiming":false,"releasedAt":1788910633030,"state":"ready"},{"bytes":156,"createdAt":1788910632711,"id":"s2id-1d836390fa8cff171156c5c16ec54f30-0000000000013801","kind":"image","reclaiming":false,"releasedAt":1788910633034,"state":"ready"}],"usage":{"bytes":6240,"objects":0}},"byteRefusal":{"status":422,"code":"E_ASSET_TOO_LARGE","family":"input","guide":"operator","message":"your byte admission ceiling would be exceeded: 6240 / 268435456 charged bytes; requested 268435456 bytes. Charges include released ready originals during grace, even with free pending slots. Inspect client.listUploads(); discard only ids whose future use you have abandoned with client.discardUpload(id), or wait for eligible cleanup. Receiving cleanup may retain its charge","rewrite":"use bytes within the column bound; for a pending-object or byte admission ceiling, inspect client.listUploads() and discard only abandoned ids with client.discardUpload(id), or wait for eligible cleanup"},"originalSha256":"c397de92662ce9581afea82cfcd9010a17b688096c8c8f88c1f923f4b965c54e"}
+{"phase":"restart-and-new-upload","newAsset":{"id":"s2id-1d836390fa8cff171156c5c16ec54f30-000000000001f801","width":4,"height":4},"finalUsage":{"bytes":6084,"objects":0}}
+✔ 43 public claims, 40 successful releases, restart and a fresh small upload preserve original custody (2458.205416ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ browser token custody is explicit and no storage is selected by default (2.288625ms)
+✔ dev personas cannot be combined with bearer custody (0.138333ms)
+✔ SnapbackProvider rejects a runtime persona and bearer combination (6.879084ms)
+✔ an invalid explicit bearer cannot poison persistent custody (0.702833ms)
+✔ dev persona clients refuse bearer-session transitions without sending a request (0.540458ms)
+✔ ready blocks every data transport until explicit token restore settles (21.362416ms)
+✔ a relaunched client restores the explicitly stored bearer (1.452083ms)
+✔ principal replacement fences streams, suppresses delayed old reads, and waits for persistence (2.903125ms)
+✔ delayed malformed response bodies cannot overwrite newer auth custody (3.259917ms)
+✔ delayed malformed response bodies cannot mutate a closed client (0.444042ms)
+✔ delayed subscription opens cannot mutate a closed client (2.20375ms)
+✔ delayed subscription opens cannot mutate an individually closed subscription (1.6445ms)
+✔ delayed malformed subscription refusals cannot pollute a newer bearer (1.275292ms)
+✔ a delayed valid subscription expiry clears custody after a failed replacement (1.150333ms)
+✔ an already-read terminal subscription frame survives a replacement fence (3.805292ms)
+✔ an individually closed subscription still applies already-read terminal evidence (1.617958ms)
+✔ whole-client close still applies already-read terminal evidence without delivery (1.557209ms)
+✔ E_AUTH_SESSION clears custody only for the auth refusal family (1.779375ms)
+✔ auth transitions serialize and already-dispatched writes settle before replacement (1.791875ms)
+✔ a delayed terminal write clears the old bearer before a failed replacement (0.61775ms)
+✔ a status-listener replacement cannot bypass terminal mutation invalidation (replacement succeeds: false) (0.5215ms)
+✔ a status-listener replacement cannot bypass terminal mutation invalidation (replacement succeeds: true) (0.25575ms)
+✔ a delayed terminal read cannot clear a successfully replaced bearer (0.930416ms)
+✔ a transition during slow terminal cleanup suppresses typed mutation and channel receipts (2.513334ms)
+✔ close during token persistence never resurrects the client (0.757208ms)
+✔ predecessor expiry cannot erase a durably saved replacement after close (0.765625ms)
+✔ predecessor expiry clears the old bearer after replacement persistence fails (0.858792ms)
+✔ predecessor expiry clears the old bearer after replacement persistence fails across close (0.826334ms)
+✔ close during terminal subscription cleanup stays offline and suppresses late delivery (7.418292ms)
+✔ logout and terminal session expiry clear custody and stop old-bearer reconnect (309.906666ms)
+✔ token-store clear failures stay visible on every request-based terminal path (2.763833ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ terminal expiry remains terminal when persisted custody cannot be cleared (302.619042ms)
+✔ React query identity moves to a hydrating auth-generation partition (5.50125ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ parent and later child auth hooks agree across a restoration cut and reconnect (28.334ms)
+✔ headless restoration retries at 1, 2, 4, 8, 16, 30, 30 seconds and close clears its timer (3.0875ms)
+✔ restoration coalesces simultaneous me callers and a reconnect while pending (1.467458ms)
+✔ only missing or expired authentication becomes anonymous and clears token custody (3.768667ms)
+✔ coded refusals stay visible and retry once per reconnect without a self-cycle (1.045542ms)
+✔ storage and protocol failures are refused without restoration timers (1.528375ms)
+✔ logout, account replacement and close ignore a pending predecessor me response (2.562375ms)
+✔ a mismatched stored binding never renders another token's restoring viewer (0.717417ms)
+✔ mounted queries during restoration use held coverage and only me retries carry the bearer (11.189375ms)
+✔ HTTP 503 restoration retries, and authority replacement cancels the old backoff (1.583042ms)
+✔ late terminal me evidence clears only custody that still holds that bearer (2.305417ms)
+✔ failed login preserves authenticated bearer custody and restoration (0.590166ms)
+✔ failed signup preserves authenticated bearer custody and restoration (0.683292ms)
+✔ failed guest preserves authenticated bearer custody and restoration (1.381792ms)
+✔ failed login preserves backoff bearer custody and restoration (1.51425ms)
+✔ failed signup preserves backoff bearer custody and restoration (1.046041ms)
+✔ failed guest preserves backoff bearer custody and restoration (1.585083ms)
+✔ failed login preserves pending bearer custody and restoration (0.692667ms)
+✔ failed signup preserves pending bearer custody and restoration (1.650708ms)
+✔ failed guest preserves pending bearer custody and restoration (2.388916ms)
+✔ startup metadata failure rejects ready without replacing confirmed auth (4.042333ms)
+✔ refused restoration recovers its display viewer from bearer custody (1.796417ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ restart of an offline device drops both retry clocks and waits for reconnect (2.133ms)
+✔ two persona hooks share the lazy me flight (2.1195ms)
+✔ load/save-only custody restores without an unbound viewer and recovers on reconnect (1.12125ms)
+✔ explicit me cancels the old backoff deadline and schedules its own retry (0.645166ms)
+✔ non-auth coded restoration refusal retains custody and retries once per reconnect (1.048792ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ Provider manifest reconnect after network retries me once without self-cycling (4.29975ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ Provider manifest reconnect after 503 retries me once without self-cycling (1.577542ms)
+✔ close one millisecond before the retry deadline starts no fetch (0.610791ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ logout one millisecond before the retry deadline starts no fetch (0.700458ms)
+✔ hooks recheck lazy me after an asynchronous token load and offline startup confirmation (5.915833ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ session success publishes token, kind and authEpoch together to hooks (1.714625ms)
+✔ startup resume failure rejects ready without replacing confirmed auth (18.110166ms)
+✔ a session response without kind is refused before replacing custody (1.511667ms)
+✔ failed login during offline startup before hydrate resumes retained bearer restoration (5.026666ms)
+✔ failed login during offline startup pending me resumes retained bearer restoration (3.917333ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ an offline query hook leaves hydration when the stored bearer is confirmed (21.351125ms)
+✔ a terminal write wakes a read waiting on restoration without dispatching it (1.678875ms)
+✔ online restart cancels the predecessor clock and starts only the new client's restoration (0.929708ms)
+✔ logout custody-clear failure cannot keep an authenticated view after clearing memory (0.772125ms)
+✔ failed startup login before hydrate restores metadata and resumes the durable outbox (37.691084ms)
+✔ failed startup login pending me restores metadata and resumes the durable outbox (26.110625ms)
+✔ successful startup login before hydrate restores metadata and resumes the durable outbox (25.309333ms)
+✔ successful startup login pending me restores metadata and resumes the durable outbox (26.748458ms)
+✔ startup login keeps installed custody successful when offline metadata fails (5.168375ms)
+✔ startup signup keeps installed custody successful when offline metadata fails (4.544166ms)
+✔ startup guest keeps installed custody successful when offline metadata fails (3.727541ms)
+✔ held queries during a failed startup login wait for its authority (9.128875ms)
+✔ held queries during a successful startup login wait for its authority (9.201791ms)
+✔ metadata cannot report session success after custody is expired (3.89225ms)
+✔ metadata cannot report session success after custody is closed (3.231958ms)
+✔ startup session retries one failed metadata fetch through the pending recovery flight (23.466292ms)
+✔ live held reads wait for a failed startup login (7.258958ms)
+✔ live held reads wait for a successful startup login (10.607459ms)
+✔ startup recovery waits for a queued successor login before choosing its bearer (20.674417ms)
+✔ failed login during authenticated deferred resume restarts pending startup recovery (22.929833ms)
+✔ failed login cuts pending initial manifest without poisoning ready (22.945708ms)
+✔ successful login cuts pending initial manifest without poisoning ready (40.113625ms)
+✔ failed login cuts pending initial resume without poisoning ready (34.096958ms)
+✔ successful login cuts pending initial resume without poisoning ready (26.007875ms)
+✔ completed startup recovery leaves ordinary past-fence relogin waiting for explicit resume (34.301958ms)
+✔ hydrating held reads reject a transition that begins during carrier I/O (7.680959ms)
+✔ confirmed held reads reject a transition that begins during carrier I/O (7.952958ms)
+✔ offline wakes recovery waiters before an obsolete transport responds (34.498416ms)
+✔ failed-login wakes recovery waiters before an obsolete transport responds (38.96575ms)
+✔ offline releases the drain before cancelled replay-fetch returns (47.760625ms)
+✔ failed-login releases the drain before cancelled replay-fetch returns (40.652334ms)
+✔ offline releases the drain before cancelled replay-body returns (34.82825ms)
+✔ failed-login releases the drain before cancelled replay-body returns (33.12425ms)
+✔ offline releases the drain before cancelled tail-fetch returns (38.42825ms)
+✔ failed-login releases the drain before cancelled tail-fetch returns (41.333666ms)
+✔ cancelled resume ignores delayed terminal-refusal after replacement recovery (33.975041ms)
+✔ cancelled resume ignores delayed invalid-refusal-json after replacement recovery (25.1555ms)
+✔ cancelled resume ignores delayed invalid-success-json after replacement recovery (41.492958ms)
+✔ offline releases a mutation-owned drain during ignored replay-fetch abort (21.310833ms)
+✔ failed-login releases a mutation-owned drain during ignored replay-fetch abort (20.612625ms)
+✔ close releases a mutation-owned drain during ignored replay-fetch abort (31.768792ms)
+✔ expiry releases a mutation-owned drain during ignored replay-fetch abort (27.853333ms)
+✔ offline releases a mutation-owned drain during ignored replay-body abort (20.405917ms)
+✔ failed-login releases a mutation-owned drain during ignored replay-body abort (19.075ms)
+✔ close releases a mutation-owned drain during ignored replay-body abort (28.765834ms)
+✔ expiry releases a mutation-owned drain during ignored replay-body abort (23.913542ms)
+✔ offline releases a mutation-owned drain during ignored tail-fetch abort (17.72825ms)
+✔ failed-login releases a mutation-owned drain during ignored tail-fetch abort (19.641625ms)
+✔ close releases a mutation-owned drain during ignored tail-fetch abort (24.735792ms)
+✔ expiry releases a mutation-owned drain during ignored tail-fetch abort (25.2915ms)
+✔ direct upload retains terminal fetch evidence during failed login (17.671333ms)
+✔ direct upload retains terminal fetch evidence during successful login (17.416584ms)
+✔ direct upload retains terminal body evidence during failed login (25.920583ms)
+✔ direct upload retains terminal body evidence during successful login (18.517916ms)
+✔ automatic upload retains terminal fetch evidence during failed login (14.333875ms)
+✔ automatic upload retains terminal fetch evidence during successful login (14.978458ms)
+✔ automatic upload retains terminal body evidence during failed login (13.262458ms)
+✔ automatic upload retains terminal body evidence during successful login (17.277ms)
+✔ HTTP 401 terminal replay cancels sibling drains while preserving its own refusal (16.700709ms)
+✔ HTTP 401 terminal tail cancels sibling drains while preserving its own refusal (19.690958ms)
+✔ typed HTTP 200 terminal replay cancels sibling drains while preserving its own refusal (44.368708ms)
+✔ typed HTTP 200 terminal tail cancels sibling drains while preserving its own refusal (13.5835ms)
+✔ HTTP 401 FIFO replay expiry reaches the new mutation before enqueue and keeps only the older intent (36.560625ms)
+✔ HTTP 401 FIFO tail expiry reaches the new mutation before enqueue and keeps only the older intent (25.026042ms)
+✔ typed HTTP 200 FIFO replay expiry reaches the new mutation before enqueue and keeps only the older intent (23.271542ms)
+✔ typed HTTP 200 FIFO tail expiry reaches the new mutation before enqueue and keeps only the older intent (23.305167ms)
+✔ typed HTTP 200 resume expiry seals queued custody and retries the exact envelope after login (26.367167ms)
+✔ cold clear is inert; snapshots are immutable and keep the lease private (25.694333ms)
+✔ clear cancels a set waiting for the first snapshot without sending it later (6.918333ms)
+✔ concurrent commands allocate versions in invocation order without predicting snapshots (7.71875ms)
+✔ reconnect erases state, replaces the lease and never replays an ambiguous set (260.069167ms)
+✔ successor reset reconnects while ordinary refusal is terminal (255.021292ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ a slow multiplexed channel consumer receives the newest full snapshot and terminal refusal (62.171917ms)
+An update to Typing inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to xe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+✖ React Strict Mode keeps the active handle and closes replaced/unmounted scopes (51.7565ms)
+An update to App inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Composer inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to App inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to App inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to App inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to App inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Composer inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to App inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Composer inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to App inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to App inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to App inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to xe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to App inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Composer inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+✔ the chat screens render the log, queue offline sends as pinned bubbles, settle them in place, and use indexed search (3315.809417ms)
+An update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to xe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to xe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Composer inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to xe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to xe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Composer inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Composer inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Composer inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Composer inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Composer inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Composer inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to xe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to xe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Composer inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to xe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to xe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Composer inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Composer inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Composer inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Composer inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Composer inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Thread inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+✔ a follower Composer's send is durable before it resolves, survives a reload as a queued bubble, and is admitted exactly once (2182.315125ms)
+✔ a refused send keeps the draft and shows the recovery advice (2139.361542ms)
+✔ partial history becomes one coherent view without remounting its pending bubble (2192.981917ms)
+An update to xe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to xe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Composer inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to xe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+✔ the composer is disabled until the inbox drain catches up and the first grant exists, then enabled (151.0435ms)
+✔ the first identity confirmation during the inbox drain does not cost the drain its grant (53.486041ms)
+✔ the derivation: usable composites own the items, partial ones lend to a readable history, everything else keeps drafts only (1.226583ms)
+✔ withHistory refuses a different table and a second level of custody (0.310333ms)
+✔ retained projections stay partial while their certified page boundary and readable rows survive (19.901334ms)
+✔ the composition acquires history at subscribe time, releases it on a usable composite, and shares one object (1.25975ms)
+✔ handles created before any subscribe join one composition, in either cleanup order (0.348625ms)
+✔ each subscription is its own attachment, listeners are isolated, and a listener removed mid-broadcast does not run (0.187375ms)
+✔ clear() retires registered compositions with and without an authority change, and a fresh handle opens again (1.000667ms)
+✔ a composition subscribed to an already-partial composite acquires history at once; remount and reset behave (0.264167ms)
+✔ one key survives an unpredicted send, commit without delivery, fan-out arrival, and actual row delivery (1.814958ms)
+✔ program replacement and unsupported targets retain intent-only drafts without borrowing row identity (0.464292ms)
+✔ declared semantic targets never borrow a contributing prediction when their proof is unavailable (0.548958ms)
+✔ an edit with no created IDs waits for its exact row; a later value can confirm it beneath another prediction (0.155625ms)
+✔ a fresh answer decides page membership without borrowing proof for a displayed row (0.159875ms)
+✔ retained history is indexed once and old creates are not visited on warm page publications (16.728167ms)
+✔ held membership survives a local hole; clock-only and unvalidated held absences cannot confirm work (10.950958ms)
+✔ a baseline at the commit sequence cannot confirm a write; a newly ordered unchanged observation can (0.59275ms)
+✔ a fresh base does not certify an image still masked by that intent's own prediction (0.186291ms)
+✔ only explicit absence resolves a deleted target; a failed create remains recoverable even after absence (0.17675ms)
+✔ head-page creates stay scoped, null rows are omitted, and reversal does not change query data (0.3535ms)
+✔ failed edits and queued changes remain ordered; missing-target changes stay in the outbox without fabricated rows (0.335541ms)
+✔ only this row's effective prediction marks it, and unchanged items preserve reference identity (0.147959ms)
+✔ a contributing media prediction attaches its actual intent without an unpredicted draft declaration (0.086625ms)
+✔ delivery observation preserves frozen row identities and treats escaped markers as application literals (0.557959ms)
+✔ file: four shared observers resolve a no-ID edit only from the displayed target's new image (141.263375ms)
+✔ indexeddb: four shared observers resolve a no-ID edit only from the displayed target's new image (78.290875ms)
+✔ a computed lookalike cannot borrow another row's observation or prediction (0.91475ms)
+✔ file: query membership survives reopen; other deliveries cannot advance it (21.066417ms)
+✔ indexeddb: query membership survives reopen; other deliveries cannot advance it (24.854167ms)
+▶ owner harness releases lifecycle timers and listeners
+  ✔ ready then stop (5.198042ms)
+  ✔ early exit (0.940375ms)
+  ✔ spawn error (0.44575ms)
+  ✔ invalid readiness (1.106667ms)
+  ✔ changed port (0.596125ms)
+  ✔ readiness timeout (0.333375ms)
+  ✔ exit timeout (1.297083ms)
+  ✔ exit error (1.3035ms)
+  ✔ already signalled (0.52875ms)
+✔ owner harness releases lifecycle timers and listeners (15.860875ms)
+✔ owner harness reaps its launched child and fixture when creation rejects (66.412541ms)
+✔ native Response preserves shared query/channel delivery and independent terminal refusals (29.300166ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ native Response cancellation keeps peers live and preserves removed-child session evidence (3.735542ms)
+✔ status listener exceptions cannot leak registration or break peers (0.669916ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ useMutation treats malformed successful bodies as ambiguous transport (10.638833ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ useAuth ignores stale me responses after logout and client replacement (12.268375ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ two React queries read one client-owned snapshot and release it by refcount (50.884792ms)
+✔ a delayed predecessor follower failure cannot stop its successor route (13.052125ms)
+✔ a newer direct delivery fences a delayed local refresh and until sees later local revisions (16.054917ms)
+✔ a current local reevaluation refusal publishes while an obsolete-authority failure is fenced (25.155375ms)
+✔ a live indexed query preserves its authoritative state until its effective value changes (78.946292ms)
+✔ new local prediction and revocation remain visible under an older held answer sequence (24.544958ms)
+✔ a drain local refresh cannot claim caught-up before its mark finishes (43.842792ms)
+✔ a drain reconnect during page or mark startup fences the predecessor and starts once (50.98175ms)
+✔ identical live subscriptions share one stream, one delivery, and one mounted record (36.504917ms)
+✔ observed queries are lazy and share one snapshot and source with raw subscribers (38.173333ms)
+✔ closing a client retires an observed authority snapshot before later delivery (12.8505ms)
+✔ account open and wipe retire the old headless query snapshot through the authority fence (42.674125ms)
+✔ mounted query snapshots follow committed prediction and settlement revisions (92.630625ms)
+✔ identical drains share one page walk and one tail (26.148084ms)
+✔ a second web tab follows the writer and inherits its queue when the writer closes (110.95925ms)
+✔ a follower that closes withdraws its wait, so the next tab becomes the writer (25.59325ms)
+✔ two attachments sharing one callback function are two consumers (1.251ms)
+✔ a follower's drain pages and tails live and earns no grant of its own (14.433416ms)
+✔ a restored bearer second tab follows instead of refusing its own session (41.211833ms)
+✔ a terminal refusal reaches every consumer of the shared entry it originated from (1.999791ms)
+✔ a terminal refusal from a drain's tail reaches the drain's consumers (11.783875ms)
+✔ unsupported drain reaches callback and matching waiter; current and later success waiters reject, ordinary query remains valid (15.036458ms)
+✔ legacy backward resume stays refused across offline reopen; coverage, queue, grant and IDs survive; explicit write replay is separate (64.5855ms)
+✔ React refusal reduction preserves structured log diagnostics (0.188208ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ built Expo under Hermes-like globals logs in, drains, and views a photo (265.116ms)
+✔ Expo app shows a readiness error after the client is already constructed (11.583584ms)
+✔ witness source map contains the portable conformance runner under src and no tests (2.354375ms)
+✔ native file queue rechecks view-once after a waiting materialization (26.259583ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ MediaView ordinary onLoad waits for its file source; undefined source reports loaded false (14.804166ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ MediaView observes native video playback and cannot reopen a viewed photo or video (13.094541ms)
+✔ witness configuration temp rename preserves the prior version on failure and merges serialized patches (0.822334ms)
+✔ attribution regex matches actual esbuild input-map sources and excludes non-twin client modules (4.29125ms)
+✔ container-wide witness scan finds private payloads in URLSession cache, tmp, Documents, and remuxed video (10.835791ms)
+✔ fresh chat Expo scaffold from dist resolves every relative import (841.936834ms)
+✔ control server refuses a second socket without replacing the active controller (18.754125ms)
+✔ control reset after kill closes a stale socket and accepts the relaunched app (30.391083ms)
+✔ useAssetUrl array types require callers to handle refused positions (564.708584ms)
+✔ witness connects before construction; persistent faults are reported over the surviving control connection (31.722208ms)
+✔ witness barrier remains parked on socket close and only barrier(off) releases it (280.964875ms)
+✔ witness failures retain their command phase and remote stack (3.019167ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ Expo renders declared history for a partial composite and the composite once it is usable (23.787708ms)
+✔ the Expo witness samples the composed observation only once eligible history has loaded, and reports a timeout (191.718625ms)
+✔ Expo production Hermes lowering keeps frozen evaluator state writable and brands unforgeable (624.699125ms)
+✔ Expo SecureStore uses legal keys, caches reads, bounds values, and deletes token plus principal (1.964833ms)
+✔ Expo driver scopes statements to the exclusive executor and normalizes null (0.68875ms)
+✔ Expo COMMIT failure rolls back its exclusive connection and the next queued transaction succeeds (3.480208ms)
+✔ built native entries exclude node and IndexedDB, share react-core, and ship source maps (1.450083ms)
+✔ Metro resolves browser React before native while retaining native and default entries and types (314.790375ms)
+✔ built Expo entry exports every native component and hook by name (0.184333ms)
+✔ emitted web declarations exclude node modules and SQLite test exports (0.974333ms)
+✔ compiler source imports no Expo fetch or filesystem modules (43.564667ms)
+✔ native development dependencies match Expo SDK 54 and use real expo-sqlite declarations (5.165583ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ built witness conformance opens two connections and reports WAL plus every check name (63.832208ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ replacing a supplied client clears authentication, mutations, and outbox readiness before delayed work settles (18.770125ms)
+✔ built Expo provider and native hook share one context; supplied client remains caller-owned (7.869167ms)
+✔ createExpoClient defaults to Expo fetch and secure custody, preserves overrides, and never adds tokenStore beside as (12.465083ms)
+✔ createExpoClient defaults to the SQLite carrier and refuses a native open failure (1.222958ms)
+✔ browser and SecureStore principal records retain the authenticating token across a stale writer (0.23825ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ Expo provider and two native auth hooks share one cut/reconnect flight (3.561916ms)
+✔ a follower's write is a durable inbox row before run() resolves; the writer admits it and the follower reads the ledger entry (115.564333ms)
+✔ the writer admits durable follower rows before its own write, so the device's order is the ledger's (91.478625ms)
+✔ a reloaded follower shows its device's queued rows from durable state, and a grant arriving later admits them (69.432166ms)
+✔ the inbox refuses at its bound with no row written, and a row from another scope or epoch is rejected at admission and dismissible (2138.616125ms)
+✔ takeover admits the rows the closed writer left, before its first resume, and replays them once (76.226083ms)
+✔ the carrier: a follower connection closes on versionchange, and a wipe under the lock deletes the database beneath it (9.504834ms)
+✔ transport stops and successful retries report their remaining queue and preserve exactly-once writes (53.966083ms)
+✔ grant expiry and exhausted IDs expose actionable admission without consuming an intent (11.565291ms)
+✔ retained reads, readiness and offline escape do not wait on stalled authenticated startup; sealed custody stays hidden (4.683708ms)
+✔ repeated drain cursors refuse instead of looping or replacing the server watermark (17.979375ms)
+✔ real sessions change epochs across re-login, seal and cold auth; custom cursor custody drains offline on every carrier (4328.698125ms)
+✔ replacing an explicit bearer clears the old principal before persistence, so stalled cold auth cannot reveal its history (29.1305ms)
+✔ readiness still observes grant expiry after the earlier fence timer fired (9.146458ms)
+✔ authenticated startup restores a cleared token binding across restart and a later cold offline open (25.691167ms)
+✔ a token-store write crossing hydration discards the mixed principal snapshot before early reads (28.839083ms)
+✔ settled waits for cold local custody before reporting an offline queue (37.063917ms)
+✔ certified sources resolve without a prediction; ambiguous, missing, and malformed sources never guess (0.94025ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ a mounted mutation hook captures a changed semantic target of the same operation (64.396291ms)
+✔ file: admission pins targets across program replacement and a cold reopen (12.798083ms)
+✔ indexeddb: admission pins targets across program replacement and a cold reopen (9.815583ms)
+✔ sqlite: admission pins targets across program replacement and a cold reopen (8.017125ms)
+✔ replay response preserves exact execution identity and refuses malformed identity (0.473833ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ Expo File mock is Blob-shaped without inheriting from web Blob, and file:// upload uses expo/fetch without progress (14.810167ms)
+✔ a direct Expo File with progress uses expo/fetch and never constructs XMLHttpRequest (0.890541ms)
+✔ content:// Expo File upload uses Content-Length and whole-body progress (0.848208ms)
+✔ native source length comes from Expo File and refuses oversize or inaccessible URIs before upload (2.009208ms)
+✔ file:// clip runs through Expo File upload, mutation substitution, and carrier URL (1.836166ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ native AssetImage fetches bytes with persona headers and renders an in-memory source without Blob (9.903916ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ native AssetImage exposes bearer restoration failure without fetching unauthenticated bytes (2.727ms)
+✔ native AssetImage waits for bearer bytes and keeps its source across callback changes (3.525458ms)
+✔ native URI refuses E_ASSET_NATIVE_FILE_API when expo-file-system has no File constructor (0.613083ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ native AssetImage and ordinary AssetVideo serve cached files and clear mounted sources on custody change (21.214667ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ view-once delayed fetch tombstoned before admission renders nothing (34.60975ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ failed durable viewed mark renders nothing; reopen grants only one successful viewing (18.011292ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ ordinary oversize media renders uncached memory and a later mount retries (8.667459ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ unrelated message and watermark swaps keep the ordinary video player and position (9.75225ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ combined byte, file, and hook custody: seal mid-write, principal swap mid-read, wipe mid-materialization (20.434958ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ a seal cannot resurrect an uncached source even when getBytes still holds bytes (28.070959ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ native second viewing instance cannot borrow the first instance's session (26.848917ms)
+✔ concurrent byte consumers acquire exactly one view-once allowance (9.732917ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ schema once image column keeps native media off disk (7.835167ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ native viewing survives layout width changing after fallback admission (9.60425ms)
+✔ ordinary fetch changed to view-once with a failed durable mark returns no bytes on either consumer (14.631542ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ native ordinary image changed to view-once during fetch with a failed mark has no source (7.883583ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ native ordinary layout changes still select a new derivative without a new viewing token (8.975792ms)
+✔ both byte consumers suppress a view-once fetch whose row is tombstoned before admission (8.75ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ view-once native video protects admission and memory on missing-module (5.794209ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ view-once native video protects admission and memory on commit (7.025334ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ view-once native video protects admission and memory on seal (7.962042ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ view-once native video protects admission and memory on unmount (21.201292ms)
+✔ native file bridge writes bytes without Blob; eviction deletes only after SQLite commit (17.821792ms)
+✔ native file wipe drops either partition and the open partition closes its backend (6.210875ms)
+✔ native startup sweeps orphans and a missing carrier payload is deleted instead of served (5.866125ms)
+✔ native derivatives use only verified media suffixes and replace prior type paths (6.342209ms)
+✔ a paused materialization cannot remove the same partition's successor derivative (6.399625ms)
+✔ native in-flight file write is fenced on seal and consumers receive custody invalidation (6.025041ms)
+✔ view-once native bytes stay in memory, are never written, and disappear on custody change (6.652167ms)
+✔ native once image lists consume per asset and keep the original across width changes (8.742792ms)
+✔ byte puts land only under a held row's lease, reads order the LRU, and the ceiling evicts least-recently-read on all three carriers (57.077666ms)
+✔ bytes leave in the commit that evicts their row: absence, range hole, tombstone, hidden, reset, and wipe (122.073791ms)
+✔ a sealed partition hides its bytes until the same principal returns, across a cold open (5.332333ms)
+✔ assetBlob reads the byte cache before the network, fills it after a fetch, and answers offline from it (22.823625ms)
+✔ a view-once row renders once: its bytes are never cached, a restart refuses them, and the held answer omits the row (13.208334ms)
+✔ the IndexedDB carrier upgrades a version-1 database, keeps payloads in their own store, and rolls bytes back with the swap (7.253875ms)
+✔ a cache read stamps the LRU in memory without rewriting the carrier; the next swap persists the order (19.649333ms)
+✔ AssetImage, AssetVideo, and useAssetUrl render held renditions from the byte cache offline without the network (113.453875ms)
+✔ schema once excludes raw byte puts before viewing and purges on successor, durably (26.24175ms)
+✔ absent assetBlob fences full Blob conversion across login (3.6625ms)
+✔ absent assetBlob fences full Blob conversion across abort (3.8685ms)
+✔ miss assetBlob fences full Blob conversion across login (7.741209ms)
+✔ miss assetBlob fences full Blob conversion across abort (3.409166ms)
+✔ bypass assetBlob fences full Blob conversion across login (10.508167ms)
+✔ bypass assetBlob fences full Blob conversion across abort (1.77125ms)
+✔ assetBlob fences cache-hit completion across login (15.271584ms)
+✔ assetBlob fences cache-hit completion across abort (19.228291ms)
+✔ assetBlob fences admission completion across login (8.750417ms)
+✔ assetBlob fences admission completion across abort (4.733209ms)
+✔ assetBlob fences final-lease completion across login (5.506208ms)
+✔ assetBlob fences final-lease completion across abort (24.815458ms)
+✔ assetBytes fences cache-hit completion across login (10.613458ms)
+✔ assetBytes fences cache-hit completion across abort (5.6565ms)
+✔ assetBytes fences admission completion across login (15.2115ms)
+✔ assetBytes fences admission completion across abort (12.119916ms)
+✔ assetBytes fences final-lease completion across login (5.323167ms)
+✔ assetBytes fences final-lease completion across abort (4.189833ms)
+✔ offline envelope goldens round-trip byte-identically and rebuild ClosureReceipt (40.963125ms)
+✔ offline envelope decoder refuses unknown protocols and malformed shapes (1.234333ms)
+✔ all-column-kind golden tags closed asset records by their declared field types (2.388542ms)
+✔ offline delivery decoder accepts the conditional unchanged marker (0.20475ms)
+✔ offline decoder enforces range, authority, and schema coherence (4.037334ms)
+✔ Limit range extent is derived from pooled rows and the generation schema (0.934666ms)
+✔ application JSON shaped like a row reference round-trips unchanged (0.404583ms)
+✔ expandRows restores pooled wire rows (0.44575ms)
+✔ offline protocol values and types are exported from the package index (551.492166ms)
+✔ standalone offline protocol declarations preserve exported classes and functions (373.487875ms)
+✔ verdict inputs digest is sha256(canonical([table, index, key])) over wire values and matches the Rust goldens (6.557083ms)
+✔ native cursor metadata survives cold custody and transport clears every typed local token after page support is lost (19.343042ms)
+▶ conditional public query states preserve denial/partial shape and complete/capped cursors warm and cold
+  ✔ denied/false (31.952541ms)
+  ✔ denied/true (18.355167ms)
+  ✔ partial/false (29.884167ms)
+  ✔ partial/true (27.183959ms)
+  ✔ complete/false (32.844833ms)
+  ✔ complete/true (15.833833ms)
+  ✔ capped/false (11.319292ms)
+  ✔ capped/true (12.882875ms)
+✔ conditional public query states preserve denial/partial shape and complete/capped cursors warm and cold (182.397959ms)
+▶ held public query states omit denied payload and nonpage cursors through offline entrypoints
+  ✔ denied/forced (7.965958ms)
+  ✔ denied/hydrating (10.996833ms)
+  ✔ denied/retry (159.893792ms)
+  ✔ partial/forced (7.9765ms)
+  ✔ partial/hydrating (6.700625ms)
+  ✔ partial/retry (159.398333ms)
+  ✔ complete/forced (5.898041ms)
+  ✔ complete/hydrating (7.345375ms)
+  ✔ complete/retry (161.512625ms)
+  ✔ capped/forced (20.918458ms)
+  ✔ capped/hydrating (7.9785ms)
+  ✔ capped/retry (158.61475ms)
+✔ held public query states omit denied payload and nonpage cursors through offline entrypoints (716.595375ms)
+✔ resume rejects equivocation with the same typed refusal exposed by query and snapshot (18.142083ms)
+✔ aborting an in-flight resume preserves AbortError without publishing a delivery refusal (4.127791ms)
+✔ a resume answered with the tail after the watermark is held under the cursor args and never replaces the drained first page (34.084458ms)
+✔ the returned-page cursor drives drain and resume, ahead of an auxiliary Cursor argument or c (48.958292ms)
+✔ an offline cold-start drain keeps the drained first page on screen while reporting the persisted watermark (272.961041ms)
+✔ a conditional unchanged reply on a held denied answer is a typed denied, not a wire-shape throw (3.701834ms)
+✔ RangeStore stores rows once and shares them across answers on all three carriers (18.105666ms)
+✔ the IndexedDB carrier keeps rows, answers, outbox, meta, and bytes; the version-2 projection stores are deleted and never written (3.33775ms)
+✔ a pooled row no answer references any more leaves the swap: a replaced closure drops what it stopped pooling, a dropped answer drops its pool (7.865583ms)
+✔ file and IndexedDB swaps are atomic when persistence fails (8.008833ms)
+✔ a process killed between file write and rename leaves the previous snapshot (54.719208ms)
+✔ all three carriers apply the four swap rules with until-revoked and delivered-history (66.140708ms)
+✔ O1a golden ranges evict only holes inside Exhausted bounds and the returned Limit extent (15.215333ms)
+✔ the O1a whole-answer-null golden is hidden evidence and delivered-history restores it (3.017583ms)
+✔ retained reconstruction keeps independent pages and falls back when the rerun lacks authority (4.1855ms)
+✔ a maintained-coherence partial waits for its named owner through later overlays (0.202792ms)
+✔ an exact cached scalar survives an uncovered cold rerun but not a newer local prediction (0.086542ms)
+✔ sequence fences make absence, hidden, and tombstone evidence monotonic and deliveries idempotent (10.51375ms)
+✔ shrunk arrays and denied answers emit the hidden signal (4.364583ms)
+✔ seal survives a cold open, confirmed re-auth unseals, and wipe deletes the partition (28.689083ms)
+✔ carrier open failures and a second web lock holder refuse loudly (34.81075ms)
+✔ offline option shape and fenceDays bounds are TypeErrors (0.23575ms)
+✔ offline factory returns fail at setup with the browser spelling, before auth or I/O (0.263042ms)
+✔ offline setup accepts unbranded custom and callable stores, invoking each factory once (0.516625ms)
+✔ offline setup preserves throwing factories and unavailable carrier refusals (0.384458ms)
+✔ a sealed cold start stays unreadable until auth.me confirms the same bearer principal (11.413917ms)
+✔ an envelope cannot switch the open principal partition: E_OFFLINE_AUTHORITY, and the held coverage survives (10.506625ms)
+✔ manifest retention is loaded before the first commit without an app manifest call (12.070333ms)
+✔ conditional unchanged branches before envelope decoding and refreshes the held seq (6.9215ms)
+✔ a subscription conditional unchanged frame reuses the held pooled answer (16.489625ms)
+✔ an auth-epoch mismatch cannot replace held coverage; a generation mismatch supersedes it without a refusal (7.844334ms)
+✔ held and unheld offline reads expose since and fenceDays never blocks reading (2.757708ms)
+✔ the schema's tombstones declaration evicts the named body in the same delivery swap (7.300167ms)
+✔ the frozen delivery decoder rejects malformed custody facts (2.564833ms)
+✔ drain true follows five pages, persists the watermark, and follows a new tail page (65.695583ms)
+✔ cold resume sends the bounded shape before subscribe and a 404 falls back with validator (29.923584ms)
+✔ resume excludes its drain mount and atomically preserves a full log watermark and validator (21.799375ms)
+✔ E_OFFLINE_RESET drops coverage but preserves the durable outbox slot (13.802333ms)
+✔ E_OFFLINE_RESET cold-drains a mounted drain from the null cursor (16.40275ms)
+✔ E_OFFLINE_RESUME adjusts only structured mounted limits and never drops the log (8.324625ms)
+✔ an unstructured legacy E_OFFLINE_RESUME refuses once and leaves the client usable (4.086833ms)
+✔ resume applies its mounted swap before online resolves (19.49675ms)
+✔ clients without offline storage preserve query bytes and logical subscription arguments (6.119875ms)
+✔ a clock-reading program's later execution installs at the same seq; older, equal, and unstamped ones do not (8.355625ms)
+✔ web assetBlob and byte fetch read the transport cut after readiness resolves (2.582541ms)
+✔ web viewed allowance belongs to its viewing instance, never a second consumer or URL hook (31.671375ms)
+✔ a row viewed during URL minting cannot shift another asset's URL onto its list entry (54.849167ms)
+✔ the view-once session allowance obeys custody: a partition switch, a wipe, and a seal all drop it (18.951959ms)
+✔ a byte read in flight during a partition change never serves the previous principal's session blob (9.837167ms)
+✔ blob: URLs are revoked and re-minted when the client identity or the partition changes, not only on unmount (68.3925ms)
+✔ a viewed view-once row reads null on a fresh query, a conditional read, and a live frame, not only from the held answer (12.05775ms)
+✔ view-once expansion owns its pre-await snapshot and preserves escaped application markers (1.428709ms)
+✔ coverage() hides a viewed view-once row from the twin and marks it absent (4.522291ms)
+✔ web byte consumers refuse missing viewing tokens before fetching; ordinary assets need none (9.580959ms)
+An update to xe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+✔ web mounted image holds one viewing token; a second consumer and a remount cannot re-show it (148.866709ms)
+✔ web asset fetch reads the live transport cut after a paused cache miss (14.981834ms)
+✔ late asset validation never changes a completed offline cut back to connected (0.66725ms)
+✔ two overlapping enqueues consume distinct grant slices: both entries exist and used advances by the sum (179.74325ms)
+✔ a committed reply whose tail fetch fails leaves the intent queued with no rows; the retry is the same bytes and lands rows and entry in one swap (140.475833ms)
+✔ the settlement tail and the resume log both name the first-mounted drained query, never the newest page (580.953584ms)
+✔ settled() rejects with the non-retryable refusal that stopped the replay and leaves the intent queued; a retryable transport failure still resolves (38.320292ms)
+✔ the prediction overlay is dropped in the same swap as a rejected or server-expired settlement (216.020333ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ a cold start with the owner cut prices its slice from the persisted write bound; without one the enqueue refuses E_OFFLINE_ID_BLOCK (367.433291ms)
+✔ SnapbackProvider constructs exactly one client across StrictMode's double mount and a parent re-render with an inline offline object (79.959875ms)
+✔ online() replays a queue held under a login grant when no resume can be built: zero deliveries, no facts, no /api/resume (36.699708ms)
+✔ a resume whose grant persistence crosses a seal cannot restore trust; the next login waits for its own resume on both carriers (301.00225ms)
+✔ no-facts recovery chooses the mounted drain ahead of another mounted candidate, then the recorded log, native cursor metadata, or optional query on both carriers (494.204083ms)
+✔ cold no-facts recovery exposes E_OFFLINE_RESUME in lastRefusal and online rejects while keeping the queue on both carriers (117.123584ms)
+✔ live transport and a fresh login grant cannot release old intents; a grantless resume opens the fence and restart closes it on both carriers (243.417834ms)
+✔ partition change, seal, and wipe never inherit a successful resume for drain or prediction on both carriers (244.695625ms)
+✔ login then offline before any delivery resumes a three-day queue, including after reset, on both carriers (96.542917ms)
+✔ online refuses E_OFFLINE_RESUME and retains a past-fence queue when no query can supply resume facts (31.343417ms)
+✔ missing grant trust waits for resume and the client clock never expires an intent on both carriers (59.863125ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ useOutbox exposes fence inside and past while ready stays true, then updates after grantless resume (23.903167ms)
+✔ enqueue consumes a grant slice of 1 + maxNewIds and refuses E_OFFLINE_ID_BLOCK when the grant is spent (61.10925ms)
+✔ a fresh partition without a grant refuses offline writes loudly and earns one on the drained log (50.813167ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ a grant arriving without an outbox entry change flips useOutbox().ready (36.877292ms)
+✔ the drain replays FIFO after resume, one envelope per request, and both settle committed in order (87.388083ms)
+✔ a 503 after a commit leaves the intent queued, stops the drain, and the retry is the same envelope exactly once (89.109875ms)
+✔ a rejection and a trace conflict settle only their own intent and the drain continues (180.693875ms)
+✔ a three-day-old queue under fenceDays 1 waits for resume without prediction, then replays FIFO and commits on both carriers (107.1945ms)
+✔ only the owner's E_OFFLINE_INTENT_EXPIRED refusal expires an intent and the drain continues on both carriers (200.295125ms)
+✔ a committed settlement lands in the same swap as the log tail rows, or not at all (88.960375ms)
+✔ online writes carry the replay envelope under custody; a transport failure enqueues; a queued outbox keeps FIFO (89.137708ms)
+✔ an online write settles in its own call even when an explicit dismissal races its terminal response (59.51275ms)
+✔ an online terminal survives zero, one, and four readers, missing target delivery, and a cold reopen (117.607542ms)
+✔ a store with an open partition never sends plain bytes: no grant or no bound refuses E_OFFLINE_ID_BLOCK with no request; a client with no store sends today's bytes (21.138292ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ useMutation resolves last queued offline with pending filtered by op, and useOutbox lists the outbox at cold start (88.166333ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ useOutbox survives restart(): the queue is intact and settles through the restarted client (128.159667ms)
+✔ SnapbackProvider under StrictMode creates one lock-holding client and survives the simulated unmount (46.706291ms)
+✔ a cold start with the owner unreachable serves the held log and the outbox before any metadata arrives (410.4975ms)
+✔ maintained source and target arrival orders leave an older named record partial, including cold reopen (76.785167ms)
+✔ target-first zero-to-one invalidates named point and range absence owners (38.396ms)
+✔ a source change withdraws wider maintained-target range authority instead of manufacturing zero (15.769917ms)
+✔ bounded prediction retirement reveals missing maintained authority, never the older target (39.903667ms)
+✔ maintained invalidation follows the aggregate contribution, not every source-row refresh (33.098666ms)
+✔ an unpredicted committed intent is marked arrived by the tail rows of its own settlement swap on both carriers (23.886208ms)
+✔ tail-page retirement requires a non-empty page at a manifest-named position past the commit watermark on both carriers (51.226958ms)
+✔ only proven forward marks of the tail chooser consume patience; duplicate and backward marks do not on both carriers (82.92675ms)
+✔ authoritative predicted-row arrival clears predicted while retaining the committed entry and row on both carriers (23.411583ms)
+✔ authoritative evidence retires an ordinary group while its maintained target waits on both carriers (77.252959ms)
+✔ ordinary prediction groups require exact evidence and retire generated fan-out together on both carriers (33.823167ms)
+✔ a proven tail page keeps a predicted maintained sibling until that row arrives on both carriers (39.908458ms)
+✔ a second nullable string argument cannot impersonate the manifest cursor on either carrier (39.965708ms)
+✔ queued primary absence survives duplicate delivery and cold reopen until settlement on both carriers (28.462708ms)
+✔ queued tombstone survives duplicate delivery and cold reopen until settlement on both carriers (34.303708ms)
+✔ queued predicted deletion survives duplicate delivery and cold reopen until settlement on both carriers (28.904458ms)
+✔ queued conditional refresh survives duplicate delivery and cold reopen until settlement on both carriers (46.158ms)
+✔ a conditional primary absence refreshed after settlement retires at its validated seq on both carriers (19.933ms)
+✔ resetCoverage discards queued absence retirement evidence but preserves intent and prediction (31.689125ms)
+✔ resetCoverage discards queued tombstone retirement evidence but preserves intent and prediction (35.341459ms)
+✔ a queued hidden-row eviction is not durable authoritative negative evidence on both carriers (25.06725ms)
+✔ object and array arguments, including object-entry arrays, cannot supply another query's chain on both carriers (102.348ms)
+✔ an ambiguous link preserves the proven prefix but cannot advance beyond it on both carriers (49.177833ms)
+✔ evicting the progress page re-anchors at surviving consumed positions on both carriers (36.9575ms)
+✔ consumed progress survives cold reopen and a repeated position never double-counts on both carriers (35.305083ms)
+✔ a re-served page replaces its next link and conditional refresh cannot renew a pre-commit link on both carriers (28.028625ms)
+✔ a full delivery at a refreshed seq renews continuation evidence only after content validation (18.335625ms)
+✔ nonempty scalar projections use held closure rows to prove tail progress on both carriers (19.214916ms)
+✔ a retained denied tail cannot prove authoritative page arrival (16.98325ms)
+✔ a denied delivered-history answer cannot confirm arrival of a committed edit on both carriers (106.794792ms)
+✔ a 60-row resume followed by a 50-row-page remount cannot count the backward mark or duplicate delivery as progress on both carriers (46.030958ms)
+✔ missing and pre-commit links prove nothing; a cycle keeps only its proven prefix on both carriers (24.043292ms)
+✔ the commit snapshot round-trips after the tail moved and retires against the persisted position on both carriers (15.038583ms)
+✔ primary absence retires the committed overlay in its swap and after cold reopen on both carriers (11.32775ms)
+✔ tombstone retires the committed overlay in its swap and after cold reopen on both carriers (11.410625ms)
+✔ predicted deletion retires the committed overlay in its swap and after cold reopen on both carriers (17.259583ms)
+✔ empty answers and hidden alternate-key lookups are not authoritative absence on both carriers (20.890375ms)
+✔ resetCoverage rebases the snapshot and patience for a new tail op and cursor name on both carriers (23.484541ms)
+✔ unchanged quiet-tail resumes strictly past commit consume one miss across each cold client on both carriers (47.896458ms)
+✔ repeated online resumes at the commit seq do not consume misses in one session on both carriers (36.934666ms)
+✔ a pre-manifest c snapshot needs fresh correctly named links after reopening with an after manifest on both carriers (27.292709ms)
+✔ 0 observers: active replay waits; a connected read leaves a stopped queue actionable (76.736542ms)
+✔ 1 observers: active replay waits; a connected read leaves a stopped queue actionable (37.622375ms)
+✔ 4 observers: active replay waits; a connected read leaves a stopped queue actionable (32.184458ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ follower readiness keeps its inbox contract while detail.writer observes replay without writer-side hooks (67.639875ms)
+✔ file: ready() and ready(op) return false on sealed custody (8.760167ms)
+✔ IndexedDB: ready() and ready(op) return false on sealed custody (18.5425ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ bound adoption alone updates useMutation.ready without an entries change (53.906125ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ operation change mid-probe hides old readiness and ignores superseded completions (74.326166ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ time alone notifies mounted hooks at the fence boundary: the fence turns past, expiry invalidates ready (17.830625ms)
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+✔ time alone notifies mounted hooks at the expiresAt boundary: the fence turns past, expiry invalidates ready (18.494667ms)
+✔ real owner private asset bytes and conditional responses forbid HTTP cache storage (78.292542ms)
+✔ twenty-four refused File mutations recover their staging quota immediately (1074.577375ms)
+✔ cyclic mutation arguments release uploaded bytes without sending a mutation (1118.628625ms)
+✔ chat once photo uses one message and upload, each member gets one server delivery, and web stores no bytes (249.906542ms)
+✔ offline sendOncePhoto prediction under the message alias has null media and makes no asset fetch (112.564208ms)
+✔ Expo witness seed leaves Alice's schema-once image unconsumed and keeps its clip ordinary (2718.490958ms)
+✔ public count reads enable multi-principal offline cap prediction without inventing missing counts (1776.572333ms)
+ℹ held: {"before":[1,1],"predicted":true,"trace":{"points":[],"verdicts":[]},"state":"committed","final":[2,2]}
+ℹ unheld: {"before":[1],"predicted":false,"trace":{"points":[],"verdicts":[]},"state":"committed","final":[2,2]}
+ℹ zero public query receipt: [{"authority":{"authEpoch":3,"principal":"guest:HBjLLvXB4NWUfpF-AsKatg"},"data":0,"generation":"b1121b35f8f92b88feb8029ba63b4280db3afe1bd25f4fd01afee8088f4704f0","next":null,"planHash":"24ebc62d43de3e14ab2b93326dfc5305d13bbdecee0f7cc43732cf6bb3a65e22","protocol":1,"receipt":{"absences":[["principalCounts","byId",["[{\"Id\":\"dev:zero\"}]"]]],"ranges":[{"absence":true,"after":null,"before":null,"gt":null,"gte":null,"index":"byPrincipal","lt":null,"lte":null,"order":"Asc","prefix":[{"Scalar":"dev:zero"}],"rowIds":[],"ruleHash":"49b3210ae4ac5e088fa5033831109dca9c678baebef125e2220c35cf17551088","site":"caps.countFor.0","stop":"Exhausted","table":"principalCounts","take":1}],"verdicts":[]},"rows":[],"schemaHash":"052de8b2bf9f82acb6f856a3b22a7570ab735647d4b657b71585a7619e4b914a","seq":3,"state":"complete","validator":"abf889ef2551cb4f496c8d71dd4bec499577267e81cdee1f5b52967c0f1d454a"}]
+ℹ zero: {"before":[0],"predicted":true,"trace":{"points":[],"verdicts":[]},"state":"committed","final":[3]}
+ℹ overflow: {"before":[1,3],"predicted":false,"trace":{"points":[],"verdicts":[]},"state":"rejected","final":[1,3]}
+ℹ long maintained Ref: {"utf8Bytes":290,"cold":0,"predicted":1,"final":1}
+✔ the package suite is pointed at a checked real owner (26.544ms)
+ℹ real-owner mode=self-started url=http://127.0.0.1:63939
+✔ a real rejected mutation carries the complete refusal envelope (5.444917ms)
+✔ real owner stop and restart yields stale then a full first re-delivery (777.205834ms)
+ℹ owner performs a full query re-delivery after reconnect; Last-Event-ID is not a delta-resume contract
+✔ React-free hook driver reduces eight real-owner transitions including live capped and denied (1797.544209ms)
+ℹ hook-driver transitions=hydrating -> complete -> complete -> stale -> complete -> capped -> denied -> refused
+✔ real channel membership revocation ends the subscriber with a refusal (16.603667ms)
+✔ a real stored session restores after a cut with identical snapshot views and no mounted query (11.904375ms)
+✔ serve mode refuses a persona-bound real client (896.16025ms)
+✔ durable client intents survive a schema successor and a lost acknowledgement survives operation removal (4704.002166ms)
+ℹ schema reset preserved 1 original messages; two predicted intents settled E_OFFLINE_CONFLICT, and two explicit new intents advanced the first room count by two
+ℹ lost acknowledgement retried byte-identically after operation removal; stored terminal settled with one message; new call refused E_OP_UNKNOWN
+✔ failed outbox admission or prediction leaves no upload, intent, or mutation request (1169.575583ms)
+✔ an outbox persistence failure after commit retains media for replay (216.292792ms)
+✔ a lost committed media response retains the claimed asset and explicit discard refuses it (47.614417ms)
+✔ queued media retains its uploaded bytes until the outbox commits (176.304667ms)
+▶ reconnect after a conditional refresh replays a queued send for joined and plain inboxes
+  ✔ inbox (316.164792ms)
+  ℹ integration.inbox: full seq 1 -> unchanged/full seq 2; differing fields: seq
+  ✔ inboxHeld (230.0275ms)
+  ℹ integration.inboxHeld: full seq 3 -> unchanged/full seq 4; differing fields: seq
+  ✔ inboxPlain (180.557708ms)
+  ℹ integration.inboxPlain: full seq 5 -> unchanged/full seq 6; differing fields: seq
+✔ reconnect after a conditional refresh replays a queued send for joined and plain inboxes (731.665167ms)
+✔ a real indexed observation stays authoritative across persistent local refreshes (174.884334ms)
+✔ cold global search includes a queued Unicode row after an unrelated persisted marker (160.198583ms)
+✔ real scalar-projected log pages retire predictions using engine-minted cursor links after cold reopen (42.219041ms)
+✔ settlement uses the persisted cursor name when live metadata disagrees, with real owner argument validation (264.99075ms)
+✔ the real owner pages an object wrapper but refuses it as a resume log (25.443542ms)
+✔ sixty live queries and a channel share one connection through add, remove and reconnect (295.010334ms)
+✔ the shipped composite pages online and after a cold offline reopen (585.682083ms)
+✔ summarize maps every axis combination the reducer emits to one status and at most one reason (2.03075ms)
+✔ readiness maps every outbox status, the fence, and the op-scoped queue to send, action, and reason (0.482792ms)
+✔ intentLabel never shows a client clock and reads a conflict the same way from a trace or a recipe (0.16075ms)
+✔ SQLite driver conformance: BLOBs, JSON keys, rollback, late beforeCommit, and journal mode (52.38475ms)
+ℹ journal_mode=wal; journal_mode readback, BLOB 1, BLOB 1048576, BLOB 0, JSON tuple key round trip, missing row is undefined, rollback on throw, body-ended transaction rejects and next transaction succeeds, late beforeCommit holds transaction, transaction result
+✔ every PersistedRangeState field round-trips on file, IndexedDB, and SQLite (29.507083ms)
+✔ IndexedDB rows without meta survive open with version 1 and default maps on every carrier (12.576292ms)
+✔ warm and reopened coverage, answers, and incremental snapshots agree on undefined and null on all three carriers (20.730833ms)
+✔ Node COMMIT failure rolls back, preserves the original error, and the next queued BEGIN succeeds (3.248084ms)
+✔ SQLite replace rolls state and byte deltas back when beforeCommit throws (6.227ms)
+✔ SIGKILL before COMMIT preserves exactly the pre-swap rows and bytes (65.848542ms)
+✔ SIGKILL after COMMIT preserves exactly the post-swap rows and bytes (60.405ms)
+✔ in-process locks refuse a second client on the partition and release on close (34.843959ms)
+✔ in-process locks scope one partition to its database across separate factories (7.585083ms)
+✔ custom factories share database identity locks while distinct databases do not conflict (7.536708ms)
+✔ Node realpath identity collapses a symlink and uses the deliberate scoped lock symbol (4.976042ms)
+✔ SQLite refuses an identity-less custom driver before reading or writing the database (0.782125ms)
+✔ SQLite refuses unopenable files, a journal mismatch, and competing writes as E_OFFLINE_CARRIER (5.508334ms)
+✔ SQLite wipe deletes only the named partition; shared database and sidecars remain (7.748458ms)
+✔ database projection owns only presence after mutable replacement, abort, cold deletion and reclamation (29.112792ms)
+✔ database reset completion removes metadata children through failure, retry and populated reopen (120.416875ms)
+▶ unchanged native26c9 movement, revocation and halo deliveries survive public admission on every carrier
+  ✔ Node file/false (97.421666ms)
+  ✔ Node file/true (78.023375ms)
+  ✔ IndexedDB/false (85.393458ms)
+  ✔ IndexedDB/true (111.296042ms)
+  ✔ SQLite/false (66.846083ms)
+  ✔ SQLite/true (77.459583ms)
+✔ unchanged native26c9 movement, revocation and halo deliveries survive public admission on every carrier (525.801583ms)
+▶ a prior halo participates in same-sequence conflicts and immutable conditional extent custody
+  ✔ Node file (24.119541ms)
+  ✔ IndexedDB (35.490208ms)
+  ✔ SQLite (26.903167ms)
+✔ a prior halo participates in same-sequence conflicts and immutable conditional extent custody (90.555584ms)
+✔ ambiguous experimental fact custody resets atomically on cold open while ordinary history and queued intents survive (11.4925ms)
+✔ cold open restores nullable v1 map fields to their established empty state (0.419042ms)
+▶ carrier projection preserves a missing fact-format marker so experimental custody resets and published ordinary history survives
+  ✔ Node file/missing/false/false (3.062292ms)
+  ✔ Node file/missing/false/true (3.4665ms)
+  ✔ Node file/missing/true/false (3.286958ms)
+  ✔ Node file/missing/true/true (3.98075ms)
+  ✔ Node file/0/false/false (3.353542ms)
+  ✔ Node file/0/false/true (5.111667ms)
+  ✔ Node file/0/true/false (3.230375ms)
+  ✔ Node file/0/true/true (5.011125ms)
+  ✔ Node file/2/false/false (3.703042ms)
+  ✔ Node file/2/false/true (5.155208ms)
+  ✔ Node file/2/true/false (4.231334ms)
+  ✔ Node file/2/true/true (4.801584ms)
+  ✔ Node file/3/false/false (3.428292ms)
+  ✔ Node file/3/false/true (5.00625ms)
+  ✔ Node file/3/true/false (2.917584ms)
+  ✔ Node file/3/true/true (4.447042ms)
+  ✔ Node file/4/false/false (2.821083ms)
+  ✔ Node file/4/false/true (3.579542ms)
+  ✔ Node file/4/true/false (2.862958ms)
+  ✔ Node file/4/true/true (3.509792ms)
+  ✔ IndexedDB/missing/false/false (6.5295ms)
+  ✔ IndexedDB/missing/false/true (9.235875ms)
+  ✔ IndexedDB/missing/true/false (7.779042ms)
+  ✔ IndexedDB/missing/true/true (9.094791ms)
+  ✔ IndexedDB/0/false/false (7.642167ms)
+  ✔ IndexedDB/0/false/true (10.210334ms)
+  ✔ IndexedDB/0/true/false (8.030042ms)
+  ✔ IndexedDB/0/true/true (10.846083ms)
+  ✔ IndexedDB/2/false/false (7.702167ms)
+  ✔ IndexedDB/2/false/true (10.051333ms)
+  ✔ IndexedDB/2/true/false (7.772708ms)
+  ✔ IndexedDB/2/true/true (9.615167ms)
+  ✔ IndexedDB/3/false/false (11.222ms)
+  ✔ IndexedDB/3/false/true (9.93025ms)
+  ✔ IndexedDB/3/true/false (6.214459ms)
+  ✔ IndexedDB/3/true/true (11.195708ms)
+  ✔ IndexedDB/4/false/false (8.111625ms)
+  ✔ IndexedDB/4/false/true (9.947542ms)
+  ✔ IndexedDB/4/true/false (6.442541ms)
+  ✔ IndexedDB/4/true/true (9.000459ms)
+  ✔ SQLite/missing/false/false (6.829792ms)
+  ✔ SQLite/missing/false/true (5.024542ms)
+  ✔ SQLite/missing/true/false (8.947417ms)
+  ✔ SQLite/missing/true/true (6.003083ms)
+  ✔ SQLite/0/false/false (4.64025ms)
+  ✔ SQLite/0/false/true (4.183417ms)
+  ✔ SQLite/0/true/false (5.407333ms)
+  ✔ SQLite/0/true/true (4.69325ms)
+  ✔ SQLite/2/false/false (3.945375ms)
+  ✔ SQLite/2/false/true (4.668125ms)
+  ✔ SQLite/2/true/false (4.598167ms)
+  ✔ SQLite/2/true/true (4.794584ms)
+  ✔ SQLite/3/false/false (3.673ms)
+  ✔ SQLite/3/false/true (4.247375ms)
+  ✔ SQLite/3/true/false (4.297125ms)
+  ✔ SQLite/3/true/true (4.397375ms)
+  ✔ SQLite/4/false/false (10.717375ms)
+  ✔ SQLite/4/false/true (13.030333ms)
+  ✔ SQLite/4/true/false (4.427416ms)
+  ✔ SQLite/4/true/true (5.248ms)
+✔ carrier projection preserves a missing fact-format marker so experimental custody resets and published ordinary history survives (376.346958ms)
+✔ close, active wipe and principal switch release carrier indexes and ephemeral schema custody (3.624708ms)
+✔ global negative guards retain integrity without retaining positive index owners (3.159542ms)
+✔ sequence-zero primary absence and positive proofs remain explicit across cold and conditional custody (3.559084ms)
+✔ closed extents retain all-ID consistency after conditional refresh and GC without globalizing nonmembership (45.579ms)
+✔ scoped holes dominate every FIFO overlay state until a compatible authoritative image returns (36.891625ms)
+✔ a receipt-owned primary absence admits only a later predicted overlay image (6.427417ms)
+✔ primary absence admission survives answer custody changes but not later row authority (177.075083ms)
+✔ native-certified Unicode search accepts scope movement in either arrival order and retains exact Q custody cold (107.030875ms)
+✔ repeated immutable pools preserve receipt isolation, backend rollback and keys-only custody after body collection (8.221583ms)
+✔ repeated certified frames cannot hide an earlier conflicting image behind a later valid version (7.580833ms)
+✔ carrier preflight preserves the first source refusal and skips stale ordinary fact payloads (1.695125ms)
+✔ typed full cursor bounds refuse before empty or populated carrier and checked-runtime publication (36.748917ms)
+✔ Limit replacement values retain a capped stop through overlays until an actual native Exhausted receipt (41.30225ms)
+✔ cold coverage keeps the issuing keys after later authenticated movement without a replacement page (34.290625ms)
+✔ delayed FULL replaces every interior issuing position even when newer current bodies and endpoints are unchanged (14.816917ms)
+✔ authenticated sparse optional images retain exact bytes and refuse same-sequence explicit null atomically (7.200584ms)
+✔ equal authenticated refresh shares built current ownership without semantic revisions across replay and cold replacement (26.425416ms)
+▶ identical pre-program envelopes survive cold custody and install checked coverage without accepting equivocation
+  ✔ Node file/minimum (20.962916ms)
+  ✔ Node file/search.findPeople (27.077375ms)
+  ✔ IndexedDB/minimum (10.902958ms)
+  ✔ IndexedDB/search.findPeople (20.093084ms)
+  ✔ SQLite/minimum (8.510875ms)
+  ✔ SQLite/search.findPeople (14.118542ms)
+✔ identical pre-program envelopes survive cold custody and install checked coverage without accepting equivocation (108.279959ms)
+▶ conditional refresh then same-sequence redelivery survives reopen without accepting equivocation
+  ✔ Node file (7.009041ms)
+  ✔ IndexedDB (13.945333ms)
+  ✔ SQLite (7.985084ms)
+✔ conditional refresh then same-sequence redelivery survives reopen without accepting equivocation (30.243542ms)
+✔ authoritative evictions purge pooled bodies and derived literals on every carrier (27.926208ms)
+✔ array deletion, reordering and limiting preserve fresh identities and independently held rows (4.1985ms)
+✔ uniform range eviction uses engine ordering for Unicode, Bytes and optional values (23.951208ms)
+✔ compatible bounded pages union presence within one durable sequence (3.013416ms)
+✔ escaped objects remain literals through collection, viewing, eviction and carrier reopen (21.297833ms)
+✔ held answer callers cannot mutate the store's immutable committed rows (9.451167ms)
+✔ the first metadata-only swap persists normalization of a legacy plaintext fingerprint (15.073542ms)
+✔ a new authenticated epoch accepts a same-seq revalidation then restores duplicate conflict checks (19.433708ms)
+✔ outbox-only SQLite swaps write no unchanged history and do not clone it (140.491375ms)
+✔ outbox-only IndexedDB swaps update only the entry and scalar header, including after reopen (156.516ms)
+▶ execution clocks order answers while immutable durable facts survive collection on every carrier
+  ✔ Node file (10.577625ms)
+  ✔ IndexedDB (19.8335ms)
+  ✔ SQLite (9.416583ms)
+✔ execution clocks order answers while immutable durable facts survive collection on every carrier (41.704458ms)
+▶ ordinary conditional proof enrollment requires one full read and preserves original custody through GC
+  ✔ Node file (4.160042ms)
+  ✔ IndexedDB (8.160459ms)
+  ✔ SQLite (5.329791ms)
+✔ ordinary conditional proof enrollment requires one full read and preserves original custody through GC (19.012166ms)
+▶ stamped cold custody validates its actual issuing clock and legacy reset preserves queued work
+  ✔ Node file (7.652166ms)
+  ✔ IndexedDB (16.10375ms)
+  ✔ SQLite (10.545792ms)
+✔ stamped cold custody validates its actual issuing clock and legacy reset preserves queued work (40.18025ms)
+✔ clock-only tail frames preserve watermark and retirement evidence; explicit new facts still retire (1.680542ms)
+✔ timed guard slot exhaustion resets coverage once, preserves outbox, and refuses a repeated saturated rebuild (1440.356583ms)
+✔ revalidation reset markers refuse concurrent repeats atomically and failed publication remains retryable cold (1.044417ms)
+▶ first timed facts constrain ordinary conditionals in the same atomic swap and revalidate each affected answer once
+  ✔ Node file (3.121625ms)
+  ✔ IndexedDB (5.457417ms)
+  ✔ SQLite (4.236042ms)
+✔ first timed facts constrain ordinary conditionals in the same atomic swap and revalidate each affected answer once (14.45125ms)
+▶ checked extent membership follows immutable assertion sequences across row movement
+  ✔ Node file/Time/warm/batch (62.443166ms)
+  ✔ Node file/Time/warm/separate (69.26475ms)
+  ✔ Node file/Time/warm/reopen-between (105.908709ms)
+  ✔ Node file/Time/cold/batch (81.553125ms)
+  ✔ Node file/Time/cold/separate (90.938875ms)
+  ✔ Node file/Time/cold/reopen-between (187.539417ms)
+  ✔ Node file/Unicode/warm/batch (56.721375ms)
+  ✔ Node file/Unicode/warm/separate (55.877583ms)
+  ✔ Node file/Unicode/warm/reopen-between (100.326333ms)
+  ✔ Node file/Unicode/cold/batch (70.502167ms)
+  ✔ Node file/Unicode/cold/separate (69.764875ms)
+  ✔ Node file/Unicode/cold/reopen-between (96.274333ms)
+  ✔ IndexedDB/Time/warm/batch (85.673125ms)
+  ✔ IndexedDB/Time/warm/separate (100.538708ms)
+  ✔ IndexedDB/Time/warm/reopen-between (169.0575ms)
+  ✔ IndexedDB/Time/cold/batch (119.90475ms)
+  ✔ IndexedDB/Time/cold/separate (130.001625ms)
+  ✔ IndexedDB/Time/cold/reopen-between (194.51425ms)
+  ✔ IndexedDB/Unicode/warm/batch (99.703208ms)
+  ✔ IndexedDB/Unicode/warm/separate (110.605833ms)
+  ✔ IndexedDB/Unicode/warm/reopen-between (175.520583ms)
+  ✔ IndexedDB/Unicode/cold/batch (132.716875ms)
+  ✔ IndexedDB/Unicode/cold/separate (146.904166ms)
+  ✔ IndexedDB/Unicode/cold/reopen-between (220.357208ms)
+  ✔ SQLite/Time/warm/batch (39.184958ms)
+  ✔ SQLite/Time/warm/separate (40.188458ms)
+  ✔ SQLite/Time/warm/reopen-between (81.936125ms)
+  ✔ SQLite/Time/cold/batch (63.770417ms)
+  ✔ SQLite/Time/cold/separate (59.913792ms)
+  ✔ SQLite/Time/cold/reopen-between (89.861792ms)
+  ✔ SQLite/Unicode/warm/batch (58.366792ms)
+  ✔ SQLite/Unicode/warm/separate (56.475459ms)
+  ✔ SQLite/Unicode/warm/reopen-between (115.105834ms)
+  ✔ SQLite/Unicode/cold/batch (76.663041ms)
+  ✔ SQLite/Unicode/cold/separate (83.265459ms)
+  ✔ SQLite/Unicode/cold/reopen-between (131.092ms)
+  ✔ Node file/Limit-edges-false (4.332375ms)
+  ✔ Node file/Limit-edges-true (3.447084ms)
+  ✔ IndexedDB/Limit-edges-false (4.183916ms)
+  ✔ IndexedDB/Limit-edges-true (9.042292ms)
+  ✔ SQLite/Limit-edges-false (3.171167ms)
+  ✔ SQLite/Limit-edges-true (4.626375ms)
+✔ checked extent membership follows immutable assertion sequences across row movement (3667.759084ms)
+▶ checked fixed extent holes reject clock contradictions atomically and retain negative conditional custody warm and cold
+  ✔ Node file/warm (7.678625ms)
+  ✔ Node file/cold (9.7775ms)
+  ✔ IndexedDB/warm (16.730167ms)
+  ✔ IndexedDB/cold (23.04ms)
+  ✔ SQLite/warm (7.403875ms)
+  ✔ SQLite/cold (11.298542ms)
+  ✔ Node file/sequence-batch-false (12.590416ms)
+  ✔ Node file/sequence-batch-true (10.067208ms)
+  ✔ IndexedDB/sequence-batch-false (19.947708ms)
+  ✔ IndexedDB/sequence-batch-true (21.016125ms)
+  ✔ SQLite/sequence-batch-false (10.93325ms)
+  ✔ SQLite/sequence-batch-true (13.633083ms)
+  ✔ Node file/replacement-proof-custody (4.351625ms)
+  ✔ IndexedDB/replacement-proof-custody (9.172916ms)
+  ✔ SQLite/replacement-proof-custody (3.926209ms)
+  ✔ Node file/first-hole-enrollment-false (3.869208ms)
+  ✔ Node file/first-hole-enrollment-true (3.167959ms)
+  ✔ IndexedDB/first-hole-enrollment-false (6.854917ms)
+  ✔ IndexedDB/first-hole-enrollment-true (9.004875ms)
+  ✔ SQLite/first-hole-enrollment-false (3.986084ms)
+  ✔ SQLite/first-hole-enrollment-true (3.607208ms)
+✔ checked fixed extent holes reject clock contradictions atomically and retain negative conditional custody warm and cold (214.906625ms)
+✔ file: query-only successor rebuilds overlapping rows at unchanged seq without a watermark (55.169917ms)
+✔ IndexedDB: query-only successor rebuilds overlapping rows at unchanged seq without a watermark (39.025334ms)
+✔ concurrent G2 and G3 deliveries coalesce into one reset with only G3 answers held (29.357625ms)
+✔ a predecessor response completing after reset is re-issued without reinstalling facts or resetting again (27.26575ms)
+✔ transport reset failure preserves the live read and snapshot refusal; the next query retries (30.39225ms)
+✔ refusal reset failure preserves the live read and snapshot refusal; the next query retries (30.606084ms)
+✔ principal replacement clears pending reads and an in-flight reset cannot cross partitions (24.872459ms)
+✔ a mounted subscription cold-opens after supersession without Last-Event-ID or an old validator (30.476417ms)
+✔ tracked Snapback 2 source contains no literal NUL bytes (104.448542ms)
+✔ a reset during the initial drain page cancels old cursors and leaves one tail (39.980416ms)
+✔ a reset during the subsequent drain page cancels old cursors and leaves one tail (32.9975ms)
+✔ failed program reload keeps the durable reset marker and online retries the reset (21.615334ms)
+✔ a terminal reset refusal seals custody while the completed live read stays successful (16.323208ms)
+✔ a second successor between manifest and program coalesces into the same reset (15.331334ms)
+✔ a held-answer probe completing after supersession cannot send its old validator (26.387375ms)
+✔ file: reset drops G1 hidden evidence at N so a successor can disclose at the same N, while viewed custody survives (18.722375ms)
+✔ IndexedDB: reset drops G1 hidden evidence at N so a successor can disclose at the same N, while viewed custody survives (34.933ms)
+✔ a successor after program load and before the fresh query commits converges within the same flight (23.733458ms)
+✔ a mounted cold reopen discovering G3 during the fresh G2 query feeds the active reset flight (35.119834ms)
+✔ three fresh-query rotations record a durable refusal instead of reporting convergence (24.313584ms)
+✔ file: cold-start convergence exhaustion resolves ready and online retries on the same client (25.111625ms)
+✔ file: cancelled reset program adoption and settlement racing login with a grant cannot deadlock the ledger (15.30775ms)
+✔ IndexedDB: cold-start convergence exhaustion resolves ready and online retries on the same client (50.384ms)
+✔ IndexedDB: cancelled reset program adoption and settlement racing login with a grant cannot deadlock the ledger (38.391083ms)
+✔ file: an obsolete settlement tail stays queued and cannot supersede G3; retry settles atomically with G3 rows (45.212792ms)
+✔ IndexedDB: an obsolete settlement tail stays queued and cannot supersede G3; retry settles atomically with G3 rows (60.139625ms)
+✔ login aborts a reset during program reload and late work never crosses custody (20.664625ms)
+✔ login aborts a reset during fresh query and late work never crosses custody (16.780416ms)
+✔ logout aborts a reset during program reload and late work never crosses custody (14.915041ms)
+✔ logout aborts a reset during fresh query and late work never crosses custody (14.538458ms)
+✔ close aborts a reset during program reload and late work never crosses custody (16.046583ms)
+✔ close aborts a reset during fresh query and late work never crosses custody (14.895375ms)
+✔ file: cold reopen mid-rebuild preserves the pending marker and reruns mounted coverage before clearing it (22.057333ms)
+✔ file: a failed program custody swap preserves the predecessor and refuses the reset until retry (20.841333ms)
+✔ IndexedDB: cold reopen mid-rebuild preserves the pending marker and reruns mounted coverage before clearing it (34.758833ms)
+✔ IndexedDB: a failed program custody swap preserves the predecessor and refuses the reset until retry (37.283625ms)
+✔ first facts after reset must match the epoch authenticated by the predecessor and reset probe (19.662417ms)
+✔ an actual owner epoch transition refuses resume before generation and seals the old session (9.525334ms)
+✔ reset clears a terminal subscription latch and cold-opens it again (22.62175ms)
+✔ a frame decoding across reopen cannot commit or restore the predecessor event id (292.458875ms)
+✔ a terminal session frame already decoding across reset still retires the bearer and seals custody (26.68575ms)
+✔ a removed or expired delivery tombstones the message it names (0.627584ms)
+✔ a message or edit delivery tombstones nothing (0.070208ms)
+✔ a null, absent, empty, or non-string reference tombstones nothing (0.081458ms)
+✔ a null or absent predicate column is false for = and != (0.071167ms)
+✔ bool and text columns compare by their own type; not, and, and or compose (0.100208ms)
+✔ several declarations union and repeated targets collapse (0.079916ms)
+✔ tables without a declaration, unknown tables, and malformed schemas tombstone nothing (0.067333ms)
+✔ predicate shapes outside the row-local vocabulary never evict (0.09675ms)
+✔ prototype names are not columns (0.066541ms)
+✔ atomic carrier snapshots retain every envelope golden's issuing ClosureReceipt byte-identically (55.01075ms)
+✔ a json column shaped like the byte variant rebuilds as application data, never as bytes (1.635667ms)
+✔ every corpus query round-trips through atomic carrier snapshots and replays with its pinned execution inputs (1652.258416ms)
+✔ program custody is fetched, held per generation on all three carriers, serves a cold start with the owner cut, and is fenced by generation and auth epoch (78.264791ms)
+✔ partial reads name missing coverage; an explicit tombstone establishes known absence (21.709375ms)
+✔ an offline send is predicted into the thread in order with its trace, a delete is predicted out, an uncovered read queues without a trace, and the overlay leaves when the rows arrive (29.382208ms)
+✔ a committed intent's ordinary overlay retires as one group and two resumes retire a stranded prediction (8.611667ms)
+✔ a ReferenceError from tagArguments surfaces on query and mutation, never as hydrating or an empty trace (9.729416ms)
+✔ an online query under a new generation immediately resets and rebuilds fresh coverage without an explicit online() (37.948125ms)
+✔ a settlement swap that also carries a prediction never resurrects what it settled (1.119958ms)
+✔ E_OFFLINE_RESET re-fetches the live generation's program, replaces the bounds whole, and drains the queue (17.81975ms)
+✔ an unseen schema shape is hydrating: a novel index field or column payload is refused, never hashes as the known shape, and a write queues without a prediction (17.108333ms)
+✔ evicting a middle row of a drained page makes the never-opened thread partial with reason evicted, not fresh (12.178709ms)
+✔ a connected subscription without a local store becomes hydrating on transport loss (3.542125ms)
+✔ a no-store subscription clears connected on its next ordinary frame before transport loss (0.717125ms)
+✔ connected envelopes never enter coverage, including with missing program custody and repeated durable seq (4.730792ms)
+✔ a delivery whose generation has no held program is hydrating until the program lands (12.624917ms)
+✔ connected stays hydrating despite a cached zero or count, cold reopen, and never predicts a gated mutation (13.729916ms)
+✔ covered evaluation errors surface; typed local mutation refusals omit prediction and JS bugs propagate (13.305708ms)
+✔ file: a G1 prediction overlay fails closed after a schema reset until it is retired (23.283416ms)
+✔ SQLite: a G1 prediction overlay fails closed after a schema reset until it is retired (22.016ms)
+✔ IndexedDB: a G1 prediction overlay fails closed after a schema reset until it is retired (37.025875ms)
+✔ overlay put and remove bugs escape the hydrate catch boundary (11.173416ms)
+✔ h1 stays local across query transport, subscription reconnect and cold reopen (277.203167ms)
+▶ enrolled ordinary conditionals fetch one authenticated full reply without a validator across query and SSE
+  ✔ query (4.99925ms)
+  ✔ subscription (4.888792ms)
+  ✔ failed-full (3.519958ms)
+✔ enrolled ordinary conditionals fetch one authenticated full reply without a validator across query and SSE (14.173333ms)
+✔ native-certified derived page keeps its public local cursor after halo replacement (8.941958ms)
+✔ public offline movement propagates detected partial coverage and the known halo through cold, retry and subscription (161.002667ms)
+ℹ tests 843
+ℹ suites 0
+ℹ pass 842
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 98734.658791
+
+✖ failing tests:
+
+test at tests/channels.test.ts:213:1
+✖ React Strict Mode keeps the active handle and closes replaced/unmounted scopes (51.7565ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-s2y/snapback2/packages/snapback2/tests/channels.test.ts:230:10)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+== cargo-nextest workspace tests (parallel, no fail-fast)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.11s
+────────────
+ Nextest run ID a999e507-9856-40bf-9998-78dc11b16b4b with nextest profile: local-proof
+    Starting 892 tests across 44 binaries (4 tests skipped)
+────────────
+     Summary [  45.792s] 892 tests run: 892 passed (1 leaky), 4 skipped
+== cargo workspace doctests (no fail-fast)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+== evaluator (IR twin vs corpus)
+Unicode/search foundation: 20034 normalization rows + unlisted scalars, 1512 C/S folds, bounds and logical keys; tables 29bb626cbddaec2bce2cc1efcac329a9ea07ee725322155b791005cd7781b9e8
+indexed seek, incremental twin, Unicode and h1 regressions passed
+scope coverage, FIFO negative dominance, partial membership and directory authority regressions passed
+atomic carrier delta, immutable snapshot, metadata and rollback regressions passed
+100-lane metering, issuing-site custody, post-negative overlays and payload-free delta history regressions passed
+bounded halo loss, incremental page proof, unseen-term authority and lexical h1 bindings passed
+maximum Q2000/144-byte tagged identity h1 reservation: 10355 untimed / 10391 timed bytes of 32768
+actual Rust certificate identities and 100 required dynamic lane normalization passed
+public direct/global h1 normalization, reused ordinary site, pinned clock and v5 recursive Text.min regressions passed
+actual native v5 minimum/query/channel schema identities and scalar admission passed
+actual native V5 format/channel custody, recursive scalar admission, preexecution refusal and public Twin parity passed
+actual Public/Deny authority and incremental AVL page-union oracle passed
+local cursor operation, binding, partition, schema, program, generation and page/suffix fences passed
+3000 compact posting mutations and 2000 ordinary/derived oracle seeks passed
+4096 wide Unicode dictionary mutations, 1024 reference seeks and empty-store reuse passed
+timed local h1 continuation pins one signed execution clock and preserves malformed refusal
+native-certified ownership/public Twin allow/deny/unseen and scope-uniform compound rule controls passed
+first warm direct operation at 20/80 retained scopes performs no scope enumeration/directory refresh
+20/80/2000-owner verdict work stays constant; disagreement, duplicates, replacement/removal and rollback controls passed
+2000 deleted scopes reclaim directory metadata; shared dependency touch/digest, denial, clear and repopulation passed
+registered directory receipt replacement observes final authority and failed admission changes nothing passed
+standalone rehydrate invalidates removed receipt authority after installing replacement coverage passed
+receipt coverage retains expected keys and authority without retaining removed full row bodies passed
+2000 scoped ordinary/Unicode extent and positive indexes match 200 independent oracles; shared GC, opaque upgrade and posting bounds passed
+shared live/proof postings preserve 200 independent exact-namespace oracles and last-owner GC
+duplicate absence ownership regression passed
+atomic standalone rehydrate regression passed
+put shallow-frozen nested input isolation passed
+constructor shallow-frozen nested input isolation passed
+rehydrate shallow-frozen nested input isolation passed
+standalone typed endpoint, suffix, proof isolation, replacement and GC regressions passed
+shared immutable image omission/null, schema reprepare, media, Map, canonical bytes and body-free proof reclamation passed
+raw/prepared/cold optional indexed __proto__ admission preserves sparse ordinary and Unicode keys
+prepared range custody, constructor reuse, isolation, field ordering and owner rollback passed
+maintained address: exact native held/delivery outputs, targeted Optional/List, absent authority, atomic images and current-schema cursors pass
+{"visibilityChecks":2,"passed":2,"failed":0}
+{"cases":238,"passed":238,"serverOnly":25,"failed":0,"corruptionPath":"replay-mismatch"}
+== compiler type checking
+$ node ../snapback2/build.mjs --unicode-only && tsc -p tsconfig.json
+== compiler tests
+PASS preparatory search contracts preserve explicit components and independent operation Q
+PASS bound Quarry schema preserves public catalog and refusal contracts
+PASS direct Quarry validates nominal operators and narrows one-hop optional members
+PASS direct Quarry certifies the shipped chat held search with oracle bounds
+PASS direct Quarry binds and certifies the public surface, todos, and Clique corpora
+PASS direct Quarry refuses heterogeneous arrays and invalid operator domains before IR
+PASS direct Quarry joins raw and shaped page items structurally in either branch order
+PASS direct Quarry gives empty lists a bottom type and contextual bounded joins
+PASS direct Quarry normalizes whole-unit decimal fallbacks once and preserves optional absence
+PASS direct Quarry binds and certifies one indexed existence query identically to the parity oracle
+PASS direct Quarry value and bounded-read core matches public fixture programs
+PASS direct Quarry value lowering preserves authored order and bound facts
+PASS direct Quarry locals, requirements, assertions, and control flow preserve parity
+PASS direct Quarry names do not inherit generated TypeScript restrictions
+PASS direct Quarry elaborates an imported named row shape with definition and use sites
+PASS direct Quarry expression fn calls preserve call-by-value, provenance, and source stacks
+PASS direct Quarry fn scopes are hygienic, module-local, pure, and row-ref typed
+PASS direct Quarry shares shape recursion and depth guards with nested field uses
+PASS direct Quarry preserves recursive text refinements and refuses them before the body
+PASS direct Quarry reserves E_AUTH refusal codes with sited rewrites
+PASS direct project aggregation retains every source until its explicit truncation refusal
+PASS direct Quarry range modifiers refuse noncanonical order and before with executable rewrites
+PASS direct Quarry cursor indexes and pageable merges require a total id suffix
+PASS direct Quarry alternate-key unreadable updates are NOT_FOUND while direct-id updates are E_RULE
+PASS direct Quarry one-hop ref narrowing is branch-only and symbol-scoped
+PASS direct Quarry channels bind a typed record and bounded lifetime
+PASS direct Quarry channels reject missing, duplicate and invalid value declarations
+PASS direct Quarry recovers channel properties per line
+PASS direct Quarry where repairs paste into an indexed certified query
+PASS direct Quarry mutually exclusive writes retain a one-row certified bound
+PASS bound Quarry API follows direct result and custody facts
+PASS direct held search preserves captured invariants and excludes every unproved lane
+PASS production Quarry project uses the bound data plane and aggregates authored refusals
+PASS direct Quarry project exposes executable IR and declaration-only effect signatures
+PASS direct Quarry project keeps jobs and schedule bindings out of the client operation set
+PASS direct-only Quarry projects skip effect declarations and still assemble
+PASS bound effect declarations share API types and export legal reserved and colliding names
+PASS shipped chat functions compose one certified conversation view with honest tombstones
+PASS Quarry diagnostic recovery: independent write mismatch and unknown return
+PASS Quarry diagnostic recovery: nonnullable mismatch is not absence
+PASS Quarry diagnostic recovery: unknown statement before independent mismatch
+PASS Quarry diagnostic recovery: failed binding and aliases suppress dependent cascades
+PASS Quarry diagnostic recovery: failed read key never borrows inferred index facts
+PASS Quarry diagnostic recovery: nested branch refusals keep independent type checks
+PASS Quarry diagnostic recovery: unresolved condition does not pretend to check its dependants
+PASS Quarry diagnostic recovery: failed binding invalidates a same-name argument
+PASS Quarry diagnostic recovery: nullable wrong primitive still needs a type repair
+PASS Quarry diagnostic recovery: nullable matching insert value retains presence advice
+PASS Quarry diagnostic recovery: null-only insert needs a value instead of an assertion
+PASS Quarry diagnostic recovery: possibly absent dereference retains presence advice
+PASS Quarry diagnostic recovery: corrected original keeps all three operations
+PASS Quarry diagnostic recovery: presence assertion corrects the optional insert
+PASS Quarry diagnostic recovery: generated declaration errors do not become type mismatch advice
+PASS Quarry diagnostic recovery: lexical loop-shadow
+PASS Quarry diagnostic recovery: lexical match-shadow
+PASS Quarry diagnostic recovery: lexical loop-capture
+PASS Quarry diagnostic recovery: lexical match-capture-isolation
+PASS Quarry diagnostic recovery: lexical nested-loop-isolation
+PASS Quarry diagnostic recovery: lexical failed-loop-domain
+PASS Quarry diagnostic recovery: lexical failed-match-key
+PASS Quarry diagnostic recovery: lexical failed-tuple-initializer
+PASS Quarry diagnostic recovery: lexical fresh-divmod-binding
+PASS Quarry diagnostic recovery: lexical failed-inner-shadow-restores-outer
+PASS Quarry diagnostic recovery: lexical fresh-capture-rollback
+PASS Quarry diagnostic recovery: lexical merge-binder-independent
+PASS Quarry diagnostic recovery: lexical merge-binder-mismatch
+PASS Quarry diagnostic recovery: lexical fresh-sorted-type-fact
+PASS Quarry diagnostic recovery: lexical failed-merge-domain
+PASS Quarry diagnostic recovery: merge domain merge-failed-domain-wrong-prefix
+PASS Quarry diagnostic recovery: merge domain merge-missing-domain-wrong-prefix
+PASS Quarry diagnostic recovery: merge domain merge-missing-domain-renamed
+PASS Quarry diagnostic recovery: merge domain merge-valid-prefix-failed-domain
+PASS Quarry diagnostic recovery: merge domain failed-domain-captured-outer
+PASS Quarry diagnostic recovery: merge domain unknown-domain-table
+PASS Quarry diagnostic recovery: merge domain domain-key-type-before-prefix
+PASS Quarry diagnostic recovery: merge domain effectful-domain-prefix-fails
+PASS Quarry diagnostic recovery: merge domain second-lane-domain-fails-rollback
+PASS Quarry diagnostic recovery: merge domain nested-failed-merge-restores-item
+PASS Quarry diagnostic recovery: merge domain literal-prefix-mismatch
+PASS Quarry diagnostic recovery: merge domain fresh-lane-not-in-domain
+PASS Quarry diagnostic recovery: merge domain lawful-shadow-domain
+PASS Quarry diagnostic recovery: merge domain lawful-multiple-named-cursor
+PASS Quarry diagnostic recovery: merge domain lawful-domain-guard-once
+PASS Quarry diagnostic recovery: merge domain lawful-domain-allocation-once
+PASS Quarry diagnostic recovery: merge domain lawful-nullable-prefix
+PASS Quarry diagnostic recovery: merge domain lawful-two-discovered-lanes
+PASS Quarry diagnostic recovery: 1 operation refusal bounds count omitted failures
+PASS Quarry diagnostic recovery: 3 operation refusal bounds count omitted failures
+PASS removed system rule refuses in the parser with a deny rewrite
+PASS Quarry todos and full surface lower in memory and certify
+PASS image once is column custody, carries through lowering, and video refuses with a range repair
+PASS Quarry accepts word writes and refuses every write sigil with the word forms
+PASS Quarry image/video spellings lower as closed records through IR, manifest descriptors, and API types
+PASS asset IR rustCheck round trip — SKIP while lane A rejects Image
+PASS asset index and maintain.by matrices refuse scalar, video, optional, and list forms
+PASS Quarry recursively rejects image/video assignment mismatches and literal record forges
+PASS seed assets use E_SCHEMA_ASSET_SEED recursively while optional null remains allowed
+PASS asset records reject unknown fields with a typed Quarry rewrite and have no legacy URL compatibility
+PASS Quarry money and decimal spellings preserve scale through IR and API types
+PASS Quarry money and decimal refusals are nominal, exact-scale, and sited
+PASS Quarry composite unique-key writes lower through row identity and certify
+PASS Quarry addressed key columns refuse disagreement and paste drop-field rewrites
+PASS Quarry upsert rows refuse every authored id with a drop-field rewrite
+PASS Quarry Clique M1-M3 plus Pay regression fixture lowers and certifies all 38 operations
+PASS Quarry Clique nested row shapes use selected column widths
+PASS direct Quarry mutations preserve write results, focal reads, and discarded-write authority
+PASS direct Quarry jobs remain chunk-only and preserve certified sweep bounds
+PASS direct Quarry schedule bindings retain focal row arguments and pure results
+PASS direct Quarry fn expansion cannot smuggle writes through a mutation caller or named shape
+PASS Quarry jobs lower independent sweeps with typed prefixes and per-chunk engine writes
+PASS Quarry jobs refuse statements between chunks and cross-chunk bindings
+PASS Job guide recipe is the compiled fixture and mutable keys refuse at check
+PASS The narrowing refusal's pasted job lowers with its typed argument, enum quoting included, and certifies
+PASS A job that is not only chunk blocks refuses as E_JOB_SHAPE in the job family, naming the statement
+PASS No chat template mutation patches an immutable messages key
+PASS Quarry schedules lower row and period triggers into certified bindings on the schema
+PASS Quarry schedules refuse non-time columns, bad targets, and sub-minute or calendar durations with the schedule family
+PASS Schedule guide snippets are the compiled fixture and the chat template's server-side expiry
+PASS Quarry money builtins and branded multiplication preserve descriptors in direct IR
+PASS Quarry money builtins refuse arity, nominal, divisor, and currency-squared errors with rewrites
+PASS Quarry negation and fractional-rate refusals name the exact numeric forms
+PASS literal amounts widen through divmod and share so literal comparisons type-check
+PASS Quarry rejects a decimal literal beyond its scale at the authored q site
+PASS Quarry caps decimal and money descriptors at scale 12
+PASS operation money arguments are minor-unit numbers while results remain branded
+PASS computed money results retain named brands in generated API declarations
+PASS maintained money operands hoist absence fallback before exact builtins
+PASS Clique Pay lowers and certifies the exact 38-operation inventory
+PASS connected refuses Quarry maintains and table rules with a site and rewrite
+PASS connected rule refusal preserves exists connected[viewer]
+PASS connected rule refusal preserves created connected[viewer]
+PASS connected rule refusal preserves exists connected[.owner]
+PASS connected rule refusal preserves created connected[principal = .owner]
+PASS connected certifies one probe per principal read and refuses nonprogram surfaces
+PASS Quarry time difference and epoch divmod have integer parts
+PASS Quarry time arithmetic refuses undefined and absent operands with the rule
+PASS Quarry null selects optional maintained, point, exists, rule and cap keys
+PASS Quarry null equality in write objects is not a required Id sink
+PASS Quarry null cap probes remain true after the twin refuses a third omitted-parent row
+PASS Quarry optional access lowers in nested objects, comparisons, defaults and calls
+PASS Quarry optional access lowers in update patches without a coalesce workaround
+PASS Quarry divmod tuple binds once and preserves decimal and money parts
+PASS Quarry non-empty Id literals work in named and positional keys, equality and fallback
+PASS Quarry Id positions refuse empty literals, computed text and other-table references
+PASS Quarry naming rewrites contain catalog types and preserve a concrete repair
+PASS Schedule arguments preserve generic ids while rejecting a different nominal table
+PASS Quarry merge Id literal prefixes accept positional and named keys, refusing computed text
+PASS Quarry optional list domains refuse before an omitted column can reach array execution
+PASS Argument list domains retain ArgList identity while column defaults carry max 8
+PASS Quarry bounded list columns survive aliases, optional narrowing, coalescing and nested shapes
+PASS Quarry json lists still lack a static cardinality
+PASS generated insert API preserves consumer row types with the complete SDK
+PASS generated merge API preserves consumer row types with the complete SDK
+PASS generated API types every Clique shaped result without any-typed fields
+PASS generated API types surface pages, collisions, and walk results
+PASS generated API types preserve branded assets through rows and shaped pages
+PASS an empty-list return arm is absorbed into its sibling array type
+PASS spread overrides omit every colliding row key
+PASS structured inference preserves exact money builtin results
+PASS single-path inference deliberately types chat insert branches
+PASS a Clique journey consumes shaped money rows with nominal result types
+PASS template journeys resolve real API types and expose optional partial data
+PASS Quarry retention policies are single tokens and parse with an omitted default
+PASS Quarry retention refusals are sited and rewrite to both valid spellings
+PASS Quarry retention words are contextual and subtraction keeps its token shape
+PASS Quarry retention lowers into every project JSON table
+PASS Quarry tombstones parse as a union of sited declarations reusing the rule grammar
+PASS Quarry tombstones lower into the schema JSON in the rule encoding and certify in Rust
+PASS Quarry tombstones refusals are sited, coded, rewritten, and paged
+PASS the chat template's deliveries log tombstones removed and expired messages
+PASS Quarry cap syntax and grouping refusals retain their declaration site
+PASS Quarry cap lowers once and Rust admits indexes even without writers
+PASS implicit id is an indexable cap column alone and in a tuple
+PASS unsupported rule prefix repairs give direction without unbound pasted names
+PASS chat groupCreate prices its same-key count-backed cap once per write
+PASS Quarry fanout uncapped refuses and its pasted repair certifies
+PASS Quarry fanout below cap refuses and its pasted repair certifies
+PASS Quarry fanout let-bound uncapped refuses and its pasted repair certifies
+PASS Quarry fanout nonuniform rule refuses and its pasted repair certifies
+PASS Quarry fanout cursor refuses and its pasted repair certifies
+PASS Quarry fanout nonuniform elsewhere refuses and its pasted repair certifies
+PASS Quarry complete pages certify directly, through identities and shapes, and over longer prefixes; queries are uncapped
+PASS fanout raw argument bound and known transformed binding paste literal/head repairs; unknown and merge honestly refuse
+PASS proc: a fan-out block declared once, imported, and elaborated at each call, certifies like its hand-inlined twin
+PASS proc: arguments bind once by value, a proc calls fns and procs, and the caller's context reaches the body
+PASS proc: arguments evaluate once in call order, a row coerces to its id, new allocates in an argument, and viewer reaches the body
+PASS proc: procs and fns share one expansion depth; eight frames elaborate and nine refuse
+PASS proc: a binder refusal inside a body is authored in the proc and names the call site
+PASS proc: a return inside a body refuses at the authored site, and a proc in expression position refuses
+PASS proc: hygiene in both directions, a parameter named like a context builtin, and a duplicate parameter refusing
+PASS proc: a query caller refuses at the body's write naming both sites; a cycle refuses; a require inside owns its code
+PASS proc: an emit inside an imported proc resolves the proc module's effect, and a where inside a helper reaches the repair pass
+PASS proc: a list parameter loops over its captured actual; inside a branch the caller keeps the fan-out analysis's existing limit
+PASS proc: a final call falls through, and the media mutations of the chat recipe fan out through deliver
+PASS effect-only local export aliases retain every authored identity and the direct control
+PASS effect export aliases recognize renamed and namespace constructors
+PASS effect export aliases keep distinct Quarry emits and named or namespace then targets
+PASS effect export aliases cannot bypass grants closure or then validation
+PASS effect type-only export aliases do not create runtime catalog entries
+PASS effect ES2020 witness compiles every admitted global and the full prelude response shape
+PASS effect refusals keep their family inside locals and reject non-runtime globals
+PASS effects use ES2020 types while Quarry and its generated checker retain the subset
+PASS effect public globals agree with Hermes and the guide/spec in exact order
+PASS one effect signature supplies all three metadata fields
+PASS authored helper modules get ES2020 with or without an effect export
+PASS static imports inside run refuse E_EFFECT_IMPORT
+PASS Quarry and effect diagnostics are each reported once by their own checker
+PASS the benchmark notification payload can project body.substring inside run
+PASS TextDecoder exposes no unwitnessed constructor or streaming options
+PASS effect diagnostics retain grants, closure, imports, then, unknown, and query-emit refusals
+PASS effect source expands JSON constants and scopes nested function, method, and catch bindings
+PASS effect closure admits noncomputed destructuring property names
+PASS effect closure refuses parameter, destructuring, and computed-name defaults at distinct sites
+PASS a killed package builder leaves a lock that the next build reclaims
+PASS publish builds its clean package snapshot before doctor and resumes a partial pair
+PASS the package shim reports spawn errors and preserves child signals
+PASS README mutation example typechecks with queued pending entries and an inFlight button
+PASS the built keyword guide resolves grammar constructs and the README Assets and Channels topics
+PASS the guide spec lists the CLI's current recipes
+PASS npm pack from a clean dist builds every exported module and declaration
+PASS client, React, and test imports typecheck against distinct real declarations
+PASS the React template typechecks against the built snapback2/react package
+PASS the chat template's React and Expo apps typecheck against the built package and generated API
+PASS guide validation reports every family and page failure before it fails
+PASS the Node compiler worker rejects TypeScript data exports and serves later direct requests
+PASS binary check certifies every compiler program and reads IR only from stdin or --ir
+PASS TypeScript data declarations refuse while effect-only modules remain on the production path
+Compiler checks: 227 passed, 0 failed

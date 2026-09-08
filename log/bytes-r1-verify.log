@@ -1,0 +1,24 @@
+== load 3.96 6.01 7.85
+== diff --check
+clean
+== line cap (changed files > 1500)
+OVER: llp/1012-local-first-v1.spec.md     1689
+done
+== test.sh
+exit 1
+✖ React Strict Mode keeps the active handle and closes replaced/unmounted scopes (51.7565ms)
+ℹ pass 842
+ℹ fail 1
+ℹ cancelled 0
+✖ failing tests:
+✖ React Strict Mode keeps the active handle and closes replaced/unmounted scopes (51.7565ms)
+     Summary [  45.792s] 892 tests run: 892 passed (1 leaky), 4 skipped
+{"cases":238,"passed":238,"serverOnly":25,"failed":0,"corruptionPath":"replay-mismatch"}
+== caps
+  oversize files: 204 of 204 allowed by baseline
+
+All budgets within cap. 7 categories inspected.
+== ref-check
+ref-check: ok — 423 LLP docs, 7880 refs in 18905 files, 0 errors, 0 unchecked
+== load 22.62 14.60 11.11
+done

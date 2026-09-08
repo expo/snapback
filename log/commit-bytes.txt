@@ -1,0 +1,26 @@
+build(snapback2): one client runtime across every arm; per-entry bytes measured; the ceiling frozen
+
+The range store, twin, and offline runtime were bundled into react.mjs, expo.mjs,
+and every test entry alongside client.mjs. build.mjs now derives the client
+graph once and routes every adapter crossing through `snapback2/client` (private
+generated re-exports, absent from the declarations), and `--self-test` proves
+nine entries share one PersistentRangeStore/Twin/OfflineRuntime identity and
+that every export resolves under browser, react-native, and node.
+
+gzip -9: react.mjs 37,394 → 5,367; expo.mjs 40,517 → 8,865; test.mjs 156,383 →
+5,162; client.mjs 109,753 → 110,453.
+
+measure.mjs records client/react/expo/runtime gzip bytes on every loop record
+and `--check` refuses more than 1% growth; `build.mjs --measure-twin` appends to
+metrics/twin.jsonl so it is never stale. The complete local runtime measures
+84,080 on the pinned toolchain at the base commit — over the 84,000 ceiling by
+80 bytes that the client lane pays by deletion; no ceiling moves.
+
+rules/NOT-DOING.md: the six dated ceiling moves collapse into one paragraph —
+84,000 gzip, 80,000 target, frozen 2026-09-08 by the author's word, with one
+history line. LLP 1012 carries the same freeze.
+
+Program: Snapback 2 elegance (author commission 2026-09-08), lane E.
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VmTM1CKBk443bcVieRZCVs
