@@ -1,11 +1,9 @@
 import { useRef, useState } from "react";
-import { api, isSnapbackRefusal, type Api } from "snapback2/client";
+import { api, isSnapbackRefusal } from "snapback2/client";
 import { AssetImage, useMutation, useOutbox, useQuery, useSnapbackClient, useSnapbackSnapshot } from "snapback2/react";
 import { Composer } from "./Composer";
 import { conversationItems } from "../shared/thread";
 
-type ResultOf<T> = T extends { readonly __result?: infer Result } ? NonNullable<Result> : never;
-type ConversationView = ResultOf<Api["deliveries"]["conversationView"]>;
 const when = (at: number) => new Date(at).toLocaleTimeString();
 const describe = (error: unknown) => (isSnapbackRefusal(error) ? error.envelope.rewrite ?? error.message : String(error));
 
@@ -26,7 +24,7 @@ export function Thread({ conversationId, viewer, onNote }: {
 }) {
   const snapshot = useQuery(api.deliveries.conversationView, { conversationId }, { items: conversationItems });
   const [opened, setOpened] = useState<string[]>([]);
-  const composite: ConversationView | undefined = snapshot.itemsFrom === "query" ? snapshot.data : undefined;
+  const composite = snapshot.itemsFrom === "query" ? snapshot.data : undefined;
   const history = snapshot.history;
   const { dismiss } = useOutbox();
   const edit = useMutation(api.deliveries.edit);

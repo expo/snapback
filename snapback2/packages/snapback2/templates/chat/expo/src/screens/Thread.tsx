@@ -1,12 +1,9 @@
 import React, { useState } from "react";
 import { Button, ScrollView, Text, View } from "react-native";
-import { api, type Api } from "snapback2/client";
+import { api } from "snapback2/client";
 import { AssetImage, AssetVideo, useOutbox, useQuery } from "snapback2/react-native";
 import { Composer } from "../Composer";
 import { conversationItems } from "../../shared/thread";
-
-type ResultOf<T> = T extends { readonly __result?: infer Result } ? NonNullable<Result> : never;
-type ConversationView = ResultOf<Api["deliveries"]["conversationView"]>;
 
 // @ref LLP 1018.000#4-one-observed-query-one-coherent-snapshot — list, count,
 // and preview render from one named composite when its receipt is complete;
@@ -18,7 +15,7 @@ type ConversationView = ResultOf<Api["deliveries"]["conversationView"]>;
 export function Thread({ conversationId }: { conversationId: string }) {
   const [opened, setOpened] = useState<string[]>([]);
   const snapshot = useQuery(api.deliveries.conversationView, { conversationId }, { items: conversationItems });
-  const composite: ConversationView | undefined = snapshot.itemsFrom === "query" ? snapshot.data : undefined;
+  const composite = snapshot.itemsFrom === "query" ? snapshot.data : undefined;
   const { dismiss } = useOutbox();
   const preview = composite?.preview[0]?.message?.body;
   return <View style={{ flex: 1 }}><ScrollView contentContainerStyle={{ padding: 16 }}>

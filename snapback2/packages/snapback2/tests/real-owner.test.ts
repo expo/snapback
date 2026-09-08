@@ -373,3 +373,58 @@ test("sixty live queries and a channel share one connection through add, remove 
     throw error;
   } finally { for (const sub of subscriptions) sub.close(); await client.close(); }
 });
+
+// @ref LLP 1011#b1-opaque-cursors — one returned cursor-bearing page can sit
+// beside an aggregate and a fixed preview without losing its continuation.
+test("the shipped composite pages online and after a cold offline reopen", async (context) => {
+  if (!owner.owned) return context.skip("requires the self-started chat fixture");
+  const { mkdtemp, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { fileRangeStore } = await import("../dist/test.mjs");
+  const directory = await mkdtemp(join(tmpdir(), "snapback-composite-pages-"));
+  const factory = fileRangeStore(directory);
+  const writer = createClient({ url: owner.url, as: "alice" });
+  let warm: any, cold: any;
+  try {
+    // Cross the production page bound; a two-row toy cannot establish that the
+    // shipped query exposes every row on a second nonempty page.
+    for (let i = 0; i < 51; i++) {
+      const result = await writer.mutation(api.deliveries.post, {
+        conversationId: "conversation-1", body: `composite-page-${i}`,
+      });
+      assert.equal(result.state, "committed");
+    }
+    warm = createClient({ url: owner.url, as: "alice", offline: { store: factory } });
+    await warm.ready;
+    const args = { conversationId: "conversation-1", c: null };
+    const first = await warm.query(api.deliveries.conversationView, args);
+    assert.equal(first.data.messages.length, 50);
+    assert.equal(typeof first.next, "string");
+    const olderArgs = { ...args, c: first.next };
+    const second = await warm.query(api.deliveries.conversationView, olderArgs);
+    assert.ok(second.data.messages.length > 0 && second.data.messages.length < 50);
+    const firstIds = new Set(first.data.messages.map((row: any) => row.id));
+    assert.equal(second.data.messages.some((row: any) => firstIds.has(row.id)), false);
+    assert.equal(first.data.count, second.data.count);
+    assert.deepEqual(first.data.preview, second.data.preview, "the fixed preview stays at the live head");
+    assert.equal(first.seq, second.seq, "no write occurred between the two atomic snapshots");
+    if (second.next) {
+      const end = await warm.query(api.deliveries.conversationView, { ...args, c: second.next });
+      assert.deepEqual(end.data.messages, []);
+      assert.equal(end.next, null, "an auxiliary capped preview cannot repeat the last message page");
+    }
+    await warm.close(); warm = undefined;
+    cold = createClient({ url: owner.url, as: "alice", startOffline: true, offline: { store: factory } });
+    await cold.ready;
+    const reopenedFirst = await cold.query(api.deliveries.conversationView, args);
+    const reopenedSecond = await cold.query(api.deliveries.conversationView, olderArgs);
+    assert.deepEqual(reopenedFirst.data, first.data, "cold evaluation reconstructs the coherent first page");
+    assert.deepEqual(reopenedSecond.data, second.data, "the saved continuation selects the same older page offline");
+    assert.equal(reopenedFirst.next, first.next);
+    assert.equal(reopenedSecond.next, second.next);
+  } finally {
+    await warm?.close(); await cold?.close(); await writer.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});

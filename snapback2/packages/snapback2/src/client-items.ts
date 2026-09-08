@@ -124,12 +124,25 @@ export function withHistory<Args, Result, Row extends ItemRow, Draft, HistoryArg
 }
 
 /** An observed query whose items declare a history (LLP 1018.006 §2). */
-export type HistorySnapshot<Result, Row extends ItemRow, Draft, History = unknown> = ItemSnapshot<Result, Row, Draft> & {
-  /** Where `items` come from: the usable query, its declared history, or only this device's drafts. */
-  readonly itemsFrom: "query" | "history" | "drafts";
-  /** The history's own snapshot, present exactly while the query's receipt is partial. */
-  readonly history?: Snapshot<History>;
-};
+export type HistorySnapshot<Result, Row extends ItemRow, Draft, History = unknown> = ItemSnapshot<Result, Row, Draft> & (
+  | {
+    /** This query supplied a usable result; its fields need no second shape check. */
+    readonly itemsFrom: "query";
+    readonly data: Result;
+    readonly receipt: NonNullable<Snapshot<Result>["receipt"]> & { outcome: "complete" | "capped" };
+    readonly history?: undefined;
+  }
+  | {
+    /** The independently authorized history supplies rows, never count or preview. */
+    readonly itemsFrom: "history";
+    readonly history: Snapshot<History>;
+  }
+  | {
+    readonly itemsFrom: "drafts";
+    /** Present exactly while the query's receipt is partial, even if history is unavailable. */
+    readonly history?: Snapshot<History>;
+  }
+);
 
 // @ref LLP 1018.006#2-the-published-record — eligibility is the composite's
 // partial receipt; usability is a complete or capped receipt with data; a
@@ -140,13 +153,18 @@ export function composeHistory<Result, Row extends ItemRow, Draft, History>(
   history: ItemSnapshot<History, Row, Draft> | undefined,
   previous?: HistorySnapshot<Result, Row, Draft, History>,
 ): HistorySnapshot<Result, Row, Draft, History> {
-  const outcome = primary.receipt?.outcome;
+  const receipt = primary.receipt;
+  const outcome = receipt?.outcome;
   const eligible = outcome === "partial" ? history : undefined;
-  const usable = (outcome === "complete" || outcome === "capped") && primary.data !== undefined;
-  const itemsFrom = usable ? "query" : eligible?.status === "ready" ? "history" : "drafts";
-  const items = itemsFrom === "query" ? primary.items : itemsFrom === "history" ? eligible!.items
-    : draftsOnly(primary.items, previous?.itemsFrom === "drafts" ? previous.items : undefined);
-  return Object.freeze({ ...primary, items, itemsFrom, ...(eligible === undefined ? {} : { history: eligible }) });
+  if ((outcome === "complete" || outcome === "capped") && primary.data !== undefined) {
+    return Object.freeze({ ...primary, data: primary.data, itemsFrom: "query",
+      receipt: receipt as NonNullable<typeof receipt> & { outcome: "complete" | "capped" } });
+  }
+  if (eligible?.status === "ready") {
+    return Object.freeze({ ...primary, items: eligible.items, itemsFrom: "history", history: eligible });
+  }
+  const items = draftsOnly(primary.items, previous?.itemsFrom === "drafts" ? previous.items : undefined);
+  return Object.freeze({ ...primary, items, itemsFrom: "drafts", ...(eligible === undefined ? {} : { history: eligible }) });
 }
 
 function draftsOnly<Row extends ItemRow, Draft>(

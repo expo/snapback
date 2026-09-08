@@ -103,6 +103,20 @@ test("generated Api rejects typos, extra query args, and wrong channel args", as
         = client.observe(api.messages.view, { conversationId: "general" }, { items: declared }).getSnapshot();
       const from: "query" | "history" | "drafts" = custody.itemsFrom;
       const historyRows: { message: { id: string; body: string } | null }[] | undefined = custody.history?.data;
+      if (custody.itemsFrom === "query") {
+        const count: number = custody.data.count;
+        const outcome: "complete" | "capped" = custody.receipt.outcome;
+        const noHistory: undefined = custody.history;
+        void [count, outcome, noHistory];
+      } else {
+        // @ts-expect-error history and drafts cannot assert the composite's data is present
+        const count: number = custody.data.count;
+        void count;
+      }
+      if (custody.itemsFrom === "history") {
+        const rows = custody.history.data;
+        void rows;
+      }
       const plain: ItemSnapshot<unknown, { id: string; body: string }, never> = client.observe(api.messages.view, { conversationId: "general" }, { items: viewItems }).getSnapshot();
       // @ts-expect-error plain items publish no itemsFrom
       const missing: string = plain.itemsFrom;

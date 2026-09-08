@@ -40,8 +40,8 @@ export function registerQuarryChatCompositionChecks(test: Test, frontend: string
     const view = operation(lowered.project.programs, "deliveries.conversationView");
     const post = operation(lowered.project.programs, "deliveries.post");
     const unsend = operation(lowered.project.programs, "deliveries.unsend");
-    assert(!certificate(view.name).result_pages,
-      `object-composed conversation view acquired a root continuation: ${JSON.stringify(certificate(view.name).result_pages)}`);
+    assert(Object.keys(certificate(view.name).result_pages ?? {}).length === 1,
+      `the composite lost its one cursor-bearing message page: ${JSON.stringify(certificate(view.name).result_pages)}`);
 
     const schema = lowered.project.schema;
     const viewer = { Id: "principal-alice" } as Value;
@@ -96,9 +96,9 @@ export function registerQuarryChatCompositionChecks(test: Test, frontend: string
       expiresAt: "Null",
     }, ["message-two", "delivery-two"]), false, certificate(post.name));
     assert(posted.state === "predicted", `held post did not predict completely: ${JSON.stringify(posted)}`);
-    const afterPost = store.reexecute(view, context({ conversationId: conversation }), certificate(view.name));
-    assert(afterPost.state === "fresh" && afterPost.execution.next === null,
-      `composed view was not one complete root outcome: ${JSON.stringify(afterPost)}`);
+    const afterPost = store.reexecute(view, context({ conversationId: conversation, c: "Null" }), certificate(view.name));
+    assert(afterPost.state === "fresh" && typeof afterPost.execution.next === "string",
+      `composed view did not carry its certified message continuation: ${JSON.stringify(afterPost)}`);
     const postedResult = wireJson(afterPost.execution.result) as {
       messages: Array<{ id: string; message: { id: string } | null }>;
       count: number;
@@ -112,10 +112,18 @@ export function registerQuarryChatCompositionChecks(test: Test, frontend: string
       && postedResult.preview[0]?.id === "delivery-two",
     `post did not update messages/count/preview coherently: ${JSON.stringify(postedResult)}`);
 
+    const end = store.reexecute(view, context({ conversationId: conversation,
+      c: { String: afterPost.execution.next! } }), certificate(view.name));
+    const endResult = wireJson(end.execution.result) as typeof postedResult;
+    assert(end.state === "fresh" && end.execution.next === null && endResult.messages.length === 0,
+      `the fixed preview stole the message-page continuation: ${JSON.stringify(end)}`);
+    assert(endResult.count === postedResult.count && endResult.preview[0]?.id === postedResult.preview[0]?.id,
+      "an older message page keeps its coherent count and fixed latest preview");
+
     const removed = store.applyMutation(unsend, context({ messageId: { Id: "message-two" } }, ["delivery-removed"], 30),
       false, certificate(unsend.name));
     assert(removed.state === "predicted", `held unsend did not predict completely: ${JSON.stringify(removed)}`);
-    const afterUnsend = store.reexecute(view, context({ conversationId: conversation }, [], 30), certificate(view.name));
+    const afterUnsend = store.reexecute(view, context({ conversationId: conversation, c: "Null" }, [], 30), certificate(view.name));
     const removedResult = wireJson(afterUnsend.execution.result) as {
       messages: Array<{ kind: string; message: unknown }>;
       count: number;
@@ -137,7 +145,7 @@ export function registerQuarryChatCompositionChecks(test: Test, frontend: string
     ));
     let denied: { code?: string; authoredCode?: string } | undefined;
     try {
-      withoutMembership.reexecute(view, context({ conversationId: conversation }), certificate(view.name));
+      withoutMembership.reexecute(view, context({ conversationId: conversation, c: "Null" }), certificate(view.name));
     } catch (error) {
       denied = error as { code?: string; authoredCode?: string };
     }
@@ -151,7 +159,7 @@ export function registerQuarryChatCompositionChecks(test: Test, frontend: string
       new Set(["messageCounts"]),
     );
     const missingCount = new ClientStore(schema, missingCountReceipt)
-      .reexecute(view, context({ conversationId: conversation }), certificate(view.name));
+      .reexecute(view, context({ conversationId: conversation, c: "Null" }), certificate(view.name));
     assert(missingCount.state === "partial"
       && missingCount.partialSites.includes("deliveries.conversationView.4")
       && (wireJson(missingCount.execution.result) as { count: number }).count === 0,

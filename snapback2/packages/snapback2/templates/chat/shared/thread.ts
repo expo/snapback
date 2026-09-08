@@ -26,7 +26,7 @@ export const conversationItems = withHistory(defineItems(api.deliveries.conversa
   order: "reverse",
   create: {
     op: api.deliveries.post,
-    belongs: (args, query) => args.conversationId === query.conversationId,
+    belongs: (args, query) => query.c == null && args.conversationId === query.conversationId,
     key: intent => intent.ids[0],
     draft: args => ({ body: args.body }),
   },

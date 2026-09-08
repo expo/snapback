@@ -13,9 +13,9 @@ query thread(conversationId: conversations, c: cursor ?):
   page = deliveries[viewer, conversationId, 'message'] after c last 50 by byRecipientConversationKindAt
   return page { *, message: messages[.messageId] }
 
-query conversationView(conversationId: conversations):
+query conversationView(conversationId: conversations, c: cursor ?):
   require isMember(conversationId, viewer) else MEMBERSHIP_REQUIRED
-  page = conversationLog(conversationId, viewer)
+  page = conversationLog(conversationId, viewer, c)
   latest = conversationPreview(conversationId, viewer)
   return {
     messages: page { *, message: messages[.messageId] },
