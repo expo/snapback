@@ -1,0 +1,15 @@
+✔ public count reads enable multi-principal offline cap prediction without inventing missing counts (10167.342208ms)
+ℹ held: {"before":[1,1],"predicted":true,"trace":{"points":[],"verdicts":[]},"state":"committed","final":[2,2]}
+ℹ unheld: {"before":[1],"predicted":false,"trace":{"points":[],"verdicts":[]},"state":"committed","final":[2,2]}
+ℹ zero public query receipt: [{"authority":{"authEpoch":3,"principal":"guest:OHQfsBQ7f3kCwmKFXL_zyg"},"data":0,"generation":"7ca511dcc944b8e8265a8a41998a33222b1a49221a87c73b02a675e74d94ec24","next":null,"planHash":"24ebc62d43de3e14ab2b93326dfc5305d13bbdecee0f7cc43732cf6bb3a65e22","protocol":1,"receipt":{"absences":[["principalCounts","byId",["[{\"Id\":\"dev:zero\"}]"]]],"ranges":[{"absence":true,"after":null,"before":null,"gt":null,"gte":null,"index":"byPrincipal","lt":null,"lte":null,"order":"Asc","prefix":[{"Scalar":"dev:zero"}],"rowIds":[],"ruleHash":"49b3210ae4ac5e088fa5033831109dca9c678baebef125e2220c35cf17551088","site":"caps.countFor.0","stop":"Exhausted","table":"principalCounts","take":1}],"verdicts":[]},"rows":[],"schemaHash":"052de8b2bf9f82acb6f856a3b22a7570ab735647d4b657b71585a7619e4b914a","seq":3,"state":"complete","validator":"19e778c16a8e46fa9c0ad37bcc53348e87b8592e5f01ce0c11595cf9e80c7ffb"}]
+ℹ zero: {"before":[0],"predicted":true,"trace":{"points":[],"verdicts":[]},"state":"committed","final":[3]}
+ℹ overflow: {"before":[1,3],"predicted":false,"trace":{"points":[],"verdicts":[]},"state":"rejected","final":[1,3]}
+ℹ long maintained Ref: {"utf8Bytes":290,"cold":0,"predicted":1,"final":1}
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 17038.159333
