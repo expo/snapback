@@ -1,0 +1,168 @@
+{
+  "schemaVersion": "clique.assessment.support.v1",
+  "generatedAt": "2026-09-08T15:43:24.982Z",
+  "assessmentWindow": {
+    "firstCapturedStart": "2026-09-08T14:55:06.779Z",
+    "note": "Required reads began shortly before first timestamp capture.",
+    "operationalEnd": "2026-09-08T15:42:26Z"
+  },
+  "environment": {
+    "node": "v24.18.0",
+    "snapback2": "0.0.19",
+    "backendUrl": "http://127.0.0.1:53126",
+    "webUrl": "http://127.0.0.1:53127",
+    "backendPid": 95855,
+    "webPid": 96317,
+    "backendStopped": true,
+    "webStopped": true,
+    "assignedPortsClosedAfterStop": true
+  },
+  "integrity": {
+    "sourceManifestFiles": 509,
+    "regularFiles": 499,
+    "instrumentLinks": 10,
+    "baselineMismatchCount": 0,
+    "evidenceFiles": 104,
+    "evidenceMismatchCount": 0,
+    "suppliedArchiveSha256": "ecf813110cd46e46d692a920f4bc50d731e7c1be645a7ca0311da69600b72b68"
+  },
+  "acceptance": {
+    "seeds": {
+      "m1": {
+        "pass": true,
+        "actions": 16
+      },
+      "m2": {
+        "pass": true,
+        "actions": 52
+      },
+      "m3": {
+        "pass": true,
+        "actions": 19
+      }
+    },
+    "milestones": {
+      "m1": {
+        "finalPass": true,
+        "receipt": "app/artifacts/suite-m1-1788880158.json",
+        "firstAttempt": {
+          "pass": false,
+          "receipt": "app/artifacts/suite-m1-1788879587.json",
+          "cause": "stale generated Metro transform embedded 53123; connection refused; corrected with one --clear export retry"
+        }
+      },
+      "m2": {
+        "pass": true,
+        "receipt": "app/artifacts/suite-m2-1788879674.json"
+      },
+      "m3": {
+        "pass": true,
+        "receipt": "app/artifacts/suite-m3-1788879690.json"
+      },
+      "m4": {
+        "pass": true,
+        "receipt": "app/artifacts/suite-m4-1788879702.json"
+      },
+      "m5": {
+        "pass": true,
+        "receipt": "app/artifacts/suite-m5-1788879716.json"
+      },
+      "m6": {
+        "pass": true,
+        "receipt": "app/artifacts/suite-m6-1788879729.json"
+      },
+      "m8": {
+        "pass": true,
+        "receipt": "app/artifacts/suite-m8-1788879741.json"
+      }
+    }
+  },
+  "retainedScale": {
+    "pass": true,
+    "actions": 167157,
+    "settledActions": 167157,
+    "verifiedAt": [
+      "10%",
+      "50%",
+      "final"
+    ],
+    "p95MeasurementsPresent": false,
+    "preservedDatabaseAvailable": false,
+    "adapterScope": "namedO5Fixtures fields for u0500, u0005, u0900, u0901, and g0001; sample-50 checks selected counters/message IDs/reactions"
+  },
+  "native": {
+    "evidenceExtensions": {
+      "jsonl": 56,
+      "json": 44,
+      "png": 4,
+      "video": 0
+    },
+    "m6Receipt": null,
+    "m8Receipt": null,
+    "qualifyingRecording": false
+  },
+  "toolingAttempts": [
+    {
+      "attempt": "inventory",
+      "first": "rg absent from underspecified PATH",
+      "retry": "PATH corrected; succeeded",
+      "outcome": "tooling-only"
+    },
+    {
+      "attempt": "source-integrity-validator",
+      "first": "symlink kind handled as file",
+      "retry": "corrected symlink branch; 0 mismatches",
+      "outcome": "tooling-only"
+    },
+    {
+      "attempt": "module-resolution discovery",
+      "first": "CJS require.resolve rejected ESM export",
+      "retry": "Snapback ESM resolved; Playwright package lookup still failed",
+      "outcome": "used the source-documented absolute Playwright module and allowed temporary app-local .assessment.mjs copies"
+    },
+    {
+      "attempt": "builder-suite-M1/browser",
+      "first": "stale cached bundle attempted 53123 and received connection refused; receipt failed and leaked headless child, owned invocation interrupted",
+      "retry": "Expo --clear export verified only 53126; final M1 receipt passed",
+      "outcome": "tooling retry; no service contacted successfully on prohibited port"
+    },
+    {
+      "attempt": "independent-core-API",
+      "first": "grader script used nonexistent messages.deleteForEveryone and stopped at M4",
+      "retry": "corrected to source-declared messages.remove; script completed",
+      "outcome": "tooling retry; first partial observations retained"
+    },
+    {
+      "attempt": "browser-observe",
+      "first": "fresh page did not expose auth input before 30-second locator timeout",
+      "retry": null,
+      "outcome": "not retried; affected observables left missing/not-run"
+    },
+    {
+      "attempt": "receipt-observation-file",
+      "first": "wrong M8 observations filename",
+      "retry": "corrected filename; succeeded",
+      "outcome": "tooling-only"
+    },
+    {
+      "attempt": "temporary-copy-environment",
+      "first": "one successful cp command mistyped an unset variable name",
+      "retry": "copy repeated with all required variables unset and hashes matched",
+      "outcome": "tooling-only; no app command ran"
+    },
+    {
+      "attempt": "end-timestamp-format",
+      "first": "BSD date printed unsupported %3N literally",
+      "retry": "captured UTC seconds with supported format",
+      "outcome": "tooling-only"
+    }
+  ],
+  "missingEvidence": [
+    "No qualifying native uninterrupted recordings or bound native receipts for M6 a01-a07 or M8 a17-a18.",
+    "No independent exact pre-acceptance seeded Insights baseline for M8 a01.",
+    "No real older-than-24-hours Trending runtime case for M8 a06.",
+    "No independent complete M8 digest campaign for a08-a10/a12.",
+    "No preregistered holdout probe set and no performance-probe p95 inputs.",
+    "No preserved scale database or new scale campaign."
+  ]
+}

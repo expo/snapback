@@ -1,0 +1,125 @@
+{
+  "sourceArchiveSha256": "ecf813110cd46e46d692a920f4bc50d731e7c1be645a7ca0311da69600b72b68",
+  "sourceManifestSha256": "f16c16b9927d42f037d2350a1329d0bbc1fcb0ef77c3390c2840e0cb3bfc7c18",
+  "sourceEntries": 509,
+  "rootPostAssessmentSourceMismatches": 0,
+  "assessor": {
+    "modelRequested": "gpt-5.6-sol",
+    "effort": "xhigh",
+    "sameFamilyGraded": true,
+    "session": "01a08181-3867-7380-9ca7-2cbda54ffbcc",
+    "start": 1788879124.514221,
+    "end": 1788882271.3349519,
+    "exit": 0,
+    "capSeconds": 3600,
+    "promptSha256": "a370323debd07f946b3f49e709ec576ae222c7d0e50109136977dce7124560a1"
+  },
+  "files": [
+    {
+      "path": "results/grader-report.json",
+      "sha256": "d08aeb6e2f278fa6c897dcc3732bdef54818b936ff65c33f114e5feb0f8ccb9a",
+      "bytes": 35761,
+      "originalSha256": "d08aeb6e2f278fa6c897dcc3732bdef54818b936ff65c33f114e5feb0f8ccb9a",
+      "derivative": false,
+      "changes": null
+    },
+    {
+      "path": "results/m8-assertion-results.json",
+      "sha256": "9152f316eb84baf4180e261c14dd7535c4572a74a231b111eae6dbb253c83ce3",
+      "bytes": 6174,
+      "originalSha256": "9152f316eb84baf4180e261c14dd7535c4572a74a231b111eae6dbb253c83ce3",
+      "derivative": false,
+      "changes": null
+    },
+    {
+      "path": "results/assessment-support.json",
+      "sha256": "f739f823547e1212b48b48aba6e8c278ed3940e123a8016495ccab24b60dc508",
+      "bytes": 5542,
+      "originalSha256": "f739f823547e1212b48b48aba6e8c278ed3940e123a8016495ccab24b60dc508",
+      "derivative": false,
+      "changes": null
+    },
+    {
+      "path": "results/sanitized-evidence.md",
+      "sha256": "18ffa1fefd6c4c7d8a43d1438030eb227db57e9238cd778c6febf46a5039fc56",
+      "bytes": 21032,
+      "originalSha256": "17e29d0818badfe1ae2b012118b3857a3e73710bd522b20446e0c635d78722c5",
+      "derivative": true,
+      "changes": "home path abstraction only"
+    },
+    {
+      "path": "app/artifacts/suite-m1-1788879587.json",
+      "sha256": "0e54f0e78561396ed732db17c836d6b1eb34a3eb3036db43e32a989704a0f02b",
+      "bytes": 3915,
+      "derivative": false
+    },
+    {
+      "path": "app/artifacts/suite-m1-1788880158.json",
+      "sha256": "a11cf2a194d58669e5afb29d6ac9167b8aa5b5cff623999712ff716a6e5dd30f",
+      "bytes": 3427,
+      "derivative": false
+    },
+    {
+      "path": "app/artifacts/suite-m2-1788879674.json",
+      "sha256": "367340afc5f3e584b418655a39d7b93b5b08c487a96fab526965586ff814eb2c",
+      "bytes": 3283,
+      "derivative": false
+    },
+    {
+      "path": "app/artifacts/suite-m3-1788879690.json",
+      "sha256": "1396b924f2eadba80c87101b82a6ce2f8a81377d44ba8b670749361a1537d10d",
+      "bytes": 3586,
+      "derivative": false
+    },
+    {
+      "path": "app/artifacts/suite-m4-1788879702.json",
+      "sha256": "78d9cda682c4d1035107434be251d764dd9799002c67cc4dd6cd38a53929d312",
+      "bytes": 3194,
+      "derivative": false
+    },
+    {
+      "path": "app/artifacts/suite-m5-1788879716.json",
+      "sha256": "6ce46cd4a7c833bdaa866b7107580188fe70fddec2494e9b8bcddc47817a6f9f",
+      "bytes": 3165,
+      "derivative": false
+    },
+    {
+      "path": "app/artifacts/suite-m6-1788879729.json",
+      "sha256": "468d995169f667206421e79f35bf801385a2af05810393cfc65be53fec6f1467",
+      "bytes": 4088,
+      "derivative": false
+    },
+    {
+      "path": "app/artifacts/suite-m8-1788879741.json",
+      "sha256": "255886f93a916ef7185a8a7e82f701f2cad63348f4dced26c63bbd096c8e5e80",
+      "bytes": 3481,
+      "derivative": false
+    },
+    {
+      "path": "evidence/browser-ui.json",
+      "sha256": "5affe8637b6c003b34a5211fb0529264f5e909abdef483f4a24d5e76c05b4583",
+      "bytes": 3170,
+      "derivative": false
+    },
+    {
+      "path": "evidence/browser-ui.json.origin.json",
+      "sha256": "13d5704209e2a666c1a629008f1077cd5e33b5dd0e6c00c2d9f3f0d7273a8e87",
+      "bytes": 225,
+      "derivative": false
+    },
+    {
+      "path": "evidence/disappearing-api.json",
+      "sha256": "e7ab7edefa645bac57168f266f0ea1468fac91e37639b1ed590de9c14069f4a4",
+      "bytes": 341,
+      "derivative": false
+    },
+    {
+      "path": "evidence/disappearing-api.json.origin.json",
+      "sha256": "8057677a028d80fc1834775106cc4e1f6a415cf89d76bfe5ca3d96a5b74d4a74",
+      "bytes": 226,
+      "derivative": false
+    }
+  ],
+  "privateRetention": "snapback-artifacts/clique-cold-019-20260908/assessment-sol; raw scripts/session remain private",
+  "qualification": "See root-adjudication.md: partial uncalibrated diagnostic, external Alice browser access, original M3 app attribution not accepted"
+}

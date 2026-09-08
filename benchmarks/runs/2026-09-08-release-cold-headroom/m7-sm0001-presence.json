@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "snapback2.exact-row-presence-receipt.v1",
+  "startedAt": "2026-09-08T16:00:47.198097+00:00",
+  "completedAt": "2026-09-08T16:00:47.210133+00:00",
+  "databasePath": "<home>/clique-cold-019-20260908/m7/app/.snapback/store.sqlite",
+  "databaseSha256Before": "4651965c61392316cd5257cc20e58a1dd1a127c11c6487014dfbe11f22755be6",
+  "databaseSha256After": "4651965c61392316cd5257cc20e58a1dd1a127c11c6487014dfbe11f22755be6",
+  "databaseHashStable": true,
+  "sidecarsBefore": {
+    "-wal": false,
+    "-shm": false
+  },
+  "sidecarsAfter": {
+    "-wal": false,
+    "-shm": false
+  },
+  "method": {
+    "driver": "Python sqlite3",
+    "sqliteVersion": "3.51.0",
+    "uri": "file:<home>/clique-cold-019-20260908/m7/app/.snapback/store.sqlite?mode=ro&immutable=1",
+    "connectUri": true,
+    "query": "SELECT data FROM rows WHERE table_name=? AND row_id=?",
+    "parameters": [
+      "messages",
+      "sm0001"
+    ],
+    "decoding": "Stored Row wrapper; scalar enum values decoded; Null becomes JSON null",
+    "readOnly": true,
+    "immutable": true
+  },
+  "exists": true,
+  "observed": {
+    "id": "sm0001",
+    "conversationId": "d-alice-bob",
+    "body": "Coffee after work?",
+    "kind": "text",
+    "tombstoned": false,
+    "expiresAt": null
+  },
+  "limits": [
+    "Technical diagnostic of one exact stored row on the stopped original M7 backend; no application service or API query was run.",
+    "No WAL or SHM sidecar existed before or after this repeated observation; the database file hash was checked before and after.",
+    "This establishes the named row exists in the hashed database; it does not establish API visibility, authorization, cursor completeness, whole-dataset preservation, or exact release cursor behavior.",
+    "Earlier plain mode=ro opens failed with unable to open database file; this repeat uses mode=ro&immutable=1 and never opens SQLite writable."
+  ],
+  "publication": {
+    "originalSha256": "82a6a2e0776aea4aea58337ae53901071fda49fba4741ab065c06b21be6c60b6",
+    "derivative": "host omitted and home path abstracted; observed data/query/hash unchanged"
+  }
+}

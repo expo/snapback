@@ -1,0 +1,64 @@
+{
+  "outcome": "aborted-contamination",
+  "sourceArchiveSha256": "3d5f48a81af2eff52131571bab367f2f0bc51ba241fed011b448c4bad07b38e9",
+  "author": {
+    "requestedModel": "gpt-5.6-sol",
+    "effort": "xhigh",
+    "session": "01a0817a-0250-7f10-a612-e765a462557d",
+    "supervisorStart": 1788878650.2864351,
+    "selfRecordedStart": "2026-09-08T14:44:31Z",
+    "declaredAuthorStop": "2026-09-08T15:40:03Z",
+    "selfReportedAuthorSeconds": 3332,
+    "supervisorOriginToDeclaredStopSeconds": 3352.7135648727417,
+    "hardCapSeconds": 14400,
+    "processEnd": 1788882336.407254,
+    "exit": 0
+  },
+  "mixedBundle": {
+    "sha256": "af0501b3aa8d33510d2e673ae28f58d652e1338919235b45e62caa070a1d3ffd",
+    "providerModule672Backend": 53126,
+    "directClientModule679Backend": 53130
+  },
+  "fallbackBundle": {
+    "sha256": "d1e1aabee85d08449f242c61e48e01c0d4929cec75763e71b03c40a1f22a7e19",
+    "bothActiveClientBackends": 53126
+  },
+  "preSnapshotSha256": "db0fa228752bf479dd24c3e22742dde98ea8814a7add94a34f0642694ba7063a",
+  "immediatePostMigrationSnapshotSha256": "8992adf627832cec3408ffc2f1f5cd3c185aa1c102287fe5524a1a71a0d27300",
+  "rootLateCapture": {
+    "command": [
+      "node",
+      "../setup/snapshot.mjs",
+      "<home>/clique-cold-019-20260908/m7-aborted-custody/setup/root-post-author-snapshot.json"
+    ],
+    "pid": 8975,
+    "start": 1788882523.0460732,
+    "end": 1788882523.481448,
+    "exit": 0,
+    "helperSha256": "a8c022736704a567f779e4d656e89453a0301d9b33f5d450bf0929c158f65e7b",
+    "snapshotSha256": "249a17ba3bbae7cea734fd8f8c2799b4d5b6df20734b10e68605d31451e7f8f8",
+    "coverage": {
+      "personas": 8,
+      "personaConversationViews": 10,
+      "uniqueConversations": 4,
+      "visibleMessageCopies": 108,
+      "uniqueMessages": 37,
+      "imageMessages": 3,
+      "videoMessages": 3,
+      "reactedMessages": 0,
+      "quotedMessages": 6,
+      "receiptRows": 179,
+      "editedMessages": 3,
+      "tombstonedMessages": 2,
+      "viewOnceMessages": 6
+    }
+  },
+  "lateSnapshotLimit": "sm0001 absent from two 20-row API views; exact-row stopped SQLite read establishes it still exists. Formal full API preservation incomplete.",
+  "sqlitePresenceReceiptSha256": "82a6a2e0776aea4aea58337ae53901071fda49fba4741ab065c06b21be6c60b6",
+  "migrationAttribution": "Immediate pre/post helper outputs equal excluding capture metadata; intermediate optional enum stage cleared old values before explicit restoration. No uninterrupted availability claim.",
+  "cacheCause": "Shared Metro transform cache is consistent with mixed literal substitution, but cache key/write history was not traced.",
+  "retry": "One fresh M7 retry from original continuous source, isolated TMPDIR and cleared export, active endpoint check before browser use; separate clock.",
+  "privateRetention": "snapback-artifacts/clique-cold-019-20260908/m7-aborted; original stopped remote database preserved",
+  "sqlitePresencePublishedReceipt": "m7-sm0001-presence.json",
+  "sqlitePresencePublishedSha256": "08bdd5d187e7b7301ce5e515b37458ccb4a75b9006a132b71f6234b6115eede7"
+}

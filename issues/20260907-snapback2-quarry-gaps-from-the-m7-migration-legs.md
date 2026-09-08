@@ -50,7 +50,10 @@ the unchanged capture helper and compared both files independently. This covers
 15 starter messages, six quoted messages, and 81 receipt rows in a snapshot covering
 eight personas and six persona-conversation views; media, reactions,
 edited/tombstoned messages, and view-once values were not
-populated. A later direct supervisor capture and final M7 acceptance remain pending.
+populated. A later direct supervisor capture found a20-row API pagination limit; an exact
+stored-row check found the omitted original message intact. The browser attempt was separately aborted for contamination; a clean retry
+is in progress. See the
+[attempt record](../benchmarks/runs/2026-09-08-release-cold-headroom/m7-aborted.md).
 The intermediate null-valued snapshot and failed migration attempts are retained;
 the final match does not establish uninterrupted intermediate availability.
 

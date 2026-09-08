@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "clique.assessment.browser-ui.v1",
+  "baseUrl": "http://127.0.0.1:53127",
+  "apiStamp": "mtstbakd",
+  "observations": [
+    {
+      "name": "duplicate-handle-visible-error",
+      "pass": false,
+      "error": "locator.waitFor: Timeout 12000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('sm-auth-error') to be visible\u001b[22m\n",
+      "visibleText": "Clique\nSearch\nInsights\nProfile\nSettings\nFollowing\nGlobal\nTrending\n＋\nPost\nChats",
+      "errors": [
+        "console:Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+      ]
+    },
+    {
+      "name": "url-avatar-profile-ui",
+      "pass": false,
+      "error": "URL, author identity, or profile avatar observable mismatch",
+      "visibleText": "Clique\nSearch\nInsights\nProfile\nSettings\nFollowing\nGlobal\nTrending\nEdit profile\nAlice Alvarez\n@alice\nCoffee, cameras, and neighborhood walks.\n◦ Oakland, CA\nhttps://example.com/alice\n3 Followers\n2 Following\nBack to feed",
+      "errors": [
+        "console:Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+      ]
+    },
+    {
+      "name": "insights-and-trending-ui",
+      "pass": false,
+      "error": "locator.waitFor: Timeout 12000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('sm-trending-row').first() to be visible\u001b[22m\n",
+      "visibleText": "Clique\nSearch\nInsights\nProfile\nSettings\nFollowing\nGlobal\nTrending\n＋\nPost\nAlice Alvarez\n@alice\n· 2m\nDiagnostic trend high\n◗\n↻\n♡\n2\nAlice Alvarez\n@alice\n· 20m\nCoffee time at the corner table https://example.com/cafe\n◗\n1\n↻\n1\n♡\n2\nAlice Alvarez\n@alice\n· 2m\nDiagnostic tie new\n◗\n↻\n♡\n1\nAlice Alvarez\n@alice\n· 2m\nDiagnostic tie old\n◗\n↻\n♡\n1\nAlice Alvarez\n@alice\n· 2m\nDiagnostic trend low\n◗\n↻\n♡\n1\nAlice Alvarez\n@alice\n· 2m\nDiagnostic insight post\n◗\n↻\n♡\n1\nAlice Alvarez\n@alice\n· 16m\nTrend newest\n◗\n↻\n♡\n1\nAlice Alvarez\n@alice\n· 16m\nTrend older\n◗\n↻\n♡\n1\nSample Dev\n@samd\n· 17m\nVideo conformance.\n▶\n◗\n1\n↻\n1\n♡\n1\nSample Ada\n@sama\n· 17m\nCoffee conformance text.\n◗\n2\n↻\n♡\n1\nChats\nAM\nAcceptance mtssrznt\n17m\nHello from the custom Snapback client\n1\nAM\nAcceptance second mtssrznt\nNo messages yet\nB\nbob\n2m\nDiagnostic push once\n3\nDM\nDiagnostic One mtsta59o\n3m\nDiagnostic quoted response\n1\nDM\nDiagnostic One mtstbakd\n2m\nDiagnostic quoted response\n1\nDM\nDiagnostic Two mtsta59o\nNo messages yet\nDM\nDiagnostic Two mtstbakd\nNo messages yet\nWP\nWeekend Plans\n20m\nLocked in. See you Saturday.\n6",
+      "errors": [
+        "console:Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+      ]
+    },
+    {
+      "name": "message-search-and-labels-ui",
+      "pass": true,
+      "detail": {
+        "searchResults": 3,
+        "searchGroups": 2,
+        "editedLabelRendered": true,
+        "tombstoneRendered": true
+      },
+      "errors": [
+        "console:Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+      ]
+    }
+  ]
+}

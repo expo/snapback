@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "clique.acceptance.v1",
+  "milestone": "m2",
+  "start": 1788879669,
+  "backendUrl": "http://127.0.0.1:53126",
+  "webUrl": "http://127.0.0.1:53127",
+  "commands": [
+    {
+      "name": "snapback2-check",
+      "pass": true,
+      "code": 0,
+      "ms": 808,
+      "stdout": "{\"compilerMs\":50.75,\"generation\":\"e80099e9159695ea7e7812ce73b89bbb0b7a05fa70dde975b7424273e957a809\",\"ok\":true,\"operations\":55,\"schemaCertificate\":{\"disclosures\":[\"messages.onceImage: one image delivery per authenticated principal; owning row read rule; no device byte cache\"],\"schedules\":[{\"name\":\"dailyDigest\",\"target\":\"digests.digestSweep\",\"trigger\":{\"every\":{\"durationMs\":120000}}},{\"name\":\"expireTrending\",\"target\":\"digests.purgeTrending\",\"trigger\":{\"row\":{\"column\":\"expiresAt\",\"table\":\"trendingPosts\"}}},{\"name\":\"expireMessage\",\"target\":\"messages.purgeExpired\",\"trigger\":{\"row\":{\"column\":\"expiresAt\",\"table\":\"messages\"}}}]}}\n",
+      "stderr": ""
+    },
+    {
+      "name": "typescript",
+      "pass": true,
+      "code": 0,
+      "ms": 1335,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "name": "snapback2-authored-journeys",
+      "pass": true,
+      "code": 0,
+      "ms": 1713,
+      "stdout": "{\"binary\":{\"version\":\"0.0.19\",\"digest\":\"rust64:27840c11e1e9f1c6\"},\"generation\":\"e80099e9159695ea7e7812ce73b89bbb0b7a05fa70dde975b7424273e957a809\",\"commands\":[\"snapback2 dev --foreground --port 0\",\"seed\",\"snapback2 test --journeys-only\"],\"checks\":[{\"name\":\"profiles update through authenticated policy\",\"kind\":\"journey\",\"verdict\":\"pass\",\"ms\":30,\"detail\":{\"file\":\"/Users/ccheever/clique-cold-019-20260908/assessment-sol/app/.snapback/test-run-1788879672072/project/.snapback/build/tests/clique.mjs\"}},{\"name\":\"follow post like and reply set-state\",\"kind\":\"journey\",\"verdict\":\"pass\",\"ms\":39,\"detail\":{\"file\":\"/Users/ccheever/clique-cold-019-20260908/assessment-sol/app/.snapback/test-run-1788879672072/project/.snapback/build/tests/clique.mjs\"}},{\"name\":\"message receipts reactions and edits\",\"kind\":\"journey\",\"verdict\":\"pass\",\"ms\":37,\"detail\":{\"file\":\"/Users/ccheever/clique-cold-019-20260908/assessment-sol/app/.snapback/test-run-1788879672072/project/.snapback/build/tests/clique.mjs\"}},{\"name\":\"scheduled digest emits once and skips empty periods\",\"kind\":\"journey\",\"verdict\":\"pass\",\"ms\":78,\"detail\":{\"file\":\"/Users/ccheever/clique-cold-019-20260908/assessment-sol/app/.snapback/test-run-1788879672072/project/.snapback/build/tests/clique.mjs\"}}],\"arms\":[\"headless\"],\"verdict\":\"pass\",\"scope\":{\"changed\":[]},\"schedules\":{\"fired\":3,\"late\":3,\"rejected\":0}}\n",
+      "stderr": ""
+    }
+  ],
+  "tests": [
+    {
+      "name": "m2-post-follow-feed-toggle-thread-pagination",
+      "pass": true,
+      "ms": 372,
+      "detail": {
+        "textId": "accept-text-mtssrqaz",
+        "imagesId": "accept-images-mtssrqaz",
+        "videoId": "accept-video-mtssrqaz",
+        "pageOne": 20,
+        "pageTwo": 20
+      }
+    }
+  ],
+  "coverage": {
+    "path": "coverage/m2.json",
+    "assertions": 22,
+    "expected": 22,
+    "complete": true
+  },
+  "pass": true,
+  "end": 1788879674
+}

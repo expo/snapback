@@ -1659,12 +1659,35 @@ correction: the retained replay checks reach 10,000 messages, not 50,000. The
 full log settled 167,157 actions, but only named fixture invariants were checked.
 
 Both native Release apps built and reached the sign-in UI. That is useful setup
-evidence; offline restart, media/search and FIFO proof remain missing. An
-independent Grok assessment is now running against a clean source/data handoff.
-Fresh-session M7 follows it, with a pre-upgrade API snapshot and separate clock.
+evidence; offline restart, media/search and FIFO proof remain missing. The independent Grok assessment and Sol fallback are retained with root
+adjudication. Fresh-session M7 has a pre-upgrade API snapshot and separate clock;
+its first attempt aborted and a clean retry is now running.
 
 Separately, reviewed performance work landed after 0.0.19: the pinned integrated
 suite passes in 83.921 seconds and its runtime is 83,227 gzip bytes. Same-upstream
 runtime savings are 186 bytes; the 60-second and 80,000-byte targets remain open.
 Three metadata repair candidates were rejected and remain unpublished. Their
 first-write regression is retained, and the additional-round decision is pending.
+
+The independent assessments exposed gaps between successful suite receipts and
+what tests actually exercised: several UI, pagination and expiry assertions
+were mapped to API flags or local synthetic checks. The duplicate-handle browser
+flow did not show its required error, and source inspection found a missing
+feed URL callback. The M3 failure still has an instrument-confounded attribution.
+These findings limit the green receipts rather than implying intent.
+
+The first M7 author preserved the immediate migration snapshot, but lost time
+on apparently stale counts and incompatible auth before finding mixed exported
+backend bindings. Its provider was using the assessor's backend while direct
+helpers used M7's. That explains why the symptom is not clean evidence of a
+Snapback caching/auth defect. Installed Expo's temporary transform cache and
+environment substitution make per-run isolation necessary; the precise cache
+write history was not captured. The aborted attempt is retained, and a fresh
+retry uses cleared private exports with endpoint checks before browser use.
+
+The late API snapshot also showed why preservation needs explicit scope. A
+20-row thread wrapper exposed no next cursor, hiding the oldest original
+message; a read-only exact-row storage check found it intact. Immediate
+pre/post migration equality is useful evidence, while complete later API
+visibility remains a separate obligation. These are concrete packet, app and
+query-composition lessons, not a new comparison score against Convex or Supabase.

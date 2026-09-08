@@ -1,0 +1,969 @@
+{
+  "reportVersion": 1,
+  "lane": {
+    "backend": "snapback2@0.0.19",
+    "runRecordPath": "setup/assessment-input.json",
+    "runScope": "full"
+  },
+  "wave": {
+    "id": "clique-cold-019-20260908-assessment-sol-diagnostic-fallback",
+    "probeSetSha256": "not-preregistered"
+  },
+  "grader": {
+    "family": "Codex",
+    "model": "gpt-5.6-sol",
+    "sameFamilyGraded": true,
+    "calibrationPassed": false,
+    "sessionOutcome": "completed",
+    "rerunsUsed": 1,
+    "contaminated": false
+  },
+  "assertionManifest": {
+    "path": "app/instrument/benchmarks/schema/social-messenger/assertions.json",
+    "version": "0.3.0-m8",
+    "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+  },
+  "assertionResults": {
+    "m1-a01": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Independent signup issued an authenticated viewer; final builder suite also passed."
+    },
+    "m1-a02": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#browser-observations",
+      "note": "Fresh-context signup reached the authenticated Global-feed surface after cache-corrected export."
+    },
+    "m1-a03": {
+      "result": "fail",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#browser-observations",
+      "note": "The backend rejected the duplicate handle, but the normal web signup path showed authenticated navigation and no visible error after 12 seconds."
+    },
+    "m1-a04": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#browser-observations",
+      "note": "Duplicate-email signup produced a visible auth error in a fresh browser context."
+    },
+    "m1-a05": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#retained-choreography-m1",
+      "note": "Retained relaunch receipt passed."
+    },
+    "m1-a06": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#retained-choreography-m1",
+      "note": "Retained logout/relaunch receipt passed."
+    },
+    "m1-a07": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Old token changed from complete before logout to E_AUTH_SESSION after logout."
+    },
+    "m1-a08": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Independent display-name and bio update persisted in profiles.mine."
+    },
+    "m1-a09": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#retained-choreography-m1",
+      "note": "Other client observed display name and bio without refresh in all retained attempts.",
+      "bestOf3Ms": [
+        58.5,
+        82.6,
+        90.4
+      ]
+    },
+    "m1-a10": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Independent avatar upload committed and returned an asset reference."
+    },
+    "m1-a11": {
+      "result": "not-run",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#browser-observations",
+      "note": "Avatar bytes fetched via API, but the combined independent UI assertion did not isolate a conclusive rendered-avatar result; API subset was not promoted to a UI pass."
+    },
+    "m1-a12": {
+      "result": "pass",
+      "method": "source-inspection",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#source-inspection",
+      "note": "schema.q selects installed built-in password identity; installed 0.0.19 auth documentation defines that provider path, which qualifies under the assertion."
+    },
+    "m1-a13": {
+      "result": "pass",
+      "method": "source-inspection",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#source-inspection",
+      "note": "No password column or reversible credential persistence was found in application tables/client persistence/log paths; fixture tooling credentials were treated only as the declared fixture exception."
+    },
+    "m2-a01": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Independent controlled API observation passed; cursor checks walked all pages and distinguished controlled records where applicable."
+    },
+    "m2-a02": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Independent controlled API observation passed; cursor checks walked all pages and distinguished controlled records where applicable."
+    },
+    "m2-a03": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Independent controlled API observation passed; cursor checks walked all pages and distinguished controlled records where applicable."
+    },
+    "m2-a04": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#retained-choreography-m2",
+      "note": "Text, two-image, and video posts each arrived live on the other web client in all three retained attempts.",
+      "bestOf3Ms": [
+        616.5,
+        486.4,
+        528
+      ]
+    },
+    "m2-a05": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#retained-choreography-m2",
+      "note": "Retained web receipt rendered exact feed author avatar/display identity; API shaping corroborated it."
+    },
+    "m2-a06": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Independent controlled API observation passed; cursor checks walked all pages and distinguished controlled records where applicable."
+    },
+    "m2-a07": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#retained-choreography-m2",
+      "note": "Retained two-client follow projection/count observation passed in all attempts.",
+      "bestOf3Ms": [
+        1197,
+        1189.9,
+        1192.2
+      ]
+    },
+    "m2-a08": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Independent controlled API observation passed; cursor checks walked all pages and distinguished controlled records where applicable."
+    },
+    "m2-a09": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Independent controlled API observation passed; cursor checks walked all pages and distinguished controlled records where applicable."
+    },
+    "m2-a10": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Independent controlled API observation passed; cursor checks walked all pages and distinguished controlled records where applicable."
+    },
+    "m2-a11": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Independent controlled API observation passed; cursor checks walked all pages and distinguished controlled records where applicable."
+    },
+    "m2-a12": {
+      "result": "not-run",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#browser-observations",
+      "note": "The URL post and source linkification path were reached, but the combined DOM assertion ended inconclusively; an API/body observation was not promoted to tappable-UI proof."
+    },
+    "m2-a13": {
+      "result": "not-run",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#browser-observations",
+      "note": "No isolated browser result established absence of a preview card; source/API subsets were not promoted."
+    },
+    "m2-a14": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#retained-choreography-m2",
+      "note": "Like count updated live on the other client in all retained attempts.",
+      "bestOf3Ms": [
+        498.4,
+        76.1,
+        77.8
+      ]
+    },
+    "m2-a15": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Independent controlled API observation passed; cursor checks walked all pages and distinguished controlled records where applicable."
+    },
+    "m2-a16": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#retained-choreography-m2",
+      "note": "Retained browser receipt showed repost attribution; independent API observed Bob as the repost actor."
+    },
+    "m2-a17": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Independent controlled API observation passed; cursor checks walked all pages and distinguished controlled records where applicable."
+    },
+    "m2-a18": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Independent controlled API observation passed; cursor checks walked all pages and distinguished controlled records where applicable."
+    },
+    "m2-a19": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#retained-choreography-m2",
+      "note": "Parent reply count updated live in all retained attempts.",
+      "bestOf3Ms": [
+        58.6,
+        470.8,
+        63.9
+      ]
+    },
+    "m2-a20": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Independent controlled API observation passed; cursor checks walked all pages and distinguished controlled records where applicable."
+    },
+    "m2-a21": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Independent controlled API observation passed; cursor checks walked all pages and distinguished controlled records where applicable."
+    },
+    "m2-a22": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Independent controlled API observation passed; cursor checks walked all pages and distinguished controlled records where applicable."
+    },
+    "m2-a23": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Independent controlled API observation passed; cursor checks walked all pages and distinguished controlled records where applicable."
+    },
+    "m2-a24": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Independent controlled API observation passed; cursor checks walked all pages and distinguished controlled records where applicable."
+    },
+    "m2-a25": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Independent controlled API observation passed; cursor checks walked all pages and distinguished controlled records where applicable."
+    },
+    "m2-a26": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Independent controlled API observation passed; cursor checks walked all pages and distinguished controlled records where applicable."
+    },
+    "m2-a27": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Independent controlled API observation passed; cursor checks walked all pages and distinguished controlled records where applicable."
+    },
+    "m3-a01": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#retained-choreography-m3",
+      "note": "Bidirectional DM messages were live in all three retained attempts.",
+      "bestOf3Ms": [
+        328.3,
+        1040.4,
+        1106.5
+      ]
+    },
+    "m3-a02": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#retained-choreography-m3",
+      "note": "Retained browser receipt established sender-avatar identity."
+    },
+    "m3-a03": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Independent controlled API observation passed."
+    },
+    "m3-a04": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Independent controlled API observation passed."
+    },
+    "m3-a05": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Independent controlled API observation passed."
+    },
+    "m3-a06": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#retained-choreography-m3",
+      "note": "Typing indicator became visible within the 2-second bound in all attempts.",
+      "bestOf3Ms": [
+        7.4,
+        8.7,
+        6.6
+      ]
+    },
+    "m3-a07": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#retained-choreography-m3",
+      "note": "Typing indicator expired within 5 seconds in all attempts.",
+      "bestOf3Ms": [
+        4351,
+        4363.6,
+        4363.5
+      ]
+    },
+    "m3-a08": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#retained-choreography-m3",
+      "note": "The retained receipt observed the sent/delivered/read sequence once, not the required best-of-3 for this timing-sensitive assertion; missing repetitions were not inferred as a pass or app defect."
+    },
+    "m3-a09": {
+      "result": "fail",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#retained-choreography-m3",
+      "note": "The retained group aggregate receipt did not expose delivered within 15 seconds while waiting for the slowest member."
+    },
+    "m3-a10": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#retained-choreography-m3",
+      "note": "Quoted excerpt and its shaped source were present in retained browser and independent API evidence."
+    },
+    "m3-a11": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#retained-choreography-m3",
+      "note": "Retained browser choreography clicked sm-convo-quote-preview and passed the jump in three attempts."
+    },
+    "m3-a12": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#retained-choreography-m3",
+      "note": "Retained member-removal choreography passed the live cutoff."
+    },
+    "m3-a13": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#retained-choreography-m3",
+      "note": "Retained member-removal choreography preserved pre-removal local history while cutting off later delivery."
+    },
+    "m3-a14": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Independent controlled API observation passed."
+    },
+    "m3-a15": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#builder-acceptance",
+      "note": "Fresh ordered seed plus the M3 suite's second segment replay completed without duplicates."
+    },
+    "m4-a01": {
+      "result": "not-run",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Image send and recipient asset query passed via API, but no isolated grader browser proof covered the picker-to-send UI path."
+    },
+    "m4-a02": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#retained-choreography-m4",
+      "note": "Recipient rendered the queried photo live in all retained attempts.",
+      "bestOf3Ms": [
+        1424.7,
+        1233.6,
+        1138.8
+      ]
+    },
+    "m4-a03": {
+      "result": "not-run",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Video send and recipient video reference passed via API, but no isolated grader browser proof covered the picker-to-send UI path."
+    },
+    "m4-a04": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#retained-choreography-m4",
+      "note": "Retained recipient playback choreography passed."
+    },
+    "m4-a05": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#retained-choreography-m4",
+      "note": "Reaction became visible live in all retained attempts.",
+      "bestOf3Ms": [
+        319.5,
+        286.5,
+        200.4
+      ]
+    },
+    "m4-a06": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Independent reaction set-state observation passed."
+    },
+    "m4-a07": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Independent reaction set-state observation passed."
+    },
+    "m4-a08": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#retained-choreography-m4",
+      "note": "Edited text became visible on the other client in all retained attempts.",
+      "bestOf3Ms": [
+        538.9,
+        503.2,
+        756
+      ]
+    },
+    "m4-a09": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#browser-observations",
+      "note": "Independent browser rendered the edited label on the edited bubble."
+    },
+    "m4-a10": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#independent-window-observations",
+      "note": "Independent edit after 61,526 ms was rejected with EDIT_WINDOW_EXPIRED."
+    },
+    "m4-a11": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#browser-observations",
+      "note": "Independent browser rendered the delete-for-everyone tombstone; retained live choreography corroborated it."
+    },
+    "m4-a12": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "The same authenticated asset URL served bytes before delete and was denied afterward."
+    },
+    "m5-a01": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#independent-window-observations",
+      "note": "With both API clients closed during expiry, the message disappeared from thread/replay lookup and late edit was rejected MESSAGE_REQUIRED after 185,085 ms."
+    },
+    "m5-a02": {
+      "result": "not-run",
+      "method": "web-automation",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#native-and-offline-limits",
+      "note": "No independent two-client persisted-cache relaunch/reconnect proof was completed; the retained combined choreography is noted but was not substituted for this grader-only result."
+    },
+    "m5-a03": {
+      "result": "not-run",
+      "method": "web-automation",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#native-and-offline-limits",
+      "note": "No independent offline-search-after-expiry run completed; API absence and source filtering were not promoted to an offline UI pass."
+    },
+    "m5-a04": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Independent controlled API observation passed."
+    },
+    "m5-a05": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Independent controlled API observation passed."
+    },
+    "m5-a06": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Independent controlled API observation passed."
+    },
+    "m5-a07": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#retained-choreography-m5",
+      "note": "Retained group customization synchronization passed."
+    },
+    "m5-a08": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Independent controlled API observation passed."
+    },
+    "m5-a09": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Independent controlled API observation passed."
+    },
+    "m5-a10": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Independent controlled API observation passed."
+    },
+    "m5-a11": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#browser-observations",
+      "note": "Independent web search rendered three results under two chat-group headers."
+    },
+    "m5-a12": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#retained-choreography-m5",
+      "note": "Retained warm-offline search receipt passed."
+    },
+    "m6-a01": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#native-and-offline-limits",
+      "note": "No qualifying uninterrupted native recording plus bound receipt was supplied; launch PNGs and build/install/launch status cannot prove this interaction."
+    },
+    "m6-a02": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#native-and-offline-limits",
+      "note": "No qualifying uninterrupted native recording plus bound receipt was supplied; launch PNGs and build/install/launch status cannot prove this interaction."
+    },
+    "m6-a03": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#native-and-offline-limits",
+      "note": "No qualifying uninterrupted native recording plus bound receipt was supplied; launch PNGs and build/install/launch status cannot prove this interaction."
+    },
+    "m6-a04": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#native-and-offline-limits",
+      "note": "No qualifying uninterrupted native recording plus bound receipt was supplied; launch PNGs and build/install/launch status cannot prove this interaction."
+    },
+    "m6-a05": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#native-and-offline-limits",
+      "note": "No qualifying uninterrupted native recording plus bound receipt was supplied; launch PNGs and build/install/launch status cannot prove this interaction."
+    },
+    "m6-a06": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#native-and-offline-limits",
+      "note": "No qualifying uninterrupted native recording plus bound receipt was supplied; launch PNGs and build/install/launch status cannot prove this interaction."
+    },
+    "m6-a07": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#native-and-offline-limits",
+      "note": "No qualifying uninterrupted native recording plus bound receipt was supplied; launch PNGs and build/install/launch status cannot prove this interaction."
+    },
+    "m6-a08": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Independent push-log observation matched target, chat, sender display name, and 80-character preview."
+    },
+    "m6-a09": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Independent view-once push-log observation used Photo."
+    },
+    "m6-a10": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#builder-acceptance",
+      "note": "The documented acceptance invocation ran scripts/custom-client-demo.mjs green against the assigned endpoint."
+    },
+    "m6-a11": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#builder-acceptance",
+      "note": "The executed demo authenticated, listed chats, paged history, sent text, and received its subscription delivery."
+    },
+    "m6-a12": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Following API.md, the grader found Weekend Plans and fetched its newest message with matching conversation id."
+    },
+    "m6-a13": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#retained-scale-and-replay",
+      "note": "The current acceptance replay settled 50/50 actions and verified the sample-50 invariants; retained receipt matches."
+    },
+    "m7-a01": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "sanitized-evidence.md#m7-exclusion",
+      "note": "M7 was outside this continuous-app assessment and was not inspected."
+    },
+    "m7-a02": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#m7-exclusion",
+      "note": "M7 was outside this continuous-app assessment and was not inspected."
+    },
+    "m7-a03": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "sanitized-evidence.md#m7-exclusion",
+      "note": "M7 was outside this continuous-app assessment and was not inspected."
+    },
+    "m7-a04": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "sanitized-evidence.md#m7-exclusion",
+      "note": "M7 was outside this continuous-app assessment and was not inspected."
+    },
+    "m7-a05": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#m7-exclusion",
+      "note": "M7 was outside this continuous-app assessment and was not inspected."
+    },
+    "m7-a06": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "sanitized-evidence.md#m7-exclusion",
+      "note": "M7 was outside this continuous-app assessment and was not inspected."
+    },
+    "m7-a07": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "sanitized-evidence.md#m7-exclusion",
+      "note": "M7 was outside this continuous-app assessment and was not inspected."
+    },
+    "m7-a08": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#m7-exclusion",
+      "note": "M7 was outside this continuous-app assessment and was not inspected."
+    },
+    "m7-a09": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "suiteResult": "not-covered",
+      "evidence": "sanitized-evidence.md#m7-exclusion",
+      "note": "M7 was outside this continuous-app assessment and was not inspected."
+    }
+  },
+  "coverageSpotVerification": {
+    "verdict": "dishonest",
+    "sampledAssertionIds": [
+      "m1-a03",
+      "m2-a12",
+      "m2-a22",
+      "m2-a24",
+      "m3-a11",
+      "m4-a09",
+      "m5-a11",
+      "m6-a13",
+      "m8-a04",
+      "m8-a06"
+    ],
+    "dishonestMilestones": [
+      "M1",
+      "M2",
+      "M3",
+      "M4",
+      "M5",
+      "M8"
+    ],
+    "detail": "Observed mapping mismatch, without inferring intent: the named mapped tests did not exercise the complete observable for the listed M1/M2/M3/M4/M5/M8 samples. Examples include visible/UI clauses tested only by API state, Following pagination not paged, global-search grouping not asserted, M8 zero-fill constructed locally, and the >24h exclusion checked against a locally synthesized object. The sampled M6 adapter mapping did exercise its claimed sample replay and invariant checks."
+  },
+  "defects": [
+    {
+      "id": "d-01",
+      "severity": "major",
+      "summary": "Duplicate-handle signup does not surface a visible error on the normal web path; it transitions to authenticated navigation despite the backend constraint rejection.",
+      "milestone": "M1",
+      "evidence": "sanitized-evidence.md#browser-observations",
+      "relatedAssertionIds": [
+        "m1-a03"
+      ]
+    },
+    {
+      "id": "d-02",
+      "severity": "major",
+      "summary": "Group aggregate receipt did not reach the delivered semantic state within 15 seconds while waiting for the slowest recipient.",
+      "milestone": "M3",
+      "evidence": "sanitized-evidence.md#retained-choreography-m3",
+      "relatedAssertionIds": [
+        "m3-a09"
+      ]
+    }
+  ],
+  "probeResults": [],
+  "oDimensionScores": {
+    "O1": null,
+    "O2": null,
+    "O3": null,
+    "O4": null,
+    "O5": null
+  },
+  "timingRecords": [
+    {
+      "subject": "m1-a09",
+      "measurementsMs": [
+        58.5,
+        82.6,
+        90.4
+      ],
+      "bestMs": 58.5,
+      "boundMs": null,
+      "passed": true
+    },
+    {
+      "subject": "m2-a04",
+      "measurementsMs": [
+        616.5,
+        486.4,
+        528
+      ],
+      "bestMs": 486.4,
+      "boundMs": null,
+      "passed": true
+    },
+    {
+      "subject": "m2-a07",
+      "measurementsMs": [
+        1197,
+        1189.9,
+        1192.2
+      ],
+      "bestMs": 1189.9,
+      "boundMs": null,
+      "passed": true
+    },
+    {
+      "subject": "m2-a14",
+      "measurementsMs": [
+        498.4,
+        76.1,
+        77.8
+      ],
+      "bestMs": 76.1,
+      "boundMs": null,
+      "passed": true
+    },
+    {
+      "subject": "m2-a19",
+      "measurementsMs": [
+        58.6,
+        470.8,
+        63.9
+      ],
+      "bestMs": 58.6,
+      "boundMs": null,
+      "passed": true
+    },
+    {
+      "subject": "m3-a01",
+      "measurementsMs": [
+        328.3,
+        1040.4,
+        1106.5
+      ],
+      "bestMs": 328.3,
+      "boundMs": null,
+      "passed": true
+    },
+    {
+      "subject": "m3-a06",
+      "measurementsMs": [
+        7.4,
+        8.7,
+        6.6
+      ],
+      "bestMs": 6.6,
+      "boundMs": 2000,
+      "passed": true
+    },
+    {
+      "subject": "m3-a07",
+      "measurementsMs": [
+        4351,
+        4363.6,
+        4363.5
+      ],
+      "bestMs": 4351,
+      "boundMs": 5000,
+      "passed": true
+    },
+    {
+      "subject": "m4-a02",
+      "measurementsMs": [
+        1424.7,
+        1233.6,
+        1138.8
+      ],
+      "bestMs": 1138.8,
+      "boundMs": null,
+      "passed": true
+    },
+    {
+      "subject": "m4-a05",
+      "measurementsMs": [
+        319.5,
+        286.5,
+        200.4
+      ],
+      "bestMs": 200.4,
+      "boundMs": null,
+      "passed": true
+    },
+    {
+      "subject": "m4-a08",
+      "measurementsMs": [
+        538.9,
+        503.2,
+        756
+      ],
+      "bestMs": 503.2,
+      "boundMs": null,
+      "passed": true
+    }
+  ],
+  "evidenceTracePath": "results/sanitized-evidence.md",
+  "notes": "Uncalibrated N=1 diagnostic only; calibrationPassed=false, so O1-O5 are all null and no formal score or winner is reported. No holdout probes were commissioned or preregistered: probeResults=[] and probeSetSha256=not-preregistered. sameFamilyGraded=true because this is the builder-family fallback after the Grok assessor's tooling retry remained incomplete; no prior findings were supplied. Requested/used model designation: gpt-5.6-sol with xhigh reasoning effort. First captured assessor timestamp: 2026-09-08T14:55:06.779Z (required file reads began shortly before this capture); operational assessment ended 2026-09-08T15:42:26Z after both owned services were stopped; report generated 2026-09-08T15:43:24.982Z. M7 is not-run and uninspected. M8 results are in results/m8-assertion-results.json because the frozen report schema accepts only m1-m7 keys."
+}

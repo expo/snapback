@@ -1,0 +1,139 @@
+{
+  "reportVersion": 1,
+  "scope": "M8 companion to frozen grader report",
+  "assertionManifest": {
+    "path": "app/instrument/benchmarks/schema/social-messenger/assertions.json",
+    "version": "0.3.0-m8",
+    "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+  },
+  "generatedAt": "2026-09-08T15:43:24.982Z",
+  "assertionResults": {
+    "m8-a01": {
+      "result": "not-run",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Six integer totals and controlled +1 post/+1 like deltas were observed, but the exact pre-acceptance seeded totals were not independently captured; subset evidence was not promoted."
+    },
+    "m8-a02": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#retained-choreography-m8",
+      "note": "Retained web receipt observed likesReceived increase from 18 to 19 after refresh."
+    },
+    "m8-a03": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Independent API created a current post and observed a nonzero post count in the server-UTC today bucket."
+    },
+    "m8-a04": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#browser-observations",
+      "note": "Independent browser reached and verified seven activity rows including a zero row before its later unrelated Trending-selector check failed."
+    },
+    "m8-a05": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "A controlled two-like post ranked ahead of a controlled one-like post; browser visible text corroborated the highest post first."
+    },
+    "m8-a06": {
+      "result": "not-run",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#coverage-spot-verification",
+      "note": "No real >24-hour post was independently exercised. The builder mapping used a locally synthesized object, so it is missing proof, not an inferred app defect."
+    },
+    "m8-a07": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "sanitized-evidence.md#independent-api-observations",
+      "note": "Controlled equal-like posts ranked newest-first."
+    },
+    "m8-a08": {
+      "result": "not-run",
+      "method": "snapshot-comparison",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#retained-digest-restart",
+      "note": "No independent closed-client scheduled-period campaign established this full observable; builder-authored journeys and retained logs were not substituted."
+    },
+    "m8-a09": {
+      "result": "not-run",
+      "method": "snapshot-comparison",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#retained-digest-restart",
+      "note": "No independent closed-client scheduled-period campaign established this full observable; builder-authored journeys and retained logs were not substituted."
+    },
+    "m8-a10": {
+      "result": "not-run",
+      "method": "snapshot-comparison",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#retained-digest-restart",
+      "note": "No independent closed-client scheduled-period campaign established this full observable; builder-authored journeys and retained logs were not substituted."
+    },
+    "m8-a11": {
+      "result": "pass",
+      "method": "snapshot-comparison",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#retained-digest-restart",
+      "note": "Retained bound restart proof records the same persisted owner and digest period, two same-period job retries, and no additional or duplicate target/period emissions."
+    },
+    "m8-a12": {
+      "result": "not-run",
+      "method": "source-inspection",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#source-inspection",
+      "note": "Membership-scoped source was inspected, but no independent scheduled unauthorized-chat runtime case completed; source structure was not promoted to runtime proof."
+    },
+    "m8-a13": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#retained-choreography-m8",
+      "note": "Retained M8 web choreography passed this observable."
+    },
+    "m8-a14": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#retained-choreography-m8",
+      "note": "Retained M8 web choreography passed this observable."
+    },
+    "m8-a15": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#retained-choreography-m8",
+      "note": "Retained M8 web choreography passed this observable."
+    },
+    "m8-a16": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#retained-choreography-m8",
+      "note": "Retained M8 web choreography passed this observable."
+    },
+    "m8-a17": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#native-and-offline-limits",
+      "note": "No qualifying uninterrupted native recording plus bound receipt was supplied; the launch PNG cannot prove the interaction."
+    },
+    "m8-a18": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "sanitized-evidence.md#native-and-offline-limits",
+      "note": "No qualifying uninterrupted native recording plus bound receipt was supplied; the launch PNG cannot prove the interaction."
+    }
+  },
+  "note": "Separate companion preserves the frozen grader-report schema bytes and its m1-m7 assertion key restriction. This is the same uncalibrated diagnostic; no O-score is attached."
+}

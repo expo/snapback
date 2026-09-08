@@ -47,8 +47,9 @@ run establishes an overall winner.
 The fresh session started at 2026-09-08T06:58:29.447490+00:00 (session
 `01a07fcf-a3b8-7761-b378-d22df2d7d8aa`). It completed and exited0. See [continuous closeout](continuous-closeout.md)
 for passing local receipts, the M3 abort/dependency deviation, clock corrections,
-replay scope and missing native proof. Independent assessment and fresh M7
-remain in progress.
+replay scope and missing native proof. Both continuous assessments are retained;
+the first M7 attempt aborted on mixed backend bindings, and one clean retry is
+in progress.
 
 ## Other authorized work
 
@@ -135,3 +136,19 @@ persona views). Media, reaction, edited, tombstoned and view-once populated
 classes were empty. The existing schema already had count structures; M7 must
 qualify the actual visible-count transition, not claim a newly added counter
 alone forced migration.
+
+## Fallback and M7 environment closeout
+
+The [Sol fallback](assessment-sol/README.md) finished within its one-hour cap.
+Its original report is retained alongside root corrections: duplicate-handle
+UI behavior is supported, the M3 app-defect attribution is instrument-confounded,
+and persisted-offline/native proof remains missing. External M7 browser access
+prevents a clean-isolation claim for this fallback.
+
+[First M7 attempt](m7-aborted.md) is aborted-contamination. Its assigned-backend
+migration snapshots remain separate evidence; the late20-row API view missed
+an original message that a read-only storage check found intact. One fresh
+M7 retry starts from the original source and starter state with isolated Expo
+caches, cleared exports and active endpoint checks. It receives no prior M7
+implementation or findings. Final M7 acceptance and independent postcheck remain
+pending; no whole-program benchmark qualification is claimed.

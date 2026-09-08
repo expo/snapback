@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "clique.assessment.disappearing-api.v1",
+  "pass": true,
+  "waitedMs": 185085,
+  "settingState": "committed",
+  "sendState": "committed",
+  "visibleBeforeClose": true,
+  "absentAfterExpiry": true,
+  "replayLookupAbsent": true,
+  "lateEditState": "rejected",
+  "lateEditCode": "MESSAGE_REQUIRED",
+  "restoredOff": true
+}
