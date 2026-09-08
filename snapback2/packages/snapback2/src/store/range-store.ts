@@ -26,7 +26,6 @@ import {
   type ByteSwapRequest,
   type ViewedRecord,
 } from "./byte-cache.js";
-
 import { admitOverlayAbsences, pagePosition, retireOverlays, type OverlayWatermark } from "./overlay-retirement.js";
 import { canonical } from "./canonical.js";
 import { sha256 } from "../../../evaluator/src/hash.js";
