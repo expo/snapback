@@ -31,7 +31,7 @@ if [ "${1:-}" = "--self-test" ]; then
 fi
 
 status=0
-rust_test_threads="${SNAPBACK_RUST_TEST_THREADS:-$(node -e 'process.stdout.write(String(Math.max(8, Math.min(16, require("node:os").availableParallelism()))))' 2>/dev/null || printf '8\n')}"
+rust_test_threads="${SNAPBACK_RUST_TEST_THREADS:-$(node -e 'process.stdout.write(String(Math.max(8, Math.min(32, require("node:os").availableParallelism()))))' 2>/dev/null || printf '8\n')}"
 nextest_bin="${SNAPBACK_CARGO_NEXTEST_BIN:-cargo-nextest}"
 nextest_config="$(pwd)/../.config/nextest.toml"
 
