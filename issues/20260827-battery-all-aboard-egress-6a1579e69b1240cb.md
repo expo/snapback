@@ -10,11 +10,11 @@
 **Battery gate:** `all-aboard-egress`
 **Failure signature:** `sha256:6a1579e69b1240cbe9dec533ad1d4aa7dbe94974f2d10456e2896129fe83783f`
 **First observed run:** `local.20260827T104322Z.04da2f52bd6f`
-**Last observed run:** `local.20260908T125200Z.e6c89816b6d2`
-**Last processed run:** `local.20260908T125200Z.e6c89816b6d2`
+**Last observed run:** `local.20260908T224830Z.9a54d1ce69e0`
+**Last processed run:** `local.20260908T224830Z.9a54d1ce69e0`
 **Detected at revision:** `04da2f52bd6f08bfb8a6767fbb4ce25a610701b3`
-**Last observed revision:** `e6c89816b6d292a5310cf59cdc3a43003b37af29`
-**Consecutive red runs:** `33`
+**Last observed revision:** `9a54d1ce69e0eea3f7239b11290f4b336fc254c4`
+**Consecutive red runs:** `34`
 **Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 

@@ -10,11 +10,11 @@
 **Battery gate:** `client-bundle-metrology`
 **Failure signature:** `sha256:dbe25d3b183e1533f4cb2c31bb01a76d72a5a54479102d52f290f90a3f6af485`
 **First observed run:** `local.20260825T115521Z.64e70df1e088`
-**Last observed run:** `local.20260908T125200Z.e6c89816b6d2`
-**Last processed run:** `local.20260908T125200Z.e6c89816b6d2`
+**Last observed run:** `local.20260908T224830Z.9a54d1ce69e0`
+**Last processed run:** `local.20260908T224830Z.9a54d1ce69e0`
 **Detected at revision:** `64e70df1e088d492cde44c9693463a2d052bbd7a`
-**Last observed revision:** `e6c89816b6d292a5310cf59cdc3a43003b37af29`
-**Consecutive red runs:** `37`
+**Last observed revision:** `9a54d1ce69e0eea3f7239b11290f4b336fc254c4`
+**Consecutive red runs:** `38`
 **Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
