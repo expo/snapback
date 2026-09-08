@@ -51,7 +51,7 @@ export function wireObject(value: unknown, surface: string): Record<string, unkn
 }
 
 function has(record: Record<string, unknown>, field: string): boolean {
-  return Object.prototype.hasOwnProperty.call(record, field);
+  return Object.hasOwn(record, field);
 }
 
 function present(record: Record<string, unknown>, field: string, surface: string): unknown {
