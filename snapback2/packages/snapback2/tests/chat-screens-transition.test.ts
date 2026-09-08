@@ -167,13 +167,16 @@ test("partial history becomes one coherent view without remounting its pending b
   const reactRoot: Root = createRoot(document.getElementById("root")!);
   try {
     await warm.ready;
+    const group: any = await writer.mutation(api.groups.groupCreate, { title: "Partial transition", members: ["dev:bob"] });
+    assert.equal(group.state, "committed");
+    const conversationId = group.data.id;
+    const heldThread: any = await warm.query(api.deliveries.thread, { conversationId, c: null });
+    assert.ok(heldThread.state === "complete" || heldThread.state === "capped",
+      "the fallback's kind-scoped range is independently held before the owner is cut");
     const drain = warm.subscribe(api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
     await drain.until((event: any) => event.live === true && event.caughtUp === true, 5_000);
     drain.close();
     await warm.close();
-    const group: any = await writer.mutation(api.groups.groupCreate, { title: "Partial transition", members: ["dev:bob"] });
-    assert.equal(group.state, "committed");
-    const conversationId = group.data.id;
     client = createClient({ url: screenOwner.url, as: "alice", startOffline: true, offline: { store } });
     await client.ready;
     await act(async () => reactRoot.render(React.createElement(SnapbackProvider, { client },
@@ -196,7 +199,8 @@ test("partial history becomes one coherent view without remounting its pending b
     assert.strictEqual(document.querySelector(`li[data-message="${result.ids[0]}"]`), pending,
       "the BubbleList ancestor and keyed row survive partial history to composite publication");
     assert.equal(document.querySelector(".thread-history-note"), null, "the fallback unmounts once the composite is usable");
-    assert.equal(client.sharedConsumers(api.deliveries.conversationView, { conversationId }), 2);
+    assert.equal(client.sharedConsumers(api.deliveries.conversationView, { conversationId }), 1,
+      "the composite alone remains subscribed after the fallback retires");
   } finally {
     await act(async () => reactRoot.unmount());
     await warm.close(); await client?.close(); await writer.close(); restore();

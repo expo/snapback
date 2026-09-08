@@ -50,8 +50,11 @@ function freezeTree<Value>(value: Value, seen = new WeakSet<object>()): Value {
 }
 
 /** One isolated, recursively immutable publication shared by every consumer. */
-function immutablePublication<Value>(value: Value): Value {
-  return freezeTree(structuredClone(value));
+function immutablePublication<Value>(value: Value, current?: QueryView<unknown>): Value {
+  const published = structuredClone(value);
+  if (current && typeof published === "object" && published !== null && "data" in published && "data" in current
+    && stableSerialize(published.data) === stableSerialize(current.data)) published.data = current.data;
+  return freezeTree(published);
 }
 
 /** Isolate a deferred query from caller mutation after observe/subscribe returns. */
@@ -79,7 +82,7 @@ export function queryEntry<Result, Event extends QueryMachineEvent<Result>>(
   return {
     key,
     initial,
-    publication: immutablePublication,
+    publication: (event: Event, current: QuerySnapshot<Result>) => immutablePublication(event, current.view),
     reduce: (current: QuerySnapshot<Result>, event: Event) => {
       const next = freezeTree(reduceQueryState(current.view, event));
       return next === current.view ? current : freezeTree({ view: next, snapshot: summarize(next, connection()) });

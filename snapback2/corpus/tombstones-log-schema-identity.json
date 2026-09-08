@@ -27,16 +27,24 @@
         },
         "indexes": {
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           },
           "byMessageAt": {
-            "columns": [
-              "messageId",
-              "at",
-              "id"
+            "components": [
+              {
+                "Column": "messageId"
+              },
+              {
+                "Column": "at"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           }
@@ -111,8 +119,10 @@
         },
         "indexes": {
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -159,8 +169,10 @@
             "index": "byMessageAt",
             "prefix": [
               {
-                "Literal": {
-                  "Id": "m1"
+                "Scalar": {
+                  "Literal": {
+                    "Id": "m1"
+                  }
                 }
               }
             ],
@@ -180,8 +192,8 @@
   },
   "certificate": {
     "program": "tombstones-log-schema-identity",
-    "plan_hash": "e15daa02d73e9300a446ea5f86c186fc2f5229048462cd41dd36a520a580712d",
-    "schema_hash": "1f8d7c5539f8c4bdf96bb3d00662fe0a3a2d1335ab84e31b5affdbb9dbe8da21",
+    "plan_hash": "aa04bb74015d36b87acca61bbe1fc31bff21f1daaab180605cdfd19c9d47ce8e",
+    "schema_hash": "8fcfffb826c959091ac60f5d5fac03ac07fae356755b63acb43dcd17366bbf02",
     "tables": {
       "deliveries": {
         "retain": "until-revoked"
@@ -191,10 +203,10 @@
       }
     },
     "rule_hashes": {
-      "deliveries.read": "3f7058341962a7a1dfcda8c4cad9bde0704110c2b09eef21f0eeb9b52a63e495"
+      "deliveries.read": "be134aef004c8cb0632dafd4e74523c7f5f0ba64dd7f621380b309567f36a1e5"
     },
-    "evaluator_version": "bounded-spike-rust-1",
-    "value_model_version": "i53-codepoint-bytes-v2",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [
       {
         "site": "deliveries.forMessage",
@@ -216,6 +228,8 @@
     "max_index_entries": 12,
     "max_rule_probes": 0,
     "max_steps": 63,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
     "max_heap_bytes": 2016,
     "max_output_bytes": 3882,
     "max_closure_bytes": 3860,
@@ -239,7 +253,7 @@
     "read_time": null
   },
   "receipt": {
-    "schema_hash": "1f8d7c5539f8c4bdf96bb3d00662fe0a3a2d1335ab84e31b5affdbb9dbe8da21",
+    "schema_hash": "8fcfffb826c959091ac60f5d5fac03ac07fae356755b63acb43dcd17366bbf02",
     "rows": [],
     "ranges": [],
     "absences": [],

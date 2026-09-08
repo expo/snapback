@@ -38,9 +38,9 @@ import { api } from "snapback2/client";
 function Messages() {
   const messages = useQuery(api.messages.thread, { conversationId: "conversation-1", c: null });
   const send = useMutation(api.messages.send);
-  if (messages.state === "hydrating") return <>Loading…</>;
+  if (messages.status === "loading") return <>Loading…</>;
   return <button disabled={send.inFlight} onClick={() => send.run({ conversationId: "conversation-1", recipientId: "profile-bob", body: "Hi" })}>
-    {messages.state}
+    {messages.status}
   </button>;
 }
 

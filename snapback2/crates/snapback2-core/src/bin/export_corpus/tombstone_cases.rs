@@ -56,7 +56,7 @@ pub(super) fn add_tombstone_case(cases: &mut Vec<CorpusCase>) {
             site: "deliveries.forMessage".to_owned(),
             table: "deliveries".to_owned(),
             index: "byMessageAt".to_owned(),
-            prefix: vec![Expr::Literal(id("m1"))],
+            prefix: vec![IndexKeyExpr::Scalar(Expr::Literal(id("m1")))],
             order: Order::Asc,
             take: Bound::Literal(10),
             after: None,
@@ -98,7 +98,10 @@ fn indexes<const N: usize>(indexes: [(&str, &[&str], bool); N]) -> BTreeMap<Stri
             (
                 name.to_owned(),
                 Index {
-                    columns: columns.iter().map(|column| (*column).to_owned()).collect(),
+                    components: columns
+                        .iter()
+                        .map(|column| IndexComponent::Column((*column).to_owned()))
+                        .collect(),
                     unique,
                 },
             )

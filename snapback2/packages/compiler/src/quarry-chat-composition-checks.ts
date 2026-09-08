@@ -124,8 +124,9 @@ export function registerQuarryChatCompositionChecks(test: Test, frontend: string
     assert(afterUnsend.state === "partial"
       && afterUnsend.partialSites.includes("deliveries.conversationView.3")
       && afterUnsend.partialSites.includes("deliveries.conversationView.5")
-      && removedResult.count === 1 && removedResult.messages.length === 3
-      && removedResult.preview.length === 1 && removedResult.preview[0]?.kind === "removed"
+      && removedResult.count === 1 && removedResult.messages.length === 2
+      && removedResult.messages[0]?.kind === "message" && removedResult.messages[0]?.message === null
+      && removedResult.preview.length === 1 && removedResult.preview[0]?.kind === "message"
       && removedResult.preview[0]?.message === null,
     `tombstone preview or live message count was dishonest: ${JSON.stringify(afterUnsend)}`);
 

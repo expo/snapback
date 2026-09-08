@@ -192,7 +192,7 @@ import { api, createClient } from 'snapback2/client';
 import { SnapbackProvider, useQuery } from 'snapback2/react';
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 let state, renderer;
-function Probe() { state = useQuery(api.todos.list, {}); return React.createElement('div', null, state.state); }
+function Probe() { state = useQuery(api.todos.list, {}); return React.createElement('div', null, state.status); }
 async function until(predicate) {
   const end = Date.now() + 5000;
   while (!predicate() && Date.now() < end) await act(async () => { await new Promise(r => setTimeout(r, 10)); });
@@ -203,7 +203,7 @@ const client = createClient({ url, as: 'alice' });
 try {
   await client.ready;
   await act(async () => { renderer = create(React.createElement(SnapbackProvider, { url, as: 'alice' }, React.createElement(Probe))); });
-  await until(() => state?.state === 'complete' && state.live);
+  await until(() => state?.status === 'ready' && state.receipt?.outcome === 'complete' && state.freshness.live);
   await act(async () => {
     const result = await client.mutation(api.todos.add, { title: 'installed React proof' });
     assert.equal(result.state, 'committed');

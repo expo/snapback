@@ -751,7 +751,7 @@ journey("an expiring message is purged by the owner's schedule with every client
   alice.close();
   await tick(3_600_001);
   const bob = as("bob");
-  const thread = bob.subscribe(api.deliveries.thread, { conversationId: "conversation-1", c: null }, () => {});
+  const thread = bob.subscribe(api.deliveries.inbox, { c: null }, () => {});
   try {
     const purged = await thread.until((delivery) => "data" in delivery && Array.isArray(delivery.data)
       && delivery.data.some((row: LogRow) => row.kind === "expired" && row.messageId === sent.data.id));
