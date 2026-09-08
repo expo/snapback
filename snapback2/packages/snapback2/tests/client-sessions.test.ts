@@ -100,6 +100,7 @@ test("a delayed predecessor follower failure cannot stop its successor route", a
     writer: async (principal: string) => { route = `writer:${principal}`; },
     following: (principal: string) => { route = `follower:${principal}`; },
     stopped: () => { stops += 1; route = "stopped"; },
+    admitInherited: async () => undefined,
     takeover: async () => "authority",
     drain: () => undefined,
     failed: () => { failures += 1; },
@@ -663,9 +664,11 @@ test("a second web tab follows the writer and inherits its queue when the writer
   const read = await follower.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
   assert.equal(read.state, "complete", "a follower reads live");
   const forwarded = await follower.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "from the follower" });
-  assert.equal(forwarded.state, "queued", "the follower learns the writer's durable admission");
-  await until(() => owner.executions.some((execution) => execution.intent === (forwarded as any).intent), "the forwarded replay");
-  assert.equal(owner.executions.filter((execution) => execution.intent === (forwarded as any).intent).length, 1);
+  assert.equal(forwarded.state, "queued", "the follower's row is durable before its result");
+  assert.match(forwarded.intent, /^inbox:\d+$/, "a follower's result names its inbox row (LLP 1018.004 §1)");
+  const fromFollower = (execution: { args: unknown }) => (execution.args as any).body === "from the follower";
+  await until(() => owner.executions.some(fromFollower), "the admitted row's replay");
+  assert.equal(owner.executions.filter(fromFollower).length, 1);
 
   await writer.offline();
   const queued = await writer.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "queued in the writer tab" });

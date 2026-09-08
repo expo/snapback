@@ -141,7 +141,11 @@ export class ClientQueries {
     if (!this.host.active(fence)) return undefined;
     if (current.live && event.state === "hydrating") {
       // Keep the old value's own witnesses; a newer ledger does not advance them.
-      return withItemInputs({ ...current } as SubscriptionDelivery<Result>, { ...inputs, entries: itemInputs(event)?.entries ?? inputs.entries });
+      // @ref LLP 1018.004#4-liveness-nudges-polls-and-where-admission-runs — a
+      // follower has no local answer, so its items must still take the
+      // runtime's current entries: the durable inbox rows it just wrote.
+      return withItemInputs({ ...current } as SubscriptionDelivery<Result>,
+        { ...inputs, entries: itemInputs(event)?.entries ?? (await this.host.entries?.()) ?? inputs.entries });
     }
     // A drain is caught up only after DrainSubscription.mark has finished its
     // watermark and replay-grant work. A store-input refresh can see the page

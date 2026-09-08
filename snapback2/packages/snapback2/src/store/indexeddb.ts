@@ -177,6 +177,17 @@ class IndexedDbInbox implements InboxConnection {
     return Object.fromEntries(entries.map(({ key, value }) => [key, value]));
   }
 
+  async read(): Promise<{ rows: InboxRow[]; ledger: Record<string, unknown> }> {
+    const transaction = this.open().transaction([INBOX_STORE, "outbox"], "readonly");
+    const rowsRequest = transaction.objectStore(INBOX_STORE).getAll() as IDBRequest<InboxRecord[]>;
+    const ledgerRequest = transaction.objectStore("outbox").getAll() as IDBRequest<Entry[]>;
+    const [records, entries] = await Promise.all([requestResult(rowsRequest), requestResult(ledgerRequest), transactionDone(transaction)]);
+    return {
+      rows: orderInbox(records.map(inboxRowOf).filter((row): row is InboxRow => row !== undefined)),
+      ledger: Object.fromEntries(entries.map(({ key, value }) => [key, value])),
+    };
+  }
+
   close(): void {
     this.ended = true;
     this.database?.close();

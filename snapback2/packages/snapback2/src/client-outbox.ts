@@ -15,6 +15,7 @@ import { DeliveryEnvelopeDecodeError } from "./offline-protocol.js";
 import { tailWatermark, type AcceptedDelivery, type OfflineRuntime } from "./offline.js";
 import { replayEnvelope, type OutboxEntry } from "./store/outbox.js";
 import { referenceName } from "./api.js";
+import { inboxKeyOf } from "./store/inbox.js";
 import { observeOutbox } from "./client-outbox-observed.js";
 import type { MutationResult, OutboxApi, OutboxSettlement, OutboxStatus } from "./types.js";
 
@@ -274,7 +275,7 @@ function settlement(result: DrainResult): OutboxSettlement {
 }
 
 async function followerSettlement(runtime: OfflineRuntime, inbox: FollowerInbox | undefined, offline: boolean): Promise<OutboxSettlement> {
-  const queuedEntries = (await runtime.itemEntries()).filter((entry) => entry.state === "queued" && entry.inbox === undefined).length;
+  const queuedEntries = (await runtime.itemEntries()).filter((entry) => entry.state === "queued" && inboxKeyOf(entry.intent) === undefined).length;
   const remaining = runtime.inboxPending + queuedEntries;
   if (remaining === 0) return { stopped: false, remaining };
   const status = await inbox?.status();

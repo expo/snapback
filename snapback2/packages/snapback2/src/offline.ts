@@ -323,10 +323,13 @@ export class OfflineRuntime {
     if (!this.store.acquire) throw new OfflineStoreFailure("E_OFFLINE_LOCK", "this account is open in another client; close it and try again");
     this.followingPrincipal = principal;
     this.followingWait = wait;
-    // The inbox route opens before the wait so a reloaded tab shows its device's
-    // queued rows from durable state before any network request (LLP 1018.004 §2).
-    // A failure here (an older tab holds the database at a lower version, or
-    // no IndexedDB) leaves the follower with the hard refusal, not a broken wait.
+    // The lock wait starts at once; the inbox route opens beside it, so a
+    // reloaded tab shows its device's queued rows from durable state before any
+    // network request (LLP 1018.004 §2). A failure to open the route (an older
+    // tab holds the database at a lower version, or no IndexedDB) leaves the
+    // follower with the hard refusal, not a broken wait.
+    const waiting = this.store.acquire(principal, signal);
+    waiting.catch(() => undefined);
     if (this.store.inbox && this.followingWait === wait) {
       try {
         const connection = await this.store.inbox(principal);
@@ -338,7 +341,7 @@ export class OfflineRuntime {
     }
     this.outbox.notify();
     try {
-      await this.store.acquire(principal, signal);
+      await waiting;
       if (signal.aborted) {
         // Granted after the wait was withdrawn: give exactly this lock back. A
         // request a newer wait has queued, or a partition an open has since
@@ -398,8 +401,10 @@ export class OfflineRuntime {
   async refreshInbox(): Promise<boolean> {
     let rows: InboxRow[] = [], ledger: Record<string, OutboxEntry> = {};
     if (this.inboxConnection && !this.inboxConnection.ended) {
-      rows = await this.inboxConnection.rows();
-      ledger = (await this.inboxConnection.ledger()) as Record<string, OutboxEntry>;
+      // One transaction over both stores: a swap between two reads would show a row twice or not at all.
+      const snapshot = await this.inboxConnection.read();
+      rows = snapshot.rows;
+      ledger = snapshot.ledger as Record<string, OutboxEntry>;
     } else if (this.partition !== undefined && this.store.inboxRows) {
       rows = await this.store.inboxRows();
     } else return false;
@@ -463,6 +468,10 @@ export class OfflineRuntime {
     const after = orderInbox(await this.store.inboxRows());
     const changed = admitted > 0 || canonical(after) !== canonical(this.inboxRowsCache);
     this.inboxRowsCache = after;
+    // Takeover admits while the follower route is still open: its ledger cache must show the entries this pass created.
+    if (this.inboxConnection && admitted > 0) {
+      this.inboxLedgerCache = Object.fromEntries((await this.outbox.entries()).map((entry) => [entry.intent, entry]));
+    }
     if (changed) { this.outbox.notify(); this.publishInputs(); }
     return { admitted, ...(stopped === undefined ? {} : { stopped }) };
   }

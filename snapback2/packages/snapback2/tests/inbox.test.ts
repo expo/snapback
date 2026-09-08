@@ -53,7 +53,9 @@ test("a follower's write is a durable inbox row before run() resolves; the write
   await until(() => owner.executions.some((execution) => (execution.args as any).body === "from the follower"), "the writer's admission and replay");
   assert.equal(owner.executions.filter((execution) => (execution.args as any).body === "from the follower").length, 1, "exactly one execution");
   // The writer's grant slice for the recipe's post is 1 + maxNewIds, not one id: fan-out rows are minted from it too.
-  await until(async () => (await follower.outbox.entries()).some((entry) => entry.inbox === 1 && entry.ids.length > 0), "the follower reading the ledger entry");
+  // The follower learns admission from one nudge and settlement from a later one; wait for the settled entry.
+  await until(async () => (await follower.outbox.entries()).some((entry) => entry.inbox === 1 && entry.ids.length > 0 && entry.state === "committed"),
+    "the follower reading the settled ledger entry");
   const entries = await follower.outbox.entries();
   const admitted = entries.filter((entry) => entry.inbox === 1);
   assert.equal(admitted.length, 1, "an admitted row appears once, as its entry");

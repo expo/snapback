@@ -210,6 +210,17 @@ async function seed(url) {
   return { conversations, doomedMessageId: doomed.state === "committed" ? doomed.data.id : undefined };
 }
 
+// Playwright's waitForFunction does not await an async predicate (a pending
+// Promise is truthy), so every wait on client state polls `evaluate` instead.
+async function pollUntil(page, predicate, argument, { timeout = 10_000, label = "condition" } = {}) {
+  const deadline = Date.now() + timeout;
+  for (;;) {
+    if (await page.evaluate(predicate, argument)) return;
+    if (Date.now() > deadline) throw new Error(`timed out after ${timeout}ms waiting for ${label}`);
+    await page.waitForTimeout(50);
+  }
+}
+
 async function openChat(page, conversationId) {
   await page.click(`nav[aria-label=Inbox] li[data-conversation="${conversationId}"] button`);
   await page.waitForSelector("section[aria-label=Thread] li[data-state=row]", { timeout: 10_000 });
@@ -242,7 +253,7 @@ async function openChat(page, conversationId) {
 // @ref LLP 1018.000#8-account-sessions-and-durable-follower-admission — actual
 // Chromium tabs, Web Locks, BroadcastChannel, IndexedDB, and the owner prove one queue.
 async function sharedSessions(context, writer, appUrl, ownerUrl) {
-  await writer.waitForFunction(async () => window.__snapback && (await window.__snapback.outbox.status()).ready,
+  await pollUntil(writer, async () => window.__snapback && (await window.__snapback.outbox.status()).ready,
     null, { timeout: 15_000 });
   const added = [];
   const controls = [];
@@ -323,9 +334,8 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
   try {
   const follower = await context.newPage();
   await follower.goto(appUrl);
-  await follower.waitForFunction(async () => window.__snapback
-    && (await window.__snapback.outbox.status(window.__api.deliveries.post)).ready,
-    null, { timeout: 15_000 });
+  await pollUntil(follower, async () => window.__snapback
+    && (await window.__snapback.outbox.status(window.__api.deliveries.post)).ready, null, { timeout: 15_000 });
   await openChat(follower, "conversation-1");
 
   // @ref LLP 1018.004#6-the-test-fake-and-the-witness — a follower's sends are
@@ -378,7 +388,7 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
   await follower.evaluate(() => { window.__witnessBroadcast.dropTypes = []; });
   await writer.evaluate(() => window.__snapback.inbox.admit());
   await writer.evaluate(() => window.__snapback.outbox.settled());
-  await follower.waitForFunction(async (keys) => {
+  await pollUntil(follower, async (keys) => {
     const entries = await window.__snapback.outbox.entries();
     return keys.every(key => entries.some(entry => entry.inbox === key && entry.ids.length > 0 && entry.state === "committed"));
   }, queuedRows.rows.map(row => row.inbox), { timeout: 15_000 });
@@ -401,10 +411,9 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
 
   // A follower's dismissal is a durable command the writer consumes.
   await follower.evaluate((intent) => window.__snapback.outbox.dismiss(intent), admittedEntries[0].intent);
-  await writer.waitForFunction(async (intent) => !(await window.__snapback.outbox.entries()).some(entry => entry.intent === intent),
+  await pollUntil(writer, async (intent) => !(await window.__snapback.outbox.entries()).some(entry => entry.intent === intent),
     admittedEntries[0].intent, { timeout: 10_000 });
-  await follower.waitForFunction(async (intent) => !(await window.__snapback.outbox.entries()).some(entry => entry.intent === intent),
-    admittedEntries[0].intent, { timeout: 10_000 });
+  await pollUntil(follower, async (intent) => !(await window.__snapback.outbox.entries()).some(entry => entry.intent === intent), admittedEntries[0].intent, { timeout: 10_000 });
   step("a follower's dismissal is a durable command the writer consumes; both tabs' history agree", { dismissed: admittedEntries[0].intent });
 
   const beforeWrites = replayed.length;
@@ -414,7 +423,7 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
   // Cut only the writer's owner transport: the follower remains live. An actual
   // page close releases the browser-owned lock without calling client.close().
   await writer.bringToFront();
-  await writer.waitForFunction(async () => (await window.__snapback.outbox.status(window.__api.deliveries.post)).ready, null, { timeout: 15_000 });
+  await pollUntil(writer, async () => (await window.__snapback.outbox.status(window.__api.deliveries.post)).ready, null, { timeout: 15_000 });
   const ownerOrigin = new URL(ownerUrl).origin;
   await writer.route(url => url.origin === ownerOrigin, route => route.abort("connectionrefused"));
   step("writer readiness before going offline", await writer.evaluate(async () => ({ status: await window.__snapback.outbox.status(), post: await window.__snapback.outbox.status(window.__api.deliveries.post), entries: await window.__snapback.outbox.entries() })));
@@ -451,12 +460,23 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
   while (replayed.slice(beforeWrites).filter(request => intents.includes(request.replay?.intent)).length < 3
     && Date.now() < replayDeadline) await follower.waitForTimeout(100);
   step("takeover observation", await follower.evaluate(async () => ({ status: await window.__snapback.outbox.status(), entries: await window.__snapback.outbox.entries() })));
-  await follower.waitForFunction(async () => (await window.__snapback.outbox.entries()).filter(e => e.state === "queued").length === 0, null, { timeout: 15_000 });
+  await pollUntil(follower, async () => (await window.__snapback.outbox.entries()).filter(e => e.state === "queued").length === 0, null, { timeout: 15_000 });
   await follower.evaluate(() => window.__snapback.outbox.settled());
   const inherited = replayed.slice(beforeWrites).filter(request => intents.includes(request.replay?.intent));
   assert.deepEqual(inherited.map(request => request.replay.intent), intents, "inherited queue replays FIFO exactly once");
   const takeoverAdmitted = replayed.slice(beforeWrites).filter(request => request.args?.body === "1018.004 admitted on takeover");
-  assert.equal(takeoverAdmitted.length, 1, "the row left behind was admitted by the new writer and executed once");
+  const takeoverState = await follower.evaluate(async () => ({
+    status: await window.__snapback.outbox.status(), lastRefusal: window.__snapback.snapshot.lastRefusal,
+    entries: (await window.__snapback.outbox.entries()).map(entry => ({ intent: entry.intent, inbox: entry.inbox, state: entry.state,
+      body: entry.args?.body, ids: entry.ids.length, response: entry.response })),
+    rows: await new Promise((resolve) => {
+      const open = indexedDB.open("snapback2:dev:alice");
+      open.onsuccess = () => { const db = open.result; const tx = db.transaction(["inbox"], "readonly");
+        const all = tx.objectStore("inbox").getAll(); all.onsuccess = () => { resolve(all.result); db.close(); }; };
+      open.onerror = () => resolve("open failed");
+    }),
+  }));
+  assert.equal(takeoverAdmitted.length, 1, `the row left behind was admitted by the new writer and executed once: ${JSON.stringify(takeoverState)}`);
   assert.ok(replayed.slice(beforeWrites).indexOf(takeoverAdmitted[0]) > replayed.slice(beforeWrites).indexOf(inherited[2]),
     "the inherited intents replay before the row admitted on takeover");
   const { createClient, api } = await import(resolve(dist, "client.mjs"));
@@ -479,19 +499,20 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
     replayIntents: inherited.map(request => request.replay.intent), rowsPerIntent: 1, admittedOnTakeover: takeoverAdmitted.length,
   });
 
-  // Lifecycle: with a third tab following the new writer, the writer signs out;
-  // the deletion completes because the follower connection closes on
-  // versionchange, and the follower reports the hard refusal, not a stale route.
+  // Lifecycle: with a third tab following the new writer, the writer's partition
+  // is wiped (a persona app has no sign-out; sign-out takes the same path); the
+  // deletion completes because the follower connection closes on versionchange,
+  // and the follower reports the hard refusal, not a stale route.
   const third = await context.newPage();
   await third.goto(appUrl);
-  await third.waitForFunction(async () => window.__snapback
+  await pollUntil(third, async () => window.__snapback
     && ["forwarding", "writer-unresponsive"].includes((await window.__snapback.outbox.status()).reason), null, { timeout: 15_000 });
   const databaseName = await follower.evaluate(async () => (await indexedDB.databases()).map(entry => entry.name).find(name => name?.includes("dev:alice")));
   assert.ok(databaseName, "the partition database exists before sign-out");
-  await follower.evaluate(() => window.__snapback.auth.logout());
-  await third.waitForFunction(async () => (await window.__snapback.outbox.status()).reason === "follower", null, { timeout: 15_000 });
-  await follower.waitForFunction(async (name) => !(await indexedDB.databases()).some(entry => entry.name === name), databaseName, { timeout: 15_000 });
-  step("sign-out deletes the partition beneath an open follower connection; the follower's route ends with the hard refusal", {
+  await follower.evaluate(() => window.__snapback.offlineRuntime.wipe());
+  await pollUntil(third, async () => (await window.__snapback.outbox.status()).reason === "follower", null, { timeout: 15_000 });
+  await pollUntil(follower, async (name) => !(await indexedDB.databases()).some(entry => entry.name === name), databaseName, { timeout: 15_000 });
+  step("a wipe deletes the partition beneath an open follower connection; the follower's route ends with the hard refusal", {
     database: databaseName, thirdTabStatus: await third.evaluate(async () => (await window.__snapback.outbox.status()).reason),
   });
   await third.close();

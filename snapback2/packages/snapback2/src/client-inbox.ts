@@ -170,7 +170,8 @@ export class ClientInbox {
   async status(): Promise<OutboxStatus> {
     const follower = this.follower, runtime = this.host.runtime;
     if (!follower || !runtime) return { ready: false, reason: "follower", action: "none", remaining: 0, fence: "inside" };
-    const ledgerQueued = (await runtime.itemEntries()).filter((entry) => entry.state === "queued" && entry.inbox === undefined).length;
+    // Ledger entries are the ones not named by an alias; an admitted row's entry counts as the ledger's.
+    const ledgerQueued = (await runtime.itemEntries()).filter((entry) => entry.state === "queued" && inboxKeyOf(entry.intent) === undefined).length;
     const remaining = runtime.inboxPending + ledgerQueued;
     const fence = this.writerAnnounced?.status.fence ?? "inside";
     if (!follower.established) return { ready: false, reason: "sealed", action: "login", remaining, fence };
