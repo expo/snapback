@@ -53,53 +53,102 @@ fn scalar_prefix_path(prefix: &[crate::search_key::IndexAtom]) -> (Vec<String>, 
     (path, fully_scalar)
 }
 
+#[derive(Default)]
+struct IndexWork {
+    #[cfg(test)]
+    operations: usize,
+}
+
+#[derive(Default)]
+struct InvalidationWork {
+    #[cfg(test)]
+    prefix_visits: usize,
+    #[cfg(test)]
+    bucket_refs: usize,
+}
+
 impl RangePrefixNode {
-    fn add(&mut self, id: SubscriptionId, prefix: &[crate::search_key::IndexAtom]) -> usize {
+    fn add(&mut self, id: SubscriptionId, prefix: &[crate::search_key::IndexAtom]) -> IndexWork {
         let (path, fully_scalar) = scalar_prefix_path(prefix);
-        self.add_path(id, &path, fully_scalar)
+        let mut work = IndexWork::default();
+        self.add_path(id, &path, fully_scalar, &mut work);
+        work
     }
 
-    fn add_path(&mut self, id: SubscriptionId, path: &[String], fully_scalar: bool) -> usize {
+    fn add_path(
+        &mut self,
+        id: SubscriptionId,
+        path: &[String],
+        fully_scalar: bool,
+        work: &mut IndexWork,
+    ) {
         increment_ref(&mut self.subtree, id);
+        #[cfg(test)]
+        {
+            work.operations += 1;
+        }
         if let Some((head, tail)) = path.split_first() {
-            2 + self
-                .children
+            #[cfg(test)]
+            {
+                work.operations += 1;
+            }
+            self.children
                 .entry(head.clone())
                 .or_default()
-                .add_path(id, tail, fully_scalar)
-        } else {
-            if fully_scalar {
-                increment_ref(&mut self.terminal, id);
-                2
-            } else {
-                1
+                .add_path(id, tail, fully_scalar, work);
+        } else if fully_scalar {
+            increment_ref(&mut self.terminal, id);
+            #[cfg(test)]
+            {
+                work.operations += 1;
             }
         }
     }
 
-    fn remove(&mut self, id: SubscriptionId, prefix: &[crate::search_key::IndexAtom]) -> usize {
+    fn remove(&mut self, id: SubscriptionId, prefix: &[crate::search_key::IndexAtom]) -> IndexWork {
         let (path, fully_scalar) = scalar_prefix_path(prefix);
-        self.remove_path(id, &path, fully_scalar)
+        let mut work = IndexWork::default();
+        self.remove_path(id, &path, fully_scalar, &mut work);
+        work
     }
 
-    fn remove_path(&mut self, id: SubscriptionId, path: &[String], fully_scalar: bool) -> usize {
+    fn remove_path(
+        &mut self,
+        id: SubscriptionId,
+        path: &[String],
+        fully_scalar: bool,
+        work: &mut IndexWork,
+    ) {
         decrement_ref(&mut self.subtree, id);
+        #[cfg(test)]
+        {
+            work.operations += 1;
+        }
         let Some((head, tail)) = path.split_first() else {
             if fully_scalar {
                 decrement_ref(&mut self.terminal, id);
-                return 2;
+                #[cfg(test)]
+                {
+                    work.operations += 1;
+                }
             }
-            return 1;
+            return;
         };
+        #[cfg(test)]
+        {
+            work.operations += 1;
+        }
         let Some(child) = self.children.get_mut(head) else {
-            return 2;
+            return;
         };
-        let mut work = 2 + child.remove_path(id, tail, fully_scalar);
+        child.remove_path(id, tail, fully_scalar, work);
         if child.is_empty() {
             self.children.remove(head);
-            work += 1;
+            #[cfg(test)]
+            {
+                work.operations += 1;
+            }
         }
-        work
     }
 
     fn is_empty(&self) -> bool {
@@ -111,21 +160,27 @@ impl RangePrefixNode {
         &self,
         key: &[Value],
         ids: &mut BTreeSet<SubscriptionId>,
-    ) -> (usize, usize) {
+        _work: &mut InvalidationWork,
+    ) {
         let mut node = self;
-        let mut visits = 1;
-        let mut bucket_refs = node.terminal.len();
+        #[cfg(test)]
+        {
+            _work.prefix_visits += 1;
+            _work.bucket_refs += node.terminal.len();
+        }
         ids.extend(node.terminal.keys());
         for value in key {
             let Some(child) = node.children.get(&canonical_json(value)) else {
                 break;
             };
             node = child;
-            visits += 1;
-            bucket_refs += node.terminal.len();
+            #[cfg(test)]
+            {
+                _work.prefix_visits += 1;
+                _work.bucket_refs += node.terminal.len();
+            }
             ids.extend(node.terminal.keys());
         }
-        (visits, bucket_refs)
     }
 
     /// Scope touches select scalar-prefix ancestors plus every range below the
@@ -134,22 +189,33 @@ impl RangePrefixNode {
         &self,
         scope: &[Value],
         ids: &mut BTreeSet<SubscriptionId>,
-    ) -> (usize, usize) {
+        _work: &mut InvalidationWork,
+    ) {
         let mut node = self;
-        let mut visits = 1;
-        let mut bucket_refs = 0;
+        #[cfg(test)]
+        {
+            _work.prefix_visits += 1;
+        }
         for value in scope {
-            bucket_refs += node.terminal.len();
+            #[cfg(test)]
+            {
+                _work.bucket_refs += node.terminal.len();
+            }
             ids.extend(node.terminal.keys());
             let Some(child) = node.children.get(&canonical_json(value)) else {
-                return (visits, bucket_refs);
+                return;
             };
             node = child;
-            visits += 1;
+            #[cfg(test)]
+            {
+                _work.prefix_visits += 1;
+            }
         }
-        bucket_refs += node.subtree.len();
+        #[cfg(test)]
+        {
+            _work.bucket_refs += node.subtree.len();
+        }
         ids.extend(node.subtree.keys());
-        (visits, bucket_refs)
     }
 }
 
@@ -261,7 +327,7 @@ impl Subscriptions {
                 .add(id, prefix);
             #[cfg(test)]
             {
-                self.last_index_work += work;
+                self.last_index_work += work.operations;
             }
             #[cfg(not(test))]
             let _ = work;
@@ -297,7 +363,7 @@ impl Subscriptions {
                 let work = root.remove(id, prefix);
                 #[cfg(test)]
                 {
-                    self.last_index_work += work;
+                    self.last_index_work += work.operations;
                 }
                 #[cfg(not(test))]
                 let _ = work;
@@ -377,16 +443,13 @@ impl Subscriptions {
 
     fn invalidated(&self, commit: &CommitRecord) -> Vec<SubscriptionId> {
         let mut invalidated = BTreeSet::new();
-        let mut prefix_visits = 0;
-        let mut bucket_refs = 0;
+        let mut work = InvalidationWork::default();
         for touched in &commit.touched {
             if let Some(ranges) = self
                 .ranges
                 .get(&(touched.table.clone(), touched.index.clone()))
             {
-                let work = ranges.scalar_ancestors(&touched.key, &mut invalidated);
-                prefix_visits += work.0;
-                bucket_refs += work.1;
+                ranges.scalar_ancestors(&touched.key, &mut invalidated, &mut work);
             }
             if let Some(ids) = self.exact.get(&(
                 touched.table.clone(),
@@ -401,20 +464,16 @@ impl Subscriptions {
         }
         for touch in &commit.scope_touches {
             if let Some(ranges) = self.ranges.get(&(touch.table.clone(), touch.index.clone())) {
-                let work = ranges.scope_intersections(&touch.prefix, &mut invalidated);
-                prefix_visits += work.0;
-                bucket_refs += work.1;
+                ranges.scope_intersections(&touch.prefix, &mut invalidated, &mut work);
             }
             if let Some(ids) = self.constraints.get(&touch.table) {
                 invalidated.extend(ids);
             }
         }
         #[cfg(test)]
-        self.last_invalidation_prefix_visits.set(prefix_visits);
+        self.last_invalidation_prefix_visits.set(work.prefix_visits);
         #[cfg(test)]
-        self.last_invalidation_bucket_refs.set(bucket_refs);
-        #[cfg(not(test))]
-        let _ = (prefix_visits, bucket_refs);
+        self.last_invalidation_bucket_refs.set(work.bucket_refs);
         invalidated.into_iter().collect()
     }
 
@@ -807,7 +866,7 @@ mod tests {
                 .map(|(id, _)| *id)
                 .collect::<BTreeSet<_>>();
             let mut actual = BTreeSet::new();
-            root.scalar_ancestors(&key, &mut actual);
+            root.scalar_ancestors(&key, &mut actual, &mut InvalidationWork::default());
             assert_eq!(actual, expected, "scalar key {key:?}");
         }
 
@@ -828,7 +887,7 @@ mod tests {
                 .map(|(id, _)| *id)
                 .collect::<BTreeSet<_>>();
             let mut actual = BTreeSet::new();
-            root.scope_intersections(&scope, &mut actual);
+            root.scope_intersections(&scope, &mut actual, &mut InvalidationWork::default());
             assert_eq!(actual, expected, "scope {scope:?}");
         }
     }
@@ -843,14 +902,20 @@ mod tests {
         add_range(&mut subscriptions, 1, dog.clone());
 
         let mut actual = BTreeSet::new();
-        subscriptions.ranges[&("items".to_owned(), "byGroup".to_owned())]
-            .scope_intersections(&[Value::Id("g".to_owned())], &mut actual);
+        subscriptions.ranges[&("items".to_owned(), "byGroup".to_owned())].scope_intersections(
+            &[Value::Id("g".to_owned())],
+            &mut actual,
+            &mut InvalidationWork::default(),
+        );
         assert_eq!(actual, BTreeSet::from([1]));
 
         remove_range(&mut subscriptions, 1, cafe);
         let mut actual = BTreeSet::new();
-        subscriptions.ranges[&("items".to_owned(), "byGroup".to_owned())]
-            .scope_intersections(&[Value::Id("g".to_owned())], &mut actual);
+        subscriptions.ranges[&("items".to_owned(), "byGroup".to_owned())].scope_intersections(
+            &[Value::Id("g".to_owned())],
+            &mut actual,
+            &mut InvalidationWork::default(),
+        );
         assert_eq!(actual, BTreeSet::from([1]));
 
         remove_range(&mut subscriptions, 1, dog);
