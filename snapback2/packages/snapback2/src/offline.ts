@@ -239,11 +239,20 @@ export class OfflineRuntime {
 
   /** Bind a returned owner image to its own receipt after admission into this account. */
   async withQueryItems<T extends object>(accepted: AcceptedDelivery<unknown>, value: T): Promise<T> {
-    const entries = this.partition === undefined ? [] : await this.outbox.entries();
+    const entries = await this.itemEntries();
     if (accepted.envelope) return withItemInputs(value, deliveredItemInputs(accepted.envelope, (value as { data?: unknown }).data, entries));
     // Unchanged carries the held answer's image evidence. A local refresh can
     // subsequently use the newly ordered durable observation of that image.
     return withItemInputs(value, { ...(itemInputs(accepted.result) ?? emptyItemInputs), entries });
+  }
+  /** A sealed partition exposes neither query data nor its retained intent history. */
+  async itemEntries(): Promise<OutboxEntry[]> {
+    if (this.partition === undefined) return [];
+    try { return await this.outbox.entries(); }
+    catch (error) {
+      if (error instanceof Error && /sealed/.test(error.message)) return [];
+      throw error;
+    }
   }
   get authEpoch(): number | undefined { return this.sessionEpoch ?? this.facts?.authEpoch; }
   get partitionIncarnation(): string | undefined { return this.forwardingIncarnation; }

@@ -575,7 +575,9 @@ journey("offline edits reject stale reads by trace, and past-fence edits by the 
   const untouched = await alice.mutation(api.deliveries.edit, { messageId: second.data.id, body: "left alone, edited", baseBody: "left alone" });
   if (untouched.state !== "queued") throw new Error(`the second offline edit was ${untouched.state}`);
   const queued = await alice.outbox.entries();
-  for (const item of queued) {
+  for (const intent of [edit.intent, untouched.intent]) {
+    const item = queued.find(item => item.intent === intent);
+    if (item?.state !== "queued") throw new Error(`offline edit ${intent} was not retained as queued`);
     // @ref LLP 1012#7-writes-offline — the twin traced the row it read: the point with the wire digest.
     const point = item.trace?.points.find((candidate) => candidate.table === "messages" && candidate.index === "byId");
     if (item.predicted !== true || !point || !/^[0-9a-f]{64}$/.test(point.digest ?? "")) {

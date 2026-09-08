@@ -202,7 +202,7 @@ export async function answerOffline<Result>(
     const local = await runtime?.evaluate(op, args);
     const value = offlineView(held, local) as QueryResult<Result>;
     if (!itemInputs(value) && runtime?.principal !== undefined) {
-      return withItemInputs(value, { ...emptyItemInputs, entries: await runtime.outbox.entries() });
+      return withItemInputs(value, { ...emptyItemInputs, entries: await runtime.itemEntries() });
     }
     return value;
   } catch (error) {

@@ -58,18 +58,18 @@ rules and `ttl Ns`. Use channels for transient signals such as typing;
 subscriptions carry events, not durable rows or replayable history.
 A heartbeat table is a workaround for recent activity such as foreground use.
 Its lag is the heartbeat interval plus the expiry delay; disconnects are seen late.
-Delivery needs durable receipts and a delayed unacknowledged check.
+Do not gate delivery on it: use durable receipts and a delayed unacknowledged check.
 
 ## Connected
 
-`exists connected[p]` tests a principal's live connection; `#connected[p]`
+`connected` is a read-only virtual table: `exists connected[p]` tests a
+principal's live connection; `#connected[p]`
 counts authenticated SSE transports (including `--as`), once per transport,
 regardless of subscriptions. Pass one nonoptional principal (`viewer` for self).
-This read-only virtual table is built-in: do not declare it in the schema. Query/mutation
+Do not declare this built-in in the schema. Query/mutation
 programs may read it; rules/maintains must use durable facts instead.
-
 Each read charges one probe and touches `_connected` at that principal. One
-immutable snapshot covers a program run. Connect/close is visible to the next
+immutable snapshot per program run covers every read. Connect/close is visible to the next
 execute; live reruns wait up to 1 s to coalesce. Revocation closes session streams;
 silent partitions surface on failed writes with no latency guarantee. Offline
 reads are `hydrating` and never predicted, even with a cache. Connection is no

@@ -15,9 +15,10 @@ import type { OutboxEntry } from "../src/store/range-store.ts";
 import type { ItemInputs } from "../src/client-items.ts";
 
 // Exercise the private join without adding a public test export or a build gate.
-const bundled = await build({ entryPoints: [new URL("../src/client-items.ts", import.meta.url).pathname],
+const bundled = await build({ stdin: { contents: "export * from './src/client-items.ts'; export { ItemCapture } from './src/query-items.ts';",
+  resolveDir: new URL("..", import.meta.url).pathname, loader: "ts" },
   bundle: true, write: false, format: "esm", platform: "node" });
-const { attachItems, itemAddress, defineItems }: typeof import("../src/client-items.ts") =
+const { attachItems, itemAddress, defineItems, ItemCapture }: typeof import("../src/client-items.ts") & typeof import("../src/query-items.ts") =
   await import(`data:text/javascript;base64,${Buffer.from(bundled.outputFiles[0]!.contents).toString("base64")}`);
 
 type Message = { id: string; body: string; at: number };
@@ -115,6 +116,32 @@ test("retained history is indexed once and old creates are not visited on warm p
   assert.equal(belongs, 0, "a fresh page does not walk old successes through application selectors");
 });
 
+test("held membership survives a local hole; clock-only and unvalidated held absences cannot confirm work", async () => {
+  const root = await mkdtemp(join(tmpdir(), "snapback-item-held-proof-"));
+  const store = fileRangeStore(root)();
+  try {
+    await store.open("dev:alice");
+    await store.commit({ deliveries: [{ op: "deliveries.thread", args, seq: 42, state: "complete", data: [], rows: [],
+      next: null, receipt: { ranges: [], absences: [["messages", "byId", ["m"]]], verdicts: [] } }] });
+    const state = (await store.changes()).snapshot!;
+    const held = Object.values(state.answers)[0]!;
+    const committed = entry({ state: "committed", response: { seq: 41 } });
+    const captured = new ItemCapture(state, "deliveries.thread", args, new Map(), [committed]).inputs();
+    assert.deepEqual(attachItems(spec, args, undefined, captured), [], "a temporary local hole does not recreate an excluded success");
+    const baseline = entry({ state: "committed", issuedSeq: 42, response: { seq: 42 }, order: held.order - 1 });
+    const read = () => new ItemCapture(state, "deliveries.thread", args, new Map(), [baseline]).inputs();
+    assert.deepEqual(attachItems(spec, args, undefined, read()), [], "a freshly ordered checked absence resolves the create");
+    for (const flag of ["clockOnly", "needsFactProofs", "retained"] as const) {
+      held[flag] = true;
+      const unavailable = read();
+      assert.equal(unavailable.selection, undefined, flag);
+      assert.equal(unavailable.observations.get(itemAddress("messages", "m"))?.order, undefined, flag);
+      assert.equal(attachItems(spec, args, undefined, unavailable).length, 1, `${flag} cannot turn the pre-admission negative into new proof`);
+      delete held[flag];
+    }
+  } finally { await store.close?.(); await rm(root, { recursive: true, force: true }); }
+});
+
 test("a baseline at the commit sequence cannot confirm a write; a newly ordered unchanged observation can", () => {
   const edit = entry({ op: "deliveries.edit", args: { messageId: "m" }, issuedSeq: 41,
     state: "committed", response: { seq: 41 } });
@@ -204,10 +231,13 @@ for (const carrier of ["file", "indexeddb"]) test(`${carrier}: four shared obser
     update: { op: api.deliveries.edit, key: (args: any) => args.messageId } });
   const args = { conversationId: "conversation-1", c: null };
   const observed = Array.from({ length: 4 }, () => client.observe(api.deliveries.thread, args, { items: spec }));
-  const stops = observed.map(value => value.subscribe(() => undefined));
+  const once = client.observe(api.deliveries.thread, args, { live: false, items: spec });
+  const stops = [...observed, once].map(value => value.subscribe(() => undefined));
   try {
     await client.ready;
     await until(() => observed[0]!.getSnapshot().items.length === 1, "the original target");
+    await until(() => once.getSnapshot().items.length === 1, "the one-shot target");
+    const onceData = once.getSnapshot().data;
     const initial = observed[0]!.getSnapshot(), message = initial.items[0]!.data;
     const seq = initial.receipt!.seq;
     await client.offline();
@@ -226,6 +256,8 @@ for (const carrier of ["file", "indexeddb"]) test(`${carrier}: four shared obser
     await until(() => observed[0]!.getSnapshot().items[0]?.data?.body === "later owner value", "the displayed target update");
     const settled = observed[0]!.getSnapshot();
     assert.deepEqual(settled.items[0]!.pending, [], "a newer target value supersedes the committed edit without argument equality");
+    await until(() => once.getSnapshot().items[0]?.pending.length === 1, "work on the one-shot view");
+    assert.strictEqual(once.getSnapshot().data, onceData, "ledger refresh does not secretly refresh a one-shot query");
     for (const other of observed) assert.strictEqual(other.getSnapshot(), settled, "one publication for all readers");
     assert.equal((await client.outbox.entries()).length, 1, "no observer deletes terminal history");
   } finally {

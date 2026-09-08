@@ -142,9 +142,9 @@ export async function submitMutation<Result>(options: SubmitMutationOptions): Pr
   }
 }
 
-// @ref LLP 1018.003#4-pending-rows-attribution-settlement-and-failure — a mounted hook
-// retires a committed entry the moment its row arrives, which can be before the
-// call that issued the write reads the entry back; the drain records each terminal
+// @ref LLP 1018.003#10-retirement-is-a-read-model-decision-dismissal-is-a-write —
+// explicit dismissal may precede the issuing call reading its entry back;
+// the drain records each terminal
 // outcome so that call answers from it rather than mistaking absence for "still queued".
 // Only a call that is waiting on its own intent holds a slot, and it closes the
 // slot on every exit, so the record is bounded by in-flight calls and cannot
@@ -343,16 +343,7 @@ export function createOutboxApi(
   forwarding?: { status(op?: string): Promise<OutboxStatus>; subscribe(listener: () => void): () => void },
   identity: () => string = () => runtime?.principal ?? "",
 ): OutboxApi {
-  const entries = async (): Promise<OutboxEntry[]> => {
-    if (!runtime || runtime.principal === undefined) return [];
-    try {
-      return await runtime.outbox.entries();
-    } catch (error) {
-      // A sealed partition keeps its outbox closed until the principal re-authenticates.
-      if (error instanceof Error && /sealed/.test(error.message)) return [];
-      throw error;
-    }
-  };
+  const entries = (): Promise<OutboxEntry[]> => runtime?.itemEntries() ?? Promise.resolve([]);
   const status = async (op?: import("./api.js").Op<any, any>): Promise<OutboxStatus> => {
     await ready().catch(() => undefined);
     if (runtime?.following) return forwarding?.status(op === undefined ? undefined : referenceName(op))

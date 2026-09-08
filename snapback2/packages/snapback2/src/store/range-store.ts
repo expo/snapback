@@ -7,7 +7,7 @@ import { ClockCoverageReset, FullRevalidationRequired, deliveryFacts, FactTransa
   imageSlots, extentSlots, extentMeaning, FACT_FORMAT, type FactProof, type PreparedImage } from './fact-integrity.js';
 import { extentContains, rangeMeaningKey, type FactImage, type FactExtent, type ExtentProof, type ExtentCondition } from './extent-facts.js';
 import { SwapJournal, StoreChanges, raw, type StoreRevision, type StoreChange, type ChangedRecords } from "./swap-journal.js";
-import { changesQueryInputs } from "./query-inputs.js";
+import { changesQueryInputs, outboxOrder } from "./query-inputs.js";
 import { onceColumns, onceRow, onceAssetIds, nullOnceMedia, type OnceColumns } from "./asset-policy.js";
 // @ref LLP 1012#4-the-range-store — every carrier persists the same per-principal answer/range model.
 // @ref LLP 1012#5-retention-revocation-and-the-fence — eviction is decided once over a complete swap.
@@ -522,11 +522,6 @@ export function tailWatermark(watermarks: WatermarkRecord[]): WatermarkRecord | 
     (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER)
     || a.updatedAt - b.updatedAt
     || canonicalAnswerKey(a.op, a.args).localeCompare(canonicalAnswerKey(b.op, b.args)))[0];
-}
-
-function outboxOrder(entries: Record<string, OutboxEntry>): OutboxEntry[] {
-  return Object.values(entries).sort((a, b) =>
-    (a.order ?? a.createdAt) - (b.order ?? b.createdAt) || a.createdAt - b.createdAt || (a.intent < b.intent ? -1 : 1));
 }
 
 function changesCoverage(swap: StoreSwap): boolean {

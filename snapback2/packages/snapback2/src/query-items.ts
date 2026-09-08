@@ -44,7 +44,7 @@ export class ItemCapture {
     for (const [key, through] of Object.entries(state.negative)) {
       if ((state.rowSeq[key] ?? -1) <= through) this.observations.set(key, { through, absent: true });
     }
-    if (this.held && !this.held.retained && this.held.state !== "denied") {
+    if (this.held && !this.held.retained && !this.held.clockOnly && !this.held.needsFactProofs && this.held.state !== "denied") {
       for (const [table, index, key] of this.held.receipt?.absences ?? []) {
         if (index !== "byId" || key.length !== 1 || typeof key[0] !== "string") continue;
         const address = itemAddress(table, key[0]);
@@ -62,7 +62,7 @@ export class ItemCapture {
     let order: number | undefined;
     // An unchanged answer can advance observation without changing the row.
     // Its original image proof must still match; retained/clock-only answers cannot.
-    if (held && !held.retained && !held.clockOnly && held.state !== "denied" && held.seq >= through
+    if (held && !held.retained && !held.clockOnly && !held.needsFactProofs && held.state !== "denied" && held.seq >= through
       && RowImage.is(row.row) && held.rowProofs?.[key] === RowImage.digest(row.row)) {
       through = held.seq; order = held.order;
     }
@@ -83,11 +83,11 @@ export class ItemCapture {
     const entries = value.Array ?? value.Map ?? value.Row;
     if (entries) for (const key of Object.keys(entries)) this.evaluated((entries as Record<string, unknown>)[key], (data as Record<string, unknown>)[key]);
   }
-  inputs(complete = true): ItemInputs {
+  inputs(): ItemInputs {
     const held = this.held;
     return { entries: this.entries ?? Object.values(this.state.outbox).sort((a, b) => (a.order ?? a.createdAt) - (b.order ?? b.createdAt)
       || a.intent.localeCompare(b.intent)), observations: this.observations, values: this.values, predicted: new Map(this.predicted),
-      ...(complete && held && !held.retained && !held.clockOnly && !held.needsFactProofs
+      ...(held && !held.retained && !held.clockOnly && !held.needsFactProofs
         && ["complete", "capped"].includes(held.state) ? { selection: { through: held.seq, order: held.order } } : {}) };
   }
 }
