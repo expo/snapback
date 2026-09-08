@@ -1148,6 +1148,15 @@ at least its commit sequence, beyond admission, and the same intent's prediction
 no longer contributes to the displayed value. Explicit negative evidence can
 resolve a removal; page omission cannot. `arrived`, fan-out IDs, and generic
 overlay retirement remain custody facts, not proof of this displayed target.
+
+Page membership is a separate observation: this exact query's freshly checked
+complete/capped answer may exclude an old successful create without claiming
+row arrival or deletion. The stored answer privately retains that observation
+through later partial/denied results, coverage loss and reopen. Such uncertainty
+cannot advance it; an identical replay cannot create a new observation order.
+It clears with coverage reset. Displayed-row indicators still require their
+own image evidence. No presentation read writes retirement state or dismisses
+an intent (LLP 1018.003 §10).
 The same item key spans draft, prediction, and server row. Missing-target changes
 and terminal failures remain accessible in the account's outbox history.
 

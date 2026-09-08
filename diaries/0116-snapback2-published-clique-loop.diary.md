@@ -1616,3 +1616,18 @@ inside its existing stored answer solved this without per-intent cleanup state.
 The displayed-row proof remains separate. The affected store/item suites passed
 294 cases before final fleet qualification; LLP 1018.003 retains the failed
 local timing sample and records which later checks actually complete.
+
+The apartment M1 canonical run at `36e2a894c` passed the entire script: 814
+package cases, 866 native cases, evaluator corpus/regressions and 214 compiler
+checks. Generated React and Expo template type checks passed as well. The
+remaining cursor test now explicitly checks retained history and dismissal;
+no deadline was relaxed. A separate Bun 1.4 comparator difference reproduces
+on the untouched architecture and is filed as a toolchain follow-up. Final
+qualification uses the same Bun 1.3.12 binary as the local lane. This is a
+source/generated-template qualification, not a newly published client run.
+
+The warm loop then passed on the integrated 0.0.19 metadata: project check
+0.562 s, doctor 0.151 / 0.040 s, incremental rebuild 2.39 s and packed
+consumer 24.04 s. The first newly built binary's 0.657-second doctor launch
+remains a failed sample, alongside the earlier cold-cache Office M1 run. Both
+the useful qualification and its limits are preserved in the LLP and metrics.
