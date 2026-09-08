@@ -808,7 +808,7 @@ test("mounted query snapshots follow committed prediction and settlement revisio
     state: "queued" as const, predicted: true, trace: { points: [], verdicts: [] }, createdAt: 10, updatedAt: 10,
   };
   const raw = client.subscribe(api.deliveries.thread, args, () => undefined);
-  const rawPrediction = raw.until((event) => (event as any).predicted?.some((row: any) => row.intent === intent), 2_000);
+  const rawPrediction = raw.until((event) => (event as any).predicted?.some((row: { intent: string }) => row.intent === intent), 2_000);
   const beforePrediction = firstNotifies;
   await physical.commit({ outbox: { put: [entry] }, overlay: { put: { [intent]: [{
     table: "messages", id: initial.id, row: { ...initial, body: "Predicted edit" }, fields: ["body"],

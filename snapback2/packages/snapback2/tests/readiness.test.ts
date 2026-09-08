@@ -78,8 +78,8 @@ test("operation change mid-probe hides old readiness and ignores superseded comp
     await act(async () => { await ledger.adopt(grant()); await pause(); });
     assert.equal(f.mutation.can.send, true);
     const probes: Array<(ready: boolean) => void> = [];
-    const original = f.client.outbox.status;
-    f.client.outbox.status = (op: unknown) => op === undefined ? original() : new Promise<boolean>(resolve => probes.push(resolve))
+    const original = ledger.status.bind(ledger);
+    ledger.status = (op: unknown) => op === undefined ? original() : new Promise<boolean>(resolve => probes.push(resolve))
       .then(ready => ({ ready, reason: ready ? "ready" : "program-missing", action: ready ? "none" : "load-program", remaining: 0, fence: "inside" }));
     await act(async () => { ledger.notify(); await pause(); });
     assert.equal(probes.length, 1);

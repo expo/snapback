@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { api } from "snapback2/client";
-import { DevOverlay, useAuth, useConnection, useQuery, useSnapbackClient, useSnapbackSnapshot } from "snapback2/react";
+import { api, intentLabel } from "snapback2/client";
+import { DevOverlay, useAuth, useConnection, useOutbox, useQuery, useSnapbackClient, useSnapbackSnapshot } from "snapback2/react";
 import { Inbox, type LogRow } from "./Inbox";
 import { Search } from "./Search";
 import { Thread } from "./Thread";
@@ -15,6 +15,7 @@ export function App() {
   const connection = useConnection();
   const auth = useAuth();
   const client = useSnapbackClient();
+  const outbox = useOutbox();
   const authGeneration = useSnapbackSnapshot().authGeneration;
   const sendCustody = useAccountRecoveryCustody<SendUncertainty>(client, authGeneration);
   const changeCustody = useAccountRecoveryCustody<MessageChangeUncertainty>(client, authGeneration);
@@ -31,6 +32,11 @@ export function App() {
           {inbox.local.caughtUp ? " · log downloaded" : inbox.status === "loading" ? " · loading" : ""}
         </p>
         {note ? <p role="alert">{note}</p> : null}
+        {outbox.entries.length > 0 ? <details><summary>Changes on this device ({outbox.entries.length})</summary><ul>
+          {outbox.entries.map(entry => <li key={entry.intent}>{entry.op} · {intentLabel(entry)}
+            {entry.state !== "queued" ? <button type="button" onClick={() => { void outbox.dismiss(entry.intent); }}>Dismiss</button> : null}
+          </li>)}
+        </ul></details> : null}
       </header>
       <Search onOpen={setSelected} />
       <Inbox rows={rows} selected={selected} onSelect={setSelected} />

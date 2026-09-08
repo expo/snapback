@@ -64,6 +64,7 @@ export class RowImage {
   static is(value: unknown): value is RowImage {
     return !!value && typeof value === 'object' && rowImageOwners.has(value);
   }
+  static table(value: RowImage): string { return rowImageOwners.get(value)!.table; }
   static equal(left: unknown, right: RowImage): boolean {
     if (left === right) return true;
     if (!RowImage.is(left)) return false;

@@ -354,3 +354,12 @@ export function followerRefusal(site = "client.mutation"): SnapbackRefusal {
     guide: "offline",
   });
 }
+
+export function supersededRefusal(): SnapbackRefusal {
+  return new SnapbackRefusal({
+    code: "E_AUTH_SUPERSEDED",
+    family: "auth",
+    message: "operation belonged to a previous authentication generation",
+    guide: "auth/session",
+  });
+}

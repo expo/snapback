@@ -1,8 +1,7 @@
 # Live query
 
-A commit intersecting a query's read trace makes it live. Bound every scan.
-Cursor indexes end in intrinsic `id`; pass a `cursor ?` argument to `after`.
-`null` means page one.
+Commits intersecting a query trace make it live. Bound scans. Cursor indexes
+end in `id`; pass `cursor ?` to `after`, with `null` for page one.
 
 ```q
 query thread(conversationId: conversations, c: cursor ?):
@@ -15,9 +14,8 @@ for the next page; it is bound to table/index/order and must not be inspected or
 constructed. Through aliases, shapes, and conditional branches, `next` follows
 the page returned. Reset it to `null` when switching index or order.
 
-Subscribe through `client.subscribe(api.messages.thread, args, listener)`.
-Each SSE data frame is a query response or refusal. Connection `live`/`stale`
-facts belong to the client and never replace `complete`/`capped`/`denied`.
+`client.subscribe(api.messages.thread, args, listener)` emits query responses
+or refusals. Transport `live`/`stale` never replaces the certified outcome.
 
 `client.observe` shares one immutable snapshot with headless and React.
 `useQuery` returns it: `data`; certified `receipt` (`outcome`, `source`, `seq`,
@@ -32,6 +30,16 @@ enables independently observed history; that history supplies no count or
 preview. Complete/capped composite data supplies all three and detaches the
 fallback. Denial, refusal and account reset cannot enable it; `status` grants
 no authority.
+
+Use `{ items: spec }` with `useQuery`/`observe`. Declare `spec` once with
+`snapback2/client`'s `defineItems(query, { table, select, order, create, update,
+remove })`; object results also name `rows`. `select` returns an original row
+or null. Chat's typed `shared/thread.ts` binds each operation to its target;
+only its post recipe uses `ids[0]`.
+
+Items have stable `key`, selected `data`, submitted `draft` while a create is
+pending, `predicted`, and FIFO `pending` actions. Drafts have no server time.
+Row evidence resolves indicators; receipt/status and durable history stay intact.
 
 One SSE connection carries up to 256 query/channel subscriptions per client,
 including HTTP/1.1. Adding/closing one leaves peers active. Unmount unused
@@ -50,28 +58,24 @@ descending queries stay valid. See offline.
 `channel name(args):` declares ephemeral events with `publish` and `subscribe`
 rules and `ttl Ns`. Use channels for transient signals such as typing;
 subscriptions carry events, not durable rows or replayable history.
-A heartbeat table remains a workaround for recent activity such as foreground use
-when `connected` is not enough; its lag is the heartbeat interval plus the expiry
-delay; disconnects are seen late. Do not gate delivery solely on it: use durable receipts and a delayed
-check for an unacknowledged message.
+A heartbeat table is a workaround for recent activity such as foreground use.
+Its lag is the heartbeat interval plus the expiry delay; disconnects are seen late.
+Do not gate delivery on it: use durable receipts and a delayed unacknowledged check.
 
 ## Connected
 
-`connected` is a read-only virtual table: `exists connected[p]` tests whether
-principal `p` has a live connection; `#connected[p]` counts connections. Pass one
-nonoptional principal (for yourself, `viewer`) in a query or mutation. Programs
-choose what to expose; rules and maintains cannot read it. Do not declare this
-built-in in your schema. For a rule refusal, move the named probe into a program
-and keep the rule based on durable facts. It counts authenticated
-SSE transports (including personas via `--as`), once per transport regardless of query/channel subscriptions,
-from identity establishment until stream close; revocation cuts that session's
-streams. A silent partition is detected on a failed write, with no latency
-guarantee. Each read charges one probe and touches `_connected` at that principal.
-Each program sees one immutable snapshot per program run. Connect/close is
-visible to the next execute; live reruns wait up to 1 s to coalesce changes. Offline,
-a program reading `connected` is `hydrating` and never predicted, even with a
-cached answer. Connections say nothing about foreground/idle state or delivery
-guarantees; this adds no channel kind or subscriber-set broadcast.
+`connected` is a read-only virtual table: `exists connected[p]` tests a
+principal's live connection; `#connected[p]`
+counts authenticated SSE transports (including `--as`), once per transport,
+regardless of subscriptions. Pass one nonoptional principal (`viewer` for self).
+Do not declare this built-in in the schema. Query/mutation
+programs may read it; rules/maintains must use durable facts instead.
+Each read charges one probe and touches `_connected` at that principal. One
+immutable snapshot per program run covers every read. Connect/close is visible to the next
+execute; live reruns wait up to 1 s to coalesce. Revocation closes session streams;
+silent partitions surface on failed writes with no latency guarantee. Offline
+reads are `hydrating` and never predicted, even with a cache. Connection is no
+foreground/idle or delivery guarantee and adds no channel/subscriber broadcast.
 
 ## Unicode word-prefix search
 
@@ -95,10 +99,8 @@ query search(term: text <=128, c: cursor ?):
 The pinned Unicode 17 contract is NFC, simple case fold, then NFC. Whitespace
 and Unicode punctuation separate words; accents remain significant. The term
 must normalize to exactly one word: zero words match nothing and multiple words
-are refused. The example searches every bounded conversation visible through
-the membership merge and returns one page with one cursor. Its held twin uses
-the same index and reports `held`, `partial`, or `capped` rather than presenting
-downloaded results as complete server search.
+are refused. The membership merge returns one page/cursor. Its held twin uses
+the same index and reports `held`, `partial`, or `capped`, never complete server search.
 
-The normalized word list is index-internal; Quarry has no public `words()`
-value function. `tokens(text)` remains the separate mention extractor.
+Normalized words stay index-internal; no `words()` function. `tokens(text)`
+extracts mentions.

@@ -7,6 +7,7 @@ import { sha256, utf8Length } from "./hash";
 import { cursorSuffix, decodeCursor, decodeCursorFor } from "./cursor";
 import { scalarLength } from "./unicode";
 import type { TraceRange, Value } from "./types";
+import { RowImage } from "./row-image";
 
 const I53_MAX = 9_007_199_254_740_991;
 const I53_MIN = -I53_MAX;
@@ -487,8 +488,11 @@ export function hasOwn(value: object, key: PropertyKey): boolean {
 }
 
 export function clone<T>(value: T): T {
-  if (value === null || value === undefined) return value;
-  return JSON.parse(JSON.stringify(value));
+  // @ref LLP 1018.003#9-attribute-and-publish-at-the-shared-entry — immutable
+  // row ownership survives expression aliases and nested point reads.
+  if (value === null || typeof value !== "object" || RowImage.is(value)) return value;
+  return (Array.isArray(value) ? value.map(clone) : Object.fromEntries(Object.entries(value)
+    .filter(([, child]) => child !== undefined).map(([key, child]) => [key, clone(child)]))) as T;
 }
 
 export function sortObject<T>(value: Record<string, T>): Record<string, T> {

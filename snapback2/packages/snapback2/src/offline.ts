@@ -35,6 +35,8 @@ import {
 import { ByteCache } from "./store/byte-cache.js";
 import { rowKey } from "./store/row-values.js";
 import { Twin, readsConnected, type LocalAnswer, type Prediction } from "./twin.js";
+import { carryItemInputs, emptyItemInputs, itemInputs, withItemInputs } from "./query-frame.js";
+import { deliveredItemInputs } from "./query-items.js";
 import type { DrainContract, Manifest, OfflineClientOptions, OutboxSettlement, RefusalEnvelope } from "./types.js";
 
 /**
@@ -231,6 +233,34 @@ export class OfflineRuntime {
   }
 
   get principal(): string | undefined { return this.partition; }
+
+  /** Bind a returned owner image to its own receipt after admission into this account. */
+  async withQueryItems<T extends object>(op: string, args: unknown, accepted: AcceptedDelivery<unknown>, value: T): Promise<T> {
+    const entries = await this.itemEntries();
+    if (accepted.envelope) {
+      const inputs = deliveredItemInputs(accepted.envelope, (value as { data?: unknown }).data, entries);
+      if (!inputs.selection) {
+        const held = await this.answer(op, args);
+        // Carry a past query observation, never a later concurrent answer into this frame.
+        if (held && held.seq <= accepted.envelope.seq) return withItemInputs(value, {
+          ...inputs, selection: itemInputs(held)?.selection,
+        });
+      }
+      return withItemInputs(value, inputs);
+    }
+    // Unchanged carries the held answer's image evidence. A local refresh can
+    // subsequently use the newly ordered durable observation of that image.
+    return withItemInputs(value, { ...(itemInputs(accepted.result) ?? emptyItemInputs), entries });
+  }
+  /** A sealed partition exposes neither query data nor its retained intent history. */
+  async itemEntries(): Promise<OutboxEntry[]> {
+    if (this.partition === undefined) return [];
+    try { return await this.outbox.entries(); }
+    catch (error) {
+      if (error instanceof Error && /sealed/.test(error.message)) return [];
+      throw error;
+    }
+  }
   get authEpoch(): number | undefined { return this.sessionEpoch ?? this.facts?.authEpoch; }
   get partitionIncarnation(): string | undefined { return this.forwardingIncarnation; }
   get coordinationScope(): string | undefined { return this.store.coordinationScope; }
@@ -551,7 +581,7 @@ export class OfflineRuntime {
         ...(held.rule === undefined ? {} : { rule: held.rule }),
       } as AcceptedDelivery<Result>["result"];
       return {
-        result,
+        result: carryItemInputs(held, result),
         refresh: { op, args, seq: raw.seq as number, validator: raw.validator, deliveredAt: Date.now() },
         ...(full ? { revalidate: full } : {}),
       };
@@ -990,14 +1020,14 @@ export function offlineView<Result>(held: HeldAnswer<Result> | undefined, local?
       deliveredAt, data, next,
       ...answer
     } = held;
-    return {
+    return carryItemInputs(held, {
       ...answer,
       ...(held.state !== 'denied' && data !== undefined ? { data } : {}),
       ...(exactHeld && next !== undefined ? { next } : {}),
       live: false,
       connection: "offline",
       stale: { since: deliveredAt },
-    };
+    });
   }
   const { since, ...answer } = local;
   const facts = held === undefined ? {} : {
@@ -1005,11 +1035,11 @@ export function offlineView<Result>(held: HeldAnswer<Result> | undefined, local?
     ...(held.caughtUp === undefined ? {} : { caughtUp: held.caughtUp }),
     ...(held.watermark === undefined ? {} : { watermark: held.watermark }),
   };
-  return {
+  return carryItemInputs(local, {
     ...answer,
     ...facts,
     live: false,
     connection: "offline",
     stale: { since: held?.deliveredAt ?? since ?? Date.now() },
-  };
+  });
 }

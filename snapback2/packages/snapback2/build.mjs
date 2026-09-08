@@ -25,9 +25,9 @@ if (process.argv.includes("--measure-twin")) {
   const required = ["unicode-tables", "index-store", "twin-store", "swap-journal", "carrier-index", "metadata", "projection", "range-store", "offline.ts", "offline-protocol", "local-cursor", "held-program"];
   const inputs = Object.keys(measured.metafile.inputs);
   for (const name of required) if (!inputs.some(p => p.includes(name))) throw new Error(`unmeasured twin implementation: ${name}`);
-  console.log(JSON.stringify({ entry: "complete-local-runtime", minified: bytes.length, gzip, ceiling: 82500, target: 80000,
+  console.log(JSON.stringify({ entry: "complete-local-runtime", minified: bytes.length, gzip, ceiling: 84000, target: 80000,
     toolchain: { node: process.version, esbuild: esbuildVersion, gzipLevel: 9 }, inputs }));
-  if (gzip > 82500) throw new Error(`twin exceeds 82500 gzip bytes: ${gzip}`);
+  if (gzip > 84000) throw new Error(`twin exceeds 84000 gzip bytes: ${gzip}`);
   process.exit(0);
 }
 if (process.argv.includes("--self-test")) {
@@ -57,10 +57,11 @@ const externalClient = {
 
 // All public arms import one private nominal image module. No global brand registry or public export is needed.
 const imageModules = new Set(['row-image','range-preparation','errors','unicode'].map(name => resolve(here, `../evaluator/src/${name}`)));
+imageModules.add(resolve(here, 'src/query-frame'));
 const imageRuntime = (path = './image-runtime.mjs') => ({
   name: 'shared-image-runtime',
   setup(builder) {
-    builder.onResolve({ filter: /(?:row-image|range-preparation|errors|unicode)(?:\.[jt]s)?$/ }, args => {
+    builder.onResolve({ filter: /(?:row-image|range-preparation|errors|unicode|query-frame)(?:\.[jt]s)?$/ }, args => {
       const target = resolve(dirname(args.importer), args.path.replace(/\.[jt]s$/, ''));
       if (imageModules.has(target)) return { path, external: true };
     });

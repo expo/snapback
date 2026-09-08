@@ -1564,3 +1564,70 @@ exceeded the existing byte limit, so the same contract was condensed within
 that limit. Final installed-consumer checks take 24.14 seconds and first doctor
 0.162 seconds. The implemented child leaves the working set; this diary's
 separate cold benchmark and publication obligations remain.
+
+
+## 2026-09-07 — composed items after the architecture landing
+
+The two remaining client problems shared one missing fact: the screen knew a
+write committed, but could not tell whether its displayed row reflected that
+write. The new item declaration names the query's row selector and each
+operation's target. Both chat arms now render `items` carrying `key`, `data`,
+`draft`, `predicted` and ordered `pending` actions. Filtering nullable messages,
+reversing the page, joining pinned sends/edits/removals and scanning twin triples
+left the screens. The small typed declarations live beside the recipe.
+
+The SDK needed more care than that surface suggests. Positive evidence must
+belong to the row image actually displayed. An unrelated fan-out row or a newer
+partition sequence cannot confirm an edit, especially an edit that allocates
+no IDs. Page membership is separate: a fresh complete answer to this exact
+query can leave an old committed send off the page without calling it arrived.
+The outbox stays intact through both decisions. Online mutations, four mounted
+observers and remounts now retain the same terminal history until explicit
+dismissal, reachable from “Changes on this device” on both platforms.
+
+The history/composite handoff exposed a useful application detail. While a
+create is pending, its submitted draft must remain available even beside a
+predicted row: history can briefly lose permission to render that row during
+reattachment. Keeping the draft let React preserve the same bubble without
+showing uncertain query data or a fabricated server time. The real owner
+transition test now verifies that element identity. The Expo fallback test
+checks lazy attachment and authorization; it does not prove device-mounted
+native element continuity.
+
+Muse, Gemini and Grok reviewed actual frozen packets. Muse and Gemini marked
+the final packet READY. Grok's REVISE identified two further proof edges, both
+accepted: local holes must not revoke valid held membership, and clock-only
+or unvalidated absences must not acquire fresh proof order. Qualification also
+caught a sealed-history read and legacy test assumptions about automatic
+cleanup. Those are fixed rather than hidden by a changed expected status.
+
+At this entry, all 58 focused item, platform, recovery and chat-screen checks
+pass against stable artifacts; broad and loop qualification are recorded in
+LLP 1018.003 as they complete. The earlier simultaneous package-build/test
+runs were poor evidence: changing `dist` underneath readers caused missing
+declarations, compiler failures and fixture timeouts. Verification must use
+one stable build. The runtime/full-client cost and explicit scope amendment
+are documented in that LLP, without calling the increase a saving.
+
+The final membership edge was persistence: losing a cached dependency or
+receiving a partial replacement must not make an old successful send become a
+draft again on reopen. Retaining the query's last valid membership observation
+inside its existing stored answer solved this without per-intent cleanup state.
+The displayed-row proof remains separate. The affected store/item suites passed
+294 cases before final fleet qualification; LLP 1018.003 retains the failed
+local timing sample and records which later checks actually complete.
+
+The apartment M1 canonical run at `36e2a894c` passed the entire script: 814
+package cases, 866 native cases, evaluator corpus/regressions and 214 compiler
+checks. Generated React and Expo template type checks passed as well. The
+remaining cursor test now explicitly checks retained history and dismissal;
+no deadline was relaxed. A separate Bun 1.4 comparator difference reproduces
+on the untouched architecture and is filed as a toolchain follow-up. Final
+qualification uses the same Bun 1.3.12 binary as the local lane. This is a
+source/generated-template qualification, not a newly published client run.
+
+The warm loop then passed on the integrated 0.0.19 metadata: project check
+0.562 s, doctor 0.151 / 0.040 s, incremental rebuild 2.39 s and packed
+consumer 24.04 s. The first newly built binary's 0.657-second doctor launch
+remains a failed sample, alongside the earlier cold-cache Office M1 run. Both
+the useful qualification and its limits are preserved in the LLP and metrics.

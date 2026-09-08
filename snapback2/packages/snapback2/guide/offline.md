@@ -11,30 +11,26 @@ const client = createClient({
 });
 ```
 
-Call `indexedDbRangeStore()` to get the factory. Custom factories return a
-RangeStore; a result without `open()` fails at setup with `TypeError`.
-IndexedDB and Web Locks are required; no memory fallback.
+Custom factories need `open()` or throw
+`TypeError`. IndexedDB and Web Locks are required; no memory fallback.
 
-Expiry seals; session
-change wipes. One writer/account. Web followers read live, forward
-replayable mutations, and inherit its partition/queue on close. Uploads,
+Expiry seals; session change wipes. One writer/account. Web followers read live, forward
+replayable writes, and inherit its queue on close. Uploads,
 channels, or no carrier refuse E_OFFLINE_FOLLOWER pre-byte; else:
 E_OFFLINE_LOCK. Beyond `fenceDays` (1..30), reads are stale; prediction/replay
 await resume. Queued writes survive; held reads/`offline()` bypass startup auth.
 
 ## Drain
 
-`subscribe(..., { drain: true })` and `useQuery(..., { drain: true })` page then
-tail. Results require a certified ascending append page (`after c first N`,
-N <=50) through one Cursor argument across aliases/shapes/branches; auxiliary
-reads confer no coverage. Callbacks emit one page; edits/removals append events;
-held coverage is not live history.
-
-Mixed-order/non-page returns refuse E_OFFLINE_RESUME before catch-up with
-`reason: "unsupported-log"`, `op`, `shape`. Newest-first starts at `c: null`,
+`subscribe`/`useQuery` with `{ drain: true }` page then tail. The returned page
+must be a certified ascending append log (`after c first N`, N <=50), with one
+Cursor argument through aliases/shapes/branches. Auxiliary reads add no coverage.
+Callbacks emit one page; edits/removals append events. Held coverage is not live
+history. Mixed-order/non-page returns refuse E_OFFLINE_RESUME before catch-up
+with `reason: "unsupported-log"`, `op`, `shape`. Newest-first starts at `c: null`,
 then pages older with opaque `next`. `caughtUp`: exhausted; `live`: tail active.
-Offline drains require held eligibility or reconnect. Repeated cursors refuse;
-offline traversal retains its watermark. Covered reads exact; others partial.
+Offline drains need held eligibility; repeated cursors refuse. Offline traversal
+retains its watermark. Covered reads are exact; others partial.
 
 ## Recovery
 
@@ -44,12 +40,15 @@ queued proves durable admission. A sent request unanswered for
 `recoverMutation(op, sameArgs, recovery)` retries the identity. Only a durable
 receipt returns queued; unreachable writer/expired miss remains unknown.
 
-`useMutation(op).can`/`useOutbox().can` derive `send`, action, and reason;
-`detail.status` keeps ready/sealed/grant-missing/grant-expired/ids-exhausted/
-program-missing/follower/writer-discovery/writer-capacity/writer-unresponsive,
-remaining, and fence. `intentLabel` labels entries. Dismiss a committed intent
-only after its predicted row `arrived` and its pinned id rendered;
-rejected/expired entries wait for `dismiss`. Expired grants stop admission.
+`useMutation(op).can`/`useOutbox().can` derive send/action/reason from
+`detail.status` and connection/queue facts. `outbox.observe(op?)` shares
+`{ entries, status }` with these hooks. `intentLabel` labels entries.
+Online and queued writes retain terminals until explicit `dismiss(intent)`;
+queued entries cannot be dismissed. `run()` success means committed, not
+shown. Expired grants stop admission. Query `items` resolve indicators from
+the target's own observation through commit, including no-ID edits;
+`arrived`/global sequence cannot substitute. Expose dismissal for failures,
+missing targets, and old successes. See live-query.
 
 `outbox.drain()`/`settled()`: `{ stopped, remaining }`; false is drained.
 Fence/transport/authority/offline/pending pauses; queued bytes stay. Retry

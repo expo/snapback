@@ -198,7 +198,7 @@ test("partial history becomes one coherent view without remounting its pending b
     await waitFor(() => document.querySelector("ol.bubbles")?.getAttribute("data-view-source") === "composite"
       && document.querySelector(`li[data-message="${result.ids[0]}"][data-state=row]`) !== null,
     "the usable composite after resume");
-    assert.strictEqual(document.querySelector(`li[data-message="${result.ids[0]}"]`), pending,
+    assert.equal(document.querySelector(`li[data-message="${result.ids[0]}"]`) === pending, true,
       "the BubbleList ancestor and keyed row survive partial history to composite publication");
     assert.equal(document.querySelector(".thread-history-note"), null, "the fallback unmounts once the composite is usable");
     assert.equal(client.sharedConsumers(api.deliveries.thread, { conversationId, c: null }), 0,

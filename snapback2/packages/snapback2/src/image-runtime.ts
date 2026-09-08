@@ -5,3 +5,4 @@ export { EvalError, requireRowIdentity } from '../../evaluator/src/errors.js';
 export { SEARCH_CONTRACT, SearchInputError, SearchNormalizer, scalarLength, searchFieldWords,
   searchQueryToken, searchWords, normalizationSteps } from '../../evaluator/src/unicode.js';
 export * from '../../evaluator/src/range-preparation.js';
+export * from './query-frame.js';

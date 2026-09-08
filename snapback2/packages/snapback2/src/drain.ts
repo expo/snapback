@@ -1,4 +1,5 @@
 import { SnapbackRefusal } from "./client-wire.js";
+import { carryItemInputs } from "./query-frame.js";
 import type { Cursor, QueryResult, Subscription, SubscriptionDelivery } from "./types.js";
 
 interface Waiter<Event> {
@@ -148,14 +149,14 @@ export class DrainSubscription<Args, Result> implements Subscription<Subscriptio
         }
         seen.add(page.next);
         this.watermark = page.next;
-        this.deliver({ ...page, live: false, caughtUp: false, watermark: this.watermark });
+        this.deliver(carryItemInputs(page, { ...page, live: false, caughtUp: false, watermark: this.watermark }));
         cursor = page.next;
         continue;
       }
       if (offline && held !== undefined) this.watermark = held;
       await this.options.mark(this.watermark, () => this.current(generation), offline);
       if (!this.current(generation)) return;
-      this.deliver({ ...page, live: false, caughtUp: true, watermark: this.watermark });
+      this.deliver(carryItemInputs(page, { ...page, live: false, caughtUp: true, watermark: this.watermark }));
       // The tail is watched from the page chain's own last cursor. Online that is the
       // watermark; offline the adopted store watermark is the resume position, and a
       // tail opened there would answer only the rows past it and replace the caught-up
@@ -189,14 +190,14 @@ export class DrainSubscription<Args, Result> implements Subscription<Subscriptio
           return;
         }
         this.watermark = event.next;
-        this.deliver({ ...event, caughtUp: false, watermark: this.watermark });
+        this.deliver(carryItemInputs(event, { ...event, caughtUp: false, watermark: this.watermark }));
         this.tail?.close();
         this.tail = undefined;
         this.start(this.watermark);
         return;
       }
       if (event.state === "complete" || event.state === "capped") {
-        this.deliver({ ...event, caughtUp: true, watermark: this.watermark });
+        this.deliver(carryItemInputs(event, { ...event, caughtUp: true, watermark: this.watermark }));
       } else this.deliver(event);
     });
   }

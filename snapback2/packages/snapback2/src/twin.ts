@@ -18,6 +18,7 @@ import { emptyTrace } from "./store/outbox.js";
 import { partialReasons, tagArguments, type PartialSite } from "./twin-hydrate.js";
 import type { Context, Trace } from "../../evaluator/src/types.js";
 import type { OutboxTrace, OverlayRow } from "./store/range-store.js";
+import { withItemInputs } from "./query-frame.js";
 
 export interface TwinSources extends TwinStoreSources {
   seq(): number;
@@ -101,6 +102,9 @@ export class Twin {
     if (!context) return decline("context");
     if (fence.timed) fence.readTime = context.read_time!;
     const since = hydrated.deliveredAt;
+    const capture = hydrated.captureItems(op, args);
+    // A local hole cannot revoke the last authoritative page-membership proof.
+    const publish = <T extends LocalAnswer>(value: T): T => withItemInputs(value, capture.inputs());
     const base = {
       seq: this.sources.seq(),
       ...(since === undefined ? {} : { since }),
@@ -108,14 +112,14 @@ export class Twin {
     };
     const partial = (sites: string[], trace: Trace, data?: unknown): LocalAnswer => {
       const reasons = partialReasons(sites, trace, hydrated);
-      return {
+      return publish({
         state: "partial",
         ...(data === undefined ? {} : { data }),
         reason: reasons[0]?.reason ?? "never-held",
         ...(reasons[0] === undefined ? {} : { site: reasons[0].site }),
         sites: reasons,
         ...base,
-      };
+      });
     };
     try {
       const local = hydrated.store.reexecute(ir, context, operation.certificate, searchWork);
@@ -127,20 +131,21 @@ export class Twin {
         ? encodeLocalCursor(fence, binding, { table: page.table, index: page.index, order: page.order, suffix: page.suffix, values: suffix }) : null;
       const result = local.execution.result;
       const data = result === "Null" && local.state !== "fresh" ? undefined : nullOnceMedia(wireJson(result), hydrated.onceAssets);
+      capture.evaluated(result, data);
       const ranges = new Set(local.execution.trace.ranges.map(r => r.site));
       const search = local.execution.held || local.execution.trace.ranges.some(r => r.prefix.some(p => 'WordPrefix' in p));
       const trustworthy = !local.partialSites.some(site => !ranges.has(site)) && !local.execution.trace.absences.some(a => local.partialSites.includes(a.site));
       if (search && trustworthy && (local.state !== 'fresh' || local.execution.held)) {
-        return { state: queryState(operation.certificate, local.execution.trace, context.viewer) === 'capped' ? 'capped' : 'held', data, next, ...base };
+        return publish({ state: queryState(operation.certificate, local.execution.trace, context.viewer) === 'capped' ? 'capped' : 'held', data, next, ...base });
       }
       if (local.state === "fresh") {
-        return { state: queryState(operation.certificate, local.execution.trace, context.viewer), data, next: search || fence.timed ? next : local.execution.next, ...base };
+        return publish({ state: queryState(operation.certificate, local.execution.trace, context.viewer), data, next: search || fence.timed ? next : local.execution.next, ...base });
       }
       return partial(local.partialSites, local.execution.trace, local.partialSites.includes("missing-authority") ? undefined : data);
     } catch (error) {
       if (!(error instanceof EvalError)) throw error;
       if (error.trace && error.partialSites?.length) return partial(error.partialSites, error.trace);
-      if (error.code === "E_REQUIRE") return { state: "denied", rule: error.authoredCode ?? error.code, ...base };
+      if (error.code === "E_REQUIRE") return publish({ state: "denied", rule: error.authoredCode ?? error.code, ...base });
       // A covered execution failure is not missing coverage.
       throw error;
     }

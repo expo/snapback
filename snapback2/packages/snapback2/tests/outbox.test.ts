@@ -982,14 +982,15 @@ test("online writes carry the replay envelope under custody; a transport failure
   await spying.ready;
   // @ref LLP 1012#7-writes-offline — with a grant and a bound every write is
   // a durable intent replayed under the envelope, online too: the ledger makes
-  // the online path exactly-once, and the settled entry leaves the queue.
+  // the online path exactly-once. Settlement keeps its durable terminal.
   const online = await spying.mutation(api.deliveries.post as any, post("plain"));
   assert.equal(online.state, "committed");
   const sent = JSON.parse(bodies[0]!);
   assert.equal(sent.replay?.intent, online.state === "committed" ? online.intent : undefined, "an online write under custody carries the replay envelope");
   assert.deepEqual(sent.replay.trace, { points: [], verdicts: [] });
   assert.deepEqual(owner.executions.map((item) => (item.args as any).body), ["plain"]);
-  assert.deepEqual(await spying.outbox.entries(), [], "an online write that settled in its own call is retired from the queue");
+  assert.deepEqual((await spying.outbox.entries()).map(entry => entry.state), ["committed"],
+    "returning committed does not prove that a query displays the target");
   spying.close();
   dead = true;
   const queued = await client.mutation(api.deliveries.post as any, post("after failure"));
@@ -999,17 +1000,16 @@ test("online writes carry the replay envelope under custody; a transport failure
   assert.equal(behind.state, "committed", "the queued intent drained first, then the new write settled in its own call");
   // Every write under custody entered the ledger, in order.
   assert.deepEqual(owner.executions.map((item) => (item.args as any).body), ["plain", "after failure", "behind"]);
-  assert.deepEqual((await client.outbox.entries()).map((entry) => [entry.state, (entry.args as any).body]), [["committed", "after failure"]]);
+  assert.deepEqual((await client.outbox.entries()).map((entry) => [entry.state, (entry.args as any).body]),
+    [["committed", "after failure"], ["committed", "behind"]]);
   client.close();
   await rm(root, { recursive: true, force: true });
 });
 
-// @ref LLP 1018.003#4-pending-rows-attribution-settlement-and-failure — a mounted hook
-// retires a committed entry as soon as its row arrives, which can land before the
-// call that issued the write reads the entry back; that call answers from the
-// drain's recorded terminal outcome and never mistakes the retired entry for a
-// queued one.
-test("an online write settles in its own call even when a subscriber retires the committed entry the moment it settles", async () => {
+// @ref LLP 1018.003#10-retirement-is-a-read-model-decision-dismissal-is-a-write —
+// explicit dismissal may race the issuing call; its response still comes from
+// the bounded terminal waiter. Readers themselves never initiate dismissal.
+test("an online write settles in its own call even when an explicit dismissal races its terminal response", async () => {
   const root = await tempRoot();
   const owner = fakeOwner();
   await seededStore(fileRangeStore(root));
@@ -1031,6 +1031,44 @@ test("an online write settles in its own call even when a subscriber retires the
   unsubscribe();
   client.close();
   await rm(root, { recursive: true, force: true });
+});
+
+test("an online terminal survives zero, one, and four readers, missing target delivery, and a cold reopen", async () => {
+  for (const count of [0, 1, 4]) {
+    const root = await tempRoot();
+    const owner = fakeOwner();
+    const factory = fileRangeStore(root);
+    await seededStore(factory);
+    let opened: ReturnType<typeof factory>;
+    const client = createClient({ url: "http://retained-terminal.test", as: "alice", offline: { store: () => (opened = factory()) },
+      fetch: async (input, init) => {
+        const response = await owner.fetch(input, init);
+        if (new URL(String(input)).pathname !== "/api/query") return response;
+        const value = await response.json() as Record<string, unknown>;
+        return jsonResponse({ ...value, data: [], rows: [], receipt: { ranges: [], absences: [], verdicts: [] } });
+      } });
+    const stops: Array<() => void> = [];
+    try {
+      await client.ready;
+      for (let i = 0; i < count; i++) stops.push(client.outbox.subscribe(() => {}));
+      const result = await client.mutation(api.deliveries.post as any, post(`readers:${count}`));
+      assert.equal(result.state, "committed");
+      const [terminal] = await client.outbox.entries();
+      assert.equal(terminal?.state, "committed");
+      assert.equal((await opened!.coverage()).rows.length, 0, "the settlement tail has not delivered the message");
+      stops.forEach(stop => stop());
+      client.close();
+      await opened!.close?.();
+      const cold = factory();
+      await cold.open("dev:alice");
+      assert.equal((await cold.outbox.get(terminal!.intent))?.state, "committed", `${count} readers cannot erase terminal recovery`);
+      await cold.close?.();
+    } finally {
+      stops.forEach(stop => stop());
+      client.close();
+      await rm(root, { recursive: true, force: true });
+    }
+  }
 });
 
 // @ref LLP 1012#7-writes-offline — with a partition open there is no plain-bytes
