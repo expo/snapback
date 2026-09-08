@@ -277,3 +277,17 @@ The offline recipe initially exceeded its existing 4,352-byte limit
 [compression attempt](evidence/guide-compression-over-budget.log)). Existing
 prose was shortened while preserving the documented contracts; the final
 page is 4,352 bytes and package build passes. The limit was not raised.
+
+
+## Indexed-candidate zero-count projection — 2026-09-07
+
+A follow-up audit pinned architecture `02e13629b` and executed its actual
+`TwinStore.sync/intent/row` methods with dependency stubs. With a primary
+negative at sequence 10 and no base row, a queued whole-row count overlay is
+hidden at issued sequences 10 and 11, cold and incremental. All four matching
+no-negative controls expose count 1. The intent remains listed in every case.
+[Raw results](./zero-count-architecture-projection.json) record the source hash,
+inputs and stub limitations. This is isolated projection evidence, not a new
+public-client or capability qualification. The [integration ticket](../../../issues/20260907-snapback2-indexed-twin-masks-predicted-count-after-proved-absence.md)
+requires retaining the already shipped public zero-count/cap witness while
+adapting the proof to the candidate's scalar index components.

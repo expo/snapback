@@ -9,7 +9,7 @@ Clique benchmark
 2026-09-06); revised by Claude Fable 5.1 after the five-model panel of
 2026-09-06/07 (§9), which the author convened
 **Date:** 2026-09-06
-**Revised:** 2026-09-07 (public zero-count proof repair and cold prediction witness); 2026-09-07 (implemented finite compiler/declaration reconciliation); 2026-09-07 (follow-on LLP 1018.000 linked; closed-ticket links repaired); 2026-09-07 (focused panel: witness-first sequence and finite compiler closeout, §13); 2026-09-07 (two focused draft RFCs and three bounded architecture investigations, §12); 2026-09-07 (pending-client schema conflict exercise and formal M7 handoff); 2026-09-07 (surviving-row uniqueness checked against each actual rebuild); 2026-09-07 (panel revision: a second measure, move one rewritten
+**Revised:** 2026-09-07 (bounded lifecycle/consumer closeout and zero-proof integration audit); 2026-09-07 (public zero-count proof repair and cold prediction witness); 2026-09-07 (implemented finite compiler/declaration reconciliation); 2026-09-07 (follow-on LLP 1018.000 linked; closed-ticket links repaired); 2026-09-07 (focused panel: witness-first sequence and finite compiler closeout, §13); 2026-09-07 (two focused draft RFCs and three bounded architecture investigations, §12); 2026-09-07 (pending-client schema conflict exercise and formal M7 handoff); 2026-09-07 (surviving-row uniqueness checked against each actual rebuild); 2026-09-07 (panel revision: a second measure, move one rewritten
 around what already exists, the browser-tab policy decided, count-backed cap
 probes decided, the typed IR cut, move four evidence-led, move zero added, the
 Muse scores cited, the clock repair marked landed; implementation record §10);
@@ -743,3 +743,83 @@ diagnostic with a temporary 30-second startup allowance passed in **19.20 s**
 (7.06-second body), then restored the harness unchanged. The timing ticket
 retains those failures; this is functional evidence, not normal-deadline or
 complete-suite qualification. Ref-check and caps pass.
+
+## 14. Lifecycle and client-seam closeout — 2026-09-07
+
+This completes §12/§13's bounded lifecycle and touched-client consumer audits
+against architecture candidate **`02e13629b`**, with shipped main `9de690b33`
+as the zero-count reference. Codex owns this disposition. This is pinned source
+inspection, not a new runtime implementation or final architecture qualification.
+The candidate already contains `3a6325c36`'s fan-out retirement and status-retry
+repairs: earlier failing checkpoints are regression inputs, not proof those
+repairs remain absent. Their final integrated qualification stays with that lane.
+
+### Transition ownership
+
+Paths below are under `snapback2/packages/snapback2/` at the pinned candidate.
+Existing witnesses are identified, not rerun by this audit. The governing
+contracts remain LLP 1002 §9 and LLP 1012 §4–§8.
+
+| Transition | Owner and reason for the separate lifetime | Existing witness |
+|---|---|---|
+| Mount and shared value | `ClientQueries` binds operation/arguments and identity; `SharedSubscriptions` owns one snapshot and source per auth generation, operation fence and live/drain/once mode. `Client.mounted` retains resume arguments, not another query value. | `tests/client-sessions.test.ts`: shared raw/observed consumers and lazy observation. |
+| Last-consumer disposal | `SharedSubscriptions.release` waits for both raw attachments and observations to empty. The underlying subscription removes its own mounted record by object identity; inactive observations retire on authority changes. | Same file: identical callback attachments, React refcounts, close and account/wipe retirement. |
+| Drain and resume | `DrainSubscription` owns the page walk and live tail; `createOfflineDrain.mark` completes watermark/grant custody. `Client.performResume` owns coalesced resume and coverage fencing. Local refresh cannot manufacture drain completion. | Same file: delayed mark, restart during page/mark, shared drains and follower drain without grant. |
+| Prediction and settlement | `OutboxLedger.enqueueNow` persists intent/trace/overlay in one swap. `drainOutbox`/`OfflineRuntime.commitMany` install settlement and tail; `PersistentRangeStore.commit` publishes after durable replacement. `retireOverlays` distinguishes ordinary fan-out from maintained targets awaiting their own authority. | `tests/overlay-retirement.test.ts` and `client-sessions.test.ts`: maintained sibling custody and mounted settlement revisions. |
+| Principal and epoch changes | `Client.transition` advances the operation fence before awaiting serialized transitions; `authGeneration` partitions observations. Token custody has its own generation/tail; server `authEpoch` is independently checked by the offline runtime. These counters do not describe the same event. | `tests/auth-ownership.test.ts`, `auth-restoration.test.ts`: replacement, durable-save/close races and coherent epoch publication. |
+| Late async completion | Shared refresh checks entry identity/publication epoch; query refresh captures authority. SSE checks attempt/reset currency; client transport checks operation/auth/custody/token identity. A predecessor's terminal auth evidence can clear predecessor custody, never a saved replacement. | `client-sessions.test.ts`, `auth-ownership.test.ts`: stale refresh and authority-transition races. |
+| Follower and takeover | `TabFollower` owns the cancellable lock wait. `ClientForwarding`/`MutationForwarding` own request identity, discovery and lost-ack recovery. Only the writer admits durable intents and owns its grant/watermark; activation rechecks authority. | `client-sessions.test.ts`: takeover, lost acknowledgement, same request recovery and status retry. |
+
+**Disposition: keep these boundaries; add no controller.** Current presentation,
+remembered authoritative delivery and transport-loss fallback explain the shared
+entry's snapshot, authoritative event and transport `lastPair`. They are not
+three competing application stores. This bounded inspection found no concrete
+semantic owner that could simply be merged away. Coherence still belongs to one
+named query; independently delivered list/count/preview queries are not atomic.
+
+### Touched client consumers
+
+This census reads package exports, the changed client types/implementation,
+React/Expo arms, chat templates, SDK tests, witness code and the candidate's
+`guide/live-query.md` and `guide/offline.md`. It is not a claim about all
+external npm consumers, nor a new public extension framework.
+
+| Seam | Actual consumers and classification | Disposition |
+|---|---|---|
+| `observe`, `ObservedQuery`, raw `subscribe`, query views | `react-core.tsx`, React and Expo `Thread` templates, client-session and installed typing checks. Required application surface. | Keep one shared query owner; raw delivery and immutable snapshot are distinct consumption forms. |
+| `recoverMutation`, opaque recovery value and admission-unknown result | Shared chat send controller and React edit/unsend recovery; follower tests and offline guide. Required application recovery surface. | Preserve request identity; a lost acknowledgement cannot authorize a fresh submission. |
+| `RangeStoreFactory`/`RangeStore`/`StoreSwap`, `onTombstone` | Physical carriers, Node test clients, React/Expo setup and chat tombstone recipes. Required storage/retention boundary. | Keep typed carrier contracts and atomic swaps; do not replace them with a generic plugin hook. |
+| `sharedConsumers` | Expo `Witness`, browser witness and client/chat-screen tests; no ordinary chat UI use found in the scoped census. Public diagnostic surface with real qualification callers. | Keep for those witnesses; it grants no lifecycle or write authority. A deletion needs those caller changes and replacement evidence. |
+| `initialQueryState`/`reduceQueryState` | Shared entry internals plus public exports and client/drain/session tests. Reducer helpers remain exposed. | Internal use is not evidence that external exports are unused; no deletion is justified by this census. |
+| `ClientQueries`, `SharedSubscriptions`, `TwinStore`, private `offlineRuntime` | Implementation imports and dedicated test exports/`any` fault probes; absent as public client members/module subpaths. Internal seams. | Test reachability does not make them supported application extension points. |
+| `offlineReadObserver`, `offlinePrincipal` | `InternalClientOptions` and the test client's restart/custody harness; not `CreateClientOptions`. Internal controls. | Keep the public type boundary; do not document these as app setup options. |
+| `startOffline` | Public `CreateExpoClientOptions` in `src/expo/index.ts`, consumed by Expo `Witness`; forwarded to an internal headless option. | Keep the Expo startup control. Its absence from base `CreateClientOptions` does not make the Expo export internal. |
+| `snapback2/expo/witness` | Expo witness application imports the exported test module for physical-driver and held-search probes. Required test surface. | Keep separate from ordinary app calls; its private-runtime inspection does not establish a general runtime API. |
+
+The finite compiler/export census remains LLP 1018.001's existing record. No
+new deletion or lifecycle rewrite is assigned by this audit. The one concrete
+cross-lane concern is the zero-proof/overlay interaction below; fixing it must
+preserve authorization and prediction behavior, not collapse distinct lifetimes.
+
+
+### Zero-proof integration finding
+
+The pinned candidate adds `TwinStore.row`, whose negative mask suppresses a
+whole-row insertion whenever the committed base is absent. Executing its actual
+`sync/intent/row` methods with dependency stubs confirmed this for queued count
+creation at both the same and a later sequence, cold and incremental; matching
+no-negative controls expose count 1. This is isolated projection evidence,
+not a public integration run. The [new integration ticket](../issues/20260907-snapback2-indexed-twin-masks-predicted-count-after-proved-absence.md)
+records the source hash, eight cases, limitations and native/test migration.
+The already shipped main zero-count issue stays closed.
+
+The architecture lane must preserve the distinction between an absence that
+authorizes creation and later evidence that invalidates a prediction. Keep the
+existing public count/cold-reopen/cap witness when moving it into the split
+`real-owner-prediction.test.ts`; its visible-count assertions catch what an
+entry's `predicted` flag alone cannot. The native merge also needs scalar-only
+`Index.components`, Scalar-wrapped range prefixes, complete receipt custody,
+unchanged unwrapped canonical IDs and regenerated costs/corpus. No second
+negative-fact wire format is proposed. This explicit owner and acceptance
+witness disposes the audit's one concrete integration concern; it does not
+claim that concern repaired or the architecture lane complete.
