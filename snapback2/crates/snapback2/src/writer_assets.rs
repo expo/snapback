@@ -410,6 +410,7 @@ mod tests {
                 api_dts: String::new(),
                 compiler_ms: 0.0,
                 quarry: Vec::new(),
+                sources: Default::default(),
             },
             seed: SeedData::default(),
             root: root.clone(),
@@ -1053,6 +1054,7 @@ mod tests {
                     api_dts: String::new(),
                     compiler_ms: 0.0,
                     quarry: Vec::new(),
+                    sources: Default::default(),
                 },
                 Some(MigrationPlan {
                     drops: vec![Drop::Column {

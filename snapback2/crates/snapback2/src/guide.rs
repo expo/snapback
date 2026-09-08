@@ -180,7 +180,12 @@ fn app_page(options: &verbs::ParsedOptions<'_>) -> Result<String, Refusal> {
         )));
     }
     for (name, (_, certificate)) in generation.programs() {
-        if certificates.get(name) != Some(&json!(certificate)) {
+        let mut cached = certificates.get(name).cloned().unwrap_or(Json::Null);
+        // @ref LLP 1002#diagnostics-say-the-fix — source metadata accompanies, but does not alter, the certificate.
+        if let Some(cached) = cached.as_object_mut() {
+            cached.remove("sources");
+        }
+        if cached != json!(certificate) {
             return Err(guide_stale(format!(
                 "certificates.json does not match the cached generation for operation {name}"
             )));

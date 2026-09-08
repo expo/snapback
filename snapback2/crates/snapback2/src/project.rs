@@ -28,6 +28,7 @@ pub struct CompiledProject {
     pub api_dts: String,
     pub compiler_ms: f64,
     pub quarry: Vec<QuarryGenerated>,
+    pub sources: BTreeMap<String, SourceSite>,
 }
 
 pub struct StagedBuildCache {
@@ -65,12 +66,20 @@ impl Drop for StagedBuildCache {
     }
 }
 
-#[derive(Clone, Debug, serde::Deserialize)]
+#[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SourceSite {
     pub file: String,
     pub line: u32,
     pub col: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub r#use: Option<Box<SourceSite>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub guard: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub requirement: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize)]
@@ -292,6 +301,7 @@ impl CompilerWorker {
             api_dts: success.api_dts,
             compiler_ms: success.ms,
             quarry: success.quarry,
+            sources,
         })
     }
 
@@ -592,11 +602,8 @@ pub fn locate_root(explicit: Option<&Path>) -> Result<PathBuf, Refusal> {
     }
     Err(Refusal::owner(
         "E_OWNER_PROJECT_ROOT",
-        format!(
-            "no snapback/schema.q or snapback/schema.ts found from {} upward",
-            start.display()
-        ),
-        "run snapback2 init or pass --project <dir> containing snapback/schema.q or snapback/schema.ts",
+        format!("no snapback/schema.q found from {} upward", start.display()),
+        "run snapback2 init or pass --project <dir> containing snapback/schema.q",
     ))
 }
 
@@ -665,7 +672,19 @@ pub fn stage_build_cache(
         .generation
         .programs()
         .iter()
-        .map(|(name, (_, certificate))| (name, certificate))
+        .map(|(name, (_, certificate))| {
+            let mut value = json!(certificate);
+            value["sources"] = json!(
+                compiled
+                    .sources
+                    .iter()
+                    .filter(|(site, _)| site.starts_with(&format!("{name}."))
+                        || site.starts_with(&format!("{name}/"))
+                        || site.starts_with("schema.tables."))
+                    .collect::<BTreeMap<_, _>>()
+            );
+            (name, value)
+        })
         .collect();
     staged.files.push((
         Some(certificates_path.clone()),
@@ -748,7 +767,9 @@ fn quarry_fanout_rewrite(
     let authored_line = source.lines().nth(source_site.line as usize - 1)?.trim();
     let (authored, _) = authored_line.strip_prefix("for ")?.split_once(" in ")?;
     let mut chars = authored.chars();
-    if !chars.next().is_some_and(|ch| ch == '_' || ch.is_ascii_alphabetic())
+    if !chars
+        .next()
+        .is_some_and(|ch| ch == '_' || ch.is_ascii_alphabetic())
         || !chars.all(|ch| ch == '_' || ch.is_ascii_alphanumeric())
     {
         return None;
@@ -826,6 +847,7 @@ pub fn certify_project_value(mut value: Json) -> Result<CompiledProject, Vec<Ref
         api_dts: String::new(),
         compiler_ms: 0.0,
         quarry: Vec::new(),
+        sources: BTreeMap::new(),
     })
 }
 
@@ -1066,7 +1088,12 @@ for await (const line of createInterface({{ input: process.stdin }})) {{
             source: "{}".to_owned(),
         })
         .expect("direct IR inspection name should be admitted");
-        for generated in ["schema.ts", ".ir.json", "nested/schema.ir.json", "schema.ir.json.."] {
+        for generated in [
+            "schema.ts",
+            ".ir.json",
+            "nested/schema.ir.json",
+            "schema.ir.json..",
+        ] {
             let error = validate_quarry_generated(&QuarryGenerated {
                 file: "snapback/schema.q".to_owned(),
                 generated: generated.to_owned(),
@@ -1440,3 +1467,20 @@ await new Promise(() => {{}});
 #[cfg(test)]
 #[path = "project/bound_tests.rs"]
 mod bound_tests;
+
+#[cfg(test)]
+#[test]
+fn missing_project_names_only_the_quarry_schema() {
+    let root =
+        std::env::temp_dir().join(format!("snapback2-missing-schema-{}", std::process::id()));
+    fs::create_dir_all(&root).unwrap();
+    let refusal = locate_root(Some(&root)).unwrap_err();
+    fs::remove_dir(&root).unwrap();
+    assert_eq!(refusal.code, "E_OWNER_PROJECT_ROOT");
+    assert!(refusal.message.contains("no snapback/schema.q found"));
+    assert!(!refusal.message.contains("schema.ts"));
+    assert_eq!(
+        refusal.rewrite.as_deref(),
+        Some("run snapback2 init or pass --project <dir> containing snapback/schema.q")
+    );
+}

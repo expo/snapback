@@ -171,7 +171,11 @@ function lowerStatements(statements: BoundStatement[], lowering: Lowering): Stmt
       continue;
     }
     if (statement.kind === "require") {
+      const guard = `${lowering.program}/require/${lowering.sources.length}`;
+      const start = lowering.sources.length;
       const condition = captureObservable(lowerExpression(statement.condition, lowering), lowering);
+      for (const [, source] of lowering.sources.slice(start)) source.guard = guard;
+      lowering.sources.push([guard, { ...(statement.source.use ?? statement.source.definition), requirement: statement.code }]);
       body.push(...condition.setup, { Require: { condition: condition.value, code: statement.code } });
       continue;
     }
@@ -811,7 +815,7 @@ function literalValue(expression: Extract<BoundExpression, { kind: "literal" }>)
 function accessSite(lowering: Lowering, source?: BoundSourceStack): string {
   const site = `${lowering.program}.${lowering.accessOrdinal}`;
   lowering.accessOrdinal += 1;
-  if (source) lowering.sources.push([site, source.definition]);
+  if (source) lowering.sources.push([site, { ...source.definition, ...(source.use ? { use: source.use } : {}) }]);
   return site;
 }
 

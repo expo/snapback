@@ -3,7 +3,7 @@
 
 use crate::client;
 use crate::owner;
-use crate::project::locate_root;
+use crate::project::{SourceSite, locate_root};
 use crate::protocol::Refusal;
 use crate::verbs;
 use serde_json::{Map, Value as Json, json};
@@ -75,12 +75,12 @@ pub fn run(args: &[String]) -> ExitCode {
             1,
         );
     };
-    if certificate.plan_hash != active_plan_hash {
+    if certificate.certificate.plan_hash != active_plan_hash {
         certificate = match read_certificate(&root, &positional[1]) {
             Ok(certificate) => certificate,
             Err(error) => return owner::print_refusal(error, json_output, 1),
         };
-        if certificate.plan_hash != active_plan_hash {
+        if certificate.certificate.plan_hash != active_plan_hash {
             return owner::print_refusal(
                 why_stale(format!(
                     "the cached certificate for {} does not match the active owner operation",
@@ -95,23 +95,31 @@ pub fn run(args: &[String]) -> ExitCode {
         .ok()
         .map(|response| response.body)
         .unwrap_or_else(|| json!({}));
-    let output = enrich(&positional[1], response, latest, certificate);
+    let output = enrich(&positional[1], response, latest, certificate.certificate);
     if json_output {
         println!("{}", serde_json::to_string(&output).unwrap_or_default());
     } else {
-        println!(
+        print!(
             "{}",
-            serde_json::to_string_pretty(&output).unwrap_or_default()
+            prose(&positional[1], persona, &output, &certificate.sources)
         );
     }
     ExitCode::SUCCESS
 }
 
-fn read_certificate(root: &Path, op: &str) -> Result<Certificate, Refusal> {
+#[derive(Clone, serde::Deserialize)]
+struct LocatedCertificate {
+    #[serde(flatten)]
+    certificate: Certificate,
+    #[serde(default)]
+    sources: BTreeMap<String, SourceSite>,
+}
+
+fn read_certificate(root: &Path, op: &str) -> Result<LocatedCertificate, Refusal> {
     let path = root.join(".snapback/build/certificates.json");
     let bytes = fs::read(&path)
         .map_err(|error| why_stale(format!("cannot read {}: {error}", path.display())))?;
-    let certificates: BTreeMap<String, Certificate> = serde_json::from_slice(&bytes)
+    let certificates: BTreeMap<String, LocatedCertificate> = serde_json::from_slice(&bytes)
         .map_err(|error| why_stale(format!("cannot parse {}: {error}", path.display())))?;
     certificates
         .get(op)
@@ -241,4 +249,248 @@ fn string_array(value: &Json, snake: &str, camel: &str) -> Vec<String> {
 fn usage() -> ExitCode {
     eprintln!("usage: snapback2 why <query> [args-json] --as <persona> [--json]");
     ExitCode::from(2)
+}
+
+// @ref LLP 1002#diagnostics-say-the-fix — prose uses the active certificate's source snapshot, never the edited file.
+fn prose(op: &str, persona: &str, output: &Json, sources: &BTreeMap<String, SourceSite>) -> String {
+    let result = &output["result"];
+    let state = result["state"].as_str().unwrap_or("unavailable");
+    let rule = result["rule"].as_str();
+    let mut text = format!(
+        "{op} as {persona} — {state}{}\n",
+        rule.map(|rule| format!(" ({rule})")).unwrap_or_default()
+    );
+    let trace = &output["authoritativeTrace"];
+    let points = entries(&trace["points"]);
+    let ranges = entries(&trace["ranges"]);
+    if state == "denied" {
+        let guards: Vec<_> = sources
+            .iter()
+            .filter(|(_, source)| source.requirement.as_deref() == rule && rule.is_some())
+            .collect();
+        // A repeated code alone cannot identify which requirement failed.
+        let guard = (guards.len() == 1).then(|| guards[0]);
+        if let Some((site, source)) = guard {
+            source_line(&mut text, site, Some(source));
+            for read in points.iter().chain(ranges.iter()).filter(|read| {
+                sources
+                    .get(read["site"].as_str().unwrap_or_default())
+                    .and_then(|source| source.guard.as_ref())
+                    == Some(site)
+            }) {
+                let status = if read.get("examined").is_some() {
+                    if read["visible"] == true {
+                        "present"
+                    } else if read["examined"] == true {
+                        "hidden"
+                    } else {
+                        "absent"
+                    }
+                } else if entries(&read["visible_ids"]).is_empty() {
+                    "no visible rows"
+                } else {
+                    "visible rows"
+                };
+                text.push_str(&format!(
+                    "    {}   {status}   ({})\n",
+                    lookup(read),
+                    read["index"].as_str().unwrap_or("?")
+                ));
+            }
+        } else {
+            for read in points.iter().chain(ranges.iter()) {
+                source_line(
+                    &mut text,
+                    read["site"].as_str().unwrap_or(op),
+                    sources.get(read["site"].as_str().unwrap_or(op)),
+                );
+                text.push_str(&format!(
+                    "    {}   {}   ({})\n",
+                    lookup(read),
+                    if read["visible"] == true {
+                        "present"
+                    } else if read["examined"] == true {
+                        "hidden"
+                    } else {
+                        "absent"
+                    },
+                    read["index"].as_str().unwrap_or("?")
+                ));
+            }
+            if points.is_empty() && ranges.is_empty() {
+                text.push_str("  no table reads executed\n");
+            }
+        }
+        return text;
+    }
+    for site in entries(&output["readSites"]) {
+        let id = site["site"].as_str().unwrap_or(op);
+        let reads: Vec<_> = points
+            .iter()
+            .chain(ranges.iter())
+            .filter(|read| read["site"] == id)
+            .collect();
+        if reads.is_empty() {
+            continue;
+        }
+        source_line(&mut text, id, sources.get(id));
+        for read in reads {
+            let point = read.get("examined").is_some();
+            let examined = if point {
+                usize::from(read["examined"] == true)
+            } else {
+                entries(&read["examined_ids"]).len()
+            };
+            let visible = if point {
+                usize::from(read["visible"] == true)
+            } else {
+                entries(&read["visible_ids"]).len()
+            };
+            text.push_str(&format!(
+                "    {}   {examined} {} examined, {visible} visible\n",
+                lookup(read),
+                if examined == 1 { "row" } else { "rows" }
+            ));
+            let index = read["index"].as_str().unwrap_or("?");
+            if point {
+                text.push_str(&format!("    point by {index} — complete\n"));
+            } else {
+                let order = if read["order"] == "Desc" {
+                    "last"
+                } else {
+                    "first"
+                };
+                let stop = read["stop"].as_str().unwrap_or("unavailable");
+                let state = match stop {
+                    "Exhausted" => "complete",
+                    "Limit" => "capped",
+                    other => other,
+                };
+                text.push_str(&format!(
+                    "    {order} {} by {index} — {state}\n",
+                    read["take"]
+                ));
+            }
+            let table = read["table"].as_str().unwrap_or("?");
+            let rule = if persona == "system" {
+                "system principal (rules bypassed)"
+            } else {
+                sources
+                    .get(&format!("schema.tables.{table}.rules.read"))
+                    .and_then(|source| source.text.as_deref())
+                    .unwrap_or("read rule source unavailable")
+            };
+            text.push_str(&format!(
+                "    {}: {rule}\n",
+                if visible > 0 {
+                    "admitted by"
+                } else if examined > 0 {
+                    "denied by"
+                } else {
+                    "read rule"
+                }
+            ));
+        }
+    }
+    let mut subscriptions = Vec::new();
+    for read in points
+        .iter()
+        .chain(ranges.iter())
+        .chain(entries(&trace["rule_inputs"]).iter())
+    {
+        let entry = format!(
+            "    {} {} [{}]\n",
+            read["table"].as_str().unwrap_or("?"),
+            read["index"].as_str().unwrap_or("?"),
+            keys(read)
+        );
+        if !subscriptions.contains(&entry) {
+            subscriptions.push(entry);
+        }
+    }
+    if !subscriptions.is_empty() {
+        text.push_str("  subscriptions:\n");
+        for subscription in subscriptions {
+            text.push_str(&subscription);
+        }
+    }
+    text
+}
+
+fn entries(value: &Json) -> &[Json] {
+    value.as_array().map(Vec::as_slice).unwrap_or(&[])
+}
+
+fn source_line(text: &mut String, id: &str, source: Option<&SourceSite>) {
+    let source = source.map(|source| source.r#use.as_deref().unwrap_or(source));
+    match source {
+        Some(source) => {
+            let file = Path::new(&source.file)
+                .file_name()
+                .and_then(|file| file.to_str())
+                .unwrap_or(&source.file);
+            text.push_str(&format!(
+                "  {file}:{}   {}\n",
+                source.line,
+                source.text.as_deref().unwrap_or(id)
+            ));
+        }
+        None => text.push_str(&format!("  {id}\n")),
+    }
+}
+
+fn lookup(read: &Json) -> String {
+    format!("{}[{}]", read["table"].as_str().unwrap_or("?"), keys(read))
+}
+
+fn keys(read: &Json) -> String {
+    entries(read.get("key").unwrap_or(&read["prefix"]))
+        .iter()
+        .map(value_text)
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+fn value_text(value: &Json) -> String {
+    if let Some(scalar) = value.get("Scalar") {
+        return value_text(scalar);
+    }
+    if value == "Null" || value.is_null() {
+        return "null".to_owned();
+    }
+    for tag in ["Id", "String", "Int", "Bool"] {
+        if let Some(value) = value.get(tag) {
+            return value
+                .as_str()
+                .map(str::to_owned)
+                .unwrap_or_else(|| value.to_string());
+        }
+    }
+    value.to_string()
+}
+
+#[cfg(test)]
+#[test]
+fn prose_keeps_capped_visible_counts_and_falls_back_to_the_site_id() {
+    let output = json!({
+        "result": { "state": "capped" },
+        "readSites": [{ "site": "posts.all.0" }],
+        "authoritativeTrace": { "ranges": [{
+            "site": "posts.all.0", "table": "posts", "index": "byTime", "prefix": [],
+            "examined_ids": ["1", "2", "3"], "visible_ids": ["1", "2"], "returned_ids": ["1"],
+            "order": "Asc", "take": 1, "stop": "Limit"
+        }] }
+    });
+    assert_eq!(
+        prose("posts.all", "alice", &output, &BTreeMap::new()),
+        concat!(
+            "posts.all as alice — capped\n",
+            "  posts.all.0\n",
+            "    posts[]   3 rows examined, 2 visible\n",
+            "    first 1 by byTime — capped\n",
+            "    admitted by: read rule source unavailable\n",
+            "  subscriptions:\n",
+            "    posts byTime []\n",
+        )
+    );
 }

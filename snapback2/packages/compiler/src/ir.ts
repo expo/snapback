@@ -152,14 +152,11 @@ export type DiagnosticCode =
   | "E_SCHEDULE_DURATION"
   | "E_UNBOUND_SCAN"
   | "E_UNBOUND_LOOP"
-  | "E_UNBOUND_COUNT"
   | "E_STRUCTURAL_COUNT"
   | "E_STRUCTURAL_FANOUT"
   | "E_AMBIENT_TIME"
   | "E_OPAQUE"
   | "E_BOUND"
-  | "E_ARGS_SPREAD"
-  | "E_ARGS_DESCRIPTOR"
   | "E_ARGS_TYPE"
   | "E_ARGS_CURSOR_INDEX"
   | "E_ARGS_CURSOR_SHAPE"
@@ -169,23 +166,18 @@ export type DiagnosticCode =
   | "E_OP_NONE"
   | "E_OP_RESERVED"
   | "E_OP_MODULE_BASENAME"
-  | "E_PROVENANCE_AMBIGUOUS"
   | "E_DIAG_TRUNCATED"
   | "E_SCHEMA_RESERVED"
   | "E_SCHEMA_ID_RESERVED"
-  | "E_SCHEMA_UNKNOWN_TABLE"
   | "E_SCHEMA_INDEX_COLUMN"
   | "E_SCHEMA_ASSET_MAINTAIN"
   | "E_SCHEMA_ASSET_SEED"
-  | "E_SCHEMA_INDEX_OPTION"
   | "E_SCHEMA_CONSTRAINT"
   | "E_SCHEMA_MAINTAIN"
   | "E_SCHEMA_DEFAULT_EXPORT"
-  | "E_SCHEMA_COLUMN"
   | "E_SCHEMA_INVALID"
   | "E_RULE_INVALID"
   | "E_DECIMAL_SCALE"
-  | "E_ENUM_VARIANT"
   | "E_SEED_INVALID"
   | "E_SEED_PERSONA"
   | "E_SEED_TABLE"
@@ -250,7 +242,7 @@ export type ProjectJson = {
   effects: EffectJson[];
 };
 
-export type SourceSite = { file: string; line: number; col: number };
+export type SourceSite = { file: string; line: number; col: number; text?: string; use?: SourceSite; guard?: string; requirement?: string };
 export type QuarryGenerated = { file: string; generated: string; source: string };
 
 export type ProjectResult =

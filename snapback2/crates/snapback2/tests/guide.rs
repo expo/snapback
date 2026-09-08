@@ -37,7 +37,8 @@ fn help_is_successful_without_a_project_or_compiler_and_has_no_side_effects() {
                 .args(["test", value_flag, help])
                 .current_dir(&project.path)
                 .env("SNAPBACK2_COMPILER", project.path.join("missing-compiler"))
-                .output().unwrap();
+                .output()
+                .unwrap();
             assert!(output.status.success(), "{value_flag} {help}");
             assert!(output.stderr.is_empty());
             assert!(String::from_utf8_lossy(&output.stdout).starts_with("usage: snapback2 test"));
@@ -60,7 +61,10 @@ fn command_guides_explain_initialization_and_successor_recovery() {
             "init",
             "snapback2 init my-app --template chat --client react",
         ),
-        ("init", "VITE_SNAPBACK_URL=\"${snapback_url#SNAPBACK_URL=}\" npm run dev"),
+        (
+            "init",
+            "VITE_SNAPBACK_URL=\"${snapback_url#SNAPBACK_URL=}\" npm run dev",
+        ),
         ("dev", "--apply-migration file"),
         ("check", "does not install"),
     ] {
@@ -157,12 +161,12 @@ fn package_consumers_and_isolated_compiler_use_complete_private_snapshots() {
 #[test]
 fn refusal_code_guide_prints_the_wrong_and_right_pair() {
     let project = Project::new();
-    let output = project.run(&["guide", "E_BOUND_TAKE_REQUIRED", "--json"]);
+    let output = project.run(&["guide", "E_UNBOUND_SCAN", "--json"]);
     assert!(output.status.success());
     let page = json_stdout(&output);
     let content = page["content"].as_str().unwrap();
-    assert!(content.contains("db.scan(todos.byOwner, [ctx.viewer])"));
-    assert!(content.contains("{ take: 50 }"));
+    assert!(content.contains("return posts[]"));
+    assert!(content.contains("return posts[] first 50 by byTime"));
 }
 
 #[test]
@@ -203,10 +207,7 @@ fn quarry_keywords_print_grammar_and_definitions_beside_symbol_help() {
         ("last", "`last` is descending"),
         ("require", "aborts when false"),
         ("match", "branches on presence"),
-        (
-            "for",
-            "`for` needs a bounded list/page/range/tokens result",
-        ),
+        ("for", "`for` needs a bounded list/page/range/tokens result"),
         (
             "emit",
             "durably queues an effect in the mutation's transaction",

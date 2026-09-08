@@ -11,7 +11,7 @@ pub(crate) fn certification_family_guide(code: &str) -> (&'static str, &'static 
         code if code.starts_with("E_JOB") => ("job", "job"),
         "E_UNBOUND_SCAN" => ("bound", "bound/scan"),
         "E_UNBOUND_LOOP" | "E_STRUCTURAL_FANOUT" => ("bound", "bound/loop"),
-        "E_UNBOUND_COUNT" | "E_STRUCTURAL_COUNT" => ("bound", "bound/count"),
+        "E_STRUCTURAL_COUNT" => ("bound", "bound/count"),
         "E_AMBIENT_TIME" => ("opaque", "opaque/time"),
         code if code.starts_with("E_BOUND") || code.starts_with("E_UNBOUND") => {
             ("bound", "bound/ceiling")
@@ -21,7 +21,7 @@ pub(crate) fn certification_family_guide(code: &str) -> (&'static str, &'static 
         code if code.starts_with("E_SEED") => ("input", "schema/seed"),
         "E_EMIT_IN_QUERY" => ("effect", "effects/authoring"),
         code if code.starts_with("E_EFFECT") => ("effect", "effects/authoring"),
-        "E_DECIMAL_SCALE" | "E_ENUM_VARIANT" => ("args", "programs/types"),
+        "E_DECIMAL_SCALE" => ("args", "programs/types"),
         code if code.starts_with("E_ARGS") => ("args", "programs/types"),
         code if code.starts_with("E_OP") => ("op", "programs/operations"),
         _ => ("opaque", "opaque/subset"),
@@ -53,10 +53,16 @@ impl Refusal {
         rewrite: impl Into<String>,
         guide: impl Into<String>,
     ) -> Self {
+        let code = code.into();
+        let message = message.into();
+        let message = message
+            .strip_prefix(&format!("{code}:"))
+            .map(|text| text.trim_start().to_owned())
+            .unwrap_or(message);
         Self {
-            code: code.into(),
+            code,
             family: family.into(),
-            message: message.into(),
+            message,
             site: None,
             rule: None,
             rewrite: Some(rewrite.into()),
@@ -437,4 +443,14 @@ mod tests {
             Some("stop snapback2 dev, delete .snapback/store.sqlite, and restart the owner")
         );
     }
+}
+
+#[cfg(test)]
+#[test]
+fn runtime_input_message_does_not_repeat_its_code() {
+    let refusal = Refusal::from_runtime(&RuntimeError::Input(
+        "cursor belongs to another index".to_owned(),
+    ));
+    assert_eq!(refusal.code, "E_INPUT");
+    assert_eq!(refusal.message, "cursor belongs to another index");
 }

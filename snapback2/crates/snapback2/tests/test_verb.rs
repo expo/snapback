@@ -784,7 +784,7 @@ fn ref_based_pseudo_membership_is_refused_before_authority_proofs() {
         refusals.iter().any(|refusal| {
             refusal["code"] == "E_QUARRY_UNKNOWN"
                 && refusal["message"]
-                    == "memberships.byPrincipalConversation expects reference to profiles for principal, got principal"
+                    == "memberships.byPrincipalConversation expects profiles for principal, got principal"
                 && refusal["site"] == "snapback/messages.q:11:51"
                 && refusal["rewrite"]
                     .as_str()

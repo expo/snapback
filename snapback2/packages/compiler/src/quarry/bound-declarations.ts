@@ -1,6 +1,6 @@
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import type { Document, FunctionDecl, ProcDecl, ShapeDecl, Site } from "./ast";
-import { QuarryError } from "./diagnostics";
+import { QuarryError, nameRewrite } from "./diagnostics";
 
 export type BoundShapeDefinition = { declaration: ShapeDecl; document: Document };
 
@@ -30,7 +30,7 @@ export class BoundShapeRegistry {
     const member = document && this.members.get(document)?.get(name);
     if (!document || !member) throw new QuarryError(
       useSite, `unknown shape ${name} in ${file}`, "E_QUARRY_UNKNOWN",
-      `define shape ${name} = { * } in ${file}, or import shape ${name} from its module`,
+      nameRewrite(name, document ? this.members.get(document)?.keys() ?? [] : []),
     );
     if (!("module" in member)) return { declaration: member, document };
     const identity = `shape:${document.file}:${name}`;
@@ -41,7 +41,7 @@ export class BoundShapeRegistry {
     const target = this.modules.get(join(dirname(document.file), `${member.module}.q`));
     if (!target) throw new QuarryError(
       member.site, `unknown shape module ${member.module}`, "E_QUARRY_UNKNOWN",
-      `create snapback/${member.module}.q with shape ${name} = { * }, or correct the module name`,
+      nameRewrite(member.module, [...this.modules.keys()].map(file => basename(file, ".q"))),
     );
     return this.resolve(target.file, name, member.site, [...imports, identity]);
   }
@@ -80,6 +80,11 @@ export class BoundProcRegistry {
     }
   }
 
+  names(file: string): string[] {
+    const document = this.modules.get(file);
+    return document ? [...(this.members.get(document)?.keys() ?? [])] : [];
+  }
+
   has(file: string, name: string): boolean {
     const document = this.modules.get(file);
     return !!document && this.members.get(document)?.has(name) === true;
@@ -90,7 +95,7 @@ export class BoundProcRegistry {
     const member = document && this.members.get(document)?.get(name);
     if (!document || !member) throw new QuarryError(
       useSite, `unknown proc ${name} in ${file}`, "E_QUARRY_UNKNOWN",
-      `define proc ${name}(value: int): in ${file}, or import proc ${name} from its module`,
+      nameRewrite(name, document ? this.members.get(document)?.keys() ?? [] : []),
     );
     if (!("module" in member)) return { declaration: member, document };
     const identity = `proc:${document.file}:${name}`;
@@ -101,7 +106,7 @@ export class BoundProcRegistry {
     const target = this.modules.get(join(dirname(document.file), `${member.module}.q`));
     if (!target) throw new QuarryError(
       member.site, `unknown module ${member.module} for proc ${name}`, "E_QUARRY_UNKNOWN",
-      `create snapback/${member.module}.q with proc ${name}, or import from an existing module`,
+      nameRewrite(member.module, [...this.modules.keys()].map(file => basename(file, ".q"))),
     );
     return this.resolve(target.file, name, member.site, [...imports, identity]);
   }
@@ -128,6 +133,11 @@ export class BoundFunctionRegistry {
     }
   }
 
+  names(file: string): string[] {
+    const document = this.modules.get(file);
+    return document ? [...(this.members.get(document)?.keys() ?? [])] : [];
+  }
+
   has(file: string, name: string): boolean {
     const document = this.modules.get(file);
     return !!document && this.members.get(document)?.has(name) === true;
@@ -138,7 +148,7 @@ export class BoundFunctionRegistry {
     const member = document && this.members.get(document)?.get(name);
     if (!document || !member) throw new QuarryError(
       useSite, `unknown fn ${name} in ${file}`, "E_QUARRY_UNKNOWN",
-      `define fn ${name}(value: int) = value in ${file}, or import fn ${name} from its module`,
+      nameRewrite(name, document ? this.members.get(document)?.keys() ?? [] : []),
     );
     if (!("module" in member)) return { declaration: member, document };
     const identity = `fn:${document.file}:${name}`;
@@ -149,7 +159,7 @@ export class BoundFunctionRegistry {
     const target = this.modules.get(join(dirname(document.file), `${member.module}.q`));
     if (!target) throw new QuarryError(
       member.site, `unknown fn module ${member.module}`, "E_QUARRY_UNKNOWN",
-      `create snapback/${member.module}.q with fn ${name}(value: int) = value, or correct the module name`,
+      nameRewrite(member.module, [...this.modules.keys()].map(file => basename(file, ".q"))),
     );
     return this.resolve(target.file, name, member.site, [...imports, identity]);
   }

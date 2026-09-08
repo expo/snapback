@@ -23,7 +23,7 @@ export function registerQuarryFanoutChecks(test: Test, frontend: string): void {
     ];
     for (const [cap, code, message] of cases) {
       const result = compileInline([{ fileName: "snapback/schema.q", source: schema.replace("cap 50 by conversationId", cap!) }]);
-      assert(!result.ok && result.diagnostics.some((d) => d.code === code && d.message.includes(message!) && d.site.startsWith(`snapback/schema.q:${cap!.includes("\n") ? 10 : 9}:`)), `cap refusal lost site/code/message: ${cap}`);
+      assert(!result.ok && result.diagnostics.some((d) => d.code === code && `${d.message} ${d.rewrite}`.includes(message!) && d.site.startsWith(`snapback/schema.q:${cap!.includes("\n") ? 10 : 9}:`)), `cap refusal lost site/code/message: ${cap}`);
     }
     for (const type of ["[principal] <=5", "image <=100", "video <=100"]) {
       const result = compileInline([{ fileName: "snapback/schema.q", source: schema.replace("group: text <=32 ?", `group: ${type}`).replace("cap 50 by conversationId", "cap 50 by group").replace("  by byGroup: group, id\n", "") }]);

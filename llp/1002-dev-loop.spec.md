@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2` (the binary: owner, server, verbs), `snapback2/packages/compiler` (project lowering, worker), `snapback2/packages/snapback2` (authoring runtime, client, React, test runner, shim), `snapback2/scripts/measure.mjs`
 **Author:** Claude Fable 5 (orchestrator) — implementers: codex gpt-5.6-sol, lanes B0 (compiler + authoring surface), B1 (owner + server + verbs), B2 (`init`, `test`, `why`, `trace`, `guide`), D (client + React + evaluator)
 **Date:** 2026-08-29
-**Revised:** 2026-09-08 (LLP 1001.000 typed latest-state channels, leases and snapshot clients); 2026-09-08 (resource-aware blocking Rust test scheduling and paired timing); 2026-09-07 (generated insert/merge consumer type bindings; implementer GPT-6 Astra); 2026-09-07 (independent Quarry diagnostics, checked-type repair advice, lexical failure isolation and merge discovery ordering; implementer GPT-6 Astra); 2026-09-07 (preserve unrelated prefixed optional packages; staged platform dependency selection and exact-lock packaging regression; durable browser-follower admission and unknown-outcome recovery; client-owned observed query snapshots; explicit named-journey verification and executable React startup; startup cleanup fixture custody); 2026-09-06 (app guide operation/certificate custody; native logical SSE body; CLI help and executable migration recovery; auth startup recovery and held transition reads; queued transitions, interrupted sync, live held reads); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
+**Revised:** 2026-09-08 (diagnostics say the fix: missing bounds, spelling repairs, current families, wrapping check, source-mapped why prose; implementer GPT-6 Astra, lane D); 2026-09-08 (LLP 1001.000 typed latest-state channels, leases and snapshot clients); 2026-09-08 (resource-aware blocking Rust test scheduling and paired timing); 2026-09-07 (generated insert/merge consumer type bindings; implementer GPT-6 Astra); 2026-09-07 (independent Quarry diagnostics, checked-type repair advice, lexical failure isolation and merge discovery ordering; implementer GPT-6 Astra); 2026-09-07 (preserve unrelated prefixed optional packages; staged platform dependency selection and exact-lock packaging regression; durable browser-follower admission and unknown-outcome recovery; client-owned observed query snapshots; explicit named-journey verification and executable React startup; startup cleanup fixture custody); 2026-09-06 (app guide operation/certificate custody; native logical SSE body; CLI help and executable migration recovery; auth startup recovery and held transition reads; queued transitions, interrupted sync, live held reads); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
 **Related:** LLP 1000, LLP 1001 (the engine this serves), LLP 1003 (effects),
 LLP 0329.016 §5 (the design this implements verbatim where it can), LLP
 0329.016 §5.11 (the verb table — no verb exists without its row), LLP
@@ -845,6 +845,39 @@ verdict: "pass" | "fail" | "blocked", ms, detail }], arms: ["headless"], verdict
   Missing or mismatched operation certificates and invalid seed facts refuse
   with `E_GUIDE_STALE` and `run snapback2 check`, without repairing the cache
   or substituting invented bounds.
+
+## Diagnostics say the fix
+
+Revised 2026-09-08, commissioned by Charlie Cheever; delegated rulings from the
+Snapback 2 elegance program, implemented by GPT-6 Astra, lane D. These supersede
+§3's unknown-index wording for unbounded value reads and §8's JSON-only default.
+The earlier trace document remains the `--json` representation.
+
+D1. A table read used as a value with no range clause and no exactly-matching unique index is a missing bound, not an unknown index: message "`posts[]` reads a range; name its bound", rewrite listing every `by` index whose prefix matches the keys (`posts[] first 50 by byTime`) and any unique index that matches exactly. Key types print as declared (`[principal]`), never `[?]`.
+D2. Did-you-mean: an unknown table, column, index, fn, proc, shape, op, enum case, or module name gets the nearest declared name in the rewrite (Damerau-Levenshtein ≤ 2 or a case-only difference): "unknown messages field `authorid` — did you mean `authorId`?".
+D3. `families.source.json`: every `wrong`/`right` example is Quarry (or the CLI/TS harness surface where the family is about seeds, effects, journeys); an entry whose code can no longer be emitted is deleted along with its dead site. A compiler test asserts no example contains `db.`, `rule.`, `ctx.`, `t.text(`, `withIndex`, `.take(`. `E_OWNER_PROJECT_ROOT` drops `schema.ts`; no message repeats its own code.
+D4. `check` never truncates a `message` or `rewrite` (the 120-character cut that caused four misdiagnosed loops in the Clique run); long lines wrap.
+D5. `why` speaks: the default output is prose, `--json` is today's document. Shape:
+
+```
+messages.thread as charlie — denied (MEMBERSHIP_REQUIRED)
+  messages.q:7   require isMember(conversationId, viewer) else MEMBERSHIP_REQUIRED
+    memberships[conversation-1, dev:charlie]   absent   (byConversationPrincipal)
+```
+and for an admitted read, per site: the rows examined and visible, the bound (`last 50 by byRecipientConversationKindAt`, `complete` or `capped`), the rule that admitted, then the subscriptions (table and index prefix). Sites map to `file:line` through the compiler's site table; when unavailable, the site id prints. The bounds and digests stay in `--json`.
+D6. The prose format gets its paragraph on the guide page that documents `why` (within budget).
+
+
+Implementation: source positions, helper call sites, requirement associations,
+and compiled source lines travel in the compiler's existing `sources` map and
+are retained with each operation in `certificates.json`. They do not change
+executable IR, generation hashes, or served query envelopes. The prose uses
+the certificate matching the active owner plan, so an edit or refused successor
+cannot make it quote a different program. Missing metadata falls back to site IDs.
+Unknown keys still report the catalog's nominal types. Name repairs share one
+Damerau–Levenshtein helper with a two-edit/case-only threshold. Dead families and
+their unused code declarations are deleted. `check --ir` now includes rewrites;
+project `check` honors text versus JSON output and neither path truncates text.
 
 ## 9. The client (`snapback2/client`, `snapback2/react`, `snapback2/test`)
 

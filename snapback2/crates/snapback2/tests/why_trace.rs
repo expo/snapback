@@ -358,3 +358,88 @@ fn auth_recipe_executes_scoped_admin_reads_and_diagnoses_owner_only_absence() {
         }
     }
 }
+
+fn prose_project() -> Project {
+    let project = Project::new();
+    assert!(project.init("chat", "none").status.success());
+    fs::write(project.path.join("snapback/explain.q"), "fn isMember from access\n\nquery thread(conversationId: conversations):\n  require isMember(conversationId, viewer) else MEMBERSHIP_REQUIRED\n  return deliveries[viewer, conversationId, 'message'] last 50 by byRecipientConversationKindAt\n").unwrap();
+    assert!(project.run(&["check", "--json"]).status.success());
+    project
+}
+
+#[test]
+fn why_prose_explains_denied_chat_guard_at_its_call_site() {
+    let project = prose_project();
+    let _owner = OwnerGuard::start(&project);
+    let why = project.run(&[
+        "why",
+        "explain.thread",
+        r#"{"conversationId":"conversation-1"}"#,
+        "--as",
+        "charlie",
+    ]);
+    assert!(
+        why.status.success(),
+        "{}",
+        String::from_utf8_lossy(&why.stderr)
+    );
+    assert_eq!(
+        String::from_utf8(why.stdout.clone()).unwrap(),
+        concat!(
+            "explain.thread as charlie — denied (MEMBERSHIP_REQUIRED)\n",
+            "  explain.q:4   require isMember(conversationId, viewer) else MEMBERSHIP_REQUIRED\n",
+            "    memberships[conversation-1, dev:charlie]   absent   (byConversationPrincipal)\n",
+        )
+    );
+    // A failed edit must not replace the source snapshot attached to the active certificate.
+    fs::write(
+        project.path.join("snapback/explain.q"),
+        "this is not a valid module\n",
+    )
+    .unwrap();
+    assert!(!project.run(&["check", "--json"]).status.success());
+    let still_active = project.run(&[
+        "why",
+        "explain.thread",
+        r#"{"conversationId":"conversation-1"}"#,
+        "--as",
+        "charlie",
+    ]);
+    assert!(still_active.status.success());
+    assert_eq!(still_active.stdout, why.stdout);
+}
+
+#[test]
+fn why_prose_explains_admitted_chat_reads_bounds_rules_and_subscriptions() {
+    let project = prose_project();
+    let _owner = OwnerGuard::start(&project);
+    let why = project.run(&[
+        "why",
+        "explain.thread",
+        r#"{"conversationId":"conversation-1"}"#,
+        "--as",
+        "alice",
+    ]);
+    assert!(
+        why.status.success(),
+        "{}",
+        String::from_utf8_lossy(&why.stderr)
+    );
+    assert_eq!(
+        String::from_utf8(why.stdout).unwrap(),
+        concat!(
+            "explain.thread as alice — complete\n",
+            "  explain.q:4   require isMember(conversationId, viewer) else MEMBERSHIP_REQUIRED\n",
+            "    memberships[conversation-1, dev:alice]   1 row examined, 1 visible\n",
+            "    point by byConversationPrincipal — complete\n",
+            "    admitted by: read <- exists memberships[.conversationId, viewer]\n",
+            "  explain.q:5   return deliveries[viewer, conversationId, 'message'] last 50 by byRecipientConversationKindAt\n",
+            "    deliveries[dev:alice, conversation-1, message]   1 row examined, 1 visible\n",
+            "    last 50 by byRecipientConversationKindAt — complete\n",
+            "    admitted by: read <- .recipient = viewer\n",
+            "  subscriptions:\n",
+            "    memberships byConversationPrincipal [conversation-1, dev:alice]\n",
+            "    deliveries byRecipientConversationKindAt [dev:alice, conversation-1, message]\n",
+        )
+    );
+}

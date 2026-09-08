@@ -119,7 +119,11 @@ impl SerializableError {
         Self {
             code: error.code().to_owned(),
             family: "schema".to_owned(),
-            message: error.to_string(),
+            message: error
+                .to_string()
+                .strip_prefix(&format!("{}:", error.code()))
+                .map(|message| message.trim_start().to_owned())
+                .unwrap_or_else(|| error.to_string()),
             site: "<project>:schema".to_owned(),
             rule: None,
             rewrite,
@@ -476,7 +480,19 @@ pub fn run_project(root: &Path, json: bool) -> ExitCode {
         }
         Err(refusals) => {
             for refusal in refusals {
-                println!("{}", serde_json::to_string(&refusal).unwrap_or_default());
+                if json {
+                    println!("{}", serde_json::to_string(&refusal).unwrap_or_default());
+                } else {
+                    print!(
+                        "{}",
+                        format_diagnostic(
+                            &refusal.code,
+                            refusal.site.as_deref(),
+                            &refusal.message,
+                            refusal.rewrite.as_deref()
+                        )
+                    );
+                }
             }
             ExitCode::from(1)
         }
@@ -516,9 +532,14 @@ fn print_results(results: Vec<ResultItem>, json: bool) {
     }
     for result in results {
         if let Some(error) = result.error {
-            println!(
-                "refused {} {} — {}",
-                result.program, error.code, error.message
+            print!(
+                "{}",
+                format_diagnostic(
+                    &error.code,
+                    Some(&error.site),
+                    &error.message,
+                    Some(&error.rewrite)
+                )
             );
         } else {
             println!("ok {}", result.program);
@@ -743,4 +764,62 @@ mod tests {
         }));
         assert!(results.iter().any(|r| r.program == "broken"));
     }
+}
+
+// @ref LLP 1002#diagnostics-say-the-fix — preserve the entire repair in both check forms.
+fn format_diagnostic(
+    code: &str,
+    site: Option<&str>,
+    message: &str,
+    rewrite: Option<&str>,
+) -> String {
+    let mut output = format!(
+        "refused {code}{}\n",
+        site.map(|site| format!(" at {site}")).unwrap_or_default()
+    );
+    wrap_diagnostic(&mut output, &format!("message: {message}"));
+    if let Some(rewrite) = rewrite {
+        wrap_diagnostic(&mut output, &format!("rewrite: {rewrite}"));
+    }
+    output
+}
+
+fn wrap_diagnostic(output: &mut String, text: &str) {
+    for line in text.split('\n') {
+        let chars: Vec<char> = line.chars().collect();
+        let mut remaining = chars.as_slice();
+        loop {
+            let count = if remaining.len() <= 98 {
+                remaining.len()
+            } else {
+                remaining[..98]
+                    .iter()
+                    .rposition(|c| c.is_whitespace())
+                    .map(|i| i + 1)
+                    .unwrap_or(98)
+            };
+            output.push_str("  ");
+            output.extend(&remaining[..count]);
+            output.push('\n');
+            remaining = &remaining[count..];
+            if remaining.is_empty() {
+                break;
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn check_preserves_a_200_character_rewrite_and_unicode_message() {
+    let rewrite = "x".repeat(200);
+    let message = "é".repeat(200);
+    let printed = format_diagnostic("E_INPUT", Some("messages.q:2:3"), &message, Some(&rewrite));
+    assert!(printed.lines().all(|line| line.chars().count() <= 100));
+    let joined = printed
+        .lines()
+        .skip(1)
+        .map(|line| line.strip_prefix("  ").unwrap())
+        .collect::<String>();
+    assert_eq!(joined, format!("message: {message}rewrite: {rewrite}"));
 }

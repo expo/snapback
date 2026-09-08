@@ -1,3 +1,4 @@
+import { nameRewrite } from "./diagnostics";
 import type { ArgType, IndexComponent, SchemaJson, SourceSite, TableJson, Value } from "../ir";
 import { expandedNumericLiteral } from "../syntax";
 import type { ChannelDecl, Document, Expr, MaintainDecl, RuleDecl, ScalarType, Site, TableCatalog, TableDecl, TombstoneDecl } from "./ast";
@@ -35,6 +36,8 @@ export function bindQuarrySchemaArtifact(documents: Document[], catalog: TableCa
     if (declaration.name === "connected") continue;
     const bound = bindTable(declaration, catalog);
     tables[declaration.name] = bound.table;
+    const read = declaration.rules.find(rule => rule.effect === "read");
+    sources.push([`schema.tables.${declaration.name}.rules.read`, read?.site ?? declaration.public?.site ?? { ...declaration.site, text: "read <- deny" }]);
     for (const [offset, site] of bound.constraintSources.entries()) {
       sources.push([`schema.tables.${declaration.name}.constraints[${offset}]`, site]);
     }
@@ -116,9 +119,9 @@ function bindTombstones(
       : referencing ? `tombstones ${item.table}[.${referencing.name}] if ${predicate}`
       : `tombstones <table>[.<column of ${declaration.name} referencing it>] if ${predicate}`;
     if (item.table === "connected" || !catalog.has(item.table)) {
-      tombstone(item.site, `${head} names unknown table ${item.table}`, rewrite);
+      tombstone(item.site, `${head} names unknown table ${item.table}`, `${rewrite}; ${nameRewrite(item.table, catalog.keys())}`);
     }
-    if (!column) tombstone(item.site, `${head} names unknown column ${declaration.name}.${item.column}`, rewrite);
+    if (!column) tombstone(item.site, `${head} names unknown column ${declaration.name}.${item.column}`, `${rewrite}; ${nameRewrite(item.column, declaration.columns.map(column => column.name))}`);
     if (column.type.kind !== "ref" || column.type.table !== item.table) {
       tombstone(item.site, `${head}: column ${declaration.name}.${item.column} is ${column.type.kind}, not a reference to ${item.table}`, rewrite);
     }
@@ -151,7 +154,7 @@ function validateTombstonePredicate(expr: Expr, table: TableDecl, item: Tombston
     if (value.kind === "member" && value.base.kind === "focal") {
       const column = table.columns.find((entry) => entry.name === value.name);
       const kind = value.name === "id" ? "id" : column?.type.kind;
-      if (!kind) return fail(value.site, `names unknown column ${table.name}.${value.name}`, suggested);
+      if (!kind) return fail(value.site, `names unknown column ${table.name}.${value.name}`, nameRewrite(value.name, table.columns.map(column => column.name)));
       if (kind === "enum" || kind === "text") return "text";
       if (kind === "bool") return "bool";
       return fail(value.site, `column .${value.name} is ${kind}; only enum, bool, and text columns decide a tombstone`, suggested);
@@ -181,7 +184,7 @@ function validateTombstonePredicate(expr: Expr, table: TableDecl, item: Tombston
         const type = table.columns.find((entry) => entry.name === field.name)?.type;
         if (type?.kind === "enum" && !type.variants.includes(literal.value)) {
           fail(literal.site, `compares .${field.name} with ${JSON.stringify(literal.value)}, which is not one of ${type.variants.join("|")}`,
-            `.${field.name} = ${JSON.stringify(type.variants[0])}`);
+            nameRewrite(literal.value, type.variants));
         }
       }
       return;
@@ -441,7 +444,7 @@ function bindLiteral(expr: Extract<Expr, { kind: "literal" }>, expected?: Scalar
 
 function checkRuleField(context: RuleContext, name: string, site: TableDecl["site"]): void {
   if (context.table && name !== "id" && !context.table.columns.some((column) => column.name === name)) {
-    refuse(site, `table ${context.table.name} has no rule field ${name}`);
+    refuse(site, `table ${context.table.name} has no rule field ${name}`, nameRewrite(name, ["id", ...context.table.columns.map(column => column.name)]));
   }
 }
 
@@ -521,6 +524,6 @@ function required(type: ScalarType | undefined): ScalarType | undefined {
 
 function tableName(catalog: TableCatalog, authored: string, site: TableDecl["site"]): string {
   const declaration = catalog.get(authored)?.declaration;
-  if (!declaration) refuse(site, `unknown table ${authored}`);
+  if (!declaration) refuse(site, `unknown table ${authored}`, nameRewrite(authored, catalog.keys()));
   return declaration.name;
 }

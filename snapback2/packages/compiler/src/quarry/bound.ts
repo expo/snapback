@@ -1,3 +1,4 @@
+import { nameRewrite } from "./diagnostics";
 import { basename } from "node:path";
 import type { Provenance } from "../ir";
 import { columnAt, derivedPosition, ordinaryColumns } from "../index-components";
@@ -68,7 +69,7 @@ function bindProgram(
   let focal: Extract<BoundExpression, { kind: "focal" }> | undefined;
   if (program.focalTable) {
     const info = catalog.get(program.focalTable);
-    if (!info) refuse(program.site, `unknown focal table ${program.focalTable}`);
+    if (!info) refuse(program.site, `unknown focal table ${program.focalTable}`, nameRewrite(program.focalTable, catalog.keys()));
     const table: BoundTableSymbol = { kind: "table", id: `table:${program.focalTable}`, name: program.focalTable,
       declaration: info.declaration, source: sourceStack(info.declaration.site) };
     focal = { kind: "focal", id: `${operationName}:focal`, facts: facts({ kind: "row", table, nullable: false }, "Arg", {
@@ -397,7 +398,7 @@ class ExpressionBinder {
     if (this.program.kind === "query") refuse(this.diagnosticSite(expression.site), "queries cannot write", "change query to mutation");
     if (expression.table === "connected") refuse(this.diagnosticSite(expression.site), "connected is read-only", "use exists connected[viewer] or #connected[viewer]");
     const info = this.catalog.get(expression.table);
-    if (!info) refuse(this.diagnosticSite(expression.site), `unknown table ${expression.table}`);
+    if (!info) refuse(this.diagnosticSite(expression.site), `unknown table ${expression.table}`, nameRewrite(expression.table, this.catalog.keys()));
     const table: BoundTableSymbol = { kind: "table", id: `table:${expression.table}`, name: expression.table,
       declaration: info.declaration, source: sourceStack(info.declaration.site) };
     let index: BoundIndexSymbol | undefined;
@@ -437,7 +438,7 @@ class ExpressionBinder {
         const expected = field.name === "id"
           ? { kind: "id", optional: false } satisfies ScalarType
           : info.columns.get(field.name);
-        if (!expected) typeError(this.diagnosticSite(field.site), `unknown ${expression.table} field ${field.name}`, `use a declared ${expression.table} column`);
+        if (!expected) typeError(this.diagnosticSite(field.site), `unknown ${expression.table} field \`${field.name}\``, nameRewrite(field.name, ["id", ...info.columns.keys()]));
         const value = this.expressionExpected(
           field.value ?? { kind: "name", name: field.name, site: field.site }, expected);
         if (!writeAssignable(value.facts.type, expected, field.value)) {
@@ -526,7 +527,7 @@ class ExpressionBinder {
       "E_QUARRY_UNKNOWN", `add an explicitly typed ${name} parameter to this fn`,
     );
     if (CONTEXT_NAMES.has(name)) return this.contextName(name, source, site);
-    refuse(site, `unknown name ${name}`);
+    refuse(site, `unknown name ${name}`, nameRewrite(name, [...this.scope.keys(), ...CONTEXT_NAMES]));
   }
 
   private contextName(name: string, source: BoundSourceStack, site: Site): BoundExpression {
@@ -692,9 +693,12 @@ class ExpressionBinder {
       const fields = baseType.kind === "image" ? ["width", "height"] : ["width", "height", "duration"];
       if (fields.includes(expression.name)) type = { kind: "int", optional: baseType.optional };
       else typeError(expression.site, `${baseType.kind} asset has no field ${expression.name}`,
-        `select ${quarryExpression(expression.base)}.${fields[0]}`);
+        nameRewrite(expression.name, fields, `declared names: ${fields.join(", ")}; select ${quarryExpression(expression.base)}.${fields[0]}`));
     }
-    if (!type) typeError(expression.site, `cannot select .${expression.name} from ${baseType.kind}`, "select a declared row or object field");
+    if (!type) typeError(expression.site,
+      baseType.kind === "row" ? `unknown ${baseType.table.name} field \`${expression.name}\`` : `cannot select .${expression.name} from ${baseType.kind}`,
+      nameRewrite(expression.name, baseType.kind === "row" ? ["id", ...(this.catalog.get(baseType.table.name)?.columns.keys() ?? [])]
+        : baseType.kind === "object" ? baseType.fields.keys() : []));
     return { kind: "member", base, name: expression.name, facts: facts(type, origin, {
       ...(wholeUnits ? { wholeUnits } : {}),
     }), source };
@@ -730,7 +734,7 @@ class ExpressionBinder {
   private shapeBase(base: BoundExpression, authored: Expr, site: Site): BoundExpression {
     if (base.facts.type.kind !== "ref") return base;
     const tableInfo = this.catalog.get(base.facts.type.table);
-    if (!tableInfo) refuse(this.diagnosticSite(site), `unknown table ${base.facts.type.table}`);
+    if (!tableInfo) refuse(this.diagnosticSite(site), `unknown table ${base.facts.type.table}`, nameRewrite(base.facts.type.table, this.catalog.keys()));
     const table: BoundTableSymbol = { kind: "table", id: `table:${base.facts.type.table}`, name: base.facts.type.table,
       declaration: tableInfo.declaration, source: sourceStack(tableInfo.declaration.site) };
     const selected = selectIndex(this.catalog, table.name, [{ value: authored, site: authored.site }], "point", "byId",
@@ -837,15 +841,15 @@ class ExpressionBinder {
     const source = this.source(expression.site);
     const builtin = bindBuiltinCall(expression, args, source);
     if (builtin) return builtin;
-    unsupported(expression.site, `call ${expression.name}`, "use a direct Quarry pure builtin");
+    refuse(expression.site, `unknown fn ${expression.name}`, nameRewrite(expression.name, [...this.functions.names(this.functionFile), ...this.procs.names(this.functionFile)]));
   }
 
   private walk(expression: Extract<Expr, { kind: "walk" }>): BoundExpression {
     const info = this.catalog.get(expression.table);
-    if (!info) refuse(expression.site, `unknown table ${expression.table}`);
+    if (!info) refuse(expression.site, `unknown table ${expression.table}`, nameRewrite(expression.table, this.catalog.keys()));
     const column = info.columns.get(expression.column);
     if (column?.kind !== "ref" || column.table !== expression.table) refuse(expression.site,
-      `walk ${expression.table} up .${expression.column} requires a self-reference column`);
+      `walk ${expression.table} up .${expression.column} requires a self-reference column`, nameRewrite(expression.column, info.columns.keys()));
     if (!Number.isSafeInteger(expression.depth) || expression.depth < 0 || expression.depth > 10_000) typeError(expression.site,
       "walk depth must be an integer from 0 through 10000", "use a finite depth no greater than 10000");
     const seed = contextualValue(this.expression(expression.seed),
@@ -1056,7 +1060,7 @@ class ExpressionBinder {
   private read(expression: Extract<Expr, { kind: "read" }>): BoundExpression {
     if (expression.table === "connected") refuse(expression.site,
       "connected supports only existence and count reads", "use exists connected[viewer] or #connected[viewer]");
-    const read = this.boundRead(expression, expression.range ? "range" : "point");
+    const read = this.boundRead(expression, expression.range ? "range" : "point", undefined, true);
     if (expression.range) {
       const type: BoundType = { kind: "page", table: read.table, max: expression.range.take };
       return { kind: "scan", read, facts: facts(type, "Shape", { max: expression.range.take, tableOrigin: read.table, readOrigin: read }), source: this.source(expression.site) };
@@ -1067,7 +1071,7 @@ class ExpressionBinder {
 
   private merge(expression: Extract<Expr, { kind: "merge" }>): BoundExpression {
     const tableInfo = this.catalog.get(expression.table);
-    if (!tableInfo) refuse(expression.site, `unknown table ${expression.table}`);
+    if (!tableInfo) refuse(expression.site, `unknown table ${expression.table}`, nameRewrite(expression.table, this.catalog.keys()));
     const declaration = tableInfo.indexes.find((candidate) => candidate.name === expression.index);
     if (!declaration) refuse(expression.site, `table ${expression.table} has no index ${expression.index}`);
     validatePageableMergeIndex(expression.table, declaration);
@@ -1195,16 +1199,17 @@ class ExpressionBinder {
     expression: Extract<Expr, { kind: "read" }>,
     mode: "point" | "range" | "exists",
     boundKeys?: BoundExpression[],
+    valueRead = false,
   ): BoundRead {
     const tableInfo = this.catalog.get(expression.table);
-    if (!tableInfo) refuse(expression.site, `unknown table ${expression.table}`);
+    if (!tableInfo) refuse(expression.site, `unknown table ${expression.table}`, nameRewrite(expression.table, this.catalog.keys()));
     const table: BoundTableSymbol = { kind: "table", id: `table:${expression.table}`, name: expression.table,
       declaration: tableInfo.declaration, source: sourceStack(tableInfo.declaration.site) };
     let keyed = expression.keys.map((part, index) => ({
       authored: part.value, bound: boundKeys?.[index] ?? this.expression(part.value),
     }));
     const selected = selectIndex(this.catalog, expression.table, expression.keys, mode, expression.index,
-      (authored) => scalarForIndex(keyed.find((item) => item.authored === authored)?.bound.facts.type), expression.site);
+      (authored) => scalarForIndex(keyed.find((item) => item.authored === authored)?.bound.facts.type), expression.site, valueRead);
     validateCursorIndex(expression.table, selected, expression.keys.length, expression.range?.cursor?.site);
     const index: BoundIndexSymbol = { kind: "index", id: `${table.id}:index:${selected.name}`, name: selected.name,
       declaration: selected, table, source: sourceStack(selected.site) };

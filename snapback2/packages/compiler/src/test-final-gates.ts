@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -16,6 +16,21 @@ function assert(condition: unknown, message: string): asserts condition {
 }
 
 export function registerFinalGateChecks(test: RegisterTest): void {
+  test("diagnostic family examples use current surfaces and every guide resolves", async () => {
+    const guide = resolve(crate, "packages/snapback2/guide");
+    const families = JSON.parse(await readFile(resolve(guide, "families.source.json"), "utf8"));
+    const failures: string[] = [];
+    for (const row of families) {
+      for (const side of ["wrong", "right"]) for (const deleted of ["db.", "rule.", "ctx.", "t.text(", "withIndex", ".take("]) {
+        if (row[side].includes(deleted)) failures.push(`${row.code}.${side} contains ${deleted}`);
+      }
+      if (typeof row.guide !== "string" || !(await Bun.file(resolve(guide, `${row.guide}.md`)).exists())) {
+        failures.push(`${row.code} has no resolving guide page: ${row.guide}`);
+      }
+    }
+    assert(failures.length === 0, failures.join("\n"));
+  });
+
   test("the React template typechecks against the built snapback2/react package", () => {
     const packageRoot = resolve(crate, "packages/snapback2");
     const app = resolve(packageRoot, "templates/react/src/App.tsx");
