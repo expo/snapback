@@ -225,3 +225,13 @@ On the same EPYC lane, compiler type checking plus all **214 unchanged test
 names** passed in **27.023 s**, compared with 36.300 s before these setup
 reductions. These phase measurements preserve the complete suite and its
 existing deadlines; the 60-second total budget remains an open target.
+
+
+The failure path also retains independent coverage: when `npm pack` fails,
+its original failure is reported and a direct package build restores `dist`
+before later checks consume it. A PATH-shim experiment intentionally failed
+both real pack attempts and produced exactly **212 passing checks and two
+expected packaging failures**. Downstream guide, declaration, template,
+compiler-worker and binary checks passed; the compiler bundle remained present
+and the build lock was absent. Cleanup now matches only the fixture's unique
+launch token and recorded PID. The ordinary one-build path is unchanged.
