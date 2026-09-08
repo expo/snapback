@@ -773,7 +773,7 @@ fn ref_based_pseudo_membership_is_refused_before_authority_proofs() {
         refusals.iter().any(|refusal| {
             refusal["code"] == "E_QUARRY_TYPE"
                 && refusal["message"] == "recipient expects principal, got profiles"
-                && refusal["site"] == "snapback/deliveries.q:37:25"
+                && refusal["site"] == "snapback/deliveries.q:30:25"
                 && refusal["rewrite"]
                     .as_str()
                     .is_some_and(|value| !value.is_empty())

@@ -788,7 +788,7 @@ fn init_refuses_unreadable_managed_text_without_changing_bytes() {
 }
 
 #[test]
-fn chat_expo_scaffolds_flattened_app_shared_reducers_and_sdk54_dependencies() {
+fn chat_expo_scaffolds_shared_recovery_without_the_retired_log_reducer() {
     let project = Project::new();
     let output = project.init("chat", "expo");
     assert!(
@@ -805,9 +805,8 @@ fn chat_expo_scaffolds_flattened_app_shared_reducers_and_sdk54_dependencies() {
         "src/screens/Inbox.tsx",
         "src/screens/Thread.tsx",
         "src/screens/Search.tsx",
-        "shared/log.ts",
-        "shared/log.js",
-        "shared/offline.js",
+        "shared/recovery.ts",
+        "shared/send.ts",
     ] {
         assert!(project.path.join(path).is_file(), "missing {path}");
     }
@@ -830,12 +829,20 @@ fn chat_expo_scaffolds_flattened_app_shared_reducers_and_sdk54_dependencies() {
     assert!(
         std::fs::read_to_string(project.path.join("src/Composer.tsx"))
             .unwrap()
-            .contains("post.ready")
+            .contains("../shared/send")
     );
+    assert!(!project.path.join("shared/log.ts").exists());
+    assert!(!project.path.join("shared/offline.ts").exists());
+    let thread = std::fs::read_to_string(project.path.join("src/screens/Thread.tsx")).unwrap();
+    assert!(
+        thread.contains("api.deliveries.conversationView"),
+        "{thread}"
+    );
+    assert!(!thread.contains("shared/log"), "{thread}");
 }
 
 #[test]
-fn chat_react_keeps_shared_reducer_imports_after_flattening() {
+fn chat_react_scaffolds_shared_recovery_without_the_retired_log_reducer() {
     let project = Project::new();
     let output = project.init("chat", "react");
     assert!(
@@ -843,11 +850,17 @@ fn chat_react_keeps_shared_reducer_imports_after_flattening() {
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
-    assert!(project.path.join("shared/log.ts").is_file());
-    assert!(project.path.join("shared/log.js").is_file());
+    assert!(project.path.join("shared/recovery.ts").is_file());
+    assert!(project.path.join("shared/send.ts").is_file());
+    assert!(!project.path.join("shared/log.ts").exists());
+    assert!(!project.path.join("shared/offline.ts").exists());
+    let thread = std::fs::read_to_string(project.path.join("src/Thread.tsx")).unwrap();
     assert!(
-        std::fs::read_to_string(project.path.join("src/Thread.tsx"))
-            .unwrap()
-            .contains("../shared/log.js")
+        thread.contains("api.deliveries.conversationView"),
+        "{thread}"
     );
+    assert!(thread.contains("../shared/recovery"), "{thread}");
+    assert!(!thread.contains("shared/log"), "{thread}");
+    let composer = std::fs::read_to_string(project.path.join("src/Composer.tsx")).unwrap();
+    assert!(composer.contains("../shared/send"), "{composer}");
 }

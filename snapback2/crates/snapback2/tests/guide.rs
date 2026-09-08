@@ -407,7 +407,7 @@ fn quarry_grammar_and_refusal_guides_ship_without_double_fences() {
     assert!(quarry.status.success());
     assert!(String::from_utf8_lossy(&quarry.stdout).contains("Quarry is the backend language"));
     assert!(String::from_utf8_lossy(&quarry.stdout)
-        .contains("inspection copies\ngo in `.snapback/build/quarry/`, never `snapback/`"));
+        .contains("`check` compiles in memory; inspection goes in\n`.snapback/build/quarry/`, never `snapback/`"));
     for page in ["grammar"] {
         let output = project.run(&["guide", page]);
         assert!(output.status.success(), "{page}");
