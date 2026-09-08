@@ -258,7 +258,7 @@ export function fakeOwner(options: FakeOwnerOptions = {}) {
         generation: "schema-generation", programGeneration: generation,
         schemaHash, schema,
         ops: options.cursorArg ? {
-          "deliveries.inbox": { kind: "query", planHash: inboxCert.plan_hash, drain: drainFrom(inboxCert, cursor), args: inboxIr.args },
+          "deliveries.inbox": { kind: "query", cursor, planHash: inboxCert.plan_hash, drain: drainFrom(inboxCert, cursor), args: inboxIr.args },
         } : {},
         channels: {}, auth: {},
         tables: { messages: { retain: "delivered-history" } },
@@ -276,9 +276,9 @@ export function fakeOwner(options: FakeOwnerOptions = {}) {
         generation, schemaHash,
         schema,
         programs: {
-          "deliveries.inbox": { kind: "query", planHash: inboxCert.plan_hash, drain: drainFrom(inboxCert, cursor), ir: inboxIr, certificate: inboxCert },
-          "deliveries.inboxAlternate": { kind: "query", planHash: alternateCert.plan_hash, drain: drainFrom(alternateCert, "c"), ir: alternateIr, certificate: alternateCert },
-          "deliveries.thread": { kind: "query", planHash: threadCert.plan_hash, drain: drainFrom(threadCert, "c"), ir: threadIr, certificate: threadCert },
+          "deliveries.inbox": { kind: "query", cursor, planHash: inboxCert.plan_hash, drain: drainFrom(inboxCert, cursor), ir: inboxIr, certificate: inboxCert },
+          "deliveries.inboxAlternate": { kind: "query", cursor: "c", planHash: alternateCert.plan_hash, drain: drainFrom(alternateCert, "c"), ir: alternateIr, certificate: alternateCert },
+          "deliveries.thread": { kind: "query", cursor: "c", planHash: threadCert.plan_hash, drain: drainFrom(threadCert, "c"), ir: threadIr, certificate: threadCert },
           "deliveries.post": { kind: "mutation", planHash: certificate(postIr, 'Insert').plan_hash, ir: postIr, certificate: certificate(postIr, 'Insert') },
           "deliveries.edit": { kind: "mutation", planHash: certificate(editIr, 'Update').plan_hash, ir: editIr, certificate: certificate(editIr, 'Update') },
         },
