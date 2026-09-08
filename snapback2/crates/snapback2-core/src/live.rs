@@ -13,10 +13,144 @@ pub type SubscriptionId = u64;
 type TraceIndex = (String, String);
 type ExactTraceKey = (String, String, String);
 
+type SubscriptionRefs = BTreeMap<SubscriptionId, usize>;
+
+/// Scalar components form the path. A range ending at this node is in
+/// `terminal`; every range at or below it is refcounted in `subtree` so a
+/// scope touch can select descendants without scanning unrelated prefixes.
 #[derive(Default)]
-struct RangePrefixGroup {
-    prefix: Vec<crate::search_key::IndexAtom>,
-    ids: BTreeSet<SubscriptionId>,
+struct RangePrefixNode {
+    children: BTreeMap<String, RangePrefixNode>,
+    terminal: SubscriptionRefs,
+    subtree: SubscriptionRefs,
+}
+
+fn increment_ref(ids: &mut SubscriptionRefs, id: SubscriptionId) {
+    *ids.entry(id).or_default() += 1;
+}
+
+fn decrement_ref(ids: &mut SubscriptionRefs, id: SubscriptionId) {
+    let Some(count) = ids.get_mut(&id) else {
+        return;
+    };
+    if *count == 1 {
+        ids.remove(&id);
+    } else {
+        *count -= 1;
+    }
+}
+
+fn scalar_prefix_path(prefix: &[crate::search_key::IndexAtom]) -> (Vec<String>, bool) {
+    let path = prefix
+        .iter()
+        .take_while(|atom| matches!(atom, crate::search_key::IndexAtom::Scalar(_)))
+        .map(|atom| match atom {
+            crate::search_key::IndexAtom::Scalar(value) => canonical_json(value),
+            crate::search_key::IndexAtom::WordPrefix(_) => unreachable!(),
+        })
+        .collect::<Vec<_>>();
+    let fully_scalar = path.len() == prefix.len();
+    (path, fully_scalar)
+}
+
+impl RangePrefixNode {
+    fn add(&mut self, id: SubscriptionId, prefix: &[crate::search_key::IndexAtom]) -> usize {
+        let (path, fully_scalar) = scalar_prefix_path(prefix);
+        self.add_path(id, &path, fully_scalar)
+    }
+
+    fn add_path(&mut self, id: SubscriptionId, path: &[String], fully_scalar: bool) -> usize {
+        increment_ref(&mut self.subtree, id);
+        if let Some((head, tail)) = path.split_first() {
+            2 + self
+                .children
+                .entry(head.clone())
+                .or_default()
+                .add_path(id, tail, fully_scalar)
+        } else {
+            if fully_scalar {
+                increment_ref(&mut self.terminal, id);
+                2
+            } else {
+                1
+            }
+        }
+    }
+
+    fn remove(&mut self, id: SubscriptionId, prefix: &[crate::search_key::IndexAtom]) -> usize {
+        let (path, fully_scalar) = scalar_prefix_path(prefix);
+        self.remove_path(id, &path, fully_scalar)
+    }
+
+    fn remove_path(&mut self, id: SubscriptionId, path: &[String], fully_scalar: bool) -> usize {
+        decrement_ref(&mut self.subtree, id);
+        let Some((head, tail)) = path.split_first() else {
+            if fully_scalar {
+                decrement_ref(&mut self.terminal, id);
+                return 2;
+            }
+            return 1;
+        };
+        let Some(child) = self.children.get_mut(head) else {
+            return 2;
+        };
+        let mut work = 2 + child.remove_path(id, tail, fully_scalar);
+        if child.is_empty() {
+            self.children.remove(head);
+            work += 1;
+        }
+        work
+    }
+
+    fn is_empty(&self) -> bool {
+        self.children.is_empty() && self.terminal.is_empty() && self.subtree.is_empty()
+    }
+
+    /// Exact scalar touches select only range prefixes that end on ancestors.
+    fn scalar_ancestors(
+        &self,
+        key: &[Value],
+        ids: &mut BTreeSet<SubscriptionId>,
+    ) -> (usize, usize) {
+        let mut node = self;
+        let mut visits = 1;
+        let mut bucket_refs = node.terminal.len();
+        ids.extend(node.terminal.keys());
+        for value in key {
+            let Some(child) = node.children.get(&canonical_json(value)) else {
+                break;
+            };
+            node = child;
+            visits += 1;
+            bucket_refs += node.terminal.len();
+            ids.extend(node.terminal.keys());
+        }
+        (visits, bucket_refs)
+    }
+
+    /// Scope touches select scalar-prefix ancestors plus every range below the
+    /// exact scope, including all WordPrefix terms rooted there.
+    fn scope_intersections(
+        &self,
+        scope: &[Value],
+        ids: &mut BTreeSet<SubscriptionId>,
+    ) -> (usize, usize) {
+        let mut node = self;
+        let mut visits = 1;
+        let mut bucket_refs = 0;
+        for value in scope {
+            bucket_refs += node.terminal.len();
+            ids.extend(node.terminal.keys());
+            let Some(child) = node.children.get(&canonical_json(value)) else {
+                return (visits, bucket_refs);
+            };
+            node = child;
+            visits += 1;
+        }
+        bucket_refs += node.subtree.len();
+        ids.extend(node.subtree.keys());
+        (visits, bucket_refs)
+    }
 }
 
 #[derive(Default)]
@@ -106,39 +240,31 @@ struct Subscription {
 pub struct Subscriptions {
     next_id: SubscriptionId,
     entries: BTreeMap<SubscriptionId, Subscription>,
-    ranges: BTreeMap<TraceIndex, BTreeMap<String, RangePrefixGroup>>,
+    ranges: BTreeMap<TraceIndex, RangePrefixNode>,
     exact: BTreeMap<ExactTraceKey, BTreeSet<SubscriptionId>>,
     constraints: BTreeMap<String, BTreeSet<SubscriptionId>>,
     #[cfg(test)]
     last_index_work: usize,
+    #[cfg(test)]
+    last_invalidation_prefix_visits: std::cell::Cell<usize>,
+    #[cfg(test)]
+    last_invalidation_bucket_refs: std::cell::Cell<usize>,
 }
 
 impl Subscriptions {
     fn add_keys(&mut self, id: SubscriptionId, keys: &TraceKeys) {
-        for ((table, index, prefix_key), prefix) in &keys.ranges {
-            #[cfg(test)]
-            {
-                self.last_index_work += 1;
-            }
-            let groups = self
+        for ((table, index, _), prefix) in &keys.ranges {
+            let work = self
                 .ranges
                 .entry((table.clone(), index.clone()))
-                .or_default();
+                .or_default()
+                .add(id, prefix);
             #[cfg(test)]
             {
-                self.last_index_work += 1;
+                self.last_index_work += work;
             }
-            let group = groups
-                .entry(prefix_key.clone())
-                .or_insert_with(|| RangePrefixGroup {
-                    prefix: prefix.clone(),
-                    ids: BTreeSet::new(),
-                });
-            #[cfg(test)]
-            {
-                self.last_index_work += 1;
-            }
-            group.ids.insert(id);
+            #[cfg(not(test))]
+            let _ = work;
         }
         for key in &keys.exact {
             if self.exact.entry(key.clone()).or_default().insert(id) {
@@ -164,31 +290,18 @@ impl Subscriptions {
     }
 
     fn remove_keys(&mut self, id: SubscriptionId, keys: &TraceKeys) {
-        for ((table, index, prefix_key), _) in &keys.ranges {
+        for ((table, index, _), prefix) in &keys.ranges {
             let index_key = (table.clone(), index.clone());
-            #[cfg(test)]
-            {
-                self.last_index_work += 1;
-            }
             let mut remove_index = false;
-            if let Some(groups) = self.ranges.get_mut(&index_key) {
+            if let Some(root) = self.ranges.get_mut(&index_key) {
+                let work = root.remove(id, prefix);
                 #[cfg(test)]
                 {
-                    self.last_index_work += 1;
+                    self.last_index_work += work;
                 }
-                let mut remove_prefix = false;
-                if let Some(group) = groups.get_mut(prefix_key) {
-                    #[cfg(test)]
-                    {
-                        self.last_index_work += 1;
-                    }
-                    group.ids.remove(&id);
-                    remove_prefix = group.ids.is_empty();
-                }
-                if remove_prefix {
-                    groups.remove(prefix_key);
-                }
-                remove_index = groups.is_empty();
+                #[cfg(not(test))]
+                let _ = work;
+                remove_index = root.is_empty();
             }
             if remove_index {
                 self.ranges.remove(&index_key);
@@ -262,6 +375,49 @@ impl Subscriptions {
         self.add_keys(id, &added);
     }
 
+    fn invalidated(&self, commit: &CommitRecord) -> Vec<SubscriptionId> {
+        let mut invalidated = BTreeSet::new();
+        let mut prefix_visits = 0;
+        let mut bucket_refs = 0;
+        for touched in &commit.touched {
+            if let Some(ranges) = self
+                .ranges
+                .get(&(touched.table.clone(), touched.index.clone()))
+            {
+                let work = ranges.scalar_ancestors(&touched.key, &mut invalidated);
+                prefix_visits += work.0;
+                bucket_refs += work.1;
+            }
+            if let Some(ids) = self.exact.get(&(
+                touched.table.clone(),
+                touched.index.clone(),
+                canonical_json(&touched.key),
+            )) {
+                invalidated.extend(ids);
+            }
+            if let Some(ids) = self.constraints.get(&touched.table) {
+                invalidated.extend(ids);
+            }
+        }
+        for touch in &commit.scope_touches {
+            if let Some(ranges) = self.ranges.get(&(touch.table.clone(), touch.index.clone())) {
+                let work = ranges.scope_intersections(&touch.prefix, &mut invalidated);
+                prefix_visits += work.0;
+                bucket_refs += work.1;
+            }
+            if let Some(ids) = self.constraints.get(&touch.table) {
+                invalidated.extend(ids);
+            }
+        }
+        #[cfg(test)]
+        self.last_invalidation_prefix_visits.set(prefix_visits);
+        #[cfg(test)]
+        self.last_invalidation_bucket_refs.set(bucket_refs);
+        #[cfg(not(test))]
+        let _ = (prefix_visits, bucket_refs);
+        invalidated.into_iter().collect()
+    }
+
     fn ids(&self) -> Vec<SubscriptionId> {
         self.entries.keys().copied().collect()
     }
@@ -328,47 +484,7 @@ impl Runtime {
     }
 
     pub fn invalidated(&self, commit: &CommitRecord) -> Vec<SubscriptionId> {
-        let mut invalidated = BTreeSet::new();
-        for touched in &commit.touched {
-            if let Some(ranges) = self
-                .subs
-                .ranges
-                .get(&(touched.table.clone(), touched.index.clone()))
-            {
-                for group in ranges.values() {
-                    if crate::search_key::scalar_key_starts_with(&touched.key, &group.prefix) {
-                        invalidated.extend(&group.ids);
-                    }
-                }
-            }
-            if let Some(ids) = self.subs.exact.get(&(
-                touched.table.clone(),
-                touched.index.clone(),
-                canonical_json(&touched.key),
-            )) {
-                invalidated.extend(ids);
-            }
-            if let Some(ids) = self.subs.constraints.get(&touched.table) {
-                invalidated.extend(ids);
-            }
-        }
-        for touch in &commit.scope_touches {
-            if let Some(ranges) = self
-                .subs
-                .ranges
-                .get(&(touch.table.clone(), touch.index.clone()))
-            {
-                for group in ranges.values() {
-                    if crate::search_key::scope_intersects(&touch.prefix, &group.prefix) {
-                        invalidated.extend(&group.ids);
-                    }
-                }
-            }
-            if let Some(ids) = self.subs.constraints.get(&touch.table) {
-                invalidated.extend(ids);
-            }
-        }
-        invalidated.into_iter().collect()
+        self.subs.invalidated(commit)
     }
 
     pub fn rerun(&mut self, ids: &[SubscriptionId]) -> Vec<Delivery> {
@@ -467,8 +583,8 @@ mod tests {
     use crate::ir::{Expr, KeyProvenance, Order, Program, Read, Stmt};
     use crate::registry::{Generation, ProjectJson};
     use crate::schema::{Auth, ColumnType, Index, Schema, public_table};
-    use crate::search_key::{IndexAtom, IndexComponent};
-    use crate::store::Store;
+    use crate::search_key::{IndexAtom, IndexComponent, SearchContract, WordPrefix};
+    use crate::store::{ScopeTouch, Store, TouchedKey};
     use crate::value::{Value, object};
 
     #[test]
@@ -580,28 +696,239 @@ mod tests {
         let old = trace("group-1");
         let new = trace("moved");
         subscriptions.replace_trace(1, &old, &new);
-        assert_eq!(subscriptions.last_index_work, 6);
-        let groups = &subscriptions.ranges[&("items".to_owned(), "byGroup".to_owned())];
+        assert_eq!(subscriptions.last_index_work, 9);
+        let root = &subscriptions.ranges[&("items".to_owned(), "byGroup".to_owned())];
         assert!(
-            !groups.contains_key(&canonical_json(&vec![IndexAtom::Scalar(Value::Id(
-                "group-1".to_owned(),
-            ))]))
+            !root
+                .children
+                .contains_key(&canonical_json(&Value::Id("group-1".to_owned(),)))
         );
         assert_eq!(
-            groups[&canonical_json(&vec![IndexAtom::Scalar(Value::Id("moved".to_owned(),))])].ids,
-            BTreeSet::from([1]),
+            root.children[&canonical_json(&Value::Id("moved".to_owned()))].terminal,
+            BTreeMap::from([(1, 1)]),
         );
 
         subscriptions.last_index_work = 0;
         subscriptions.replace_trace(1_001, &trace("shared"), &trace("moved-shared"));
-        assert_eq!(subscriptions.last_index_work, 6);
-        let groups = &subscriptions.ranges[&("items".to_owned(), "byGroup".to_owned())];
+        assert_eq!(subscriptions.last_index_work, 8);
+        let root = &subscriptions.ranges[&("items".to_owned(), "byGroup".to_owned())];
         assert_eq!(
-            groups[&canonical_json(&vec![IndexAtom::Scalar(Value::Id("shared".to_owned(),))])]
-                .ids
+            root.children[&canonical_json(&Value::Id("shared".to_owned()))]
+                .terminal
                 .len(),
             999,
         );
+    }
+
+    fn add_range(subscriptions: &mut Subscriptions, id: SubscriptionId, prefix: Vec<IndexAtom>) {
+        subscriptions.add_keys(
+            id,
+            &TraceKeys {
+                ranges: BTreeMap::from([(
+                    (
+                        "items".to_owned(),
+                        "byGroup".to_owned(),
+                        canonical_json(&prefix),
+                    ),
+                    prefix,
+                )]),
+                ..TraceKeys::default()
+            },
+        );
+    }
+
+    fn remove_range(subscriptions: &mut Subscriptions, id: SubscriptionId, prefix: Vec<IndexAtom>) {
+        subscriptions.remove_keys(
+            id,
+            &TraceKeys {
+                ranges: BTreeMap::from([(
+                    (
+                        "items".to_owned(),
+                        "byGroup".to_owned(),
+                        canonical_json(&prefix),
+                    ),
+                    prefix,
+                )]),
+                ..TraceKeys::default()
+            },
+        );
+    }
+
+    fn word(source: &str) -> IndexAtom {
+        IndexAtom::WordPrefix(WordPrefix {
+            contract: SearchContract::Unicode17,
+            source: source.to_owned(),
+        })
+    }
+
+    #[test]
+    fn range_prefix_trie_matches_scalar_and_scope_oracles() {
+        let prefixes = vec![
+            (1, vec![]),
+            (2, vec![IndexAtom::Scalar(Value::Id("g".to_owned()))]),
+            (
+                3,
+                vec![
+                    IndexAtom::Scalar(Value::Id("g".to_owned())),
+                    IndexAtom::Scalar(Value::String("x".to_owned())),
+                ],
+            ),
+            (4, vec![IndexAtom::Scalar(Value::String("g".to_owned()))]),
+            (
+                5,
+                vec![IndexAtom::Scalar(Value::Id("g".to_owned())), word("ca")],
+            ),
+            (
+                6,
+                vec![
+                    IndexAtom::Scalar(Value::Id("g".to_owned())),
+                    IndexAtom::Scalar(Value::String("x".to_owned())),
+                    word("dog"),
+                ],
+            ),
+            (7, vec![IndexAtom::Scalar(Value::Id("other".to_owned()))]),
+            (8, vec![word("root")]),
+        ];
+        let mut subscriptions = Subscriptions::default();
+        for (id, prefix) in &prefixes {
+            add_range(&mut subscriptions, *id, prefix.clone());
+        }
+        let root = &subscriptions.ranges[&("items".to_owned(), "byGroup".to_owned())];
+
+        for key in [
+            vec![],
+            vec![Value::Id("g".to_owned())],
+            vec![Value::Id("g".to_owned()), Value::String("x".to_owned())],
+            vec![Value::String("g".to_owned())],
+        ] {
+            let expected = prefixes
+                .iter()
+                .filter(|(_, prefix)| crate::search_key::scalar_key_starts_with(&key, prefix))
+                .map(|(id, _)| *id)
+                .collect::<BTreeSet<_>>();
+            let mut actual = BTreeSet::new();
+            root.scalar_ancestors(&key, &mut actual);
+            assert_eq!(actual, expected, "scalar key {key:?}");
+        }
+
+        for scope in [
+            vec![],
+            vec![Value::Id("g".to_owned())],
+            vec![Value::Id("g".to_owned()), Value::String("x".to_owned())],
+            vec![
+                Value::Id("g".to_owned()),
+                Value::String("x".to_owned()),
+                Value::String("longer".to_owned()),
+            ],
+            vec![Value::String("g".to_owned())],
+        ] {
+            let expected = prefixes
+                .iter()
+                .filter(|(_, prefix)| crate::search_key::scope_intersects(&scope, prefix))
+                .map(|(id, _)| *id)
+                .collect::<BTreeSet<_>>();
+            let mut actual = BTreeSet::new();
+            root.scope_intersections(&scope, &mut actual);
+            assert_eq!(actual, expected, "scope {scope:?}");
+        }
+    }
+
+    #[test]
+    fn range_prefix_trie_refcounts_multiple_search_terms_and_prunes() {
+        let scope = IndexAtom::Scalar(Value::Id("g".to_owned()));
+        let cafe = vec![scope.clone(), word("cafe")];
+        let dog = vec![scope, word("dog")];
+        let mut subscriptions = Subscriptions::default();
+        add_range(&mut subscriptions, 1, cafe.clone());
+        add_range(&mut subscriptions, 1, dog.clone());
+
+        let mut actual = BTreeSet::new();
+        subscriptions.ranges[&("items".to_owned(), "byGroup".to_owned())]
+            .scope_intersections(&[Value::Id("g".to_owned())], &mut actual);
+        assert_eq!(actual, BTreeSet::from([1]));
+
+        remove_range(&mut subscriptions, 1, cafe);
+        let mut actual = BTreeSet::new();
+        subscriptions.ranges[&("items".to_owned(), "byGroup".to_owned())]
+            .scope_intersections(&[Value::Id("g".to_owned())], &mut actual);
+        assert_eq!(actual, BTreeSet::from([1]));
+
+        remove_range(&mut subscriptions, 1, dog);
+        assert!(subscriptions.ranges.is_empty());
+    }
+
+    fn commit_with(touched: Vec<TouchedKey>, scope_touches: Vec<ScopeTouch>) -> CommitRecord {
+        CommitRecord {
+            seq: 1,
+            at: 0,
+            program: "test".to_owned(),
+            principal: "test".to_owned(),
+            kind: "mutation".to_owned(),
+            by: None,
+            job: None,
+            job_chunk: None,
+            schedule: None,
+            touched,
+            scope_touches,
+            writes: BTreeMap::new(),
+            emits: 0,
+        }
+    }
+
+    #[test]
+    fn invalidation_prefix_work_varies_with_affected_not_total_groups() {
+        for search in [false, true] {
+            for total in [200, 2_000] {
+                let mut subscriptions = Subscriptions::default();
+                for id in 1..=total {
+                    let mut prefix = vec![IndexAtom::Scalar(Value::Id(format!("group-{id}")))];
+                    if search {
+                        prefix.push(word(&format!("term-{id}")));
+                    }
+                    add_range(&mut subscriptions, id as u64, prefix);
+                }
+                for affected in [1, 50] {
+                    let touched = (!search)
+                        .then(|| {
+                            (1..=affected)
+                                .map(|id| TouchedKey {
+                                    table: "items".to_owned(),
+                                    index: "byGroup".to_owned(),
+                                    key: vec![
+                                        Value::Id(format!("group-{id}")),
+                                        Value::Id(format!("row-{id}")),
+                                    ],
+                                    row_id: format!("row-{id}"),
+                                })
+                                .collect()
+                        })
+                        .unwrap_or_default();
+                    let scope_touches = search
+                        .then(|| {
+                            (1..=affected)
+                                .map(|id| ScopeTouch {
+                                    table: "items".to_owned(),
+                                    index: "byGroup".to_owned(),
+                                    prefix: vec![Value::Id(format!("group-{id}"))],
+                                })
+                                .collect()
+                        })
+                        .unwrap_or_default();
+                    let actual = subscriptions.invalidated(&commit_with(touched, scope_touches));
+                    assert_eq!(actual, (1..=affected as u64).collect::<Vec<_>>());
+                    assert_eq!(
+                        subscriptions.last_invalidation_prefix_visits.get(),
+                        affected * 2,
+                        "search={search} total={total} affected={affected}",
+                    );
+                    assert_eq!(
+                        subscriptions.last_invalidation_bucket_refs.get(),
+                        affected,
+                        "search={search} total={total} affected={affected}",
+                    );
+                }
+            }
+        }
     }
 
     #[test]
