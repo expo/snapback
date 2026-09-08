@@ -1,4 +1,5 @@
 import { decodeHeldProgram, queryClock } from "./held-program.js";
+import { cursorArgument, serverArguments } from "./local-cursor.js";
 export { decodeHeldProgram } from "./held-program.js";
 import { tombstonesFor } from "./tombstones.js";
 import { SnapbackRefusal, throwIfAborted, isSnapbackRefusal } from "./client-wire.js";
@@ -119,15 +120,7 @@ function object(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-/** The argument the manifest types `Cursor` (or `Optional(Cursor)`), by name order as the server picks it. */
-function cursorArgument(args: unknown): string | undefined {
-  if (!object(args)) return undefined;
-  for (const name of Object.keys(args).sort()) {
-    const kind = args[name];
-    if (kind === "Cursor" || (object(kind) && kind.Optional === "Cursor")) return name;
-  }
-  return undefined;
-}
+
 
 // @ref LLP 1012#6-reads-offline — owner-derived returned-page metadata, never a scan/name/cursor heuristic.
 export function admitDrain(op: string, contract: DrainContract | undefined): string {
@@ -174,7 +167,7 @@ export class OfflineRuntime {
   /** Per wait: the route's first durable read, so a client can order it before any network work (LLP 1018.004 §2). */
   private readonly routeReady = new Map<object, Promise<void>>();
   private retention: Record<string, RetentionPolicy> = {};
-  private cursors: Record<string, string> = {};
+  private operations: Manifest["ops"] = {};
   private schema?: OfflineSchema;
   private facts?: ResumeFacts;
   /** Set by a delivery under another generation or schema: held coverage is stale-exact until the reset path (LLP 1012 §8). */
@@ -185,7 +178,6 @@ export class OfflineRuntime {
   private pendingBounds?: Record<string, number>;
   private pendingProgram?: HeldProgram;
   private held?: HeldProgram;
-  private drains: Record<string, DrainContract | undefined> = {};
   private resumeQueries: MountedQuery[] = [];
   private tail: Promise<void> = Promise.resolve();
   private readonly inputListeners = new Set<() => void>();
@@ -489,7 +481,7 @@ export class OfflineRuntime {
         this.facts = undefined;
         this.superseded = undefined;
         this.held = undefined;
-        this.drains = {};
+        this.operations = {};
         this.drainOutcome = Promise.resolve({ stopped: false, remaining: 0 });
       }
       if (this.partition !== undefined && this.partition !== principal) await this.store.wipe(this.partition);
@@ -502,7 +494,6 @@ export class OfflineRuntime {
         this.facts = this.superseded = this.held = undefined;
         this.latestSeq = 0;
         this.sessionEpoch = undefined;
-        this.cursors = {};
         this.schema = undefined;
       }
       await this.store.open(principal);
@@ -618,13 +609,7 @@ export class OfflineRuntime {
       if (word === "until-revoked" || word === "delivered-history") retention[name] = word;
     }
     this.retention = retention;
-    const cursors: Record<string, string> = {};
-    for (const [name, operation] of Object.entries(value.ops ?? {})) {
-      const cursor = cursorArgument((operation as { args?: unknown } | undefined)?.args);
-      if (cursor !== undefined) cursors[name] = cursor;
-    }
-    this.cursors = cursors;
-    this.drains = Object.fromEntries(Object.entries(value.ops ?? {}).map(([op, entry]) => [op, entry.drain]));
+    this.operations = value.ops ?? {};
     // A fresh login has no receipt/auth epoch. A parameter-free query (including
     // optional cursor arguments) can earn those facts before a logless resume.
     this.resumeQueries = Object.entries(value.ops ?? {}).flatMap(([op, operation]) => {
@@ -636,18 +621,14 @@ export class OfflineRuntime {
     this.schema = (value.schema?.tables ? value.schema : { tables }) as OfflineSchema;
   }
 
-  /**
-   * The op's cursor argument as the manifest names it (the server keys the resume tail
-   * by that argument's type, never its name); `c`, the recipe's spelling, until the
-   * manifest is loaded.
-   */
+  /** Native returned-page metadata; formal argument order never selects a cursor. */
   declaredCursorArg(op: string): string | undefined {
-    const ir = this.held?.programs[op]?.ir;
-    const contract = this.held?.programs[op]?.drain ?? this.drains[op];
-    if (contract && "cursor" in contract) return contract.cursor;
-    return this.cursors[op] ?? cursorArgument(object(ir) ? ir.args : undefined);
+    return cursorArgument(this.held ? this.held.programs[op] : this.operations[op]);
   }
   cursorArg(op: string): string { return this.declaredCursorArg(op) ?? "c"; }
+  serverArguments(op: string, args: unknown): unknown {
+    return serverArguments(args, (this.held?.programs[op]?.ir as any)?.args ?? this.operations[op]?.args);
+  }
 
   /**
    * Records `/api/program`: the schema, the certified program held for the twin
@@ -932,12 +913,12 @@ export class OfflineRuntime {
 
   /** Offline admission uses the held generation; current metadata never certifies stale coverage. */
   drainCursor(op: string): string {
-    return admitDrain(op, this.held ? this.held.programs[op]?.drain : this.drains[op]);
+    return admitDrain(op, this.held ? this.held.programs[op]?.drain : this.operations[op]?.drain);
   }
 
   /** A known unsupported old watermark stays refused, but need not block independently permitted write settlement. */
   unsupportedLog(op: string): boolean {
-    const contract = this.held?.programs[op]?.drain ?? this.drains[op];
+    const contract = this.held?.programs[op]?.drain ?? this.operations[op]?.drain;
     return contract !== undefined && "reason" in contract;
   }
 
@@ -1018,7 +999,8 @@ export class OfflineRuntime {
     const log = mounted.find((query) => query.drain);
     if (log) return log;
     if (held) return { op: held.op, args: held.args, drain: true };
-    for (const op of Object.keys(this.cursors)) {
+    for (const [op, metadata] of Object.entries(this.operations)) {
+      if (!cursorArgument(metadata)) continue;
       const query = mounted.find((query) => query.op === op) ?? this.resumeQueries.find((query) => query.op === op);
       if (query) return query;
     }

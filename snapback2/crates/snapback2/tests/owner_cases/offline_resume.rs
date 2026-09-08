@@ -401,7 +401,27 @@ fn offline_resume_stops_at_one_mib_of_output_with_more() {
 
 #[test]
 fn offline_manifest_and_certificate_carry_retain() {
-    let (root, mut owner, port, secret) = boot(|_| {});
+    let (root, mut owner, port, secret) = boot(|root| {
+        append_source(
+            root,
+            "snapback/messages.q",
+            r#"
+proc cursorPreview(conversationId: conversations, position: cursor ?):
+  preview = messages[conversationId] after position first 1
+fn cursorPage(conversationId: conversations, position: cursor ?) = messages[conversationId] after position first 2
+query cursorRecord(a: cursor ?, c: cursor ?, conversationId: conversations, flag: bool):
+  cursorPreview(conversationId, a)
+  selected = c
+  if flag:
+    return { messages: cursorPage(conversationId, selected) }
+  return { messages: cursorPage(conversationId, c) }
+query cursorBranches(a: cursor ?, c: cursor ?, conversationId: conversations, flag: bool):
+  if flag:
+    return { messages: cursorPage(conversationId, a) }
+  return { messages: cursorPage(conversationId, c) }
+"#,
+        )
+    });
     let manifest = request(port, "GET", "/api/manifest", &[], json!({}));
     assert_eq!(manifest.status, 200, "{}", manifest.body);
     let tables = manifest.body["tables"].as_object().unwrap();
@@ -424,6 +444,21 @@ fn offline_manifest_and_certificate_carry_retain() {
         json!({}),
     );
     assert_eq!(program.status, 200, "{}", program.body);
+    for (op, cursor) in [
+        ("messages.log", json!("c")),
+        ("messages.cursorRecord", json!("c")),
+        ("messages.cursorBranches", Value::Null),
+    ] {
+        assert_eq!(manifest.body["ops"][op]["cursor"], cursor, "manifest {op}");
+        assert_eq!(
+            program.body["programs"][op]["cursor"], cursor,
+            "program {op}"
+        );
+    }
+    assert_eq!(
+        manifest.body["ops"]["messages.cursorRecord"]["drain"]["reason"],
+        "cursor-binding"
+    );
     let certificate = &program.body["programs"]["messages.send"]["certificate"];
     assert_eq!(
         certificate["tables"]["messages"]["retain"], "delivered-history",

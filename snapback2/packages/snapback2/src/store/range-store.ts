@@ -135,7 +135,7 @@ export interface CoverageFacts {
 
 /** One certified operation as `GET /api/program` serves it: the IR the twin runs and its certificate. */
 export interface HeldOperation {
-  drain?: import("../types.js").DrainContract;
+  cursor?: string; drain?: import("../types.js").DrainContract;
   kind: "query" | "mutation";
   planHash: string;
   ir: unknown;

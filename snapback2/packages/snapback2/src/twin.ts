@@ -127,7 +127,7 @@ export class Twin {
       const suffix = page?.merge
         ? local.execution.trace.merges.slice().reverse().find(m => m.site === page.site)?.last_returned_suffix
         : local.execution.trace.ranges.slice().reverse().find(r => r.site === page?.site)?.lastReturnedSuffix;
-      const next = page && suffix && queryState(operation.certificate, local.execution.trace, context.viewer) === 'capped'
+      const next = cursor && page && suffix && queryState(operation.certificate, local.execution.trace, context.viewer) === 'capped'
         ? encodeLocalCursor(fence, binding, { table: page.table, index: page.index, order: page.order, suffix: page.suffix, values: suffix }) : null;
       const result = local.execution.result;
       const data = result === "Null" && local.state !== "fresh" ? undefined : nullOnceMedia(wireJson(result), hydrated.onceAssets);

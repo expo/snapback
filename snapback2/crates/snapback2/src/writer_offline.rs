@@ -133,6 +133,7 @@ pub(super) fn program(generation: &Generation, requested: &str) -> Result<Json, 
                     "planHash": certificate.plan_hash,
                     "ir": program,
                     "certificate": certificate,
+                    "cursor": snapback2_core::certificate::result_cursor(program, certificate),
                     "drain": writer_resume::drain_metadata(program, certificate),
                 }),
             )

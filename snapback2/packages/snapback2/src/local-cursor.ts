@@ -5,17 +5,24 @@ import { sha256 } from '../../evaluator/src/hash.js';
 import { canonicalJson } from '../../evaluator/src/value-runtime.js';
 import { SearchExecution } from '../../evaluator/src/search-runtime.js';
 import type { HeldOperation } from './store/range-store.js';
+import type { DrainContract } from './types.js';
 
-export function cursorArgument(operation: HeldOperation | undefined): string | undefined {
-  const args = (operation?.ir as any)?.args ?? {};
-  return Object.keys(args).find(k => args[k] === 'Cursor' || args[k]?.Optional === 'Cursor');
+/** Native returned-page provenance, including older issued direct-log metadata. */
+export function cursorArgument(operation: { cursor?: string | null; drain?: DrainContract } | undefined): string | undefined {
+  return operation?.cursor ?? (operation?.drain && 'cursor' in operation.drain ? operation.drain.cursor : undefined);
 }
 export const isLocalCursor = (value: unknown): value is string => typeof value === 'string' && value.startsWith('h1.');
 /** Shared by query POST, SSE subscription, reconnect and resume. Local positions never enter transport. */
-export function serverArguments(args: unknown, cursor?: string): unknown {
-  if (!cursor || !args || typeof args !== 'object' || Array.isArray(args)) return args;
-  const record = args as Record<string, unknown>;
-  return isLocalCursor(record[cursor]) ? { ...record, [cursor]: null } : args;
+export function serverArguments(args: unknown, cursors?: Record<string, any>): unknown {
+  if (!cursors || !args || typeof args !== 'object' || Array.isArray(args)) return args;
+  let record = args as Record<string, unknown>;
+  for (const [name, type] of Object.entries(cursors)) {
+    if ((type === 'Cursor' || type?.Optional === 'Cursor') && isLocalCursor(record[name])) {
+      if (record === args) record = { ...record };
+      record[name] = null;
+    }
+  }
+  return record;
 }
 export interface LocalFence {
   partition: string; operation: string; program: string; schema: string; generation: string;

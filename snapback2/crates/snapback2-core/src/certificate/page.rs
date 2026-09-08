@@ -24,7 +24,7 @@ pub(super) fn result_pages(
     returns
         .into_iter()
         .filter_map(|(path, origin)| {
-            result_site(&origin).map(|site| {
+            result_page(&origin).map(|(site, _)| {
                 resolve_result_page_site(schema, &program.body, site).map(|page| (path, page))
             })
         })
@@ -34,7 +34,7 @@ pub(super) fn result_pages(
 // @ref LLP 1011#b1-opaque-cursors — records transport one cursor-bearing
 // page; fixed previews are auxiliary and distinct origins have no continuation.
 // Keep the record distinct from Page so it cannot become a resumable log.
-fn result_site(origin: &Origin) -> Option<&str> {
+fn result_page(origin: &Origin) -> Option<(&str, Option<&str>)> {
     fn collect<'a>(origin: &'a Origin, pages: &mut BTreeSet<(&'a str, &'a str)>) -> bool {
         match origin {
             Origin::Page(site, Some(cursor)) => {
@@ -46,11 +46,36 @@ fn result_site(origin: &Origin) -> Option<&str> {
             _ => true,
         }
     }
-    if let Origin::Page(site, _) = origin {
-        return Some(site);
+    if let Origin::Page(site, cursor) = origin {
+        return Some((site, cursor.as_deref()));
     }
     let mut pages = BTreeSet::new();
-    (collect(origin, &mut pages) && pages.len() == 1).then(|| pages.first().unwrap().0)
+    (collect(origin, &mut pages) && pages.len() == 1).then(|| {
+        let (site, cursor) = *pages.first().unwrap();
+        (site, Some(cursor))
+    })
+}
+
+/// Issued operation metadata for local cursor custody. Different return sites
+/// may share a binding; different bindings cannot route one local continuation.
+// @ref LLP 1012#indexed-held-search — exclude only the proved cursor from the local argument binding.
+pub fn result_cursor(program: &Program, certificate: &Certificate) -> Option<String> {
+    if program.kind != ProgramKind::Query {
+        return None;
+    }
+    let mut cursor = None;
+    for (path, origin) in returned_origins(program) {
+        if let Some(page) = certificate.result_pages.get(&path) {
+            let (site, Some(name)) = result_page(&origin)? else {
+                return None;
+            };
+            if site != page.site || cursor.as_deref().is_some_and(|old| old != name) {
+                return None;
+            }
+            cursor = Some(name.to_owned());
+        }
+    }
+    cursor
 }
 
 fn returned_origins(program: &Program) -> BTreeMap<String, Origin> {
@@ -575,6 +600,7 @@ mod drain_tests {
         ]);
         let (program, certificate) = checked(vec![Stmt::Return(wrapped.clone())]);
         assert_eq!(certificate.result_pages["0"].site, "result");
+        assert_eq!(result_cursor(&program, &certificate), Some("c".into()));
         assert_eq!(
             resumable_log_cursor(&program, &certificate),
             Err("cursor-binding")
@@ -653,7 +679,7 @@ mod drain_tests {
         ];
         // The current type checker also refuses this lost cursor binding. The
         // page proof must independently avoid treating it as a fixed preview.
-        assert!(result_site(&returned_origins(&program)["2"]).is_none());
+        assert!(result_page(&returned_origins(&program)["2"]).is_none());
     }
 
     #[test]
@@ -720,6 +746,44 @@ mod drain_tests {
             Stmt::Return(variable("view")),
         ]);
         assert!(certificate.result_pages.is_empty());
+    }
+
+    #[test]
+    fn local_cursor_binding_follows_captured_aliases_and_all_page_return_paths() {
+        for other in ["captured", "a"] {
+            let (program, certificate) = checked(vec![
+                Stmt::Let {
+                    name: "alias".into(),
+                    value: variable("c"),
+                },
+                Stmt::Const {
+                    name: "captured".into(),
+                    value: variable("alias"),
+                },
+                Stmt::Assign {
+                    name: "alias".into(),
+                    value: variable("a"),
+                },
+                Stmt::If {
+                    condition: variable("flag"),
+                    then_body: vec![Stmt::Return(record([(
+                        "messages",
+                        page("yes", Order::Asc, 2, "captured"),
+                    )]))],
+                    else_body: vec![Stmt::Return(record([(
+                        "messages",
+                        page("no", Order::Desc, 2, other),
+                    )]))],
+                },
+            ]);
+            assert_eq!(certificate.result_pages.len(), 2);
+            assert_eq!(
+                result_cursor(&program, &certificate),
+                (other == "captured").then(|| "c".into())
+            );
+        }
+        let (program, certificate) = checked(vec![Stmt::Return(variable("c"))]);
+        assert_eq!(result_cursor(&program, &certificate), None);
     }
 
     #[test]
