@@ -809,7 +809,7 @@ whole-row insertion whenever the committed base is absent. Executing its actual
 `sync/intent/row` methods with dependency stubs confirmed this for queued count
 creation at both the same and a later sequence, cold and incremental; matching
 no-negative controls expose count 1. This is isolated projection evidence,
-not a public integration run. The [new integration ticket](../issues/20260907-snapback2-indexed-twin-masks-predicted-count-after-proved-absence.md)
+not a public integration run. The [new integration ticket](../issues/closed/20260907-snapback2-indexed-twin-masks-predicted-count-after-proved-absence.md)
 records the source hash, eight cases, limitations and native/test migration.
 The already shipped main zero-count issue stays closed.
 

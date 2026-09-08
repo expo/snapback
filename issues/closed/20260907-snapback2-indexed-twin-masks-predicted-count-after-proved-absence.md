@@ -1,6 +1,6 @@
 # Snapback 2 indexed twin masks a predicted count after proved primary absence
 
-**Status:** Open — architecture integration follow-up; shipped main zero-count fix remains closed
+**Status:** Closed — repaired in the architecture integration; shipped main zero-count fix remains closed
 **Date:** 2026-09-07
 **Systems:** indexed twin overlay projection, maintained Count, receipt integration
 **Owner:** existing LLP 1018 architecture integration lane
@@ -21,7 +21,7 @@ addresses inequivalent; keep both proofs and all uniqueness checks.
 
 ## Executed evidence and limits
 
-The [isolated projection results](../benchmarks/runs/2026-09-07-snapback2-evolution-diagnostic/zero-count-architecture-projection.json)
+The [isolated projection results](../../benchmarks/runs/2026-09-07-snapback2-evolution-diagnostic/zero-count-architecture-projection.json)
 execute the complete pinned `TwinStore` module after TypeScript transpilation,
 including its actual `sync`, `intent` and `row` methods. Source SHA256:
 `2d0cb8572529117a0424150599de76f38404801a9f08cd3977b8668f61d1ab87`.
@@ -76,3 +76,30 @@ and governing docs (plus concurrent diary evidence). A textual resolution
 alone does not qualify these semantic adaptations. The active architecture
 lane owns the repair and its integrated review; this ticket does not launch a
 competing client implementation or reopen the already shipped main fix.
+
+## Resolution — 2026-09-07
+
+Runtime `1cab1f7f4b16c31d57b6ce2c82aa19a0daca07d0`, integrated in
+`e94b0a61012c20dd2ba4538d7b8007d020355ea3`, binds an exact pre-admission
+absence into the existing durable per-intent negative ledger. The twin projects
+the authorized creation without weakening later-negative, same-sequence
+tombstone, newer-base, extent-hole or viewed-row protections. Equivalent
+refreshes and answer collection preserve the intent's uncontradicted custody
+across cold reopen. The rejected memory-only owner-order experiment is not
+the final implementation.
+
+The native pair uses scalar index components and schema-aware typed validation,
+including long maintained Ref addresses, with unchanged actual primary lookup,
+canonical unwrapped IDs, resource reservations and receipt-only restrictions.
+The 249-case corpus remains byte-identical after the schema-aware repair.
+
+On the exact runtime source, the public multi-principal Count regression passes
+with its cold-zero, visible prediction, cap and atomic-overflow controls; a long
+maintained Ref also passes public wire/cold/prediction/replay. Focused absence
+custody tests pass 2/2, store/overlay tests 130/130, and native Count tests 12/12.
+PIDs 379990 and 384762; raw SHA256 values respectively
+`7b9d5ce80ef97fb81e2fbff09b590c1b363ecf8758eec8eaf00e56f450803122` and
+`7fd9acde5daa5166c2e10385d98a50ec3175743612130d9dc0dbae459c88d5b2`.
+The integrated e94 package suite passes 781/781 with no timeout at unchanged
+limits. Program-wide final qualification and delivery remain separately tracked
+by LLP 1018.000; this closes the specific projection defect.

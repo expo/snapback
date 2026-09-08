@@ -555,7 +555,8 @@ uniqueness checks omit zero-valued replacement rows, although their exact ids
 remain owned for removal.
 
 A physical miss on a public/Allow Count target's full unique grouping index
-with valid scalar typed keys can acquire two independent facts for offline insertion: its empty group
+with valid scalar typed keys can acquire two independent facts for offline
+insertion: its empty group
 extent, represented by the existing empty ascending unbounded exhausted range
 receipt, and a canonical primary-ID absence proved by a separate actual
 `byId` lookup. Ordinary survivors make those addresses inequivalent. Keep the
@@ -564,14 +565,20 @@ match that declared physical miss and exact scope, current policy hash, empty
 shape and a separately traced primary miss. Receipt-only evaluation cannot
 mint either additional fact from a partial local store. Invalid key domains
 and JSON/compound grouping descriptors omit the optional pair: wire erasure
-and schema retagging must preserve the exact native lookup address.
+and schema retagging must preserve the exact native lookup address. Group-key
+validation is schema-aware: a Ref to a maintained target uses that target's
+canonical address domain, including valid addresses beyond ordinary ID bounds.
 
 Certification reserves the extra lookup steps, primary-index/constraint
 dependency and paired receipt bytes through sequential and branch composition.
 The group lookup and fallback can examine at most one row together. A
 schema-sized byte reserve is checked against the actual serialized proof pair;
-if it is too small (lookup keys/nominal IDs need not fit stored-row estimates),
-omit both optional proofs and preserve the original query result. This does
+if it is too small, omit both optional proofs and preserve the original query
+result. Under the current validated finite key domains and fixed policy hash,
+the schema-sized reserve covers the pair; boundary tests include the maximum
+ordinary identity and a valid long maintained Ref. The actual-size comparison
+remains defensive. An over-domain identity is a domain-rejection witness, not
+a reachable serialized-pair overflow witness. This does
 not impose new ID limits. Public projection still exports only primary-index
 absence tuples; the group fact uses existing range custody. A stale cached zero
 alone does not authorize insertion. Protected targets and ordinary/sum tables
