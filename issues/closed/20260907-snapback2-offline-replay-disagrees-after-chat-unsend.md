@@ -1,6 +1,6 @@
 # Snapback 2: offline replay disagrees with recorded inbox after chat unsend
 
-**Status:** Open
+**Status:** Resolved on main — 2026-09-08
 **Date:** 2026-09-07
 **Systems:** chat template journey, offline derived verification, held delivery inbox
 **Source:** integration `a68088c29`, based on `ba63c884e`; parallel-papercuts full check
@@ -64,10 +64,18 @@ unsent-body eviction and meaningful offline equivalence assertion. Qualify the
 named init test and the affected offline tests without weakening assertions.
 
 Related but distinct:
-[offline projection/cold movement](20260906-snapback2-offline-entrypoint-isolation-and-projection.md)
+[offline projection/cold movement](../20260906-snapback2-offline-entrypoint-isolation-and-projection.md)
 tracks other specific reproductions;
-[cold custom-cursor drain](closed/20260905-snapback2-cold-offline-drain-forgets-cursor-name.md)
+[cold custom-cursor drain](20260905-snapback2-cold-offline-drain-forgets-cursor-name.md)
 was closed for repeated page one;
-[full-suite timing failures](20260901-snapback2-scripts-test-sh-flakes-under.md)
+[full-suite timing failures](../20260901-snapback2-scripts-test-sh-flakes-under.md)
 tracks load-sensitive failures. No identical unsend/replay mismatch was found
 in the existing ticket corpus.
+
+## Resolution — 2026-09-08
+
+The filed initialized-chat journey failure is resolved. The original cold unsend/body-eviction journey and offline byte-equivalence assertion remain and pass through the real initialized template. The overall chat CLI blocked result remains intentional for an unavailable effect engine; this closure does not claim effects execution.
+
+`templates/chat/snapback/tests/chat.test.ts` retains the named journey, removal observation, cold restart and rejection of retained Welcome bytes. `crates/snapback2/tests/init.rs` requires all 15 chat journeys and non-effect derived checks to pass. The architecture record reports passing chat journeys after lifecycle repair `d42f719f7`, then complete native qualification at `c20a37e22`.
+
+Evidence was reconciled against main `2ac15dc2c`. LLP 1018.000 §10 completion records canonical qualification at `c20a37e22` and final package/Chrome qualification at `ab8b225e6`; unchanged native/evaluator/compiler inputs retain their earlier execution evidence. This reconciliation ran no new product tests. It closes the filed source defect; release and fresh published-package confirmation remain separately tracked.

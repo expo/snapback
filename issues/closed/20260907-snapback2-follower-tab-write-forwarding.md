@@ -1,5 +1,7 @@
 # snapback2: a follower browser tab refuses writes; forward them to the writer tab instead
 
+**Status:** Resolved on main — 2026-09-08
+
 **Date:** 2026-09-07 · **Area:** snapback2 client, browser carrier (LLP 1018 §3, LLP 1012 §4) · **Source:** the LLP 1018 panel's round-two objections (Gemini, Grok, Astra) and the deferred half of the second-tab policy
 
 ## What exists
@@ -30,3 +32,11 @@ writer must surface as a named readiness reason, not a silent hang.
 
 Two tabs, one offline write in each, reconnect; both settle in FIFO order relative to
 the writer's queue; a forwarded intent replays exactly once across a writer close.
+
+## Resolution — 2026-09-08
+
+Durable forwarding now includes explicit uncertain-admission recovery and writer takeover. Upload and channel exclusions remain explicit capabilities.
+
+`scripts/witness-web.mjs` drops an acknowledgment after durable admission; the real Composer preserves the draft, recovers the same request identity, and verifies one owner mutation and server row. The same executed 16/16 Chrome witness verifies cross-tab FIFO takeover. `guide/offline.md` documents these contracts.
+
+Evidence was reconciled against main `2ac15dc2c`. LLP 1018.000 §10 completion records canonical qualification at `c20a37e22` and final package/Chrome qualification at `ab8b225e6`; unchanged native/evaluator/compiler inputs retain their earlier execution evidence. This reconciliation ran no new product tests. It closes the filed source defect; release and fresh published-package confirmation remain separately tracked.

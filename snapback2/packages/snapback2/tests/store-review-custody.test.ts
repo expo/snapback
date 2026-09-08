@@ -151,7 +151,7 @@ test('cold open restores nullable v1 map fields to their established empty state
   let saved: any;
   const factory = () => new PersistentRangeStore({ carrier: 'memory', open: async () => structuredClone(saved),
     replace: async state => { saved = structuredClone(state); }, close() {}, wipe: async () => {} });
-  let store = factory(); await store.open('nullable'); await store.close();
+  let store = factory(); await store.open('nullable'); await store.commit({ outbox: { put: [entry('seed')] } }); await store.close();
   const nullable = ['watermarks','outbox','grants','overlay','overlayMisses','overlayWatermarks','overlayNegatives','bounds','programs','onceColumns',
     'negative','rowSeq','rowFacts','verdictFacts','factImages','factExtents','extentGuards','extentNegative','assets','viewed'];
   for (const field of nullable) saved[field] = null;
@@ -419,6 +419,20 @@ test('primary absence admission survives answer custody changes but not later ro
     await state.runtime().store.commit({tombstones:[{table:'events',id:'one',seq:2}]});
     assert.deepEqual(await state.rows(),[],'a same-sequence tombstone replaces admitted absence custody');
     await state.reopen(); assert.deepEqual(await state.rows(),[],'the same-sequence tombstone remains dominant cold');
+    await state.runtime().close();
+  }
+  {
+    const state = await setup();
+    const equivalent = structuredClone(movement.hole);
+    equivalent.readTime += 1; equivalent.receipt.absences = [['events','byId',['one']]];
+    await state.runtime().store.commit({
+      tombstones:[{table:'events',id:'one',seq:equivalent.seq}],
+      deliveries:[{...equivalent,op:'clock.bounded',args:{},clockPlanHash:equivalent.planHash,deliveredAt:Date.now()}],
+    });
+    assert.deepEqual(await state.rows(),[],
+      'an equal-sequence full absence in the same swap cannot undo tombstone dominance');
+    await state.reopen(); assert.deepEqual(await state.rows(),[],
+      'mixed-swap tombstone dominance survives a cold rebuild');
     await state.runtime().close();
   }
   {

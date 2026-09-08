@@ -119,7 +119,7 @@ improvements alone cannot establish a comparative win.
 
 **Finding.** The 0.0.8 assessment records a separate inbox client/cache,
 fresh time-dependent queries, and a root resume anchor around confirmed SDK
-defects. The [multi-tab finding](../issues/20260906-snapback2-second-browser-tab-cannot-share-the-offline-carrier.md)
+defects. The [multi-tab finding](../issues/closed/20260906-snapback2-second-browser-tab-cannot-share-the-offline-carrier.md)
 records a builder allocating a database per browser tab to work around
 one-writer ownership, with the second tab's queue never merging. These are
 application architecture changes, not verbose hook setup.
@@ -512,9 +512,11 @@ and `caps`); capability claims stay gated on a published cold run.
   regression; the collision ticket closed. Review: blind codex and Grok
   (`llp/reviews/1018-quarry-collision.*.md`); one material finding (effect
   names met the same collision) fixed and confirmed.
-- **Filed, not built:** follower-write forwarding
-  (`issues/20260907-snapback2-follower-tab-write-forwarding.md`); the
-  second-tab ticket records what the follower closes and what it leaves open.
+- **Follower-write forwarding — implemented in LLP 1018.000.** The
+  [closed forwarding ticket](../issues/closed/20260907-snapback2-follower-tab-write-forwarding.md)
+  records durable admission, lost-ack recovery and actual Chrome FIFO takeover.
+  This supersedes the earlier filed-but-unbuilt disposition; published cold-run
+  confirmation remains separate.
   Of the move-zero seams in §7, only the auth page's missing pointer to the
   grant ritual survives a check against main; it is a one-line guide edit,
   not a ticket.
