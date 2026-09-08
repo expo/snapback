@@ -1,0 +1,48 @@
+{
+  "sourceCommit": "7b947aa4def19d51ea786783625fb023f3bc891d",
+  "bundleSha256": "2fa6edaf3f1edbf89f1b69564425c0c0eaf208e790a805cfee1ba9dfbc611e59",
+  "sshArgv": [
+    "/usr/bin/ssh",
+    "-T",
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "StrictHostKeyChecking=yes",
+    "-o",
+    "ConnectTimeout=8",
+    "-o",
+    "ConnectionAttempts=1",
+    "-o",
+    "ForwardAgent=no",
+    "-o",
+    "ClearAllForwardings=yes",
+    "-o",
+    "ServerAliveInterval=10",
+    "-o",
+    "ServerAliveCountMax=2",
+    "ccheever@100.72.251.34",
+    "/usr/bin/python3",
+    "-B",
+    "/Users/ccheever/clique-improvement/revisions/cli-018-publication-preparation-r1/bundle/remote.py",
+    "--activate-reviewed-production-018",
+    "2fa6edaf3f1edbf89f1b69564425c0c0eaf208e790a805cfee1ba9dfbc611e59"
+  ],
+  "sourceArchive": {
+    "path": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-preparation-r1/source-stage.tar.gz",
+    "bytes": 3228929,
+    "sha256": "10c26438978dd5fe9a68fdf86ae1ece71c61ba3c61ea8715c03a249714eb56d3"
+  },
+  "publisherArgv": [
+    "/Users/ccheever/clique-improvement/revisions/cli-018-release-qualification/tools/node-22.23.2/bin/node",
+    "scripts/publish.mjs"
+  ],
+  "publisherCwd": "/Users/ccheever/projects/snapback-worktrees/clique-cli-018-publish-7b947aa4d/snapback2",
+  "bounds": {
+    "publisherSeconds": 1800,
+    "consumerStepMs": 30000,
+    "fetchMs": 15000,
+    "fetchRetries": 0
+  },
+  "executionOwner": "Codex DX tmux12; reservation transferred 2026-09-08T01:30:07Z",
+  "executionMode": "Direct tool execution of existing reviewed helpers; no author-agent continuation required"
+}

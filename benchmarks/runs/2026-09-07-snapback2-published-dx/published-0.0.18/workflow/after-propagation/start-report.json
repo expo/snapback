@@ -1,0 +1,166 @@
+{
+  "automaticRetry": false,
+  "checks": [
+    {
+      "actualProcessWaitCompleted": true,
+      "actualReturnCode": 0,
+      "argv": [
+        "/Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/bin/node",
+        "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/consumer/node_modules/snapback2/bin/snapback2.mjs",
+        "doctor",
+        "--json"
+      ],
+      "attempt": 1,
+      "automaticRetry": false,
+      "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/consumer",
+      "elapsedSeconds": 1.4435135,
+      "endedEpoch": 1788831843.573261,
+      "exitCode": 0,
+      "logSha256": "4a0ae493208d40eab045965212cefe802535117a2af0ee7bc45a87ccc10d738d",
+      "name": "doctor",
+      "pid": 86865,
+      "processGroup": 86865,
+      "processIdentity": "86865 Mon Sep  7 18:44:02 2026     /Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/bin/node",
+      "startedEpoch": 1788831842.129756,
+      "timeoutSeconds": 30
+    },
+    {
+      "actualProcessWaitCompleted": true,
+      "actualReturnCode": 0,
+      "argv": [
+        "/Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/bin/node",
+        "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/consumer/node_modules/snapback2/bin/snapback2.mjs",
+        "init",
+        ".",
+        "--template",
+        "todos",
+        "--client",
+        "none",
+        "--json"
+      ],
+      "attempt": 1,
+      "automaticRetry": false,
+      "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/consumer/todos",
+      "elapsedSeconds": 4.940826625000001,
+      "endedEpoch": 1788831848.516002,
+      "exitCode": 0,
+      "logSha256": "b7762303b4717c04f19eaa60142685cf6277c08be41dccbfa364c0a526d2c275",
+      "name": "init",
+      "pid": 86883,
+      "processGroup": 86883,
+      "processIdentity": "86883 Mon Sep  7 18:44:03 2026     /Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/bin/node",
+      "startedEpoch": 1788831843.575166,
+      "timeoutSeconds": 30
+    },
+    {
+      "actualProcessWaitCompleted": true,
+      "actualReturnCode": 0,
+      "argv": [
+        "/Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/bin/node",
+        "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/consumer/node_modules/snapback2/bin/snapback2.mjs",
+        "guide"
+      ],
+      "attempt": 1,
+      "automaticRetry": false,
+      "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/consumer/todos",
+      "elapsedSeconds": 0.2952192920000005,
+      "endedEpoch": 1788831848.8135061,
+      "exitCode": 0,
+      "logSha256": "72d30c2239e39d59d2a685e7980712c99f2f3de44a25fa5d30d3cbf9bb9e6adc",
+      "name": "guide",
+      "pid": 86967,
+      "processGroup": 86967,
+      "processIdentity": "86967 Mon Sep  7 18:44:08 2026     /Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/bin/node",
+      "startedEpoch": 1788831848.51827,
+      "timeoutSeconds": 30
+    },
+    {
+      "actualProcessWaitCompleted": true,
+      "actualReturnCode": 0,
+      "argv": [
+        "/Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/bin/node",
+        "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/consumer/node_modules/snapback2/bin/snapback2.mjs",
+        "check",
+        "--json"
+      ],
+      "attempt": 1,
+      "automaticRetry": false,
+      "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/consumer/todos",
+      "elapsedSeconds": 3.518002,
+      "endedEpoch": 1788831852.340003,
+      "exitCode": 0,
+      "logSha256": "f92eb034ac595f32d662a1fff07cd6db87e0aa0d7d6e8fbf7a847e23922499b1",
+      "name": "check-initial",
+      "pid": 86972,
+      "processGroup": 86972,
+      "processIdentity": "86972 Mon Sep  7 18:44:08 2026     /Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/bin/node",
+      "startedEpoch": 1788831848.8219872,
+      "timeoutSeconds": 30
+    },
+    {
+      "actualProcessWaitCompleted": true,
+      "actualReturnCode": 0,
+      "argv": [
+        "/Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/bin/node",
+        "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/consumer/node_modules/snapback2/bin/snapback2.mjs",
+        "dev"
+      ],
+      "attempt": 1,
+      "automaticRetry": false,
+      "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/consumer/todos",
+      "elapsedSeconds": 2.8264796249999993,
+      "endedEpoch": 1788831855.1688478,
+      "exitCode": 0,
+      "logSha256": "c9ae01353124a8269a895639437b32d7d6350941c6c4901bdd05b1f30fb97eab",
+      "name": "dev-start",
+      "pid": 87040,
+      "processGroup": 87040,
+      "processIdentity": "87040 Mon Sep  7 18:44:12 2026     /Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/bin/node",
+      "startedEpoch": 1788831852.342308,
+      "timeoutSeconds": 30
+    },
+    {
+      "actualProcessWaitCompleted": true,
+      "actualReturnCode": 0,
+      "argv": [
+        "/Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/bin/node",
+        "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/consumer/node_modules/snapback2/bin/snapback2.mjs",
+        "run",
+        "todos.list",
+        "--as",
+        "alice",
+        "--json"
+      ],
+      "attempt": 1,
+      "automaticRetry": false,
+      "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/consumer/todos",
+      "elapsedSeconds": 0.47914295799999884,
+      "endedEpoch": 1788831855.6576378,
+      "exitCode": 0,
+      "logSha256": "46c598f27709b28dc41de4e1bc20fe087b07884dee4895d49917d52cc0076fd4",
+      "name": "first-run",
+      "pid": 87100,
+      "processGroup": 87100,
+      "processIdentity": "87100 Mon Sep  7 18:44:15 2026     /Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/bin/node",
+      "startedEpoch": 1788831855.178487,
+      "timeoutSeconds": 30
+    }
+  ],
+  "endEpoch": 1788831855.6590788,
+  "endLoad": [
+    118.45703125,
+    134.15283203125,
+    127.41650390625
+  ],
+  "helperSha256": "b66c1e0e7eddb99d6a17a3902a0d3fb116f35618c47068d16b8d97a87438fa0a",
+  "initialLoad": [
+    118.60595703125,
+    134.97265625,
+    127.5791015625
+  ],
+  "ok": true,
+  "phase": "start",
+  "startEpoch": 1788831842.1246562,
+  "timeoutSeconds": 30,
+  "version": "0.0.18"
+}

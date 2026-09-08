@@ -1,0 +1,1530 @@
+{
+  "pid": 73883,
+  "driverPid": 73820,
+  "commandSource": "stopped-state-remote.py",
+  "commandSourceSha256": "d18877264b7984f6ba96f2eaf4edbe2b6c9de96543c5d9641ded1ca5ac47c97f",
+  "sshArgvPrefix": [
+    "/usr/bin/ssh",
+    "-T",
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "StrictHostKeyChecking=yes",
+    "-o",
+    "ConnectTimeout=8",
+    "-o",
+    "ConnectionAttempts=1",
+    "-o",
+    "ForwardAgent=no",
+    "-o",
+    "ClearAllForwardings=yes",
+    "-o",
+    "ServerAliveInterval=10",
+    "-o",
+    "ServerAliveCountMax=2",
+    "ccheever@100.72.251.34"
+  ],
+  "outerSeconds": 20,
+  "readOnly": true,
+  "attempts": 1,
+  "exitCode": 0,
+  "stderrPresent": false,
+  "elapsedSeconds": 1.5919007500000002,
+  "observation": {
+    "remoteEvents": [
+      {
+        "phase": "custody",
+        "status": "started",
+        "epoch": 1788831168.982702,
+        "pid": 63536
+      },
+      {
+        "phase": "custody",
+        "status": "started",
+        "epoch": 1788831168.9848,
+        "pid": 63537
+      },
+      {
+        "phase": "custody",
+        "status": "pass",
+        "epoch": 1788831168.989429,
+        "pid": 63537,
+        "exitCode": 0,
+        "seconds": 0.006300832999999999
+      },
+      {
+        "phase": "custody",
+        "status": "started",
+        "epoch": 1788831170.5673652,
+        "pid": 63543
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831170.5774238,
+        "pid": 63543,
+        "ppid": 63536,
+        "pgid": 63543,
+        "started": 1788831170.0,
+        "executable": "node"
+      },
+      {
+        "phase": "custody",
+        "status": "heartbeat",
+        "epoch": 1788831170.651146,
+        "pid": 63543,
+        "seconds": 0.013637249999999934
+      },
+      {
+        "phase": "custody",
+        "status": "pass",
+        "epoch": 1788831170.6512792,
+        "pid": 63543,
+        "exitCode": 0,
+        "seconds": 0.08742000000000005
+      },
+      {
+        "phase": "ready",
+        "status": "ready",
+        "epoch": 1788831170.6823602,
+        "pid": 63536,
+        "load": [
+          11.43212890625,
+          7.14990234375,
+          5.81689453125
+        ]
+      },
+      {
+        "phase": "acquisition",
+        "status": "sent",
+        "epoch": 1788831173.363523,
+        "source": "user"
+      },
+      {
+        "phase": "auth",
+        "status": "started",
+        "epoch": 1788831173.375554,
+        "pid": 63556
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831173.39596,
+        "pid": 63556,
+        "ppid": 63536,
+        "pgid": 63556,
+        "started": 1788831173.0,
+        "executable": "node"
+      },
+      {
+        "phase": "auth",
+        "status": "heartbeat",
+        "epoch": 1788831173.485106,
+        "pid": 63556,
+        "seconds": 0.031060499999999713
+      },
+      {
+        "phase": "auth",
+        "status": "heartbeat",
+        "epoch": 1788831174.3965929,
+        "pid": 63556,
+        "seconds": 1.0313662089999998
+      },
+      {
+        "phase": "auth",
+        "status": "pass",
+        "epoch": 1788831174.679053,
+        "pid": 63556,
+        "exitCode": 0,
+        "seconds": 1.314025334
+      },
+      {
+        "phase": "auth",
+        "status": "observed",
+        "epoch": 1788831174.679895,
+        "stdoutUtf8Valid": true,
+        "stdoutJsonValid": true,
+        "stdoutJsonString": true,
+        "expectedIdentity": true,
+        "ownerRowsValid": false,
+        "stderrPresent": false,
+        "npmUpdateNoticeOnly": false,
+        "npmWarningPresent": false,
+        "nodeWarningPresent": false,
+        "unexpectedStderr": false
+      },
+      {
+        "phase": "auth",
+        "status": "pass",
+        "epoch": 1788831174.679946
+      },
+      {
+        "phase": "auth",
+        "status": "started",
+        "epoch": 1788831174.682783,
+        "pid": 63575
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831174.686812,
+        "pid": 63575,
+        "ppid": 63536,
+        "pgid": 63575,
+        "started": 1788831174.0,
+        "executable": "node"
+      },
+      {
+        "phase": "auth",
+        "status": "heartbeat",
+        "epoch": 1788831175.441629,
+        "pid": 63575,
+        "seconds": 0.7615857500000001
+      },
+      {
+        "phase": "auth",
+        "status": "pass",
+        "epoch": 1788831175.5424519,
+        "pid": 63575,
+        "exitCode": 0,
+        "seconds": 0.8624937080000006
+      },
+      {
+        "phase": "auth",
+        "status": "observed",
+        "epoch": 1788831175.542807,
+        "stdoutUtf8Valid": true,
+        "stdoutJsonValid": false,
+        "stdoutJsonString": false,
+        "expectedIdentity": true,
+        "ownerRowsValid": true,
+        "stderrPresent": false,
+        "npmUpdateNoticeOnly": false,
+        "npmWarningPresent": false,
+        "nodeWarningPresent": false,
+        "unexpectedStderr": false
+      },
+      {
+        "phase": "auth",
+        "status": "pass",
+        "epoch": 1788831175.542849,
+        "package": "snapback2"
+      },
+      {
+        "phase": "auth",
+        "status": "started",
+        "epoch": 1788831175.545461,
+        "pid": 63590
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831175.5503738,
+        "pid": 63590,
+        "ppid": 63536,
+        "pgid": 63590,
+        "started": 1788831175.0,
+        "executable": "node"
+      },
+      {
+        "phase": "auth",
+        "status": "heartbeat",
+        "epoch": 1788831176.4430609,
+        "pid": 63590,
+        "seconds": 0.9001909580000005
+      },
+      {
+        "phase": "auth",
+        "status": "pass",
+        "epoch": 1788831176.446574,
+        "pid": 63590,
+        "exitCode": 0,
+        "seconds": 0.9037151670000005
+      },
+      {
+        "phase": "auth",
+        "status": "observed",
+        "epoch": 1788831176.446777,
+        "stdoutUtf8Valid": true,
+        "stdoutJsonValid": false,
+        "stdoutJsonString": false,
+        "expectedIdentity": true,
+        "ownerRowsValid": true,
+        "stderrPresent": false,
+        "npmUpdateNoticeOnly": false,
+        "npmWarningPresent": false,
+        "nodeWarningPresent": false,
+        "unexpectedStderr": false
+      },
+      {
+        "phase": "auth",
+        "status": "pass",
+        "epoch": 1788831176.446815,
+        "package": "snapback2-darwin-arm64"
+      },
+      {
+        "phase": "custody",
+        "status": "pass",
+        "epoch": 1788831177.519688
+      },
+      {
+        "phase": "publisher",
+        "status": "started",
+        "epoch": 1788831177.522997,
+        "pid": 63611
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831177.526979,
+        "pid": 63611,
+        "ppid": 63536,
+        "pgid": 63611,
+        "started": 1788831177.0,
+        "executable": "node"
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831177.6550982,
+        "pid": 63617,
+        "ppid": 63611,
+        "pgid": 63611,
+        "started": 1788831177.0,
+        "executable": "snapback2-media"
+      },
+      {
+        "phase": "publisher",
+        "status": "heartbeat",
+        "epoch": 1788831177.6898189,
+        "pid": 63611,
+        "seconds": 0.007313959000001091
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831178.723663,
+        "pid": 63655,
+        "ppid": 63611,
+        "pgid": 63655,
+        "started": 1788831178.0,
+        "executable": "other"
+      },
+      {
+        "phase": "publisher",
+        "status": "heartbeat",
+        "epoch": 1788831178.7586,
+        "pid": 63611,
+        "seconds": 1.1073199590000016
+      },
+      {
+        "phase": "publisher",
+        "status": "heartbeat",
+        "epoch": 1788831179.643357,
+        "pid": 63611,
+        "seconds": 2.1235852500000014
+      },
+      {
+        "phase": "publisher",
+        "status": "heartbeat",
+        "epoch": 1788831180.656617,
+        "pid": 63611,
+        "seconds": 3.1368637920000015
+      },
+      {
+        "phase": "publisher",
+        "status": "heartbeat",
+        "epoch": 1788831181.699175,
+        "pid": 63611,
+        "seconds": 4.179456292000001
+      },
+      {
+        "phase": "publisher",
+        "status": "heartbeat",
+        "epoch": 1788831182.821453,
+        "pid": 63611,
+        "seconds": 5.301751250000001
+      },
+      {
+        "phase": "publisher",
+        "status": "heartbeat",
+        "epoch": 1788831183.935322,
+        "pid": 63611,
+        "seconds": 6.415633250000001
+      },
+      {
+        "phase": "publisher",
+        "status": "heartbeat",
+        "epoch": 1788831185.050401,
+        "pid": 63611,
+        "seconds": 7.530730959
+      },
+      {
+        "phase": "publisher",
+        "status": "heartbeat",
+        "epoch": 1788831186.152024,
+        "pid": 63611,
+        "seconds": 8.632372917000001
+      },
+      {
+        "phase": "publisher",
+        "status": "heartbeat",
+        "epoch": 1788831187.273668,
+        "pid": 63611,
+        "seconds": 9.754032875
+      },
+      {
+        "phase": "publisher",
+        "status": "heartbeat",
+        "epoch": 1788831188.3911319,
+        "pid": 63611,
+        "seconds": 10.871515250000002
+      },
+      {
+        "phase": "publisher",
+        "status": "heartbeat",
+        "epoch": 1788831189.486131,
+        "pid": 63611,
+        "seconds": 11.966533959
+      },
+      {
+        "phase": "publisher",
+        "status": "heartbeat",
+        "epoch": 1788831190.57532,
+        "pid": 63611,
+        "seconds": 13.055739584000001
+      },
+      {
+        "phase": "publisher",
+        "status": "heartbeat",
+        "epoch": 1788831191.699301,
+        "pid": 63611,
+        "seconds": 14.17973525
+      },
+      {
+        "phase": "publisher",
+        "status": "heartbeat",
+        "epoch": 1788831192.8194299,
+        "pid": 63611,
+        "seconds": 15.299881875
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831193.776512,
+        "pid": 64053,
+        "ppid": 63611,
+        "pgid": 64053,
+        "started": 1788831193.0,
+        "executable": "node"
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831193.815372,
+        "pid": 64055,
+        "ppid": 64053,
+        "pgid": 64053,
+        "started": 1788831193.0,
+        "executable": "snapback2"
+      },
+      {
+        "phase": "publisher",
+        "status": "heartbeat",
+        "epoch": 1788831193.95117,
+        "pid": 63611,
+        "seconds": 16.431635584000002
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831194.3617659,
+        "pid": 64080,
+        "ppid": 63611,
+        "pgid": 64080,
+        "started": 1788831194.0,
+        "executable": "node"
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831194.4010901,
+        "pid": 64081,
+        "ppid": 64080,
+        "pgid": 64080,
+        "started": 1788831194.0,
+        "executable": "snapback2"
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831194.440046,
+        "pid": 64082,
+        "ppid": 64081,
+        "pgid": 64082,
+        "started": 1788831194.0,
+        "executable": "node"
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831194.8980732,
+        "pid": 64109,
+        "ppid": 63611,
+        "pgid": 64109,
+        "started": 1788831194.0,
+        "executable": "node"
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831194.93792,
+        "pid": 64111,
+        "ppid": 64109,
+        "pgid": 64109,
+        "started": 1788831194.0,
+        "executable": "snapback2"
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831194.976854,
+        "pid": 64112,
+        "ppid": 64111,
+        "pgid": 64112,
+        "started": 1788831194.0,
+        "executable": "node"
+      },
+      {
+        "phase": "publisher",
+        "status": "heartbeat",
+        "epoch": 1788831195.113508,
+        "pid": 63611,
+        "seconds": 17.593995917
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831195.53158,
+        "pid": 64156,
+        "ppid": 63611,
+        "pgid": 64156,
+        "started": 1788831195.0,
+        "executable": "node"
+      },
+      {
+        "phase": "publisher",
+        "status": "heartbeat",
+        "epoch": 1788831196.151399,
+        "pid": 63611,
+        "seconds": 18.631906459
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831196.614068,
+        "pid": 64185,
+        "ppid": 64156,
+        "pgid": 64156,
+        "started": 1788831196.0,
+        "executable": "other"
+      },
+      {
+        "phase": "publisher",
+        "status": "heartbeat",
+        "epoch": 1788831197.305147,
+        "pid": 63611,
+        "seconds": 19.785661792
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831197.639699,
+        "pid": 64236,
+        "ppid": 63611,
+        "pgid": 64236,
+        "started": 1788831197.0,
+        "executable": "node"
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831197.678251,
+        "pid": 64237,
+        "ppid": 64236,
+        "pgid": 64236,
+        "started": 1788831197.0,
+        "executable": "snapback2"
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831198.114945,
+        "pid": 64238,
+        "ppid": 1,
+        "pgid": 64238,
+        "started": 1788831197.0,
+        "executable": "snapback2"
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831198.1150432,
+        "pid": 64238,
+        "port": 54700
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831198.157145,
+        "pid": 64239,
+        "ppid": 64238,
+        "pgid": 64239,
+        "started": 1788831197.0,
+        "executable": "node"
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831198.234198,
+        "pid": 64267,
+        "ppid": 63611,
+        "pgid": 64267,
+        "started": 1788831197.0,
+        "executable": "node"
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831198.272608,
+        "pid": 64268,
+        "ppid": 64267,
+        "pgid": 64267,
+        "started": 1788831197.0,
+        "executable": "snapback2"
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831198.311567,
+        "pid": 64299,
+        "ppid": 64268,
+        "pgid": 64267,
+        "started": 1788831198.0,
+        "executable": "snapback2"
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831198.3495731,
+        "pid": 64300,
+        "ppid": 64299,
+        "pgid": 64300,
+        "started": 1788831198.0,
+        "executable": "node"
+      },
+      {
+        "phase": "publisher",
+        "status": "heartbeat",
+        "epoch": 1788831198.485795,
+        "pid": 63611,
+        "seconds": 20.96633975
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831198.706132,
+        "pid": 64238,
+        "port": 54700
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831199.287519,
+        "pid": 64238,
+        "port": 54700
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831199.405474,
+        "pid": 64383,
+        "ppid": 63611,
+        "pgid": 64383,
+        "started": 1788831199.0,
+        "executable": "node"
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831199.444017,
+        "pid": 64390,
+        "ppid": 64383,
+        "pgid": 64383,
+        "started": 1788831199.0,
+        "executable": "snapback2"
+      },
+      {
+        "phase": "publisher",
+        "status": "heartbeat",
+        "epoch": 1788831199.579951,
+        "pid": 63611,
+        "seconds": 22.060512
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831199.838685,
+        "pid": 64399,
+        "ppid": 63611,
+        "pgid": 64399,
+        "started": 1788831199.0,
+        "executable": "node"
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831199.8790872,
+        "pid": 64400,
+        "ppid": 64399,
+        "pgid": 64399,
+        "started": 1788831199.0,
+        "executable": "snapback2"
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831199.91812,
+        "pid": 64401,
+        "ppid": 64400,
+        "pgid": 64401,
+        "started": 1788831199.0,
+        "executable": "node"
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831200.586165,
+        "pid": 64479,
+        "ppid": 63611,
+        "pgid": 64479,
+        "started": 1788831200.0,
+        "executable": "node"
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831200.6263459,
+        "pid": 64481,
+        "ppid": 64479,
+        "pgid": 64479,
+        "started": 1788831200.0,
+        "executable": "snapback2"
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831200.66567,
+        "pid": 64483,
+        "ppid": 64481,
+        "pgid": 64483,
+        "started": 1788831200.0,
+        "executable": "node"
+      },
+      {
+        "phase": "publisher",
+        "status": "heartbeat",
+        "epoch": 1788831201.096668,
+        "pid": 63611,
+        "seconds": 23.283007292
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831201.636527,
+        "pid": 64570,
+        "ppid": 63611,
+        "pgid": 64570,
+        "started": 1788831201.0,
+        "executable": "node"
+      },
+      {
+        "phase": "publisher",
+        "status": "heartbeat",
+        "epoch": 1788831201.878363,
+        "pid": 63611,
+        "seconds": 24.358956458999998
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831202.171305,
+        "pid": 64579,
+        "ppid": 64570,
+        "pgid": 64570,
+        "started": 1788831201.0,
+        "executable": "other"
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831202.730898,
+        "pid": 64622,
+        "ppid": 63611,
+        "pgid": 64622,
+        "started": 1788831202.0,
+        "executable": "node"
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831202.770696,
+        "pid": 64623,
+        "ppid": 64622,
+        "pgid": 64622,
+        "started": 1788831202.0,
+        "executable": "snapback2"
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831202.810529,
+        "pid": 64624,
+        "ppid": 64623,
+        "pgid": 64624,
+        "started": 1788831202.0,
+        "executable": "snapback2"
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831202.850297,
+        "pid": 64625,
+        "ppid": 64624,
+        "pgid": 64625,
+        "started": 1788831202.0,
+        "executable": "node"
+      },
+      {
+        "phase": "publisher",
+        "status": "heartbeat",
+        "epoch": 1788831202.9917078,
+        "pid": 63611,
+        "seconds": 25.472314959000002
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831203.316278,
+        "pid": 64675,
+        "ppid": 64624,
+        "pgid": 64675,
+        "started": 1788831203.0,
+        "executable": "snapback2-media"
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831203.469823,
+        "pid": 64726,
+        "ppid": 63611,
+        "pgid": 64726,
+        "started": 1788831203.0,
+        "executable": "node"
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831203.5092669,
+        "pid": 64729,
+        "ppid": 64726,
+        "pgid": 64726,
+        "started": 1788831203.0,
+        "executable": "snapback2"
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831203.549829,
+        "pid": 64730,
+        "ppid": 64729,
+        "pgid": 64730,
+        "started": 1788831203.0,
+        "executable": "node"
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831203.859206,
+        "pid": 64624,
+        "port": 54742
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831204.358363,
+        "pid": 64624,
+        "port": 54742
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831204.48041,
+        "pid": 64797,
+        "ppid": 64729,
+        "pgid": 64726,
+        "started": 1788831204.0,
+        "executable": "snapback2"
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831204.519064,
+        "pid": 64798,
+        "ppid": 64797,
+        "pgid": 64798,
+        "started": 1788831204.0,
+        "executable": "node"
+      },
+      {
+        "phase": "publisher",
+        "status": "heartbeat",
+        "epoch": 1788831204.632294,
+        "pid": 63611,
+        "seconds": 26.676122042000003
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831204.9102871,
+        "pid": 64624,
+        "port": 54742
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831205.436673,
+        "pid": 64624,
+        "port": 54742
+      },
+      {
+        "phase": "publisher",
+        "status": "heartbeat",
+        "epoch": 1788831205.70223,
+        "pid": 63611,
+        "seconds": 27.759772625000004
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831205.962056,
+        "pid": 64624,
+        "port": 54742
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831206.4947999,
+        "pid": 64624,
+        "port": 54742
+      },
+      {
+        "phase": "publisher",
+        "status": "heartbeat",
+        "epoch": 1788831206.758388,
+        "pid": 63611,
+        "seconds": 28.818883542000002
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831207.016908,
+        "pid": 64624,
+        "port": 54742
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831207.543436,
+        "pid": 64624,
+        "port": 54742
+      },
+      {
+        "phase": "publisher",
+        "status": "heartbeat",
+        "epoch": 1788831207.809195,
+        "pid": 63611,
+        "seconds": 29.864447042000002
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831208.070729,
+        "pid": 64624,
+        "port": 54742
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831208.6090481,
+        "pid": 64624,
+        "port": 54742
+      },
+      {
+        "phase": "publisher",
+        "status": "heartbeat",
+        "epoch": 1788831208.8961148,
+        "pid": 63611,
+        "seconds": 30.922993667
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831209.155818,
+        "pid": 64624,
+        "port": 54742
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831209.6752949,
+        "pid": 64624,
+        "port": 54742
+      },
+      {
+        "phase": "publisher",
+        "status": "heartbeat",
+        "epoch": 1788831209.9423308,
+        "pid": 63611,
+        "seconds": 31.997859333999997
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831210.2040892,
+        "pid": 64624,
+        "port": 54742
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831210.7539608,
+        "pid": 64624,
+        "port": 54742
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831210.9532201,
+        "pid": 65608,
+        "ppid": 64729,
+        "pgid": 65608,
+        "started": 1788831210.0,
+        "executable": "node"
+      },
+      {
+        "phase": "publisher",
+        "status": "heartbeat",
+        "epoch": 1788831211.068157,
+        "pid": 63611,
+        "seconds": 33.05628525
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831211.349153,
+        "pid": 64624,
+        "port": 54742
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831211.5515032,
+        "pid": 65679,
+        "ppid": 64729,
+        "pgid": 65679,
+        "started": 1788831211.0,
+        "executable": "node"
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831211.9430668,
+        "pid": 64624,
+        "port": 54742
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831212.1441312,
+        "pid": 65749,
+        "ppid": 64729,
+        "pgid": 65749,
+        "started": 1788831212.0,
+        "executable": "node"
+      },
+      {
+        "phase": "publisher",
+        "status": "heartbeat",
+        "epoch": 1788831212.255554,
+        "pid": 63611,
+        "seconds": 34.247511834
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831212.54975,
+        "pid": 64624,
+        "port": 54742
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831212.7492712,
+        "pid": 65818,
+        "ppid": 64729,
+        "pgid": 65818,
+        "started": 1788831212.0,
+        "executable": "node"
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831213.15427,
+        "pid": 64624,
+        "port": 54742
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831213.4316218,
+        "pid": 65898,
+        "ppid": 63611,
+        "pgid": 65898,
+        "started": 1788831213.0,
+        "executable": "node"
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831213.47168,
+        "pid": 65900,
+        "ppid": 65898,
+        "pgid": 65898,
+        "started": 1788831213.0,
+        "executable": "snapback2"
+      },
+      {
+        "phase": "publisher",
+        "status": "heartbeat",
+        "epoch": 1788831213.505631,
+        "pid": 63611,
+        "seconds": 35.443416750000004
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831213.849519,
+        "pid": 65932,
+        "ppid": 63611,
+        "pgid": 63611,
+        "started": 1788831213.0,
+        "executable": "other"
+      },
+      {
+        "phase": "publisher",
+        "status": "heartbeat",
+        "epoch": 1788831213.986507,
+        "pid": 63611,
+        "seconds": 36.46730225
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831214.4351249,
+        "pid": 65999,
+        "ppid": 63611,
+        "pgid": 63611,
+        "started": 1788831214.0,
+        "executable": "other"
+      },
+      {
+        "phase": "publisher",
+        "status": "heartbeat",
+        "epoch": 1788831215.065044,
+        "pid": 63611,
+        "seconds": 37.545856125
+      },
+      {
+        "phase": "publisher",
+        "status": "heartbeat",
+        "epoch": 1788831216.147434,
+        "pid": 63611,
+        "seconds": 38.628258292
+      },
+      {
+        "phase": "publisher",
+        "status": "heartbeat",
+        "epoch": 1788831217.314019,
+        "pid": 63611,
+        "seconds": 39.794865375
+      },
+      {
+        "phase": "publisher",
+        "status": "heartbeat",
+        "epoch": 1788831218.4408681,
+        "pid": 63611,
+        "seconds": 40.921723709
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831218.853593,
+        "pid": 66452,
+        "ppid": 63611,
+        "pgid": 63611,
+        "started": 1788831218.0,
+        "executable": "other"
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831219.429774,
+        "pid": 66511,
+        "ppid": 63611,
+        "pgid": 63611,
+        "started": 1788831218.0,
+        "executable": "other"
+      },
+      {
+        "phase": "publisher",
+        "status": "heartbeat",
+        "epoch": 1788831219.4631119,
+        "pid": 63611,
+        "seconds": 41.943969084
+      },
+      {
+        "phase": "publisher",
+        "status": "heartbeat",
+        "epoch": 1788831220.728363,
+        "pid": 63611,
+        "seconds": 43.209258334
+      },
+      {
+        "phase": "publisher",
+        "status": "heartbeat",
+        "epoch": 1788831221.8339882,
+        "pid": 63611,
+        "seconds": 44.314906625
+      },
+      {
+        "phase": "publisher",
+        "status": "pass",
+        "epoch": 1788831221.8422961,
+        "pid": 63611,
+        "exitCode": 0,
+        "seconds": 44.323226500000004
+      },
+      {
+        "phase": "publisher",
+        "status": "observed",
+        "epoch": 1788831221.842586,
+        "step": "install tarballs",
+        "seconds": 15.269078249999998,
+        "ok": true
+      },
+      {
+        "phase": "publisher",
+        "status": "observed",
+        "epoch": 1788831221.8426251,
+        "step": "doctor",
+        "seconds": 0.4730912090000002,
+        "ok": true
+      },
+      {
+        "phase": "publisher",
+        "status": "observed",
+        "epoch": 1788831221.8426461,
+        "step": "guide auth",
+        "seconds": 0.0371169579999987,
+        "ok": true
+      },
+      {
+        "phase": "publisher",
+        "status": "observed",
+        "epoch": 1788831221.8426628,
+        "step": "public client and React exports",
+        "seconds": 0.044511249999999565,
+        "ok": true
+      },
+      {
+        "phase": "publisher",
+        "status": "observed",
+        "epoch": 1788831221.84268,
+        "step": "todos init",
+        "seconds": 0.6692398329999997,
+        "ok": true
+      },
+      {
+        "phase": "publisher",
+        "status": "observed",
+        "epoch": 1788831221.842695,
+        "step": "todos check",
+        "seconds": 0.6829788340000014,
+        "ok": true
+      },
+      {
+        "phase": "publisher",
+        "status": "observed",
+        "epoch": 1788831221.842711,
+        "step": "todos React bundle",
+        "seconds": 1.7963414170000034,
+        "ok": true
+      },
+      {
+        "phase": "publisher",
+        "status": "observed",
+        "epoch": 1788831221.842727,
+        "step": "todos dev",
+        "seconds": 0.4500602910000016,
+        "ok": true
+      },
+      {
+        "phase": "publisher",
+        "status": "observed",
+        "epoch": 1788831221.8427432,
+        "step": "React live query round trip",
+        "seconds": 0.1386234169999989,
+        "ok": true
+      },
+      {
+        "phase": "publisher",
+        "status": "observed",
+        "epoch": 1788831221.842758,
+        "step": "todos receipt",
+        "accepted": true,
+        "verdict": "pass"
+      },
+      {
+        "phase": "publisher",
+        "status": "observed",
+        "epoch": 1788831221.842773,
+        "step": "todos test",
+        "seconds": 1.4359304999999987,
+        "ok": true
+      },
+      {
+        "phase": "publisher",
+        "status": "observed",
+        "epoch": 1788831221.842787,
+        "step": "todos stop",
+        "seconds": 0.17930400000000007,
+        "ok": true
+      },
+      {
+        "phase": "publisher",
+        "status": "observed",
+        "epoch": 1788831221.8428009,
+        "step": "chat init",
+        "seconds": 1.0617522910000008,
+        "ok": true
+      },
+      {
+        "phase": "publisher",
+        "status": "observed",
+        "epoch": 1788831221.8428211,
+        "step": "chat check",
+        "seconds": 1.054045291999999,
+        "ok": true
+      },
+      {
+        "phase": "publisher",
+        "status": "observed",
+        "epoch": 1788831221.842835,
+        "step": "chat React bundle",
+        "seconds": 0.7938730829999986,
+        "ok": true
+      },
+      {
+        "phase": "publisher",
+        "status": "observed",
+        "epoch": 1788831221.842849,
+        "step": "chat dev",
+        "seconds": 1.0468630840000006,
+        "ok": true
+      },
+      {
+        "phase": "publisher",
+        "status": "observed",
+        "epoch": 1788831221.842865,
+        "step": "chat receipt",
+        "accepted": true,
+        "verdict": "pass"
+      },
+      {
+        "phase": "publisher",
+        "status": "observed",
+        "epoch": 1788831221.8428779,
+        "step": "chat test",
+        "seconds": 9.983234,
+        "ok": true
+      },
+      {
+        "phase": "publisher",
+        "status": "observed",
+        "epoch": 1788831221.842892,
+        "step": "chat stop",
+        "seconds": 0.2341989160000012,
+        "ok": true
+      },
+      {
+        "phase": "publisher",
+        "status": "complete",
+        "epoch": 1788831221.842963,
+        "exitCode": 0,
+        "publicationUnknown": false
+      },
+      {
+        "phase": "publisher",
+        "status": "started",
+        "epoch": 1788831221.8457532,
+        "pid": 66819
+      },
+      {
+        "phase": "cleanup",
+        "status": "observed",
+        "epoch": 1788831221.849772,
+        "pid": 66819,
+        "ppid": 63536,
+        "pgid": 66819,
+        "started": 1788831221.0,
+        "executable": "node"
+      },
+      {
+        "phase": "publisher",
+        "status": "fail",
+        "epoch": 1788831222.5062048,
+        "pid": 66819,
+        "exitCode": 1,
+        "seconds": 0.6631949999999946
+      },
+      {
+        "phase": "publisher",
+        "status": "unknown",
+        "epoch": 1788831222.508551,
+        "package": "snapback2-darwin-arm64",
+        "registryState": "absent",
+        "code": "E404",
+        "publicationUnknown": true
+      },
+      {
+        "phase": "terminal",
+        "status": "fail",
+        "epoch": 1788831222.508731,
+        "code": "E404",
+        "publicationUnknown": true
+      },
+      {
+        "phase": "cleanup",
+        "status": "complete",
+        "epoch": 1788831222.838892,
+        "clean": true
+      },
+      {
+        "phase": "terminal",
+        "status": "fail",
+        "epoch": 1788831222.928853,
+        "exitCode": 1,
+        "clean": true,
+        "publicationUnknown": true
+      }
+    ],
+    "privateStorageAbsent": {
+      "cache": true,
+      "logs": true,
+      "tmp": true
+    },
+    "ownedRunLeaves": [
+      "events.jsonl",
+      "global.npmrc",
+      "metric-all-original-bytes.jsonl",
+      "metric-baseline.jsonl",
+      "metric-own-append.jsonl",
+      "package.json",
+      "prior-working-resume.json",
+      "user.npmrc"
+    ],
+    "workingResumeSha256": "2ac3b852f97e8e65ecc1f3391fa3619a5271b1ed7df3b45bc08ad34d18b8e906",
+    "workingResumeMode": "0o644",
+    "metricSha256": "3aed00f9020929f447b5724007dab42ed161b11ce744cc66f4ca468fbac32290",
+    "metricRows": 226,
+    "priorWorkingResumeSha256": "2ac3b852f97e8e65ecc1f3391fa3619a5271b1ed7df3b45bc08ad34d18b8e906",
+    "metricBaselineSha256": "3aed00f9020929f447b5724007dab42ed161b11ce744cc66f4ca468fbac32290",
+    "bundleSha256": "2fa6edaf3f1edbf89f1b69564425c0c0eaf208e790a805cfee1ba9dfbc611e59",
+    "ownedIdentityObservations": {
+      "63536": null,
+      "63537": null,
+      "63543": null,
+      "63556": null,
+      "63575": null,
+      "63590": null,
+      "63611": null,
+      "63617": null,
+      "63655": null,
+      "64053": null,
+      "64055": null,
+      "64080": null,
+      "64081": null,
+      "64082": null,
+      "64109": null,
+      "64111": null,
+      "64112": null,
+      "64156": null,
+      "64185": null,
+      "64236": null,
+      "64237": null,
+      "64238": null,
+      "64239": null,
+      "64267": null,
+      "64268": null,
+      "64299": null,
+      "64300": null,
+      "64383": null,
+      "64390": null,
+      "64399": null,
+      "64400": null,
+      "64401": null,
+      "64479": null,
+      "64481": null,
+      "64483": null,
+      "64570": null,
+      "64579": null,
+      "64622": null,
+      "64623": null,
+      "64624": null,
+      "64625": null,
+      "64675": null,
+      "64726": null,
+      "64729": null,
+      "64730": null,
+      "64797": null,
+      "64798": null,
+      "65608": null,
+      "65679": null,
+      "65749": null,
+      "65818": null,
+      "65898": null,
+      "65900": null,
+      "65932": null,
+      "65999": null,
+      "66452": null,
+      "66511": null,
+      "66819": null
+    },
+    "configContentsRead": false,
+    "activationInvoked": false,
+    "metricAllSha256": "47e3e72cce723a83b49a14007f238d7053eef559643b07be50a1455661542c1f",
+    "metricAppendText": "{\"at\":\"2026-09-08T01:33:41.839Z\",\"publish_s\":44.3,\"production_binary_bytes\":7029824,\"production_binary_without_engine_bytes\":3812208,\"production_binary_with_engine_bytes\":7029824,\"production_media_binary_bytes\":2147968,\"engine\":\"ibex2 + vanilla hermes\",\"dry\":false}\n",
+    "metricAppendSha256": "1125eb8a3e58453c7994fc712ab664129aaa84f86c01819564e3437c88673e77"
+  }
+}

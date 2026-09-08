@@ -1,0 +1,46 @@
+{
+  "automaticRetry": false,
+  "checks": [
+    {
+      "actualProcessWaitCompleted": true,
+      "actualReturnCode": -9,
+      "argv": [
+        "/Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/bin/node",
+        "-e",
+        "setTimeout(() => {}, 60000)"
+      ],
+      "attempt": 1,
+      "automaticRetry": false,
+      "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.18",
+      "elapsedSeconds": 30.186646542000002,
+      "endedEpoch": 1788831374.15181,
+      "exitCode": 124,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "name": "intentional-timeout",
+      "pid": 77140,
+      "processGroup": 77140,
+      "processIdentity": "77140 Mon Sep  7 18:35:43 2026     /Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/bin/node",
+      "startedEpoch": 1788831343.965297,
+      "timedOut": true,
+      "timeoutSeconds": 30
+    }
+  ],
+  "endEpoch": 1788831374.153725,
+  "endLoad": [
+    164.748046875,
+    143.71630859375,
+    120.966796875
+  ],
+  "expectedTimeoutObserved": true,
+  "helperSha256": "b66c1e0e7eddb99d6a17a3902a0d3fb116f35618c47068d16b8d97a87438fa0a",
+  "initialLoad": [
+    149.0302734375,
+    138.6953125,
+    118.43212890625
+  ],
+  "ok": true,
+  "phase": "timeout-control",
+  "startEpoch": 1788831343.9651809,
+  "timeoutSeconds": 30,
+  "version": "0.0.18"
+}

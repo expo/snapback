@@ -1,0 +1,18 @@
+{
+  "epoch": 1788831768.636968,
+  "readOnly": true,
+  "observations": [
+    {
+      "url": "https://registry.npmjs.org/snapback2/-/snapback2-0.0.18.tgz",
+      "httpStatus": 200,
+      "integrity": "sha512-UBOM7aQErcCB7vIjg19wubG2w521VzEkLvFJhlCPUK3rAxdd8Tkp8UB7bZ334WomaIJEEXMk5LczYcJE7SlvWA==",
+      "matchesQualified": true
+    },
+    {
+      "url": "https://registry.npmjs.org/snapback2/-/snapback2-0.0.18.tgz?dx=1788831768636969000",
+      "httpStatus": 200,
+      "integrity": "sha512-UBOM7aQErcCB7vIjg19wubG2w521VzEkLvFJhlCPUK3rAxdd8Tkp8UB7bZ334WomaIJEEXMk5LczYcJE7SlvWA==",
+      "matchesQualified": true
+    }
+  ]
+}

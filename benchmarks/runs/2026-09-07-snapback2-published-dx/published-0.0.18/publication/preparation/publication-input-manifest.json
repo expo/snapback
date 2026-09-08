@@ -1,0 +1,121 @@
+{
+  "sourceCommit": "7b947aa4def19d51ea786783625fb023f3bc891d",
+  "complete": true,
+  "scope": "Inputs to direct reviewed stage/activation/custody helpers; historical agent resume artifacts are not used",
+  "files": [
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-preparation-r1/bundle.json",
+      "sha256": "2fa6edaf3f1edbf89f1b69564425c0c0eaf208e790a805cfee1ba9dfbc611e59",
+      "bytes": 1468,
+      "mode": 292
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-preparation-r1/source-stage.tar.gz",
+      "sha256": "10c26438978dd5fe9a68fdf86ae1ece71c61ba3c61ea8715c03a249714eb56d3",
+      "bytes": 3228929,
+      "mode": 292
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-preparation-r1/command-manifest.json",
+      "sha256": "7c9238c0433c92f85d055584187f98ffd4c5711c58dce8521568bdb99336e3a2",
+      "bytes": 1614,
+      "mode": 420
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-preparation-r1/qualification-evidence.json",
+      "sha256": "4f7aae02b46f127854b1fc32b31e995482adf61087f04f2c3cbdb7d742ad52e6",
+      "bytes": 1228,
+      "mode": 420
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-preparation-r1/custody.py",
+      "sha256": "81629de2b09499aa26992f84abd9fbbebf12a53495002c6551aace06bca5bb33",
+      "bytes": 9044,
+      "mode": 292
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-preparation-r1/control.py",
+      "sha256": "15f520972f558b556323fb8aeb29239d45d6b56f6dcf12605633dfb53af3cb38",
+      "bytes": 21718,
+      "mode": 292
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-preparation-r1/remote.py",
+      "sha256": "a768ecf2b9ac1988a17ac5b0f4ec7df5ec778bd116f9eee673c08b629e6a2944",
+      "bytes": 10345,
+      "mode": 292
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-preparation-r1/office.py",
+      "sha256": "f43b10e57b08b33b668ea8e44f7dc8d54396271bd7e15d7a82bebc6dfe14cb35",
+      "bytes": 10869,
+      "mode": 292
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-preparation-r1/feeder.cjs",
+      "sha256": "370e06202e4f2aa1d198407b9bc4659eeeba36092fd5563787b07122d79e5be4",
+      "bytes": 4095,
+      "mode": 292
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-preparation-r1/bindings.json",
+      "sha256": "746e44d5be60b30c596e3b94aaa9767315ba75ab3f23816d09cfdda11d57dd7a",
+      "bytes": 3408,
+      "mode": 292
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-preparation-r1/inputs/source-manifest.json",
+      "sha256": "93374c7ac738e5564be2af6e1173db8c36cce0ff8fb8a59ff0a8991fe23fa0a0",
+      "bytes": 237843,
+      "mode": 292
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-preparation-r1/inputs/node-input-manifest.json",
+      "sha256": "e799a24c1d9b11b655c7b503b11e4f2763df71b695cef09b0d9cebd855d62579",
+      "bytes": 1319730,
+      "mode": 292
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-preparation-r1/inputs/resume-readiness.json",
+      "sha256": "f26b9d64f5d5d0c017eb513451e475a91040ba3c8da8502f482184001fdb29f6",
+      "bytes": 2134,
+      "mode": 292
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-preparation-r1/inputs/artifact-inputs.json",
+      "sha256": "9d77cccbfd0cc0dbc9578c21b5eb35a43a8740552f205a7f19e68443ec806834",
+      "bytes": 1450,
+      "mode": 292
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-preparation-r1/inputs/endpoint.json",
+      "sha256": "1ddab74398d3db6dd98c6eabb3839124e949912c86560b4bc924026b0b549c82",
+      "bytes": 978,
+      "mode": 292
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-execution-r1/stage.py",
+      "sha256": "2021961bb3e68bc38bddabce4e25f1d2402208f39400662a1e7facdc218a0ffc",
+      "bytes": 8292,
+      "mode": 292
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-execution-r1/activation-launch.py",
+      "sha256": "bd1c4ddda9244b947c6e0e38ed01f38413a515ce8e7e9ecadcb47884f9b517fe",
+      "bytes": 3738,
+      "mode": 292
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-execution-r1/observe-stopped-state.py",
+      "sha256": "81f1099447e6d753e2a922aa42848446496398d8b09a099ffbba9d5b5434d294",
+      "bytes": 4602,
+      "mode": 292
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-execution-r1/final-remote-custody.py",
+      "sha256": "c91f92ab56b06989258019b87e2343e3f17e4e8f13cb41c79c32d2b932cd91fb",
+      "bytes": 2395,
+      "mode": 292
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "observedEpoch": 1788831247.044502,
+  "readOnly": true,
+  "republish": false,
+  "packages": [
+    {
+      "name": "snapback2-darwin-arm64",
+      "version": {
+        "httpStatus": 200,
+        "version": "0.0.18",
+        "integrity": "sha512-JLOYb8u5B41XUN5wfGBhpPkONhjqRX4KsiqOCQ6PMupBPDh92ANo7LZhNvoyeb3Z/qtfWOgjBSlTEX4Xiq1yLA=="
+      },
+      "expectedIntegrity": "sha512-JLOYb8u5B41XUN5wfGBhpPkONhjqRX4KsiqOCQ6PMupBPDh92ANo7LZhNvoyeb3Z/qtfWOgjBSlTEX4Xiq1yLA==",
+      "latest": {
+        "httpStatus": 200,
+        "version": "0.0.18",
+        "integrity": "sha512-JLOYb8u5B41XUN5wfGBhpPkONhjqRX4KsiqOCQ6PMupBPDh92ANo7LZhNvoyeb3Z/qtfWOgjBSlTEX4Xiq1yLA=="
+      },
+      "matched": true
+    },
+    {
+      "name": "snapback2",
+      "version": {
+        "httpStatus": 404
+      },
+      "expectedIntegrity": "sha512-UBOM7aQErcCB7vIjg19wubG2w521VzEkLvFJhlCPUK3rAxdd8Tkp8UB7bZ334WomaIJEEXMk5LczYcJE7SlvWA==",
+      "latest": {
+        "httpStatus": 200,
+        "version": "0.0.17",
+        "integrity": "sha512-dHeqyjAGEGsPQsbY2WcWRG7VjOCzpbIqZh+Du+msbO+ZizCoUqraF6iyykcVwol19Nzry+i0gVJLBvKK5gpyVw=="
+      },
+      "matched": false
+    }
+  ],
+  "matched": false
+}

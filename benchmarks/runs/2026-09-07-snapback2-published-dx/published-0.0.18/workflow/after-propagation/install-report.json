@@ -1,0 +1,124 @@
+{
+  "automaticRetry": false,
+  "cachePolicy": "Initial empty private cache; fresh ci reuses this populated cache with no node_modules",
+  "checks": [
+    {
+      "actualProcessWaitCompleted": true,
+      "actualReturnCode": 0,
+      "argv": [
+        "/Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/bin/node",
+        "--version"
+      ],
+      "attempt": 1,
+      "automaticRetry": false,
+      "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation",
+      "elapsedSeconds": 0.126943041,
+      "endedEpoch": 1788831803.587142,
+      "exitCode": 0,
+      "logSha256": "8f9258d5e9da5443c42966a661aee09292b49d1c64e718dcc5f72976500bac48",
+      "name": "node-version",
+      "pid": 86029,
+      "processGroup": 86029,
+      "processIdentity": "86029 Mon Sep  7 18:43:23 2026     /Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/bin/node",
+      "startedEpoch": 1788831803.4601998,
+      "timeoutSeconds": 30
+    },
+    {
+      "actualProcessWaitCompleted": true,
+      "actualReturnCode": 0,
+      "argv": [
+        "/Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/bin/node",
+        "/Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/lib/node_modules/npm/bin/npm-cli.js",
+        "--version"
+      ],
+      "attempt": 1,
+      "automaticRetry": false,
+      "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation",
+      "elapsedSeconds": 0.35424362500000006,
+      "endedEpoch": 1788831803.943016,
+      "exitCode": 0,
+      "logSha256": "041fb0a6f23ccf0102a18d4591e1bfa36eebc17d27d348727a5eee18806d1c3c",
+      "name": "npm-version",
+      "pid": 86031,
+      "processGroup": 86031,
+      "processIdentity": "86031 Mon Sep  7 18:43:23 2026     /Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/bin/node",
+      "startedEpoch": 1788831803.588754,
+      "timeoutSeconds": 30
+    },
+    {
+      "actualProcessWaitCompleted": true,
+      "actualReturnCode": 0,
+      "argv": [
+        "/Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/bin/node",
+        "/Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/lib/node_modules/npm/bin/npm-cli.js",
+        "install",
+        "--no-audit",
+        "--no-fund",
+        "--fetch-retries=0",
+        "--fetch-timeout=15000",
+        "--save-exact",
+        "snapback2@0.0.18",
+        "react@19.1.1"
+      ],
+      "attempt": 1,
+      "automaticRetry": false,
+      "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/producer",
+      "elapsedSeconds": 4.105063040999999,
+      "endedEpoch": 1788831808.1735392,
+      "exitCode": 0,
+      "logSha256": "3f0ad2cea5b1547929f1c84cfba194f8b5d6b6509317591219b727332a682535",
+      "name": "default-install",
+      "pid": 86037,
+      "processGroup": 86037,
+      "processIdentity": "86037 Mon Sep  7 18:43:24 2026     /Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/bin/node",
+      "startedEpoch": 1788831804.068484,
+      "timeoutSeconds": 30
+    },
+    {
+      "actualProcessWaitCompleted": true,
+      "actualReturnCode": 0,
+      "argv": [
+        "/Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/bin/node",
+        "/Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/lib/node_modules/npm/bin/npm-cli.js",
+        "ci",
+        "--no-audit",
+        "--no-fund",
+        "--fetch-retries=0",
+        "--fetch-timeout=15000"
+      ],
+      "attempt": 1,
+      "automaticRetry": false,
+      "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/consumer",
+      "elapsedSeconds": 5.483451584,
+      "endedEpoch": 1788831813.7621708,
+      "exitCode": 0,
+      "logSha256": "b4a999ea51dfc81120a53ecf292e4d944735cf58f95f740858dc43f2a6d629c7",
+      "name": "fresh-ci",
+      "pid": 86117,
+      "processGroup": 86117,
+      "processIdentity": "86117 Mon Sep  7 18:43:28 2026     /Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/bin/node",
+      "startedEpoch": 1788831808.278733,
+      "timeoutSeconds": 30
+    }
+  ],
+  "endEpoch": 1788831814.0256782,
+  "endLoad": [
+    112.205078125,
+    135.82763671875,
+    127.61376953125
+  ],
+  "helperSha256": "b66c1e0e7eddb99d6a17a3902a0d3fb116f35618c47068d16b8d97a87438fa0a",
+  "initialLoad": [
+    116.890625,
+    137.521484375,
+    128.10595703125
+  ],
+  "installedPairEqual": true,
+  "noWorkspaceLinks": true,
+  "ok": true,
+  "phase": "install",
+  "regularFiles": 156,
+  "startEpoch": 1788831803.459239,
+  "timeoutSeconds": 30,
+  "version": "0.0.18"
+}

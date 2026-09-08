@@ -1,0 +1,765 @@
+{
+  "files": [
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-execution-r1/public-registry-observation-06.json",
+      "path": "publication/public-registry-observation-06.json",
+      "bytes": 1320,
+      "sha256": "0c9736f26ff2b58f17fe1e18e275cfd915ae764fea5997e846c251e095c4cae8"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-execution-r1/activation-events.jsonl",
+      "path": "publication/activation-events.jsonl",
+      "bytes": 21879,
+      "sha256": "b17c77734ee9a4699f60c1286ce29a1b2954f2d17101f49baa3dd6ea54ffd5af"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-execution-r1/bundle-stage-remote.py",
+      "path": "publication/bundle-stage-remote.py",
+      "bytes": 5790,
+      "sha256": "4b6864c1c75f10748b30f8543af01d55ee2770127ab41e98ff98dc4ad3a10a4e"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-execution-r1/stage-result.json",
+      "path": "publication/stage-result.json",
+      "bytes": 271,
+      "sha256": "cd5baef192533cef555681652a58c8465b2e50b53a5d8e49dd8ec2f065961ed4"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-execution-r1/root-approval.json",
+      "path": "publication/root-approval.json",
+      "bytes": 672,
+      "sha256": "5094e4e88a65ca6fc07c2f2cd352a518020cc352875c909b3ca5f76185dfe428"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-execution-r1/final-custody-remote-source.py",
+      "path": "publication/final-custody-remote-source.py",
+      "bytes": 930,
+      "sha256": "101c11ec4cf4f905069bcb75f9fc694b84233cb57755d10a26df64e15eac37a0"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-execution-r1/bundle-stage-result.json",
+      "path": "publication/bundle-stage-result.json",
+      "bytes": 705,
+      "sha256": "f86c5765446ebd884284f5e6a83677e5bc0ef07cdf67cbd1d47a96c5658abec9"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-execution-r1/observe-stopped-state.py",
+      "path": "publication/observe-stopped-state.py",
+      "bytes": 4602,
+      "sha256": "81f1099447e6d753e2a922aa42848446496398d8b09a099ffbba9d5b5434d294"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-execution-r1/final-remote-custody.py",
+      "path": "publication/final-remote-custody.py",
+      "bytes": 2395,
+      "sha256": "c91f92ab56b06989258019b87e2343e3f17e4e8f13cb41c79c32d2b932cd91fb"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-execution-r1/public-registry-observation-01.json",
+      "path": "publication/public-registry-observation-01.json",
+      "bytes": 1173,
+      "sha256": "e6ddfaa8c375ad4e1e06f635ea5ae7bb41dbf52ce9e0fde191a2adaadb94a1b8"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-execution-r1/route-preflight-remote.py",
+      "path": "publication/route-preflight-remote.py",
+      "bytes": 3788,
+      "sha256": "bd9366cd5319964c170282e9dff6ec2659cabac23a0caab68f019fc43fc305fa"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-execution-r1/stopped-state-remote.py",
+      "path": "publication/stopped-state-remote.py",
+      "bytes": 2660,
+      "sha256": "d18877264b7984f6ba96f2eaf4edbe2b6c9de96543c5d9641ded1ca5ac47c97f"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-execution-r1/activation-launch.py",
+      "path": "publication/activation-launch.py",
+      "bytes": 3738,
+      "sha256": "bd1c4ddda9244b947c6e0e38ed01f38413a515ce8e7e9ecadcb47884f9b517fe"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-execution-r1/source-stage-remote.py",
+      "path": "publication/source-stage-remote.py",
+      "bytes": 5400,
+      "sha256": "8314241b07b795845c76fc72056588a45dec91e211f7494cdd82b9a8aac6fdb6"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-execution-r1/public-registry-observation-05-remote.json",
+      "path": "publication/public-registry-observation-05-remote.json",
+      "bytes": 682,
+      "sha256": "0480da30f6955033f8e83ed9a67277571092a75cf145a5342d4c946adebba361"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-execution-r1/public-registry-observation-02.json",
+      "path": "publication/public-registry-observation-02.json",
+      "bytes": 1173,
+      "sha256": "a7c73b1de0cf7d4693baa82f0825f177c31dc5c89f8fce7a8b2328611fd8af2f"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-execution-r1/public-registry-observation-03.json",
+      "path": "publication/public-registry-observation-03.json",
+      "bytes": 1148,
+      "sha256": "a88729c34e636845314b725a375e7fe7f650c3808455919d3c587ea0265097e0"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-execution-r1/archive-receipt.json",
+      "path": "publication/archive-receipt.json",
+      "bytes": 1382,
+      "sha256": "1b05cc204314081a410e07dfff3f75c80f0c101cf1a700795a549ac849b2ceb0"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-execution-r1/activation-running.json",
+      "path": "publication/activation-running.json",
+      "bytes": 338,
+      "sha256": "4448a3b77bfe9fa7e751e1e68b3c39f02976a12d0742b3a126aa717c7dd493b8"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-execution-r1/route-preflight-result.json",
+      "path": "publication/route-preflight-result.json",
+      "bytes": 869,
+      "sha256": "f11aa480db19b8a6f91adfa6986095742d04cc709e23ea4c0342275a6e1e74d4"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-execution-r1/final-remote-custody.json",
+      "path": "publication/final-remote-custody.json",
+      "bytes": 521,
+      "sha256": "f3ffc6eb89afcb2b5fe908cab8e2c67c1f699bb0310daf2f7cdd6986306a88f6"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-execution-r1/activation-intent.json",
+      "path": "publication/activation-intent.json",
+      "bytes": 505,
+      "sha256": "0926cb5c9d0c27654165f5d2d89f0258633649ecd1ddd3fc0c1b91f62e3c9517"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-execution-r1/stopped-state-result.json",
+      "path": "publication/stopped-state-result.json",
+      "bytes": 37529,
+      "sha256": "e5d64eeaed44e83a153d2676f533a0cc3f76282d543484a32a75fe1b329652ea"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-execution-r1/stage.py",
+      "path": "publication/stage.py",
+      "bytes": 8292,
+      "sha256": "2021961bb3e68bc38bddabce4e25f1d2402208f39400662a1e7facdc218a0ffc"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-execution-r1/public-registry-observation-04.json",
+      "path": "publication/public-registry-observation-04.json",
+      "bytes": 1495,
+      "sha256": "61660c1ac21d248166c3a9ec5a865aeddf28cdbbe3760026980117a85d2c5b0a"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-execution-r1/source-stage-result.json",
+      "path": "publication/source-stage-result.json",
+      "bytes": 707,
+      "sha256": "44b554ab3c215e2f4d47afdee17e92aa06c1e4fed6b072b966f76292b3b145d1"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-execution-r1/activation-result.json",
+      "path": "publication/activation-result.json",
+      "bytes": 445,
+      "sha256": "7e2c59db7bc5b5aadcc59d75bfcc547bf2ed8c2b54604f48d493c4de41d51af0"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-preparation-r1/command-manifest.json",
+      "path": "publication/preparation/command-manifest.json",
+      "bytes": 1614,
+      "sha256": "7c9238c0433c92f85d055584187f98ffd4c5711c58dce8521568bdb99336e3a2"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-preparation-r1/qualification-evidence.json",
+      "path": "publication/preparation/qualification-evidence.json",
+      "bytes": 1228,
+      "sha256": "4f7aae02b46f127854b1fc32b31e995482adf61087f04f2c3cbdb7d742ad52e6"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-preparation-r1/publication-input-manifest.json",
+      "path": "publication/preparation/publication-input-manifest.json",
+      "bytes": 5018,
+      "sha256": "5a1d97c4f18b4e2d97b8f16df19e88958de36ee473e6f6166dbe76b5c1751893"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-preparation-r1/validation.json",
+      "path": "publication/preparation/validation.json",
+      "bytes": 288,
+      "sha256": "9b5d8e6cb977e33cd66ba43f2845ca9e7154897952719bc300a7f4fec2792388"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-preparation-r1/REPORT.md",
+      "path": "publication/preparation/REPORT.md",
+      "bytes": 605,
+      "sha256": "e247209917c046ec15100a5704f3fe343a9f0d62afd0ccc266df80d441eefc04"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-preparation-r1/source-capsule-receipt.json",
+      "path": "publication/preparation/source-capsule-receipt.json",
+      "bytes": 1417,
+      "sha256": "2253f634ab92fe372e6ddc4e283378b794ddff72f728d21ef742a79159bce79f"
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-preparation-r1/derivative-provenance.json",
+      "path": "publication/preparation/derivative-provenance.json",
+      "bytes": 4387,
+      "sha256": "d6f2e2116cbecb3f1b44e1898fa1a52aac4493944c39a9a3f7132b61968ae1e4"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/published-declaration-consumer.ts",
+      "path": "workflow/first-attempt/published-declaration-consumer.ts",
+      "bytes": 7259,
+      "sha256": "8395c730901927d87887f11d31db44f7aff9a6c90f011f7f4b18a0600dd30ed5"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/fixture-provenance.json",
+      "path": "workflow/first-attempt/fixture-provenance.json",
+      "bytes": 237,
+      "sha256": "12e6ed9c9d84911be1a1c996a58e3fa8379aa0c6b39052b4ef484c60544bb413"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/tarball-observation-02.json",
+      "path": "workflow/first-attempt/tarball-observation-02.json",
+      "bytes": 625,
+      "sha256": "2097280cb7d936b8a1d4b6667864a400be601209e2dffb09805c8b22b4adee07"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/timeout-control-report.json",
+      "path": "workflow/first-attempt/timeout-control-report.json",
+      "bytes": 1419,
+      "sha256": "b9d315dbb69e8eee2ab0a02f55ca7fff31dbb9c5d5fc0c638e416c0352b68307"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/post-timeout-registry-and-child.json",
+      "path": "workflow/first-attempt/post-timeout-registry-and-child.json",
+      "bytes": 501,
+      "sha256": "c18751a692ddfc0f5767589ced43a3b5e308181c2b6b4095bfece810979a6334"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/continuation.py",
+      "path": "workflow/first-attempt/continuation.py",
+      "bytes": 3081,
+      "sha256": "b39c2072bbeae89f510c4ba67f8018137ba8fa36b8b12ef2ce4140775c71f3d3"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/type-probe.mjs",
+      "path": "workflow/first-attempt/type-probe.mjs",
+      "bytes": 4053,
+      "sha256": "3543860db2bebdb14c5058d263d5a41d435d7fab8e03132f7a35595576100998"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/public-pair.json",
+      "path": "workflow/first-attempt/public-pair.json",
+      "bytes": 1320,
+      "sha256": "0c9736f26ff2b58f17fe1e18e275cfd915ae764fea5997e846c251e095c4cae8"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/host-observation.json",
+      "path": "workflow/first-attempt/host-observation.json",
+      "bytes": 925,
+      "sha256": "ed4febbdd99e38c404c0e0a58ebc882da40b424a83df9a9330d1b29c3f8dd747"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/workflow.py",
+      "path": "workflow/first-attempt/workflow.py",
+      "bytes": 4572,
+      "sha256": "1266d1ff57c60dd1a050b7127684315e5525536e6954a33a0a912addd01485e0"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/install-report.json",
+      "path": "workflow/first-attempt/install-report.json",
+      "bytes": 3806,
+      "sha256": "86f87351033d7737b38e4949569dfe1092b7bd235907643a37c5d8ccbc5e7940"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/receipts/npm-version.json",
+      "path": "workflow/first-attempt/receipts/npm-version.json",
+      "bytes": 910,
+      "sha256": "34323681c92924da6aed140330dbdaf9ccbfc759c0095a50410bab8d4cd8a98f"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/receipts/node-version.log",
+      "path": "workflow/first-attempt/receipts/node-version.log",
+      "bytes": 9,
+      "sha256": "8f9258d5e9da5443c42966a661aee09292b49d1c64e718dcc5f72976500bac48"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/receipts/default-install.log",
+      "path": "workflow/first-attempt/receipts/default-install.log",
+      "bytes": 593,
+      "sha256": "41cd7d4208327c9b84a6a3e694bd1f2d373775dda4851164880f05cdb6a42b7c"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/receipts/npm-version.log",
+      "path": "workflow/first-attempt/receipts/npm-version.log",
+      "bytes": 8,
+      "sha256": "041fb0a6f23ccf0102a18d4591e1bfa36eebc17d27d348727a5eee18806d1c3c"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/receipts/node-version.json",
+      "path": "workflow/first-attempt/receipts/node-version.json",
+      "bytes": 773,
+      "sha256": "1a81965a9b963d3818fc2773cf50ad452183ee68e7fad51212980ad220948818"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/receipts/intentional-timeout.json",
+      "path": "workflow/first-attempt/receipts/intentional-timeout.json",
+      "bytes": 838,
+      "sha256": "8eca9d23fbf38df5e676cf4add069202a2c4f57ed4af039cefdc619596f809f5"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/receipts/default-install.running.json",
+      "path": "workflow/first-attempt/receipts/default-install.running.json",
+      "bytes": 843,
+      "sha256": "67b3aac2e45f95f102d68bc536e5fc05b53c241e45036866f5779269083f71da"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/receipts/intentional-timeout.log",
+      "path": "workflow/first-attempt/receipts/intentional-timeout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/receipts/default-install.json",
+      "path": "workflow/first-attempt/receipts/default-install.json",
+      "bytes": 1243,
+      "sha256": "08684636d79514819f0a74cce7ef287227958a33052288b56a55867e32c1f040"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/consumer-installed.json",
+      "path": "workflow/after-propagation/consumer-installed.json",
+      "bytes": 33843,
+      "sha256": "98720dc68150c08843b1d4481460048a5b0963d2f9d330195bc0e326134ab5e8"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/published-declaration-consumer.ts",
+      "path": "workflow/after-propagation/published-declaration-consumer.ts",
+      "bytes": 7259,
+      "sha256": "8395c730901927d87887f11d31db44f7aff9a6c90f011f7f4b18a0600dd30ed5"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/fixture-provenance.json",
+      "path": "workflow/after-propagation/fixture-provenance.json",
+      "bytes": 237,
+      "sha256": "12e6ed9c9d84911be1a1c996a58e3fa8379aa0c6b39052b4ef484c60544bb413"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/report-errata.json",
+      "path": "workflow/after-propagation/report-errata.json",
+      "bytes": 826,
+      "sha256": "206a63ad2389c0bb81f71d63011ec0245ff3e3b6267873c48cbcf0a8d0fa4eec"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/continuation-r2-report.json",
+      "path": "workflow/after-propagation/continuation-r2-report.json",
+      "bytes": 7781,
+      "sha256": "37e5bb6421ef8686b9e1b50f031b7370643f3acc6d548b959b10bff9ec5d743f"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/continuation.py",
+      "path": "workflow/after-propagation/continuation.py",
+      "bytes": 3081,
+      "sha256": "b39c2072bbeae89f510c4ba67f8018137ba8fa36b8b12ef2ce4140775c71f3d3"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/before-edit.json",
+      "path": "workflow/after-propagation/before-edit.json",
+      "bytes": 432,
+      "sha256": "c22449ec1f0f6ff92a287f5c8f431d3bf52bb4a075df02af705a4039d60e2936"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/continuation-r2.py",
+      "path": "workflow/after-propagation/continuation-r2.py",
+      "bytes": 2170,
+      "sha256": "f14147de33e8918ebb8631e5be1b4c80db67dd7168b7b6609645e8697cf9b984"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/producer-installed.json",
+      "path": "workflow/after-propagation/producer-installed.json",
+      "bytes": 33843,
+      "sha256": "98720dc68150c08843b1d4481460048a5b0963d2f9d330195bc0e326134ab5e8"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/start-report.json",
+      "path": "workflow/after-propagation/start-report.json",
+      "bytes": 6765,
+      "sha256": "33f192ac071c09dfc2af764d7f3d9426d983ee13c16032bfec0716a55f71b293"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/type-probe.mjs",
+      "path": "workflow/after-propagation/type-probe.mjs",
+      "bytes": 4053,
+      "sha256": "3543860db2bebdb14c5058d263d5a41d435d7fab8e03132f7a35595576100998"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/public-pair.json",
+      "path": "workflow/after-propagation/public-pair.json",
+      "bytes": 1320,
+      "sha256": "0c9736f26ff2b58f17fe1e18e275cfd915ae764fea5997e846c251e095c4cae8"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/attempt-context.json",
+      "path": "workflow/after-propagation/attempt-context.json",
+      "bytes": 741,
+      "sha256": "75db9cd5023f6390526cfd3c9ed93b738db35e991e326d9ce0d4203a3722a9c2"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/workflow.py",
+      "path": "workflow/after-propagation/workflow.py",
+      "bytes": 4623,
+      "sha256": "814c606caccad9508850c0fc773891256447c3e9fa036878fe3c5a2a80bdd1aa"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/final-custody.json",
+      "path": "workflow/after-propagation/final-custody.json",
+      "bytes": 190,
+      "sha256": "4082428962b38829f29aa690091ae7cba8d6e14600f7ad930b59e0002d05487c"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/continuation-report.json",
+      "path": "workflow/after-propagation/continuation-report.json",
+      "bytes": 3451,
+      "sha256": "2a1ba43ff4af89c80c0e983d1cfa164f08ce20707d9c1d903b1ecc4e750dbaee"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/install-report.json",
+      "path": "workflow/after-propagation/install-report.json",
+      "bytes": 4874,
+      "sha256": "ffffcaeb46ef1b08ee9ee399d7037a42b5e888f0130231f8f6a7187e7e850fe5"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/receipts/fresh-ci.json",
+      "path": "workflow/after-propagation/receipts/fresh-ci.json",
+      "bytes": 1017,
+      "sha256": "042dacd31ee8339e6fd5f2f4c9cb8e738321d3adf37048255b86dd8503149a13"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/receipts/intentional-diagnostic.log",
+      "path": "workflow/after-propagation/receipts/intentional-diagnostic.log",
+      "bytes": 670,
+      "sha256": "3f82a0b0b4ee27c42d1be62df62d9f4e563b8c6e6ad86034237a30faab17aa18"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/receipts/dev-start.log",
+      "path": "workflow/after-propagation/receipts/dev-start.log",
+      "bytes": 36,
+      "sha256": "c9ae01353124a8269a895639437b32d7d6350941c6c4901bdd05b1f30fb97eab"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/receipts/dev-stop-r2.log",
+      "path": "workflow/after-propagation/receipts/dev-stop-r2.log",
+      "bytes": 44,
+      "sha256": "f0347164caa2c4eef44de6a90551ac97a917f47587ecb5ca7ab8155728d70340"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/receipts/full-test.log",
+      "path": "workflow/after-propagation/receipts/full-test.log",
+      "bytes": 5566,
+      "sha256": "c8f67bda100150d1a1025ff8e070aa938304ffb4cfc388bde4508ac199c78c55"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/receipts/npm-version.json",
+      "path": "workflow/after-propagation/receipts/npm-version.json",
+      "bytes": 936,
+      "sha256": "f41e17db5faf84079e578f3023d88a675817ea42fafc84e47509813f6efab0ee"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/receipts/node-version.log",
+      "path": "workflow/after-propagation/receipts/node-version.log",
+      "bytes": 9,
+      "sha256": "8f9258d5e9da5443c42966a661aee09292b49d1c64e718dcc5f72976500bac48"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/receipts/dev-restart.log",
+      "path": "workflow/after-propagation/receipts/dev-restart.log",
+      "bytes": 36,
+      "sha256": "14fd2ea39b76d5b7a126a7715be7777dd870b247642cc728171caaa21bf104fc"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/receipts/dev-restart.json",
+      "path": "workflow/after-propagation/receipts/dev-restart.json",
+      "bytes": 927,
+      "sha256": "81d9b8878793c061ef27f047de811d9d07b1f641d5cc079707ed13a65074c801"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/receipts/check-initial.json",
+      "path": "workflow/after-propagation/receipts/check-initial.json",
+      "bytes": 943,
+      "sha256": "5c602160c96dead31b9d8caec2c4eba3cb2876bce537cb5fae1b8c15ae71d6c7"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/receipts/default-install.log",
+      "path": "workflow/after-propagation/receipts/default-install.log",
+      "bytes": 24,
+      "sha256": "3f0ad2cea5b1547929f1c84cfba194f8b5d6b6509317591219b727332a682535"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/receipts/dev-stop.log",
+      "path": "workflow/after-propagation/receipts/dev-stop.log",
+      "bytes": 44,
+      "sha256": "f0347164caa2c4eef44de6a90551ac97a917f47587ecb5ca7ab8155728d70340"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/receipts/fresh-ci.log",
+      "path": "workflow/after-propagation/receipts/fresh-ci.log",
+      "bytes": 24,
+      "sha256": "b4a999ea51dfc81120a53ecf292e4d944735cf58f95f740858dc43f2a6d629c7"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/receipts/first-run.json",
+      "path": "workflow/after-propagation/receipts/first-run.json",
+      "bytes": 991,
+      "sha256": "6493beaf54a753e07c67aa20e8643c31c16d2b117dace80bb1ee877a6ff45b74"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/receipts/check-explicit-index.json",
+      "path": "workflow/after-propagation/receipts/check-explicit-index.json",
+      "bytes": 952,
+      "sha256": "8daac5624f3f98a7fbd0289090bc4696971a98fe634f1d4b42e9b4a7c12024e0"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/receipts/full-test.json",
+      "path": "workflow/after-propagation/receipts/full-test.json",
+      "bytes": 946,
+      "sha256": "59101a9a54341defbbbc22c38d5a7d62c5c94417e2f3a46ac8896cc8737f0e2d"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/receipts/npm-version.log",
+      "path": "workflow/after-propagation/receipts/npm-version.log",
+      "bytes": 8,
+      "sha256": "041fb0a6f23ccf0102a18d4591e1bfa36eebc17d27d348727a5eee18806d1c3c"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/receipts/node-version.json",
+      "path": "workflow/after-propagation/receipts/node-version.json",
+      "bytes": 793,
+      "sha256": "114b13b3d44be4438b58d42644d8912d4455cdbaf5ea4f3e2b0375c90fda382e"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/receipts/check-explicit-index.log",
+      "path": "workflow/after-propagation/receipts/check-explicit-index.log",
+      "bytes": 164,
+      "sha256": "af5368683c12b387abbc41ae1233e36dd7946046c9dd4266905a3d4d264dfe66"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/receipts/verified-run.log",
+      "path": "workflow/after-propagation/receipts/verified-run.log",
+      "bytes": 242,
+      "sha256": "aa751489a8e773caa3a8bd310fc16566de1b64239cc8fa477ed1e630fbb59bd4"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/receipts/focused-test.log",
+      "path": "workflow/after-propagation/receipts/focused-test.log",
+      "bytes": 619,
+      "sha256": "185e6ad362554d08e54d65eaac1ae14574c72fed0da3e1232e6ae3627fcbb92f"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/receipts/doctor.json",
+      "path": "workflow/after-propagation/receipts/doctor.json",
+      "bytes": 931,
+      "sha256": "034d816fa06f1d2ce67c8b059f7c98a57db6ac0a8ea13d214e801dbb8aad2b25"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/receipts/guide.log",
+      "path": "workflow/after-propagation/receipts/guide.log",
+      "bytes": 3559,
+      "sha256": "72d30c2239e39d59d2a685e7980712c99f2f3de44a25fa5d30d3cbf9bb9e6adc"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/receipts/check-corrected.log",
+      "path": "workflow/after-propagation/receipts/check-corrected.log",
+      "bytes": 361,
+      "sha256": "b97d075f7d25a1825afe3ae3920d54963c23800c3ad157b674a8c06f7b0217e8"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/receipts/intentional-diagnostic.json",
+      "path": "workflow/after-propagation/receipts/intentional-diagnostic.json",
+      "bytes": 955,
+      "sha256": "5d93f617a6fdaee8d0c7f6536c68c6fd072473932e41b23f583b3642336bc3be"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/receipts/doctor.log",
+      "path": "workflow/after-propagation/receipts/doctor.log",
+      "bytes": 362,
+      "sha256": "4a0ae493208d40eab045965212cefe802535117a2af0ee7bc45a87ccc10d738d"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/receipts/check-initial.log",
+      "path": "workflow/after-propagation/receipts/check-initial.log",
+      "bytes": 164,
+      "sha256": "f92eb034ac595f32d662a1fff07cd6db87e0aa0d7d6e8fbf7a847e23922499b1"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/receipts/dev-stop-r2.json",
+      "path": "workflow/after-propagation/receipts/dev-stop-r2.json",
+      "bytes": 963,
+      "sha256": "0549bc2d083886589ec4b823ae512673cd9c7efb42d8287231011e6b96ca80ba"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/receipts/dev-start.json",
+      "path": "workflow/after-propagation/receipts/dev-start.json",
+      "bytes": 933,
+      "sha256": "e10ab6630d0b8e9823c6e3a5eb19d3016915f10f34d4d1f9cd4a34c43ea5833d"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/receipts/installed-type-probes.json",
+      "path": "workflow/after-propagation/receipts/installed-type-probes.json",
+      "bytes": 994,
+      "sha256": "1785376e6eabd50b9c5fb656a34f543682825245c889daf24380a0e0cda4f619"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/receipts/first-run.log",
+      "path": "workflow/after-propagation/receipts/first-run.log",
+      "bytes": 127,
+      "sha256": "46c598f27709b28dc41de4e1bc20fe087b07884dee4895d49917d52cc0076fd4"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/receipts/dev-stop.json",
+      "path": "workflow/after-propagation/receipts/dev-stop.json",
+      "bytes": 961,
+      "sha256": "c8e61be55c8003dbe63651b77202cb010b51f90cd75f1e145a2e6a559e167d0e"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/receipts/init.log",
+      "path": "workflow/after-propagation/receipts/init.log",
+      "bytes": 407,
+      "sha256": "b7762303b4717c04f19eaa60142685cf6277c08be41dccbfa364c0a526d2c275"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/receipts/verified-run.json",
+      "path": "workflow/after-propagation/receipts/verified-run.json",
+      "bytes": 1041,
+      "sha256": "e4617dce35f3d08db30b09e92c03b70de62c3b4b06b8450353328daef1478900"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/receipts/check-corrected.json",
+      "path": "workflow/after-propagation/receipts/check-corrected.json",
+      "bytes": 948,
+      "sha256": "5936f3f4e572f4236b031780b6f983f57ca04b313935eb9960de1c87d99356bd"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/receipts/init.json",
+      "path": "workflow/after-propagation/receipts/init.json",
+      "bytes": 1009,
+      "sha256": "f81bf98dcec8f7596e4d73b8dcd4c90bf25f4e5f427458267e09e6a60c0f750f"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/receipts/guide.json",
+      "path": "workflow/after-propagation/receipts/guide.json",
+      "bytes": 930,
+      "sha256": "5a5341459778a4207042ec7520ff8805a0d3f701c93b4976a3967ffe0c938213"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/receipts/default-install.json",
+      "path": "workflow/after-propagation/receipts/default-install.json",
+      "bytes": 1099,
+      "sha256": "7310b589e86879f0051e5a36ea77a746927ad6f86e6ad8a2e033d7908012e3b5"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/receipts/installed-type-probes.log",
+      "path": "workflow/after-propagation/receipts/installed-type-probes.log",
+      "bytes": 458,
+      "sha256": "1c3808faf8231292d8baca8ce1d56592fb299520ff052fb1094d46aa8fea276c"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/receipts/focused-test.json",
+      "path": "workflow/after-propagation/receipts/focused-test.json",
+      "bytes": 994,
+      "sha256": "cc1cf49c3c5bfaedd13d789648a3839c1ce6e5ef67015916021357beaab04260"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/consumer/package.json",
+      "path": "workflow/after-propagation/consumer/package.json",
+      "bytes": 158,
+      "sha256": "1f0ade9df65587050b84e6060499c0874e946014aff0c744ecf480e234a01016"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/consumer/package-lock.json",
+      "path": "workflow/after-propagation/consumer/package-lock.json",
+      "bytes": 2630,
+      "sha256": "ee4701deebc8508c766b8d060103b813d5256c2ea74d0a7a42f39a1625103df8"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/consumer/type-evidence.json",
+      "path": "workflow/after-propagation/consumer/type-evidence.json",
+      "bytes": 40096,
+      "sha256": "5d963ed409c12bc840d84fea37183164bb2b628ea55cae072dc70009c10ff173"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/consumer/todos/snapback/todos.q",
+      "path": "workflow/after-propagation/app/snapback/todos.q",
+      "bytes": 268,
+      "sha256": "953831f93bca28e831936d3a6e6cc0ddd75abf35cc47b090e0ec4c2d750bb07f"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/consumer/todos/snapback/seed.ts",
+      "path": "workflow/after-propagation/app/snapback/seed.ts",
+      "bytes": 204,
+      "sha256": "dc7823a5d1260b70af913acdb7c619c6d60d4fbf3c8d213e42f44c45f94c6882"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/consumer/todos/snapback/schema.q",
+      "path": "workflow/after-propagation/app/snapback/schema.q",
+      "bytes": 238,
+      "sha256": "6e00ba36a60053d42170c04682a2a75ee72f8ca1fdc68fa929df61c6584deeea"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/consumer/todos/snapback/tests/todos.test.ts",
+      "path": "workflow/after-propagation/app/snapback/tests/todos.test.ts",
+      "bytes": 560,
+      "sha256": "c3916dc63af647da48bbc1900657d4c4e9028923772dbf1853dbbea352e41cdc"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/consumer/todos/snapback/tests/published-types.test.ts",
+      "path": "workflow/after-propagation/app/snapback/tests/published-types.test.ts",
+      "bytes": 765,
+      "sha256": "766aa280df5351f4b77b1ac728c50200688a07565d5bce5aac682d130c8b406c"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/consumer/todos/.snapback/build/api.d.ts",
+      "path": "workflow/after-propagation/generated-api-evidence.txt",
+      "bytes": 885,
+      "sha256": "1cd7f34af4092e9ec1200822bc52f9ee2bb46b6164a8a37110b577e1c745136f"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/consumer/todos/type-add.ts",
+      "path": "workflow/after-propagation/type-fixtures/type-add.ts",
+      "bytes": 382,
+      "sha256": "765f4442d5f1b0829dcdf20666822b3feda53b89cb1d335ba80e40a64108619e"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/consumer/todos/type-merged.ts",
+      "path": "workflow/after-propagation/type-fixtures/type-merged.ts",
+      "bytes": 385,
+      "sha256": "2405dd6c48fc88d563238b19c8cd9a6ec3e7af3cb86c498b86005d20e8b411bd"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/consumer/todos/type-add-negative.ts",
+      "path": "workflow/after-propagation/type-fixtures/type-add-negative.ts",
+      "bytes": 315,
+      "sha256": "bd9f31d6eb201edddf6e19547dbca9021f775fe0c29fa1215da08f5857c60441"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/consumer/todos/type-merged-negative.ts",
+      "path": "workflow/after-propagation/type-fixtures/type-merged-negative.ts",
+      "bytes": 318,
+      "sha256": "223434a5fabf24fe33282e375f9e618f383ea6037cb6e3e3c205d1e80e10ed14"
+    },
+    {
+      "source": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/npm-state/cache/_logs/2026-09-08T01_39_20_895Z-debug-0.log",
+      "path": "workflow/first-attempt/npm-debug.log",
+      "bytes": 9780,
+      "sha256": "2748eb6164d9e2ad68f8e3ad4abe45cf338caec91a47d8241b117aa04592bc60"
+    }
+  ],
+  "credentialFilesCopied": false,
+  "storesCopied": false,
+  "retainedExternalOnly": [
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-preparation-r1/helper-derivatives.diff",
+      "path": "publication/preparation/helper-derivatives.diff",
+      "bytes": 15391,
+      "sha256": "a2f1c40e3091277e1b3e3fbc35b8a6cbd83026a02ceafcdd707fec41da449457",
+      "reason": "Exact original unified diff has whitespace-only added lines. Preserve original external bytes; do not duplicate the patch as a tracked whitespace failure. Hash-bound helper provenance is copied."
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "epoch": 1788831733.854347,
+  "scope": "shared Office host observation; not a controlled performance run",
+  "top": {
+    "argv": [
+      "top",
+      "-l",
+      "1",
+      "-n",
+      "0"
+    ],
+    "exitCode": 0,
+    "stdout": "Processes: 832 total, 55 running, 1 stuck, 776 sleeping, 4113 threads \n2026/09/07 18:42:17\nLoad Avg: 123.54, 142.54, 128.96 \nCPU usage: 39.65% user, 16.2% sys, 44.32% idle \nSharedLibs: 981M resident, 153M data, 157M linkedit.\nMemRegions: 324631 total, 12G resident, 672M private, 4061M shared.\nPhysMem: 52G used (2520M wired, 2750M compressor), 11G unused.\nVM: 358T vsize, 6144M framework vsize, 0(0) swapins, 0(0) swapouts.\nNetworks: packets: 199616368/208G in, 152361713/162G out.\nDisks: 304845325/4823G read, 327262283/12T written.\n\n\n"
+  },
+  "logicalCpu": {
+    "argv": [
+      "sysctl",
+      "-n",
+      "hw.logicalcpu"
+    ],
+    "exitCode": 0,
+    "stdout": "10\n"
+  }
+}

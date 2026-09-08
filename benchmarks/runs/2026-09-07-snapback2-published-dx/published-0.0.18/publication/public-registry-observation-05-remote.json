@@ -1,0 +1,23 @@
+{
+  "observedEpoch": 1788831500.294394,
+  "readOnly": true,
+  "remote": "Apartment M1",
+  "exitCode": 0,
+  "stderrPresent": false,
+  "packages": [
+    {
+      "name": "snapback2",
+      "latest": "0.0.18",
+      "version": "0.0.18",
+      "integrity": "sha512-UBOM7aQErcCB7vIjg19wubG2w521VzEkLvFJhlCPUK3rAxdd8Tkp8UB7bZ334WomaIJEEXMk5LczYcJE7SlvWA==",
+      "publishedAt": "2026-09-08T01:37:49.806Z"
+    },
+    {
+      "name": "snapback2-darwin-arm64",
+      "latest": "0.0.18",
+      "version": "0.0.18",
+      "integrity": "sha512-JLOYb8u5B41XUN5wfGBhpPkONhjqRX4KsiqOCQ6PMupBPDh92ANo7LZhNvoyeb3Z/qtfWOgjBSlTEX4Xiq1yLA==",
+      "publishedAt": "2026-09-08T01:33:38.131Z"
+    }
+  ]
+}

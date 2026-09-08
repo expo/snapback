@@ -1,0 +1,11 @@
+{
+  "approved": true,
+  "publicationAuthorized": true,
+  "sourceCommit": "7b947aa4def19d51ea786783625fb023f3bc891d",
+  "userInstruction": "publish the landed type fixes, then verify one fresh installed-package workflow with reliable timeout reporting.",
+  "ownershipReceipt": "/tmp/snapback2-dx-coordination/reply.md at 2026-09-08T01:30:07.401853+00:00",
+  "publicationInputManifestSha256": "5a1d97c4f18b4e2d97b8f16df19e88958de36ee473e6f6166dbe76b5c1751893",
+  "qualificationEvidenceSha256": "4f7aae02b46f127854b1fc32b31e995482adf61087f04f2c3cbdb7d742ad52e6",
+  "executor": "Codex DX direct tool calls; no native author continuation",
+  "stagingAndActivationOnce": true
+}

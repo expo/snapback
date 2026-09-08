@@ -1,0 +1,9 @@
+{
+  "install-report.json": {
+    "cachePolicy": "The generated cachePolicy sentence is stale from attempt1. Both install and fresh ci in this attempt reuse the exclusively owned prior attempt npm cache; see attempt-context.json."
+  },
+  "continuation-report.json": {
+    "unexpectedFailure": "The new merged query required a second index; the existing list query became ambiguous. The diagnostic identified both candidates and the explicit index spelling. Original failure retained; continuation-r2.py applies that app-only correction."
+  },
+  "preparationCorrection": "The local command writing this errata first stopped at a missing Python json import after the r2 script and project correction were written; this corrected metadata command adds the missing import. No product rerun occurred for that metadata correction."
+}

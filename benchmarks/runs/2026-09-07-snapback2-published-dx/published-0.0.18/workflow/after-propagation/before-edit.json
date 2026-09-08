@@ -1,0 +1,4 @@
+{
+  "schema.q": "use identity\n\ntable todos:\n  title: text <=200\n  done: bool\n  ownerId: principal\n  by ownerId\n  read <- .ownerId = viewer\n  insert <- .ownerId = viewer\n  update <- .ownerId = viewer\n  delete <- .ownerId = viewer\n",
+  "todos.q": "query list():\n  return todos[viewer] first 50\n\nmutation add(title: text <=200):\n  row = insert todos { title, done: false, ownerId: viewer }\n  return { id: row.id }\n"
+}
