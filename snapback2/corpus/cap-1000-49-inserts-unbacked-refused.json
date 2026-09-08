@@ -13,8 +13,10 @@
         },
         "indexes": {
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -64,39 +66,63 @@
         },
         "indexes": {
           "byConversationPrincipal": {
-            "columns": [
-              "conversationId",
-              "principal",
-              "id"
+            "components": [
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "principal"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           },
           "byConversationRole": {
-            "columns": [
-              "conversationId",
-              "role",
-              "id"
+            "components": [
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "role"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           },
           "byGroup": {
-            "columns": [
-              "group",
-              "id"
+            "components": [
+              {
+                "Column": "group"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           },
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           },
           "byPrincipalConversation": {
-            "columns": [
-              "principal",
-              "conversationId",
-              "id"
+            "components": [
+              {
+                "Column": "principal"
+              },
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           }

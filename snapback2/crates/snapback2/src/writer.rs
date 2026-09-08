@@ -36,6 +36,9 @@ mod writer_effects;
 mod writer_jobs;
 #[path = "writer_ledger.rs"]
 mod writer_ledger;
+#[cfg(test)]
+#[path = "writer_live_tests.rs"]
+mod writer_live_tests;
 #[path = "writer_offline.rs"]
 mod writer_offline;
 #[path = "writer_operator.rs"]
@@ -55,7 +58,7 @@ mod writer_values;
 
 use writer_assets::asset_record;
 use writer_auth::{SessionFence, actor};
-use writer_ledger::{CommitLedger, LedgerDelivery};
+use writer_ledger::CommitLedger;
 pub(crate) use writer_offline::OfflineOptions;
 pub(crate) use writer_rehearsal::rehearsal_args;
 pub use writer_sse::{SseReceiver, SseSender, queue as sse_queue};
@@ -367,7 +370,6 @@ struct Request {
 
 #[derive(Clone)]
 struct LiveClient {
-    runtime_id: u64,
     op: String,
     context: Context,
     session: Option<SessionFence>,
@@ -395,7 +397,11 @@ struct State {
     root: PathBuf,
     mode: String,
     phase: Json,
+    // @ref LLP 1001#5-live-subscriptions-livers — the map key is the core
+    // SubscriptionId for the slot's whole lifetime; reruns never re-subscribe.
     live: BTreeMap<u64, LiveClient>,
+    #[cfg(test)]
+    last_live_dispatch_work: usize,
     channels: BTreeMap<u64, ChannelClient>,
     ledger: VecDeque<CommitLedger>,
     operator_rejection: Option<Json>,
@@ -443,6 +449,8 @@ pub fn spawn_writer(
                     mode,
                     phase: Json::String("ready".to_owned()),
                     live: BTreeMap::new(),
+                    #[cfg(test)]
+                    last_live_dispatch_work: 0,
                     channels: BTreeMap::new(),
                     ledger: VecDeque::new(),
                     operator_rejection: None,
@@ -587,8 +595,8 @@ impl State {
                 events,
             } => self.subscribe(op, args, identity, offline, events),
             Action::Unsubscribe { id } => {
-                if let Some(client) = self.live.remove(&id) {
-                    self.runtime_mut().unsubscribe(client.runtime_id);
+                if self.live.remove(&id).is_some() {
+                    self.runtime_mut().unsubscribe(id);
                 }
                 Ok(json!({ "ok": true }))
             }
@@ -1095,7 +1103,6 @@ impl State {
         self.live.insert(
             id,
             LiveClient {
-                runtime_id: id,
                 op,
                 context,
                 session: authority.session,
@@ -1199,113 +1206,6 @@ impl State {
             }
         });
         Ok(json!({ "ok": true }))
-    }
-
-    fn after_commit(&mut self, seq: u64) -> Result<(), Refusal> {
-        self.operator_rejection = None;
-        self.sweep_expired_sessions()?;
-        self.sweep_offline_now()?;
-        let commit = self
-            .runtime()
-            .store()
-            .commits_since(seq.saturating_sub(1), 1)
-            .map_err(|error| Refusal::from_runtime(&error))?
-            .into_iter()
-            .find(|commit| commit.seq == seq)
-            .ok_or_else(|| {
-                Refusal::owner(
-                    "E_OWNER_COMMIT_MISSING",
-                    format!("commit {seq} was not recorded"),
-                    "inspect the store and restart the owner",
-                )
-            })?;
-        let invalidated = self.runtime().invalidated(&commit);
-        let clients = self
-            .live
-            .iter()
-            .filter_map(|(id, client)| invalidated.contains(&client.runtime_id).then_some(*id))
-            .collect::<Vec<_>>();
-        let deliveries = self.rerun_live(&clients, false);
-        self.ledger.push_back(CommitLedger {
-            seq,
-            invalidated: clients,
-            deliveries,
-        });
-        while self.ledger.len() > 1_000 {
-            self.ledger.pop_front();
-        }
-        self.readmit_channels(&commit);
-        if commit.emits > 0 {
-            self.wake_effects();
-        }
-        Ok(())
-    }
-
-    fn rerun_live(&mut self, ids: &[u64], force: bool) -> Vec<LedgerDelivery> {
-        let mut deliveries = Vec::new();
-        for id in ids {
-            let Some(mut client) = self.live.get(id).cloned() else {
-                continue;
-            };
-            self.runtime_mut().unsubscribe(client.runtime_id);
-            let now = self.now();
-            client.context.now = Some(now);
-            client.context.read_time = Some(now);
-            match self
-                .runtime_mut()
-                .subscribe(&client.op, client.context.clone())
-            {
-                Ok((runtime_id, execution)) => {
-                    let refused = client
-                        .drain
-                        .then(|| self.admit_drain(&client.op).err())
-                        .flatten();
-                    let (frame, terminal) = if let Some(refusal) = refused {
-                        refusal_frame(refusal, execution.seq)
-                    } else if client.offline {
-                        writer_offline::envelope_frame(
-                            self.runtime().generation(),
-                            &client.op,
-                            &client.context,
-                            &execution,
-                        )
-                    } else {
-                        writer_offline::connected_frame(
-                            self.runtime().generation(),
-                            &client.op,
-                            &execution,
-                        )
-                    };
-                    let changed = frame_digest(&frame) != frame_digest(&client.last_frame);
-                    client.runtime_id = runtime_id;
-                    client.last_frame = frame.clone();
-                    if force || changed {
-                        let _ = client.events.send_latest(SseEvent {
-                            seq: Some(execution.seq),
-                            data: frame,
-                            terminal,
-                        });
-                        deliveries.push(LedgerDelivery {
-                            id: *id,
-                            seq: execution.seq,
-                        });
-                    }
-                    self.live.insert(*id, client);
-                }
-                Err(error) => {
-                    let seq = self.runtime().store().commit_seq().unwrap_or_default();
-                    let (frame, terminal) = live_frame(Err(Refusal::from_runtime(&error)), seq);
-                    let _ = client.events.send_latest(SseEvent {
-                        seq: Some(seq),
-                        data: frame,
-                        terminal,
-                    });
-                    deliveries.push(LedgerDelivery { id: *id, seq });
-                    self.live.remove(id);
-                }
-            }
-        }
-        deliveries
     }
 
     fn readmit_channels(&mut self, commit: &snapback2_core::CommitRecord) {

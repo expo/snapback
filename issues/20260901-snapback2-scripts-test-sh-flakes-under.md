@@ -102,6 +102,34 @@ test. No assertions or deadlines were weakened, and no third full-suite run
 is claimed. The separate loop measurement's functional steps passed, but its
 timing overruns are retained in [the budget ticket](20260907-snapback2-loop-budget-overruns-in-parallel-papercut-lane.md).
 
+## Architecture integration and upstream timing control — 2026-09-07
+
+The LLP 1018.000 integration at `1c79e66ed` ran the canonical nextest
+`local-proof` profile with eight workers on the warm EPYC `enginefix` lane:
+840 tests ran, 838 passed, two failed, and four were skipped. Test execution
+took **77.100 s** (79.51 s including Cargo setup), exceeding the entire
+blocking-suite budget of 60 s before the JavaScript checks are counted.
+The two failures were obsolete grammar expectations and an auth fixture
+reading transitional successor state; their repairs retain the original
+deadlines. They are tracked separately from this timing observation.
+
+A subsequent upstream control at `a75c98406`, on the same named lane, Rust
+1.97.0, profile, eight workers and unchanged limits, ran 801 tests:
+800 passed, one stale offline-guide budget assertion failed, and four were
+skipped. Test execution took **76.826 s** (93.25 s including rebuilding the
+changed upstream test binaries). Doctests passed on both sources. The slowest
+upstream test was the existing silent-socket shutdown case at 31.241 s.
+
+These observations establish that upstream also exceeds the 60-second
+budget on this machine; they do not establish a meaningful performance
+difference from the 0.274-second gap or qualify the full blocking suite.
+Do not increase the limit, discard failed records, or rerun until green.
+The next repair should profile the inherited long-running journeys and
+separate execution cost from compiler/build cost while preserving coverage.
+Raw logs and the upstream JUnit record are retained under
+`.llp/ship-runs/20260907-1018-architecture/native-full-{1c79,origin-a75}.*`
+in the coordinating checkout.
+
 ## Bounded LLP 1018 audit delivery — 2026-09-07
 
 The unchanged full script ran from the warm local lane on `8756e543f`.
@@ -141,3 +169,22 @@ run passed in 21.44 seconds with the original startup allowance. These are
 separate functional/scoped results; neither the final default-deadline public
 command nor the broad suite is claimed green. Logs are retained in the local
 `20260907-zero-count-proof` ship-run evidence directory.
+
+## Final architecture semantic qualification — 2026-09-07
+
+The complete unchanged script at `e94b0a61012c20dd2ba4538d7b8007d020355ea3`
+exits zero on the warm EPYC enginefix lane with the configured Rust 1.93.1,
+eight nextest workers and original Node file deadlines. JavaScript passes
+781/781 in 8.854 seconds; nextest passes 857/857 with four skips; doctests,
+224 evaluator cases, two visibility checks and 210 compiler cases pass.
+
+Native execution still takes **78.141 seconds**, exceeding the existing
+60-second blocking-suite budget before other phases. This closes the final
+candidate's semantic/test-harness failures without closing this timing ticket.
+The preceding `35b35dae4` run's two Node file cancellations remain failed samples;
+canonical prebuild of both owner binaries and the corrected React passive wait
+now qualify under the unchanged deadlines. No limit was increased. Earlier
+upstream controls establish an inherited overrun, not a measured attribution
+for this final timing. Exact process 385976, command, binary identities and raw
+SHA-256 `924f6d4e9a5ce459d35c3a8c65e4f712709a3d53ab666d62be71d386d0f960af`
+are retained in the architecture ship run's `final-e94/receipt.md`.

@@ -38,9 +38,10 @@ the third on 2026-09-04, LLP 1012 §12):
 
 - **A second authoring profile, a plan algebra, or a JS handler lane.** One language —
   Quarry (LLP 1004; the TypeScript authoring surface was deleted on 2026-09-02, LLP
-  1007 §4b) — one spelling. TypeScript is the lowering target and the harness language
-  (seeds, journeys, effect bodies), never a way to author tables, rules, queries, or
-  mutations. Familiar vs Explicit cost every v1 doc twice (LLP 0317 bundle 6).
+  1007 §4b) — one spelling. Quarry binds directly to typed IR. TypeScript is limited to
+  seeds, journeys, and effect bodies, never a lowering target or a way to author tables,
+  rules, queries, or mutations. Familiar vs Explicit cost every v1 doc twice (LLP 0317
+  bundle 6).
 - **JavaScript in the data plane.** Queries and mutations run in the Rust IR
   interpreter inside the SQLite transaction. Ibex 2 is linked only by
   `snapback2-effects`, only with `--features hermes`, only for effects.
@@ -76,15 +77,16 @@ the third on 2026-09-04, LLP 1012 §12):
   about twelve recipes with CI-executed snippets. No million-word corpus, no embedded
   20 MB guide in the binary, no calendar freshness dates.
 - **WASM anywhere.** The client evaluator is the TypeScript twin. The 2026-09-06
-  session-delegated search trade sets **66,000 bytes gzip for the complete local runtime**, with **64,000
-  the optimization target**, replacing the 2026-09-04 ceiling for this work.
+  search trade, revised under the 2026-09-07 architecture commission, sets
+  **82,000 bytes gzip for the complete local runtime**, with **80,000 the working
+  target**. The canonical measurement uses Node 24.18.0, esbuild 0.25.9, gzip level 9.
   All normalization data, decoding, indexes, incremental state, prediction and
   local cursors participate in the measured entry; relocating required bytes
   does not count as a saving. Historical measurements remain in
   `snapback2/metrics/twin.jsonl`; the complete search integration is not yet
   qualified. The measured scope revision in LLP1012 records why the earlier
-  34,000 and 50,000 allocations were replaced; exceeding66,000 requires a new explicit scope
-  decision.
+  34,000, 50,000 and 66,000 allocations were replaced; exceeding 82,000 requires
+  a new explicit scope decision.
 
 ## Process not doing
 
@@ -168,3 +170,15 @@ PR. If nothing can come off, the answer is no.
  export/method audit are retained in LLP1012's boundary decision. Earlier
  partial measurements remain incomplete. No runtime resource limit or required
  behavior changes; physical driver/HTTP framing exclusions are explicit.
+
+- 2026-09-07 — **Architecture allocation amendment:** 82,000 bytes gzip,
+  80,000 working target, under the user's LLP 1018.000 refinement and
+  implementation commission. Exact post-Words integration `527861e673` measures
+  79,207 on Node 24.18.0/esbuild 0.25.9/gzip 9 and fails the former 66,000
+  allocation. The new ceiling leaves 2,793 bytes for integration/review repairs;
+  it cannot silently fund another feature. Five complete-runtime roots,
+  resource limits and Exact 2 deferral stay. Independent Sol and Grok design
+  reviews accept this explicit footprint trade; final code/platform
+  qualification remains required. LLP 1012's allocation amendment records
+  alternatives and the separately measured client cost. This is Root's
+  delegated decision, not an earlier author ruling or retroactive size pass.

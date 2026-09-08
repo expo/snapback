@@ -3,8 +3,11 @@
 // so its ids are known before the server has seen it and a retry is the same
 // envelope. Settlement never deletes; `dismiss` is the app's choice.
 import type { OutboxStatus } from "../types.js";
+import { forwardingRequestExpiry } from "./forwarding.js";
 import type {
   OutboxEntry,
+  ForwardingCustody,
+  ForwardingReceipt,
   OutboxGrant,
   OutboxState,
   OutboxTrace,
@@ -85,6 +88,34 @@ export interface EnqueuePrediction {
   /** Maintained targets the overlay intentionally omits (LLP 1012 §7); recorded on the entry when non-empty. */
   omitted?: string[];
 }
+
+export interface ForwardingAdmission {
+  requestId: string;
+  followerId: string;
+  payloadDigest: string;
+  expiresAt: number;
+  authEpoch: number;
+  partitionIncarnation: string;
+  /** Recovery may look up an expired receipt but must not create a new intent. */
+  recovery?: boolean;
+}
+
+export interface ForwardedAdmission {
+  receipt: ForwardingReceipt;
+  intent: string;
+  ids: string[];
+}
+
+export class ForwardingAdmissionError extends Error {
+  constructor(readonly reason: "identity" | "capacity" | "expiration" | "conflict", message: string) {
+    super(message);
+    this.name = "ForwardingAdmissionError";
+  }
+}
+
+const MAX_FORWARDING_RECEIPTS = 256;
+const MAX_FOLLOWER_UNACKNOWLEDGED = 64;
+const MAX_FORWARDING_LIFETIME = 5 * 60 * 1_000;
 
 export interface OutboxLedgerOptions {
   now(): number;
@@ -218,6 +249,18 @@ export class OutboxLedger {
     return (await this.status(op)).ready;
   }
 
+  /** Admission readiness reported to a follower, including the fixed durable receipt bounds. */
+  async forwardingStatus(op?: string, followerId?: string): Promise<OutboxStatus> {
+    const status = await this.status(op);
+    if (!status.ready) return status;
+    const custody = await this.store.outbox.forwarding();
+    const now = Math.max(custody.clockFloor, this.options.now());
+    const live = Object.values(custody.receipts).filter(receipt => receipt.expiresAt > now);
+    const full = live.length >= MAX_FORWARDING_RECEIPTS || (followerId !== undefined
+      && live.filter(receipt => receipt.followerId === followerId && !receipt.acknowledged).length >= MAX_FOLLOWER_UNACKNOWLEDGED);
+    return full ? { ...status, ready: false, reason: "writer-capacity", action: "none" } : status;
+  }
+
   /**
    * Every outbox write shares this tail: enqueue, adoption, bounds, dismiss,
    * and — through the runtime — settlements and the predictions they drop, so
@@ -288,12 +331,134 @@ export class OutboxLedger {
     return true;
   }
 
+  /** Initializes the wipe-scoped identity while this client holds the partition lock. */
+  forwardingIdentity(proposed: string): Promise<ForwardingCustody> {
+    return this.serial(async () => {
+      const current = await this.store.outbox.forwarding();
+      const clockFloor = Math.max(current.clockFloor, this.options.now());
+      const partitionIncarnation = current.partitionIncarnation ?? proposed;
+      if (!partitionIncarnation) throw new TypeError("forwarding identity must be non-empty");
+      if (current.partitionIncarnation === undefined || clockFloor !== current.clockFloor) {
+        await this.store.commit({ forwarding: { partitionIncarnation, clockFloor } });
+      }
+      return { ...current, partitionIncarnation, clockFloor };
+    });
+  }
+
+  /** A late follower acknowledgment releases its bounded slot but keeps deduplication custody. */
+  acknowledgeForwarded(requestId: string, followerId: string, authEpoch: number, partitionIncarnation: string): Promise<void> {
+    return this.serial(async () => {
+      const current = await this.store.outbox.forwarding();
+      if (current.partitionIncarnation !== partitionIncarnation) return;
+      const receipt = current.receipts[requestId];
+      if (!receipt || receipt.followerId !== followerId || receipt.authEpoch !== authEpoch || receipt.acknowledged) return;
+      await this.store.commit({ forwarding: {
+        clockFloor: Math.max(current.clockFloor, this.options.now()), acknowledge: [requestId],
+      } });
+    });
+  }
+
+  /**
+   * Atomically consumes the writer's grant and installs a durable request receipt.
+   * Matching retries return the original ids even after ordinary outbox dismissal.
+   */
+  admitForwarded(
+    input: EnqueueInput,
+    admission: ForwardingAdmission,
+    predict?: (ids: string[]) => Promise<EnqueuePrediction>,
+    beforeCommit?: () => void,
+  ): Promise<ForwardedAdmission | undefined> {
+    return this.serial(async () => {
+      const current = await this.store.outbox.forwarding();
+      const clockFloor = Math.max(current.clockFloor, this.options.now());
+      if (forwardingRequestExpiry(admission.requestId) !== admission.expiresAt) {
+        throw new ForwardingAdmissionError("conflict", "the forwarding request id does not bind its expiration");
+      }
+      if (current.partitionIncarnation !== admission.partitionIncarnation) {
+        throw new ForwardingAdmissionError("identity", "the forwarding request belongs to another partition incarnation");
+      }
+      const existing = current.receipts[admission.requestId];
+      if (existing) {
+        if (existing.payloadDigest !== admission.payloadDigest || existing.followerId !== admission.followerId
+          || existing.expiresAt !== admission.expiresAt || existing.authEpoch !== admission.authEpoch
+          || existing.partitionIncarnation !== admission.partitionIncarnation) {
+          throw new ForwardingAdmissionError("conflict", "the forwarding request id was retried with a different payload or scope");
+        }
+        if (clockFloor !== current.clockFloor) await this.store.commit({ forwarding: { clockFloor } });
+        return this.forwarded(existing);
+      }
+      if (!Number.isSafeInteger(admission.expiresAt) || admission.expiresAt <= clockFloor) {
+        if (clockFloor !== current.clockFloor) await this.store.commit({ forwarding: { clockFloor } });
+        if (admission.recovery) return undefined;
+        throw new ForwardingAdmissionError("expiration", "the forwarding request expired before durable admission");
+      }
+      if (admission.expiresAt > clockFloor + MAX_FORWARDING_LIFETIME) {
+        if (clockFloor !== current.clockFloor) await this.store.commit({ forwarding: { clockFloor } });
+        throw new ForwardingAdmissionError("expiration", "the forwarding request expiration exceeds five minutes");
+      }
+      // Keep expired receipts for recovery while capacity permits. At the hard
+      // bound, prune only identities that can no longer admit a command.
+      const remove = Object.keys(current.receipts).length < MAX_FORWARDING_RECEIPTS ? [] : Object.values(current.receipts)
+        .filter(receipt => receipt.expiresAt <= clockFloor)
+        .sort((a, b) => a.expiresAt - b.expiresAt || a.requestId.localeCompare(b.requestId))
+        .map(receipt => receipt.requestId);
+      const retained = Object.values(current.receipts).filter(receipt => !remove.includes(receipt.requestId));
+      if (retained.length >= MAX_FORWARDING_RECEIPTS) {
+        if (clockFloor !== current.clockFloor || remove.length) await this.store.commit({ forwarding: { clockFloor, remove } });
+        throw new ForwardingAdmissionError("capacity", "the partition holds 256 unexpired forwarding receipts");
+      }
+      if (retained.filter(receipt => receipt.followerId === admission.followerId
+        && !receipt.acknowledged && receipt.expiresAt > clockFloor).length >= MAX_FOLLOWER_UNACKNOWLEDGED) {
+        if (clockFloor !== current.clockFloor || remove.length) await this.store.commit({ forwarding: { clockFloor, remove } });
+        throw new ForwardingAdmissionError("capacity", "the follower holds 64 unacknowledged forwarding commands");
+      }
+      let receipt!: ForwardingReceipt;
+      try {
+        const entry = await this.enqueueNow(input, predict, beforeCommit, (outbox, grant) => {
+          const admittedAt = Math.max(clockFloor, this.options.now());
+          if (admission.expiresAt <= admittedAt) {
+            throw new ForwardingAdmissionError("expiration", "the forwarding request expired before durable admission");
+          }
+          receipt = {
+            requestId: admission.requestId, followerId: admission.followerId,
+            payloadDigest: admission.payloadDigest, expiresAt: admission.expiresAt,
+            authEpoch: admission.authEpoch, partitionIncarnation: admission.partitionIncarnation,
+            grant: outbox.grant, from: grant.from, offset: outbox.offset, count: outbox.count,
+            admittedAt, acknowledged: false,
+          };
+          return { partitionIncarnation: admission.partitionIncarnation, clockFloor: admittedAt, remove, put: [receipt] };
+        });
+        return { receipt, intent: entry.intent, ids: [...entry.ids] };
+      } catch (error) {
+        if (!(error instanceof ForwardingAdmissionError) || error.reason !== "expiration") throw error;
+        const finalFloor = Math.max(clockFloor, this.options.now());
+        if (finalFloor !== current.clockFloor) await this.store.commit({ forwarding: { clockFloor: finalFloor } });
+        if (admission.recovery) return undefined;
+        throw error;
+      }
+    });
+  }
+
+  private forwarded(receipt: ForwardingReceipt): ForwardedAdmission {
+    const ids = sliceIds({ from: receipt.from, count: receipt.offset + receipt.count }, receipt.offset, receipt.count);
+    if (ids.length !== receipt.count) throw new TypeError("invalid durable forwarding slice");
+    return { receipt, intent: intentName(receipt.grant, receipt.offset), ids };
+  }
+
   // @ref LLP 1012#7-writes-offline — the first id names the intent; the rest
   // are the program's `new` envelope in order, as many as the certificate's
   // persisted write bound allows. No bound, or no remaining ids, is a refusal,
   // never a silent reuse or a guessed reservation.
   enqueue(input: EnqueueInput, predict?: (ids: string[]) => Promise<EnqueuePrediction>, beforeCommit?: () => void): Promise<OutboxEntry> {
-    return this.serial(async () => {
+    return this.serial(() => this.enqueueNow(input, predict, beforeCommit));
+  }
+
+  private async enqueueNow(
+    input: EnqueueInput,
+    predict?: (ids: string[]) => Promise<EnqueuePrediction>,
+    beforeCommit?: () => void,
+    forwarding?: (entry: OutboxEntry, grant: OutboxGrant) => NonNullable<import("./range-store.js").StoreSwap["forwarding"]>,
+  ): Promise<OutboxEntry> {
       const grant = await this.grant();
       if (!grant) {
         throw new OutboxRefusal(
@@ -361,10 +526,10 @@ export class OutboxLedger {
         grants: { put: [{ ...grant, used: grant.used + count }] },
         outbox: { put: [entry] },
         ...(prediction?.predicted ? { overlay: { put: { [entry.intent]: prediction.overlay } } } : {}),
+        ...(forwarding ? { forwarding: forwarding(entry, grant) } : {}),
       });
       this.notify();
       return (await this.store.outbox.get(entry.intent)) ?? entry;
-    });
   }
 
   private serial<T>(action: () => Promise<T>): Promise<T> {

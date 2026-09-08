@@ -11,8 +11,10 @@
         },
         "indexes": {
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -62,31 +64,49 @@
         },
         "indexes": {
           "byConversationPrincipal": {
-            "columns": [
-              "conversationId",
-              "principal",
-              "id"
+            "components": [
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "principal"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           },
           "byConversationRole": {
-            "columns": [
-              "conversationId",
-              "role",
-              "id"
+            "components": [
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "role"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           },
           "byGroup": {
-            "columns": [
-              "group",
-              "id"
+            "components": [
+              {
+                "Column": "group"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           },
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -163,7 +183,7 @@
   "certificate": {
     "program": "cap-optional-omission-is-null",
     "plan_hash": "ac220f7432c534b4478782c09fc5fcb7c4dfdaeef8a71e3f885c857d1cc103db",
-    "schema_hash": "aee507c14c50e91f7b23869be189878052640ce0b0a7d6426efcab189ed436ab",
+    "schema_hash": "be2f156c16f2144a5e8dd90dc52254adfd532b6b7a83b63e857a026f6987e0e9",
     "tables": {
       "deliveries": {
         "retain": "until-revoked"
@@ -173,10 +193,10 @@
       }
     },
     "rule_hashes": {
-      "memberships.insert": "e8bebc13baf6fc81dc2a408e87c9a6ca382bb8abc99a2533bcb7bdb6467cc6ce"
+      "memberships.insert": "f54413210d4957175e2612412636465fed2403658cc5cc1d3d6ebf1bbde64529"
     },
-    "evaluator_version": "bounded-spike-rust-1",
-    "value_model_version": "i53-codepoint-bytes-v2",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [],
     "write_sites": [
       {
@@ -194,6 +214,8 @@
     "max_index_entries": 1,
     "max_rule_probes": 0,
     "max_steps": 12,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
     "max_heap_bytes": 384,
     "max_output_bytes": 6,
     "max_closure_bytes": 0,
@@ -217,7 +239,7 @@
     "read_time": null
   },
   "receipt": {
-    "schema_hash": "aee507c14c50e91f7b23869be189878052640ce0b0a7d6426efcab189ed436ab",
+    "schema_hash": "be2f156c16f2144a5e8dd90dc52254adfd532b6b7a83b63e857a026f6987e0e9",
     "rows": [
       {
         "table": "memberships",
@@ -247,7 +269,9 @@
         "table": "memberships",
         "index": "byGroup",
         "prefix": [
-          "Null"
+          {
+            "Scalar": "Null"
+          }
         ],
         "order": "Asc",
         "take": 50,
@@ -257,14 +281,14 @@
         "gte": null,
         "lt": null,
         "lte": null,
-        "rule_hash": "e8bebc13baf6fc81dc2a408e87c9a6ca382bb8abc99a2533bcb7bdb6467cc6ce",
+        "rule_hash": "f54413210d4957175e2612412636465fed2403658cc5cc1d3d6ebf1bbde64529",
         "row_ids": [
           "m0"
         ],
         "stop": "Exhausted",
         "absence": false,
         "halo": null,
-        "n2_key": null
+        "n2_suffix": null
       }
     ],
     "absences": [],

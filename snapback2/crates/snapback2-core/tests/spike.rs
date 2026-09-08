@@ -656,7 +656,10 @@ fn visibility_probe_case(
         indexes: BTreeMap::from([(
             "byId".to_owned(),
             Index {
-                columns: vec!["id".to_owned()],
+                components: (vec!["id".to_owned()])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: true,
             },
         )]),
@@ -686,14 +689,20 @@ fn visibility_probe_case(
             (
                 "byId".to_owned(),
                 Index {
-                    columns: vec!["id".to_owned()],
+                    components: (vec!["id".to_owned()])
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: true,
                 },
             ),
             (
                 "byDocViewer".to_owned(),
                 Index {
-                    columns: vec!["documentId".to_owned(), "viewerId".to_owned()],
+                    components: (vec!["documentId".to_owned(), "viewerId".to_owned()])
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: true,
                 },
             ),
@@ -1073,7 +1082,7 @@ fn receipt_only_client_replays_prediction_halo_computed_partial_and_revocation()
         .find(|range| range.site == "programs.thread.0")
         .unwrap();
     assert!(thread_range.halo.is_some());
-    assert!(thread_range.n2_key.is_some());
+    assert!(thread_range.n2_suffix.is_some());
 
     let mut client = ClientStore::hydrate(schema.clone(), &hydration.receipt).unwrap();
     let (state, _) = client
@@ -1369,9 +1378,13 @@ fn every_frozen_corpus_case_replays_its_certification_outcome() {
             }
         }
     }
+    // Public Words retirement removed exactly edge-ascii-words,
+    // search-words-optional-null, and search-words-unicode. The declared
+    // tombstone schema-identity scenario was added later; Unicode index/search
+    // coverage remains in the retained cases.
     assert_eq!(
         cases.len(),
-        244,
+        250,
         "the complete frozen corpus must be checked"
     );
     assert!(
@@ -1409,16 +1422,19 @@ fn execute_empty(
 }
 
 fn assert_aggregate(engine: &Engine, table: &str, group: &str, expected: i64) {
-    let found = engine
-        .rows(table)
-        .unwrap()
-        .into_iter()
-        .find(|row| {
-            row.as_object()
-                .unwrap()
-                .values()
-                .any(|value| value == &id(group))
-        })
-        .unwrap();
+    let found = engine.rows(table).unwrap().into_iter().find(|row| {
+        row.as_object()
+            .unwrap()
+            .values()
+            .any(|value| value == &id(group))
+    });
+    if expected == 0 {
+        assert!(
+            found.is_none(),
+            "zero aggregates use the canonical sparse representation"
+        );
+        return;
+    }
+    let found = found.unwrap();
     assert_eq!(found.field("value").unwrap(), &Value::Int(expected));
 }

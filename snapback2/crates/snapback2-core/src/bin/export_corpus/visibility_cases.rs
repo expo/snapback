@@ -1,5 +1,6 @@
 //! Membership-gated range certificate bounds, shared with the evaluator twin.
 use super::*;
+use snapback2_core::ir::IndexKeyExpr;
 
 pub(super) fn add_visibility_cases(cases: &mut Vec<CorpusCase>) {
     for (name, field, hoist, examined) in [
@@ -51,7 +52,10 @@ pub(super) fn add_visibility_cases(cases: &mut Vec<CorpusCase>) {
                 site: "messages.list".to_owned(),
                 table: "messages".to_owned(),
                 index: "byConvTime".to_owned(),
-                prefix: vec![Expr::Literal(id("c1"))],
+                prefix: (vec![Expr::Literal(id("c1"))])
+                    .into_iter()
+                    .map(IndexKeyExpr::Scalar)
+                    .collect(),
                 order: Order::Desc,
                 take: Bound::Literal(50),
                 after: None,
@@ -269,7 +273,10 @@ fn membership_page(name: &str, merge: bool) -> Program {
         site: "members.page".into(),
         table: "memberships".into(),
         index: "byPrincipalConversation".into(),
-        prefix: vec![Expr::Input(Input::Viewer)],
+        prefix: (vec![Expr::Input(Input::Viewer)])
+            .into_iter()
+            .map(IndexKeyExpr::Scalar)
+            .collect(),
         take: Bound::Literal(100),
         order: Order::Asc,
         after: None,
@@ -288,10 +295,13 @@ fn membership_page(name: &str, merge: bool) -> Program {
             site: "words.lane".into(),
             table: "words".into(),
             index: "byConversationTermTime".into(),
-            prefix: vec![
+            prefix: (vec![
                 member_field("seat", "conversationId"),
                 Expr::Literal(text("hello")),
-            ],
+            ])
+            .into_iter()
+            .map(IndexKeyExpr::Scalar)
+            .collect(),
             take: Bound::Literal(20),
             order: Order::Asc,
             after: None,
@@ -307,6 +317,7 @@ fn membership_page(name: &str, merge: bool) -> Program {
         body.push(Stmt::Let {
             name: "merged".into(),
             value: Expr::Merge(Merge {
+                held_search: None,
                 site: "words.merge".into(),
                 lanes: vec![MergeLane {
                     setup: Vec::new(),
@@ -398,7 +409,13 @@ fn indexes<const N: usize>(indexes: [(&str, &[&str], bool); N]) -> BTreeMap<Stri
             (
                 name.to_owned(),
                 Index {
-                    columns: columns.iter().map(|name| (*name).to_owned()).collect(),
+                    components: (columns
+                        .iter()
+                        .map(|name| (*name).to_owned())
+                        .collect::<Vec<_>>())
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                     unique,
                 },
             )

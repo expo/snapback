@@ -13,7 +13,8 @@ impl Engine {
         now: i64,
         ids: VecDeque<String>,
     ) -> Result<ChunkOutcome, RuntimeError> {
-        if program.kind != ProgramKind::Job
+        if !certificate.has_current_semantics()
+            || program.kind != ProgramKind::Job
             || certificate.plan_hash != bound_hash(program, certificate, &self.schema)
             || certificate.schema_hash != self.hashes.schema
             || bound_hash(program, certificate, &self.schema) != job.program_hash
@@ -31,6 +32,11 @@ impl Engine {
             .per_chunk
             .get(job.sweep)
             .ok_or_else(|| RuntimeError::Input("job sweep out of range".into()))?;
+        if !chunk_certificate.has_current_semantics() {
+            return Err(RuntimeError::TraceSubset(
+                "unsupported chunk semantics".into(),
+            ));
+        }
         let Stmt::For {
             binding,
             domain: LoopDomain::Page(scan),
@@ -173,6 +179,7 @@ impl Engine {
                 job_chunk: Some(progress),
                 schedule: None,
                 touched: execution.trace.touched.clone(),
+                scope_touches: execution.trace.scope_touches.clone(),
                 writes: execution.trace.writes.clone(),
                 emits: execution.trace.emits.len() as u64,
             },

@@ -59,17 +59,23 @@ pub(crate) fn public_count_probe(
     let Some(primary) = table.index("byId") else {
         return false;
     };
+    let Some(primary_columns) = primary.scalar_columns() else {
+        return false;
+    };
+    let Some(columns) = index.scalar_columns() else {
+        return false;
+    };
     table.rules.read.is_uniformly_readable()
         && primary.unique
-        && primary.columns == ["id"]
+        && matches!(primary_columns.as_slice(), [column] if column == "id")
         && index.unique
-        && index.columns.iter().all(|column| {
-            table.columns.get(column).is_some_and(count_key_column)
-        })
+        && columns
+            .iter()
+            .all(|column| table.columns.get(column).is_some_and(count_key_column))
         && schema.maintains.iter().any(|maintain| {
             maintain.target == table_name
                 && matches!(maintain.kind, MaintainKind::Count)
-                && index.columns == maintain.by
+                && columns == maintain.by
                 && arity == maintain.by.len()
         })
 }
@@ -79,8 +85,10 @@ pub(crate) fn public_count_probe(
 fn count_key_column(kind: &ColumnType) -> bool {
     match kind {
         ColumnType::Optional(inner) => count_key_column(inner),
-        ColumnType::Json { .. } | ColumnType::List { .. }
-        | ColumnType::Image { .. } | ColumnType::Video { .. } => false,
+        ColumnType::Json { .. }
+        | ColumnType::List { .. }
+        | ColumnType::Image { .. }
+        | ColumnType::Video { .. } => false,
         _ => true,
     }
 }
@@ -118,18 +126,29 @@ pub(crate) fn count_absence_evidence(
     }
     let table = schema.table(&point.table)?;
     let index = table.index(&point.index)?;
-    for (column, value) in index.columns.iter().zip(&point.key) {
+    let columns = index.scalar_columns()?;
+    for (column, value) in columns.iter().zip(&point.key) {
         // Point admission checks arity, not value domains. A String miss on a
         // Principal index must not become Id coverage after public hydration.
-        crate::engine::validate_column_value(
-            &point.table, column, table.columns.get(column)?, Some(value),
-        ).ok()?;
+        crate::engine::validate_typed_column_value(
+            schema,
+            &point.table,
+            column,
+            table.columns.get(column)?,
+            Some(value),
+        )
+        .ok()?;
     }
     let range = crate::engine::ReceiptRange {
         site: point.site.clone(),
         table: point.table.clone(),
         index: point.index.clone(),
-        prefix: point.key.clone(),
+        prefix: point
+            .key
+            .iter()
+            .cloned()
+            .map(crate::search_key::IndexAtom::Scalar)
+            .collect(),
         order: crate::ir::Order::Asc,
         take: 1,
         after: None,
@@ -143,7 +162,7 @@ pub(crate) fn count_absence_evidence(
         stop: crate::engine::StopReason::Exhausted,
         absence: true,
         halo: None,
-        n2_key: None,
+        n2_suffix: None,
     };
     let primary = (
         point.table.clone(),
@@ -169,10 +188,11 @@ pub(crate) fn enforcement_index<'a>(
     table: &'a Table,
     by: &[String],
 ) -> Option<(&'a String, &'a Index)> {
-    table
-        .indexes
-        .iter()
-        .find(|(_, index)| index.columns.starts_with(by))
+    table.indexes.iter().find(|(_, index)| {
+        index
+            .scalar_columns()
+            .is_some_and(|columns| columns.starts_with(by))
+    })
 }
 
 // @ref LLP 1017#24-metering — only patches that may move a group need its probe.
@@ -267,4 +287,181 @@ pub(crate) fn schema_errors(schema: &Schema) -> Vec<(String, CheckError)> {
         }
     }
     errors
+}
+
+// @ref LLP 1001#maintained-addresses — generated addresses retain the canonical
+// group tuple; the ordinary user identity allowance does not price this slot.
+/// A long id is admitted only in this maintained target's intrinsic address
+/// slot, with a canonical tuple of values from its unchanged source domain.
+pub(crate) fn validate_address(
+    schema: &Schema,
+    target: &str,
+    value: &Value,
+) -> Result<(), crate::RuntimeError> {
+    if crate::value::validate_identities(value).is_ok() {
+        return crate::engine::validate_column_value(
+            target,
+            "id",
+            &crate::ColumnType::Id,
+            Some(value),
+        );
+    }
+    let invalid = || {
+        crate::RuntimeError::Input(format!(
+            "{target}.id is not a canonical maintained group address"
+        ))
+    };
+    let Value::Id(id) = value else {
+        return Err(invalid());
+    };
+    let maintain = schema
+        .maintains
+        .iter()
+        .find(|m| m.target == target)
+        .ok_or_else(invalid)?;
+    if canonical_json(value).len() as u64 > crate::bounds::declared_identity_max(schema, target) {
+        return Err(invalid());
+    }
+    let key: Vec<Value> = serde_json::from_str(id).map_err(|_| invalid())?;
+    if key.len() != maintain.by.len() || canonical_json(&key) != *id {
+        return Err(invalid());
+    }
+    let source = schema.table(&maintain.source).ok_or_else(invalid)?;
+    for (name, value) in maintain.by.iter().zip(&key) {
+        crate::engine::validate_typed_column_value(
+            schema,
+            &maintain.source,
+            name,
+            &source.columns[name],
+            Some(value),
+        )?;
+    }
+    Ok(())
+}
+
+pub(crate) fn validate_row_identities(
+    schema: &Schema,
+    table: &str,
+    row: &Value,
+) -> Result<(), crate::RuntimeError> {
+    let fields = row.as_object()?;
+    if let Some(value) = fields.get("id") {
+        validate_address(schema, table, value)?;
+        if let Value::Id(id) = value
+            && !crate::value::identity_fits(id)
+        {
+            let maintain = schema
+                .maintains
+                .iter()
+                .find(|m| m.target == table)
+                .expect("validated maintained address");
+            let group = maintained_group(
+                schema.table(table).expect("maintained target"),
+                row,
+                &maintain.by,
+            )?;
+            if group.id != *id {
+                return Err(crate::RuntimeError::Input(format!(
+                    "{table}.id differs from its maintained group"
+                )));
+            }
+        }
+    }
+    for (name, value) in fields.iter().filter(|(name, _)| name.as_str() != "id") {
+        if let Some(kind) = schema.table(table).and_then(|t| t.columns.get(name)) {
+            validate_typed_identities(schema, kind, value)?;
+        } else {
+            crate::value::validate_identities(value)?;
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn validate_index_column(
+    schema: &Schema,
+    table: &str,
+    column: &str,
+    value: &Value,
+) -> Result<(), crate::RuntimeError> {
+    let kind = schema
+        .table(table)
+        .and_then(|t| t.columns.get(column))
+        .ok_or_else(|| crate::RuntimeError::Schema(format!("missing column {table}.{column}")))?;
+    if column == "id" && *kind == crate::ColumnType::Id {
+        validate_address(schema, table, value)
+    } else {
+        crate::engine::validate_typed_column_value(schema, table, column, kind, Some(value))
+    }
+}
+
+/// Width checks follow declared Ref/Optional/List slots, never an untyped tag.
+pub(crate) fn validate_typed_identities(
+    schema: &Schema,
+    kind: &crate::ColumnType,
+    value: &Value,
+) -> Result<(), crate::RuntimeError> {
+    use crate::ColumnType;
+    match (kind, value) {
+        (ColumnType::Ref { table }, Value::Id(id)) if !crate::value::identity_fits(id) => {
+            validate_address(schema, table, value)
+        }
+        (ColumnType::Optional(inner), value) if value != &Value::Null => {
+            validate_typed_identities(schema, inner, value)
+        }
+        (ColumnType::List { of, .. }, Value::Array(values)) => values
+            .iter()
+            .try_for_each(|v| validate_typed_identities(schema, of, v)),
+        _ => crate::value::validate_identities(value),
+    }
+}
+
+// Argument preflight shares the same targeted domain before shape/fanout refusal.
+pub(crate) fn validate_arg_identities(
+    schema: &Schema,
+    kind: &crate::ArgType,
+    value: &Value,
+) -> Result<(), crate::RuntimeError> {
+    use crate::ArgType;
+    match (kind, value) {
+        (ArgType::Ref { table }, Value::Id(id)) if !crate::value::identity_fits(id) => {
+            validate_address(schema, table, value)
+        }
+        (ArgType::Optional(inner), value) if value != &Value::Null => {
+            validate_arg_identities(schema, inner, value)
+        }
+        (ArgType::List { of: Some(of), .. }, Value::Array(values)) => values
+            .iter()
+            .try_for_each(|v| validate_arg_identities(schema, of, v)),
+        _ => crate::value::validate_identities(value),
+    }
+}
+
+pub(crate) fn validate_key_identities(
+    schema: &Schema,
+    table: &str,
+    index: &str,
+    offset: usize,
+    values: &[Value],
+) -> Result<(), crate::RuntimeError> {
+    let declaration = schema.table(table).and_then(|t| t.index(index));
+    for (position, value) in values.iter().enumerate() {
+        let column = declaration
+            .and_then(|i| i.components.get(offset + position))
+            .and_then(|c| c.column());
+        match column.map(String::as_str) {
+            Some("id") => {
+                if matches!(value, Value::Id(id) if !crate::value::identity_fits(id)) {
+                    validate_address(schema, table, value)?;
+                } else {
+                    crate::value::validate_identities(value)?;
+                }
+            }
+            Some(name) => match schema.table(table).and_then(|t| t.columns.get(name)) {
+                Some(kind) => validate_typed_identities(schema, kind, value)?,
+                None => crate::value::validate_identities(value)?,
+            },
+            None => crate::value::validate_identities(value)?,
+        }
+    }
+    Ok(())
 }

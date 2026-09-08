@@ -1,3 +1,4 @@
+use snapback2_core::ir::IndexKeyExpr;
 use snapback2_core::*;
 use std::collections::BTreeMap;
 
@@ -28,21 +29,30 @@ fn typed_schema() -> Schema {
                     (
                         "byKind".to_owned(),
                         Index {
-                            columns: vec!["kind".to_owned()],
+                            components: (vec!["kind".to_owned()])
+                                .into_iter()
+                                .map(snapback2_core::search_key::IndexComponent::Column)
+                                .collect(),
                             unique: false,
                         },
                     ),
                     (
                         "byAmount".to_owned(),
                         Index {
-                            columns: vec!["amount".to_owned()],
+                            components: (vec!["amount".to_owned()])
+                                .into_iter()
+                                .map(snapback2_core::search_key::IndexComponent::Column)
+                                .collect(),
                             unique: false,
                         },
                     ),
                     (
                         "byPrice".to_owned(),
                         Index {
-                            columns: vec!["price".to_owned()],
+                            components: (vec!["price".to_owned()])
+                                .into_iter()
+                                .map(snapback2_core::search_key::IndexComponent::Column)
+                                .collect(),
                             unique: false,
                         },
                     ),
@@ -119,7 +129,7 @@ fn scan_program(name: &str, index: &str, arg: &str, kind: ArgType) -> Program {
             site: name.to_owned(),
             table: "items".to_owned(),
             index: index.to_owned(),
-            prefix: Vec::new(),
+            prefix: (Vec::new()).into_iter().map(IndexKeyExpr::Scalar).collect(),
             order: Order::Asc,
             take: Bound::Literal(10),
             after: None,
@@ -341,7 +351,10 @@ fn principal_schema_and_argument_types_keep_the_id_scalar_wire_encoding() {
                 BTreeMap::from([(
                     "byId".to_owned(),
                     Index {
-                        columns: vec!["id".to_owned()],
+                        components: (vec!["id".to_owned()])
+                            .into_iter()
+                            .map(snapback2_core::search_key::IndexComponent::Column)
+                            .collect(),
                         unique: true,
                     },
                 )]),
@@ -429,14 +442,20 @@ fn bytes_schema() -> Schema {
                     (
                         "byId".to_owned(),
                         Index {
-                            columns: vec!["id".to_owned()],
+                            components: (vec!["id".to_owned()])
+                                .into_iter()
+                                .map(snapback2_core::search_key::IndexComponent::Column)
+                                .collect(),
                             unique: true,
                         },
                     ),
                     (
                         "byPayload".to_owned(),
                         Index {
-                            columns: vec!["payload".to_owned(), "id".to_owned()],
+                            components: (vec!["payload".to_owned(), "id".to_owned()])
+                                .into_iter()
+                                .map(snapback2_core::search_key::IndexComponent::Column)
+                                .collect(),
                             unique: false,
                         },
                     ),
@@ -491,7 +510,7 @@ fn bytes_programs() -> Vec<Program> {
                 site: "blobs.scan".to_owned(),
                 table: "blobs".to_owned(),
                 index: "byPayload".to_owned(),
-                prefix: Vec::new(),
+                prefix: (Vec::new()).into_iter().map(IndexKeyExpr::Scalar).collect(),
                 order: Order::Asc,
                 take: Bound::Literal(10),
                 after: None,

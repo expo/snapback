@@ -208,6 +208,8 @@ export class FakeIndexedDb {
 export class FakeLocks {
   private readonly held = new Map<string, Array<{ run: () => void; cancel: () => void }>>();
 
+  waiting(name: string): number { return this.held.get(name)?.length ?? 0; }
+
   request<T>(name: string, options: { ifAvailable?: boolean; signal?: AbortSignal }, callback: (lock: { name: string } | null) => T | Promise<T>): Promise<T> {
     // The callback starts synchronously, as the browser's does, so a holder's
     // release reaches the next requester without extra ticks.

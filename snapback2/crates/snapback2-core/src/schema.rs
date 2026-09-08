@@ -1,4 +1,5 @@
 use crate::ir::{ArgType, KeyProvenance};
+pub use crate::search_key::IndexComponent;
 use crate::value::{Value, digest};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -61,13 +62,10 @@ impl Schema {
         let Some(index) = table.index(index_name) else {
             return false;
         };
-        prove_probe_row_readable(
-            &table.rules.read,
-            table_name,
-            index_name,
-            &index.columns,
-            key,
-        )
+        let Some(columns) = index.scalar_columns() else {
+            return false;
+        };
+        prove_probe_row_readable(&table.rules.read, table_name, index_name, &columns, key)
     }
 }
 
@@ -268,9 +266,28 @@ impl fmt::Display for ColumnType {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Index {
-    pub columns: Vec<String>,
+    pub components: Vec<IndexComponent>,
     pub unique: bool,
+}
+
+impl Index {
+    pub fn derived_offset(&self) -> Option<usize> {
+        self.components
+            .iter()
+            .position(|c| matches!(c, IndexComponent::WordPrefixes { .. }))
+    }
+    pub fn scalar_columns(&self) -> Option<Vec<String>> {
+        self.suffix_columns(0)
+    }
+    pub fn suffix_columns(&self, offset: usize) -> Option<Vec<String>> {
+        self.components
+            .get(offset..)?
+            .iter()
+            .map(|c| c.column().cloned())
+            .collect()
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -382,6 +399,25 @@ pub enum Constraint {
 pub enum TextFormat {
     Handle,
     Url,
+}
+
+impl TextFormat {
+    pub(crate) fn matches(self, text: &str) -> bool {
+        match self {
+            Self::Handle => text
+                .bytes()
+                .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_'),
+            Self::Url => text
+                .strip_prefix("https://")
+                .or_else(|| text.strip_prefix("http://"))
+                .is_some_and(|rest| {
+                    !rest.is_empty()
+                        && rest
+                            .chars()
+                            .all(|character| !character.is_whitespace() && !character.is_control())
+                }),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -774,4 +810,85 @@ pub fn public_table(
         retain: RetentionPolicy::default(),
         tombstones: Vec::new(),
     }
+}
+
+// @ref LLP 1001#unicode-search-foundation — derived indexes are bounded, nonunique scan predicates.
+pub(crate) fn index_errors(table_name: &str, table: &Table) -> Vec<crate::RuntimeError> {
+    let mut errors = Vec::new();
+    for (name, index) in &table.indexes {
+        for column in index.components.iter().filter_map(IndexComponent::column) {
+            if table
+                .columns
+                .get(column)
+                .is_some_and(|kind| !kind.is_indexable())
+            {
+                errors.push(crate::RuntimeError::SchemaIndexColumn {
+                    table: table_name.into(),
+                    index: name.clone(),
+                    column: column.clone(),
+                });
+            }
+        }
+        let mut fail = |message: String| {
+            errors.push(crate::RuntimeError::Schema(format!(
+                "index {table_name}.{name}: {message}"
+            )))
+        };
+        if index.derived_offset().is_some()
+            && table
+                .constraints
+                .iter()
+                .any(|c| matches!(c,Constraint::Unique{index} if index==name))
+        {
+            fail("wordPrefixes cannot be a unique constraint address".into());
+        }
+        if index.components.is_empty() || index.components.len() > 8 {
+            fail("declare between 1 and 8 components".into());
+        }
+        let mut columns = BTreeSet::new();
+        let mut derived = 0;
+        for (offset, component) in index.components.iter().enumerate() {
+            match component {
+                IndexComponent::Column(column) => {
+                    if !columns.insert(column) {
+                        fail(format!("duplicate column {column}"));
+                    }
+                    match table.columns.get(column) {
+                        None => fail(format!("undeclared column {column}")),
+                        Some(kind) if !kind.is_indexable() => {}
+                        _ => {}
+                    }
+                }
+                IndexComponent::WordPrefixes { fields, .. } => {
+                    derived += 1;
+                    if index.unique || derived > 1 || offset + 1 == index.components.len() {
+                        fail("wordPrefixes needs one nonunique derived component followed by an ordinary suffix".into());
+                    }
+                    let mut seen = BTreeSet::new();
+                    if fields.is_empty() {
+                        fail("wordPrefixes needs at least one bounded text field".into());
+                    }
+                    for field in fields {
+                        if !seen.insert(field) {
+                            fail(format!("repeated wordPrefixes field {field}"));
+                        }
+                        let kind = table.columns.get(field);
+                        let valid = match kind {
+                            Some(ColumnType::Text { .. }) => true,
+                            Some(ColumnType::Optional(inner)) => {
+                                matches!(inner.as_ref(), ColumnType::Text { .. })
+                            }
+                            _ => false,
+                        };
+                        if !valid {
+                            fail(format!(
+                                "wordPrefixes field {field} must be declared bounded required or optional text"
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    errors
 }

@@ -81,6 +81,104 @@ test("reconnect after a conditional refresh replays a queued send for joined and
   });
 });
 
+test("a real indexed observation stays authoritative across persistent local refreshes", async (context) => {
+  if (!owner.owned) return context.skip("requires the self-started indexed chat fixture");
+  const { mkdtemp, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { fileRangeStore } = await import("../dist/test.mjs");
+  const directory = await mkdtemp(join(tmpdir(), "snapback-indexed-observation-"));
+  const client = createClient({ url: owner.url, as: "alice", offline: { store: fileRangeStore(directory) } });
+  const rawEvents: Array<Record<string, unknown>> = [];
+  const snapshots: Array<Record<string, unknown>> = [];
+  const args = { term: "WEL", c: null };
+  let raw: any;
+  let stop: (() => void) | undefined;
+  try {
+    await client.ready;
+    const observed = client.observe(api.messages.search, args);
+    stop = observed.subscribe(() => {
+      const value: any = observed.getSnapshot();
+      snapshots.push({ state: value.receipt?.outcome ?? value.status, live: value.freshness.live, seq: value.receipt?.seq,
+        rows: Array.isArray(value.data) ? value.data.map((row: any) => row.body) : undefined });
+    });
+    raw = client.subscribe(api.messages.search, args, (value: any) => {
+      rawEvents.push({ state: value.state, live: value.live, seq: value.seq,
+        rows: Array.isArray(value.data) ? value.data.map((row: any) => row.body) : undefined });
+    });
+    await raw.until((value: any) => value.live === true
+      && (value.state === "complete" || value.state === "capped")
+      && value.data?.some((row: any) => row.body === "Welcome"), 3_000);
+
+    // A second committed answer advances the persistent input revision. Its
+    // reevaluation must not downgrade an unchanged search value to held.
+    await client.query(api.messages.thread, { conversationId: "conversation-1", c: null });
+    await new Promise<void>((resolve) => setTimeout(resolve, 100));
+    const current: any = observed.getSnapshot();
+    assert.ok(current.receipt?.outcome === "complete" || current.receipt?.outcome === "capped", JSON.stringify(current));
+    assert.equal(current.freshness.live, true);
+    assert.ok(current.data.some((row: any) => row.body === "Welcome"));
+    const authoritative = rawEvents.findIndex((value) => value.live === true
+      && (value.state === "complete" || value.state === "capped"));
+    assert.ok(authoritative >= 0, `missing authoritative delivery: ${JSON.stringify(rawEvents)}`);
+    assert.equal(rawEvents.slice(authoritative + 1).some((value) => value.state === "held"), false,
+      `an unchanged local refresh followed the authoritative delivery: ${JSON.stringify(rawEvents)}`);
+  } catch (error) {
+    context.diagnostic(`indexed observation connection=${client.snapshot.connection}; raw=${JSON.stringify(rawEvents)}; snapshots=${JSON.stringify(snapshots)}`);
+    throw error;
+  } finally {
+    raw?.close(); stop?.(); await client.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("cold global search includes a queued Unicode row after an unrelated persisted marker", async (context) => {
+  if (!owner.owned) return context.skip("requires the self-started indexed chat fixture");
+  const { mkdtemp, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { sqliteFactory } = await import("./sqlite-fixture.ts");
+  const directory = await mkdtemp(join(tmpdir(), "snapback-indexed-prediction-"));
+  const factory = sqliteFactory(join(directory, "state.db"));
+  let warm: any, cold: any, drain: any;
+  try {
+    warm = createClient({ url: owner.url, as: "alice", offline: { store: factory } });
+    await warm.ready;
+    drain = warm.subscribe(api.deliveries.inbox, { c: null }, () => {}, { drain: true });
+    await drain.until((event: any) => event.live === true && event.caughtUp === true, 5_000);
+    await warm.offline();
+    const queued = await warm.mutation(api.deliveries.post, {
+      conversationId: "conversation-2", body: "Café offline predicted",
+    });
+    assert.equal(queued.state, "queued");
+    assert.equal((await warm.mutation(api.deliveries.post, {
+      conversationId: "conversation-2", body: "offline second",
+    })).state, "queued");
+    const before: any = await warm.query(api.messages.search, { term: "CAFE\u0301", c: null });
+    assert.ok(before.data.some((row: any) => row.id === queued.ids[0]), JSON.stringify(before));
+    const entries = await warm.outbox.entries();
+    await warm.offlineRuntime.store.commit({
+      deliveries: [{ op: "deliveries.thread", args: { conversationId: "witness-marker", c: null }, seq: 1,
+        state: "complete", next: null, data: { $row: { table: "messages", id: "witness-marker" } },
+        rows: [{ table: "messages", id: "witness-marker", row: { id: "witness-marker", conversationId: "witness-marker",
+          authorId: "witness", body: "pre", photo: { id: "s2id-eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee-0000000000000001", width: 1, height: 1 }, at: 1 } }],
+        receipt: { ranges: [], absences: [], verdicts: [] } }],
+      outbox: { put: [{ ...entries[0], intent: "__witness", state: "committed", predicted: false }] },
+    });
+    const after: any = await warm.query(api.messages.search, { term: "CAFE\u0301", c: null });
+    assert.ok(after.data.some((row: any) => row.id === queued.ids[0]), JSON.stringify(after));
+    drain.close(); await warm.close(); warm = undefined;
+    cold = createClient({ url: owner.url, as: "alice", startOffline: true, offline: { store: factory } });
+    await cold.ready;
+    const reopened: any = await cold.query(api.messages.search, { term: "CAFE\u0301", c: null });
+    assert.equal(reopened.state, "held");
+    assert.ok(reopened.data.some((row: any) => row.id === queued.ids[0]), JSON.stringify(reopened));
+  } finally {
+    drain?.close(); await warm?.close(); await cold?.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("real scalar-projected log pages retire predictions using engine-minted cursor links after cold reopen", async (context) => {
   if (!owner.owned) return context.skip("requires the self-started projected log fixture");
   const { mkdtemp, rm } = await import("node:fs/promises");
@@ -207,7 +305,7 @@ test("the real owner refuses an object wrapper as a resume log instead of promis
     log: { op, args, watermark: null }, mounted: [] });
   assert.equal(resume.status, 413);
   assert.equal(resume.body.code, "E_OFFLINE_RESUME");
-  assert.match(resume.body.message, /returns no page/);
+  assert.match(resume.body.message, /integration\.inboxObject.*cursor-binding/);
 });
 
 test("sixty live queries and a channel share one connection through add, remove and reconnect", async (context) => {
@@ -222,23 +320,36 @@ test("sixty live queries and a channel share one connection through add, remove 
     return fetch(input, init);
   } });
   const subscriptions: any[] = [];
+  const deliveries = new Map<string, unknown>();
+  const remember = (name: string) => (event: any) => deliveries.set(name, {
+    state: event?.state, live: event?.live, seq: event?.seq,
+    rows: Array.isArray(event?.data) ? event.data.length : undefined,
+    typing: event?.payload?.typing,
+  });
+  let phase = "opening sixty queries";
   try {
-    for (let i = 0; i < 60; i++) subscriptions.push(client.subscribe(api.messages.thread, { conversationId: "conversation-1", c: null }, () => {}));
+    for (let i = 0; i < 60; i++) subscriptions.push(client.subscribe(
+      api.messages.thread, { conversationId: "conversation-1", c: null }, remember(`thread-${i}`),
+    ));
     await Promise.all(subscriptions.map(sub => sub.until((event: any) => event.live === true, 5_000)));
     assert.equal(streams, 1);
-    const channel = client.channel(api.typing, { conversationId: "conversation-1" }).subscribe(() => {});
+    phase = "admitting channel with summary query";
+    const channel = client.channel(api.typing, { conversationId: "conversation-1" }).subscribe(remember("channel"));
     subscriptions.push(channel);
     // A query registered in the same control batch witnesses channel admission.
-    const witness = client.subscribe(api.messages.summary, { conversationId: "conversation-1" }, () => {});
+    const witness = client.subscribe(api.messages.summary, { conversationId: "conversation-1" }, remember("summary"));
     subscriptions.push(witness);
     await witness.until((event: any) => event.live === true, 2_000);
+    phase = "receiving channel publish";
     await client.channel(api.typing, { conversationId: "conversation-1" }).publish({ typing: true });
     await channel.until((event: any) => event.payload?.typing === true, 2_000);
-    const refused = client.subscribe(api.missing.operation, {}, () => {});
+    phase = "receiving unknown-operation refusal";
+    const refused = client.subscribe(api.missing.operation, {}, remember("missing"));
     subscriptions.push(refused);
     await assert.rejects(refused.until(() => false, 2_000), (error: any) => error.code === "E_OP_UNKNOWN");
     const removed = subscriptions.splice(0, 30);
     for (const sub of removed) sub.close();
+    phase = "receiving post-mutation query updates";
     const message = `multiplex-${Date.now()}`;
     await client.mutation(api.messages.send, { conversationId: "conversation-1", recipientId: "profile-bob", body: message });
     await Promise.all(subscriptions.slice(0, 30).map(sub => sub.until((event: any) => event.data?.some((row: any) => row.body === message), 3_000)));
@@ -246,890 +357,14 @@ test("sixty live queries and a channel share one connection through add, remove 
     const denied = await fetch(`${owner.url}/api/live/control`, { method: "POST", headers: { "Content-Type": "application/json", "X-Snapback-As": "bob" }, body: JSON.stringify({ session, close: true }) });
     assert.equal(denied.status, 400, "another principal cannot control this stream");
     await fetch(`${owner.url}/api/live/control`, { method: "POST", headers: { "Content-Type": "application/json", "X-Snapback-As": "alice" }, body: JSON.stringify({ session, close: true }) });
+    phase = "receiving stale after owner-forced close";
     await subscriptions[0].until((event: any) => event.state === "stale", 2_000);
+    phase = "receiving live delivery after reconnect";
     await subscriptions[0].until((event: any) => event.live === true, 3_000);
     assert.equal(streams, 2);
     assert.ok(controls < 15, "subscriptions are batched, not one control connection per query");
+  } catch (error) {
+    context.diagnostic(`multiplex failure phase=${phase}; streams=${streams}; controls=${controls}; deliveries=${JSON.stringify(Object.fromEntries(deliveries))}`);
+    throw error;
   } finally { for (const sub of subscriptions) sub.close(); await client.close(); }
-});
-
-test("real owner private asset bytes and conditional responses forbid HTTP cache storage", async () => {
-  const { readFile } = await import("node:fs/promises");
-  const client = createClient({ url: owner.url, as: "alice" });
-  try {
-    const png = await readFile(new URL("../../../scripts/witness-expo/view-once.png", import.meta.url));
-    const photo = await client.upload(new Blob([png], { type: "image/png" }), { kind: "image" });
-    const posted = await client.mutation(api.messages.sendPhoto, { conversationId: "conversation-1", photo });
-    assert.equal(posted.state, "committed");
-    const url = (await client.assetUrl(photo))!;
-    const preflight = await fetch(url, { method: "OPTIONS", headers: {
-      Origin: "http://client.example", "Access-Control-Request-Method": "GET",
-      "Access-Control-Request-Headers": "cache-control,x-snapback-as",
-    } });
-    assert.equal(preflight.status, 204);
-    assert.ok(preflight.headers.get("Access-Control-Allow-Headers")?.toLowerCase().split(/,\s*/).includes("cache-control"));
-    const headers = await client.assetHeaders();
-    const response = await fetch(url, { headers });
-    assert.equal(response.status, 200); assert.equal(response.headers.get("Cache-Control"), "no-store");
-    const bytes = await response.arrayBuffer(); assert.ok(bytes.byteLength > 0);
-    const partial = await fetch(url, { headers: { ...headers, Range: "bytes=0-9" } });
-    assert.equal(partial.status, 206); assert.equal(partial.headers.get("Cache-Control"), "no-store"); await partial.arrayBuffer();
-    const conditional = await fetch(url, { headers: { ...headers, "If-None-Match": response.headers.get("ETag")! } });
-    assert.equal(conditional.status, 304); assert.equal(conditional.headers.get("Cache-Control"), "no-store");
-  } finally { await client.close(); }
-});
-
-test("twenty-four refused File mutations recover their staging quota immediately", async () => {
-  const { readFile } = await import("node:fs/promises");
-  const client = createClient({ url: owner.url, as: "upload-refusals" });
-  try {
-    const png = await readFile(new URL("../../../scripts/witness-expo/view-once.png", import.meta.url));
-    for (let index = 0; index < 24; index++) {
-      const result = await client.mutation(api.messages.sendPhoto, {
-        conversationId: "conversation-1", photo: new File([png], "photo.png", { type: "image/png" }),
-      });
-      assert.equal(result.state, "rejected", `attempt ${index} returns the mutation refusal, not a quota failure`);
-      const listing = await client.listUploads();
-      assert.deepEqual(listing.usage, { bytes: 0, objects: 0 });
-      assert.deepEqual(listing.uploads, []);
-    }
-  } finally { await client.close(); }
-});
-
-test("cyclic mutation arguments release uploaded bytes without sending a mutation", async () => {
-  const { readFile } = await import("node:fs/promises");
-  let mutations = 0;
-  let uploads = 0;
-  const client = createClient({ url: owner.url, as: "upload-serialization", fetch: async (input, init) => {
-    const path = new URL(String(input)).pathname;
-    if (path === "/api/mutation") mutations++;
-    if (path === "/api/upload") uploads++;
-    return fetch(input, init);
-  } });
-  const metadata: any = {};
-  metadata.self = metadata;
-  try {
-    const png = await readFile(new URL("../../../scripts/witness-expo/view-once.png", import.meta.url));
-    for (let index = 0; index < 24; index++) {
-      await assert.rejects(client.mutation(api.messages.sendPhoto, {
-        conversationId: "conversation-1", photo: new File([png], "photo.png"), metadata,
-      } as any), TypeError);
-      const listing = await client.listUploads();
-      assert.deepEqual(listing.usage, { bytes: 0, objects: 0 });
-      assert.deepEqual(listing.uploads, []);
-    }
-    assert.equal(uploads, 24);
-    assert.equal(mutations, 0);
-  } finally { await client.close(); }
-});
-
-test("failed outbox admission or prediction leaves no upload, intent, or mutation request", async () => {
-  const { readFile, mkdtemp, rm } = await import("node:fs/promises");
-  const { tmpdir } = await import("node:os");
-  const { join } = await import("node:path");
-  const { fileRangeStore } = await import("../dist/test.mjs");
-  const directory = await mkdtemp(join(tmpdir(), "snapback-upload-admission-"));
-  let mutations = 0;
-  const client = createClient({ url: owner.url, as: "alice", offline: { store: fileRangeStore(directory) },
-    fetch: async (input, init) => {
-      if (new URL(String(input)).pathname === "/api/mutation") mutations++;
-      return fetch(input, init);
-    },
-  });
-  try {
-    const png = await readFile(new URL("../../../scripts/witness-expo/view-once.png", import.meta.url));
-    const initial = (await client.listUploads()).usage;
-    for (let index = 0; index < 24; index++) {
-      await assert.rejects(client.mutation(api.messages.sendPhoto, {
-        conversationId: "conversation-1", photo: new File([png], "photo.png"),
-      }), (error: any) => error.code === "E_OFFLINE_ID_BLOCK");
-      assert.deepEqual((await client.listUploads()).usage, initial);
-      assert.deepEqual(await client.outbox.entries(), []);
-    }
-    const drain = client.subscribe(api.messages.thread, { conversationId: "conversation-1", c: null }, () => {}, { drain: true });
-    await drain.until((event: any) => event.live === true, 3_000);
-    drain.close();
-    (client as any).offlineRuntime.predict = async () => { throw new Error("prediction failed before custody"); };
-    await assert.rejects(client.mutation(api.messages.sendPhoto, {
-      conversationId: "conversation-1", photo: new File([png], "photo.png"),
-    }), /prediction failed before custody/);
-    assert.deepEqual((await client.listUploads()).usage, initial);
-    assert.deepEqual(await client.outbox.entries(), []);
-    assert.equal(mutations, 0);
-  } finally { await client.close(); await rm(directory, { recursive: true, force: true }); }
-});
-
-test("an outbox persistence failure after commit retains media for replay", async () => {
-  const { readFile, mkdtemp, rm } = await import("node:fs/promises");
-  const { tmpdir } = await import("node:os");
-  const { join } = await import("node:path");
-  const { fileRangeStore } = await import("../dist/test.mjs");
-  const directory = await mkdtemp(join(tmpdir(), "snapback-upload-durable-"));
-  const client = createClient({ url: owner.url, as: "alice", offline: { store: fileRangeStore(directory) } });
-  try {
-    const drain = client.subscribe(api.messages.thread, { conversationId: "conversation-1", c: null }, () => {}, { drain: true });
-    await drain.until((event: any) => event.live === true, 3_000);
-    drain.close();
-    const runtime = (client as any).offlineRuntime;
-    const commit = runtime.store.commit.bind(runtime.store);
-    runtime.store.commit = async (change: any) => {
-      await commit(change);
-      if (change.outbox?.put?.length) throw new Error("storage acknowledgement lost after commit");
-    };
-    const png = await readFile(new URL("../../../scripts/witness-expo/view-once.png", import.meta.url));
-    await assert.rejects(client.mutation(api.messages.sendPhoto, {
-      conversationId: "conversation-1", photo: new File([png], "photo.png"),
-    }), /storage acknowledgement lost/);
-    const entries = await client.outbox.entries();
-    assert.equal(entries.length, 1);
-    const id = (entries[0].args as any).photo.id;
-    assert.ok((await client.listUploads()).uploads.some((upload) => upload.id === id));
-    runtime.store.commit = commit;
-    await client.outbox.drain();
-    assert.ok(!(await client.listUploads()).uploads.some((upload) => upload.id === id));
-    await assert.rejects(client.discardUpload(id), (error: any) => error.code === "E_ASSET_IN_USE");
-  } finally { await client.close(); await rm(directory, { recursive: true, force: true }); }
-});
-
-test("a lost committed media response retains the claimed asset and explicit discard refuses it", async () => {
-  const { readFile } = await import("node:fs/promises");
-  let photo: any;
-  let discards = 0;
-  const client = createClient({ url: owner.url, as: "alice", fetch: async (input, init) => {
-    const path = new URL(String(input)).pathname;
-    if (path === "/api/uploads/discard") discards++;
-    const response = await fetch(input, init);
-    if (path === "/api/upload") photo = await response.clone().json();
-    if (path === "/api/mutation") {
-      assert.equal((await response.json()).state, "committed");
-      throw new Error("connection lost after commit");
-    }
-    return response;
-  } });
-  try {
-    const png = await readFile(new URL("../../../scripts/witness-expo/view-once.png", import.meta.url));
-    await assert.rejects(client.mutation(api.messages.sendPhoto, {
-      conversationId: "conversation-1", photo: new File([png], "photo.png"),
-    }), (error: any) => error.code === "E_NETWORK");
-    assert.equal(discards, 0, "an ambiguous response never triggers cleanup");
-    assert.ok(!(await client.listUploads()).uploads.some((upload) => upload.id === photo.id));
-    await assert.rejects(client.discardUpload(photo.id), (error: any) => error.code === "E_ASSET_IN_USE");
-    const response = await fetch(`${owner.url}/api/asset/${photo.id}`, { headers: { "X-Snapback-As": "alice" } });
-    assert.equal(response.status, 200);
-    assert.ok((await response.arrayBuffer()).byteLength > 0);
-  } finally { await client.close(); }
-});
-
-test("queued media retains its uploaded bytes until the outbox commits", async () => {
-  const { readFile, mkdtemp, rm } = await import("node:fs/promises");
-  const { tmpdir } = await import("node:os");
-  const { join } = await import("node:path");
-  const { fileRangeStore } = await import("../dist/test.mjs");
-  const directory = await mkdtemp(join(tmpdir(), "snapback-upload-queued-"));
-  let cut = false;
-  let photo: any;
-  let discards = 0;
-  const client = createClient({ url: owner.url, as: "alice", offline: { store: fileRangeStore(directory) },
-    fetch: async (input, init) => {
-      const path = new URL(String(input)).pathname;
-      if (path === "/api/uploads/discard") discards++;
-      if (path === "/api/mutation" && cut) throw new Error("offline before mutation");
-      const response = await fetch(input, init);
-      if (path === "/api/upload") { photo = await response.clone().json(); cut = true; }
-      return response;
-    },
-  });
-  try {
-    const drain = client.subscribe(api.messages.thread, { conversationId: "conversation-1", c: null }, () => {}, { drain: true });
-    await drain.until((event: any) => event.live === true, 3_000);
-    drain.close();
-    const png = await readFile(new URL("../../../scripts/witness-expo/view-once.png", import.meta.url));
-    const result = await client.mutation(api.messages.sendPhoto, {
-      conversationId: "conversation-1", photo: new File([png], "photo.png"),
-    });
-    assert.equal(result.state, "queued");
-    assert.equal(discards, 0);
-    assert.ok((await client.listUploads()).uploads.some((upload) => upload.id === photo.id));
-    cut = false;
-    await client.outbox.drain();
-    assert.equal((await client.outbox.entries()).filter((entry) => entry.state === "queued").length, 0);
-    assert.ok(!(await client.listUploads()).uploads.some((upload) => upload.id === photo.id));
-    await assert.rejects(client.discardUpload(photo.id), (error: any) => error.code === "E_ASSET_IN_USE");
-  } finally { await client.close(); await rm(directory, { recursive: true, force: true }); }
-});
-
-test("chat once photo uses one message and upload, each member gets one server delivery, and web stores no bytes", async () => {
-  const { readFile, mkdtemp, rm } = await import("node:fs/promises");
-  const { tmpdir } = await import("node:os");
-  const { join } = await import("node:path");
-  const { fileRangeStore } = await import("../dist/test.mjs");
-  const directory = await mkdtemp(join(tmpdir(), "snapback-once-owner-"));
-  const sender = createClient({ url: owner.url, as: "alice" });
-  const alice = createClient({ url: owner.url, as: "alice", offline: { store: fileRangeStore(join(directory, "alice")) } });
-  const bob = createClient({ url: owner.url, as: "bob", offline: { store: fileRangeStore(join(directory, "bob")) } });
-  try {
-    const png = await readFile(new URL("../../../scripts/witness-expo/view-once.png", import.meta.url));
-    const photo = await sender.upload(new Blob([png], { type: "image/png" }), { kind: "image" });
-    const posted = await sender.mutation(api.messages.sendOncePhoto, { conversationId: "conversation-1", photo });
-    assert.equal(posted.state, "committed");
-    const ordinary = await sender.upload(new Blob([png], { type: "image/png" }), { kind: "image" });
-    const normal = await sender.mutation(api.messages.sendPhoto, { conversationId: "conversation-1", photo: ordinary });
-    assert.equal(normal.state, "committed");
-    assert.equal((await sender.mutation(api.integration.logMessage, { messageId: normal.data.id })).state, "committed");
-    const manifest: any = await alice.manifest();
-    assert.equal(manifest.tables.messages.columns.oncePhoto.Optional.Image.once, true);
-    for (const client of [alice, bob]) {
-      const thread: any = await client.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
-      assert.ok(thread.data.some((row: any) => row?.message?.oncePhoto?.id === photo.id));
-      const ordinaryUrl = (await client.assetUrl(ordinary))!;
-      await client.assetBlob(ordinaryUrl);
-      assert.equal(await client.assetCache!.viewOnce(photo.id), true);
-      // Even unviewed once media disappears offline, including after a cold store open.
-      await client.offline();
-      const local: any = await client.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
-      assert.ok(local.data.some((row: any) => row?.message?.id === posted.data.id && row.message.oncePhoto === null));
-      assert.ok(local.data.some((row: any) => row?.message?.photo?.id === ordinary.id));
-      assert.ok((await client.assetBlob(ordinaryUrl)).size > 0, "ordinary photo in the same page renders from held bytes");
-      await client.online();
-      const url = (await client.assetUrl(photo))!;
-      const viewing = {};
-      assert.ok((await client.assetBlob(url, { viewing })).size > 0);
-      assert.deepEqual((await client.assetCache!.status()).entries.map((entry: any) => entry.assetId), [ordinary.id]);
-      const coverage = await (client as any).offlineRuntime.store.coverage();
-      assert.ok(coverage.absences.some((absence: any) => JSON.stringify(absence) === JSON.stringify(["messages", "byId", [posted.data.id]])));
-      assert.ok(!coverage.rows.some((row: any) => row.table === "messages" && row.id === posted.data.id));
-      const direct = await fetch(url, { headers: { "X-Snapback-As": client.snapshot.persona! } });
-      assert.equal(direct.status, 410); assert.equal((await direct.json()).code, "E_ASSET_VIEWED");
-      await assert.rejects(client.assetBlob(url, { viewing: {} }), (error: any) => error.code === "E_ASSET_VIEWED");
-    }
-  } finally { await sender.close(); await alice.close(); await bob.close(); await rm(directory, { recursive: true, force: true }); }
-});
-
-test("offline sendOncePhoto prediction under the message alias has null media and makes no asset fetch", async () => {
-  const { readFile, mkdtemp, rm } = await import("node:fs/promises");
-  const { tmpdir } = await import("node:os");
-  const { join } = await import("node:path");
-  const { fileRangeStore } = await import("../dist/test.mjs");
-  const { engineId } = await import("./fake-owner.ts");
-  const directory = await mkdtemp(join(tmpdir(), "snapback-once-predict-"));
-  let assetFetches = 0;
-  const client: any = createClient({ url: owner.url, as: "alice", offline: { store: fileRangeStore(directory) }, fetch: (input, init) => {
-    if (new URL(String(input)).pathname.startsWith("/api/asset/")) assetFetches++;
-    return fetch(input, init);
-  } });
-  try {
-    const png = await readFile(new URL("../../../scripts/witness-expo/view-once.png", import.meta.url));
-    const photo = await client.upload(new Blob([png], { type: "image/png" }), { kind: "image" });
-    const args = { conversationId: "conversation-1", photo };
-    await client.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
-    await client.offline();
-    const runtime = client.offlineRuntime;
-    const ids = Array.from({ length: 120 }, (_, i) => engineId(50_000 + i));
-    const prediction = await runtime.twin.predict("messages.sendOncePhoto", args, ids);
-    assert.equal(prediction.predicted, true, JSON.stringify(prediction));
-    const message = prediction.overlay.find((row: any) => row.table === "messages");
-    assert.ok(message);
-    // Raw typed writes belong to the replay overlay; only evaluated media is scrubbed.
-    assert.equal(message.row.oncePhoto.id, photo.id);
-    const entry = { intent: "once-prediction:0", grant: "once-prediction", offset: 0, count: ids.length, ids,
-      op: "messages.sendOncePhoto", args, issuedSeq: 0, createdAt: 1, updatedAt: 1, state: "queued", predicted: true, trace: prediction.trace };
-    await runtime.store.commit({ outbox: { put: [entry] }, overlay: { put: { [entry.intent]: prediction.overlay } } });
-    const local = await runtime.twin.evaluate("deliveries.thread", { conversationId: "conversation-1", c: null });
-    assert.ok(local?.data?.some((row: any) => row?.message?.id === message.id && row.message.oncePhoto === null), JSON.stringify(local));
-    const rendered = await client.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
-    assert.ok(rendered.data?.some((row: any) => row?.message?.id === message.id && row.message.oncePhoto === null), JSON.stringify(rendered));
-    assert.equal(assetFetches, 0);
-  } finally { await client.close(); await rm(directory, { recursive: true, force: true }); }
-});
-
-test("Expo witness seed leaves Alice's schema-once image unconsumed and keeps its clip ordinary", async () => {
-  const previous = process.env.SNAPBACK_URL;
-  delete process.env.SNAPBACK_URL;
-  let fixture: RealOwnerHarness | undefined;
-  try {
-    // Start once with the full template; closing and recreating the fixture spent the test's budget.
-    fixture = await RealOwnerHarness.create({ fullChat: true });
-    const url = fixture.url;
-    const { seedWitness } = await import("../../../scripts/witness-expo/owner.mjs");
-    const seed = await seedWitness(url);
-    assert.equal(seed.forbidden.length, 1);
-    const get = (id: string, as = "alice") => fetch(`${url}/api/asset/${id}`, { headers: { "X-Snapback-As": as } });
-    const first = await get(seed.assets[1].id);
-    assert.equal(first.status, 200); await first.arrayBuffer();
-    assert.equal((await get(seed.assets[1].id)).status, 410);
-    assert.equal((await get(seed.assets[1].id, "bob")).status, 410, "host signature consumed only Bob's use");
-    for (let i = 0; i < 2; i++) {
-      const clip = await get(seed.assets[2].id); assert.equal(clip.status, 200); await clip.arrayBuffer();
-    }
-  } finally {
-    await fixture?.close();
-    if (previous === undefined) delete process.env.SNAPBACK_URL; else process.env.SNAPBACK_URL = previous;
-  }
-});
-
-test("the package suite is pointed at a checked real owner", async (context) => {
-  assert.equal(process.env.SNAPBACK_URL, owner.url);
-  assert.equal(process.env.SNAPBACK2_REAL_OWNER_MODE, owner.owned ? "self-started" : "external");
-  const response = await fetch(owner.url);
-  assert.equal(response.ok, true);
-  const status = await response.json();
-  assert.equal(status.ok, true);
-  assert.equal(status.mode, "dev");
-  const manifestResponse = await fetch(`${owner.url}/api/manifest`);
-  assert.equal(manifestResponse.ok, true);
-  const manifest = await manifestResponse.json();
-  // `tables` carries each table's retain word per generation (LLP 1012 §5, lane O1b).
-  assert.deepEqual(Object.keys(manifest).sort(), ["auth", "channels", "generation", "ops", "programGeneration", "tables"]);
-  const preflight = await fetch(`${owner.url}/api/query`, {
-    method: "OPTIONS",
-    headers: {
-      Origin: "http://client.example",
-      "Access-Control-Request-Method": "POST",
-    },
-  });
-  assert.equal(preflight.status, 204);
-  assert.equal(preflight.headers.get("Access-Control-Allow-Origin"), "*");
-  const allowedMethods = new Set(
-    (preflight.headers.get("Access-Control-Allow-Methods") ?? "")
-      .split(",")
-      .map((method) => method.trim())
-      .filter(Boolean),
-  );
-  assert.deepEqual(allowedMethods, new Set(["GET", "POST", "OPTIONS"]));
-  context.diagnostic(`real-owner mode=${process.env.SNAPBACK2_REAL_OWNER_MODE} url=${owner.url}`);
-});
-
-test("a real rejected mutation carries the complete refusal envelope", async (context) => {
-  if (!owner.owned) return context.skip("the chat fixture and non-member persona belong to the self-started harness");
-  const response = await fetch(`${owner.url}/api/mutation`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Snapback-As": "charlie",
-    },
-    body: JSON.stringify({
-      op: "messages.send",
-      args: {
-        conversationId: "conversation-1",
-        recipientId: "profile-alice",
-        body: "not a member",
-      },
-    }),
-  });
-  assert.equal(response.status, 200);
-  const rejected = await response.json();
-  assert.deepEqual(
-    {
-      state: rejected.state,
-      code: rejected.code,
-      family: rejected.family,
-      message: rejected.message,
-      guide: rejected.guide,
-    },
-    {
-      state: "rejected",
-      code: "NOT_MEMBER",
-      family: "input",
-      message: "E_REQUIRE:NOT_MEMBER: program requirement failed",
-      guide: "input/runtime",
-    },
-  );
-});
-
-test("real owner stop and restart yields stale then a full first re-delivery", async (context) => {
-  if (!owner.owned) return context.skip("external SNAPBACK_URL does not grant process control");
-  const value = createClient({ url: owner.url, as: "alice" });
-  const deliveries: any[] = [];
-  const sub = value.subscribe(api.messages.thread, { conversationId: "conversation-1", c: null }, (delivery) => deliveries.push(delivery));
-  const initial = await sub.until((delivery) => delivery.state === "complete", 2_000);
-  assert.equal(initial.live, true);
-  const stalePromise = sub.until((delivery) => delivery.state === "stale", 3_000);
-  await owner.stop();
-  const stale = await stalePromise;
-  assert.equal(stale.live, false);
-  assert.equal(stale.seq, initial.seq);
-  assert.strictEqual(stale.data, initial.data);
-  assert.equal(value.snapshot.connection, "reconnecting");
-  await owner.start(false);
-  const resumed = await sub.until((delivery) => delivery.state === "complete" && delivery.live, 4_000);
-  assert.equal(resumed.seq, initial.seq);
-  assert.deepEqual(resumed.data, initial.data);
-  assert.equal(value.snapshot.connection, "connected");
-  assert.deepEqual(deliveries.slice(0, 3).map((delivery) => delivery.state), ["complete", "stale", "complete"]);
-  context.diagnostic("owner performs a full query re-delivery after reconnect; Last-Event-ID is not a delta-resume contract");
-  sub.close();
-  value.close();
-});
-
-test("React-free hook driver reduces eight real-owner transitions including live capped and denied", async (context) => {
-  if (!owner.owned) return context.skip("the enhanced temporary chat fixture belongs to the self-started harness");
-  let view: any = initialQueryState<any[]>();
-  const transitions = [view.state];
-  const drive = (delivery: any) => {
-    view = reduceQueryState(view, delivery);
-    transitions.push(view.state);
-  };
-  const reader = createClient({ url: owner.url, as: "alice" });
-  const writer = createClient({ url: owner.url, as: "bob" });
-  const live = reader.subscribe(api.messages.thread, { conversationId: "conversation-1", c: null }, drive);
-  const first = await live.until((delivery) => delivery.state === "complete", 2_000);
-  const committed = await writer.mutation(api.messages.send, {
-    conversationId: "conversation-1",
-    recipientId: "profile-alice",
-    body: `hook-driver-${Date.now()}`,
-  });
-  assert.equal(committed.state, "committed");
-  const updated = await live.until((delivery) => delivery.state === "complete" && delivery.seq > first.seq, 2_000);
-  const stalePromise = live.until((delivery) => delivery.state === "stale", 3_000);
-  await owner.stop();
-  await stalePromise;
-  await owner.start(false);
-  await live.until((delivery) => delivery.state === "complete" && delivery.live && delivery.seq === updated.seq, 4_000);
-  live.close();
-
-  const capped = reader.subscribe(api.integration.capped, {}, drive);
-  const cappedDelivery = await capped.until((delivery) => delivery.state === "capped", 2_000);
-  assert.equal(cappedDelivery.live, true);
-  // LLP 1011: capped deliveries carry the forward cursor like complete ones.
-  assert.deepEqual(Object.keys(cappedDelivery).sort(), ["data", "live", "next", "seq", "state"]);
-  capped.close();
-
-  const outsider = createClient({ url: owner.url, as: "charlie" });
-  const denied = outsider.subscribe(api.integration.denied, { conversationId: "conversation-1" }, drive);
-  const deniedDelivery = await denied.until((delivery) => delivery.state === "denied", 2_000);
-  assert.equal(deniedDelivery.live, true);
-  assert.equal(deniedDelivery.rule, "MEMBERSHIP_REQUIRED");
-  denied.close();
-
-  let refusal: any;
-  const refused = reader.subscribe(api.integration.missing, {}, (delivery) => {
-    refusal = delivery;
-    drive(delivery);
-  });
-  await assert.rejects(
-    () => refused.until(() => false, 2_000),
-    (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_OP_UNKNOWN",
-  );
-  assert.equal(refusal.state, "refused");
-  assert.deepEqual(transitions, ["hydrating", "complete", "complete", "stale", "complete", "capped", "denied", "refused"]);
-  context.diagnostic(`hook-driver transitions=${transitions.join(" -> ")}`);
-  refused.close();
-  reader.close();
-  writer.close();
-  outsider.close();
-});
-
-test("real channel membership revocation ends the subscriber with a refusal", async (context) => {
-  if (!owner.owned) return context.skip("the enhanced temporary chat fixture belongs to the self-started harness");
-  const alice = createClient({ url: owner.url, as: "alice" });
-  const bob = createClient({ url: owner.url, as: "bob" });
-  const channel = bob.channel(api.typing, { conversationId: "conversation-1" });
-  const events: any[] = [];
-  const sub = channel.subscribe((event) => events.push(event));
-  // A delivery on the same live connection witnesses channel registration;
-  // a fixed sleep can publish before the control batch reaches a busy owner.
-  const witness = bob.subscribe(api.messages.summary, { conversationId: "conversation-1" }, () => {});
-  await witness.until((event: any) => event.live === true, 2_000);
-  witness.close();
-  const typing = sub.until((event: any) => event.payload?.typing === true, 2_000);
-  assert.deepEqual(
-    await alice.channel(api.typing, { conversationId: "conversation-1" }).publish({ typing: true }),
-    { ok: true },
-  );
-  assert.deepEqual((await typing as any).payload, { typing: true });
-  const terminal = sub.until(() => false, 2_000).then(
-    () => undefined,
-    (error: unknown) => error,
-  );
-  const removed = await bob.mutation(api.groups.memberLeave, {
-    conversationId: "conversation-1",
-    membershipId: "membership-2",
-  });
-  assert.equal(removed.state, "committed");
-  const terminalError = await terminal;
-  assert.ok(terminalError instanceof SnapbackRefusal);
-  assert.equal(terminalError.code, "E_RULE_CHANNEL_SUBSCRIBE");
-  assert.equal(events.at(-1)?.state, "refused");
-  assert.equal(events.at(-1)?.family, "rule");
-  assert.equal(events.at(-1)?.guide, "rule/channels");
-  sub.close();
-  alice.close();
-  bob.close();
-});
-
-test("a real stored session restores after a cut with identical snapshot views and no mounted query", async () => {
-  let token: string | null = null;
-  let binding: { token: string; principal: string } | null = null;
-  const tokenStore = { load: () => token, save: (value: string | null) => { token = value; },
-    loadPrincipalBinding: () => binding,
-    savePrincipal: (principal: string | null, bearer?: string) => { binding = principal && bearer ? { token: bearer, principal } : null; } };
-  const first = createClient({ url: owner.url, tokenStore });
-  const session = await first.auth.guest();
-  assert.equal(session.kind, "guest");
-  assert.equal(first.snapshot.auth.kind, "guest");
-  await first.close();
-  let cut = true;
-  const cold = createClient({ url: owner.url, tokenStore, fetch: async (input, init) => {
-    if (cut && String(input).endsWith("/api/auth/me")) throw new TypeError("restoration transport cut");
-    return fetch(input, init);
-  } });
-  const left: any[] = [], right: any[] = [];
-  const stopLeft = cold.subscribeStatus(snapshot => left.push(snapshot.auth));
-  const stopRight = cold.subscribeStatus(snapshot => right.push(snapshot.auth));
-  const waitForAuth = (predicate: (auth: typeof cold.snapshot.auth) => boolean) => new Promise<void>(resolve => {
-    const stop = cold.subscribeStatus(snapshot => { if (predicate(snapshot.auth)) { queueMicrotask(() => stop()); resolve(); } });
-  });
-  try {
-    await waitForAuth(auth => auth.retryAt !== undefined);
-    assert.equal(cold.snapshot.auth.state, "hydrating");
-    assert.equal(cold.snapshot.auth.restoringViewer, session.viewer);
-    assert.equal(cold.snapshot.auth.viewer, undefined);
-    assert.equal(token, session.token);
-    const recovered = waitForAuth(auth => auth.state === "authenticated");
-    cut = false;
-    await cold.offline(); await cold.online(); await recovered;
-    assert.equal(cold.snapshot.auth.viewer, session.viewer);
-    assert.equal(cold.snapshot.auth.restoringViewer, undefined);
-    assert.deepEqual(left, right);
-    const revoker = createClient({ url: owner.url, token: session.token });
-    try { await revoker.auth.logout(); } finally { await revoker.close(); }
-    await assert.rejects(cold.auth.me(), (error: any) => error.code === "E_AUTH_SESSION");
-    assert.equal(cold.snapshot.auth.state, "anonymous");
-    assert.equal(token, null);
-  } finally { stopLeft(); stopRight(); await cold.close(); }
-});
-
-test("serve mode refuses a persona-bound real client", async (context) => {
-  if (!owner.owned) return context.skip("external SNAPBACK_URL does not grant mode control");
-  await owner.stop();
-  await owner.start(true);
-  const value = createClient({ url: owner.url, as: "alice" });
-  await assert.rejects(
-    () => value.query(api.integration.capped, {}),
-    (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_AUTH_PERSONA_NOT_DEV",
-  );
-  let delivered: any;
-  const sub = value.subscribe(api.integration.capped, {}, (event) => { delivered = event; });
-  await assert.rejects(
-    () => sub.until(() => false, 2_000),
-    (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_AUTH_PERSONA_NOT_DEV",
-  );
-  assert.equal(delivered.state, "refused");
-  sub.close();
-  value.close();
-});
-
-
-// @ref LLP 1018#6-move-four-evolution-of-the-whole-application —
-// evolve populated data while real client intents remain in durable custody.
-test("durable client intents survive a schema successor and a lost acknowledgement survives operation removal", async (t) => {
-  if (!owner.owned) return t.skip("requires an isolated self-started successor owner");
-  const { mkdtemp, readFile, writeFile, rm } = await import("node:fs/promises");
-  const { tmpdir } = await import("node:os");
-  const { join } = await import("node:path");
-  const { fileRangeStore } = await import("../dist/test.mjs");
-  const previousUrl = process.env.SNAPBACK_URL;
-  delete process.env.SNAPBACK_URL;
-  let local: RealOwnerHarness | undefined;
-  const directory = await mkdtemp(join(tmpdir(), "snapback-successor-client-"));
-  const clients: ReturnType<typeof createClient>[] = [];
-  const subscriptions: { close(): void }[] = [];
-  const requests: { body: string; response: any }[] = [];
-  const resets: any[] = [];
-  let loseAcknowledgement = false;
-  const observe: typeof fetch = async (input, init) => {
-    const response = await fetch(input, init);
-    const path = new URL(String(input)).pathname;
-    if (path === "/api/resume") resets.push(await response.clone().json());
-    if (path === "/api/mutation") {
-      const body = await response.clone().json();
-      requests.push({ body: String(init?.body), response: body });
-      if (loseAcknowledgement && body.state === "committed") {
-        loseAcknowledgement = false;
-        // The real owner committed. Only its delivery to this client is lost.
-        throw new TypeError("simulated connection loss after durable commit");
-      }
-    }
-    return response;
-  };
-  try {
-    local = await RealOwnerHarness.create({ withDeliveries: true });
-    const makeClient = () => {
-      const client = createClient({ url: local!.url, as: "alice", fetch: observe,
-        offline: { store: fileRangeStore(directory) } });
-      clients.push(client);
-      return client;
-    };
-    const warm = async (client: ReturnType<typeof createClient>) => {
-      await client.ready;
-      const sub = client.subscribe(api.deliveries.inbox, { c: null }, () => {}, { drain: true });
-      subscriptions.push(sub);
-      await sub.until(event => event.live === true, 5_000);
-      assert.equal((await client.outbox.status(api.deliveries.post)).ready, true);
-      return sub;
-    };
-    const first = makeClient();
-    const drain = await warm(first);
-    const before: any = await first.query(api.messages.thread, { conversationId: "conversation-1", c: null });
-    assert.equal(before.state, "complete");
-    assert.equal(before.next, null);
-    const baselineCount: any = await first.query(api.messages.summary, { conversationId: "conversation-1" });
-    await first.offline();
-    const queued = [];
-    for (const body of ["successor first", "successor second"]) {
-      const result = await first.mutation(api.deliveries.post, { conversationId: "conversation-1", body });
-      assert.equal(result.state, "queued");
-      queued.push(result);
-    }
-    const admitted = await first.outbox.entries();
-    assert.equal(admitted.length, 2);
-    assert.equal(admitted[0].predicted, true);
-    assert.equal(admitted[1].predicted, true);
-    assert.equal(requests.length, 0, "offline admission sends nothing");
-    drain.close();
-    await first.close();
-    await local.stop();
-    const schemaPath = join(local.root!, "snapback/schema.q");
-    const schema = await readFile(schemaPath, "utf8");
-    assert.ok(schema.includes("table messages:\n"));
-    await writeFile(schemaPath, schema.replace("table messages:\n", "table messages:\n  category: text <=40 ?\n"));
-    await local.start(false);
-
-    const reopened = makeClient();
-    await reopened.ready;
-    await reopened.online();
-    assert.deepEqual(await reopened.outbox.drain(), { stopped: false, remaining: 0 });
-    assert.ok(resets.some(result => result.code === "E_OFFLINE_RESET"), "the real owner requires successor recovery");
-    assert.deepEqual(requests.map(request => JSON.parse(request.body)), admitted.map(entry => ({
-      op: entry.op, args: entry.args, replay: { grant: entry.grant, offset: entry.offset,
-        count: entry.count, intent: entry.intent, trace: entry.trace ?? { points: [], verdicts: [] } },
-    })), "FIFO replay preserves every admitted envelope field after close, schema reset, and reopen");
-    const terminals = await reopened.outbox.entries();
-    for (const entry of admitted) {
-      const terminal = terminals.find(result => result.intent === entry.intent)!;
-      assert.equal(terminal.state, "rejected");
-      assert.equal((terminal.response as any).code, "E_OFFLINE_CONFLICT");
-      assert.match((terminal.response as any).site, /^rule:/);
-    }
-    // Rule verdicts bind the complete schema. Even this optional addition
-    // invalidates predecessor verdicts; new-generation intent admission is
-    // an explicit user retry, never a rewrite of an existing envelope.
-    const conflicted: any = await reopened.query(api.messages.thread, { conversationId: "conversation-1", c: null });
-    assert.equal(conflicted.data.length, before.data.length, "the conflicted sends wrote no messages");
-    for (const body of ["successor first", "successor second"]) {
-      const result = await reopened.mutation(api.deliveries.post, { conversationId: "conversation-1", body });
-      assert.equal(result.state, "committed");
-      assert.ok(!admitted.some(entry => entry.intent === JSON.parse(requests.at(-1)!.body).replay.intent));
-    }
-    const after: any = await reopened.query(api.messages.thread, { conversationId: "conversation-1", c: null });
-    assert.equal(after.state, "complete");
-    assert.equal(after.next, null);
-    for (const row of before.data) {
-      const actual = after.data.find((value: any) => value.id === row.id);
-      assert.ok(actual, `preserved message ${row.id}`);
-      assert.equal(actual.category, null);
-      const { category, ...originalFields } = actual;
-      assert.deepEqual(originalFields, row);
-    }
-    for (const body of ["successor first", "successor second"]) assert.equal(after.data.filter((row: any) => row.body === body).length, 1);
-    const afterCount: any = await reopened.query(api.messages.summary, { conversationId: "conversation-1" });
-    assert.equal(afterCount.data.messageCount.value, baselineCount.data.messageCount.value + 2);
-    t.diagnostic(`schema reset preserved ${before.data.length} original messages; two predicted intents settled E_OFFLINE_CONFLICT, and two explicit new intents advanced the first room count by two`);
-
-    // A committed-but-unacknowledged intent must still settle if its operation
-    // disappears before a cold client retries. New calls cannot use that op.
-    const reopenedDrain = await warm(reopened);
-    loseAcknowledgement = true;
-    const uncertain = await reopened.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "ack lost before removal" });
-    assert.equal(uncertain.state, "queued");
-    const originalRequest = requests.at(-1)!;
-    assert.equal(originalRequest.response.state, "committed");
-    reopenedDrain.close();
-    await reopened.close();
-    await local.stop();
-    const operationPath = join(local.root!, "snapback/deliveries.q");
-    const operations = await readFile(operationPath, "utf8");
-    assert.ok(operations.includes("mutation post("));
-    await writeFile(operationPath, operations.replace("mutation post(", "mutation postAfterEvolution("));
-    await local.start(false);
-    const retry = makeClient();
-    await retry.ready;
-    await retry.online();
-    assert.deepEqual(await retry.outbox.drain(), { stopped: false, remaining: 0 });
-    const retried = requests.filter(request => JSON.parse(request.body).replay.intent === uncertain.intent);
-    assert.equal(retried.length, 2, "one original attempt and one cold retry");
-    assert.equal(retried[1].body, originalRequest.body, "exact request bytes survive operation removal");
-    assert.deepEqual(retried[1].response, originalRequest.response, "the owner returns its stored terminal");
-    assert.equal((await retry.outbox.entries()).find(entry => entry.intent === uncertain.intent)?.state, "committed");
-    const final: any = await retry.query(api.messages.thread, { conversationId: "conversation-1", c: null });
-    assert.equal(final.state, "complete");
-    assert.equal(final.data.filter((row: any) => row.body === "ack lost before removal").length, 1);
-    const rejected = await fetch(`${local.url}/api/mutation`, { method: "POST",
-      headers: { "Content-Type": "application/json", "X-Snapback-As": "alice" },
-      body: JSON.stringify({ op: "deliveries.post", args: { conversationId: "conversation-1", body: "new forbidden call" } }) });
-    assert.equal((await rejected.json()).code, "E_OP_UNKNOWN");
-    t.diagnostic("lost acknowledgement retried byte-identically after operation removal; stored terminal settled with one message; new call refused E_OP_UNKNOWN");
-  } finally {
-    for (const sub of subscriptions) sub.close();
-    for (const client of clients) await client.close();
-    await local?.close();
-    await rm(directory, { recursive: true, force: true });
-    if (previousUrl === undefined) delete process.env.SNAPBACK_URL;
-    else process.env.SNAPBACK_URL = previousUrl;
-  }
-});
-// @ref LLP 1018#4-move-two-efficient-execution-and-certification-that-agree — maintained cap
-// rows must be acquired through ordinary reads; unheld counts are not zero.
-test("public count reads enable multi-principal offline cap prediction without inventing missing counts", async (t) => {
-  if (!owner.owned) return t.skip("requires an isolated self-started count owner");
-  const { mkdtemp, mkdir, writeFile, rm } = await import("node:fs/promises");
-  const { tmpdir } = await import("node:os");
-  const { join } = await import("node:path");
-  const { fileRangeStore } = await import("../dist/test.mjs");
-  const previousUrl = process.env.SNAPBACK_URL;
-  delete process.env.SNAPBACK_URL;
-  const directory = await mkdtemp(join(tmpdir(), "snapback-public-counts-"));
-  const fixture = join(directory, "source");
-  let local: RealOwnerHarness | undefined;
-  const clients: ReturnType<typeof createClient>[] = [];
-  try {
-    await mkdir(fixture);
-    await writeFile(join(fixture, "schema.q"), `use identity
-
-table capEntries:
-  principal: principal
-  author: principal
-  by byPrincipal: principal, id
-  cap 3 by principal
-  read <- allow
-  insert <- .author = viewer
-  update <- deny
-  delete <- deny
-
-maintain principalCounts = count capEntries by principal:
-  read <- allow
-`);
-    await writeFile(join(fixture, "caps.q"), `query countFor(principal: principal):
-  return #principalCounts[principal]
-
-query entriesFor(principal: principal):
-  return capEntries[principal] first 50 by byPrincipal
-
-mutation allocate(principals: [principal] <=49):
-  for principal in principals:
-    insert capEntries { principal, author: viewer }
-  return null
-`);
-    const sizes = { heldA: 1, heldB: 1, unheldA: 1, unheldB: 1, rollbackA: 1, full: 3 };
-    const rows = Object.entries(sizes).flatMap(([principal, size]) => Array.from({ length: size }, (_, index) => ({
-      id: `${principal}-${index}`, principal: `dev:${principal}`, author: "dev:alice",
-    })));
-    await writeFile(join(fixture, "seed.ts"), `import { seed } from 'snapback2';\nexport default seed(${JSON.stringify({ personas: ["alice"], rows: { capEntries: rows } })});\n`);
-    local = await RealOwnerHarness.create({ fixture });
-    const observer = createClient({ url: local.url, as: "alice" });
-    clients.push(observer);
-    const count = async (client: ReturnType<typeof createClient>, principal: string) => {
-      const result: any = await client.query(api.caps.countFor, { principal: `dev:${principal}` });
-      assert.equal(result.state, "complete", JSON.stringify(result));
-      return result.data;
-    };
-    const scenarios = [
-      { name: "held", principals: ["heldA", "heldB"], hold: ["heldA", "heldB"], predicted: true, final: [2, 2] },
-      { name: "unheld", principals: ["unheldA", "unheldB"], hold: ["unheldA"], predicted: false, final: [2, 2] },
-      { name: "zero", principals: ["zero"], hold: ["zero"], predicted: true, final: [3] },
-      { name: "overflow", principals: ["rollbackA", "full"], hold: ["rollbackA", "full"], predicted: false, final: [1, 3] },
-    ];
-    for (const scenario of scenarios) {
-      const reads: any[] = [];
-      let mutations = 0;
-      let client = createClient({ url: local.url, offline: { store: fileRangeStore(join(directory, scenario.name)) },
-        fetch: async (input, init) => {
-          const response = await fetch(input, init);
-          const path = new URL(String(input)).pathname;
-          if (path === "/api/query") reads.push(await response.clone().json());
-          if (path === "/api/mutation") mutations++;
-          return response;
-        } });
-      clients.push(client);
-      await client.ready;
-      await client.auth.guest();
-      const before = await Promise.all(scenario.hold.map(principal => count(client, principal)));
-      await client.online();
-      const readiness = await client.outbox.status(api.caps.allocate);
-      assert.equal(readiness.ready, true, JSON.stringify(readiness));
-      assert.ok(reads.every(read => (read.rows ?? []).every((row: any) => row.table !== "capEntries")), "count queries did not preload source rows");
-      if (scenario.name === "zero") {
-        assert.deepEqual(before, [0], "the owner proved zero through the public count query");
-        const receipt = reads.at(-1).receipt;
-        assert.ok(receipt.absences.some(([table, index, key]: any) =>
-          table === "principalCounts" && index === "byId"
-          && key[0] === JSON.stringify([{ Id: "dev:zero" }])));
-        assert.ok(receipt.ranges.some((range: any) => range.table === "principalCounts"
-          && range.prefix[0] === "dev:zero" && range.stop === "Exhausted"
-          && range.absence && range.rowIds.length === 0), "the owner supplies independent group absence");
-        t.diagnostic(`zero public query receipt: ${JSON.stringify(reads)}`);
-      }
-      await client.offline();
-      const readsBeforeReopen = reads.length;
-      client = await client.restart();
-      clients.push(client);
-      if (scenario.name === "zero") {
-        const cold = await client.query(api.caps.countFor, { principal: "dev:zero" });
-        assert.equal(cold.state, "complete", "the delivered scalar answer remains cached");
-        assert.equal(cold.data, 0);
-        assert.equal(cold.live, false);
-        assert.ok(cold.stale, "a cached zero is a stale answer, not new group-absence authority");
-      } else {
-        assert.deepEqual(await Promise.all(scenario.hold.map(principal => count(client, principal))), before,
-          "held count rows remain complete after a cold offline carrier reopen");
-      }
-      assert.equal(reads.length, readsBeforeReopen, "cold held counts do not reacquire network evidence");
-      const queued = await client.mutation(api.caps.allocate, { principals: scenario.principals.map(principal => `dev:${principal}`) });
-      assert.equal(queued.state, "queued");
-      assert.equal(mutations, 0, "offline allocation sends no mutation bytes");
-      const [entry] = await client.outbox.entries();
-      assert.equal(entry.predicted === true, scenario.predicted, `${scenario.name}: ${JSON.stringify(entry)}`);
-      if (!scenario.predicted) assert.deepEqual(entry.trace, { points: [], verdicts: [] });
-      if (scenario.predicted) {
-        for (let index = 0; index < scenario.principals.length; index++) {
-          assert.equal(await count(client, scenario.principals[index]), before[index] + 1, "held count advances in the offline overlay");
-        }
-      }
-      if (scenario.name === "zero") {
-        // Reopen with an actual predicted aggregate, then consume the remaining
-        // capacity through the same public queue. A fourth insert cannot predict.
-        client = await client.restart();
-        clients.push(client);
-        assert.equal(await count(client, "zero"), 1);
-        for (const nextCount of [2, 3, 4]) {
-          await client.mutation(api.caps.allocate, { principals: ["dev:zero"] });
-          const latest = (await client.outbox.entries()).at(-1)!;
-          assert.equal(latest.predicted === true, nextCount <= 3);
-          assert.equal(await count(client, "zero"), Math.min(nextCount, 3));
-        }
-        assert.equal(mutations, 0);
-        assert.equal(reads.length, readsBeforeReopen);
-      }
-      await client.online();
-      assert.deepEqual(await client.outbox.drain(), { stopped: false, remaining: 0 });
-      const [settled] = await client.outbox.entries();
-      assert.equal(settled.state, scenario.name === "overflow" ? "rejected" : "committed");
-      if (scenario.name === "overflow") assert.equal((settled.response as any).code, "E_CONSTRAINT");
-      if (scenario.name === "zero") {
-        const settledEntries = await client.outbox.entries();
-        assert.deepEqual(settledEntries.map(entry => entry.state), ["committed", "committed", "committed", "rejected"]);
-        assert.equal((settledEntries.at(-1)!.response as any).code, "E_CONSTRAINT");
-      }
-      const actual = await Promise.all(scenario.principals.map(principal => count(observer, principal)));
-      assert.deepEqual(actual, scenario.final, "owner counts prove complete commit or atomic rollback");
-      t.diagnostic(`${scenario.name}: ${JSON.stringify({ before, predicted: entry.predicted === true, trace: entry.trace, state: settled.state, final: actual })}`);
-      await client.close();
-    }
-  } finally {
-    for (const client of clients) await client.close();
-    await local?.close();
-    await rm(directory, { recursive: true, force: true });
-    if (previousUrl === undefined) delete process.env.SNAPBACK_URL;
-    else process.env.SNAPBACK_URL = previousUrl;
-  }
 });

@@ -7,8 +7,7 @@ use crate::collection_rewrite::{
 };
 use crate::growth::{
     ProvenanceBinding, assignment_growth, collection_price_from,
-    expression_from as provenance_expression_from, geometric_sum, has_word_list, saturating_power,
-    take_identity,
+    expression_from as provenance_expression_from, geometric_sum, saturating_power, take_identity,
 };
 use crate::ir::*;
 use crate::retention::{argument_max, collection_bytes};
@@ -34,7 +33,7 @@ impl<'a> OutputEstimator<'a> {
                     name.clone(),
                     OutputBound {
                         whole_element: false,
-                        bytes: argument_max(argument),
+                        bytes: argument_max(schema, argument),
                         instances: 1,
                         collection: matches!(argument, ArgType::List { .. }),
                         table: None,
@@ -42,7 +41,10 @@ impl<'a> OutputEstimator<'a> {
                             identity,
                             crate::growth::ProvenanceExpression::argument(),
                         ),
-                        shape: ByteShape::leaf(argument_max(argument), format!("argument {name}")),
+                        shape: ByteShape::leaf(
+                            argument_max(schema, argument),
+                            format!("argument {name}"),
+                        ),
                         value: Expr::Variable(name.clone()),
                     },
                 )
@@ -81,7 +83,7 @@ impl<'a> OutputEstimator<'a> {
                     variables.insert(
                         name.clone(),
                         OutputBound {
-                            whole_element: has_word_list(value, variables, |v| v.whole_element),
+                            whole_element: false,
                             bytes,
                             instances: calls,
                             collection,
@@ -93,8 +95,7 @@ impl<'a> OutputEstimator<'a> {
                     );
                 }
                 Stmt::Assign { name, value } => {
-                    let whole_element = has_word_list(value, variables, |v| v.whole_element)
-                        || variables.get(name).is_some_and(|v| v.whole_element);
+                    let whole_element = variables.get(name).is_some_and(|v| v.whole_element);
                     let instances = variables.get(name).map_or(calls, |bound| bound.instances);
                     let assignment = assignment_growth(
                         variables.get(name).map(|bound| &bound.provenance),
@@ -175,7 +176,7 @@ impl<'a> OutputEstimator<'a> {
                     }
                 }
                 Stmt::Push { target, value } => {
-                    let whole_element = has_word_list(value, variables, |v| v.whole_element);
+                    let whole_element = false;
                     let shape = self.expression_shape(value, variables);
                     let label = loops
                         .last()
@@ -259,12 +260,7 @@ impl<'a> OutputEstimator<'a> {
                     nested.insert(
                         binding.clone(),
                         OutputBound {
-                            whole_element: match domain {
-                                LoopDomain::DerivedArray { value, .. } => {
-                                    has_word_list(value, variables, |v| v.whole_element)
-                                }
-                                _ => false,
-                            },
+                            whole_element: false,
                             bytes: element,
                             instances: nested_calls,
                             collection: matches!(
@@ -328,13 +324,8 @@ impl<'a> OutputEstimator<'a> {
             }
             LoopDomain::DerivedArray { value, max, .. } => (
                 u64::from(*max),
-                self.expression(value, variables).saturating_div(
-                    if has_word_list(value, variables, |v| v.whole_element) {
-                        1
-                    } else {
-                        u64::from(*max).max(1)
-                    },
-                ),
+                self.expression(value, variables)
+                    .saturating_div(u64::from(*max).max(1)),
             ),
             LoopDomain::Recurse(recurse) => {
                 let nodes = geometric_sum(u64::from(recurse.fanout), recurse.depth);
@@ -396,12 +387,6 @@ impl<'a> OutputEstimator<'a> {
                     .map(|value| self.expression(value, variables))
                     .max()
                     .unwrap_or(0),
-                // @ref LLP 1001#pure-builtins — each ASCII run adds a tagged String and separator;
-                // eight times the input's serialized bytes covers even one-letter words.
-                Builtin::Words => args
-                    .first()
-                    .map(|value| self.expression(value, variables).saturating_mul(8))
-                    .unwrap_or(CANONICAL_ARRAY_BASE_BYTES),
                 Builtin::MentionTokens => args
                     .first()
                     .map(|value| self.expression(value, variables).saturating_mul(2))

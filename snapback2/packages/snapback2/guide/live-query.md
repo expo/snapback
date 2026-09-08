@@ -6,31 +6,42 @@ Cursor indexes end in intrinsic `id`; pass a `cursor ?` argument to `after`.
 
 ```q
 query thread(conversationId: conversations, c: cursor ?):
-  require exists memberships[conversationId, viewer] else MEMBERSHIP_REQUIRED
-  page = deliveries[viewer, conversationId, 'message'] after c last 50 by byRecipientConversationKindAt
-  return page { *, message: messages[.messageId] }
+  require isMember(conversationId, viewer) else MEMBERSHIP_REQUIRED
+  return messages[conversationId] after c last 50
 ```
 
-`complete` and `capped` receipts carry `next: Cursor | null`. Pass that opaque
-token back as the cursor argument for the next page. It represents the last
-returned row, is bound to the table/index/order, and must not be inspected or
-constructed by application code. A conditional query can return a different
-range or merge from each branch, through aliases and shapes; `next` follows the
-branch that returns. Reset the cursor to `null` when switching index or order.
+`complete` and `capped` carry `next: Cursor | null`. Pass the opaque token back
+for the next page; it is bound to table/index/order and must not be inspected or
+constructed. Through aliases, shapes, and conditional branches, `next` follows
+the page returned. Reset it to `null` when switching index or order.
 
-Subscribe through `client.subscribe(api.deliveries.thread, args, listener)`.
-Each SSE data frame is a query response or refusal.
+Subscribe through `client.subscribe(api.messages.thread, args, listener)`.
+Each SSE data frame is a query response or refusal. Connection `live`/`stale`
+facts belong to the client and never replace `complete`/`capped`/`denied`.
 
-## Reading a query
+`client.observe` shares one immutable snapshot with headless and React.
+`useQuery` returns it: `data`; certified `receipt` (`outcome`, `source`, `seq`,
+`next`); `freshness`; local prediction/retention/catch-up facts; and refusal.
+`status` (`loading`, `ready`, `unavailable`) and `reason` are derived. Effective
+local commits reevaluate once; bookkeeping stays silent. Resets load; transport
+state does not replace the certified outcome.
 
-`useQuery(op, args)` returns one snapshot: `data`, `status` (`loading`, `ready`,
-`unavailable`), and at most one `reason` (`code` plus a sentence). `ready` means
-readable data, not server confirmation. The facts stay one property down:
-`receipt` (`outcome` complete/capped/partial/denied, `source` server/twin,
-`seq`, `next`), `freshness` (`live`, `staleSince`, `connection`),
-`local.predicted` (rows a queued write predicted: table, id, intent), `refusal`.
-A partial composite is `ready` with reason `partial`; check it before trusting
-nested fields. `summarize(view, connection)` is the same projection headless.
+When a screen needs a list, count, and preview coherently, return all three from
+one named query and mount that ref/arguments in each consumer. Chat's
+`deliveries.conversationView` does this. A partial composite stays partial;
+fallback held history must hide count/preview until it is usable.
+
+One SSE connection carries up to 256 query/channel subscriptions per client,
+including HTTP/1.1. Adding/closing one leaves peers active. Unmount unused
+components; CSS hiding keeps queries active. Close the client with its scope.
+Reconnect re-delivers query state, not ephemeral channel events.
+
+Keep newest-first subscriptions at `c: null`; fetch older pages separately with
+`next`, preserving scope/state/freshness. History reads do not move the live head.
+`drain: true` in `client.subscribe`/`useQuery` follows an ascending append log
+(`after c first N`, N <=50), emitting each page then watching its tail. Unsupported
+returned shapes refuse E_OFFLINE_RESUME, `reason: "unsupported-log"`. Ordinary
+descending queries stay valid. See offline.
 
 ## Channels
 
@@ -60,52 +71,32 @@ a program reading `connected` is `hydrating` and never predicted, even with a
 cached answer. Connections say nothing about foreground/idle state or delivery
 guarantees; this adds no channel kind or subscriber-set broadcast.
 
-## Whole-word search
+## Unicode word-prefix search
 
-`words(text)` returns whole `[A-Za-z0-9]+` runs, lowercase, deduplicated in
-first-occurrence order. Whole-word matching, not prefix search; non-ASCII splits
-words. Empty input yields `[]`. For `text <=N`, the list/`for` bound is
-`floor(N/2)+1` (2000 → 1001). `words(a ?? b)` uses the larger declared text
-maximum. Index columns must fit whole runs or the program must filter.
-`tokens(text)` extracts `@` mentions.
+`wordPrefixes` is an engine-maintained nonunique index component over one or
+more bounded text columns. Put ordinary scope columns before it and ordinary
+ordering columns after it. A query must equality-bind every scope column and
+the search component; it cannot use the index for point reads, rules, writes,
+or maintained aggregates.
 
-Messages have `conversationId`, `author`, `body: text <=2000`, and `at`:
-
-```q
-table searchWords:
-  messageId: messages
-  conversationId: conversations
-  term: text <=2000
-  at: time
-  unique byMessageTerm: messageId, term
-  by byConversationTermTime: conversationId, term, at, id
-  public
-  insert <- allow
-  update <- allow
-  delete <- allow
-```
+The chat template declares
+`by bySearch: conversationId, wordPrefixes(body), at, id` on `messages` and
+binds it through this named query:
 
 ```q
-mutation index(messageId: messages, body: text <=2000):
-  m = messages[messageId] !
-  require m.author = viewer and m.body = body else STALE_OR_NOT_AUTHOR
-  for term in words(body):
-    upsert searchWords[messageId, term] { conversationId: m.conversationId, at: m.at }
-  return true
-
-mutation edit(messageId: messages, body: text <=2000):
-  old = messages[messageId] !
-  require old.author = viewer else NOT_AUTHOR
-  for term in words(old.body):
-    delete searchWords[messageId, term]
-  update messages[messageId] { body }
-  for term in words(body):
-    upsert searchWords[messageId, term] { conversationId: old.conversationId, at: old.at }
-  return true
-
-query search(conversationId: conversations, term: text <=2000):
-  return searchWords[conversationId, term] last 20 by byConversationTermTime { messageId }
+query search(term: text <=128, c: cursor ?):
+  page = merge messages after c last 20 by bySearch:
+    [m.conversationId, term] for m in memberships[viewer] first 50 by byPrincipalConversation
+  return page
 ```
 
-Index at creation; editing an unindexed nonempty body refuses `NOT_FOUND`.
-`search` takes an already-lowercased ASCII word. Public-conversation rules.
+The pinned Unicode 17 contract is NFC, simple case fold, then NFC. Whitespace
+and Unicode punctuation separate words; accents remain significant. The term
+must normalize to exactly one word: zero words match nothing and multiple words
+are refused. The example searches every bounded conversation visible through
+the membership merge and returns one page with one cursor. Its held twin uses
+the same index and reports `held`, `partial`, or `capped` rather than presenting
+downloaded results as complete server search.
+
+The normalized word list is index-internal; Quarry has no public `words()`
+value function. `tokens(text)` remains the separate mention extractor.

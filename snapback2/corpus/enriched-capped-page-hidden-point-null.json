@@ -14,16 +14,24 @@
         },
         "indexes": {
           "byGroup": {
-            "columns": [
-              "group",
-              "at",
-              "id"
+            "components": [
+              {
+                "Column": "group"
+              },
+              {
+                "Column": "at"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           },
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -72,8 +80,10 @@
         },
         "indexes": {
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -114,15 +124,21 @@
         },
         "indexes": {
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           },
           "byItemViewer": {
-            "columns": [
-              "item",
-              "viewer"
+            "components": [
+              {
+                "Column": "item"
+              },
+              {
+                "Column": "viewer"
+              }
             ],
             "unique": true
           }
@@ -179,8 +195,10 @@
               "index": "byGroup",
               "prefix": [
                 {
-                  "Literal": {
-                    "Id": "g1"
+                  "Scalar": {
+                    "Literal": {
+                      "Id": "g1"
+                    }
                   }
                 }
               ],
@@ -294,8 +312,8 @@
   },
   "certificate": {
     "program": "items.enriched",
-    "plan_hash": "4138912337dcb147f1d34aff2919576bb502751a83e008761e4126aca19c1252",
-    "schema_hash": "4b31f985e57c044fc015959ff04ae8d397e78df7f202d91f75bda482159ed8b4",
+    "plan_hash": "b6396fda53b4c20122748c46c91398f2f58490f4eb954b3768fcb50b872f5da2",
+    "schema_hash": "ba166087c4aefdd29b0b208a1ceba5cae8eb96145d80307c4ea8d1544eb80e05",
     "tables": {
       "items": {
         "retain": "until-revoked"
@@ -308,11 +326,11 @@
       }
     },
     "rule_hashes": {
-      "items.read": "28c378af77e5d2a300f4d77800363b2004ca1d4cd0a4ffde62dae0fc1cee3b0c",
-      "profiles.read": "270c96d8d21e7bfe3f57417a9316651657654739bc69f8ca654fdb6c8fbd8f12"
+      "items.read": "ce546f6d28ea1d2823ddd9da28d0cd0b1c128392073308c95d156eda437989d0",
+      "profiles.read": "dd0f14161df560b8eadee94e36dea41684c12b094fca46724484aae7caec3859"
     },
-    "evaluator_version": "bounded-spike-rust-1",
-    "value_model_version": "i53-codepoint-bytes-v2",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [
       {
         "site": "items.page",
@@ -344,6 +362,8 @@
     "max_index_entries": 10240,
     "max_rule_probes": 10240,
     "max_steps": 52106,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
     "max_heap_bytes": 1667392,
     "max_output_bytes": 14212,
     "max_closure_bytes": 12700,
@@ -369,7 +389,7 @@
     "read_time": null
   },
   "receipt": {
-    "schema_hash": "4b31f985e57c044fc015959ff04ae8d397e78df7f202d91f75bda482159ed8b4",
+    "schema_hash": "ba166087c4aefdd29b0b208a1ceba5cae8eb96145d80307c4ea8d1544eb80e05",
     "rows": [
       {
         "table": "shares",

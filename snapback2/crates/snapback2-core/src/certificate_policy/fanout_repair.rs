@@ -22,7 +22,11 @@ pub(super) fn scan_text(scan: &Scan, index: Option<&str>) -> String {
     format!(
         "{}[{}]{after} {direction} {take} by {}",
         scan.table,
-        scan.prefix.iter().map(expr).collect::<Vec<_>>().join(", "),
+        scan.prefix
+            .iter()
+            .map(|e| expr(e.expression()))
+            .collect::<Vec<_>>()
+            .join(", "),
         index.unwrap_or(&scan.index)
     )
 }
@@ -50,7 +54,9 @@ fn safe_value(program: &Program, value: &Expr) -> bool {
 }
 
 pub(super) fn executable(program: &Program, scan: &Scan) -> bool {
-    scan.prefix.iter().all(|v| safe_value(program, v))
+    scan.prefix
+        .iter()
+        .all(|v| safe_value(program, v.expression()))
         && scan.after.as_deref().is_none_or(|v| safe_value(program, v))
         && scan.before.is_none()
         && scan.range.is_none()
@@ -72,7 +78,12 @@ pub(super) fn prefix(
     let Some(index) = table.index(&scan.index) else {
         return missing(scan);
     };
-    let Some(pinned) = index.columns.get(..scan.prefix.len()) else {
+    let columns = index
+        .components
+        .iter()
+        .filter_map(|c| c.column().cloned())
+        .collect::<Vec<_>>();
+    let Some(pinned) = columns.get(..scan.prefix.len()) else {
         return missing(scan);
     };
     let mut columns = pinned.to_vec();
@@ -93,18 +104,18 @@ pub(super) fn prefix(
             return direction(&field);
         }
         columns.push(field);
-        repaired.prefix.push(value);
+        repaired.prefix.push(value.into());
     }
     if !executable(program, &repaired) {
         let field = columns
             .iter()
             .zip(&repaired.prefix)
-            .find(|(_, value)| !safe_value(program, value))
+            .find(|(_, value)| !safe_value(program, value.expression()))
             .map(|(field, _)| field.as_str())
             .unwrap_or("the rule inputs");
         return direction(field);
     }
-    for field in &index.columns {
+    for field in index.components.iter().filter_map(|c| c.column()) {
         if !columns.contains(field) {
             columns.push(field.clone());
         }

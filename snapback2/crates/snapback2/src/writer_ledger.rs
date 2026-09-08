@@ -21,6 +21,130 @@ pub(super) struct CommitLedger {
 }
 
 impl State {
+    pub(super) fn after_commit(&mut self, seq: u64) -> Result<(), Refusal> {
+        self.operator_rejection = None;
+        self.sweep_expired_sessions()?;
+        self.sweep_offline_now()?;
+        let commit = self
+            .runtime()
+            .store()
+            .commits_since(seq.saturating_sub(1), 1)
+            .map_err(|error| Refusal::from_runtime(&error))?
+            .into_iter()
+            .find(|commit| commit.seq == seq)
+            .ok_or_else(|| {
+                Refusal::owner(
+                    "E_OWNER_COMMIT_MISSING",
+                    format!("commit {seq} was not recorded"),
+                    "inspect the store and restart the owner",
+                )
+            })?;
+        let invalidated = self.runtime().invalidated(&commit);
+        let deliveries = self.rerun_live(&invalidated, false);
+        self.ledger.push_back(CommitLedger {
+            seq,
+            invalidated,
+            deliveries,
+        });
+        while self.ledger.len() > 1_000 {
+            self.ledger.pop_front();
+        }
+        self.readmit_channels(&commit);
+        if commit.emits > 0 {
+            self.wake_effects();
+        }
+        Ok(())
+    }
+
+    pub(super) fn rerun_live(&mut self, ids: &[u64], force: bool) -> Vec<LedgerDelivery> {
+        let mut deliveries = Vec::new();
+        let now = self.now();
+        let mut clients = BTreeMap::new();
+        #[cfg(test)]
+        {
+            self.last_live_dispatch_work = 0;
+        }
+        for id in ids {
+            #[cfg(test)]
+            {
+                self.last_live_dispatch_work += 1;
+            }
+            if let Some(client) = self.live.get(id).cloned() {
+                clients.insert(*id, client);
+            }
+        }
+        for client in clients.values_mut() {
+            client.context.now = Some(now);
+            client.context.read_time = Some(now);
+        }
+        let requests = clients
+            .iter()
+            .map(|(id, client)| (*id, client.context.clone()))
+            .collect::<Vec<_>>();
+        for delivery in self.runtime_mut().rerun_with_contexts(&requests) {
+            let id = delivery.id;
+            let Some(mut client) = clients.remove(&id) else {
+                continue;
+            };
+            match delivery.execution {
+                Ok(execution) => {
+                    let refused = client
+                        .drain
+                        .then(|| self.admit_drain(&client.op).err())
+                        .flatten();
+                    let (frame, terminal) = if let Some(refusal) = refused {
+                        refusal_frame(refusal, execution.seq)
+                    } else if client.offline {
+                        writer_offline::envelope_frame(
+                            self.runtime().generation(),
+                            &client.op,
+                            &client.context,
+                            &execution,
+                        )
+                    } else {
+                        writer_offline::connected_frame(
+                            self.runtime().generation(),
+                            &client.op,
+                            &execution,
+                        )
+                    };
+                    let changed = frame_digest(&frame) != frame_digest(&client.last_frame);
+                    client.last_frame = frame.clone();
+                    if force || changed || terminal {
+                        let _ = client.events.send_latest(SseEvent {
+                            seq: Some(execution.seq),
+                            data: frame,
+                            terminal,
+                        });
+                        deliveries.push(LedgerDelivery {
+                            id,
+                            seq: execution.seq,
+                        });
+                    }
+                    if terminal {
+                        self.live.remove(&id);
+                        self.runtime_mut().unsubscribe(id);
+                    } else {
+                        self.live.insert(id, client);
+                    }
+                }
+                Err(error) => {
+                    let seq = self.runtime().store().commit_seq().unwrap_or_default();
+                    let (frame, terminal) = live_frame(Err(Refusal::from_runtime(&error)), seq);
+                    let _ = client.events.send_latest(SseEvent {
+                        seq: Some(seq),
+                        data: frame,
+                        terminal,
+                    });
+                    deliveries.push(LedgerDelivery { id, seq });
+                    self.live.remove(&id);
+                    self.runtime_mut().unsubscribe(id);
+                }
+            }
+        }
+        deliveries
+    }
+
     pub(super) fn why(
         &mut self,
         op: String,
@@ -84,7 +208,12 @@ impl State {
                     "op/unknown",
                 )
             })?;
-        let runtime_subscriptions = self.runtime().subscriptions();
+        let runtime_subscriptions = self
+            .runtime()
+            .subscriptions()
+            .into_iter()
+            .map(|subscription| (subscription.id, subscription))
+            .collect::<BTreeMap<_, _>>();
         let subscriptions = self
             .live
             .iter()
@@ -94,20 +223,17 @@ impl State {
                     && client.context.viewer() == requested_principal
             })
             .filter_map(|(id, client)| {
-                runtime_subscriptions
-                    .iter()
-                    .find(|subscription| subscription.id == client.runtime_id)
-                    .map(|subscription| {
-                        json!({
-                            "id": id,
-                            "op": client.op,
-                            "principal": subscription.principal,
-                            "lastResultDigest": subscription.last_result_digest,
-                            "lastSeq": subscription.last_seq,
-                            // @ref LLP 1002#7-test-and-the-receipt — the served receipt consumes the exact retained trace.
-                            "trace": subscription.trace,
-                        })
+                runtime_subscriptions.get(id).map(|subscription| {
+                    json!({
+                        "id": id,
+                        "op": client.op,
+                        "principal": subscription.principal,
+                        "lastResultDigest": subscription.last_result_digest,
+                        "lastSeq": subscription.last_seq,
+                        // @ref LLP 1002#7-test-and-the-receipt — the served receipt consumes the exact retained trace.
+                        "trace": subscription.trace,
                     })
+                })
             })
             .collect::<Vec<_>>();
         Ok(json!({

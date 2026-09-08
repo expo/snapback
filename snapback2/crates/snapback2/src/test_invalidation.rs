@@ -417,11 +417,24 @@ fn normalized_result(result: &Json) -> Json {
 }
 
 fn query_trace_intersects_commit(query: &AuthoritativeTrace, commit: &CommitRecord) -> bool {
+    if commit.scope_touches.iter().any(|touch| {
+        query.ranges.iter().any(|range| {
+            range.table == touch.table
+                && range.index == touch.index
+                && snapback2_core::search_key::scope_intersects(&touch.prefix, &range.prefix)
+        }) || query
+            .constraint_inputs
+            .iter()
+            .any(|c| c.table == touch.table)
+    }) {
+        return true;
+    }
+
     for touched in &commit.touched {
         let range_overlap = query.ranges.iter().any(|range| {
             range.table == touched.table
                 && range.index == touched.index
-                && touched.key.starts_with(&range.prefix)
+                && snapback2_core::search_key::scalar_key_starts_with(&touched.key, &range.prefix)
         });
         let point_overlap = query.points.iter().any(|point| {
             point.table == touched.table && point.index == touched.index && point.key == touched.key
@@ -1401,6 +1414,7 @@ mod tests {
             pinned_inputs_digest: "pinned".to_owned(),
         });
         let touched = |principal: &str| CommitRecord {
+            scope_touches: vec![],
             job: None,
             job_chunk: None,
             schedule: None,

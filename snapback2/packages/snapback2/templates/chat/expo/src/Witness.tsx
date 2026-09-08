@@ -1,4 +1,4 @@
-import { twinLastDecline } from "snapback2/expo/witness";
+import { twinLastDecline, witnessSearchProbe } from "snapback2/expo/witness";
 import React, { useEffect, useState } from "react";
 import { Text, View } from "react-native";
 import { api, SnapbackRefusal, type AssetRecord, type ImageAsset, type RangeStore, type SnapbackClient, type Subscription } from "snapback2/client";
@@ -18,16 +18,6 @@ function bubbles(rows: LogRow[], entries: Entry[], conversationId: string) {
     && (entry.args as { conversationId?: string }).conversationId === conversationId && !live.some((row) => row.messageId === entry.ids[0]))
     .map((entry) => ({ key: entry.ids[0] ?? entry.intent, kind: "pending" }));
   return [...placed, ...unplaced];
-}
-function searchHeld(rows: LogRow[], term: string) {
-  const needle = term.trim().toLowerCase();
-  const seen = new Set<string>();
-  return needle ? rows.filter((row) => {
-    const body = row.message?.body;
-    if (row.kind !== "message" || !body || seen.has(row.messageId) || !body.toLowerCase().includes(needle)) return false;
-    seen.add(row.messageId);
-    return true;
-  }) : [];
 }
 import { configuration, persist, databaseState, markerSwap, listFiles, DATABASE } from "./witness-state";
 import { Chat } from "./Chat";
@@ -76,13 +66,26 @@ export default function Witness({ url, controlUrl }: { url: string; controlUrl: 
         }
         if (verb === "open") {
           selected = String(args.conversationId);
-          const sub = client.subscribe(api.deliveries.thread, { conversationId: selected, c: null }, () => {});
-          subscriptions.push(sub);
-          await sub.until((value) => value.state === "complete");
+          const queryArgs = { conversationId: selected };
+          const first = client.subscribe(api.deliveries.conversationView, queryArgs, () => {});
+          const second = client.subscribe(api.deliveries.conversationView, queryArgs, () => {});
+          const [left, right] = await Promise.all([
+            first.until((value) => value.state === "complete" || value.state === "capped"),
+            second.until((value) => value.state === "complete" || value.state === "capped"),
+          ]);
+          if ((left.state !== "complete" && left.state !== "capped")
+            || (right.state !== "complete" && right.state !== "capped")) throw new Error("conversation view did not resolve");
+          const two = client.sharedConsumers(api.deliveries.conversationView, queryArgs);
+          first.close();
+          const one = client.sharedConsumers(api.deliveries.conversationView, queryArgs);
+          subscriptions.push(second);
+          // Retain the paginated read's independent receipt for partial-history fallback.
+          await client.query(api.deliveries.thread, { conversationId: selected, c: null });
           // Media mutations predate the delivery recipe; drain this named read to
           // hold their row leases too (messages.sendPhoto has no delivery fanout).
           await client.query(api.messages.thread, { conversationId: selected, c: null });
-          return client.query(api.deliveries.thread, { conversationId: selected, c: null });
+          return { state: left.state, sameValue: left.data === right.data, consumers: [two, one],
+            next: [left.next, right.next], data: left.data };
         }
         if (verb === "send") return client.mutation(api.deliveries.post, {
           conversationId: typeof args.conversationId === "string" ? args.conversationId : selected, body: String(args.body),
@@ -135,12 +138,22 @@ export default function Witness({ url, controlUrl }: { url: string; controlUrl: 
         if (verb === "state") {
           const answer = typeof args.conversationId === "string"
             ? await client.query(api.deliveries.thread, { conversationId: args.conversationId, c: null }) : undefined;
+          const conversationView = typeof args.conversationId === "string"
+            ? await client.query(api.deliveries.conversationView, { conversationId: args.conversationId }) : undefined;
           const entries = await client.outbox.entries();
           const rows = answer && "data" in answer && Array.isArray(answer.data) ? answer.data : [];
+          const search = typeof args.search === "string"
+            ? await client.query(api.messages.search, { term: args.search, c: null }) : undefined;
+          const diagnosticTerms = ["caf", "café"];
+          const searchVariants = args.searchDiagnostics === true ? Object.fromEntries(await Promise.all([
+            ["ascii", diagnosticTerms[0]], ["precomposed", diagnosticTerms[1]],
+          ].map(async ([name, term]) => [name, await client.query(api.messages.search, { term, c: null })]))) : undefined;
           return { snapshot: client.snapshot, coverage: await store.coverage(), outbox: entries,
             bubbles: typeof args.conversationId === "string" ? bubbles(rows as LogRow[], entries as Entry[], args.conversationId) : [],
-            search: typeof args.search === "string" ? searchHeld(rows as LogRow[], args.search) : [],
-            answer, twin: twinLastDecline(), stores: await databaseState(), files: listFiles(), media: currentMedia ? { loaded: currentMedia.loaded, uri: currentMedia.uri } : null };
+            search, searchVariants, searchProbe: args.searchDiagnostics === true
+              ? witnessSearchProbe(client, [...diagnosticTerms, String(args.search)]) : undefined,
+            answer, conversationView, twin: twinLastDecline(), stores: await databaseState(), files: listFiles(),
+            media: currentMedia ? { loaded: currentMedia.loaded, uri: currentMedia.uri } : null };
         }
         throw new Error(`unknown witness command ${verb}`);
       },

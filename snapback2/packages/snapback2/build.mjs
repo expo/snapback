@@ -1,9 +1,10 @@
+import { gzipSync } from "node:zlib";
 import { cp, link, mkdir, open, readFile, readdir, rm, stat, unlink, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
-import { build } from "esbuild";
+import { build, version as esbuildVersion } from "esbuild";
 import ts from "typescript";
 import { generateUnicodeTables } from "../evaluator/unicode-build.mjs";
 
@@ -11,6 +12,24 @@ generateUnicodeTables();
 if (process.argv.includes("--unicode-only")) process.exit(0);
 
 const here = dirname(fileURLToPath(import.meta.url));
+if (process.argv.includes("--measure-twin")) {
+  const measured = await build({ stdin: { contents: [
+    "export * from './src/twin.ts'; export { serverArguments } from './src/local-cursor.ts'; export { reduceQueryState } from './src/types.ts';",
+    "export { PersistentRangeStore } from './src/store/range-store.ts';",
+    "export { OfflineRuntime, offlineView } from './src/offline.ts';",
+    "export * as carrierProjection from './src/store/projection.ts';",
+    "export * as receiptProtocol from './src/offline-protocol.ts';",
+  ].join("\n"), resolveDir: here, loader: "ts" }, bundle: true, minify: true,
+    platform: "neutral", format: "esm", target: "es2022", write: false, metafile: true });
+  const bytes = measured.outputFiles[0].contents, gzip = gzipSync(bytes, { level: 9 }).length;
+  const required = ["unicode-tables", "index-store", "twin-store", "swap-journal", "carrier-index", "metadata", "projection", "range-store", "offline.ts", "offline-protocol", "local-cursor", "held-program"];
+  const inputs = Object.keys(measured.metafile.inputs);
+  for (const name of required) if (!inputs.some(p => p.includes(name))) throw new Error(`unmeasured twin implementation: ${name}`);
+  console.log(JSON.stringify({ entry: "complete-local-runtime", minified: bytes.length, gzip, ceiling: 82000, target: 80000,
+    toolchain: { node: process.version, esbuild: esbuildVersion, gzipLevel: 9 }, inputs }));
+  if (gzip > 82000) throw new Error(`twin exceeds 82000 gzip bytes: ${gzip}`);
+  process.exit(0);
+}
 const dist = resolve(here, "dist");
 const packageBuildLock = resolve(here, "../../target/b2-package-build.lock");
 const packageBuildLockHeld = process.env.SNAPBACK2_PACKAGE_BUILD_LOCK_HELD === "1";
@@ -32,6 +51,20 @@ const externalClient = {
   },
 };
 
+// All public arms import one private nominal image module. No global brand registry or public export is needed.
+const imageModules = new Set(['row-image','range-preparation','errors','unicode'].map(name => resolve(here, `../evaluator/src/${name}`)));
+const imageRuntime = (path = './image-runtime.mjs') => ({
+  name: 'shared-image-runtime',
+  setup(builder) {
+    builder.onResolve({ filter: /(?:row-image|range-preparation|errors|unicode)(?:\.[jt]s)?$/ }, args => {
+      const target = resolve(dirname(args.importer), args.path.replace(/\.[jt]s$/, ''));
+      if (imageModules.has(target)) return { path, external: true };
+    });
+  },
+});
+await build({ entryPoints: [resolve(here,'src/image-runtime.ts')], outdir: dist, outExtension: { '.js': '.mjs' },
+  bundle: true, minify: true, sourcemap: true, platform: 'neutral', format: 'esm', target: 'es2022' });
+
 await build({
   entryPoints: {
     index: resolve(here, "src/index.ts"),
@@ -39,8 +72,8 @@ await build({
     react: resolve(here, "src/react.tsx"),
     "react-core": resolve(here, "src/react-core.tsx"),
     expo: resolve(here, "src/expo.ts"),
-    "expo/witness": resolve(here, "src/expo/witness.ts"),
     "react-native": resolve(here, "src/react-native.tsx"),
+    "client-observed-test": resolve(here, "tests/client-observed-exports.ts"),
     "witness-test": resolve(here, "tests/witness-exports.ts"),
   },
   outdir: dist,
@@ -52,8 +85,14 @@ await build({
   platform: "neutral",
   target: "es2022",
   external: ["expo", "react", "react-native", "expo-file-system", "expo/fetch", "expo-video", "expo-sqlite", "expo-secure-store", "snapback2/client", "snapback2/react-core", "snapback2/expo", "snapback2/react-native", "snapback2/expo/witness"],
-  plugins: [externalClient],
+  plugins: [externalClient, imageRuntime()],
 });
+
+// This existing nested entry uses the same module by its relative output location.
+await build({ entryPoints: { 'expo/witness': resolve(here,'src/expo/witness.ts') }, outdir: dist,
+  outExtension: { '.js': '.mjs' }, sourcemap: true, bundle: true, format: 'esm', minify: true,
+  platform: 'neutral', target: 'es2022', external: ['expo','react','react-native','expo-file-system','expo/fetch','expo-video','expo-sqlite','expo-secure-store','snapback2/client','snapback2/react-core','snapback2/expo','snapback2/react-native','snapback2/expo/witness'],
+  plugins: [externalClient,imageRuntime('../image-runtime.mjs')] });
 
 await build({
   entryPoints: {
@@ -69,6 +108,7 @@ await build({
   platform: "node",
   target: "node20",
   external: ["expo-file-system", "expo/fetch"],
+  plugins: [imageRuntime()],
 });
 
 await build({
@@ -88,6 +128,7 @@ await build({
 });
 
 await cp(resolve(here, "../compiler/lib.d.ts"), resolve(dist, "index.d.ts"));
+await cp(resolve(here, "../compiler/lib.d.ts"), resolve(dist, "authoring-lib.d.ts"));
 await cp(resolve(here, "../compiler/subset-lib.d.ts"), resolve(dist, "compiler-lib.d.ts"));
 // @ref LLP 1003#1-authoring — effect libraries are packaged at build time; check never reads TypeScript's installed lib files.
 const effectLibs = new Map();
@@ -149,8 +190,11 @@ if (diagnostics.length > 0) {
 const emitted = declarationProgram.emit();
 if (emitted.emitSkipped) throw new Error("TypeScript skipped client declaration emit");
 await cp(resolve(declarations, "snapback2/src"), dist, { recursive: true });
+await cp(resolve(declarations, "evaluator"), resolve(dist, "evaluator"), { recursive: true });
+await cp(resolve(declarations, "compiler"), resolve(dist, "compiler"), { recursive: true });
+await rewriteEvaluatorDeclarationImports(dist);
+await writeRootPackageDeclarations();
 await rm(declarations, { recursive: true, force: true });
-await mergeOfflineProtocolDeclarations();
 
 const guideSource = resolve(here, "guide");
 const guide = resolve(dist, "guide");
@@ -287,21 +331,45 @@ if (process.argv.includes("--self-test")) {
   if (packageBuildToken) await releasePackageBuildLock(packageBuildToken);
 }
 
-async function mergeOfflineProtocolDeclarations() {
+async function writeRootPackageDeclarations() {
   const indexPath = resolve(dist, "index.d.ts");
-  const offlinePath = resolve(dist, "offline-protocol.d.ts");
-  const [indexDeclarations, offlineDeclarations] = await Promise.all([
-    readFile(indexPath, "utf8"),
-    readFile(offlinePath, "utf8"),
+  const [ambientDeclarations, source] = await Promise.all([
+    readFile(resolve(here, "../compiler/lib.d.ts"), "utf8"),
+    readFile(resolve(here, "src/index.ts"), "utf8"),
   ]);
-  const closingBrace = indexDeclarations.lastIndexOf("\n}");
-  if (closingBrace < 0) throw new Error("compiler/lib.d.ts lost its ambient snapback2 module");
-  // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — only the ambient copy drops redundant declare modifiers.
-  const ambientDeclarations = offlineDeclarations.trim().replace(/^export declare /gm, "export ");
-  await writeFile(
-    indexPath,
-    `${indexDeclarations.slice(0, closingBrace)}\n\n${ambientDeclarations}\n${indexDeclarations.slice(closingBrace)}`,
-  );
+  const prefix = 'declare module "snapback2" {\n';
+  const trimmed = ambientDeclarations.trimEnd();
+  if (!trimmed.startsWith(prefix) || !trimmed.endsWith("\n}")) {
+    throw new Error("compiler/lib.d.ts lost its ambient snapback2 module");
+  }
+  const body = trimmed.slice(prefix.length, -2).replace(/^  /gm, "");
+  const sourceFile = ts.createSourceFile("index.ts", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  const reexports = sourceFile.statements
+    .filter((statement) => ts.isExportDeclaration(statement))
+    .map((statement) => statement.getText(sourceFile));
+  if (reexports.length === 0) throw new Error("src/index.ts lost its public module re-exports");
+  // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — the virtual compiler ambient and shipped package root have distinct module roles.
+  await writeFile(indexPath, `${body}\n\n${reexports.join("\n")}\n`);
+}
+
+async function rewriteEvaluatorDeclarationImports(root) {
+  const evaluatorRoot = resolve(root, "evaluator/src");
+  async function visit(directory) {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      const path = resolve(directory, entry.name);
+      if (entry.isDirectory()) {
+        if (path !== resolve(root, "evaluator")) await visit(path);
+        continue;
+      }
+      if (!entry.name.endsWith(".d.ts")) continue;
+      const evaluatorRelative = relative(dirname(path), evaluatorRoot).split(sep).join("/");
+      const evaluatorSpecifier = evaluatorRelative.startsWith(".") ? evaluatorRelative : `./${evaluatorRelative}`;
+      const source = await readFile(path, "utf8");
+      const rewritten = source.replace(/(["'])(?:\.\.\/)+evaluator\/src\//g, `$1${evaluatorSpecifier}/`);
+      if (rewritten !== source) await writeFile(path, rewritten);
+    }
+  }
+  await visit(root);
 }
 
 async function acquirePackageBuildLock() {
@@ -531,7 +599,7 @@ async function loadQuarryParser() {
 
 async function fixtureFiles(root) {
   const output = [];
-  for (const name of ["todos", "chat", "quarry-todos", "quarry-chat", "quarry-surface", "quarry-words", "quarry-assets", "quarry-jobs", "quarry-schedules"]) {
+  for (const name of ["quarry-todos", "quarry-chat", "quarry-surface", "quarry-assets", "quarry-jobs", "quarry-schedules"]) {
     const directory = resolve(root, name, "snapback");
     for (const entry of await readdir(directory, { withFileTypes: true })) {
       if (entry.isFile() && (entry.name.endsWith(".ts") || entry.name.endsWith(".q"))) output.push(resolve(directory, entry.name));

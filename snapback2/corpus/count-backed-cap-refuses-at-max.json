@@ -11,8 +11,10 @@
         },
         "indexes": {
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -50,14 +52,18 @@
         },
         "indexes": {
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           },
           "byPrincipal": {
-            "columns": [
-              "principal"
+            "components": [
+              {
+                "Column": "principal"
+              }
             ],
             "unique": true
           }
@@ -107,39 +113,63 @@
         },
         "indexes": {
           "byConversationPrincipal": {
-            "columns": [
-              "conversationId",
-              "principal",
-              "id"
+            "components": [
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "principal"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           },
           "byConversationRole": {
-            "columns": [
-              "conversationId",
-              "role",
-              "id"
+            "components": [
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "role"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           },
           "byGroup": {
-            "columns": [
-              "group",
-              "id"
+            "components": [
+              {
+                "Column": "group"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           },
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           },
           "byPrincipalConversation": {
-            "columns": [
-              "principal",
-              "conversationId",
-              "id"
+            "components": [
+              {
+                "Column": "principal"
+              },
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           }
@@ -225,7 +255,7 @@
   "certificate": {
     "program": "count-backed-cap-refuses-at-max",
     "plan_hash": "22a6876ece0332eedcc5504b0d38132cc7a6406aa9fa1378ab23e49cc3828c7f",
-    "schema_hash": "4c1b8149589ffd552d8d04163f5faf1726da73670619004aa4399189e191d9b4",
+    "schema_hash": "aea2feb96daae5824e9345667f2eebf1af91540e6bce3b4111c5d0ac62c2d4b1",
     "tables": {
       "deliveries": {
         "retain": "until-revoked"
@@ -238,10 +268,10 @@
       }
     },
     "rule_hashes": {
-      "memberships.insert": "2c3196712c8548a17342fa68d846124027f9b1cdd0fff8f567f12eb5ea1f3320"
+      "memberships.insert": "31967b0f2f1846479361dbc030c2f91b2cb8a7d6c80a4888c35f9a2c9f802d95"
     },
-    "evaluator_version": "bounded-spike-rust-1",
-    "value_model_version": "i53-codepoint-bytes-v2",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [],
     "write_sites": [
       {
@@ -265,6 +295,8 @@
     "max_index_entries": 1,
     "max_rule_probes": 0,
     "max_steps": 12,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
     "max_heap_bytes": 384,
     "max_output_bytes": 6,
     "max_closure_bytes": 0,
@@ -289,7 +321,7 @@
     "read_time": null
   },
   "receipt": {
-    "schema_hash": "4c1b8149589ffd552d8d04163f5faf1726da73670619004aa4399189e191d9b4",
+    "schema_hash": "aea2feb96daae5824e9345667f2eebf1af91540e6bce3b4111c5d0ac62c2d4b1",
     "rows": [
       {
         "table": "memberships",

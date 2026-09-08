@@ -1,7 +1,8 @@
 import type { AssetFetchOptions } from "./store/byte-cache.js";
 import type { Channel as ChannelRef, Op } from "./api.js";
 import type { AssetCache, ByteCacheEntry, ByteCacheStatus } from "./store/byte-cache.js";
-import type { OutboxEntry, RangeStoreFactory, RowRef, StoredRow } from "./store/range-store.js";
+import type { OutboxEntry, RangeStoreFactory } from "./store/range-store.js";
+import type { Snapshot } from "./snapshot.js";
 import { canonical } from "./store/canonical.js";
 
 export type { OutboxEntry, OutboxGrant, OutboxState, OutboxTrace } from "./store/range-store.js";
@@ -56,6 +57,8 @@ export type QueryCapped<Result> = {
   seq: number;
   next: Cursor | null;
 };
+/** Locally enumerated readable domain; server coverage remains unknown. */
+export type QueryHeld<Result> = { state: "held"; data: Result; seq: number; next: Cursor | null };
 export type QueryPartial<Result> = {
   state: "partial";
   data?: Result;
@@ -89,6 +92,7 @@ export type OfflineFacts = {
   sites?: Array<{ site: string; reason: "never-held" | "evicted" | "computed-key" }>;
 };
 export type OfflineQueryResult<Result> =
+  | (QueryHeld<Result> & OfflineFacts)
   | (QueryComplete<Result> & OfflineFacts)
   | (QueryCapped<Result> & OfflineFacts)
   | (QueryPartial<Result> & OfflineFacts)
@@ -113,7 +117,12 @@ export type MutationRejected = {
 };
 /** The write is durable in this device's outbox and will replay after the next resume. */
 export type MutationQueued = { state: "queued"; intent: string; ids: string[] };
-export type MutationResult<Result> = MutationCommitted<Result> | MutationRejected | MutationQueued;
+declare const mutationRecovery: unique symbol;
+/** Opaque, serializable identity for resolving a forwarded mutation whose admission is unknown. */
+export type MutationRecovery = string & { readonly [mutationRecovery]: true };
+/** The follower could not learn whether the writer durably admitted the command. */
+export type MutationAdmissionUnknown = { state: "admission-unknown"; recovery: MutationRecovery };
+export type MutationResult<Result> = MutationCommitted<Result> | MutationRejected | MutationQueued | MutationAdmissionUnknown;
 
 export type LiveQueryDelivery<Result> = ServerQueryResult<Result> & { live: true; caughtUp?: boolean; watermark?: Cursor | null };
 export type StaleDelivery<Result> = {
@@ -296,8 +305,9 @@ export type OutboxSettlement = { stopped: false | "fence" | "transport" | "autho
 
 export interface OutboxStatus {
   ready: boolean;
-  /** `follower`: another browser tab writes this account; this tab reads live and inherits the queue when that tab closes. */
-  reason: "ready" | "sealed" | "grant-missing" | "grant-expired" | "ids-exhausted" | "program-missing" | "follower";
+  /** Follower states distinguish discovery, durable capacity, and an admitted command whose writer stopped answering. */
+  reason: "ready" | "sealed" | "grant-missing" | "grant-expired" | "ids-exhausted" | "program-missing"
+    | "follower" | "writer-discovery" | "writer-capacity" | "writer-unresponsive";
   action: "none" | "login" | "resume" | "load-program";
   /** Number of queued intents; settled entries are excluded. */
   remaining: number;
@@ -343,7 +353,19 @@ export interface SnapbackClient {
   readonly ready: Promise<void>;
   readonly snapshot: ClientSnapshot;
   query<Args, Result>(ref: Op<Args, Result>, args: NoInfer<Args>): Promise<QueryResult<Result>>;
+  /** A lazy shared query snapshot. The first listener opens it; the last releases it. */
+  observe<Args, Result>(
+    ref: Op<Args, Result>,
+    args: NoInfer<Args>,
+    options?: { live?: false; drain?: boolean },
+  ): ObservedQuery<Result>;
+  /** Diagnostic count of consumers attached to one shared observed-query identity. */
+  sharedConsumers<Args, Result>(ref: Op<Args, Result>, args: NoInfer<Args>, drain?: boolean): number;
   mutation<Args, Result>(ref: Op<Args, Result>, args: NoInfer<AssetInput<Args>>): Promise<MutationResult<Result>>;
+  /** Resolve a forwarded mutation whose original call returned `admission-unknown`; never creates another request identity. */
+  recoverMutation<Args, Result>(
+    ref: Op<Args, Result>, args: NoInfer<AssetInput<Args>>, recovery: MutationRecovery,
+  ): Promise<MutationQueued | MutationAdmissionUnknown>;
   /** Uploads one browser File or Expo URI-backed File and returns its closed asset record. */
   upload(source: AssetUploadSource, options: AssetUploadOptions & { readonly kind: "image" }): Promise<ImageAsset>;
   upload(source: AssetUploadSource, options: AssetUploadOptions & { readonly kind: "video" }): Promise<VideoAsset>;
@@ -413,6 +435,7 @@ export type StaleView<Result> = {
   rule?: string;
 } & Omit<ViewFacts, "live" | "stale">;
 export type QueryView<Result> =
+  | (QueryHeld<Result> & ViewFacts)
   | (QueryComplete<Result> & ViewFacts)
   | (QueryCapped<Result> & ViewFacts)
   | (QueryPartial<Result> & ViewFacts)
@@ -422,6 +445,12 @@ export type QueryView<Result> =
   /** `offline`: the twin had nothing held for this query (LLP 1012 §6), as opposed to the first render. */
   | { state: "hydrating"; live: false; offline?: true };
 export type QueryMachineEvent<Result> = QueryResult<Result> | SubscriptionDelivery<Result>;
+export interface ObservedQuery<Result> {
+  /** Referentially stable and recursively frozen until the shared query publishes a different view. */
+  getSnapshot(): Snapshot<Result>;
+  /** Observes snapshot identity changes; read the value with `getSnapshot()`. */
+  subscribe(notify: () => void): () => void;
+}
 
 export function initialQueryState<Result>(): QueryView<Result> {
   return { state: "hydrating", live: false };
@@ -457,8 +486,9 @@ export function reduceQueryState<Result>(
     case "complete":
       next = { state: "complete", live, source, data: data as Result, seq: event.seq, next: event.next, ...facts };
       break;
+    case "held":
     case "capped":
-      next = { state: "capped", live, source, data: data as Result, seq: event.seq, next: event.next, ...facts };
+      next = { state: event.state, live, source, data: data as Result, seq: event.seq, next: event.next, ...facts };
       break;
     case "partial":
       next = data === undefined

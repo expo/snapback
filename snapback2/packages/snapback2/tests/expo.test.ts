@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
-import { readFile, mkdtemp, rm } from "node:fs/promises";
+import { readFile, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { statSync, realpathSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createRequire, register } from "node:module";
@@ -43,6 +43,85 @@ function secureFake() {
     async deleteItemAsync(key: string) { keyCheck(key); deletes.push(key); values.delete(key); },
   };
 }
+
+test("Expo production Hermes lowering keeps frozen evaluator state writable and brands unforgeable", async () => {
+  // Keep transformed output under the package so Expo's injected @babel/runtime helpers resolve as Metro resolves them.
+  const root = await mkdtemp(fileURLToPath(new URL(".row-image-expo-", import.meta.url)));
+  try {
+    const require = createRequire(import.meta.url);
+    const expoRequire = createRequire(require.resolve("expo/package.json"));
+    const presetPath = expoRequire.resolve("babel-preset-expo");
+    const babel = createRequire(presetPath)("@babel/core");
+    const metroCaller = {
+      name: "metro", bundler: "metro", platform: "android", engine: "hermes",
+      isDev: false, isServer: false, isNodeModule: true, supportsStaticESM: true,
+    };
+    const transform = async (source: string, filename: string) => {
+      const result = await babel.transformAsync(source, {
+        babelrc: false, configFile: false, filename,
+        // Runtime helpers are inlined only so this standalone transformed module can execute outside Metro's resolver.
+        presets: [[presetPath, { enableBabelRuntime: false }]], sourceType: "module", caller: metroCaller,
+      });
+      assert(result?.code);
+      const output = join(root, filename);
+      await writeFile(output, result.code);
+      return import(`${pathToFileURL(output).href}?fresh=${Date.now()}`);
+    };
+
+    const legacy = await transform(
+      `export class LegacyImage { #digest; constructor() { Object.freeze(this); } digest() { return this.#digest ??= "cached"; } }`,
+      "legacy-image.mjs",
+    );
+    assert.throws(() => new legacy.LegacyImage().digest(), /read.only|writable|frozen/i,
+      "the former frozen private-field cache fails after the production Hermes transform");
+
+    const legacyReceipt = await transform(
+      `export class LegacyReceipt { #prepared; #wire; constructor(value, prepared, wire) {
+        for (const [key, child] of Object.entries(value)) Object.defineProperty(this, key, { value: child, enumerable: true });
+        this.#prepared = prepared; this.#wire = wire; Object.setPrototypeOf(this, Object.prototype); Object.freeze(this);
+      } static own(value, prepared, wire) { return new LegacyReceipt(value, prepared, wire); }
+        static get(value, wire) { return value && typeof value === "object" && #prepared in value && value.#wire === wire ? value.#prepared : undefined; } }`,
+      "legacy-receipt.mjs",
+    );
+    const legacyPrepared = {};
+    const heldLegacy = legacyReceipt.LegacyReceipt.own({ site: "issued" }, legacyPrepared, false);
+    const forgedLegacy = Object.create(Object.getPrototypeOf(heldLegacy), {
+      ...Object.getOwnPropertyDescriptors(heldLegacy), site: { value: "altered", enumerable: true },
+    });
+    assert.equal(legacyReceipt.LegacyReceipt.get(forgedLegacy, false), legacyPrepared,
+      "the former lowered private-field guard can be copied onto altered public fields");
+
+    const source = await readFile(new URL("../dist/image-runtime.mjs", import.meta.url), "utf8");
+    const { RowImage, ImageKeys, RangeReceipt } = await transform(source, "image-runtime.mjs");
+    const schema = { tables: { rows: {
+      columns: { id: "Id", body: { Text: { max: 40 } }, note: { Optional: { Text: { max: 40 } } } },
+      indexes: { byId: { components: [{ Column: "id" }], unique: true } },
+      rules: { read: "Allow", insert: "Deny", update: "Deny", delete: "Deny" },
+      constraints: [], retain: "until-revoked",
+    } }, maintains: [], channels: {}, auth: { password: false, guests: false }, effects: [] };
+    const image = RowImage.prepare(schema, "rows", { Row: { id: { Id: "r1" }, body: { String: "hello" } } });
+    assert(Object.isFrozen(image));
+    assert.equal(RowImage.digest(image), RowImage.digest(image), "lazy digest cache survives frozen Expo output");
+    const firstKeys = RowImage.keys(image);
+    const replacement = ImageKeys.restore(structuredClone(firstKeys));
+    assert.notEqual(replacement, firstKeys);
+    assert.equal(RowImage.keys(image, replacement), replacement, "equivalent key ownership can be rebound lazily");
+    const forgedImage = Object.create(Object.getPrototypeOf(image), Object.getOwnPropertyDescriptors(image));
+    const forgedKeys = Object.create(Object.getPrototypeOf(replacement), Object.getOwnPropertyDescriptors(replacement));
+    assert(!RowImage.is(forgedImage));
+    assert(!ImageKeys.is(forgedKeys));
+    const prepared = {};
+    const heldRange = RangeReceipt.own({ site: "issued" }, prepared, false);
+    assert.equal(RangeReceipt.get(heldRange, false), prepared);
+    const forgedRange = Object.create(Object.getPrototypeOf(heldRange), {
+      ...Object.getOwnPropertyDescriptors(heldRange), site: { value: "altered", enumerable: true },
+    });
+    assert.equal(RangeReceipt.get(forgedRange, false), undefined,
+      "copied descriptors cannot transfer prepared-range custody to altered public fields");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
 
 test("Expo SecureStore uses legal keys, caches reads, bounds values, and deletes token plus principal", async () => {
   const fake = secureFake();

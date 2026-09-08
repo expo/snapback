@@ -1,0 +1,540 @@
+{
+  "args": {
+    "address": {
+      "Id": "[{\"Id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},\"Null\"]"
+    }
+  },
+  "certificate": {
+    "bound_product": "linked point read on linkCounts × 1 calls = 1",
+    "completeness": "Page",
+    "constraint_checks": [],
+    "derived_scratch_bytes": 0,
+    "derived_steps": 0,
+    "disclosures": [],
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "halo_rows": 1,
+    "indexes_required": [
+      "linkCounts.byParent"
+    ],
+    "maintained_amplification": 0,
+    "max_closure_bytes": 2629,
+    "max_examined": 1,
+    "max_heap_bytes": 224,
+    "max_index_entries": 1,
+    "max_output_bytes": 2629,
+    "max_rule_probes": 0,
+    "max_steps": 7,
+    "plan_hash": "a5e339706f69dae18c8ed3c51d4f22e7cde74581cd646482de28d6387fccdbde",
+    "prediction_sites": [],
+    "program": "links.count",
+    "read_sites": [
+      {
+        "complete": false,
+        "hoist": false,
+        "index": "byParent",
+        "max_calls": 1,
+        "prefix_template": "Arg",
+        "rule_probes_per_candidate": 0,
+        "site": "linked",
+        "table": "linkCounts",
+        "take": 1
+      }
+    ],
+    "read_time_granularity_ms": null,
+    "rule_hashes": {
+      "linkCounts.read": "3ba09aac6eb5b26fdd06407721c012b9fa1a5fd3e987cf4d927c99da1b1467d8"
+    },
+    "schema_hash": "992610ff513da10ffaa98d394851c79f7ccd7c1c0df5d8ce1a2bc697e0720f36",
+    "tables": {
+      "linkCounts": {
+        "retain": "until-revoked"
+      },
+      "links": {
+        "retain": "until-revoked"
+      },
+      "membershipCounts": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      }
+    },
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "write_sites": []
+  },
+  "execution": {
+    "receipt": {
+      "absences": [],
+      "ranges": [],
+      "rows": [
+        {
+          "id": "[{\"Id\":\"[{\\\"Id\\\":\\\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\\\"},\\\"Null\\\"]\"}]",
+          "row": {
+            "Row": {
+              "id": {
+                "Id": "[{\"Id\":\"[{\\\"Id\\\":\\\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\\\"},\\\"Null\\\"]\"}]"
+              },
+              "parent": {
+                "Id": "[{\"Id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},\"Null\"]"
+              },
+              "value": {
+                "Int": 1
+              }
+            }
+          },
+          "table": "linkCounts"
+        }
+      ],
+      "schema_hash": "992610ff513da10ffaa98d394851c79f7ccd7c1c0df5d8ce1a2bc697e0720f36",
+      "verdicts": []
+    },
+    "result": {
+      "Row": {
+        "id": {
+          "Id": "[{\"Id\":\"[{\\\"Id\\\":\\\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\\\"},\\\"Null\\\"]\"}]"
+        },
+        "parent": {
+          "Id": "[{\"Id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},\"Null\"]"
+        },
+        "value": {
+          "Int": 1
+        }
+      }
+    },
+    "seq": 2,
+    "state": {
+      "state": "complete"
+    },
+    "trace": {
+      "absences": [],
+      "constraint_inputs": [],
+      "derived_scratch_bytes": 0,
+      "derived_steps": 0,
+      "emits": [],
+      "examined": 1,
+      "points": [
+        {
+          "digest": "fb3cc12cd547077b68c604548ce807863668360bee82016f819bfea6983476fa",
+          "examined": true,
+          "index": "byParent",
+          "key": [
+            {
+              "Id": "[{\"Id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},\"Null\"]"
+            }
+          ],
+          "site": "linked",
+          "table": "linkCounts",
+          "visible": true
+        }
+      ],
+      "ranges": [],
+      "rows": [
+        {
+          "id": "[{\"Id\":\"[{\\\"Id\\\":\\\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\\\"},\\\"Null\\\"]\"}]",
+          "row": {
+            "Row": {
+              "id": {
+                "Id": "[{\"Id\":\"[{\\\"Id\\\":\\\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\\\"},\\\"Null\\\"]\"}]"
+              },
+              "parent": {
+                "Id": "[{\"Id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},\"Null\"]"
+              },
+              "value": {
+                "Int": 1
+              }
+            }
+          },
+          "table": "linkCounts"
+        }
+      ],
+      "rule_inputs": [],
+      "rule_probes": 0,
+      "scope_touches": [],
+      "steps": 3,
+      "touched": [],
+      "writes": {}
+    }
+  },
+  "program": "links.count",
+  "project": {
+    "auth": {
+      "guests": false,
+      "password": false
+    },
+    "effects": [],
+    "programs": [
+      {
+        "args": {
+          "address": {
+            "Ref": {
+              "table": "membershipCounts"
+            }
+          }
+        },
+        "body": [
+          {
+            "Return": {
+              "Get": {
+                "index": "byId",
+                "key": [
+                  {
+                    "Variable": "address"
+                  }
+                ],
+                "provenance": "Arg",
+                "site": "count",
+                "table": "membershipCounts"
+              }
+            }
+          }
+        ],
+        "kind": "Query",
+        "name": "counts.byAddress",
+        "read_time_granularity_ms": null
+      },
+      {
+        "args": {
+          "cursor": {
+            "Optional": "Cursor"
+          }
+        },
+        "body": [
+          {
+            "Return": {
+              "Scan": {
+                "after": {
+                  "Variable": "cursor"
+                },
+                "before": null,
+                "index": "byId",
+                "merge_site": null,
+                "opaque_cursor": true,
+                "order": "Asc",
+                "prefix": [],
+                "provenance": "Const",
+                "range": null,
+                "site": "page",
+                "table": "membershipCounts",
+                "take": {
+                  "Literal": 1
+                }
+              }
+            }
+          }
+        ],
+        "kind": "Query",
+        "name": "counts.page",
+        "read_time_granularity_ms": null
+      },
+      {
+        "args": {
+          "address": {
+            "Ref": {
+              "table": "membershipCounts"
+            }
+          }
+        },
+        "body": [
+          {
+            "Return": {
+              "Get": {
+                "index": "byParent",
+                "key": [
+                  {
+                    "Variable": "address"
+                  }
+                ],
+                "provenance": "Arg",
+                "site": "linked",
+                "table": "linkCounts"
+              }
+            }
+          }
+        ],
+        "kind": "Query",
+        "name": "links.count",
+        "read_time_granularity_ms": null
+      }
+    ],
+    "schema": {
+      "maintains": [
+        {
+          "by": [
+            "principal",
+            "realm"
+          ],
+          "kind": "Count",
+          "readable": null,
+          "source": "memberships",
+          "target": "membershipCounts"
+        },
+        {
+          "by": [
+            "parent"
+          ],
+          "kind": "Count",
+          "readable": null,
+          "source": "links",
+          "target": "linkCounts"
+        }
+      ],
+      "tables": {
+        "linkCounts": {
+          "columns": {
+            "id": "Id",
+            "parent": {
+              "Optional": {
+                "Ref": {
+                  "table": "membershipCounts"
+                }
+              }
+            },
+            "value": "Int"
+          },
+          "constraints": [],
+          "indexes": {
+            "byId": {
+              "components": [
+                {
+                  "Column": "id"
+                }
+              ],
+              "unique": true
+            },
+            "byParent": {
+              "components": [
+                {
+                  "Column": "parent"
+                }
+              ],
+              "unique": true
+            }
+          },
+          "retain": "until-revoked",
+          "rules": {
+            "delete": {
+              "Public": {
+                "reason": "spike fixture"
+              }
+            },
+            "insert": {
+              "Public": {
+                "reason": "spike fixture"
+              }
+            },
+            "read": {
+              "Public": {
+                "reason": "spike fixture"
+              }
+            },
+            "update": {
+              "Public": {
+                "reason": "spike fixture"
+              }
+            }
+          }
+        },
+        "links": {
+          "columns": {
+            "id": "Id",
+            "parent": {
+              "Optional": {
+                "Ref": {
+                  "table": "membershipCounts"
+                }
+              }
+            },
+            "parents": {
+              "List": {
+                "max": 2,
+                "of": {
+                  "Optional": {
+                    "Ref": {
+                      "table": "membershipCounts"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "constraints": [],
+          "indexes": {
+            "byId": {
+              "components": [
+                {
+                  "Column": "id"
+                }
+              ],
+              "unique": true
+            },
+            "byParent": {
+              "components": [
+                {
+                  "Column": "parent"
+                },
+                {
+                  "Column": "id"
+                }
+              ],
+              "unique": false
+            }
+          },
+          "retain": "until-revoked",
+          "rules": {
+            "delete": {
+              "Public": {
+                "reason": "spike fixture"
+              }
+            },
+            "insert": {
+              "Public": {
+                "reason": "spike fixture"
+              }
+            },
+            "read": {
+              "Public": {
+                "reason": "spike fixture"
+              }
+            },
+            "update": {
+              "Public": {
+                "reason": "spike fixture"
+              }
+            }
+          }
+        },
+        "membershipCounts": {
+          "columns": {
+            "id": "Id",
+            "principal": "Principal",
+            "realm": {
+              "Optional": {
+                "Text": {
+                  "max": 64
+                }
+              }
+            },
+            "value": "Int"
+          },
+          "constraints": [],
+          "indexes": {
+            "byId": {
+              "components": [
+                {
+                  "Column": "id"
+                }
+              ],
+              "unique": true
+            },
+            "byPrincipal": {
+              "components": [
+                {
+                  "Column": "principal"
+                },
+                {
+                  "Column": "realm"
+                }
+              ],
+              "unique": true
+            }
+          },
+          "retain": "until-revoked",
+          "rules": {
+            "delete": {
+              "Public": {
+                "reason": "spike fixture"
+              }
+            },
+            "insert": {
+              "Public": {
+                "reason": "spike fixture"
+              }
+            },
+            "read": {
+              "Public": {
+                "reason": "spike fixture"
+              }
+            },
+            "update": {
+              "Public": {
+                "reason": "spike fixture"
+              }
+            }
+          }
+        },
+        "memberships": {
+          "columns": {
+            "id": "Id",
+            "principal": "Principal",
+            "realm": {
+              "Optional": {
+                "Text": {
+                  "max": 64
+                }
+              }
+            }
+          },
+          "constraints": [
+            {
+              "Cap": {
+                "by": [
+                  "principal",
+                  "realm"
+                ],
+                "max": 3
+              }
+            }
+          ],
+          "indexes": {
+            "byId": {
+              "components": [
+                {
+                  "Column": "id"
+                }
+              ],
+              "unique": true
+            },
+            "byPrincipal": {
+              "components": [
+                {
+                  "Column": "principal"
+                },
+                {
+                  "Column": "realm"
+                },
+                {
+                  "Column": "id"
+                }
+              ],
+              "unique": false
+            }
+          },
+          "retain": "until-revoked",
+          "rules": {
+            "delete": {
+              "Public": {
+                "reason": "spike fixture"
+              }
+            },
+            "insert": {
+              "Public": {
+                "reason": "spike fixture"
+              }
+            },
+            "read": {
+              "Public": {
+                "reason": "spike fixture"
+              }
+            },
+            "update": {
+              "Public": {
+                "reason": "spike fixture"
+              }
+            }
+          }
+        }
+      }
+    },
+    "version": 1
+  }
+}

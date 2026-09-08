@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2` (the binary: owner, server, verbs), `snapback2/packages/compiler` (project lowering, worker), `snapback2/packages/snapback2` (authoring runtime, client, React, test runner, shim), `snapback2/scripts/measure.mjs`
 **Author:** Claude Fable 5 (orchestrator) — implementers: codex gpt-5.6-sol, lanes B0 (compiler + authoring surface), B1 (owner + server + verbs), B2 (`init`, `test`, `why`, `trace`, `guide`), D (client + React + evaluator)
 **Date:** 2026-08-29
-**Revised:** 2026-09-07 (generated insert/merge consumer type bindings; implementer GPT-6 Astra); 2026-09-07 (independent Quarry diagnostics, checked-type repair advice, lexical failure isolation and merge discovery ordering; implementer GPT-6 Astra); 2026-09-07 (preserve unrelated prefixed optional packages; staged platform dependency selection and exact-lock packaging regression; explicit named-journey verification and executable React startup; startup cleanup fixture custody); 2026-09-06 (app guide operation/certificate custody; native logical SSE body; CLI help and executable migration recovery; auth startup recovery and held transition reads; queued transitions, interrupted sync, live held reads); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
+**Revised:** 2026-09-07 (generated insert/merge consumer type bindings; implementer GPT-6 Astra); 2026-09-07 (independent Quarry diagnostics, checked-type repair advice, lexical failure isolation and merge discovery ordering; implementer GPT-6 Astra); 2026-09-07 (preserve unrelated prefixed optional packages; staged platform dependency selection and exact-lock packaging regression; durable browser-follower admission and unknown-outcome recovery; client-owned observed query snapshots; explicit named-journey verification and executable React startup; startup cleanup fixture custody); 2026-09-06 (app guide operation/certificate custody; native logical SSE body; CLI help and executable migration recovery; auth startup recovery and held transition reads; queued transitions, interrupted sync, live held reads); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
 **Related:** LLP 1000, LLP 1001 (the engine this serves), LLP 1003 (effects),
 LLP 0329.016 §5 (the design this implements verbatim where it can), LLP
 0329.016 §5.11 (the verb table — no verb exists without its row), LLP
@@ -300,6 +300,40 @@ and is shared through helper expansion. Operands lower once in authored order;
 writes reserve their ordinal even though the current `WriteSite` serde shape has
 no site string. Local names and formatting are not inputs.
 
+**Bounded list selection in Quarry.** A nullable list's declared maximum and
+proof of presence are independent. A loop may eliminate absence with `if`
+presence narrowing or a bounded required alternative: `values ?? []`,
+`values ?? more`, nested nullable alternatives ending in a required list, or
+`values ?? [expression, ...]`, including effectful literal components. The bound
+of the selection is the maximum across all possible alternatives, with each
+branch retaining its actual declared maximum; a larger fallback is never cut
+to the left alternative's maximum.
+
+Quarry's `.length` selection on a modeled bounded list returns its element
+count, including through immutable aliases and nested object captures. It has
+the same presence requirement as `count`: nullable alternatives do not establish
+presence. Length selection preserves the list's binding identity, snapshot and
+bound; it supplies no new read-key authority. An actual object member named
+`length` remains ordinary member selection.
+
+The operands-once and binding-provenance rules above apply to the entire
+selection. A present empty list counts as present and bypasses the fallback.
+Expressions authored inside a fallback evaluate lazily, exactly once in
+authored order when selected; an earlier captured fallback evaluates eagerly
+at its earlier binding. Immutable aliases, object captures, and subsequent uses retain
+the original selected list snapshot, without re-evaluating the selection or
+its components. Source Decimal scales and minor-unit values survive selection
+and capture independently of destination conversions; a destination cannot
+change the captured source facts. Page-derived loop domains remain subject to
+[LLP 1017's complete-fanout rule](1017-cap-and-complete-fanout.rfc.md#32-the-rule).
+
+Destination conversion preserves null through modeled optional scalars, lists
+and object members. It captures the operand once and converts only its present
+value; nested list conversion keeps the source maximum. The converted
+expression's representation is tracked separately so an enclosing container
+does not convert it again. This supplies no new source members, presence or
+read-key authority, and never changes retained source captures.
+
 **Collection identity amendment (implemented 2026-09-01).** Map keys and Set
 values are restricted to authored primitive strings, numbers, booleans, or
 null. Their array-backed lowering compares with JavaScript `SameValueZero`,
@@ -319,7 +353,7 @@ Protocol, JSON lines on stdin/stdout, one request in flight:
 ← { "id": 0, "ok": true, "protocol": "snapback2/compiler-worker/v1", "operations": ["compile", "seed", "journeys"] }
 ← { "id": 0, "ok": false, "protocol": "snapback2/compiler-worker/v1", "operations": ["compile", "seed", "journeys"], "dependency": "compiler-core.mjs" | "typescript" }
 → { "id": 1, "op": "compile", "root": "/abs/project" }
-← { "id": 1, "ok": true, "project": <ProjectJson>, "sources": { "todos.list": { "file": "snapback/todos.ts", "line": 14, "col": 14 } }, "apiDts": "<text>", "ms": 212 }
+← { "id": 1, "ok": true, "project": <ProjectJson>, "sources": { "todos.list": { "file": "snapback/todos.q", "line": 14, "col": 14 } }, "apiDts": "<text>", "ms": 212 }
 ← { "id": 1, "ok": false, "diagnostics": [ <Refusal> ] }        // ALL diagnostics, one per module at least
 → { "id": 2, "op": "seed", "root": "…" }  ← { "id": 2, "ok": true, "seed": { "personas": [...], "rows": {...} } }
 → { "id": 3, "op": "journeys", "root": "…" }  ← { "id": 3, "ok": true, "files": ["snapback/tests/todos.test.ts"] }
@@ -354,31 +388,32 @@ replacement expression survives the Quarry diagnostic remap as executable
 `rewrite` text; guidance without a concrete edit remains a comment (Clique L2,
 GPT-6 Astra, 2026-09-05).
 A bare `refuse()` uses its message as the rewrite; unexpected caught failures do likewise.
-Recoverable Quarry statement failures retain independent virtual statements for
-checked-source diagnostics only. Failed statements roll back their emission and
-binding state; uses of failed bindings suppress dependent cascades. A fresh
-argument, binding, loop or match binder clears failure only in its lexical
-environment, after its initializer or domain has been validated. Merge discovery
-is validated and emitted in the outer scope before dependent lane prefixes, and
-that emission is reused once, including guards and ID allocation. Parser,
-schema and generated-helper collision failures remain fatal. Any recovered
-frontend refusal returns the complete bounded diagnostic envelope before effect
-lowering, program IR, API declarations or inspection artifacts can escape.
-Presence advice comes from checked source and contextual destination types:
+Recoverable Quarry statement failures retain independent bound statements for
+diagnostics only. Failed statements roll back their bound output, fresh-name
+counters, and only the local names that statement could publish; valid programs
+do not copy their accumulated scope per statement. Uses of failed bindings
+suppress dependent cascades. A fresh argument, binding, loop or match binder
+clears failure only in its lexical environment, after its initializer or domain
+has been validated. Merge discovery is bound in the outer scope before dependent
+lane prefixes, and that bound expression is lowered once, including guards and
+ID allocation. Parser and schema failures stay outside statement recovery. Any
+recovered typed refusal returns the complete bounded diagnostic envelope before
+effect lowering, program IR, API declarations or inspection artifacts can escape.
+Presence advice comes from bound source and contextual destination types:
 `! else CODE` is offered only when removing absence repairs the mismatch or
-dereference. A string assigned to a Boolean still needs `true` or `false`, even
-when the destination allows `undefined`; a null-only value needs a value.
-These cause facts live in a compiler-local WeakMap and add no wire fields.
-The diagnostic recovery controls are registered in `src/quarry-diagnostic-checks.ts`.
+dereference. A text assigned to a Boolean still needs `true` or `false`; a
+null-only value needs a value. These cause facts are part of direct typed value
+comparison and add no wire fields. The diagnostic recovery controls are
+registered in `src/quarry-diagnostic-checks.ts`.
 The registered Quarry language checks live in `src/quarry-language-checks.ts`, keeping `src/test.ts` within the source line cap.
 
 `api.d.ts` (written to `.snapback/build/api.d.ts`, never committed) augments
-the client's `Api` interface with every op's arg and result types, inferred
-from the authored modules by the `typescript` checker. Result references to
-`Column` and `RowOfColumns` import those types from the SDK root; the client
-module does not export them. Insert and merge regressions consume the emitted
-augmentation through the complete SDK with the Expo config, checking exact
-Boolean fields and rejecting numeric assignments even with `skipLibCheck`:
+the client's `Api` interface with every op's argument and result types, emitted
+from the same bound Quarry facts used for program IR. Row aliases contain
+concrete field types; they do not depend on TypeScript data descriptors.
+Insert and merge regressions consume the emitted augmentation through the
+complete SDK with the Expo config, checking exact Boolean fields and
+rejecting numeric assignments even with `skipLibCheck`:
 
 ```ts
 declare module 'snapback2/client' { interface Api { todos: { list: Op<{ take?: number }, Todo[]>; add: Op<{ title: string }, { id: string }> } } }
@@ -813,8 +848,10 @@ const client = createClient({ url, token?, tokenStore? } | { url, as }) // stora
 await client.ready                                  // restore barrier before any data request
 client.auth.signup / login / guest / logout / me
 await client.query(api.todos.list, { take: 50 })       // → { state, data, seq, … } — never throws on a typed state
-await client.mutation(api.todos.add, { title })       // → committed | rejected | queued
+await client.mutation(api.todos.add, { title })       // → committed | rejected | queued | admission-unknown
+await client.recoverMutation(api.todos.add, { title }, recovery) // same forwarded request identity
 const sub = client.subscribe(api.todos.list, args, (r) => …)   // SSE; { state: live|stale|refused|partial }; sub.close(); sub.until(pred)
+const observed = client.observe(api.todos.list, args)       // lazy { getSnapshot, subscribe }; shares sub's entry
 client.channel(api.typing, args).publish(payload) / .subscribe(cb)
 ```
 
@@ -832,11 +869,16 @@ stream idle past 2× the heartbeat) is `stale(since)` with reconnect and
 backoff; only a 4xx envelope on the stream is a terminal `refused`; `useMutation` returns
 `{ run, inFlight, pending, ready, status, last, transport }`: `inFlight` marks an
 active call, `pending` lists this operation's durable queued intents, and `last`
-is `committed | rejected | queued`. With local-first custody (LLP 1012 §7),
+is `committed | rejected | queued | admission-unknown`. With local-first custody (LLP 1012 §7),
 `queued` means saved on the device for FIFO replay after resume; transport loss
 keeps the same intent for retry. `status: OutboxStatus` explains readiness,
 the next action, queued count, and fence; `useOutbox()` exposes entries, and
 `outbox.drain()`/`settled()` return `{ stopped, remaining }` (`OutboxSettlement`).
+For a browser follower, `queued` means the lock-holding writer durably admitted
+the command into that shared partition. If its acknowledgment is lost after
+send, the call returns `admission-unknown` with an opaque `recovery`; callers
+pass the same operation, arguments, and token to `recoverMutation`, which can
+only recover that request and never substitutes a fresh write.
 A thrown transport failure leaves `last` untouched, sets `transport` (a
 retryable `SnapbackRefusal`, cleared by a successful run), and rejects `run()`;
 a 503 after commit must never look like a server rejection.
@@ -848,6 +890,20 @@ typed terminal result; automatic mutation cleanup still precedes expiry.
 **Transport status is not a query state**: hooks and the provider expose `connection: connected |
 reconnecting | offline` separately, and a network failure leaves a query
 `hydrating` with `connection: reconnecting`, never `refused`.
+
+One client owns one immutable `QueryView` for each authority generation,
+operation, canonical argument value, and live/drain mode. `client.observe()`
+returns stable `getSnapshot()` and `subscribe(notify)` functions over that
+entry. Obtaining the observer is lazy: it opens no transport and retains no
+inactive entry. The first listener opens the same entry used by
+`client.subscribe`; the last listener or raw subscriber releases it. React and
+Expo `useQuery` consume that external store, so identical mounted hooks read
+the same snapshot and data identity. A program reset publishes `hydrating`
+before reopening the stream. An account transition or client close retires
+the entry, notifies snapshot listeners once, and makes the old observer return
+its stable `hydrating` fallback, so it cannot expose the retired account's
+data. `{ live: false }` uses the same lazy snapshot lifecycle for its retrying
+one-shot query; drain remains live-only.
 
 The default fetch transport binds the host global receiver, so browser JSON
 and SSE requests work without a custom fetch wrapper. An explicitly supplied

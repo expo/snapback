@@ -252,11 +252,25 @@ impl CompilerWorker {
                         error.code.as_str(),
                         "E_STRUCTURAL_FANOUT" | "E_SCHEMA_CONSTRAINT" | "E_BOUND" | "E_STEPS"
                     );
-                    let rewrite = source
-                        .filter(|_| !precise)
-                        .filter(|site| site.file.ends_with(".q"))
-                        .map(|site| quarry_certification_rewrite(root, site, &error.message))
-                        .unwrap_or(error.rewrite);
+                    let rewrite = if error.code == "E_STRUCTURAL_FANOUT" {
+                        source
+                            .filter(|site| site.file.ends_with(".q"))
+                            .and_then(|site| {
+                                quarry_fanout_rewrite(
+                                    root,
+                                    site,
+                                    error.site.as_deref()?,
+                                    &error.rewrite,
+                                )
+                            })
+                            .unwrap_or_else(|| error.rewrite.clone())
+                    } else {
+                        source
+                            .filter(|_| !precise)
+                            .filter(|site| site.file.ends_with(".q"))
+                            .map(|site| quarry_certification_rewrite(root, site, &error.message))
+                            .unwrap_or_else(|| error.rewrite.clone())
+                    };
                     let mut refusal =
                         Refusal::new(error.code, family, error.message, rewrite, guide);
                     if refusal.code == "E_STRUCTURAL_FANOUT" {
@@ -706,6 +720,42 @@ fn quarry_certification_rewrite(root: &Path, site: &SourceSite, message: &str) -
     format!("-- {first_message_line}")
 }
 
+fn quarry_fanout_rewrite(
+    root: &Path,
+    source_site: &SourceSite,
+    checker_site: &str,
+    rewrite: &str,
+) -> Option<String> {
+    let (head, tail) = rewrite.split_once(" in ")?;
+    let generated = head.strip_prefix("for ")?;
+    let (loop_site, ordinal) = checker_site.rsplit_once('/')?;
+    let (_, site_binding) = loop_site.rsplit_once("/for/")?;
+    if site_binding != generated
+        || ordinal.is_empty()
+        || !ordinal.bytes().all(|byte| byte.is_ascii_digit())
+    {
+        return None;
+    }
+    let path = Path::new(&source_site.file);
+    if !path
+        .components()
+        .all(|component| matches!(component, Component::Normal(_)))
+        || source_site.line == 0
+    {
+        return None;
+    }
+    let source = fs::read_to_string(root.join(path)).ok()?;
+    let authored_line = source.lines().nth(source_site.line as usize - 1)?.trim();
+    let (authored, _) = authored_line.strip_prefix("for ")?.split_once(" in ")?;
+    let mut chars = authored.chars();
+    if !chars.next().is_some_and(|ch| ch == '_' || ch.is_ascii_alphabetic())
+        || !chars.all(|ch| ch == '_' || ch.is_ascii_alphanumeric())
+    {
+        return None;
+    }
+    Some(format!("for {authored} in {tail}"))
+}
+
 fn validate_quarry_outputs(outputs: &[QuarryGenerated]) -> Result<(), Refusal> {
     for output in outputs {
         validate_quarry_generated(output)?;
@@ -718,10 +768,8 @@ fn validate_quarry_generated(output: &QuarryGenerated) -> Result<(), Refusal> {
     let bare = generated
         .file_name()
         .is_some_and(|name| name == output.generated.as_str())
-        && generated
-            .extension()
-            .is_some_and(|extension| extension == "ts")
-        && generated.file_stem().is_some_and(|stem| !stem.is_empty())
+        && output.generated.ends_with(".ir.json")
+        && output.generated.len() > ".ir.json".len()
         && !output.generated.contains('/')
         && !output.generated.contains('\\')
         && !output.generated.contains("..");
@@ -731,7 +779,7 @@ fn validate_quarry_generated(output: &QuarryGenerated) -> Result<(), Refusal> {
     Err(Refusal::owner(
         "E_OWNER_COMPILER_PROTOCOL",
         format!(
-            "compiler Quarry artifact {} named unsafe inspection file {:?}; expected a bare *.ts file name",
+            "compiler Quarry artifact {} named unsafe inspection file {:?}; expected a bare *.ir.json file name",
             output.file, output.generated
         ),
         "reinstall snapback2 so the binary and compiler worker use the same protocol",
@@ -815,7 +863,7 @@ pub fn seed_rows(
                 })?;
                 converted.insert(field.clone(), json_for_column(value, kind)?);
             }
-            output.push((table_name.clone(), Value::Row(converted)));
+            output.push((table_name.clone(), Value::Row(converted.into())));
         }
     }
     Ok(output)
@@ -1012,13 +1060,28 @@ for await (const line of createInterface({{ input: process.stdin }})) {{
 
     #[test]
     fn compiler_quarry_protocol_is_strict_and_rejects_unsafe_generated_names() {
+        validate_quarry_generated(&QuarryGenerated {
+            file: "snapback/schema.q".to_owned(),
+            generated: "schema.ir.json".to_owned(),
+            source: "{}".to_owned(),
+        })
+        .expect("direct IR inspection name should be admitted");
+        for generated in ["schema.ts", ".ir.json", "nested/schema.ir.json", "schema.ir.json.."] {
+            let error = validate_quarry_generated(&QuarryGenerated {
+                file: "snapback/schema.q".to_owned(),
+                generated: generated.to_owned(),
+                source: String::new(),
+            })
+            .expect_err("obsolete or unsafe inspection name should refuse");
+            assert_eq!(error.code, "E_OWNER_COMPILER_PROTOCOL", "{generated}");
+        }
         let root = std::env::current_dir().unwrap().canonicalize().unwrap();
         let project = "project: { schema: { tables: {}, maintains: [], channels: {}, auth: { password: false, guests: false }, effects: [] }, programs: [], effects: [] }, sources: {}, apiDts: '', ms: 0";
         let cases = [
             (
                 "unsafe-name",
                 format!(
-                    "({{ id: request.id, ok: true, {project}, quarry: [{{ file: 'snapback/schema.q', generated: '../escape.ts', source: '' }}] }})"
+                    "({{ id: request.id, ok: true, {project}, quarry: [{{ file: 'snapback/schema.q', generated: '../escape.ir.json', source: '' }}] }})"
                 ),
                 "snapback/schema.q",
             ),
@@ -1091,7 +1154,7 @@ for await (const line of createInterface({{ input: process.stdin }})) {{
         .unwrap();
         fs::write(
             snapback.join("programs.q"),
-            "query page(c: cursor ?):\n  return items[] after c first 1 by byAt\n\nquery count():\n  return count(items[] first 2 by byAt)\n\nmutation put(id: id):\n  insert items { id, at: 2, label: 'inserted' }\n  return id\n\nmutation putPrice():\n  return insert prices { amount: 2.50 }\n\nquery getPrice(id: prices):\n  return prices[id]\n",
+            "query page(c: cursor ?):\n  return items[] after c first 1 by byAt\n\nquery count():\n  return count(items[] first 2 by byAt)\n\nmutation put(id: id):\n  insert items { id, at: now, label: 'inserted' }\n  return id\n\nmutation putPrice():\n  return insert prices { amount: 2.50 }\n\nquery getPrice(id: prices):\n  return prices[id]\n",
         )
         .unwrap();
 
@@ -1110,11 +1173,14 @@ for await (const line of createInterface({{ input: process.stdin }})) {{
             engine
                 .seed(
                     "items",
-                    Value::Row(BTreeMap::from([
-                        ("id".to_owned(), Value::Id(id.to_owned())),
-                        ("at".to_owned(), Value::Int(1)),
-                        ("label".to_owned(), Value::String(label.to_owned())),
-                    ])),
+                    Value::Row(
+                        BTreeMap::from([
+                            ("id".to_owned(), Value::Id(id.to_owned())),
+                            ("at".to_owned(), Value::Int(1)),
+                            ("label".to_owned(), Value::String(label.to_owned())),
+                        ])
+                        .into(),
+                    ),
                 )
                 .unwrap();
         }

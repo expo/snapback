@@ -1,4 +1,5 @@
 use super::*;
+use snapback2_core::ir::IndexKeyExpr;
 
 pub(super) fn add_merge_and_opaque_cursor_cases(cases: &mut Vec<CorpusCase>) {
     add_merge_cases(cases);
@@ -323,25 +324,34 @@ fn merge_schema() -> Schema {
                         (
                             "byId".to_owned(),
                             Index {
-                                columns: vec!["id".to_owned()],
+                                components: (vec!["id".to_owned()])
+                                    .into_iter()
+                                    .map(snapback2_core::search_key::IndexComponent::Column)
+                                    .collect(),
                                 unique: true,
                             },
                         ),
                         (
                             "byAuthorAt".to_owned(),
                             Index {
-                                columns: vec![
+                                components: (vec![
                                     "author".to_owned(),
                                     "at".to_owned(),
                                     "id".to_owned(),
-                                ],
+                                ])
+                                .into_iter()
+                                .map(snapback2_core::search_key::IndexComponent::Column)
+                                .collect(),
                                 unique: false,
                             },
                         ),
                         (
                             "byAt".to_owned(),
                             Index {
-                                columns: vec!["at".to_owned(), "id".to_owned()],
+                                components: (vec!["at".to_owned(), "id".to_owned()])
+                                    .into_iter()
+                                    .map(snapback2_core::search_key::IndexComponent::Column)
+                                    .collect(),
                                 unique: false,
                             },
                         ),
@@ -361,18 +371,24 @@ fn merge_schema() -> Schema {
                         (
                             "byId".to_owned(),
                             Index {
-                                columns: vec!["id".to_owned()],
+                                components: (vec!["id".to_owned()])
+                                    .into_iter()
+                                    .map(snapback2_core::search_key::IndexComponent::Column)
+                                    .collect(),
                                 unique: true,
                             },
                         ),
                         (
                             "byFollower".to_owned(),
                             Index {
-                                columns: vec![
+                                components: (vec![
                                     "follower".to_owned(),
                                     "at".to_owned(),
                                     "id".to_owned(),
-                                ],
+                                ])
+                                .into_iter()
+                                .map(snapback2_core::search_key::IndexComponent::Column)
+                                .collect(),
                                 unique: false,
                             },
                         ),
@@ -410,7 +426,10 @@ fn lane_scan(
         site: site.to_owned(),
         table: "posts".to_owned(),
         index: "byAuthorAt".to_owned(),
-        prefix: vec![prefix],
+        prefix: (vec![prefix])
+            .into_iter()
+            .map(IndexKeyExpr::Scalar)
+            .collect(),
         order: Order::Asc,
         take: Bound::Literal(take),
         after: cursor.map(|(at, id_value)| {
@@ -429,6 +448,7 @@ fn lane_scan(
 
 fn merged(site: &str, lanes: Vec<Expr>, take: u32) -> Expr {
     Expr::Merge(Merge {
+        held_search: None,
         site: site.to_owned(),
         lanes: lanes
             .into_iter()
@@ -464,7 +484,10 @@ fn for_lane_limit_case(schema: Schema) -> CorpusCase {
         site: "merge.for-limit.domain".to_owned(),
         table: "follows".to_owned(),
         index: "byFollower".to_owned(),
-        prefix: vec![literal_id("u1")],
+        prefix: (vec![literal_id("u1")])
+            .into_iter()
+            .map(IndexKeyExpr::Scalar)
+            .collect(),
         order: Order::Asc,
         take: Bound::Literal(1),
         after: None,
@@ -478,10 +501,13 @@ fn for_lane_limit_case(schema: Schema) -> CorpusCase {
         site: "merge.for-limit.lane".to_owned(),
         table: "posts".to_owned(),
         index: "byAuthorAt".to_owned(),
-        prefix: vec![Expr::Field {
+        prefix: (vec![Expr::Field {
             base: Box::new(var("follow")),
             name: "followed".to_owned(),
-        }],
+        }])
+        .into_iter()
+        .map(IndexKeyExpr::Scalar)
+        .collect(),
         order: Order::Asc,
         take: Bound::Literal(3),
         after: None,
@@ -497,6 +523,7 @@ fn for_lane_limit_case(schema: Schema) -> CorpusCase {
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
         body: vec![Stmt::Return(Expr::Merge(Merge {
+            held_search: None,
             site: site.into(),
             lanes: vec![MergeLane {
                 setup: Vec::new(),
@@ -547,7 +574,7 @@ fn opaque_cursor_program(name: &str, order: Order, take: u32) -> Program {
             site: name.to_owned(),
             table: "posts".to_owned(),
             index: "byAt".to_owned(),
-            prefix: Vec::new(),
+            prefix: (Vec::new()).into_iter().map(IndexKeyExpr::Scalar).collect(),
             order,
             take: Bound::Literal(take),
             after: Some(Box::new(Expr::Variable("c".to_owned()))),
@@ -565,22 +592,25 @@ fn cursor_context(cursor: Value) -> Context {
 }
 
 fn opaque_token(index: &str, order: Order, at: i64, id_value: &str) -> String {
-    encode_cursor(&CursorPosition {
-        table: "posts".to_owned(),
-        index: index.to_owned(),
-        order,
-        suffix: vec![
-            CursorColumn {
-                name: "at".to_owned(),
-                kind: ColumnType::Int,
-            },
-            CursorColumn {
-                name: "id".to_owned(),
-                kind: ColumnType::Id,
-            },
-        ],
-        values: vec![Value::Int(at), id(id_value)],
-    })
+    encode_cursor(
+        &Schema::default(),
+        &CursorPosition {
+            table: "posts".to_owned(),
+            index: index.to_owned(),
+            order,
+            suffix: vec![
+                CursorColumn {
+                    name: "at".to_owned(),
+                    kind: ColumnType::Int,
+                },
+                CursorColumn {
+                    name: "id".to_owned(),
+                    kind: ColumnType::Id,
+                },
+            ],
+            values: vec![Value::Int(at), id(id_value)],
+        },
+    )
     .expect("opaque cursor token")
 }
 
@@ -612,7 +642,10 @@ fn add_opaque_merge_pages(cases: &mut Vec<CorpusCase>, schema: Schema) {
                     site,
                     table: "posts".to_owned(),
                     index: "byAuthorAt".to_owned(),
-                    prefix: vec![literal_id(author)],
+                    prefix: (vec![literal_id(author)])
+                        .into_iter()
+                        .map(IndexKeyExpr::Scalar)
+                        .collect(),
                     order: Order::Asc,
                     take: Bound::Literal(2),
                     after: Some(Box::new(Expr::Variable("c".to_owned()))),
@@ -782,7 +815,10 @@ fn add_lazy_merge_cases(cases: &mut Vec<CorpusCase>) {
     merge.lanes[0].scan.take = Bound::Literal(20);
     let mut own = merge.lanes[0].clone();
     own.scan.site = "merge.large.self".into();
-    own.scan.prefix = vec![Expr::Input(Input::Viewer)];
+    own.scan.prefix = vec![Expr::Input(Input::Viewer)]
+        .into_iter()
+        .map(IndexKeyExpr::Scalar)
+        .collect();
     own.source = None;
     own.binding.clear();
     merge.lanes.insert(0, own);

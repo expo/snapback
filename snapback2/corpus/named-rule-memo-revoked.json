@@ -11,8 +11,10 @@
         },
         "indexes": {
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -45,8 +47,10 @@
         },
         "indexes": {
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -76,14 +80,18 @@
         },
         "indexes": {
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           },
           "byPrincipal": {
-            "columns": [
-              "principal"
+            "components": [
+              {
+                "Column": "principal"
+              }
             ],
             "unique": true
           }
@@ -159,7 +167,7 @@
   "certificate": {
     "program": "actions.afterRevoke",
     "plan_hash": "9d7f8c459fb6622403a4900fdcba166ee9b99825def1f93df6307dc8dc39c473",
-    "schema_hash": "bd7dedaae4101a6144d0476581d375747afe34d853845c137ce3e1beecde4913",
+    "schema_hash": "d29338edfd78fa18ec1a969856e488b2fa388260b881f2037c9bc348791d09a9",
     "tables": {
       "actions": {
         "retain": "until-revoked"
@@ -172,12 +180,12 @@
       }
     },
     "rule_hashes": {
-      "actions.insert": "a44720d99f2fd96f1fbdc74f06d666f740fb29a3041f2b096a71bc47f7545b7f",
-      "docs.read": "a44720d99f2fd96f1fbdc74f06d666f740fb29a3041f2b096a71bc47f7545b7f",
-      "grants.delete": "597586188ec0d65460481b1bf8432d06df8823a66f34ec062d1c4b00ba5ccced"
+      "actions.insert": "6de22694d2e41cbe361b47190bba810003f6cbdf532cb88adef8b51f8bc7cc36",
+      "docs.read": "6de22694d2e41cbe361b47190bba810003f6cbdf532cb88adef8b51f8bc7cc36",
+      "grants.delete": "82042e944093f90611662f6f97339eed88659df896a42c295b552025f6152787"
     },
-    "evaluator_version": "bounded-spike-rust-1",
-    "value_model_version": "i53-codepoint-bytes-v2",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [
       {
         "site": "memo.doc",
@@ -213,6 +221,8 @@
     "max_index_entries": 1,
     "max_rule_probes": 2,
     "max_steps": 21,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
     "max_heap_bytes": 672,
     "max_output_bytes": 6,
     "max_closure_bytes": 0,
@@ -237,7 +247,7 @@
     "read_time": null
   },
   "receipt": {
-    "schema_hash": "bd7dedaae4101a6144d0476581d375747afe34d853845c137ce3e1beecde4913",
+    "schema_hash": "d29338edfd78fa18ec1a969856e488b2fa388260b881f2037c9bc348791d09a9",
     "rows": [
       {
         "table": "docs",

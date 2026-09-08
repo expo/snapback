@@ -2,11 +2,12 @@
 // Rust serde's BTreeMap order even when a direct TypeScript caller constructed
 // the equivalent object with a different property insertion order.
 
+import { compareCodepoints } from './hash';
 import { EvalError } from "./errors";
 
 export function canonicalProgramJson(program: any): string {
   return JSON.stringify({
-    ...program,
+    ...pick(program, ["name", "kind", "args", "read_time_granularity_ms", "body"], "program"),
     args: sortedMap(program.args ?? {}, normalizeArgType),
     body: (program.body ?? []).map(normalizeStatement),
   });
@@ -132,7 +133,12 @@ function normalizeTombstone(tombstone: any): any {
 }
 
 function normalizeIndex(index: any): any {
-  return pick(index, ["columns", "unique"], "index");
+  return { ...pick(index, ["components", "unique"], "index"), components: index.components.map((c: any) => {
+    const [tag, value] = tagged(c);
+    if (tag === "Column") return { Column: value };
+    if (tag !== "WordPrefixes") throw new EvalError("E_SCHEMA", "unknown index component");
+    return { WordPrefixes: pick(value, ["fields", "contract"], "WordPrefixes") };
+  }) };
 }
 
 function normalizeChannel(channel: any): any {
@@ -232,6 +238,14 @@ function normalizeArgType(arg: any): any {
   if (typeof arg !== "object" || arg === null) return arg;
   const [kind, data] = tagged(arg);
   if (kind === "Optional") return { Optional: normalizeArgType(data) };
+  if (kind === "Text") {
+    known(data, ["max", "min", "format"], "arg.Text");
+    if (data.min !== undefined && (!Number.isInteger(data.min) || data.min < 0 || data.min > 0xffffffff))
+      throw new TypeError("arg.Text.min must be u32");
+    if (data.format !== undefined && data.format !== 'handle' && data.format !== 'url')
+      throw new TypeError('arg.Text.format must be handle or url');
+    return { Text: { max: data.max, ...(data.min ? { min: data.min } : {}), ...(data.format === undefined ? {} : { format: data.format }) } };
+  }
   if (kind === "List") {
     // `ArgType::List { of: Option<Box<ArgType>>, max }`: `of` is skipped when
     // absent, and a payload carrying any other field is refused like every
@@ -247,55 +261,34 @@ function normalizeArgType(arg: any): any {
 
 function normalizeStatement(statement: any): any {
   if (typeof statement === "string") return statement;
-  const [kind, data] = tagged(statement);
+  const [kind, raw] = tagged(statement);
+  const order: Record<string, string[]> = { Const: ['name','value'], Let: ['name','value'], Assign: ['name','value'], Push: ['target','value'],
+    If: ['condition','then_body','else_body'], For: ['binding','domain','body'], Require: ['condition','code'], Insert: ['table','row'],
+    Update: ['table','key','patch'], Upsert: ['table','key','row'], Delete: ['table','key'], Emit: ['effect','payload'] };
+  const data = order[kind] ? pick(raw, order[kind], kind) : raw;
   switch (kind) {
-    case "Const":
-    case "Let":
-    case "Assign":
-    case "Push":
-      return { [kind]: { ...data, value: normalizeExpression(data.value) } };
+    case "Const": case "Let": case "Assign": case "Push": data.value = normalizeExpression(data.value); break;
     case "If":
-      return { If: {
-        ...data,
-        condition: normalizeExpression(data.condition),
-        then_body: data.then_body.map(normalizeStatement),
-        else_body: data.else_body.map(normalizeStatement),
-      } };
-    case "For":
-      return { For: {
-        ...data,
-        domain: normalizeDomain(data.domain),
-        body: data.body.map(normalizeStatement),
-      } };
-    case "Require":
-      return { Require: { ...data, condition: normalizeExpression(data.condition) } };
-    case "Insert":
-      return { Insert: { ...data, row: normalizeExpression(data.row) } };
-    case "Update":
-      return { Update: {
-        ...data,
-        key: normalizeExpression(data.key),
-        patch: normalizeExpression(data.patch),
-      } };
-    case "Upsert":
-      return { Upsert: {
-        ...data,
-        key: normalizeExpression(data.key),
-        row: normalizeExpression(data.row),
-      } };
-    case "Delete":
-      return { Delete: { ...data, key: normalizeExpression(data.key) } };
-    case "Emit":
-      return { Emit: { ...data, payload: normalizeExpression(data.payload) } };
-    case "Return":
-      return { Return: normalizeExpression(data) };
-    default:
-      return statement;
+      data.condition = normalizeExpression(data.condition);
+      data.then_body = data.then_body.map(normalizeStatement); data.else_body = data.else_body.map(normalizeStatement); break;
+    case "For": data.domain = normalizeDomain(data.domain); data.body = data.body.map(normalizeStatement); break;
+    case "Require": data.condition = normalizeExpression(data.condition); break;
+    case "Insert": data.row = normalizeExpression(data.row); break;
+    case "Update": data.key = normalizeExpression(data.key); data.patch = normalizeExpression(data.patch); break;
+    case "Upsert": data.key = normalizeExpression(data.key); data.row = normalizeExpression(data.row); break;
+    case "Delete": data.key = normalizeExpression(data.key); break;
+    case "Emit": data.payload = normalizeExpression(data.payload); break;
+    case "Return": return { Return: normalizeExpression(data) };
+    default: return statement;
   }
+  return { [kind]: data };
 }
 
 function normalizeDomain(domain: any): any {
-  const [kind, data] = tagged(domain);
+  const [kind, raw] = tagged(domain);
+  const fields = kind === 'DerivedArray' ? ['value','max','bound_source'] : kind === 'Recurse' ? ['site','table','index','seed','next_field','depth','fanout','provenance']
+    : kind === 'LiteralRange' ? ['start','end_exclusive'] : kind === 'ArgList' ? ['name','max'] : undefined;
+  const data = fields ? pick(raw, fields, kind) : raw;
   switch (kind) {
     case "Page":
       return { Page: normalizeScan(data) };
@@ -304,64 +297,76 @@ function normalizeDomain(domain: any): any {
     case "Recurse":
       return { Recurse: { ...data, seed: normalizeExpression(data.seed) } };
     default:
-      return domain;
+      return { [kind]: data };
   }
 }
 
 function normalizeExpression(expression: any): any {
-  const [kind, data] = tagged(expression);
+  const [kind, raw] = tagged(expression);
+  const fields = kind === 'Field' ? ['base','name'] : kind === 'Binary' ? ['op','left','right'] : kind === 'Unary' ? ['op','value']
+    : kind === 'Builtin' ? ['builtin','args'] : kind === 'Merge' ? ['site','lanes','held_search'] : undefined;
+  const data = fields ? pick(raw, fields, kind) : raw;
   switch (kind) {
-    case "Literal":
-      return { Literal: normalizeValue(data) };
-    case "Field":
-      return { Field: { ...data, base: normalizeExpression(data.base) } };
-    case "Array":
-      return { Array: data.map(normalizeExpression) };
-    case "Object":
-      return { Object: sortedMap(data, normalizeExpression) };
-    case "Binary":
-      return { Binary: {
-        ...data,
-        left: normalizeExpression(data.left),
-        right: normalizeExpression(data.right),
-      } };
-    case "Unary":
-      return { Unary: { ...data, value: normalizeExpression(data.value) } };
-    case "Builtin":
-      return { Builtin: { ...data, args: data.args.map(normalizeExpression) } };
-    case "Get":
-    case "Exists":
-      return { [kind]: normalizeRead(data) };
-    case "Scan":
-      return { Scan: normalizeScan(data) };
+    case "Literal": return { Literal: normalizeValue(data) };
+    case "Field": data.base = normalizeExpression(data.base); break;
+    case "Array": return { Array: data.map(normalizeExpression) };
+    case "Object": return { Object: sortedMap(data, normalizeExpression) };
+    case "Binary": data.left = normalizeExpression(data.left); data.right = normalizeExpression(data.right); break;
+    case "Unary": data.value = normalizeExpression(data.value); break;
+    case "Builtin": data.args = data.args.map(normalizeExpression); break;
+    case "Get": case "Exists": return { [kind]: normalizeRead(data) };
+    case "Scan": return { Scan: normalizeScan(data) };
     case "Merge":
-      return { Merge: { ...data, lanes: data.lanes.map(({ setup, ...lane }: any) => ({ ...lane,
-        ...(setup?.length ? { setup: setup.map(normalizeStatement) } : {}),
-        scan: normalizeScan(lane.scan), source: lane.source === null ? null : normalizeScan(lane.source),
-      })) } };
-    default:
-      return expression;
+      data.lanes = data.lanes.map(({ setup, ...lane }: any) => ({ ...(setup?.length ? { setup: setup.map(normalizeStatement) } : {}),
+        ...pick(lane, ["scan", "source", "binding"], "merge lane"), scan: normalizeScan(lane.scan),
+        ...(lane.source == null ? {} : { source: normalizeScan(lane.source) }),
+      }));
+      if (data.held_search) data.held_search = normalizeHeldSearch(data.held_search); break;
+    default: return expression;
   }
+  return { [kind]: data };
+}
+
+function normalizeHeldSearch(d: any): any {
+  known(d, ["table", "index", "term", "scope", "suffix", "order", "take", "after", "discovery"], "held_search");
+  return {
+    table: d.table, index: d.index,
+    term: { source: normalizeExpression(d.term.source), contract: d.term.contract, source_max: d.term.source_max },
+    scope: d.scope.map((s: any) => ({ column: s.column, value: normalizeExpression(s.value) })),
+    suffix: d.suffix, order: d.order, take: normalizeBound(d.take), after: nullableExpression(d.after),
+    discovery: { scan: normalizeScan(d.discovery.scan), binding: d.discovery.binding, authorization_index: d.discovery.authorization_index },
+  };
 }
 
 function normalizeRead(read: any): any {
-  return { ...read, key: read.key.map(normalizeExpression) };
+  return { ...pick(read, ["site","table","index","key","provenance"], "read"), key: read.key.map(normalizeExpression) };
 }
 
 function normalizeScan(scan: any): any {
   return {
-    ...scan,
-    prefix: scan.prefix.map(normalizeExpression),
+    ...pick(scan, ["site","table","index","prefix","order","take","after","before","range","opaque_cursor","merge_site","provenance"], "scan"),
+    take: normalizeBound(scan.take),
+    prefix: scan.prefix.map((key: any) => {
+      const [tag, value] = tagged(key);
+      if (tag === "Scalar") return { Scalar: normalizeExpression(value) };
+      if (tag !== "WordPrefix") throw new EvalError("E_SCHEMA", "unknown index key expression");
+      return { WordPrefix: { ...pick(value, ["source", "contract", "source_max"], "WordPrefix"), source: normalizeExpression(value.source) } };
+    }),
     after: nullableExpression(scan.after),
     before: nullableExpression(scan.before),
     range: scan.range === null ? null : {
-      ...scan.range,
+      ...pick(scan.range, ["gt", "gte", "lt", "lte"], "range"),
       gt: nullableExpression(scan.range.gt),
       gte: nullableExpression(scan.range.gte),
       lt: nullableExpression(scan.range.lt),
       lte: nullableExpression(scan.range.lte),
     },
   };
+}
+
+function normalizeBound(bound: any): any {
+  const [kind, data] = tagged(bound);
+  return { [kind]: kind === 'Arg' ? pick(data, ['name','max'], 'bound') : data };
 }
 
 function nullableExpression(expression: any): any {
@@ -386,13 +391,4 @@ function tagged(value: any): [string, any] {
   const keys = Object.keys(value);
   if (keys.length !== 1) throw new Error("E_TRACE_SUBSET: malformed externally tagged IR");
   return [keys[0]!, value[keys[0]!]];
-}
-
-function compareCodepoints(left: string, right: string): number {
-  const leftPoints = Array.from(left, (value) => value.codePointAt(0)!);
-  const rightPoints = Array.from(right, (value) => value.codePointAt(0)!);
-  for (let index = 0; index < Math.min(leftPoints.length, rightPoints.length); index += 1) {
-    if (leftPoints[index] !== rightPoints[index]) return leftPoints[index]! - rightPoints[index]!;
-  }
-  return leftPoints.length - rightPoints.length;
 }

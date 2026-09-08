@@ -163,10 +163,9 @@ mod tests {
                 variants: vec!["free".into(), "pro".into()],
             },
         );
-        let stored = crate::value::canonical_json(&Value::Row(BTreeMap::from([(
-            "id".to_owned(),
-            Value::Id("p1".into()),
-        )])));
+        let stored = crate::value::canonical_json(&Value::Row(
+            BTreeMap::from([("id".to_owned(), Value::Id("p1".into()))]).into(),
+        ));
         store
             .conn
             .execute(

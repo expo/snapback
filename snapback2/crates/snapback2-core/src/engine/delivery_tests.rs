@@ -55,11 +55,14 @@ fn delivery_refuses_when_the_located_cell_no_longer_contains_the_asset_id() {
             },
         )
         .unwrap();
-    let asset = Value::Map(BTreeMap::from([
-        ("id".to_owned(), Value::String(id.clone())),
-        ("width".to_owned(), Value::Int(10)),
-        ("height".to_owned(), Value::Int(20)),
-    ]));
+    let asset = Value::Map(
+        BTreeMap::from([
+            ("id".to_owned(), Value::String(id.clone())),
+            ("width".to_owned(), Value::Int(10)),
+            ("height".to_owned(), Value::Int(20)),
+        ])
+        .into(),
+    );
     let mut engine = Engine::new(store, schema.clone()).unwrap();
     engine
         .execute(
@@ -75,22 +78,28 @@ fn delivery_refuses_when_the_located_cell_no_longer_contains_the_asset_id() {
         )
         .unwrap();
 
-    let mismatched = Value::Row(BTreeMap::from([
-        ("id".to_owned(), Value::Id("row-1".to_owned())),
-        (
-            "photo".to_owned(),
-            Value::Map(BTreeMap::from([
-                (
-                    "id".to_owned(),
-                    Value::String(
-                        "s2id-00000000000000000000000000000001-0000000000000002".to_owned(),
-                    ),
+    let mismatched = Value::Row(
+        BTreeMap::from([
+            ("id".to_owned(), Value::Id("row-1".to_owned())),
+            (
+                "photo".to_owned(),
+                Value::Map(
+                    BTreeMap::from([
+                        (
+                            "id".to_owned(),
+                            Value::String(
+                                "s2id-00000000000000000000000000000001-0000000000000002".to_owned(),
+                            ),
+                        ),
+                        ("width".to_owned(), Value::Int(10)),
+                        ("height".to_owned(), Value::Int(20)),
+                    ])
+                    .into(),
                 ),
-                ("width".to_owned(), Value::Int(10)),
-                ("height".to_owned(), Value::Int(20)),
-            ])),
-        ),
-    ]));
+            ),
+        ])
+        .into(),
+    );
     engine
         .store
         .conn

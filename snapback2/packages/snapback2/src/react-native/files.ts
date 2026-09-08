@@ -13,6 +13,16 @@ export interface NativeFileSystem {
 }
 const FILES = Symbol.for("snapback2.native.assetFiles");
 type FileStore = RangeStore & { [FILES]?: NativeAssetFiles };
+const mediaSuffix = (type: string): string => {
+  switch (type.split(";", 1)[0]!.trim().toLowerCase()) {
+    case "image/jpeg": return ".jpg";
+    case "image/png": return ".png";
+    case "image/webp": return ".webp";
+    case "video/mp4": return ".mp4";
+    case "video/quicktime": return ".mov";
+    default: return "";
+  }
+};
 
 export function attachAssetFiles(store: RangeStore, files: NativeAssetFiles): void {
   Object.defineProperty(store, FILES, { value: files });
@@ -73,17 +83,23 @@ export class NativeAssetFiles {
   async get(cache: AssetCache, assetId: string, width: number | null): Promise<string | undefined> {
     if (!ASSET_ID.test(assetId)) return undefined;
     if (width !== null && (!Number.isSafeInteger(width) || width <= 0)) throw new TypeError("asset width must be a positive integer");
+    const partition = this.partition;
+    if (partition === undefined) return undefined;
     const revision = this.getAssetRevision(assetId);
-    const uri = this.path(byteKey(assetId, width));
-    if (!uri) return undefined;
     // The carrier read checks seal, lease, viewed set, payload existence and length.
     const once = await cache.viewOnce(assetId) || await cache.viewed(assetId);
     const held = once ? undefined : await cache.getBytes(assetId, width);
+    if (revision !== this.getAssetRevision(assetId)) return undefined;
+    const key = byteKey(assetId, width);
+    const uri = this.path(key + mediaSuffix(held?.type ?? this.state?.assets[key]?.type ?? ""), partition)!;
     return this.enqueue(async () => {
       // Recheck after acquiring the queue: viewed custody can move while a
       // preceding materialization holds it, even without a byte delta.
-      if (!held || revision !== this.getAssetRevision(assetId) || !this.eligible(assetId, width)
-        || await cache.viewOnce(assetId) || await cache.viewed(assetId)) {
+      if (revision !== this.getAssetRevision(assetId)) return undefined;
+      const refused = !held || !this.eligible(assetId, width)
+        || await cache.viewOnce(assetId) || await cache.viewed(assetId);
+      if (revision !== this.getAssetRevision(assetId)) return undefined;
+      if (refused) {
         await this.remove(uri);
         return undefined;
       }
@@ -106,12 +122,15 @@ export class NativeAssetFiles {
     this.changed(true);
     const directory = partitionDirectory(this.fs.root, partition);
     await this.enqueue(async () => {
+      const expected = new Set(Object.entries(state?.assets ?? {})
+        .map(([key, entry]) => key + mediaSuffix(entry.type)));
       for (const name of await this.fs.list(directory)) {
-        if (!state?.assets[name]) await this.remove(directory + name);
+        if (!expected.has(name)) await this.remove(directory + name);
       }
     });
   }
   async replaced(state: PersistedRangeState, bytes: ByteDelta): Promise<void> {
+    const previous = this.state;
     const sealed = this.state?.sealed !== state.sealed;
     const before = assetLeases(this.state), after = assetLeases(state);
     const changed = new Set([...before.keys(), ...after.keys()].filter((id) => before.get(id) !== after.get(id)));
@@ -124,8 +143,11 @@ export class NativeAssetFiles {
     // Publish custody now; cleanup follows asynchronously, never holding that swap.
     void this.enqueue(async () => {
       for (const key of [...bytes.remove, ...bytes.put.map((put) => put.key)]) {
-        const uri = this.path(key, partition);
-        if (uri) await this.remove(uri);
+        const suffixes = new Set(["", mediaSuffix(previous?.assets[key]?.type ?? ""), mediaSuffix(state.assets[key]?.type ?? "")]);
+        for (const suffix of suffixes) {
+          const uri = this.path(key + suffix, partition);
+          if (uri) await this.remove(uri);
+        }
       }
     }).catch(() => undefined);
   }

@@ -1,5 +1,6 @@
 //! A nullable point-read shape preserves a non-uniform page's capped state.
 use super::*;
+use snapback2_core::ir::IndexKeyExpr;
 
 pub(super) fn add_enriched_page_case(cases: &mut Vec<CorpusCase>) {
     add_conditional_page_cases(cases);
@@ -49,7 +50,10 @@ pub(super) fn add_enriched_page_case(cases: &mut Vec<CorpusCase>) {
                     site: "items.page".to_owned(),
                     table: "items".to_owned(),
                     index: "byGroup".to_owned(),
-                    prefix: vec![lit(id("g1"))],
+                    prefix: (vec![lit(id("g1"))])
+                        .into_iter()
+                        .map(IndexKeyExpr::Scalar)
+                        .collect(),
                     order: Order::Asc,
                     take: Bound::Literal(50),
                     after: None,
@@ -197,7 +201,7 @@ pub(super) fn add_enriched_page_case(cases: &mut Vec<CorpusCase>) {
         if page == 1 {
             assert_eq!(served.result, execution.result);
             let token = served.next.as_ref().unwrap();
-            let position = snapback2_core::cursor::decode_cursor(token).unwrap();
+            let position = snapback2_core::cursor::decode_cursor(&schema, token).unwrap();
             assert_eq!(
                 position.values.last(),
                 Some(&id("i2")),
@@ -263,7 +267,10 @@ fn table<const N: usize, const M: usize>(
                 (
                     name.to_owned(),
                     Index {
-                        columns: columns.into_iter().map(str::to_owned).collect(),
+                        components: (columns.into_iter().map(str::to_owned).collect::<Vec<_>>())
+                            .into_iter()
+                            .map(snapback2_core::search_key::IndexComponent::Column)
+                            .collect(),
                         unique,
                     },
                 )
@@ -308,7 +315,7 @@ fn add_conditional_page_cases(cases: &mut Vec<CorpusCase>) {
         site: "feed.global".into(),
         table: "posts".into(),
         index: "byAt".into(),
-        prefix: vec![],
+        prefix: (vec![]).into_iter().map(IndexKeyExpr::Scalar).collect(),
         order: Order::Desc,
         take: Bound::Literal(20),
         after: Some(Box::new(var("position"))),
@@ -319,13 +326,17 @@ fn add_conditional_page_cases(cases: &mut Vec<CorpusCase>) {
         provenance: KeyProvenance::Const,
     };
     let merge = Merge {
+        held_search: None,
         site: "feed.following".into(),
         lanes: vec![MergeLane {
             source: Some(Scan {
                 site: "feed.follows".into(),
                 table: "follows".into(),
                 index: "byFollower".into(),
-                prefix: vec![lit(id("u1"))],
+                prefix: (vec![lit(id("u1"))])
+                    .into_iter()
+                    .map(IndexKeyExpr::Scalar)
+                    .collect(),
                 order: Order::Asc,
                 take: Bound::Literal(500),
                 after: None,
@@ -340,7 +351,10 @@ fn add_conditional_page_cases(cases: &mut Vec<CorpusCase>) {
             scan: Scan {
                 site: "feed.following.lane".into(),
                 index: "byAuthorAt".into(),
-                prefix: vec![field(var("follow"), "followed")],
+                prefix: (vec![field(var("follow"), "followed")])
+                    .into_iter()
+                    .map(IndexKeyExpr::Scalar)
+                    .collect(),
                 merge_site: Some("feed.following".into()),
                 provenance: KeyProvenance::Shape,
                 ..range.clone()

@@ -1,9 +1,5 @@
 import { deepStrictEqual, throws } from "node:assert";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { canonicalValue, ClientStore, type Context, type Value } from "../../evaluator/src/evaluator";
-import { lowerSource, type TableInfo } from "./compiler";
-import { lowerSchema } from "./lower/schema";
 import { lowerProject } from "./project";
 import { rustCheck } from "./rust-check";
 import { assert, compileInline, diagnosticsText, operation, withProject, type Test } from "./quarry-check-helpers";
@@ -58,15 +54,6 @@ function refusal(source: string, text: string, declarations = schema) {
 }
 
 export function registerQuarryLanguageChecks(test: Test, frontend: string): void {
-  test("connected schema declarations refuse instead of disappearing in the TS lowerer", () => {
-    const result = lowerSchema(`import { schema, table, t } from "snapback2";
-export const connected = table({ columns: { value: t.int() } });
-export default schema({ tables: { connected } });`, "snapback/schema.ts");
-    const refusal = result.diagnostics.find(item => item.code === "E_SCHEMA_RESERVED");
-    assert(refusal?.site?.startsWith("snapback/schema.ts:") && !!refusal.rewrite, JSON.stringify(result));
-    assert(!result.tables.has("connected") && ![...result.tables.values()].some(table => table.name === "_connected"),
-      `refused connected declaration entered the catalog: ${JSON.stringify([...result.tables])}`);
-  });
   test("connected refuses Quarry maintains and table rules with a site and rewrite", () => {
     for (const declarations of [
       schema + "\nmaintain counts = count connected by principal:\n  read <- allow\n",
@@ -226,48 +213,6 @@ query probe():
       }
     }, schema.replace("  at: time", "  parentAuthor: principal ?\n  at: time").replace(/\nmaintain replyCounts[^]*$/, "\n"));
   });
-  test("Callback write keys hoist optional access once before reading the current row", () => {
-    const columns = { id: { kind: "string", id: true }, n: { kind: "int" } } as const;
-    const tables = new Map<string, TableInfo>([["items", { name: "items", private: false, columns,
-      indexes: { byId: { columns: ["id"], types: [columns.id], unique: true } } }]]);
-    for (const method of ["update", "upsert"]) {
-      const lowered = lowerSource(`import { mutation, t } from "snapback2";
-export const probe = mutation({ id: t.id() }, ({ db, args }) => {
-  db.${method}(items, ({ id: args.id })?.id, current => ${method === "upsert" ? "current!" : "({ n: current?.n ?? 0 })"});
-  return true;
-});`, "callback.ts", undefined, { tables });
-      assert(lowered.ok, JSON.stringify(lowered));
-      const loweredSchema = { tables: { items: { columns: { id: "Id", n: "Int" },
-        indexes: { byId: { columns: ["id"], unique: true } }, constraints: [],
-        rules: { read: "Allow", insert: "Allow", update: "Allow", delete: "Allow" } } }, maintains: [] };
-      assert(rustCheck(lowered.programs, "synthetic", loweredSchema).every(item => !item.error), "callback certificate refused");
-      const program = lowered.programs[0]!;
-      const ir = JSON.stringify(program);
-      assert(ir.split('"Get"').length - 1 === 1, ir);
-      const result = new ClientStore(loweredSchema, { ...empty, rows: [
-        { table: "items", id: "item", row: row({ id: id("item"), n: { Int: 3 } }) },
-      ] }).reexecute(program, { ...context, args: { id: id("item") } }).execution;
-      equal(result.result, { Bool: true });
-      equal(result.writes[0]!.row!, row({ id: id("item"), n: { Int: 3 } }));
-    }
-  });
-  test("Optional call operands evaluate a clock base once inside the original branch", () => {
-    const lib = readFileSync(resolve(frontend, "subset-lib.d.ts"), "utf8") + readFileSync(resolve(frontend, "lib.d.ts"), "utf8");
-    const source = `import { query, max, t } from "snapback2";
-export const probe = query({ yes: t.bool() }, ({ ctx, args }) => {
-  return args.yes ? { nested: { at: max(({ at: ctx.now() })?.at ?? 0, 1) } } : null;
-});`;
-    const lowered = lowerSource(source, "probe.ts", lib);
-    assert(lowered.ok, JSON.stringify(lowered));
-    const program = lowered.programs[0]!;
-    const ir = JSON.stringify(program.body);
-    assert(ir.split('"Input":"ReadTime"').length - 1 === 1, ir);
-    const store = new ClientStore({ tables: {}, maintains: [] }, empty);
-    const skipped = store.reexecute(program, { ...context, args: { yes: { Bool: false } }, read_time: null }).execution;
-    equal(skipped.result, "Null");
-    equal(store.reexecute(program, { ...context, args: { yes: { Bool: true } } }).execution.result,
-      row({ nested: row({ at: { Int: 172800007 } }) }));
-  });
   test("Quarry divmod tuple binds once and preserves decimal and money parts", async () => {
     await project(`query probe(amount: money USD, dec: decimal 2):
   (q, r) = divmod(now, 86400000)
@@ -327,21 +272,6 @@ export const probe = query({ yes: t.bool() }, ({ ctx, args }) => {
     assert(!literal.ok && literal.diagnostics[0]!.rewrite === 'settings[key = ""]', JSON.stringify(literal));
     await project(`query probe():\n  return ${literal.diagnostics[0]!.rewrite}\n`, () => {});
   });
-  test("Unexpected Quarry failures preserve the caught message as guidance", () => {
-    const stringify = JSON.stringify;
-    for (const failure of [new Error("cannot print fixture literal"), "cannot print fixture literal"]) {
-      let result: ReturnType<typeof compile>;
-      try {
-        JSON.stringify = ((value: unknown, ...rest: any[]) => {
-          if (value === "caught-path") throw failure;
-          return (stringify as any)(value, ...rest);
-        }) as typeof JSON.stringify;
-        result = compile("query probe():\n  return 'caught-path'\n");
-      } finally { JSON.stringify = stringify; }
-      assert(!result.ok && result.diagnostics[0]!.message === "cannot print fixture literal"
-        && result.diagnostics[0]!.rewrite === "-- cannot print fixture literal", JSON.stringify(result));
-    }
-  });
   test("Schedule arguments preserve generic ids while rejecting a different nominal table", async () => {
     const declarations = schema.replace("  at: time", "  other: settings\n  expiresAt: time ?\n  at: time");
     await project(`mutation receive(post: id, other: id):
@@ -397,15 +327,8 @@ schedule expire on posts at .expiresAt: receive(.other)
       deepStrictEqual(domains[0], { ArgList: { name: "tags", max: 8 } });
       assert(domains[1] && "DerivedArray" in domains[1] && domains[1].DerivedArray.max === 8, JSON.stringify(domains));
     });
-    for (const op of ["||", "&&", "+"]) {
-      const lowered = lowerSource(`import { query, t } from "snapback2";
-export const probe = query({ tags: t.list(t.text(32), { max: 8 }) }, ({ args }) => {
-  for (const t of args.tags ${op} []) { const value = t; }
-  return true;
-});`, "domain.ts");
-      assert(!lowered.ok, `${op} domain unexpectedly admitted`);
-    }
   });
+
   test("Quarry bounded list columns survive aliases, optional narrowing, coalescing and nested shapes", async () => {
     await project(`shape tagsCard = { nested: { tags: .tags } }
 query optional(id: posts):

@@ -3,7 +3,9 @@ import coreIrContract from "../../../crates/snapback2-core/ir-contract.json" wit
 import { EvalError, requireRowIdentity } from "./errors";
 import { cursorSuffix, decodeCursorFor, encodeCursor } from "./cursor";
 import { sha256 } from "./hash";
-import { splitMentionTokens, words } from "./text";
+import { splitMentionTokens } from "./text";
+import { SearchExecution, normalizationSteps } from "./search-runtime";
+import { ordinaryColumns, scalarAtoms, preparePrefix, logicalKey } from "./index-store";
 import type { ClientStore } from "./store";
 import {
   asArray,
@@ -36,9 +38,10 @@ import {
   valueText,
   variant, wireJson,
 } from "./value-runtime";
-import type { Context, Execution, Trace, TraceVerdict, TraceWrite, Value } from "./types";
+import type { Context, Execution, Trace, TraceRange, TraceVerdict, TraceWrite, Value } from "./types";
 
-export const CURRENT_VALUE_MODEL_VERSION = coreIrContract.valueModelVersion;
+export const CURRENT_VALUE_MODEL_VERSION = "i53-codepoint-bytes-unicode-search-text-refinements-v5";
+export const CURRENT_EVALUATOR = "bounded-spike-rust-search-text-refinements-5";
 
 type Flow =
   | { kind: "next" }
@@ -52,15 +55,30 @@ export class Runner {
   private readonly env = new Map<string, Value>();
   private readonly consts = new Set<string>();
   private returnPath: string | null = null;
+  private held = false;
   private readonly context: Context;
   readonly trace: Trace = { ranges: [], absences: [], points: [], merges: [], verdicts: [] };
   private readonly ruleMemo = new Map<string, boolean>();
   /** Verdicts the rule check in progress derived; committed to the trace only when the check discloses the row. */
   private pendingVerdicts: TraceVerdict[] = [];
   private readonly tracedVerdicts = new Set<string>();
+  readonly search: SearchExecution;
+  private chargeSearch = (stats: import('./unicode').NormalizationStats): void => {
+    this.chargeDerived(normalizationSteps(stats), stats.scratchBytes);
+  };
+  private chargeDerived(steps: number, scratchBytes: number): void {
+    this.trace.derived_steps = (this.trace.derived_steps ?? 0) + steps;
+    this.trace.derived_scratch_bytes = Math.max(this.trace.derived_scratch_bytes ?? 0, scratchBytes);
+    this.step(steps);
+    if (this.trace.derived_steps > (this.certificate?.derived_steps ?? Infinity)) throw new EvalError('E_STEPS', 'certified derived step budget exceeded');
+    if (scratchBytes > Math.min(this.certificate?.derived_scratch_bytes ?? Infinity, this.certificate?.max_heap_bytes ?? 8388608, 8388608))
+      throw new EvalError('E_HEAP', 'derived scratch budget exceeded');
+  }
+  private readonly pooled = new Set<string>();
   private readonly writes = new Map<string, TraceWrite>();
   private readonly partial = new Set<string>();
   private authorityMissSerial = 0;
+  private authorityFields?: string[];
   /** Engine-owned aggregate targets this run could not update because they are not held. */
   private readonly unheldMaintainTargets: string[] = [];
   private readonly createdRows = new Set<string>();
@@ -77,7 +95,10 @@ export class Runner {
     private readonly schema: any,
     context: Context,
     private readonly certificate: any,
+    search = new SearchExecution(),
   ) {
+    this.search = search;
+    search.meter(this.chargeSearch);
     this.context = clone(context);
     for (const [name, value] of Object.entries(context.args)) {
       this.env.set(name, clone(value));
@@ -92,6 +113,8 @@ export class Runner {
       trace: this.trace,
       next: mintNext(this.context.viewer, this.certificate, this.trace, this.returnPath),
       writes: [...this.writes.values()],
+      page: this.returnPath === null ? undefined : this.certificate?.result_pages?.[this.returnPath],
+      ...(this.held ? { held: true } : {}),
     };
   }
 
@@ -104,9 +127,9 @@ export class Runner {
     return { maintainTargets: [...this.unheldMaintainTargets], other: this.authorityMissSerial - this.unheldMaintainTargets.length };
   }
 
-  private step(): void {
-    this.trace.steps = (this.trace.steps ?? 0) + 1;
-    if (this.certificate && this.trace.steps > this.certificate.max_steps)
+  private step(count = 1): void {
+    this.trace.steps = (this.trace.steps ?? 0) + count;
+    if (this.trace.steps > Math.min(this.certificate?.max_steps ?? 1000000, 1000000))
       throw new EvalError("E_STEPS", "certified step budget exceeded");
   }
 
@@ -429,7 +452,6 @@ export class Runner {
           }),
         };
       }
-      case "Words": return { Array: words(asString(args[0])).map((word) => ({ String: word })) };
       case "MentionTokens": {
         const seen = new Set<string>();
         const mentions: Value[] = [];
@@ -508,12 +530,22 @@ export class Runner {
       });
       return "Null";
     }
+    if (disclosed) this.pool(read.table, found);
     return disclosed ? clone(found) : "Null";
   }
 
-  private scanInput(scan: any): any {
+  private scanInput(scan: any, scope?: Value[]): any {
     validateScanCursor(this.schema, scan, this.env);
-    const prefix = scan.prefix.map((value: any) => this.expr(value));
+    const maxima = scan.prefix.map((key: any) => key.WordPrefix?.source_max);
+    const prefix = scan.prefix.map((key: any, at: number) => {
+      if (Object.keys(key).length !== 1) throw new EvalError("E_INPUT", "malformed index key");
+      if ("Scalar" in key) return { Scalar: scope?.[at] ?? this.expr(key.Scalar) };
+      if (!key.WordPrefix) throw new EvalError("E_INPUT", "malformed index key");
+      const p = key.WordPrefix;
+      return { WordPrefix: { contract: p.contract, source: asString(this.expr(p.source)) } };
+    });
+    const logical = preparePrefix(this.schema, scan.table, scan.index, prefix, maxima, this.search.atom);
+    if (this.store.missingSearchAuthority(scan.table, scan.index, logical, this.context)) this.partial.add('missing-authority');
     let after = scan.after === null ? null : this.expr(scan.after);
     const before = scan.before === null ? null : this.expr(scan.before);
     if (scan.opaque_cursor && after === "Null") after = null;
@@ -521,7 +553,7 @@ export class Runner {
       if (!isVariant(after, "String")) throw new EvalError("E_INPUT", "opaque cursor must be a string");
       after = decodeCursorFor(after.String, {
         table: scan.table, index: scan.index, order: scan.order, suffix: cursorSuffix(this.schema, scan),
-      });
+      }, this.schema);
     }
     const evaluatedRange = scan.range === null ? null : this.evaluateRange(scan.range);
     const [boundKind, boundData] = variant(scan.take);
@@ -531,15 +563,16 @@ export class Runner {
         : asInt(this.context.args[boundData.name] ?? this.requiredEnv(boundData.name));
     if (!Number.isInteger(take) || take < 0 || (boundKind === "Arg" && take > boundData.max))
       throw new EvalError("E_FANOUT", "scan take exceeded");
-    return { prefix, after, before, evaluatedRange, take };
+    return { prefix, logical, after, before, evaluatedRange, take };
   }
 
   private scan(scan: any): Value {
-    const { prefix, after, before, evaluatedRange, take } = this.scanInput(scan);
+    const input = this.scanInput(scan);
+    const { logical, after, before, evaluatedRange, take } = input;
     const examined = this.store.scan(
       scan.table,
       scan.index,
-      prefix,
+      logical,
       after,
       before,
       evaluatedRange,
@@ -554,25 +587,7 @@ export class Runner {
     const visible = examined.filter((row) => decidedTrue || this.checkRule(scan.table, "read", null, row));
     const returned = visible.slice(0, take);
     const suffix = cursorSuffix(this.schema, scan);
-    this.trace.ranges.push({
-      site: scan.site,
-      table: scan.table,
-      index: scan.index,
-      ...(typeof scan.provenance === "string" ? { provenance: scan.provenance } : {}),
-      prefix,
-      order: scan.order,
-      take,
-      after,
-      before,
-      gt: evaluatedRange?.gt ?? null,
-      gte: evaluatedRange?.gte ?? null,
-      lt: evaluatedRange?.lt ?? null,
-      lte: evaluatedRange?.lte ?? null,
-      rule_hash: scopedRuleHash(this.schema, this.schema.tables[scan.table].rules.read),
-      stop,
-      lastReturnedSuffix: returned.length === 0 ? null
-        : suffix.map((column) => clone(field(returned[returned.length - 1]!, column.name))),
-    });
+    this.recordRange(scan, input, suffix, visible, returned, visible.slice(take), stop);
     return { Array: returned.map(clone) };
   }
 
@@ -582,19 +597,34 @@ export class Runner {
     for (const lane of merge.lanes) validateScanCursor(this.schema, lane.scan, this.env);
     const lanes: any[] = [];
     const prefixes = new Set<string>();
+    const directory = merge.held_search && this.store.heldDirectory(merge.held_search);
+    let heldScopes: Value[][] | undefined;
+    if (directory) {
+      const d = merge.held_search, bound = d.discovery.scan.take;
+      const term = d.term, source = asString(this.expr(term.source));
+      // Scope values are not manufactured here: normalize just the declared derived slot.
+      this.search.atom(this.store.index(d.table, d.index).parts[d.scope.length], { WordPrefix: { source, contract: term.contract } }, term.source_max);
+      const maximum = bound.Literal ?? asInt(this.context.args[bound.Arg.name]);
+      if (!Number.isSafeInteger(maximum) || maximum < 0 || (bound.Arg && maximum > bound.Arg.max)) throw new EvalError("E_FANOUT", "discovery bound exceeded");
+      const selected = directory.select(directory.fixed.map((i: number) => this.expr(d.scope[i].value)), maximum);
+      this.held = true;
+      if (selected.missing) { this.partial.add('missing-authority'); return { Array: [] }; }
+      heldScopes = selected.scopes;
+      if (selected.overflow) this.trace.merges.push({ site: merge.site, deduplicated_union_len: (d.take.Literal ?? d.take.Arg.max) + 1, last_returned_suffix: null });
+    }
     for (const lane of merge.lanes) {
-      const source = lane.source ? asArray(this.scan(lane.source)) : ["Null" as Value];
+      const source = heldScopes ? heldScopes.map(Array => ({ Array }) as Value) : lane.source ? asArray(this.scan(lane.source)) : ["Null" as Value];
       const previous = this.env.get(lane.binding);
       for (const row of source) {
-        if (lane.source) this.env.set(lane.binding, row);
+        if (lane.source && !heldScopes) this.env.set(lane.binding, row);
         const env = lane.setup?.length ? new Map(this.env) : null;
         const consts = lane.setup?.length ? new Set(this.consts) : null;
         this.statements(lane.setup ?? []);
-        const input = this.scanInput(lane.scan);
+        const input = this.scanInput(lane.scan, heldScopes ? asArray(row) : undefined);
         if (env) { this.env.clear(); for (const [key, value] of env) this.env.set(key, value); }
         if (consts) { this.consts.clear(); for (const key of consts) this.consts.add(key); }
         const r = input.evaluatedRange;
-        const key = canonicalJson([input.prefix, input.after, input.before,
+        const key = canonicalJson([logicalKey(input.logical), input.after, input.before,
           r ? [r.gt, r.gte, r.lt, r.lte] : null]);
         if (prefixes.has(key)) continue;
         prefixes.add(key);
@@ -603,9 +633,9 @@ export class Runner {
         const table = this.schema.tables[lane.scan.table];
         const publicRule = this.context.viewer === coreIrContract.systemPrincipalId
           || ["Allow", "Public"].includes(variant(table.rules.read)[0]);
-        const values = this.store.scan(lane.scan.table, lane.scan.index, input.prefix, input.after,
-          input.before, input.evaluatedRange, lane.scan.order, certificate.max_examined);
-        lanes.push({ scan: lane.scan, input, values: values[Symbol.iterator](), read,
+        const values = this.store.seek(lane.scan.table, lane.scan.index, input.logical, input.after,
+          input.before, input.evaluatedRange, lane.scan.order);
+        lanes.push({ scan: lane.scan, input, values, read,
           uniform: read.hoist || publicRule, allowed: publicRule ? true : undefined,
           exhausted: false, visible: [], returned: [] });
       }
@@ -640,23 +670,45 @@ export class Runner {
     const result = mergeStreams(next, suffix.map((c) => c.name), first.order, take, step,
       (lane, row) => lanes[lane].returned.push(row));
     for (const lane of lanes) {
-      const { scan, input } = lane;
-      const r = input.evaluatedRange;
       const remaining = mergeRemainder(lane.visible, lane.returned);
-      this.trace.ranges.push({ site: scan.site, table: scan.table, index: scan.index,
-        provenance: scan.provenance, prefix: input.prefix, order: scan.order, take: input.take,
-        after: input.after, before: input.before, gt: r?.gt ?? null, gte: r?.gte ?? null,
-        lt: r?.lt ?? null, lte: r?.lte ?? null,
-        rule_hash: scopedRuleHash(this.schema, this.schema.tables[scan.table].rules.read),
-        stop: lane.exhausted && remaining.length === 0 ? "exhausted" : "limit",
-        lastReturnedSuffix: lane.returned.length ? suffix.map((c) => field(lane.returned.at(-1), c.name)) : null,
-      });
+      this.recordRange(lane.scan, lane.input, suffix, lane.visible, lane.returned, remaining,
+        lane.exhausted && remaining.length === 0 ? 'exhausted' : 'limit');
     }
     const page: any = Object.values(this.certificate?.result_pages ?? {}).find((page: any) => page.merge && page.site === merge.site);
     this.trace.merges.push({ site: merge.site, deduplicated_union_len: result.union,
       last_returned_suffix: page?.merge && page.site === merge.site && result.rows.length
         ? suffix.map((c) => clone(field(result.rows.at(-1)!, c.name))) : null });
     return { Array: result.rows.map(clone) };
+  }
+
+  /** Scans and merge lanes disclose the same immutable row/halo receipt shape. */
+  private recordRange(scan: any, input: any, suffix: ReturnType<typeof cursorSuffix>, visible: Value[],
+    returned: Value[], remaining: Value[], stop: 'limit' | 'exhausted'): void {
+    const { prefix, take, after, before, evaluatedRange } = input;
+    for (const row of visible) this.pool(scan.table, row);
+    const range: TraceRange = {
+      halo: remaining[0] ? { table: scan.table, id: asString(field(remaining[0], "id")) } : null,
+      n2_suffix: remaining[1] ? suffix.map(c => field(remaining[1], c.name)) : null,
+      site: scan.site,
+      table: scan.table,
+      index: scan.index,
+      ...(typeof scan.provenance === "string" ? { provenance: scan.provenance } : {}),
+      prefix,
+      order: scan.order,
+      take,
+      after,
+      before,
+      gt: evaluatedRange?.gt ?? null,
+      gte: evaluatedRange?.gte ?? null,
+      lt: evaluatedRange?.lt ?? null,
+      lte: evaluatedRange?.lte ?? null,
+      rule_hash: scopedRuleHash(this.schema, this.schema.tables[scan.table].rules.read),
+      stop,
+      lastReturnedSuffix: returned.length === 0 ? null
+        : suffix.map((column) => clone(field(returned[returned.length - 1]!, column.name))),
+    };
+    range.stop = this.store.rangeStop(range, input.logical);
+    this.trace.ranges.push(range);
   }
 
   private evaluateRange(range: any): any {
@@ -691,10 +743,10 @@ export class Runner {
       return;
     }
     const object = { ...asObject(old), ...asObject(patch) };
-    this.replace(table, key, rowValue(object));
+    this.replace(table, key, rowValue(object), Object.keys(asObject(patch)));
   }
 
-  private replace(table: string, key: Value, row: Value): void {
+  private replace(table: string, key: Value, row: Value, fields?: string[]): void {
     const old = this.store.byId(table, asString(key));
     if (old === null) throw new EvalError("E_INPUT", `missing ${table} row`);
     row = materializeOptionalFields(this.schema, table, row);
@@ -706,7 +758,7 @@ export class Runner {
       throw new EvalError("E_RULE", `${table} update`);
     this.checkConstraints(table, old, row, "update");
     this.store.put(table, row);
-    this.recordWrite(table, row);
+    this.recordWrite(table, row, fields);
     this.refreshCreatedPoints(table, row);
     this.ruleMemo.clear();
     this.maintain(table, old, row);
@@ -742,8 +794,22 @@ export class Runner {
   private maintain(source: string, old: Value | null, next: Value | null): void {
     for (const maintain of this.schema.maintains ?? []) {
       if (maintain.source !== source) continue;
-      if (old !== null) this.applyAggregate(maintain, old, -1);
-      if (next !== null) this.applyAggregate(maintain, next, 1);
+      const changes = new Map<string, { group: Value[]; delta: bigint }>();
+      const add = (row: Value, direction: number): void => {
+        const address = this.maintainedGroup(maintain, row);
+        const [kind, data] = variant(maintain.kind);
+        const delta = kind === "Count"
+          ? BigInt(direction)
+          : BigInt(direction) * BigInt(asInt(field(address.source, data.of)));
+        const prior = changes.get(address.idValue);
+        if (prior) {
+          prior.delta += delta;
+        } else changes.set(address.idValue, { group: address.group, delta });
+      };
+      if (old !== null) add(old, -1);
+      if (next !== null) add(next, 1);
+      for (const [idValue, change] of changes)
+        this.applyAggregateChange(maintain, idValue, change.group, change.delta);
     }
   }
 
@@ -757,14 +823,13 @@ export class Runner {
     return { source, group, idValue: canonicalValues(group) };
   }
 
-  private applyAggregate(maintain: any, source: Value, direction: number): void {
+  private applyAggregateChange(
+    maintain: any,
+    idValue: string,
+    group: Value[],
+    delta: bigint,
+  ): void {
     // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — maintained targets are engine-owned but still validated.
-    const groupAddress = this.maintainedGroup(maintain, source);
-    source = groupAddress.source;
-    const { group, idValue } = groupAddress;
-    const [kind, data] = variant(maintain.kind);
-    const delta =
-      kind === "Count" ? direction : safeNumber(direction * asInt(field(source, data.of)));
     const existing = this.store.byId(maintain.target, idValue);
     if (existing === null && !this.store.authorityAbsence(maintain.target, idValue)) {
       this.partial.add("missing-authority");
@@ -773,9 +838,28 @@ export class Runner {
       return;
     }
     const oldValue = existing === null ? 0 : asInt(field(existing, "value"));
+    const exact = BigInt(oldValue) + delta;
+    if (exact < BigInt(Number.MIN_SAFE_INTEGER) || exact > BigInt(Number.MAX_SAFE_INTEGER))
+      throw new EvalError("E_OVERFLOW", "integer overflow");
+    const value = Number(exact);
+    const empty = value === 0;
+    if (empty) {
+      if (existing !== null) {
+        this.checkConstraints(maintain.target, existing, existing, "delete");
+        this.store.remove(maintain.target, idValue);
+        this.writes.set(`${maintain.target}\0${idValue}`, {
+          table: maintain.target,
+          id: idValue,
+          row: null,
+        });
+        this.forgetCreatedPoints(maintain.target, idValue);
+        this.ruleMemo.clear();
+      }
+      return;
+    }
     const object: Record<string, Value> = Object.assign(Object.create(null), {
       id: { Id: idValue },
-      value: int(oldValue + delta),
+      value: int(value),
     });
     maintain.by.forEach((name: string, index: number) => {
       object[name] = group[index];
@@ -795,9 +879,17 @@ export class Runner {
     this.ruleMemo.clear();
   }
 
-  private recordWrite(table: string, row: Value): void {
-    const id = asString(field(row, "id"));
-    this.writes.set(`${table}\0${id}`, { table, id, row: clone(row) });
+  private pool(table: string, row: Value): void {
+    const id = asString(field(row, 'id')), key = JSON.stringify([table, id]);
+    if (!this.pooled.has(key)) { this.pooled.add(key); (this.trace.rows ??= []).push({ table, id, row }); }
+  }
+
+  private recordWrite(table: string, row: Value, fields?: string[]): void {
+    const id = asString(field(row, "id")), key = `${table}\0${id}`, prior = this.writes.get(key);
+    // A later patch carries only its assignments. Rejected earlier intents cannot leak through a saved whole image.
+    if (prior && !prior.fields) fields = undefined;
+    else if (fields && prior?.fields) fields = [...new Set([...prior.fields, ...fields])];
+    this.writes.set(key, { table, id, row: clone(row), ...(fields ? { fields } : {}) });
   }
 
   private validateAddressedRowId(table: string, key: Value, row: Value): void {
@@ -817,11 +909,12 @@ export class Runner {
     for (const [index, definition] of Object.entries<any>(
       this.schema.tables[table]?.indexes ?? {},
     )) {
+      if (definition.components.some((c: any) => "WordPrefixes" in c)) continue;
       this.createdPoints.push({
         table,
         index,
         key: canonicalValues(
-          definition.columns.map((column: string) => fieldOrNull(row, column)),
+          ordinaryColumns(definition).map((column: string) => fieldOrNull(row, column)),
         ),
         rowId,
       });
@@ -853,7 +946,8 @@ export class Runner {
         )
       )
         throw new EvalError("E_CONSTRAINT", `${tableName} immutable fields changed`);
-      if (kind === "Unique") this.checkUnique(tableName, data.index, old, row);
+      if (kind === "Unique" && effect !== "delete")
+        this.checkUnique(tableName, data.index, old, row);
       if (kind === "Cap") {
         const entersGroup =
           effect === "insert" ||
@@ -883,14 +977,14 @@ export class Runner {
           // zero; retain the source-scan coverage test used before this fast path.
         }
         const entry = Object.entries<any>(table.indexes).find(([, index]) =>
-          startsWith(index.columns, data.by),
+          index.components.every((c: any) => "Column" in c) && startsWith(ordinaryColumns(index), data.by),
         );
         if (entry === undefined) throw new EvalError("E_SCHEMA", "cap index missing");
         const prefix = data.by.map((name: string) => field(row, name));
         const existing = this.store.scan(
           tableName,
           entry[0],
-          prefix,
+          scalarAtoms(prefix),
           null,
           null,
           null,
@@ -926,7 +1020,7 @@ export class Runner {
       }
     }
     for (const [indexName, index] of Object.entries<any>(table.indexes)) {
-      if (index.unique) this.checkUnique(tableName, indexName, old, row);
+      if (effect !== "delete" && index.unique) this.checkUnique(tableName, indexName, old, row);
     }
   }
 
@@ -947,7 +1041,7 @@ export class Runner {
 
   private checkUnique(table: string, indexName: string, old: Value | null, row: Value): void {
     const index = this.schema.tables[table].indexes[indexName];
-    const key = index.columns.map((name: string) => fieldOrNull(row, name));
+    const key = ordinaryColumns(index).map((name: string) => fieldOrNull(row, name));
     const found = this.store.lookup(table, indexName, key);
     if (
       found !== null &&
@@ -962,6 +1056,12 @@ export class Runner {
     ) {
       this.partial.add(`${table}.${indexName}`);
     }
+  }
+
+  readAuthority(table: string, row: Value, scopeFields?: string[]): boolean | null {
+    const previous = this.authorityFields; this.authorityFields = scopeFields;
+    try { const result = this.checkRule(table, 'read', null, row); return this.partial.size ? null : result; }
+    finally { this.authorityFields = previous; }
   }
 
   private checkRule(
@@ -1059,6 +1159,7 @@ export class Runner {
           return false;
         }
         const result = found !== null;
+        if (found) this.pool(data.table, found);
         this.ruleMemo.set(memoKey, result);
         this.pendingVerdicts.push({ rule_hash: ruleHash, inputs_digest: pinnedDigest, result });
         return result;
@@ -1091,14 +1192,14 @@ export class Runner {
       const [kind, data] = variant(rule);
       if (kind === "Public" || kind === "Allow") return true;
       if (kind === "Eq") {
-        const left = substituteRuleTerm(data[0], index.columns, probe.key);
-        const right = substituteRuleTerm(data[1], index.columns, probe.key);
+        const left = substituteRuleTerm(data[0], ordinaryColumns(index), probe.key);
+        const right = substituteRuleTerm(data[1], ordinaryColumns(index), probe.key);
         return left !== null && right !== null && canonicalJson(left) === canonicalJson(right);
       }
       if (kind === "And") return data.length > 0 && data.every(prove);
       if (kind === "Or") return data.some(prove);
       if (kind === "Exists" && data.table === probe.table && data.index === probe.index) {
-        const key = data.key.map((term: any) => substituteRuleTerm(term, index.columns, probe.key));
+        const key = data.key.map((term: any) => substituteRuleTerm(term, ordinaryColumns(index), probe.key));
         return key.every((term: any) => term !== null) && canonicalJson(key) === canonicalJson(probe.key);
       }
       return false;
@@ -1108,7 +1209,13 @@ export class Runner {
 
   private ruleTerm(term: any, old: Value | null, next: Value): Value {
     const [kind, data] = variant(term);
-    if (kind === "Field") return clone(field(next, data));
+    if (kind === "Field") {
+      // A representative row can authorize its whole search scope only through scope-bound fields.
+      if (this.authorityFields && !this.authorityFields.includes(data)) {
+        this.partial.add('missing-authority'); this.authorityMissSerial++; return 'Null';
+      }
+      return clone(field(next, data));
+    }
     if (kind === "NextField") {
       if (old === null)
         throw new EvalError("E_SCHEMA", "next-row rule term evaluated outside an update rule");

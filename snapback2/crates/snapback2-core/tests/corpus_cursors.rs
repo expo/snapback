@@ -420,7 +420,10 @@ fn engine_rejects_non_indexable_point_prefix_range_and_indexed_write_values() {
     table.indexes.insert(
         "byPayload".to_owned(),
         Index {
-            columns: vec!["payload".to_owned(), "id".to_owned()],
+            components: (vec!["payload".to_owned(), "id".to_owned()])
+                .into_iter()
+                .map(snapback2_core::search_key::IndexComponent::Column)
+                .collect(),
             unique: false,
         },
     );
@@ -458,7 +461,7 @@ fn pageable_merge_index_must_end_in_intrinsic_id() {
         .indexes
         .get_mut("byAt")
         .unwrap();
-    index.columns = vec!["at".to_owned()];
+    index.components = vec![IndexComponent::Column("at".to_owned())];
     index.unique = true;
     let mut program = uncursored_scan_program("mergeWithoutId", vec![], None);
     let Stmt::Return(Expr::Scan(scan)) = &mut program.body[0] else {
@@ -511,7 +514,7 @@ fn uncursored_scan_program(name: &str, prefix: Vec<Expr>, range: Option<Range>) 
             site: format!("programs.{name}.0"),
             table: "items".to_owned(),
             index: "byId".to_owned(),
-            prefix,
+            prefix: prefix.into_iter().map(IndexKeyExpr::Scalar).collect(),
             order: Order::Asc,
             take: Bound::Literal(2),
             after: None,
@@ -597,7 +600,7 @@ fn scan_program(name: &str, index: &str, prefix: Vec<Expr>, after: Expr) -> Prog
             site: format!("programs.{name}.0"),
             table: "items".to_owned(),
             index: index.to_owned(),
-            prefix,
+            prefix: prefix.into_iter().map(IndexKeyExpr::Scalar).collect(),
             order: Order::Asc,
             take: Bound::Literal(2),
             after: Some(Box::new(after)),
@@ -627,21 +630,34 @@ fn cursor_schema() -> Schema {
                     (
                         "byId".to_owned(),
                         Index {
-                            columns: vec!["id".to_owned()],
+                            components: (vec!["id".to_owned()])
+                                .into_iter()
+                                .map(snapback2_core::search_key::IndexComponent::Column)
+                                .collect(),
                             unique: true,
                         },
                     ),
                     (
                         "byAt".to_owned(),
                         Index {
-                            columns: vec!["at".to_owned(), "id".to_owned()],
+                            components: (vec!["at".to_owned(), "id".to_owned()])
+                                .into_iter()
+                                .map(snapback2_core::search_key::IndexComponent::Column)
+                                .collect(),
                             unique: false,
                         },
                     ),
                     (
                         "byOwnerAt".to_owned(),
                         Index {
-                            columns: vec!["owner".to_owned(), "at".to_owned(), "id".to_owned()],
+                            components: (vec![
+                                "owner".to_owned(),
+                                "at".to_owned(),
+                                "id".to_owned(),
+                            ])
+                            .into_iter()
+                            .map(snapback2_core::search_key::IndexComponent::Column)
+                            .collect(),
                             unique: false,
                         },
                     ),

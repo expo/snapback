@@ -20,7 +20,13 @@ fn public_table_with(columns: &[(&str, ColumnType)], indexes: &[(&str, &[&str])]
                 (
                     (*name).to_owned(),
                     Index {
-                        columns: columns.iter().map(|column| (*column).to_owned()).collect(),
+                        components: (columns
+                            .iter()
+                            .map(|column| (*column).to_owned())
+                            .collect::<Vec<_>>())
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                         unique: false,
                     },
                 )
@@ -232,7 +238,14 @@ fn write_identity_is_certified_and_runtime_rejections_leave_primary_and_secondar
     let by_id = query_get("items.byId", "items", "byId", "id");
     let by_label = Program {
         name: "items.byLabel".to_owned(),
-        args: BTreeMap::from([("label".to_owned(), ArgType::Text { max: 32 })]),
+        args: BTreeMap::from([(
+            "label".to_owned(),
+            ArgType::Text {
+                max: 32,
+                min: 0,
+                format: None,
+            },
+        )]),
         ..query_get("items.byLabel", "items", "byLabel", "label")
     };
     let mut runtime = Runtime::open(
@@ -390,10 +403,13 @@ fn upsert_identity_certification_distinguishes_consuming_inputs_and_literal_rows
             ("id", id("row-id")),
             ("label", Value::String("x".to_owned())),
         ]),
-        Value::Map(BTreeMap::from([
-            ("id".to_owned(), id("row-id")),
-            ("label".to_owned(), Value::String("x".to_owned())),
-        ])),
+        Value::Map(
+            BTreeMap::from([
+                ("id".to_owned(), id("row-id")),
+                ("label".to_owned(), Value::String("x".to_owned())),
+            ])
+            .into(),
+        ),
     ] {
         let mismatch = mutation(
             "items.literalMismatch",
@@ -582,7 +598,10 @@ fn successor_maintain_rebuild_preserves_rows_outside_projected_ids() {
         .insert(
             "byId".to_owned(),
             Index {
-                columns: vec!["id".to_owned()],
+                components: (vec!["id".to_owned()])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: false,
             },
         );
@@ -817,7 +836,11 @@ fn maintained_update_writes_are_charged_twice_and_exact_ceiling_matches_runtime(
         )
         .unwrap();
     assert_eq!(execution.trace.writes.get("source"), Some(&1024));
-    assert_eq!(execution.trace.writes.get("counts"), Some(&2048));
+    assert_eq!(
+        execution.trace.writes.get("counts"),
+        None,
+        "same-group source edits reserve maintained work but do not change the sparse target"
+    );
 }
 
 fn width_schema(width: usize) -> Schema {
@@ -835,7 +858,10 @@ fn width_schema(width: usize) -> Schema {
             BTreeMap::from([(
                 "wide".to_owned(),
                 Index {
-                    columns: index_columns,
+                    components: (index_columns)
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: false,
                 },
             )]),
@@ -945,7 +971,7 @@ fn nested_out_of_i53_literals_are_refused_by_certification() {
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
         body: vec![Stmt::Return(Expr::Literal(Value::Array(vec![Value::Row(
-            BTreeMap::from([("unsafe".to_owned(), Value::Int(I53_MAX + 1))]),
+            BTreeMap::from([("unsafe".to_owned(), Value::Int(I53_MAX + 1))]).into(),
         )])))],
     };
     let error = Checker::new(&Schema::default(), Ceilings::default())

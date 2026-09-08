@@ -21,7 +21,7 @@ ultra, grok-4.6 at xhigh), `llp/reviews/1011-quarry-ergonomics.*`
 **Implementer:** codex gpt-5.6-sol (xhigh), lane `s2/quarry-ergo`
 (`~/projects/snapback-s2`), orchestrated and landed by Claude Fable 5.1
 **Date:** 2026-09-03
-**Revised:** 2026-09-06 (session-delegated Unicode key/cursor integration contract, foundation only); 2026-09-06 (nested named-shape collection snapshots implemented by GPT-6 Astra; conditional page returns implemented by GPT-6 Astra; certification-derived provenance); 2026-09-05 (null keys and non-empty Id literals implemented by GPT-6 Astra, Clique L2); 2026-09-05 (d — Codex implements imported shapes, read-authorized
+**Revised:** 2026-09-07 (expression helpers refuse authorization assertions throughout nested shapes); 2026-09-07 (typed bound shape/function elaboration and one decimal representation); 2026-09-06 (session-delegated Unicode key/cursor integration contract, foundation only); 2026-09-06 (nested named-shape collection snapshots implemented by GPT-6 Astra; conditional page returns implemented by GPT-6 Astra; certification-derived provenance); 2026-09-05 (null keys and non-empty Id literals implemented by GPT-6 Astra, Clique L2); 2026-09-05 (d — Codex implements imported shapes, read-authorized
 write results, and order-preserving filter repairs under the author's request
 to advance Quarry); 2026-09-03 (c — implemented: §8 records the two lane commits
 and the one re-pinned expectation); 2026-09-03 (b — after the panel: `fn` deferred and `shape` kept;
@@ -52,7 +52,7 @@ items of its own (§9).
 | # | Amendment | Rough edge it answers | Deletes |
 |---|---|---|---|
 | B1 | opaque cursors: `next: cursor \| null` on a page delivery; reads take `after c` with `c: cursor ?`; forward-only | the tuple shape, `before` vs `after`, the optional group's mixed-presence case, the tuple-widening rewrites; first-page-only CLI exploration | tuple cursors, `before`, LLP 1010 A6's group, three refusal families, the client's suffix plucking |
-| B2 | `shape name = { … }`, expanded at the Quarry AST level at each use | fourteen repeated projections in the Clique fixture and the templates' copies | the repeats; the "user functions" refusal is *kept* — `fn` is deferred |
+| B2 | `shape name = { … }` plus acyclic expression-only `fn`, instantiated by typed bound elaboration | repeated projections, membership predicates and bounded fanout reads | the repeats, copied membership/fanout expressions, AST expansion and generated data modules |
 | B3 | one missing-row rule inside the engine's write primitives; no `id` in an upsert row | by-id delete no-op, by-id update `E_INPUT`, focal update `UPDATE_ROW_MISSING`, alternate-key `NOT_FOUND` — four stories; the minted-form/mismatch/in-use trio | the no-op, the platform-code leak, the fourth code, two `UPSERT_ID_*` refusals, the minted form, `missing_preimages` |
 | B4 | narrowing on `if x != null:` for bound names and one-hop fields of a bound row | `if x != null: if x! >= y:` | the nested-`!` idiom at its three sites |
 | B5 | whole-unit seeds, exactly scaled by the validator | seeds in minor units while literals are whole units | the seed-only minor-units exception |
@@ -75,7 +75,10 @@ unbounded program. B1 changes the normative typed-state and wire contracts
   membership guards use three refusal codes that client tests assert
   (`packages/snapback2/tests/client.test.ts`), so collapsing them is a
   product change, not a language fix. `fn` stays reserved. Revisit with a
-  census that collapses without unifying denial codes.
+  census that collapses without unifying denial codes. **Superseded
+  2026-09-07:** real chat migration found reusable membership predicates and
+  bounded membership reads while callers retained their own refusal codes.
+  The implemented form below is expression-only and read-pure.
 - **Narrowing inside `x != null and R`.** Right operands lower with their
   preludes before the runtime `&&` (`program.ts:319–325`), so a point read in
   `R` would execute unconditionally on an absent `x`. Deferred until
@@ -205,7 +208,7 @@ only after that coherent integration; the current repair behavior stays active.
 
 ## B2. `shape`
 
-**Today.** User functions and shape reuse refuse as `E_QUARRY_UNSUPPORTED`
+**Historical baseline.** User functions and shape reuse refused as `E_QUARRY_UNSUPPORTED`
 (`program.ts:453–454`). The same profile projection occurs fourteen times
 across the Clique fixture's `social.q`, `chat.q`, and `pay.q`; the chat
 template repeats a two-line author card. LLP 0329.014.010 open question 4
@@ -214,7 +217,7 @@ asked for exactly this spelling. The TypeScript lowering's helper inliner
 vehicle for this.
 
 **Amendment.** One module-level declaration, allowed in any operations
-`.q` (not `schema.q`), expanded at the Quarry AST level at each use so every
+`.q` (not `schema.q`), instantiated at each use so every
 read inside is certified in the calling program:
 
 ```q
@@ -230,17 +233,32 @@ query thread(conversationId: conversations, c: cursor ?):
   (`profiles[.authorId] authorCard`), after a page or row binding
   (`page feedItem`), and as a field value. Inside a shape block,
   `...name` splices the named shape's fields at that position.
-- Expansion lives in a new file (`quarry/expand.ts`); a shape that names
+- Expansion lives in the typed bound elaborator; a shape that names
   itself, directly or through another, refuses (`E_QUARRY_UNSUPPORTED`);
   depth is capped at 8. A refusal inside an expansion is sited at the
   definition and names the use in its message. `shape`, `fn`, and `cursor`
   are reserved.
 
-**Deletes.** The fourteen repeats and the template's copies; the
-"user functions or recursion" refusal keeps its recursion half.
+**Deletes.** The fourteen repeats and the template's copies; the recursion
+refusal remains.
 
-**Cost.** Parser, the expansion pass, printer, guide, tests for cycles and
-depth. No platform change.
+**Cost.** Parser, bound elaborator, guide, tests for cycles and depth. No
+platform change.
+
+### Expression-only functions (2026-09-07)
+
+`fn name(arg: type, …) = expression` declares a module-local typed helper;
+`fn name from module` imports the same declaration from `module.q`. Calls are
+acyclic and expand to one bound expression. Actual arguments evaluate once,
+left to right, before the body; parameters and all generated temporaries have
+fresh symbol identities. A helper can use its parameters and read-pure context
+(`viewer`, query `now`/read time), and may perform bounded reads. It cannot
+capture caller locals or a caller shape's focal row, allocate `new`, use commit
+time, write, emit, or assert presence/authorization with `!` or `! else CODE`. A named shape
+reached by the helper inherits that purity boundary. Shape and function frames
+share depth 8 and 4,096-node limits, retain definition plus use sites, and
+refuse cycles. Callers keep their own `require … else CODE` or `! else CODE`,
+so reuse does not collapse public refusal identities.
 
 ### Shape imports and hygiene (2026-09-05)
 
@@ -383,6 +401,15 @@ and list values, on an exact character path (BigInt), refusing more
 fractional digits than the scale with the literal's message. The engine
 still stores minor units; **wire arguments stay minor units** (the reference
 keeps that sentence).
+
+The same single-representation rule now applies inside a typed Quarry
+expression. When an optional `[decimal 3]` value uses `[2, 3]` as its `??`
+fallback, the fallback is normalized once to `[2000, 3000]` at the typed
+boundary. The captured result, returned result, and any stored copy all carry
+those minor units. A supplied wire argument `[1250]` remains `[1250]`, and a
+plain uncontextualized `[2, 3]` remains an integer list. This corrects the old
+generated path's split behavior where the same fallback returned `[2, 3]` but
+stored `[2000, 3000]`.
 
 **Deletes.** The seed-only minor-units exception.
 

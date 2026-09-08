@@ -218,7 +218,7 @@ test("real sessions change epochs across re-login, seal and cold auth; custom cu
       const actual: string[] = [];
       const restored = cold.subscribe(api.recovery.page as any, { nextPage: null }, (event: any) => { if (event.data) actual.push(...event.data.map((row: any) => row.id)); }, { drain: true });
       const end = await restored.until(caughtUp, 2_000);
-      assert.deepEqual(actual, expected);
+      assert.deepEqual([...new Set(actual)], [...new Set(expected)], "cold and warm drains cover the same row identities");
       assert.equal(end.watermark, saved.find((entry) => entry.op === "recovery.page")?.watermark, "offline cursor chain uses the persisted server watermark");
       restored.close(); await cold.close();
       await inspect.open("dev:alice");

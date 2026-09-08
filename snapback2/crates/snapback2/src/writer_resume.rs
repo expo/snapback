@@ -347,13 +347,16 @@ impl State {
         let Some(values) = values else {
             return Ok(None);
         };
-        encode_cursor(&CursorPosition {
-            table: page.table.clone(),
-            index: page.index.clone(),
-            order: page.order,
-            suffix: page.suffix.clone(),
-            values,
-        })
+        encode_cursor(
+            self.runtime().generation().schema(),
+            &CursorPosition {
+                table: page.table.clone(),
+                index: page.index.clone(),
+                order: page.order,
+                suffix: page.suffix.clone(),
+                values,
+            },
+        )
         .map(Some)
         .map_err(|error| Refusal::input(error.to_string(), "resume with the last server watermark"))
     }

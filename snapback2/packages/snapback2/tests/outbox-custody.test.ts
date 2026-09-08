@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -36,7 +36,22 @@ interface Carrier {
   factory(): ReturnType<typeof fileRangeStore>;
   /** Carrier writes so far (state renames on the file carrier, readwrite transactions on IndexedDB/SQLite). */
   writes(): number;
+  /** Every committed custody image, for atomic terminal-transition checks. */
+  images(): any[];
   cleanup(): Promise<void>;
+}
+
+function terminalWasAtomic(carrier: Carrier, intent: string, state: "rejected" | "expired"): boolean {
+  let predictionSeen = false;
+  for (const image of carrier.images()) {
+    const overlay = image.overlay?.[intent];
+    if (overlay !== undefined) predictionSeen = true;
+    if (!predictionSeen) continue;
+    const entry = image.outbox?.[intent];
+    if (entry?.state === "queued" && overlay === undefined) return false;
+    if (entry?.state === state) return overlay === undefined;
+  }
+  return false;
 }
 
 /** All three carriers, each counting its swaps, over a fresh partition. */
@@ -48,23 +63,33 @@ async function carriers(): Promise<Carrier[]> {
   let sqliteWrites = 0;
   let fileWrites = 0;
   let indexedWrites = 0;
+  const fileImages: any[] = [], indexedImages: any[] = [], sqliteImages: any[] = [];
   return [
     {
       name: "file",
-      factory: () => fileRangeStore(root, { beforeRename: () => { fileWrites += 1; } }),
+      factory: () => fileRangeStore(root, { beforeRename: async (temporary) => {
+        fileWrites += 1; fileImages.push(JSON.parse(await readFile(temporary, "utf8")));
+      } }),
       writes: () => fileWrites,
+      images: () => fileImages,
       cleanup: () => rm(root, { recursive: true, force: true }),
     },
     {
       name: "IndexedDB",
-      factory: () => indexedDbRangeStore({ indexedDB: database as any, locks: locks as any, beforeReplace: () => { indexedWrites += 1; } }),
+      factory: () => indexedDbRangeStore({ indexedDB: database as any, locks: locks as any, beforeReplace: (state) => {
+        indexedWrites += 1; indexedImages.push(structuredClone(state));
+      } }),
       writes: () => indexedWrites,
+      images: () => indexedImages,
       cleanup: async () => undefined,
     },
     {
       name: "SQLite",
-      factory: () => sqliteFactory(join(sqliteRoot, "custody.db"), { beforeCommit: () => { sqliteWrites += 1; } }),
+      factory: () => sqliteFactory(join(sqliteRoot, "custody.db"), { beforeCommit: (state) => {
+        sqliteWrites += 1; sqliteImages.push(structuredClone(state));
+      } }),
       writes: () => sqliteWrites,
+      images: () => sqliteImages,
       cleanup: () => rm(sqliteRoot, { recursive: true, force: true }),
     },
   ];
@@ -148,7 +173,8 @@ test("a committed reply whose tail fetch fails leaves the intent queued with no 
     assert.equal(owner.executions.length, 1, `${carrier.name}: the retry was answered from the ledger`);
     assert.equal(carrier.writes(), before + 1, `${carrier.name}: rows and the settlement were one carrier write`);
     assert.equal((await client.outbox.entries())[0]?.state, "committed");
-    assert.deepEqual((await held.store().coverage()).rows.map((row) => row.id), [pinned], `${carrier.name}: the tail page holds the committed row`);
+    assert.deepEqual((await held.store().coverage()).rows.map((row) => row.id), [`delivery-${pinned}`, pinned],
+      `${carrier.name}: the real prediction's delivery and message rows land with settlement`);
     await client.close();
     await tick();
     await carrier.cleanup();
@@ -166,14 +192,7 @@ test("the settlement tail and the resume log both name the first-mounted drained
         const path = new URL(String(input)).pathname;
         if (path === "/api/query") queries.push(JSON.parse(String(init?.body)));
         if (path === "/api/resume") resumes.push(JSON.parse(String(init?.body)));
-        const response = await owner.fetch(input, init);
-        if (path === "/api/program") {
-          const program = await response.json();
-          // This double's second query is also an ascending log, independent of its name.
-          program.programs["deliveries.thread"] = program.programs["deliveries.inbox"];
-          return new Response(JSON.stringify(program), { status: 200 });
-        }
-        return response;
+        return owner.fetch(input, init);
       },
     });
     await client.ready;
@@ -182,7 +201,7 @@ test("the settlement tail and the resume log both name the first-mounted drained
     await tick();
     assert.equal(owner.grantsMinted(), 1, `${carrier.name}: the first drain earned the grant`);
     // Mounted second and marked later: its watermark is the newest by updatedAt.
-    const thread = client.subscribe(api.deliveries.thread as any, { conversationId: "conversation-1", c: null }, () => undefined, { drain: true });
+    const thread = client.subscribe((api as any).deliveries.inboxAlternate, { c: null }, () => undefined, { drain: true });
     await thread.until(caughtUp, 2_000);
     await client.offline();
     const queued = await client.mutation(api.deliveries.post as any, post("chosen tail"));
@@ -276,13 +295,12 @@ test("the prediction overlay is dropped in the same swap as a rejected or server
     const predicted = (intent: string) => ({ [intent]: [{ table: "messages", id: `${intent}:row`, row: { id: `${intent}:row`, body: "predicted" } }] });
     await held.store().commit({ overlay: { put: predicted(rejectedIntent) } });
     assert.deepEqual(Object.keys(await held.store().outbox.overlay()), [rejectedIntent], `${carrier.name}: the overlay is held while queued`);
-    const before = carrier.writes();
     await client.online();
     await client.outbox.settled();
     assert.equal((await client.outbox.entries())[0]?.state, "rejected", carrier.name);
     assert.deepEqual(await held.store().outbox.overlay(), {}, `${carrier.name}: the overlay left with the rejection`);
-    // online(): one resume swap, one grant adoption, one settlement that also drops the overlay.
-    assert.equal(carrier.writes(), before + 3, `${carrier.name}: no extra swap dropped the overlay`);
+    assert.equal(terminalWasAtomic(carrier, rejectedIntent, "rejected"), true,
+      `${carrier.name}: rejection and overlay removal share one durable image`);
 
     await client.offline();
     const expiring = await client.mutation(api.deliveries.post as any, post("server expired"));
@@ -291,17 +309,14 @@ test("the prediction overlay is dropped in the same swap as a rejected or server
     await held.store().commit({ overlay: { put: predicted(expiringIntent) } });
     assert.deepEqual(Object.keys(await held.store().outbox.overlay()), [expiringIntent]);
     const requests = owner.requests.filter((path) => path === "/api/mutation").length;
-    const settling = carrier.writes();
     await client.online();
     await client.outbox.settled();
     assert.equal(owner.requests.filter((path) => path === "/api/mutation").length, requests + 1,
       `${carrier.name}: the owner saw the intent it expired`);
     assert.equal((await client.outbox.entries())[1]?.state, "expired", carrier.name);
     assert.deepEqual(await held.store().outbox.overlay(), {}, `${carrier.name}: the overlay left with the server expiry`);
-    // online(): the resume's own record (the quiet-tail miss, lane T1), the grant adoption,
-    // and one settlement that also drops the overlay — the expiry and the drop are one swap.
-    assert.equal(carrier.writes(), settling + 3,
-      `${carrier.name}: resume record, grant adoption, and one atomic expiry and overlay-drop swap`);
+    assert.equal(terminalWasAtomic(carrier, expiringIntent, "expired"), true,
+      `${carrier.name}: expiry and overlay removal share one durable image`);
     await client.close();
     await tick();
     await carrier.cleanup();
@@ -327,7 +342,10 @@ test("a cold start with the owner cut prices its slice from the persisted write 
       },
     });
     await cold.ready;
-    assert.deepEqual(await held.store().outbox.bounds(), { "deliveries.inbox": 0, "deliveries.post": 51, "deliveries.edit": 50 }, `${carrier.name}: the bound is durable`);
+    assert.deepEqual(await held.store().outbox.bounds(), {
+      "deliveries.inbox": 0, "deliveries.inboxAlternate": 0, "deliveries.thread": 0,
+      "deliveries.post": 51, "deliveries.edit": 50,
+    }, `${carrier.name}: every certified operation bound is durable`);
     const queued = await cold.mutation(api.deliveries.post as any, post("cold"));
     assert.equal(queued.state, "queued", `${carrier.name}: the cut network enqueued`);
     assert.equal(queued.state === "queued" && queued.ids.length, 52, `${carrier.name}: 1 + maxNewIds exactly, never the engine's 1,024`);

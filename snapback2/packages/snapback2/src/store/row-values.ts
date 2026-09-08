@@ -46,3 +46,61 @@ export function purgeAnswerData(value: unknown, evicted: RowRef): unknown {
     .map(([key, item]) => [key, purgeAnswerData(item, evicted)]));
   return escaped ? { $row: { $value: data } } : data;
 }
+
+export function rowKey(ref: RowRef): string {
+  return `${ref.table}\u0000${ref.id}`;
+}
+
+export function hiddenRefs(before: unknown, after: unknown, output = new Map<string, RowRef>()): RowRef[] {
+  if (after === null || after === undefined) {
+    for (const ref of collectRefs(before)) output.set(rowKey(ref), ref);
+    return [...output.values()];
+  }
+  if (asRowRef(before)) return [...output.values()];
+  before = escapedFields(before) ?? before;
+  after = escapedFields(after) ?? after;
+  if (Array.isArray(before) && Array.isArray(after)) {
+    for (let index = 0; index < Math.min(before.length, after.length); index += 1) {
+      hiddenRefs(before[index], after[index], output);
+    }
+  } else if (before && after && typeof before === "object" && typeof after === "object"
+    && !Array.isArray(before) && !Array.isArray(after)) {
+    for (const key of Object.keys(before as object)) {
+      hiddenRefs(
+        (before as Record<string, unknown>)[key],
+        Object.prototype.hasOwnProperty.call(after, key) ? (after as Record<string, unknown>)[key] : undefined,
+        output,
+      );
+    }
+  }
+  return [...output.values()];
+}
+
+/** Restore references whose retention policy survived a partial fresh answer. */
+export function restoreRetained(
+  before: unknown, after: unknown, retained: Set<string>, clone: <T>(value: T) => T,
+): unknown {
+  const ref = asRowRef(before);
+  if (ref && (after === null || after === undefined) && retained.has(rowKey(ref))) return before;
+  if (Array.isArray(before) && Array.isArray(after)) {
+    const result = after.map((item, index) => index < before.length
+      ? restoreRetained(before[index], item, retained, clone) : item);
+    for (let index = after.length; index < before.length; index += 1) {
+      if (collectRefs(before[index]).some((item) => retained.has(rowKey(item)))) result.push(clone(before[index]));
+    }
+    return result;
+  }
+  if (before && after && typeof before === "object" && typeof after === "object"
+    && !Array.isArray(before) && !Array.isArray(after)) {
+    const result = clone(after as Record<string, unknown>);
+    for (const key of Object.keys(before as object)) {
+      const old = (before as Record<string, unknown>)[key];
+      if (Object.prototype.hasOwnProperty.call(result, key)) result[key] = restoreRetained(old, result[key], retained, clone);
+      else if (collectRefs(old).some((item) => retained.has(rowKey(item)))) result[key] = clone(old);
+    }
+    return result;
+  }
+  if ((after === null || after === undefined)
+    && collectRefs(before).some((item) => retained.has(rowKey(item)))) return clone(before);
+  return after;
+}

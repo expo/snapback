@@ -11,8 +11,10 @@
         },
         "indexes": {
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -49,8 +51,10 @@
         },
         "indexes": {
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -194,7 +198,7 @@
   "certificate": {
     "program": "durable-missing-authority-result-null",
     "plan_hash": "741297efee387ba2f5eb5f70083a36dd07da4b1a899ce433bf16fda00b86bf77",
-    "schema_hash": "e31413ea38ae07d0a81828ea716c3f35a2cf07bfb4c40acba68a07b449098d6e",
+    "schema_hash": "eba113a1f4d987e44648b4fe234348015a500e16114438e6986e10d3b3609c76",
     "tables": {
       "grants": {
         "retain": "until-revoked"
@@ -204,10 +208,10 @@
       }
     },
     "rule_hashes": {
-      "notes.read": "87253ac38610ad7138935323d40dbf53821fc25be498f0b521f959aad73c6c39"
+      "notes.read": "1893aa3fcbf8cbd6537f0bf614be631a727afa9731cbf077774c82a7d14461e4"
     },
-    "evaluator_version": "bounded-spike-rust-1",
-    "value_model_version": "i53-codepoint-bytes-v2",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [
       {
         "site": "note",
@@ -228,6 +232,8 @@
     "max_index_entries": 1,
     "max_rule_probes": 1,
     "max_steps": 24,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
     "max_heap_bytes": 768,
     "max_output_bytes": 136,
     "max_closure_bytes": 104,
@@ -252,7 +258,7 @@
     "read_time": null
   },
   "receipt": {
-    "schema_hash": "e31413ea38ae07d0a81828ea716c3f35a2cf07bfb4c40acba68a07b449098d6e",
+    "schema_hash": "eba113a1f4d987e44648b4fe234348015a500e16114438e6986e10d3b3609c76",
     "rows": [
       {
         "table": "notes",

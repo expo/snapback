@@ -288,6 +288,6 @@ hidden at issued sequences 10 and 11, cold and incremental. All four matching
 no-negative controls expose count 1. The intent remains listed in every case.
 [Raw results](./zero-count-architecture-projection.json) record the source hash,
 inputs and stub limitations. This is isolated projection evidence, not a new
-public-client or capability qualification. The [integration ticket](../../../issues/20260907-snapback2-indexed-twin-masks-predicted-count-after-proved-absence.md)
+public-client or capability qualification. The [integration ticket](../../../issues/closed/20260907-snapback2-indexed-twin-masks-predicted-count-after-proved-absence.md)
 requires retaining the already shipped public zero-count/cap witness while
 adapting the proof to the candidate's scalar index components.

@@ -34,6 +34,7 @@ pub(super) fn query_state(
 }
 
 pub(super) fn next_cursor(
+    schema: &Schema,
     state: &ExecutionState,
     trace: &AuthoritativeTrace,
     certificate: &Certificate,
@@ -80,13 +81,16 @@ pub(super) fn next_cursor(
     let Some(values) = values else {
         return Ok(None);
     };
-    encode_cursor(&CursorPosition {
-        table: page.table.clone(),
-        index: page.index.clone(),
-        order: page.order,
-        suffix: page.suffix.clone(),
-        values,
-    })
+    encode_cursor(
+        schema,
+        &CursorPosition {
+            table: page.table.clone(),
+            index: page.index.clone(),
+            order: page.order,
+            suffix: page.suffix.clone(),
+            values,
+        },
+    )
     .map(Some)
     .map_err(|error| RuntimeError::Serialization(error.to_string()))
 }
@@ -96,8 +100,8 @@ pub(crate) fn append_commit(
     record: &CommitRecord,
 ) -> Result<(), RuntimeError> {
     transaction.execute(
-        "INSERT INTO _commits(seq, at, program, principal, kind, touched, writes, emits, by, job, job_chunk, schedule)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+        "INSERT INTO _commits(seq, at, program, principal, kind, touched, writes, emits, by, job, job_chunk, schedule, scope_touches)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
         params![
             record.seq as i64,
             record.at,
@@ -113,6 +117,7 @@ pub(crate) fn append_commit(
             record.job,
             record.job_chunk.as_ref().map(crate::store_jobs::encode).transpose()?,
             record.schedule.as_ref().map(crate::store_jobs::encode).transpose()?,
+            serde_json::to_string(&record.scope_touches).map_err(|e| RuntimeError::Serialization(e.to_string()))?,
         ],
     )?;
     transaction.execute(

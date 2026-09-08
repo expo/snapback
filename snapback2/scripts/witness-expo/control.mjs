@@ -31,7 +31,13 @@ export async function controlServer(port) {
       if (!request) return;
       pending.delete(message.id); clearTimeout(request.timer);
       if (message.ok) request.resolve(message.result);
-      else request.reject(Object.assign(new Error((message.error?.message ?? "witness command failed") + (message.error?.stack ? `\n${message.error.stack}` : "")), { envelope: message.error }));
+      else {
+        const phase = message.error?.phase ?? `command:${request.verb}`;
+        const remoteStack = message.error?.stack;
+        const detail = `${phase}: ${message.error?.message ?? "witness command failed"}`;
+        request.reject(Object.assign(new Error(detail + (remoteStack ? `\nRemote stack:\n${remoteStack}` : "")),
+          { envelope: message.error, phase, remoteStack }));
+      }
     });
     socket.on("close", () => {
       if (socket !== value) return;
@@ -56,7 +62,7 @@ export async function controlServer(port) {
         if (!socket || socket.readyState !== 1) { reject(new Error("app is not connected")); return; }
         const id = ++nextId;
         const timer = setTimeout(() => { pending.delete(id); reject(new Error(`command timeout: ${verb}`)); }, timeout);
-        pending.set(id, { resolve, reject, timer });
+        pending.set(id, { resolve, reject, timer, verb });
         socket.send(JSON.stringify({ id, verb, args }));
       });
     },

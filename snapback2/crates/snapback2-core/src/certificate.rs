@@ -15,12 +15,22 @@ mod diagnostic;
 mod merge;
 mod output;
 mod page;
-use diagnostic::{Cost, WorkTerms};
+pub(crate) mod search;
+mod summary;
+use diagnostic::Cost;
 use page::result_pages;
 pub use page::resumable_log_cursor;
+use summary::Summary;
 
 // Heap is calibrated; output/closure use declared maxima. These are admission bounds, not allocator/serializer proofs.
 const HEAP_BYTES_PER_STEP: u64 = 32;
+pub const CURRENT_EVALUATOR_VERSION: &str = "bounded-spike-rust-search-text-refinements-5";
+impl Certificate {
+    pub(crate) fn has_current_semantics(&self) -> bool {
+        self.value_model_version == CURRENT_VALUE_MODEL_VERSION.as_str()
+            && self.evaluator_version == CURRENT_EVALUATOR_VERSION
+    }
+}
 
 // @ref LLP 1010#a5-the-merged-feed — one of the four fixed work units in
 // certificate/merge.rs's (L + N + 2) * (3 * height + 4) term accommodates
@@ -95,6 +105,8 @@ pub struct Certificate {
     pub max_index_entries: u64,
     pub max_rule_probes: u64,
     pub max_steps: u64,
+    pub derived_steps: u64,
+    pub derived_scratch_bytes: u64,
     pub max_heap_bytes: u64,
     pub max_output_bytes: u64,
     pub max_closure_bytes: u64,
@@ -251,10 +263,37 @@ impl<'a> Checker<'a> {
     }
 
     pub fn check_all(&self, program: &Program) -> Result<Certificate, Vec<CheckError>> {
+        let mut errors: Vec<_> = program
+            .args
+            .iter()
+            .chain(self.schema.channels.values().flat_map(|c| c.args.iter()))
+            .filter(|(_, kind)| !kind.bounds_valid())
+            .map(|(name, _)| CheckError {
+                site: Some(name.clone()),
+                code: "E_INPUT".into(),
+                message: "text min exceeds max".into(),
+                rewrite: "use a text minimum no greater than its maximum".into(),
+            })
+            .collect();
+        if program.read_time_granularity_ms.is_some_and(|g| {
+            program.kind != ProgramKind::Query || g == 0 || g > crate::value::I53_MAX as u64
+        }) {
+            errors.push(CheckError {
+                site: None,
+                code: "E_INPUT".into(),
+                message: "invalid query clock declaration".into(),
+                rewrite: "declare a positive safe-integer readTime granularity on a query".into(),
+            });
+        }
+        if !errors.is_empty() {
+            return Err(errors);
+        }
+
         if program.kind == ProgramKind::Job {
             return crate::jobs::certify(self.schema, program, &self.ceilings);
         }
         let (mut errors, complete) = self.structural_errors(program);
+        errors.extend(search::validate(self.schema, program));
         match self.analyze(program) {
             Ok(mut certificate) if errors.is_empty() => {
                 for site in &mut certificate.read_sites {
@@ -310,7 +349,7 @@ impl<'a> Checker<'a> {
             .statements(&program.body, 1, &[])
             .map_err(|error| vec![error])?;
         // @ref LLP 1016#d5--schedules-row-timers-and-periods-on-the-owners-clock — one timer index update per schedule per affected row, inside the write ceiling.
-        let timer_writes = crate::timers::write_bound(self.schema, &summary.writes);
+        let mut timer_writes = crate::timers::write_bound(self.schema, &summary.writes);
         if timer_writes > 0 {
             summary.writes.push(WriteSite {
                 table: "_timers".into(),
@@ -337,6 +376,33 @@ impl<'a> Checker<'a> {
                     .entry(maintain.target.clone())
                     .or_default();
                 *total = total.saturating_add(writes);
+            }
+        }
+        let maintained_timer_writes = crate::timers::write_bound(
+            self.schema,
+            &maintained_writes
+                .iter()
+                .map(|(table, max_rows)| WriteSite {
+                    table: table.clone(),
+                    kind: WriteKind::Update,
+                    max_rows: *max_rows,
+                })
+                .collect::<Vec<_>>(),
+        );
+        if maintained_timer_writes > 0 {
+            timer_writes = timer_writes.saturating_add(maintained_timer_writes);
+            if let Some(timers) = summary
+                .writes
+                .iter_mut()
+                .find(|write| write.table == "_timers")
+            {
+                timers.max_rows = timers.max_rows.saturating_add(maintained_timer_writes);
+            } else {
+                summary.writes.push(WriteSite {
+                    table: "_timers".into(),
+                    kind: WriteKind::Update,
+                    max_rows: maintained_timer_writes,
+                });
             }
         }
         let maintained_amplification = maintained_writes
@@ -377,7 +443,22 @@ impl<'a> Checker<'a> {
         } else {
             summary.steps
         };
-        let max_heap_bytes = max_steps.saturating_mul(HEAP_BYTES_PER_STEP);
+        let mut derived = search::derivation_bound(
+            self.schema,
+            program,
+            &summary.writes,
+            &maintained_writes,
+            &summary.reads,
+        );
+        let search_closure =
+            search::closure::estimate(self.schema, program, &summary.reads, &analyzer.merge_sites);
+        if let Some(closure) = &search_closure {
+            derived.scratch = derived.scratch.saturating_add(closure.bytes);
+        }
+        let max_heap_bytes = max_steps
+            .saturating_mul(HEAP_BYTES_PER_STEP)
+            .saturating_add(derived.scratch);
+        let max_steps = max_steps.saturating_add(derived.steps);
         let output = OutputEstimator::estimate(self.schema, program);
         let max_output_bytes = output.bytes;
         let mut closure = RetentionEstimator::estimate(self.schema, program);
@@ -402,6 +483,15 @@ impl<'a> Checker<'a> {
                     break;
                 }
             }
+        }
+        if let Some(search) = search_closure {
+            if search.bytes > closure.bytes {
+                closure = search;
+            }
+        }
+        if program.kind == ProgramKind::Query && program.read_time_granularity_ms.is_some() {
+            // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — a signed i53 readTime member fits in 32 envelope bytes.
+            closure.bytes = closure.bytes.saturating_add(32);
         }
         if summary.count_absence_bytes > 0 {
             closure.bytes = closure.bytes.saturating_add(summary.count_absence_bytes);
@@ -663,7 +753,7 @@ impl<'a> Checker<'a> {
                 })
                 .collect(),
             rule_hashes,
-            evaluator_version: "bounded-spike-rust-1".to_owned(),
+            evaluator_version: CURRENT_EVALUATOR_VERSION.to_owned(),
             value_model_version: CURRENT_VALUE_MODEL_VERSION.to_string(),
             read_sites,
             merge_sites: analyzer.merge_sites.into_values().collect(),
@@ -681,6 +771,8 @@ impl<'a> Checker<'a> {
             max_index_entries,
             max_rule_probes,
             max_steps,
+            derived_steps: derived.steps,
+            derived_scratch_bytes: derived.scratch,
             max_heap_bytes,
             max_output_bytes,
             max_closure_bytes,
@@ -736,118 +828,6 @@ impl<'a> Checker<'a> {
         }
         Ok(certificate)
     }
-}
-
-#[derive(Clone, Default)]
-struct Summary {
-    reads: BTreeMap<String, ReadSite>,
-    writes: Vec<WriteSite>,
-    examined: u64,
-    index_entries: u64,
-    rule_probes: u64,
-    steps: u64,
-    nonuniform_range: bool,
-    count_absence_bytes: u64,
-    count_probe_tables: BTreeSet<String>,
-    costs: WorkTerms,
-}
-
-impl Summary {
-    fn add(mut self, other: Self) -> Self {
-        for (name, site) in other.reads {
-            self.reads
-                .entry(name)
-                .and_modify(|existing| {
-                    existing.max_calls += site.max_calls;
-                    // Structural admission requires the full access shapes to
-                    // agree. Keep this merge fail-closed as defense in depth:
-                    // a future missed path must never let the first hoist or
-                    // smaller meter silently govern a later access.
-                    existing.take = existing.take.max(site.take);
-                    existing.rule_probes_per_candidate = existing
-                        .rule_probes_per_candidate
-                        .max(site.rule_probes_per_candidate);
-                    existing.hoist &= site.hoist;
-                    existing.decided_true &= site.decided_true;
-                })
-                .or_insert(site);
-        }
-        self.costs.add(other.costs);
-        self.writes.extend(other.writes);
-        self.examined = self.examined.saturating_add(other.examined);
-        self.index_entries = self.index_entries.saturating_add(other.index_entries);
-        self.rule_probes = self.rule_probes.saturating_add(other.rule_probes);
-        self.steps = self.steps.saturating_add(other.steps);
-        self.count_absence_bytes = self
-            .count_absence_bytes
-            .saturating_add(other.count_absence_bytes);
-        self.count_probe_tables.extend(other.count_probe_tables);
-        self.nonuniform_range |= other.nonuniform_range;
-        self
-    }
-
-    fn branch(mut self, other: Self) -> Self {
-        self.costs.branch(
-            &other.costs,
-            [
-                self.examined < other.examined,
-                self.index_entries < other.index_entries,
-                self.rule_probes < other.rule_probes,
-                self.steps < other.steps,
-            ],
-        );
-        for (name, site) in other.reads {
-            self.reads
-                .entry(name)
-                .and_modify(|existing| {
-                    existing.max_calls = existing.max_calls.max(site.max_calls);
-                    existing.take = existing.take.max(site.take);
-                    existing.rule_probes_per_candidate = existing
-                        .rule_probes_per_candidate
-                        .max(site.rule_probes_per_candidate);
-                    existing.hoist &= site.hoist;
-                    existing.decided_true &= site.decided_true;
-                })
-                .or_insert(site);
-        }
-        // @ref LLP 1001#2-what-a-commit-records — sequential writes add
-        // within one arm; only the completed arm totals are branch-maxed.
-        self.writes = sum_write_sites(std::mem::take(&mut self.writes));
-        for write in sum_write_sites(other.writes) {
-            if let Some(existing) = self
-                .writes
-                .iter_mut()
-                .find(|existing| existing.table == write.table && existing.kind == write.kind)
-            {
-                existing.max_rows = existing.max_rows.max(write.max_rows);
-            } else {
-                self.writes.push(write);
-            }
-        }
-        self.examined = self.examined.max(other.examined);
-        self.index_entries = self.index_entries.max(other.index_entries);
-        self.rule_probes = self.rule_probes.max(other.rule_probes);
-        self.steps = self.steps.max(other.steps);
-        self.count_absence_bytes = self.count_absence_bytes.max(other.count_absence_bytes);
-        self.count_probe_tables.extend(other.count_probe_tables);
-        self.nonuniform_range |= other.nonuniform_range;
-        self
-    }
-}
-
-fn sum_write_sites(writes: Vec<WriteSite>) -> Vec<WriteSite> {
-    let mut totals = Vec::<WriteSite>::new();
-    for write in writes {
-        if let Some(existing) = totals
-            .iter_mut()
-            .find(|existing| existing.table == write.table && existing.kind == write.kind)
-        {
-            existing.max_rows = existing.max_rows.saturating_add(write.max_rows);
-        } else {
-            totals.push(write);
-        }
-    }
-    totals
 }
 
 struct Analyzer<'a> {
@@ -1135,7 +1115,7 @@ impl<'a> Analyzer<'a> {
         // @ref LLP 1001#2-what-a-commit-records — a read nested in a scan's
         // key or bounds is still a certified read site with its own budget.
         let mut summary = Summary::default();
-        for value in &scan.prefix {
+        for value in scan.prefix.iter().map(IndexKeyExpr::expression) {
             summary = summary.add(self.expr(value, calls, factors)?);
         }
         for value in [scan.after.as_deref(), scan.before.as_deref()]

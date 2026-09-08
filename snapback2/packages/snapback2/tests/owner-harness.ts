@@ -95,11 +95,9 @@ export class RealOwnerHarness {
     try {
       await cp(options.fixture ?? (options.fullChat ? join(packageRoot, "templates/chat/snapback") : join(fixture, "snapback")), join(root, "snapback"), { recursive: true });
       if (!options.fixture) await addIntegrationOperations(root, options.withDeliveries ?? false);
-      const checked = command([binary, "check", "--project", root], {
-        env: { ...process.env, SNAPBACK2_COMPILER: compiler },
-      });
-      assert.equal(checked.status, 0, `snapback2 check failed\n${checked.stdout}\n${checked.stderr}`);
-      assert.match(checked.stdout, /^ok /, "snapback2 check did not certify the chat fixture");
+      // `dev --foreground` compiles and certifies the project, loads its seed,
+      // and opens the runtime before it publishes SNAPBACK_URL. A separate
+      // `check` here repeats that complete startup admission in every test file.
       const harness = new RealOwnerHarness({ owned: true, root, url: "", mode: "dev" });
       await harness.start(false);
       return harness;

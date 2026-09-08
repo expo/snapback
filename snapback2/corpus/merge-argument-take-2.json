@@ -14,16 +14,24 @@
         },
         "indexes": {
           "byFollower": {
-            "columns": [
-              "follower",
-              "at",
-              "id"
+            "components": [
+              {
+                "Column": "follower"
+              },
+              {
+                "Column": "at"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           },
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -61,23 +69,35 @@
         },
         "indexes": {
           "byAt": {
-            "columns": [
-              "at",
-              "id"
+            "components": [
+              {
+                "Column": "at"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           },
           "byAuthorAt": {
-            "columns": [
-              "author",
-              "at",
-              "id"
+            "components": [
+              {
+                "Column": "author"
+              },
+              {
+                "Column": "at"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           },
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -133,8 +153,10 @@
                   "index": "byAuthorAt",
                   "prefix": [
                     {
-                      "Literal": {
-                        "Id": "u1"
+                      "Scalar": {
+                        "Literal": {
+                          "Id": "u1"
+                        }
                       }
                     }
                   ],
@@ -164,8 +186,10 @@
                   "index": "byAuthorAt",
                   "prefix": [
                     {
-                      "Literal": {
-                        "Id": "u2"
+                      "Scalar": {
+                        "Literal": {
+                          "Id": "u2"
+                        }
                       }
                     }
                   ],
@@ -196,8 +220,8 @@
   },
   "certificate": {
     "program": "merge.review",
-    "plan_hash": "eaba6210123d7d662aa91d1b4d19f2c05a8875fca7b932b5d7e2e0fe8c15f9a1",
-    "schema_hash": "f7c842236978e842a20695dbea23d49d1277bd8bdbc0c342ee6422331cb188f8",
+    "plan_hash": "ccb79a1099e1d0fd1e6430da8ca41232f865e9599b990d9a42b5b1284a01131d",
+    "schema_hash": "69661948b010a9e79af9092c07ffb2a9530b0f215bfa9be046b6769b08c93941",
     "tables": {
       "follows": {
         "retain": "until-revoked"
@@ -207,10 +231,10 @@
       }
     },
     "rule_hashes": {
-      "posts.read": "fd79905c6b2537749a4f00979344bce28f421b3d1fee4a30a4fbf41e3fc8f8a6"
+      "posts.read": "26984c19d744569c392816cf6695e7ec5c3fcbee63f8a1c88859ec5d64558608"
     },
-    "evaluator_version": "bounded-spike-rust-1",
-    "value_model_version": "i53-codepoint-bytes-v2",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [
       {
         "site": "merge.review.0",
@@ -275,6 +299,8 @@
     "max_index_entries": 24,
     "max_rule_probes": 0,
     "max_steps": 366,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
     "max_heap_bytes": 11712,
     "max_output_bytes": 7072,
     "max_closure_bytes": 8448,
@@ -303,7 +329,7 @@
     "read_time": null
   },
   "receipt": {
-    "schema_hash": "f7c842236978e842a20695dbea23d49d1277bd8bdbc0c342ee6422331cb188f8",
+    "schema_hash": "69661948b010a9e79af9092c07ffb2a9530b0f215bfa9be046b6769b08c93941",
     "rows": [
       {
         "table": "posts",
@@ -364,7 +390,9 @@
         "index": "byAuthorAt",
         "prefix": [
           {
-            "Id": "u1"
+            "Scalar": {
+              "Id": "u1"
+            }
           }
         ],
         "order": "Asc",
@@ -375,7 +403,7 @@
         "gte": null,
         "lt": null,
         "lte": null,
-        "rule_hash": "fd79905c6b2537749a4f00979344bce28f421b3d1fee4a30a4fbf41e3fc8f8a6",
+        "rule_hash": "26984c19d744569c392816cf6695e7ec5c3fcbee63f8a1c88859ec5d64558608",
         "row_ids": [
           "p0"
         ],
@@ -383,22 +411,9 @@
         "absence": false,
         "halo": {
           "table": "posts",
-          "id": "p2",
-          "row": {
-            "Row": {
-              "at": {
-                "Int": 2
-              },
-              "author": {
-                "Id": "u1"
-              },
-              "id": {
-                "Id": "p2"
-              }
-            }
-          }
+          "id": "p2"
         },
-        "n2_key": null
+        "n2_suffix": null
       },
       {
         "site": "merge.review.1",
@@ -406,7 +421,9 @@
         "index": "byAuthorAt",
         "prefix": [
           {
-            "Id": "u2"
+            "Scalar": {
+              "Id": "u2"
+            }
           }
         ],
         "order": "Asc",
@@ -417,14 +434,14 @@
         "gte": null,
         "lt": null,
         "lte": null,
-        "rule_hash": "fd79905c6b2537749a4f00979344bce28f421b3d1fee4a30a4fbf41e3fc8f8a6",
+        "rule_hash": "26984c19d744569c392816cf6695e7ec5c3fcbee63f8a1c88859ec5d64558608",
         "row_ids": [
           "p1"
         ],
         "stop": "Exhausted",
         "absence": false,
         "halo": null,
-        "n2_key": null
+        "n2_suffix": null
       }
     ],
     "absences": [],

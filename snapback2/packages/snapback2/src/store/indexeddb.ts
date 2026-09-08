@@ -1,3 +1,6 @@
+import { imageState } from '../../../evaluator/src/row-image.js';
+import { preparedProjection, jsonState } from "./range-store.js";
+import type { ChangedRecords } from "./swap-journal.js";
 import {
   OfflineStoreFailure,
   PersistentRangeStore,
@@ -84,7 +87,9 @@ function deleteDatabase(factory: IDBFactory, name: string): Promise<void> {
 }
 
 class IndexedDbBackend implements RangeStoreBackend {
+  readonly [preparedProjection] = true as const;
   readonly carrier = "IndexedDB";
+  get coordinationScope(): string { return `IndexedDB:${this.prefix}`; }
   private database?: IDBDatabase;
   private databaseName?: string;
   private releaseLock?: () => void;
@@ -157,12 +162,12 @@ class IndexedDbBackend implements RangeStoreBackend {
 
   // @ref LLP 1012#4-the-range-store — one readwrite transaction spans the state
   // stores and the byte payloads, so a row and its bytes leave together or not at all.
-  async replace(state: PersistedRangeState, bytes: ByteDelta, previous?: PersistedRangeState): Promise<void> {
+  async replace(state: PersistedRangeState, bytes: ByteDelta, previous?: PersistedRangeState, changed?: ChangedRecords): Promise<void> {
     const database = this.database;
     if (!database) throw new OfflineStoreFailure("E_OFFLINE_CARRIER", "IndexedDB carrier is not open");
     // All cloning/projection work is complete before the readwrite transaction opens.
-    const { delta, committed } = this.projection.prepare(state, previous);
-    await this.beforeReplace?.(state);
+    const { delta, committed } = this.projection.prepare(state, previous, changed);
+    await this.beforeReplace?.(jsonState(imageState(state)));
     const transaction = database.transaction(ALL_STORES, "readwrite");
     try {
       for (const name of STORE_NAMES) {

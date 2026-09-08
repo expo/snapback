@@ -1,6 +1,8 @@
 // @ref LLP 1011#b1-opaque-cursors — The evaluator and engine share this
 // canonical tagged position format, including nominal Id/String values.
+import { utf8 } from "./hash";
 import { EvalError } from "./errors";
+import { scalarText, validateColumnValue, validateTypedValue } from "./value-runtime";
 import type { Value } from "./types";
 
 const VERSION = 1;
@@ -18,11 +20,13 @@ export interface CursorPosition {
 
 export function encodeCursor(position: CursorPosition): string {
   validateValues(position.suffix, position.values);
-  const bytes = utf8(JSON.stringify([
+  const text = JSON.stringify([
     VERSION, position.table, position.index, position.order,
     position.suffix.map((column) => ({ name: column.name, kind: normalizeDescriptor(column.kind) })),
     position.values.map(normalizeValue),
-  ]));
+  ]);
+  if (text.length > MAX_BYTES) fail("cursor token exceeds 4096 bytes");
+  const bytes = [...utf8(text)];
   if (bytes.length > MAX_BYTES) fail("cursor token exceeds 4096 bytes");
   let result = "";
   for (let offset = 0; offset < bytes.length; offset += 3) {
@@ -70,12 +74,23 @@ export function decodeCursor(token: string): CursorPosition {
   return position;
 }
 
-export function decodeCursorFor(token: string, expected: Omit<CursorPosition, "values">): Value {
+export function decodeCursorFor(token: string, expected: Omit<CursorPosition, "values">, schema?: any): Value {
   const position = decodeCursor(token);
   if (position.table !== expected.table || position.index !== expected.index || position.order !== expected.order
-      || JSON.stringify(position.suffix) !== JSON.stringify(expected.suffix)) {
+      || JSON.stringify(position.suffix.map(c => [c.name, c.kind]))
+        !== JSON.stringify(expected.suffix.map(c => [c.name, normalizeDescriptor(c.kind)]))) {
     fail("cursor token describes a different table, index, order, or suffix");
   }
+  // A token's own descriptor is structural data. Only the current index grants address custody.
+  const parts = schema?.tables?.[expected.table]?.indexes?.[expected.index]?.components;
+  if (schema && (!Array.isArray(parts) || expected.suffix.length > parts.length
+    || expected.suffix.some((column, i) => parts[parts.length - expected.suffix.length + i]?.Column !== column.name
+      || JSON.stringify(normalizeDescriptor(schema.tables[expected.table].columns[column.name])) !== JSON.stringify(normalizeDescriptor(column.kind)))))
+    fail('cursor token describes a different current index suffix');
+  position.values.forEach((value, i) => {
+    if (schema) validateColumnValue(schema, expected.table, expected.suffix[i].name, value);
+    else validateTypedValue(expected.suffix[i].kind, value, 'cursor suffix', false);
+  });
   return { Array: position.values };
 }
 
@@ -83,7 +98,10 @@ export function cursorSuffix(schema: any, scan: any): CursorColumn[] {
   const table = schema.tables?.[scan.table];
   const index = table?.indexes?.[scan.index];
   if (!table || !index) fail(`cursor names missing index ${scan.table}.${scan.index}`);
-  return index.columns.slice(scan.prefix.length).map((name: string) => ({ name, kind: table.columns[name] }));
+  return index.components.slice(scan.prefix.length).map((c: any) => {
+    if (typeof c.Column !== "string") fail("derived component cannot appear in a cursor suffix");
+    return { name: c.Column, kind: table.columns[c.Column] };
+  });
 }
 
 function validateValues(suffix: CursorColumn[], values: Value[]): void {
@@ -150,7 +168,11 @@ function normalizeValue(value: any): Value {
   const data = value[name];
   if (name === "Bool" && typeof data === "boolean") return { Bool: data };
   if (name === "Int" && Number.isSafeInteger(data)) return { Int: data };
-  if ((name === "String" || name === "Id" || name === "Bytes") && typeof data === "string") return { [name]: data } as Value;
+  if ((name === "String" || name === "Id" || name === "Bytes") && typeof data === "string") {
+    scalarText(data);
+    if (name === "Bytes" && !/^(?:[0-9a-f]{2})*$/.test(data)) fail("invalid cursor Bytes");
+    return { [name]: data } as Value;
+  }
   if (name === "Array" && Array.isArray(data)) return { Array: data.map(normalizeValue) };
   if ((name === "Row" || name === "Map") && plainObject(data)) {
     const normalized: Record<string, Value> = {};
@@ -158,18 +180,6 @@ function normalizeValue(value: any): Value {
     return { [name]: normalized } as Value;
   }
   fail("cursor token is not the canonical tagged encoding");
-}
-
-function utf8(text: string): number[] {
-  const result: number[] = [];
-  for (const character of text) {
-    const code = character.codePointAt(0)!;
-    if (code <= 0x7f) result.push(code);
-    else if (code <= 0x7ff) result.push(0xc0 | code >> 6, 0x80 | code & 63);
-    else if (code <= 0xffff) result.push(0xe0 | code >> 12, 0x80 | code >> 6 & 63, 0x80 | code & 63);
-    else result.push(0xf0 | code >> 18, 0x80 | code >> 12 & 63, 0x80 | code >> 6 & 63, 0x80 | code & 63);
-  }
-  return result;
 }
 
 function decodeUtf8(bytes: number[]): string {
@@ -185,7 +195,7 @@ function decodeUtf8(bytes: number[]): string {
     if (code >= 0xd800 && code <= 0xdfff || code > 0x10ffff) fail("cursor token is not canonical UTF-8");
     result += String.fromCodePoint(code);
   }
-  if (JSON.stringify(result).includes("�")) fail("cursor token is not canonical UTF-8");
+  // decodeCursor re-encodes the entire position and compares bytes, rejecting noncanonical UTF-8.
   return result;
 }
 

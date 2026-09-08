@@ -1,3 +1,5 @@
+fn isAdmin from access
+
 mutation groupCreate(title: text <=120, members: [principal] <=49):
   require count(members) >= 1 else GROUP_REQUIRES_MEMBER
   conversationId = new
@@ -11,14 +13,14 @@ mutation groupCreate(title: text <=120, members: [principal] <=49):
   return { id: conversationId, creatorMembershipId }
 
 mutation memberAdd(conversationId: conversations, principal: principal):
-  require exists memberships[conversationId, viewer, 'admin'] else ADMIN_REQUIRED
+  require isAdmin(conversationId, viewer) else ADMIN_REQUIRED
   require principal != viewer else ADMIN_SELF_RESEAT
   require #memberCounts[conversationId] < 50 else GROUP_FULL
   row = insert memberships { conversationId, principal, role: 'member', joinedAt: now }
   return { id: row.id }
 
 mutation memberPromote(conversationId: conversations, membershipId: memberships):
-  require exists memberships[conversationId, viewer, 'admin'] else ADMIN_REQUIRED
+  require isAdmin(conversationId, viewer) else ADMIN_REQUIRED
   membership = memberships[membershipId] ! else MEMBERSHIP_REQUIRED
   require membership.conversationId = conversationId else MEMBERSHIP_SCOPE_REQUIRED
   require membership.role = 'member' else MEMBER_REQUIRED
@@ -26,7 +28,7 @@ mutation memberPromote(conversationId: conversations, membershipId: memberships)
   return null
 
 mutation memberRemove(conversationId: conversations, membershipId: memberships):
-  require exists memberships[conversationId, viewer, 'admin'] else ADMIN_REQUIRED
+  require isAdmin(conversationId, viewer) else ADMIN_REQUIRED
   membership = memberships[membershipId] ! else MEMBERSHIP_REQUIRED
   require membership.conversationId = conversationId else MEMBERSHIP_SCOPE_REQUIRED
   require membership.principal != viewer else ADMIN_SELF_REMOVE

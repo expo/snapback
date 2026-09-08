@@ -1,36 +1,35 @@
 import React, { useState } from "react";
 import { Button, Text, TextInput, View } from "react-native";
-import { api, isSnapbackRefusal } from "snapback2/client";
-import { useMutation, useSnapbackClient } from "snapback2/react-native";
+import { api } from "snapback2/client";
+import { useMutation, useSnapbackClient, useSnapbackSnapshot } from "snapback2/react-native";
+import type { RecoveryCustody, SendUncertainty } from "../shared/recovery";
+import { useSendController } from "../shared/send";
 
-// @ref LLP 1018.003#2-derive-never-add — `can` gates the send, supplies the sentence, and `connect` offers `client.online()`.
-export function Composer({ conversationId }: { conversationId: string }) {
+// @ref LLP 1018.000#8-account-sessions-and-durable-follower-admission — the
+// stable Chat owner retains one lost answer through Thread → Inbox remounts.
+export function Composer({ conversationId, custody }: {
+  conversationId: string;
+  custody?: RecoveryCustody<SendUncertainty>;
+}) {
   const post = useMutation(api.deliveries.post);
   const client = useSnapbackClient();
-  const [body, setBody] = useState("");
+  const generation = useSnapbackSnapshot().authGeneration;
   const [note, setNote] = useState("");
-  const [syncing, setSyncing] = useState(false);
-  const sync = async () => {
-    setSyncing(true);
-    try {
-      await client.online();
-      const result = await client.outbox.settled();
-      setNote(result.stopped ? `${result.remaining} queued; sync paused. Your messages are saved.` : "");
-    } catch (error) { setNote(isSnapbackRefusal(error) ? error.envelope.rewrite ?? error.message : String(error)); }
-    finally { setSyncing(false); }
-  };
-  const send = async () => {
-    if (!body.trim() || !post.can.send || post.inFlight) return;
-    try {
-      const result = await post.run({ conversationId, body: body.trim() });
-      if (result.state === "rejected") setNote(result.rewrite ?? result.message);
-      else { setBody((current) => current === body ? "" : current); setNote(result.state === "queued" ? "Queued; use Sync now to retry delivery." : ""); }
-    } catch (error) { setNote(isSnapbackRefusal(error) ? error.envelope.rewrite ?? error.message : String(error)); }
-  };
-  return <View style={{ padding: 16 }}><TextInput accessibilityLabel="Message" placeholder="Message" value={body} onChangeText={setBody} multiline />
-    <Button title="Send" disabled={!post.can.send || post.inFlight || !body.trim()} onPress={() => { void send(); }} />
-    {post.can.reason ? <Text accessibilityRole="text">{post.can.reason.message}</Text> : null}
-    {post.can.action === "connect" ? <Button title={syncing ? "Syncing…" : "Sync now"} disabled={syncing} onPress={() => { void sync(); }} /> : null}
+  const controller = useSendController({ conversationId, client, generation, post, custody, onNote: setNote });
+  return <View style={{ padding: 16 }}>
+    <TextInput accessibilityLabel="Message" placeholder="Message" value={controller.body}
+      onChangeText={controller.setBody} multiline />
+    <Button title="Send" disabled={controller.busy || !post.can.send || post.inFlight || !controller.body.trim()
+      || controller.uncertainty !== undefined} onPress={() => { void controller.send(); }} />
+    {controller.uncertainty ? <><Text accessibilityRole="alert">
+      {controller.canRecover
+        ? `Confirmation is unknown for “${controller.uncertainty.draft}” in ${controller.uncertainty.conversationId}.`
+        : `Confirmation is unknown in ${controller.uncertainty.conversationId}. Return there to check the same send.`}
+    </Text>{controller.canRecover ? <Button title={controller.busy ? "Checking…" : "Check send"}
+      disabled={controller.busy} onPress={() => { void controller.recover(); }} /> : null}</> : null}
+    {controller.status ? <Text accessibilityRole="text">{controller.status.message}</Text> : null}
+    {controller.status?.canSync ? <Button title={controller.syncing ? "Syncing…" : "Sync now"}
+      disabled={controller.syncing} onPress={() => { void controller.sync(); }} /> : null}
     {note ? <Text accessibilityRole="alert">{note}</Text> : null}
   </View>;
 }

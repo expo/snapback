@@ -5,7 +5,7 @@
 **Systems:** `snapback2/packages/snapback2` (client, React, the range-store carriers, the `chat` template, the recipes, the journey primitives), `snapback2/packages/compiler` (the certificate's retention line if ruling 8 stands), `snapback2/crates/snapback2` (the wire: the frozen delivery envelope, `/api/resume`, the replay envelope, grants), `snapback2/crates/snapback2-core` (`_client_intents`, grants, the public receipt projection; `ClientStore` as the reference replay), LLP 1006's asset client (the device byte cache), `rules/NOT-DOING.md`
 **Author:** Claude Fable 5.1, at the author's direction and rulings, 2026-09-04
 **Date:** 2026-09-04
-**Revised:** 2026-09-07 (LLP 1018.003: rule 3 fires on the schema's `tombstones` declaration, §5; hooks retire committed intents on `arrived`, predicted rows carry ids, §7); 2026-09-07 (public zero-count prediction through existing paired proof custody; implementer Codex); 2026-09-07 (ambient offline declaration copy and unfiltered package consumers; implementer GPT-6 Astra); 2026-09-07 (LLP 1018 §3: the second browser tab follows the writer and inherits its queue, §4); 2026-09-06 (bounded drain admission and persistent resume diagnostics); 2026-09-06 (first-epoch adoption is not a session change, §4; an `unchanged` replay of a held denied answer keeps the plain wire shape, §8; the offline drain watches its tail from the page chain's cursor, §6; the browser witness bundles web-only and reports the composer's reason); 2026-09-06 (fixed complete local-runtime measurement roots: 66,000-byte ceiling, 64,000 target); 2026-09-06 (measured full-entry search trade: 50,000-byte ceiling, 48,000 target); 2026-09-06 (session-delegated indexed search, 34,000-byte total twin, Exact 2 deferral; foundation first); 2026-09-06 (overlay retirement follow-ups, §7); 2026-09-06 (reconnect — full delivery after conditional sequence refresh, §8); 2026-09-06 (auth startup review: queued transitions, interrupted sync, live held reads); 2026-09-05 (auth startup recovery and held transition reads, §4); 2026-09-05 (L11 — schema-derived one-use images, §9); 2026-09-05 (Clique L8a — §3 uniformity follow-up); 2026-09-05 (LLP 1016 J2 — the purge is a schedule, §3 and §12 amended); 2026-09-05 (local-data review fixes: purge, row identity, typed extents, escape parity, session epochs, cold cursors, replay and recovery); 2026-09-04 (i — author rulings of the afternoon: the fence never discards a queued write, the queue replays after a successful resume and the server judges (§1, §5, §7; lane F implements); the twin's size ceiling is 30 KB gzip, 19.7 KB measured (§14, NOT-DOING); the prediction over an uncovered range stands as recorded (§7)); 2026-09-04 (h — fix-forward record, lane O2b fix round 2: a committed intent's overlay leaves on a page of the tail chooser's query or a delivery holding a predicted row, and any other swap that moves the store past the commit is one miss of two, after which the overlay is dropped and the entry retired from prediction (§7); the hasher's `List` arms refuse unknown fields (§8); the twin's hydrate catch is typed and a bug propagates (§6); a delivery under another generation or schema is not held and supersedes the coverage, so offline reads are `hydrating` until the next resume's reset, while `E_OFFLINE_AUTHORITY` keeps principal and auth-epoch mismatches (§8, §15); `client.outbox.ready()`, `useOutbox().ready`, and `useMutation().ready` gate the chat composer until a drained query has earned a grant (§7)); 2026-09-04 (g — implementation record, lane O2b and its fix round, the twin is the client: the evaluator is split into a store, a runner, and the entry and traces every point read with the digest of the wire row it disclosed, a hidden hit as an absence, and verdicts only from rule checks that disclosed their row (§6, §7); one schema and rule hasher mirrors serde's field order, refuses any field serde's struct does not carry, deep-sorts unknown variants, and the hydrate path recomputes the hash and refuses a mismatch (§6, §8); the program is held per generation beside the write bounds and re-fetched after `E_OFFLINE_RESET` (§6, §8); the drained-prefix rule is a chain of held pages on one (table, index, prefix, rule) from `after: null` to Exhausted, a page that lost a member since it was recorded is no link, and once Exhausted a page of the group holding a row the chain does not hold breaks it (§6); prediction runs inside the grant's critical section with the slice as its ids and lands overlay, trace, and `predicted` in the entry's own swap (§7); three deviations from "if every read is covered" are recorded: an uncovered range does not block a prediction, an unheld engine-maintained aggregate target does not block it and the omitted names ride the prediction, and a committed intent's overlay is dropped by an answer at or after the commit seq that touches one of its tables or any page of a drained op, never by an unrelated answer (§7); with a partition open every write carries the replay envelope or refuses `E_OFFLINE_ID_BLOCK` before any request, and only a client with no store sends plain bytes (§7); local authority violations are `E_OFFLINE_AUTHORITY` and keep coverage (§15); the IndexedDB `ranges`/`absences`/`verdicts` projections are gone (§6); the twin measures 19.7 KB gzip, engine alone 16.9 KB, and NOT-DOING's 9.7 KB is re-baselined to the measurement (§13, §14)); 2026-09-04 (f — implementation record, lanes O1b fix rounds 1–2, O2c, O4-web and its fix round, and the integration seams: grants are minted only when the request's `remaining` is absent or below 1,024 (§7, §8); the resume log op must be a certified ascending cursor page of at most 50 rows and its envelope counts against the 1 MiB budget (§8); the intent ledger is consulted before any grant check (§7); a replayed intent that rolls back on missing authority is stored as its partial terminal (§7); on the rejected path the compare set is every traced point plus every verdict a reached or probed rule check derived on a disclosed row, unreached verdicts re-derive only through the read rule, and the rule inputs a hidden candidate minted are excluded on both paths (§7); the verdict `inputsDigest` is `sha256(canonical([table, index, key]))` over wire values (§7); a replay needs a live session and the grant outlives the session (§7); the outbox's grant slice is `1 + maxNewIds` from the op's certificate, a transport failure keeps the intent queued and the retry is the same envelope, and a committed settlement lands in the same swap as the log tail (§7); `close()` resolves when the carrier is quiet (§6); asset bytes are keyed `(assetId, width|null)`, evicted least-recently-read by each entry's own stamp under the store's logical clock, and a view-once row is tracked per `(table, id)` in a durable viewed set, marked at the first byte fetch for an image and at play for a clip, read `null` on every path and excluded from coverage (§9); `E_ASSET_VIEWED` and `E_OFFLINE_CONFLICT` join the `offline` family (§15); `messages.send` stays in the template beside `deliveries.post` because a fixture pin holds `messages.q` byte-equal (§3); one open question for the author, the fence's local expiry of queued intents (§7)); 2026-09-04 (e — implementation record, lane O1b: grants are minted on every login, guest, and resume because the server cannot see the client's remaining count (§7); a trace conflict takes precedence over a program rejection, so a member removed while offline settles `conflict` rather than the program's own refusal (§7); the point digest is over the canonical wire row, which is what the pool carries (§7); an empty trace commits without a conflict check, which is the client's spelling until the twin lands (§7)); 2026-09-04 (d — implementation record, lanes O1a/O1c: the validator covers the row pool, `args`, `reason`, and `rule` (§8); row references carry engine provenance and application values are escaped (§8); `n2Key` is not on the wire; `GET /api/program` returns the schema; the recipe's tombstones reach current members and a departed member's copy is evicted by point absence, because the engine's uniformity analysis collects both arms of an `or` and Quarry cannot build a list from a range (§3); the membership cap is a maintained count (§3)); 2026-09-04 (c — the author's principle applied: the twin is the client from the start and stored-answer replay is its covered case (§6); intents carry the twin's trace and the server validates point reads and verdicts at commit (§7); the retention word ships as ruled, on the table whose rows can hide, with its twin-side meaning (§5); the bar gains one acceptance only the twin can pass (§12); lanes collapse to O1, O2, O4; (b)'s Q1–Q3 closed); 2026-09-04 (b — the panel's designs folded: positive-fact purge (tombstone rows, point absences, uniform-extent holes; no engine change), a frozen delivery envelope with one server-minted validator, resume as one owner action over the log's watermark plus mounted queries, a replay grant with an intent ledger for exactly-once, the corrected and certified recipe (page 50, `*`, a second log index for threads, compare-and-set edits), seal-not-wipe on session expiry, Web Locks across tabs, the journey primitives, the split witness, lane O3 off the bar's path pending ruling; §16 records who found what) (j — 2026-09-05: Status Implemented; the E2 witness record in §6)
+**Revised:** 2026-09-07 (LLP 1018.003: rule 3 fires on the schema's `tombstones` declaration, §5; hooks retire committed intents on `arrived`, predicted rows carry ids, §7); 2026-09-07 (row-specific prediction admission and durable contradiction); 2026-09-07 (durable exact-absence admission and same-sequence tombstone precedence); 2026-09-07 (public zero-count prediction through existing paired proof custody; implementer Codex); 2026-09-07 (self-contained external SDK declaration root and private compiler ambient library, §8); 2026-09-07 (ambient offline declaration copy and unfiltered package consumers; implementer GPT-6 Astra); 2026-09-07 (explicit 82,000-byte architecture allocation, 80,000 working target; pinned Node 24 measurement); 2026-09-07 (LLP 1018.000 §8: bounded durable browser-follower admission and recovery, §4 and §7); 2026-09-07 (LLP 1018 §6: named Unicode indexed search replaces app-side filtering, §6 and §10); 2026-09-07 (LLP 1018 §4: mounted named queries publish committed effective-store revisions, §6); 2026-09-07 (LLP 1018 §3: the second browser tab follows the writer and inherits its queue, §4); 2026-09-06 (bounded drain admission and persistent resume diagnostics); 2026-09-06 (first-epoch adoption is not a session change, §4; an `unchanged` replay of a held denied answer keeps the plain wire shape, §8; the offline drain watches its tail from the page chain's cursor, §6; the browser witness bundles web-only and reports the composer's reason); 2026-09-06 (fixed complete local-runtime measurement roots: 66,000-byte ceiling, 64,000 target); 2026-09-06 (measured full-entry search trade: 50,000-byte ceiling, 48,000 target); 2026-09-06 (session-delegated indexed search, 34,000-byte total twin, Exact 2 deferral; foundation first); 2026-09-06 (overlay retirement follow-ups, §7); 2026-09-06 (reconnect — full delivery after conditional sequence refresh, §8); 2026-09-06 (auth startup review: queued transitions, interrupted sync, live held reads); 2026-09-05 (auth startup recovery and held transition reads, §4); 2026-09-05 (L11 — schema-derived one-use images, §9); 2026-09-05 (Clique L8a — §3 uniformity follow-up); 2026-09-05 (LLP 1016 J2 — the purge is a schedule, §3 and §12 amended); 2026-09-05 (local-data review fixes: purge, row identity, typed extents, escape parity, session epochs, cold cursors, replay and recovery); 2026-09-04 (i — author rulings of the afternoon: the fence never discards a queued write, the queue replays after a successful resume and the server judges (§1, §5, §7; lane F implements); the twin's size ceiling is 30 KB gzip, 19.7 KB measured (§14, NOT-DOING); the prediction over an uncovered range stands as recorded (§7)); 2026-09-04 (h — fix-forward record, lane O2b fix round 2: a committed intent's overlay leaves on a page of the tail chooser's query or a delivery holding a predicted row, and any other swap that moves the store past the commit is one miss of two, after which the overlay is dropped and the entry retired from prediction (§7); the hasher's `List` arms refuse unknown fields (§8); the twin's hydrate catch is typed and a bug propagates (§6); a delivery under another generation or schema is not held and supersedes the coverage, so offline reads are `hydrating` until the next resume's reset, while `E_OFFLINE_AUTHORITY` keeps principal and auth-epoch mismatches (§8, §15); `client.outbox.ready()`, `useOutbox().ready`, and `useMutation().ready` gate the chat composer until a drained query has earned a grant (§7)); 2026-09-04 (g — implementation record, lane O2b and its fix round, the twin is the client: the evaluator is split into a store, a runner, and the entry and traces every point read with the digest of the wire row it disclosed, a hidden hit as an absence, and verdicts only from rule checks that disclosed their row (§6, §7); one schema and rule hasher mirrors serde's field order, refuses any field serde's struct does not carry, deep-sorts unknown variants, and the hydrate path recomputes the hash and refuses a mismatch (§6, §8); the program is held per generation beside the write bounds and re-fetched after `E_OFFLINE_RESET` (§6, §8); the drained-prefix rule is a chain of held pages on one (table, index, prefix, rule) from `after: null` to Exhausted, a page that lost a member since it was recorded is no link, and once Exhausted a page of the group holding a row the chain does not hold breaks it (§6); prediction runs inside the grant's critical section with the slice as its ids and lands overlay, trace, and `predicted` in the entry's own swap (§7); three deviations from "if every read is covered" are recorded: an uncovered range does not block a prediction, an unheld engine-maintained aggregate target does not block it and the omitted names ride the prediction, and a committed intent's overlay is dropped by an answer at or after the commit seq that touches one of its tables or any page of a drained op, never by an unrelated answer (§7); with a partition open every write carries the replay envelope or refuses `E_OFFLINE_ID_BLOCK` before any request, and only a client with no store sends plain bytes (§7); local authority violations are `E_OFFLINE_AUTHORITY` and keep coverage (§15); the IndexedDB `ranges`/`absences`/`verdicts` projections are gone (§6); the twin measures 19.7 KB gzip, engine alone 16.9 KB, and NOT-DOING's 9.7 KB is re-baselined to the measurement (§13, §14)); 2026-09-04 (f — implementation record, lanes O1b fix rounds 1–2, O2c, O4-web and its fix round, and the integration seams: grants are minted only when the request's `remaining` is absent or below 1,024 (§7, §8); the resume log op must be a certified ascending cursor page of at most 50 rows and its envelope counts against the 1 MiB budget (§8); the intent ledger is consulted before any grant check (§7); a replayed intent that rolls back on missing authority is stored as its partial terminal (§7); on the rejected path the compare set is every traced point plus every verdict a reached or probed rule check derived on a disclosed row, unreached verdicts re-derive only through the read rule, and the rule inputs a hidden candidate minted are excluded on both paths (§7); the verdict `inputsDigest` is `sha256(canonical([table, index, key]))` over wire values (§7); a replay needs a live session and the grant outlives the session (§7); the outbox's grant slice is `1 + maxNewIds` from the op's certificate, a transport failure keeps the intent queued and the retry is the same envelope, and a committed settlement lands in the same swap as the log tail (§7); `close()` resolves when the carrier is quiet (§6); asset bytes are keyed `(assetId, width|null)`, evicted least-recently-read by each entry's own stamp under the store's logical clock, and a view-once row is tracked per `(table, id)` in a durable viewed set, marked at the first byte fetch for an image and at play for a clip, read `null` on every path and excluded from coverage (§9); `E_ASSET_VIEWED` and `E_OFFLINE_CONFLICT` join the `offline` family (§15); `messages.send` stays in the template beside `deliveries.post` because a fixture pin holds `messages.q` byte-equal (§3); one open question for the author, the fence's local expiry of queued intents (§7)); 2026-09-04 (e — implementation record, lane O1b: grants are minted on every login, guest, and resume because the server cannot see the client's remaining count (§7); a trace conflict takes precedence over a program rejection, so a member removed while offline settles `conflict` rather than the program's own refusal (§7); the point digest is over the canonical wire row, which is what the pool carries (§7); an empty trace commits without a conflict check, which is the client's spelling until the twin lands (§7)); 2026-09-04 (d — implementation record, lanes O1a/O1c: the validator covers the row pool, `args`, `reason`, and `rule` (§8); row references carry engine provenance and application values are escaped (§8); `n2Key` is not on the wire; `GET /api/program` returns the schema; the recipe's tombstones reach current members and a departed member's copy is evicted by point absence, because the engine's uniformity analysis collects both arms of an `or` and Quarry cannot build a list from a range (§3); the membership cap is a maintained count (§3)); 2026-09-04 (c — the author's principle applied: the twin is the client from the start and stored-answer replay is its covered case (§6); intents carry the twin's trace and the server validates point reads and verdicts at commit (§7); the retention word ships as ruled, on the table whose rows can hide, with its twin-side meaning (§5); the bar gains one acceptance only the twin can pass (§12); lanes collapse to O1, O2, O4; (b)'s Q1–Q3 closed); 2026-09-04 (b — the panel's designs folded: positive-fact purge (tombstone rows, point absences, uniform-extent holes; no engine change), a frozen delivery envelope with one server-minted validator, resume as one owner action over the log's watermark plus mounted queries, a replay grant with an intent ledger for exactly-once, the corrected and certified recipe (page 50, `*`, a second log index for threads, compare-and-set edits), seal-not-wipe on session expiry, Web Locks across tabs, the journey primitives, the split witness, lane O3 off the bar's path pending ruling; §16 records who found what) (j — 2026-09-05: Status Implemented; the E2 witness record in §6)
 **Related:** LLP 0329.014.004 §5 dimension F and §7 (the contract this implements), LLP 0329.014.007 F8 and F11 (the assessment; "not a replica"), LLP 0329.014.008 (the eight candidates — §11 says which this takes and which wait), LLP 1001 (engine: `ClientStore`, `new_ids`, receipts, absences, `_sessions`), LLP 1002 §4 (wire) and §9 (client states; `queued` reserved), LLP 1006 §9b (bytes on the device), LLP 1007 §4a (the two-bar pattern), LLP 1009 (shelved by the trade, §13), `benchmarks/briefs/social-messenger.md` M5–M6, `issues/20260830-snapback2-wire-evaluator-into-public-client.md`, `issues/20260806-expo-file-carrier-process-kill-witness.md`, `guide/sync/offline-and-retention.md` (Snapback 1's four mechanisms — what not to rebuild), `rules/NOT-DOING.md`, the panel record `llp/reviews/1012-local-first-v1.*`
 
 ## Summary
@@ -29,8 +29,8 @@ receipt, or a hole in a fresh certified-uniform range — never from silence
 (§5). The twin is the client: every named query replays on the phone over
 held rows, exact where covered and `partial` where not, and a stored
 answer is the case where everything is covered; a queued send is
-predicted into the thread it belongs to; search is the app's filter over
-held rows. Writes
+predicted into the thread it belongs to; named `wordPrefixes` search runs
+against the same persistent indexed effective rows. Writes
 offline go to a **FIFO outbox** under a **replay grant**; each intent carries
 the twin's trace and the server validates it at commit, so a stale edit is
 `rejected: conflict` and a lost response replays exactly-once (§7). Reconnect is **one owner action**: the log's tail after its
@@ -117,11 +117,10 @@ marked below and put as questions in §"Open questions (author)".
 5. **Reconnect is watermark resume on ordered ranges plus full re-delivery
    elsewhere; general delta resume deferred.** Refined in §8: the log's
    watermark plus a validator check of mounted queries, in one owner action.
-6. **Offline search was the app filtering held rows**, labeled "in downloaded
-   messages". **2026-09-06 session-delegated amendment:** coherent engine and
-   indexed-twin prefix search replaces that division when integrated (§6,
-   "Indexed held search"). The standalone Unicode/key foundation lands first;
-   app-side filtering remains the current behavior until the full path lands.
+6. **Offline search is the named indexed query.** The engine and persistent
+   twin share the Unicode `wordPrefixes` index; React and Expo call
+   `messages.search` and preserve its `held`, `partial`, `capped`, and cursor
+   facts. App-side substring filtering is removed (§6, "Indexed held search").
 7. **Asset bytes cache under the owning row's lease**, LLP 1006 §9b, lane O4.
 8. **Two retention policies ship:** `until-revoked` (default) and
    `delivered-history`. *(c): ruling 8 stands; the word ships now, on the table whose rows
@@ -294,6 +293,7 @@ interface RangeStore {
   wipe(partition: PrincipalId): Promise<void>      // sign-out, principal replacement
   answer(op, args): Promise<Held | undefined>      // result + validator + receipt + seq + deliveredAt
   commit(swap: Swap): Promise<void>                // one carrier transaction: rows, answers, receipts, evictions, outbox settlements, watermark
+  subscribeInputs(listener): () => void             // post-commit effective query inputs
   coverage(): Promise<Coverage>                    // rows, ranges, absences, verdicts — the twin's hydration input
   outbox: OutboxStore                              // §7
 }
@@ -359,16 +359,27 @@ interface RangeStore {
 - **One writer per partition.** The web client takes
   `navigator.locks.request("snapback2:" + principalId)`; a second tab gets
   `E_OFFLINE_LOCK` with the rewrite "this account is open in another tab".
-  **Amended 2026-09-07 (LLP 1018 §3, the panel's tab policy):** on web the
-  second tab is a *follower*, not a refused client: it reads live through the
-  ordinary wire, `outbox.status()` reports `reason: "follower"` with
-  `ready: false`, every write refuses `E_OFFLINE_FOLLOWER` before any bytes
-  leave (a plain write landing ahead of the writer's queued intents would
-  invert their order once inherited), and it waits on the lock outside
-  startup; when the writer tab closes it opens the partition, resumes, and
-  replays the queue the writer left. The wait is withdrawn on close,
-  sign-out, and account change. SQLite carriers still refuse at once.
-  Forwarding follower writes to the writer is deferred.
+  **Amended 2026-09-07 (LLP 1018.000 §8):** on web the second tab is a
+  *follower*. It reads live through the ordinary wire and forwards replayable
+  mutation arguments to the lock-holding writer over an origin-scoped
+  `BroadcastChannel`; uploads and channels still refuse before sending bytes.
+  The writer alone serializes grant allocation, prediction, intent, and a
+  compact durable receipt. Its acknowledgment makes the result `queued` even
+  if the follower cannot see the writer's in-memory state. A missing answer
+  after send is `admission-unknown`, recoverable only with the same request
+  identity through `client.recoverMutation`. Discovery before any send may
+  still return `E_OFFLINE_FOLLOWER` when forwarding is unavailable.
+
+  Requests expire within five minutes and their immutable identity carries
+  that expiry. The partition keeps at most 64 live unacknowledged requests per
+  follower and 256 live receipts total; it never evicts a live receipt to make
+  room. Receipts survive ordinary outbox dismissal, and a persisted monotonic
+  admission-clock floor prevents rollback from reopening a pruned request.
+  A random writer incarnation fences obsolete answers; the server auth epoch
+  and wipe-scoped durable partition incarnation fence session replacement and
+  same-epoch wipe/relogin. Takeover preserves the partition incarnation,
+  reloads receipt custody, resumes, and replays. The wait is withdrawn on
+  close, sign-out, and account change. SQLite carriers still refuse at once.
   Snapback 1 hit exactly this race.
 - **No encryption claim.** A key the page can read protects nothing against
   code in the page; on iOS the OS already encrypts files at rest. v1 says
@@ -476,6 +487,14 @@ program and certificate on the wire (§8), receipt custody, successor and
 auth-epoch fences, canonical hashing, and the five outcome classes proven
 against the server.
 
+Mounted named queries subscribe to the carrier's committed input revisions.
+After a swap changes rows, coverage, authority, a query clock, or the prediction
+overlay, each active shared entry reevaluates against the finished atomic state
+and publishes one immutable snapshot to headless and React consumers. Overlap is
+coalesced per entry; receipt/grant bookkeeping that cannot change evaluation is
+silent; equal results retain identity. A server frame's own store commit therefore
+does not double-publish. Program and account fences discard late reevaluations.
+
 **The coverage rule that makes "everything on the phone" exact.** A
 certified-uniform prefix range drained to `next: null` is the viewer's whole
 partition for that prefix, proven by receipt. The twin therefore treats a
@@ -516,13 +535,16 @@ and current/later waiters, and never clears valid coverage, grants or queued IDs
 Each event remains one page; the application log must append events for edits
 and removals. The last tail is live, not every historical page.
 
-**Search offline.** A search op is a named query; a new term has no held
-answer and the engine has no text index, so the twin cannot replay it. The
-recipe: the app filters the held log rows in JavaScript and labels the
-result "in downloaded messages". At messenger scale this is milliseconds,
-and it stops finding a body the moment §5 evicts it. When the engine gains a
-text index, LLP 0329.014.008 §6's `held` completeness label is the
-follow-on.
+**Search offline.** Search remains an ordinary named query over an
+engine-maintained `wordPrefixes` index. The persistent twin replays the same
+Unicode normalization, scope merge, ordering, prediction, and trace
+invalidation over effective held rows. A complete source scope can answer a
+previously unseen term as `held`; incomplete membership/history is `partial`,
+and bounded discovery or execution is `capped`. The cursor identifies the
+normalized non-cursor arguments and current partition/program/schema,
+incarnation, authority, effective-row, and overlay revisions. React, Expo, and
+headless callers see these facts directly; no app-side substring fallback
+manufactures a stronger answer.
 
 **Implementation record (lane O2b and its fix round, 2026-09-04).** The twin is
 `snapback2-evaluator` split into a store, a runner, and the entry, hydrated from
@@ -544,8 +566,10 @@ covered on any index of the table. `partial` reasons: `evicted` for a primary-ke
 of an evicted row or a range over a table one of whose held pages lost a member,
 `computed-key` for a Shape-provenance read, else `never-held`. A view is `hydrating`
 when no program is held for the coverage's generation or schema. A held row of a
-`retain delivered-history` table is readable to the twin, and a retained answer is
-served as held, never re-evaluated. The auth-epoch fence is the coverage facts' epoch
+`retain delivered-history` table is readable to the twin. A retained answer remains
+the fallback when a certified local rerun is denied, partial, or unavailable; a
+complete, capped, or held rerun over independently held facts may reconstruct a
+projection whose unproven literals were cleared by revocation. The auth-epoch fence is the coverage facts' epoch
 bound into the verdict lookup. The IndexedDB `ranges`/`absences`/`verdicts` projections
 were write-only and are deleted on upgrade; coverage derives from the held answers'
 receipts.
@@ -573,18 +597,22 @@ delivery is an image column modifier; video ranges remain unspecified.
 
 ### Indexed held search
 
-**2026-09-06 current-session decision; foundation first.** Under the user's
+**2026-09-07 integration record.** Under the user's
 explicit delegation, Codex takes engine-owned `wordPrefixes` indexing and the
 persistent indexed twin onto the doing-list. Exact 2 waits until this search
-qualifies on React web and Expo. The **complete local-runtime ceiling is 66,000 bytes gzip,
-with 64,000 the optimization target**; normalization data/decoding, indexing,
+qualifies on React web and Expo. The **complete local-runtime ceiling is 82,000 bytes gzip,
+with 80,000 the working target**, per the architecture allocation amendment below; normalization data/decoding, indexing,
 incremental state, prediction and local cursors all participate in the measured
 entry. Relocating required payload is not a saving. No new gate or repository
 design document is introduced. LLP 1001 §"Unicode search foundation" records
 the one ordinary core `build.rs` exception and shared Unicode/key primitives.
-**Implementer/date:** Codex gpt-6-astra at xhigh, foundation 2026-09-06; the
-engine/compiler/twin integrations are subsequent lanes. This subsection records
-accepted implementation direction, not a completed held-search capability.
+**Implementer/date:** Codex gpt-6-astra at xhigh, foundation 2026-09-06;
+engine/compiler/twin integration in the 2026-09-07 LLP 1018 run. The chat
+template now declares the global membership merge and calls
+`api.messages.search` on web and Expo. Its witnesses use one
+decomposed-uppercase Unicode term for warm, cold, prediction, settlement, and
+revocation checks. Final capability qualification still depends on those real
+web/Expo witnesses and the measurements below.
 
 **Measured scope revision, 2026-09-06.** Root revises the earlier speculative
 34,000/30,000 allocation under the same unattended delegation. A pinned
@@ -630,6 +658,49 @@ pass runtime, native, durable-store and independent review qualification.
 [Boundary manifest](../benchmarks/runs/2026-09-06-clique-improvement/evidence/search-byte-decision/boundary-manifest.md)
 and its adjacent exact entry, measurements, method-retention and excluded-input
 records establish what is counted. No final capability is claimed here.
+
+**Architecture allocation amendment, 2026-09-07.** Under the user's explicit
+commission to refine and implement LLP 1018.000, Root adopts an **82,000-byte
+gzip ceiling and 80,000-byte working target** for the same five-root entry.
+The canonical toolchain is **Node 24.18.0 / esbuild 0.25.9 / gzip level 9**.
+The historical 62,624 figure above used Node 22.23.2; it is not a controlled
+subtraction from these Node 24 measurements.
+
+Exact same-toolchain measurements are 77,571 before forwarding (`3253187d2`),
+79,272 at `c5c562667`, and 79,207 after Words retirement and intervening
+integration fixes (`527861e673`; 244,019 minified bytes). The last measurement
+fails the old 66,000 ceiling. The 65-byte decrease is an observed integrated
+delta, not an isolated causal saving from Words. The revised ceiling adds
+16,000 bytes (24.2%) and leaves **2,793 bytes for remaining integration/review
+repairs**; the working target is 793 bytes above the measured candidate. The
+reserve cannot silently fund another feature, and exceeding 82,000 still fails.
+
+The separately measured complete `client.ts` source entry grows from
+103,794 to 110,485 gzip with forwarding, then to 110,520 at `527861e673`.
+Both earlier numbers reproduce exactly alongside the latest result. These
+isolated complete-source measurements retain the same two optional SDK
+imports, `expo-file-system` and `expo/fetch`, as runtime imports; installed
+Expo/React Native SDK code is outside this source-footprint comparison. A
+warm-checkout attempt that bundled those SDKs failed on their Flow/module
+syntax and produced no measurement. Neither entry estimates an app download.
+
+No measured alternative establishes a safe route back to 66,000. Unicode
+packet/codec experiments grew; replacing inverse indexes with scans loses
+bounded work; retaining only surviving answers loses durable guards and
+historical key proofs. A tagged proof design still needs global, answer and
+transaction ownership, reverse lookups, interning, rollback and exact slot
+charges; it established no substantial deletion. This is evidence for a
+footprint trade, not proof of global optimality. Public Words and the old
+Quarry data frontend are retired within the commissioned simplification.
+No required payload moves outside the entry, no dependency/gate is added,
+and the 1M-step/4MiB-closure/8MiB-heap/1MiB-output limits stay.
+
+The [Sol allocation review](./reviews/1018.000-runtime-allocation.sol.md) and
+[Grok allocation review](./reviews/1018.000-runtime-allocation.grok.md) both
+mark the same frozen amendment READY. Root accepts that allocation under
+the current delegation. This does not qualify unfinished code, latency,
+Web/Expo behavior, publication, or the published-package bars. Final
+integration and review repairs must be measured again against 82,000.
 
 Keep one indexed store per open principal/program/schema generation. Cold open
 constructs it once; warm evaluation consumes an incrementally maintained atomic
@@ -703,6 +774,19 @@ Recovery is explicit through `online()`/`drain()`; a subscription reconnect
 alone makes no automatic replay promise. Both chat composers show the
 recovery reason and a Sync now action, keep refused drafts, and distinguish
 a predicted preview from a server-confirmed message.
+
+For a web follower, the same status surface reports `writer-discovery`,
+`writer-capacity`, `writer-unresponsive`, or `ready`; `follower` remains the
+hard refusal when the carrier cannot forward. A writer acknowledgment reports
+durable admission, not settlement. If no answer arrives within two seconds
+after send, mutation returns `{ state: "admission-unknown", recovery }` and
+keeps its bounded pending slot until acknowledgment or expiry. The opaque
+token binds the operation/argument digest and exact account, auth epoch,
+carrier scope, expiration, and durable partition incarnation. Calling
+`client.recoverMutation(ref, args, recovery)` either reproduces the receipt's
+original `intent` and `ids`, returns the same unknown outcome while the writer
+is unreachable or an expired receipt is absent, or refuses a mismatching
+scope without a write (LLP 1018.000 §8).
 
 **The replay grant.** Every successful resume (§8), login, and guest call
 returns a grant when the client's remaining ids are low:
@@ -912,10 +996,14 @@ names the range in `partialRanges`; a fan-out row of which the viewer's own copy
 under another id than the server's is pinned by the three-member group journey; the
 author accepted this deviation on 2026-09-04 afternoon); an
 unheld engine-maintained aggregate target does not block it, and the omitted target names
-ride the prediction and the outbox entry (`omitted`); a committed intent's overlay is
-dropped by an answer at or after the commit seq that touches one of the overlay's tables
-or by any page of a drained op, never by an unrelated answer, and with no watermark and
-no such delivery it stays. An uncovered point read, an uncovered rule input, or a local
+ride the prediction and the outbox entry (`omitted`); authoritative evidence at or after
+the commit seq for any ordinary row retires the mutation's ordinary write group, including
+fan-out rows whose server ids differ, while each engine-maintained target waits for its own
+row or negative evidence. A proven page of a drained op or the bounded miss rule retires
+what remains. This keeps a maintained target's predicted value until its own authoritative
+row arrives instead of exposing a transaction assembled from an arrived source row and a stale aggregate. An
+unrelated answer still retires nothing, and with no watermark and no matching delivery the
+overlay stays. An uncovered point read, an uncovered rule input, or a local
 refusal still queues without a prediction and with an empty trace. With a partition open
 every write carries the replay envelope, online or not, or refuses `E_OFFLINE_ID_BLOCK`
 (no grant, unknown bound, spent grant) before any request; only a client with no store
@@ -937,11 +1025,15 @@ reset is not self-triggered — the follow-ups ticket of 2026-09-04 records that
 reason until the inbox drain has earned a grant, and a refusal's rewrite is shown, never
 retried blindly.
 
-**The retirement rule as landed (lane T1, three review rounds, 2026-09-04).** A committed
-prediction retires in its swap on authoritative evidence — the arrival of a predicted
-non-deleted row, or a primary point absence or tombstone at or after its commit seq for a
-predicted id that no newer held row supersedes, including evidence saved while the intent was
-still queued — or, for predictions with non-deleted rows, on a non-empty held page of the
+**The retirement rule as landed (lane T1, three review rounds, 2026-09-04; maintained-target
+amendment, 2026-09-07).** A committed prediction retires its ordinary write group on
+authoritative evidence for any ordinary member — the arrival of a predicted non-deleted row,
+or a primary point absence or tombstone at or after its commit seq for a predicted id that no
+newer held row supersedes, including evidence saved while the intent was still queued. This
+group rule covers server fan-out ids that differ from the twin's viewer-only fan-out; row-body
+similarity never proves identity. Engine-maintained target rows remain independently until
+their own evidence arrives. The remaining overlay can also retire, for predictions with
+non-deleted rows, on a non-empty held page of the
 selected log strictly beyond its persisted commit snapshot, reached through currently held
 next-links recorded at or after that seq; the chain's query identity uses the store's one
 canonical serializer, an ambiguous link or a cycle keeps only the proven prefix, and an
@@ -950,6 +1042,25 @@ proven forward mark of the selected log or a successful resume strictly after th
 consumes at most one miss per swap, with consumed positions and the snapshot's cursor name
 persisted across a reopen, and two misses remove the overlay and clear `predicted` while the
 replay entry stays `committed`.
+
+Maintained rows add an authority dependency to that lifecycle. A source-row insertion,
+deletion, group move, or sum-input change at sequence *s* withdraws any older target row,
+primary absence, or target-table range that could otherwise supply a stale aggregate; this
+is missing authority, never a manufactured zero. Target-specific retirement leaves an
+admitted mutation's predicted target over that hole until target authority at *s* arrives. If the
+bounded miss rule retires it first, the query is partial rather than exposing the pre-commit
+target. An answer or row version already held at prediction admission cannot confirm that
+prediction, even when its sequence equals the commit sequence. Confirmation needs accepted
+evidence that advances the original admission, or a newly ordered authoritative answer;
+the unchanged baseline must not remove a predicted count while its target refresh is pending.
+Arrival can run in the other order: a changed maintained target marks every older
+named answer that references it `partial/maintained-coherence`. That marker and the answer's
+authorized history survive a cold reopen, and a global-pool rerun cannot promote the record;
+owners that proved sparse zero by a point absence or target range are fenced too. Only a new
+delivery for that named query publishes another usable complete/capped value. A later overlay
+cannot prove that an earlier remote sibling arrived; partial history can still show its local
+prediction without presenting a count or preview. Unrelated source-field updates whose
+maintained contribution is unchanged withdraw no target authority.
 
 **Retirement follow-up (2026-09-06).** Reset also clears each overlay's saved primary
 absences and tombstones: these are coverage facts, so a delayed terminal cannot use a
@@ -1000,13 +1111,53 @@ subsequent predicted counts still obey the cap. This is not authority inferred
 from a stale cached scalar, and it does not widen alternate-index absence
 export or permit receipt-only clients to mint new group coverage.
 
-The package build embeds an ambient copy of the offline protocol declarations
-in the root module. That copy omits redundant top-level `declare` modifiers;
-the standalone declaration leaf retains them. The actual generated-package
-consumer checks the complete declaration graph with `skipLibCheck` both true
-and false; a boolean-to-number negative assignment must remain an error.
-This packaging correction adopts the bounded build change from preparation
-candidate `367d263b8`, independently qualified with that consumer witness.
+A trusted prediction records its original row-specific admission basis and
+sequence in the existing per-intent ledger, atomically with the intent and
+overlay. A creation requires an exact held primary absence that preceded
+admission. An update or deletion can instead use an already held positive row
+whose version is newer than any primary negative. The runtime-wide sequence
+counter cannot provide this authority: unrelated queries can advance it, and
+cold reopen can restart it at zero.
+
+The original basis remains fixed while later accepted evidence advances.
+An absence-created prediction is contradicted by a later authoritative row or
+negative, or by an explicit same-sequence tombstone. A row-admitted field or
+full-image assignment continues to replay over newer positive bases; a primary
+negative at or after its admission version revokes that old assignment.
+Contradiction remains durable even after a later positive row, answer collection,
+or cold reopen. A single atomic swap must preserve an intervening revocation
+as well as its newest positive evidence. Only facts actually admitted by the
+coverage transaction can contradict an intent; ignored raw frames cannot.
+Latest positive evidence and accepted negative evidence also advance independently
+across transactions: a delayed primary negative from another accepted answer
+still revokes the old assignment after a newer positive has arrived. Arrival
+order cannot erase the intervening revocation or replace the newer held row.
+
+Equivalent same-sequence absence refreshes and answer replacement or collection
+alone do not erase an uncontradicted admission. Changing only this ledger still
+invalidates the affected projection. Coverage reset clears it with the existing
+negative ledger. Extent-hole, viewed-row and revocation protections remain.
+Receipt arrival cannot retroactively authorize an unadmitted prediction, and
+neither a cached zero nor a larger process-wide counter grants an exception.
+Admission seeks the existing carrier absence index; no second receipt-owner
+index or memory-only proof chronology is retained.
+
+The package build emits two distinct declaration products. The compiler loads
+the private `authoring-lib.d.ts` ambient module while checking authored effects,
+seeds and journeys. The shipped `index.d.ts` is an ordinary external module: it
+combines strong generated API types with the SDK's real runtime re-exports and
+copies their private evaluator/compiler declaration dependencies beneath
+`dist/`. The standalone offline-protocol leaf remains a separate declaration.
+Every import in that installed graph is relative and self-contained; no test
+maps declarations back to workspace source.
+
+The actual copied-package consumer checks the complete graph with
+`skipLibCheck` both true and false, including the public and standalone
+offline-protocol forms. A boolean-to-number negative assignment must remain an
+error. Preparation candidate `367d263b8` correctly identified one redundant
+ambient `declare`, but the integrated graph exposed the larger root/module
+split recorded in LLP 1018.001 §6. The self-contained external graph is the
+packaging rule.
 
 Package consumer regressions additionally check the root and standalone forms
 with `skipLibCheck: false`, including all library diagnostics, root/standalone
@@ -1057,6 +1208,15 @@ that happens to be shaped like a reference is escaped as
 Network expansion, held-answer expansion, and reference collection share
 the same escape rules, so application literals do not acquire false row
 dependencies on persistence or reopen.
+Schema-owned maintained addresses follow LLP 1001#maintained-addresses through
+public delivery, held rows, byId absences and cursor suffixes. Structural wire
+decode preserves the exact address string; schema preparation validates its
+declared target and canonical grouping tuple before it becomes held authority.
+A row-pool record's address must equal its body id, and a long maintained row
+must reproduce its tuple from its grouping fields. Shared Ref/Optional/List
+validators grant no exception to authority principals or untyped ids. Cursor
+use binds the current schema/index/order/suffix and retains the 4,096-byte limit.
+
 `n2Key` is not on the wire. A hidden point *hit* discards the receipt
 artifacts its rule check recorded, as a hidden range candidate already did. The certified
 program and its certificate travel with the generation: `/api/manifest`
@@ -1217,12 +1377,14 @@ coverage, M primary point reads; a held answer replays exactly".
   message while offline**; kill the browser profile **once during a
   `commit`** (a harness barrier inside the swap) and once at rest; cold
   start with the backend stopped: the inbox, the three chats, and the
-  queued message are there, and a chat never opened is `hydrating`; boot
+  queued message are there, and a chat never opened online renders its held
+  rows and prediction; boot
   with the carrier refused and see `E_OFFLINE_CARRIER`; start the backend;
   inject a 503 after the commit of the first replay: exactly one row on the
   server, the bubble does not move; the second message commits in order; a
-  message expired while offline is gone from the local search after the
-  resume. Two tabs: the second follows the writer (LLP 1018 §3), no longer `E_OFFLINE_LOCK`.
+  Unicode indexed search is warm and cold, publishes the prediction, and drops
+  a message revoked while offline after resume. Two tabs: the second follows
+  the writer (LLP 1018 §3), no longer `E_OFFLINE_LOCK`.
 - **O4, simulator:** the same on the iOS simulator with images viewed
   before the kill rendering after it and a viewed view-once photo not
   rendering.
@@ -1339,8 +1501,8 @@ it, so every deferral in §11 carries a number:
   30 KB ceiling, recorded in `snapback2/metrics/twin.jsonl` with the
   method; NOT-DOING's 9.7 KB is re-baselined to the measurement.
 
-The 2026-09-06 search move changes the current complete local-runtime ceiling to 66,000 bytes,
-with 64,000 as the optimization target (§"Indexed held search"). The historical
+The 2026-09-07 architecture allocation sets the current complete local-runtime
+ceiling to 82,000 bytes, with 80,000 as the working target (§"Indexed held search"). The historical
 measurements above do not measure the complete search implementation. Record
 its integrated whole-entry size, phone index/cold-build storage and full-engine
 search curve when those lanes execute; no additive-prototype headroom claim.

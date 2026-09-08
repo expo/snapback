@@ -14,16 +14,24 @@
         },
         "indexes": {
           "byFollower": {
-            "columns": [
-              "follower",
-              "at",
-              "id"
+            "components": [
+              {
+                "Column": "follower"
+              },
+              {
+                "Column": "at"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           },
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -62,23 +70,35 @@
         },
         "indexes": {
           "byAt": {
-            "columns": [
-              "at",
-              "id"
+            "components": [
+              {
+                "Column": "at"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           },
           "byAuthorAt": {
-            "columns": [
-              "author",
-              "at",
-              "id"
+            "components": [
+              {
+                "Column": "author"
+              },
+              {
+                "Column": "at"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           },
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -140,8 +160,10 @@
                   "index": "byAuthorAt",
                   "prefix": [
                     {
-                      "Literal": {
-                        "Id": "u1"
+                      "Scalar": {
+                        "Literal": {
+                          "Id": "u1"
+                        }
                       }
                     }
                   ],
@@ -168,8 +190,10 @@
                   "index": "byAuthorAt",
                   "prefix": [
                     {
-                      "Literal": {
-                        "Id": "u2"
+                      "Scalar": {
+                        "Literal": {
+                          "Id": "u2"
+                        }
                       }
                     }
                   ],
@@ -196,8 +220,10 @@
                   "index": "byAuthorAt",
                   "prefix": [
                     {
-                      "Literal": {
-                        "Id": "empty"
+                      "Scalar": {
+                        "Literal": {
+                          "Id": "empty"
+                        }
                       }
                     }
                   ],
@@ -225,8 +251,8 @@
   },
   "certificate": {
     "program": "merge.hidden",
-    "plan_hash": "989a4f9fb510a225be260828d3f6092cf87edc4699eaecd81630c4957eca489c",
-    "schema_hash": "4b10270ba1790c01621e4406d0f5dd057dd7e4a7959da1262fb64de9aeb807ba",
+    "plan_hash": "5388803cee28d8e41f71fb0d190f7d85a119d5a18e7255defcdaa4e294f5b6a7",
+    "schema_hash": "0e86a7455fc0a937b9d8ee16648312eefd40718bbff286d6a401c3c5550c31a3",
     "tables": {
       "follows": {
         "retain": "until-revoked"
@@ -236,10 +262,10 @@
       }
     },
     "rule_hashes": {
-      "posts.read": "ab689b38ac8e63602536ba2f99371ce8e4957f9fd8a4585a3e59298518635c21"
+      "posts.read": "402e8ec3524632923c64d92e914dbfaf234ea38cdb9431a73b2125d8f92a6063"
     },
-    "evaluator_version": "bounded-spike-rust-1",
-    "value_model_version": "i53-codepoint-bytes-v2",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [
       {
         "site": "merge.hidden.0",
@@ -314,6 +340,8 @@
     "max_index_entries": 10240,
     "max_rule_probes": 10240,
     "max_steps": 51278,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
     "max_heap_bytes": 1640896,
     "max_output_bytes": 772,
     "max_closure_bytes": 2653,
@@ -341,7 +369,7 @@
     "read_time": null
   },
   "receipt": {
-    "schema_hash": "4b10270ba1790c01621e4406d0f5dd057dd7e4a7959da1262fb64de9aeb807ba",
+    "schema_hash": "0e86a7455fc0a937b9d8ee16648312eefd40718bbff286d6a401c3c5550c31a3",
     "rows": [],
     "ranges": [],
     "absences": [],

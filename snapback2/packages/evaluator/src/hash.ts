@@ -1,27 +1,15 @@
 export function sha256(text: string): string {
-  const bytes = utf8(text);
-  const bitLength = bytes.length * 8;
-  bytes.push(0x80);
-  while (bytes.length % 64 !== 56) bytes.push(0);
-  const high = Math.floor(bitLength / 0x1_0000_0000);
-  const low = bitLength >>> 0;
-  for (let shift = 24; shift >= 0; shift -= 8) bytes.push((high >>> shift) & 0xff);
-  for (let shift = 24; shift >= 0; shift -= 8) bytes.push((low >>> shift) & 0xff);
-
   const state = [
     0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c,
     0x1f83d9ab, 0x5be0cd19,
   ];
   const words = new Array<number>(64);
-  for (let offset = 0; offset < bytes.length; offset += 64) {
-    for (let index = 0; index < 16; index += 1) {
-      const start = offset + index * 4;
-      words[index] =
-        ((bytes[start] << 24) |
-          (bytes[start + 1] << 16) |
-          (bytes[start + 2] << 8) |
-          bytes[start + 3]) >>>
-        0;
+  const block = new Uint8Array(64);
+  let used = 0, length = 0;
+  const compress = () => {
+    for (let index = 0; index < 16; index++) {
+      const start = index * 4;
+      words[index] = ((block[start] << 24) | (block[start + 1] << 16) | (block[start + 2] << 8) | block[start + 3]) >>> 0;
     }
     for (let index = 16; index < 64; index += 1) {
       const a = words[index - 15];
@@ -56,34 +44,41 @@ export function sha256(text: string): string {
     state[6] = (state[6] + g) >>> 0;
     state[7] = (state[7] + h) >>> 0;
   }
+  const push = (byte: number) => { block[used++] = byte; if (used === 64) { compress(); used = 0; } };
+  for (const byte of utf8(text)) { push(byte); length++; }
+  push(0x80);
+  while (used !== 56) push(0);
+  const high = Math.floor(length * 8 / 0x100000000), low = length * 8 >>> 0;
+  for (let shift = 24; shift >= 0; shift -= 8) push(high >>> shift & 255);
+  for (let shift = 24; shift >= 0; shift -= 8) push(low >>> shift & 255);
   return state.map((value) => value.toString(16).padStart(8, "0")).join("");
 }
 
 export function utf8Length(text: string): number {
-  return utf8(text).length;
+  let bytes = 0;
+  for (const character of text) { const p = character.codePointAt(0)!; bytes += p <= 0x7f ? 1 : p <= 0x7ff ? 2 : p <= 0xffff ? 3 : 4; }
+  return bytes;
 }
 
 function rotate(value: number, bits: number): number {
   return (value >>> bits) | (value << (32 - bits));
 }
 
-function utf8(text: string): number[] {
-  const bytes: number[] = [];
+/** Shared scalar UTF-8 encoder; hashing consumes it without a full byte-array allocation. */
+export function* utf8(text: string): Generator<number> {
   for (const character of text) {
-    const point = character.codePointAt(0)!;
-    if (point <= 0x7f) bytes.push(point);
-    else if (point <= 0x7ff) bytes.push(0xc0 | (point >> 6), 0x80 | (point & 0x3f));
-    else if (point <= 0xffff)
-      bytes.push(0xe0 | (point >> 12), 0x80 | ((point >> 6) & 0x3f), 0x80 | (point & 0x3f));
-    else
-      bytes.push(
-        0xf0 | (point >> 18),
-        0x80 | ((point >> 12) & 0x3f),
-        0x80 | ((point >> 6) & 0x3f),
-        0x80 | (point & 0x3f),
-      );
+    const p = character.codePointAt(0)!;
+    if (p <= 0x7f) yield p;
+    else {
+      if (p <= 0x7ff) yield 0xc0 | p >> 6;
+      else {
+        if (p <= 0xffff) yield 0xe0 | p >> 12;
+        else { yield 0xf0 | p >> 18; yield 0x80 | p >> 12 & 63; }
+        yield 0x80 | p >> 6 & 63;
+      }
+      yield 0x80 | p & 63;
+    }
   }
-  return bytes;
 }
 
 const SHA256_K = [
@@ -99,3 +94,14 @@ const SHA256_K = [
   0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
   0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
 ];
+
+/** Compare admitted scalar strings without allocating two codepoint arrays per index comparison. */
+export function compareCodepoints(left: string, right: string): number {
+  let a = 0, b = 0;
+  while (a < left.length && b < right.length) {
+    const x = left.codePointAt(a)!, y = right.codePointAt(b)!;
+    if (x !== y) return x - y;
+    a += x > 65535 ? 2 : 1; b += y > 65535 ? 2 : 1;
+  }
+  return left.length - a - (right.length - b);
+}

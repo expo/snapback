@@ -1,4 +1,4 @@
-// Standalone foundation; the legacy words() builtin is deliberately not wired here yet.
+// Shared pinned normalization for indexed search.
 // @ref LLP 1001#unicode-search-foundation — pinned Unicode, independent fields and stable counting passes.
 import { combining, folding, boundaries, decomposition, rangeValue, decomposeAt, composePair, MAX_DECOMPOSITION_DEPTH } from './unicode-tables';
 export { TABLE_DIGEST, MAX_NFD_SCALARS, MAX_DECOMPOSITION_DEPTH, MAX_LOOKUP_PROBES } from './unicode-tables';

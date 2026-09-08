@@ -11,8 +11,10 @@
         },
         "indexes": {
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -62,31 +64,49 @@
         },
         "indexes": {
           "byConversationPrincipal": {
-            "columns": [
-              "conversationId",
-              "principal",
-              "id"
+            "components": [
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "principal"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           },
           "byConversationRole": {
-            "columns": [
-              "conversationId",
-              "role",
-              "id"
+            "components": [
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "role"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           },
           "byGroup": {
-            "columns": [
-              "group",
-              "id"
+            "components": [
+              {
+                "Column": "group"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           },
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -152,8 +172,10 @@
               "index": "byConversationPrincipal",
               "prefix": [
                 {
-                  "Literal": {
-                    "Id": "c1"
+                  "Scalar": {
+                    "Literal": {
+                      "Id": "c1"
+                    }
                   }
                 }
               ],
@@ -198,8 +220,8 @@
   },
   "certificate": {
     "program": "cap-group-preserving-backfill",
-    "plan_hash": "bf1f3a4c46992071cf7751192d257900e45bffe0a2e7a192d3fb9e6ab6ea888e",
-    "schema_hash": "92aa46b4028d6c23d56cd40d70116a66c4d966e524f9bb714edbc9fab3ecc88c",
+    "plan_hash": "2e2bb7d7fe33bed7591ef19d02606c497aa95f80f7ce4230bc7b7c4cc2022fb7",
+    "schema_hash": "0fddd2f885384f446d105319245d3b8469804d8039e0404aeab41b5e6ce790d7",
     "tables": {
       "deliveries": {
         "retain": "until-revoked"
@@ -209,11 +231,11 @@
       }
     },
     "rule_hashes": {
-      "memberships.read": "ac7cf5c78c8ee6941090c37c4f1804d88b5fe41ba90730698e069f5ad66718e3",
-      "memberships.update": "ac7cf5c78c8ee6941090c37c4f1804d88b5fe41ba90730698e069f5ad66718e3"
+      "memberships.read": "ffc6a115040a835640e5cca0c07a27ce8faff8ec2fc3510af71553c52d7e905d",
+      "memberships.update": "ffc6a115040a835640e5cca0c07a27ce8faff8ec2fc3510af71553c52d7e905d"
     },
-    "evaluator_version": "bounded-spike-rust-1",
-    "value_model_version": "i53-codepoint-bytes-v2",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [
       {
         "site": "members.backfill",
@@ -245,6 +267,8 @@
     "max_index_entries": 1002,
     "max_rule_probes": 0,
     "max_steps": 15012,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
     "max_heap_bytes": 480384,
     "max_output_bytes": 6,
     "max_closure_bytes": 0,
@@ -269,7 +293,7 @@
     "read_time": null
   },
   "receipt": {
-    "schema_hash": "92aa46b4028d6c23d56cd40d70116a66c4d966e524f9bb714edbc9fab3ecc88c",
+    "schema_hash": "0fddd2f885384f446d105319245d3b8469804d8039e0404aeab41b5e6ce790d7",
     "rows": [
       {
         "table": "memberships",
@@ -1329,7 +1353,9 @@
         "index": "byConversationPrincipal",
         "prefix": [
           {
-            "Id": "c1"
+            "Scalar": {
+              "Id": "c1"
+            }
           }
         ],
         "order": "Asc",
@@ -1340,7 +1366,7 @@
         "gte": null,
         "lt": null,
         "lte": null,
-        "rule_hash": "ac7cf5c78c8ee6941090c37c4f1804d88b5fe41ba90730698e069f5ad66718e3",
+        "rule_hash": "ffc6a115040a835640e5cca0c07a27ce8faff8ec2fc3510af71553c52d7e905d",
         "row_ids": [
           "m0",
           "m1",
@@ -1396,7 +1422,7 @@
         "stop": "Exhausted",
         "absence": false,
         "halo": null,
-        "n2_key": null
+        "n2_suffix": null
       }
     ],
     "absences": [],

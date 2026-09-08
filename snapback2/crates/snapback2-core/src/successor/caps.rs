@@ -31,16 +31,16 @@ pub(super) fn validate_caps(
             continue;
         }
         // Index entries have already been removed by a grouping-column migration.
-        let rows = fetch_rows(connection, name)?;
         for (by, max) in caps {
             let mut counts = BTreeMap::<String, (Vec<Value>, u64)>::new();
-            for row in &rows {
-                let key = crate::cap::group_key(row, by);
+            for_row_batches(connection, name, |row| {
+                let key = crate::cap::group_key(&row, by);
                 counts
                     .entry(canonical_json(&key))
                     .and_modify(|(_, n)| *n += 1)
                     .or_insert((key, 1));
-            }
+                Ok(())
+            })?;
             let mut exceeded = 0;
             for (_, (key, count)) in counts {
                 if count <= u64::from(*max) {

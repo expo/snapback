@@ -2,6 +2,9 @@ export type ProgramKind = "Query" | "Mutation" | "job";
 export type Provenance = "Arg" | "Viewer" | "Const" | "Shape" | "Computed";
 export type Order = "Asc" | "Desc";
 export type RetentionPolicy = "until-revoked" | "delivered-history";
+import type { IndexComponent, IndexKeyExpr, SearchContract } from "../../evaluator/src/search-key";
+export type { IndexComponent, IndexKeyExpr, IndexAtom, SearchContract } from "../../evaluator/src/search-key";
+export type Index = { components: IndexComponent[]; unique: boolean };
 
 import coreIrContract from "../../../crates/snapback2-core/ir-contract.json" with { type: "json" };
 
@@ -34,7 +37,7 @@ export type Expr =
   | { Get: Read }
   | { Exists: Read }
   | { Scan: Scan }
-  | { Merge: { site: string; lanes: { setup?: Stmt[]; scan: Scan; source: Scan | null; binding: string }[] } };
+  | { Merge: { site: string; lanes: { setup?: Stmt[]; scan: Scan; source: Scan | null; binding: string }[]; held_search?: HeldSearchDescriptor } };
 
 export type Read = {
   site: string;
@@ -48,7 +51,7 @@ export type Scan = {
   site: string;
   table: string;
   index: string;
-  prefix: Expr[];
+  prefix: IndexKeyExpr[];
   order: Order;
   take: { Literal: number } | { Arg: { name: string; max: number } };
   after: Expr | null;
@@ -57,6 +60,19 @@ export type Scan = {
   opaque_cursor?: boolean;
   merge_site?: string | null;
   provenance: Provenance;
+};
+
+// @ref LLP 1012#indexed-held-search — the engine revalidates this alternate plan against the actual merge and source rule.
+export type HeldSearchDescriptor = {
+  table: string;
+  index: string;
+  term: { source: Expr; contract: SearchContract; source_max: number };
+  scope: Array<{ column: string; value: Expr }>;
+  suffix: string[];
+  order: Order;
+  take: Scan["take"];
+  after: Expr | null;
+  discovery: { scan: Scan; binding: string; authorization_index: string };
 };
 
 export type LoopDomain =
@@ -103,7 +119,7 @@ export type ArgType =
   | "Bool"
   | "Time"
   | "Scalar"
-  | { Text: { max: number } }
+  | { Text: { max: number; min?: number; format?: "handle" | "url" } }
   | { Bytes: { max: number } }
   | { Image: { max: number } }
   | { Video: { max: number } }

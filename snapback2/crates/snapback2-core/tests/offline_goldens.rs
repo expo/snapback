@@ -2,6 +2,7 @@ use serde_json::json;
 use snapback2_core::engine::{
     AuthoritativeTrace, ClosureReceipt, ReceiptRange, RowRecord, Verdict,
 };
+use snapback2_core::ir::IndexKeyExpr;
 use snapback2_core::{
     Actor, Auth, Bound, Builtin, Ceilings, Checker, ClientStore, ColumnType, Context,
     DeliveryProjectionContext, Engine, Execution, ExecutionState, Expr, Generation, Index,
@@ -39,25 +40,34 @@ fn schema() -> Schema {
                     (
                         "byId".to_owned(),
                         Index {
-                            columns: vec!["id".to_owned()],
+                            components: (vec!["id".to_owned()])
+                                .into_iter()
+                                .map(snapback2_core::search_key::IndexComponent::Column)
+                                .collect(),
                             unique: true,
                         },
                     ),
                     (
                         "byConversationAt".to_owned(),
                         Index {
-                            columns: vec![
+                            components: (vec![
                                 "conversationId".to_owned(),
                                 "at".to_owned(),
                                 "id".to_owned(),
-                            ],
+                            ])
+                            .into_iter()
+                            .map(snapback2_core::search_key::IndexComponent::Column)
+                            .collect(),
                             unique: false,
                         },
                     ),
                     (
                         "byBody".to_owned(),
                         Index {
-                            columns: vec!["body".to_owned()],
+                            components: (vec!["body".to_owned()])
+                                .into_iter()
+                                .map(snapback2_core::search_key::IndexComponent::Column)
+                                .collect(),
                             unique: true,
                         },
                     ),
@@ -93,7 +103,9 @@ fn range(rows: &[RowRecord], halo: Option<RowRecord>, stop: StopReason) -> Recei
         site: "messages.page".to_owned(),
         table: "messages".to_owned(),
         index: "byConversationAt".to_owned(),
-        prefix: vec![Value::Id("conversation-1".to_owned())],
+        prefix: vec![snapback2_core::search_key::IndexAtom::Scalar(Value::Id(
+            "conversation-1".to_owned(),
+        ))],
         order: Order::Asc,
         take: 2,
         after: None,
@@ -106,8 +118,11 @@ fn range(rows: &[RowRecord], halo: Option<RowRecord>, stop: StopReason) -> Recei
         row_ids: rows.iter().map(|row| row.id.clone()).collect(),
         stop,
         absence: rows.is_empty(),
-        halo,
-        n2_key: None,
+        halo: halo.map(|row| snapback2_core::engine::RowRef {
+            table: row.table,
+            id: row.id,
+        }),
+        n2_suffix: None,
     }
 }
 
@@ -163,13 +178,6 @@ fn public_receipt(
             .receipt
             .rows
             .iter()
-            .chain(
-                execution
-                    .receipt
-                    .ranges
-                    .iter()
-                    .filter_map(|range| range.halo.as_ref()),
-            )
             .find(|row| row.table == table && row.id == id)
             .cloned()
             .unwrap()
@@ -187,7 +195,7 @@ fn public_receipt(
             .iter()
             .cloned()
             .map(|mut range| {
-                range.n2_key = None;
+                range.n2_suffix = None;
                 range
             })
             .collect(),
@@ -370,6 +378,8 @@ fn offline_golden_fixtures_match_rust_projection() {
         let envelope = project_delivery(
             &execution,
             &DeliveryProjectionContext {
+                schema: &schema,
+                read_time: None,
                 op: "messages.thread",
                 args: &args,
                 generation: &hash('d'),
@@ -432,6 +442,8 @@ fn alternate_key_miss_is_not_projected_as_public_absence() {
     let envelope = project_delivery(
         &execution,
         &DeliveryProjectionContext {
+            schema: &schema,
+            read_time: None,
             op: "messages.byBody",
             args: &args,
             generation: &hash('d'),
@@ -466,28 +478,40 @@ fn oracle_schema() -> Schema {
             (
                 "byId".to_owned(),
                 Index {
-                    columns: vec!["id".to_owned()],
+                    components: (vec!["id".to_owned()])
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: true,
                 },
             ),
             (
                 "byOwnerAt".to_owned(),
                 Index {
-                    columns: vec!["owner".to_owned(), "at".to_owned(), "id".to_owned()],
+                    components: (vec!["owner".to_owned(), "at".to_owned(), "id".to_owned()])
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: false,
                 },
             ),
             (
                 "byAt".to_owned(),
                 Index {
-                    columns: vec!["at".to_owned(), "id".to_owned()],
+                    components: (vec!["at".to_owned(), "id".to_owned()])
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: false,
                 },
             ),
             (
                 "byBody".to_owned(),
                 Index {
-                    columns: vec!["body".to_owned()],
+                    components: (vec!["body".to_owned()])
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: true,
                 },
             ),
@@ -515,14 +539,20 @@ fn oracle_schema() -> Schema {
             (
                 "byId".to_owned(),
                 Index {
-                    columns: vec!["id".to_owned()],
+                    components: (vec!["id".to_owned()])
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: true,
                 },
             ),
             (
                 "bySlug".to_owned(),
                 Index {
-                    columns: vec!["slug".to_owned()],
+                    components: (vec!["slug".to_owned()])
+                        .into_iter()
+                        .map(snapback2_core::search_key::IndexComponent::Column)
+                        .collect(),
                     unique: true,
                 },
             ),
@@ -545,7 +575,10 @@ fn oracle_schema() -> Schema {
         indexes: BTreeMap::from([(
             "byId".to_owned(),
             Index {
-                columns: vec!["id".to_owned()],
+                components: (vec!["id".to_owned()])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: true,
             },
         )]),
@@ -591,7 +624,10 @@ fn scan_program(name: &str, index: &str, prefix: Vec<Value>, take: u32) -> Progr
             site,
             table: "messages".to_owned(),
             index: index.to_owned(),
-            prefix: prefix.into_iter().map(Expr::Literal).collect(),
+            prefix: (prefix.into_iter().map(Expr::Literal).collect::<Vec<_>>())
+                .into_iter()
+                .map(IndexKeyExpr::Scalar)
+                .collect(),
             order: Order::Asc,
             take: Bound::Literal(take),
             after: None,
@@ -650,6 +686,8 @@ fn write_or_assert_golden(name: &str, schema: &Schema, op: &str, execution: &Exe
     let envelope = project_delivery(
         execution,
         &DeliveryProjectionContext {
+            schema: &schema,
+            read_time: None,
             op,
             args: &args,
             generation: &hash('d'),
@@ -751,7 +789,10 @@ fn engine_executed_oracle_goldens_match_public_projection() {
 #[test]
 fn hidden_candidate_memo_rollback_preserves_envelope_receipt_replay() {
     let by_id = || Index {
-        columns: vec!["id".to_owned()],
+        components: (vec!["id".to_owned()])
+            .into_iter()
+            .map(snapback2_core::search_key::IndexComponent::Column)
+            .collect(),
         unique: true,
     };
     let read_rule = RuleExpr::And(vec![
@@ -784,7 +825,10 @@ fn hidden_candidate_memo_rollback_preserves_envelope_receipt_replay() {
                         (
                             "byRank".to_owned(),
                             Index {
-                                columns: vec!["rank".to_owned(), "id".to_owned()],
+                                components: (vec!["rank".to_owned(), "id".to_owned()])
+                                    .into_iter()
+                                    .map(snapback2_core::search_key::IndexComponent::Column)
+                                    .collect(),
                                 unique: false,
                             },
                         ),
@@ -849,7 +893,7 @@ fn hidden_candidate_memo_rollback_preserves_envelope_receipt_replay() {
             site: "documents.rangeMemo.rows".to_owned(),
             table: "documents".to_owned(),
             index: "byRank".to_owned(),
-            prefix: Vec::new(),
+            prefix: (Vec::new()).into_iter().map(IndexKeyExpr::Scalar).collect(),
             order: Order::Asc,
             take: Bound::Literal(2),
             after: None,
@@ -862,84 +906,114 @@ fn hidden_candidate_memo_rollback_preserves_envelope_receipt_replay() {
     };
 
     for readable in [false, true] {
-      let mut schema = schema.clone();
-      if readable { schema.tables.get_mut("grants").unwrap().rules.read = RuleExpr::Allow; }
-      for program in [&point, &range] {
-        let certificate = Checker::new(&schema, Ceilings::default())
-            .check(program)
-            .unwrap();
-        let mut server = Engine::memory(schema.clone()).unwrap();
-        server
-            .seed(
-                "grants",
-                object([("id", Value::Id("grant-shared".to_owned()))]),
-            )
-            .unwrap();
-        for (id, owner, rank) in [
-            ("document-hidden", "bob", 1),
-            ("document-visible", "alice", 2),
-        ] {
+        let mut schema = schema.clone();
+        if readable {
+            schema.tables.get_mut("grants").unwrap().rules.read = RuleExpr::Allow;
+        }
+        for program in [&point, &range] {
+            let certificate = Checker::new(&schema, Ceilings::default())
+                .check(program)
+                .unwrap();
+            let mut server = Engine::memory(schema.clone()).unwrap();
             server
                 .seed(
-                    "documents",
-                    object([
-                        ("id", Value::Id(id.to_owned())),
-                        ("grantId", Value::Id("grant-shared".to_owned())),
-                        ("owner", Value::Id(owner.to_owned())),
-                        ("rank", Value::Int(rank)),
-                    ]),
+                    "grants",
+                    object([("id", Value::Id("grant-shared".to_owned()))]),
                 )
                 .unwrap();
-        }
-        let mut context = Context::query(Actor::user("alice").unwrap(), BTreeMap::new());
-        context.auth_epoch = 9;
-        let served = server
-            .execute(program, &certificate, context.clone())
-            .unwrap();
-        assert_eq!(served.receipt.verdicts.len(), usize::from(!readable), "{}", program.name);
-        assert_eq!(served.receipt.rows.iter().filter(|r| r.table == "grants").count(), usize::from(readable));
-        if readable {
-            // The denied first candidate recorded then rolled back this exact
-            // row. The visible candidate must deliver it again, in order.
-            assert_eq!(served.receipt.rows[0].id, "grant-shared");
-            assert_eq!(served.trace.rows.iter().filter(|r| r.table == "grants").count(), 1);
-        }
-        assert!(
-            served
-                .receipt
-                .rows
-                .iter()
-                .any(|row| { row.table == "documents" && row.id == "document-visible" })
-        );
-        assert!(
-            served
-                .receipt
-                .rows
-                .iter()
-                .all(|row| { row.table != "documents" || row.id != "document-hidden" })
-        );
+            for (id, owner, rank) in [
+                ("document-hidden", "bob", 1),
+                ("document-visible", "alice", 2),
+            ] {
+                server
+                    .seed(
+                        "documents",
+                        object([
+                            ("id", Value::Id(id.to_owned())),
+                            ("grantId", Value::Id("grant-shared".to_owned())),
+                            ("owner", Value::Id(owner.to_owned())),
+                            ("rank", Value::Int(rank)),
+                        ]),
+                    )
+                    .unwrap();
+            }
+            let mut context = Context::query(Actor::user("alice").unwrap(), BTreeMap::new());
+            context.auth_epoch = 9;
+            let served = server
+                .execute(program, &certificate, context.clone())
+                .unwrap();
+            assert_eq!(
+                served.receipt.verdicts.len(),
+                usize::from(!readable),
+                "{}",
+                program.name
+            );
+            assert_eq!(
+                served
+                    .receipt
+                    .rows
+                    .iter()
+                    .filter(|r| r.table == "grants")
+                    .count(),
+                usize::from(readable)
+            );
+            if readable {
+                // The denied first candidate recorded then rolled back this exact
+                // row. The visible candidate must deliver it again, in order.
+                assert_eq!(served.receipt.rows[0].id, "grant-shared");
+                assert_eq!(
+                    served
+                        .trace
+                        .rows
+                        .iter()
+                        .filter(|r| r.table == "grants")
+                        .count(),
+                    1
+                );
+            }
+            assert!(
+                served
+                    .receipt
+                    .rows
+                    .iter()
+                    .any(|row| { row.table == "documents" && row.id == "document-visible" })
+            );
+            assert!(
+                served
+                    .receipt
+                    .rows
+                    .iter()
+                    .all(|row| { row.table != "documents" || row.id != "document-hidden" })
+            );
 
-        let args = BTreeMap::new();
-        let envelope = project_delivery(
-            &served,
-            &DeliveryProjectionContext {
-                op: &program.name,
-                args: &args,
-                generation: &hash('d'),
-                schema_hash: &schema.hash(),
-                plan_hash: &hash('e'),
-                principal: "alice",
-                auth_epoch: 9,
-            },
-        )
-        .unwrap();
-        let delivered = public_receipt(&served, &envelope);
-        assert_eq!(delivered.verdicts.len(), usize::from(!readable), "{}", program.name);
-        let mut client = ClientStore::hydrate(schema.clone(), &delivered).unwrap();
-        let (_, replayed) = client.reexecute(program, &certificate, context).unwrap();
-        assert_eq!(replayed.result, served.result, "{}", program.name);
+            let args = BTreeMap::new();
+            let envelope = project_delivery(
+                &served,
+                &DeliveryProjectionContext {
+                    schema: &schema,
+                    read_time: None,
+                    op: &program.name,
+                    args: &args,
+                    generation: &hash('d'),
+                    schema_hash: &schema.hash(),
+                    plan_hash: &hash('e'),
+                    principal: "alice",
+                    auth_epoch: 9,
+                },
+            )
+            .unwrap();
+            let delivered = public_receipt(&served, &envelope);
+            assert_eq!(
+                delivered.verdicts.len(),
+                usize::from(!readable),
+                "{}",
+                program.name
+            );
+            let mut client = ClientStore::hydrate(schema.clone(), &delivered).unwrap();
+            let (_, replayed) = client.reexecute(program, &certificate, context).unwrap();
+            assert_eq!(replayed.result, served.result, "{}", program.name);
+        }
     }
-  }
 }
 
 #[test]
@@ -952,7 +1026,10 @@ fn engine_result_provenance_distinguishes_identical_rows_from_two_tables() {
         indexes: BTreeMap::from([(
             "byId".to_owned(),
             Index {
-                columns: vec!["id".to_owned()],
+                components: (vec!["id".to_owned()])
+                    .into_iter()
+                    .map(snapback2_core::search_key::IndexComponent::Column)
+                    .collect(),
                 unique: true,
             },
         )]),
@@ -1011,6 +1088,8 @@ fn engine_result_provenance_distinguishes_identical_rows_from_two_tables() {
     let envelope = project_delivery(
         &execution,
         &DeliveryProjectionContext {
+            schema: &schema,
+            read_time: None,
             op: &program.name,
             args: &args,
             generation: &hash('d'),
@@ -1076,7 +1155,10 @@ fn all_types_schema() -> Schema {
                 indexes: BTreeMap::from([(
                     "byId".to_owned(),
                     Index {
-                        columns: vec!["id".to_owned()],
+                        components: (vec!["id".to_owned()])
+                            .into_iter()
+                            .map(snapback2_core::search_key::IndexComponent::Column)
+                            .collect(),
                         unique: true,
                     },
                 )]),
@@ -1093,17 +1175,29 @@ fn all_types_schema() -> Schema {
 #[test]
 fn every_column_kind_and_reserved_application_value_have_goldens() {
     let schema = all_types_schema();
-    let image = Value::Map(BTreeMap::from([
-        ("id".to_owned(), Value::String("image-1".to_owned())),
-        ("width".to_owned(), Value::Int(640)),
-        ("height".to_owned(), Value::Int(480)),
-    ]));
-    let video = Value::Map(BTreeMap::from([
-        ("id".to_owned(), Value::String("video-1".to_owned())),
-        ("width".to_owned(), Value::Int(1920)),
-        ("height".to_owned(), Value::Int(1080)),
-        ("duration".to_owned(), Value::Int(9000)),
-    ]));
+    let image = Value::Map(
+        BTreeMap::from([
+            (
+                "id".to_owned(),
+                Value::String("s2id-00000000000000000000000000000001-0000000000000001".to_owned()),
+            ),
+            ("width".to_owned(), Value::Int(640)),
+            ("height".to_owned(), Value::Int(480)),
+        ])
+        .into(),
+    );
+    let video = Value::Map(
+        BTreeMap::from([
+            (
+                "id".to_owned(),
+                Value::String("s2id-00000000000000000000000000000001-0000000000000002".to_owned()),
+            ),
+            ("width".to_owned(), Value::Int(1920)),
+            ("height".to_owned(), Value::Int(1080)),
+            ("duration".to_owned(), Value::Int(9000)),
+        ])
+        .into(),
+    );
     let row = RowRecord {
         table: "allTypes".to_owned(),
         id: "all-1".to_owned(),
@@ -1121,13 +1215,16 @@ fn every_column_kind_and_reserved_application_value_have_goldens() {
             ("video", video),
             (
                 "json",
-                Value::Map(BTreeMap::from([
-                    ("enabled".to_owned(), Value::Bool(true)),
-                    (
-                        "values".to_owned(),
-                        Value::Array(vec![Value::Int(1), Value::Null]),
-                    ),
-                ])),
+                Value::Map(
+                    BTreeMap::from([
+                        ("enabled".to_owned(), Value::Bool(true)),
+                        (
+                            "values".to_owned(),
+                            Value::Array(vec![Value::Int(1), Value::Null]),
+                        ),
+                    ])
+                    .into(),
+                ),
             ),
             ("decimal", Value::Int(1234)),
             ("money", Value::Int(567)),
@@ -1151,17 +1248,40 @@ fn every_column_kind_and_reserved_application_value_have_goldens() {
         seq: 17,
         next: None,
     };
+    // Projection coverage uses a synthetic authoritative receipt, not asset
+    // ledger admission. Hydration still checks every declared column shape.
+    ClientStore::hydrate(schema.clone(), &execution.receipt).unwrap();
+    for (field, invalid_id) in [("image", "image-1"), ("video", "video-1")] {
+        let mut invalid = execution.receipt.clone();
+        let Value::Row(fields) = &mut invalid.rows[0].row else {
+            panic!("row")
+        };
+        let Value::Map(asset) = fields.get_mut(field).unwrap() else {
+            panic!("asset")
+        };
+        asset.insert("id".into(), Value::String(invalid_id.into()));
+        assert!(matches!(
+            ClientStore::hydrate(schema.clone(), &invalid),
+            Err(snapback2_core::RuntimeError::AssetType(_))
+        ));
+    }
     write_or_assert_golden("every-column-kind", &schema, "allTypes.get", &execution);
 
     let application_schema = Schema::default();
     let application = Execution {
-        result: Value::Map(BTreeMap::from([(
-            "$row".to_owned(),
-            Value::Map(BTreeMap::from([
-                ("id".to_owned(), Value::String("literal".to_owned())),
-                ("table".to_owned(), Value::String("application".to_owned())),
-            ])),
-        )])),
+        result: Value::Map(
+            BTreeMap::from([(
+                "$row".to_owned(),
+                Value::Map(
+                    BTreeMap::from([
+                        ("id".to_owned(), Value::String("literal".to_owned())),
+                        ("table".to_owned(), Value::String("application".to_owned())),
+                    ])
+                    .into(),
+                ),
+            )])
+            .into(),
+        ),
         result_provenance: ResultProvenance::None,
         trace: AuthoritativeTrace::default(),
         receipt: ClosureReceipt {

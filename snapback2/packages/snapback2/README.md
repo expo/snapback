@@ -1,6 +1,6 @@
 # snapback2
 
-Snapback 2's package contains the Quarry compiler, TypeScript lowering descriptors,
+Snapback 2's package contains the Quarry compiler, TypeScript effect and test helpers,
 headless client, React web arm, and CLI shim. It requires Node 20 or newer for Node clients.
 
 ```sh
@@ -21,6 +21,10 @@ const page = await client.query(api.messages.thread, { conversationId: "conversa
 const sub = client.subscribe(api.messages.thread, { conversationId: "conversation-1", c: null }, console.log);
 await sub.until((delivery) => delivery.state === "complete" && delivery.live);
 sub.close();
+
+const observed = client.observe(api.messages.thread, { conversationId: "conversation-1", c: null });
+const stop = observed.subscribe(() => console.log(observed.getSnapshot()));
+stop();
 ```
 
 The generated `.snapback/build/api.d.ts` is the only source of `api` members, so
@@ -54,14 +58,29 @@ connection failure remains `hydrating`. Transport status is separately exposed a
 default; pass `{ live: false }` for a one-shot query, which remains `hydrating` and
 retries while its connection is reconnecting.
 
+`client.observe` is the lazy headless form of the same query resource. Its
+first listener opens the shared subscription and its last listener releases
+it. Identical headless and React consumers read the same immutable `QueryView`;
+successor and account resets publish `hydrating` before new-authority data.
+Committed predictions, settlements, and coverage changes reevaluate mounted
+views once from the atomic store revision; bookkeeping-only commits stay silent.
+
 `useMutation` returns `{ run, inFlight, pending, ready, status, last, transport }`.
 `inFlight` marks an active call; `pending` lists this operation's durable queued
-intents. `last` is `queued`, `committed`, or `rejected`; queued means saved on the
+intents. `last` is `queued`, `committed`, `rejected`, or `admission-unknown`; queued means saved on the
 device for FIFO replay after resume. `status` explains readiness, the next action,
 remaining queue, and fence. `useOutbox()` exposes entries; `outbox.drain()` and
 `settled()` report `{ stopped, remaining }`. Transport failures preserve queued
 writes; a thrown failure leaves `last` untouched and sets `transport`.
 Run `snapback2 guide offline` for recovery.
+
+A second browser tab for the same account forwards ordinary mutation arguments
+to the tab holding the IndexedDB partition lock. `queued` means that writer has
+durably admitted the request. If its answer is lost after send, the follower
+gets `{ state: "admission-unknown", recovery }`; keep the opaque token and call
+`client.recoverMutation(ref, args, recovery)` with the same operation and
+arguments. Never retry that outcome as a fresh mutation. Uploads and channel
+publishes still refuse from a follower before sending bytes.
 
 ## Assets
 

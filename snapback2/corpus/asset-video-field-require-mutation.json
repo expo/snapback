@@ -122,8 +122,8 @@
     "rule_hashes": {
       "events.insert": "145c3060610da095050a505c3c63b114def40beaaa6163026cd5893fa51fe62f"
     },
-    "evaluator_version": "bounded-spike-rust-1",
-    "value_model_version": "i53-codepoint-bytes-v2",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [],
     "write_sites": [
       {
@@ -143,6 +143,8 @@
     "max_index_entries": 0,
     "max_rule_probes": 0,
     "max_steps": 19,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
     "max_heap_bytes": 608,
     "max_output_bytes": 6,
     "max_closure_bytes": 0,

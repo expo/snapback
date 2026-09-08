@@ -6,3 +6,10 @@ export { sqliteState, fixtureAsset } from "./sqlite-state.js";
 export { NativeAssetFiles, fileBackend, attachAssetFiles, partitionDirectory } from "../src/react-native/files.js";
 export { ByteCache } from "../src/store/byte-cache.js";
 export { PersistentRangeStore } from "../src/store/range-store.js";
+// Incremental carrier qualification shares the exact production admission and identity implementations.
+export { tagReceipt, tagWireRow } from '../src/offline-protocol.js';
+export { canonicalProgramJson } from '../../evaluator/src/certificate-identity.js';
+export { CURRENT_EVALUATOR, CURRENT_VALUE_MODEL_VERSION } from '../../evaluator/src/runner.js';
+export { Twin } from '../src/twin.js';
+export { ClientStore } from '../../evaluator/src/store.js';
+export { OfflineRuntime, offlineView } from '../src/offline.js';

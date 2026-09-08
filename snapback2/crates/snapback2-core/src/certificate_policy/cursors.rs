@@ -13,7 +13,7 @@ pub(super) fn validate_scan_cursors(
     let Some(index) = table.index(&scan.index) else {
         return;
     };
-    if scan.prefix.len() > index.columns.len() {
+    if scan.prefix.len() > index.components.len() {
         errors.push(CheckError {
             site: None,
             code: "E_ARGS_TYPE".to_owned(),
@@ -23,21 +23,29 @@ pub(super) fn validate_scan_cursors(
                 scan.prefix.len(),
                 scan.table,
                 scan.index,
-                index.columns.len(),
+                index.components.len(),
             ),
             rewrite: format!(
                 "keep only the first {} prefix components when scanning {}.{}",
-                index.columns.len(),
+                index.components.len(),
                 scan.table,
                 scan.index,
             ),
         });
         return;
     }
-    if scan.merge_site.is_some() && index.columns.last().map(String::as_str) != Some("id") {
+    if scan.merge_site.is_some()
+        && index
+            .components
+            .last()
+            .and_then(crate::search_key::IndexComponent::column)
+            .map(String::as_str)
+            != Some("id")
+    {
         let columns = index
-            .columns
+            .components
             .iter()
+            .filter_map(crate::search_key::IndexComponent::column)
             .filter(|column| column.as_str() != "id")
             .cloned()
             .chain(std::iter::once("id".to_owned()))
@@ -68,7 +76,7 @@ pub(super) fn validate_scan_cursors(
     if scan.after.is_none() && scan.before.is_none() {
         return;
     }
-    let remaining_columns = &index.columns[scan.prefix.len()..];
+    let remaining_columns = &index.suffix_columns(scan.prefix.len()).unwrap_or_default();
     if remaining_columns.is_empty() {
         for expression in [scan.after.as_deref(), scan.before.as_deref()] {
             if expression.is_none() {
@@ -91,10 +99,18 @@ pub(super) fn validate_scan_cursors(
     }
     // @ref LLP 1001#3-read-and-write-states-no-silent-states — a cursored index must be a total order (ends in `id`, or is
     // unique); the runtime accepts the lossy shape, so this is a policy refusal.
-    if index.columns.last().map(String::as_str) != Some("id") && !index.unique {
+    if index
+        .components
+        .last()
+        .and_then(crate::search_key::IndexComponent::column)
+        .map(String::as_str)
+        != Some("id")
+        && !index.unique
+    {
         let columns = index
-            .columns
+            .components
             .iter()
+            .filter_map(crate::search_key::IndexComponent::column)
             .filter(|column| column.as_str() != "id")
             .cloned()
             .chain(std::iter::once("id".to_owned()))

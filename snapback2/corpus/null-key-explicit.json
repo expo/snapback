@@ -18,15 +18,21 @@
         },
         "indexes": {
           "byGroup": {
-            "columns": [
-              "__proto__",
-              "toString"
+            "components": [
+              {
+                "Column": "__proto__"
+              },
+              {
+                "Column": "toString"
+              }
             ],
             "unique": true
           },
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -56,15 +62,21 @@
         },
         "indexes": {
           "byBucket": {
-            "columns": [
-              "__proto__",
-              "toString"
+            "components": [
+              {
+                "Column": "__proto__"
+              },
+              {
+                "Column": "toString"
+              }
             ],
             "unique": true
           },
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -189,7 +201,7 @@
   "certificate": {
     "program": "events.recordWithoutBucket",
     "plan_hash": "7726eed220212772cb5ddec889c436b449204405bdcb617c3f9bfe0fbf8b631e",
-    "schema_hash": "72c413e11bad197627d1eeb60f090186b7fa90e3f63bd39b0958d7781cfefbb0",
+    "schema_hash": "b575618045e11b0254835ec869b9de5d97b8bf651a195db24dfa9baababafa32",
     "tables": {
       "counts": {
         "retain": "until-revoked"
@@ -199,12 +211,12 @@
       }
     },
     "rule_hashes": {
-      "counts.read": "8ab985e4267dc2258bca35609ad5fe6c52dfdead792a2369aaeb0d69011230b5",
-      "events.insert": "5dc8c428bfb875626830fd816880033e12bf935c0eb28ebd6aaacfb5762edba2",
-      "events.read": "5dc8c428bfb875626830fd816880033e12bf935c0eb28ebd6aaacfb5762edba2"
+      "counts.read": "5a376c0ed652bfa9a104b625739ca19f4977b407dfc2d18e10eec69332aed97b",
+      "events.insert": "84a2bdd5439eeb6094d29365246d61da4a42c2b3b5f6b016dd43b024a3def2e7",
+      "events.read": "84a2bdd5439eeb6094d29365246d61da4a42c2b3b5f6b016dd43b024a3def2e7"
     },
-    "evaluator_version": "bounded-spike-rust-1",
-    "value_model_version": "i53-codepoint-bytes-v2",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [
       {
         "site": "null.count",
@@ -262,9 +274,11 @@
     "max_index_entries": 3,
     "max_rule_probes": 0,
     "max_steps": 34,
-    "max_heap_bytes": 1088,
-    "max_output_bytes": 1039,
-    "max_closure_bytes": 3078,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 6380,
+    "max_heap_bytes": 7468,
+    "max_output_bytes": 1488,
+    "max_closure_bytes": 9818,
     "completeness": "Page",
     "prediction_sites": [],
     "read_time_granularity_ms": null,
@@ -287,7 +301,7 @@
     "read_time": null
   },
   "receipt": {
-    "schema_hash": "72c413e11bad197627d1eeb60f090186b7fa90e3f63bd39b0958d7781cfefbb0",
+    "schema_hash": "b575618045e11b0254835ec869b9de5d97b8bf651a195db24dfa9baababafa32",
     "rows": [
       {
         "table": "counts",

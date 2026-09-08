@@ -13,14 +13,18 @@
         },
         "indexes": {
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           },
           "byOwner": {
-            "columns": [
-              "owner"
+            "components": [
+              {
+                "Column": "owner"
+              }
             ],
             "unique": true
           }
@@ -46,8 +50,10 @@
         },
         "indexes": {
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -143,7 +149,7 @@
   "certificate": {
     "program": "ledger.insertAndReadBalance",
     "plan_hash": "b91a127a830e0586b8195525e1677584b4af71f425a846bc6ff875815dd8f6de",
-    "schema_hash": "8a2605617c230271c89200e4454c8856a0f31b12c84e38c974532fb401de6170",
+    "schema_hash": "94a53a19639b00490f60f54f76959bfbf3dc9f518938b92c353c27d67070f41b",
     "tables": {
       "balances": {
         "retain": "until-revoked"
@@ -153,11 +159,11 @@
       }
     },
     "rule_hashes": {
-      "balances.read": "6a3546c4495ba78170d882b2875e91a9b6c1a7924b697dd8d2d04ea27b6e576f",
-      "ledger.insert": "d66c70dc10a87ebcadd5ff7b90cd5875721eab2869dd7c3ac5d79d2f33a47e2a"
+      "balances.read": "ded0b325f80779ee64a36b95dd57d53ccd2239507c9f92f374b3222bcdbc75f1",
+      "ledger.insert": "ad1ee2179bf47067255c0b64f4a245c917c293cd0b47cbddbf47dddbf2339ffe"
     },
-    "evaluator_version": "bounded-spike-rust-1",
-    "value_model_version": "i53-codepoint-bytes-v2",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [
       {
         "site": "balances.afterInsert",
@@ -191,9 +197,11 @@
     "max_index_entries": 1,
     "max_rule_probes": 0,
     "max_steps": 17,
-    "max_heap_bytes": 544,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 1960,
+    "max_heap_bytes": 2504,
     "max_output_bytes": 41,
-    "max_closure_bytes": 41,
+    "max_closure_bytes": 1960,
     "completeness": "Page",
     "prediction_sites": [],
     "read_time_granularity_ms": null,
@@ -214,7 +222,7 @@
     "read_time": null
   },
   "receipt": {
-    "schema_hash": "8a2605617c230271c89200e4454c8856a0f31b12c84e38c974532fb401de6170",
+    "schema_hash": "94a53a19639b00490f60f54f76959bfbf3dc9f518938b92c353c27d67070f41b",
     "rows": [
       {
         "table": "balances",

@@ -70,7 +70,9 @@ fn chat_seed_205_memberships_applies_and_reset_51_in_one_group_refuses_atomicall
     fs::write(&seed_path, seed(1, 51)).unwrap();
     wait_for(Duration::from_secs(6), || {
         let log = fs::read_to_string(&log_path).ok()?;
-        log.get(log_start..)?.contains("\"successor\":\"applied\"").then_some(())
+        log.get(log_start..)?
+            .contains("\"successor\":\"applied\"")
+            .then_some(())
     });
     let reset = request(
         port,

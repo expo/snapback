@@ -3,7 +3,6 @@
 
 use crate::engine::{
     RuntimeError, materialize_optional_fields, rebuild_owned_aggregate_target, reindex_row,
-    validate_column_value,
 };
 use crate::schema::{ColumnType, Maintain, MaintainKind, Schema};
 use crate::store::Store;
@@ -201,7 +200,7 @@ pub(crate) fn plan(
             if next_table
                 .indexes
                 .get(index)
-                .is_none_or(|next_index| next_index.columns != definition.columns)
+                .is_none_or(|next_index| next_index.components != definition.components)
             {
                 drops.push(Drop::Index {
                     table: table_name.clone(),
@@ -280,21 +279,21 @@ pub(crate) fn additive_refusal(
         if rebuilt_targets.contains(table_name) {
             continue;
         }
-        let rows = fetch_rows(connection, table_name)?;
         for (index_name, index) in &next_table.indexes {
             let newly_unique = index.unique
                 && !current_table
                     .indexes
                     .get(index_name)
-                    .is_some_and(|old| old.unique && old.columns == index.columns);
+                    .is_some_and(|old| old.unique && old.components == index.components);
             if !newly_unique {
                 continue;
             }
             let mut counts = BTreeMap::<String, (Vec<Value>, usize)>::new();
-            for row in &rows {
+            for_row_batches(connection, table_name, |row| {
                 let key = index
-                    .columns
+                    .components
                     .iter()
+                    .filter_map(crate::search_key::IndexComponent::column)
                     .map(|column| row.field(column).cloned().unwrap_or(Value::Null))
                     .collect::<Vec<_>>();
                 let encoded = canonical_json(&key);
@@ -302,7 +301,8 @@ pub(crate) fn additive_refusal(
                     .entry(encoded)
                     .and_modify(|(_, count)| *count += 1)
                     .or_insert((key, 1));
-            }
+                Ok(())
+            })?;
             for (_, (key, count)) in counts {
                 if count > 1 {
                     conflicts.push(UniqueConflict {
@@ -317,6 +317,9 @@ pub(crate) fn additive_refusal(
             }
         }
     }
+    // Rebuilt targets validate the final survivor-plus-projection state inside
+    // rebuild_target. Deferring that check preserves dependency order when one
+    // maintained target is the next target's source.
     Ok((!conflicts.is_empty()).then(|| SuccessorRefusal::unique(conflicts)))
 }
 
@@ -344,9 +347,6 @@ pub(crate) fn validate_stored_rows(
                 }
             })
             .collect::<Vec<_>>();
-        if columns.is_empty() {
-            continue;
-        }
         let mut statement = connection
             .prepare("SELECT row_id, data FROM rows WHERE table_name = ?1 ORDER BY row_id")?;
         let rows = statement.query_map([table_name], |row| {
@@ -370,10 +370,34 @@ pub(crate) fn validate_stored_rows(
                     )));
                 }
             };
-            for (column, kind) in &columns {
+            if let Some(id) = object.get("id") {
+                if let Err(error) = crate::cap::validate_address(next, table_name, id) {
+                    return Ok(Some(SuccessorRefusal::invalid_row(
+                        table_name, &row_id, error,
+                    )));
+                }
+            }
+            for (column, value) in object
+                .iter()
+                .filter(|(name, _)| name.as_str() != "id" && next_table.columns.contains_key(*name))
+            {
+                let _ = column;
                 if let Err(error) =
-                    validate_column_value(table_name, column, kind, object.get(*column))
+                    crate::cap::validate_typed_identities(next, &next_table.columns[column], value)
                 {
+                    return Ok(Some(SuccessorRefusal::invalid_row(
+                        table_name, &row_id, error,
+                    )));
+                }
+            }
+            for (column, kind) in &columns {
+                if let Err(error) = crate::engine::validate_typed_column_value(
+                    next,
+                    table_name,
+                    column,
+                    kind,
+                    object.get(*column),
+                ) {
                     return Ok(Some(SuccessorRefusal::invalid_row(
                         table_name, &row_id, error,
                     )));
@@ -428,7 +452,7 @@ pub(crate) fn apply_additive(
             if table
                 .indexes
                 .get(index)
-                .is_none_or(|old| old.columns != next_index.columns)
+                .is_none_or(|old| old.components != next_index.components)
             {
                 report.added_indexes.push(format!("{table_name}.{index}"));
             }
@@ -437,25 +461,74 @@ pub(crate) fn apply_additive(
     let changed_maintains = changed_maintains(current, next);
     report.backfilled_maintains = changed_maintains.len() as u64;
 
+    let mut predecessor_maintain_ids = predecessor_maintain_ids
+        .map(Ok)
+        .unwrap_or_else(|| projected_predecessor_ids(transaction, current, next))?;
+
+    // A retired projection can be the source of a new maintain. Clear its
+    // engine-owned addresses before any active target reads that source;
+    // target-name order is not a dependency order. Ordinary-id survivors stay.
+    let next_targets = next
+        .maintains
+        .iter()
+        .map(|maintain| maintain.target.as_str())
+        .collect::<BTreeSet<_>>();
+    let retired_targets = current
+        .maintains
+        .iter()
+        .map(|maintain| maintain.target.as_str())
+        .filter(|target| !next_targets.contains(target))
+        .collect::<BTreeSet<_>>();
+    for target in retired_targets {
+        if let Some(ids) = predecessor_maintain_ids.remove(target) {
+            rebuild_owned_aggregate_target(transaction, next, target, &ids, vec![])?;
+        }
+    }
+
     for table_name in next.tables.keys() {
         let needs_reindex = current.tables.get(table_name).is_some_and(|table| {
             next.tables[table_name].indexes.iter().any(|(name, index)| {
                 table
                     .indexes
                     .get(name)
-                    .is_none_or(|old| old.columns != index.columns)
+                    .is_none_or(|old| old.components != index.components)
             })
         });
         if needs_reindex {
-            let rows = fetch_rows(transaction, table_name)?;
-            for row in rows {
+            // Keep one source batch live; all postings are ready in this transaction before exposure.
+            for_row_batches(transaction, table_name, |row| {
+                // Exact predecessor-owned projections will be removed/replaced below.
+                // Surviving rows still undergo scoped successor index admission.
+                if let Some(ids) = predecessor_maintain_ids.get(table_name) {
+                    if ids.contains(row.field("id")?.as_str()?) {
+                        return Ok(());
+                    }
+                }
+                // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs —
+                // reindex consumes declared key inputs, not unrelated legacy fields.
+                let table = next.table(table_name).expect("successor table");
+                let mut columns = BTreeSet::from(["id"]);
+                for index in table.indexes.values() {
+                    for component in &index.components {
+                        match component {
+                            crate::search_key::IndexComponent::Column(name) => {
+                                columns.insert(name);
+                            }
+                            crate::search_key::IndexComponent::WordPrefixes { fields, .. } => {
+                                columns.extend(fields.iter().map(String::as_str));
+                            }
+                        }
+                    }
+                }
+                for column in columns {
+                    let value = row.field(column).unwrap_or(&Value::Null);
+                    crate::cap::validate_index_column(next, table_name, column, value)?;
+                }
                 reindex_row(transaction, next, table_name, &row)?;
-            }
+                Ok(())
+            })?;
         }
     }
-    let mut predecessor_maintain_ids = predecessor_maintain_ids
-        .map(Ok)
-        .unwrap_or_else(|| projected_predecessor_ids(transaction, current, next))?;
     for target in maintained_targets_requiring_rebuild(current, next) {
         rebuild_target(
             transaction,
@@ -480,6 +553,7 @@ pub(crate) fn apply_migration_drops(
                 crate::assets_ledger::release_table_assets(transaction, name, released_at)?;
                 transaction.execute("DELETE FROM index_entries WHERE table_name = ?1", [name])?;
                 transaction.execute("DELETE FROM rows WHERE table_name = ?1", [name])?;
+                clear_search_indexes(transaction, name, None)?;
             }
             Drop::Column { table, name }
             | Drop::TypeChange {
@@ -490,12 +564,14 @@ pub(crate) fn apply_migration_drops(
                 crate::assets_ledger::release_column_assets(transaction, table, name, released_at)?;
                 drop_column_values(transaction, table, name)?;
                 transaction.execute("DELETE FROM index_entries WHERE table_name = ?1", [table])?;
+                clear_search_indexes(transaction, table, None)?;
             }
             Drop::Index { table, name } => {
                 transaction.execute(
                     "DELETE FROM index_entries WHERE table_name = ?1 AND index_name = ?2",
                     params![table, name],
                 )?;
+                clear_search_indexes(transaction, table, Some(name))?;
             }
         }
     }
@@ -529,13 +605,44 @@ pub(crate) fn apply_migration_drops(
     Ok(())
 }
 
-fn fetch_rows(connection: &Connection, table: &str) -> Result<Vec<Value>, RuntimeError> {
-    let mut statement = connection.prepare("SELECT data FROM rows WHERE table_name = ?1")?;
-    let rows = statement.query_map([table], |row| row.get::<_, String>(0))?;
-    rows.map(|row| {
-        serde_json::from_str(&row?).map_err(|error| RuntimeError::Serialization(error.to_string()))
-    })
-    .collect()
+fn clear_search_indexes(
+    c: &Connection,
+    table: &str,
+    index: Option<&str>,
+) -> Result<(), RuntimeError> {
+    for storage in ["_search_postings", "_search_nodes"] {
+        c.execute(
+            &format!("DELETE FROM {storage} WHERE table_name=?1 AND (?2 IS NULL OR index_name=?2)"),
+            params![table, index],
+        )?;
+    }
+    Ok(())
+}
+fn for_row_batches(
+    c: &Connection,
+    table: &str,
+    mut apply: impl FnMut(Value) -> Result<(), RuntimeError>,
+) -> Result<(), RuntimeError> {
+    let mut after: Option<String> = None;
+    loop {
+        let mut stmt=c.prepare_cached("SELECT row_id,data FROM rows WHERE table_name=?1 AND (?2 IS NULL OR row_id>?2) ORDER BY row_id LIMIT 128")?;
+        let batch = stmt
+            .query_map(params![table, after], |r| {
+                Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        if batch.is_empty() {
+            break;
+        }
+        for (id, data) in batch {
+            apply(
+                serde_json::from_str(&data)
+                    .map_err(|e| RuntimeError::Serialization(e.to_string()))?,
+            )?;
+            after = Some(id);
+        }
+    }
+    Ok(())
 }
 
 fn drop_column_values(
@@ -543,20 +650,20 @@ fn drop_column_values(
     table: &str,
     column: &str,
 ) -> Result<(), RuntimeError> {
-    for mut row in fetch_rows(transaction, table)? {
+    for_row_batches(transaction, table, |mut row| {
         let id = row.field("id")?.as_str()?.to_owned();
         match &mut row {
             Value::Row(fields) | Value::Map(fields) => {
                 fields.remove(column);
             }
-            _ => continue,
+            _ => return Ok(()),
         }
         transaction.execute(
             "UPDATE rows SET data = ?3 WHERE table_name = ?1 AND row_id = ?2",
             params![table, id, canonical_json(&row)],
         )?;
-    }
-    Ok(())
+        Ok(())
+    })
 }
 
 fn changed_maintains<'a>(current: &'a Schema, next: &'a Schema) -> Vec<&'a Maintain> {
@@ -638,7 +745,7 @@ pub(crate) fn projected_predecessor_ids(
         .collect()
 }
 
-fn rebuild_target(
+pub(crate) fn rebuild_target(
     transaction: &Transaction<'_>,
     schema: &Schema,
     target: &str,
@@ -653,8 +760,15 @@ fn rebuild_target(
         // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — uniqueness
         // binds survivors and the replacement projection, after earlier rebuilds and
         // migration drops; only predecessor/successor-owned IDs leave the old image.
-        let existing = fetch_rows(transaction, target)?;
-        let mut final_rows = rows.values().collect::<Vec<_>>();
+        let mut existing = Vec::new();
+        for_row_batches(transaction, target, |row| {
+            existing.push(row);
+            Ok(())
+        })?;
+        let mut final_rows = rows
+            .values()
+            .filter(|row| row.field("value").and_then(Value::as_int) != Ok(0))
+            .collect::<Vec<_>>();
         for row in &existing {
             if !owned_ids.contains(row.field("id")?.as_str()?) {
                 final_rows.push(row);
@@ -665,8 +779,9 @@ fn rebuild_target(
             let mut counts = BTreeMap::<String, (Vec<Value>, usize)>::new();
             for row in &final_rows {
                 let key = index
-                    .columns
+                    .components
                     .iter()
+                    .filter_map(crate::search_key::IndexComponent::column)
                     .map(|column| row.field(column).cloned().unwrap_or(Value::Null))
                     .collect::<Vec<_>>();
                 counts
@@ -702,6 +817,51 @@ fn rebuild_target(
         &owned_ids,
         rows.into_values().collect(),
     )
+}
+
+// @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — an evaluator
+// identity change reconciles its durable engine-owned representation once.
+/// One-time evaluator migration from dense zero aggregates to the canonical
+/// sparse representation. Exact group-address rows belong to the engine;
+/// legacy ordinary-id survivors in the same table remain untouched.
+pub(crate) fn reconcile_sparse_aggregate_rows(
+    transaction: &Transaction<'_>,
+    schema: &Schema,
+    required: bool,
+) -> Result<(), RuntimeError> {
+    if !required {
+        return Ok(());
+    }
+    let targets = schema
+        .maintains
+        .iter()
+        .map(|maintain| maintain.target.clone())
+        .collect::<BTreeSet<_>>();
+    for target in targets {
+        let maintain = schema
+            .maintains
+            .iter()
+            .find(|maintain| maintain.target == target)
+            .expect("target came from a maintain declaration");
+        let mut zero_ids = BTreeSet::new();
+        for_row_batches(transaction, &target, |row| {
+            let expected = canonical_json(
+                &maintain
+                    .by
+                    .iter()
+                    .map(|field| row.field(field).cloned())
+                    .collect::<Result<Vec<_>, _>>()?,
+            );
+            if row.field("value")?.as_int()? == 0 && row.field("id")?.as_str()? == expected {
+                zero_ids.insert(expected);
+            }
+            Ok(())
+        })?;
+        if !zero_ids.is_empty() {
+            rebuild_owned_aggregate_target(transaction, schema, &target, &zero_ids, vec![])?;
+        }
+    }
+    Ok(())
 }
 
 fn projected_target_rows(
@@ -752,7 +912,7 @@ fn projected_backfill_rows(
         .table(&maintain.source)
         .ok_or_else(|| RuntimeError::Schema(format!("missing table {}", maintain.source)))?;
     let mut groups = BTreeMap::<String, (Vec<Value>, i128)>::new();
-    for mut row in fetch_rows(connection, &maintain.source)? {
+    for_row_batches(connection, &maintain.source, |mut row| {
         materialize_optional_fields(&mut row, source);
         let group = maintain
             .by
@@ -768,7 +928,8 @@ fn projected_backfill_rows(
             .entry(id)
             .and_modify(|(_, value)| *value += amount)
             .or_insert((group, amount));
-    }
+        Ok(())
+    })?;
     groups
         .into_iter()
         .map(|(id, (group, value))| {
@@ -785,7 +946,7 @@ fn projected_backfill_rows(
             for (name, value) in maintain.by.iter().zip(group) {
                 fields.insert(name.clone(), value);
             }
-            Ok(Value::Row(fields))
+            Ok(Value::Row(fields.into()))
         })
         .collect()
 }

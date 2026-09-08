@@ -1,6 +1,7 @@
 use serde::Serialize;
 use serde_json::json;
 use snapback2_core::engine::{ClosureReceipt, RowRecord, Verdict};
+use snapback2_core::ir::IndexKeyExpr;
 use snapback2_core::*;
 use std::collections::{BTreeMap, VecDeque};
 use std::fs;
@@ -14,10 +15,10 @@ mod bytes_cases;
 mod cap_cases;
 #[path = "export_corpus/client_scenarios.rs"]
 mod client_scenarios;
-#[path = "export_corpus/constraints.rs"]
-mod export_corpus_constraints;
 #[path = "export_corpus/enriched_pages.rs"]
 mod enriched_pages;
+#[path = "export_corpus/constraints.rs"]
+mod export_corpus_constraints;
 #[path = "export_corpus/merge_cases.rs"]
 mod merge_cases;
 #[path = "export_corpus/twin_cases.rs"]
@@ -28,6 +29,9 @@ mod visibility_cases;
 mod tombstone_cases;
 #[path = "export_corpus/write_cases.rs"]
 mod write_cases;
+
+#[path = "export_corpus/search_cases.rs"]
+mod search_cases;
 
 const CORPUS_VERSION: u32 = 1;
 const RANDOM_SEED: u64 = 0x5eed_0329_0140_0003;
@@ -138,6 +142,7 @@ fn main() {
     bytes_cases::add_bytes_cases(&mut cases);
     asset_cases::add_asset_cases(&mut cases);
     add_random_cases(&mut cases);
+    search_cases::add(&mut cases);
     assert!(cases.len() >= 60, "brief requires at least 60 corpus cases");
 
     let output = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../corpus");
@@ -181,7 +186,10 @@ fn add_cursor_cases(cases: &mut Vec<CorpusCase>) {
             site: site.to_owned(),
             table: "messages".to_owned(),
             index: "byConvTime".to_owned(),
-            prefix: vec![Expr::Literal(id("c1"))],
+            prefix: (vec![Expr::Literal(id("c1"))])
+                .into_iter()
+                .map(IndexKeyExpr::Scalar)
+                .collect(),
             order,
             take: Bound::Literal(1),
             after: after.map(cursor),
@@ -452,7 +460,10 @@ fn named_uniform_maintained_inbox_case() -> CorpusCase {
                     site: "inboxComplete.memberships".to_owned(),
                     table: "memberships".to_owned(),
                     index: "byUserActivity".to_owned(),
-                    prefix: vec![Expr::Input(Input::Viewer)],
+                    prefix: (vec![Expr::Input(Input::Viewer)])
+                        .into_iter()
+                        .map(IndexKeyExpr::Scalar)
+                        .collect(),
                     order: Order::Desc,
                     take: Bound::Literal(50),
                     after: None,
@@ -521,7 +532,10 @@ fn named_emit_case() -> CorpusCase {
                 indexes: BTreeMap::from([(
                     "byId".to_owned(),
                     Index {
-                        columns: vec!["id".to_owned()],
+                        components: (vec!["id".to_owned()])
+                            .into_iter()
+                            .map(snapback2_core::search_key::IndexComponent::Column)
+                            .collect(),
                         unique: true,
                     },
                 )]),
@@ -608,19 +622,6 @@ fn named_emit_case() -> CorpusCase {
 }
 
 fn add_value_edges(cases: &mut Vec<CorpusCase>) {
-    cases.push(pure_case(
-        "edge-ascii-words",
-        Expr::Array(
-            [format!("Hello, HELLO world! 42 foo_bar foo-bar {}", "A".repeat(70)),
-                String::new(), "café CAFÉ naïve 中文 AéB １２3 ß İ".to_owned()]
-                .into_iter()
-                .map(|text| Expr::Builtin {
-                    builtin: Builtin::Words,
-                    args: vec![Expr::Literal(Value::String(text))],
-                })
-                .collect(),
-        ),
-    ));
     let sortable = Value::Array(vec![
         row([("key", text("\u{10000}")), ("position", Value::Int(0))]),
         row([("key", text("\u{e000}")), ("position", Value::Int(1))]),
@@ -690,11 +691,14 @@ fn add_value_edges(cases: &mut Vec<CorpusCase>) {
         ),
         (
             "edge-map-insertion-roundtrip",
-            Expr::Literal(Value::Map(BTreeMap::from([
-                ("zeta".to_owned(), Value::Int(1)),
-                ("alpha".to_owned(), Value::Int(2)),
-                ("middle".to_owned(), Value::Int(3)),
-            ]))),
+            Expr::Literal(Value::Map(
+                BTreeMap::from([
+                    ("zeta".to_owned(), Value::Int(1)),
+                    ("alpha".to_owned(), Value::Int(2)),
+                    ("middle".to_owned(), Value::Int(3)),
+                ])
+                .into(),
+            )),
         ),
     ] {
         cases.push(pure_case(name, expression));

@@ -72,3 +72,41 @@ retains the remote snapshot's synthetic Git identity; the
 [source comparison](../benchmarks/runs/2026-09-07-snapback2-published-dx/fix-evidence/source-check-final.json)
 binds its product files to the reviewed candidate. This is an additional
 observation, not a newly identified breaking commit.
+
+## Architecture integration on the reserved Mac — 2026-09-07
+
+The ordinary measurement on `4ef44ab65`, recorded at
+`2026-09-07T19:47:18.143Z`, passed all functional steps and retained two
+timing failures: installed-consumer verification **30.62 s / 30 s** and
+the first doctor sample **0.808 s / 0.5 s**. The second doctor sample
+was 0.042 s; the first is not discarded. The same run passed project
+check at 0.872 s, incremental rebuild at 2.31 s, warm release build
+at 73.26 s and init-to-dev at 1.358 s.
+
+This used the reserved Apartment Mac lane with Node 24.18.0 and Rust
+1.97.0, with package build, native build, platform witnesses and measurement
+run sequentially. It is an additional observation, not a paired attribution
+of the earlier host's slowdowns. The exact append is preserved in
+`metrics/loop.jsonl`; raw measurement and before/after metric files are in
+`.llp/ship-runs/20260907-1018-architecture/expo-search-v5-r12-*`
+in the coordinating checkout. Both budget failures remain open.
+
+## Indexed architecture candidate — 2026-09-07
+
+The reserved M1 Max lane measured `c156228ef0` at
+`2026-09-08T00:59:04.210Z` (local September 7), Node 24.18.0/Rust 1.97.0.
+The complete measurement exited 1 after 80.11 seconds, PID 56255. All functional
+steps succeeded, with only the first doctor sample over its budget:
+**0.609 s / 0.5 s**. The second sample was 0.040 s and does not erase the first.
+Installed consumers passed in 23.98 s / 30 s, project check in 0.561 s / 1 s,
+incremental build in 2.37 s / 15 s, warm release build in 48.01 s / 300 s, and
+init-to-dev in 1.075 s / 10 s. Chat retains only the declared effects-disabled
+block; its offline three-member journey passed.
+
+The source includes the direct compiler, stable indexed live subscriptions,
+coherent observations and settled fan-out retirement. Package and native builds
+completed before measurement; host load was 4.81 on ten cores at launch. There
+is no paired baseline proving a breaking commit or a cause for first-exec cost.
+The failed sample remains in `snapback2/metrics/loop.jsonl`; its raw log SHA-256
+is `83424b97c45a58c13bb3ffbf8c7f8d91bcd1b825322035f5e67309ec5bf7416f`, with source, process and before/after custody in
+`.llp/ship-runs/20260907-1018-architecture/expo-search-v5-r17-*`.

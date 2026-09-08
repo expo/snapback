@@ -12,8 +12,10 @@
         },
         "indexes": {
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -51,30 +53,46 @@
         },
         "indexes": {
           "byConversationPrincipal": {
-            "columns": [
-              "conversationId",
-              "principal"
+            "components": [
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "principal"
+              }
             ],
             "unique": true
           },
           "byConversationRole": {
-            "columns": [
-              "conversationId",
-              "role",
-              "id"
+            "components": [
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "role"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           },
           "byGroup": {
-            "columns": [
-              "group",
-              "id"
+            "components": [
+              {
+                "Column": "group"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           },
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -143,7 +161,7 @@
   "certificate": {
     "program": "cap-quarry-lowered-metered-insert",
     "plan_hash": "601878503a9b00c6a7918ff3d79dec4b177b76201c0d4faa5df79e335396a259",
-    "schema_hash": "059b1a500d857158dec7afc71fd5b28612a2b85c0e43f161c733673a215125e7",
+    "schema_hash": "7fa922f77173fd53812e389265e301b23c52544463234aedc506773eafd46ab4",
     "tables": {
       "deliveries": {
         "retain": "until-revoked"
@@ -153,10 +171,10 @@
       }
     },
     "rule_hashes": {
-      "memberships.insert": "a574e91213241a33b77786b8f8eeb87c1fd01f49ce8b203c9f5db2adc3da9b24"
+      "memberships.insert": "b1a93bdf52979bb66f927a201940478a3c8e5424103ad56085bbfef982f742de"
     },
-    "evaluator_version": "bounded-spike-rust-1",
-    "value_model_version": "i53-codepoint-bytes-v2",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [],
     "write_sites": [
       {
@@ -175,6 +193,8 @@
     "max_index_entries": 50,
     "max_rule_probes": 0,
     "max_steps": 257,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
     "max_heap_bytes": 8224,
     "max_output_bytes": 6,
     "max_closure_bytes": 0,
@@ -198,7 +218,7 @@
     "read_time": null
   },
   "receipt": {
-    "schema_hash": "059b1a500d857158dec7afc71fd5b28612a2b85c0e43f161c733673a215125e7",
+    "schema_hash": "7fa922f77173fd53812e389265e301b23c52544463234aedc506773eafd46ab4",
     "rows": [
       {
         "table": "memberships",
@@ -1237,7 +1257,9 @@
         "index": "byConversationPrincipal",
         "prefix": [
           {
-            "Id": "c1"
+            "Scalar": {
+              "Id": "c1"
+            }
           }
         ],
         "order": "Asc",
@@ -1248,7 +1270,7 @@
         "gte": null,
         "lt": null,
         "lte": null,
-        "rule_hash": "8f1ae399bb8f68719d9f7d96d08d7b850da522c5692a308476ae16d7c9393bda",
+        "rule_hash": "ef29eb6798806f2abfb3fa5d6dce07dd3edd43bd31402b9763f4819555a9ec69",
         "row_ids": [
           "m0",
           "m1",
@@ -1303,7 +1325,7 @@
         "stop": "Exhausted",
         "absence": false,
         "halo": null,
-        "n2_key": null
+        "n2_suffix": null
       }
     ],
     "absences": [

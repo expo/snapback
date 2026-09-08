@@ -1,6 +1,7 @@
 //! Served-loop authorization proofs for projects that declare scoped membership.
 // @ref LLP 1002#7-test-and-the-receipt — revocation and successor fences are named receipt proofs.
 
+use super::test_authority_ir::{prepare_policy_successor, program_has_membership_guard_dependency};
 use super::test_sse::SseProbe;
 use super::{elapsed_ms, generated_args};
 use crate::client;
@@ -705,14 +706,7 @@ fn successor_policy_attempt(
     plan: &QueryPlan,
 ) -> Result<Json, String> {
     reset(owner)?;
-    let mut policy_successor = compiled.project.clone();
-    policy_successor
-        .schema
-        .tables
-        .get_mut(&plan.protected_table)
-        .ok_or_else(|| format!("protected table {} disappeared", plan.protected_table))?
-        .rules
-        .read = RuleExpr::Deny;
+    let prepared_policy = prepare_policy_successor(&compiled.project, &plan.protected_table)?;
     let mut program_successor = compiled.project.clone();
     let program_denial = format!("{SUCCESSOR_DENIAL_PREFIX}{}", compiled.generation.hash());
     program_successor
@@ -733,9 +727,11 @@ fn successor_policy_attempt(
         owner,
         compiled,
         plan,
-        &policy_successor,
+        &prepared_policy.project,
         &program_successor,
         &program_denial,
+        prepared_policy.retired_held_search,
+        prepared_policy.stale_held_search_refused,
     );
     let restore = restore_generation(owner, compiled);
     let reset = reset(owner);
@@ -764,6 +760,8 @@ fn successor_attempt(
     policy_successor: &ProjectJson,
     program_successor: &ProjectJson,
     program_denial: &str,
+    retired_held_search: usize,
+    stale_held_search_refused: bool,
 ) -> Result<Json, String> {
     let plan_hash_g = compiled
         .generation
@@ -853,6 +851,8 @@ fn successor_attempt(
         "planHashG2": plan_hash_g2,
         "generationScope": "schema",
         "policyReplacement": "Deny",
+        "policyRetiredHeldSearchDescriptors": retired_held_search,
+        "staleHeldSearchDescriptorRefused": stale_held_search_refused,
         "policyRetainedHandleState": policy_retained["state"],
         "policyRetainedHandleRows": 0,
         "policyFreshInvocationState": policy_fresh["state"],
@@ -905,7 +905,10 @@ fn membership_recipe(schema: &Schema) -> Option<Recipe> {
         let Some(definition) = table.indexes.get(index) else {
             continue;
         };
-        let Some((scope_field, principal_field)) = recipe_key(&definition.columns, key) else {
+        let Some(columns) = definition.scalar_columns() else {
+            continue;
+        };
+        let Some((scope_field, principal_field)) = recipe_key(&columns, key) else {
             continue;
         };
         if !matches!(
@@ -922,16 +925,12 @@ fn membership_recipe(schema: &Schema) -> Option<Recipe> {
             .iter()
             .filter(|(name, _)| *name != membership_table)
             .filter_map(|(name, protected)| {
-                protected_scope(
-                    &protected.rules.read,
-                    membership_table,
-                    index,
-                    &definition.columns,
+                protected_scope(&protected.rules.read, membership_table, index, &columns).map(
+                    |scope_field| ProtectedTable {
+                        table: name.clone(),
+                        scope_field,
+                    },
                 )
-                .map(|scope_field| ProtectedTable {
-                    table: name.clone(),
-                    scope_field,
-                })
             })
             .collect::<Vec<_>>();
         if protected.is_empty() {
@@ -1045,6 +1044,7 @@ fn query_plan(
                 .filter(|(_, (program, certificate))| {
                     program.kind == ProgramKind::Query
                         && query_isolates_protected_table(
+                            program,
                             &certificate.read_sites,
                             recipe,
                             &protected.table,
@@ -1095,13 +1095,25 @@ fn query_plan(
 }
 
 fn query_isolates_protected_table(
+    program: &Program,
     read_sites: &[ReadSite],
     recipe: &Recipe,
     protected_table: &str,
 ) -> bool {
+    // A discovery scan can legitimately become an empty global-search lane
+    // after membership removal. The terminal-revocation witness therefore
+    // needs an explicit membership Require, not mere table overlap or take 1.
     read_sites
         .iter()
         .all(|site| site.table == recipe.membership_table || site.table == protected_table)
+        // This is only a bounded candidate preference. A dependency can be
+        // semantically weakened (for example, `member || true`); the served
+        // post-revocation terminal delivery below is the authority witness.
+        && program_has_membership_guard_dependency(
+            program,
+            &recipe.membership_table,
+            &recipe.membership_index,
+        )
 }
 
 fn protected_write_eligible(

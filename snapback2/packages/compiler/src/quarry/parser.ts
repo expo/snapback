@@ -1,9 +1,13 @@
+import { SEARCH_CONTRACT } from "../index-components";
+import type { IndexComponent } from "../ir";
 import type {
   ArgDecl,
   ChannelDecl,
   ColumnDecl,
   Document,
   Expr,
+  FunctionDecl,
+  FunctionImport,
   IndexDecl,
   KeyPart,
   MaintainDecl,
@@ -27,12 +31,6 @@ import { QuarryError, currentRule, refuse, retention, syntax, tombstone, unsuppo
 import { lex, type Token, type TokenKind } from "./lexer";
 import { quarryExpression } from "./print";
 
-const RESERVED_BINDINGS = new Set([
-  "arguments", "await", "break", "case", "catch", "class", "const", "continue", "debugger", "default", "delete", "do",
-  "else", "enum", "eval", "export", "extends", "false", "finally", "for", "function", "if", "implements", "import",
-  "in", "insert", "instanceof", "interface", "let", "merge", "new", "null", "package", "private", "protected", "public", "retain", "return", "static",
-  "shape", "fn", "cursor", "super", "switch", "this", "throw", "true", "try", "typeof", "update", "upsert", "var", "void", "while", "with", "yield",
-]);
 const PRECEDENCE = new Map<string, number>([
   ["??", 1], ["or", 2], ["and", 3],
   ["=", 4], ["!=", 4], ["<", 4], ["<=", 4], [">", 4], [">=", 4],
@@ -53,11 +51,17 @@ class Parser {
   private readonly effects: Array<{ name: string; module: string; site: Site }> = [];
   private readonly shapes: ShapeDecl[] = [];
   private readonly shapeImports: ShapeImport[] = [];
+  private readonly functions: FunctionDecl[] = [];
+  private readonly functionImports: FunctionImport[] = [];
   private readonly programs: ProgramDecl[] = [];
   private readonly schedules: ScheduleDecl[] = [];
   private identity: Document["identity"];
 
-  constructor(private readonly tokens: Token[], private readonly file: string, readonly diagnostics: QuarryDiagnostic[]) {}
+  constructor(
+    private readonly tokens: Token[],
+    private readonly file: string,
+    readonly diagnostics: QuarryDiagnostic[],
+  ) {}
 
   document(): Document {
     while (!this.atKind("eof")) {
@@ -72,7 +76,8 @@ class Parser {
         else if (this.at("query") || this.at("mutation") || this.at("job")) this.programs.push(this.parseProgram());
         else if (this.at("effect")) this.effects.push(this.parseEffect());
         else if (this.at("shape")) this.parseShapeDeclaration();
-        else if (this.at("fn") || this.at("cursor")) unsupported(token, token.value, `${token.value} is reserved for a future Quarry form; rename this declaration`);
+        else if (this.at("fn")) this.parseFunctionDeclaration();
+        else if (this.at("cursor")) unsupported(token, token.value, `${token.value} is reserved for a future Quarry form; rename this declaration`);
         else if (this.at("schedule")) this.schedules.push(this.parseSchedule());
         else if (this.at("index") || this.at("unique")) syntax(token, "top-level indexes are invalid; place by/unique inside the table block", "move the index line into its table block");
         else if (this.at("device") || this.at("oblivious")) unsupported(token, token.value, "pass an explicit bounded argument to the operation");
@@ -91,6 +96,8 @@ class Parser {
       effects: this.effects,
       shapes: this.shapes,
       shapeImports: this.shapeImports,
+      functions: this.functions,
+      functionImports: this.functionImports,
       programs: this.programs,
       schedules: this.schedules,
     };
@@ -99,7 +106,7 @@ class Parser {
   // @ref LLP 1016#d5--schedules-row-timers-and-periods-on-the-owners-clock — one kind, row deadlines or whole-minute durations.
   private parseSchedule(): ScheduleDecl {
     const site = this.take("schedule");
-    const name = this.generatedBinding("operation");
+    const name = this.bindingName();
     let trigger: ScheduleDecl["trigger"];
     let predicate: Expr | undefined;
     if (this.at("on")) {
@@ -156,7 +163,7 @@ class Parser {
 
   private parseTable(): TableDecl {
     const site = this.take("table");
-    const name = this.generatedBinding("table");
+    const name = this.bindingName();
     this.take(":");
     this.newline();
     this.takeKind("indent");
@@ -283,11 +290,23 @@ class Parser {
       explicit = this.word().value;
       this.take(":");
     }
-    const columns = [this.word().value];
-    while (this.maybe(",")) columns.push(this.word().value);
+    const component = (): IndexComponent => {
+      const name = this.word();
+      if (name.value !== "wordPrefixes" || !this.at("(")) return { Column: name.value };
+      this.take("(");
+      const fields: string[] = [];
+      if (!this.at(")")) {
+        fields.push(this.word().value);
+        while (this.maybe(",")) fields.push(this.word().value);
+      }
+      this.take(")");
+      return { WordPrefixes: { fields, contract: SEARCH_CONTRACT } };
+    };
+    const components = [component()];
+    while (this.maybe(",")) components.push(component());
     this.newline();
-    const inferred = `by${columns.map(title).join("")}`;
-    return { name: explicit ?? inferred, columns, unique, site };
+    const inferred = `by${components.map(c => "Column" in c ? title(c.Column) : `WordPrefixes${c.WordPrefixes.fields.map(title).join("")}`).join("")}`;
+    return { name: explicit ?? inferred, components, unique, site };
   }
 
   private parseMaintain(): MaintainDecl {
@@ -335,7 +354,7 @@ class Parser {
 
   private parseEffect(): { name: string; module: string; site: Site } {
     const site = this.take("effect");
-    const name = this.generatedBinding("effect");
+    const name = this.bindingName();
     this.take("from");
     const module = this.word().value;
     this.newline();
@@ -349,8 +368,8 @@ class Parser {
     let value: Expr;
     if (this.at("(")) {
       this.take("(");
-      bindings = [this.generatedBinding("rule")];
-      while (this.maybe(",")) bindings.push(this.generatedBinding("rule"));
+      bindings = [this.bindingName()];
+      while (this.maybe(",")) bindings.push(this.bindingName());
       this.take(")");
       if (effect !== "update" || bindings.length !== 2) {
         syntax(effectToken, `${effect} rules use <- for one row; only update (old, next) has named bindings`, `rewrite the ${effect} rule with <- and direct .field terms`);
@@ -378,7 +397,7 @@ class Parser {
 
   private parseChannel(): ChannelDecl {
     const site = this.take("channel");
-    const name = this.generatedBinding("channel");
+    const name = this.bindingName();
     const args = this.parseArgs();
     this.take(":");
     this.newline();
@@ -419,7 +438,7 @@ class Parser {
   private parseProgram(): ProgramDecl {
     const kindToken = this.word();
     const kind = kindToken.value as ProgramDecl["kind"];
-    const name = this.generatedBinding("operation");
+    const name = this.bindingName();
     const args = kind === "job" && this.at(":") ? [] : this.parseArgs();
     if (this.at("->")) unsupported(this.peek(), "result annotations", "results are inferred; remove the annotation");
     this.take(":");
@@ -437,7 +456,7 @@ class Parser {
       this.skipNewlines();
       if (this.atKind("dedent")) break;
       const site = this.take("chunk");
-      const name = this.generatedBinding("loop");
+      const name = this.bindingName();
       this.take("in");
       const table = this.word();
       let domain: Expr = this.at("[") ? this.parseRead(table.value, table) : { kind: "read", table: table.value, keys: [], site: table };
@@ -456,7 +475,7 @@ class Parser {
 
   private parseShapeDeclaration(): void {
     const site = this.take("shape");
-    const name = this.generatedBinding("shape");
+    const name = this.bindingName();
     if (this.maybe("from")) {
       const module = this.word().value;
       this.newline();
@@ -471,24 +490,30 @@ class Parser {
     this.shapes.push({ name, fields, site });
   }
 
-  private generatedBinding(kind: "table" | "channel" | "effect" | "operation" | "merge lane" | "shape" | "argument" | "local" | "loop" | "match" | "rule"): string {
-    const token = this.word();
-    if (RESERVED_BINDINGS.has(token.value)) {
-      refuse(
-        token,
-        `${kind} name ${token.value} is reserved and cannot become a generated TypeScript binding`,
-        `rename the ${kind} ${token.value} to an identifier that is not reserved by JavaScript`,
-      );
+  private parseFunctionDeclaration(): void {
+    const site = this.take("fn");
+    const name = this.bindingName();
+    if (this.maybe("from")) {
+      const module = this.word().value;
+      this.newline();
+      this.functionImports.push({ name, module, site });
+      return;
     }
-    return token.value;
+    const args = this.parseArgs();
+    this.take("=");
+    const body = this.expression(0, new Set(["<newline>"]));
+    this.newline();
+    this.functions.push({ name, args, body, site });
   }
+
+  private bindingName(): string { return this.word().value; }
 
   private parseArgs(): ArgDecl[] {
     this.take("(");
     const args: ArgDecl[] = [];
     while (!this.at(")")) {
         const name = this.peek();
-        const binding = this.generatedBinding("argument");
+        const binding = this.bindingName();
         this.take(":");
         args.push({ name: binding, type: this.parseType(), site: name });
         if (!this.maybe(",")) break;
@@ -520,7 +545,8 @@ class Parser {
         let format: "handle" | "url" | undefined;
         if (this.maybe("format")) {
           const value = this.word();
-          if (value.value !== "handle" && value.value !== "url") syntax(value, `unknown text format ${value.value}`);
+          if (value.value !== "handle" && value.value !== "url") syntax(value, `unknown text format ${value.value}`,
+            `use text ${min === undefined ? `<=${max}` : `${min}..${max}`} format handle or text ${min === undefined ? `<=${max}` : `${min}..${max}`} format url`);
           format = value.value;
         }
         type = { kind: "text", ...(min === undefined ? {} : { min }), max, ...(format ? { format } : {}), optional: false };
@@ -611,7 +637,7 @@ class Parser {
 
     if (this.atKind("word") && this.peek(1).value === "=") {
       const name = this.peek();
-      const binding = this.generatedBinding("local");
+      const binding = this.bindingName();
       this.take("=");
       const value = this.expression(0, new Set(["<newline>"]));
       if (value.kind !== "merge") this.newline();
@@ -619,8 +645,8 @@ class Parser {
     }
     if (this.at("(") && this.tupleBindingAhead()) {
       const site = this.take("(");
-      const names = [this.generatedBinding("local")];
-      while (this.maybe(",")) names.push(this.generatedBinding("local"));
+      const names = [this.bindingName()];
+      while (this.maybe(",")) names.push(this.bindingName());
       this.take(")");
       this.take("=");
       const value = this.expression(0, new Set(["<newline>"]));
@@ -650,7 +676,7 @@ class Parser {
 
   private parseFor(): Stmt {
     const site = this.take("for");
-    const name = this.generatedBinding("loop");
+    const name = this.bindingName();
     this.take("in");
     const domain = this.expression(0, new Set([":"]));
     this.take(":");
@@ -675,7 +701,7 @@ class Parser {
     this.newline();
     this.takeKind("indent");
     this.take("some");
-    const someName = this.generatedBinding("match");
+    const someName = this.bindingName();
     this.take(":");
     this.newline();
     const someBody = this.parseBlock();
@@ -936,7 +962,7 @@ class Parser {
       const columns = keys.some(key => key.column !== undefined) ? keys.map(key => key.column) : undefined;
       let loop: MergeLane["loop"];
       if (this.maybe("for")) {
-        const name = this.generatedBinding("merge lane");
+        const name = this.bindingName();
         this.take("in");
         const domain = this.expression(0, new Set(["<newline>"]));
         if (domain.kind !== "read" || !domain.range) {

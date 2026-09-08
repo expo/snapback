@@ -156,7 +156,14 @@ mutation fallback(value: text <=20, accept: bool):
         .find(|op| op.name == "replayReview.echo")
         .unwrap()
         .args
-        .insert("accept".to_owned(), ArgType::Text { max: 20 });
+        .insert(
+            "accept".to_owned(),
+            ArgType::Text {
+                max: 20,
+                min: 0,
+                format: None,
+            },
+        );
     // The replacement body uses no changed argument, so certification succeeds.
     changed_args
         .programs

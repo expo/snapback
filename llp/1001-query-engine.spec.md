@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2-core` (`store`, `registry`, `live`, `identity`, `successor`, the engine, the IR)
 **Author:** Claude Fable 5 (orchestrator) — implementer: codex gpt-5.6-sol, lane A
 **Date:** 2026-08-29
-**Revised:** 2026-09-07 (public Count paired absence proofs and admission reserve; implementer Codex); 2026-09-07 (surviving-row uniqueness checked against each actual rebuild); 2026-09-07 (count-backed cap probes); 2026-09-06 (fixed complete local-runtime measurement roots: 66,000-byte ceiling, 64,000 target); 2026-09-06 (generation-owned policy hashes, pooled merge seeks and bounded shared templates); 2026-09-06 (measured full-entry search trade: 50,000-byte ceiling, 48,000 target); 2026-09-06 (session-delegated Unicode/search foundation and downstream contracts); 2026-09-06 (conditional result-page provenance and branch-scoped cursor validation); 2026-09-05 (Clique L12 — §3 receipt-only null invariant and §5.1 `connected`); 2026-09-05 (Clique L9 — bounded ASCII words builtin and constructed-text boundary); 2026-09-05 (Clique L10 — lazy merge, receipt retention and global local-pagination cursor rule); 2026-09-05 (Clique L8b — nested point-read shapes preserve page state; early exits preserve capped taint); 2026-09-05 (Clique L8a — prefix-local self-probe and decided-disjunction visibility proofs); 2026-09-05 (Clique L3 — honest bound refusals and patch-sensitive cap metering; LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
+**Revised:** 2026-09-07 (indexed prefix selection and direct owner subscription dispatch); 2026-09-07 (public Count paired absence proofs and admission reserve; implementer Codex); 2026-09-07 (canonical sparse aggregates and shared maintained-row lifecycle); 2026-09-07 (LLP 1018.000: persistent query IDs, context-aware batches and incremental dependency membership); 2026-09-07 (surviving-row uniqueness checked against each actual rebuild); 2026-09-07 (schema-owned maintained address widths/references and scoped successor reindex); 2026-09-07 (native v5 search/text integration preserving count-backed caps and ad hoc admission); 2026-09-07 (count-backed cap probes); 2026-09-06 (fixed complete local-runtime measurement roots: 66,000-byte ceiling, 64,000 target); 2026-09-06 (generation-owned policy hashes, pooled merge seeks and bounded shared templates); 2026-09-06 (measured full-entry search trade: 50,000-byte ceiling, 48,000 target); 2026-09-06 (session-delegated Unicode/search foundation and downstream contracts); 2026-09-06 (conditional result-page provenance and branch-scoped cursor validation); 2026-09-05 (Clique L12 — §3 receipt-only null invariant and §5.1 `connected`); 2026-09-05 (Clique L9 — bounded ASCII words builtin and constructed-text boundary); 2026-09-05 (Clique L10 — lazy merge, receipt retention and global local-pagination cursor rule); 2026-09-05 (Clique L8b — nested point-read shapes preserve page state; early exits preserve capped taint); 2026-09-05 (Clique L8a — prefix-local self-probe and decided-disjunction visibility proofs); 2026-09-05 (Clique L3 — honest bound refusals and patch-sensitive cap metering; LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
 **Related:** LLP 1000, LLP 1002 (the loop that serves this), LLP 1003 (effects
 through the outbox this spec defines), LLP 0329.014.004 §7 (runtime), LLP
 0329.014.000 §6 (execution, trace, states), LLP 0329.016 §5.6 (no silent
@@ -528,8 +528,35 @@ Successor rebuilds own exactly the union of target row IDs projected by the
 predecessor and successor maintain declarations: they replace or remove those
 IDs and preserve every other target row and index entry.
 
+Engine-owned maintained count and sum targets use one canonical sparse
+representation: the target row exists exactly when its aggregate value is nonzero. A nonempty
+sum whose contributions cancel to zero therefore has no physical target row;
+the scalar aggregate surface continues to return zero for that absent address,
+while direct target-row visibility observes absence. One source row change
+combines its old and new contributions by group before touching a target, so a
+same-group update cannot transiently delete and recreate the row. A zero
+transition uses the ordinary engine-owned delete lifecycle, and a nonzero
+transition uses the ordinary insert/update lifecycle: constraints, indexes
+(including search), touched keys, created-row bookkeeping, timers, write
+accounting, and rollback all remain in the source transaction. Clean successor
+rebuild omits zero-valued projections by the same rule. Row schedules declared
+on maintained targets are certified as maintained write amplification and are
+created, replaced, or removed with those target rows.
+
+This semantic change advances the evaluator identity to
+`bounded-spike-rust-search-text-refinements-5`; v4 held operations are not
+admitted by a v5 client or native engine. Native stores persist that evaluator
+identity separately from the schema hash. The first v5 open of an installed
+v4-era store transactionally removes zero-valued maintained rows whose ids
+exactly reproduce their grouping tuples, using the ordinary delete lifecycle,
+then records v5. This one-time target scan does not rebuild from source and
+preserves legacy ordinary-id rows outside the engine projection. Successor
+uniqueness checks omit zero-valued replacement rows, although their exact ids
+remain owned for removal.
+
 A physical miss on a public/Allow Count target's full unique grouping index
-with valid scalar typed keys can acquire two independent facts for offline insertion: its empty group
+with valid scalar typed keys can acquire two independent facts for offline
+insertion: its empty group
 extent, represented by the existing empty ascending unbounded exhausted range
 receipt, and a canonical primary-ID absence proved by a separate actual
 `byId` lookup. Ordinary survivors make those addresses inequivalent. Keep the
@@ -538,14 +565,20 @@ match that declared physical miss and exact scope, current policy hash, empty
 shape and a separately traced primary miss. Receipt-only evaluation cannot
 mint either additional fact from a partial local store. Invalid key domains
 and JSON/compound grouping descriptors omit the optional pair: wire erasure
-and schema retagging must preserve the exact native lookup address.
+and schema retagging must preserve the exact native lookup address. Group-key
+validation is schema-aware: a Ref to a maintained target uses that target's
+canonical address domain, including valid addresses beyond ordinary ID bounds.
 
 Certification reserves the extra lookup steps, primary-index/constraint
 dependency and paired receipt bytes through sequential and branch composition.
 The group lookup and fallback can examine at most one row together. A
 schema-sized byte reserve is checked against the actual serialized proof pair;
-if it is too small (lookup keys/nominal IDs need not fit stored-row estimates),
-omit both optional proofs and preserve the original query result. This does
+if it is too small, omit both optional proofs and preserve the original query
+result. Under the current validated finite key domains and fixed policy hash,
+the schema-sized reserve covers the pair; boundary tests include the maximum
+ordinary identity and a valid long maintained Ref. The actual-size comparison
+remains defensive. An over-domain identity is a domain-rejection witness, not
+a reachable serialized-pair overflow witness. This does
 not impose new ID limits. Public projection still exports only primary-index
 absence tuples; the group fact uses existing range custody. A stale cached zero
 alone does not authorize insertion. Protected targets and ordinary/sum tables
@@ -576,6 +609,67 @@ undeclared field therefore cannot block a clean additive successor, but a
 successor that declares that field refuses with `E_SUCCESSOR_ROW_INVALID`
 naming the offending row.
 
+### Maintained addresses
+
+Implemented by Codex GPT-6 Astra (xhigh), native integration R2, 2026-09-07.
+A maintained target's intrinsic address remains the canonical tagged JSON of
+its ordered grouping tuple, with omitted optional fields materialized as Null.
+It is still serialized as an Id; no hash, truncation, remapping or wire-version
+change is introduced. Ordinary user/actor/NewId/untyped Id values retain the
+144 canonical tagged byte allowance. A generated intrinsic address may exceed
+that allowance only in the maintained target's schema-owned slot, where the
+engine validates the declared source group types and exact canonical address;
+a retained row must also reproduce that address from its group fields.
+Legacy non-projected target rows with ordinary ids retain their existing domain.
+
+A schema-targeted Ref to a maintained target, including Optional/List nesting,
+uses that target's address domain. Returned addresses therefore remain usable
+as typed byId arguments and stored references. Ref admission validates the
+referenced schema and canonical tuple, never only a tag, and creates no read or
+write authority. Untyped Id/Scalar/JSON slots do not acquire this exception.
+Row pools retain exact row/address equality and first-image/reference custody;
+native and TypeScript typed/wire admission carry the current schema explicitly.
+Structural delivery decode does not grant address authority: row preparation,
+held byId/absence keys and executed cursor suffixes validate the current target
+and exact canonical tuple. Optional/List recursion preserves the declared Ref
+target; ordinary actor, untyped Id, Scalar and JSON slots keep the 144-byte rule.
+The cursor encoding, descriptor binding and 4,096 decoded-byte ceiling remain.
+
+The target's intrinsic width is derived from the declared tagged group widths:
+tuple brackets, one separator allowance per element, then nine Id-wrapper bytes
+plus at most twice the tuple bytes for another JSON escape. It is at least the
+ordinary 144 allowance. Ref widths follow their target; Optional/List preserve
+that width recursively. Row/projection, retained-row, point/range/halo reference,
+and search suffix-buffer prices consume these same bounds. Ordinary reads that
+consume expanded maintained domains also price the complete receipt row pool,
+row/id envelopes, issuing keys/arguments and transitive rule authority. Reducing
+a read to Exists or a scalar does not release its disclosed first image. Enum widths include
+canonical escaping. Saturating arithmetic leaves the existing byte ceilings in
+force. A cyclic maintained-reference domain has no finite declared width and
+refuses with the existing E_BOUND only in programs that must price that domain;
+unrelated bounded programs and the schema itself remain admissible. Very wide
+positions remain subject to the existing cursor ceiling; it is not raised.
+
+Successor stored-row admission keeps unrelated undeclared legacy fields
+uninterpreted, including their identity widths. Reindex validates its actual
+ordinary component columns, WordPrefixes source fields, and intrinsic id before
+writing that row's index entries. Exact predecessor-owned projection IDs slated
+for rebuild are excluded from this surviving-row pass; their replacements use
+normal aggregate write/index/constraint admission in the same transaction.
+Surviving non-projected rows are still checked. Declaring the legacy field still subjects it
+to ordinary field/reserved-principal validation. All index changes, maintained
+rebuilds and generation metadata remain in the same rollback transaction.
+Count-backed cap addresses, one-row reserves, proven absences and N fallback do
+not change; successor caps still count base rows.
+
+This correction retains the v5 value identity and uses the evaluator v5
+boundary recorded above. The coordinated
+TypeScript evaluator/client uses shared typed and wire validators for this same
+domain, including absent buckets and immutable first-image custody. Exact native
+Ref/Optional/List roundtrip/refusal fixtures and combined-graph owner replays
+provide affected parity evidence. Compiler descendants and size/resource gates
+remain separate obligations before whole-package clearance.
+
 ## 5. Live subscriptions (`live.rs`)
 
 ```rust
@@ -585,10 +679,12 @@ pub struct Delivery { pub id: SubscriptionId, pub seq: u64, pub execution: Resul
 impl Runtime {
     pub fn subscribe(&mut self, op: &str, context: Context) -> Result<(SubscriptionId, Execution), RuntimeError>;
     pub fn unsubscribe(&mut self, id: SubscriptionId);
-    /// Which subscriptions a commit touched. Pure; O(touched keys · matching entries).
+    /// Pure exact-key lookup and conservative prefix-group matching.
     pub fn invalidated(&self, commit: &CommitRecord) -> Vec<SubscriptionId>;
     /// Re-execute the named subscriptions once each (coalesced), diff against the last result digest.
     pub fn rerun(&mut self, ids: &[SubscriptionId]) -> Vec<Delivery>;
+    /// Refresh context and execution in the same persistent subscription slot.
+    pub fn rerun_with_contexts(&mut self, entries: &[(SubscriptionId, Context)]) -> Vec<Delivery>;
     pub fn subscriptions(&self) -> Vec<SubscriptionInfo>;   // for `dev --status`, `why`, `trace`
 }
 ```
@@ -610,9 +706,37 @@ coalesce — the state is part of the digest, so `Complete` → `Denied` over th
 same payload is a change. Every write emits at least one touched entry for its
 table even when the table has no index, so `constraint_inputs` overlap works
 without assuming `byId` exists (round 2 G2/G3).
-`rerun` executes at most once per id per call, in id order, and updates the
-subscription's key entries from the fresh trace. Subscriptions live in memory
-with the owner; a restart re-subscribes from the clients (LLP 1002).
+`rerun` executes at most once per id per call, in id order. The context-aware
+batch keeps each `SubscriptionId`; the last context supplied for a repeated id
+wins. The owner samples one clock for the batch and refreshes `now` and
+`read_time` without unsubscribing and subscribing again. It still derives
+ordinary and offline frames from the full execution and compares frame digests;
+a terminal delivery removes the owner entry and detaches its runtime slot once.
+The owner stores that core ID as the live-map key for the slot lifetime. Commit
+and connected invalidation vectors dispatch directly by ID, without rebuilding
+a reverse map or scanning unrelated live clients.
+
+Trace dependencies are normalized sets. A successful execution, including a
+denied or partial result, replaces only the old/new set difference. Point,
+absence, and rule-input keys share exact membership; constraints use table
+membership. Each `(table, index)` owns a trie of canonical typed scalar prefix
+components. Nodes refcount fully scalar terminal memberships and all subtree
+memberships. Ordinary scalar touches visit ancestor terminals; search scope
+touches visit ancestor terminals and the exact scope's subtree. WordPrefix
+terms stop at their preceding scalar node and participate only in subtree
+membership; invalidation does not compare or normalize their text. A scope
+longer than that scalar prefix does not select those terms. Distinct terms from
+one subscription share refcounted membership, so removing one leaves the other
+attached. Empty nodes and index buckets are pruned. Selection visits the touched
+paths and matching buckets rather than all distinct prefixes; ordered map lookup
+and output deduplication costs still depend on their collection sizes.
+
+A runtime error has no replacement authoritative trace: retain the old
+dependencies for a later retry while remembering the latest context and error
+digest. Core callers can retry that slot; the owner's terminal transport path
+detaches it. Subscriptions live in memory with the owner; a restart
+re-subscribes from the clients (LLP 1002). This implements the persistent-query
+move in LLP 1018.000; no leaf-read cache is introduced.
 
 A `Delivery` for a subscription whose read is now `Denied` (a revoked
 membership) is delivered with that state — the client sees `denied`, not a
@@ -934,6 +1058,11 @@ Text columns and `ArgType::Text` refuse C0 control characters other than tab,
 newline, and carriage return as `E_INPUT`, naming the code point and the
 column or argument. Text maximums continue to count Unicode scalar values.
 
+Native v5 argument Text additionally admits `min` and `format` recursively
+through optional/list types, before execution, channel authorization, or job
+enqueue. Zero minimum and absent format retain the canonical unrefined shape;
+positive minimum and explicit format participate in certificate identity.
+
 The implicit `id` column is intrinsic row identity and is immutable without an
 authored constraint. Every addressed update or upsert requires the resulting
 row's `id` to equal the addressed key before rule evaluation, index mutation,
@@ -960,28 +1089,11 @@ out (the survey's "why no floats" section is the ruling).
 
 ### Pure builtins
 
-`words(text)` (`Builtin::Words`, implemented Clique L9, GPT-6 Astra,
-2026-09-05) extracts `[A-Za-z0-9]+` runs, ASCII-lowercases them, and deduplicates
-in first-occurrence order identically in the engine and TypeScript twin. Empty
-input yields an empty list; non-ASCII characters separate words. Runs stay
-whole, including beyond 64 characters: the index column must admit the input
-width or the program must filter long terms. It is whole-word matching, not
-prefix search, stemming, or a search engine. `tokens` remains the mention
-extractor (`Builtin::MentionTokens`), not this tokenizer.
-
-For a required text argument/expression with declared maximum N Unicode scalar
-values, the list maximum is `floor(N / 2) + 1`: nonempty runs need separating
-characters. Each output term has the input's maximum width. The front end carries
-both bounds through list positions, aliases, and `for` domains and refuses
-non-text/optional arguments with a repair. Text built with `+` or interpolation
-has no declared bound and is refused at `words`, including through aliases;
-the repair names a declared bounded text argument or column. A `??` over declared
-text uses the larger maximum of its two arms; a wider literal fallback still
-refuses against the left text bound. Serialized output is bounded by eight
-times the input's serialized maximum, covering tagged one-letter strings and
-array separators even for literals; tokens are never truncated to fit a bound.
-Loop element pricing keeps that whole-width reserve through aliases and branches:
-a single word may occupy the whole input, so division by the list maximum is unsound.
+The public `words(text)` value function and `Builtin::Words` were retired in
+the 2026-09-07 direct-compiler cutover. Unicode word normalization remains
+engine-owned behind `wordPrefixes` indexes and their typed search descriptors;
+applications cannot materialize its internal word list. `tokens` remains the
+separate mention extractor.
 
 ### Unicode search foundation
 
@@ -993,9 +1105,11 @@ with 64,000 the optimization target; 1M steps, 4 MiB closure, 8 MiB heap and
 1 MiB output remain. This is a current session decision, not an earlier author
 ruling. **Implementer:** Codex gpt-6-astra at xhigh, named
 `clique-search-foundation` lane, 2026-09-06; engine/compiler/twin lanes follow.
-The foundation supplies shared Unicode and logical-key primitives; existing
-`words()` and `Index.columns` remain active until their coherent migration.
-`wordPrefixes` is not yet an accepted Quarry declaration in this foundation.
+The foundation supplies shared Unicode and logical-key primitives. At the time
+of this decision, `words()` and `Index.columns` remained active and
+`wordPrefixes` was not yet accepted Quarry. The 2026-09-07 cutover completed
+that migration: Quarry declares `wordPrefixes(field)`, schema IR uses typed
+components, and the public Words value surface is gone.
 
 The pinned contract is `u17-nfc-scf-nfc-wsp-p`: Unicode 17.0.0
 `NFC(simpleFold(NFC(text)))`, C/S case-fold mappings only, boundaries at
@@ -1026,9 +1140,9 @@ full decomposition expands by at most four and C/S folds do not increase NFD
 length. Stable counting passes by combining class and starter segment give
 linear ordering and explicit scratch rather than quadratic mark insertion.
 Official normalization identities, all C/S folds and these finite bounds are
-executable foundation tests. Downstream `words()` migration must carry U through
-list/loop aliases: W ≤ `floor(U/2)+1`, per-element bytes `4U+16`, and whole-list
-bytes `4U+17W+2`; dividing an element width by W is unsound.
+executable foundation tests. Internal index construction carries U with
+W ≤ `floor(U/2)+1`, per-element bytes `4U+16`, and whole-list bytes
+`4U+17W+2`; dividing an element width by W is unsound.
 
 The frozen index contracts distinguish ordinary `Column` components from
 `WordPrefixes { fields, contract }`, scalar expressions from bounded
@@ -1076,6 +1190,26 @@ deduplicate, and native index maintenance adds its own ledger. A reused
 normalizer's scratch uses the largest input processed during its lifetime, not
 a later smaller Q. This model does not claim a measured VM/process heap peak;
 full search heap qualification still includes runtime/table/store overhead.
+
+**Native integration record, 2026-09-07.** Implementer: Codex GPT-6 Astra
+(xhigh), `clique-native-v5-integration` lane. The native engine now uses
+`Index.components`, `Scalar`/`WordPrefix` scan positions and logical `IndexAtom`
+receipts under value identity `i53-codepoint-bytes-unicode-search-text-refinements-v5`
+and evaluator `bounded-spike-rust-search-text-refinements-5`. Held source
+descriptors are rederived under their certified Q and dependency custody;
+a tag alone is never trusted. Ordinary points, scalar suffixes and bounds retain
+their roles. This reconciles the implemented v5 engine onto current native
+source; compatible compiler, evaluator and client delivery remain coordinated
+dependencies, with no package or search performance claim from this record.
+
+Count-backed caps retain the exact source/ordered-group count maintain match,
+deterministic point address, one-row reserve, proven-absence requirement and
+constraint trace. Unbacked caps retain N probes; successor admission still
+counts base rows. The same transaction maintains counts and search postings and
+rolls both back on refusal. LLP 1016 D6's single live-generation ad hoc admission
+and post-admission clock callback remain. Timed query delivery uses one validated
+safe-integer read time in both the envelope and validator, including an unvisited
+timed branch; untimed validators retain their prior shape.
 
 **Downstream obligations, not current capability claims.** One nonunique derived
 component must be equality-bound after ordinary scopes and before ordinary

@@ -11,9 +11,15 @@ use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use thiserror::Error;
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum RowChangeOrigin {
+    Source,
+    Maintained,
+}
+
 impl<'a> Runner<'a> {
     pub(super) fn insert(&mut self, table: &str, row: Value) -> Result<(), RuntimeError> {
-        validate_row(self.schema.table(table), table, &row)?;
+        validate_row(&self.schema, table, &row)?;
         if !self.check_rule(table, Effect::Insert, None, &row)? {
             return Err(RuntimeError::Rule {
                 table: table.to_owned(),
@@ -38,15 +44,8 @@ impl<'a> Runner<'a> {
             "INSERT INTO rows(table_name, row_id, data) VALUES (?1, ?2, ?3)",
             params![table, id, canonical_json(&row)],
         )?;
-        reindex_row(self.tx, self.schema, table, &row)?;
-        self.remember_created_row(table, &row)?;
-        self.inserted_rows.push((table.to_owned(), row.clone()));
-        self.clear_rule_memos();
-        self.touch_row(table, &row)?;
-        self.bump_write(table);
-        self.maintain_timers(table, None, Some(&row))?;
-        self.maintain(table, None, Some(&row))?;
-        Ok(())
+        let work = reindex_row(self.tx, self.schema, table, &row)?;
+        self.finish_row_change(table, None, Some(&row), work, RowChangeOrigin::Source)
     }
 
     pub(super) fn update(
@@ -68,7 +67,7 @@ impl<'a> Runner<'a> {
         for (name, value) in patch.as_object()? {
             new.insert(name.clone(), value.clone());
         }
-        self.replace(table, key, Value::Row(new))
+        self.replace(table, key, Value::Row(new.into()))
     }
 
     pub(super) fn upsert(
@@ -77,7 +76,7 @@ impl<'a> Runner<'a> {
         key: &Value,
         row: Value,
     ) -> Result<(), RuntimeError> {
-        validate_row(self.schema.table(table), table, &row)?;
+        validate_row(&self.schema, table, &row)?;
         validate_addressed_row_id(table, key, &row)?;
         if self.fetch_id(table, key.as_str()?)?.is_some() {
             self.replace(table, key, row)
@@ -102,7 +101,7 @@ impl<'a> Runner<'a> {
         let old = self
             .fetch_id(table, key_id)?
             .ok_or_else(|| RuntimeError::Input(format!("missing {table} row")))?;
-        validate_row(self.schema.table(table), table, &new)?;
+        validate_row(&self.schema, table, &new)?;
         validate_addressed_row_id(table, key, &new)?;
         // @ref LLP 1001#9-schema-additions — update policy is one relation over both row images.
         if !self.check_rule(table, Effect::Update, Some(&old), &new)? {
@@ -124,19 +123,12 @@ impl<'a> Runner<'a> {
                 self.context.now.unwrap_or_else(unix_millis),
             )?;
         }
-        self.touch_row(table, &old)?;
         self.tx.execute(
             "UPDATE rows SET data = ?3 WHERE table_name = ?1 AND row_id = ?2",
             params![table, key_id, canonical_json(&new)],
         )?;
-        reindex_row(self.tx, self.schema, table, &new)?;
-        self.refresh_created_points(table, &new)?;
-        self.clear_rule_memos();
-        self.touch_row(table, &new)?;
-        self.bump_write(table);
-        self.maintain_timers(table, Some(&old), Some(&new))?;
-        self.maintain(table, Some(&old), Some(&new))?;
-        Ok(())
+        let work = reindex_row(self.tx, self.schema, table, &new)?;
+        self.finish_row_change(table, Some(&old), Some(&new), work, RowChangeOrigin::Source)
     }
 
     pub(super) fn delete(&mut self, table: &str, id: &str) -> Result<(), RuntimeError> {
@@ -162,17 +154,59 @@ impl<'a> Runner<'a> {
                 self.context.now.unwrap_or_else(unix_millis),
             )?;
         }
-        self.touch_row(table, &old)?;
         self.tx.execute(
             "DELETE FROM rows WHERE table_name = ?1 AND row_id = ?2",
             params![table, id],
         )?;
-        delete_index_row(self.tx, table, id)?;
-        self.forget_created_points(table, id);
+        let work = delete_index_row(self.tx, table, id)?;
+        self.finish_row_change(table, Some(&old), None, work, RowChangeOrigin::Source)
+    }
+
+    /// Complete the shared post-validation portion of one physical row change.
+    /// SQLite owns the row and ordinary index mutation before this point; the
+    /// runner owns derived invalidation, provenance, timers, and aggregates in
+    /// the same transaction before the next statement may execute.
+    // @ref LLP 1001#2-what-a-commit-records — every physical source or
+    // maintained-target row change records the same transactional lifecycle.
+    fn finish_row_change(
+        &mut self,
+        table: &str,
+        old: Option<&Value>,
+        new: Option<&Value>,
+        index_work: search_index::Derivation,
+        origin: RowChangeOrigin,
+    ) -> Result<(), RuntimeError> {
+        self.search_nodes.clear();
+        self.derive_charge(index_work)?;
+        match (old, new) {
+            (None, Some(row)) => {
+                self.remember_created_row(table, row)?;
+            }
+            (Some(_), Some(row)) => {
+                self.refresh_created_points(table, row)?;
+            }
+            (Some(row), None) => {
+                self.forget_created_points(table, row.field("id")?.as_str()?);
+            }
+            _ => {}
+        }
+        if old.is_none()
+            && let Some(row) = new
+        {
+            self.inserted_rows.push((table.to_owned(), row.clone()));
+        }
         self.clear_rule_memos();
+        if let Some(row) = old {
+            self.touch_row(table, row)?;
+        }
+        if let Some(row) = new {
+            self.touch_row(table, row)?;
+        }
         self.bump_write(table);
-        self.maintain_timers(table, Some(&old), None)?;
-        self.maintain(table, Some(&old), None)?;
+        self.maintain_timers(table, old, new)?;
+        if origin == RowChangeOrigin::Source {
+            self.maintain(table, old, new)?;
+        }
         Ok(())
     }
 
@@ -212,37 +246,59 @@ impl<'a> Runner<'a> {
             .cloned()
             .collect();
         for maintain in maintains {
+            let table = self.schema.table(&maintain.source).ok_or_else(|| {
+                RuntimeError::Schema(format!("missing table {}", maintain.source))
+            })?;
+            // A row move applies the old group before the new group. This is
+            // observable when the maintained target has a cross-group unique
+            // constraint, so do not derive execution order from address sort.
+            let mut changes = Vec::<(String, Vec<Value>, i128)>::new();
             if let Some(old) = old {
-                self.apply_aggregate(&maintain, old, -1)?;
+                let group = crate::cap::maintained_group(table, old, &maintain.by)?;
+                let delta = self.aggregate_delta(&maintain, &group.source, -1)?;
+                changes.push((group.id, group.key, delta));
             }
             if let Some(new) = new {
-                self.apply_aggregate(&maintain, new, 1)?;
+                let group = crate::cap::maintained_group(table, new, &maintain.by)?;
+                let delta = self.aggregate_delta(&maintain, &group.source, 1)?;
+                if let Some(change) = changes.iter_mut().find(|change| change.0 == group.id) {
+                    change.2 += delta;
+                } else {
+                    changes.push((group.id, group.key, delta));
+                }
+            }
+            for (id, key, delta) in changes {
+                self.apply_aggregate_change(&maintain, id, key, delta)?;
             }
         }
         Ok(())
     }
 
-    pub(super) fn apply_aggregate(
-        &mut self,
+    fn aggregate_delta(
+        &self,
         maintain: &Maintain,
         source: &Value,
         direction: i64,
-    ) -> Result<(), RuntimeError> {
-        let table = self
-            .schema
-            .table(&maintain.source)
-            .ok_or_else(|| RuntimeError::Schema(format!("missing table {}", maintain.source)))?;
-        let group = crate::cap::maintained_group(table, source, &maintain.by)?;
-        let source = group.source;
-        let id = group.id;
-        let delta = match &maintain.kind {
-            MaintainKind::Count => direction,
-            MaintainKind::Sum { of } => direction
-                .checked_mul(source.field(of)?.as_int()?)
+    ) -> Result<i128, RuntimeError> {
+        Ok(match &maintain.kind {
+            MaintainKind::Count => i128::from(direction),
+            MaintainKind::Sum { of } => i128::from(direction)
+                .checked_mul(i128::from(source.field(of)?.as_int()?))
                 .ok_or_else(|| {
                     RuntimeError::Constraint("aggregate multiplication overflow".to_owned())
                 })?,
-        };
+        })
+    }
+
+    // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — maintained rows
+    // use the canonical sparse representation and ordinary row lifecycle.
+    fn apply_aggregate_change(
+        &mut self,
+        maintain: &Maintain,
+        id: String,
+        key: Vec<Value>,
+        delta: i128,
+    ) -> Result<(), RuntimeError> {
         let existing = self.fetch_id(&maintain.target, &id)?;
         // @ref LLP 1001#2-what-a-commit-records — a local aggregate may start
         // from zero only when authority proved the deterministic target absent.
@@ -263,18 +319,36 @@ impl<'a> Runner<'a> {
             .map(Value::as_int)
             .transpose()?
             .unwrap_or(0);
-        let next = old_value as i128 + delta as i128;
+        let next = i128::from(old_value) + delta;
         if !(I53_MIN as i128..=I53_MAX as i128).contains(&next) {
             return Err(ValueError::Overflow(next).into());
+        }
+        let empty = next == 0;
+        if empty {
+            if let Some(existing) = existing {
+                return self.delete_aggregate_row(&maintain.target, existing);
+            }
+            return Ok(());
         }
         let mut row = BTreeMap::from([
             ("id".to_owned(), Value::Id(id.clone())),
             ("value".to_owned(), Value::Int(next as i64)),
         ]);
-        for (field, value) in maintain.by.iter().zip(group.key) {
+        for (field, value) in maintain.by.iter().zip(key) {
             row.insert(field.clone(), value);
         }
-        self.write_aggregate_row(&maintain.target, Value::Row(row))
+        self.write_aggregate_row(&maintain.target, Value::Row(row.into()))
+    }
+
+    fn delete_aggregate_row(&mut self, target: &str, row: Value) -> Result<(), RuntimeError> {
+        let id = row.field("id")?.as_str()?.to_owned();
+        self.check_constraints(target, Some(&row), &row, Effect::Delete)?;
+        self.tx.execute(
+            "DELETE FROM rows WHERE table_name = ?1 AND row_id = ?2",
+            params![target, id],
+        )?;
+        let work = delete_index_row(self.tx, target, &id)?;
+        self.finish_row_change(target, Some(&row), None, work, RowChangeOrigin::Maintained)
     }
 
     pub(super) fn write_aggregate_row(
@@ -284,7 +358,7 @@ impl<'a> Runner<'a> {
     ) -> Result<(), RuntimeError> {
         let id = row.field("id")?.as_str()?.to_owned();
         let existing = self.fetch_id(target, &id)?;
-        validate_row(self.schema.table(target), target, &row)?;
+        validate_row(self.schema, target, &row)?;
         let effect = if existing.is_some() {
             Effect::Update
         } else {
@@ -293,9 +367,6 @@ impl<'a> Runner<'a> {
         // LLP 1001 §7 ruling: maintained targets are engine-owned, so aggregate
         // writes bypass user insert/update/delete rules but never constraints or unique indexes.
         self.check_constraints(target, existing.as_ref(), &row, effect)?;
-        if let Some(existing) = &existing {
-            self.touch_row(target, existing)?;
-        }
         self.tx.execute(
             "INSERT INTO rows(table_name, row_id, data) VALUES (?1, ?2, ?3)
              ON CONFLICT(table_name, row_id) DO UPDATE SET data = excluded.data",
@@ -304,18 +375,14 @@ impl<'a> Runner<'a> {
         let aggregate = self
             .fetch_id(target, &id)?
             .expect("aggregate row was just upserted");
-        reindex_row(self.tx, self.schema, target, &aggregate)?;
-        if effect == Effect::Insert {
-            self.remember_created_row(target, &aggregate)?;
-            self.inserted_rows
-                .push((target.to_owned(), aggregate.clone()));
-        } else {
-            self.refresh_created_points(target, &aggregate)?;
-        }
-        self.clear_rule_memos();
-        self.touch_row(target, &aggregate)?;
-        self.bump_write(target);
-        Ok(())
+        let work = reindex_row(self.tx, self.schema, target, &aggregate)?;
+        self.finish_row_change(
+            target,
+            existing.as_ref(),
+            Some(&aggregate),
+            work,
+            RowChangeOrigin::Maintained,
+        )
     }
 
     // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — stale
@@ -331,28 +398,13 @@ impl<'a> Runner<'a> {
             if !ids.contains(&id) {
                 continue;
             }
-            // Maintained targets are engine-owned, but their declared
-            // constraints still bind successor rebuild deletions.
-            self.check_constraints(target, Some(&row), &row, Effect::Delete)?;
-            self.touch_row(target, &row)?;
-            self.tx.execute(
-                "DELETE FROM rows WHERE table_name = ?1 AND row_id = ?2",
-                params![target, id],
-            )?;
-            delete_index_row(self.tx, target, &id)?;
-            self.forget_created_points(target, &id);
-            self.clear_rule_memos();
-            self.bump_write(target);
+            self.delete_aggregate_row(target, row)?;
         }
         Ok(())
     }
 
     pub(super) fn emit(&mut self, effect: &str, payload: Value) -> Result<(), RuntimeError> {
-        let id = self
-            .context
-            .new_ids
-            .pop_front()
-            .ok_or_else(|| RuntimeError::Input("newId envelope exhausted".to_owned()))?;
+        let id = self.input(Input::NewId)?.as_str()?.to_owned();
         let now = self
             .context
             .now
@@ -387,6 +439,17 @@ impl<'a> Runner<'a> {
             });
         }
         for (index, definition) in &table_schema.indexes {
+            if let Some(offset) = definition.derived_offset() {
+                let touch = crate::store::ScopeTouch {
+                    table: table.into(),
+                    index: index.clone(),
+                    prefix: index_values(row, definition)[..offset].to_vec(),
+                };
+                if !self.trace.scope_touches.contains(&touch) {
+                    self.trace.scope_touches.push(touch);
+                }
+                continue;
+            }
             self.trace.touched.push(TouchedKey {
                 table: table.to_owned(),
                 index: index.clone(),
@@ -416,6 +479,9 @@ impl<'a> Runner<'a> {
             .indexes
             .clone();
         for (index, definition) in indexes {
+            if definition.derived_offset().is_some() {
+                continue;
+            }
             self.created_points.insert((
                 table.to_owned(),
                 index,
@@ -554,7 +620,8 @@ impl<'a> Runner<'a> {
                     if rows.len() >= *max as usize {
                         return Err(RuntimeError::Constraint(format!(
                             "{table_name} cap {max} reached for group ({}) = {}",
-                            by.join(", "), canonical_json(&Value::Array(prefix))
+                            by.join(", "),
+                            canonical_json(&Value::Array(prefix))
                         )));
                     }
                 }
@@ -569,23 +636,7 @@ impl<'a> Runner<'a> {
                                 "{table_name}.{field} must contain at least {min} characters"
                             )));
                         }
-                        let valid = match format {
-                            None => true,
-                            Some(TextFormat::Handle) => text.bytes().all(|byte| {
-                                byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_'
-                            }),
-                            Some(TextFormat::Url) => {
-                                let rest = text
-                                    .strip_prefix("https://")
-                                    .or_else(|| text.strip_prefix("http://"));
-                                rest.is_some_and(|rest| {
-                                    !rest.is_empty()
-                                        && rest.chars().all(|character| {
-                                            !character.is_whitespace() && !character.is_control()
-                                        })
-                                })
-                            }
-                        };
+                        let valid = format.is_none_or(|format| format.matches(text));
                         if !valid {
                             let expected = match format {
                                 Some(TextFormat::Handle) => {
@@ -1040,7 +1091,7 @@ impl<'a> Runner<'a> {
         let index_schema = table_schema
             .index(index)
             .ok_or_else(|| RuntimeError::Schema(format!("missing index {table}.{index}")))?;
-        let mut found = lookup_indexed(self.tx, table, index, index_schema, key)?;
+        let mut found = lookup_indexed(self.tx, self.schema, table, index, index_schema, key)?;
         if let Some(row) = &mut found {
             materialize_optional_fields(row, table_schema);
         }
@@ -1072,7 +1123,17 @@ impl<'a> Runner<'a> {
     }
 
     pub(super) fn record_row(&mut self, table: &str, id: &str, row: &Value, client: bool) {
-        self.row_membership.record(&mut self.trace.rows, &mut self.receipt.rows, table, id, row, client);
+        let retained = self.row_membership.record(
+            &mut self.trace.rows,
+            &mut self.receipt.rows,
+            table,
+            id,
+            row,
+            client,
+        );
+        if self.account_search_pool {
+            self.derived_hold(retained);
+        }
     }
 
     pub(super) fn bump_write(&mut self, table: &str) {
@@ -1083,7 +1144,11 @@ impl<'a> Runner<'a> {
         self.trace.steps = self.trace.steps.saturating_add(amount);
         let max_steps = self
             .certificate
-            .map(|certificate| certificate.max_steps)
+            .map(|certificate| {
+                certificate
+                    .max_steps
+                    .saturating_sub(certificate.derived_steps)
+            })
             .or_else(|| {
                 self.rule_certificate
                     .map(|certificate| certificate.max_steps)
@@ -1111,7 +1176,7 @@ impl<'a> Runner<'a> {
                 self.trace.rule_probes, certificate.max_rule_probes
             )));
         }
-        if self.trace.steps > certificate.max_steps {
+        if self.trace.steps.saturating_add(self.trace.derived_steps) > certificate.max_steps {
             return Err(RuntimeError::TraceSubset(format!(
                 "steps {} > certificate {}",
                 self.trace.steps, certificate.max_steps
@@ -1125,38 +1190,57 @@ impl<'a> Runner<'a> {
     // point's actual physical absence. A receipt-only store cannot mint it.
     fn count_range_is_proved(&self, range: &ReceiptRange) -> bool {
         matches!(self.rule_authority, RuleAuthority::StoreAuthoritative)
-            && self.trace.points.iter().filter(|point|
-                point.site == range.site && point.table == range.table
-                    && point.index == range.index && point.key == range.prefix
-            ).any(|point| {
-                let Some(proof) = crate::cap::count_absence_evidence(
-                    self.schema,
-                    point,
-                    self.hashes.table(&point.table, Effect::Read),
-                ) else {
-                    return false;
-                };
-                proof.range == *range
-                    && self.trace.absences.contains(&(
-                        point.table.clone(),
-                        point.index.clone(),
-                        point.key.clone(),
-                    ))
-                    && self.trace.absences.contains(&proof.primary)
-                    && self.trace.constraint_inputs.iter().any(|input| {
-                        input.table == point.table
-                            && input.check == "public-count-absence"
-                            && input.index == "byId"
-                            && input.prefix == proof.primary.2
-                            && input.examined_ids.is_empty()
-                    })
-            })
+            && self
+                .trace
+                .points
+                .iter()
+                .filter(|point| {
+                    point.site == range.site
+                        && point.table == range.table
+                        && point.index == range.index
+                        && point.key.len() == range.prefix.len()
+                        && crate::search_key::scalar_key_starts_with(&point.key, &range.prefix)
+                })
+                .any(|point| {
+                    let Some(proof) = crate::cap::count_absence_evidence(
+                        self.schema,
+                        point,
+                        self.hashes.table(&point.table, Effect::Read),
+                    ) else {
+                        return false;
+                    };
+                    proof.range == *range
+                        && self.trace.absences.contains(&(
+                            point.table.clone(),
+                            point.index.clone(),
+                            point.key.clone(),
+                        ))
+                        && self.trace.absences.contains(&proof.primary)
+                        && self.trace.constraint_inputs.iter().any(|input| {
+                            input.table == point.table
+                                && input.check == "public-count-absence"
+                                && input.index == "byId"
+                                && input.prefix == proof.primary.2
+                                && input.examined_ids.is_empty()
+                        })
+                })
     }
 
     pub(super) fn assert_bounds(&self) -> Result<(), RuntimeError> {
         let certificate = self
             .certificate
             .expect("ordinary program execution has a certificate");
+        if self.trace.derived_steps > certificate.derived_steps
+            || self.trace.derived_scratch_bytes > certificate.derived_scratch_bytes
+        {
+            return Err(RuntimeError::TraceSubset(format!(
+                "derived work {}/{} scratch {}/{}",
+                self.trace.derived_steps,
+                certificate.derived_steps,
+                self.trace.derived_scratch_bytes,
+                certificate.derived_scratch_bytes
+            )));
+        }
         if self.trace.examined > certificate.max_examined {
             return Err(RuntimeError::TraceSubset(format!(
                 "examined {} > certificate {}",
@@ -1281,7 +1365,9 @@ impl<'a> Runner<'a> {
             }
         }
         for row in &self.receipt.rows {
-            if !self.row_membership.contains(&self.trace.rows, &row.table, &row.id)
+            if !self
+                .row_membership
+                .contains(&self.trace.rows, &row.table, &row.id)
             {
                 return Err(RuntimeError::TraceSubset(format!(
                     "receipt row {}.{} absent from trace",

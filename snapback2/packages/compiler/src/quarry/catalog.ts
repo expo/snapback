@@ -1,3 +1,5 @@
+import { columnAt, columnComponents, componentLabel, componentProblem, derivedPosition, MAX_SEARCH_SOURCE_SCALARS } from "../index-components";
+import type { IndexComponent } from "../ir";
 import type { Document, Expr, IndexDecl, KeyPart, ScalarType, Site, TableCatalog, TableDecl } from "./ast";
 import { quarryExpression } from "./print";
 import { QuarryError, ambiguous, refuse, typeError } from "./diagnostics";
@@ -12,7 +14,7 @@ export function buildCatalog(documents: Document[]): TableCatalog {
       { name: "principal", type: { kind: "principal", optional: false }, site },
       { name: "value", type: { kind: "int", optional: false }, site },
     ],
-    indexes: [{ name: "byPrincipal", columns: ["principal"], unique: true, site }],
+    indexes: [{ name: "byPrincipal", components: columnComponents(["principal"]), unique: true, site }],
     rules: [], immutable: [], caps: [], finalExists: [], tombstones: [],
   };
   catalog.set("connected", { declaration, columns: new Map(declaration.columns.map(c => [c.name, c.type])), indexes: declaration.indexes });
@@ -25,16 +27,18 @@ export function buildCatalog(documents: Document[]): TableCatalog {
         if (columns.has(column.name)) refuse(column.site, `duplicate column ${table.name}.${column.name}`);
         columns.set(column.name, column.type);
       }
-      const indexes: IndexDecl[] = [{ name: "byId", columns: ["id"], unique: true, site: table.site }, ...table.indexes];
+      const indexes: IndexDecl[] = [{ name: "byId", components: columnComponents(["id"]), unique: true, site: table.site }, ...table.indexes];
       const indexNames = new Set<string>();
       for (const index of indexes) {
         if (indexNames.has(index.name)) refuse(index.site, `duplicate index ${table.name}.${index.name}; name one ordering explicitly`);
         indexNames.add(index.name);
-        if (index.columns.length === 0) refuse(index.site, `index ${table.name}.${index.name} needs at least one column`);
-        if (new Set(index.columns).size !== index.columns.length) refuse(index.site, `index ${table.name}.${index.name} repeats a column`);
-        for (const column of index.columns) {
-          if (column !== "id" && !columns.has(column)) refuse(index.site, `index ${table.name}.${index.name} names unknown column ${column}`);
-        }
+        const problem = componentProblem(index.components, index.unique, name => {
+          const type = name === "id" ? { kind: "id" } : columns.get(name);
+          // Ordinary column-domain refusals are aggregated before catalog construction.
+          return type ? { indexable: true,
+            ...(type.kind === "text" ? { textMax: (type as Extract<ScalarType, { kind: "text" }>).max } : {}) } : undefined;
+        });
+        if (problem) typeError(index.site, `${table.name}.${index.name}: ${problem}`, "use one nonunique wordPrefixes(textField) between ordinary scope and ordering components");
       }
       const capped = new Set<string>();
       for (const cap of table.caps) {
@@ -195,11 +199,13 @@ export function selectIndex(
   }
   let candidates = info.indexes.filter((index) => {
     if (mode === "range" && index.name === "byId") return false;
+    const derived = derivedPosition(index.components);
+    if (derived >= 0 && (mode !== "range" || keys.length <= derived)) return false;
     if (table === "connected" && keys.length !== 1) return false;
-    if (mode === "point" && (!index.unique || index.columns.length !== keys.length)) return false;
-    if ((mode === "range" || mode === "exists") && index.columns.length < keys.length) return false;
-    if (named) return keys.every((key, offset) => index.columns[offset] === key.column);
-    return keys.every((key, offset) => keyCompatible(key.value, infer(key.value), columnType(info.declaration, index.columns[offset]!)));
+    if (mode === "point" && (!index.unique || index.components.length !== keys.length)) return false;
+    if ((mode === "range" || mode === "exists") && index.components.length < keys.length) return false;
+    if (named) return keys.every((key, offset) => columnAt(index.components, offset) === key.column);
+    return keys.every((key, offset) => componentKeyCompatible(key.value, infer(key.value), info.declaration, index.components[offset]!));
   });
   if (mode === "point" && keys.length === 1 && !named) {
     const type = infer(keys[0]!.value);
@@ -207,14 +213,14 @@ export function selectIndex(
     else if (candidates.some((index) => index.name !== "byId")) candidates = candidates.filter((index) => index.name !== "byId");
   }
   if (mode !== "range") {
-    const exact = candidates.filter((index) => index.columns.length === keys.length);
+    const exact = candidates.filter((index) => index.components.length === keys.length);
     if (exact.length > 0) candidates = exact;
   }
   if (candidates.length === 0) {
     const spelling = keys.map((key) => key.column ?? "?").join(", ");
     const eligible = info.indexes.filter((index) => mode !== "point" || index.unique);
     const requiredNull = eligible.flatMap((index) => keys.flatMap((key, offset) => {
-      const column = index.columns[offset];
+      const column = columnAt(index.components, offset);
       return column && (!key.column || key.column === column) && key.value.kind === "literal" && key.value.value === null
         && !columnType(info.declaration, column).optional ? [`${table}.${index.name}.${column} is required; null needs an optional key column`] : [];
     }));
@@ -242,10 +248,20 @@ function validateIndexKeys(
   if (table.name === "connected" && (keys.length !== 1 || infer(keys[0]!.value)?.kind !== "principal" || infer(keys[0]!.value)?.optional)) {
     refuse(site, "connected requires one nonoptional principal", "use #connected[viewer] or exists connected[p] with p: principal");
   }
-  if (mode === "point" && (!index.unique || index.columns.length !== keys.length)) refuse(site, `${table.name}.${index.name} is not a complete unique key`);
-  if ((mode === "range" || mode === "exists") && index.columns.length < keys.length) refuse(site, `${table.name}.${index.name} has no ${keys.length}-column prefix`);
+  const derived = derivedPosition(index.components);
+  if (derived >= 0 && mode !== "range") typeError(site, "wordPrefixes indexes are scan-only; point, exists, rule, and write addressing require ordinary indexes", "use an ordinary index for this address or first/last for search");
+  if (derived >= 0 && keys.length <= derived) typeError(site, "search must equality-bind through the wordPrefixes component", "supply ordinary scope keys followed by a bounded text term");
+  if (mode === "point" && (!index.unique || index.components.length !== keys.length)) refuse(site, `${table.name}.${index.name} is not a complete unique key`);
+  if ((mode === "range" || mode === "exists") && index.components.length < keys.length) refuse(site, `${table.name}.${index.name} has no ${keys.length}-column prefix`);
   for (const [offset, key] of keys.entries()) {
-    const column = index.columns[offset]!;
+    const component = index.components[offset]!;
+    if ("WordPrefixes" in component) {
+      if (key.column) typeError(key.site, "wordPrefixes is a derived component, not a source column", "use positional keys for a search index");
+      if (!componentKeyCompatible(key.value, infer(key.value), table, component)) typeError(key.value.site,
+        "wordPrefixes requires present bounded text with its own declared maximum", "pass term: text <=N; use ! or ?? for optional text; do not construct text with +");
+      continue;
+    }
+    const column = component.Column;
     if (key.column && column !== key.column) refuse(key.site, `${table.name}.${index.name} expects ${column} at key position ${offset + 1}`);
     const actual = infer(key.value);
     const expected = columnType(table, column);
@@ -255,15 +271,21 @@ function validateIndexKeys(
     if (!keyCompatible(key.value, actual, expected)) {
       const received = key.value.kind === "literal" && key.value.value === null ? "null" : actual ? typeName(actual) : "unknown";
       const required = received === "null" && !expected.optional ? `; ${column} is required` : "";
-      const alternatives = table.indexes.filter((candidate) => candidate.unique && candidate.columns.length === keys.length
-        && keys.every((part, i) => keyCompatible(part.value, infer(part.value), columnType(table, candidate.columns[i]!))));
+      const alternatives = table.indexes.filter((candidate) => candidate.unique && derivedPosition(candidate.components) < 0 && candidate.components.length === keys.length
+        && keys.every((part, i) => keyCompatible(part.value, infer(part.value), columnType(table, columnAt(candidate.components, i)!))));
       const replacement = mode === "point" && alternatives.length === 1 ? alternatives[0] : undefined;
       const rewrite = replacement
-        ? `${table.name}[${keys.map((part, i) => `${replacement.columns[i]} = ${quarryExpression(part.value)}`).join(", ")}]`
+        ? `${table.name}[${keys.map((part, i) => `${columnAt(replacement.components, i)} = ${quarryExpression(part.value)}`).join(", ")}]`
         : `${table.name}.${index.name}.${column} requires ${typeName(expected)}; received ${received}${required}; ${indexGuidance(table, [index])}`;
       refuse(key.value.site, `${table.name}.${index.name} expects ${typeName(expected)} for ${column}, got ${received}${required}`, rewrite, !!replacement);
     }
   }
+}
+
+function componentKeyCompatible(expr: Expr, actual: ScalarType | undefined, table: TableDecl, component: IndexComponent): boolean {
+  if ("Column" in component) return keyCompatible(expr, actual, columnType(table, component.Column));
+  return actual?.kind === "text" && !actual.optional && !("builtText" in actual && actual.builtText)
+    && Number.isSafeInteger(actual.max) && actual.max >= 0 && actual.max <= MAX_SEARCH_SOURCE_SCALARS;
 }
 
 function fractionalNumericLiteral(expr: Expr): boolean {
@@ -288,7 +310,7 @@ export function keyCompatible(expr: Expr, actual: ScalarType | undefined, expect
 }
 
 function indexGuidance(table: TableDecl, indexes: IndexDecl[]): string {
-  return `candidate indexes: ${indexes.map((index) => `${table.name}.${index.name} (${index.columns.map((column) => `${column}: ${typeName(columnType(table, column))}`).join(", ")})`).join("; ")}`;
+  return `candidate indexes: ${indexes.map((index) => `${table.name}.${index.name} (${index.components.map((component) => "Column" in component ? `${component.Column}: ${typeName(columnType(table, component.Column))}` : `${componentLabel(component)}: bounded query text (independent maximum)`).join(", ")})`).join("; ")}`;
 }
 
 function compatible(actual: ScalarType | undefined, expected: ScalarType): boolean {
@@ -311,7 +333,7 @@ function typeName(type: ScalarType): string {
   if (type.optional) return `${typeName({ ...type, optional: false })} ?`;
   if (type.kind === "ref") return `reference to ${type.table}`;
   if (type.kind === "list") return `[${typeName(type.item)}] <=${type.max}`;
-  if (type.kind === "text") return type.min === undefined ? `text <=${type.max}` : `text ${type.min}..${type.max}`;
+  if (type.kind === "text") return `${type.min === undefined ? `text <=${type.max}` : `text ${type.min}..${type.max}`}${type.format ? ` format ${type.format}` : ""}`;
   if (type.kind === "decimal") return `decimal ${type.scale}`;
   if (type.kind === "money") return `money ${type.currency} ${type.scale}`;
   return type.kind;

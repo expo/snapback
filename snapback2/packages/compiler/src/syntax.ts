@@ -118,6 +118,34 @@ export function hasExport(node: ts.Node): boolean {
     && !!ts.getModifiers(node)?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword);
 }
 
+// @ref LLP 1002#1-decisions — an operation's identity is its export, even
+// when Quarry uses a private local binding to avoid generated imports/helpers.
+export function exportedVariables(sourceFile: ts.SourceFile): Array<{ declaration: ts.VariableDeclaration; exportName: string }> {
+  const aliases = new Map<string, Set<string>>();
+  for (const statement of sourceFile.statements) {
+    if (!ts.isExportDeclaration(statement) || statement.moduleSpecifier || statement.isTypeOnly
+      || !statement.exportClause || !ts.isNamedExports(statement.exportClause)) continue;
+    for (const item of statement.exportClause.elements) {
+      if (item.isTypeOnly) continue;
+      const local = item.propertyName?.text ?? item.name.text;
+      const names = aliases.get(local) ?? new Set<string>();
+      names.add(item.name.text);
+      aliases.set(local, names);
+    }
+  }
+  const result: Array<{ declaration: ts.VariableDeclaration; exportName: string }> = [];
+  for (const statement of sourceFile.statements) {
+    if (!ts.isVariableStatement(statement)) continue;
+    for (const declaration of statement.declarationList.declarations) {
+      if (!ts.isIdentifier(declaration.name)) continue;
+      const names = new Set(aliases.get(declaration.name.text));
+      if (hasExport(statement)) names.add(declaration.name.text);
+      for (const exportName of names) result.push({ declaration, exportName });
+    }
+  }
+  return result;
+}
+
 export function hasAsyncModifier(node: ts.Node): boolean {
   return !!ts.canHaveModifiers(node) && !!ts.getModifiers(node)?.some((modifier) => modifier.kind === ts.SyntaxKind.AsyncKeyword);
 }
@@ -177,7 +205,8 @@ export function collectionConstructor(node: ts.Expression): "Map" | "Set" | unde
 type DbBinding = (name: string) => boolean;
 
 export function isDb(node: ts.Expression, binding: DbBinding): boolean {
-  return ts.isIdentifier(node) && binding(node.text);
+  const value = unwrapExpression(node);
+  return ts.isIdentifier(value) && binding(value.text);
 }
 
 export function isDbMember(node: ts.LeftHandSideExpression, binding: DbBinding): boolean {
@@ -212,10 +241,22 @@ export function nonNullIdentifier(node: ts.Expression): string | undefined {
   return ts.isIdentifier(value.right) && value.left.kind === ts.SyntaxKind.NullKeyword ? value.right.text : undefined;
 }
 
-export function temporary(holder: { temp: { value: number } } | { value: number }, label: string): string {
+const temporaryNames = new WeakMap<ts.SourceFile, Set<string>>();
+export function temporary(holder: { temp: { value: number }; sourceFile?: ts.SourceFile } | { value: number }, label: string): string {
   const temp = "temp" in holder ? holder.temp : holder;
-  const value = temp.value++;
-  return `__${label}${value}`;
+  const source = "sourceFile" in holder ? holder.sourceFile : undefined;
+  let occupied = source && temporaryNames.get(source);
+  if (source && !occupied) {
+    occupied = new Set<string>();
+    const scanner = ts.createScanner(ts.ScriptTarget.ES2022, true, ts.LanguageVariant.Standard, source.text);
+    for (let token = scanner.scan(); token !== ts.SyntaxKind.EndOfFileToken; token = scanner.scan()) {
+      if (token === ts.SyntaxKind.Identifier) occupied.add(scanner.getTokenValue());
+    }
+    temporaryNames.set(source, occupied);
+  }
+  let name: string;
+  do { name = `__${label}${temp.value++}`; } while (occupied?.has(name));
+  return name;
 }
 
 export function syntheticIdentifier(_sourceFile: ts.SourceFile, name: string): ts.Identifier {

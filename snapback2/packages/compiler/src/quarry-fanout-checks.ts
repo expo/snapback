@@ -101,27 +101,30 @@ export function registerQuarryFanoutChecks(test: Test, frontend: string): void {
       assert(lowered.ok, `fanout front end failed: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
       const checked = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema);
       const error = checked.find((r) => r.error?.code === "E_STRUCTURAL_FANOUT")?.error;
-      assert(error && error.message.includes(item.reason) && error.family === "bound" && error.guide === "bound/loop" && error.site === "ops.send/for/m/0", `fanout reason/envelope: ${JSON.stringify(checked)}`);
-      const sourceSite = lowered.sources["ops.send/for/m/0"];
+      assert(error && error.message.includes(item.reason) && error.family === "bound" && error.guide === "bound/loop"
+        && error.site.startsWith("ops.send/for/"), `fanout reason/envelope: ${JSON.stringify(checked)}`);
+      const sourceSite = lowered.sources[error.site];
       assert(sourceSite?.file === "snapback/ops.q" && item.source.split("\n")[sourceSite.line - 1]?.trim().startsWith("for m"), `fanout source map did not identify for line: ${JSON.stringify(sourceSite)}`);
+      const generatedBinding = error.site.split("/for/")[1]?.split("/")[0];
+      const authoredRewrite = generatedBinding ? error.rewrite.replaceAll(generatedBinding, "m") : error.rewrite;
       let repairedSchema = item.schema;
       let repairedSource = item.source;
-      if (item.repair === "cap") repairedSchema = repairedSchema.replace("  public", `  ${error.rewrite}\n  public`);
-      if (item.repair === "bound") repairedSource = repairedSource.replace("first 50", error.rewrite);
-      if (item.repair === "head") repairedSource = repairedSource.replace(/^  for .*:$/m, `  ${error.rewrite}`);
+      if (item.repair === "cap") repairedSchema = repairedSchema.replace("  public", `  ${authoredRewrite}\n  public`);
+      if (item.repair === "bound") repairedSource = repairedSource.replace("first 50", authoredRewrite);
+      if (item.repair === "head") repairedSource = repairedSource.replace(/^  for .*:$/m, `  ${authoredRewrite}`);
       if (item.repair === "prefix") {
-        const [index, head] = error.rewrite.split("\n");
+        const [index, head] = authoredRewrite.split("\n");
         repairedSchema = repairedSchema.replace("  cap 50", `  ${index}\n  cap 50`);
         repairedSource = repairedSource.replace(/^  for .*:$/m, `  ${head}`);
       }
       if (item.repair === "other-prefix") {
-        const [index, read] = error.rewrite.split("\n");
+        const [index, read] = authoredRewrite.split("\n");
         repairedSchema = repairedSchema.replace("  by byPrincipal: principal, id", `  ${index}`);
         repairedSource = repairedSource.replace("other[] first 2 by byPrincipal", read!);
       }
       await withProject({ "snapback/schema.q": repairedSchema, "snapback/ops.q": repairedSource }, async (fixedRoot) => {
         const fixed = await lowerProject(fixedRoot);
-        assert(fixed.ok, `pasted ${item.name} rewrite failed: ${fixed.ok ? "" : diagnosticsText(fixed.diagnostics)}\n${error.rewrite}`);
+        assert(fixed.ok, `pasted ${item.name} rewrite failed: ${fixed.ok ? "" : diagnosticsText(fixed.diagnostics)}\n${authoredRewrite}`);
         assert(rustCheck(fixed.project.programs, "synthetic", fixed.project.schema).every((r) => !r.error), `pasted ${item.name} repair did not certify`);
       });
     });
@@ -150,19 +153,31 @@ export function registerQuarryFanoutChecks(test: Test, frontend: string): void {
       const p: any = structuredClone(result.project.programs[0]);
       const scan = p.body.find((s: any) => s.Let?.value.Scan || s.Const?.value.Scan);
       const read = (scan.Let ?? scan.Const).value.Scan;
+      const scanName = (scan.Let ?? scan.Const).name;
       read.take = { Arg: { name: "n", max: 50 } }; p.args.n = "Int";
       const error = rustCheck([p], "synthetic", result.project.schema)[0]!.error;
       assert(error?.code === "E_STRUCTURAL_FANOUT" && error.message.includes("the bound is an argument") && error.rewrite === "first 50", "argument-bound repair lost");
       read.take = { Literal: Number(error.rewrite.split(" ")[1]) };
       assert(!rustCheck([p], "synthetic", result.project.schema)[0]!.error, "argument-bound pasted repair refused");
-      p.body.splice(1, 0, { Assign: { name: "page", value: { Builtin: { builtin: "Slice", args: [{ Variable: "page" }, { Literal: { Int: 0 } }, { Literal: { Int: 50 } }] } } } });
+      const loopIndex = p.body.findIndex((statement: any) => statement.For);
+      p.body.splice(loopIndex, 0, { Assign: { name: scanName, value: { Builtin: {
+        builtin: "Slice", args: [{ Variable: scanName }, { Literal: { Int: 0 } }, { Literal: { Int: 50 } }],
+      } } } });
       const cut = rustCheck([p], "synthetic", result.project.schema)[0]!.error;
-      assert(cut?.code === "E_STRUCTURAL_FANOUT" && cut.rewrite === head, `known binding did not paste scan: ${JSON.stringify(cut)}`);
-      await withProject({ "snapback/schema.q": schema, "snapback/ops.q": bound.replace("for m in page:", cut.rewrite) }, async (root) => {
+      const cutBinding = cut?.site.split("/for/")[1]?.split("/")[0];
+      const cutRewrite = cut && cutBinding ? cut.rewrite.replaceAll(cutBinding, "m") : cut?.rewrite;
+      assert(cut?.code === "E_STRUCTURAL_FANOUT" && cutRewrite === head, `known binding did not paste scan: ${JSON.stringify(cut)}`);
+      await withProject({ "snapback/schema.q": schema, "snapback/ops.q": bound.replace("for m in page:", cutRewrite!) }, async (root) => {
         const fixed = await lowerProject(root); assert(fixed.ok, "head repair did not lower");
         // Keep the original raw-IR Slice assignment: the only repair is the head.
-        fixed.project.programs[0]!.body.splice(1, 0, structuredClone(p.body[1]));
-        assert(JSON.stringify(fixed.project.programs[0]!.body[1]).includes("Slice"), "transformed fixture was lost");
+        const fixedProgram: any = fixed.project.programs[0]!;
+        const fixedScan = fixedProgram.body.find((statement: any) => statement.Let?.value.Scan || statement.Const?.value.Scan);
+        const fixedScanName = (fixedScan.Let ?? fixedScan.Const).name;
+        const fixedLoopIndex = fixedProgram.body.findIndex((statement: any) => statement.For);
+        fixedProgram.body.splice(fixedLoopIndex, 0, { Assign: { name: fixedScanName, value: { Builtin: {
+          builtin: "Slice", args: [{ Variable: fixedScanName }, { Literal: { Int: 0 } }, { Literal: { Int: 50 } }],
+        } } } });
+        assert(JSON.stringify(fixedProgram.body[fixedLoopIndex]).includes("Slice"), "transformed fixture was lost");
         assert(rustCheck(fixed.project.programs, "synthetic", fixed.project.schema).every((r) => !r.error), "head repair on transformed fixture did not certify");
       });
       p.body.find((s: any) => s.For).For.domain.DerivedArray.value = { Variable: "unknownPage" };

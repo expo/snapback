@@ -43,6 +43,221 @@ function prediction(suffix: string) {
   };
 }
 
+const maintainedProgram = {
+  generation: {
+    generation: "generation", schemaHash: "schema", programs: {},
+    schema: { tables: {}, maintains: [{ kind: "Count", source: "unused", by: ["group"], target: "messageCounts", readable: null }] },
+  },
+};
+
+const conversationId = "conversation-1";
+const countId = '[{"Id":"conversation-1"}]';
+const coherenceSchema = {
+  tables: {
+    messages: {
+      columns: { id: "Id", conversationId: "Id", body: { Text: { max: 100 } } },
+      indexes: { byId: { components: [{ Column: "id" }], unique: true }, byConversation: { components: [{ Column: "conversationId" }, { Column: "id" }] } },
+    },
+    messageCounts: {
+      columns: { id: "Id", conversationId: "Id", value: "Int" },
+      indexes: { byId: { components: [{ Column: "id" }], unique: true }, byConversation: { components: [{ Column: "conversationId" }, { Column: "id" }] } },
+    },
+  },
+  maintains: [{ kind: "Count", source: "messages", by: ["conversationId"], target: "messageCounts", readable: null }],
+};
+const coherenceProgram = { generation: {
+  generation: "generation", schemaHash: "schema", programs: {}, schema: coherenceSchema,
+} };
+const message = (id: string) => ({ table: "messages", id, row: { id, conversationId, body: id } });
+const count = (value: number) => ({ table: "messageCounts", id: countId, row: { id: countId, conversationId, value } });
+const view = (seq: number, messages: ReturnType<typeof message>[], value: number) => ({
+  op: "deliveries.conversationView", args: { conversationId }, state: "complete" as const,
+  data: { messages: messages.map((item) => ref(item.table, item.id)), count: ref("messageCounts", countId), preview: [] },
+  next: null, seq, rows: [...messages, count(value)], receipt: receipt(),
+});
+
+test("maintained source and target arrival orders leave an older named record partial, including cold reopen", async () => {
+  await carriers(async (name, create) => {
+    for (const order of ["source-first", "target-first"] as const) {
+      const partition = `${name}:${order}-remote-coherence`;
+      let store = create();
+      try {
+        await store.open(partition);
+        await store.commit({ schema: coherenceSchema, deliveries: [view(7, [message("m1"), message("m2")], 2)] });
+        if (order === "source-first") {
+          await store.commit({ schema: coherenceSchema, tombstones: [{ table: "messages", id: "m2", seq: 8 }] });
+          assert.equal((await store.answer("deliveries.conversationView", { conversationId }))?.reason, "missing-authority",
+            `${name}: source-first cannot retain the old maintained target`);
+          assert.equal((await store.coverage()).rows.some((item) => item.table === "messageCounts"), false);
+        } else {
+          await store.commit({ schema: coherenceSchema, deliveries: [{
+            op: "messageCounts.byId", args: { id: countId }, state: "complete", data: ref("messageCounts", countId),
+            next: null, seq: 8, rows: [count(1)], receipt: receipt(),
+          }] });
+          assert.equal((await store.answer("deliveries.conversationView", { conversationId }))?.reason, "maintained-coherence",
+            `${name}: target-first cannot splice a new count into old messages`);
+        }
+        assert.equal((await store.answer("deliveries.conversationView", { conversationId }))?.state, "partial");
+        await store.close?.();
+        store = create();
+        await store.open(partition);
+        assert.equal((await store.answer("deliveries.conversationView", { conversationId }))?.state, "partial",
+          `${name}: the partial coherence fence survives cold/offline reopen`);
+
+        if (order === "source-first") await store.commit({ schema: coherenceSchema, deliveries: [{
+          op: "messageCounts.byId", args: { id: countId }, state: "complete", data: ref("messageCounts", countId),
+          next: null, seq: 8, rows: [count(1)], receipt: receipt(),
+        }] });
+        else await store.commit({ schema: coherenceSchema, tombstones: [{ table: "messages", id: "m2", seq: 8 }] });
+        assert.equal((await store.answer("deliveries.conversationView", { conversationId }))?.state, "partial",
+          `${name}: sibling facts do not promote the named record before its own delivery`);
+        await store.commit({ schema: coherenceSchema, deliveries: [view(8, [message("m1")], 1)] });
+        const current = await store.answer<any>("deliveries.conversationView", { conversationId });
+        assert.equal(current?.state, "complete");
+        assert.equal(current?.data.count.value, 1);
+        assert.deepEqual(current?.data.messages.map((item: any) => item.id), ["m1"]);
+      } finally { await store.close?.(); }
+    }
+  });
+});
+
+test("target-first zero-to-one invalidates named point and range absence owners", async () => {
+  await carriers(async (name, create) => {
+    for (const proof of ["point", "range"] as const) {
+      const store = create();
+      const otherConversation = "conversation-2";
+      const otherCountId = '[{"Id":"conversation-2"}]';
+      const targetRange = {
+        site: "view.count", table: "messageCounts", index: "byConversation",
+        prefix: [{ Scalar: conversationId }], order: "Asc" as const, take: 1,
+        after: null, before: null, gt: null, gte: null, lt: null, lte: null,
+        ruleHash: "a".repeat(64), rowIds: [] as string[], stop: "Exhausted" as const, absence: false,
+      };
+      const otherTargetRange = { ...targetRange, prefix: [{ Scalar: otherConversation }] };
+      try {
+        await store.open(`${name}:target-first-zero-${proof}`);
+        await store.commit({ schema: coherenceSchema, deliveries: [
+          {
+            op: "deliveries.conversationView", args: { conversationId }, state: "complete", data: { messages: [], count: 0, preview: [] },
+            next: null, seq: 7, rows: [], receipt: proof === "point"
+              ? { ...receipt(), absences: [["messageCounts", "byId", [countId]]] }
+              : { ...receipt(), ranges: [targetRange] },
+          },
+          {
+            op: "deliveries.conversationView", args: { conversationId: otherConversation }, state: "complete",
+            data: { messages: [], count: 0, preview: [] }, next: null, seq: 7, rows: [],
+            receipt: proof === "point"
+              ? { ...receipt(), absences: [["messageCounts", "byId", [otherCountId]]] }
+              : { ...receipt(), ranges: [otherTargetRange] },
+          },
+        ] });
+        await store.commit({ schema: coherenceSchema, deliveries: [{
+          op: "messageCounts.byId", args: { id: countId }, state: "complete", data: ref("messageCounts", countId),
+          next: null, seq: 8, rows: [count(1)], receipt: receipt(),
+        }] });
+        const held = await store.answer("deliveries.conversationView", { conversationId });
+        assert.equal(held?.state, "partial", `${name} ${proof}: sparse zero cannot survive a newer target`);
+        assert.equal(held?.reason, "maintained-coherence");
+        assert.equal((await store.answer("deliveries.conversationView", { conversationId: otherConversation }))?.state, "complete",
+          `${name} ${proof}: an exact target change does not fence another group on the same table`);
+      } finally { await store.close?.(); }
+    }
+  });
+});
+
+test("a source change withdraws wider maintained-target range authority instead of manufacturing zero", async () => {
+  await carriers(async (name, create) => {
+    const store = create();
+    try {
+      await store.open(`${name}:maintained-range`);
+      const targetRange = {
+        site: "counts.range", table: "messageCounts", index: "byConversation",
+        prefix: [{ Scalar: conversationId }], order: "Asc" as const, take: 50,
+        after: null, before: null, gt: null, gte: null, lt: null, lte: null,
+        ruleHash: "a".repeat(64), rowIds: [] as string[], stop: "Exhausted" as const, absence: false,
+      };
+      await store.commit({ schema: coherenceSchema, deliveries: [{
+        op: "emptyCounts", args: { conversationId }, state: "complete", data: [], next: null, seq: 7,
+        rows: [], receipt: { ...receipt(), ranges: [targetRange] },
+      }] });
+      assert.equal((await store.coverage()).ranges.length, 1);
+      await store.commit({ schema: coherenceSchema, deliveries: [{
+        op: "messages.byId", args: { id: "remote" }, state: "complete", data: ref("messages", "remote"),
+        next: null, seq: 8, rows: [message("remote")], receipt: receipt(),
+      }] });
+      assert.equal((await store.coverage()).ranges.some((range) => range.table === "messageCounts"), false,
+        `${name}: an old exhausted target range is not zero authority after a source insertion`);
+      assert.equal((await store.answer("emptyCounts", { conversationId }))?.state, "partial");
+    } finally { await store.close?.(); }
+  });
+});
+
+test("bounded prediction retirement reveals missing maintained authority, never the older target", async () => {
+  await carriers(async (name, create) => {
+    const store = create(), item = prediction(`${name}-maintained-misses`);
+    item.overlay.push(count(2));
+    try {
+      await store.open(`${name}:maintained-misses`);
+      await store.commit({ programs: coherenceProgram, deliveries: [{
+        op: "countView", args: { conversationId }, state: "complete", data: ref("messageCounts", countId),
+        next: null, seq: 20, rows: [count(1)], receipt: receipt(),
+      }] });
+      await store.commit({
+        watermark: { op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark: "cursor-9", updatedAt: 1 },
+        outbox: { put: [item.queued] }, overlay: { put: { [item.intent]: item.overlay } },
+      });
+      await store.commit({ outbox: { put: [item.committed] } });
+      assert.equal((await store.coverage()).rows.some((held) => held.table === "messageCounts"), false,
+        `${name}: commit invalidates the pre-commit target under the still-visible overlay`);
+      await store.commit({ resumeSeq: 31 });
+      assert.ok((await store.outbox.overlay())[item.intent]);
+      await store.commit({ resumeSeq: 32 });
+      assert.equal((await store.outbox.overlay())[item.intent], undefined);
+      const held = await store.answer("countView", { conversationId });
+      assert.equal(held?.state, "partial");
+      assert.equal(held?.reason, "missing-authority",
+        `${name}: the patience bound cannot expose the old target after dropping prediction custody`);
+    } finally { await store.close?.(); }
+  });
+});
+
+test("maintained invalidation follows the aggregate contribution, not every source-row refresh", async () => {
+  await carriers(async (name, create) => {
+    const store = create();
+    try {
+      await store.open(`${name}:maintained-contribution`);
+      await store.commit({ schema: coherenceSchema, deliveries: [view(7, [message("m1")], 1)] });
+      await store.commit({ schema: coherenceSchema, deliveries: [{
+        op: "messages.byId", args: { id: "m1" }, state: "complete", data: ref("messages", "m1"), next: null, seq: 8,
+        rows: [{ ...message("m1"), row: { ...message("m1").row, body: "edited" } }], receipt: receipt(),
+      }] });
+      assert.equal((await store.answer("deliveries.conversationView", { conversationId }))?.state, "complete",
+        `${name}: a Count source body edit leaves target authority valid`);
+      assert.equal((await store.coverage()).rows.some((held) => held.table === "messageCounts"), true);
+
+      const sumSchema = {
+        ...coherenceSchema,
+        tables: { ...coherenceSchema.tables, messages: {
+          ...coherenceSchema.tables.messages,
+          columns: { ...coherenceSchema.tables.messages.columns, score: "Int" },
+        } },
+        maintains: [{ kind: { Sum: { of: "score" } }, source: "messages", by: ["conversationId"], target: "messageCounts", readable: null }],
+      };
+      await store.commit({ resetCoverage: true, schema: sumSchema, deliveries: [{
+        ...view(9, [], 5),
+        data: { messages: [ref("messages", "sum")], count: ref("messageCounts", countId), preview: [] },
+        rows: [{ ...message("sum"), row: { ...message("sum").row, score: 5 } }, count(5)],
+      }] });
+      await store.commit({ schema: sumSchema, deliveries: [{
+        op: "messages.byId", args: { id: "sum" }, state: "complete", data: ref("messages", "sum"), next: null, seq: 10,
+        rows: [{ ...message("sum"), row: { ...message("sum").row, score: 7 } }], receipt: receipt(),
+      }] });
+      assert.equal((await store.coverage()).rows.some((held) => held.table === "messageCounts"), false,
+        `${name}: a Sum input update withdraws the older maintained value`);
+    } finally { await store.close?.(); }
+  });
+});
+
 async function carriers(run: (name: string, create: () => Store) => Promise<void>): Promise<void> {
   const root = await mkdtemp(join(tmpdir(), "snapback2-overlay-retirement-"));
   const indexed = indexedDbRangeStore({ indexedDB: new FakeIndexedDb() as any, locks: new FakeLocks() as any });
@@ -173,6 +388,107 @@ test("authoritative predicted-row arrival clears predicted while retaining the c
       assert.deepEqual((await store.coverage()).rows.find((held) => held.id === item.id)?.row, {
         id: item.id, body: "authoritative",
       }, `${name}: the authoritative row is held before prediction is cleared`);
+    } finally {
+      await store.close?.();
+    }
+  });
+});
+
+test("authoritative evidence retires an ordinary group while its maintained target waits on both carriers", async () => {
+  await carriers(async (name, create) => {
+    for (const effect of ["insert", "delete"] as const) {
+      const store = create();
+      const item = prediction(`${name}-${effect}-atomic`);
+      const fanout = { table: "deliveries", id: `${name}-${effect}-delivery`, row: {
+        id: `${name}-${effect}-delivery`, recipient: "dev:alice", messageId: item.id,
+      } };
+      const count = { table: "messageCounts", id: "conversation-1", row: { id: "conversation-1", value: 2 } };
+      if (effect === "delete") Object.assign(item.overlay[0]!, { removed: true });
+      item.overlay.push(fanout, count);
+      try {
+        await store.open(`${name}:${effect}-atomic`);
+        await store.commit({ programs: maintainedProgram });
+        await store.commit({ deliveries: [page("counts.byId", {}, 30, [{ ...count, row: { ...count.row, value: 1 } }])] });
+        await store.close?.();
+        await seed(store, `${name}:${effect}-atomic`, item, {
+          op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark: "cursor-9", updatedAt: 1,
+        });
+        const messageEvidence = effect === "insert"
+          ? page("deliveries.thread", { conversationId: "conversation-1" }, 30, [
+            { table: "messages", id: item.id, row: { id: item.id, body: "authoritative" } },
+          ])
+          : { ...page("messages.byId", { id: item.id }, 30, []), data: null,
+            receipt: { ...receipt(), absences: [["messages", "byId", [item.id]]] as Array<[string, string, unknown[]]> } };
+        await store.commit({ deliveries: [messageEvidence] });
+        assert.deepEqual((await store.outbox.overlay())[item.intent], [count],
+          `${name} ${effect}: ordinary fan-out retires as one group while its maintained sibling remains`);
+        assert.equal((await store.outbox.get(item.intent))?.predicted, true,
+          `${name} ${effect}: prediction custody remains until every visible effect arrives`);
+
+        await store.commit({ deliveries: [page("counts.byId", {}, 31, [count])] });
+        await assertRetired(store, item.intent, `${name} ${effect}: final maintained row arrival`);
+      } finally {
+        await store.close?.();
+      }
+    }
+  });
+});
+
+test("ordinary prediction groups require exact evidence and retire generated fan-out together on both carriers", async () => {
+  await carriers(async (name, create) => {
+    for (const exact of [false, true]) {
+      const store = create();
+      const item = prediction(`${name}-ordinary-${exact}`);
+      const fanout = ["first", "second"].map((suffix) => ({
+        table: "deliveries", id: `predicted-${suffix}`, row: {
+          id: `predicted-${suffix}`, recipient: "dev:bob", conversationId: "conversation-1",
+          messageId: item.id, kind: "message", at: 20,
+        },
+      }));
+      item.overlay.push(...fanout);
+      try {
+        await seed(store, `${name}:ordinary-${exact}`, item, {
+          op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark: "cursor-9", updatedAt: 1,
+        });
+        const messageId = exact ? item.id : "same-content-different-id";
+        await store.commit({ deliveries: [page("deliveries.thread", { conversationId: "conversation-1" }, 30, [
+          { table: "messages", id: messageId, row: { id: messageId, body: "predicted" } },
+          ...fanout.map((row, index) => ({ ...row, id: `server-${index}`, row: { ...row.row, id: `server-${index}` } })),
+        ])] });
+        const remaining = (await store.outbox.overlay())[item.intent];
+        if (exact) assert.equal(remaining, undefined,
+          `${name}: exact pinned source arrival retires both differently-id'd fan-out siblings`);
+        else assert.deepEqual(remaining, item.overlay,
+          `${name}: matching content and fan-out bodies do not prove another prediction group arrived`);
+      } finally { await store.close?.(); }
+    }
+  });
+});
+
+test("a proven tail page keeps a predicted maintained sibling until that row arrives on both carriers", async () => {
+  await carriers(async (name, create) => {
+    const store = create();
+    const item = prediction(`${name}-maintained-tail`);
+    const count = { table: "messageCounts", id: "conversation-1", row: { id: "conversation-1", value: 2 } };
+    item.overlay.push(count);
+    try {
+      await store.open(`${name}:maintained-tail`);
+      await store.commit({ programs: maintainedProgram });
+      await store.close?.();
+      await seed(store, `${name}:maintained-tail`, item, {
+        op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark: "cursor-9", updatedAt: 1,
+      });
+      await store.commit({ deliveries: [
+        page("deliveries.inbox", { c: "cursor-9" }, 30, [row("deliveries", "authoritative-link")], "cursor-10"),
+        page("deliveries.inbox", { c: "cursor-10" }, 30, [row("deliveries", "authoritative-tail")]),
+      ],
+        watermark: { op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark: "cursor-10", updatedAt: 2 } });
+      assert.deepEqual((await store.outbox.overlay())[item.intent], [count],
+        `${name}: log progress retires ordinary fan-out rows but preserves the maintained value`);
+      assert.equal((await store.outbox.get(item.intent))?.predicted, true);
+
+      await store.commit({ deliveries: [page("counts.byId", {}, 30, [count])] });
+      await assertRetired(store, item.intent, `${name}: maintained target arrival`);
     } finally {
       await store.close?.();
     }
@@ -799,6 +1115,10 @@ test("a pre-manifest c snapshot needs fresh correctly named links after reopenin
       assert.ok((await store.outbox.overlay())[item.intent], `${name}: an unknown cursor name is not an ordered link`);
       await store.commit({ deliveries: [{
         ...page("deliveries.inbox", { after: "start" }, 31, [row("deliveries", "link")], "middle"), cursorArg: "after",
+      }] });
+      assert.ok((await store.outbox.overlay())[item.intent], `${name}: naming the persisted root does not prove progress past it`);
+      await store.commit({ deliveries: [{
+        ...page("deliveries.inbox", { after: "middle" }, 32, [row("deliveries", "past-link")], "tail"), cursorArg: "after",
       }] });
       await assertRetired(store, item.intent, `${name}: a fresh engine-valid link uses the persisted snapshot`);
     } finally { await store.close?.(); }

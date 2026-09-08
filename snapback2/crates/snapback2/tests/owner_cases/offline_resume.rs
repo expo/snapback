@@ -46,7 +46,12 @@ pub(super) fn thread_args(conversation: &str) -> Value {
     json!({ "conversationId": conversation, "c": null })
 }
 
-pub(super) fn resume_body(generation: &str, schema_hash: &str, log: Value, mounted: Value) -> Value {
+pub(super) fn resume_body(
+    generation: &str,
+    schema_hash: &str,
+    log: Value,
+    mounted: Value,
+) -> Value {
     json!({
         "protocol": 1,
         "generation": generation,
@@ -131,7 +136,10 @@ fn offline_resume_first_page_unchanged_caps_reset_and_stale_epoch() {
         1 + 2,
         "resume executes the log tail plus each mounted query, never held pages"
     );
-    assert_eq!(after["subscriptions"], 1, "resume must not reopen subscriptions");
+    assert_eq!(
+        after["subscriptions"], 1,
+        "resume must not reopen subscriptions"
+    );
     live.assert_silent(Duration::from_millis(200));
 
     // The drained tail: an empty page after the watermark whose validator the
@@ -296,7 +304,11 @@ fn offline_resume_first_page_unchanged_caps_reset_and_stale_epoch() {
     let current = request(port, "POST", "/api/resume", &bearer, stale);
     assert_eq!(current.status, 200, "{}", current.body);
     assert_eq!(current.body["authority"]["authEpoch"], epoch);
-    assert!(current.body["log"].is_null(), "no log was sent: {}", current.body);
+    assert!(
+        current.body["log"].is_null(),
+        "no log was sent: {}",
+        current.body
+    );
 
     let wrong_protocol = request(
         port,
@@ -308,7 +320,12 @@ fn offline_resume_first_page_unchanged_caps_reset_and_stale_epoch() {
     );
     assert_eq!(wrong_protocol.status, 400, "{}", wrong_protocol.body);
 
-    stop_owner(port, &secret, &mut owner, "offline resume contract complete");
+    stop_owner(
+        port,
+        &secret,
+        &mut owner,
+        "offline resume contract complete",
+    );
     fs::remove_dir_all(root).unwrap();
 }
 
@@ -331,7 +348,8 @@ fn offline_resume_stops_at_one_mib_of_output_with_more() {
         );
         assert_eq!(sent.body["state"], "committed", "{}", sent.body);
     }
-    let held = json!({ "op": "messages.thread", "args": thread_args("conversation-1"), "validator": "" });
+    let held =
+        json!({ "op": "messages.thread", "args": thread_args("conversation-1"), "validator": "" });
     let mounted_count = 8;
     let executions_before = status(port, &secret)["executions"].as_u64().unwrap();
     let response = request(
@@ -354,7 +372,10 @@ fn offline_resume_stops_at_one_mib_of_output_with_more() {
     assert_eq!(response.status, 200, "{}", response.body["code"]);
     let answered = response.body["mounted"].as_array().unwrap().len();
     let more = response.body["more"].as_u64().unwrap() as usize;
-    assert!(answered >= 1 && more >= 1, "answered {answered}, more {more}");
+    assert!(
+        answered >= 1 && more >= 1,
+        "answered {answered}, more {more}"
+    );
     assert_eq!(answered + more, mounted_count);
     assert!(
         response.body_bytes.len() <= RESUME_BYTE_CAP + 64,
@@ -369,7 +390,12 @@ fn offline_resume_stops_at_one_mib_of_output_with_more() {
         "the log, each answered query, and the one that crossed the cap execute once; the rest wait for the next resume"
     );
     assert!(executed <= 1 + mounted_count as u64);
-    stop_owner(port, &secret, &mut owner, "offline resume byte cap complete");
+    stop_owner(
+        port,
+        &secret,
+        &mut owner,
+        "offline resume byte cap complete",
+    );
     fs::remove_dir_all(root).unwrap();
 }
 
@@ -379,7 +405,10 @@ fn offline_manifest_and_certificate_carry_retain() {
     let manifest = request(port, "GET", "/api/manifest", &[], json!({}));
     assert_eq!(manifest.status, 200, "{}", manifest.body);
     let tables = manifest.body["tables"].as_object().unwrap();
-    assert_eq!(tables["messages"]["retain"], "delivered-history", "{tables:?}");
+    assert_eq!(
+        tables["messages"]["retain"], "delivered-history",
+        "{tables:?}"
+    );
     assert_eq!(tables["deliveries"]["retain"], "until-revoked");
     assert_eq!(tables["memberships"]["retain"], "until-revoked");
     for (name, table) in tables {
@@ -396,10 +425,15 @@ fn offline_manifest_and_certificate_carry_retain() {
     );
     assert_eq!(program.status, 200, "{}", program.body);
     let certificate = &program.body["programs"]["messages.send"]["certificate"];
-    assert_eq!(certificate["tables"]["messages"]["retain"], "delivered-history", "{certificate}");
-    assert_eq!(certificate["tables"]["deliveries"]["retain"], "until-revoked");
-    let parsed: snapback2_core::Certificate =
-        serde_json::from_value(certificate.clone()).unwrap();
+    assert_eq!(
+        certificate["tables"]["messages"]["retain"], "delivered-history",
+        "{certificate}"
+    );
+    assert_eq!(
+        certificate["tables"]["deliveries"]["retain"],
+        "until-revoked"
+    );
+    let parsed: snapback2_core::Certificate = serde_json::from_value(certificate.clone()).unwrap();
     assert_eq!(
         parsed.tables["messages"].retain,
         snapback2_core::RetentionPolicy::DeliveredHistory
@@ -463,9 +497,10 @@ query members(conversationId: conversations, c: cursor ?):
 "#,
         );
         let seed = root.join("snapback/seed.ts");
-        let source = fs::read_to_string(&seed)
-            .unwrap()
-            .replace("    messageCounts: [],", "    notes: [],\n    messageCounts: [],");
+        let source = fs::read_to_string(&seed).unwrap().replace(
+            "    messageCounts: [],",
+            "    notes: [],\n    messageCounts: [],",
+        );
         fs::write(seed, source).unwrap();
     });
     let (generation, schema_hash) = generation_pair(port);
@@ -566,7 +601,12 @@ query members(conversationId: conversations, c: cursor ?):
         1,
         "a log over the budget executes no mounted query"
     );
-    stop_owner(port, &secret, &mut owner, "offline resume log budget complete");
+    stop_owner(
+        port,
+        &secret,
+        &mut owner,
+        "offline resume log budget complete",
+    );
     fs::remove_dir_all(root).unwrap();
 }
 
@@ -623,11 +663,36 @@ fn offline_grants_are_minted_only_when_remaining_ids_are_low() {
         json!({ "email": "remaining@example.com", "password": "correct horse" }),
     );
     assert_eq!(empty.body["grant"]["count"], 8_192, "{}", empty.body);
-    let guest_stocked = request(port, "POST", "/api/auth/guest", &[], json!({ "remaining": 4_096 }));
+    let guest_stocked = request(
+        port,
+        "POST",
+        "/api/auth/guest",
+        &[],
+        json!({ "remaining": 4_096 }),
+    );
     assert_eq!(guest_stocked.status, 200, "{}", guest_stocked.body);
-    assert!(guest_stocked.body.get("grant").is_none(), "{}", guest_stocked.body);
-    let guest_low = request(port, "POST", "/api/auth/guest", &[], json!({ "remaining": 0 }));
-    assert_eq!(guest_low.body["grant"]["count"], 8_192, "{}", guest_low.body);
-    stop_owner(port, &secret, &mut owner, "offline grant watermark complete");
+    assert!(
+        guest_stocked.body.get("grant").is_none(),
+        "{}",
+        guest_stocked.body
+    );
+    let guest_low = request(
+        port,
+        "POST",
+        "/api/auth/guest",
+        &[],
+        json!({ "remaining": 0 }),
+    );
+    assert_eq!(
+        guest_low.body["grant"]["count"], 8_192,
+        "{}",
+        guest_low.body
+    );
+    stop_owner(
+        port,
+        &secret,
+        &mut owner,
+        "offline grant watermark complete",
+    );
     fs::remove_dir_all(root).unwrap();
 }

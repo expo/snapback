@@ -218,6 +218,7 @@ pub(crate) fn audit_control(
             job_chunk: None,
             schedule: None,
             touched: Vec::new(),
+            scope_touches: Vec::new(),
             writes: std::collections::BTreeMap::from([("_jobs".into(), 1)]),
             emits: 0,
         },
@@ -255,12 +256,18 @@ pub(crate) fn enqueue(
     schema: &crate::Schema,
     program: &crate::Program,
     certificate: &crate::Certificate,
-    args: std::collections::BTreeMap<String, crate::Value>,
+    mut args: std::collections::BTreeMap<String, crate::Value>,
     id: String,
     by: String,
     now: i64,
     source: Option<String>,
 ) -> Result<JobRecord, RuntimeError> {
+    if !certificate.has_current_semantics() {
+        return Err(RuntimeError::TraceSubset(
+            "unsupported job certificate semantics".into(),
+        ));
+    }
+    crate::engine::complete_optional_args(&program.args, &mut args);
     crate::engine::validate_inputs(schema, program, &args)?;
     let row = JobRecord {
         id,

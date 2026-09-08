@@ -2,6 +2,7 @@
 
 use super::provenance::ResultProvenance;
 use crate::ir::Order;
+use crate::search_key::IndexAtom;
 use crate::store::TouchedKey;
 use crate::value::Value;
 use serde::{Deserialize, Serialize};
@@ -14,18 +15,24 @@ pub struct RowRecord {
     pub row: Value,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RowRef {
+    pub table: String,
+    pub id: String,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum StopReason {
     Limit,
     Exhausted,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TraceRange {
     pub site: String,
     pub table: String,
     pub index: String,
-    pub prefix: Vec<Value>,
+    pub prefix: Vec<IndexAtom>,
     pub order: Order,
     pub take: u32,
     pub after: Option<Value>,
@@ -42,8 +49,8 @@ pub struct TraceRange {
     pub returned_ids: Vec<String>,
     pub stop: StopReason,
     pub absence: bool,
-    pub halo: Option<RowRecord>,
-    pub n2_key: Option<Vec<Value>>,
+    pub halo: Option<RowRef>,
+    pub n2_suffix: Option<Vec<Value>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -87,7 +94,7 @@ pub struct EmitRecord {
     pub effect: String,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct AuthoritativeTrace {
     /// Runtime-only return identity for page minting; never a receipt or wire field.
     #[serde(skip)]
@@ -106,10 +113,13 @@ pub struct AuthoritativeTrace {
     pub examined: u64,
     pub rule_probes: u64,
     pub steps: u64,
+    pub derived_steps: u64,
+    pub derived_scratch_bytes: u64,
     pub writes: BTreeMap<String, u64>,
     // @ref LLP 1001#2-what-a-commit-records — invalidation uses physical before/after keys.
     #[serde(default)]
     pub touched: Vec<TouchedKey>,
+    pub scope_touches: Vec<crate::store::ScopeTouch>,
     #[serde(default)]
     pub emits: Vec<EmitRecord>,
 }
@@ -126,7 +136,7 @@ pub struct ReceiptRange {
     pub site: String,
     pub table: String,
     pub index: String,
-    pub prefix: Vec<Value>,
+    pub prefix: Vec<IndexAtom>,
     pub order: Order,
     pub take: u32,
     pub after: Option<Value>,
@@ -139,8 +149,8 @@ pub struct ReceiptRange {
     pub row_ids: Vec<String>,
     pub stop: StopReason,
     pub absence: bool,
-    pub halo: Option<RowRecord>,
-    pub n2_key: Option<Vec<Value>>,
+    pub halo: Option<RowRef>,
+    pub n2_suffix: Option<Vec<Value>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -152,7 +162,7 @@ pub struct Verdict {
     pub result: bool,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ClosureReceipt {
     /// Binds authority-issued absence facts to the schema that observed them.
     /// Rows remain client-issuable and do not depend on this field.
@@ -164,7 +174,7 @@ pub struct ClosureReceipt {
     pub verdicts: Vec<Verdict>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Execution {
     pub result: Value,
@@ -187,4 +197,82 @@ pub enum ExecutionState {
     Denied { rule: String },
     Committed { seq: u64 },
     Rejected { code: String, message: String },
+}
+
+impl ClosureReceipt {
+    /// A reference grants no custody unless this exact receipt carries its first image.
+    pub(crate) fn validate_pool(&self, schema: &crate::Schema) -> Result<(), super::RuntimeError> {
+        let invalid = || super::RuntimeError::Input("invalid receipt row pool or reference".into());
+        let mut pool = BTreeMap::new();
+        for row in &self.rows {
+            crate::cap::validate_row_identities(schema, &row.table, &row.row)?;
+            if row.row.field("id").ok() != Some(&Value::Id(row.id.clone())) {
+                return Err(invalid());
+            }
+            if let Some(previous) = pool.insert((&row.table, &row.id), &row.row) {
+                if previous != &row.row {
+                    return Err(invalid());
+                }
+            }
+        }
+        for range in &self.ranges {
+            for id in &range.row_ids {
+                if !pool.contains_key(&(&range.table, id)) {
+                    return Err(invalid());
+                }
+            }
+            if let Some(halo) = &range.halo {
+                if halo.table != range.table || !pool.contains_key(&(&halo.table, &halo.id)) {
+                    return Err(invalid());
+                }
+            }
+            for (offset, atom) in range.prefix.iter().enumerate() {
+                if let IndexAtom::Scalar(v) = atom {
+                    crate::cap::validate_key_identities(
+                        schema,
+                        &range.table,
+                        &range.index,
+                        offset,
+                        std::slice::from_ref(v),
+                    )?;
+                }
+            }
+            for bound in [
+                &range.after,
+                &range.before,
+                &range.gt,
+                &range.gte,
+                &range.lt,
+                &range.lte,
+            ]
+            .into_iter()
+            .flatten()
+            {
+                let values = match bound {
+                    Value::Array(values) => values.as_slice(),
+                    value => std::slice::from_ref(value),
+                };
+                crate::cap::validate_key_identities(
+                    schema,
+                    &range.table,
+                    &range.index,
+                    range.prefix.len(),
+                    values,
+                )?;
+            }
+            if let Some(values) = &range.n2_suffix {
+                crate::cap::validate_key_identities(
+                    schema,
+                    &range.table,
+                    &range.index,
+                    range.prefix.len(),
+                    values,
+                )?;
+            }
+        }
+        for (table, index, key) in &self.absences {
+            crate::cap::validate_key_identities(schema, table, index, 0, key)?;
+        }
+        Ok(())
+    }
 }

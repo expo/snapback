@@ -273,14 +273,26 @@ fn indexed_rows_keep_first_images_across_growth_and_candidate_rollback() {
     let schema = Schema::default();
     let hashes = hashes::PolicyHashes::new(&schema);
     let program = Program {
-        name: "row-membership".into(), kind: ProgramKind::Query,
-        args: BTreeMap::new(), read_time_granularity_ms: None,
+        name: "row-membership".into(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
         body: vec![Stmt::Return(Expr::Literal(Value::Null))],
     };
-    let cert = Checker::new(&schema, Ceilings::default()).check(&program).unwrap();
-    let mut runner = Runner::new(&tx, &schema, &hashes, &cert,
+    let cert = Checker::new(&schema, Ceilings::default())
+        .check(&program)
+        .unwrap();
+    let mut runner = Runner::new(
+        &tx,
+        &schema,
+        &hashes,
+        &cert,
         Context::query(Actor::user("u1").unwrap(), BTreeMap::new()),
-        &[], &[], RuleAuthority::StoreAuthoritative, 0);
+        &[],
+        &[],
+        RuleAuthority::StoreAuthoritative,
+        0,
+    );
     let image = |n| object([("id", Value::Id("same".into())), ("n", Value::Int(n))]);
     runner.record_row("a", "same", &image(0), true);
     let checkpoint = runner.candidate_checkpoint();
@@ -304,27 +316,44 @@ fn indexed_rows_keep_first_images_across_growth_and_candidate_rollback() {
     assert_eq!(runner.receipt.rows.last().unwrap().row, image(10));
     runner.assert_bounds().unwrap();
     // Containment still checks every receipt entry, independently of its bit.
-    runner.receipt.rows.push(RowRecord { table: "unobserved".into(), id: "same".into(), row: image(0) });
-    assert!(matches!(runner.assert_bounds(), Err(RuntimeError::TraceSubset(message))
-        if message.contains("receipt row unobserved.same absent from trace")));
+    runner.receipt.rows.push(RowRecord {
+        table: "unobserved".into(),
+        id: "same".into(),
+        row: image(0),
+    });
+    assert!(
+        matches!(runner.assert_bounds(), Err(RuntimeError::TraceSubset(message))
+        if message.contains("receipt row unobserved.same absent from trace"))
+    );
 }
 
 #[test]
 fn generation_hashes_match_canonical_inputs_and_replace_atomically() {
     let mut schema = spike_schema();
-    schema.channels.insert("presence".into(), Channel {
-        args: BTreeMap::new(), publish: RuleExpr::Allow, subscribe: RuleExpr::Deny, ttl_ms: 10,
-    });
+    schema.channels.insert(
+        "presence".into(),
+        Channel {
+            args: BTreeMap::new(),
+            publish: RuleExpr::Allow,
+            subscribe: RuleExpr::Deny,
+            ttl_ms: 10,
+        },
+    );
     schema.tables.get_mut("cards").unwrap().rules.read = RuleExpr::Exists {
-        table: "cards".into(), index: "byId".into(),
-        key: vec![RuleTerm::Field("id".into())], provenance: KeyProvenance::Shape,
+        table: "cards".into(),
+        index: "byId".into(),
+        key: vec![RuleTerm::Field("id".into())],
+        provenance: KeyProvenance::Shape,
     };
     let mut engine = Engine::memory(schema.clone()).unwrap();
     let check = |engine: &Engine| {
         assert_eq!(engine.hashes.schema, engine.schema.hash());
         for (name, table) in &engine.schema.tables {
             for effect in [Effect::Read, Effect::Insert, Effect::Update, Effect::Delete] {
-                assert_eq!(engine.hashes.table(name, effect), engine.schema.rule_hash(table.rules.for_effect(effect)));
+                assert_eq!(
+                    engine.hashes.table(name, effect),
+                    engine.schema.rule_hash(table.rules.for_effect(effect))
+                );
             }
         }
         for channel in engine.schema.channels.values() {
@@ -343,7 +372,14 @@ fn generation_hashes_match_canonical_inputs_and_replace_atomically() {
     assert_eq!(copy.hashes.schema, predecessor);
     check(&engine);
     check(&copy);
-    schema.tables.get_mut("cards").unwrap().indexes.get_mut("byId").unwrap().columns = vec!["missing".into()];
+    schema
+        .tables
+        .get_mut("cards")
+        .unwrap()
+        .indexes
+        .get_mut("byId")
+        .unwrap()
+        .components = vec![IndexComponent::Column("missing".into())];
     let installed = engine.hashes.schema.clone();
     assert!(engine.set_schema(schema).is_err());
     assert_eq!(engine.hashes.schema, installed);
@@ -354,20 +390,35 @@ fn generation_hashes_match_canonical_inputs_and_replace_atomically() {
 fn incoming_certificate_hashes_cannot_mint_runtime_policy_authority() {
     let frozen: serde_json::Value = serde_json::from_str(include_str!(
         "../../../../corpus/merge-runtime-overlap-deduped.json"
-    )).unwrap();
+    ))
+    .unwrap();
     let schema: Schema = serde_json::from_value(frozen["schema"].clone()).unwrap();
     let program: Program = serde_json::from_value(frozen["program"].clone()).unwrap();
-    let mut cert = Checker::new(&schema, Ceilings::default()).check(&program).unwrap();
-    for hash in cert.rule_hashes.values_mut() { *hash = "forged".into(); }
+    let mut cert = Checker::new(&schema, Ceilings::default())
+        .check(&program)
+        .unwrap();
+    for hash in cert.rule_hashes.values_mut() {
+        *hash = "forged".into();
+    }
     let mut engine = Engine::memory(schema.clone()).unwrap();
     let receipt: ClosureReceipt = serde_json::from_value(frozen["receipt"].clone()).unwrap();
-    for row in receipt.rows { engine.seed(&row.table, row.row).unwrap(); }
-    let execution = engine.execute(&program, &cert,
-        Context::query(Actor::user("u1").unwrap(), BTreeMap::new())).unwrap();
+    for row in receipt.rows {
+        engine.seed(&row.table, row.row).unwrap();
+    }
+    let execution = engine
+        .execute(
+            &program,
+            &cert,
+            Context::query(Actor::user("u1").unwrap(), BTreeMap::new()),
+        )
+        .unwrap();
     assert_eq!(execution.receipt.schema_hash, Some(schema.hash()));
     assert!(!execution.trace.ranges.is_empty());
     for range in &execution.trace.ranges {
-        assert_eq!(range.rule_hash, schema.rule_hash(&schema.tables[&range.table].rules.read));
+        assert_eq!(
+            range.rule_hash,
+            schema.rule_hash(&schema.tables[&range.table].rules.read)
+        );
     }
     cert.schema_hash = "forged".into();
     assert!(matches!(engine.execute(&program, &cert,

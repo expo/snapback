@@ -1,5 +1,4 @@
-//! Preparatory R2 contracts. NOT accepted by Schema::Index or the current IR.
-//! Activate components, certificate/source bounds, identities, and every key consumer together.
+//! Active index expressions and source descriptors.
 //! Wire descriptors intentionally have no Eq/Ord/Hash: compare their normalized meanings here.
 // @ref LLP 1001#unicode-search-foundation — source descriptors compare by normalized meaning, with independent Q.
 use crate::{
@@ -25,7 +24,7 @@ pub enum IndexComponent {
     },
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub enum IndexKeyExpr<E = Expr> {
     Scalar(E),
@@ -36,14 +35,43 @@ pub enum IndexKeyExpr<E = Expr> {
     },
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+impl<E> IndexKeyExpr<E> {
+    pub fn expression(&self) -> &E {
+        match self {
+            Self::Scalar(value) | Self::WordPrefix { source: value, .. } => value,
+        }
+    }
+    pub fn scalar(&self) -> Option<&E> {
+        match self {
+            Self::Scalar(value) => Some(value),
+            _ => None,
+        }
+    }
+}
+
+impl<E> From<E> for IndexKeyExpr<E> {
+    fn from(value: E) -> Self {
+        Self::Scalar(value)
+    }
+}
+
+impl IndexComponent {
+    pub fn column(&self) -> Option<&String> {
+        match self {
+            Self::Column(name) => Some(name),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct WordPrefix {
     pub contract: SearchContract,
     pub source: String,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub enum IndexAtom {
     Scalar(Value),
@@ -51,15 +79,31 @@ pub enum IndexAtom {
 }
 
 /// An execution-local comparison value, never serialized or used as an application Value.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub enum LogicalIndexAtom {
     Scalar(Value),
     WordPrefix(NormalizedWordPrefix),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct NormalizedWordPrefix(Option<String>);
+pub struct NormalizedWordPrefix(Option<std::sync::Arc<str>>);
+impl Serialize for NormalizedWordPrefix {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        self.token().serialize(s)
+    }
+}
 impl NormalizedWordPrefix {
+    pub(crate) fn prepare(
+        source: &str,
+        q: usize,
+    ) -> Result<(Self, usize, usize), SearchInputError> {
+        let (token, steps, scratch) = crate::unicode::search_query_token_metered(
+            source,
+            q,
+            &mut SearchNormalizer::default(),
+        )?;
+        Ok((Self(token.map(Into::into)), steps, scratch))
+    }
     pub fn token(&self) -> Option<&str> {
         self.0.as_deref()
     }
@@ -68,7 +112,9 @@ impl NormalizedWordPrefix {
     }
     /// `word` must already be a token from this pinned normalizer. Empty search matches nothing.
     pub fn matches_normalized_word(&self, word: &str) -> bool {
-        self.0.as_ref().is_some_and(|token| word.starts_with(token))
+        self.0
+            .as_ref()
+            .is_some_and(|token| word.starts_with(token.as_ref()))
     }
 }
 
@@ -103,7 +149,7 @@ pub fn prepare_index_atom(
                 "search source bound must come from the issuing operation",
             ))?;
             Ok(LogicalIndexAtom::WordPrefix(NormalizedWordPrefix(
-                search_query_token(&prefix.source, q, normalizer)?,
+                search_query_token(&prefix.source, q, normalizer)?.map(Into::into),
             )))
         }
         _ => Err(SearchInputError(
@@ -169,4 +215,96 @@ pub fn compare_scalar_atoms(
         (LogicalIndexAtom::Scalar(a), LogicalIndexAtom::Scalar(b)) => Ok(a.total_cmp(b)),
         _ => Err(SearchInputError("word-prefix atoms admit equality only")),
     }
+}
+
+/// Exact ordinary touches are one-sided. A derived predicate is never an ordinary point.
+pub fn scalar_key_starts_with(key: &[Value], prefix: &[IndexAtom]) -> bool {
+    key.len() >= prefix.len()
+        && key
+            .iter()
+            .zip(prefix)
+            .all(|(a, b)| matches!(b, IndexAtom::Scalar(v) if a==v))
+}
+/// Source scopes invalidate every deeper term range; no term normalization is needed here.
+pub fn scope_intersects(scope: &[Value], range: &[IndexAtom]) -> bool {
+    scope
+        .iter()
+        .zip(range)
+        .all(|(a, b)| matches!(b, IndexAtom::Scalar(v) if a==v))
+}
+
+/// Q is recovered from one issuing site in a trusted operation, never supplied by receipt data.
+pub fn prepare_receipt_prefix(
+    schema: &crate::Schema,
+    program: &crate::ir::Program,
+    site: &str,
+    table: &str,
+    index: &str,
+    atoms: &[IndexAtom],
+) -> Result<Vec<LogicalIndexAtom>, SearchInputError> {
+    let definition = schema
+        .table(table)
+        .and_then(|t| t.index(index))
+        .ok_or(SearchInputError("unknown receipt index"))?;
+    if atoms.len() > definition.components.len() {
+        return Err(SearchInputError("invalid receipt prefix arity"));
+    }
+    let mut issuers = Vec::new();
+    fn walk(body: &[crate::ir::Stmt], site: &str, out: &mut Vec<crate::ir::Scan>) {
+        for stmt in body {
+            crate::certificate_policy::visit_statement_exprs(stmt, &mut |e| {
+                if let Expr::Scan(scan) = e {
+                    if scan.site == site {
+                        out.push(scan.clone())
+                    }
+                }
+            });
+            match stmt {
+                crate::ir::Stmt::If {
+                    then_body,
+                    else_body,
+                    ..
+                } => {
+                    walk(then_body, site, out);
+                    walk(else_body, site, out)
+                }
+                crate::ir::Stmt::For { body, .. } => walk(body, site, out),
+                _ => {}
+            }
+        }
+    }
+    if definition.derived_offset().is_some() {
+        walk(&program.body, site, &mut issuers);
+        if issuers.len() != 1
+            || issuers[0].table != table
+            || issuers[0].index != index
+            || issuers[0].prefix.len() != atoms.len()
+        {
+            return Err(SearchInputError(
+                "receipt needs its unique trusted issuing read site",
+            ));
+        }
+    }
+    let mut normalizer = SearchNormalizer::default();
+    definition
+        .components
+        .iter()
+        .zip(atoms)
+        .enumerate()
+        .map(|(offset, (c, a))| {
+            let q = issuers
+                .first()
+                .and_then(|s| s.prefix.get(offset))
+                .and_then(|k| match k {
+                    IndexKeyExpr::WordPrefix { source_max, .. } => Some(*source_max),
+                    _ => None,
+                });
+            if let (IndexComponent::Column(column), IndexAtom::Scalar(value)) = (c, a) {
+                let kind = &schema.table(table).unwrap().columns[column];
+                crate::engine::validate_column_value(table, column, kind, Some(value))
+                    .map_err(|_| SearchInputError("invalid scalar receipt prefix"))?;
+            }
+            prepare_index_atom(c, a, q, &mut normalizer)
+        })
+        .collect()
 }

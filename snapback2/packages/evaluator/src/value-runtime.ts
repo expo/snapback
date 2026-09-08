@@ -1,8 +1,11 @@
+import { compareCodepoints } from './hash';
+export { compareCodepoints } from './hash';
 import coreIrContract from "../../../crates/snapback2-core/ir-contract.json" with { type: "json" };
 import { canonicalRuleJson, canonicalSchemaJson } from "./certificate-identity";
 import { EvalError } from "./errors";
 import { sha256, utf8Length } from "./hash";
 import { cursorSuffix, decodeCursor, decodeCursorFor } from "./cursor";
+import { scalarLength } from "./unicode";
 import type { TraceRange, Value } from "./types";
 
 const I53_MAX = 9_007_199_254_740_991;
@@ -143,17 +146,6 @@ export function compareArrays(left: Value[], right: Value[]): number {
   return comparePrimitive(left.length, right.length);
 }
 
-export function compareCodepoints(left: string, right: string): number {
-  const leftPoints = Array.from(left, (character) => character.codePointAt(0)!);
-  const rightPoints = Array.from(right, (character) => character.codePointAt(0)!);
-  const length = Math.min(leftPoints.length, rightPoints.length);
-  for (let index = 0; index < length; index += 1) {
-    const compared = comparePrimitive(leftPoints[index], rightPoints[index]);
-    if (compared !== 0) return compared;
-  }
-  return comparePrimitive(leftPoints.length, rightPoints.length);
-}
-
 export function comparePrimitive(left: number | boolean, right: number | boolean): number {
   return left < right ? -1 : left > right ? 1 : 0;
 }
@@ -277,7 +269,13 @@ export function validateWriteRow(schema: any, tableName: string, row: Value): vo
     const value = hasOwn(object, name) ? object[name] : undefined;
     if (value === undefined && descriptor?.Optional === undefined)
       throw new EvalError("E_INPUT", `${tableName}.${name} is required`);
-    if (value !== undefined) validateTypedValue(descriptor, value, `${tableName}.${name}`, false);
+    if (value !== undefined) validateColumnValue(schema, tableName, name, value);
+  }
+  const id = object.id;
+  if (isVariant(id, 'Id') && !identityFits(id.Id)) {
+    const maintain = schema.maintains.find((m: any) => m.target === tableName);
+    if (canonicalValues(maintain.by.map((name: string) => fieldOrNull(row, name))) !== id.Id)
+      throw new EvalError('E_INPUT', `${tableName}.id differs from its maintained group`);
   }
 }
 
@@ -285,7 +283,7 @@ export function validateInputs(schema: any, program: any, inputs: Record<string,
   for (const [name, descriptor] of Object.entries<any>(program.args ?? {})) {
     const value = inputs[name];
     if (value === undefined) throw new EvalError("E_INPUT", `missing arg ${name}`);
-    validateTypedValue(descriptor, value, `arg ${name}`, true);
+    validateTypedValue(descriptor, value, `arg ${name}`, true, false, schema);
   }
 }
 
@@ -299,37 +297,58 @@ export function validateScanCursor(schema: any, scan: any, bindings: Map<string,
   if (!isVariant(cursor, "String")) throw new EvalError("E_INPUT", "opaque cursor must be a string");
   decodeCursorFor(cursor.String, {
     table: scan.table, index: scan.index, order: scan.order, suffix: cursorSuffix(schema, scan),
-  });
+  }, schema);
 }
 
+/** Intrinsic addresses belong to the table; references belong to their declared target. */
+export function columnDescriptor(schema: any, table: string, column: string): any {
+  const kind = schema?.tables?.[table]?.columns?.[column];
+  if (kind === undefined) throw new EvalError('E_SCHEMA', `missing column ${table}.${column}`);
+  return column === 'id' && kind === 'Id' ? { Ref: { table } } : kind;
+}
+export function validateColumnValue(schema: any, table: string, column: string, value: Value, internalKey = false): void {
+  validateTypedValue(columnDescriptor(schema, table, column), value, `${table}.${column}`, false, internalKey, schema);
+}
 
 export function validateTypedValue(
   descriptor: any,
   value: Value,
   label: string,
   fanoutForLongList: boolean,
+  internalKey = false,
+  schema?: any,
 ): void {
-  assertValue(value, label);
-  if (valueContainsReservedPrincipal(value))
+  const reserved = inspectValue(value, label, descriptor, schema);
+  if (!internalKey && reserved)
     throw new EvalError("E_INPUT", `${label} cannot carry the reserved system principal`);
-  if (descriptorContainsAsset(descriptor)) {
-    validateAssetTypedValue(descriptor, value, label);
-    return;
-  }
+  validateType(descriptor, value, label, fanoutForLongList, descriptorContainsAsset(descriptor));
+}
+
+// The complete scalar/shape preflight precedes every type refusal. Recursive descriptors
+// reuse it, including assets, rather than walking each nested value again.
+function validateType(descriptor: any, value: Value, label: string, fanout: boolean, asset: boolean): string[] | void {
   if (descriptor?.Optional !== undefined) {
-    if (value !== "Null") validateTypedValue(descriptor.Optional, value, label, fanoutForLongList);
-    return;
+    return value === "Null" ? [] : validateType(descriptor.Optional, value, label, fanout, asset);
   }
   if (descriptor?.List !== undefined) {
-    if (!isVariant(value, "Array")) throw new EvalError("E_INPUT", `${label} must be a list`);
-    if (value.Array.length > descriptor.List.max)
-      throw new EvalError(fanoutForLongList ? "E_FANOUT" : "E_INPUT", `${label} exceeds list max ${descriptor.List.max}`);
+    const refuse = (message: string, overflow = false): never => { throw asset ? assetType(label,message) : new EvalError(
+      fanout && overflow ? 'E_FANOUT' : 'E_INPUT', `${label} ${message}`); };
+    if (!isVariant(value, "Array")) return refuse("must be a list");
+    if (value.Array.length > descriptor.List.max) refuse(`exceeds list max ${descriptor.List.max}`,true);
+    const ids: string[] | undefined = asset ? [] : undefined;
     if (descriptor.List.of !== null && descriptor.List.of !== undefined) {
-      for (const item of value.Array)
-        validateTypedValue(descriptor.List.of, item, label, fanoutForLongList);
+      value.Array.forEach((item, index) => {
+        const child = validateType(descriptor.List.of, item, asset ? `${label}[${index}]` : label, fanout, asset);
+        if (ids && child) for (const id of child) ids.push(id);
+      });
     }
-    return;
+    if (ids) {
+      const seen = new Set<string>(), duplicate = ids.find(id => seen.has(id) || !seen.add(id));
+      if (duplicate !== undefined) throw assetType(label, `repeats asset id ${duplicate}; asset ids in a list must be unique`);
+    }
+    return ids;
   }
+  if (asset) return validateAsset(descriptor,value,label);
   if (descriptor === "Cursor") {
     if (!isVariant(value, "String")) throw new EvalError("E_INPUT", `${label} must be a cursor string`);
     decodeCursor(value.String);
@@ -345,8 +364,15 @@ export function validateTypedValue(
     const codePoint = disallowedTextControlCodePoint(value.String);
     if (codePoint !== undefined)
       throw new EvalError("E_INPUT", `${label} contains disallowed control character U+${codePoint.toString(16).toUpperCase().padStart(4, "0")}`);
-    if (Array.from(value.String).length > descriptor.Text.max)
+    const length = Array.from(value.String).length;
+    if (length > descriptor.Text.max)
       throw new EvalError("E_INPUT", `${label} exceeds text max ${descriptor.Text.max}`);
+    // Argument refinements apply recursively before any program body executes; column Text is unchanged.
+    if (fanout && length < (descriptor.Text.min ?? 0))
+      throw new EvalError("E_INPUT", `${label} is shorter than text min ${descriptor.Text.min}`);
+    if (fanout && descriptor.Text.format !== undefined && !(descriptor.Text.format === 'handle'
+      ? /^[a-z0-9_]*$/.test(value.String) : descriptor.Text.format === 'url' && validHttpUrl(value.String)))
+      throw new EvalError('E_INPUT', `${label} has invalid ${String(descriptor.Text.format)} format`);
     return;
   }
   if (descriptor?.Bytes !== undefined) {
@@ -395,37 +421,21 @@ function descriptorContainsAsset(descriptor: any): boolean {
 }
 
 // @ref LLP 1006#6-the-write-validated-not-stamped — the twin enforces the closed asset record and list uniqueness but owns no ledger authority.
-function validateAssetTypedValue(descriptor: any, value: Value, label: string): string[] {
-  if (descriptor?.Optional !== undefined) {
-    return value === "Null" ? [] : validateAssetTypedValue(descriptor.Optional, value, label);
-  }
-  if (descriptor?.List !== undefined) {
-    if (!isVariant(value, "Array")) throw assetType(`${label} must be a list`);
-    if (value.Array.length > descriptor.List.max)
-      throw assetType(`${label} exceeds list max ${descriptor.List.max}`);
-    const ids = value.Array.flatMap((item, index) =>
-      validateAssetTypedValue(descriptor.List.of, item, `${label}[${index}]`),
-    );
-    const seen = new Set<string>();
-    const duplicate = ids.find((id) => seen.has(id) || !seen.add(id));
-    if (duplicate !== undefined)
-      throw assetType(`${label} repeats asset id ${duplicate}; asset ids in a list must be unique`);
-    return ids;
-  }
+function validateAsset(descriptor: any, value: Value, label: string): string[] {
   const kind = descriptor?.Image !== undefined ? "image" : descriptor?.Video !== undefined ? "video" : null;
   if (kind === null) throw new EvalError("E_SCHEMA", `unsupported asset type for ${label}`);
-  if (!isVariant(value, "Map")) throw assetType(`${label} must be a closed ${kind} asset map`);
+  if (!isVariant(value, "Map")) throw assetType(label, `must be a closed ${kind} asset map`);
   const expected = kind === "image" ? ["height", "id", "width"] : ["duration", "height", "id", "width"];
   const actual = Object.keys(value.Map).sort(compareCodepoints);
   if (actual.length !== expected.length || actual.some((name, index) => name !== expected[index]))
-    throw assetType(`${label} must contain exactly ${expected.join(", ")}`);
+    throw assetType(label, `must contain exactly ${expected.join(", ")}`);
   const idValue = value.Map.id;
   const id = isVariant(idValue, "String") ? idValue.String : "";
-  if (!validEngineId(id)) throw assetType(`${label}.id must be a minted s2id`);
+  if (!validEngineId(id)) throw assetType(`${label}.id`, "must be a minted s2id");
   for (const field of kind === "image" ? ["width", "height"] : ["width", "height", "duration"]) {
     const member = value.Map[field];
     if (!isVariant(member, "Int") || !Number.isSafeInteger(member.Int) || member.Int <= 0)
-      throw assetType(`${label}.${field} must be a positive i53 integer`);
+      throw assetType(`${label}.${field}`, "must be a positive i53 integer");
   }
   return [id];
 }
@@ -434,35 +444,38 @@ function validEngineId(id: string): boolean {
   return /^s2id-[0-9a-f]{32}-[0-9a-f]{16}$/.test(id) && !id.endsWith("-0000000000000000");
 }
 
-function assetType(message: string): EvalError {
-  return new EvalError("E_ASSET_TYPE", message);
+function assetType(path: string, message: string): EvalError {
+  return Object.assign(new EvalError("E_ASSET_TYPE", `${path} ${message}`), { path });
 }
 
-export function assertValue(value: Value, label: string): void {
-  if (value === "Null") return;
+export function assertValue(value: Value, label: string, descriptor?: any, schema?: any): void { inspectValue(value, label, descriptor, schema); }
+
+/** Collect reserved identity while validating every child; a later shape error still wins. */
+function inspectValue(value: Value, label: string, descriptor?: any, schema?: any): boolean {
+  while (descriptor?.Optional !== undefined) descriptor = descriptor.Optional;
+  if (value === "Null") return false;
+  if (!value || typeof value !== "object" || Object.keys(value).length !== 1) throw new EvalError("E_INPUT", `${label} is not a tagged value`);
   const kind = kindOf(value);
   const data = (value as any)[kind];
-  if (kind === "Bool" && typeof data === "boolean") return;
-  if (kind === "Int" && Number.isSafeInteger(data)) return;
-  if ((kind === "String" || kind === "Id") && typeof data === "string") return;
-  if (kind === "Bytes" && canonicalBytes(data)) return;
+  if (kind === "Bool" && typeof data === "boolean" || kind === "Int" && Number.isSafeInteger(data)) return false;
+  if ((kind === "String" || kind === "Id") && typeof data === "string") {
+    if (kind === "Id") {
+      if (schema && descriptor?.Ref) validateAddress(schema, descriptor.Ref.table, data);
+      else validateIdentity(data);
+    } else scalarText(data);
+    return kind === "Id" && data === coreIrContract.systemPrincipalId;
+  }
+  if (kind === "Bytes" && canonicalBytes(data)) return false;
+  let reserved = false;
   if (kind === "Array" && Array.isArray(data)) {
-    for (const item of data) assertValue(item, label);
-    return;
+    for (const item of data) reserved = inspectValue(item, label, descriptor?.List?.of, schema) || reserved;
+    return reserved;
   }
   if ((kind === "Row" || kind === "Map") && data !== null && typeof data === "object" && !Array.isArray(data)) {
-    for (const item of Object.values(data)) assertValue(item as Value, label);
-    return;
+    for (const [key, item] of Object.entries(data)) { scalarText(key); reserved = inspectValue(item as Value, label) || reserved; }
+    return reserved;
   }
   throw new EvalError("E_INPUT", `${label} is not a valid value`);
-}
-
-export function valueContainsReservedPrincipal(value: Value): boolean {
-  if (isVariant(value, "Id")) return value.Id === coreIrContract.systemPrincipalId;
-  if (isVariant(value, "Array")) return value.Array.some(valueContainsReservedPrincipal);
-  if (isVariant(value, "Row")) return Object.values(value.Row).some(valueContainsReservedPrincipal);
-  if (isVariant(value, "Map")) return Object.values(value.Map).some(valueContainsReservedPrincipal);
-  return false;
 }
 
 export function canonicalBytes(value: unknown): value is string {
@@ -486,7 +499,7 @@ export function sortObject<T>(value: Record<string, T>): Record<string, T> {
 
 export function builtinArity(kind: string): number {
   switch (kind) {
-    case "Len": case "Sort":  case "MentionTokens": case "Words": case "Count": case "CountCapped": case "Sum": return 1;
+    case "Len": case "Sort":  case "MentionTokens": case "Count": case "CountCapped": case "Sum": return 1;
     case "Concat": case "Min": case "Max": case "Divmod": return 2;
     case "Slice": case "DeterministicShare": return 3;
     default: throw new EvalError("E_OPAQUE", `unsupported builtin ${kind}`);
@@ -506,4 +519,104 @@ export function valueText(value: Value): string {
 
 export function isWordCharacter(character: string): boolean {
   return character === "_" || /[\p{L}\p{N}]/u.test(character);
+}
+
+// @ref LLP 1001#unicode-search-foundation — canonical tagged identity allowance is actual UTF-8, including escapes.
+export function scalarText(text: string): void {
+  try { scalarLength(text, text.length); } catch { throw new EvalError("E_INPUT", "invalid Unicode scalar text"); }
+}
+export function validateIdentity(id: string): void {
+  scalarText(id);
+  if (!identityFits(id)) throw new EvalError("E_INPUT", "identity exceeds 144 canonical bytes");
+}
+function identityFits(id: string): boolean { return utf8Length(JSON.stringify({ Id: id })) <= 144; }
+
+// @ref LLP 1001#maintained-addresses — exact source-domain tuples, never a wider untyped Id allowance.
+export function validateAddress(schema: any, table: string, id: string): void {
+  scalarText(id);
+  if (identityFits(id)) return;
+  const invalid = (): never => { throw new EvalError('E_INPUT', `${table}.id is not a canonical maintained group address`); };
+  const maintain = schema.maintains?.find((m: any) => m.target === table);
+  if (!maintain) return validateIdentity(id);
+  let key: Value[];
+  try { key = JSON.parse(id); } catch { return invalid(); }
+  if (!Array.isArray(key) || key.length !== maintain.by.length) invalid();
+  for (let i = 0; i < key.length; i++) {
+    const name = maintain.by[i], kind = schema.tables[maintain.source].columns[name];
+    // Group members follow their declared type; only an intrinsic row/index slot rewrites Id to its owning target.
+    validateTypedValue(kind, key[i], `${maintain.source}.${name}`, false, false, schema);
+  }
+  if (canonicalValues(key) !== id) invalid();
+}
+
+/** Wire construction preserves input-field refusal order; row admission follows in schema order. */
+export type WireRefusal = (path: string, detail: string) => never;
+export function wireObject(value: any): value is Record<string, any> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
+}
+export function rowFromWire(schema: any, table: string, row: Record<string, unknown>, fail: WireRefusal): Value {
+  const columns = schema?.tables?.[table]?.columns;
+  if (!wireObject(columns)) fail(`schema.tables.${table}.columns`, 'is missing');
+  const tagged: Record<string, Value> = Object.create(null);
+  for (const [name,value] of Object.entries(row)) {
+    if (!(name in columns)) fail(`rows.${table}.${name}`, 'is not a declared column');
+    tagged[name] = valueFromWire(columnDescriptor(schema,table,name),value,`rows.${table}.${name}`,fail,schema);
+  }
+  return { Row: tagged };
+}
+
+export function valueFromWire(descriptor: any, value: any, path: string, fail: WireRefusal, schema?: any): Value {
+  if (wireObject(descriptor) && "Optional" in descriptor) return value === null ? "Null" : valueFromWire(descriptor.Optional, value, path, fail, schema);
+  if (value === null) return "Null";
+  if (descriptor === "Id" || descriptor === "Principal" || wireObject(descriptor) && "Ref" in descriptor) {
+    if (typeof value !== "string") fail(path, "expected id string");
+    if (schema && descriptor?.Ref) validateAddress(schema, descriptor.Ref.table, value);
+    else validateIdentity(value);
+    return { Id: value };
+  }
+  if (wireObject(descriptor) && ("Text" in descriptor || "Enum" in descriptor)) {
+    if (typeof value !== "string") fail(path, "expected text string");
+    const tagged = { String: value };
+    validateTypedValue(descriptor, tagged, path, false);
+    return tagged;
+  }
+  if (["Int", "Time"].includes(String(descriptor)) || wireObject(descriptor) && ("Decimal" in descriptor || "Money" in descriptor)) {
+    if (!Number.isSafeInteger(value)) fail(path, "expected safe integer"); return { Int: value as number };
+  }
+  if (descriptor === "Bool") { if (typeof value !== "boolean") fail(path, "expected boolean"); return { Bool: value as boolean }; }
+  if (wireObject(descriptor) && "Bytes" in descriptor) {
+    const bytes = wireObject(value) && "Bytes" in value ? value.Bytes : undefined;
+    if (!wireObject(value) || Object.keys(value).length !== 1 || typeof bytes !== "string" || !canonicalBytes(bytes))
+      fail(path, "expected canonical Bytes");
+    return { Bytes: bytes };
+  }
+  if (wireObject(descriptor) && "List" in descriptor) {
+    if (!Array.isArray(value)) fail(path, "expected array");
+    return { Array: value.map((item: any, index: number) => valueFromWire(descriptor.List.of, item, `${path}[${index}]`, fail, schema)) };
+  }
+  if (wireObject(descriptor) && ("Image" in descriptor || "Video" in descriptor)) {
+    const tagged = tagJson(value);
+    try { validateTypedValue(descriptor, tagged, path, false); }
+    catch (error) {
+      // Preserve the public decoder's path-bearing TypeError while sharing evaluator asset validation.
+      if (error instanceof EvalError && error.code === 'E_ASSET_TYPE') fail((error as any).path ?? path, error.message);
+      throw error;
+    }
+    return tagged;
+  }
+  // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — tag by
+  // the declared column type only: a `json` value shaped `{ "Bytes": "…" }` is
+  // application data, never the byte variant (O1a review).
+  if (wireObject(descriptor) && "Json" in descriptor) return tagJson(value);
+  fail(path, "has an unsupported schema descriptor");
+}
+
+function tagJson(value: any): Value {
+  if (value === null) return "Null";
+  if (typeof value === "boolean") return { Bool: value };
+  if (typeof value === "number") return { Int: value };
+  if (typeof value === "string") return { String: value };
+  if (Array.isArray(value)) return { Array: value.map(tagJson) };
+  return { Map: Object.fromEntries(Object.entries(value).map(([key, item]) => [key, tagJson(item)])) };
 }

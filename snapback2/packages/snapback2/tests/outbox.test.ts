@@ -11,6 +11,7 @@ import { fileRangeStore } from "../dist/test.mjs";
 import { sqliteFactory } from "./sqlite-fixture.ts";
 import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
 import { DAY, engineId, fakeOwner, seededStore, generation, schemaHash } from "./fake-owner.ts";
+import { ForwardingAdmissionError, OutboxLedger, forwardingRequestId } from "../dist/client-observed-test.mjs";
 
 // @ref LLP 1012#7-writes-offline — the outbox contract, proven against a
 // replay-aware owner double on all three carriers.
@@ -42,6 +43,132 @@ const post = (body: string) => ({ conversationId: "conversation-1", body });
 
 const jsonResponse = (value: unknown, status = 200) => new Response(JSON.stringify(value), {
   status, headers: { "content-type": "application/json" },
+});
+
+// @ref LLP 1018.000#8-account-sessions-and-durable-follower-admission — the
+// writer's fixed receipt table is independent of ordinary outbox retention;
+// its clock floor and wipe incarnation fence recovery.
+test("forwarding receipts survive dismissal, obey fixed bounds, and fence expiry rollback", async () => {
+  const database = new FakeIndexedDb(), locks = new FakeLocks();
+  const factory = indexedDbRangeStore({ indexedDB: database as any, locks: locks as any });
+  let now = 1_000;
+  let store = factory();
+  await store.open("dev:alice");
+  let ledger = new OutboxLedger(store, { now: () => now, fenceMs: DAY });
+  await ledger.adopt({ id: "forwarding-grant", from: engineId(10_000), count: 400,
+    mintedAt: now, expiresAt: 50_000, used: 0 });
+  await ledger.recordBounds({ "deliveries.post": 0 });
+  assert.equal((await ledger.forwardingIdentity("partition-a")).partitionIncarnation, "partition-a");
+  const admission = (index: number, followerId = "follower-a", expiresAt = 5_000, recovery = false) => ({
+    requestId: forwardingRequestId(expiresAt, index.toString(16).padStart(32, "0")),
+    followerId, payloadDigest: index.toString(16).padStart(64, "0"), expiresAt,
+    authEpoch: 7, partitionIncarnation: "partition-a", recovery,
+  });
+  const input = (index: number) => ({ op: "deliveries.post", args: post(`forwarded-${index}`), issuedSeq: 1 });
+
+  await assert.rejects(ledger.admitForwarded(input(300), admission(300, "slow-follower", 2_000), async () => {
+    now = 2_000;
+    return { predicted: false, overlay: [], trace: { points: [], verdicts: [] } };
+  }), (error: unknown) => error instanceof ForwardingAdmissionError && error.reason === "expiration",
+  "expiration is checked after asynchronous prediction at the atomic admission boundary");
+  assert.equal((await store.outbox.forwarding()).receipts[admission(300, "slow-follower", 2_000).requestId], undefined);
+
+  const first = await ledger.admitForwarded(input(1), admission(1));
+  assert.ok(first);
+  const entry = await store.outbox.get(first!.intent);
+  await store.commit({ outbox: { put: [{ ...entry!, state: "committed", updatedAt: now }] } });
+  await ledger.dismiss(first!.intent);
+  assert.equal(await store.outbox.get(first!.intent), undefined);
+  assert.deepEqual(await ledger.admitForwarded(input(1), admission(1, "follower-a", 5_000, true)), first,
+    "the compact receipt reproduces ids after ordinary outbox dismissal");
+
+  ledger.close(); await store.close?.();
+  store = factory(); await store.open("dev:alice");
+  ledger = new OutboxLedger(store, { now: () => now, fenceMs: DAY });
+  assert.equal((await ledger.forwardingIdentity("partition-replacement")).partitionIncarnation, "partition-a",
+    "writer takeover preserves the durable partition incarnation");
+
+  for (let index = 2; index <= 64; index += 1) await ledger.admitForwarded(input(index), admission(index));
+  await assert.rejects(ledger.admitForwarded(input(65), admission(65)),
+    (error: unknown) => error instanceof ForwardingAdmissionError && error.reason === "capacity",
+    "one follower has at most 64 unacknowledged commands");
+  await ledger.acknowledgeForwarded(admission(1).requestId, "follower-b", 7, "partition-a");
+  assert.equal((await store.outbox.forwarding()).receipts[admission(1).requestId]?.acknowledged, false,
+    "another follower cannot release the durable slot");
+  await ledger.acknowledgeForwarded(admission(1).requestId, "follower-a", 8, "partition-a");
+  assert.equal((await store.outbox.forwarding()).receipts[admission(1).requestId]?.acknowledged, false,
+    "another auth epoch cannot release the durable slot");
+  await ledger.acknowledgeForwarded(admission(1).requestId, "follower-a", 7, "partition-a");
+  await ledger.admitForwarded(input(65), admission(65));
+  for (let index = 2; index <= 65; index += 1) {
+    await ledger.acknowledgeForwarded(admission(index).requestId, "follower-a", 7, "partition-a");
+  }
+  for (let index = 66; index <= 256; index += 1) {
+    const item = admission(index, `follower-${index}`);
+    await ledger.admitForwarded(input(index), item);
+    await ledger.acknowledgeForwarded(item.requestId, item.followerId, 7, "partition-a");
+  }
+  assert.equal(Object.keys((await store.outbox.forwarding()).receipts).length, 256);
+  await assert.rejects(ledger.admitForwarded(input(257), admission(257, "follower-257")),
+    (error: unknown) => error instanceof ForwardingAdmissionError && error.reason === "capacity",
+    "a partition has exactly 256 durable receipts");
+
+  now = 6_000;
+  const replacement = admission(257, "follower-257", 10_000);
+  await ledger.admitForwarded(input(257), replacement);
+  assert.equal(Object.keys((await store.outbox.forwarding()).receipts).length, 1, "capacity prunes only expired receipts");
+  assert.equal(await ledger.admitForwarded(input(1), admission(1, "follower-a", 5_000, true)), undefined,
+    "an expired missing recovery stays admission-unknown");
+  await assert.rejects(ledger.admitForwarded(input(1), { ...admission(1), expiresAt: 10_000 }),
+    (error: unknown) => error instanceof ForwardingAdmissionError && error.reason === "conflict",
+    "a pruned request id cannot be reused with a later expiry");
+  now = 100;
+  await assert.rejects(ledger.admitForwarded(input(258), admission(258, "follower-258", 5_500)),
+    (error: unknown) => error instanceof ForwardingAdmissionError && error.reason === "expiration",
+    "wall-clock rollback cannot reopen an expired admission window");
+  assert.equal((await store.outbox.forwarding()).clockFloor, 6_000);
+
+  await store.wipe("dev:alice"); await store.open("dev:alice");
+  assert.equal((await ledger.forwardingIdentity("partition-b")).partitionIncarnation, "partition-b",
+    "wipe creates a new incarnation even when the account and auth epoch repeat");
+  await assert.rejects(ledger.admitForwarded(input(257), replacement),
+    (error: unknown) => error instanceof ForwardingAdmissionError && error.reason === "identity");
+  ledger.close(); await store.close?.();
+});
+
+test("past-fence forwarding rechecks client lifecycle after awaited reads even without prediction", async () => {
+  const database = new FakeIndexedDb(), locks = new FakeLocks();
+  const store = indexedDbRangeStore({ indexedDB: database as any, locks: locks as any })();
+  await store.open("dev:alice");
+  const ledger = new OutboxLedger(store, { now: () => 2_000, fenceMs: 1 });
+  await ledger.adopt({ id: "past-fence-forwarding", from: engineId(20_000), count: 10,
+    mintedAt: 1_000, expiresAt: 10_000, used: 0 });
+  await ledger.recordBounds({ "deliveries.post": 0 });
+  await ledger.forwardingIdentity("partition-past-fence");
+  const boundsStarted = Promise.withResolvers<void>(), releaseBounds = Promise.withResolvers<void>();
+  const readBounds = store.outbox.bounds;
+  (store.outbox as any).bounds = async () => {
+    boundsStarted.resolve(); await releaseBounds.promise; return readBounds();
+  };
+  const admission = {
+    requestId: forwardingRequestId(5_000, "f".repeat(32)), followerId: "follower-a",
+    payloadDigest: "f".repeat(64), expiresAt: 5_000, authEpoch: 7,
+    partitionIncarnation: "partition-past-fence", recovery: false,
+  };
+  let current = true, predicted = false;
+  const pending = ledger.admitForwarded(
+    { op: "deliveries.post", args: post("must not commit"), issuedSeq: 1 }, admission,
+    async () => { predicted = true; return { predicted: false, overlay: [], trace: { points: [], verdicts: [] } }; },
+    () => { if (!current) throw new Error("superseded client lifecycle"); },
+  );
+  await boundsStarted.promise;
+  current = false; releaseBounds.resolve();
+  await assert.rejects(pending, /superseded client lifecycle/);
+  assert.equal(predicted, false, "past-fence admission intentionally skips prediction");
+  assert.equal((await store.outbox.grant())?.used, 0, "the lifecycle fence fails before grant consumption");
+  assert.deepEqual(await store.outbox.all(), [], "the lifecycle fence fails before intent custody");
+  assert.equal((await store.outbox.forwarding()).receipts[admission.requestId], undefined);
+  ledger.close(); await store.close?.();
 });
 
 test("a resume whose grant persistence crosses a seal cannot restore trust; the next login waits for its own resume on both carriers", async () => {
@@ -826,7 +953,9 @@ test("a committed settlement lands in the same swap as the log tail rows, or not
   const after = fileRangeStore(root)();
   await after.open("dev:alice");
   assert.equal((await after.outbox.all())[0]?.state, "committed");
-  assert.deepEqual((await after.coverage()).rows.map((row) => row.id), [pinned], "the tail page holds the committed row");
+  assert.deepEqual((await after.coverage()).rows.map((row) => [row.table, row.id]), [
+    ["deliveries", `delivery-${pinned}`], ["messages", pinned],
+  ], "the tail page holds the committed message and its derived delivery row");
   const tail = await after.answer("deliveries.inbox", { c: "cursor-9" });
   assert.equal((tail?.data as any[])[0]?.message?.id, pinned);
   await after.close?.();

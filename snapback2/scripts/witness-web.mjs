@@ -22,13 +22,16 @@ import { tmpdir } from "node:os";
 import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
-import { build } from "esbuild";
 
 const workspace = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const packageRoot = resolve(workspace, "packages/snapback2");
+const packageRequire = createRequire(resolve(packageRoot, "package.json"));
+const { build } = packageRequire("esbuild");
 const dist = resolve(packageRoot, "dist");
 const binary = resolve(workspace, "target/debug/snapback2");
 const keep = process.argv.includes("--keep");
+const indexedSearchBody = "Café expires while offline";
+const indexedSearchTerm = "CAFE\u0301";
 const sessionsOnly = process.argv.includes("--sessions");
 const steps = [];
 
@@ -51,7 +54,7 @@ function precondition(condition, message) {
 
 async function loadPlaywright() {
   try {
-    return createRequire(resolve(packageRoot, "package.json"))("playwright-core");
+    return packageRequire("playwright-core");
   } catch {
     return undefined;
   }
@@ -76,6 +79,25 @@ import { indexedDbRangeStore, SnapbackProvider, useSnapbackClient } from "snapba
 import { api } from "snapback2/client";
 (window as any).__api = api;
 import { App } from "${resolve(packageRoot, "templates/chat/react/src/App.tsx")}";
+
+const broadcast = ((window as any).__witnessBroadcast = {
+  sent: [] as Array<Record<string, unknown>>,
+  dropped: [] as Array<Record<string, unknown>>,
+  dropNextMutationAnswer: false,
+});
+// Keep Chromium's real cross-tab channel. The armed witness hook suppresses
+// only one writer reply after the client has produced its durable queued result.
+const nativeBroadcastPost = BroadcastChannel.prototype.postMessage;
+BroadcastChannel.prototype.postMessage = function(message: unknown) {
+  const copy = structuredClone(message) as Record<string, unknown>;
+  broadcast.sent.push(copy);
+  if (broadcast.dropNextMutationAnswer && copy.type === "mutation-answer") {
+    broadcast.dropNextMutationAnswer = false;
+    broadcast.dropped.push(copy);
+    return;
+  }
+  nativeBroadcastPost.call(this, message);
+};
 
 const faults: Array<{ path: string; status: number }> = ((window as any).__witnessFaults = []);
 const requests: Array<Record<string, unknown>> = ((window as any).__witnessRequests = []);
@@ -182,7 +204,7 @@ async function seed(url) {
     const posted = await alice.mutation(api.deliveries.post, { conversationId, body: `seeded in ${conversationId}` });
     if (posted.state !== "committed") throw new Error(`seed post was ${posted.state}`);
   }
-  const doomed = await alice.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "expires while offline" });
+  const doomed = await alice.mutation(api.deliveries.post, { conversationId: "conversation-1", body: indexedSearchBody });
   alice.close();
   bob.close();
   return { conversations, doomedMessageId: doomed.state === "committed" ? doomed.data.id : undefined };
@@ -191,55 +213,187 @@ async function seed(url) {
 async function openChat(page, conversationId) {
   await page.click(`nav[aria-label=Inbox] li[data-conversation="${conversationId}"] button`);
   await page.waitForSelector("section[aria-label=Thread] li[data-state=row]", { timeout: 10_000 });
+  await page.waitForFunction((id) => {
+    const summary = document.querySelector("section[aria-label=Thread] .thread-summary");
+    const messages = document.querySelector("section[aria-label=Thread] ol.bubbles");
+    const source = messages?.getAttribute("data-view-source");
+    return window.__snapback.sharedConsumers(window.__api.deliveries.conversationView, { conversationId: id }) === 2
+      && (source === "composite"
+        ? summary?.getAttribute("data-view-state") === messages?.getAttribute("data-view-state")
+          && summary?.getAttribute("data-view-seq") === messages?.getAttribute("data-view-seq")
+        : source === "partial-history" && summary?.getAttribute("data-view-state") === "partial"
+          && !summary?.hasAttribute("data-count") && !summary?.hasAttribute("data-preview-message"));
+  }, conversationId, { timeout: 10_000 });
+  return page.evaluate((id) => {
+    const summary = document.querySelector("section[aria-label=Thread] .thread-summary");
+    const messages = document.querySelector("section[aria-label=Thread] ol.bubbles");
+    return { conversationId: id,
+      consumers: window.__snapback.sharedConsumers(window.__api.deliveries.conversationView, { conversationId: id }),
+      state: summary?.getAttribute("data-view-state"), seq: summary?.getAttribute("data-view-seq"),
+      count: summary?.getAttribute("data-count"), previewMessage: summary?.getAttribute("data-preview-message"),
+      source: messages?.getAttribute("data-view-source"),
+      historyState: document.querySelector("section[aria-label=Thread] .thread-history-note")?.getAttribute("data-history-state"),
+      historyText: document.querySelector("section[aria-label=Thread] .thread-history-note")?.textContent,
+      rows: [...(messages?.querySelectorAll("li[data-message]") ?? [])].map((node) => node.getAttribute("data-message")),
+    };
+  }, conversationId);
 }
 
-// @ref LLP 1018#3-move-one-one-coherent-reactive-client — actual Chromium tabs,
-// Web Locks, IndexedDB, and the owner qualify the same policy as the unit fixture.
+// @ref LLP 1018.000#8-account-sessions-and-durable-follower-admission — actual
+// Chromium tabs, Web Locks, BroadcastChannel, IndexedDB, and the owner prove one queue.
 async function sharedSessions(context, writer, appUrl, ownerUrl) {
   await writer.waitForFunction(async () => window.__snapback && (await window.__snapback.outbox.status()).ready,
     null, { timeout: 15_000 });
   const added = [];
+  const controls = [];
   const replayed = [];
   context.on("request", (request) => {
-    if (request.url() === ownerUrl + "/api/live/control") added.push(...(request.postDataJSON()?.add ?? []));
+    if (request.url() === ownerUrl + "/api/live/control") {
+      const body = request.postDataJSON() ?? {};
+      controls.push(body); added.push(...(body.add ?? []));
+    }
     if (request.url() === ownerUrl + "/api/mutation") replayed.push(request.postDataJSON());
   });
-  const shared = await writer.evaluate(async () => {
+  try {
+  const sharedArgs = { conversationId: "conversation-2" };
+  const shared = await writer.evaluate(async (args) => {
     const client = window.__snapback;
-    const op = window.__api.deliveries.thread;
-    const args = { conversationId: "conversation-2", c: null };
+    const op = window.__api.deliveries.conversationView;
     const first = client.subscribe(op, args, () => undefined);
     const second = client.subscribe(op, args, () => undefined);
-    const [a, b] = await Promise.all([first.until(e => e.state === "complete", 5000), second.until(e => e.state === "complete", 5000)]);
-    const two = client.sharedConsumers(op, args);
-    first.close();
-    const one = client.sharedConsumers(op, args);
-    const survivor = await second.until(e => e.state === "complete", 5000);
-    second.close();
-    return { two, one, zero: client.sharedConsumers(op, args), seq: [a.seq, b.seq, survivor.seq], data: [a.data, b.data, survivor.data] };
-  });
+    let firstOpen = true, secondOpen = true;
+    try {
+      const resolved = e => e.state === "complete" || e.state === "capped";
+      const [a, b] = await Promise.all([first.until(resolved, 5000), second.until(resolved, 5000)]);
+      const two = client.sharedConsumers(op, args);
+      first.close(); firstOpen = false;
+      const one = client.sharedConsumers(op, args);
+      const survivor = await second.until(resolved, 5000);
+      second.close(); secondOpen = false;
+      return { two, one, zero: client.sharedConsumers(op, args), seq: [a.seq, b.seq, survivor.seq],
+        next: [a.next, b.next, survivor.next], sameIdentity: a.data === b.data && b.data === survivor.data,
+        data: [a.data, b.data, survivor.data] };
+    } finally {
+      if (firstOpen) first.close();
+      if (secondOpen) second.close();
+    }
+  }, sharedArgs);
   assert.deepEqual([shared.two, shared.one, shared.zero], [2, 1, 0]);
   assert.equal(new Set(shared.seq).size, 1);
+  assert.deepEqual(shared.next, [null, null, null], "the composite record has no continuation");
+  assert.equal(shared.sameIdentity, true, "both consumers read the entry's one immutable value");
   assert.deepEqual(shared.data[0], shared.data[1]);
   assert.deepEqual(shared.data[0], shared.data[2]);
-  const children = added.filter(child => child.path.includes("deliveries.thread"));
-  assert.equal(children.length, 1, "duplicate app consumers add exactly one logical owner subscription");
-  step("two app consumers share one logical owner subscription; closing one preserves the other", { consumers: [2, 1, 0], logicalSubscriptions: children.length });
+  assert.ok(Array.isArray(shared.data[0].messages) && shared.data[0].messages.length <= 50);
+  assert.ok(Array.isArray(shared.data[0].preview) && shared.data[0].preview.length <= 1);
+  assert.equal(typeof shared.data[0].count, "number");
+  if (shared.data[0].preview.length) assert.equal(shared.data[0].preview[0].id, shared.data[0].messages[0].id);
+  const children = added.filter(child => child.path.includes("deliveries.conversationView"));
+  const described = children.map(child => {
+    const path = new URL(child.path, ownerUrl);
+    let args;
+    try {
+      args = JSON.parse(path.searchParams.get("args") ?? "{}");
+    } catch { args = { malformed: path.searchParams.get("args") }; }
+    return { id: child.id, op: path.searchParams.get("op"), args, lastEventId: child.lastEventId };
+  });
+  const targetChildren = described.filter(child => child.op === "deliveries.conversationView"
+    && child.args.conversationId === sharedArgs.conversationId);
+  const targetIds = [...new Set(targetChildren.map(child => child.id))];
+  assert.equal(targetIds.length, 1,
+    `duplicate app consumers add exactly one logical owner stream identity: ${JSON.stringify({ described, controls })}`);
+  const removeDeadline = Date.now() + 2_000;
+  while (!controls.some(control => control.remove?.includes(targetIds[0])) && Date.now() < removeDeadline) {
+    await writer.waitForTimeout(25);
+  }
+  const transport = await writer.evaluate(() => window.__witnessRequests
+    .filter(request => request.path === "/api/live/control").slice(-8));
+  assert.ok(controls.some(control => control.remove?.includes(targetIds[0])),
+    `last close must remove the active owner stream: ${JSON.stringify({ targetIds, controls, transport })}`);
+  step("two app consumers share one coherent list/count/preview snapshot; closing one preserves the other", {
+    consumers: [2, 1, 0], streamId: targetIds[0], addOccurrences: targetChildren.length,
+    seq: shared.seq[0], next: shared.next[0], count: shared.data[0].count,
+    preview: shared.data[0].preview[0]?.message?.body,
+    siblingAdds: described.filter(child => !targetIds.includes(child.id)), transport,
+  });
+  } catch (error) {
+    fail("two app consumers share one logical owner subscription and release it", error);
+  }
 
+  try {
   const follower = await context.newPage();
   await follower.goto(appUrl);
-  await follower.waitForFunction(async () => window.__snapback && (await window.__snapback.outbox.status()).reason === "follower",
+  await follower.waitForFunction(async () => window.__snapback
+    && (await window.__snapback.outbox.status(window.__api.deliveries.post)).ready,
     null, { timeout: 15_000 });
   await openChat(follower, "conversation-1");
-  const beforeWrites = replayed.length;
-  const refusal = await follower.evaluate(async () => {
-    try { return await window.__snapback.mutation(window.__api.deliveries.post,
-      { conversationId: "conversation-1", body: "forbidden follower write" }); }
-    catch (error) { return { code: error.code }; }
+
+  const lostAckBody = "1018 one admitted send with a lost answer";
+  const beforeLostAckWrites = replayed.length;
+  await writer.evaluate(() => { window.__witnessBroadcast.dropNextMutationAnswer = true; });
+  await follower.fill("form[aria-label=Composer] input[aria-label=Message]", lostAckBody);
+  await follower.waitForSelector("form[aria-label=Composer] button[type=submit]:enabled", { timeout: 10_000 });
+  await follower.click("form[aria-label=Composer] button[type=submit]");
+  await follower.waitForFunction(() => [...document.querySelectorAll("form[aria-label=Composer] button")]
+    .some(button => button.textContent === "Check send"), null, { timeout: 5_000 });
+  const unknownUi = await follower.evaluate(() => {
+    const form = document.querySelector("form[aria-label=Composer]");
+    const buttons = [...(form?.querySelectorAll("button") ?? [])];
+    return {
+      draft: form?.querySelector("input[aria-label=Message]")?.value,
+      sendDisabled: form?.querySelector("button[type=submit]")?.disabled,
+      checkDisabled: buttons.find(button => button.textContent === "Check send")?.disabled,
+      alert: document.querySelector("main > header [role=alert]")?.textContent,
+    };
   });
-  assert.equal(refusal.code, "E_OFFLINE_FOLLOWER");
-  assert.equal(replayed.length, beforeWrites, "follower refuses before sending mutation bytes");
-  step("second tab renders live rows and refuses writes before transport", refusal);
+  assert.deepEqual(unknownUi, {
+    draft: lostAckBody, sendDisabled: true, checkDisabled: false,
+    alert: "Send confirmation was lost. Check this send before sending another message.",
+  }, "a lost answer preserves the draft and blocks a fresh send until explicit recovery");
+  const initialRequests = await follower.evaluate((body) => window.__witnessBroadcast.sent
+    .filter(message => message.type === "mutation" && message.args?.body === body), lostAckBody);
+  const droppedAnswers = await writer.evaluate(() => window.__witnessBroadcast.dropped);
+  assert.equal(initialRequests.length, 1, `one initial forwarded command: ${JSON.stringify(initialRequests)}`);
+  assert.equal(droppedAnswers.length, 1, `one answer was intercepted: ${JSON.stringify(droppedAnswers)}`);
+  assert.equal(droppedAnswers[0].requestId, initialRequests[0].requestId,
+    "the intercepted answer belongs to the Composer's forwarded command");
+  assert.equal(droppedAnswers[0].result?.state, "queued",
+    "the test drops only the answer produced after durable writer admission");
+
+  await follower.evaluate(() => [...document.querySelectorAll("form[aria-label=Composer] button")]
+    .find(button => button.textContent === "Check send")?.click());
+  await follower.waitForFunction(() => {
+    const form = document.querySelector("form[aria-label=Composer]");
+    return form?.querySelector("input[aria-label=Message]")?.value === ""
+      && ![...(form?.querySelectorAll("button") ?? [])].some(button => button.textContent === "Check send");
+  }, null, { timeout: 5_000 });
+  await writer.evaluate(() => window.__snapback.outbox.settled());
+  const recoveryRequests = await follower.evaluate((body) => window.__witnessBroadcast.sent
+    .filter(message => message.type === "mutation" && message.args?.body === body), lostAckBody);
+  assert.equal(recoveryRequests.length, 2,
+    `recovery publishes the original command once more: ${JSON.stringify(recoveryRequests)}`);
+  assert.equal(new Set(recoveryRequests.map(message => message.requestId)).size, 1,
+    "Check send reuses the original request identity");
+  const ownerWrites = replayed.slice(beforeLostAckWrites)
+    .filter(request => request.op === "deliveries.post" && request.args?.body === lostAckBody);
+  assert.equal(ownerWrites.length, 1, `recovery must not execute a second owner mutation: ${JSON.stringify(ownerWrites)}`);
+  const verification = await import(resolve(dist, "client.mjs"));
+  const lostAckVerifier = verification.createClient({ url: ownerUrl, as: "alice" });
+  try {
+    const thread = await lostAckVerifier.query(verification.api.deliveries.thread,
+      { conversationId: "conversation-1", c: null });
+    assert.equal(thread.state, "complete");
+    assert.equal(thread.data.filter(row => row.message?.body === lostAckBody).length, 1,
+      "the server stores exactly one message for the recovered request");
+  } finally { await lostAckVerifier.close(); }
+  step("the real follower Composer recovers one durably admitted send after its acknowledgment is lost", {
+    requestId: initialRequests[0].requestId, intent: droppedAnswers[0].result.intent,
+    forwardedAttempts: recoveryRequests.length, ownerWrites: ownerWrites.length, serverRows: 1,
+  });
+
+  const beforeWrites = replayed.length;
+  const beforeIntents = await writer.evaluate(async () =>
+    (await window.__snapback.outbox.entries()).map(entry => entry.intent));
 
   // Cut only the writer's owner transport: the follower remains live. An actual
   // page close releases the browser-owned lock without calling client.close().
@@ -250,22 +404,26 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
   step("writer readiness before going offline", await writer.evaluate(async () => ({ status: await window.__snapback.outbox.status(), post: await window.__snapback.outbox.status(window.__api.deliveries.post), entries: await window.__snapback.outbox.entries() })));
   await writer.evaluate(() => window.__snapback.offline());
   step("writer readiness after going offline", await writer.evaluate(async () => ({ status: await window.__snapback.outbox.status(), post: await window.__snapback.outbox.status(window.__api.deliveries.post) })));
-  const queued = await writer.evaluate(async () => {
-    const rows = [];
-    for (const body of ["1018 writer first", "1018 writer second"]) {
-      rows.push(await window.__snapback.mutation(window.__api.deliveries.post, { conversationId: "conversation-1", body }));
-    }
-    return rows;
+  const writerFirst = await writer.evaluate(() => window.__snapback.mutation(window.__api.deliveries.post,
+    { conversationId: "conversation-1", body: "1018 writer first" }));
+  const followerMiddle = await follower.evaluate(() => window.__snapback.mutation(window.__api.deliveries.post,
+    { conversationId: "conversation-1", body: "1018 follower middle" }));
+  const writerSecond = await writer.evaluate(() => window.__snapback.mutation(window.__api.deliveries.post,
+    { conversationId: "conversation-1", body: "1018 writer second" }));
+  const queued = [writerFirst, followerMiddle, writerSecond];
+  assert.deepEqual(queued.map(row => row.state), ["queued", "queued", "queued"]);
+  assert.equal(replayed.length, beforeWrites, "writer-local and forwarded offline admission send no owner mutation bytes");
+  assert.deepEqual(await writer.evaluate(async () => (await window.__snapback.outbox.entries()).map(entry => entry.intent)),
+    [...beforeIntents, ...queued.map(row => row.intent)],
+    "the recovered terminal stays ahead of both tabs' durable writer-admission order");
+  step("both tabs durably enqueue through the one offline writer", {
+    origins: ["writer", "follower", "writer"], intents: queued.map(row => row.intent),
   });
-  assert.deepEqual(queued.map(row => row.state), ["queued", "queued"]);
-  assert.equal(replayed.length, beforeWrites, "offline writer has sent neither intent");
-  step("writer durably queues two intents while its owner transport is cut", { intents: queued.map(row => row.intent) });
   await writer.close();
-  await follower.waitForFunction(async () => (await window.__snapback.outbox.status()).reason !== "follower",
-    null, { timeout: 15_000 });
   await follower.bringToFront();
   const replayDeadline = Date.now() + 15_000;
-  while (replayed.slice(beforeWrites).filter(request => queued.some(row => row.intent === request.replay?.intent)).length < 2 && Date.now() < replayDeadline) await follower.waitForTimeout(100);
+  while (replayed.slice(beforeWrites).filter(request => queued.some(row => row.intent === request.replay?.intent)).length < 3
+    && Date.now() < replayDeadline) await follower.waitForTimeout(100);
   step("takeover observation", await follower.evaluate(async () => ({ status: await window.__snapback.outbox.status(), entries: await window.__snapback.outbox.entries() })));
   await follower.waitForFunction(async () => (await window.__snapback.outbox.entries()).filter(e => e.state === "queued").length === 0, null, { timeout: 15_000 });
   await follower.evaluate(() => window.__snapback.outbox.settled());
@@ -277,14 +435,22 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
     const thread = await verifier.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
     assert.equal(thread.state, "complete");
     const bodies = thread.data.map(row => row.message?.body);
-    for (const body of ["1018 writer first", "1018 writer second"]) assert.equal(bodies.filter(item => item === body).length, 1);
-    assert.ok(bodies.indexOf("1018 writer second") < bodies.indexOf("1018 writer first"), "newest-first owner rows preserve FIFO commit order");
-    assert.ok(!bodies.includes("forbidden follower write"));
+    for (const body of ["1018 writer first", "1018 follower middle", "1018 writer second"]) {
+      assert.equal(bodies.filter(item => item === body).length, 1);
+    }
+    assert.ok(bodies.indexOf("1018 writer second") < bodies.indexOf("1018 follower middle")
+      && bodies.indexOf("1018 follower middle") < bodies.indexOf("1018 writer first"),
+    "newest-first owner rows preserve the durable cross-tab admission order");
   } finally { await verifier.close(); }
   const after = await follower.evaluate(() => window.__snapback.mutation(window.__api.deliveries.post,
     { conversationId: "conversation-1", body: "1018 new writer" }));
   assert.equal(after.state, "committed");
-  step("closing the writer page transfers its real Web Lock and durable FIFO queue; the new writer commits", { replayIntents: inherited.map(request => request.replay.intent), rowsPerIntent: 1 });
+  step("closing the writer transfers its Web Lock and one cross-tab FIFO queue; the new writer commits", {
+    replayIntents: inherited.map(request => request.replay.intent), rowsPerIntent: 1,
+  });
+  } catch (error) {
+    fail("two offline tabs share one durable queue and transfer writer ownership", error);
+  }
 }
 
 async function main() {
@@ -320,15 +486,80 @@ async function main() {
     } else {
     await page.waitForFunction(() => /log downloaded/.test(document.querySelector("[role=status][data-connection]")?.textContent ?? ""), null, { timeout: 15_000 });
     const [neverOpened, ...opened] = [...seeded.conversations].reverse();
-    for (const conversationId of opened) await openChat(page, conversationId);
+    const coherentViews = [];
+    for (const conversationId of opened) coherentViews.push(await openChat(page, conversationId));
     const listed = await page.$$eval("nav[aria-label=Inbox] li", (nodes) => nodes.length);
     if (listed !== 3) throw new Error(`the inbox listed ${listed} chats`);
-    step("seed, drain, and open three chats (two threads opened online, one left unopened)", { chats: listed, opened: opened.length });
+    if (coherentViews.some((view) => view.consumers !== 2 || (view.state !== "complete" && view.state !== "capped")
+      || !/^\d+$/.test(view.count ?? "") || !view.previewMessage || !view.rows.includes(view.previewMessage))) {
+      throw new Error(`mounted composite consumers were incoherent: ${JSON.stringify(coherentViews)}`);
+    }
+    step("seed, drain, and open three chats with one coherent list/count/preview value", {
+      chats: listed, opened: opened.length, coherentViews,
+    });
+
+    // The UI uses the real global indexed query. A decomposed uppercase token
+    // finds the composed mixed-case word and records the exact prefix coverage.
+    await page.fill("section[aria-label=Search] input", indexedSearchTerm);
+    await page.waitForSelector(`section[aria-label=Search] li[data-message="${seeded.doomedMessageId}"]`, { timeout: 10_000 });
+    await page.waitForFunction(() => {
+      const state = document.querySelector("section[aria-label=Search] .scope")?.getAttribute("data-state");
+      return state === "complete" || state === "capped";
+    }, null, { timeout: 10_000 });
+    const warmSearch = await page.$eval("section[aria-label=Search] .scope", (node) => ({ state: node.getAttribute("data-state"), text: node.textContent }));
+    if (warmSearch.state !== "complete" && warmSearch.state !== "capped") throw new Error(`warm indexed search was ${JSON.stringify(warmSearch)}`);
+    step("Unicode one-word prefix runs through the live messages.search index", warmSearch);
+
+    // A warmed composite remains one value through a local prediction, its
+    // settlement, and a removal whose newest delivery intentionally has no body.
+    const coherentConversation = opened[0];
+    const beforeComposite = await openChat(page, coherentConversation);
+    await context.setOffline(true); await page.evaluate(() => window.__snapback.offline());
+    const predictedComposite = await page.evaluate(async ({ conversationId, body }) =>
+      window.__snapback.mutation(window.__api.deliveries.post, { conversationId, body }),
+    { conversationId: coherentConversation, body: "coherent offline prediction" });
+    if (predictedComposite.state !== "queued") throw new Error(`composite prediction was ${JSON.stringify(predictedComposite)}`);
+    await page.waitForFunction(({ id }) => {
+      const summary = document.querySelector("section[aria-label=Thread] .thread-summary");
+      const list = document.querySelector("section[aria-label=Thread] ol.bubbles");
+      return summary?.getAttribute("data-preview-message") === id
+        && list?.getAttribute("data-view-source") === "composite"
+        && list.querySelector(`li[data-message="${id}"][data-state="queued"]`);
+    }, { id: predictedComposite.ids[0] }, { timeout: 10_000 });
+    const predictedView = await openChat(page, coherentConversation);
+    await context.setOffline(false);
+    await page.evaluate(async () => { await window.__snapback.online(); await window.__snapback.outbox.settled(); });
+    await page.waitForSelector(`li[data-message="${predictedComposite.ids[0]}"][data-state="row"]`, { timeout: 10_000 });
+    const settledView = await openChat(page, coherentConversation);
+    const removed = await page.evaluate((messageId) =>
+      window.__snapback.mutation(window.__api.deliveries.unsend, { messageId }), predictedComposite.ids[0]);
+    if (removed.state !== "committed") throw new Error(`composite revocation was ${JSON.stringify(removed)}`);
+    await page.waitForFunction(({ id, count }) => {
+      const summary = document.querySelector("section[aria-label=Thread] .thread-summary");
+      return !document.querySelector(`section[aria-label=Thread] li[data-message="${id}"]`)
+        && summary?.getAttribute("data-count") === count
+        && !summary.hasAttribute("data-preview-message");
+    }, { id: predictedComposite.ids[0], count: beforeComposite.count }, { timeout: 10_000 });
+    const revokedView = await openChat(page, coherentConversation);
+    if (predictedView.source !== "composite" || settledView.source !== "composite" || revokedView.source !== "composite"
+      || predictedView.seq === settledView.seq || settledView.seq === revokedView.seq
+      || settledView.count === beforeComposite.count || revokedView.count !== beforeComposite.count) {
+      throw new Error(`composite lifecycle was incoherent: ${JSON.stringify({ beforeComposite, predictedView, settledView, revokedView })}`);
+    }
+    step("one composite snapshot covers offline prediction, settlement, and bodyless revocation", {
+      before: beforeComposite, predicted: predictedView, settled: settledView, revoked: revokedView,
+    });
+
     // Enqueue one message while offline.
     await context.setOffline(true);
     await page.evaluate(() => window.__snapback.offline());
-    await openChat(page, "conversation-1");
-    await page.fill("form[aria-label=Composer] input", "queued in the browser");
+    const partialHistory = await openChat(page, neverOpened);
+    if (partialHistory.source !== "partial-history" || partialHistory.state !== "partial"
+      || partialHistory.count !== null || partialHistory.previewMessage !== null
+      || !partialHistory.historyState || !/Count and preview unavailable/.test(partialHistory.historyText ?? "")) {
+      throw new Error(`never-opened history exposed an independently fresh composite field: ${JSON.stringify(partialHistory)}`);
+    }
+    await page.fill("form[aria-label=Composer] input", "Café queued in the browser");
     // Report the composer's own reason when it will not send, instead of a bare click timeout.
     await page.waitForSelector("form[aria-label=Composer] button[type=submit]:enabled", { timeout: 10_000 }).catch(async (error) => {
       const diagnosis = await page.evaluate(async () => {
@@ -344,13 +575,16 @@ async function main() {
     await page.waitForSelector("li[data-state=queued]", { timeout: 5_000 });
     const queued = await page.$eval("li[data-state=queued]", (node) => ({ id: node.getAttribute("data-message"), text: node.textContent }));
     if (!/Sending…/.test(queued.text ?? "") || /\d:\d\d/.test(queued.text ?? "")) throw new Error(`pending bubble text was ${queued.text}`);
-    step("enqueue one message while offline", queued);
+    await page.waitForSelector(`section[aria-label=Search] li[data-message="${queued.id}"]`, { timeout: 10_000 });
+    await page.waitForFunction(() => document.querySelector("section[aria-label=Search] .scope")?.getAttribute("data-state") === "held", null, { timeout: 10_000 });
+    step("the mounted indexed search publishes the offline prediction; partial history hides composite count and preview", {
+      queued, partialHistory,
+    });
 
     // Kill the profile at rest, cold start with the backend unreachable.
     await close();
     page = await launch({ ownerCut: true });
-    await page.waitForSelector(`li[data-state=queued][data-message="${queued.id}"]`, { timeout: 10_000 }).catch(() => undefined);
-    await openChat(page, "conversation-1").catch(() => undefined);
+    const coldPartialHistory = await openChat(page, neverOpened).catch(() => undefined);
     const coldQueued = await page.$(`li[data-state=queued][data-message="${queued.id}"]`);
     const coldInbox = await page.$$eval("nav[aria-label=Inbox] li", (nodes) => nodes.length);
     if (!coldQueued || coldInbox < 3) {
@@ -363,12 +597,17 @@ async function main() {
       }).catch((e) => String(e));
       throw new Error(`cold start held ${coldInbox} chats and queued=${Boolean(coldQueued)}: ${JSON.stringify(diagnosis)}`);
     }
-    step("cold start offline: the inbox, the chats, and the queued message are there", { chats: coldInbox });
-
-    // A chat never opened online is hydrating offline (the twin, lane O2b, makes it exact later).
-    await page.click(`nav[aria-label=Inbox] li[data-conversation="${neverOpened}"] button`);
-    await page.waitForFunction(() => /Loading…/.test(document.querySelector("section[aria-label=Thread] p[role=status]")?.textContent ?? ""), null, { timeout: 10_000 });
-    step("a chat never opened online is hydrating offline (twin pending: lane O2b)", { conversationId: neverOpened });
+    await page.fill("section[aria-label=Search] input", indexedSearchTerm);
+    await page.waitForSelector(`section[aria-label=Search] li[data-message="${queued.id}"]`, { timeout: 10_000 });
+    const coldSearch = await page.$eval("section[aria-label=Search] .scope", (node) => ({ state: node.getAttribute("data-state"), text: node.textContent }));
+    if (coldSearch.state !== "held") throw new Error(`cold indexed search was ${JSON.stringify(coldSearch)}`);
+    if (coldPartialHistory?.source !== "partial-history" || coldPartialHistory.count !== null
+      || coldPartialHistory.previewMessage !== null || !coldPartialHistory.historyState
+      || !/Count and preview unavailable/.test(coldPartialHistory.historyText ?? "")) {
+      throw new Error(`cold partial history exposed composite count or preview: ${JSON.stringify(coldPartialHistory)}`);
+    }
+    step("cold offline: a chat never opened online renders partial history without count/preview; indexed search agrees",
+      { chats: coldInbox, search: coldSearch, partialHistory: coldPartialHistory });
 
     // Carrier refused → E_OFFLINE_CARRIER.
     await close();
@@ -383,16 +622,22 @@ async function main() {
     // Backend up: 503 after the first commit, kill mid-commit, exactly one row, second in order.
     page = await launch({ ownerCut: true });
     await page.evaluate(() => window.__snapback.offline());
-    await openChat(page, "conversation-1");
+    await openChat(page, neverOpened);
     await page.fill("form[aria-label=Composer] input", "second queued message");
     await page.click("form[aria-label=Composer] button[type=submit]");
     await page.waitForFunction(() => document.querySelectorAll("li[data-state=queued]").length === 2, null, { timeout: 5_000 });
+    await page.evaluate((id) => { window.__witnessPinnedBubble = document.querySelector(`li[data-message="${id}"]`); }, queued.id);
     await context.unroute(cutOwner);
     await page.evaluate(() => { window.__witnessFaults.push({ path: "/api/mutation", status: 503 }); });
     await page.evaluate(() => window.__snapback.online());
     await page.evaluate(() => window.__snapback.outbox.settled());
     const afterFault = await page.$$eval("li[data-state=queued]", (nodes) => nodes.length);
     if (afterFault !== 2) throw new Error(`a 503 after the commit settled an intent (${afterFault} queued)`);
+    await page.waitForSelector("ol.bubbles[data-view-source=composite]", { timeout: 10_000 });
+    const retainedThroughComposite = await page.evaluate((id) =>
+      window.__witnessPinnedBubble === document.querySelector(`li[data-message="${id}"]`), queued.id);
+    if (!retainedThroughComposite) throw new Error("partial history to coherent composite remounted the pinned bubble");
+    step("partial history becomes a coherent composite without remounting its pinned bubble");
     // Kill the profile inside the settlement swap: the barrier holds the IndexedDB transaction open.
     await page.evaluate(() => { window.__witnessBarrier = () => new Promise(() => undefined); });
     const draining = page.evaluate(() => window.__snapback.outbox.drain()).catch(() => undefined);
@@ -402,28 +647,46 @@ async function main() {
     page = await launch();
     await page.evaluate(() => window.__snapback.outbox.settled());
     await page.evaluate(() => window.__snapback.outbox.drain());
-    await openChat(page, "conversation-1");
+    await openChat(page, neverOpened);
     await page.waitForFunction(() => document.querySelectorAll("li[data-state=queued]").length === 0, null, { timeout: 10_000 });
+    await page.waitForSelector(`li[data-message="${queued.id}"][data-state=row]`, { timeout: 10_000 });
     const { createClient, api } = await import(resolve(dist, "client.mjs"));
     const verifier = createClient({ url: owner.url, as: "alice" });
-    const thread = await verifier.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
+    const thread = await verifier.query(api.deliveries.thread, { conversationId: neverOpened, c: null });
     verifier.close();
     const bodies = thread.data.map((row) => row.message?.body);
     const count = (body) => bodies.filter((item) => item === body).length;
-    if (count("queued in the browser") !== 1 || count("second queued message") !== 1) throw new Error(`rows: ${JSON.stringify(bodies)}`);
-    if (bodies.indexOf("second queued message") > bodies.indexOf("queued in the browser")) throw new Error("replay order was not preserved");
-    step("503 after the commit and a kill inside the settlement swap: exactly one row each, in order");
+    if (count("Café queued in the browser") !== 1 || count("second queued message") !== 1) throw new Error(`rows: ${JSON.stringify(bodies)}`);
+    if (bodies.indexOf("second queued message") > bodies.indexOf("Café queued in the browser")) throw new Error("replay order was not preserved");
+    step("503 after the commit and a kill inside the settlement swap: exactly one row each, in order; the partial-history bubble survived the coherent transition");
 
-    // Expiry (revocation) while offline is gone from the local search after the resume.
+    // Revocation received on resume invalidates the same persistent index trace.
+    await page.fill("section[aria-label=Search] input", indexedSearchTerm);
+    await page.waitForSelector(`section[aria-label=Search] li[data-message="${seeded.doomedMessageId}"]`, { timeout: 10_000 });
+    await page.waitForFunction(() => {
+      const state = document.querySelector("section[aria-label=Search] .scope")?.getAttribute("data-state");
+      return state === "complete" || state === "capped";
+    }, null, { timeout: 10_000 });
     await page.evaluate(() => window.__snapback.offline());
     const revoker = createClient({ url: owner.url, as: "alice" });
     const unsent = await revoker.mutation(api.deliveries.unsend, { messageId: seeded.doomedMessageId });
     revoker.close();
     if (unsent.state !== "committed") throw new Error(`unsend was ${unsent.state}`);
     await page.evaluate(() => window.__snapback.online());
-    await page.fill("section[aria-label=Search] input", "expires while offline");
-    await page.waitForFunction(() => document.querySelectorAll("section[aria-label=Search] .hits li").length === 0, null, { timeout: 10_000 });
-    step("a message revoked while offline is gone from the local search after the resume (unsend writes the same log shape as the owner's expiry schedule, LLP 1016 D5)");
+    await page.waitForFunction(({ doomed, queued }) => {
+      const ids = [...document.querySelectorAll("section[aria-label=Search] .hits li")].map((node) => node.getAttribute("data-message"));
+      const state = document.querySelector("section[aria-label=Search] .scope")?.getAttribute("data-state");
+      return !ids.includes(doomed) && ids.includes(queued) && (state === "complete" || state === "capped");
+    }, { doomed: seeded.doomedMessageId, queued: queued.id }, { timeout: 10_000 });
+    const heldAfterRevocation = await page.evaluate(async (term) => {
+      await window.__snapback.offline();
+      const result = await window.__snapback.query(window.__api.messages.search, { term, c: null });
+      return { state: result.state, ids: Array.isArray(result.data) ? result.data.map((row) => row.id) : [] };
+    }, indexedSearchTerm);
+    if (heldAfterRevocation.state !== "held" || heldAfterRevocation.ids.includes(seeded.doomedMessageId)
+      || !heldAfterRevocation.ids.includes(queued.id)) throw new Error(`held search after revocation: ${JSON.stringify(heldAfterRevocation)}`);
+    step("revocation removes only the expired indexed row; the settled prediction remains in held Unicode search (LLP 1016 D5)");
+    await page.evaluate(() => window.__snapback.online());
 
     await sharedSessions(context, page, appUrl, owner.url);
     }

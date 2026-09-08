@@ -4,7 +4,10 @@ use crate::schema::*;
 use crate::value::Value;
 
 pub(super) struct EvaluatedScan {
-    pub(super) prefix: Vec<Value>,
+    pub(super) prefix: Vec<crate::search_key::IndexAtom>,
+    pub(super) logical: Vec<crate::search_key::LogicalIndexAtom>,
+    pub(super) physical: Vec<Value>,
+    pub(super) empty: bool,
     pub(super) after: Option<Value>,
     pub(super) before: Option<Value>,
     pub(super) range: Option<EvaluatedRange>,
@@ -44,25 +47,32 @@ impl Runner<'_> {
         };
         let table = self.schema.table(&scan.table).expect("certified table");
         let index = table.index(&scan.index).expect("certified index");
-        let suffix = index.columns[scan.prefix.len()..]
+        let suffix = index
+            .suffix_columns(scan.prefix.len())
+            .ok_or_else(|| {
+                RuntimeError::Input("search must equality-bind its derived component".into())
+            })?
             .iter()
             .map(|name| crate::cursor::CursorColumn {
                 name: name.clone(),
                 kind: table.columns[name].clone(),
             })
             .collect::<Vec<_>>();
-        decode_cursor_for(token, &scan.table, &scan.index, scan.order, &suffix)
-            .map(|_| ())
-            .map_err(|error| RuntimeError::Input(error.to_string()))
+        decode_cursor_for(
+            self.schema,
+            token,
+            &scan.table,
+            &scan.index,
+            scan.order,
+            &suffix,
+        )
+        .map(|_| ())
+        .map_err(|error| RuntimeError::Input(error.to_string()))
     }
 
     pub(super) fn evaluate_scan(&mut self, scan: &Scan) -> Result<EvaluatedScan, RuntimeError> {
         self.validate_scan_cursor(scan)?;
-        let prefix = scan
-            .prefix
-            .iter()
-            .map(|value| self.expr(value))
-            .collect::<Result<Vec<_>, _>>()?;
+        let (prefix, logical, physical, empty) = self.search_prefix(scan)?;
         let mut after = scan
             .after
             .as_deref()
@@ -89,7 +99,11 @@ impl Runner<'_> {
             RuntimeError::Schema(format!("missing index {}.{}", scan.table, scan.index))
         })?;
         if scan.opaque_cursor {
-            let suffix = index.columns[scan.prefix.len()..]
+            let suffix = index
+                .suffix_columns(scan.prefix.len())
+                .ok_or_else(|| {
+                    RuntimeError::Input("search must equality-bind its derived component".into())
+                })?
                 .iter()
                 .map(|name| {
                     table
@@ -105,8 +119,15 @@ impl Runner<'_> {
                 .ok_or_else(|| RuntimeError::Schema("missing cursor index column".to_owned()))?;
             after = match after {
                 Some(Value::String(token)) => Some(Value::Array(
-                    decode_cursor_for(&token, &scan.table, &scan.index, scan.order, &suffix)
-                        .map_err(|error| RuntimeError::Input(error.to_string()))?,
+                    decode_cursor_for(
+                        self.schema,
+                        &token,
+                        &scan.table,
+                        &scan.index,
+                        scan.order,
+                        &suffix,
+                    )
+                    .map_err(|error| RuntimeError::Input(error.to_string()))?,
                 )),
                 None => None,
                 Some(_) => {
@@ -131,8 +152,41 @@ impl Runner<'_> {
                 value as usize
             }
         };
+        // Physical encoders operate on admitted slots; a target's generated
+        // intrinsic address and Ref columns have schema-derived identity domains.
+        crate::cap::validate_key_identities(self.schema, &scan.table, &scan.index, 0, &physical)?;
+        for bound in [&after, &before].into_iter().flatten() {
+            let values = match bound {
+                Value::Array(values) => values.as_slice(),
+                value => std::slice::from_ref(value),
+            };
+            crate::cap::validate_key_identities(
+                self.schema,
+                &scan.table,
+                &scan.index,
+                scan.prefix.len(),
+                values,
+            )?;
+        }
+        if let Some(range) = &evaluated_range {
+            for bound in [&range.gt, &range.gte, &range.lt, &range.lte]
+                .into_iter()
+                .flatten()
+            {
+                crate::cap::validate_key_identities(
+                    self.schema,
+                    &scan.table,
+                    &scan.index,
+                    scan.prefix.len(),
+                    std::slice::from_ref(bound),
+                )?;
+            }
+        }
         Ok(EvaluatedScan {
             prefix,
+            logical,
+            physical,
+            empty,
             after,
             before,
             range: evaluated_range,
@@ -143,6 +197,9 @@ impl Runner<'_> {
     pub(super) fn scan_tracked(&mut self, scan: &Scan) -> Result<Vec<TrackedValue>, RuntimeError> {
         let EvaluatedScan {
             prefix,
+            physical,
+            empty,
+            logical: _,
             after,
             before,
             range: evaluated_range,
@@ -202,15 +259,15 @@ impl Runner<'_> {
         // fetching or charging the hidden population row by row.
         let mut uniform_result = always_visible.then_some(true);
         let mut uniform_false_row = None;
-        let mut uniform_empty = false;
-        if uniform && !always_visible && fetch_limit > 0 {
+        let mut uniform_empty = empty;
+        if !empty && uniform && !always_visible && fetch_limit > 0 {
             let mut probe = scan_indexed(
                 self.tx,
                 &scan.table,
                 &scan.index,
                 table,
                 index,
-                &prefix,
+                &physical,
                 after.as_ref(),
                 before.as_ref(),
                 evaluated_range.as_ref(),
@@ -241,7 +298,7 @@ impl Runner<'_> {
                 &scan.index,
                 table,
                 index,
-                &prefix,
+                &physical,
                 after.as_ref(),
                 before.as_ref(),
                 evaluated_range.as_ref(),
@@ -254,7 +311,8 @@ impl Runner<'_> {
         }
         let fetched = rows.len();
         let uniformly_false = uniform_false_row.is_some();
-        let mut examined_ids = uniform_false_row.into_iter()
+        let mut examined_ids = uniform_false_row
+            .into_iter()
             .map(|row| row.field("id")?.as_str().map(ToOwned::to_owned))
             .collect::<Result<Vec<_>, _>>()?;
         let mut visible = Vec::new();
@@ -301,7 +359,7 @@ impl Runner<'_> {
         self.trace.examined += examined_ids.len() as u64;
         let halo_row = uniform.then(|| visible.get(take).cloned()).flatten();
         let n2_row = uniform.then(|| visible.get(take + 1)).flatten();
-        let n2_key = n2_row.map(|row| index_values(row, index));
+        let n2_suffix = n2_row.map(|row| index_values(row, index)[prefix.len()..].to_vec());
         let visible_ids = visible
             .iter()
             .map(|row| {
@@ -326,14 +384,13 @@ impl Runner<'_> {
             let id = row.field("id")?.as_str()?.to_owned();
             self.record_row(&scan.table, &id, row, true);
         }
-        let halo = halo_row.map(|row| RowRecord {
+        let halo = halo_row.map(|row| RowRef {
             table: scan.table.clone(),
             id: row
                 .field("id")
                 .and_then(Value::as_str)
                 .expect("validated row id")
                 .to_owned(),
-            row,
         });
         let rule_hash = self.hashes.table(&scan.table, Effect::Read).to_owned();
         let evaluated_take = u32::try_from(take).map_err(|_| RuntimeError::Fanout)?;
@@ -357,7 +414,7 @@ impl Runner<'_> {
             stop,
             absence: returned.is_empty(),
             halo: halo.clone(),
-            n2_key: n2_key.clone(),
+            n2_suffix: n2_suffix.clone(),
         };
         self.trace.ranges.push(range);
         // Only a certified-uniform range can carry an extent. A uniformly false,
@@ -381,7 +438,7 @@ impl Runner<'_> {
                 stop,
                 absence: returned.is_empty(),
                 halo,
-                n2_key,
+                n2_suffix,
             });
         }
         Ok(returned

@@ -4,18 +4,16 @@ import React, {
   useContext,
   useEffect,
   useMemo,
-  useReducer,
   useRef,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import { createClient, isSnapbackRefusal, type SnapbackRefusal } from "./client.js";
 import { viewedAssetIds } from "./client-assets.js";
 import { referenceName, type Channel as ChannelRef, type Op } from "./api.js";
-import { readiness, summarize, type Readiness, type Snapshot } from "./snapshot.js";
+import { readiness, type Readiness, type Snapshot } from "./snapshot.js";
 import {
-  initialQueryState,
-  reduceQueryState,
   stableSerialize,
   type AuthApi,
   type AuthSnapshot,
@@ -31,8 +29,6 @@ import {
   type OutboxEntry,
   type OutboxStatus,
   type Principal,
-  type QueryMachineEvent,
-  type QueryView,
   type RefusalEnvelope,
   type SnapbackClient,
 } from "./types.js";
@@ -163,69 +159,13 @@ export function useQuery<Args, Result>(
   const live = options.live !== false;
   if (!live && options.drain) throw new TypeError("useQuery drain requires a live subscription");
   const operation = referenceName(ref);
-  const identity = useMemo(
-    () => ({ client, key: `${snapshot.authGeneration}:${operation}:${argsKey}:${live}:${options.drain === true}` }),
-    [client, snapshot.authGeneration, operation, argsKey, live, options.drain],
-  );
-  const [machine, dispatch] = useReducer(
-    (
-      current: { identity: typeof identity; view: QueryView<Result> },
-      action: { identity: typeof identity; event: QueryMachineEvent<Result> },
-    ) => ({
-      identity: action.identity,
-      view: reduceQueryState(
-        current.identity === action.identity ? current.view : initialQueryState<Result>(),
-        action.event,
-      ),
-    }),
-    { identity, view: initialQueryState<Result>() },
-  );
-  const state = machine.identity === identity ? machine.view : initialQueryState<Result>();
   const restoring = !!snapshot.token && snapshot.auth.state === "hydrating";
-
-  useEffect(() => {
-    let active = true;
-    if (live) {
-      const subscription = client.subscribe(ref, stableArgs, (delivery) => {
-        if (active) dispatch({ identity, event: delivery });
-      }, { drain: options.drain });
-      return () => {
-        active = false;
-        subscription.close();
-      };
-    }
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    void (async () => {
-      let backoff = 250;
-      while (active) {
-        try {
-          const result = await client.query(ref, stableArgs);
-          if (active) dispatch({ identity, event: result });
-          return;
-        } catch (error) {
-          if (!active) return;
-          if (isSnapbackRefusal(error) && error.code === "E_AUTH_SUPERSEDED") return;
-          if (isSnapbackRefusal(error) && error.retryable) {
-            await new Promise<void>((resolve) => { timer = setTimeout(resolve, backoff); });
-            backoff = Math.min(backoff * 2, 5_000);
-            continue;
-          }
-          const envelope = isSnapbackRefusal(error)
-            ? error.envelope
-            : { code: "E_CLIENT", family: "owner", message: String(error), guide: "owner/connect" };
-          dispatch({ identity, event: { state: "refused", live: false, ...envelope } });
-          return;
-        }
-      }
-    })();
-    return () => {
-      active = false;
-      if (timer !== undefined) clearTimeout(timer);
-    };
-  }, [identity, stableArgs, restoring]);
-
-  // @ref LLP 1018.003#2-derive-never-add — the screen reads one record; status and reason are projections.
-  return useMemo(() => summarize(state, snapshot.connection), [state, snapshot.connection]);
+  const observed = useMemo(
+    () => client.observe(ref, stableArgs, live ? { drain: options.drain } : { live: false }),
+    [client, snapshot.authGeneration, operation, argsKey, live, options.drain, restoring],
+  );
+  const state = useSyncExternalStore(observed.subscribe, observed.getSnapshot, observed.getSnapshot);
+  return state;
 }
 
 export function useSubscription<Args, Result>(

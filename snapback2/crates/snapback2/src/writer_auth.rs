@@ -239,7 +239,7 @@ impl State {
             .collect::<Vec<_>>();
         for id in live_ids {
             if let Some(client) = self.live.remove(&id) {
-                self.runtime_mut().unsubscribe(client.runtime_id);
+                self.runtime_mut().unsubscribe(id);
                 send_session_terminal(&client.events, seq);
             }
         }
@@ -420,7 +420,6 @@ mod tests {
                 (
                     1,
                     LiveClient {
-                        runtime_id: 1,
                         op: "fixture.first".to_owned(),
                         context: Context::query(Actor::user("fixture").unwrap(), BTreeMap::new()),
                         session: Some(session(&first_authority)),
@@ -433,7 +432,6 @@ mod tests {
                 (
                     2,
                     LiveClient {
-                        runtime_id: 2,
                         op: "fixture.sibling".to_owned(),
                         context: Context::query(Actor::user("fixture").unwrap(), BTreeMap::new()),
                         session: Some(session(&sibling_authority)),
@@ -444,6 +442,7 @@ mod tests {
                     },
                 ),
             ]),
+            last_live_dispatch_work: 0,
             channels: BTreeMap::from([
                 (
                     1,

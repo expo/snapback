@@ -1281,6 +1281,51 @@ is repaired or disguised by this small preservation correction. Host-only
 packaging evidence does not qualify a Linux runtime or alter the old published
 package and application locks.
 
+## 2026-09-07 — Source-run architecture work exposed a native search difference
+
+The LLP 1018.000 implementation uses the existing chat template to exercise
+bounded reusable functions and a composed conversation query. Shared membership,
+log, and preview helpers remove repeated application logic. One native query
+now returns messages, the maintained count, and a preview at one execution
+sequence. The useful constraint is also visible: this record has no page cursor,
+and downloaded history alone does not prove its count. Actual screen integration
+is still in progress, with an explicitly partial history fallback.
+
+The difficult part was carrying the same indexed search through a real Expo
+restart. Node checks passed, yet the simulator retained both predicted messages
+and their conversation scope while search returned no rows. Batched diagnostics
+isolated empty token postings. Hermes returned an empty array for
+`Uint32Array.from(new Set([3, 5]))`; explicitly filling the sized typed array
+restored postings without a temporary array. A production transform under Node
+had caught earlier private-field portability errors but could not expose this
+runtime behavior. The actual simulator was necessary.
+
+At source integration `e61612c58`, the rebuilt package and native binary pass
+all ten existing Expo witness steps: strict decomposed-Unicode cold search,
+five-store crash recovery, cached images/video, exactly-once replay, expiry,
+and relaunch/drain. The at-rest restart now compares with a baseline captured
+after intervening completed app activity; the earlier raw pre-swap comparison
+is preserved. The transaction probe still does not qualify a native `COMMIT`
+failure. These are source-run results, not a new published-package result or
+a comparison with Convex or Supabase. Compiler deletion, composite-screen
+qualification, independent final reviews, and the runtime size deficit remain
+open in [LLP 1018.000](../llp/1018.000-composable-architecture-next-moves.research.md).
+
+At the later `91adf1c8c` checkpoint, the real screens consume the composed
+record and the Expo witness passes all ten steps again. The record makes the
+count and preview straightforward to share across consumers; a capped preview
+still permits a usable record with no root continuation. A never-opened offline
+conversation needs an explicitly partial history fallback, without a count or
+preview. Five real-owner screen tests and the 117 affected client checks pass.
+The browser's longer lifecycle exposes an unresolved disappearing inbox row
+after unsend, so the complete Web result remains red. This is useful friction:
+unit and initial-render checks did not substitute for the full interaction.
+
+The reviewed allocation amendment is now applied and its unchanged five-root
+check passes at 79,207 gzip bytes against 82,000, with an 80,000 working target.
+The historical failures against 66,000 remain failures. No new comparative
+score, publication, or native failed-`COMMIT` qualification follows.
+
 
 ## 2026-09-07 — Published fixes survive public installs
 
@@ -1305,6 +1350,24 @@ The fresh full run started at18:45:08Z on Office M1 Max. Actual native metadata 
 
 [Launch evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/grok-016-start/README.md) records the actual process/session and environment. Shared host load and the M5 comparator hardware difference remain disclosed. This starts measurement; it does not establish a better score or any milestone pass.
 
+
+## 2026-09-07 — Composed queries pass on Expo; retained projections expose a browser seam
+
+At source `4ef44ab65`, the rebuilt actual Expo app again passes all ten witness
+steps with both composed-query consumers. The browser still loses its inbox
+conversation after unsend. A focused real-owner reproduction subsequently shows
+that the snapshot retains rows while all projected delivery fields become null:
+conservative revocation clears the literals, and retained history skips certified
+reevaluation. This is platform behavior a guide would not repair; the client
+selection fix is being checked against missing facts and retained history.
+
+The same source's measured chat check is 0.872 seconds, below the one-second
+budget, and incremental rebuild is 2.31 seconds. All product-loop functional
+steps finish, but timing remains red: installed consumer 30.62/30 seconds and
+first doctor launch 0.808/0.5 seconds (second sample 0.042; internal work 45.990
+milliseconds). The exact metric append is retained without replacing earlier
+measurements. This does not qualify the complete browser lifecycle, native
+failed-COMMIT behavior, publication, or a new comparative score.
 
 ## 2026-09-07 — Diagnostic port verified and M2 browser progress
 
@@ -1366,6 +1429,30 @@ The ambient root now omits redundant `declare` modifiers while the standalone pr
 
 Review caught an overclaim in the first repair: waiting for one child does not prove every log writer has finished. The corrected helper removes that claim and records the log as a snapshot. All six controls still pass, and both fresh reviews returned READY. [R3 evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/timeout-reaping-controls/r3/README.md) preserves the earlier review, harness failure, and unknown original install exit. This accepted helper becomes the base for the next public install witness; it improves the honesty and completeness of measurements without turning a timeout into success.
 
+## 2026-09-07 — Real installed consumers expose a fan-out retirement seam
+
+The LLP 1018.000 candidate30e passes all10 actual Expo checks, including cold
+Unicode search, the five-store crash barrier, media and exactly-once replay.
+The same candidate's installed-package chat journey finds two local delivery
+rows after an offline three-member-group send settles. The twin's viewer-only
+fan-out and the owner's complete fan-out mint different delivery IDs; the current row-by-row
+retirement is the leading explanation for the prediction beside the served row.
+The duplicate is an observed product failure, even though the Expo witness passes. The queued bubble keeps
+its message identity; settlement must also retire the superseded delivery.
+
+The browser harness had two separate mistakes: it included a previous committed
+recovery intent in a later queue expectation, and compared a saved DOM node
+across closing and restarting Chromium. Neither assertion diagnoses a product
+regression. Group the harness repairs, keep actual crash-recovery and same-page
+DOM-identity checks distinct, and retain the original failed runs.
+
+The composed query makes count/messages/preview authoring straightforward, but
+correctness still depends on coherent authority and prediction retirement under
+independent query delivery. An installed consumer and actual platform runs catch
+different seams; no one passing suite can substitute for the others. Runtime
+footprint is80,524 gzip on the complete entry: below82,000, above the80,000 target.
+The product loop also retains a first-doctor0.687s failure against0.5s; its second
+0.043s result does not erase the first sample.
 
 ## 2026-09-07 — Declaration fixes pass release qualification
 
@@ -1375,3 +1462,64 @@ The 0.0.18 dry release passed all 19 installed-consumer results and the complete
 ## 2026-09-07 — Grok M3 reaches its original deadline
 
 The unchanged 0.0.16 benchmark reached M3's original four-hour boundary without a preserved green completion. Its last completed attempt had five passes, one membership-flow failure and one optional skip; voluntary leave did not become observable within 20 seconds. The builder remained live, and the exact boundary snapshot is [preserved](../benchmarks/runs/2026-09-06-clique-improvement/evidence/grok-016-m3-boundary/README.md). This is an intermediate measurement, not a final score or independent attribution of the failure to Snapback. The deadline is unchanged and later progress must retain its actual timing.
+
+## 2026-09-07 — Architecture consumer repairs and query selection
+
+The ordinary installed-consumer run at `c156228ef0` now passes the three-member
+offline chat journey: prediction settlement leaves one delivered message rather
+than a predicted fan-out beside the owner fan-out. Chrome's full Web and
+two-tab-session witnesses and Expo's ten simulator steps separately pass on the
+preceding equivalent runtime. The count/messages/preview query remains one
+observed value; the application does not need a second aggregate merge policy.
+
+Actual owner measurements also exposed a gap that direct runtime benchmarks
+missed: selecting affected prefixes and mapping IDs still scanned unrelated
+subscriptions. The core now seeks typed prefix paths, and the owner uses the
+existing subscription ID directly. The real owner/frame matrix varies total
+and affected subscriptions independently and preserves unrelated-client silence.
+
+The current loop is easier to use: installed consumer checks take 23.98 seconds
+and project check 0.561 seconds on the reserved Mac. First-start doctor still
+misses its target at 0.609 seconds; its second 0.040-second sample is not a
+replacement result. The new upstream public zero-count proof also exposed a
+valid long reference and an absence/prediction custody seam. Those integration
+repairs remain in progress; these passing samples do not qualify them.
+
+## 2026-09-07 — Cold zero-count prediction and combined platforms qualify
+
+The final LLP 1018.000 product at `e94b0a610` passes the full canonical tests,
+16 actual browser steps, seven independent browser-session steps and all ten
+Expo simulator steps. A public count query now supplies the proof needed to
+predict the first allocation after a cold reopen; the count becomes one without
+application-authored proof plumbing. Equivalent answer refreshes preserve that
+intent's authority, while newer owner data and deletions override it. The valid
+long-reference case also passes wire acquisition, cold prediction and replay.
+
+This closes the count integration seam recorded above. It also shows why a
+warm in-memory demo was insufficient: the first attempted repair lost proof
+chronology on reopen. Binding the proof to the existing durable intent makes
+warm and cold behavior agree. The complete local runtime is 80,817 gzip bytes,
+within its 82,000 ceiling but above the 80,000 working target. The full client
+entry grows by 8,473 gzip bytes against the recorded pre-forwarding baseline.
+The existing first-doctor and blocking-suite time targets still miss; no new
+publication or holistic benchmark score follows from these source checks.
+
+## 2026-09-07 — Prediction authority and target arrival
+
+Broader review after the earlier checkpoint exposed two assumptions a warm
+count demo hid. An unrelated query can advance the client's global sequence,
+so that counter cannot authorize a predicted creation over an absent row.
+And an answer already held when a prediction begins cannot confirm the
+prediction merely because its sequence equals the returned commit sequence.
+The latter briefly rendered three chat messages with count two in Chrome.
+
+The corrected store binds each prediction to its original row or absence
+authority, preserves revocation even inside one combined negative/positive
+delivery, and waits for fresh aggregate authority before removing that
+prediction. The application needs no extra count workaround. At `3a66182cd`,
+all 781 Node tests, 16 browser steps, seven browser-session steps and ten Expo
+steps pass. Complete-runtime size is 81,373 gzip bytes, and the separate full
+client costs 9,024 gzip bytes over the measured baseline. These results replace
+the earlier checkpoint for the changed client code; failed samples remain
+recorded. The concurrently landed LLP 1018.003 now requires a further integration
+of its snapshot record and declared tombstones before this branch is delivered.

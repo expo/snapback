@@ -18,14 +18,18 @@
         },
         "indexes": {
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           },
           "byPhoto": {
-            "columns": [
-              "photo"
+            "components": [
+              {
+                "Column": "photo"
+              }
             ],
             "unique": false
           }

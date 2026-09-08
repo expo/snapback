@@ -3,7 +3,7 @@ import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { test } from "node:test";
 import { SnapbackRefusal, api, browserTokenStore } from "../dist/client.mjs";
 import { fixtureClient as createClient } from "./live-fixture.ts";
@@ -11,17 +11,16 @@ import { decodeDeliveryEnvelope } from "../dist/index.mjs";
 import { indexedDbRangeStore } from "../dist/react.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
 import { sqliteFactory } from "./sqlite-fixture.ts";
+import { offlineView } from "../dist/sqlite-test.mjs";
 import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
+
+import { certifiedDrain, certifiedDrainEnvelope, certifiedDrainMetadataResponse, generation, schemaHash, planHash, metadataResponse } from "./offline-metadata-fixture.ts";
 
 const emptyReceipt = () => ({ ranges: [], absences: [], verdicts: [] });
 const row = (table: string, id: string, body = id) => ({ table, id, row: { id, body } });
 const ref = (table: string, id: string) => ({ $row: { table, id } });
-const generation = "d".repeat(64);
-const schemaHash = "e".repeat(64);
-const planHash = "f".repeat(64);
-
 async function golden(name: string): Promise<any> {
-  const text = await readFile(new URL(`../../../corpus/offline/${name}`, import.meta.url), "utf8");
+  const text = await readFile(process.env.SNAPBACK2_CORPUS ? resolve(process.env.SNAPBACK2_CORPUS, "offline", name) : new URL(`../../../corpus/offline/${name}`, import.meta.url), "utf8");
   return JSON.parse(text);
 }
 
@@ -43,46 +42,16 @@ function deliveryFromEnvelope(op: string, args: unknown, value: any) {
 }
 
 const messageSchema = {
-  tables: { messages: { indexes: { byConversationAt: { columns: ["conversationId", "at", "id"] } } } },
+  tables: { messages: { columns: { id: "Id", conversationId: "Id", at: "Time", body: { Text: { max: 4000 } } }, indexes: { byConversationAt: { components: [{ Column: "conversationId" }, { Column: "at" }, { Column: "id" }] } } } },
 };
 
-function metadataResponse(input: RequestInfo | URL): Response | undefined {
-  const url = String(input);
-  if (url.endsWith("/api/manifest")) {
-    return new Response(JSON.stringify({
-      generation: "schema-generation",
-      programGeneration: generation,
-      ops: {},
-      channels: {},
-      auth: {},
-      tables: { messages: { retain: "delivered-history" } },
-    }), { status: 200 });
-  }
-  if (url.includes("/api/program?")) {
-    return new Response(JSON.stringify({
-      generation,
-      schemaHash,
-      programs: { "deliveries.inbox": { kind: "query", planHash, drain: { cursor: "c" },
-        ir: { args: { c: { Optional: "Cursor" } }, body: [] }, certificate: { plan_hash: planHash } } },
-      schema: {
-        tables: {
-          messages: {
-            columns: { id: "Id", conversationId: { Ref: { table: "conversations" } }, at: "Time", body: { Text: { max: 4000 } } },
-            indexes: { byConvTime: { columns: ["conversationId", "at", "id"], unique: false }, byId: { columns: ["id"], unique: true } },
-            retain: "delivered-history",
-          },
-        },
-      },
-    }), { status: 200 });
-  }
-  return undefined;
-}
+const evictionSchema = { tables: { messages: { ...messageSchema.tables.messages, indexes: { byConvTime: messageSchema.tables.messages.indexes.byConversationAt } } } };
 
 const range = (overrides: Record<string, unknown> = {}) => ({
   site: "thread.range",
   table: "messages",
   index: "byConvTime",
-  prefix: ["c1"],
+  prefix: [{ Scalar: "c1" }],
   order: "Asc",
   take: 50,
   after: null,
@@ -263,22 +232,23 @@ test("a process killed between file write and rename leaves the previous snapsho
 
 async function exerciseEvictions(store: any): Promise<void> {
   await store.open("dev:alice");
+  await store.commit({ schema: evictionSchema });
   const heldRange = range({ rowIds: ["m1", "m2"] });
   await store.commit({ deliveries: [{
     op: "thread", args: { c: null }, state: "complete",
     data: [ref("messages", "m1"), ref("messages", "m2")], next: null, seq: 1,
-    rows: [row("messages", "m1"), row("messages", "m2")],
+    rows: [{ table: "messages", id: "m1", row: { id: "m1", body: "m1", conversationId: "c1", at: 1 } }, { table: "messages", id: "m2", row: { id: "m2", body: "m2", conversationId: "c1", at: 2 } }],
     receipt: { ranges: [heldRange], absences: [], verdicts: [] },
   }] });
   await store.commit({ deliveries: [{
     op: "fresh", args: {}, state: "complete", data: ref("messages", "m2"), next: null, seq: 2,
-    rows: [row("messages", "m2")],
+    rows: [{ table: "messages", id: "m2", row: { id: "m2", body: "m2", conversationId: "c1", at: 2 } }],
     receipt: { ranges: [{ ...heldRange, rowIds: ["m2"] }], absences: [], verdicts: [] },
   }] });
   assert.deepEqual((await store.coverage()).rows.map((item) => item.id), ["m2"], "uniform-range hole evicts");
 
   const limitedRange = range({
-    site: "thread.limit", prefix: ["c2"], rowIds: ["m7", "m8", "m9"], stop: "Limit",
+    site: "thread.limit", prefix: [{ Scalar: "c2" }], rowIds: ["m7", "m8", "m9"], stop: "Limit",
   });
   await store.commit({ deliveries: [{
     op: "limited", args: {}, state: "capped",
@@ -297,7 +267,7 @@ async function exerciseEvictions(store: any): Promise<void> {
       { table: "messages", id: "m9", row: { id: "m9", conversationId: "c2", at: 9 } },
     ],
     receipt: { ranges: [{ ...limitedRange, rowIds: ["m7", "m9"] }], absences: [], verdicts: [] },
-  }], schema: { tables: { messages: { indexes: { byConvTime: { columns: ["conversationId", "at", "id"] } } } } } });
+  }], schema: evictionSchema });
   assert.equal((await store.coverage()).rows.some((item) => item.id === "m8"), false, "limited extent hole evicts");
 
   await store.commit({ deliveries: [{
@@ -411,6 +381,9 @@ test("O1a golden ranges evict only holes inside Exhausted bounds and the returne
   });
   limitedFresh.receipt.ranges[0].rowIds = ["message-1", "message-3"];
   delete limitedFresh.receipt.ranges[0].haloId;
+  await assert.rejects(store.commit({ deliveries: [deliveryFromEnvelope("limited-fresh", {}, limitedFresh)], schema: messageSchema }),
+    /conflicting durable fact/, "the old halo cannot be both present in the immutable pool and an interior checked hole");
+  limitedFresh.rows = limitedFresh.rows.filter((item: any) => item.id !== "message-2");
   await store.commit({
     deliveries: [deliveryFromEnvelope("limited-fresh", {}, limitedFresh)],
     schema: messageSchema,
@@ -439,6 +412,108 @@ test("the O1a whole-answer-null golden is hidden evidence and delivered-history 
   assert.equal(answer?.data.body, "hello");
   await store.close?.();
   await rm(root, { recursive: true, force: true });
+});
+
+test("retained reconstruction keeps independent pages and falls back when the rerun lacks authority", async () => {
+  const root = await tempRoot();
+  const store = fileRangeStore(root)();
+  await store.open("alice");
+  const message = (id: string, at: number) => ({
+    table: "messages", id, row: { id, body: id, conversationId: "c1", at },
+  });
+  await store.commit({ retention: { messages: "delivered-history" }, deliveries: [{
+    op: "thread", args: { c: null }, state: "capped",
+    data: [
+      { position: "first", message: ref("messages", "m1") },
+      { position: "second", message: ref("messages", "m2") },
+    ],
+    next: "server-page-2", seq: 10, rows: [message("m1", 1), message("m2", 2)],
+    receipt: { ranges: [range({ rowIds: ["m1", "m2"], stop: "Limit" })], absences: [], verdicts: [] },
+  }, {
+    op: "thread", args: { c: "server-page-2" }, state: "complete",
+    data: [
+      { position: "third", message: ref("messages", "m3") },
+      { position: "fourth", message: ref("messages", "m4") },
+    ],
+    next: null, seq: 10, rows: [message("m3", 3), message("m4", 4)],
+    receipt: { ranges: [range({ after: [2, "m2"], rowIds: ["m3", "m4"] })], absences: [], verdicts: [] },
+  }] });
+  await store.commit({ retention: { messages: "delivered-history" }, deliveries: [{
+    op: "thread", args: { c: null }, state: "capped",
+    data: [
+      { position: "first", message: ref("messages", "m1") },
+      { position: "second", message: null },
+    ],
+    next: "server-page-2", seq: 11, rows: [message("m1", 1)],
+    receipt: { ranges: [], absences: [["messages", "byId", ["m2"]]], verdicts: [] },
+  }] });
+
+  const retained = await store.answer<any>("thread", { c: null });
+  assert.equal(retained?.retained, true, "revoking one row conservatively purges its retained projection");
+  const secondPage = await store.answer<any>("thread", { c: "server-page-2" });
+  assert.deepEqual(secondPage?.data.map((entry: any) => entry.message.id), ["m3", "m4"],
+    "history outside the bounded answer remains in its independently held page");
+
+  const currentPage = [
+    { position: "first", message: { id: "m1", body: "m1", conversationId: "c1", at: 1 } },
+    { position: "second", message: null },
+  ];
+  const reconstructed = offlineView(retained, {
+    state: "capped", data: currentPage, next: "local-page-2", seq: 99,
+  });
+  assert.equal(reconstructed.state, "capped");
+  assert.deepEqual(reconstructed.data, currentPage, "a complete local rerun repairs only the authored page");
+  assert.equal(reconstructed.next, "local-page-2", "the reconstructed page keeps its own continuation");
+  assert.equal(reconstructed.seq, retained.seq, "reconstruction retains the issuing owner sequence");
+
+  for (const local of [{ state: "partial", reason: "never-held", site: "thread.range", seq: 99 },
+    { state: "denied", rule: "MEMBERSHIP_REQUIRED", seq: 99 }] as const) {
+    const fallback = offlineView(retained, local);
+    assert.equal(fallback.retained, true);
+    assert.deepEqual(fallback.data, retained.data,
+      `${local.state} local evidence cannot replace readable delivered history`);
+    assert.equal(fallback.next, "server-page-2", "missing authority preserves the held continuation");
+  }
+  assert.deepEqual((await store.answer<any>("thread", { c: "server-page-2" }))?.data, secondPage?.data,
+    "selecting the current bounded reconstruction does not rewrite another held page");
+  await store.close?.();
+  await rm(root, { recursive: true, force: true });
+});
+
+test("a maintained-coherence partial waits for its named owner through later overlays", () => {
+  const held = {
+    op: "deliveries.conversationView", args: { conversationId: "c1" }, state: "partial" as const,
+    reason: "maintained-coherence", data: { messages: [{ id: "old" }], count: 2, preview: [] },
+    seq: 7, deliveredAt: 100,
+  };
+  const mixed = offlineView(held, {
+    state: "complete", data: { messages: [{ id: "old" }], count: 1, preview: [] }, next: null, seq: 8,
+    predicted: ["conversation-b"],
+  });
+  assert.equal(mixed.state, "partial");
+  assert.equal(mixed.reason, "maintained-coherence");
+  const predicted = offlineView(held, {
+    state: "complete", data: { messages: [{ id: "new" }, { id: "old" }], count: 3, preview: [{ id: "new" }] },
+    next: null, seq: 8, predicted: ["intent"],
+  });
+  assert.equal(predicted.state, "partial");
+  assert.equal(predicted.reason, "maintained-coherence");
+});
+
+test("an exact cached scalar survives an uncovered cold rerun but not a newer local prediction", () => {
+  const held = {
+    op: "caps.countFor", args: { principal: "dev:zero" }, state: "complete" as const,
+    data: 0, next: null, seq: 7, deliveredAt: 100,
+  };
+  const cold = offlineView(held, { state: "partial", reason: "missing-authority", site: "count", seq: 7 });
+  assert.equal(cold.state, "complete");
+  assert.equal(cold.data, 0);
+  assert.deepEqual(cold.stale, { since: 100 });
+  const predicted = offlineView(held, {
+    state: "partial", reason: "missing-authority", site: "count", seq: 8, predicted: ["intent"], data: 1,
+  });
+  assert.equal(predicted.state, "partial");
+  assert.equal(predicted.data, 1, "new local work is not hidden behind an older cached scalar");
 });
 
 test("sequence fences make absence, hidden, and tombstone evidence monotonic and deliveries idempotent", async () => {
@@ -568,7 +643,7 @@ test("seal survives a cold open, confirmed re-auth unseals, and wipe deletes the
 test("carrier open failures and a second web lock holder refuse loudly", async () => {
   const badFactory: any = () => ({
     open: async () => { throw new Error("disk unavailable"); }, seal: async () => undefined,
-    wipe: async () => undefined, answer: async () => undefined, commit: async () => undefined,
+    wipe: async () => undefined, answer: async () => undefined, commit: async () => undefined, subscribeInputs: () => () => undefined,
     coverage: async () => ({ rows: [], ranges: [], absences: [], verdicts: [], watermarks: [] }),
     outbox: { all: async () => [], get: async () => undefined, put: async () => undefined, remove: async () => undefined },
   });
@@ -577,14 +652,14 @@ test("carrier open failures and a second web lock holder refuse loudly", async (
   await assert.rejects(bad.ready, (error: unknown) => error instanceof SnapbackRefusal
     && error.code === "E_OFFLINE_CARRIER" && error.envelope.rewrite?.includes("broken-test") === true);
 
-  // A second web tab of the same account is not refused: it follows the writer
-  // (live reads, writes refused E_OFFLINE_FOLLOWER) until that tab closes.
+  // A second web tab of the same account opens as a follower. This carrier
+  // test has no forwarding peer; the protocol remains in explicit discovery.
   const shared = indexedFactory();
   const first = createClient({ url: "http://offline.test", as: "alice", offline: { store: shared.factory } });
   await first.ready;
   const second = createClient({ url: "http://offline.test", as: "alice", offline: { store: shared.factory } });
   await second.ready;
-  assert.equal((await second.outbox.status()).reason, "follower");
+  assert.equal((await second.outbox.status()).reason, "writer-discovery");
   first.close();
   second.close();
 });
@@ -625,7 +700,7 @@ test("offline setup accepts unbranded custom and callable stores, invoking each 
     let calls = 0, opens = 0;
     const methods = {
       open: async () => { opens++; }, unseal: async () => {}, seal: async () => {}, wipe: async () => {},
-      answer: async () => undefined, commit: async () => {},
+      answer: async () => undefined, commit: async () => {}, subscribeInputs: () => () => undefined,
       coverage: async () => ({ rows: [], ranges: [], absences: [], verdicts: [], watermarks: [] }),
       outbox: { all: async () => [], get: async () => undefined, put: async () => {}, remove: async () => {},
         grant: async () => undefined, grants: async () => [], bounds: async () => ({}),
@@ -995,7 +1070,7 @@ test("drain true follows five pages, persists the watermark, and follows a new t
     url: "http://drain.test", as: "alice", offline: { store: fileRangeStore(root) },
     fetch: async (input, init) => {
       const url = String(input);
-      const metadata = metadataResponse(input);
+      const metadata = certifiedDrainMetadataResponse(input);
       if (metadata) return metadata;
       if (url.endsWith("/api/resume")) {
         return new Response(JSON.stringify({ code: "E_ROUTE", family: "op", message: "not found", guide: "op/reference" }), { status: 404 });
@@ -1004,14 +1079,14 @@ test("drain true follows five pages, persists the watermark, and follows a new t
         const args = JSON.parse(String(init?.body)).args;
         cursors.push(args.c);
         const next = nextByCursor.get(args.c);
-        const page = envelope([args.c], String(cursors.length).repeat(64), cursors.length);
+        const page = certifiedDrainEnvelope([args.c], String(cursors.length).repeat(64), cursors.length);
         page.state = next === null ? "complete" : "capped";
         page.next = next;
         return new Response(JSON.stringify(page), { status: 200 });
       }
       subscriptions += 1;
       if (subscriptions !== 1) return sse(undefined, true);
-      const tail = envelope(["tail"], "a".repeat(64), 10);
+      const tail = certifiedDrainEnvelope(["tail"], "a".repeat(64), 10);
       tail.state = "capped";
       tail.next = "c5";
       return sse(tail);
@@ -1019,7 +1094,7 @@ test("drain true follows five pages, persists the watermark, and follows a new t
   });
   await client.ready;
   const seen: any[] = [];
-  const drain = client.subscribe(api.deliveries.inbox as any, { c: null }, (value) => seen.push(value), { drain: true });
+  const drain = client.subscribe((api as any).local.partial, { c: null }, (value) => seen.push(value), { drain: true });
   const caught = await drain.until((value) => value.state === "complete" && value.caughtUp === true && value.watermark === "c5", 2_000);
   assert.equal(caught.state, "complete");
   assert.deepEqual(cursors, [null, "c1", "c2", "c3", "c4", "c5"]);
@@ -1030,19 +1105,19 @@ test("drain true follows five pages, persists the watermark, and follows a new t
   const watermark = (await inspect.coverage()).watermarks[0];
   assert.equal(watermark?.watermark, "c5");
   assert.equal(watermark?.validator, "6".repeat(64), "the base args carry the tail answer's validator");
-  const heldDrain = await inspect.answer("deliveries.inbox", { c: null });
+  const heldDrain = await inspect.answer(certifiedDrain.op, { c: null });
   assert.equal(heldDrain?.caughtUp, true);
   assert.equal(heldDrain?.watermark, "c5");
   const coverageBefore = await inspect.coverage();
   await inspect.close?.();
-  // A cold reopen with the transport cut: the drain is answered from the store, adopts the
-  // persisted watermark instead of the twin's own page chain, and records nothing (LLP 1012 §6).
+  // A cold reopen adopts the persisted watermark instead of the twin's own
+  // page chain, and records nothing (LLP 1012 §6).
   const cold = createClient({
     url: "http://drain.test", as: "alice", offline: { store: fileRangeStore(root) }, startOffline: true,
     fetch: async () => { throw new TypeError("network cut"); },
   } as Parameters<typeof createClient>[0]);
   await cold.ready;
-  const coldDrain = cold.subscribe(api.deliveries.inbox as any, { c: null }, () => undefined, { drain: true });
+  const coldDrain = cold.subscribe((api as any).local.partial, { c: null }, () => undefined, { drain: true });
   const coldCaught = await coldDrain.until((value) => (value.state === "complete" || value.state === "capped") && value.caughtUp === true, 2_000);
   assert.equal(coldCaught.watermark, "c5", "an offline drain adopts the persisted watermark");
   assert.equal(coldCaught.connection, "offline");
@@ -1051,7 +1126,7 @@ test("drain true follows five pages, persists the watermark, and follows a new t
   const reopened = fileRangeStore(root)();
   await reopened.open("dev:alice");
   assert.deepEqual(await reopened.coverage(), coverageBefore, "an offline drain writes no coverage");
-  assert.equal((await reopened.answer("deliveries.inbox", { c: null }))?.watermark, "c5");
+  assert.equal((await reopened.answer(certifiedDrain.op, { c: null }))?.watermark, "c5");
   await reopened.close?.();
   await rm(root, { recursive: true, force: true });
 });
@@ -1063,18 +1138,18 @@ function envelope(data: unknown, validator = "1".repeat(64), seq = 3) {
     rows: [], receipt: emptyReceipt(), validator,
   };
 }
-
-async function seededResumeStore(root: string): Promise<void> {
+async function seededResumeStore(root: string, exact = false): Promise<void> {
+  const identity = exact ? certifiedDrain : { op: "deliveries.inbox", generation, schemaHash };
   const store = fileRangeStore(root)();
   await store.open("dev:alice");
   await store.commit({
     deliveries: [{
-      op: "deliveries.inbox", args: { c: null }, state: "complete", data: [], next: null, seq: 3,
+      op: identity.op, args: { c: null }, state: "complete", data: [], next: null, seq: 3,
       validator: "1".repeat(64), receipt: emptyReceipt(),
     }],
     watermark: {
-      op: "deliveries.inbox", args: { c: null }, watermark: "cursor-9", validator: "1".repeat(64),
-      generation, schemaHash, authEpoch: 7, updatedAt: 10,
+      op: identity.op, args: { c: null }, watermark: "cursor-9", validator: "1".repeat(64),
+      generation: identity.generation, schemaHash: identity.schemaHash, authEpoch: 7, updatedAt: 10,
     },
   });
   await store.close?.();
@@ -1117,36 +1192,36 @@ test("cold resume sends the bounded shape before subscribe and a 404 falls back 
 
 test("resume excludes its drain mount and atomically preserves a full log watermark and validator", async () => {
   const root = await tempRoot();
-  await seededResumeStore(root);
+  await seededResumeStore(root, true);
   let resumes = 0;
   let reconnectRequest: any;
   const client = createClient({
     url: "http://resume-watermark.test", as: "alice", offline: { store: fileRangeStore(root) },
     fetch: async (input, init) => {
       const url = String(input);
-      const metadata = metadataResponse(input);
+      const metadata = certifiedDrainMetadataResponse(input);
       if (metadata) return metadata;
       if (url.endsWith("/api/resume")) {
         const request = JSON.parse(String(init?.body));
         resumes += 1;
         if (resumes === 1) return new Response(JSON.stringify({
-          seq: 3, generation, schemaHash,
+          seq: 3, generation: certifiedDrain.generation, schemaHash: certifiedDrain.schemaHash,
           authority: { principal: "dev:alice", authEpoch: 7 }, log: { unchanged: true }, mounted: [],
         }), { status: 200 });
         reconnectRequest = request;
         return new Response(JSON.stringify({
-          seq: 5, generation, schemaHash,
+          seq: 5, generation: certifiedDrain.generation, schemaHash: certifiedDrain.schemaHash,
           authority: { principal: "dev:alice", authEpoch: 7 },
-          log: { ...envelope([], "8".repeat(64), 5), watermark: "cursor-10" },
+          log: { ...certifiedDrainEnvelope([], "8".repeat(64), 5), watermark: "cursor-10" },
           mounted: [],
         }), { status: 200 });
       }
-      if (url.includes("/api/query")) return new Response(JSON.stringify(envelope([], "4".repeat(64), 4)), { status: 200 });
+      if (url.includes("/api/query")) return new Response(JSON.stringify(certifiedDrainEnvelope([], "4".repeat(64), 4)), { status: 200 });
       return sse(undefined, true);
     },
   });
   await client.ready;
-  const drain = client.subscribe(api.deliveries.inbox as any, { c: null }, () => undefined, { drain: true });
+  const drain = client.subscribe((api as any).local.partial, { c: null }, () => undefined, { drain: true });
   await drain.until((value) => value.state === "complete" && value.caughtUp === true);
   await client.offline();
   await client.online();
@@ -1155,7 +1230,7 @@ test("resume excludes its drain mount and atomically preserves a full log waterm
   client.close();
   const inspect = fileRangeStore(root)();
   await inspect.open("dev:alice");
-  const watermark = (await inspect.coverage()).watermarks.find((item) => item.op === "deliveries.inbox");
+  const watermark = (await inspect.coverage()).watermarks.find((item) => item.op === certifiedDrain.op);
   assert.equal(watermark?.watermark, "cursor-10");
   assert.equal(watermark?.validator, "8".repeat(64));
   await inspect.close?.();
@@ -1188,7 +1263,7 @@ test("E_OFFLINE_RESET drops coverage but preserves the durable outbox slot", asy
 
 test("E_OFFLINE_RESET cold-drains a mounted drain from the null cursor", async () => {
   const root = await tempRoot();
-  await seededResumeStore(root);
+  await seededResumeStore(root, true);
   let resumes = 0;
   const queryCursors: Array<string | null> = [];
   let sawResetDrain!: () => void;
@@ -1197,12 +1272,12 @@ test("E_OFFLINE_RESET cold-drains a mounted drain from the null cursor", async (
     url: "http://reset-drain.test", as: "alice", offline: { store: fileRangeStore(root) },
     fetch: async (input, init) => {
       const url = String(input);
-      const metadata = metadataResponse(input);
+      const metadata = certifiedDrainMetadataResponse(input);
       if (metadata) return metadata;
       if (url.endsWith("/api/resume")) {
         resumes += 1;
         if (resumes === 1) return new Response(JSON.stringify({
-          seq: 3, generation, schemaHash,
+          seq: 3, generation: certifiedDrain.generation, schemaHash: certifiedDrain.schemaHash,
           authority: { principal: "dev:alice", authEpoch: 7 }, log: { unchanged: true }, mounted: [],
           grant: { id: "s2id-00000000000000000000000000000001-0000000000000001", from: "s2id-00000000000000000000000000000001-0000000000000001", count: 8192, mintedAt: Date.now(), expiresAt: Date.now() + 86400000 },
         }), { status: 200 });
@@ -1227,7 +1302,7 @@ test("E_OFFLINE_RESET cold-drains a mounted drain from the null cursor", async (
   let caughtUpEvents = 0;
   let sawResetSettled!: () => void;
   const resetSettled = new Promise<void>((resolve) => { sawResetSettled = resolve; });
-  const drain = client.subscribe(api.deliveries.inbox as any, { c: null }, (event: any) => {
+  const drain = client.subscribe((api as any).local.partial, { c: null }, (event: any) => {
     if (event.caughtUp === true && ++caughtUpEvents === 2) sawResetSettled();
   }, { drain: true });
   await drain.until((value) => value.state === "complete" && value.caughtUp === true);
@@ -1244,7 +1319,7 @@ test("E_OFFLINE_RESET cold-drains a mounted drain from the null cursor", async (
   } finally {
     if (resetTimer) clearTimeout(resetTimer);
   }
-  assert.deepEqual(queryCursors, [null, null, null], "initial drain, reset drain, and pending mounted coverage revalidation all restart at the root");
+  assert.deepEqual(queryCursors, [null, null], "the initial drain and its reset replacement both restart at the root; drains are not redundantly revalidated as mounted queries");
   drain.close();
   await client.close();
   await rm(root, { recursive: true, force: true });
@@ -1400,7 +1475,7 @@ test("a clock-reading program's later execution installs at the same seq; older,
   const root = await tempRoot();
   let store = fileRangeStore(root)();
   await store.open("dev:alice");
-  const timed = { op: "clock.serverNow", args: {}, state: "complete" as const, next: null, seq: 7, receipt: emptyReceipt() };
+  const timed = { op: "clock.serverNow", args: {}, state: "complete" as const, next: null, seq: 7, receipt: emptyReceipt(), clockPlanHash: planHash };
   await store.commit({ deliveries: [{ ...timed, data: { now: 1000 }, validator: "1".repeat(64), readTime: 1000 }] });
   await store.commit({ deliveries: [{ ...timed, data: { now: 2000 }, validator: "2".repeat(64), readTime: 2000 }] });
   assert.deepEqual((await store.answer("clock.serverNow", {}))?.data, { now: 2000 }, "a later execution installs at the same seq");

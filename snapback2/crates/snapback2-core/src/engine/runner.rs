@@ -51,6 +51,11 @@ pub(super) struct Runner<'a> {
     pub(super) tx: &'a Transaction<'a>,
     pub(super) schema: &'a Schema,
     pub(super) hashes: &'a hashes::PolicyHashes,
+    pub(super) search_terms: BTreeMap<(String, usize), crate::search_key::LogicalIndexAtom>,
+    pub(super) search_nodes: BTreeMap<(String, String, String), Option<i64>>,
+    pub(super) derived_live_bytes: u64,
+    pub(super) derived_temporary_peak: u64,
+    pub(super) account_search_pool: bool,
     pub(super) row_membership: row_membership::RowMembership,
     pub(super) certificate: Option<&'a Certificate>,
     pub(super) rule_certificate: Option<&'a RuleCertificate>,
@@ -103,6 +108,16 @@ impl<'a> Runner<'a> {
             tx,
             schema,
             hashes,
+            search_terms: Default::default(),
+            search_nodes: Default::default(),
+            derived_live_bytes: 0,
+            derived_temporary_peak: 0,
+            account_search_pool: certificate.read_sites.iter().any(|r| {
+                schema
+                    .table(&r.table)
+                    .and_then(|t| t.index(&r.index))
+                    .is_some_and(|i| i.derived_offset().is_some())
+            }),
             row_membership: Default::default(),
             certificate: Some(certificate),
             rule_certificate: None,
@@ -148,6 +163,11 @@ impl<'a> Runner<'a> {
             tx,
             schema,
             hashes,
+            search_terms: Default::default(),
+            search_nodes: Default::default(),
+            derived_live_bytes: 0,
+            derived_temporary_peak: 0,
+            account_search_pool: false,
             row_membership: Default::default(),
             certificate: None,
             rule_certificate,
@@ -681,12 +701,16 @@ impl<'a> Runner<'a> {
                 .now
                 .map(Value::Int)
                 .ok_or_else(|| RuntimeError::Input("now was not pinned".to_owned())),
-            Input::NewId => self
-                .context
-                .new_ids
-                .pop_front()
-                .map(Value::Id)
-                .ok_or_else(|| RuntimeError::Input("newId envelope exhausted".to_owned())),
+            Input::NewId => {
+                let value = self
+                    .context
+                    .new_ids
+                    .pop_front()
+                    .map(Value::Id)
+                    .ok_or_else(|| RuntimeError::Input("newId envelope exhausted".into()))?;
+                crate::value::validate_identities(&value)?;
+                Ok(value)
+            }
             Input::ReadTime => self
                 .context
                 .read_time
@@ -849,18 +873,6 @@ impl<'a> Runner<'a> {
                         .unwrap_or(Ordering::Equal)
                 });
                 Ok(Value::Array(values))
-            }
-            Builtin::Words => {
-                let text = args.remove(0).as_str()?.to_owned();
-                let mut seen = BTreeSet::new();
-                Ok(Value::Array(
-                    text.split(|c: char| !c.is_ascii_alphanumeric())
-                        .filter(|word| !word.is_empty())
-                        .map(str::to_ascii_lowercase)
-                        .filter(|word| seen.insert(word.clone()))
-                        .map(Value::String)
-                        .collect(),
-                ))
             }
             Builtin::MentionTokens => {
                 let text = args.remove(0).as_str()?.to_owned();
@@ -1025,7 +1037,8 @@ impl<'a> Runner<'a> {
                 .push(checkpoint.rule_inputs..self.trace.rule_inputs.len());
         }
         for row in self.receipt.rows.drain(checkpoint.rows..) {
-            self.row_membership.remove_receipt(&self.trace.rows, &row.table, &row.id);
+            self.row_membership
+                .remove_receipt(&self.trace.rows, &row.table, &row.id);
         }
         self.receipt.ranges.truncate(checkpoint.ranges);
         self.receipt.absences.truncate(checkpoint.absences);

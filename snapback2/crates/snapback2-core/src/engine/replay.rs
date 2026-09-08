@@ -140,7 +140,15 @@ pub(super) fn settle(
         let state = ExecutionState::Partial {
             reason: MISSING_AUTHORITY_LABEL.to_owned(),
         };
-        return settle_early(transaction, principal, replay, trace, receipt, state, current_seq);
+        return settle_early(
+            transaction,
+            principal,
+            replay,
+            trace,
+            receipt,
+            state,
+            current_seq,
+        );
     }
     let flow = match attempted {
         Ok(flow) => flow,
@@ -163,7 +171,15 @@ pub(super) fn settle(
                     message: error.to_string(),
                 },
             };
-            return settle_early(transaction, principal, replay, trace, receipt, state, current_seq);
+            return settle_early(
+                transaction,
+                principal,
+                replay,
+                trace,
+                receipt,
+                state,
+                current_seq,
+            );
         }
     };
     let (result, result_provenance) = match flow {
@@ -371,6 +387,7 @@ fn settle_after_run(
         kind: kind.to_owned(),
         by: None,
         touched: execution.trace.touched.clone(),
+        scope_touches: execution.trace.scope_touches.clone(),
         writes: execution.trace.writes.clone(),
         emits: execution.trace.emits.len() as u64,
     };
@@ -452,7 +469,7 @@ mod tests {
                 stop: StopReason::Exhausted,
                 absence: true,
                 halo: None,
-                n2_key: None,
+                n2_suffix: None,
             }],
             ..AuthoritativeTrace::default()
         }
@@ -469,7 +486,10 @@ mod tests {
                 result: true,
             }],
         };
-        assert_eq!(conflict_site(&expected, &actual.points, &actual.rule_inputs, true), None);
+        assert_eq!(
+            conflict_site(&expected, &actual.points, &actual.rule_inputs, true),
+            None
+        );
         expected.points[0].digest = Some("d".repeat(64));
         assert_eq!(
             conflict_site(&expected, &actual.points, &actual.rule_inputs, true).as_deref(),
@@ -504,7 +524,10 @@ mod tests {
             points: vec![expected_point(None)],
             verdicts: Vec::new(),
         };
-        assert_eq!(conflict_site(&expected, &actual.points, &actual.rule_inputs, true), None);
+        assert_eq!(
+            conflict_site(&expected, &actual.points, &actual.rule_inputs, true),
+            None
+        );
         let seen = ReplayTrace {
             points: vec![expected_point(Some("a".repeat(64)))],
             verdicts: Vec::new(),
@@ -577,7 +600,10 @@ mod tests {
             conflict_site(&expected, &actual.points, &actual.rule_inputs, true).as_deref(),
             Some("messages.byId")
         );
-        assert_eq!(conflict_site(&expected, &actual.points, &actual.rule_inputs, false), None);
+        assert_eq!(
+            conflict_site(&expected, &actual.points, &actual.rule_inputs, false),
+            None
+        );
     }
 
     /// A replayed insert whose rule needs a verdict this engine does not hold

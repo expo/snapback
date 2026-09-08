@@ -18,15 +18,21 @@
         },
         "indexes": {
           "byGroup": {
-            "columns": [
-              "groupId",
-              "id"
+            "components": [
+              {
+                "Column": "groupId"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           },
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -64,14 +70,18 @@
         },
         "indexes": {
           "byGroup": {
-            "columns": [
-              "columnId"
+            "components": [
+              {
+                "Column": "columnId"
+              }
             ],
             "unique": true
           },
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -114,16 +124,24 @@
         },
         "indexes": {
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           },
           "byParentOrder": {
-            "columns": [
-              "columnId",
-              "order",
-              "id"
+            "components": [
+              {
+                "Column": "columnId"
+              },
+              {
+                "Column": "order"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           }
@@ -166,16 +184,24 @@
         },
         "indexes": {
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           },
           "byParentOrder": {
-            "columns": [
-              "boardId",
-              "order",
-              "id"
+            "components": [
+              {
+                "Column": "boardId"
+              },
+              {
+                "Column": "order"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           }
@@ -216,8 +242,10 @@
         },
         "indexes": {
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -260,15 +288,21 @@
         },
         "indexes": {
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           },
           "byPair": {
-            "columns": [
-              "lo",
-              "hi"
+            "components": [
+              {
+                "Column": "lo"
+              },
+              {
+                "Column": "hi"
+              }
             ],
             "unique": true
           }
@@ -311,14 +345,18 @@
         },
         "indexes": {
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           },
           "byUser": {
-            "columns": [
-              "userId"
+            "components": [
+              {
+                "Column": "userId"
+              }
             ],
             "unique": true
           }
@@ -341,15 +379,21 @@
         },
         "indexes": {
           "byGroup": {
-            "columns": [
-              "groupId",
-              "id"
+            "components": [
+              {
+                "Column": "groupId"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           },
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -396,29 +440,43 @@
         },
         "indexes": {
           "byConvUser": {
-            "columns": [
-              "conversationId",
-              "userId"
+            "components": [
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "userId"
+              }
             ],
             "unique": true
           },
           "byConversation": {
-            "columns": [
-              "conversationId",
-              "userId"
+            "components": [
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "userId"
+              }
             ],
             "unique": false
           },
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           },
           "byUserActivity": {
-            "columns": [
-              "userId",
-              "activity"
+            "components": [
+              {
+                "Column": "userId"
+              },
+              {
+                "Column": "activity"
+              }
             ],
             "unique": false
           }
@@ -485,23 +543,35 @@
         },
         "indexes": {
           "byConvTime": {
-            "columns": [
-              "conversationId",
-              "at",
-              "id"
+            "components": [
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "at"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           },
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           },
           "byToken": {
-            "columns": [
-              "body",
-              "id"
+            "components": [
+              {
+                "Column": "body"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           }
@@ -574,15 +644,21 @@
         },
         "indexes": {
           "byGroup": {
-            "columns": [
-              "groupId",
-              "userId"
+            "components": [
+              {
+                "Column": "groupId"
+              },
+              {
+                "Column": "userId"
+              }
             ],
             "unique": true
           },
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -623,8 +699,10 @@
         },
         "indexes": {
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -661,23 +739,35 @@
         },
         "indexes": {
           "byExpense": {
-            "columns": [
-              "expenseId",
-              "id"
+            "components": [
+              {
+                "Column": "expenseId"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           },
           "byGroupUser": {
-            "columns": [
-              "groupId",
-              "userId",
-              "id"
+            "components": [
+              {
+                "Column": "groupId"
+              },
+              {
+                "Column": "userId"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           },
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -720,15 +810,21 @@
         },
         "indexes": {
           "byConvUser": {
-            "columns": [
-              "conversationId",
-              "userId"
+            "components": [
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "userId"
+              }
             ],
             "unique": true
           },
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -770,20 +866,26 @@
         },
         "indexes": {
           "byHandle": {
-            "columns": [
-              "handle"
+            "components": [
+              {
+                "Column": "handle"
+              }
             ],
             "unique": true
           },
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           },
           "byPrincipal": {
-            "columns": [
-              "principal"
+            "components": [
+              {
+                "Column": "principal"
+              }
             ],
             "unique": true
           }
@@ -821,14 +923,18 @@
         },
         "indexes": {
           "byGroup": {
-            "columns": [
-              "resourceId"
+            "components": [
+              {
+                "Column": "resourceId"
+              }
             ],
             "unique": true
           },
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -866,15 +972,21 @@
         },
         "indexes": {
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           },
           "byResource": {
-            "columns": [
-              "resourceId",
-              "id"
+            "components": [
+              {
+                "Column": "resourceId"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           }
@@ -959,7 +1071,9 @@
               "index": "byUserActivity",
               "prefix": [
                 {
-                  "Input": "Viewer"
+                  "Scalar": {
+                    "Input": "Viewer"
+                  }
                 }
               ],
               "order": "Desc",
@@ -1012,8 +1126,8 @@
   },
   "certificate": {
     "program": "inboxMaintainedComplete",
-    "plan_hash": "9c5c21cef39b5399733b986f7864d173098557eb59f5bb5e8c0ecda27079e903",
-    "schema_hash": "ca3541b06b95de38614652dfbb35f774aa5e3dbea4a7d1037d0c8cc8c73b715b",
+    "plan_hash": "9e55dc3879b5f723cff503731dadfbad12f37b07362f218a2ab2d6349482c128",
+    "schema_hash": "3e4d6cb0d9cc774cccfa5b8b6054bf0c44c609714fa58ef9cd4eee921bd28105",
     "tables": {
       "accounts": {
         "retain": "until-revoked"
@@ -1068,11 +1182,11 @@
       }
     },
     "rule_hashes": {
-      "memberships.read": "8d5f0355c09e907e8c646f319d3ae9665daa4d9577481aafa2ed34a89a9e241f",
-      "unreads.read": "eac77fb71425073399fb49dfee208e84da2b4d483662db945236c3ddc7cdb70d"
+      "memberships.read": "3ade239c6096ddda633835debdffd5e228d2bf99028ae3b910926cdab25802c6",
+      "unreads.read": "1d8d3e1fffce8674adaa3a3530c8cfa0532160a8f015033e4deaa5a13fc2e7d1"
     },
-    "evaluator_version": "bounded-spike-rust-1",
-    "value_model_version": "i53-codepoint-bytes-v2",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [
       {
         "site": "inboxComplete.memberships",
@@ -1105,6 +1219,8 @@
     "max_index_entries": 102,
     "max_rule_probes": 0,
     "max_steps": 716,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
     "max_heap_bytes": 22912,
     "max_output_bytes": 25912,
     "max_closure_bytes": 25850,
@@ -1131,7 +1247,7 @@
     "read_time": null
   },
   "receipt": {
-    "schema_hash": "ca3541b06b95de38614652dfbb35f774aa5e3dbea4a7d1037d0c8cc8c73b715b",
+    "schema_hash": "3e4d6cb0d9cc774cccfa5b8b6054bf0c44c609714fa58ef9cd4eee921bd28105",
     "rows": [
       {
         "table": "memberships",
@@ -1185,7 +1301,9 @@
         "index": "byUserActivity",
         "prefix": [
           {
-            "Id": "u1"
+            "Scalar": {
+              "Id": "u1"
+            }
           }
         ],
         "order": "Desc",
@@ -1196,14 +1314,14 @@
         "gte": null,
         "lt": null,
         "lte": null,
-        "rule_hash": "8d5f0355c09e907e8c646f319d3ae9665daa4d9577481aafa2ed34a89a9e241f",
+        "rule_hash": "3ade239c6096ddda633835debdffd5e228d2bf99028ae3b910926cdab25802c6",
         "row_ids": [
           "m1"
         ],
         "stop": "Exhausted",
         "absence": false,
         "halo": null,
-        "n2_key": null
+        "n2_suffix": null
       }
     ],
     "absences": [],

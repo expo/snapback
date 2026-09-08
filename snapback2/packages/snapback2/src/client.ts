@@ -1,9 +1,11 @@
+import { serverArguments } from "./local-cursor.js";
+import { mayNeedAssetPlanning } from "./assets.js";
 import { ClientAuth, anonymousAuth, restoreAuthToken, saveAuthToken, storageRefusal, ensureBearerTransition } from "./client-auth.js";
 import { SharedSse } from "./live.js";
 import type { AssetFetchOptions } from "./store/byte-cache.js";
 import { followerRefusal, throwIfAborted, withAbort } from "./client-wire.js";
 import { api, referenceName, type Api, type ApiProxy, type Channel as ChannelRef, type Op } from "./api.js";
-import { captureGrant, createOutboxApi, drainOutbox, submitMutation, type DrainResult } from "./client-outbox.js";
+import { captureGrant, createOutboxApi, drainOutbox, type DrainResult } from "./client-outbox.js";
 import {
   acceptOffline,
   answerOffline,
@@ -25,7 +27,7 @@ import {
   assetHeadersFor,
   assetUrlFor,
   uploadAsset,
-  withMutationUploads, listUploadsFor, discardUploadFor,
+  listUploadsFor, discardUploadFor,
   type Authority,
 } from "./client-upload.js";
 import {
@@ -44,40 +46,22 @@ import {
   wireSubscription,
 } from "./client-wire.js";
 import { admitDrain, InvalidOfflineStoreError, type OfflineRuntime, type MountedQuery } from "./offline.js";
-import { SharedSubscriptions, TabFollower } from "./client-sessions.js";
+import { TabFollower } from "./client-sessions.js";
+import { ClientQueries } from "./client-observed.js";
+import { ClientForwarding } from "./client-forwarding.js";
+import { performMutation, type MutationClient } from "./client-mutations.js";
 import { createChannel, type ChannelHost } from "./client-channels.js";
 import { ReconnectingSse } from "./sse.js";
 import type { SseResponse } from "./sse-parser.js";
 import { stableSerialize } from "./types.js";
 import type {
-  AssetInput,
-  AssetRecord,
-  AssetUploadOptions,
-  AssetUploadSource,
-  AssetUrlOptions,
-  AuthMe,
-  AuthSession,
-  AuthTokenStore,
-  ChannelHandle,
-  ChannelPublishResult,
-  ClientSnapshot,
-  CreateClientOptions,
-  ImageAsset,
-  LiveQueryDelivery,
-  Manifest,
-  MutationResult,
-  OutboxApi,
-  Principal,
-  QueryResult,
-  QueryRefusedDelivery,
-  RefusalEnvelope,
-  RefusedDelivery,
-  SnapbackClient,
-  Subscription,
-  SubscriptionDelivery,
-  VideoAsset,
+  AssetInput, AssetRecord, AssetUploadOptions, AssetUploadSource, AssetUrlOptions,
+  AuthMe, AuthSession, AuthTokenStore, ChannelHandle, ChannelPublishResult,
+  ClientSnapshot, CreateClientOptions, ImageAsset, LiveQueryDelivery, Manifest,
+  MutationRecovery, MutationResult, ObservedQuery, OutboxApi, Principal,
+  QueryResult, QueryRefusedDelivery, RefusalEnvelope, RefusedDelivery,
+  SnapbackClient, Subscription, SubscriptionDelivery, VideoAsset,
 } from "./types.js";
-
 export { api };
 export { SnapbackRefusal, isSnapbackRefusal };
 export { browserTokenStore } from "./token-store.js";
@@ -102,18 +86,15 @@ export type {
 } from "./store/range-store.js";
 export type { LocalAnswer, Prediction } from "./twin.js";
 export type { PartialReason, PartialSite } from "./twin-hydrate.js";
-
 type SessionExpiration =
   | { cleared: false }
   | { cleared: true; authGeneration: number; fence: number };
-
 type InternalClientOptions = CreateClientOptions & {
   offlinePrincipal?: Principal;
   offlineReadObserver?: (ref: unknown, args: unknown, result: unknown) => void;
   /** A restart of a device whose transport was cut boots cut, before any request. */
   startOffline?: boolean;
 };
-
 // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test — auth custody is restored explicitly and every principal transition fences old in-memory work.
 class Client implements SnapbackClient {
   readonly auth;
@@ -132,14 +113,10 @@ class Client implements SnapbackClient {
   private readonly offlineRuntime?: OfflineRuntime;
   private readonly live: SharedSse;
   private readonly mounted = new Map<string, MountedQuery>();
-  private readonly shared = new SharedSubscriptions();
-  /** This browser tab while another tab holds the account's writer lock (LLP 1018 §3). */
-  private readonly follower = new TabFollower<Authority>({
-    runtime: () => this.offlineRuntime!, closed: () => this.closed,
-    inherited: (principal) => { this.supersessionQueries.clear(); this.offlineMetadataLoaded = false; this.currentPrincipal = principal as Principal; },
-    takeover: () => this.takeover(), drain: (authority) => { void this.drainNow(authority).catch(() => undefined); },
-    failed: (error) => { this.patchSnapshot({ lastRefusal: this.offlineRefusal(error, "RangeStore.open").envelope }); },
-  });
+  private readonly queries: ClientQueries;
+  /** Browser-tab writer/follower ownership over the one persistent partition. */
+  private readonly forwarding: ClientForwarding;
+  private readonly follower: TabFollower<Authority>;
   private offlineMetadataLoaded = false;
   private offlineStartupPending = false;
   private resumeTail: Promise<void> = Promise.resolve();
@@ -195,7 +172,35 @@ class Client implements SnapbackClient {
       if (error instanceof InvalidOfflineStoreError) throw error;
       throw this.offlineRefusal(error);
     }
-    this.outbox = createOutboxApi(this.offlineRuntime, () => this.drainNow(), () => this.localReady, () => this.forcedOffline);
+    this.forwarding = new ClientForwarding({
+      url: this.url, runtime: this.offlineRuntime, closed: () => this.closed, fence: () => this.operationFence,
+      write: run => this.trackWrite(run), failure: (error, site) => this.offlineRefusal(error, site).envelope,
+      superseded: () => this.supersededRefusal(),
+      admitted: () => { void this.drainNow().catch(() => undefined); },
+    });
+    this.follower = new TabFollower<Authority>({
+      runtime: () => this.offlineRuntime!, closed: () => this.closed,
+      inherited: (principal) => {
+        this.supersessionQueries.clear(); this.offlineMetadataLoaded = false; this.currentPrincipal = principal as Principal;
+      },
+      following: (principal, authenticated, authEpoch) => this.forwarding.following(
+        principal, authenticated, authEpoch, this.persona !== undefined),
+      writer: () => this.forwarding.activate(),
+      stopped: () => this.forwarding.stop(),
+      takeover: () => this.takeover(), drain: (authority) => { void this.drainNow(authority).catch(() => undefined); },
+      failed: (error) => { this.patchSnapshot({ lastRefusal: this.offlineRefusal(error, "RangeStore.open").envelope }); },
+    });
+    this.queries = new ClientQueries({
+      identity: () => [this.authGeneration, this.operationFence],
+      active: ([generation, fence]) => !this.closed && this.authGeneration === generation && this.operationFence === fence,
+      connection: () => this.currentSnapshot.connection,
+      open: (ref, args, callback, drain) => drain ? this.drain(ref, args, callback) : this.subscribeRegular(ref, args, callback),
+      query: (ref, args) => this.query(ref, args),
+      local: (ref, args, drain) => answerOffline(this.offlineRuntime, referenceName(ref), args, error => this.offlineRefusal(error), drain),
+    });
+    this.offlineRuntime?.subscribeInputs(() => this.queries.refresh());
+    this.outbox = createOutboxApi(this.offlineRuntime, () => this.drainNow(), () => this.localReady,
+      () => this.forcedOffline, this.forwarding);
     this.auth = {
       signup: (input: { email: string; password: string }) => this.session("/api/auth/signup", input),
       login: (input: { email: string; password: string }) => this.session("/api/auth/login", input),
@@ -249,18 +254,20 @@ class Client implements SnapbackClient {
     this.ensureAuthority(authority);
     await this.ensureOfflineMetadata(authority);
     this.scheduleSupersessionReset(authority);
+    const transportArgs = serverArguments(args, this.offlineRuntime?.declaredCursorArg(op));
     let backoff = 50;
     for (let attempt = 1; ; attempt += 1) {
       try {
-        const held = await this.offlineRuntime?.answer(op, args);
+        const held = await this.offlineRuntime?.answer(op, transportArgs);
         const revision = this.offlineRuntime?.coverageRevision;
         const raw = await this.json(`/api/query?receipt=${this.offlineRuntime ? 1 : 0}${drain ? "&drain=1" : ""}`, {
           method: "POST",
-          body: JSON.stringify(this.offlineRuntime && held?.validator ? { op, args, validator: held.validator } : { op, args }),
+          body: JSON.stringify(this.offlineRuntime && held?.validator ? { op, args: transportArgs, validator: held.validator } : { op, args: transportArgs }),
         }, authority);
-        const accepted = await acceptOffline<Result>(this.offlineRuntime, op, args, raw, wireShape);
+        const accepted = await acceptOffline<Result>(this.offlineRuntime, op, transportArgs, raw, wireShape,
+          () => this.json("/api/query?receipt=1", { method: "POST", body: JSON.stringify({ op, args: transportArgs }) }, authority));
+        const superseded = await commitOffline(this.offlineRuntime, op, transportArgs, accepted, (error) => this.offlineRefusal(error, "client.query.commit"), revision);
         const result = wireQuery<Result>(accepted.result);
-        const superseded = await commitOffline(this.offlineRuntime, op, args, accepted, (error) => this.offlineRefusal(error, "client.query.commit"), revision);
         this.validated(authority);
         if (superseded || revision !== this.offlineRuntime?.coverageRevision) this.scheduleSupersessionReset(authority, { op, args });
         if (this.offlineRuntime && this.createOptions.offlineReadObserver) {
@@ -272,8 +279,7 @@ class Client implements SnapbackClient {
           );
           this.createOptions.offlineReadObserver(ref, args, held);
         }
-        // Every typed receipt terminates this request. In particular, an
-        // empty Capped array is the terminal drain state, never a retry cue.
+        // Every typed receipt, including an empty capped page, terminates this request.
         return result;
       } catch (error) {
         if (isSnapbackRefusal(error) && error.retryable && this.offlineRuntime && attempt >= 3) {
@@ -292,43 +298,15 @@ class Client implements SnapbackClient {
   }
 
   async mutation<Args, Result>(ref: Op<Args, Result>, args: AssetInput<Args>): Promise<MutationResult<Result>> {
-    const authority = await this.operationAuthority();
-    return this.trackWrite(async () => {
-      try {
-        const result = await withMutationUploads(this, referenceName(ref), args, authority,
-          () => this.manifestFor(authority), async (mutationArgs, onCustody) => {
-            const result = await submitMutation<Result>({
-              runtime: this.offlineRuntime, offline: this.forcedOffline, op: referenceName(ref), args: mutationArgs,
-              json: (path, init, onSend) => this.json(path, init, authority, { terminalSession: "after-cleanup", onSend }),
-              failure: (error) => this.offlineRefusal(error),
-              drain: () => this.drainNow(authority), onCustody,
-            });
-            // Settle authority before best-effort cleanup, whose 401 may expire
-            // the session without invalidating this already received outcome.
-            try { this.validated(authority); }
-            catch (error) {
-              // Supersession suppresses the receipt, not terminal evidence about
-              // its captured token. expireSession never clears successor custody.
-              if (result.state === "rejected" && isTerminalSession(result)) await this.expireSession(authority);
-              throw error;
-            }
-            return result;
-          });
-        if (result.state === "rejected" && isTerminalSession(result)) await this.terminalRefusal(authority, result, { preserveOutcome: true });
-        return result;
-      } catch (error) {
-        if (isSnapbackRefusal(error) && isTerminalSession(error.envelope)) await this.terminalRefusal(authority, error.envelope, { preserveOutcome: true });
-        if (isSnapbackRefusal(error) && error.code === "E_WIRE_SHAPE") {
-          const ambiguous = new SnapbackRefusal(copyRefusal(error.envelope), true);
-          this.patchSnapshot({
-            connection: this.transportFailureState(),
-            lastRefusal: ambiguous.envelope,
-          });
-          throw ambiguous;
-        }
-        throw error;
-      }
-    });
+    return performMutation(this as unknown as MutationClient, ref, args);
+  }
+
+  async recoverMutation<Args, Result>(
+    ref: Op<Args, Result>, args: AssetInput<Args>, recovery: MutationRecovery,
+  ): Promise<import("./types.js").MutationQueued | import("./types.js").MutationAdmissionUnknown> {
+    await this.operationAuthority();
+    if (mayNeedAssetPlanning(args)) return Promise.reject(followerRefusal("client.recoverMutation.upload"));
+    return this.trackWrite(() => this.forwarding.mutation(referenceName(ref), args, recovery), true);
   }
 
   upload(source: AssetUploadSource, options: AssetUploadOptions & { readonly kind: "image" }): Promise<ImageAsset>;
@@ -369,19 +347,21 @@ class Client implements SnapbackClient {
   get assetCache(): OfflineRuntime["bytes"] | undefined {
     return this.offlineRuntime?.bytes;
   }
+  observe<Args, Result>(
+    ref: Op<Args, Result>, args: Args, options: { live?: false; drain?: boolean } = {},
+  ): ObservedQuery<Result> {
+    return this.queries.observe(ref, args, options);
+  }
   subscribe<Args, Result>(
     ref: Op<Args, Result>,
     args: Args,
     callback: (delivery: SubscriptionDelivery<Result>) => void,
     options: { drain?: boolean } = {},
   ): Subscription<SubscriptionDelivery<Result>> {
-    // One entry per (authority generation, kind, op, args): later consumers attach to the first one's stream.
-    const key = `${this.authGeneration}\u0000${options.drain ? "drain" : "live"}\u0000${referenceName(ref)}\u0000${stableSerialize(args)}`;
-    return this.shared.attach<SubscriptionDelivery<Result>>(key, (fanout) =>
-      options.drain ? this.drain(ref, args, fanout) : this.subscribeRegular(ref, args, fanout), callback);
+    return this.queries.subscribe(ref, args, callback, options);
   }
   sharedConsumers(ref: Op<any, any>, args: unknown, drain = false): number {
-    return this.shared.consumers(`${this.authGeneration}\u0000${drain ? "drain" : "live"}\u0000${referenceName(ref)}\u0000${stableSerialize(args)}`);
+    return this.queries.consumers(ref, args, drain);
   }
   private subscribeRegular<Args, Result>(
     ref: Op<Args, Result>,
@@ -390,8 +370,9 @@ class Client implements SnapbackClient {
     drain = false,
   ): Subscription<SubscriptionDelivery<Result>> {
     const op = referenceName(ref);
+    let transportArgs = serverArguments(args, this.offlineRuntime?.declaredCursorArg(op));
     const mountedKey = `${op}\u0000live\u0000${stableSerialize(args)}`;
-    const mountedRecord: MountedQuery = { op, args, drain: false };
+    const mountedRecord: MountedQuery = { op, args: transportArgs, drain: false };
     if (!drain) this.mounted.set(mountedKey, mountedRecord);
     let lastPair: { seq: number; data?: Result } | undefined;
     let connected = false;
@@ -409,20 +390,24 @@ class Client implements SnapbackClient {
         if (this.forcedOffline) throw offlineNetworkRefusal();
         if (this.currentToken) await this.authState.settled(signal);
         await this.ensureOfflineMetadata(authority);
+        transportArgs = serverArguments(args, this.offlineRuntime?.declaredCursorArg(op));
+        mountedRecord.args = transportArgs;
+        if (!drain) this.mounted.set(mountedKey, mountedRecord);
         this.scheduleSupersessionReset(authority);
         revision = this.offlineRuntime?.coverageRevision;
-        const held = await this.offlineRuntime?.answer(op, args);
-        let path = `/api/subscribe?op=${encodeURIComponent(op)}&args=${encodeURIComponent(JSON.stringify(args))}`;
+        const held = await this.offlineRuntime?.answer(op, transportArgs);
+        let path = `/api/subscribe?op=${encodeURIComponent(op)}&args=${encodeURIComponent(JSON.stringify(transportArgs))}`;
         if (this.offlineRuntime) path += "&receipt=1";
         if (drain) path += "&drain=1";
         if (held?.validator) path += `&validator=${encodeURIComponent(held.validator)}`;
         return this.stream(path, lastEventId, signal, authority);
       },
       decode: ({ data }, current) => {
-        const frameRevision = revision;
+        const frameRevision = revision, frameAuthority = authority!, frameArgs = transportArgs;
         if (!this.offlineRuntime) return finish(wireSubscription<Result>(data, value => { connected = value; }));
         return decodeOfflineSubscription<Result>({
-          runtime: this.offlineRuntime, op, args, data, shape: wireShape,
+          runtime: this.offlineRuntime, op, args: frameArgs, data, shape: wireShape,
+          revalidate: () => this.json("/api/query?receipt=1", { method: "POST", body: JSON.stringify({ op, args: frameArgs }) }, frameAuthority),
           failure: (error) => this.offlineRefusal(error),
           revision: frameRevision, current,
           superseded: () => this.scheduleSupersessionReset(authority!, { op, args }),
@@ -486,6 +471,9 @@ class Client implements SnapbackClient {
       }
     }).catch(() => undefined);
     const close = tracked.close.bind(tracked);
+    const resettable = tracked as Subscription<SubscriptionDelivery<Result>> & { reset?(): void };
+    const reset = resettable.reset?.bind(resettable);
+    if (reset) resettable.reset = () => { lastPair = undefined; connected = false; reset(); };
     tracked.close = () => {
       closed = true;
       // Only this subscription's own record leaves the mounted set (a newer one of the same query keeps its own).
@@ -589,11 +577,13 @@ class Client implements SnapbackClient {
         this.closed = true;
         this.lifetimeController.abort();
         this.follower.stop();
+        this.forwarding.stop();
         this.authState.stop();
         this.abortSync();
         this.operationFence += 1;
         this.closeTransports();
         this.patchSnapshot({ connection: "offline" });
+        await this.forwarding.settled();
         await this.offlineRuntime?.close();
       },
       create: () => {
@@ -626,6 +616,7 @@ class Client implements SnapbackClient {
     this.lifetimeController.abort();
     this.startupController.abort();
     this.follower.stop();
+    this.forwarding.stop();
     this.authState.stop();
     this.abortSync();
     this.operationFence += 1;
@@ -633,7 +624,7 @@ class Client implements SnapbackClient {
     this.patchSnapshot({ connection: "offline" });
     // Resolves once the carrier is quiet: a test or a shutdown that removes the
     // store's directory right after close() would otherwise race the last swap.
-    this.closing = this.offlineRuntime?.close() ?? Promise.resolve();
+    this.closing = this.forwarding.settled().then(() => this.offlineRuntime?.close());
     return this.closing;
   }
   private track<Event>(subscription: Subscription<Event>): Subscription<Event> {
@@ -683,7 +674,6 @@ class Client implements SnapbackClient {
   }
 
   // @ref LLP 1012#7-writes-offline — confirmation after an interrupted startup
-  // must recover program custody and resume the outbox without a mounted query.
   private resumeAfterAuth(): void {
     if (!this.offlineStartupPending) return;
     // Capture only after every queued transition, including failures, settles.
@@ -1013,6 +1003,7 @@ class Client implements SnapbackClient {
   private async openOffline(principal: Principal, authenticated = false, authEpoch?: number): Promise<void> {
     if (!this.offlineRuntime) return;
     if (this.follower.confirm(principal, authenticated, authEpoch)) return;
+    this.forwarding.stop();
     try {
       const changed = this.offlineRuntime.principal !== principal;
       await this.offlineRuntime.open(principal, authenticated);
@@ -1021,9 +1012,10 @@ class Client implements SnapbackClient {
         this.supersessionQueries.clear();
         this.offlineMetadataLoaded = false;
       }
+      await this.forwarding.activate();
     } catch (error) {
-      // @ref LLP 1018#3-move-one-one-coherent-reactive-client — on web a held writer lock makes this
-      // client a follower: live reads, refused writes, the partition and its queue inherited on close.
+      // @ref LLP 1018.000#8-account-sessions-and-durable-follower-admission — on web a held writer lock makes this
+      // client a follower: live reads, forwarded replayable mutations, and partition takeover on writer close.
       const code = error && typeof error === "object" ? (error as { code?: unknown }).code : undefined;
       if (code === "E_OFFLINE_LOCK" && this.offlineRuntime.canFollow) {
         this.follower.begin(principal, authenticated, authEpoch);
@@ -1048,6 +1040,7 @@ class Client implements SnapbackClient {
 
   private async sealOffline(): Promise<void> {
     if (!this.offlineRuntime) return;
+    this.forwarding.stop();
     try { await this.offlineRuntime.seal(); }
     catch (error) { throw this.offlineRefusal(error, "RangeStore.seal"); }
   }
@@ -1056,6 +1049,7 @@ class Client implements SnapbackClient {
     if (!this.offlineRuntime) return;
     // A follower owns no partition: sign-out withdraws its wait and touches nothing the writer tab holds.
     this.follower.stop();
+    this.forwarding.stop();
     this.abortSync();
     this.supersessionQueries.clear();
     try { await this.offlineRuntime.wipe(); this.currentPrincipal = undefined; }
@@ -1136,7 +1130,7 @@ class Client implements SnapbackClient {
         reload: (current) => this.ensureOfflineMetadata(current, true, true, signal),
       });
       check();
-      if (reset) for (const item of this.mounted.values()) {
+      if (reset) for (const item of [...this.mounted.values()].filter(item => !item.drain)) {
         const principal = runtime.principal!;
         const key = `${principal}\u0000${item.op}\u0000${stableSerialize(item.args)}`;
         if (!this.supersessionQueries.has(key)) this.supersessionQueries.set(key, { principal, op: item.op, args: item.args });
@@ -1150,10 +1144,11 @@ class Client implements SnapbackClient {
         check();
         if (item.principal !== runtime.principal) continue;
         const raw = await json("/api/query?receipt=1", {
-          method: "POST", body: JSON.stringify({ op: item.op, args: item.args }),
+          method: "POST", body: JSON.stringify({ op: item.op, args: serverArguments(item.args, runtime.declaredCursorArg(item.op)) }),
         });
         check();
-        const accepted = await acceptOffline(runtime, item.op, item.args, raw, wireShape);
+        const accepted = await acceptOffline(runtime, item.op, item.args, raw, wireShape,
+          () => json("/api/query?receipt=1", { method: "POST", body: JSON.stringify({ op: item.op, args: serverArguments(item.args, runtime.declaredCursorArg(item.op)) }) }));
         check();
         wireQuery(accepted.result);
         superseded = await commitOffline(runtime, item.op, item.args, accepted,
@@ -1230,6 +1225,9 @@ class Client implements SnapbackClient {
     if (authority !== undefined) this.ensureAuthority(authority);
     else this.ensureOpen();
     if (!this.forcedOffline) this.patchSnapshot({ connection: "connected", lastRefusal: this.resetRefusal });
+    void this.forwarding.activate().catch(error => {
+      if (!this.closed) this.patchSnapshot({ lastRefusal: this.offlineRefusal(error, "client.forwarding.identity").envelope });
+    });
   }
 
   private async transitionAuthority(): Promise<Authority> {
@@ -1263,6 +1261,7 @@ class Client implements SnapbackClient {
     except?: Subscription<unknown>,
   ): Promise<T> {
     this.operationFence += 1;
+    this.forwarding.stop();
     if (!this.startupComplete) this.startupController.abort();
     this.authState.suspend();
     this.supersessionQueries.clear();
@@ -1307,6 +1306,7 @@ class Client implements SnapbackClient {
         || this.custodyGeneration !== authority.custodyGeneration) return { cleared: false };
       this.operationFence += 1;
       this.follower.stop();
+      this.forwarding.stop();
       this.abortSync(options.signal);
       if (!options.fromAuth) this.authState.reset({ state: "hydrating" });
       const fence = this.operationFence;
@@ -1315,6 +1315,7 @@ class Client implements SnapbackClient {
       let sealFailure: unknown;
       let anonymous = false;
       try {
+        await this.forwarding.settled();
         try { await this.sealOffline(); } catch (error) { sealFailure = error; }
         await this.clearTokenNow();
         if (sealFailure !== undefined) throw sealFailure;
@@ -1393,9 +1394,9 @@ class Client implements SnapbackClient {
     if (failure) throw failure;
   }
 
-  private trackWrite<Result>(run: () => Promise<Result>): Promise<Result> {
-    // A follower tab's write is refused here, ahead of uploads, cleanup, and channel publishes alike.
-    if (this.offlineRuntime?.following) return Promise.reject(followerRefusal("client.write"));
+  private trackWrite<Result>(run: () => Promise<Result>, forwardable = false): Promise<Result> {
+    // Non-forwardable follower work is refused here before uploads or channel bytes leave.
+    if (this.offlineRuntime?.following && !forwardable) return Promise.reject(followerRefusal("client.write"));
     const request = run();
     this.writes.add(request as Promise<unknown>);
     void request.finally(() => this.writes.delete(request as Promise<unknown>)).catch(() => undefined);
@@ -1408,7 +1409,7 @@ class Client implements SnapbackClient {
 
   private closeTransports(except?: Subscription<unknown>): void {
     this.live.close();
-    this.shared.clear(except);
+    this.queries.clear(except);
     // The stream a terminal refusal came from stays open to deliver it, and so
     // does a drain whose tail that stream is: closing the drain would silence it.
     for (const subscription of [...this.subscriptions]) {
@@ -1460,6 +1461,7 @@ class Client implements SnapbackClient {
   }
 
   private publishAuthSnapshot(): void {
+    this.queries.retireInactive();
     this.patchSnapshot({ authGeneration: this.authGeneration, token: this.currentToken, auth: this.authState.value });
   }
 
@@ -1475,6 +1477,7 @@ class Client implements SnapbackClient {
     if (JSON.stringify(next) === JSON.stringify(this.currentSnapshot)) return this.currentSnapshot;
     const connection = this.currentSnapshot.connection;
     this.currentSnapshot = next;
+    if (connection !== next.connection) this.queries.reproject();
     for (const listener of this.statusListeners) {
       try {
         listener(next);

@@ -1,37 +1,26 @@
+import { columnComponents } from "../index-components";
 import { basename } from "node:path";
-import type { Document, QuarryDiagnostic, RuleDecl, ScalarType, Site, TableCatalog, TableDecl } from "./ast";
+import type { Document, QuarryDiagnostic, RuleDecl, ScalarType, TableCatalog, TableDecl } from "./ast";
 import { buildCatalog } from "./catalog";
 import { QuarryError } from "./diagnostics";
-import { expandDocuments } from "./expand";
 import { parseDocument } from "./parser";
-import { emitPrograms } from "./program";
 import { prepareSchedules } from "./schedule";
-import { emitSchema } from "./schema";
 import { whereRepairDiagnostics } from "./where-repair";
-import type { FrontendDiagnostic, QuarryGenerated, SourceSite } from "../ir";
-import { boundedDiagnostics } from "../diagnostics";
-import { typeDiagnosticCause } from "../type-diagnostic-cause";
+import type { FrontendDiagnostic } from "../ir";
 
 export type QuarryInput = { path: string; fileName: string; source: string };
-export type QuarryVirtualModule = {
-  jobs?: string[];
-  schedules?: ReturnType<typeof prepareSchedules>;
-  path: string;
-  fileName: string;
-  source: string;
-  authored: string;
-  authoredSource: string;
-  authoredSources: Map<string, string>;
-  lineMap: Array<Site | undefined>;
-  operationSites?: Array<{ name: string; site: Site }>;
+export type PreparedQuarry = {
+  documents: Document[];
+  catalog: TableCatalog;
+  schedules: ReturnType<typeof prepareSchedules>;
+  diagnostics: QuarryDiagnostic[];
 };
-export type QuarryCompileResult =
-  | { ok: true; schema: QuarryVirtualModule; modules: QuarryVirtualModule[] }
-  | { ok: false; diagnostics: FrontendDiagnostic[]; diagnosticSources?: { schema: QuarryVirtualModule; modules: QuarryVirtualModule[] } };
+export type QuarryPrepareResult =
+  | { ok: true; prepared: PreparedQuarry }
+  | { ok: false; diagnostics: FrontendDiagnostic[] };
 
-// @ref LLP 1004#what-default-binds — Quarry is a compiler front end whose
-// generated TypeScript exists only in memory and retains authored source sites.
-export function compileQuarry(inputs: QuarryInput[]): QuarryCompileResult {
+/** Parse declarations and build the catalog consumed by direct typed binding. */
+export function prepareQuarry(inputs: QuarryInput[]): QuarryPrepareResult {
   const diagnostics: QuarryDiagnostic[] = [];
   let documents: Document[] = [];
   for (const input of inputs) {
@@ -40,110 +29,51 @@ export function compileQuarry(inputs: QuarryInput[]): QuarryCompileResult {
     diagnostics.push(...parsed.diagnostics);
   }
   diagnostics.push(...placementDiagnostics(documents));
-  if (diagnostics.length > 0) return { ok: false, diagnostics: diagnostics.map(frontend) };
-  const expansion = expandDocuments(documents);
-  documents = expansion.documents;
-  diagnostics.push(...expansion.diagnostics);
-  if (diagnostics.length > 0) return { ok: false, diagnostics: diagnostics.map(frontend) };
+  diagnostics.push(...schemaDomainDiagnostics(documents));
+  if (diagnostics.length > 0) return { ok: false, diagnostics: diagnostics.map(frontendQuarryDiagnostic) };
+
 
   let catalog: TableCatalog;
   try {
     materializeMaintains(documents);
     catalog = buildCatalog(documents);
   } catch (error) {
-    return { ok: false, diagnostics: [frontend(caughtDiagnostic(error, inputs[0]?.fileName))] };
+    return { ok: false, diagnostics: [frontendQuarryDiagnostic(caughtDiagnostic(error, inputs[0]?.fileName))] };
   }
   diagnostics.push(...whereRepairDiagnostics(documents, catalog));
-  if (diagnostics.length > 0) return { ok: false, diagnostics: diagnostics.map(frontend) };
+  if (diagnostics.length > 0) return { ok: false, diagnostics: diagnostics.map(frontendQuarryDiagnostic) };
 
   let schedules: ReturnType<typeof prepareSchedules> = [];
   try { schedules = prepareSchedules(documents, catalog); } catch (error) { diagnostics.push(caughtDiagnostic(error)); }
+  if (diagnostics.length > 0) return { ok: false, diagnostics: diagnostics.map(frontendQuarryDiagnostic) };
+  return { ok: true, prepared: { documents, catalog, schedules, diagnostics } };
+}
 
-  const schemaDocument = documents.find((document) => basename(document.file) === "schema.q")!;
-  const schemaInput = inputs.find((input) => input.fileName === schemaDocument.file)!;
-  let schemaSource = "";
-  try {
-    schemaSource = emitSchema(documents, catalog, schemaDocument.file);
-  } catch (error) {
-    diagnostics.push(caughtDiagnostic(error, schemaDocument.file));
-  }
-  const moduleSources = new Map<string, string>();
-  let recoverable = diagnostics.length === 0;
-  for (const document of documents.filter((item) => item.programs.length > 0)) {
-    let valid = true;
-    for (const program of document.programs) {
-      try {
-        emitPrograms([program], catalog, document.file, document.effects, item => diagnostics.push(item));
-      } catch (error) {
-        valid = false;
-        recoverable = false;
-        diagnostics.push(caughtDiagnostic(error, document.file));
-      }
+function schemaDomainDiagnostics(documents: Document[]): QuarryDiagnostic[] {
+  const diagnostics: QuarryDiagnostic[] = [];
+  const tables = new Map(documents.flatMap((document) => document.tables).map((table) => [table.name, table]));
+  for (const table of tables.values()) {
+    const columns = new Map(table.columns.map((column) => [column.name, column.type]));
+    for (const index of table.indexes) for (const component of index.components) {
+      if (!("Column" in component)) continue;
+      const type = columns.get(component.Column);
+      if (!type || !containsAsset(type)) continue;
+      diagnostics.push(new QuarryError(index.site,
+        `index ${table.name}.${index.name} column ${component.Column} has non-indexable type ${schemaTypeName(type)}`,
+        "E_SCHEMA_INDEX_COLUMN", `remove ${component.Column} from this index`, "schema/project").diagnostic);
     }
-    if (valid) moduleSources.set(document.file, emitPrograms(document.programs, catalog, document.file, document.effects, () => {}));
   }
-  if (!recoverable) return { ok: false, diagnostics: diagnostics.map(frontend) };
-
-  const authoredSources = new Map(inputs.map((input) => [input.fileName, input.source]));
-  const schema = virtualModule(schemaInput.path.replace(/\.q$/, ".ts"), schemaDocument.file, schemaSource, schemaInput.source, authoredSources);
-  schema.schedules = schedules;
-  const modules = documents
-    .filter((document) => document.programs.length > 0)
-    .map((document) => {
-      const input = inputs.find((item) => item.fileName === document.file)!;
-      return { ...virtualModule(input.path.replace(/\.q$/, ".ts"), document.file, moduleSources.get(document.file)!, input.source, authoredSources), jobs: document.programs.filter((p) => p.kind === "job").map((p) => p.name),
-        operationSites: document.programs.map(program => ({ name: program.name, site: program.site })) };
-    });
-  if (diagnostics.length > 0) return { ok: false, diagnostics: diagnostics.map(frontend), diagnosticSources: { schema, modules } };
-  return { ok: true, schema, modules };
-}
-
-export function boundQuarryDiagnostics(diagnostics: FrontendDiagnostic[], modules: QuarryVirtualModule[]): FrontendDiagnostic[] {
-  const remaining = new Set(diagnostics), bounded: FrontendDiagnostic[] = [];
-  for (const module of modules) for (const [index, operation] of (module.operationSites ?? []).entries()) {
-    const nextLine = module.operationSites?.[index + 1]?.site.line ?? Infinity;
-    const local = diagnostics.filter(item => {
-      const site = parseSite(item.site);
-      return site?.file === operation.site.file && site.line >= operation.site.line && site.line < nextLine;
-    });
-    for (const item of local) remaining.delete(item);
-    bounded.push(...boundedDiagnostics(local, 20, `refusals in operation ${operation.name}`));
+  for (const declaration of documents.flatMap((document) => document.maintains)) {
+    const source = tables.get(declaration.source);
+    for (const field of declaration.by) {
+      const type = source?.columns.find((column) => column.name === field)?.type;
+      if (!type || !containsAsset(type)) continue;
+      diagnostics.push(new QuarryError(declaration.site,
+        `maintain.by cannot use asset-typed source column ${declaration.source}.${field}`,
+        "E_SCHEMA_ASSET_MAINTAIN", "remove the asset column from maintain.by", "schema/project").diagnostic);
+    }
   }
-  return boundedDiagnostics([...bounded, ...remaining], 50, "project refusals");
-}
-
-export function remapVirtualDiagnostic(
-  diagnostic: FrontendDiagnostic,
-  virtual: QuarryVirtualModule,
-  generatedTypeError = false,
-): FrontendDiagnostic {
-  const site = parseSite(diagnostic.site);
-  const authored = site && mapGeneratedLine(virtual, site.line);
-  if (!authored) return diagnostic;
-  const authoredSource = virtual.authoredSources.get(authored.file) ?? virtual.authoredSource;
-  const message = generatedTypeError ? `in code generated from ${authored.file}: ${diagnostic.message}` : diagnostic.message;
-  const use = authored.expandedFrom;
-  const cause = generatedTypeError ? typeDiagnosticCause(diagnostic) : undefined;
-  return {
-    ...diagnostic,
-    site: `${authored.file}:${authored.line}:${authored.col}`,
-    message: use ? `${message} (from a named shape used at ${use.file}:${use.line}:${use.col})` : message,
-    rewrite: diagnostic.code === "E_DECIMAL_SCALE"
-      ? quarryDecimalRewrite(authoredSource, authored.line, diagnostic.message)
-      : cause?.absence
-        ? "add ! else CODE to assert the possibly absent Quarry value before using it here"
-        : cause?.assignment
-          ? `${authoredSource.split("\n")[authored.line - 1]?.trim() ?? ""}\n-- ${cause?.booleanDestination ? "use true or false for this boolean value" : "supply a value matching the declared type reported above"}`
-        : authoredSource,
-  };
-}
-
-export function remapVirtualSource(site: SourceSite, virtual: QuarryVirtualModule): SourceSite {
-  return mapGeneratedLine(virtual, site.line) ?? site;
-}
-
-export function quarryInspection(modules: QuarryVirtualModule[]): QuarryGenerated[] {
-  return modules.map((module) => ({ file: module.authored, generated: basename(module.path), source: module.source }));
+  return diagnostics;
 }
 
 function placementDiagnostics(documents: Document[]): QuarryDiagnostic[] {
@@ -157,15 +87,21 @@ function placementDiagnostics(documents: Document[]): QuarryDiagnostic[] {
     const declarationSite = document.tables[0]?.site ?? document.maintains[0]?.site ?? document.channels[0]?.site
       ?? (document.identity ? { file: document.file, line: 1, col: 1 } : undefined);
     if (!isSchema && declarationSite) diagnostics.push(placement(document.file, declarationSite.line, declarationSite.col, "tables, maintains, channels, and use identity belong in schema.q", "move this declaration to snapback/schema.q"));
-    if (isSchema && (document.shapes.length > 0 || document.shapeImports.length > 0)) {
-      const site = (document.shapes[0] ?? document.shapeImports[0])!.site;
-      diagnostics.push(placement(document.file, site.line, site.col, "shape declarations belong in an operations .q module, not schema.q", "move this shape declaration to snapback/<module>.q"));
+    if (isSchema && (document.shapes.length > 0 || document.shapeImports.length > 0
+      || document.functions.length > 0 || document.functionImports.length > 0)) {
+      const site = (document.shapes[0] ?? document.shapeImports[0]
+        ?? document.functions[0] ?? document.functionImports[0])!.site;
+      diagnostics.push(placement(document.file, site.line, site.col, "shape and fn declarations belong in an operations .q module, not schema.q", "move this declaration to snapback/<module>.q"));
     }
     if (isSchema && (document.programs.length > 0 || document.effects.length > 0)) {
       const site = document.programs[0]?.site ?? document.effects[0]!.site;
       diagnostics.push(placement(document.file, site.line, site.col, "schema.q holds declarations only; query, mutation, and effect declarations belong in a program module", "move this declaration to snapback/<module>.q"));
     }
-    if (!isSchema && document.programs.length === 0 && document.schedules.length === 0 && document.shapes.length === 0 && document.shapeImports.length === 0) diagnostics.push(placement(document.file, 1, 1, `${basename(document.file)} must declare at least one query, mutation, or shape`, "add a query, mutation, or shape, or remove the empty module"));
+    if (!isSchema && document.programs.length === 0 && document.schedules.length === 0
+      && document.shapes.length === 0 && document.shapeImports.length === 0
+      && document.functions.length === 0 && document.functionImports.length === 0) {
+      diagnostics.push(placement(document.file, 1, 1, `${basename(document.file)} must declare at least one query, mutation, shape, or fn`, "add a query, mutation, shape, or fn, or remove the empty module"));
+    }
     if (!isSchema && document.programs.length === 0 && document.effects.length > 0) diagnostics.push(placement(document.file, document.effects[0]!.site.line, document.effects[0]!.site.col, "effect imports need a query or mutation in this module", "move this effect import to the mutation module that emits it"));
     const stem = basename(document.file).slice(0, -2);
     if (!/^[A-Za-z_$][A-Za-z0-9_$-]*$/.test(stem)) diagnostics.push(placement(document.file, 1, 1, `file stem ${stem} cannot become an API namespace`, "rename the module to an identifier-like stem"));
@@ -213,7 +149,7 @@ function materializeMaintains(documents: Document[]): void {
       // @ref LLP 1006#2a-one-asset-one-home-author-ruling-2026-09-01 — the
       // authored maintain refusal owns this error; do not also diagnose the
       // synthetic target index materialized only by the Quarry lowering.
-      indexes: assetGrouped ? [] : [{ name: indexName, columns: [...declaration.by], unique: true, site: declaration.site }],
+      indexes: assetGrouped ? [] : [{ name: indexName, components: columnComponents(declaration.by), unique: true, site: declaration.site }],
       rules: [declaration.read, deny("insert"), deny("update"), deny("delete")],
       immutable: [],
       caps: [],
@@ -230,25 +166,21 @@ function containsAsset(type: ScalarType): boolean {
   return type.kind === "list" && containsAsset(type.item);
 }
 
-function virtualModule(path: string, authored: string, source: string, authoredSource: string, authoredSources: Map<string, string>): QuarryVirtualModule {
-  const lineMap: Array<Site | undefined> = [];
-  let previous: Site | undefined;
-  for (const line of source.split("\n")) {
-    const match = line.match(/\/\/ q:(.+):(\d+):(\d+)\s*$/);
-    if (match) {
-      previous = { file: match[1]!, line: Number(match[2]), col: Number(match[3]) };
-      const use = line.match(/\/\* q-use:(.+):(\d+):(\d+) \*\//);
-      if (use) previous.expandedFrom = { file: use[1]!, line: Number(use[2]), col: Number(use[3]) };
-    }
-    lineMap.push(previous);
-  }
-  return { path, fileName: path, source, authored, authoredSource, authoredSources, lineMap };
+function schemaTypeName(type: ScalarType): string {
+  if (type.kind === "list") return `[${schemaTypeName(type.item)}]`;
+  if (type.kind === "image" || type.kind === "video") return `${type.kind} asset`;
+  return type.kind;
 }
 
-function frontend(item: QuarryDiagnostic): FrontendDiagnostic {
+export function frontendQuarryDiagnostic(item: QuarryDiagnostic): FrontendDiagnostic {
   return {
     code: item.code,
-    family: item.code === "E_SCHEMA_CONSTRAINT" ? "schema" : item.code.startsWith("E_SCHEDULE_") ? "schedule" : "quarry",
+    family: item.code.startsWith("E_SCHEMA_") ? "schema"
+      : item.code.startsWith("E_SCHEDULE_") ? "schedule"
+        : item.code === "E_EMIT_IN_QUERY" ? "effect"
+          : item.code === "E_DECIMAL_SCALE" ? "args"
+            : item.code.startsWith("E_OP_") ? "op"
+              : item.code.startsWith("E_UNBOUND_") ? "bound" : "quarry",
     message: item.message,
     site: `${item.file}:${item.line}:${item.col}`,
     rewrite: item.executableRewrite || item.code === "E_QUARRY_UNSUPPORTED" && item.rewrite === "deny"
@@ -273,24 +205,6 @@ function caughtDiagnostic(error: unknown, file = "snapback/schema.q"): QuarryDia
 
 function placement(file: string, line: number, col: number, message: string, rewrite: string): QuarryDiagnostic {
   return { file, line, col, code: "E_QUARRY_PLACEMENT", message, rewrite, guide: "quarry/projects" };
-}
-
-function parseSite(site: string): SourceSite | undefined {
-  const match = site.match(/^(.*):(\d+):(\d+)$/);
-  return match ? { file: match[1]!, line: Number(match[2]), col: Number(match[3]) } : undefined;
-}
-
-function mapGeneratedLine(module: QuarryVirtualModule, line: number): Site | undefined {
-  for (let offset = Math.min(line - 1, module.lineMap.length - 1); offset >= 0; offset -= 1) {
-    const mapped = module.lineMap[offset];
-    if (mapped) return mapped;
-  }
-  return undefined;
-}
-
-function quarryDecimalRewrite(source: string, line: number, message: string): string {
-  const authoredLine = source.replace(/\r\n?/g, "\n").split("\n")[line - 1]?.trimEnd();
-  return authoredLine ? `${authoredLine} -- ${message}` : `-- ${message}`;
 }
 
 function title(value: string): string { return value.length === 0 ? value : value[0]!.toUpperCase() + value.slice(1); }

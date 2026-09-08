@@ -13,15 +13,21 @@
         },
         "indexes": {
           "byFollower": {
-            "columns": [
-              "follower",
-              "id"
+            "components": [
+              {
+                "Column": "follower"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           },
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -64,23 +70,35 @@
         },
         "indexes": {
           "byAt": {
-            "columns": [
-              "at",
-              "id"
+            "components": [
+              {
+                "Column": "at"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           },
           "byAuthorAt": {
-            "columns": [
-              "author",
-              "at",
-              "id"
+            "components": [
+              {
+                "Column": "author"
+              },
+              {
+                "Column": "at"
+              },
+              {
+                "Column": "id"
+              }
             ],
             "unique": false
           },
           "byId": {
-            "columns": [
-              "id"
+            "components": [
+              {
+                "Column": "id"
+              }
             ],
             "unique": true
           }
@@ -233,11 +251,13 @@
                           "index": "byAuthorAt",
                           "prefix": [
                             {
-                              "Field": {
-                                "base": {
-                                  "Variable": "follow"
-                                },
-                                "name": "followed"
+                              "Scalar": {
+                                "Field": {
+                                  "base": {
+                                    "Variable": "follow"
+                                  },
+                                  "name": "followed"
+                                }
                               }
                             }
                           ],
@@ -260,8 +280,10 @@
                           "index": "byFollower",
                           "prefix": [
                             {
-                              "Literal": {
-                                "Id": "u1"
+                              "Scalar": {
+                                "Literal": {
+                                  "Id": "u1"
+                                }
                               }
                             }
                           ],
@@ -343,8 +365,8 @@
   },
   "certificate": {
     "program": "feed.conditional",
-    "plan_hash": "22a6f8f56c51150dfcebf2033d238bdc0fa4413c50ac0af7c520874564f5ee11",
-    "schema_hash": "d703f2ee1bb54a66048cae4ae8b0b043ca0c81d418c55e2e151d825c05b4f707",
+    "plan_hash": "c0dad3f85135011fe55135142f515afce07cd1882710bb89bb5ee0bb3bc861b3",
+    "schema_hash": "ef9302d5d513f8f0f311188bdab8b8f98f6f1b6acae52b8e1779ffa8b4ffa634",
     "tables": {
       "follows": {
         "retain": "until-revoked"
@@ -354,11 +376,11 @@
       }
     },
     "rule_hashes": {
-      "follows.read": "9d98a4b1da82abe893ed0f13ef4b82780837aa71f09e1616e7e42949f743e382",
-      "posts.read": "9d98a4b1da82abe893ed0f13ef4b82780837aa71f09e1616e7e42949f743e382"
+      "follows.read": "a8faa5ac28737a4adc9a3be7842f6d83e45f9f0e4e425203b65ba879733efded",
+      "posts.read": "a8faa5ac28737a4adc9a3be7842f6d83e45f9f0e4e425203b65ba879733efded"
     },
-    "evaluator_version": "bounded-spike-rust-1",
-    "value_model_version": "i53-codepoint-bytes-v2",
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
     "read_sites": [
       {
         "site": "feed.following.lane",
@@ -451,6 +473,8 @@
     "max_index_entries": 1024,
     "max_rule_probes": 0,
     "max_steps": 22897,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
     "max_heap_bytes": 732704,
     "max_output_bytes": 2312,
     "max_closure_bytes": 1059248,
@@ -483,7 +507,7 @@
     "read_time": null
   },
   "receipt": {
-    "schema_hash": "d703f2ee1bb54a66048cae4ae8b0b043ca0c81d418c55e2e151d825c05b4f707",
+    "schema_hash": "ef9302d5d513f8f0f311188bdab8b8f98f6f1b6acae52b8e1779ffa8b4ffa634",
     "rows": [
       {
         "table": "posts",
@@ -649,7 +673,7 @@
         "gte": null,
         "lt": null,
         "lte": null,
-        "rule_hash": "9d98a4b1da82abe893ed0f13ef4b82780837aa71f09e1616e7e42949f743e382",
+        "rule_hash": "a8faa5ac28737a4adc9a3be7842f6d83e45f9f0e4e425203b65ba879733efded",
         "row_ids": [
           "p6",
           "p5",
@@ -662,7 +686,7 @@
         "stop": "Exhausted",
         "absence": false,
         "halo": null,
-        "n2_key": null
+        "n2_suffix": null
       }
     ],
     "absences": [],

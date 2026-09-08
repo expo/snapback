@@ -364,7 +364,6 @@ after(async () => {
   for (const value of clients) value.close();
   if (!externalUrl) await owner.stop();
 });
-
 test("default fetch preserves the browser receiver for JSON and SSE", async (context) => {
   const paths: string[] = [];
   const source = async function (this: unknown, input: string | URL | Request) {
@@ -390,7 +389,6 @@ test("default fetch preserves the browser receiver for JSON and SSE", async (con
   await sub.until(delivery => delivery.state === "complete", 500);
   assert.deepEqual(paths, ["/api/auth/me", "/api/query", "/api/subscribe"]);
 });
-
 test("api proxy produces inert qualified operation references", async () => {
   assert.equal(api.messages.thread.op, "messages.thread");
   assert.equal(api.channels.typing.op, "channels.typing");
@@ -400,7 +398,6 @@ test("api proxy produces inert qualified operation references", async () => {
   assert.deepEqual(JSON.parse(JSON.stringify(api.messages.thread)), { op: "messages.thread" });
   assert.deepEqual(await Promise.all([api.messages.thread]), [api.messages.thread]);
 });
-
 test("api proxy preserves operations named like proxy metadata", async () => {
   const seen: string[] = [];
   const value = createClient({
@@ -416,7 +413,6 @@ test("api proxy preserves operations named like proxy metadata", async () => {
   assert.deepEqual(seen, ["messages.op", "messages.toJSON", "op.list", "toJSON.list"]);
   value.close();
 });
-
 test("guest, signup, login, logout, me, token memory, and persistence", async () => {
   const persisted: Array<string | null> = [];
   const guestClient = client({
@@ -443,7 +439,6 @@ test("guest, signup, login, logout, me, token memory, and persistence", async ()
   const login = await loginClient.auth.login({ email, password: "correct horse" });
   assert.equal(login.viewer, signup.viewer);
 });
-
 test("query returns every typed read state and refuses 4xx/network as envelopes", async () => {
   const value = client(externalUrl ? { as: "alice" } : {});
   if (!externalUrl) await value.auth.guest();
@@ -469,7 +464,6 @@ test("query returns every typed read state and refuses 4xx/network as envelopes"
     error instanceof SnapbackRefusal && error.envelope.code === "E_NETWORK");
   offline.close();
 });
-
 test("an empty capped page is the terminal drain state", async () => {
   let requests = 0;
   const value = createClient({
@@ -1484,4 +1478,22 @@ test("isSnapbackRefusal recognizes the name-plus-symbol brand across realms", as
   assert.equal(bundledClient.isSnapbackRefusal(crossRealm), true);
   assert.equal(bundledClient.isSnapbackRefusal({ name: "SnapbackRefusal" }), false);
   assert.equal(bundledClient.isSnapbackRefusal({ [brand]: true }), false);
+});
+
+
+test("plain online query and subscription preserve h1-prefixed noncursor text without metadata", async context => {
+  const seen: any[] = [];
+  const value = createClient({ url: "http://wire.test", fetch: async (input, init) => {
+    const url = new URL(String(input));
+    seen.push(url.pathname === "/api/subscribe" ? JSON.parse(url.searchParams.get("args")!) : JSON.parse(String(init?.body)).args);
+    return url.pathname === "/api/subscribe"
+      ? hangingSse('data: {"state":"complete","data":[],"seq":1,"next":null}\n\n')
+      : fetchJson({ state: "complete", data: [], seq: 1, next: null });
+  } });
+  context.after(() => value.close());
+  const args = { term: "h1.a valid search term", c: "h1.a normal text argument" };
+  await value.query(api.messages.thread, args);
+  const sub = value.subscribe(api.messages.thread, args, () => {}); context.after(() => sub.close());
+  await sub.until(delivery => delivery.state === "complete", 500);
+  assert.deepEqual(seen, [args, args]);
 });

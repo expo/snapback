@@ -110,7 +110,12 @@ fn rehearsal_releases_never_reach_the_owners_blob_store_or_its_reclamation_sweep
             "image/png",
             &png(i),
         );
-        assert_eq!(uploaded.status, 200, "{}", String::from_utf8_lossy(&uploaded.body_bytes));
+        assert_eq!(
+            uploaded.status,
+            200,
+            "{}",
+            String::from_utf8_lossy(&uploaded.body_bytes)
+        );
         let attached = request(
             port,
             "POST",
@@ -124,13 +129,19 @@ fn rehearsal_releases_never_reach_the_owners_blob_store_or_its_reclamation_sweep
     let before = blob_digests(&root);
     assert_eq!(before.len(), 3, "{before:?}");
     for id in &ids {
-        assert!(before.contains_key(id), "{id} is not in the owner's blob store");
+        assert!(
+            before.contains_key(id),
+            "{id} is not in the owner's blob store"
+        );
         assert_eq!(delivered(port, id), 200);
     }
     let seq = status(port, &secret)["seq"].clone();
 
     // The rehearsal releases all three on its copy and reports them.
-    let receipt = control("/control/job", json!({"name":"admin.release","dryRun":true}));
+    let receipt = control(
+        "/control/job",
+        json!({"name":"admin.release","dryRun":true}),
+    );
     assert_eq!(receipt.status, 200, "{}", receipt.body);
     let receipt = receipt.body;
     assert_eq!(receipt["dryRun"], true);
@@ -149,15 +160,29 @@ fn rehearsal_releases_never_reach_the_owners_blob_store_or_its_reclamation_sweep
     // Nothing reached production: the blob store is byte-identical, the assets still
     // deliver, the ledger seq did not move, and the owner's own reclamation sweep — run
     // by the clock advance, past the reclaim grace — finds nothing to reclaim.
-    assert_eq!(blob_digests(&root), before, "the rehearsal touched the owner's blob store");
-    assert_eq!(status(port, &secret)["seq"], seq, "the rehearsal committed to the live store");
+    assert_eq!(
+        blob_digests(&root),
+        before,
+        "the rehearsal touched the owner's blob store"
+    );
+    assert_eq!(
+        status(port, &secret)["seq"],
+        seq,
+        "the rehearsal committed to the live store"
+    );
     advance_clock_past_grace(port, &secret);
-    assert_eq!(blob_digests(&root), before, "the sweep reclaimed a rehearsal release");
+    assert_eq!(
+        blob_digests(&root),
+        before,
+        "the sweep reclaimed a rehearsal release"
+    );
     for id in &ids {
         assert_eq!(delivered(port, id), 200, "{id} no longer delivers");
     }
     assert_eq!(
-        fs::read_dir(root.join(".snapback/rehearsals")).unwrap().count(),
+        fs::read_dir(root.join(".snapback/rehearsals"))
+            .unwrap()
+            .count(),
         0,
         "the rehearsal copy survived"
     );
@@ -184,7 +209,11 @@ fn rehearsal_releases_never_reach_the_owners_blob_store_or_its_reclamation_sweep
         blob_digests(&root)
     );
     for id in &ids {
-        assert_ne!(delivered(port, id), 200, "{id} still delivers after reclamation");
+        assert_ne!(
+            delivered(port, id),
+            200,
+            "{id} still delivers after reclamation"
+        );
     }
     stop_owner(port, &secret, &mut owner, "rehearsal blob isolation");
     fs::remove_dir_all(root).unwrap();

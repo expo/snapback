@@ -66,6 +66,7 @@ table messages:
   expiresAt: time ?
   at: time
   by byConvTime: conversationId, at, id
+  by bySearch: conversationId, wordPrefixes(body), at, id
   immutable conversationId, authorId
   retain delivered-history
   read <- exists memberships[.conversationId, viewer]
@@ -88,6 +89,7 @@ table deliveries:
   -- @ref LLP 1018.003#5-the-certified-thread-projection — a thread reads only live message events; edits change the message row in place.
   by byRecipientConversationKindAt: recipient, conversationId, kind, at, id
   immutable recipient, conversationId, messageId, kind, at
+  tombstones messages[.messageId] if .kind = 'removed' or .kind = 'expired'
   read <- .recipient = viewer
   insert <- exists memberships[.conversationId, viewer]
   update <- deny

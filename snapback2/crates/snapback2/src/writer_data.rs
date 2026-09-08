@@ -1,4 +1,5 @@
 use super::*;
+use snapback2_core::ir::IndexKeyExpr;
 
 impl State {
     pub(super) fn data(
@@ -57,10 +58,16 @@ impl State {
                 "schema/indexes",
             )
         })?;
+        let columns = index.scalar_columns().ok_or_else(|| {
+            Refusal::input(
+                "data requires an ordinary index",
+                "run a certified query to search a wordPrefixes index",
+            )
+        })?;
         let prefix_values = prefix.as_array().ok_or_else(|| {
             Refusal::input("data prefix must be a JSON array", "pass --prefix '[...]'")
         })?;
-        if prefix_values.len() > index.columns.len() {
+        if prefix_values.len() > index.components.len() {
             return Err(Refusal::input(
                 "data prefix is longer than the index key",
                 "remove extra prefix values",
@@ -70,17 +77,24 @@ impl State {
         for (position, value) in prefix_values.iter().enumerate() {
             let column = table
                 .columns
-                .get(&index.columns[position])
+                .get(&columns[position])
                 .expect("certified index column");
             converted.push(json_as_kind(value, column)?);
         }
-        if index.columns.last().map(String::as_str) != Some("id") && !index.unique {
+        if index
+            .components
+            .last()
+            .and_then(snapback2_core::search_key::IndexComponent::column)
+            .map(String::as_str)
+            != Some("id")
+            && !index.unique
+        {
             return Err(Refusal::input(
                 format!("data index {table_name}.{index_name} does not end in intrinsic id"),
                 "choose a total-order index that is unique or ends in id",
             ));
         }
-        let pageable = prefix_values.len() < index.columns.len();
+        let pageable = prefix_values.len() < index.components.len();
         let cursor_value = match after {
             Some(Json::String(token)) => Value::String(token),
             Some(_) => {
@@ -110,7 +124,10 @@ impl State {
                 site,
                 table: table_name,
                 index: index_name,
-                prefix: converted.into_iter().map(Expr::Literal).collect(),
+                prefix: (converted.into_iter().map(Expr::Literal).collect::<Vec<_>>())
+                    .into_iter()
+                    .map(IndexKeyExpr::Scalar)
+                    .collect(),
                 order: Order::Asc,
                 take: Bound::Literal(limit),
                 after: pageable.then(|| Box::new(Expr::Variable("c".to_owned()))),

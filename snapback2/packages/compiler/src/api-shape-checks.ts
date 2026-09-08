@@ -95,7 +95,7 @@ void [done, wrong, rowIsNotAny];
       "pay.myOpenShares": `(SharesRow & { expenseRow: { description: string; payer: Principal; grand: Money<"USD", 2>; at: number } })[]`,
       "pay.convExpenses": `{ total: Money<"USD", 2>; expenses: (ExpensesRow & { payerProfile: { displayName: string; handle: string } | null })[] }`,
       "social.thread": `PostsRow & { authorProfile: { displayName: string; handle: string } | null; replies: (PostsRow & { authorProfile: { displayName: string; handle: string } | null })[] }`,
-      "social.globalFeed": `{ id: string; kind: "post" | "repost"; at: number; ord: number; actor: Principal; post: string; reposter: { displayName: string; handle: string } | null; item: { id: string; author: Principal; body: string; parent?: string | undefined; at: number; likeCount: number; replyCount: number; repostCount: number; authorProfile: { displayName: string; handle: string } | null } | null }[]`,
+      "social.globalFeed": `{ id: string; kind: "post" | "repost"; at: number; ord: number; actor: Principal; post: string; reposter: { displayName: string; handle: string } | null; item: Omit<PostsRow, "id" | "author" | "body" | "parent" | "at" | "likeCount" | "replyCount" | "repostCount"> & { id: string; author: Principal; body: string; parent: string | null; at: number; likeCount: number; replyCount: number; repostCount: number; authorProfile: { displayName: string; handle: string } | null } | null }[]`,
       "chat.myConversations": `{ conv: string; joinedAt: number; conversation: ConversationsRow & { creatorProfile: { displayName: string; handle: string } | null } | null; peers: { user: Principal; profile: { displayName: string; handle: string } | null }[] }[]`,
       "pay.myBalance": `Money<"USD", 2>`,
       "social.profile": `UsersRow | null`,
@@ -150,7 +150,7 @@ query cards():
       assert(lowered.ok, `asset shape probe refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
       const expected: Record<string, string> = {
         "assets.rows": "Page<MediaRow>",
-        "assets.cards": "{ photo: ImageAsset; clip: VideoAsset; gallery?: ImageAsset[] | undefined }[]",
+        "assets.cards": "{ photo: ImageAsset; clip: VideoAsset; gallery: ImageAsset[] | null }[]",
       };
       for (const [operation, result] of Object.entries(expected)) {
         assert(operationResult(lowered.apiDts, operation) === result,
@@ -208,7 +208,7 @@ query maybeProfile(u: users):
   test("structured inference preserves exact money builtin results", async () => {
     const lowered = await lowerProject(resolve(fixtures, "quarry-money"));
     assert(lowered.ok, `Quarry money fixture refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
-    const get = `{ price: Money<"USD", 2>; whole: Money<"USD", 2>; computed: Money<"USD", 2>; rate: Decimal<3>; yen?: Money<"JPY", 0> | undefined }`;
+    const get = `{ price: Money<"USD", 2>; whole: Money<"USD", 2>; computed: Money<"USD", 2>; rate: Decimal<3>; yen: Money<"JPY", 0> | null }`;
     assert(operationResult(lowered.apiDts, "money.get") === get,
       `money.get result differs:\nexpected ${get}\nreceived ${operationResult(lowered.apiDts, "money.get")}`);
 
@@ -246,8 +246,8 @@ query maxResult(left: money USD, right: money USD):
     const lowered = await lowerProject(resolve(fixtures, "quarry-chat"));
     assert(lowered.ok, `Quarry chat fixture refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
     const expected: Record<string, string> = {
-      "follows.setFollow": `FollowsRow | { id: string; follower: Principal; followed: Principal; at: number } | null`,
-      "profiles.createMyProfile": `ProfilesRow | { id: string; principal: Principal; displayName: string; handle: string; avatarUrl: string | undefined; bio: string; location: string; link: string | undefined }`,
+      "follows.setFollow": `{ id: string; follower: Principal; followed: Principal; at: number } | null`,
+      "profiles.createMyProfile": `{ id: string; principal: Principal; displayName: string; handle: string; avatarUrl: string | null; bio: string; location: string; link: string | null }`,
     };
     for (const [operation, result] of Object.entries(expected)) {
       assert(operationResult(lowered.apiDts, operation) === result,

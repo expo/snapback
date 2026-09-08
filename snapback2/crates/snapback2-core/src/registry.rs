@@ -4,7 +4,7 @@
 use crate::certificate::{Ceilings, Certificate, CheckError, Checker, RuleCertificate};
 use crate::engine::{
     AuthoritativeTrace, ClosureReceipt, Context, Engine, Execution, ExecutionState, PointTrace,
-    RuleInputTrace, RuntimeError, validate_arg_value,
+    RuleInputTrace, RuntimeError,
 };
 use crate::ir::{ArgType, Expr, Program, ProgramKind, Stmt};
 use crate::live::Subscriptions;
@@ -78,7 +78,7 @@ pub struct ChannelVerdict {
     pub points: Vec<PointTrace>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RowRuleVerdict {
     pub id: String,
@@ -240,53 +240,11 @@ impl Generation {
                     },
                 ));
             }
-            for (index_name, index) in &table.indexes {
-                if index.columns.is_empty() || index.columns.len() > 8 {
-                    errors.push((
-                        format!("schema.{table_name}"),
-                        CheckError {
-                            site: None,
-                            code: "E_SCHEMA_INDEX_COLUMN".to_owned(),
-                            message: format!(
-                                "index {table_name}.{index_name} must declare between 1 and 8 columns"
-                            ),
-                            rewrite: "declare an index with at most 8 scalar columns".to_owned(),
-                        },
-                    ));
-                }
-                for column in &index.columns {
-                    if !table.columns.contains_key(column) {
-                        errors.push((
-                            format!("schema.{table_name}"),
-                            CheckError {
-                                site: None,
-                                code: "E_SCHEMA_INDEX_COLUMN".to_owned(),
-                                message: format!(
-                                    "index {table_name}.{index_name} names undeclared column {column}"
-                                ),
-                                rewrite: "declare the column or remove it from the index"
-                                    .to_owned(),
-                            },
-                        ));
-                    }
-                    if table
-                        .columns
-                        .get(column)
-                        .is_some_and(|kind| !kind.is_indexable())
-                    {
-                        errors.push((
-                            format!("schema.{table_name}"),
-                            CheckError {
-                                site: None,
-                                code: "E_SCHEMA_INDEX_COLUMN".to_owned(),
-                                message: format!(
-                                    "index {table_name}.{index_name} cannot use non-indexable column {column}"
-                                ),
-                                rewrite: "index a non-asset scalar column instead".to_owned(),
-                            },
-                        ));
-                    }
-                }
+            for error in crate::schema::index_errors(table_name, table) {
+                errors.push((format!("schema.{table_name}"), CheckError {
+                    site: None, code: "E_SCHEMA_INDEX_COLUMN".into(), message: error.to_string(),
+                    rewrite: "declare bounded scalar components and at most one nonunique wordPrefixes before an ordinary suffix".into(),
+                }));
             }
             for constraint in &table.constraints {
                 let crate::schema::Constraint::Text { field, min, .. } = constraint else {
@@ -541,13 +499,18 @@ impl Runtime {
         let installed = store.meta("generation").map_err(store_refusal)?;
         let installed_program = store.meta("program_generation").map_err(store_refusal)?;
         let installed_effects = store.meta("effects_generation").map_err(store_refusal)?;
+        let installed_evaluator = store.meta("evaluator_version").map_err(store_refusal)?;
+        let evaluator_changed = installed.is_some()
+            && installed_evaluator.as_deref()
+                != Some(crate::certificate::CURRENT_EVALUATOR_VERSION);
         let succession = installed_effects
             .as_ref()
             .is_some_and(|h| h != &generation.effects_hash())
             || installed.as_ref().is_some_and(|h| h != &generation.hash())
             || installed_program
                 .as_deref()
-                .is_some_and(|h| h != generation.program_hash());
+                .is_some_and(|h| h != generation.program_hash())
+            || evaluator_changed;
         match installed.clone() {
             None => {
                 let row_count: i64 = store
@@ -561,10 +524,22 @@ impl Runtime {
                     .map_err(store_refusal)?;
             }
             Some(hash) if hash == generation_hash => {
-                // Additive owner metadata can appear after the generation was
-                // first installed (for example the outbox declaration binding).
-                persist_generation(&mut store, &generation, unix_millis())
+                // Persist additive owner metadata that may postdate this generation.
+                let transaction = store
+                    .conn
+                    .transaction()
+                    .map_err(|error| store_refusal(RuntimeError::Sql(error)))?;
+                crate::successor::reconcile_sparse_aggregate_rows(
+                    &transaction,
+                    &generation.schema,
+                    evaluator_changed,
+                )
+                .map_err(store_refusal)?;
+                persist_generation_transaction(&transaction, &generation, unix_millis())
                     .map_err(store_refusal)?;
+                transaction
+                    .commit()
+                    .map_err(|error| store_refusal(RuntimeError::Sql(error)))?;
             }
             Some(hash) => {
                 let current_json = store
@@ -574,15 +549,28 @@ impl Runtime {
                 let current: Schema = serde_json::from_str(&current_json).map_err(|error| {
                     store_refusal(RuntimeError::Serialization(error.to_string()))
                 })?;
-                if let Some(refusal) = successor_refusal(&store, &current, &generation.schema)
-                    .map_err(store_refusal)?
-                {
-                    return Err(refusal);
+                let migration =
+                    plan(&store, &current, &generation.schema).map_err(store_refusal)?;
+                if !migration.drops.is_empty() {
+                    return Err(SuccessorRefusal::destructive(migration));
                 }
                 let transaction = store
                     .conn
                     .transaction()
                     .map_err(|error| store_refusal(RuntimeError::Sql(error)))?;
+                // Interpret old physical rows under the persisted schema before
+                // validating the successor's final state.
+                crate::successor::reconcile_sparse_aggregate_rows(
+                    &transaction,
+                    &current,
+                    evaluator_changed,
+                )
+                .map_err(store_refusal)?;
+                if let Some(refusal) = additive_refusal(&transaction, &current, &generation.schema)
+                    .map_err(store_refusal)?
+                {
+                    return Err(refusal);
+                }
                 apply_additive(
                     &transaction,
                     &current,
@@ -1093,6 +1081,8 @@ impl Runtime {
             .get(name)
             .cloned()
             .ok_or_else(|| RuntimeError::Input(format!("unknown channel {name}")))?;
+        let mut args = args.clone();
+        crate::engine::complete_optional_args(&channel.args, &mut args);
         if args.len() != channel.args.len() {
             return Err(RuntimeError::Input(format!(
                 "channel {name} expected {} args, got {}",
@@ -1104,7 +1094,12 @@ impl Runtime {
             let value = args
                 .get(arg)
                 .ok_or_else(|| RuntimeError::Input(format!("channel {name} missing arg {arg}")))?;
-            validate_arg_value(kind, value, &format!("channel {name} arg {arg}"))?;
+            crate::engine::validate_typed_arg_value(
+                &self.generation.schema,
+                kind,
+                value,
+                &format!("channel {name} arg {arg}"),
+            )?;
             if matches!(kind, ArgType::Scalar)
                 && matches!(value, Value::Array(_) | Value::Row(_) | Value::Map(_))
             {
@@ -1124,7 +1119,7 @@ impl Runtime {
             ChannelSide::Publish => (channel.publish, &certificates.publish),
             ChannelSide::Subscribe => (channel.subscribe, &certificates.subscribe),
         };
-        let row = Value::Row(args.clone());
+        let row = Value::Row(args.clone().into());
         let (admitted, trace) =
             self.engine
                 .probe_rule(&rule, &row, context.clone(), Some(certificate))?;
@@ -1243,6 +1238,10 @@ fn persist_generation_transaction(
         ("schema_json", schema_json),
         ("effects_json", effects_json),
         ("effects_generation", effects_hash.clone()),
+        (
+            "evaluator_version",
+            crate::certificate::CURRENT_EVALUATOR_VERSION.to_owned(),
+        ),
     ] {
         transaction.execute(
             "INSERT INTO _meta(key, value) VALUES (?1, ?2)
@@ -1410,7 +1409,10 @@ mod tests {
                     indexes: BTreeMap::from([(
                         "byId".to_owned(),
                         Index {
-                            columns: vec!["id".to_owned()],
+                            components: (vec!["id".to_owned()])
+                                .into_iter()
+                                .map(crate::search_key::IndexComponent::Column)
+                                .collect(),
                             unique: true,
                         },
                     )]),
@@ -1443,24 +1445,33 @@ mod tests {
             .seed(&[
                 (
                     "todos".to_owned(),
-                    Value::Row(BTreeMap::from([
-                        ("id".to_owned(), Value::Id("seed".to_owned())),
-                        ("ownerId".to_owned(), Value::Id("dev:alice".to_owned())),
-                    ])),
+                    Value::Row(
+                        BTreeMap::from([
+                            ("id".to_owned(), Value::Id("seed".to_owned())),
+                            ("ownerId".to_owned(), Value::Id("dev:alice".to_owned())),
+                        ])
+                        .into(),
+                    ),
                 ),
                 (
                     "todos".to_owned(),
-                    Value::Row(BTreeMap::from([
-                        ("id".to_owned(), Value::Id("ghost".to_owned())),
-                        ("ownerId".to_owned(), Value::Id("dev:alice".to_owned())),
-                    ])),
+                    Value::Row(
+                        BTreeMap::from([
+                            ("id".to_owned(), Value::Id("ghost".to_owned())),
+                            ("ownerId".to_owned(), Value::Id("dev:alice".to_owned())),
+                        ])
+                        .into(),
+                    ),
                 ),
                 (
                     "todos".to_owned(),
-                    Value::Row(BTreeMap::from([
-                        ("id".to_owned(), Value::Id("denied".to_owned())),
-                        ("ownerId".to_owned(), Value::Id("dev:bob".to_owned())),
-                    ])),
+                    Value::Row(
+                        BTreeMap::from([
+                            ("id".to_owned(), Value::Id("denied".to_owned())),
+                            ("ownerId".to_owned(), Value::Id("dev:bob".to_owned())),
+                        ])
+                        .into(),
+                    ),
                 ),
             ])
             .unwrap();
@@ -1484,6 +1495,5 @@ pub use operator::OperatorId;
 
 #[path = "registry_jobs.rs"]
 mod registry_jobs;
-
 #[path = "registry_timers.rs"]
 mod registry_timers;

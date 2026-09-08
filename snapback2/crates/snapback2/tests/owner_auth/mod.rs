@@ -130,9 +130,10 @@ fn exact_logout_fences_only_one_epoch_and_successors_cannot_resurrect_it() {
     let applied = wait_for(Duration::from_secs(6), || {
         let current = status(port, &secret);
         let manifest = request(port, "GET", "/api/manifest", &[], json!({}));
-        manifest.body["ops"]
+        (manifest.body["ops"]
             .get("messages.authFenceSuccessor")
             .is_some()
+            && current["status"] == "ready")
             .then_some(current)
     });
     assert_eq!(applied["status"], "ready");
