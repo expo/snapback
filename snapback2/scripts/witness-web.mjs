@@ -500,20 +500,30 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
   });
 
   // Lifecycle: with a third tab following the new writer, the writer's partition
-  // is wiped (a persona app has no sign-out; sign-out takes the same path); the
-  // deletion completes because the follower connection closes on versionchange,
-  // and the follower reports the hard refusal, not a stale route.
+  // is wiped (a persona app has no sign-out; sign-out takes the same path). The
+  // deletion completes beneath the third tab's open inbox connection because
+  // that connection closes on versionchange; the third tab's wait then wins the
+  // freed lock and it becomes the writer of a fresh, empty partition.
   const third = await context.newPage();
   await third.goto(appUrl);
   await pollUntil(third, async () => window.__snapback
-    && ["forwarding", "writer-unresponsive"].includes((await window.__snapback.outbox.status()).reason), null, { timeout: 15_000 });
-  const databaseName = await follower.evaluate(async () => (await indexedDB.databases()).map(entry => entry.name).find(name => name?.includes("dev:alice")));
-  assert.ok(databaseName, "the partition database exists before sign-out");
+    && ["forwarding", "writer-unresponsive"].includes((await window.__snapback.outbox.status()).reason), null,
+  { timeout: 15_000, label: "the third tab following the new writer" });
+  const thirdBefore = await third.evaluate(async () => (await window.__snapback.outbox.entries()).length);
+  assert.ok(thirdBefore > 0, "the third tab reads the writer's ledger through its inbox route");
   await follower.evaluate(() => window.__snapback.offlineRuntime.wipe());
-  await pollUntil(third, async () => (await window.__snapback.outbox.status()).reason === "follower", null, { timeout: 15_000 });
-  await pollUntil(follower, async (name) => !(await indexedDB.databases()).some(entry => entry.name === name), databaseName, { timeout: 15_000 });
-  step("a wipe deletes the partition beneath an open follower connection; the follower's route ends with the hard refusal", {
-    database: databaseName, thirdTabStatus: await third.evaluate(async () => (await window.__snapback.outbox.status()).reason),
+  // A fresh partition has no grant until its first drain, so the takeover shows as the marker clearing, not as `ready`.
+  await pollUntil(third, async () => !window.__snapback.offlineRuntime.following
+    && !["forwarding", "writer-unresponsive", "follower"].includes((await window.__snapback.outbox.status()).reason), null,
+  { timeout: 15_000, label: "the third tab taking over the freed partition" });
+  const thirdAfter = await third.evaluate(async () => ({
+    entries: (await window.__snapback.outbox.entries()).length,
+    status: await window.__snapback.outbox.status(),
+    databases: (await indexedDB.databases()).map(entry => entry.name).filter(name => name?.includes("dev:alice")),
+  }));
+  assert.equal(thirdAfter.entries, 0, "the deletion completed beneath the third tab's connection: its fresh partition holds no ledger");
+  step("a wipe deletes the partition beneath an open follower connection; the follower's route ends and its wait takes over a fresh partition", {
+    before: thirdBefore, after: thirdAfter,
   });
   await third.close();
   } catch (error) {
