@@ -604,8 +604,11 @@ async function main() {
     }
     await page.fill("section[aria-label=Search] input", indexedSearchTerm);
     await page.waitForSelector(`section[aria-label=Search] li[data-message="${queued.id}"]`, { timeout: 10_000 });
-    const coldSearch = await page.$eval("section[aria-label=Search] .scope", (node) => ({ state: node.getAttribute("data-state"), text: node.textContent }));
-    if (coldSearch.state !== "held") throw new Error(`cold indexed search was ${JSON.stringify(coldSearch)}`);
+    const coldSearch = await page.$eval("section[aria-label=Search] .scope", (node) => ({
+      state: node.getAttribute("data-state"), reason: node.getAttribute("data-reason"), text: node.textContent,
+    }));
+    if (!["complete", "capped"].includes(coldSearch.state ?? "") || coldSearch.reason !== "predicted"
+      || !/server has not confirmed/.test(coldSearch.text ?? "")) throw new Error(`cold indexed search was ${JSON.stringify(coldSearch)}`);
     if (coldPartialHistory?.source !== "partial-history" || coldPartialHistory.count !== null
       || coldPartialHistory.previewMessage !== null || !coldPartialHistory.historyState
       || !/Count and preview unavailable/.test(coldPartialHistory.historyText ?? "")) {

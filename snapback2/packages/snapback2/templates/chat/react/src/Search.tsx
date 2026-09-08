@@ -6,13 +6,14 @@ function Results({ term, onOpen }: { term: string; onOpen(conversationId: string
   const result = useQuery(api.messages.search, { term, c: null });
   const hits = result.data ?? [];
   const next = result.receipt?.next !== null && result.receipt?.next !== undefined;
+  const limit = next ? "Indexed result limit reached · more available" : "Indexed result limit reached";
   const status = result.status === "loading" ? "Searching…"
     : result.reason?.code === "held" ? "Downloaded indexed results"
     : result.reason?.code === "partial" ? `Partial indexed results · ${result.reason.detail ?? result.reason.message}`
-    : result.receipt?.outcome === "capped" ? (next ? "Indexed result limit reached · more available" : "Indexed result limit reached")
     : result.status === "unavailable" ? (result.reason?.message ?? "Search unavailable")
     : result.reason?.code === "stale" ? "Showing stale indexed results"
-    : result.reason?.code === "predicted" ? result.reason.message
+    : result.reason?.code === "predicted" ? `${result.reason.message}${result.receipt?.outcome === "capped" ? ` · ${limit}` : ""}`
+    : result.receipt?.outcome === "capped" ? limit
     : result.freshness.live ? "Live indexed results" : "Indexed results";
   return <>
     <p className="scope" data-state={result.receipt?.outcome ?? result.status} data-reason={result.reason?.code}

@@ -153,6 +153,9 @@ export class ClientQueries {
       const caughtUp = (current as QueryView<Result> & { caughtUp?: boolean }).caughtUp;
       refreshed = carryItemInputs(event, { ...value, ...(caughtUp === undefined ? {} : { caughtUp }) } as QueryMachineEvent<Result>);
     }
+    // @ref LLP 1018.003#1-the-snapshot-record — evaluation provenance is
+    // independent of transport liveness: a live connection can publish a twin result.
+    refreshed = { ...refreshed, source: "twin" } as QueryMachineEvent<Result>;
     if (!current.live || event.state === "refused") return refreshed as SubscriptionDelivery<Result>;
     if (refreshed.state === "held" && authoritative
       && (authoritative.state === "complete" || authoritative.state === "capped")

@@ -125,6 +125,7 @@ export type MutationRecovery = string & { readonly [mutationRecovery]: true };
 export type MutationAdmissionUnknown = { state: "admission-unknown"; recovery: MutationRecovery };
 export type MutationResult<Result> = MutationCommitted<Result> | MutationRejected | MutationQueued | MutationAdmissionUnknown;
 
+export type ReceiptSource = "server" | "twin";
 export type LiveQueryDelivery<Result> = ServerQueryResult<Result> & { live: true; caughtUp?: boolean; watermark?: Cursor | null };
 export type StaleDelivery<Result> = {
   state: "stale";
@@ -138,12 +139,13 @@ export type RefusedDelivery = RefusalEnvelope & {
   seq?: number;
 };
 export type QueryRefusedDelivery = RefusedDelivery & { live: false };
-export type SubscriptionDelivery<Result> =
+export type SubscriptionDelivery<Result> = (
   | LiveQueryDelivery<Result>
   | (ServerQueryResult<Result> & { live: false; caughtUp?: boolean; watermark?: Cursor | null })
   | OfflineQueryResult<Result>
   | StaleDelivery<Result>
-  | QueryRefusedDelivery;
+  | QueryRefusedDelivery
+) & { source?: ReceiptSource };
 
 export interface Subscription<Event> {
   close(): void;
@@ -421,7 +423,6 @@ export interface SnapbackClient {
   close(): Promise<void>;
 }
 
-export type ReceiptSource = "server" | "twin";
 type ViewFacts = {
   live: boolean;
   /** Whose certified evaluation produced this answer: the owner's receipt, or the twin over held rows (LLP 1018.003 §1). */
@@ -471,6 +472,18 @@ export function initialQueryState<Result>(): QueryView<Result> {
 
 export { canonical as stableSerialize };
 
+const LOCAL_FACT_KEYS = ["retained", "caughtUp", "watermark", "predicted", "site", "sites"] as const;
+const VIEW_FACT_KEYS = ["stale", ...LOCAL_FACT_KEYS] as const;
+const RECEIPT_FACT_KEYS = ["source", "next", "reason", "rule", ...LOCAL_FACT_KEYS] as const;
+const REFUSAL_FACT_KEYS = ["site", "rule", "rewrite", "reason", "op", "shape", "which", "cap"] as const;
+
+/** Copy only present facts; an omitted fact stays omitted across every projection. */
+function defined(source: Record<string, any>, keys: readonly string[]): Record<string, any> {
+  const result: Record<string, any> = {};
+  for (const key of keys) if (source[key] !== undefined) result[key] = source[key];
+  return result;
+}
+
 // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test — React preserves data identity while exposing every receipt-backed state.
 // @ref LLP 1018.003#2-derive-never-add — the transition invariants: a stale
 // event keeps the last receipt and never scrubs delivered data; denial,
@@ -484,29 +497,18 @@ export function reduceQueryState<Result>(
   const data = canonical(eventData) === canonical(currentData) ? currentData : eventData;
   const live = "live" in event ? event.live : false;
   const offline = "connection" in event && event.connection === "offline";
-  const source: ReceiptSource = offline ? "twin" : "server";
-  const facts = {
-    ...("stale" in event && event.stale !== undefined ? { stale: event.stale } : {}),
-    ...("retained" in event && event.retained !== undefined ? { retained: event.retained } : {}),
-    ...("caughtUp" in event && event.caughtUp !== undefined ? { caughtUp: event.caughtUp } : {}),
-    ...("watermark" in event && event.watermark !== undefined ? { watermark: event.watermark } : {}),
-    ...("predicted" in event && event.predicted !== undefined ? { predicted: event.predicted } : {}),
-    ...("site" in event && event.site !== undefined ? { site: event.site } : {}),
-    ...("sites" in event && event.sites !== undefined ? { sites: event.sites } : {}),
-  };
+  const source: ReceiptSource = "source" in event && event.source !== undefined ? event.source : offline ? "twin" : "server";
+  const facts = defined(event, VIEW_FACT_KEYS);
   let next: QueryView<Result>;
   switch (event.state) {
     case "complete":
-      next = { state: "complete", live, source, data: data as Result, seq: event.seq, next: event.next, ...facts };
-      break;
     case "held":
     case "capped":
       next = { state: event.state, live, source, data: data as Result, seq: event.seq, next: event.next, ...facts };
       break;
     case "partial":
-      next = data === undefined
-        ? { state: "partial", live, source, seq: event.seq, reason: event.reason, ...facts }
-        : { state: "partial", live, source, data: data as Result, seq: event.seq, reason: event.reason, ...facts };
+      next = { state: "partial", live, source, ...(data === undefined ? {} : { data: data as Result }),
+        seq: event.seq, reason: event.reason, ...facts };
       break;
     case "denied":
       next = { state: "denied", live, source, rule: event.rule, seq: event.seq, ...facts };
@@ -516,16 +518,9 @@ export function reduceQueryState<Result>(
       break;
     case "refused": {
       const refusal: RefusalEnvelope = {
-        code: event.code,
-        family: event.family,
-        message: event.message,
-        guide: event.guide,
+        code: event.code, family: event.family, message: event.message, guide: event.guide,
+        ...defined(event, REFUSAL_FACT_KEYS),
       };
-      if (event.site !== undefined) refusal.site = event.site;
-      if (event.rule !== undefined) refusal.rule = event.rule;
-      if (event.rewrite !== undefined) refusal.rewrite = event.rewrite;
-      for (const field of ["reason", "op", "shape", "which"] as const) if (event[field] !== undefined) refusal[field] = event[field];
-      if (event.cap !== undefined) refusal.cap = event.cap;
       next = { state: "refused", live: false, refusal };
       break;
     }
@@ -533,38 +528,22 @@ export function reduceQueryState<Result>(
       // The last receipt survives only when the stale event names no other
       // sequence: a different seq means the event's data is held data the
       // receipt does not describe. A kept denial keeps no data.
+      const previous = current;
       const receipted = current.state === "complete" || current.state === "capped" || current.state === "partial" || current.state === "denied"
         ? current : undefined;
       const outcome = receipted !== undefined ? receipted.state : current.state === "stale" ? current.outcome : undefined;
       const receiptSeq = "seq" in current ? current.seq : undefined;
       const keep = outcome !== undefined && (event.seq === undefined || event.seq === receiptSeq);
-      const kept: Omit<StaleView<Result>, "state" | "live" | "since" | "data" | "seq"> = !keep ? {}
-        : current.state === "stale"
-          ? (({ state: _s, live: _l, since: _c, data: _d, seq: _q, ...rest }) => rest)(current)
-          : receipted === undefined ? {} : {
-              outcome: receipted.state,
-              ...(receipted.source === undefined ? {} : { source: receipted.source }),
-              ...("next" in receipted ? { next: receipted.next } : {}),
-              ...("reason" in receipted ? { reason: receipted.reason } : {}),
-              ...("rule" in receipted ? { rule: receipted.rule } : {}),
-              ...(receipted.retained === undefined ? {} : { retained: receipted.retained }),
-              ...(receipted.caughtUp === undefined ? {} : { caughtUp: receipted.caughtUp }),
-              ...(receipted.watermark === undefined ? {} : { watermark: receipted.watermark }),
-              ...(receipted.predicted === undefined ? {} : { predicted: receipted.predicted }),
-              ...(receipted.site === undefined ? {} : { site: receipted.site }),
-              ...(receipted.sites === undefined ? {} : { sites: receipted.sites }),
-            };
-      const keptOutcome = keep ? outcome : undefined;
-      const staleData = keptOutcome === "denied" ? undefined : data !== undefined ? data : currentData;
+      const staleData = keep && outcome === "denied" ? undefined : data !== undefined ? data : currentData;
       const seq = keep ? receiptSeq : event.seq !== undefined ? event.seq : receiptSeq;
-      next = {
-        state: "stale",
-        live: false,
-        since: event.since,
-        ...(staleData === undefined ? {} : { data: staleData as Result }),
-        ...(seq === undefined ? {} : { seq }),
-        ...kept,
-      };
+      const stale: StaleView<Result> = { state: "stale", live: false, since: event.since };
+      if (staleData !== undefined) stale.data = staleData;
+      if (seq !== undefined) stale.seq = seq;
+      if (keep) {
+        stale.outcome = outcome;
+        Object.assign(stale, defined(previous, RECEIPT_FACT_KEYS));
+      }
+      next = stale;
       break;
     }
   }
