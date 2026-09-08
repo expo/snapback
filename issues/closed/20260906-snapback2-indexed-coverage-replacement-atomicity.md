@@ -20,3 +20,15 @@ Resolution (2026-09-06): Per-owner absence identities are deduplicated before co
 Source-bound regressions reproduce both inherited failures on `4fb998f25` and pass with the scoped fix. Eleven malformed replacements preserve prior rows/proofs/index generations/registered directories; valid seed/non-seed replacement, ordinary/derived coverage, optional normalization and dependency reclamation pass. Original direct Bun assertions have no file deadline; four affected public Twin controls pass at their original 10,000ms deadline. Both old blind reports were read after release; they do not qualify these new repairs.
 
 Scoped evidence and remaining limits: `/Users/ccheever/clique-improvement/lanes/search-twin/r8-coverage-atomicity-handoff.md`. This closes these two correctness defects only. Full runtime size and historical movement deadline failures are not cleared; fresh combined review, integration and remaining resource qualification are still required. No native emission, public authorization bypass, resident-memory or release claim is made.
+
+## Duplicate open ticket reconciled — 2026-09-08
+
+The stale open copy of this already-closed issue was removed. The original resolution and limits above remain intact.
+
+## Resolution — 2026-09-08
+
+Per-owner absence identity deduplication preserves independent receipt owners; row and coverage replacement are fully prepared before publication. Refused replacements preserve rows, authority, index state and notifications.
+
+Regressions introduced by `799ba19a6` in evaluator `test-indexed.ts` cover duplicate absence ownership and atomic standalone rehydrate with malformed verdicts, bounds, rows and halo. They are imported by `src/test.ts` and included in the successful final evaluator execution. These are standalone/synthetic-input controls using the real decoder where stated, not native malformed-emission claims.
+
+Evidence was reconciled against main `2ac15dc2c`. LLP 1018.000 §10 completion records canonical qualification at `c20a37e22` and final package/Chrome qualification at `ab8b225e6`; unchanged native/evaluator/compiler inputs retain their earlier execution evidence. This reconciliation ran no new product tests. It closes the filed source defect; release and fresh published-package confirmation remain separately tracked.

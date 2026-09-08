@@ -102,3 +102,9 @@ chat Expo guide trigger before and after check, with all26 certified public
 operations, the public purge target retained, and unchanged cache/backend
 hashes. The ongoing0.0.8 benchmark remains pinned to its original package.
 Evidence: `benchmarks/runs/2026-09-06-clique-improvement/evidence/npm-0.0.9/`.
+
+## Remaining scope — reconciled 2026-09-08
+
+Reconcile the checklist with current packaged guides: item 8 time arithmetic is addressed by `guide/grammar.md`; item 11 conflict/new-intent recovery by `guide/offline.md`; cap reserve accounting is also documented in the grammar. Preserve prior item resolutions and the actual published 0.0.9 evidence for item 17. Remaining work includes the concrete bounded-list example, provider-placeholder development recipe, seed-handle collision guidance, PNG/video normalization explanation and first-use asset-custody explanation. Architecture completion does not close this umbrella.
+
+Read-only source and recorded-execution audit against main `2ac15dc2c`; no new test execution or publication is claimed by this update.

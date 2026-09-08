@@ -42,3 +42,9 @@ lane's rule "gate every aggregate on quiescence, chain pages oldest-first, tag o
 exclude them from sums" is the paragraph the live-query page is missing.
 
 Related: `20260906-snapback2-guide-gaps-from-the-clique-run.md`, `20260906-snapback2-per-row-subscriptions-hit-the-256-cap-and-crash-the-browser.md`.
+
+## Remaining scope — reconciled 2026-09-08
+
+Current `guide/offline.md` and `guide/live-query.md` cover grants, explicit outbox/drain completion, opaque history cursors, forwarding, uncertain admission recovery, and preserving queue/grant custody. `guide/grammar.md` covers accepted/refused time arithmetic. The historical null-cursor, lock-starvation and invented-quiescence observations above are superseded by these contracts. Keep open only the insufficiently explained entry-field/sequence semantics, view-once echo with its nulled join, and viewing-lease acquisition/fetch/commit recipe. Require concrete public examples; source/package guide equality alone does not prove explanation completeness.
+
+Read-only source and recorded-execution audit against main `2ac15dc2c`; no new test execution or publication is claimed by this update.

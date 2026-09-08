@@ -24,3 +24,9 @@ proposes a rename. Lane L8a's compiler visibility fixture hit it and was renamed
 3. Guide: one clause on the grammar page's table line listing the reserved names.
 
 Related: LLP 1001 (pure builtins), LLP 1004 §"names", `issues/20260905-snapback2-clique-findings-review-residuals.md` (wave 2/3 residue, L9).
+
+## Remaining scope — reconciled 2026-09-08
+
+Direct Quarry binding removed the generated-TypeScript data/schema collision mechanism (`090bb82bc`). The current keyword-naming regression tests query class(default: int), not the ticket's eight builtin-named tables. Before closing, add a focused direct-compiler witness for words, tokens, range, min, max, count, divmod and share as table names, including valid reads and builtin calls. Do not carry the obsolete emitter reservation proposal into Quarry. The successful 214-test compiler suite does not establish this exact acceptance matrix.
+
+Read-only source and recorded-execution audit against main `2ac15dc2c`; no new test execution or publication is claimed by this update.
