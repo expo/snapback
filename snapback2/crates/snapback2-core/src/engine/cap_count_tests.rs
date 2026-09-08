@@ -741,21 +741,30 @@ fn public_count_live_subscription_reruns_after_first_maintained_row_is_created()
 }
 
 #[test]
-fn public_count_invalid_oversized_key_cannot_mint_the_paired_extra_evidence() {
+fn public_count_key_domain_fits_the_pair_reserve_and_rejects_oversized_evidence() {
     let schema = public_count_schema();
-    let key = vec![Value::Id("x".repeat(10_000))];
+    let point = |key| PointTrace {
+        site: "count.group".into(),
+        table: "counts".into(),
+        index: "byPrincipal".into(),
+        key,
+        examined: false,
+        visible: false,
+        digest: None,
+    };
+    let boundary = "x".repeat(135);
+    assert!(crate::value::identity_fits(&boundary));
+    let evidence =
+        crate::cap::count_absence_evidence(&schema, &point(vec![Value::Id(boundary)]), "rule")
+            .expect("the largest admitted identity must fit the certified evidence reserve");
+    assert!(
+        canonical_json(&(&evidence.range, &evidence.primary)).len() as u64
+            <= crate::cap::count_absence_reserve(&schema, "counts", "byPrincipal", "count.group")
+    );
     assert!(
         crate::cap::count_absence_evidence(
             &schema,
-            &PointTrace {
-                site: "count.group".into(),
-                table: "counts".into(),
-                index: "byPrincipal".into(),
-                key,
-                examined: false,
-                visible: false,
-                digest: None,
-            },
+            &point(vec![Value::Id("x".repeat(10_000))]),
             "rule",
         )
         .is_none(),

@@ -333,6 +333,26 @@ test('scoped holes dominate every FIFO overlay state until a compatible authorit
   }
 });
 
+test('a receipt-owned primary absence admits only a later predicted overlay image', async () => {
+  const { nativeR8: { movement } } = JSON.parse(await readFile(new URL('../../evaluator/src/test-search-v5-fixtures.json', import.meta.url), 'utf8'));
+  for (const proofFirst of [true, false]) {
+    let saved: any;
+    const factory = () => new PersistentRangeStore({carrier:'memory',open:async()=>saved,replace:async state=>{saved=structuredClone(state);},close(){},wipe:async()=>{}});
+    const runtime = new OfflineRuntime({store:factory});
+    await runtime.open(movement.first.authority.principal,true); await runtime.program(movement.packet);
+    const absent = structuredClone(movement.hole);
+    absent.receipt.absences = [['events','byId',['one']]];
+    const admit = async () => runtime.commit('clock.bounded',{},await runtime.accept('clock.bounded',{},absent));
+    const overlay = async () => runtime.store.commit({outbox:{put:[{...entry('predicted'),predicted:true,issuedSeq:0}]},
+      overlay:{put:{predicted:[{table:'events',id:'one',row:{id:'one',at:9}}]}}});
+    if (proofFirst) { await admit(); await overlay(); } else { await overlay(); await admit(); }
+    const rows = (await runtime.twin.evaluate('clock.read',{}) as any)?.data?.rows ?? [];
+    assert.deepEqual(rows.map((row:any)=>row.at),proofFirst?[9]:[],
+      'only an intent durably ordered after the receipt may create over its proved absence');
+    await runtime.close();
+  }
+});
+
 test('native-certified Unicode search accepts scope movement in either arrival order and retains exact Q custody cold', async () => {
   const f = JSON.parse(await readFile(new URL('../../evaluator/src/test-search-v5-fixtures.json', import.meta.url),'utf8'));
   const operation = f.operations['search.inConversation'], op = operation.program.name;

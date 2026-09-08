@@ -153,6 +153,7 @@ export class TwinStore {
     }
   }
   private provedPrimaryAbsence(key: string, seq: number, entry: OutboxEntry): boolean {
+    if (entry.predicted !== true) return false;
     for (const proved of this.primaryAbsenceOwners.get(key)?.values() ?? [])
       if (proved.seq === seq && entry.order !== undefined && entry.order > proved.order) return true;
     return false;
