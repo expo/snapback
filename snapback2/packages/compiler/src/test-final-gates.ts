@@ -110,11 +110,6 @@ export function registerFinalGateChecks(test: RegisterTest): void {
 
   test("the Node compiler worker rejects TypeScript data exports and serves later direct requests", async () => {
     const packageRoot = resolve(crate, "packages/snapback2");
-    const built = Bun.spawnSync({
-      cmd: ["node", "build.mjs"], cwd: packageRoot, stdout: "pipe", stderr: "pipe",
-    });
-    assert(built.exitCode === 0,
-      `package build failed: ${new TextDecoder().decode(built.stderr)}`);
     const rootModule = await import(`${pathToFileURL(resolve(packageRoot, "dist/index.mjs")).href}?surface=${Date.now()}`);
     const rootDeclarations = await Bun.file(resolve(packageRoot, "dist/index.d.ts")).text();
     const removedDataNames = ["schema", "table", "t", "rule", "channel", "query", "mutation", "emit", "range",

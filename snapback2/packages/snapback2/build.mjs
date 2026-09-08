@@ -30,6 +30,10 @@ if (process.argv.includes("--measure-twin")) {
   if (gzip > 82500) throw new Error(`twin exceeds 82500 gzip bytes: ${gzip}`);
   process.exit(0);
 }
+if (process.argv.includes("--self-test")) {
+  await runGuideValidationSelfTest();
+  process.exit(0);
+}
 const dist = resolve(here, "dist");
 const packageBuildLock = resolve(here, "../../target/b2-package-build.lock");
 const packageBuildLockHeld = process.env.SNAPBACK2_PACKAGE_BUILD_LOCK_HELD === "1";
@@ -268,7 +272,12 @@ if (snapshot) {
   }
 }
 
-if (process.argv.includes("--self-test")) {
+} finally {
+  if (packageBuildToken) await releasePackageBuildLock(packageBuildToken);
+}
+
+async function runGuideValidationSelfTest() {
+  const parseDocument = await loadQuarryParser();
   const keywordFixture = guideKeywords([
     { name: "grammar", markdown: "- `spark`: `spark value`\n- `sparks`: an alias" },
     { name: "quarry", markdown: "# Quarry\n\n```q\n`spark value` is ignored.\n```\n\n## Spark\n\n`spark value` defines a signal.\n\n## Elsewhere\n\nUnrelated prose." },
@@ -326,9 +335,6 @@ if (process.argv.includes("--self-test")) {
     throw new Error(`guide validation self-test lost failures: ${JSON.stringify(failures)}`);
   }
   console.log(`guide validation self-test ok: ${failures.join(" | ")}`);
-}
-} finally {
-  if (packageBuildToken) await releasePackageBuildLock(packageBuildToken);
 }
 
 async function writeRootPackageDeclarations() {
