@@ -102,11 +102,12 @@ impl State {
         self.connected.due = None;
         let principals = std::mem::take(&mut self.connected.changed);
         let ids = self.runtime().connected_invalidated(&principals);
-        let clients = self
-            .live
-            .iter()
-            .filter_map(|(id, client)| ids.contains(&client.runtime_id).then_some(*id))
-            .collect::<Vec<_>>();
-        self.rerun_live(&clients, false);
+        self.rerun_live(&ids, false);
+    }
+
+    #[cfg(test)]
+    pub(super) fn flush_connected_now(&mut self) {
+        self.connected.due = Some(Instant::now());
+        self.flush_connected();
     }
 }

@@ -20,12 +20,8 @@ impl State {
             .runtime_mut()
             .reset_and_seed_at(&rows, now)
             .map_err(|error| Refusal::from_runtime(&error))?;
-        let runtime_ids = self
-            .live
-            .values()
-            .map(|client| client.runtime_id)
-            .collect::<Vec<_>>();
-        for id in runtime_ids {
+        let live_ids = self.live.keys().copied().collect::<Vec<_>>();
+        for id in live_ids {
             self.runtime_mut().unsubscribe(id);
         }
         self.live.clear();
@@ -420,6 +416,7 @@ mod tests {
             mode: "dev".to_owned(),
             phase: json!("ready"),
             live: BTreeMap::new(),
+            last_live_dispatch_work: 0,
             channels: BTreeMap::new(),
             ledger: VecDeque::new(),
             operator_rejection: None,
