@@ -1631,3 +1631,40 @@ The warm loop then passed on the integrated 0.0.19 metadata: project check
 consumer 24.04 s. The first newly built binary's 0.657-second doctor launch
 remains a failed sample, alongside the earlier cold-cache Office M1 run. Both
 the useful qualification and its limits are preserved in the LLP and metrics.
+
+## 2026-09-08 — fresh published-package build and independent assessment
+
+Published 0.0.19 passed the full-engine production path and a fresh registry
+consumer. A new Sol/xhigh session then built Clique using only that package,
+its installed documentation and the frozen instrument. Local web receipts pass
+M1, M2, M4, M5, M6 and M8. M3 remains non-green; dependent milestones continued
+diagnostically despite the frozen dependency rule. The original records have
+clock/cap inconsistencies, so this is not a qualified full-run score or an
+edit-loop efficiency figure. Exact corrections and custody are in
+[the continuous closeout](../benchmarks/runs/2026-09-08-release-cold-headroom/continuous-closeout.md).
+
+The builder's own account emphasizes a useful strength: Quarry puts membership,
+visibility, bounded fanout and scheduled behavior beside the authoritative data.
+Generated operations keep client wiring aligned. The difficult parts were the
+joins between expiry, delivered history, tombstone processing and optimistic
+presentation, plus ownership across clients and React Native Web semantics.
+Some pieces already have shipped examples; the remaining guide gaps now identify
+the missing composed recipe rather than claiming every primitive is absent.
+
+The builder compared the application model favorably with familiar Convex code,
+and reported less separate policy/storage/realtime/cron wiring than it would
+expect with Supabase. Those are qualitative observations from this build, not
+measurements of competing implementations. Its busy-group diary count needed a
+correction: the retained replay checks reach 10,000 messages, not 50,000. The
+full log settled 167,157 actions, but only named fixture invariants were checked.
+
+Both native Release apps built and reached the sign-in UI. That is useful setup
+evidence; offline restart, media/search and FIFO proof remain missing. An
+independent Grok assessment is now running against a clean source/data handoff.
+Fresh-session M7 follows it, with a pre-upgrade API snapshot and separate clock.
+
+Separately, reviewed performance work landed after 0.0.19: the pinned integrated
+suite passes in 83.921 seconds and its runtime is 83,227 gzip bytes. Same-upstream
+runtime savings are 186 bytes; the 60-second and 80,000-byte targets remain open.
+Three metadata repair candidates were rejected and remain unpublished. Their
+first-write regression is retained, and the additional-round decision is pending.

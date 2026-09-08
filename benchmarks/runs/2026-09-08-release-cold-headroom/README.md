@@ -45,7 +45,10 @@ compare applicable dimensions only. Neither source integration nor this single
 run establishes an overall winner.
 
 The fresh session started at 2026-09-08T06:58:29.447490+00:00 (session
-`01a07fcf-a3b8-7761-b378-d22df2d7d8aa`). Its result is pending.
+`01a07fcf-a3b8-7761-b378-d22df2d7d8aa`). It completed and exited0. See [continuous closeout](continuous-closeout.md)
+for passing local receipts, the M3 abort/dependency deviation, clock corrections,
+replay scope and missing native proof. Independent assessment and fresh M7
+remain in progress.
 
 ## Other authorized work
 

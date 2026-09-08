@@ -1,0 +1,271 @@
+{
+  "status": "Continuous diagnostic completed; independent assessment running; fresh M7 pending",
+  "release": "0.0.19",
+  "source": "c170e53f9b78e7fae6d26f4c7aa92ff5265ea799",
+  "builder": {
+    "model": "gpt-5.6-sol",
+    "effort": "xhigh",
+    "session": "01a07fcf-a3b8-7761-b378-d22df2d7d8aa",
+    "processStart": 1788850709.44749,
+    "observedExit": 1788875441.2823937,
+    "exit": 0
+  },
+  "artifactRoot": "/Users/ccheever/projects/snapback-artifacts/clique-cold-019-20260908",
+  "sourceArchive": {
+    "artifact": "app-source.tgz",
+    "bytes": 5855907,
+    "sha256": "ecf813110cd46e46d692a920f4bc50d731e7c1be645a7ca0311da69600b72b68",
+    "files": 509,
+    "sourceManifestSha256": "f16c16b9927d42f037d2350a1329d0bbc1fcb0ef77c3390c2840e0cb3bfc7c18",
+    "scope": "Authored source and frozen fixtures/instrument. Excludes node_modules, runtime databases, private .env/local overrides, builder narrative and assessment findings; synthetic fixture credentials remain by design."
+  },
+  "originalRunRecordSha256": "0e64511687ca1a3059f284d6b89e4c49abf94e60cce0d2ada281f96a9e8110cc",
+  "evidenceManifestSha256": "e5f722e77ad1f3364e3d1cc180f0c1a32b706da224657fb0c8ab537850ef6ef2",
+  "receipts": [
+    {
+      "path": "choreo-m1-1788855800.jsonl",
+      "sha256": "2b9591bb54cd089b1fcf831fadc7781f805087511836ee34d1e84c6306153db4",
+      "runId": "42d203b2-6a1f-49c4-86b2-1c79720c7cfb",
+      "at": "2026-09-08T08:23:30.300Z",
+      "milestone": "m1",
+      "browserPass": true,
+      "localGreenReceipt": true,
+      "assertions": {
+        "total": 3,
+        "required": 3,
+        "implemented": 3,
+        "passed": 3,
+        "failed": 0,
+        "skipped": 0,
+        "notImplemented": 0,
+        "requiredUnimplemented": 0
+      },
+      "suite": {
+        "pass": true,
+        "receipt": "suite-m1-1788854999.json",
+        "receiptSha256": "sha256:47ec1f350a936f118b0fcffd287bc6ee005322ff8110584ba7b1b84f15479314",
+        "outcomeClass": null
+      }
+    },
+    {
+      "path": "choreo-m2-1788859300.jsonl",
+      "sha256": "a5520320a36443626754e988b6c993013ad0c8be71f067ca80140da29d7644ad",
+      "runId": "6cc9319a-7b9d-4b61-8a12-6a161c5188b8",
+      "at": "2026-09-08T09:19:01.581Z",
+      "milestone": "m2",
+      "browserPass": true,
+      "localGreenReceipt": true,
+      "assertions": {
+        "total": 9,
+        "required": 9,
+        "implemented": 9,
+        "passed": 9,
+        "failed": 0,
+        "skipped": 0,
+        "notImplemented": 0,
+        "requiredUnimplemented": 0
+      },
+      "suite": {
+        "pass": true,
+        "receipt": "suite-m2-1788859099.json",
+        "receiptSha256": "sha256:5daa0d77abf8cf309fb72fed02b95ed632c458c7a1b2a89bb589418c2169221d",
+        "outcomeClass": null
+      }
+    },
+    {
+      "path": "choreo-m3-1788860310.jsonl",
+      "sha256": "167d1b87a95242a1e386f82be8be6f81da2a65a577806ae2c364c99c2d3d0d6b",
+      "runId": "cdc1884b-19ed-4a4b-a8cc-9a1ef981873a",
+      "at": "2026-09-08T09:39:47.941Z",
+      "milestone": "m3",
+      "browserPass": false,
+      "localGreenReceipt": false,
+      "assertions": {
+        "total": 7,
+        "required": 5,
+        "implemented": 7,
+        "passed": 6,
+        "failed": 1,
+        "skipped": 0,
+        "notImplemented": 0,
+        "requiredUnimplemented": 0
+      },
+      "suite": {
+        "pass": true,
+        "receipt": "suite-m3-1788859800.json",
+        "receiptSha256": "sha256:a0a0a3d35189038774558f543eb62df53405210db704e1ef22b6935e70bd7408",
+        "outcomeClass": null
+      }
+    },
+    {
+      "path": "choreo-m4-1788860510.jsonl",
+      "sha256": "b7cd4d0bc03fa0deeaffb2cf63892b52c49555dd6864634a2a4a728e06b13d2a",
+      "runId": "d8e87d71-38a1-42dc-a217-969cd8e06935",
+      "at": "2026-09-08T09:42:14.545Z",
+      "milestone": "m4",
+      "browserPass": true,
+      "localGreenReceipt": true,
+      "assertions": {
+        "total": 5,
+        "required": 5,
+        "implemented": 5,
+        "passed": 5,
+        "failed": 0,
+        "skipped": 0,
+        "notImplemented": 0,
+        "requiredUnimplemented": 0
+      },
+      "suite": {
+        "pass": true,
+        "receipt": "suite-m4-1788860498.json",
+        "receiptSha256": "sha256:749826bd6b1d20964460e2f8473181f2565d89cb7f800a519d2b15b287b086b8",
+        "outcomeClass": null
+      }
+    },
+    {
+      "path": "choreo-m5-1788867510.jsonl",
+      "sha256": "36ef2576ba28f1457bed3c6b13eec52e0477f5fe59e83380924b069a1a55041a",
+      "runId": "a3b2591c-a9ea-412b-a678-66df97b0548e",
+      "at": "2026-09-08T11:44:32.073Z",
+      "milestone": "m5",
+      "browserPass": true,
+      "localGreenReceipt": true,
+      "assertions": {
+        "total": 4,
+        "required": 2,
+        "implemented": 4,
+        "passed": 4,
+        "failed": 0,
+        "skipped": 0,
+        "notImplemented": 0,
+        "requiredUnimplemented": 0
+      },
+      "suite": {
+        "pass": true,
+        "receipt": "suite-m5-1788867448.json",
+        "receiptSha256": "sha256:7bf2dc81aa5308993fed42f41aedc7b413880095627e9116e681c8ccdb50a912",
+        "outcomeClass": null
+      }
+    },
+    {
+      "path": "choreo-m6-1788868420.jsonl",
+      "sha256": "cdd48e69a2c8ec473d4b07051d3dd3ae573b17051ee960fdcd6fa3ac9d20e02a",
+      "runId": "2b1898dc-e8db-4a79-88fc-26442a6d5be0",
+      "at": "2026-09-08T11:53:46.721Z",
+      "milestone": "m6",
+      "browserPass": true,
+      "localGreenReceipt": true,
+      "assertions": {
+        "total": 1,
+        "required": 1,
+        "implemented": 1,
+        "passed": 1,
+        "failed": 0,
+        "skipped": 0,
+        "notImplemented": 0,
+        "requiredUnimplemented": 0
+      },
+      "suite": {
+        "pass": true,
+        "receipt": "suite-m6-1788868371.json",
+        "receiptSha256": "sha256:a18e302bb17bdf4aee353514ceac2ee593ebcf157b84b77f1554844a1af83881",
+        "outcomeClass": null
+      }
+    },
+    {
+      "path": "choreo-m8-1788872990.jsonl",
+      "sha256": "4fc758ab4be1043b02645c33425bda7b5e46108a701444065cdd77cdba90df85",
+      "runId": "611af5ae-28ad-4f51-ac5b-8d69a0a2a027",
+      "at": "2026-09-08T13:10:17.819Z",
+      "milestone": "m8",
+      "browserPass": true,
+      "localGreenReceipt": true,
+      "assertions": {
+        "total": 5,
+        "required": 5,
+        "implemented": 5,
+        "passed": 5,
+        "failed": 0,
+        "skipped": 0,
+        "notImplemented": 0,
+        "requiredUnimplemented": 0
+      },
+      "suite": {
+        "pass": true,
+        "receipt": "suite-m8-1788872952.json",
+        "receiptSha256": "sha256:ac28a6549be0cd7d7f5e35f8c1ffb922ae6d5ad3cada015f87a9a03411e08614",
+        "outcomeClass": null
+      }
+    },
+    {
+      "path": "choreo-m8-1788873320.jsonl",
+      "sha256": "20783b0e7750231a4f27fc960b658882b430f5f19dc568ae1827584e45b47e66",
+      "runId": "1d31c20f-4839-4ba7-bb8e-019773be6d6e",
+      "at": "2026-09-08T13:16:10.176Z",
+      "milestone": "m8",
+      "browserPass": true,
+      "localGreenReceipt": true,
+      "assertions": {
+        "total": 5,
+        "required": 5,
+        "implemented": 5,
+        "passed": 5,
+        "failed": 0,
+        "skipped": 0,
+        "notImplemented": 0,
+        "requiredUnimplemented": 0
+      },
+      "suite": {
+        "pass": true,
+        "receipt": "suite-m8-1788872952.json",
+        "receiptSha256": "sha256:ac28a6549be0cd7d7f5e35f8c1ffb922ae6d5ad3cada015f87a9a03411e08614",
+        "outcomeClass": null
+      }
+    }
+  ],
+  "replay": {
+    "actions": 167157,
+    "settledActions": 167157,
+    "wallSeconds": 1255,
+    "start": 1788869124,
+    "end": 1788870379,
+    "receiptSha256": "bfe21018e8a2953f8c562bdfc28b7b3f3c8af65cd34333bbd8b714f1e4e20bec",
+    "scope": "Named fixture checks at 10%, 50%, and final matched; complete invariant-manifest coverage not established; busy group messages1000/5000/10000, members50"
+  },
+  "native": {
+    "M6": null,
+    "M8": null,
+    "observed": "Release build, install and sign-in UI launch succeeded. No qualifying native offline/process-kill/media/search/FIFO/receipt proof."
+  },
+  "clocks": {
+    "grossAcceptanceStart": 1788850723,
+    "grossAcceptanceEnd": 1788873378,
+    "grossAcceptanceElapsedSeconds": 22655,
+    "grossLessReplaySeconds": 21400,
+    "sumReportedMilestoneAuthoringSeconds": 21371,
+    "unassignedGapSeconds": 29,
+    "recordedCloseoutEnd": 1788875372,
+    "formalAuthoringMetricClaimed": false,
+    "reason": "Original phase labels and terminals are inconsistent; replay/native work overlaps. See continuous-closeout.md."
+  },
+  "protocol": {
+    "conformingFullRun": false,
+    "commissionedWallCapSecondsPerMilestone": 14400,
+    "M3ActualSeconds": 1251,
+    "M3ExecutionClassification": "aborted (retrospective correction of early capability-failure label)",
+    "M3ProtocolAbortChargeSeconds": 14400,
+    "dependencyDeviation": "M4/M5/M6/M8 executed after M3 abort. Their local receipts are diagnostic observations, not compliant full-run success.",
+    "calibrated": false,
+    "O1": null,
+    "O2": null,
+    "O3": null,
+    "O4": null,
+    "O5": null,
+    "overallWinner": null
+  },
+  "audit": {
+    "reviewer": "/root/compiler_closeout_audit",
+    "scope": "Read-only original records, commissioned prompt, frozen protocol and controller receipts; no assessor/builder contact",
+    "result": "Clock/cap/DAG/diary inconsistencies confirmed; original bytes preserved"
+  }
+}
