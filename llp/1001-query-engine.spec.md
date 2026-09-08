@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2-core` (`store`, `registry`, `live`, `identity`, `successor`, the engine, the IR)
 **Author:** Claude Fable 5 (orchestrator) — implementer: codex gpt-5.6-sol, lane A
 **Date:** 2026-08-29
-**Revised:** 2026-09-07 (public Count paired absence proofs and admission reserve; implementer Codex); 2026-09-07 (canonical sparse aggregates and shared maintained-row lifecycle); 2026-09-07 (LLP 1018.000: persistent query IDs, context-aware batches and incremental dependency membership); 2026-09-07 (surviving-row uniqueness checked against each actual rebuild); 2026-09-07 (schema-owned maintained address widths/references and scoped successor reindex); 2026-09-07 (native v5 search/text integration preserving count-backed caps and ad hoc admission); 2026-09-07 (count-backed cap probes); 2026-09-06 (fixed complete local-runtime measurement roots: 66,000-byte ceiling, 64,000 target); 2026-09-06 (generation-owned policy hashes, pooled merge seeks and bounded shared templates); 2026-09-06 (measured full-entry search trade: 50,000-byte ceiling, 48,000 target); 2026-09-06 (session-delegated Unicode/search foundation and downstream contracts); 2026-09-06 (conditional result-page provenance and branch-scoped cursor validation); 2026-09-05 (Clique L12 — §3 receipt-only null invariant and §5.1 `connected`); 2026-09-05 (Clique L9 — bounded ASCII words builtin and constructed-text boundary); 2026-09-05 (Clique L10 — lazy merge, receipt retention and global local-pagination cursor rule); 2026-09-05 (Clique L8b — nested point-read shapes preserve page state; early exits preserve capped taint); 2026-09-05 (Clique L8a — prefix-local self-probe and decided-disjunction visibility proofs); 2026-09-05 (Clique L3 — honest bound refusals and patch-sensitive cap metering; LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
+**Revised:** 2026-09-07 (indexed prefix selection and direct owner subscription dispatch); 2026-09-07 (public Count paired absence proofs and admission reserve; implementer Codex); 2026-09-07 (canonical sparse aggregates and shared maintained-row lifecycle); 2026-09-07 (LLP 1018.000: persistent query IDs, context-aware batches and incremental dependency membership); 2026-09-07 (surviving-row uniqueness checked against each actual rebuild); 2026-09-07 (schema-owned maintained address widths/references and scoped successor reindex); 2026-09-07 (native v5 search/text integration preserving count-backed caps and ad hoc admission); 2026-09-07 (count-backed cap probes); 2026-09-06 (fixed complete local-runtime measurement roots: 66,000-byte ceiling, 64,000 target); 2026-09-06 (generation-owned policy hashes, pooled merge seeks and bounded shared templates); 2026-09-06 (measured full-entry search trade: 50,000-byte ceiling, 48,000 target); 2026-09-06 (session-delegated Unicode/search foundation and downstream contracts); 2026-09-06 (conditional result-page provenance and branch-scoped cursor validation); 2026-09-05 (Clique L12 — §3 receipt-only null invariant and §5.1 `connected`); 2026-09-05 (Clique L9 — bounded ASCII words builtin and constructed-text boundary); 2026-09-05 (Clique L10 — lazy merge, receipt retention and global local-pagination cursor rule); 2026-09-05 (Clique L8b — nested point-read shapes preserve page state; early exits preserve capped taint); 2026-09-05 (Clique L8a — prefix-local self-probe and decided-disjunction visibility proofs); 2026-09-05 (Clique L3 — honest bound refusals and patch-sensitive cap metering; LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
 **Related:** LLP 1000, LLP 1002 (the loop that serves this), LLP 1003 (effects
 through the outbox this spec defines), LLP 0329.014.004 §7 (runtime), LLP
 0329.014.000 §6 (execution, trace, states), LLP 0329.016 §5.6 (no silent
@@ -705,16 +705,24 @@ wins. The owner samples one clock for the batch and refreshes `now` and
 `read_time` without unsubscribing and subscribing again. It still derives
 ordinary and offline frames from the full execution and compares frame digests;
 a terminal delivery removes the owner entry and detaches its runtime slot once.
+The owner stores that core ID as the live-map key for the slot lifetime. Commit
+and connected invalidation vectors dispatch directly by ID, without rebuilding
+a reverse map or scanning unrelated live clients.
 
 Trace dependencies are normalized sets. A successful execution, including a
 denied or partial result, replaces only the old/new set difference. Point,
 absence, and rule-input keys share exact membership; constraints use table
-membership. Ranges use `(table, index) → canonical prefix → subscription IDs`,
-so attaching, replacing, or removing a range uses keyed membership rather than
-scanning all subscribers of that index. Empty prefix and index buckets are
-pruned. Invalidation still conservatively examines the distinct prefix groups
-of each touched index, including search scope touches; this is not a claim
-that range invalidation costs only the number of final matches.
+membership. Each `(table, index)` owns a trie of canonical typed scalar prefix
+components. Nodes refcount fully scalar terminal memberships and all subtree
+memberships. Ordinary scalar touches visit ancestor terminals; search scope
+touches visit ancestor terminals and the exact scope's subtree. WordPrefix
+terms stop at their preceding scalar node and participate only in subtree
+membership; invalidation does not compare or normalize their text. A scope
+longer than that scalar prefix does not select those terms. Distinct terms from
+one subscription share refcounted membership, so removing one leaves the other
+attached. Empty nodes and index buckets are pruned. Selection visits the touched
+paths and matching buckets rather than all distinct prefixes; ordered map lookup
+and output deduplication costs still depend on their collection sizes.
 
 A runtime error has no replacement authoritative trace: retain the old
 dependencies for a later retry while remembering the latest context and error
