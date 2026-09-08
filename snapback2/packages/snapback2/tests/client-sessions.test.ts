@@ -435,7 +435,10 @@ test("a current local reevaluation refusal publishes while an obsolete-authority
 
 test("a live indexed query preserves its authoritative state until its effective value changes", async () => {
   let publish!: (event: any) => void;
-  let localData = [{ id: "server" }];
+  let local: { state: "held" | "complete" | "capped" | "partial"; live: false; connection: "offline"; data: Array<{ id: string }>;
+    next: null; seq: number; reason?: string } = {
+    state: "held", live: false, connection: "offline", data: [{ id: "server" }], next: null, seq: 2,
+  };
   const queries = new ClientQueries({
     identity: () => [1, 1] as const,
     active: () => true,
@@ -445,7 +448,7 @@ test("a live indexed query preserves its authoritative state until its effective
       return { close: () => undefined, until: async () => { throw new Error("must use shared until"); } };
     },
     query: async () => { throw new Error("unused"); },
-    local: async () => ({ state: "held", live: false, connection: "offline", data: localData, next: null, seq: 2 }),
+    local: async () => local,
   } as any);
   const observed = queries.observe(api.messages.search, { term: "café", c: null });
   const stop = observed.subscribe(() => undefined);
@@ -455,7 +458,22 @@ test("a live indexed query preserves its authoritative state until its effective
   await new Promise<void>((resolve) => setTimeout(resolve, 20));
   assert.strictEqual(observed.getSnapshot(), authoritative, "an unrelated store commit does not replace complete with held");
 
-  localData = [{ id: "predicted" }];
+  local = { ...local, state: "complete" };
+  queries.refresh();
+  await until(() => observed.getSnapshot().receipt?.seq === 2, "the changed local receipt sequence");
+  assert.equal(observed.getSnapshot().receipt?.source, "twin", "equal data does not hide a changed receipt sequence");
+  publish({ state: "complete", live: true, data: [{ id: "server" }], next: null, seq: 1 });
+  local = { ...local, state: "capped" };
+  queries.refresh();
+  await until(() => observed.getSnapshot().receipt?.outcome === "capped", "the changed local completeness");
+  assert.equal(observed.getSnapshot().receipt?.source, "twin", "equal data does not hide a changed local outcome");
+  local = { ...local, state: "partial", reason: "missing-authority" };
+  queries.refresh();
+  await until(() => observed.getSnapshot().receipt?.outcome === "partial", "the local partial outcome");
+  assert.equal(observed.getSnapshot().reason?.code, "partial", "equal data does not hide local uncertainty");
+
+  publish({ state: "complete", live: true, data: [{ id: "server" }], next: null, seq: 1 });
+  local = { state: "held", live: false, connection: "offline", data: [{ id: "predicted" }], next: null, seq: 2 };
   queries.refresh();
   await until(() => (observed.getSnapshot() as any).data?.[0]?.id === "predicted", "the local indexed revision");
   assert.equal(observed.getSnapshot().status, "ready");
@@ -463,7 +481,7 @@ test("a live indexed query preserves its authoritative state until its effective
   assert.equal(observed.getSnapshot().freshness.live, true);
   assert.deepEqual(observed.getSnapshot().data, [{ id: "predicted" }]);
 
-  localData = [{ id: "server" }];
+  local = { ...local, data: [{ id: "server" }] };
   queries.refresh();
   await until(() => observed.getSnapshot().receipt?.outcome === "complete", "settlement returns to the authoritative value");
   stop();
@@ -774,6 +792,7 @@ test("mounted query snapshots follow committed prediction and settlement revisio
   await new Promise<void>((resolve) => setTimeout(resolve, 20));
   assert.strictEqual(first.getSnapshot(), second.getSnapshot());
   assert.deepEqual([firstNotifies, secondNotifies], [1, 1], "the delivery's store commit does not publish a duplicate snapshot");
+  assert.equal(first.getSnapshot().receipt?.source, "server", "an equal local store evaluation retains the owner's receipt");
   const initial = (first.getSnapshot() as any).data[0].message;
   const onlineData = first.getSnapshot().data;
   const beforeOffline = firstNotifies;
