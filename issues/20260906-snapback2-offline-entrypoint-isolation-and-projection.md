@@ -91,3 +91,65 @@ The ONE unchanged full-five-root Node gzip9 measurement is **76,335 bytes**, **5
 The unlanded-candidate framing above is historical after qualified LLP 1018.000 integration. Keep the ticket open until each preserved counterexample is mapped to its final executing regression. Retain the rejected codec experiments and historical failures. The current explicit complete-runtime ceiling is 82,500 bytes gzip with an 80,000 target, separately from historical 66,000-byte misses; final integrated runtime was 82,085. Full native/Chrome/Expo qualification is recorded, but does not by itself discharge every resource/resident obligation in this cumulative ticket.
 
 Read-only source and recorded-execution audit against main `2ac15dc2c`; no new test execution or publication is claimed by this update.
+
+## Exact cumulative reconciliation — 2026-09-08, d19d9399e
+
+The [frozen source audit and regression matrix](../benchmarks/runs/2026-09-08-release-cold-headroom/offline-ticket-audit.md)
+maps the retained isolation, authority replacement, public state, extent and
+exhaustion, movement, image ownership, reset durability and canonical-domain
+counterexamples to regressions executed in the combined canonical suite at
+`43e06fa90`. Product/test sources are unchanged at audit pin `d19d9399e`.
+Each native-fixture, synthetic-successor and actual-carrier boundary remains
+explicit; no new test run or native-device proof is claimed by the audit.
+
+The audit also confirms two retained generic metadata source gaps at that pin:
+an existing child changed to undefined can throw, and a trailing-hole root
+array can lose length. Candidate `51e54b785` repairs those paths and passes
+the six focused carrier controls, all 23 SQLite-file tests and both unchanged
+outbox write-count controls at the original per-test deadline. Its failed
+pre-repair baseline is retained. Subsequent review rejected that candidate;
+the additional attempts below are also unpublished.
+
+Keep this ticket open for those qualification steps and the separate resource
+obligations. Before the metadata repair, current complete runtime is 83,227
+gzip bytes under the separately authorized 84,000 allocation, missing the
+80,000 target by 3,227; the combined suite is 83.921s against a 60s target.
+Historical allocation failures and rejected experiments remain unchanged.
+Actual 100-lane media-bearing/max-width, phone peak and full-engine scale-curve
+evidence remain undisclosed by these unit controls; they are not waived.
+
+## Metadata repair attempts — 2026-09-08
+
+All three repair candidates remain unshipped. The first passed functional
+qualification but review found unbounded untouched-array serialization and
+own-property restoration errors. The second passed functional qualification
+but review found wrong `toJSON` property names and corruption of untouched
+coerced roots. Their exact failed/review evidence is retained in the
+[initial](../benchmarks/runs/2026-09-08-release-cold-headroom/release-020-qualification.json)
+and [second](../benchmarks/runs/2026-09-08-release-cold-headroom/release-020-r2-qualification.json)
+records.
+
+The third, `ce7f9b00b`, uses per-root metadata records. Its 39 carrier tests,
+two bounded outbox controls, actual published019 downgrade refusal witness,
+and full-engine production qualification pass. The complete canonical run
+fails: 788/837 Node tests pass and49 fail, concentrated in cold reopen;
+865 native tests pass with four skips. Runtime is83,826 gzip under84,000,
+which does not override the functional failures. Exact evidence and retained
+unpublished tarballs are described in the
+[third record](../benchmarks/runs/2026-09-08-release-cold-headroom/release-020-r3-qualification.json).
+
+Root and the implementer independently identified the first-write omission:
+an empty committed metadata cache takes the incremental path, writing the
+constant header and touched roots but omitting `factFormat` and `version`. Cold admission
+classifies current facts as legacy and resets coverage; the missing version also
+lets the published019 reader silently misparse the journaled first-write layout.
+The passing downgrade witness used a full replacement, so it did not cover
+that production path. The smallest proposed
+repair permits incremental projection only after the committed cache owns the
+`state` sentinel; the first write and its refused-transaction retry must use
+the existing full metadata projection. It needs first-commit custody and
+abort/retry controls plus the full original-deadline suite and fresh review.
+No further repair was made after the repository’s three-round limit; one
+additional bounded round has been requested from the user. Published019 and
+main do not contain the third candidate’s introduced defect. This ticket
+remains open for the original metadata gaps and separate resource work.

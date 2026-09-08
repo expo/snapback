@@ -1,5 +1,8 @@
 # snapback2: "Test what you just changed" is within 0.4 s of its 30 s budget
 
+**Status:** Closed — measurement replaced; remaining timing gaps tracked separately
+**Closed:** 2026-09-08
+
 **Opened:** 2026-09-03 · **Systems:** snapback2 loop metrics (`scripts/measure.mjs`), snapback2-core tests
 **Source:** the landing gate of `cfbd52280` (cursor and identity follow-ups).
 
@@ -25,3 +28,18 @@ next over-budget red is not attributed to an innocent landing.
 machine; the landing added zero Rust tests (339 → 339 through both lanes; the merge
 with main brought 371). Landed on a green `test.sh`; the over-budget records were not
 committed. Second data point for option 1.
+
+## Resolution — 2026-09-08
+
+The named `core_test_s` measurement was removed by `2ac66517b`. LLP 1002’s
+current measurement contract and `scripts/measure.mjs` now use the complete
+installed-consumer verification rung for the same 30-second budget; the
+canonical script retains all Rust tests. This retires this ticket’s obsolete
+measurement and proposed sharding of a duplicate core-test run. It does not
+claim that the replacement meets its budget.
+
+The active [installed-consumer timing issue](../20260907-snapback2-loop-budget-overruns-in-parallel-papercut-lane.md)
+retains the latest 30.52 s / 30 s failure at `170ebacd5411`, alongside earlier
+measurements. The separate [canonical-suite issue](../20260901-snapback2-scripts-test-sh-flakes-under.md)
+retains the full-suite timing and reliability work. Historical measurements
+and the original landing observations above remain unchanged.

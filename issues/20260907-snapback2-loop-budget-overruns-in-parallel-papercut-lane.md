@@ -110,3 +110,32 @@ is no paired baseline proving a breaking commit or a cause for first-exec cost.
 The failed sample remains in `snapback2/metrics/loop.jsonl`; its raw log SHA-256
 is `83424b97c45a58c13bb3ffbf8c7f8d91bcd1b825322035f5e67309ec5bf7416f`, with source, process and before/after custody in
 `.llp/ship-runs/20260907-1018-architecture/expo-search-v5-r17-*`.
+
+## Metadata repair candidate — 2026-09-08
+
+Candidate `170ebacd5411` on the EPYC lane, Node 24.13.1 / Rust 1.97.0,
+passed every functional measurement step but exited 1 with installed-consumer
+verification **30.52 s / 30 s**. Project check passed at 0.993 s / 1 s; both
+doctor samples passed at 0.035 and 0.032 s. Warm release build was 60.81 s,
+incremental rebuild 2.73 s, and init-to-dev 1.794 s. No deadline or budget
+changed. The full canonical suite separately passed 821 Node tests, 865 native
+tests (four existing skips), 225 evaluator cases and two visibility checks,
+214 compiler checks, and doctests. Its 118.595 s includes rebuilding the
+versioned native artifacts; it is not the prior warm timing measurement.
+
+This is another observation of the existing consumer timing gap, without a
+paired baseline attributing a breaking commit. The non-engine measurement
+accepts only the documented chat effects block; separate full-engine production
+qualification passed both todos and chat receipts. The failed metric is retained
+in the append-only loop log and the source-bound
+[qualification record](../benchmarks/runs/2026-09-08-release-cold-headroom/release-020-qualification.json).
+
+The revised candidate `a826919984a9` retains two timing reds on the same EPYC
+lane: installed consumer **30.40 s / 30 s** and project check
+**1.019 s / 1 s**. Both doctor samples pass (0.035 / 0.032 s); incremental
+rebuild is 2.73 s, warm release build 0.12 s, and init-to-dev 1.799 s. Every
+functional measurement step passes; the command exits 1. Its full canonical
+suite separately passes 825 Node tests and the unchanged native/evaluator/
+compiler/doctest counts in 90.720 s. These are single-run observations, not a
+controlled performance comparison. Failed metrics and source-bound receipts are
+retained in the [revised qualification record](../benchmarks/runs/2026-09-08-release-cold-headroom/release-020-r2-qualification.json).

@@ -80,3 +80,24 @@ The frozen grader report schema excludes M8 assertion keys. The diagnostic
 assessment will retain those outcomes in a companion record; the concrete
 [instrument follow-up](../../../issues/20260908-social-messenger-grader-schema-rejects-m8-assertions.md)
 keeps that reporting gap visible without altering this run’s instrument.
+
+The obsolete `core_test_s` headroom ticket is also retired: `2ac66517b`
+replaced that duplicate measurement with installed-consumer verification.
+Its history is preserved under `issues/closed/`; active consumer and canonical
+suite timing issues remain open. A read-only independent audit by
+`/root/invalidation_audit` returned READY for the closure and follow-up links.
+
+The M3 group receipt choreography also omits seeded recipient Erin while
+requiring aggregate read. Independent source inspection confirmed the
+[instrument inconsistency](../../../issues/20260908-social-messenger-m3-receipts-omit-seeded-erin.md).
+The cold run’s failed receipt remains evidence; this finding does not establish
+an independent app pass. The frozen instrument is unchanged.
+
+## Unpublished metadata candidates
+
+The three 0.0.20 repair candidates were rejected. Their qualification records
+and independent reviews are retained here as failure evidence. None of their
+product, version, or proposed LLP 1012 contract changes is part of this
+evidence-only landing. Published 0.0.19 remains the cold builder’s pin. The
+[open cumulative issue](../../../issues/20260906-snapback2-offline-entrypoint-isolation-and-projection.md)
+records the first-write baseline defect and pending additional-round decision.

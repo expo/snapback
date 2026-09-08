@@ -455,7 +455,7 @@ and `ref-check`; `check-inventories` carried the two pre-existing root reds
 (`scripts-test`, `guide-manifest`); `measure --check`'s core-test step read
 43 s against its 30 s budget under a load average of 10 with three concurrent
 codex lanes, with zero Rust tests added by this landing — the case
-`issues/20260903-snapback2-core-test-budget-headroom.md` was filed for; the
+`issues/closed/20260903-snapback2-core-test-budget-headroom.md` was filed for; the
 over-budget record was not committed.
 
 **What binds now.** The reference (`snapback2 guide quarry`) states the

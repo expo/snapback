@@ -1,0 +1,496 @@
+{
+  "version": "0.0.20",
+  "source": "a826919984a91358aeeb6d2f8418b4684dc49da6",
+  "author_commit": "dbe155bc61b8175b6f36648f3c0060a15901395c",
+  "integrated_code_commit": "cbad134ee",
+  "candidate_status": "rejected: key-sensitive JSON normalization and unchanged coerced-root header corruption; third revision required",
+  "publication": "not attempted; do not publish these candidate tarballs",
+  "cold_benchmark_version": "0.0.19",
+  "production": {
+    "source": "a826919984a91358aeeb6d2f8418b4684dc49da6",
+    "pid": 82010,
+    "start": 1788858546.058547,
+    "command": "node snapback2/scripts/publish.mjs --dry-run",
+    "node": "v24.18.0",
+    "platform": "darwin-arm64",
+    "full_engine": true,
+    "build_jobs": 2,
+    "cold_benchmark_pin_unchanged": "0.0.19",
+    "exit": 0,
+    "end": 1788858578.4621198,
+    "wall_s": 32.40357279777527
+  },
+  "production_metric": {
+    "at": "2026-09-08T09:09:38.439Z",
+    "publish_s": 32.3,
+    "production_binary_bytes": 7312592,
+    "production_binary_without_engine_bytes": 4078496,
+    "production_binary_with_engine_bytes": 7312592,
+    "production_media_binary_bytes": 2147984,
+    "engine": "ibex2 + vanilla hermes",
+    "dry": true
+  },
+  "production_consumer": {
+    "steps": [
+      {
+        "name": "install tarballs",
+        "seconds": 1.3220505829999993,
+        "ok": true
+      },
+      {
+        "name": "doctor",
+        "seconds": 0.3494330000000009,
+        "ok": true
+      },
+      {
+        "name": "guide auth",
+        "seconds": 0.03875641699999869,
+        "ok": true
+      },
+      {
+        "name": "public client and React exports",
+        "seconds": 0.04622966600000109,
+        "ok": true
+      },
+      {
+        "name": "todos init",
+        "seconds": 0.557289417,
+        "ok": true
+      },
+      {
+        "name": "todos check",
+        "seconds": 0.5396139579999999,
+        "ok": true
+      },
+      {
+        "name": "todos React bundle",
+        "seconds": 1.9785475420000003,
+        "ok": true
+      },
+      {
+        "name": "todos dev",
+        "seconds": 0.27146700000000057,
+        "ok": true
+      },
+      {
+        "name": "React live query round trip",
+        "seconds": 0.11801924999999937,
+        "ok": true
+      },
+      {
+        "name": "todos receipt",
+        "accepted": true,
+        "verdict": "pass"
+      },
+      {
+        "name": "todos test",
+        "seconds": 1.084401334,
+        "ok": true
+      },
+      {
+        "name": "todos stop",
+        "seconds": 0.28289999999999965,
+        "ok": true
+      },
+      {
+        "name": "chat init",
+        "seconds": 0.7657780000000003,
+        "ok": true
+      },
+      {
+        "name": "chat check",
+        "seconds": 0.7644927090000001,
+        "ok": true
+      },
+      {
+        "name": "chat React bundle",
+        "seconds": 1.0078205409999992,
+        "ok": true
+      },
+      {
+        "name": "chat dev",
+        "seconds": 0.7025461250000008,
+        "ok": true
+      },
+      {
+        "name": "chat receipt",
+        "accepted": true,
+        "verdict": "pass"
+      },
+      {
+        "name": "chat test",
+        "seconds": 12.723315541999996,
+        "ok": true
+      },
+      {
+        "name": "chat stop",
+        "seconds": 0.287898083,
+        "ok": true
+      }
+    ]
+  },
+  "production_log_sha256": "866b72600280c0cd9847c2b0f873e4a9f957499519b37325169a9408b3a5beb9",
+  "artifacts": [
+    {
+      "name": "snapback2-0.0.20.tgz",
+      "bytes": 3054821,
+      "sha256": "3e5f7871164431ae22b962311ce77c2ce11292cfce699c0b7e1562a2768941b5",
+      "integrity": "sha512-OzJskwIak4ljN5hbArsUp1PyOFTHKyM2V+MQq7XEndNTqVjlXNQXJt+VdpPb8eYA++1z18liAovqjXODBXzPUg=="
+    },
+    {
+      "name": "snapback2-darwin-arm64-0.0.20.tgz",
+      "bytes": 4998797,
+      "sha256": "afe2dfced20761009984484aaf511eaa6ca4f060e442ce7b38ac139553abe7e5",
+      "integrity": "sha512-2fF7LRgcz2cUX89inwhpHSplAc4KBPCWsbVoB4/kXySdEjrEfHOnQJrCyHWBQ2KTMmJpoJPHmcGEt26Jl3rLMw=="
+    }
+  ],
+  "canonical": {
+    "source": "a826919984a91358aeeb6d2f8418b4684dc49da6",
+    "command": "./scripts/test.sh",
+    "pid": 754268,
+    "start": 1788858547.4314473,
+    "node": "v24.13.1",
+    "cargo": "cargo 1.97.0 (c980f4866 2026-06-30)",
+    "bun": "1.3.14",
+    "preload": [
+      0.01513671875,
+      0.07470703125,
+      0.14013671875
+    ],
+    "node_test_timeout_ms": 10000,
+    "thread_override": null,
+    "exit": 0,
+    "end": 1788858638.151422,
+    "wall_s": 90.719975233078
+  },
+  "canonical_results": {
+    "node_passed": 825,
+    "native_passed": 865,
+    "native_skipped": 4,
+    "evaluator_passed": 225,
+    "visibility_passed": 2,
+    "compiler_passed": 214,
+    "doctests": "pass"
+  },
+  "runtime": {
+    "entry": "complete-local-runtime",
+    "minified": 257376,
+    "gzip": 83764,
+    "ceiling": 84000,
+    "target": 80000,
+    "toolchain": {
+      "node": "v24.18.0",
+      "esbuild": "0.25.9",
+      "gzipLevel": 9
+    },
+    "inputs": [
+      "../evaluator/src/hash.ts",
+      "../evaluator/src/errors.ts",
+      "../evaluator/src/certificate-identity.ts",
+      "../evaluator/src/ordered.ts",
+      "../evaluator/src/slot-tree.ts",
+      "../evaluator/src/posting-tree.ts",
+      "../evaluator/src/prefix-dictionary.ts",
+      "../../crates/snapback2-core/ir-contract.json",
+      "../evaluator/src/cursor.ts",
+      "../evaluator/dist/unicode-tables.ts",
+      "../evaluator/src/unicode-tables.ts",
+      "../evaluator/src/unicode.ts",
+      "../evaluator/src/value-runtime.ts",
+      "../evaluator/src/search-key.ts",
+      "../evaluator/src/index-store.ts",
+      "../evaluator/src/row-image.ts",
+      "src/store/asset-policy.ts",
+      "../evaluator/src/search-runtime.ts",
+      "src/local-cursor.ts",
+      "../evaluator/src/merge.ts",
+      "../evaluator/src/text.ts",
+      "../evaluator/src/runner.ts",
+      "src/offline-schema.ts",
+      "src/held-program.ts",
+      "../evaluator/src/range-preparation.ts",
+      "../evaluator/src/held-directory.ts",
+      "../evaluator/src/coverage-spans.ts",
+      "../evaluator/src/coverage.ts",
+      "../evaluator/src/store.ts",
+      "src/store/row-values.ts",
+      "src/offline-protocol.ts",
+      "src/store/canonical.ts",
+      "src/query-frame.ts",
+      "src/query-items.ts",
+      "src/twin-store.ts",
+      "src/store/forwarding.ts",
+      "src/store/outbox.ts",
+      "src/twin-hydrate.ts",
+      "src/twin.ts",
+      "src/types.ts",
+      "src/store/extent-facts.ts",
+      "src/store/extent-index.ts",
+      "src/store/fact-integrity.ts",
+      "src/store/fact-index.ts",
+      "src/store/carrier-index.ts",
+      "src/store/swap-journal.ts",
+      "src/store/query-inputs.ts",
+      "src/store/byte-cache.ts",
+      "src/store/overlay-retirement.ts",
+      "src/store/maintained-coherence.ts",
+      "src/store/range-store.ts",
+      "src/tombstones.ts",
+      "src/client-wire.ts",
+      "src/offline.ts",
+      "src/store/metadata.ts",
+      "src/store/projection.ts",
+      "<stdin>"
+    ]
+  },
+  "measurement": {
+    "source": "a826919984a91358aeeb6d2f8418b4684dc49da6",
+    "command": "node scripts/measure.mjs --check",
+    "pid": 780759,
+    "start": 1788858696.6499133,
+    "exit": 1,
+    "end": 1788858737.12315,
+    "wall_s": 40.47323775291443
+  },
+  "measurement_metric": {
+    "at": "2026-09-08T09:11:36.674Z",
+    "sha": "a826919984",
+    "steps": {
+      "warm_build_s": {
+        "seconds": 0.12,
+        "ok": true
+      },
+      "package_build_s": {
+        "seconds": 3.159,
+        "ok": true
+      },
+      "boot_s": {
+        "seconds": 0.035,
+        "ok": true,
+        "samples": [
+          {
+            "seconds": 0.035,
+            "ok": true
+          },
+          {
+            "seconds": 0.032,
+            "ok": true
+          }
+        ]
+      },
+      "incremental_build_s": {
+        "seconds": 2.73,
+        "ok": true
+      },
+      "consumer_smoke_s": {
+        "seconds": 30.4,
+        "ok": true
+      },
+      "check_s": {
+        "seconds": 0.004,
+        "ok": true
+      },
+      "check_project_s": {
+        "seconds": 1.019,
+        "ok": true
+      },
+      "dev_boot_s": {
+        "seconds": 0.657,
+        "ok": true
+      },
+      "dev_stop_s": {
+        "seconds": 0.23,
+        "ok": true
+      },
+      "dev_cleanup_s": {
+        "seconds": 0.002,
+        "ok": true
+      },
+      "debug_binary_stat_s": {
+        "seconds": 0,
+        "ok": true
+      },
+      "init_to_dev_s": {
+        "seconds": 1.799,
+        "ok": true
+      },
+      "init_dev_stop_s": {
+        "seconds": 0.231,
+        "ok": true
+      },
+      "init_cleanup_s": {
+        "seconds": 0.002,
+        "ok": true
+      }
+    },
+    "warm_build_s": 0.12,
+    "package_build_s": 3.159,
+    "boot_s": 0.035,
+    "doctor_samples_s": [
+      {
+        "seconds": 0.035,
+        "ok": true
+      },
+      {
+        "seconds": 0.032,
+        "ok": true
+      }
+    ],
+    "doctor_ms": 29.81381,
+    "incremental_build_s": 2.73,
+    "consumer_smoke_s": 30.4,
+    "consumer": [
+      {
+        "name": "install tarballs",
+        "seconds": 2.142999100000001,
+        "ok": true
+      },
+      {
+        "name": "doctor",
+        "seconds": 0.058464807999998814,
+        "ok": true
+      },
+      {
+        "name": "guide auth",
+        "seconds": 0.025680774999998903,
+        "ok": true
+      },
+      {
+        "name": "public client and React exports",
+        "seconds": 0.06102246199999899,
+        "ok": true
+      },
+      {
+        "name": "todos init",
+        "seconds": 0.8908989189999993,
+        "ok": true
+      },
+      {
+        "name": "todos check",
+        "seconds": 0.8860073469999988,
+        "ok": true
+      },
+      {
+        "name": "todos React bundle",
+        "seconds": 1.6627484339999992,
+        "ok": true
+      },
+      {
+        "name": "todos dev",
+        "seconds": 0.4331717150000004,
+        "ok": true
+      },
+      {
+        "name": "React live query round trip",
+        "seconds": 0.17892611600000055,
+        "ok": true
+      },
+      {
+        "name": "todos receipt",
+        "accepted": true,
+        "verdict": "pass"
+      },
+      {
+        "name": "todos test",
+        "seconds": 1.4635772509999987,
+        "ok": true
+      },
+      {
+        "name": "todos stop",
+        "seconds": 0.18235027900000206,
+        "ok": true
+      },
+      {
+        "name": "chat init",
+        "seconds": 1.275283371999998,
+        "ok": true
+      },
+      {
+        "name": "chat check",
+        "seconds": 1.2794782400000004,
+        "ok": true
+      },
+      {
+        "name": "chat React bundle",
+        "seconds": 1.6879441709999992,
+        "ok": true
+      },
+      {
+        "name": "chat dev",
+        "seconds": 0.6846951530000006,
+        "ok": true
+      },
+      {
+        "name": "chat receipt",
+        "accepted": true,
+        "verdict": "blocked",
+        "blocked": "effects"
+      },
+      {
+        "name": "chat test",
+        "seconds": 14.760081277000001,
+        "ok": true
+      },
+      {
+        "name": "chat stop",
+        "seconds": 0.15723654399999942,
+        "ok": true
+      }
+    ],
+    "check_s": 0.004,
+    "check_project_s": 1.019,
+    "dev_boot_s": 0.657,
+    "dev_stop_s": 0.23,
+    "dev_cleanup_s": 0.002,
+    "debug_binary_bytes": 154365576,
+    "release_binary_bytes": 17639344,
+    "debug_binary_stat_s": 0,
+    "init_to_dev_s": 1.799,
+    "init_dev_stop_s": 0.231,
+    "init_cleanup_s": 0.002
+  },
+  "reviews": {
+    "sol": {
+      "verdict": "CHANGES REQUIRED",
+      "model": "gpt-5.6-sol",
+      "effort": "xhigh",
+      "session": "01a08044-8fc6-72d3-9afe-b28b4feac20d",
+      "artifact": "../../../llp/reviews/1012-metadata-json-020-r2.sol.md"
+    },
+    "grok": {
+      "verdict": "READY",
+      "model": "grok-4.6-build",
+      "effort": "xhigh",
+      "session": "01a08044-91f4-7ff3-8e65-c8a11e6f5144",
+      "artifact": "../../../llp/reviews/1012-metadata-json-020-r2.grok.md"
+    }
+  },
+  "checks": {
+    "ref_check": "416LLP docs,7826refs,0errors,0unchecked",
+    "caps": "all7categories pass",
+    "node_test_timeout_ms": 10000
+  },
+  "author_controls": {
+    "node": "22.23.2",
+    "focused_passed": 10,
+    "sqlite_passed": 27,
+    "outbox_passed": 2,
+    "unchanged_array_slots": 8192,
+    "serialized_header_bytes": 561
+  },
+  "raw_evidence_sha256": {
+    "canonical.log": "6b8f54f782458afec1355cb411a4f85948342645309ce9c25b4587d863dfcf75",
+    "canonical.junit.xml": "0912ba6539e0adc2a9ca76da40b6feb582e4af6f41051a59e043d4274c544588",
+    "measure.log": "a87391d9ea886d9200b43620e01296eccdb4f160ac126cee3db9661b9d7b99a7",
+    "runtime.log": "5a6e4d2b6cd91814d5e73a8cbfe1cffa63587968c5c86e7161774f194f0c057d"
+  },
+  "author_evidence_sha256": {
+    "before-fix.tap": "0c69207bb1679c0dc88c0a32fd1c35d1f7944c7e1e86bd110947d7b7c289d048",
+    "source-review-before-fix.tap": "17e5293e6b152b74aadadc4eed63a440634afb9d4f1e058053ee9ae204748db0",
+    "final-source-review-before-fix.tap": "785f7f43308a62c67bb4de7d32f93a4915b2bf1d38f5de77339bc299c631c8da",
+    "final-candidate-focused.tap": "572141a44e86057199b7e90652213fcc3affd626e8974ebf8038d64e58c0bd36",
+    "final-candidate-full-sqlite.tap": "030b1e20f02f6d121dd5bea32005d80824d57ea5a71306eedc81228d30935fc7",
+    "final-candidate-outbox.tap": "8a4c6502c8f2b7175f8e9a3abd2fee02511835268a04946fbe9e29e76794f3e9"
+  },
+  "rejected_prior_candidate": "release-020-qualification.json"
+}

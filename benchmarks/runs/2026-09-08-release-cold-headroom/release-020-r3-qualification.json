@@ -1,0 +1,291 @@
+{
+  "version": "0.0.20",
+  "source": "ce7f9b00b04095823e8a5a619c77fc90c840d615",
+  "author_commits": [
+    "bd4fcc6942bddb3f5a8ba999d37a043a2d67e59f",
+    "99728f490d66ba8611c05860e56e31245f1d519f"
+  ],
+  "candidate_status": "rejected: first journaled persistence omits metadata baseline, causing cold coverage reset and defeating019 downgrade refusal",
+  "publication": "not attempted; do not publish these candidate tarballs",
+  "cold_benchmark_version": "0.0.19",
+  "production": {
+    "source": "ce7f9b00b04095823e8a5a619c77fc90c840d615",
+    "command": "node snapback2/scripts/publish.mjs --dry-run",
+    "node": "v24.18.0",
+    "cargo_build_jobs": 2,
+    "full_engine": true,
+    "host_overlap": "continuous cold019 builder on same Mac; not a controlled timing comparison",
+    "start": 1788862246.5829859,
+    "pid": 98958,
+    "exit": 0,
+    "end": 1788862307.404796,
+    "wall_s": 60.82181000709534
+  },
+  "production_metric": {
+    "at": "2026-09-08T10:11:47.368Z",
+    "publish_s": 60.7,
+    "production_binary_bytes": 7312592,
+    "production_binary_without_engine_bytes": 4078496,
+    "production_binary_with_engine_bytes": 7312592,
+    "production_media_binary_bytes": 2147984,
+    "engine": "ibex2 + vanilla hermes",
+    "dry": true
+  },
+  "production_consumer": {
+    "steps": [
+      {
+        "name": "install tarballs",
+        "seconds": 3.8727046249999986,
+        "ok": true
+      },
+      {
+        "name": "doctor",
+        "seconds": 0.46589624999999796,
+        "ok": true
+      },
+      {
+        "name": "guide auth",
+        "seconds": 0.05414262500000041,
+        "ok": true
+      },
+      {
+        "name": "public client and React exports",
+        "seconds": 0.0738960420000003,
+        "ok": true
+      },
+      {
+        "name": "todos init",
+        "seconds": 0.9235077920000003,
+        "ok": true
+      },
+      {
+        "name": "todos check",
+        "seconds": 1.1422962499999993,
+        "ok": true
+      },
+      {
+        "name": "todos React bundle",
+        "seconds": 2.5033983750000006,
+        "ok": true
+      },
+      {
+        "name": "todos dev",
+        "seconds": 0.4346132499999985,
+        "ok": true
+      },
+      {
+        "name": "React live query round trip",
+        "seconds": 0.1377351660000022,
+        "ok": true
+      },
+      {
+        "name": "todos receipt",
+        "accepted": true,
+        "verdict": "pass"
+      },
+      {
+        "name": "todos test",
+        "seconds": 1.5288212500000045,
+        "ok": true
+      },
+      {
+        "name": "todos stop",
+        "seconds": 0.18484183300000587,
+        "ok": true
+      },
+      {
+        "name": "chat init",
+        "seconds": 1.0567607500000014,
+        "ok": true
+      },
+      {
+        "name": "chat check",
+        "seconds": 1.1887247500000013,
+        "ok": true
+      },
+      {
+        "name": "chat React bundle",
+        "seconds": 1.2487782080000034,
+        "ok": true
+      },
+      {
+        "name": "chat dev",
+        "seconds": 1.0922227090000014,
+        "ok": true
+      },
+      {
+        "name": "chat receipt",
+        "accepted": true,
+        "verdict": "pass"
+      },
+      {
+        "name": "chat test",
+        "seconds": 18.481796708,
+        "ok": true
+      },
+      {
+        "name": "chat stop",
+        "seconds": 0.2830733340000006,
+        "ok": true
+      }
+    ]
+  },
+  "production_log_sha256": "67263d25d85dcd2c12e9db46b5622eb9ca29ab8f8b3892582fc7c919d556c517",
+  "artifacts": [
+    {
+      "name": "snapback2-0.0.20.tgz",
+      "bytes": 3055864,
+      "sha256": "7c386a328bfafa41e6ab3642ddda905559e339015f24bafebe52f981e23e2076",
+      "integrity": "sha512-jFMprOfAA44jYT5EQVj1KCCDd35q7WEQnVGrdwkUlkBUz93JMP+gT1eqYuzyivXM5vl1BcC+E9fK0RuMABvV6g=="
+    },
+    {
+      "name": "snapback2-darwin-arm64-0.0.20.tgz",
+      "bytes": 4998797,
+      "sha256": "afe2dfced20761009984484aaf511eaa6ca4f060e442ce7b38ac139553abe7e5",
+      "integrity": "sha512-2fF7LRgcz2cUX89inwhpHSplAc4KBPCWsbVoB4/kXySdEjrEfHOnQJrCyHWBQ2KTMmJpoJPHmcGEt26Jl3rLMw=="
+    }
+  ],
+  "canonical": {
+    "source": "ce7f9b00b04095823e8a5a619c77fc90c840d615",
+    "command": "./scripts/test.sh",
+    "node": "v24.13.1",
+    "cargo": "cargo 1.97.0 (c980f4866 2026-06-30)",
+    "bun": "1.3.14",
+    "preload": [
+      0.0205078125,
+      0.0283203125,
+      0.05859375
+    ],
+    "node_test_timeout_ms": 10000,
+    "thread_override": null,
+    "start": 1788862247.9293993,
+    "pid": 783637,
+    "exit": 1,
+    "end": 1788862338.140821,
+    "wall_s": 90.21142172813416
+  },
+  "canonical_results": {
+    "node_total": 837,
+    "node_passed": 788,
+    "node_failed": 49,
+    "node_cancelled": 0,
+    "native_passed": 865,
+    "native_skipped": 4,
+    "native_s": 36.325,
+    "compiler_passed": 214
+  },
+  "runtime": {
+    "entry": "complete-local-runtime",
+    "minified": 257554,
+    "gzip": 83826,
+    "ceiling": 84000,
+    "target": 80000,
+    "toolchain": {
+      "node": "v24.18.0",
+      "esbuild": "0.25.9",
+      "gzipLevel": 9
+    },
+    "inputs": [
+      "snapback2/packages/evaluator/src/hash.ts",
+      "snapback2/packages/evaluator/src/errors.ts",
+      "snapback2/packages/evaluator/src/certificate-identity.ts",
+      "snapback2/packages/evaluator/src/ordered.ts",
+      "snapback2/packages/evaluator/src/slot-tree.ts",
+      "snapback2/packages/evaluator/src/posting-tree.ts",
+      "snapback2/packages/evaluator/src/prefix-dictionary.ts",
+      "snapback2/crates/snapback2-core/ir-contract.json",
+      "snapback2/packages/evaluator/src/cursor.ts",
+      "snapback2/packages/evaluator/dist/unicode-tables.ts",
+      "snapback2/packages/evaluator/src/unicode-tables.ts",
+      "snapback2/packages/evaluator/src/unicode.ts",
+      "snapback2/packages/evaluator/src/value-runtime.ts",
+      "snapback2/packages/evaluator/src/search-key.ts",
+      "snapback2/packages/evaluator/src/index-store.ts",
+      "snapback2/packages/evaluator/src/row-image.ts",
+      "snapback2/packages/snapback2/src/store/asset-policy.ts",
+      "snapback2/packages/evaluator/src/search-runtime.ts",
+      "snapback2/packages/snapback2/src/local-cursor.ts",
+      "snapback2/packages/evaluator/src/merge.ts",
+      "snapback2/packages/evaluator/src/text.ts",
+      "snapback2/packages/evaluator/src/runner.ts",
+      "snapback2/packages/snapback2/src/offline-schema.ts",
+      "snapback2/packages/snapback2/src/held-program.ts",
+      "snapback2/packages/evaluator/src/range-preparation.ts",
+      "snapback2/packages/evaluator/src/held-directory.ts",
+      "snapback2/packages/evaluator/src/coverage-spans.ts",
+      "snapback2/packages/evaluator/src/coverage.ts",
+      "snapback2/packages/evaluator/src/store.ts",
+      "snapback2/packages/snapback2/src/store/row-values.ts",
+      "snapback2/packages/snapback2/src/offline-protocol.ts",
+      "snapback2/packages/snapback2/src/store/canonical.ts",
+      "snapback2/packages/snapback2/src/query-frame.ts",
+      "snapback2/packages/snapback2/src/query-items.ts",
+      "snapback2/packages/snapback2/src/twin-store.ts",
+      "snapback2/packages/snapback2/src/store/forwarding.ts",
+      "snapback2/packages/snapback2/src/store/outbox.ts",
+      "snapback2/packages/snapback2/src/twin-hydrate.ts",
+      "snapback2/packages/snapback2/src/twin.ts",
+      "snapback2/packages/snapback2/src/types.ts",
+      "snapback2/packages/snapback2/src/store/extent-facts.ts",
+      "snapback2/packages/snapback2/src/store/extent-index.ts",
+      "snapback2/packages/snapback2/src/store/fact-integrity.ts",
+      "snapback2/packages/snapback2/src/store/fact-index.ts",
+      "snapback2/packages/snapback2/src/store/carrier-index.ts",
+      "snapback2/packages/snapback2/src/store/swap-journal.ts",
+      "snapback2/packages/snapback2/src/store/query-inputs.ts",
+      "snapback2/packages/snapback2/src/store/byte-cache.ts",
+      "snapback2/packages/snapback2/src/store/overlay-retirement.ts",
+      "snapback2/packages/snapback2/src/store/maintained-coherence.ts",
+      "snapback2/packages/snapback2/src/store/range-store.ts",
+      "snapback2/packages/snapback2/src/tombstones.ts",
+      "snapback2/packages/snapback2/src/client-wire.ts",
+      "snapback2/packages/snapback2/src/offline.ts",
+      "snapback2/packages/snapback2/src/store/metadata.ts",
+      "snapback2/packages/snapback2/src/store/projection.ts",
+      "<stdin>"
+    ]
+  },
+  "measurement": "not run after canonical product failure; earlier timing failures remain in prior candidate records",
+  "reviews": {
+    "sol": {
+      "verdict": "CHANGES REQUIRED",
+      "model": "gpt-5.6-sol",
+      "effort": "xhigh",
+      "session": "01a0807d-baa7-7983-a977-64bbac27f559",
+      "artifact": "../../../llp/reviews/1012-metadata-json-020-r3.sol.md"
+    },
+    "grok": {
+      "verdict": "CHANGES REQUIRED",
+      "model": "grok-4.6-build",
+      "effort": "xhigh",
+      "session": "01a0807d-bf98-7573-9e3c-feed8f7d8797",
+      "artifact": "../../../llp/reviews/1012-metadata-json-020-r3.grok.md"
+    }
+  },
+  "author_controls": {
+    "node": "24.18.0",
+    "sqlite_passed": 39,
+    "outbox_passed": 2,
+    "node_test_timeout_ms": 10000,
+    "published019_downgrade": "executed on Node SQLite, E_OFFLINE_CARRIER preserves state/outbox/bytes; exact tarball sha74bcfc151792bee585f420d66d5ac0f016e50898cd0c244cb00af207bf9799f8"
+  },
+  "raw_evidence_sha256": {
+    "canonical.log": "4bf00002b905da943e9cc2389de2e143919ceea8c16d73eb0993f919f5774591",
+    "canonical.receipt.json": "8969b20a0189fbcdae49d70dded4d747b5490b501c0201e3d540f45ff11466d6",
+    "canonical.junit.xml": "813947d7a40aa27fdac7664115c3e806c6e23d741e193b14bc6c4b2c0048ec4c",
+    "runtime.log": "4a8c74fa87686be541429301c359127102628269534b92f8a0bd59d82afa3e6e"
+  },
+  "author_evidence_sha256": {
+    "before-fix.tap": "16095f3de7bd75826ee43f72e29b1d17d6cd4c83c24f87a780992a582c6fcd2d",
+    "before-journal-fix.tap": "44db64724a557ea187ad0f446a50bd5e6820d4d9621f7124b9da846e06300fdd",
+    "final-outbox.tap": "0f160386727f1cfb5472381be6aac8881c60a8928b8d228fe91ceb4b72d19e36",
+    "final-candidate-full-sqlite.tap": "d7a17ae144c1c4297bbcd26df0b75cc76b5f74749e8d3fc81fa8d5b7852bcf37",
+    "final-candidate-outbox.tap": "b8839c97bb473f4fb26a652d6a8094035d71ab37f593fb0eabfa93f08963c2fe",
+    "final-candidate-published-019-downgrade.txt": "fba8d7a2f88d30be04c5b449658a85844efc8ae5617f2dc53dfd08f121ecbdba",
+    "final-candidate-command.txt": "863da975868a86e7e691a6109f84c56a5171c733f5a8649974c1d50ce852d1dd",
+    "final-candidate-source-sha256.txt": "cef717ed72b0468c95a7a9b557bf4660a5b6332961dff4ec682a038b1db5a9c0"
+  },
+  "rejected_prior_candidate": "release-020-r2-qualification.json",
+  "fix_round_limit": "third candidate failed; further coding paused pending explicit authorization or descope per rules/RULES.md",
+  "legacy_name_scope": "legacy-metadata-source-scope.md; handcrafted ambiguous legacy-root finding adjudicated outside released production scope"
+}
