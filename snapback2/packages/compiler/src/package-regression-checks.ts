@@ -54,7 +54,16 @@ export function registerPackageRegressionChecks(test: Test, assert: Assert, crat
       killLockHolder(JSON.parse(held.trim()).pid);
       holder.kill(9);
       await holder.exited;
+      await rm(resolve(crate, "packages/snapback2/dist"), { recursive: true, force: true });
       reclaimedPackageFiles = pack();
+      assert(reclaimedPackageFiles.has("dist/compiler.mjs"), "package rebuild did not produce the compiler bundle");
+      let lockRemains = true;
+      try { await readFile(lock); }
+      catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+        lockRemains = false;
+      }
+      assert(!lockRemains, "package rebuild did not reclaim and release the killed holder's lock");
     } finally {
       try { killLockHolder(JSON.parse((await readFile(lock, "utf8")).trim()).pid); } catch {}
       if (holder.exitCode === null) holder.kill(9);
