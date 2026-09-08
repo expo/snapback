@@ -104,7 +104,7 @@ export class TwinStore {
       // Replaced root dictionaries mean a generation reset; request one coherent cold snapshot.
       if (Object.keys(change.records?.['*'] ?? {}).some(k => ['rows', 'answers', 'negative', 'extentNegative', 'overlay', 'viewed', 'facts'].includes(k))
         || change.removed?.['*']?.includes('facts')) { this.revision = undefined; return this.sync(); }
-      for (const key of answers) this.trackPrimaryAbsences(key, this.state.answers[key]);
+      for (const key of answers) this.trackPrimaryAbsences(key, this.state.answers[key], rows);
       for (const intent of intents) this.intent(intent, rows);
       let rowChanged = false, authorityChanged = false;
       for (const key of rows) rowChanged = this.row(key) || rowChanged;
@@ -135,8 +135,9 @@ export class TwinStore {
     }
     this.intentRows.set(intent, keys); this.pendingEntries.set(intent, entry); this.pending.set(entry, intent);
   }
-  private trackPrimaryAbsences(owner: string, answer?: StoredAnswer): void {
+  private trackPrimaryAbsences(owner: string, answer?: StoredAnswer, affected?: Set<string>): void {
     for (const key of this.answerPrimaryAbsences.get(owner) ?? []) {
+      affected?.add(key);
       const owners = this.primaryAbsenceOwners.get(key);
       owners?.delete(owner); if (!owners?.size) this.primaryAbsenceOwners.delete(key);
     }
@@ -148,6 +149,7 @@ export class TwinStore {
     if (!keys.length) return;
     this.answerPrimaryAbsences.set(owner, keys);
     for (const key of keys) {
+      affected?.add(key);
       const owners = this.primaryAbsenceOwners.get(key) ?? new Map();
       owners.set(owner, { seq: answer.seq, order: answer.order }); this.primaryAbsenceOwners.set(key, owners);
     }
@@ -173,8 +175,10 @@ export class TwinStore {
     const contributions = [...(this.contributions.get(key)?.values() ?? [])].sort((a, b) => fifo(a.entry, b.entry));
     for (const { entry, row } of contributions) {
       if (hole !== undefined && (masked || entry.issuedSeq <= hole.seq)) continue;
-      if (negative !== undefined && !this.provedPrimaryAbsence(key, negative, entry)
-        && (!base || (this.state.rowSeq[key] ?? -1) <= negative || entry.issuedSeq <= negative)) continue;
+      const newerBase = base && (this.state.rowSeq[key] ?? -1) > (negative ?? -1);
+      const createsOverProof = negative !== undefined && !newerBase && this.provedPrimaryAbsence(key, negative, entry);
+      if (negative !== undefined && !createsOverProof
+        && (!newerBase || entry.issuedSeq <= negative)) continue;
       if (row.removed) effective = undefined;
       else if (row.fields) {
         if (effective) effective = { table, id, row: { ...imageWire(effective.row), ...Object.fromEntries(row.fields.map(f => [f, row.row[f]])) } };

@@ -353,6 +353,48 @@ test('a receipt-owned primary absence admits only a later predicted overlay imag
   }
 });
 
+test('primary absence owner withdrawal and later authority recompute its predicted row', async () => {
+  const { nativeR8: { movement } } = JSON.parse(await readFile(new URL('../../evaluator/src/test-search-v5-fixtures.json', import.meta.url), 'utf8'));
+  const setup = async () => {
+    let saved: any;
+    const factory = () => new PersistentRangeStore({carrier:'memory',open:async()=>saved,replace:async state=>{saved=structuredClone(state);},close(){},wipe:async()=>{}});
+    let runtime = new OfflineRuntime({store:factory});
+    await runtime.open(movement.first.authority.principal,true); await runtime.program(movement.packet);
+    const absent = structuredClone(movement.hole);
+    absent.receipt.absences = [['events','byId',['one']]];
+    await runtime.commit('clock.bounded',{},await runtime.accept('clock.bounded',{},absent));
+    await runtime.store.commit({outbox:{put:[{...entry('predicted'),predicted:true,issuedSeq:0}]},
+      overlay:{put:{predicted:[{table:'events',id:'one',row:{id:'one',at:9}}]}}});
+    const rows = async () => (await runtime.twin.evaluate('clock.read',{}) as any)?.data?.rows ?? [];
+    assert.deepEqual((await rows()).map((row:any)=>row.at),[9]);
+    return { factory, rows, runtime: () => runtime, reopen: async () => {
+      await runtime.close(); runtime = new OfflineRuntime({store:factory}); await runtime.open(movement.first.authority.principal,true);
+    }};
+  };
+  {
+    const state = await setup();
+    await state.runtime().store.commit({dropAnswers:['clock.bounded\0{}']});
+    assert.deepEqual(await state.rows(),[],'removing the sole receipt owner immediately withdraws creation authority');
+    await state.reopen(); assert.deepEqual(await state.rows(),[],'withdrawn authority stays withdrawn after a cold rebuild');
+    await state.runtime().close();
+  }
+  {
+    const state = await setup();
+    const replacement = structuredClone(movement.hole);
+    replacement.seq = 3; replacement.readTime += 1; replacement.receipt.absences = [];
+    await state.runtime().commit('clock.bounded',{},await state.runtime().accept('clock.bounded',{},replacement));
+    assert.deepEqual(await state.rows(),[],'replacing an answer without the primary absence withdraws its row authority');
+    await state.runtime().close();
+  }
+  {
+    const state = await setup();
+    await state.runtime().store.commit({tombstones:[{table:'events',id:'one',seq:3}]});
+    assert.deepEqual(await state.rows(),[],'a later primary revocation dominates an older receipt and prediction');
+    await state.reopen(); assert.deepEqual(await state.rows(),[],'the later revocation remains dominant cold');
+    await state.runtime().close();
+  }
+});
+
 test('native-certified Unicode search accepts scope movement in either arrival order and retains exact Q custody cold', async () => {
   const f = JSON.parse(await readFile(new URL('../../evaluator/src/test-search-v5-fixtures.json', import.meta.url),'utf8'));
   const operation = f.operations['search.inConversation'], op = operation.program.name;
