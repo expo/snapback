@@ -63,7 +63,8 @@ function object(value: unknown): value is Record<string, unknown> {
 
 function validStatus(value: unknown): value is OutboxStatus {
   return object(value) && typeof value.ready === "boolean" && typeof value.reason === "string"
-    && typeof value.action === "string" && typeof value.remaining === "number" && (value.fence === "inside" || value.fence === "past");
+    && typeof value.action === "string" && typeof value.remaining === "number" && (value.fence === "inside" || value.fence === "past")
+    && (value.draining === undefined || value.draining === true);
 }
 
 /**
@@ -292,6 +293,8 @@ export class ClientInbox {
   ledgerChanged(): void {
     if (!this.writerScope) return;
     this.post({ protocol: PROTOCOL, type: "ledger", scope: this.writerScope });
+    // Replay activity changes even when a transport stop leaves every entry intact.
+    void this.announce();
     if ((this.host.runtime?.inboxPending ?? 0) > 0 && !this.admitting && !this.retryTimer) {
       this.retryTimer = setTimeout(() => { this.retryTimer = undefined; if (this.writerScope) void this.admit(); }, 0);
       (this.retryTimer as { unref?: () => void }).unref?.();
@@ -302,7 +305,7 @@ export class ClientInbox {
     const runtime = this.host.runtime, scope = this.writerScope;
     if (!runtime || !scope || !runtime.principal) return;
     let status: OutboxStatus;
-    try { status = await this.host.writerStatus(); }
+    try { status = { ...await this.host.writerStatus(), ...(runtime.draining ? { draining: true as const } : {}) }; }
     catch { return; }
     if (this.writerScope !== scope) return;
     this.post({ protocol: PROTOCOL, type: "writer", scope, principal: runtime.principal,

@@ -208,7 +208,15 @@ export interface DrainOptions {
  */
 export function drainOutbox(options: DrainOptions): Promise<DrainResult> {
   const { runtime } = options;
-  const run = runtime.drainTail.then(() => drainQueued(options));
+  // @ref LLP 1018.003.001#1-readiness-actions — only active replay justifies
+  // waiting for the server; a successful read cannot resume a stopped queue.
+  const run = runtime.drainTail.then(async () => {
+    throwIfAborted(options.signal);
+    runtime.draining = true;
+    runtime.outbox.notify();
+    try { return await drainQueued(options); }
+    finally { runtime.draining = false; runtime.outbox.notify(); }
+  });
   runtime.drainTail = run.then(() => undefined, () => undefined);
   // The outcome keeps the rejection for `settled()`; the handler here only
   // stops an unobserved refusal from surfacing as an unhandled rejection.
@@ -379,7 +387,10 @@ export function createOutboxApi(
     if (runtime?.following) return inbox?.status()
       ?? { ready: false, reason: "follower", action: "none", remaining: 0, fence: "inside" };
     if (!runtime || runtime.principal === undefined) return { ready: true, reason: "ready", action: "none", remaining: 0, fence: "inside" };
-    try { return await runtime.outbox.status(op === undefined ? undefined : referenceName(op)); }
+    try {
+      const value = await runtime.outbox.status(op === undefined ? undefined : referenceName(op));
+      return { ...value, ...(runtime.draining ? { draining: true as const } : {}) };
+    }
     catch (error) {
       if (error instanceof Error && /sealed/.test(error.message)) return { ready: false, reason: "sealed", action: "login", remaining: 0, fence: "past" };
       throw error;

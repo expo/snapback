@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import React from "react";
 import TestRenderer, { act } from "react-test-renderer";
-import { api, createClient } from "../dist/client.mjs";
+import { api, createClient, readiness } from "../dist/client.mjs";
 import { indexedDbRangeStore, SnapbackProvider, useMutation, useOutbox, useSnapbackClient } from "../dist/react.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
 import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
@@ -14,6 +14,101 @@ import { DAY, engineId, fakeOwner, seededStore } from "./fake-owner.ts";
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 const pause = () => new Promise(done => setTimeout(done, 10));
 const grant = (now = Date.now()) => ({ id: engineId(700), from: engineId(700), count: 100, used: 0, mintedAt: now, expiresAt: now + 30 * DAY });
+
+for (const observers of [0, 1, 4]) {
+  test(`${observers} observers: active replay waits; a connected read leaves a stopped queue actionable`, async () => {
+    const root = await mkdtemp(join(tmpdir(), "s2-ready-drain-"));
+    const store = fileRangeStore(root), owner = fakeOwner({ failAfterCommit: 1 });
+    await seededStore(store);
+    let release!: () => void, entered!: () => void, attempts = 0;
+    const held = new Promise<void>(resolve => { release = resolve; });
+    const sent = new Promise<void>(resolve => { entered = resolve; });
+    const client = createClient({ url: "http://ready-drain.test", as: "alice", offline: { store },
+      fetch: async (input, init) => {
+        if (new URL(String(input)).pathname === "/api/mutation") { attempts += 1; entered(); await held; }
+        return owner.fetch(input, init);
+      } });
+    const views = Array.from({ length: observers }, () => client.outbox.observe(api.deliveries.post));
+    const detach = views.map(view => view.subscribe(() => undefined));
+    try {
+      await client.ready; await client.offline();
+      await client.mutation(api.deliveries.post, { conversationId: engineId(10), body: "one" });
+      const delivery = client.online();
+      await sent; await pause();
+      const active = await client.outbox.status(api.deliveries.post);
+      assert.equal(active.draining, true);
+      assert.equal(readiness(active, client.snapshot.connection, 1).action, "wait");
+      for (const view of views) assert.equal(view.getSnapshot().status.draining, true);
+      assert.equal(attempts, 1, "observations never start replay");
+      release(); await delivery;
+      assert.equal((await client.outbox.settled()).stopped, "transport");
+      await client.query(api.deliveries.inbox, { c: null });
+      assert.equal(client.snapshot.connection, "connected");
+      const paused = await client.outbox.status(api.deliveries.post);
+      assert.equal(paused.draining, undefined);
+      assert.equal(readiness(paused, client.snapshot.connection, 1).action, "connect");
+      assert.match(readiness(paused, "connected", 1).reason!.message, /Sync to resume/);
+      await client.outbox.drain();
+      assert.equal((await client.outbox.settled()).remaining, 0);
+      assert.equal(owner.executions.length, 1, "retry uses the original durable intent");
+    } finally {
+      release(); detach.forEach(close => close()); await client.close();
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+}
+
+test("follower readiness keeps its inbox contract while detail.writer observes replay without writer-side hooks", async () => {
+  const store = indexedDbRangeStore({ indexedDB: new FakeIndexedDb() as any, locks: new FakeLocks() as any });
+  await seededStore(store);
+  const owner = fakeOwner({ failAfterCommit: 1 });
+  let release!: () => void, entered!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  const sent = new Promise<void>(resolve => { entered = resolve; });
+  const writer = createClient({ url: "http://ready-writer.test", as: "alice", offline: { store },
+    fetch: async (input, init) => {
+      if (new URL(String(input)).pathname === "/api/mutation") { entered(); await held; }
+      return owner.fetch(input, init);
+    } });
+  await writer.ready;
+  const follower = createClient({ url: "http://ready-writer.test", as: "alice", fetch: owner.fetch, offline: { store } });
+  const view = follower.outbox.observe(api.deliveries.post), close = view.subscribe(() => undefined);
+  let mutation: any, outbox: any, renderer: TestRenderer.ReactTestRenderer | undefined, delivery: Promise<void>;
+  function Harness() { mutation = useMutation(api.deliveries.post); outbox = useOutbox(); return null; }
+  const until = async (condition: () => boolean) => {
+    for (let attempt = 0; attempt < 300; attempt++) { if (condition()) return; await pause(); }
+    assert.fail("follower did not receive writer activity");
+  };
+  try {
+    await follower.ready; await until(() => view.getSnapshot().status.reason === "forwarding");
+    await act(async () => {
+      renderer = TestRenderer.create(React.createElement(SnapbackProvider, { client: follower, children: React.createElement(Harness) }));
+      await writer.offline();
+      await writer.mutation(api.deliveries.post, { conversationId: engineId(10), body: "shared activity" });
+      delivery = writer.online();
+      await sent; await until(() => view.getSnapshot().writer?.draining === true);
+    });
+    assert.equal(mutation.detail.writer.draining, true);
+    assert.equal(outbox.detail.writer.draining, true);
+    assert.equal(mutation.detail.status.reason, "forwarding");
+    assert.equal(mutation.detail.status.draining, undefined, "writer activity is separate from this tab's admission readiness");
+    assert.equal(mutation.can.send, true); assert.equal(mutation.can.action, "wait");
+    assert.match(mutation.can.reason.message, /Waiting for the sending tab/);
+    await act(async () => {
+      release(); await delivery;
+      await until(() => view.getSnapshot().writer?.draining === undefined);
+    });
+    assert.equal((await writer.outbox.settled()).stopped, "transport");
+    assert.equal(mutation.detail.writer.draining, undefined, "a stop publishes even when no durable entry changes");
+    assert.equal(mutation.detail.status.reason, "forwarding");
+    assert.equal(mutation.can.action, "wait");
+    await act(async () => { await writer.outbox.drain(); });
+    assert.equal(owner.executions.length, 1);
+  } finally {
+    release(); close(); await act(async () => { renderer?.unmount(); });
+    await follower.close(); await writer.close();
+  }
+});
 
 for (const carrier of ["file", "IndexedDB"]) {
   test(`${carrier}: ready() and ready(op) return false on sealed custody`, async () => {

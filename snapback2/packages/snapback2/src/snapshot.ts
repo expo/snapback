@@ -164,8 +164,8 @@ export const readinessMessages: Readonly<Record<string, string>> = Object.freeze
 
 /**
  * `queued` is the op-scoped count the hook computes, not the partition-wide
- * `remaining`; `connection` decides the pending sentence. `connect` means the
- * app offers `client.online()`: reconnect alone replays nothing.
+ * `remaining`; active replay decides whether waiting is useful on the writer.
+ * `connect` offers `client.online()`: a connected read alone replays nothing.
  */
 export function readiness(status: OutboxStatus, connection: ConnectionState, queued: number): Readiness {
   const reason = status.reason as string;
@@ -182,8 +182,10 @@ export function readiness(status: OutboxStatus, connection: ConnectionState, que
   if (status.fence === "past") return { send: true, action: "connect", reason: { code: "fence", message: message("fence") } };
   if (queued > 0) {
     const waiting = reason === "forwarding" ? "Waiting for the sending tab."
-      : connection === "connected" ? "Waiting for the server." : "Waiting for connection.";
-    return { send: true, action: reason === "forwarding" ? "wait" : "connect", reason: { code: "pending", message: `${queued} queued · ${waiting}` } };
+      : status.draining ? "Waiting for the server."
+        : connection === "connected" ? "Sync to resume delivery." : "Waiting for connection.";
+    return { send: true, action: reason === "forwarding" || status.draining ? "wait" : "connect",
+      reason: { code: "pending", message: `${queued} queued · ${waiting}` } };
   }
   return { send: true };
 }
