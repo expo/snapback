@@ -373,6 +373,15 @@ test('primary absence owner withdrawal and later authority recompute its predict
   };
   {
     const state = await setup();
+    const equivalent = structuredClone(movement.hole);
+    equivalent.readTime += 1; equivalent.receipt.absences = [['events','byId',['one']]];
+    await state.runtime().commit('clock.bounded',{},await state.runtime().accept('clock.bounded',{},equivalent));
+    assert.deepEqual((await state.rows()).map((row:any)=>row.at),[9],
+      'an equivalent timed refresh at the same database seq preserves earlier proof chronology');
+    await state.runtime().close();
+  }
+  {
+    const state = await setup();
     await state.runtime().store.commit({dropAnswers:['clock.bounded\0{}']});
     assert.deepEqual(await state.rows(),[],'removing the sole receipt owner immediately withdraws creation authority');
     await state.reopen(); assert.deepEqual(await state.rows(),[],'withdrawn authority stays withdrawn after a cold rebuild');

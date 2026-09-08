@@ -136,6 +136,9 @@ export class TwinStore {
     this.intentRows.set(intent, keys); this.pendingEntries.set(intent, entry); this.pending.set(entry, intent);
   }
   private trackPrimaryAbsences(owner: string, answer?: StoredAnswer, affected?: Set<string>): void {
+    const previous = new Map((this.answerPrimaryAbsences.get(owner) ?? []).flatMap(key => {
+      const proof = this.primaryAbsenceOwners.get(key)?.get(owner); return proof ? [[key, proof] as const] : [];
+    }));
     for (const key of this.answerPrimaryAbsences.get(owner) ?? []) {
       affected?.add(key);
       const owners = this.primaryAbsenceOwners.get(key);
@@ -151,7 +154,10 @@ export class TwinStore {
     for (const key of keys) {
       affected?.add(key);
       const owners = this.primaryAbsenceOwners.get(key) ?? new Map();
-      owners.set(owner, { seq: answer.seq, order: answer.order }); this.primaryAbsenceOwners.set(key, owners);
+      const old = previous.get(key);
+      owners.set(owner, old?.seq === answer.seq ? { seq: old.seq, order: Math.min(old.order, answer.order) }
+        : { seq: answer.seq, order: answer.order });
+      this.primaryAbsenceOwners.set(key, owners);
     }
   }
   private provedPrimaryAbsence(key: string, seq: number, entry: OutboxEntry): boolean {
