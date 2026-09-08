@@ -1275,7 +1275,7 @@ table posts:
   test("every Quarry diagnostic family rewrite is fenced parseable Quarry", () => {
     const families = JSON.parse(readFileSync(resolve(packageRoot, "guide/families.source.json"), "utf8")) as Array<Record<string, string>>;
     const quarry = families.filter((item) => item.family === "quarry");
-    const expected = new Set(["E_QUARRY_SYNTAX", "E_QUARRY_UNKNOWN", "E_QUARRY_AMBIGUOUS", "E_QUARRY_UNSUPPORTED", "E_QUARRY_PLACEMENT", "E_QUARRY_TYPE", "E_QUARRY_RETAIN", "E_QUARRY_ONLY"]);
+    const expected = new Set(["E_QUARRY_SYNTAX", "E_QUARRY_UNKNOWN", "E_QUARRY_AMBIGUOUS", "E_QUARRY_UNSUPPORTED", "E_QUARRY_PLACEMENT", "E_QUARRY_TYPE", "E_QUARRY_RETAIN", "E_QUARRY_TOMBSTONE", "E_QUARRY_ONLY"]);
     assert(quarry.length === expected.size, `Quarry family entry count changed: ${quarry.length}`);
     for (const item of quarry) {
       assert(expected.delete(item.code), `unexpected/duplicate Quarry family code ${item.code}`);

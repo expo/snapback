@@ -96,6 +96,8 @@ export type IndexDecl = { name: string; columns: string[]; unique: boolean; site
 export type RuleDecl = { effect: "read" | "insert" | "update" | "delete"; bindings: string[]; value: Expr; site: Site };
 export type ColumnDecl = { name: string; type: ScalarType; site: Site };
 export type FinalExistsDecl = { value: Extract<Expr, { kind: "exists" }>; site: Site };
+/** `tombstones <table>[.<column>] if <predicate>`: a delivered row of this table names a row of `table` the client evicts. */
+export type TombstoneDecl = { table: string; column: string; predicate: Expr; site: Site };
 export type TableDecl = {
   name: string;
   columns: ColumnDecl[];
@@ -104,6 +106,7 @@ export type TableDecl = {
   immutable: Array<{ columns: string[]; site: Site }>;
   caps: { max: number; by: string[]; site: Site }[];
   finalExists: FinalExistsDecl[];
+  tombstones: TombstoneDecl[];
   retain?: { policy: RetentionPolicy; site: Site };
   public?: { reason: string; site: Site };
   site: Site;
@@ -138,7 +141,7 @@ export type Document = {
   schedules: ScheduleDecl[];
 };
 
-export type QuarryCode = "E_SCHEMA_CONSTRAINT" | "E_SCHEDULE_COLUMN" | "E_SCHEDULE_TARGET" | "E_SCHEDULE_DURATION" | "E_QUARRY_SYNTAX" | "E_QUARRY_UNKNOWN" | "E_QUARRY_AMBIGUOUS" | "E_QUARRY_UNSUPPORTED" | "E_QUARRY_PLACEMENT" | "E_QUARRY_TYPE" | "E_QUARRY_RETAIN";
+export type QuarryCode = "E_SCHEMA_CONSTRAINT" | "E_SCHEDULE_COLUMN" | "E_SCHEDULE_TARGET" | "E_SCHEDULE_DURATION" | "E_QUARRY_SYNTAX" | "E_QUARRY_UNKNOWN" | "E_QUARRY_AMBIGUOUS" | "E_QUARRY_UNSUPPORTED" | "E_QUARRY_PLACEMENT" | "E_QUARRY_TYPE" | "E_QUARRY_RETAIN" | "E_QUARRY_TOMBSTONE";
 export type QuarryDiagnostic = Site & { code: QuarryCode; message: string; rewrite: string; guide: string; executableRewrite?: boolean };
 
 export type TableCatalog = Map<string, {

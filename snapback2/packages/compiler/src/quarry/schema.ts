@@ -1,6 +1,6 @@
-import type { ChannelDecl, Document, Expr, MaintainDecl, RuleDecl, ScalarType, Site, TableCatalog, TableDecl } from "./ast";
+import type { ChannelDecl, Document, Expr, MaintainDecl, RuleDecl, ScalarType, Site, TableCatalog, TableDecl, TombstoneDecl } from "./ast";
 import { orderedTables, selectIndex } from "./catalog";
-import { currentRule, refuse, typeError } from "./diagnostics";
+import { currentRule, refuse, tombstone, typeError } from "./diagnostics";
 import { quarryExpression } from "./print";
 
 type RuleContext = {
@@ -44,6 +44,8 @@ function emitTable(declaration: TableDecl, catalog: TableCatalog): string[] {
   // @ref LLP 1012#5-retention-revocation-and-the-fence — omission is an
   // explicit IR default; the client policy is carried once per table.
   lines.push(withSite(`  retain: ${JSON.stringify(declaration.retain?.policy ?? "until-revoked")},`, declaration.retain?.site ?? declaration.site));
+  const tombstones = emitTombstones(declaration, catalog);
+  if (tombstones.length > 0) lines.push(withSite("  tombstones: [", declaration.site), ...tombstones, withSite("  ],", declaration.site));
   if (declaration.indexes.length > 0) {
     lines.push(withSite("  indexes: {", declaration.site));
     for (const index of declaration.indexes) {
@@ -65,6 +67,83 @@ function emitTable(declaration: TableDecl, catalog: TableCatalog): string[] {
   if (constraints.length > 0) lines.push(withSite("  constraints: [", declaration.site), ...constraints, withSite("  ],", declaration.site));
   lines.push(withSite("});", declaration.site));
   return lines;
+}
+
+// @ref LLP 1012#5-retention-revocation-and-the-fence — rule 3: the client decides a
+// tombstone from the delivered row alone, so the predicate reads only this table's
+// enum, bool, and text columns; the target is named through this table's reference.
+function emitTombstones(declaration: TableDecl, catalog: TableCatalog): string[] {
+  const lines: string[] = [];
+  for (const item of declaration.tombstones) {
+    const head = `tombstones ${item.table}[.${item.column}]`;
+    const predicate = quarryExpression(item.predicate);
+    const references = declaration.columns.filter((column) => column.type.kind === "ref");
+    const column = declaration.columns.find((entry) => entry.name === item.column);
+    const referencing = references.find((entry) => entry.type.kind === "ref" && entry.type.table === item.table);
+    const rewrite = column?.type.kind === "ref" ? `tombstones ${column.type.table}[.${column.name}] if ${predicate}`
+      : referencing ? `tombstones ${item.table}[.${referencing.name}] if ${predicate}`
+      : `tombstones <table>[.<column of ${declaration.name} referencing it>] if ${predicate}`;
+    if (item.table === "connected" || !catalog.has(item.table)) tombstone(item.site, `${head} names unknown table ${item.table}`, rewrite);
+    if (!column) tombstone(item.site, `${head} names unknown column ${declaration.name}.${item.column}`, rewrite);
+    if (column.type.kind !== "ref" || column.type.table !== item.table) {
+      tombstone(item.site, `${head}: column ${declaration.name}.${item.column} is ${column.type.kind}, not a reference to ${item.table}`, rewrite);
+    }
+    validateTombstonePredicate(item.predicate, declaration, item, head);
+    const context: RuleContext = { names: new Set(), focal: true, table: declaration };
+    lines.push(withSite(
+      `    { table: ${JSON.stringify(item.table)}, column: ${JSON.stringify(item.column)}, when: ${ruleExpr(item.predicate, catalog, context)} },`,
+      item.site,
+    ));
+  }
+  return lines;
+}
+
+function validateTombstonePredicate(expr: Expr, table: TableDecl, item: TombstoneDecl, head: string): void {
+  const fail = (site: Site, message: string, predicate: string): never =>
+    tombstone(site, `${head} ${message}`, `tombstones ${item.table}[.${item.column}] if ${predicate}`);
+  const kinds = table.columns.filter((column) => ["enum", "bool", "text"].includes(column.type.kind));
+  const example = kinds.find((column) => column.type.kind === "enum");
+  const suggested = example && example.type.kind === "enum" ? `.${example.name} = ${JSON.stringify(example.type.variants[0])}`
+    : kinds[0] ? (kinds[0].type.kind === "bool" ? `.${kinds[0].name} = true` : `.${kinds[0].name} = "..."`) : ".<enum, bool, or text column> = <literal>";
+  const term = (expr: Expr): "text" | "bool" => {
+    if (expr.kind === "literal") {
+      if (typeof expr.value === "string") return "text";
+      if (typeof expr.value === "boolean") return "bool";
+      return fail(expr.site, `literal ${quarryExpression(expr)} must be a string or bool`, suggested);
+    }
+    if (expr.kind === "member" && expr.base.kind === "focal") {
+      const column = table.columns.find((entry) => entry.name === expr.name);
+      const kind = expr.name === "id" ? "id" : column?.type.kind;
+      if (!kind) return fail(expr.site, `names unknown column ${table.name}.${expr.name}`, suggested);
+      if (kind === "enum" || kind === "text") return "text";
+      if (kind === "bool") return "bool";
+      return fail(expr.site, `column .${expr.name} is ${kind}; only enum, bool, and text columns decide a tombstone`, suggested);
+    }
+    if (expr.kind === "name" && expr.name === "viewer") return fail(expr.site, "cannot mention viewer; it is decided by the delivered row alone", suggested);
+    if (expr.kind === "name") return fail(expr.site, `cannot read ${expr.name}; only this table's .columns and literals decide a tombstone`, suggested);
+    return fail(expr.site, `term ${quarryExpression(expr)} must be a .column of ${table.name} or a literal`, suggested);
+  };
+  const walk = (expr: Expr): void => {
+    if (expr.kind === "binary" && (expr.op === "and" || expr.op === "or")) { walk(expr.left); walk(expr.right); return; }
+    if (expr.kind === "unary" && expr.op === "not") { walk(expr.value); return; }
+    if (expr.kind === "binary" && (expr.op === "=" || expr.op === "!=")) {
+      const left = term(expr.left);
+      const right = term(expr.right);
+      if (left !== right) fail(expr.site, `compares a bool with text in ${quarryExpression(expr)}; compare each column with a literal of its own type`, suggested);
+      for (const [field, literal] of [[expr.left, expr.right], [expr.right, expr.left]] as const) {
+        if (field.kind !== "member" || field.base.kind !== "focal" || literal.kind !== "literal" || typeof literal.value !== "string") continue;
+        const type = table.columns.find((entry) => entry.name === field.name)?.type;
+        if (type?.kind === "enum" && !type.variants.includes(literal.value)) {
+          fail(literal.site, `compares .${field.name} with ${JSON.stringify(literal.value)}, which is not one of ${type.variants.join("|")}`,
+            `.${field.name} = ${JSON.stringify(type.variants[0])}`);
+        }
+      }
+      return;
+    }
+    if (expr.kind === "exists" || expr.kind === "created") fail(expr.site, `cannot probe other tables with ${expr.kind}; it is decided by the delivered row alone`, suggested);
+    fail(expr.site, `predicate ${quarryExpression(expr)} must use =, !=, and, or, not over .columns and literals`, suggested);
+  };
+  walk(expr);
 }
 
 function emitConstraints(declaration: TableDecl, catalog: TableCatalog): string[] {

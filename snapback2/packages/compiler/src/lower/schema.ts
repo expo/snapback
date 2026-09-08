@@ -158,7 +158,7 @@ function lowerTable(
     diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_INVALID", config, `table ${name} requires columns`));
     return undefined;
   }
-  validateKnownKeys(module, config, ["columns", "indexes", "rules", "constraints", "retain"], `table ${name}`, "E_SCHEMA_INVALID", diagnostics);
+  validateKnownKeys(module, config, ["columns", "indexes", "rules", "constraints", "retain", "tombstones"], `table ${name}`, "E_SCHEMA_INVALID", diagnostics);
   validateRecordShape(module, columnsObject, `columns for ${name}`, "E_SCHEMA_INVALID", diagnostics);
   const columns: Record<string, unknown> = Object.assign(Object.create(null), { id: "Id" });
   for (const entry of propertyEntries(columnsObject)) {
@@ -261,13 +261,64 @@ function lowerTable(
     ));
   }
   const constraints = lowerConstraints(module, property(config, "constraints"), columns, indexes, diagnostics);
+  const tombstonesNode = property(config, "tombstones");
+  const tombstones = tombstonesNode ? lowerTombstones(module, tombstonesNode, name, tables, columns, authoredColumns, diagnostics) : [];
   return {
-    value: { columns, indexes, rules, constraints, retain },
+    // The schema JSON carries `tombstones` only when declared, matching serde's
+    // skip so an undeclared table's identity never moves.
+    value: { columns, indexes, rules, constraints, retain, ...(tombstones.length > 0 ? { tombstones } : {}) },
     private: !isPublicRule(rules.read),
     columns: authoredColumns,
     indexes: authoredIndexes,
     readRule: rules.read,
   };
+}
+
+// @ref LLP 1012#5-retention-revocation-and-the-fence — `when` lowers through the rule
+// path so the schema carries one predicate encoding; the Quarry front end and the
+// Rust boundary hold the row-local restriction.
+function lowerTombstones(
+  module: SchemaModule,
+  node: ts.Expression,
+  name: string,
+  tables: Map<string, TableInfo>,
+  columns: Record<string, unknown>,
+  authoredColumns: Record<string, AuthoredType>,
+  diagnostics: FrontendDiagnostic[],
+): NonNullable<TableJson["tombstones"]> {
+  const value = unwrapExpression(node);
+  const shape = `table ${name} tombstones must be [{ table: "…", column: "…", when: rule.* }]`;
+  if (!ts.isArrayLiteralExpression(value)) {
+    diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_INVALID", node, shape));
+    return [];
+  }
+  const lowered: NonNullable<TableJson["tombstones"]> = [];
+  for (const element of value.elements) {
+    const entry = objectOf(element);
+    if (!entry) {
+      diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_INVALID", element, shape));
+      continue;
+    }
+    validateKnownKeys(module, entry, ["table", "column", "when"], `table ${name} tombstones entry`, "E_SCHEMA_INVALID", diagnostics);
+    const table = stringValue(property(entry, "table"));
+    const column = stringValue(property(entry, "column"));
+    const whenNode = property(entry, "when");
+    if (!table || !column || !whenNode) {
+      diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_INVALID", element, shape));
+      continue;
+    }
+    if (!tables.has(table)) {
+      diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_UNKNOWN_TABLE", property(entry, "table")!, `unknown table ${table}`));
+      continue;
+    }
+    if (!Object.hasOwn(columns, column)) {
+      diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_INVALID", property(entry, "column")!, `table ${name} tombstones names unknown column ${column}`));
+      continue;
+    }
+    const when = lowerRule(module, whenNode, tables, diagnostics, authoredColumns);
+    if (when !== undefined) lowered.push({ table: tables.get(table)!.name, column, when });
+  }
+  return lowered;
 }
 
 function lowerColumn(

@@ -1002,6 +1002,35 @@ const expectCode = (run: () => unknown, code: string, label: string) => {
   assert(knownHash === sha256(canonicalSchemaJson(structuredClone(known))), "the known hash moved");
 }
 
+// @ref LLP 1012#5-retention-revocation-and-the-fence — `tombstones` joins schema
+// identity only when declared: absent and empty hash alike, a declaration hashes in
+// serde's field order after `retain` with `when` in the rule encoding, and the
+// corpus golden proves the form equals Rust's `Schema::hash()`.
+{
+  const log = table({ id: "Id", messageId: { Ref: { table: "messages" } }, kind: { Enum: { variants: ["message", "removed", "expired"] } } });
+  const bare = { tables: { messages: table({ id: "Id", body: { Text: { max: 10 } } }), deliveries: log }, maintains: [] };
+  const bareHash = sha256(canonicalSchemaJson(bare));
+  const empty = structuredClone(bare) as any;
+  empty.tables.deliveries.tombstones = [];
+  assert(sha256(canonicalSchemaJson(empty)) === bareHash, "an empty tombstones list moved a hash serde would not");
+  const when = { Or: [{ Eq: [{ Field: "kind" }, { Literal: { String: "removed" } }] }, { Eq: [{ Field: "kind" }, { Literal: { String: "expired" } }] }] };
+  const declared = structuredClone(bare) as any;
+  declared.tables.deliveries.tombstones = [{ when, column: "messageId", table: "messages" }];
+  const declaredJson = canonicalSchemaJson(declared);
+  assert(declaredJson.includes('"retain":"until-revoked","tombstones":[{"table":"messages","column":"messageId","when":{"Or":[{"Eq":[{"Field":"kind"},{"Literal":{"String":"removed"}}]},{"Eq":[{"Field":"kind"},{"Literal":{"String":"expired"}}]}]}}]}'),
+    `tombstones did not canonicalize in serde order: ${declaredJson}`);
+  assert(sha256(declaredJson) !== bareHash, "a tombstones declaration is not part of schema identity");
+  const golden = (manifest as any[]).find((item) => item.name === "tombstones-log-schema-identity");
+  assert(golden, "the tombstones corpus golden is missing; run export_corpus");
+  assert(golden.schema.tables.deliveries.tombstones.length === 1, "the golden lost its declaration");
+  assert(golden.certificate.schema_hash === sha256(canonicalSchemaJson(golden.schema)), "the evaluator's tombstones hash differs from Rust's Schema::hash()");
+  const novel = structuredClone(declared) as any;
+  novel.tables.deliveries.tombstones[0].shard = 1;
+  let refusedTombstone: unknown;
+  try { canonicalSchemaJson(novel); } catch (error) { refusedTombstone = error; }
+  assert(refusedTombstone instanceof EvalError && refusedTombstone.code === "E_SCHEMA" && /tombstone field shard/.test(refusedTombstone.message), "a novel tombstone field was hashed instead of refused");
+}
+
 console.log(
   JSON.stringify({
     cases: cases.length,

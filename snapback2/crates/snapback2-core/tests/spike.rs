@@ -673,6 +673,7 @@ fn visibility_probe_case(
         },
         constraints: Vec::new(),
         retain: Default::default(),
+        tombstones: Vec::new(),
     };
     let relationships = Table {
         columns: BTreeMap::from([
@@ -705,6 +706,7 @@ fn visibility_probe_case(
         },
         constraints: Vec::new(),
         retain: Default::default(),
+        tombstones: Vec::new(),
     };
     let schema = Schema {
         schedules: Vec::new(),
@@ -1369,7 +1371,7 @@ fn every_frozen_corpus_case_replays_its_certification_outcome() {
     }
     assert_eq!(
         cases.len(),
-        243,
+        244,
         "the complete frozen corpus must be checked"
     );
     assert!(

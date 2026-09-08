@@ -1,3 +1,4 @@
+import { tombstonesFor } from "./tombstones.js";
 import { SnapbackRefusal, throwIfAborted } from "./client-wire.js";
 import {
   DeliveryEnvelopeDecodeError,
@@ -641,8 +642,10 @@ export class OfflineRuntime {
           ...("rule" in source && typeof source.rule === "string" ? { rule: source.rule } : {}),
           deliveredAt: Date.now(),
         });
+        // @ref LLP 1018.003#3-tombstones-are-declared-certified-and-shared — rule 3 fires on the
+        // rows the held program's schema declares; no application callback decides eviction.
         for (const row of envelope?.rows ?? []) {
-          for (const ref of this.options.onTombstone?.(row) ?? []) tombstones.push({ ...ref, seq: envelope!.seq });
+          for (const ref of tombstonesFor(this.held?.schema, row)) tombstones.push({ ...ref, seq: envelope!.seq });
         }
       }
       // A settlement may only persist beside a tail actually admitted under

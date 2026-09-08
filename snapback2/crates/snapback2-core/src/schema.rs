@@ -132,6 +132,12 @@ pub struct Table {
     // the client-side hidden-row case and defaults compatibly for older IR.
     #[serde(default)]
     pub retain: RetentionPolicy,
+    // @ref LLP 1012#5-retention-revocation-and-the-fence — rule 3: a delivered
+    // log row whose predicate holds names a body the client evicts before an
+    // absence proves it. Absent from the bytes when empty, so every schema
+    // without the declaration hashes exactly as it did before the word existed.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tombstones: Vec<Tombstone>,
 }
 
 impl Table {
@@ -146,6 +152,18 @@ pub enum RetentionPolicy {
     #[default]
     UntilRevoked,
     DeliveredHistory,
+}
+
+/// `tombstones <table>[.<column>] if <when>` on the log table: when `when`
+/// holds for a delivered row, the row of `table` that `column` references is a
+/// tombstone target. `when` is the rule-expression type restricted to `=`,
+/// `!=`, `and`, `or`, and `not` over this table's enum, bool, and text columns
+/// and string/bool literals; `tombstone_issues` enforces the restriction.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Tombstone {
+    pub table: String,
+    pub column: String,
+    pub when: RuleExpr,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -574,6 +592,168 @@ impl Auth {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct TombstoneIssue {
+    pub table: String,
+    pub position: usize,
+    pub message: String,
+}
+
+// @ref LLP 1012#5-retention-revocation-and-the-fence — the client decides a
+// tombstone from the delivered row alone, so the predicate may read nothing
+// but that row's enum, bool, and text columns; the trust boundary refuses the
+// rest before a generation can carry it.
+/// Validate every `tombstones` declaration: the target table exists, the
+/// column is this table's reference to it, and the predicate stays inside the
+/// row-local vocabulary the client can evaluate without authority.
+pub(crate) fn tombstone_issues(schema: &Schema) -> Vec<TombstoneIssue> {
+    let mut issues = Vec::new();
+    for (table_name, table) in &schema.tables {
+        for (position, tombstone) in table.tombstones.iter().enumerate() {
+            let mut messages = Vec::new();
+            let head = format!("tombstones {}[.{}]", tombstone.table, tombstone.column);
+            if !schema.tables.contains_key(&tombstone.table) {
+                messages.push(format!("{head} names unknown table {}", tombstone.table));
+            }
+            match table.columns.get(&tombstone.column).map(required_column) {
+                None => messages.push(format!(
+                    "{head} names unknown column {table_name}.{}",
+                    tombstone.column
+                )),
+                Some(ColumnType::Ref { table: target }) if target == &tombstone.table => {}
+                Some(kind) => messages.push(format!(
+                    "{head}: column {table_name}.{} is {kind}, not a reference to {}",
+                    tombstone.column, tombstone.table
+                )),
+            }
+            tombstone_predicate_issues(&tombstone.when, &table.columns, &mut messages);
+            issues.extend(messages.into_iter().map(|message| TombstoneIssue {
+                table: table_name.clone(),
+                position,
+                message,
+            }));
+        }
+    }
+    issues
+}
+
+fn required_column(kind: &ColumnType) -> &ColumnType {
+    match kind {
+        ColumnType::Optional(inner) => inner,
+        other => other,
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum TombstoneTermKind {
+    Text,
+    Bool,
+}
+
+fn tombstone_predicate_issues(
+    expr: &RuleExpr,
+    columns: &BTreeMap<String, ColumnType>,
+    messages: &mut Vec<String>,
+) {
+    match expr {
+        RuleExpr::And(items) | RuleExpr::Or(items) => {
+            for item in items {
+                tombstone_predicate_issues(item, columns, messages);
+            }
+        }
+        RuleExpr::Not(inner) => tombstone_predicate_issues(inner, columns, messages),
+        RuleExpr::Eq(left, right) | RuleExpr::Ne(left, right) => {
+            let left_kind = tombstone_term_kind(left, columns, messages);
+            let right_kind = tombstone_term_kind(right, columns, messages);
+            if let (Some(left_kind), Some(right_kind)) = (left_kind, right_kind)
+                && left_kind != right_kind
+            {
+                messages.push(
+                    "tombstones when compares a bool with text; compare each column with a literal of its own type"
+                        .to_owned(),
+                );
+            }
+            if let Some(variant) = enum_variant_miss(left, right, columns)
+                .or_else(|| enum_variant_miss(right, left, columns))
+            {
+                messages.push(variant);
+            }
+        }
+        RuleExpr::Allow | RuleExpr::Deny | RuleExpr::Public { .. } => messages.push(
+            "tombstones when must compare this table's columns; allow, deny, and public are not predicates"
+                .to_owned(),
+        ),
+        RuleExpr::Exists { .. } | RuleExpr::Created { .. } => messages.push(
+            "tombstones when cannot probe other tables with exists or created; it is decided by the delivered row alone"
+                .to_owned(),
+        ),
+    }
+}
+
+fn tombstone_term_kind(
+    term: &RuleTerm,
+    columns: &BTreeMap<String, ColumnType>,
+    messages: &mut Vec<String>,
+) -> Option<TombstoneTermKind> {
+    match term {
+        RuleTerm::Field(name) => match columns.get(name).map(required_column) {
+            None => {
+                messages.push(format!("tombstones when names unknown column {name}"));
+                None
+            }
+            Some(ColumnType::Enum { .. } | ColumnType::Text { .. }) => Some(TombstoneTermKind::Text),
+            Some(ColumnType::Bool) => Some(TombstoneTermKind::Bool),
+            Some(kind) => {
+                messages.push(format!(
+                    "tombstones when column {name} is {kind}; only enum, bool, and text columns decide a tombstone"
+                ));
+                None
+            }
+        },
+        RuleTerm::Literal(Value::String(_)) => Some(TombstoneTermKind::Text),
+        RuleTerm::Literal(Value::Bool(_)) => Some(TombstoneTermKind::Bool),
+        RuleTerm::Literal(other) => {
+            messages.push(format!(
+                "tombstones when literal {other:?} must be a string or bool"
+            ));
+            None
+        }
+        RuleTerm::Viewer => {
+            messages.push(
+                "tombstones when cannot mention viewer; it is decided by the delivered row alone"
+                    .to_owned(),
+            );
+            None
+        }
+        RuleTerm::OldField(_) | RuleTerm::NextField(_) => {
+            messages.push(
+                "tombstones when reads the delivered row as .column; there are no old or next images"
+                    .to_owned(),
+            );
+            None
+        }
+    }
+}
+
+fn enum_variant_miss(
+    field: &RuleTerm,
+    literal: &RuleTerm,
+    columns: &BTreeMap<String, ColumnType>,
+) -> Option<String> {
+    let (RuleTerm::Field(name), RuleTerm::Literal(Value::String(value))) = (field, literal) else {
+        return None;
+    };
+    let ColumnType::Enum { variants } = columns.get(name).map(required_column)? else {
+        return None;
+    };
+    (!variants.contains(value)).then(|| {
+        format!(
+            "tombstones when compares {name} with '{value}', which is not one of {}",
+            variants.join("|")
+        )
+    })
+}
+
 pub fn public_table(
     columns: BTreeMap<String, ColumnType>,
     indexes: BTreeMap<String, Index>,
@@ -592,5 +772,6 @@ pub fn public_table(
         },
         constraints: Vec::new(),
         retain: RetentionPolicy::default(),
+        tombstones: Vec::new(),
     }
 }

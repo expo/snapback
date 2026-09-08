@@ -355,6 +355,12 @@
   },
   {
     "family": "quarry",
+    "code": "E_QUARRY_TOMBSTONE",
+    "wrong": "```q\ntable deliveries:\n  recipient: principal\n  messageId: messages\n  kind: enum('message', 'removed')\n  tombstones messages[.recipient] if .kind = 'removed'\n```",
+    "right": "```q\ntable deliveries:\n  recipient: principal\n  messageId: messages\n  kind: enum('message', 'removed')\n  tombstones messages[.messageId] if .kind = 'removed'\n```"
+  },
+  {
+    "family": "quarry",
     "code": "E_QUARRY_ONLY",
     "wrong": "```ts\nexport const list = query({}, () => null);\n```",
     "right": "```q\nquery list():\n  return null\n```"

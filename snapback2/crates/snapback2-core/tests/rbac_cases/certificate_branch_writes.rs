@@ -36,6 +36,7 @@ fn schema() -> Schema {
         rules: public_rules(),
         constraints: Vec::new(),
         retain: Default::default(),
+        tombstones: Vec::new(),
     };
     let counts = Table {
         columns: BTreeMap::from([
@@ -47,6 +48,7 @@ fn schema() -> Schema {
         rules: public_rules(),
         constraints: Vec::new(),
         retain: Default::default(),
+        tombstones: Vec::new(),
     };
     Schema {
         schedules: Vec::new(),

@@ -94,6 +94,8 @@ declare module "snapback2" {
     columns: C;
     /** Client treatment of rows hidden by a fresh authorized answer; Quarry supplies the default. */
     retain?: "until-revoked" | "delivered-history";
+    /** Rows of `table` that a delivered row of this table evicts: named through `column`, when `when` holds for the row (LLP 1012 §5 rule 3). */
+    tombstones?: ReadonlyArray<{ table: string; column: keyof C; when: Rule }>;
     indexes?: Record<string, { columns: ReadonlyArray<keyof C | "id">; unique?: boolean }>;
     rules?: Partial<Record<"read" | "insert" | "update" | "delete", Rule>>;
     constraints?: ReadonlyArray<unknown>;

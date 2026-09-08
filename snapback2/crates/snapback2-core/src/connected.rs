@@ -28,6 +28,7 @@ pub(crate) static TABLE: LazyLock<Table> = LazyLock::new(|| Table {
     },
     constraints: vec![],
     retain: RetentionPolicy::UntilRevoked,
+    tombstones: Vec::new(),
 });
 
 impl crate::Runtime {

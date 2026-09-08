@@ -1422,6 +1422,7 @@ mod tests {
                     },
                     constraints: Vec::new(),
                     retain: Default::default(),
+                    tombstones: Vec::new(),
                 },
             )]),
             ..Schema::default()
