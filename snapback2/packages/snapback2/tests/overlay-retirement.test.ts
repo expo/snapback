@@ -209,10 +209,18 @@ test("bounded prediction retirement reveals missing maintained authority, never 
       await store.commit({ outbox: { put: [item.committed] } });
       assert.equal((await store.coverage()).rows.some((held) => held.table === "messageCounts"), false,
         `${name}: commit invalidates the pre-commit target under the still-visible overlay`);
+      await store.commit({ deliveries: [page("messages.byId", { id: item.id }, 30, [message(item.id)])] });
+      let entry = await store.outbox.get(item.intent);
+      assert.equal(entry?.arrived, true, `${name}: pinned source arrival is recorded`);
+      assert.equal(entry?.predicted, true, `${name}: raw arrival does not retire the unconfirmed maintained target`);
+      assert.deepEqual((await store.outbox.overlay())[item.intent], [count(2)]);
       await store.commit({ resumeSeq: 31 });
       assert.ok((await store.outbox.overlay())[item.intent]);
       await store.commit({ resumeSeq: 32 });
       assert.equal((await store.outbox.overlay())[item.intent], undefined);
+      entry = await store.outbox.get(item.intent);
+      assert.equal(entry?.arrived, true, `${name}: bounded retirement does not rewrite the raw arrival fact`);
+      assert.equal(entry?.predicted, undefined, `${name}: the bounded path releases prediction custody`);
       const held = await store.answer("countView", { conversationId });
       assert.equal(held?.state, "partial");
       assert.equal(held?.reason, "missing-authority",
@@ -383,6 +391,7 @@ test("authoritative predicted-row arrival clears predicted while retaining the c
       ])] });
       const entry = await store.outbox.get(item.intent);
       assert.equal(entry?.state, "committed", `${name}: arrival does not dismiss the settled entry`);
+      assert.equal(entry?.arrived, true, `${name}: complete predicted-row arrival permits presentation dismissal`);
       assert.equal(entry?.predicted, undefined, `${name}: arrival retires prediction custody`);
       assert.equal((await store.outbox.overlay())[item.intent], undefined, `${name}: arrival removes the overlay`);
       assert.deepEqual((await store.coverage()).rows.find((held) => held.id === item.id)?.row, {
@@ -397,7 +406,7 @@ test("authoritative predicted-row arrival clears predicted while retaining the c
 test("authoritative evidence retires an ordinary group while its maintained target waits on both carriers", async () => {
   await carriers(async (name, create) => {
     for (const effect of ["insert", "delete"] as const) {
-      const store = create();
+      let store = create();
       const item = prediction(`${name}-${effect}-atomic`);
       const fanout = { table: "deliveries", id: `${name}-${effect}-delivery`, row: {
         id: `${name}-${effect}-delivery`, recipient: "dev:alice", messageId: item.id,
@@ -422,11 +431,23 @@ test("authoritative evidence retires an ordinary group while its maintained targ
         await store.commit({ deliveries: [messageEvidence] });
         assert.deepEqual((await store.outbox.overlay())[item.intent], [count],
           `${name} ${effect}: ordinary fan-out retires as one group while its maintained sibling remains`);
-        assert.equal((await store.outbox.get(item.intent))?.predicted, true,
+        let entry = await store.outbox.get(item.intent);
+        assert.equal(entry?.predicted, true,
           `${name} ${effect}: prediction custody remains until every visible effect arrives`);
+        assert.equal(entry?.arrived, effect === "insert" ? true : undefined,
+          `${name} ${effect}: pinned-id arrival is orthogonal to the unconfirmed maintained target`);
+        await store.close?.();
+        store = create();
+        await store.open(`${name}:${effect}-atomic`);
+        entry = await store.outbox.get(item.intent);
+        assert.equal(entry?.arrived, effect === "insert" ? true : undefined, `${name} ${effect}: raw arrival survives cold reopen`);
+        assert.equal(entry?.predicted, true, `${name} ${effect}: maintained prediction custody survives cold reopen`);
+        assert.deepEqual((await store.outbox.overlay())[item.intent], [count]);
 
         await store.commit({ deliveries: [page("counts.byId", {}, 31, [count])] });
         await assertRetired(store, item.intent, `${name} ${effect}: final maintained row arrival`);
+        assert.equal((await store.outbox.get(item.intent))?.arrived, true,
+          `${name} ${effect}: complete overlay confirmation records arrival without dismissing`);
       } finally {
         await store.close?.();
       }

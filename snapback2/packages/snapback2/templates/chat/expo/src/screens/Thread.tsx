@@ -38,7 +38,7 @@ export function Thread({ conversationId, sendCustody }: {
     && (entry.args as Args).conversationId === conversationId && !rows.some((row) => row.messageId === entry.ids[0]));
   const items = [...rows.map((row) => ({ key: row.messageId, row })), ...unplaced.map((entry) => ({ key: entry.ids[0] ?? entry.intent, entry }))];
   useEffect(() => {
-    for (const entry of entries) if (entry.state === "committed" && entry.arrived
+    for (const entry of entries) if (entry.state === "committed" && entry.arrived && entry.predicted !== true
       && rows.some((row) => row.messageId === entry.ids[0])) void dismiss(entry.intent);
   }, [entries, rows, dismiss]);
   const preview = composite?.preview[0]?.message?.body;

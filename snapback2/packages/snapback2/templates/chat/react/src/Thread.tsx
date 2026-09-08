@@ -75,7 +75,7 @@ export function Thread({ conversationId, viewer, onNote, sendCustody, changeCust
   // @ref LLP 1018.003#4-pending-rows-attribution-settlement-and-failure —
   // arrival plus the rendered pinned id retires presentation, never arrival alone.
   useEffect(() => {
-    for (const entry of entries) if (entry.state === "committed" && entry.arrived
+    for (const entry of entries) if (entry.state === "committed" && entry.arrived && entry.predicted !== true
       && rows.some((row) => row.messageId === entry.ids[0])) void dismiss(entry.intent);
   }, [entries, rows, dismiss]);
 
