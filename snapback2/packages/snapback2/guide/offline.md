@@ -34,26 +34,26 @@ retains its watermark. Covered reads are exact; others partial.
 
 ## Recovery
 
-Offline `run()`: `{ state: "queued", intent, ids }`; replay is FIFO. Follower
-queued proves durable admission. A sent request unanswered for
-2s returns `{ state: "admission-unknown", recovery }`; never send fresh.
-`recoverMutation(op, sameArgs, recovery)` retries the identity. Only a durable
-receipt returns queued; unreachable writer/expired miss remains unknown.
+Offline `run()`: `{ state: "queued", intent, ids }`; replay is FIFO; results
+are terminal or durable. A non-writer tab inserts a durable `inbox` row and
+resolves `{ state: "queued", intent: "inbox:<key>", ids: [] }`; the writer
+admits rows in key order, one swap with the entry, recording `inbox`; the
+alias names it on either tab. Follower status: `forwarding` or
+`writer-unresponsive` (ready), `inbox-full`, `follower` (no route).
 
 `useMutation(op).can`/`useOutbox().can` derive send/action/reason from
-`detail.status` and connection/queue facts. `outbox.observe(op?)` shares
-`{ entries, status }` with these hooks. `intentLabel` labels entries.
-Online and queued writes retain terminals until explicit `dismiss(intent)`;
-queued entries cannot be dismissed. `run()` success means committed, not
-shown. Expired grants stop admission. Query `items` resolve indicators from
-the target's own observation through commit, including no-ID edits;
-`arrived`/global sequence cannot substitute. Expose dismissal for failures,
-missing targets, and old successes. See live-query.
+`detail.status`, connection, and queue. `outbox.observe(op?)` shares
+`{ entries, status }` with the hooks; `intentLabel` labels entries. Writes
+retain terminals until explicit `dismiss(intent)`; queued entries cannot be
+dismissed. `run()` success means committed, not shown. Query `items` resolve
+indicators from the target's own observation through commit, including no-ID
+edits; `arrived`/global sequence cannot substitute. Expose dismissal for
+failures, missing targets, and old successes. See live-query.
 
 `outbox.drain()`/`settled()`: `{ stopped, remaining }`; false is drained.
-Fence/transport/authority/offline/pending pauses; queued bytes stay. Retry
-`online()` or online drain; reconnect does not replay. Unclaimed media expires
-after 24h; grants/leases cannot extend it. After refusal,
+Fence/transport/authority/offline/pending/writer-unresponsive pauses keep
+queued bytes. Retry `online()` or online drain; reconnect does not replay.
+Unclaimed media expires after 24h; grants cannot extend it. After refusal,
 use a new upload/intent; never rewrite args.
 
 ## Resume

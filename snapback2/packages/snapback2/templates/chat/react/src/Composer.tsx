@@ -1,43 +1,66 @@
-import type { FormEvent } from "react";
-import { api } from "snapback2/client";
+import { useRef, useState, type FormEvent } from "react";
+import { api, isSnapbackRefusal } from "snapback2/client";
 import { useMutation, useSnapbackClient, useSnapbackSnapshot } from "snapback2/react";
-import type { RecoveryCustody, SendUncertainty } from "../shared/recovery";
-import { useSendController } from "../shared/send";
 
-// @ref LLP 1012#7-writes-offline — `run()` resolves only after durable
-// admission, so the authored draft clears only when custody is known.
-// @ref LLP 1018.000#8-account-sessions-and-durable-follower-admission — the
-// account owner retains the exact unresolved command across route remounts.
-export function Composer({ conversationId, onNote, custody }: {
-  conversationId: string;
-  onNote(note: string): void;
-  custody?: RecoveryCustody<SendUncertainty>;
-}) {
+const describe = (error: unknown) => (isSnapbackRefusal(error) ? error.envelope.rewrite ?? error.message : String(error));
+
+// @ref LLP 1012#7-writes-offline — `run()` resolves only once the write is
+// durable on this device (this tab's outbox, or from a follower tab an inbox
+// row), so the authored draft clears only when custody is known.
+// @ref LLP 1018.004#5-hooks-and-templates — no recovery custody: what stays is
+// the capture of the conversation and account the draft was sent from, the
+// in-flight guard, clearing only the text that was sent, and a thrown refusal
+// shown as a note, since `useMutation.last` holds results and not exceptions.
+export function Composer({ conversationId, onNote }: { conversationId: string; onNote(note: string): void }) {
   const post = useMutation(api.deliveries.post);
   const client = useSnapbackClient();
   const generation = useSnapbackSnapshot().authGeneration;
-  const controller = useSendController({ conversationId, client, generation, post, custody, onNote });
-  const submit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    void controller.send();
+  const [body, setBody] = useState("");
+  const [syncing, setSyncing] = useState(false);
+  const visit = useRef({ conversationId, generation });
+  visit.current = { conversationId, generation };
+  const current = (captured: { conversationId: string; generation: number }) =>
+    visit.current.conversationId === captured.conversationId && client.snapshot.authGeneration === captured.generation;
+
+  const send = async () => {
+    const text = body.trim();
+    if (!text || !post.can.send || post.inFlight) return;
+    const captured = visit.current, draft = body;
+    try {
+      const result = await post.run({ conversationId, body: text });
+      if (!current(captured)) return;
+      if (result.state !== "rejected") setBody((now) => (now === draft ? "" : now));
+      // A follower's queued result is the ordinary outcome and the bubble shows it; the writer's says how to move it.
+      onNote(result.state === "rejected" ? `Not sent: ${result.rewrite ?? result.message}`
+        : result.state !== "queued" || post.detail.status.reason === "forwarding" ? ""
+          : post.can.reason?.code === "fence" ? "Queued until the next sync." : "Queued; use Sync now to retry delivery.");
+    } catch (error) {
+      if (current(captured)) onNote(describe(error));
+    }
   };
+
+  const sync = async () => {
+    const captured = visit.current;
+    setSyncing(true);
+    try {
+      await client.online();
+      const result = await client.outbox.settled();
+      if (current(captured)) onNote(result.stopped ? `${result.remaining} queued; sync paused. Your messages are saved.` : "");
+    } catch (error) {
+      if (current(captured)) onNote(describe(error));
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const submit = (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); void send(); };
   return (
     <form aria-label="Composer" onSubmit={submit}>
-      <input aria-label="Message" value={controller.body} placeholder="Message"
-        onChange={(event) => controller.setBody(event.target.value)} />
-      <button type="submit" disabled={controller.busy || post.inFlight || !post.can.send || controller.uncertainty !== undefined}>Send</button>
-      {controller.uncertainty ? <>
-        <small role="alert" data-send-unknown={controller.uncertainty.conversationId}>
-          {controller.canRecover
-            ? `Confirmation is unknown for “${controller.uncertainty.draft}” in ${controller.uncertainty.conversationId}.`
-            : `Confirmation is unknown in ${controller.uncertainty.conversationId}. Return there to check the same send.`}
-        </small>
-        {controller.canRecover ? <button type="button" disabled={controller.busy}
-          onClick={() => { void controller.recover(); }}>{controller.busy ? "Checking…" : "Check send"}</button> : null}
-      </> : null}
-      {controller.status ? <small role="status" data-waiting={controller.status.reason}>{controller.status.message}</small> : null}
-      {controller.status?.canSync ? <button type="button" disabled={controller.syncing}
-        onClick={() => { void controller.sync(); }}>{controller.syncing ? "Syncing…" : "Sync now"}</button> : null}
+      <input aria-label="Message" value={body} placeholder="Message" onChange={(event) => setBody(event.target.value)} />
+      <button type="submit" disabled={post.inFlight || !post.can.send}>Send</button>
+      {post.can.reason ? <small role="status" data-waiting={post.can.reason.code}>{post.can.reason.message}</small> : null}
+      {post.can.action === "connect" ? <button type="button" disabled={syncing}
+        onClick={() => { void sync(); }}>{syncing ? "Syncing…" : "Sync now"}</button> : null}
     </form>
   );
 }

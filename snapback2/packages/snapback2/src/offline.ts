@@ -10,7 +10,9 @@ import {
   expandRows,
   type DeliveryEnvelopeV1,
 } from "./offline-protocol.js";
-import { OutboxLedger, decodeGrant } from "./store/outbox.js";
+import { OutboxLedger, OutboxRefusal, decodeGrant } from "./store/outbox.js";
+import { inboxEntry, jsonArguments, orderInbox, unadmittedRows, type InboxConnection, type InboxInsert, type InboxRow } from "./store/inbox.js";
+import { canonical } from "./store/canonical.js";
 import {
   canonicalAnswerKey, preparedChanges,
   OfflineStoreFailure,
@@ -184,6 +186,12 @@ export class OfflineRuntime {
   /** The principal whose writer lock this tab is waiting for (a browser follower), and the wait that owns the marker. */
   private followingPrincipal?: string;
   private followingWait?: object;
+  // @ref LLP 1018.004#2-the-inbox — a follower's own connection to the partition
+  // it waits for, and both roles' last read of the inbox; a follower also keeps
+  // the writer's persisted ledger as it last read it.
+  private inboxConnection?: InboxConnection;
+  private inboxRowsCache: InboxRow[] = [];
+  private inboxLedgerCache: Record<string, OutboxEntry> = {};
   private retention: Record<string, RetentionPolicy> = {};
   private cursors: Record<string, string> = {};
   private schema?: OfflineSchema;
@@ -192,7 +200,6 @@ export class OfflineRuntime {
   private superseded?: CoverageFacts;
   private latestSeq = 0;
   private sessionEpoch?: number;
-  private forwardingIncarnation?: string;
   private pendingGrant?: OutboxGrant;
   private pendingBounds?: Record<string, number>;
   private pendingProgram?: HeldProgram;
@@ -252,26 +259,29 @@ export class OfflineRuntime {
     // subsequently use the newly ordered durable observation of that image.
     return withItemInputs(value, { ...(itemInputs(accepted.result) ?? emptyItemInputs), entries });
   }
-  /** A sealed partition exposes neither query data nor its retained intent history. */
+  /**
+   * A sealed partition exposes neither query data nor its retained intent
+   * history. A follower lists the writer's persisted ledger as it last read it
+   * plus its partition's unadmitted rows; the writer lists its ledger plus the
+   * same rows, so "changes on this device" is the device's on either tab and an
+   * admitted row appears once (LLP 1018.004 §2).
+   */
   async itemEntries(): Promise<OutboxEntry[]> {
+    const rows = unadmittedRows(this.inboxRowsCache).map(inboxEntry);
+    if (this.inboxConnection) {
+      const ledger = Object.values(this.inboxLedgerCache).filter((entry) => entry && typeof entry === "object" && typeof entry.intent === "string")
+        .sort((left, right) => (left.order ?? Number.MAX_SAFE_INTEGER) - (right.order ?? Number.MAX_SAFE_INTEGER) || left.createdAt - right.createdAt);
+      return [...ledger, ...rows];
+    }
     if (this.partition === undefined) return [];
-    try { return await this.outbox.entries(); }
+    try { return [...await this.outbox.entries(), ...rows]; }
     catch (error) {
       if (error instanceof Error && /sealed/.test(error.message)) return [];
       throw error;
     }
   }
   get authEpoch(): number | undefined { return this.sessionEpoch ?? this.facts?.authEpoch; }
-  get partitionIncarnation(): string | undefined { return this.forwardingIncarnation; }
   get coordinationScope(): string | undefined { return this.store.coordinationScope; }
-
-  /** Establishes the writer identity only after the partition is open and unsealed. */
-  async initializeForwarding(proposed: string): Promise<string | undefined> {
-    if (this.partition === undefined || this.coordinationScope === undefined || this.authEpoch === undefined) return undefined;
-    const custody = await this.outbox.forwardingIdentity(proposed);
-    this.forwardingIncarnation = custody.partitionIncarnation;
-    return this.forwardingIncarnation;
-  }
 
   /** The generation of the certified program this partition holds, if any. */
   get programGeneration(): string | undefined { return this.held?.generation; }
@@ -313,6 +323,19 @@ export class OfflineRuntime {
     if (!this.store.acquire) throw new OfflineStoreFailure("E_OFFLINE_LOCK", "this account is open in another client; close it and try again");
     this.followingPrincipal = principal;
     this.followingWait = wait;
+    // The inbox route opens before the wait so a reloaded tab shows its device's
+    // queued rows from durable state before any network request (LLP 1018.004 §2).
+    // A failure here (an older tab holds the database at a lower version, or
+    // no IndexedDB) leaves the follower with the hard refusal, not a broken wait.
+    if (this.store.inbox && this.followingWait === wait) {
+      try {
+        const connection = await this.store.inbox(principal);
+        if (this.followingWait === wait && !signal.aborted) {
+          this.inboxConnection = connection;
+          await this.refreshInbox().catch(() => undefined);
+        } else connection.close();
+      } catch { /* the follower status reports the missing route */ }
+    }
     this.outbox.notify();
     try {
       await this.store.acquire(principal, signal);
@@ -336,7 +359,112 @@ export class OfflineRuntime {
     if (this.followingWait !== wait) return;
     this.followingPrincipal = undefined;
     this.followingWait = undefined;
+    this.closeInbox();
     this.outbox.notify();
+  }
+
+  /** A follower holds a live route to the partition's inbox; ends on `versionchange` (LLP 1018.004 §2). */
+  get inboxAvailable(): boolean { return this.inboxConnection !== undefined && !this.inboxConnection.ended; }
+
+  private closeInbox(): void {
+    this.inboxConnection?.close();
+    this.inboxConnection = undefined;
+    this.inboxRowsCache = [];
+    this.inboxLedgerCache = {};
+  }
+
+  private publishInputs(): void {
+    for (const listener of [...this.inputListeners]) {
+      try { listener(); } catch { /* query observers cannot fail a durable read */ }
+    }
+  }
+
+  /** A follower's write: durable in the partition's inbox before this resolves; the key names it as `inbox:<key>`. */
+  async insertInbox(row: InboxInsert): Promise<number> {
+    const connection = this.inboxConnection;
+    if (!connection || connection.ended) {
+      throw new OfflineStoreFailure("E_OFFLINE_LOCK", "this tab has no route to the account's partition; another tab holds it and this one cannot reach its inbox");
+    }
+    const key = await connection.insert({ ...row, ...(row.kind === "mutation" ? { args: jsonArguments(row.args) } : {}) });
+    await this.refreshInbox().catch(() => undefined);
+    return key;
+  }
+
+  /**
+   * Re-reads the inbox, and for a follower the writer's persisted ledger, and
+   * republishes outbox and query-item inputs when either changed. Both roles
+   * call it on a nudge or a poll; the writer's admission loop reads for itself.
+   */
+  async refreshInbox(): Promise<boolean> {
+    let rows: InboxRow[] = [], ledger: Record<string, OutboxEntry> = {};
+    if (this.inboxConnection && !this.inboxConnection.ended) {
+      rows = await this.inboxConnection.rows();
+      ledger = (await this.inboxConnection.ledger()) as Record<string, OutboxEntry>;
+    } else if (this.partition !== undefined && this.store.inboxRows) {
+      rows = await this.store.inboxRows();
+    } else return false;
+    const changed = canonical(rows) !== canonical(this.inboxRowsCache) || canonical(ledger) !== canonical(this.inboxLedgerCache);
+    this.inboxRowsCache = rows;
+    this.inboxLedgerCache = ledger;
+    if (changed) { this.outbox.notify(); this.publishInputs(); }
+    return changed;
+  }
+
+  /** Rows the writer has not admitted, plus rows rejected at admission, as a screen lists them. */
+  get inboxRows(): InboxRow[] { return this.inboxRowsCache; }
+
+  /** A follower deletes a row its partition rejected at admission; every other row is the writer's to delete. */
+  async removeInboxRow(key: number): Promise<void> {
+    const connection = this.inboxConnection;
+    if (!connection || connection.ended) throw new OfflineStoreFailure("E_OFFLINE_LOCK", "this tab has no route to the account's partition");
+    await connection.remove(key);
+    await this.refreshInbox().catch(() => undefined);
+  }
+  /** Queued rows awaiting the writer: what a follower's status counts as remaining. */
+  get inboxPending(): number { return this.inboxRowsCache.filter((row) => row.kind === "mutation" && row.state === "queued" && row.admitted === undefined).length; }
+
+  /**
+   * The writer's admission loop, in key order. A temporary refusal (no grant,
+   * an expired or spent grant, a bound not yet recorded) leaves the row queued
+   * and stops the loop behind it; a mismatched identity or an operation the
+   * held program does not declare settles the row rejected (LLP 1018.004 §2).
+   * Runs against the open partition whether or not the follower marker is
+   * still set, so takeover can admit inherited rows before its first resume.
+   */
+  async admitInbox(check: { scope: string; custody(): void }): Promise<{ admitted: number; stopped?: string }> {
+    if (this.partition === undefined || !this.store.inboxRows) return { admitted: 0 };
+    const rows = orderInbox(await this.store.inboxRows());
+    let admitted = 0, stopped: string | undefined;
+    const refusal = (code: string, message: string, rewrite: string) => ({
+      state: "rejected" as const, code, family: "offline", message, site: "client.inbox.admit", rewrite, guide: "offline",
+    });
+    for (const row of rows) {
+      if (row.kind === "dismiss") { await this.outbox.consumeDismiss(row); continue; }
+      if (row.state !== "queued" || row.admitted !== undefined || row.op === undefined) continue;
+      const epochMismatch = row.authEpoch !== undefined && this.authEpoch !== undefined && row.authEpoch !== this.authEpoch;
+      if (row.scope !== check.scope || row.principal !== this.partition || epochMismatch) {
+        await this.outbox.rejectInbox(row, refusal("E_OFFLINE_FORWARDING_IDENTITY",
+          "this write was saved under another account session, backend, or partition", "send it again from the current session"));
+        continue;
+      }
+      if (this.held && (await this.store.outbox.bounds())[row.op] === undefined) {
+        await this.outbox.rejectInbox(row, refusal("E_OFFLINE_PROGRAM",
+          `${row.op} is not a mutation of the program this device holds`, "send it again once the program declares it"));
+        continue;
+      }
+      try {
+        const outcome = await this.outbox.admitInbox(row, check.custody, this.seq, (ids) => this.predict(row.op!, row.args, ids));
+        if (outcome.outcome === "admitted") admitted += 1;
+      } catch (error) {
+        if (error instanceof OutboxRefusal) { stopped = error.code; break; }
+        throw error;
+      }
+    }
+    const after = orderInbox(await this.store.inboxRows());
+    const changed = admitted > 0 || canonical(after) !== canonical(this.inboxRowsCache);
+    this.inboxRowsCache = after;
+    if (changed) { this.outbox.notify(); this.publishInputs(); }
+    return { admitted, ...(stopped === undefined ? {} : { stopped }) };
   }
 
   async open(principal: string, authenticated = false): Promise<void> {
@@ -364,7 +492,6 @@ export class OfflineRuntime {
         this.facts = this.superseded = this.held = undefined;
         this.latestSeq = 0;
         this.sessionEpoch = undefined;
-        this.forwardingIncarnation = undefined;
         this.cursors = {};
         this.schema = undefined;
       }
@@ -445,6 +572,7 @@ export class OfflineRuntime {
 
   async wipe(): Promise<void> {
     this.outbox.resetTrust();
+    this.closeInbox();
     await this.serial(async () => {
       if (this.partition === undefined) return;
       const partition = this.partition;
@@ -454,7 +582,6 @@ export class OfflineRuntime {
       this.superseded = undefined;
       this.held = undefined;
       this.sessionEpoch = undefined;
-      this.forwardingIncarnation = undefined;
       this.bytes.bind(undefined);
       await this.store.wipe(partition);
       this.outbox.notify();
@@ -463,6 +590,7 @@ export class OfflineRuntime {
 
   async close(): Promise<void> {
     this.outbox.resetTrust();
+    this.closeInbox();
     await this.tail;
     this.outbox.close();
     this.stopInputChanges?.();

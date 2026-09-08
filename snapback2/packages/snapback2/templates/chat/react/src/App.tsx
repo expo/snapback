@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { api, intentLabel } from "snapback2/client";
-import { DevOverlay, useAuth, useConnection, useOutbox, useQuery, useSnapbackClient, useSnapbackSnapshot } from "snapback2/react";
+import { DevOverlay, useAuth, useConnection, useOutbox, useQuery } from "snapback2/react";
 import { Inbox, type LogRow } from "./Inbox";
 import { Search } from "./Search";
 import { Thread } from "./Thread";
-import { useAccountRecoveryCustody, type MessageChangeUncertainty, type SendUncertainty } from "../shared/recovery";
 
 // @ref LLP 1012#3-the-model-on-one-page-and-the-program-shape — one drained
 // delivery log is "everything on the phone"; the inbox and retained-history
@@ -14,11 +13,7 @@ import { useAccountRecoveryCustody, type MessageChangeUncertainty, type SendUnce
 export function App() {
   const connection = useConnection();
   const auth = useAuth();
-  const client = useSnapbackClient();
   const outbox = useOutbox();
-  const authGeneration = useSnapbackSnapshot().authGeneration;
-  const sendCustody = useAccountRecoveryCustody<SendUncertainty>(client, authGeneration);
-  const changeCustody = useAccountRecoveryCustody<MessageChangeUncertainty>(client, authGeneration);
   const inbox = useQuery(api.deliveries.inbox, { c: null }, { drain: true });
   const rows = (inbox.data ?? []) as LogRow[];
   const [selected, setSelected] = useState<string>();
@@ -40,8 +35,7 @@ export function App() {
       </header>
       <Search onOpen={setSelected} />
       <Inbox rows={rows} selected={selected} onSelect={setSelected} />
-      {selected ? <Thread conversationId={selected} viewer={auth.viewer} onNote={setNote}
-        sendCustody={sendCustody} changeCustody={changeCustody} /> : <p>Pick a conversation.</p>}
+      {selected ? <Thread conversationId={selected} viewer={auth.viewer} onNote={setNote} /> : <p>Pick a conversation.</p>}
       <DevOverlay />
     </main>
   );

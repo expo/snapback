@@ -155,10 +155,10 @@ export const readinessMessages: Readonly<Record<string, string>> = Object.freeze
   "grant-expired": "Reconnect to enable new messages. Queued messages stay saved.",
   "ids-exhausted": "Reconnect to continue sending. Queued messages stay saved.",
   "program-missing": "Connect to download this conversation before sending.",
-  follower: "Another tab is sending for this account. Send from that tab, or close it to send here.",
+  follower: "Another tab holds this account and this one cannot reach it. Send from that tab, or close it to send here.",
   fence: "Queued until the next sync.",
-  "writer-discovery": "Finding the tab that sends for this account.",
-  "writer-capacity": "The sending tab is busy. Your message stays saved.",
+  forwarding: "Another tab sends for this account. Messages are saved here first.",
+  "inbox-full": "This device holds as many unsent messages as it can. Wait for the sending tab.",
   "writer-unresponsive": "The sending tab is not responding. Your message stays saved.",
 });
 
@@ -173,15 +173,17 @@ export function readiness(status: OutboxStatus, connection: ConnectionState, que
   if (reason === "follower") return { send: false, action: "other-tab", reason: { code: reason, message: message(reason) } };
   if (reason === "sealed") return { send: false, action: "sign-in", reason: { code: reason, message: message(reason) } };
   if (!status.ready) {
-    return { send: false, action: reason.startsWith("writer-") ? "wait" : "connect", reason: { code: reason, message: message(reason) } };
+    return { send: false, action: reason === "inbox-full" ? "wait" : "connect", reason: { code: reason, message: message(reason) } };
   }
+  // @ref LLP 1018.004#3-readiness-on-a-follower — a follower's rows are durable
+  // and FIFO: an unresponsive writer is a reason on a sendable status, and the
+  // pending sentence names the sending tab rather than the server.
+  if (reason === "writer-unresponsive") return { send: true, action: "wait", reason: { code: reason, message: message(reason) } };
   if (status.fence === "past") return { send: true, action: "connect", reason: { code: "fence", message: message("fence") } };
   if (queued > 0) {
-    return {
-      send: true,
-      action: "connect",
-      reason: { code: "pending", message: `${queued} queued · ${connection === "connected" ? "Waiting for the server." : "Waiting for connection."}` },
-    };
+    const waiting = reason === "forwarding" ? "Waiting for the sending tab."
+      : connection === "connected" ? "Waiting for the server." : "Waiting for connection.";
+    return { send: true, action: reason === "forwarding" ? "wait" : "connect", reason: { code: "pending", message: `${queued} queued · ${waiting}` } };
   }
   return { send: true };
 }

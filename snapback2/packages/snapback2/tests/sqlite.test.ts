@@ -92,15 +92,13 @@ test("IndexedDB rows without meta survive open with version 1 and default maps o
     await file.backend.replace({ rows: state.rows }, noBytes);
     await file.backend.close();
     const expected = { ...sqliteState(), version: 1, sealed: false, clock: 0, rows: state.rows };
-    const defaults = ["onceColumns", "answers", "outbox", "watermarks", "grants", "forwardingReceipts", "overlay", "overlayMisses", "bounds", "programs", "negative", "rowSeq", "assets", "viewed"];
+    const defaults = ["onceColumns", "answers", "outbox", "watermarks", "grants", "overlay", "overlayMisses", "bounds", "programs", "negative", "rowSeq", "assets", "viewed"];
     for (const backend of [indexed.backend, sqlite, file.backend]) {
       const restored = await backend.open("partial");
       assert.deepEqual(restored.rows, expected.rows, backend.carrier);
       assert.equal(restored.version, 1);
       assert.equal(restored.sealed, false);
       assert.equal(restored.clock, 0);
-      assert.equal(restored.admissionClockFloor, 0, `${backend.carrier}: admissionClockFloor`);
-      assert.equal(restored.partitionIncarnation, undefined, `${backend.carrier}: partitionIncarnation`);
       for (const field of defaults) assert.deepEqual(restored[field], {}, `${backend.carrier}: ${field}`);
       await backend.close();
     }

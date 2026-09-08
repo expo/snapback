@@ -116,14 +116,15 @@ export type MutationRejected = {
   reason?: string;
   intent?: string;
 };
-/** The write is durable in this device's outbox and will replay after the next resume. */
+/**
+ * The write is durable on this device and will replay after the next resume:
+ * in this tab's outbox, or, from a browser tab that is not the account's
+ * writer, as an inbox row named `inbox:<key>` with no ids until the writer
+ * admits it (LLP 1018.004 §1). Every member of `MutationResult` is terminal
+ * or durable; there is no fourth outcome.
+ */
 export type MutationQueued = { state: "queued"; intent: string; ids: string[] };
-declare const mutationRecovery: unique symbol;
-/** Opaque, serializable identity for resolving a forwarded mutation whose admission is unknown. */
-export type MutationRecovery = string & { readonly [mutationRecovery]: true };
-/** The follower could not learn whether the writer durably admitted the command. */
-export type MutationAdmissionUnknown = { state: "admission-unknown"; recovery: MutationRecovery };
-export type MutationResult<Result> = MutationCommitted<Result> | MutationRejected | MutationQueued | MutationAdmissionUnknown;
+export type MutationResult<Result> = MutationCommitted<Result> | MutationRejected | MutationQueued;
 
 export type ReceiptSource = "server" | "twin";
 export type LiveQueryDelivery<Result> = ServerQueryResult<Result> & { live: true; caughtUp?: boolean; watermark?: Cursor | null };
@@ -304,15 +305,20 @@ export type CreateClientOptions = ClientLocationOptions & (
 
 // @ref LLP 1012#7-writes-offline — the outbox is readable before the first
 // request, so a queued message is on screen at cold start.
-export type OutboxSettlement = { stopped: false | "fence" | "transport" | "authority" | "offline" | "pending"; remaining: number };
+export type OutboxSettlement = { stopped: false | "fence" | "transport" | "authority" | "offline" | "pending" | "writer-unresponsive"; remaining: number };
 
 export interface OutboxStatus {
   ready: boolean;
-  /** Follower states distinguish discovery, durable capacity, and an admitted command whose writer stopped answering. */
+  /**
+   * A follower tab reports `forwarding` (ready: its writes are admitted by the
+   * tab that holds the partition), `writer-unresponsive` (still ready; the
+   * writer has not admitted its oldest row for five seconds), `inbox-full`, or
+   * `follower` (no route to the partition's inbox) (LLP 1018.004 §3).
+   */
   reason: "ready" | "sealed" | "grant-missing" | "grant-expired" | "ids-exhausted" | "program-missing"
-    | "follower" | "writer-discovery" | "writer-capacity" | "writer-unresponsive";
+    | "follower" | "forwarding" | "inbox-full" | "writer-unresponsive";
   action: "none" | "login" | "resume" | "load-program";
-  /** Number of queued intents; settled entries are excluded. */
+  /** Number of queued intents, including a follower's unadmitted rows; settled entries are excluded. */
   remaining: number;
   fence: "inside" | "past";
 }
@@ -377,10 +383,6 @@ export interface SnapbackClient {
   /** Diagnostic count of consumers attached to one shared observed-query identity. */
   sharedConsumers<Args, Result>(ref: Op<Args, Result>, args: NoInfer<Args>, drain?: boolean): number;
   mutation<Args, Result>(ref: Op<Args, Result>, args: NoInfer<AssetInput<Args>>): Promise<MutationResult<Result>>;
-  /** Resolve a forwarded mutation whose original call returned `admission-unknown`; never creates another request identity. */
-  recoverMutation<Args, Result>(
-    ref: Op<Args, Result>, args: NoInfer<AssetInput<Args>>, recovery: MutationRecovery,
-  ): Promise<MutationQueued | MutationAdmissionUnknown>;
   /** Uploads one browser File or Expo URI-backed File and returns its closed asset record. */
   upload(source: AssetUploadSource, options: AssetUploadOptions & { readonly kind: "image" }): Promise<ImageAsset>;
   upload(source: AssetUploadSource, options: AssetUploadOptions & { readonly kind: "video" }): Promise<VideoAsset>;

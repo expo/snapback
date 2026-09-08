@@ -845,18 +845,18 @@ alone makes no automatic replay promise. Both chat composers show the
 recovery reason and a Sync now action, keep refused drafts, and distinguish
 a predicted preview from a server-confirmed message.
 
-For a web follower, the same status surface reports `writer-discovery`,
-`writer-capacity`, `writer-unresponsive`, or `ready`; `follower` remains the
-hard refusal when the carrier cannot forward. A writer acknowledgment reports
-durable admission, not settlement. If no answer arrives within two seconds
-after send, mutation returns `{ state: "admission-unknown", recovery }` and
-keeps its bounded pending slot until acknowledgment or expiry. The opaque
-token binds the operation/argument digest and exact account, auth epoch,
-carrier scope, expiration, and durable partition incarnation. Calling
-`client.recoverMutation(ref, args, recovery)` either reproduces the receipt's
-original `intent` and `ids`, returns the same unknown outcome while the writer
-is unreachable or an expired receipt is absent, or refuses a mismatching
-scope without a write (LLP 1018.000 §8).
+For a web follower, the same status surface reports `forwarding` (ready:
+this tab's writes are admitted by the tab that holds the partition),
+`writer-unresponsive` (still ready; the writer has not admitted its oldest
+row for five seconds), `inbox-full`, or `follower` (no route to the
+partition's inbox; the hard refusal). A follower's `run()` inserts a durable
+row in the partition's `inbox` object store and resolves
+`{ state: "queued", intent: "inbox:<key>", ids: [] }` once the row is
+durable; the writer admits rows in key order, in one swap with the entry
+each becomes, and that entry records `inbox: <key>`, so the alias names it
+from then on on either tab. There is no forwarded command, no acknowledgment
+to lose, and no fourth outcome (LLP 1018.004, superseding LLP 1018.000 §8's
+transport while keeping its ownership model).
 
 **The replay grant.** Every successful resume (§8), login, and guest call
 returns a grant when the client's remaining ids are low:

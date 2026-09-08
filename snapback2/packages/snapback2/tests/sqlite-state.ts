@@ -12,7 +12,6 @@ export function sqliteState(clock = 1): PersistedRangeState {
   const intent = `grant:${clock}`;
   const factKey = `messages\0${id}`, digest = 'a'.repeat(64);
   const extentKey = 'fixture-extent-meaning', extent = 'e'.repeat(64);
-  const incarnation = "fixture-partition", requestId = `s2fr1-c8-${"b".repeat(32)}`;
   return {
     version: 1, sealed: false, clock, onceColumns: { secretPhotos: ["photo"] },
     rows: { [`messages\u0000${id}`]: row, "messages\u0000plain": { table: "messages", id: "plain", row: { id: "plain" } } },
@@ -25,10 +24,7 @@ export function sqliteState(clock = 1): PersistedRangeState {
     outbox: { [intent]: { intent, grant: "grant", offset: clock, count: 2, ids: [id], op: "send", args: { body: "queued" },
       issuedSeq: clock, state: "queued", predicted: true, trace: { points: [], verdicts: [] }, createdAt: 100, updatedAt: 100, order: 1 } },
     grants: { grant: { id: "grant", from: "start", count: 100, mintedAt: 100, expiresAt: 200, used: clock } },
-    currentGrant: "grant", partitionIncarnation: incarnation, admissionClockFloor: 150,
-    forwardingReceipts: { [requestId]: { requestId, followerId: "fixture-follower", payloadDigest: "d".repeat(64),
-      expiresAt: 200, authEpoch: 2, partitionIncarnation: incarnation, grant: "grant", from: "s2id-00000000000000000000000000000006-0000000000000001",
-      offset: clock, count: 2, admittedAt: 150, acknowledged: false } },
+    currentGrant: "grant",
     overlay: { [intent]: [row] }, overlayMisses: { [intent]: clock },
     // Lane T1's commit-time tail snapshot (null after a reset) and T2's scoped negatives ride the same projection.
     overlayWatermarks: { [intent]: { op: "inbox", args: { c: null }, watermark: `cursor-${clock}`, cursorArg: "c", progress: `cursor-${clock}`, consumed: ["cursor-0"] }, "grant:0": null },

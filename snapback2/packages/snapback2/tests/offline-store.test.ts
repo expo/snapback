@@ -108,12 +108,12 @@ test("the IndexedDB carrier keeps rows, answers, outbox, meta, and bytes; the ve
   const name = "snapback2:dev:alice";
   const fresh: any = factory();
   await fresh.open("dev:alice");
-  assert.deepEqual(database.storeNames(name), ["answers", "bytes", "meta", "outbox", "rows"], "a fresh database has exactly the stores coverage() reads");
+  assert.deepEqual(database.storeNames(name), ["answers", "bytes", "inbox", "meta", "outbox", "rows"], "a fresh database has exactly the stores coverage() reads, plus the inbox (LLP 1018.004 §2)");
   await fresh.commit({ deliveries: [{
     op: "thread", args: {}, state: "complete", data: [ref("messages", "m1")], next: null, seq: 1, rows: [row("messages", "m1")],
     receipt: { ranges: [range({ rowIds: ["m1"] })], absences: [["messages", "byId", ["m9"]]], verdicts: [{ ruleHash: "a".repeat(64), pinnedInputsDigest: "b".repeat(64), principal: "dev:alice", authEpoch: 1, result: true }] },
   }] });
-  assert.deepEqual(database.storeNames(name), ["answers", "bytes", "meta", "outbox", "rows"], "a swap with a receipt writes no projection store");
+  assert.deepEqual(database.storeNames(name), ["answers", "bytes", "inbox", "meta", "outbox", "rows"], "a swap with a receipt writes no projection store");
   assert.equal((await fresh.coverage()).ranges.length, 1, "coverage derives the range from the answer's receipt");
   assert.equal((await fresh.coverage()).absences.length, 1);
   assert.equal((await fresh.coverage()).verdicts.length, 1);
@@ -122,7 +122,7 @@ test("the IndexedDB carrier keeps rows, answers, outbox, meta, and bytes; the ve
   database.seedVersion2(name, ["rows", "answers", "ranges", "absences", "verdicts", "outbox", "meta", "bytes"]);
   const upgraded: any = factory();
   await upgraded.open("dev:alice");
-  assert.deepEqual(database.storeNames(name), ["answers", "bytes", "meta", "outbox", "rows"], "version 3 deleted the projections");
+  assert.deepEqual(database.storeNames(name), ["answers", "bytes", "inbox", "meta", "outbox", "rows"], "version 3 deleted the projections");
   await upgraded.close?.();
 });
 test("a pooled row no answer references any more leaves the swap: a replaced closure drops what it stopped pooling, a dropped answer drops its pool", async () => {
@@ -651,14 +651,13 @@ test("carrier open failures and a second web lock holder refuse loudly", async (
   await assert.rejects(bad.ready, (error: unknown) => error instanceof SnapbackRefusal
     && error.code === "E_OFFLINE_CARRIER" && error.envelope.rewrite?.includes("broken-test") === true);
 
-  // A second web tab of the same account opens as a follower. This carrier
-  // test has no forwarding peer; the protocol remains in explicit discovery.
+  // A second web tab of the same account follows with a durable inbox route: sendable (LLP 1018.004 §3).
   const shared = indexedFactory();
   const first = createClient({ url: "http://offline.test", as: "alice", offline: { store: shared.factory } });
   await first.ready;
   const second = createClient({ url: "http://offline.test", as: "alice", offline: { store: shared.factory } });
   await second.ready;
-  assert.equal((await second.outbox.status()).reason, "writer-discovery");
+  assert.deepEqual(await second.outbox.status().then((status) => [status.reason, status.ready]), ["forwarding", true]);
   first.close();
   second.close();
 });

@@ -488,7 +488,7 @@ fn offline_guide_page_respects_its_budget_and_its_codes_have_pages() {
         "replay",
         "conflict",
         "fenceDays",
-        "recoverMutation(op, sameArgs, recovery)",
+        "intent: \"inbox:<key>\"",
         "E_OFFLINE_RESET",
         "E_OFFLINE_RESUME",
         "E_OFFLINE_INTENT_EXPIRED",

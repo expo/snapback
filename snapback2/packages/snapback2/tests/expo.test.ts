@@ -84,7 +84,6 @@ test("Expo opens held history only for a partial composite and reuses the observ
     subscribeStatus() { return () => undefined; },
     manifest: async () => ({}),
     mutation: async () => ({ state: "rejected" }),
-    recoverMutation: async () => ({ state: "admission-unknown" }),
     outbox: {
       entries: async () => [],
       subscribe(notify: (entries: any[]) => void) { notify([]); return () => undefined; },

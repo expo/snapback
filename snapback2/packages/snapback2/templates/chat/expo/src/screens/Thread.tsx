@@ -2,7 +2,6 @@ import React, { useCallback, useMemo, useState, useSyncExternalStore } from "rea
 import { Button, ScrollView, Text, View } from "react-native";
 import { api, type Api } from "snapback2/client";
 import { AssetImage, AssetVideo, useOutbox, useQuery, useSnapbackClient, useSnapbackSnapshot } from "snapback2/react-native";
-import type { RecoveryCustody, SendUncertainty } from "../../shared/recovery";
 import { Composer } from "../Composer";
 import { conversationItems, threadItems } from "../../shared/thread";
 
@@ -28,10 +27,7 @@ function usePartialHistory(conversationId: string, active: boolean) {
 // the paginated query contributes history only when that composite is partial.
 // @ref LLP 1018.003.000#2-correspondence —
 // the same item declaration supplies row attribution in both platform arms.
-export function Thread({ conversationId, sendCustody }: {
-  conversationId: string;
-  sendCustody?: RecoveryCustody<SendUncertainty>;
-}) {
+export function Thread({ conversationId }: { conversationId: string }) {
   const [opened, setOpened] = useState<string[]>([]);
   const snapshot = useQuery(api.deliveries.conversationView, { conversationId }, { items: conversationItems });
   const composite = usable(snapshot);
@@ -64,5 +60,5 @@ export function Thread({ conversationId, sendCustody }: {
         </View>)}
       </View>;
     })}
-  </ScrollView><Composer conversationId={conversationId} custody={sendCustody} /></View>;
+  </ScrollView><Composer conversationId={conversationId} /></View>;
 }

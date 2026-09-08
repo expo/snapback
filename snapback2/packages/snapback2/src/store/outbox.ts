@@ -3,11 +3,9 @@
 // so its ids are known before the server has seen it and a retry is the same
 // envelope. Settlement never deletes; `dismiss` is the app's choice.
 import type { OutboxStatus } from "../types.js";
-import { forwardingRequestExpiry } from "./forwarding.js";
+import { inboxKeyOf, type InboxRow } from "./inbox.js";
 import type {
   OutboxEntry,
-  ForwardingCustody,
-  ForwardingReceipt,
   OutboxGrant,
   OutboxState,
   OutboxTrace,
@@ -78,7 +76,16 @@ export interface EnqueueInput {
   args: unknown;
   issuedSeq: number;
   trace?: OutboxTrace;
+  /** The inbox row this intent is admitted from (LLP 1018.004 §2). */
+  inbox?: number;
 }
+
+/** Why an inbox row could not be admitted now; temporary refusals leave it queued and stop the loop behind it. */
+export type InboxAdmission =
+  | { outcome: "admitted"; entry: OutboxEntry }
+  | { outcome: "already"; intent: string }
+  | { outcome: "rejected" }
+  | { outcome: "gone" };
 
 /** The twin's run over held rows for the slice it was handed: the overlay and the trace land with the entry. */
 export interface EnqueuePrediction {
@@ -89,33 +96,6 @@ export interface EnqueuePrediction {
   omitted?: string[];
 }
 
-export interface ForwardingAdmission {
-  requestId: string;
-  followerId: string;
-  payloadDigest: string;
-  expiresAt: number;
-  authEpoch: number;
-  partitionIncarnation: string;
-  /** Recovery may look up an expired receipt but must not create a new intent. */
-  recovery?: boolean;
-}
-
-export interface ForwardedAdmission {
-  receipt: ForwardingReceipt;
-  intent: string;
-  ids: string[];
-}
-
-export class ForwardingAdmissionError extends Error {
-  constructor(readonly reason: "identity" | "capacity" | "expiration" | "conflict", message: string) {
-    super(message);
-    this.name = "ForwardingAdmissionError";
-  }
-}
-
-const MAX_FORWARDING_RECEIPTS = 256;
-const MAX_FOLLOWER_UNACKNOWLEDGED = 64;
-const MAX_FORWARDING_LIFETIME = 5 * 60 * 1_000;
 
 export interface OutboxLedgerOptions {
   now(): number;
@@ -250,17 +230,6 @@ export class OutboxLedger {
   }
 
   /** Admission readiness reported to a follower, including the fixed durable receipt bounds. */
-  async forwardingStatus(op?: string, followerId?: string): Promise<OutboxStatus> {
-    const status = await this.status(op);
-    if (!status.ready) return status;
-    const custody = await this.store.outbox.forwarding();
-    const now = Math.max(custody.clockFloor, this.options.now());
-    const live = Object.values(custody.receipts).filter(receipt => receipt.expiresAt > now);
-    const full = live.length >= MAX_FORWARDING_RECEIPTS || (followerId !== undefined
-      && live.filter(receipt => receipt.followerId === followerId && !receipt.acknowledged).length >= MAX_FOLLOWER_UNACKNOWLEDGED);
-    return full ? { ...status, ready: false, reason: "writer-capacity", action: "none" } : status;
-  }
-
   /**
    * Every outbox write shares this tail: enqueue, adoption, bounds, dismiss,
    * and — through the runtime — settlements and the predictions they drop, so
@@ -332,119 +301,6 @@ export class OutboxLedger {
   }
 
   /** Initializes the wipe-scoped identity while this client holds the partition lock. */
-  forwardingIdentity(proposed: string): Promise<ForwardingCustody> {
-    return this.serial(async () => {
-      const current = await this.store.outbox.forwarding();
-      const clockFloor = Math.max(current.clockFloor, this.options.now());
-      const partitionIncarnation = current.partitionIncarnation ?? proposed;
-      if (!partitionIncarnation) throw new TypeError("forwarding identity must be non-empty");
-      if (current.partitionIncarnation === undefined || clockFloor !== current.clockFloor) {
-        await this.store.commit({ forwarding: { partitionIncarnation, clockFloor } });
-      }
-      return { ...current, partitionIncarnation, clockFloor };
-    });
-  }
-
-  /** A late follower acknowledgment releases its bounded slot but keeps deduplication custody. */
-  acknowledgeForwarded(requestId: string, followerId: string, authEpoch: number, partitionIncarnation: string): Promise<void> {
-    return this.serial(async () => {
-      const current = await this.store.outbox.forwarding();
-      if (current.partitionIncarnation !== partitionIncarnation) return;
-      const receipt = current.receipts[requestId];
-      if (!receipt || receipt.followerId !== followerId || receipt.authEpoch !== authEpoch || receipt.acknowledged) return;
-      await this.store.commit({ forwarding: {
-        clockFloor: Math.max(current.clockFloor, this.options.now()), acknowledge: [requestId],
-      } });
-    });
-  }
-
-  /**
-   * Atomically consumes the writer's grant and installs a durable request receipt.
-   * Matching retries return the original ids even after ordinary outbox dismissal.
-   */
-  admitForwarded(
-    input: EnqueueInput,
-    admission: ForwardingAdmission,
-    predict?: (ids: string[]) => Promise<EnqueuePrediction>,
-    beforeCommit?: () => void,
-  ): Promise<ForwardedAdmission | undefined> {
-    return this.serial(async () => {
-      const current = await this.store.outbox.forwarding();
-      const clockFloor = Math.max(current.clockFloor, this.options.now());
-      if (forwardingRequestExpiry(admission.requestId) !== admission.expiresAt) {
-        throw new ForwardingAdmissionError("conflict", "the forwarding request id does not bind its expiration");
-      }
-      if (current.partitionIncarnation !== admission.partitionIncarnation) {
-        throw new ForwardingAdmissionError("identity", "the forwarding request belongs to another partition incarnation");
-      }
-      const existing = current.receipts[admission.requestId];
-      if (existing) {
-        if (existing.payloadDigest !== admission.payloadDigest || existing.followerId !== admission.followerId
-          || existing.expiresAt !== admission.expiresAt || existing.authEpoch !== admission.authEpoch
-          || existing.partitionIncarnation !== admission.partitionIncarnation) {
-          throw new ForwardingAdmissionError("conflict", "the forwarding request id was retried with a different payload or scope");
-        }
-        if (clockFloor !== current.clockFloor) await this.store.commit({ forwarding: { clockFloor } });
-        return this.forwarded(existing);
-      }
-      if (!Number.isSafeInteger(admission.expiresAt) || admission.expiresAt <= clockFloor) {
-        if (clockFloor !== current.clockFloor) await this.store.commit({ forwarding: { clockFloor } });
-        if (admission.recovery) return undefined;
-        throw new ForwardingAdmissionError("expiration", "the forwarding request expired before durable admission");
-      }
-      if (admission.expiresAt > clockFloor + MAX_FORWARDING_LIFETIME) {
-        if (clockFloor !== current.clockFloor) await this.store.commit({ forwarding: { clockFloor } });
-        throw new ForwardingAdmissionError("expiration", "the forwarding request expiration exceeds five minutes");
-      }
-      // Keep expired receipts for recovery while capacity permits. At the hard
-      // bound, prune only identities that can no longer admit a command.
-      const remove = Object.keys(current.receipts).length < MAX_FORWARDING_RECEIPTS ? [] : Object.values(current.receipts)
-        .filter(receipt => receipt.expiresAt <= clockFloor)
-        .sort((a, b) => a.expiresAt - b.expiresAt || a.requestId.localeCompare(b.requestId))
-        .map(receipt => receipt.requestId);
-      const retained = Object.values(current.receipts).filter(receipt => !remove.includes(receipt.requestId));
-      if (retained.length >= MAX_FORWARDING_RECEIPTS) {
-        if (clockFloor !== current.clockFloor || remove.length) await this.store.commit({ forwarding: { clockFloor, remove } });
-        throw new ForwardingAdmissionError("capacity", "the partition holds 256 unexpired forwarding receipts");
-      }
-      if (retained.filter(receipt => receipt.followerId === admission.followerId
-        && !receipt.acknowledged && receipt.expiresAt > clockFloor).length >= MAX_FOLLOWER_UNACKNOWLEDGED) {
-        if (clockFloor !== current.clockFloor || remove.length) await this.store.commit({ forwarding: { clockFloor, remove } });
-        throw new ForwardingAdmissionError("capacity", "the follower holds 64 unacknowledged forwarding commands");
-      }
-      let receipt!: ForwardingReceipt;
-      try {
-        const entry = await this.enqueueNow(input, predict, beforeCommit, (outbox, grant) => {
-          const admittedAt = Math.max(clockFloor, this.options.now());
-          if (admission.expiresAt <= admittedAt) {
-            throw new ForwardingAdmissionError("expiration", "the forwarding request expired before durable admission");
-          }
-          receipt = {
-            requestId: admission.requestId, followerId: admission.followerId,
-            payloadDigest: admission.payloadDigest, expiresAt: admission.expiresAt,
-            authEpoch: admission.authEpoch, partitionIncarnation: admission.partitionIncarnation,
-            grant: outbox.grant, from: grant.from, offset: outbox.offset, count: outbox.count,
-            admittedAt, acknowledged: false,
-          };
-          return { partitionIncarnation: admission.partitionIncarnation, clockFloor: admittedAt, remove, put: [receipt] };
-        });
-        return { receipt, intent: entry.intent, ids: [...entry.ids] };
-      } catch (error) {
-        if (!(error instanceof ForwardingAdmissionError) || error.reason !== "expiration") throw error;
-        const finalFloor = Math.max(clockFloor, this.options.now());
-        if (finalFloor !== current.clockFloor) await this.store.commit({ forwarding: { clockFloor: finalFloor } });
-        if (admission.recovery) return undefined;
-        throw error;
-      }
-    });
-  }
-
-  private forwarded(receipt: ForwardingReceipt): ForwardedAdmission {
-    const ids = sliceIds({ from: receipt.from, count: receipt.offset + receipt.count }, receipt.offset, receipt.count);
-    if (ids.length !== receipt.count) throw new TypeError("invalid durable forwarding slice");
-    return { receipt, intent: intentName(receipt.grant, receipt.offset), ids };
-  }
-
   // @ref LLP 1012#7-writes-offline — the first id names the intent; the rest
   // are the program's `new` envelope in order, as many as the certificate's
   // persisted write bound allows. No bound, or no remaining ids, is a refusal,
@@ -457,7 +313,7 @@ export class OutboxLedger {
     input: EnqueueInput,
     predict?: (ids: string[]) => Promise<EnqueuePrediction>,
     beforeCommit?: () => void,
-    forwarding?: (entry: OutboxEntry, grant: OutboxGrant) => NonNullable<import("./range-store.js").StoreSwap["forwarding"]>,
+    extra?: (entry: OutboxEntry, grant: OutboxGrant) => Partial<import("./range-store.js").StoreSwap>,
   ): Promise<OutboxEntry> {
       const grant = await this.grant();
       if (!grant) {
@@ -519,6 +375,7 @@ export class OutboxLedger {
         trace: pastFence ? emptyTrace() : prediction?.trace ?? input.trace ?? emptyTrace(),
         createdAt: now,
         updatedAt: now,
+        ...(input.inbox === undefined ? {} : { inbox: input.inbox }),
       };
       // From this point a storage failure can be ambiguous; before it no intent exists.
       beforeCommit?.();
@@ -526,10 +383,79 @@ export class OutboxLedger {
         grants: { put: [{ ...grant, used: grant.used + count }] },
         outbox: { put: [entry] },
         ...(prediction?.predicted ? { overlay: { put: { [entry.intent]: prediction.overlay } } } : {}),
-        ...(forwarding ? { forwarding: forwarding(entry, grant) } : {}),
+        ...(extra ? extra(entry, grant) : {}),
       });
       this.notify();
       return (await this.store.outbox.get(entry.intent)) ?? entry;
+  }
+
+  // @ref LLP 1018.004#2-the-inbox — one serial operation and one swap: the row
+  // is re-read fresh, custody is checked inside the serial, and grant
+  // consumption, the entry, the prediction, and the row's admission mark land
+  // together. A row already marked is skipped, so a crash between the
+  // transaction and the nudge, or a takeover mid-loop, cannot admit twice.
+  admitInbox(
+    row: InboxRow,
+    custody: () => void,
+    issuedSeq: number,
+    predict?: (ids: string[]) => Promise<EnqueuePrediction>,
+    beforeCommit?: () => void,
+  ): Promise<InboxAdmission> {
+    return this.serial(async () => {
+      const fresh = (await this.store.inboxRows?.())?.find((candidate) => candidate.key === row.key);
+      if (!fresh) return { outcome: "gone" };
+      if (fresh.state === "rejected") return { outcome: "rejected" };
+      if (fresh.admitted !== undefined) return { outcome: "already", intent: fresh.admitted };
+      if (fresh.kind !== "mutation" || fresh.op === undefined) return { outcome: "gone" };
+      custody();
+      const entry = await this.enqueueNow({ op: fresh.op, args: fresh.args, issuedSeq, inbox: fresh.key }, predict, beforeCommit,
+        (admitted) => ({ inbox: { put: [{ ...fresh, admitted: admitted.intent, ids: [...admitted.ids], updatedAt: this.options.now() }] } }));
+      return { outcome: "admitted", entry };
+    });
+  }
+
+  /** A terminal refusal at admission: the row keeps its arguments and the reason, creates no entry, and is dismissible. */
+  rejectInbox(row: InboxRow, response: unknown): Promise<void> {
+    return this.serial(async () => {
+      const fresh = (await this.store.inboxRows?.())?.find((candidate) => candidate.key === row.key);
+      if (!fresh || fresh.state !== "queued" || fresh.admitted !== undefined) return;
+      await this.store.commit({ inbox: { put: [{ ...fresh, state: "rejected", response, updatedAt: this.options.now() }] } });
+      this.notify();
+    });
+  }
+
+  /**
+   * A follower's dismissal is a durable command row naming its target. The
+   * writer consumes it by dismissing the target's entry (an `inbox:` alias
+   * resolves to the entry admitted from that row) and deleting the command in
+   * one swap; a queued target leaves the command consumed and the entry kept.
+   */
+  consumeDismiss(row: InboxRow): Promise<void> {
+    return this.serial(async () => {
+      const rows = (await this.store.inboxRows?.()) ?? [];
+      const command = rows.find((candidate) => candidate.key === row.key);
+      if (!command || command.kind !== "dismiss" || command.target === undefined) return;
+      const resolved = await this.resolveIntent(command.target, rows);
+      const remove = [command.key];
+      let outbox: { remove: string[] } | undefined;
+      if (resolved.row && resolved.row.state === "rejected") remove.push(resolved.row.key);
+      if (resolved.entry && resolved.entry.state !== "queued") {
+        outbox = { remove: [resolved.entry.intent] };
+        for (const mirrored of rows) if (mirrored.admitted === resolved.entry.intent) remove.push(mirrored.key);
+      }
+      await this.store.commit({ inbox: { remove: [...new Set(remove)] }, ...(outbox ? { outbox } : {}) });
+      this.notify();
+    });
+  }
+
+  /** The entry an intent or `inbox:` alias names, and the inbox row behind an alias. */
+  private async resolveIntent(intent: string, rows?: InboxRow[]): Promise<{ entry?: OutboxEntry; row?: InboxRow }> {
+    const key = inboxKeyOf(intent);
+    if (key === undefined) return { entry: await this.store.outbox.get(intent) };
+    const row = (rows ?? (await this.store.inboxRows?.()) ?? []).find((candidate) => candidate.key === key);
+    const entry = row?.admitted !== undefined ? await this.store.outbox.get(row.admitted)
+      : (await this.store.outbox.all()).find((candidate) => candidate.inbox === key);
+    return { ...(entry ? { entry } : {}), ...(row ? { row } : {}) };
   }
 
   private serial<T>(action: () => Promise<T>): Promise<T> {
@@ -542,12 +468,18 @@ export class OutboxLedger {
     return settledEntry(entry, state, response, this.options.now());
   }
 
-  /** Removes a settled entry; a queued intent is never dismissed. */
+  /** Removes a settled entry, or a rejected inbox row, by intent or `inbox:` alias; a queued intent is never dismissed. */
   dismiss(intent: string): Promise<void> {
     return this.serial(async () => {
-      const entry = await this.store.outbox.get(intent);
-      if (!entry || entry.state === "queued") return;
-      await this.store.commit({ outbox: { remove: [intent] } });
+      const rows = (await this.store.inboxRows?.()) ?? [];
+      const { entry, row } = await this.resolveIntent(intent, rows);
+      if (entry) {
+        if (entry.state === "queued") return;
+        const mirrored = rows.filter((candidate) => candidate.admitted === entry.intent || candidate.key === entry.inbox).map((candidate) => candidate.key);
+        await this.store.commit({ outbox: { remove: [entry.intent] }, ...(mirrored.length ? { inbox: { remove: mirrored } } : {}) });
+      } else if (row && row.state === "rejected") {
+        await this.store.commit({ inbox: { remove: [row.key] } });
+      } else return;
       this.notify();
     });
   }

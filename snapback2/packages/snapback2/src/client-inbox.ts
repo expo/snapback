@@ -1,0 +1,372 @@
+// @ref LLP 1018.004#2-the-inbox — a browser tab that is not the account's
+// writer writes its mutations as durable rows in the partition's own database;
+// the writer admits them through its ledger. The channel carries nudges and the
+// writer's announced status only: nothing on it decides admission, so a lost
+// message costs latency, never custody.
+// @ref LLP 1018.004#4-liveness-nudges-polls-and-where-admission-runs — polls
+// on both sides cover a lost nudge and a browser without BroadcastChannel.
+import { followerRefusal, SnapbackRefusal } from "./client-wire.js";
+import { inboxAlias, inboxKeyOf, InboxFull, INBOX_LIMIT } from "./store/inbox.js";
+import type { OfflineRuntime } from "./offline.js";
+import type { MutationQueued, OutboxStatus, RefusalEnvelope } from "./types.js";
+
+const PROTOCOL = 2;
+/** How long a follower's oldest queued row may go unadmitted after a nudge before the writer counts as unresponsive. */
+const UNRESPONSIVE_MS = 5_000;
+const WRITER_POLL_MS = 30_000;
+const WRITER_POLL_NO_CHANNEL_MS = 5_000;
+const FOLLOWER_POLL_MS = 2_000;
+
+type Message =
+  | { protocol: 2; type: "writer"; scope: string; principal: string; authEpoch?: number; status: OutboxStatus }
+  | { protocol: 2; type: "discover"; scope: string }
+  | { protocol: 2; type: "inbox"; scope: string }
+  | { protocol: 2; type: "ledger"; scope: string };
+
+/** Canonical backend + carrier + principal identity: the channel name and every row's `scope`. */
+export function inboxScope(url: string, carrier: string, principal: string): string {
+  return `snapback2:inbox:${url} ${carrier} ${principal}`;
+}
+
+export interface ClientInboxHost {
+  url: string;
+  runtime?: OfflineRuntime;
+  closed(): boolean;
+  fence(): number;
+  superseded(): SnapbackRefusal;
+  failure(error: unknown, site: string): RefusalEnvelope;
+  /** Ordinary readiness of the writer's ledger, for announcements. */
+  writerStatus(): Promise<OutboxStatus>;
+  /** Every change of the writer's ledger, so followers can be nudged; subscribed only while this tab is the writer. */
+  subscribeLedger(listener: () => void): () => void;
+  /** An admission created entries: replay them (respects forced-offline). */
+  admitted(): void;
+}
+
+interface FollowerRole {
+  scope: string;
+  principal: string;
+  authEpoch?: number;
+  established: boolean;
+  followerId: string;
+}
+
+function randomId(): string {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function object(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function validStatus(value: unknown): value is OutboxStatus {
+  return object(value) && typeof value.ready === "boolean" && typeof value.reason === "string"
+    && typeof value.action === "string" && typeof value.remaining === "number" && (value.fence === "inside" || value.fence === "past");
+}
+
+/**
+ * One client's inbox role: a follower that inserts rows and reads the ledger,
+ * or a writer that admits rows. Readiness listeners hear every status change.
+ */
+export class ClientInbox {
+  private channel?: BroadcastChannel;
+  private follower?: FollowerRole;
+  private writerScope?: string;
+  private writerAnnounced?: { authEpoch?: number; status: OutboxStatus };
+  private generation = 0;
+  private readonly listeners = new Set<() => void>();
+  private pollTimer?: ReturnType<typeof setTimeout>;
+  private unresponsiveTimer?: ReturnType<typeof setTimeout>;
+  private unresponsive = false;
+  private admitting?: Promise<void>;
+  private admitAgain = false;
+  private unsubscribeLedger?: () => void;
+  private retryTimer?: ReturnType<typeof setTimeout>;
+  private readonly writes = new Set<Promise<unknown>>();
+
+  constructor(private readonly host: ClientInboxHost) {}
+
+  get available(): boolean { return typeof globalThis.BroadcastChannel === "function"; }
+
+  subscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  private notify(): void {
+    for (const listener of [...this.listeners]) try { listener(); } catch { /* readiness observers are isolated */ }
+  }
+
+  scope(principal: string): string {
+    const carrier = this.host.runtime?.coordinationScope;
+    if (!carrier) throw new TypeError("the offline carrier has no browser-tab coordination scope");
+    return inboxScope(this.host.url, carrier, principal);
+  }
+
+  /** This tab follows another tab's partition: open the channel and start reading. */
+  following(principal: string, authenticated: boolean, authEpoch: number | undefined, persona: boolean): void {
+    const scope = this.scope(principal);
+    const established = authenticated || persona;
+    if (this.follower && this.follower.scope === scope && this.follower.authEpoch === authEpoch && this.follower.established === established) {
+      this.post({ protocol: PROTOCOL, type: "discover", scope });
+      this.notify();
+      return;
+    }
+    this.stop();
+    this.follower = { scope, principal, ...(authEpoch === undefined ? {} : { authEpoch }), established, followerId: randomId() };
+    this.open(scope);
+    this.post({ protocol: PROTOCOL, type: "discover", scope });
+    this.armFollowerPoll();
+    this.notify();
+  }
+
+  /** This tab holds the partition: announce, admit what the inbox holds, and keep polling it. */
+  async activate(): Promise<void> {
+    const runtime = this.host.runtime;
+    // A following tab keeps its follower role; only a tab with no partition to announce stops.
+    if (runtime?.following) return;
+    if (!runtime || !runtime.principal || !runtime.coordinationScope) { this.stop(); return; }
+    const scope = this.scope(runtime.principal);
+    if (this.writerScope !== scope) {
+      this.stop();
+      this.writerScope = scope;
+      this.open(scope);
+      this.unsubscribeLedger = this.host.subscribeLedger(() => this.ledgerChanged());
+    }
+    await this.announce();
+    await this.admit();
+    this.armWriterPoll();
+  }
+
+  stop(): void {
+    this.generation += 1;
+    this.unsubscribeLedger?.(); this.unsubscribeLedger = undefined;
+    this.channel?.close();
+    this.channel = undefined;
+    this.follower = undefined;
+    this.writerScope = undefined;
+    this.writerAnnounced = undefined;
+    clearTimeout(this.pollTimer); this.pollTimer = undefined;
+    clearTimeout(this.retryTimer); this.retryTimer = undefined;
+    clearTimeout(this.unresponsiveTimer); this.unresponsiveTimer = undefined;
+    this.unresponsive = false;
+    this.notify();
+  }
+
+  async settled(): Promise<void> {
+    while (this.writes.size > 0) await Promise.allSettled([...this.writes]);
+    if (this.admitting) await this.admitting.catch(() => undefined);
+  }
+
+  /** The writer's ledger status as last announced, for a follower's `detail.writer`. */
+  get writer(): OutboxStatus | undefined { return this.writerAnnounced?.status; }
+
+  get isFollower(): boolean { return this.follower !== undefined; }
+
+  // @ref LLP 1018.004#3-readiness-on-a-follower — a follower with a route and
+  // capacity is sendable; `writer-unresponsive` is a reason on a ready status.
+  async status(): Promise<OutboxStatus> {
+    const follower = this.follower, runtime = this.host.runtime;
+    if (!follower || !runtime) return { ready: false, reason: "follower", action: "none", remaining: 0, fence: "inside" };
+    const ledgerQueued = (await runtime.itemEntries()).filter((entry) => entry.state === "queued" && entry.inbox === undefined).length;
+    const remaining = runtime.inboxPending + ledgerQueued;
+    const fence = this.writerAnnounced?.status.fence ?? "inside";
+    if (!follower.established) return { ready: false, reason: "sealed", action: "login", remaining, fence };
+    if (!runtime.inboxAvailable) return { ready: false, reason: "follower", action: "none", remaining, fence };
+    if (runtime.inboxPending >= INBOX_LIMIT) return { ready: false, reason: "inbox-full", action: "none", remaining, fence };
+    return { ready: true, reason: this.unresponsive ? "writer-unresponsive" : "forwarding", action: "none", remaining, fence };
+  }
+
+  /** A follower's write: a durable row before this resolves (LLP 1018.004 §2). */
+  mutation(op: string, args: unknown): Promise<MutationQueued> {
+    const follower = this.follower, runtime = this.host.runtime;
+    if (!follower || !runtime) return Promise.reject(followerRefusal("client.mutation.inbox"));
+    if (!follower.established) {
+      return Promise.reject(new SnapbackRefusal({ code: "E_OFFLINE_FOLLOWER", family: "offline",
+        message: "this tab's account is not established yet; sign in before writing", site: "client.mutation.inbox",
+        rewrite: "authenticate this tab, then send again", guide: "offline" }));
+    }
+    if (!runtime.inboxAvailable) return Promise.reject(followerRefusal("client.mutation.inbox"));
+    const fence = this.host.fence(), generation = this.generation;
+    const request = (async (): Promise<MutationQueued> => {
+      const now = Date.now();
+      let key: number;
+      try {
+        key = await runtime.insertInbox({ kind: "mutation", scope: follower.scope, principal: follower.principal,
+          ...(follower.authEpoch === undefined ? {} : { authEpoch: follower.authEpoch }), followerId: follower.followerId,
+          op, args, state: "queued", ids: [], createdAt: now, updatedAt: now });
+      } catch (error) {
+        // Compared by name: the carrier may come from another bundle of the same source (`snapback2/react`).
+        if (error instanceof InboxFull || (error instanceof Error && error.name === "InboxFull")) {
+          throw new SnapbackRefusal({ code: "E_OFFLINE_INBOX_FULL", family: "offline", message: (error as Error).message,
+            site: "client.mutation.inbox", rewrite: "wait for the sending tab to admit queued writes", guide: "offline" });
+        }
+        if (error instanceof TypeError) {
+          throw new SnapbackRefusal({ code: "E_OFFLINE_ARGUMENTS", family: "offline", message: error.message,
+            site: "client.mutation.inbox", rewrite: "send JSON-representable arguments", guide: "offline" });
+        }
+        throw new SnapbackRefusal(this.host.failure(error, "client.mutation.inbox"));
+      }
+      if (this.host.closed() || this.host.fence() !== fence || this.generation !== generation) {
+        // The row is durable regardless; only this call's publication rights ended.
+        throw this.host.superseded();
+      }
+      this.post({ protocol: PROTOCOL, type: "inbox", scope: follower.scope });
+      this.armUnresponsive();
+      this.armFollowerPoll();
+      return { state: "queued", intent: inboxAlias(key), ids: [] };
+    })();
+    this.writes.add(request);
+    void request.finally(() => this.writes.delete(request)).catch(() => undefined);
+    return request;
+  }
+
+  /** A follower's dismissal is a durable command row the writer consumes; a rejected row of its own is deleted directly. */
+  async dismiss(intent: string): Promise<void> {
+    const follower = this.follower, runtime = this.host.runtime;
+    if (!follower || !runtime || !runtime.inboxAvailable) throw followerRefusal("client.outbox.dismiss");
+    const key = inboxKeyOf(intent);
+    const row = key === undefined ? undefined : runtime.inboxRows.find((candidate) => candidate.key === key);
+    if (row && row.state === "rejected" && row.admitted === undefined) { await runtime.removeInboxRow(row.key); return; }
+    const now = Date.now();
+    await runtime.insertInbox({ kind: "dismiss", scope: follower.scope, principal: follower.principal,
+      ...(follower.authEpoch === undefined ? {} : { authEpoch: follower.authEpoch }), followerId: follower.followerId,
+      target: intent, state: "queued", ids: [], createdAt: now, updatedAt: now });
+    this.post({ protocol: PROTOCOL, type: "inbox", scope: follower.scope });
+    this.armFollowerPoll();
+  }
+
+  /** A follower re-reads its rows and the ledger now (a nudge, a poll, or `online()`). */
+  async refresh(): Promise<void> {
+    const runtime = this.host.runtime;
+    if (!runtime || !this.follower) return;
+    const changed = await runtime.refreshInbox().catch(() => false);
+    if (runtime.inboxPending === 0) this.clearUnresponsive();
+    if (changed) this.notify();
+  }
+
+  /**
+   * The writer admits the inbox now; concurrent calls coalesce into one more
+   * pass. Runs whether or not the follower marker is still set, so takeover
+   * can admit inherited rows before its first resume (LLP 1018.004 §4).
+   */
+  admit(): Promise<void> {
+    const runtime = this.host.runtime;
+    if (!runtime || !runtime.principal || !runtime.coordinationScope) return Promise.resolve();
+    if (this.admitting) { this.admitAgain = true; return this.admitting; }
+    const run = (async () => {
+      do {
+        this.admitAgain = false;
+        const fence = this.host.fence(), principal = runtime.principal!;
+        const scope = this.scope(principal);
+        const custody = () => {
+          if (this.host.closed() || this.host.fence() !== fence || runtime.principal !== principal) throw this.host.superseded();
+        };
+        let outcome: { admitted: number; stopped?: string } = { admitted: 0 };
+        try { outcome = await runtime.admitInbox({ scope, custody }); }
+        catch (error) { if (!this.host.closed()) this.host.failure(error, "client.inbox.admit"); }
+        if (outcome.admitted > 0) this.host.admitted();
+        this.post({ protocol: PROTOCOL, type: "ledger", scope });
+        if (this.writerScope === scope) await this.announce();
+      } while (this.admitAgain && !this.host.closed());
+    })();
+    this.admitting = run.finally(() => { this.admitting = undefined; });
+    return this.admitting;
+  }
+
+  /**
+   * Every swap of the writer's ledger nudges followers, so their read model
+   * follows the writer's; and while rows wait on something the ledger just
+   * gained (a grant, a bound, a resume), the same signal retries admission.
+   * A pass that changes nothing does not notify, so this converges.
+   */
+  ledgerChanged(): void {
+    if (!this.writerScope) return;
+    this.post({ protocol: PROTOCOL, type: "ledger", scope: this.writerScope });
+    if ((this.host.runtime?.inboxPending ?? 0) > 0 && !this.admitting && !this.retryTimer) {
+      this.retryTimer = setTimeout(() => { this.retryTimer = undefined; if (this.writerScope) void this.admit(); }, 0);
+      (this.retryTimer as { unref?: () => void }).unref?.();
+    }
+  }
+
+  private async announce(): Promise<void> {
+    const runtime = this.host.runtime, scope = this.writerScope;
+    if (!runtime || !scope || !runtime.principal) return;
+    let status: OutboxStatus;
+    try { status = await this.host.writerStatus(); }
+    catch { return; }
+    if (this.writerScope !== scope) return;
+    this.post({ protocol: PROTOCOL, type: "writer", scope, principal: runtime.principal,
+      ...(runtime.authEpoch === undefined ? {} : { authEpoch: runtime.authEpoch }), status });
+  }
+
+  private armWriterPoll(): void {
+    clearTimeout(this.pollTimer);
+    if (!this.writerScope) return;
+    this.pollTimer = setTimeout(() => {
+      if (!this.writerScope || this.host.closed()) return;
+      void this.admit().finally(() => this.armWriterPoll());
+    }, this.available ? WRITER_POLL_MS : WRITER_POLL_NO_CHANNEL_MS);
+    (this.pollTimer as { unref?: () => void }).unref?.();
+  }
+
+  private armFollowerPoll(): void {
+    clearTimeout(this.pollTimer);
+    const runtime = this.host.runtime;
+    if (!this.follower || !runtime) return;
+    const pending = runtime.inboxPending > 0 || runtime.inboxRows.some((row) => row.kind === "dismiss");
+    if (!pending && this.available) return;
+    this.pollTimer = setTimeout(() => {
+      if (!this.follower || this.host.closed()) return;
+      void this.refresh().finally(() => this.armFollowerPoll());
+    }, FOLLOWER_POLL_MS);
+    (this.pollTimer as { unref?: () => void }).unref?.();
+  }
+
+  private armUnresponsive(): void {
+    if (this.unresponsiveTimer) return;
+    this.unresponsiveTimer = setTimeout(() => {
+      this.unresponsiveTimer = undefined;
+      if (!this.follower || (this.host.runtime?.inboxPending ?? 0) === 0) return;
+      if (!this.unresponsive) { this.unresponsive = true; this.notify(); }
+    }, UNRESPONSIVE_MS);
+    (this.unresponsiveTimer as { unref?: () => void }).unref?.();
+  }
+
+  private clearUnresponsive(): void {
+    clearTimeout(this.unresponsiveTimer); this.unresponsiveTimer = undefined;
+    if (this.unresponsive) { this.unresponsive = false; this.notify(); }
+  }
+
+  private open(scope: string): void {
+    if (!this.available) return;
+    const generation = ++this.generation;
+    const channel = new BroadcastChannel(scope);
+    this.channel = channel;
+    channel.onmessage = ({ data }) => {
+      if (generation !== this.generation || this.channel !== channel || !object(data) || data.protocol !== PROTOCOL) return;
+      void this.receive(data as unknown as Message);
+    };
+  }
+
+  private post(message: Message): boolean {
+    if (!this.channel) return false;
+    try { this.channel.postMessage(message); return true; }
+    catch { return false; }
+  }
+
+  private async receive(message: Message): Promise<void> {
+    if (message.type === "discover") { if (this.writerScope === message.scope) await this.announce(); return; }
+    if (message.type === "inbox") { if (this.writerScope === message.scope) await this.admit(); return; }
+    if (message.type === "writer") {
+      if (this.follower?.scope !== message.scope || !validStatus(message.status)) return;
+      this.writerAnnounced = { ...(message.authEpoch === undefined ? {} : { authEpoch: message.authEpoch }), status: message.status };
+      await this.refresh();
+      this.notify();
+      return;
+    }
+    if (message.type === "ledger") { if (this.follower?.scope === message.scope) await this.refresh(); }
+  }
+}

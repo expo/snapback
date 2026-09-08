@@ -22,9 +22,8 @@ import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const bundlePath = resolve(packageRoot, "dist/.chat-screens.test-bundle.mjs");
 let App: (props: Record<string, never>) => React.ReactElement;
-let Composer: (props: { conversationId: string; onNote(note: string): void; custody?: any }) => React.ReactElement;
-let Thread: (props: { conversationId: string; viewer: string | undefined; onNote(note: string): void; changeCustody?: any }) => React.ReactElement;
-let useAccountRecoveryCustody: <Unknown>(client: any, generation: number) => any;
+let Composer: (props: { conversationId: string; onNote(note: string): void }) => React.ReactElement;
+let Thread: (props: { conversationId: string; viewer: string | undefined; onNote(note: string): void }) => React.ReactElement;
 let usableConversationView: (result: any) => any;
 let authorizedHistoryRows: (result: any) => unknown[];
 let needsPartialHistory: (result: any) => boolean;
@@ -38,7 +37,6 @@ before(async () => {
         'export { App } from "./App";',
         'export { Composer } from "./Composer";',
         'export { Thread, usableConversationView, authorizedHistoryRows, needsPartialHistory } from "./Thread";',
-        'export { useAccountRecoveryCustody } from "../shared/recovery";',
       ].join("\n"),
       resolveDir: resolve(packageRoot, "templates/chat/react/src"),
       sourcefile: "screens.tsx",
@@ -59,7 +57,7 @@ before(async () => {
     }],
   });
   await writeFile(bundlePath, bundled.outputFiles[0]!.text);
-  ({ App, Composer, Thread, useAccountRecoveryCustody, usableConversationView, authorizedHistoryRows, needsPartialHistory }
+  ({ App, Composer, Thread, usableConversationView, authorizedHistoryRows, needsPartialHistory }
     = await import(pathToFileURL(bundlePath).href));
 });
 

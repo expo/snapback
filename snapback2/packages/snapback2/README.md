@@ -71,20 +71,21 @@ views once from the atomic store revision; bookkeeping-only commits stay silent.
 `inFlight` marks an active call; `pending` lists this operation's durable queued
 intents. `can.send`, `can.reason`, and `can.action` describe readiness and recovery;
 `detail.status` retains the underlying queue/grant/fence facts. `last` is
-`queued`, `committed`, `rejected`, or `admission-unknown`; queued means saved
-on the device for FIFO replay after resume. `useOutbox()` exposes entries,
+`queued`, `committed`, or `rejected`; every outcome is terminal or durable, and
+queued means saved on the device for FIFO replay after resume. `useOutbox()` exposes entries,
 `dismiss`, `can`, and `detail`. The client's `outbox.drain()` and `settled()`
 report `{ stopped, remaining }`. Transport failures preserve queued writes;
 a thrown retryable refusal leaves `last` untouched and sets `detail.transport`.
 Run `snapback2 guide offline` for recovery.
 
-A second browser tab for the same account forwards ordinary mutation arguments
-to the tab holding the IndexedDB partition lock. `queued` means that writer has
-durably admitted the request. If its answer is lost after send, the follower
-gets `{ state: "admission-unknown", recovery }`; keep the opaque token and call
-`client.recoverMutation(ref, args, recovery)` with the same operation and
-arguments. Never retry that outcome as a fresh mutation. Uploads and channel
-publishes still refuse from a follower before sending bytes.
+A second browser tab for the same account writes its mutation as a durable row
+in the partition's own IndexedDB `inbox` store and resolves
+`{ state: "queued", intent: "inbox:<key>", ids: [] }` at once; the tab holding
+the partition lock admits rows in key order, in the same transaction as the
+entry each becomes, and that entry records `inbox` so the alias names it on
+either tab. Rows survive reloads and writer takeover; there is no forwarded
+command and no unknown outcome (LLP 1018.004). Uploads and channel publishes
+still refuse from a follower before sending bytes.
 
 ## Assets
 

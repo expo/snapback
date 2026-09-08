@@ -36,17 +36,9 @@ import { sha256 } from "../../../evaluator/src/hash.js";
 import { compareArrays, totalCompare } from "../../../evaluator/src/value-runtime.js";
 import { prepareWireRow, preparedDeliveryRows, tagWireValue, type TaggedValue } from "../offline-protocol.js";
 import { asRowRef, collectRefs, mapRowValues, purgeAnswerData, restoreRetained, rowKey, hiddenRefs } from "./row-values.js";
-import {
-  applyForwarding,
-  emptyForwardingState,
-  normalizeForwardingState,
-  type ForwardingState,
-  type ForwardingStore,
-  type ForwardingSwap,
-} from "./forwarding.js";
+import type { InboxConnection, InboxDelta, InboxRow } from "./inbox.js";
 import { MaintainedTransitions } from "./maintained-coherence.js";
 
-export type { ForwardingCustody, ForwardingReceipt } from "./forwarding.js";
 
 export type PrincipalPartition = string;
 export type RetentionPolicy = "until-revoked" | "delivered-history";
@@ -122,7 +114,7 @@ export interface StoredAnswer extends Omit<HeldAnswer, "data"> {
   verdictProofs?: Record<string, string>;
   extentProofs?: ExtentProof[];
   clockOnly?: true;
-  /** @ref LLP 1018.003.000#4-observation-and-retention — uncertainty preserves past membership evidence. */
+  /** @ref LLP 1018.003#10-retirement-is-a-read-model-decision-dismissal-is-a-write — uncertainty preserves past membership evidence. */
   selection?: { through: number; order: number };
 }
 
@@ -229,6 +221,12 @@ export interface OutboxEntry {
   updatedAt: number;
   /** Durable FIFO position; assigned by the store when absent. */
   order?: number;
+  /**
+   * The inbox row this entry was admitted from, when a follower tab wrote it;
+   * the row's public name `inbox:<key>` is an alias for this entry from then on
+   * (LLP 1018.004 §1).
+   */
+  inbox?: number;
 }
 
 /** A principal-bound replay grant plus the client's own consumption cursor. */
@@ -241,7 +239,7 @@ export interface OutboxGrant {
   used: number;
 }
 
-export interface OutboxStore extends ForwardingStore {
+export interface OutboxStore {
   all(): Promise<OutboxEntry[]>;
   get(intent: string): Promise<OutboxEntry | undefined>;
   put(entry: OutboxEntry): Promise<void>;
@@ -300,7 +298,7 @@ export interface OfflineSchema {
   }>;
 }
 
-export interface StoreSwap extends ForwardingSwap {
+export interface StoreSwap {
   factLimitReset?: string;
   deliveries?: StoreDelivery[];
   refreshes?: StoreRefresh[];
@@ -313,6 +311,8 @@ export interface StoreSwap extends ForwardingSwap {
   resumeSeq?: number;
   dropAnswers?: string[];
   outbox?: { put?: OutboxEntry[]; remove?: string[] };
+  /** Inbox rows to mark or delete in this swap's carrier transaction: a per-key delta, never a store replacement (LLP 1018.004 §2). */
+  inbox?: InboxDelta;
   /**
    * Byte-cache puts and read touches; they land in the same swap as the rows: one
    * readwrite transaction on IndexedDB, an ordered payload write + state rename with
@@ -359,6 +359,9 @@ export interface RangeStore {
   readonly outbox: OutboxStore;
   /** Stable carrier namespace used with backend identity and principal for tab coordination. */
   readonly coordinationScope?: string;
+  /** The writer's inbox read (key order) and a follower's own inbox connection; absent on carriers that cannot follow (LLP 1018.004 §2). */
+  inboxRows?(): Promise<InboxRow[]>;
+  inbox?(partition: PrincipalPartition): Promise<InboxConnection>;
   close?(): Promise<void> | void;
 }
 
@@ -374,7 +377,7 @@ export class OfflineStoreFailure extends Error {
   }
 }
 
-export interface PersistedRangeState extends ForwardingState {
+export interface PersistedRangeState {
   version: 1;
   sealed: boolean;
   clock: number;
@@ -422,9 +425,10 @@ export interface RangeStoreBackend {
   acquire?(partition: PrincipalPartition, signal?: AbortSignal): Promise<void>;
   /** Releases a lock `acquire` won that no open uses; a queued request of another wait is left alone. */
   giveBack?(partition: PrincipalPartition): Promise<void>;
-  /** One carrier transaction: the state, plus the byte payloads to write and the keys to drop. */
-  replace(state: PersistedRangeState, bytes: ByteDelta, previous?: PersistedRangeState, changed?: ChangedRecords): Promise<void>;
+  /** One carrier transaction: the state, the byte payloads to write and the keys to drop, and any inbox rows to mark or delete. */
+  replace(state: PersistedRangeState, bytes: ByteDelta, previous?: PersistedRangeState, changed?: ChangedRecords, inbox?: InboxDelta): Promise<void>;
   readBytes?(key: string): Promise<Uint8Array | undefined>;
+  inboxRows?(): Promise<InboxRow[]>; inbox?(partition: PrincipalPartition): Promise<InboxConnection>;
   wipe(partition: PrincipalPartition): Promise<void>;
   close(): Promise<void> | void;
 }
@@ -436,7 +440,7 @@ export function emptyState(): PersistedRangeState {
     version: 1, sealed: false, clock: 0, rows: {}, answers: {}, watermarks: {}, outbox: {}, rowFacts: {}, verdictFacts: {}, factSlots: 0,
     factFormat: FACT_FORMAT, factImages: {}, factExtents: {}, extentGuards: {}, extentNegative: {},
     grants: {}, overlay: {}, overlayMisses: {}, overlayWatermarks: {}, overlayNegatives: {}, bounds: {}, programs: {},
-    ...emptyForwardingState(), negative: {}, rowSeq: {}, assets: {}, viewed: {}, onceColumns: {},
+    negative: {}, rowSeq: {}, assets: {}, viewed: {}, onceColumns: {},
   };
 }
 
@@ -477,23 +481,31 @@ function normalizeState(value: PersistedRangeState | undefined): PersistedRangeS
   const { factGuards: legacyGuards, ...current } = value as PersistedRangeState & { factGuards?: object };
   const factFormat = value.factFormat ?? (Object.keys(legacyGuards ?? {}).length || Object.keys(value.rowFacts ?? {}).length
     || Object.keys(value.verdictFacts ?? {}).length || Object.values(value.answers).some(a => a.readTime !== undefined) ? 0 : FACT_FORMAT);
-  for (const field of STATE_MAPS) (current as any)[field] ??= {};
   return {
     ...current,
-    ...normalizeForwardingState(value),
+    watermarks: value.watermarks ?? {},
+    outbox: value.outbox ?? {},
+    grants: value.grants ?? {},
+    overlay: value.overlay ?? {},
+    overlayMisses: value.overlayMisses ?? {},
+    overlayWatermarks: value.overlayWatermarks ?? {},
+    overlayNegatives: value.overlayNegatives ?? {},
+    bounds: value.bounds ?? {},
+    programs: value.programs ?? {},
+    onceColumns: value.onceColumns ?? {},
+    negative: value.negative ?? {},
+    rowSeq: value.rowSeq ?? {},
+    rowFacts: value.rowFacts ?? {}, verdictFacts: value.verdictFacts ?? {},
     factFormat,
+    factImages: value.factImages ?? {}, factExtents: value.factExtents ?? {}, extentGuards: value.extentGuards ?? {}, extentNegative: value.extentNegative ?? {},
     factSlots: factFormat !== FACT_FORMAT ? 0 : Object.keys(value.rowFacts ?? {}).length + Object.keys(value.verdictFacts ?? {}).length
       + Object.values(value.factImages ?? {}).reduce((sum,image) => sum + imageSlots(image.keys),0)
       + Object.values(value.factExtents ?? {}).reduce((sum, extent) => sum + extentSlots(extent.condition), 0) + Object.keys(value.extentGuards ?? {}).length
       + Object.keys(value.extentNegative ?? {}).length + Object.values(value.answers).reduce((sum, a) => sum + proofSlots(a), 0),
+    assets: value.assets ?? {},
+    viewed: value.viewed ?? {},
   };
 }
-
-/** Maps introduced since carrier v1 retain their established nullish-to-empty reopen behavior. */
-const STATE_MAPS = [
-  'watermarks','outbox','grants','overlay','overlayMisses','overlayWatermarks','overlayNegatives','bounds','programs','onceColumns',
-  'negative','rowSeq','rowFacts','verdictFacts','factImages','factExtents','extentGuards','extentNegative','assets','viewed',
-] as const;
 
 /**
  * The log a settlement's tail request and a resume's `log` both name: the drained
@@ -558,11 +570,6 @@ export class PersistentRangeStore implements RangeStore {
       this.ensureUnsealed();
       return clone(this.state.programs);
     }),
-    forwarding: async () => this.read(() => {
-      this.ensureUnsealed();
-      return clone({ partitionIncarnation: this.state.partitionIncarnation,
-        clockFloor: this.state.admissionClockFloor, receipts: this.state.forwardingReceipts });
-    }),
   };
 
   readonly acquire?: (partition: PrincipalPartition, signal?: AbortSignal) => Promise<void>;
@@ -573,7 +580,10 @@ export class PersistentRangeStore implements RangeStore {
     this.coordinationScope = backend.coordinationScope;
     if (backend.acquire) this.acquire = (partition, signal) => backend.acquire!(partition, signal);
     if (backend.giveBack) this.giveBack = (partition) => backend.giveBack!(partition);
+    if (backend.inboxRows) this.inboxRows = async () => await this.read(() => { this.ensureOpen(); return backend.inboxRows!(); });
+    if (backend.inbox) this.inbox = (partition) => backend.inbox!(partition);
   }
+  readonly inboxRows?: () => Promise<InboxRow[]>; readonly inbox?: (partition: PrincipalPartition) => Promise<InboxConnection>;
 
   async open(partition: PrincipalPartition): Promise<void> {
     if (typeof partition !== "string" || partition.length === 0) {
@@ -750,16 +760,16 @@ export class PersistentRangeStore implements RangeStore {
       return change;
     });
   }
-  private replace(state: PersistedRangeState, bytes: ByteDelta, previous?: PersistedRangeState, changed?: ChangedRecords): Promise<void> {
+  private replace(state: PersistedRangeState, bytes: ByteDelta, previous?: PersistedRangeState, changed?: ChangedRecords, inbox?: InboxDelta): Promise<void> {
     return this.backend.replace(this.backend[preparedProjection] ? state : jsonState(imageState(state)),bytes,
-      previous && (this.backend[preparedProjection] ? previous : jsonState(imageState(previous))),changed);
+      previous && (this.backend[preparedProjection] ? previous : jsonState(imageState(previous))),changed, inbox);
   }
 
   async commit(swap: StoreSwap): Promise<void> {
     await this.enqueue(async () => {
       this.ensureOpen();
       // Byte payloads are not cloned: they can be megabytes and the swap never mutates them.
-      const { bytes, ...rest } = swap;
+      const { bytes, inbox, ...rest } = swap;
       for (const delivery of swap.deliveries ?? []) validateClock(delivery);
       const delta: ByteDelta = { put: [], remove: [] };
       // Normalize before deriving answer keys/fingerprints, then normalize the state we publish.
@@ -784,7 +794,7 @@ export class PersistentRangeStore implements RangeStore {
       try {
         this.applySwap(journal.draft, normalized, delta);
         this.updates.prepare(journal.changed);
-        await this.replace(this.state, delta, undefined, journal.changed);
+        await this.replace(this.state, delta, undefined, journal.changed, inbox);
       } catch (error) { journal.rollback(); this.referenceIndex = priorIndex; this.referenceSchema = priorSchema; throw error; }
       this.persisted = this.state;
       this.updates.publish(this.state, journal.changed);
@@ -937,7 +947,6 @@ export class PersistentRangeStore implements RangeStore {
       const order = previous?.order ?? entry.order ?? ++state.clock;
       state.outbox[entry.intent] = { ...clone(entry), order };
     }
-    applyForwarding(state, swap.forwarding);
     markDeliveredArrivals(state, deliveredIds);
     if (swap.bounds) state.bounds = clone(swap.bounds);
     if (swap.programs) state.programs = clone(swap.programs);

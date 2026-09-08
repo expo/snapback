@@ -1,6 +1,6 @@
 import { mayNeedAssetPlanning } from "./assets.js";
 import { submitMutation, type DrainResult } from "./client-outbox.js";
-import type { ClientForwarding } from "./client-forwarding.js";
+import type { ClientInbox } from "./client-inbox.js";
 import type { JsonRequestOptions } from "./client-wire.js";
 import { copyRefusal, followerRefusal, isSnapbackRefusal, isTerminalSession, SnapbackRefusal } from "./client-wire.js";
 import { withMutationUploads, type Authority, type UploadHost } from "./client-upload.js";
@@ -11,7 +11,7 @@ import type { AssetInput, ClientSnapshot, Manifest, MutationResult, RefusalEnvel
 /** The narrow client seam used by the mutation arm; Client owns every lifecycle transition. */
 export interface MutationClient extends UploadHost {
   readonly offlineRuntime?: OfflineRuntime;
-  readonly forwarding: ClientForwarding;
+  readonly inbox: ClientInbox;
   readonly forcedOffline: boolean;
   operationAuthority(): Promise<Authority>;
   trackWrite<Value>(run: () => Promise<Value>, forwardable?: boolean): Promise<Value>;
@@ -31,9 +31,11 @@ export async function performMutation<Args, Result>(
 ): Promise<MutationResult<Result>> {
   const authority = await host.operationAuthority();
   const op = referenceName(ref);
+  // @ref LLP 1018.004#2-the-inbox — a follower's write is a durable inbox row
+  // before this resolves; there is no forwarded command and no unknown outcome.
   if (host.offlineRuntime?.following) {
     if (mayNeedAssetPlanning(args)) throw followerRefusal("client.mutation.upload");
-    return host.trackWrite(() => host.forwarding.mutation(op, args), true);
+    return host.trackWrite(() => host.inbox.mutation(op, args), true);
   }
   return host.trackWrite(async () => {
     try {
@@ -43,6 +45,7 @@ export async function performMutation<Args, Result>(
             runtime: host.offlineRuntime, offline: host.forcedOffline, op, args: mutationArgs,
             json: (path, init, onSend) => host.json(path, init, authority, { terminalSession: "after-cleanup", onSend }),
             failure: error => host.offlineRefusal(error), drain: () => host.drainNow(authority), onCustody,
+            admitInbox: () => host.inbox.admit(),
           });
           try { host.validated(authority); }
           catch (error) {

@@ -83,16 +83,16 @@ import { App } from "${resolve(packageRoot, "templates/chat/react/src/App.tsx")}
 const broadcast = ((window as any).__witnessBroadcast = {
   sent: [] as Array<Record<string, unknown>>,
   dropped: [] as Array<Record<string, unknown>>,
-  dropNextMutationAnswer: false,
+  /** Message types this tab drops instead of posting: the channel carries nudges only, so dropping one delays, never loses (LLP 1018.004 §4). */
+  dropTypes: [] as string[],
 });
-// Keep Chromium's real cross-tab channel. The armed witness hook suppresses
-// only one writer reply after the client has produced its durable queued result.
+// Keep Chromium's real cross-tab channel; the witness hook only withholds
+// nudges so unadmitted rows can be observed before the writer's poll.
 const nativeBroadcastPost = BroadcastChannel.prototype.postMessage;
 BroadcastChannel.prototype.postMessage = function(message: unknown) {
   const copy = structuredClone(message) as Record<string, unknown>;
   broadcast.sent.push(copy);
-  if (broadcast.dropNextMutationAnswer && copy.type === "mutation-answer") {
-    broadcast.dropNextMutationAnswer = false;
+  if (typeof copy.type === "string" && broadcast.dropTypes.includes(copy.type)) {
     broadcast.dropped.push(copy);
     return;
   }
@@ -328,68 +328,84 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
     null, { timeout: 15_000 });
   await openChat(follower, "conversation-1");
 
-  const lostAckBody = "1018 one admitted send with a lost answer";
-  const beforeLostAckWrites = replayed.length;
-  await writer.evaluate(() => { window.__witnessBroadcast.dropNextMutationAnswer = true; });
-  await follower.fill("form[aria-label=Composer] input[aria-label=Message]", lostAckBody);
-  await follower.waitForSelector("form[aria-label=Composer] button[type=submit]:enabled", { timeout: 10_000 });
-  await follower.click("form[aria-label=Composer] button[type=submit]");
-  await follower.waitForFunction(() => [...document.querySelectorAll("form[aria-label=Composer] button")]
-    .some(button => button.textContent === "Check send"), null, { timeout: 5_000 });
-  const unknownUi = await follower.evaluate(() => {
-    const form = document.querySelector("form[aria-label=Composer]");
-    const buttons = [...(form?.querySelectorAll("button") ?? [])];
+  // @ref LLP 1018.004#6-the-test-fake-and-the-witness — a follower's sends are
+  // durable rows: queued at once, back after a reload before any network
+  // request, admitted by the writer in key order, and executed exactly once.
+  const beforeInboxWrites = replayed.length;
+  const inboxBodies = ["1018.004 durable one", "1018.004 durable two"];
+  await follower.evaluate(() => { window.__witnessBroadcast.dropTypes = ["inbox"]; });
+  for (const body of inboxBodies) {
+    await follower.fill("form[aria-label=Composer] input[aria-label=Message]", body);
+    await follower.waitForSelector("form[aria-label=Composer] button[type=submit]:enabled", { timeout: 10_000 });
+    await follower.click("form[aria-label=Composer] button[type=submit]");
+    await follower.waitForFunction(() => document.querySelector("form[aria-label=Composer] input[aria-label=Message]")?.value === "",
+      null, { timeout: 5_000 });
+  }
+  const queuedRows = await follower.evaluate(async () => {
+    const entries = await window.__snapback.outbox.entries();
     return {
-      draft: form?.querySelector("input[aria-label=Message]")?.value,
-      sendDisabled: form?.querySelector("button[type=submit]")?.disabled,
-      checkDisabled: buttons.find(button => button.textContent === "Check send")?.disabled,
-      alert: document.querySelector("main > header [role=alert]")?.textContent,
+      rows: entries.filter(entry => entry.inbox !== undefined).map(entry => ({ intent: entry.intent, state: entry.state, ids: entry.ids.length, inbox: entry.inbox })),
+      bubbles: [...document.querySelectorAll("section[aria-label=Thread] li[data-state=queued]")].map(node => node.textContent ?? ""),
+      sendDisabled: document.querySelector("form[aria-label=Composer] button[type=submit]")?.disabled,
+      status: await window.__snapback.outbox.status(),
     };
   });
-  assert.deepEqual(unknownUi, {
-    draft: lostAckBody, sendDisabled: true, checkDisabled: false,
-    alert: "Send confirmation was lost. Check this send before sending another message.",
-  }, "a lost answer preserves the draft and blocks a fresh send until explicit recovery");
-  const initialRequests = await follower.evaluate((body) => window.__witnessBroadcast.sent
-    .filter(message => message.type === "mutation" && message.args?.body === body), lostAckBody);
-  const droppedAnswers = await writer.evaluate(() => window.__witnessBroadcast.dropped);
-  assert.equal(initialRequests.length, 1, `one initial forwarded command: ${JSON.stringify(initialRequests)}`);
-  assert.equal(droppedAnswers.length, 1, `one answer was intercepted: ${JSON.stringify(droppedAnswers)}`);
-  assert.equal(droppedAnswers[0].requestId, initialRequests[0].requestId,
-    "the intercepted answer belongs to the Composer's forwarded command");
-  assert.equal(droppedAnswers[0].result?.state, "queued",
-    "the test drops only the answer produced after durable writer admission");
+  assert.equal(queuedRows.rows.length, 2, `two durable rows: ${JSON.stringify(queuedRows)}`);
+  assert.deepEqual(queuedRows.rows.map(row => [row.state, row.ids, row.intent]), queuedRows.rows.map(row => ["queued", 0, `inbox:${row.inbox}`]),
+    "each row is queued, without ids, under its alias");
+  assert.equal(queuedRows.bubbles.length, 2, "both bubbles show");
+  assert.ok(queuedRows.bubbles[0].includes(inboxBodies[0]) && queuedRows.bubbles[1].includes(inboxBodies[1]), "bubbles in send order");
+  assert.equal(queuedRows.sendDisabled, false, "a queued row does not block the next send");
+  assert.ok(["forwarding", "writer-unresponsive"].includes(queuedRows.status.reason) && queuedRows.status.ready, `follower status ${JSON.stringify(queuedRows.status)}`);
+  assert.equal(replayed.length, beforeInboxWrites, "an unadmitted row sends no owner mutation");
+  step("a follower's sends are durable rows: queued at once, bubbles in order, the composer still enabled", queuedRows);
 
-  await follower.evaluate(() => [...document.querySelectorAll("form[aria-label=Composer] button")]
-    .find(button => button.textContent === "Check send")?.click());
-  await follower.waitForFunction(() => {
-    const form = document.querySelector("form[aria-label=Composer]");
-    return form?.querySelector("input[aria-label=Message]")?.value === ""
-      && ![...(form?.querySelectorAll("button") ?? [])].some(button => button.textContent === "Check send");
-  }, null, { timeout: 5_000 });
+  await follower.reload();
+  await follower.waitForFunction(() => window.__snapback && window.__witnessBroadcast, null, { timeout: 15_000 });
+  await follower.evaluate(() => { window.__witnessBroadcast.dropTypes = ["inbox"]; });
+  await follower.waitForFunction(() => /log downloaded|Connected/.test(document.querySelector("[role=status][data-connection]")?.textContent ?? ""), null, { timeout: 15_000 });
+  await openChat(follower, "conversation-1");
+  await follower.waitForFunction(() => document.querySelectorAll("section[aria-label=Thread] li[data-state=queued]").length === 2, null, { timeout: 10_000 });
+  const reloaded = await follower.evaluate(async () => ({
+    mutationRequests: window.__witnessRequests.filter(request => request.path === "/api/mutation").length,
+    rows: (await window.__snapback.outbox.entries()).filter(entry => entry.inbox !== undefined).map(entry => entry.intent),
+    bubbles: [...document.querySelectorAll("section[aria-label=Thread] li[data-state=queued]")].map(node => node.textContent ?? ""),
+  }));
+  assert.equal(reloaded.mutationRequests, 0, "the reloaded tab made no mutation request");
+  assert.deepEqual(reloaded.rows, queuedRows.rows.map(row => row.intent), "the same rows, from durable state");
+  step("a reload shows the device's queued rows from durable state before any network request", reloaded);
+
+  await follower.evaluate(() => { window.__witnessBroadcast.dropTypes = []; });
+  await writer.evaluate(() => window.__snapback.inbox.admit());
   await writer.evaluate(() => window.__snapback.outbox.settled());
-  const recoveryRequests = await follower.evaluate((body) => window.__witnessBroadcast.sent
-    .filter(message => message.type === "mutation" && message.args?.body === body), lostAckBody);
-  assert.equal(recoveryRequests.length, 2,
-    `recovery publishes the original command once more: ${JSON.stringify(recoveryRequests)}`);
-  assert.equal(new Set(recoveryRequests.map(message => message.requestId)).size, 1,
-    "Check send reuses the original request identity");
-  const ownerWrites = replayed.slice(beforeLostAckWrites)
-    .filter(request => request.op === "deliveries.post" && request.args?.body === lostAckBody);
-  assert.equal(ownerWrites.length, 1, `recovery must not execute a second owner mutation: ${JSON.stringify(ownerWrites)}`);
-  const verification = await import(resolve(dist, "client.mjs"));
-  const lostAckVerifier = verification.createClient({ url: ownerUrl, as: "alice" });
+  await follower.waitForFunction(async (keys) => {
+    const entries = await window.__snapback.outbox.entries();
+    return keys.every(key => entries.some(entry => entry.inbox === key && entry.ids.length > 0 && entry.state === "committed"));
+  }, queuedRows.rows.map(row => row.inbox), { timeout: 15_000 });
+  const admittedEntries = await writer.evaluate(async () => (await window.__snapback.outbox.entries())
+    .filter(entry => entry.inbox !== undefined).map(entry => ({ intent: entry.intent, inbox: entry.inbox, state: entry.state, body: entry.args?.body })));
+  assert.deepEqual(admittedEntries.map(entry => entry.inbox), queuedRows.rows.map(row => row.inbox), "admitted in key order");
+  const inboxWrites = replayed.slice(beforeInboxWrites).filter(request => inboxBodies.includes(request.args?.body));
+  assert.deepEqual(inboxWrites.map(request => request.args.body), inboxBodies, `each row executed once, in order: ${JSON.stringify(inboxWrites)}`);
+  await follower.waitForFunction(() => document.querySelectorAll("section[aria-label=Thread] li[data-state=queued]").length === 0, null, { timeout: 15_000 });
+  const inboxVerification = await import(resolve(dist, "client.mjs"));
+  const inboxVerifier = inboxVerification.createClient({ url: ownerUrl, as: "alice" });
   try {
-    const thread = await lostAckVerifier.query(verification.api.deliveries.thread,
-      { conversationId: "conversation-1", c: null });
+    const thread = await inboxVerifier.query(inboxVerification.api.deliveries.thread, { conversationId: "conversation-1", c: null });
     assert.equal(thread.state, "complete");
-    assert.equal(thread.data.filter(row => row.message?.body === lostAckBody).length, 1,
-      "the server stores exactly one message for the recovered request");
-  } finally { await lostAckVerifier.close(); }
-  step("the real follower Composer recovers one durably admitted send after its acknowledgment is lost", {
-    requestId: initialRequests[0].requestId, intent: droppedAnswers[0].result.intent,
-    forwardedAttempts: recoveryRequests.length, ownerWrites: ownerWrites.length, serverRows: 1,
+    for (const body of inboxBodies) assert.equal(thread.data.filter(row => row.message?.body === body).length, 1, `the server stores ${body} once`);
+  } finally { await inboxVerifier.close(); }
+  step("the writer admits durable rows in key order; each executes exactly once; the follower reads the ledger entries", {
+    admitted: admittedEntries, ownerWrites: inboxWrites.length,
   });
+
+  // A follower's dismissal is a durable command the writer consumes.
+  await follower.evaluate((intent) => window.__snapback.outbox.dismiss(intent), admittedEntries[0].intent);
+  await writer.waitForFunction(async (intent) => !(await window.__snapback.outbox.entries()).some(entry => entry.intent === intent),
+    admittedEntries[0].intent, { timeout: 10_000 });
+  await follower.waitForFunction(async (intent) => !(await window.__snapback.outbox.entries()).some(entry => entry.intent === intent),
+    admittedEntries[0].intent, { timeout: 10_000 });
+  step("a follower's dismissal is a durable command the writer consumes; both tabs' history agree", { dismissed: admittedEntries[0].intent });
 
   const beforeWrites = replayed.length;
   const beforeIntents = await writer.evaluate(async () =>
@@ -412,30 +428,44 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
     { conversationId: "conversation-1", body: "1018 writer second" }));
   const queued = [writerFirst, followerMiddle, writerSecond];
   assert.deepEqual(queued.map(row => row.state), ["queued", "queued", "queued"]);
-  assert.equal(replayed.length, beforeWrites, "writer-local and forwarded offline admission send no owner mutation bytes");
-  assert.deepEqual(await writer.evaluate(async () => (await window.__snapback.outbox.entries()).map(entry => entry.intent)),
-    [...beforeIntents, ...queued.map(row => row.intent)],
-    "the recovered terminal stays ahead of both tabs' durable writer-admission order");
+  assert.equal(replayed.length, beforeWrites, "writer-local and follower offline admission send no owner mutation bytes");
+  assert.match(followerMiddle.intent, /^inbox:\d+$/, "a follower's result names its durable row");
+  const ledger = await writer.evaluate(async () => (await window.__snapback.outbox.entries()).map(entry => ({ intent: entry.intent, inbox: entry.inbox })));
+  const middleEntry = ledger.find(entry => entry.inbox === Number(followerMiddle.intent.slice("inbox:".length)));
+  assert.ok(middleEntry, `the writer admitted the follower's row before its own second write: ${JSON.stringify(ledger)}`);
+  const intents = [writerFirst.intent, middleEntry.intent, writerSecond.intent];
+  assert.deepEqual(ledger.map(entry => entry.intent), [...beforeIntents, ...intents],
+    "the device's durable order is the ledger's: writer, follower, writer");
   step("both tabs durably enqueue through the one offline writer", {
-    origins: ["writer", "follower", "writer"], intents: queued.map(row => row.intent),
+    origins: ["writer", "follower", "writer"], intents,
   });
+  // One more follower row, its nudge withheld, is left for the next writer to admit on takeover.
+  await follower.evaluate(() => { window.__witnessBroadcast.dropTypes = ["inbox"]; });
+  const leftBehind = await follower.evaluate(() => window.__snapback.mutation(window.__api.deliveries.post,
+    { conversationId: "conversation-1", body: "1018.004 admitted on takeover" }));
+  assert.equal(leftBehind.state, "queued");
+  await follower.evaluate(() => { window.__witnessBroadcast.dropTypes = []; });
   await writer.close();
   await follower.bringToFront();
   const replayDeadline = Date.now() + 15_000;
-  while (replayed.slice(beforeWrites).filter(request => queued.some(row => row.intent === request.replay?.intent)).length < 3
+  while (replayed.slice(beforeWrites).filter(request => intents.includes(request.replay?.intent)).length < 3
     && Date.now() < replayDeadline) await follower.waitForTimeout(100);
   step("takeover observation", await follower.evaluate(async () => ({ status: await window.__snapback.outbox.status(), entries: await window.__snapback.outbox.entries() })));
   await follower.waitForFunction(async () => (await window.__snapback.outbox.entries()).filter(e => e.state === "queued").length === 0, null, { timeout: 15_000 });
   await follower.evaluate(() => window.__snapback.outbox.settled());
-  const inherited = replayed.slice(beforeWrites).filter(request => queued.some(row => row.intent === request.replay?.intent));
-  assert.deepEqual(inherited.map(request => request.replay.intent), queued.map(row => row.intent), "inherited queue replays FIFO exactly once");
+  const inherited = replayed.slice(beforeWrites).filter(request => intents.includes(request.replay?.intent));
+  assert.deepEqual(inherited.map(request => request.replay.intent), intents, "inherited queue replays FIFO exactly once");
+  const takeoverAdmitted = replayed.slice(beforeWrites).filter(request => request.args?.body === "1018.004 admitted on takeover");
+  assert.equal(takeoverAdmitted.length, 1, "the row left behind was admitted by the new writer and executed once");
+  assert.ok(replayed.slice(beforeWrites).indexOf(takeoverAdmitted[0]) > replayed.slice(beforeWrites).indexOf(inherited[2]),
+    "the inherited intents replay before the row admitted on takeover");
   const { createClient, api } = await import(resolve(dist, "client.mjs"));
   const verifier = createClient({ url: ownerUrl, as: "alice" });
   try {
     const thread = await verifier.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
     assert.equal(thread.state, "complete");
     const bodies = thread.data.map(row => row.message?.body);
-    for (const body of ["1018 writer first", "1018 follower middle", "1018 writer second"]) {
+    for (const body of ["1018 writer first", "1018 follower middle", "1018 writer second", "1018.004 admitted on takeover"]) {
       assert.equal(bodies.filter(item => item === body).length, 1);
     }
     assert.ok(bodies.indexOf("1018 writer second") < bodies.indexOf("1018 follower middle")
@@ -445,9 +475,26 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
   const after = await follower.evaluate(() => window.__snapback.mutation(window.__api.deliveries.post,
     { conversationId: "conversation-1", body: "1018 new writer" }));
   assert.equal(after.state, "committed");
-  step("closing the writer transfers its Web Lock and one cross-tab FIFO queue; the new writer commits", {
-    replayIntents: inherited.map(request => request.replay.intent), rowsPerIntent: 1,
+  step("closing the writer transfers its Web Lock and one cross-tab FIFO queue; the new writer admits the row left behind and commits", {
+    replayIntents: inherited.map(request => request.replay.intent), rowsPerIntent: 1, admittedOnTakeover: takeoverAdmitted.length,
   });
+
+  // Lifecycle: with a third tab following the new writer, the writer signs out;
+  // the deletion completes because the follower connection closes on
+  // versionchange, and the follower reports the hard refusal, not a stale route.
+  const third = await context.newPage();
+  await third.goto(appUrl);
+  await third.waitForFunction(async () => window.__snapback
+    && ["forwarding", "writer-unresponsive"].includes((await window.__snapback.outbox.status()).reason), null, { timeout: 15_000 });
+  const databaseName = await follower.evaluate(async () => (await indexedDB.databases()).map(entry => entry.name).find(name => name?.includes("dev:alice")));
+  assert.ok(databaseName, "the partition database exists before sign-out");
+  await follower.evaluate(() => window.__snapback.auth.logout());
+  await third.waitForFunction(async () => (await window.__snapback.outbox.status()).reason === "follower", null, { timeout: 15_000 });
+  await follower.waitForFunction(async (name) => !(await indexedDB.databases()).some(entry => entry.name === name), databaseName, { timeout: 15_000 });
+  step("sign-out deletes the partition beneath an open follower connection; the follower's route ends with the hard refusal", {
+    database: databaseName, thirdTabStatus: await third.evaluate(async () => (await window.__snapback.outbox.status()).reason),
+  });
+  await third.close();
   } catch (error) {
     fail("two offline tabs share one durable queue and transfer writer ownership", error);
   }

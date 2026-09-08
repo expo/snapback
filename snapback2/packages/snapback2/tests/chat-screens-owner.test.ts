@@ -23,9 +23,8 @@ import { RealOwnerHarness } from "./owner-harness.ts";
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const bundlePath = resolve(packageRoot, "dist/.chat-screens-owner.test-bundle.mjs");
 let App: (props: Record<string, never>) => React.ReactElement;
-let Composer: (props: { conversationId: string; onNote(note: string): void; custody?: any }) => React.ReactElement;
-let Thread: (props: { conversationId: string; viewer: string | undefined; onNote(note: string): void; changeCustody?: any }) => React.ReactElement;
-let useAccountRecoveryCustody: <Unknown>(client: any, generation: number) => any;
+let Composer: (props: { conversationId: string; onNote(note: string): void }) => React.ReactElement;
+let Thread: (props: { conversationId: string; viewer: string | undefined; onNote(note: string): void }) => React.ReactElement;
 let usableConversationView: (result: any) => any;
 let authorizedHistoryRows: (result: any) => unknown[];
 let screenOwner: RealOwnerHarness;
@@ -39,7 +38,6 @@ before(async () => {
         'export { App } from "./App";',
         'export { Composer } from "./Composer";',
         'export { Thread } from "./Thread";',
-        'export { useAccountRecoveryCustody } from "../shared/recovery";',
         'export { usableConversationView, authorizedHistoryRows } from "./Thread";',
       ].join("\n"),
       resolveDir: resolve(packageRoot, "templates/chat/react/src"),
@@ -61,7 +59,7 @@ before(async () => {
     }],
   });
   await writeFile(bundlePath, bundled.outputFiles[0]!.text);
-  ({ App, Composer, Thread, useAccountRecoveryCustody, usableConversationView, authorizedHistoryRows }
+  ({ App, Composer, Thread, usableConversationView, authorizedHistoryRows }
     = await import(pathToFileURL(bundlePath).href));
   // The harness starts the production chat fixture when this file runs alone,
   // or uses the suite's already-qualified full-chat owner.

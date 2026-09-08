@@ -65,6 +65,8 @@ export interface SubmitMutationOptions {
   failure(error: unknown): Error;
   drain(): Promise<{ stopped: boolean }>;
   onCustody?(kind: "wire" | "outbox"): void;
+  /** The writer admits every inbox row durable before this write, so a local write never overtakes them (LLP 1018.004 §4). */
+  admitInbox?(): Promise<void>;
 }
 
 /**
@@ -91,6 +93,7 @@ export async function submitMutation<Result>(options: SubmitMutationOptions): Pr
   // tab's queued intents would invert their order when that queue is inherited.
   if (runtime?.following) throw followerRefusal();
   if (!runtime || runtime.principal === undefined) return plain();
+  await options.admitInbox?.();
   const enqueue = async (): Promise<OutboxEntry> => {
     try {
       return await runtime.outbox.enqueue(
@@ -270,6 +273,17 @@ function settlement(result: DrainResult): OutboxSettlement {
   return { stopped: result.reason ?? false, remaining: result.remaining };
 }
 
+async function followerSettlement(runtime: OfflineRuntime, inbox: FollowerInbox | undefined, offline: boolean): Promise<OutboxSettlement> {
+  const queuedEntries = (await runtime.itemEntries()).filter((entry) => entry.state === "queued" && entry.inbox === undefined).length;
+  const remaining = runtime.inboxPending + queuedEntries;
+  if (remaining === 0) return { stopped: false, remaining };
+  const status = await inbox?.status();
+  if (status?.reason === "writer-unresponsive") return { stopped: "writer-unresponsive", remaining };
+  const writer = inbox?.writer;
+  if (writer?.fence === "past") return { stopped: "fence", remaining };
+  return { stopped: offline ? "offline" : "pending", remaining };
+}
+
 async function settle(
   options: DrainOptions,
   entry: OutboxEntry,
@@ -335,18 +349,27 @@ async function logTail(options: DrainOptions, revision: number) {
   return { op: watermark.op, args, accepted };
 }
 
+/** The inbox role a follower's outbox API delegates to (LLP 1018.004 §§2–3). */
+export interface FollowerInbox {
+  status(): Promise<OutboxStatus>;
+  subscribe(listener: () => void): () => void;
+  dismiss(intent: string): Promise<void>;
+  refresh(): Promise<void>;
+  readonly writer: OutboxStatus | undefined;
+}
+
 export function createOutboxApi(
   runtime: OfflineRuntime | undefined,
   drain: () => Promise<DrainResult>,
   ready: () => Promise<void> = async () => undefined,
   offline: () => boolean = () => false,
-  forwarding?: { status(op?: string): Promise<OutboxStatus>; subscribe(listener: () => void): () => void },
+  inbox?: FollowerInbox,
   identity: () => string = () => runtime?.principal ?? "",
 ): OutboxApi {
   const entries = (): Promise<OutboxEntry[]> => runtime?.itemEntries() ?? Promise.resolve([]);
   const status = async (op?: import("./api.js").Op<any, any>): Promise<OutboxStatus> => {
     await ready().catch(() => undefined);
-    if (runtime?.following) return forwarding?.status(op === undefined ? undefined : referenceName(op))
+    if (runtime?.following) return inbox?.status()
       ?? { ready: false, reason: "follower", action: "none", remaining: 0, fence: "inside" };
     if (!runtime || runtime.principal === undefined) return { ready: true, reason: "ready", action: "none", remaining: 0, fence: "inside" };
     try { return await runtime.outbox.status(op === undefined ? undefined : referenceName(op)); }
@@ -359,10 +382,12 @@ export function createOutboxApi(
     entries,
     status,
     observe: observeOutbox(entries, status, notify => {
-      const stop = runtime?.outbox.subscribe(notify), stopForwarding = forwarding?.subscribe(notify);
-      return () => { stop?.(); stopForwarding?.(); };
+      const stop = runtime?.outbox.subscribe(notify), stopInbox = inbox?.subscribe(notify);
+      return () => { stop?.(); stopInbox?.(); };
     }, identity),
+    // @ref LLP 1018.004#2-the-inbox — a follower's dismissal is a durable command row the writer consumes.
     dismiss: async (intent) => {
+      if (runtime?.following) { await inbox?.dismiss(intent); return; }
       if (runtime && runtime.principal !== undefined) await runtime.outbox.dismiss(intent);
     },
     subscribe: (listener) => {
@@ -377,8 +402,8 @@ export function createOutboxApi(
       };
       push();
       const unsubscribe = runtime?.outbox.subscribe(push);
-      const unsubscribeForwarding = forwarding?.subscribe(push);
-      return () => { active = false; unsubscribe?.(); unsubscribeForwarding?.(); };
+      const unsubscribeInbox = inbox?.subscribe(push);
+      return () => { active = false; unsubscribe?.(); unsubscribeInbox?.(); };
     },
     // @ref LLP 1012#7-writes-offline — with a partition open every write needs a
     // grant before any request leaves; the fence disables prediction and replay,
@@ -389,6 +414,7 @@ export function createOutboxApi(
     ready: async (op) => (await status(op)).ready,
     fence: async () => {
       await ready().catch(() => undefined);
+      if (runtime?.following) return inbox?.writer?.fence ?? "inside";
       if (!runtime || runtime.principal === undefined) return "inside";
       try { return await runtime.outbox.fence(); }
       catch (error) {
@@ -397,6 +423,7 @@ export function createOutboxApi(
       }
     },
     drain: async () => {
+      if (runtime?.following) { await inbox?.refresh(); return followerSettlement(runtime, inbox, offline()); }
       const result = await drain();
       return settlement(result);
     },
@@ -404,6 +431,9 @@ export function createOutboxApi(
     // non-retryable refusals still reject; transport stops retain their behavior.
     settled: async () => {
       await ready();
+      // @ref LLP 1018.004#3-readiness-on-a-follower — a follower's settlement
+      // reads the rows and the writer's ledger; it never hangs on an offline writer.
+      if (runtime?.following) { await inbox?.refresh(); return followerSettlement(runtime, inbox, offline()); }
       await runtime?.drainTail;
       if (!runtime || runtime.principal === undefined) return { stopped: false, remaining: 0 };
       const result = await runtime.drainOutcome;

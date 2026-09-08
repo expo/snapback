@@ -1,35 +1,64 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { Button, Text, TextInput, View } from "react-native";
-import { api } from "snapback2/client";
+import { api, isSnapbackRefusal } from "snapback2/client";
 import { useMutation, useSnapbackClient, useSnapbackSnapshot } from "snapback2/react-native";
-import type { RecoveryCustody, SendUncertainty } from "../shared/recovery";
-import { useSendController } from "../shared/send";
 
-// @ref LLP 1018.000#8-account-sessions-and-durable-follower-admission — the
-// stable Chat owner retains one lost answer through Thread → Inbox remounts.
-export function Composer({ conversationId, custody }: {
-  conversationId: string;
-  custody?: RecoveryCustody<SendUncertainty>;
-}) {
+const describe = (error: unknown) => (isSnapbackRefusal(error) ? error.envelope.rewrite ?? error.message : String(error));
+
+// @ref LLP 1012#7-writes-offline — `run()` resolves only once the write is
+// durable on this device, so the draft clears only when custody is known.
+// @ref LLP 1018.004#5-hooks-and-templates — the native composer never had a
+// second tab to recover from; it keeps only the capture, the in-flight guard,
+// and clearing the exact text that was sent.
+export function Composer({ conversationId }: { conversationId: string }) {
   const post = useMutation(api.deliveries.post);
   const client = useSnapbackClient();
   const generation = useSnapbackSnapshot().authGeneration;
+  const [body, setBody] = useState("");
   const [note, setNote] = useState("");
-  const controller = useSendController({ conversationId, client, generation, post, custody, onNote: setNote });
+  const [syncing, setSyncing] = useState(false);
+  const visit = useRef({ conversationId, generation });
+  visit.current = { conversationId, generation };
+  const current = (captured: { conversationId: string; generation: number }) =>
+    visit.current.conversationId === captured.conversationId && client.snapshot.authGeneration === captured.generation;
+
+  const send = async () => {
+    const text = body.trim();
+    if (!text || !post.can.send || post.inFlight) return;
+    const captured = visit.current, draft = body;
+    try {
+      const result = await post.run({ conversationId, body: text });
+      if (!current(captured)) return;
+      if (result.state !== "rejected") setBody((now) => (now === draft ? "" : now));
+      // A follower's queued result is the ordinary outcome and the bubble shows it; the writer's says how to move it.
+      setNote(result.state === "rejected" ? `Not sent: ${result.rewrite ?? result.message}`
+        : result.state !== "queued" || post.detail.status.reason === "forwarding" ? ""
+          : post.can.reason?.code === "fence" ? "Queued until the next sync." : "Queued; use Sync now to retry delivery.");
+    } catch (error) {
+      if (current(captured)) setNote(describe(error));
+    }
+  };
+
+  const sync = async () => {
+    const captured = visit.current;
+    setSyncing(true);
+    try {
+      await client.online();
+      const result = await client.outbox.settled();
+      if (current(captured)) setNote(result.stopped ? `${result.remaining} queued; sync paused. Your messages are saved.` : "");
+    } catch (error) {
+      if (current(captured)) setNote(describe(error));
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   return <View style={{ padding: 16 }}>
-    <TextInput accessibilityLabel="Message" placeholder="Message" value={controller.body}
-      onChangeText={controller.setBody} multiline />
-    <Button title="Send" disabled={controller.busy || !post.can.send || post.inFlight || !controller.body.trim()
-      || controller.uncertainty !== undefined} onPress={() => { void controller.send(); }} />
-    {controller.uncertainty ? <><Text accessibilityRole="alert">
-      {controller.canRecover
-        ? `Confirmation is unknown for “${controller.uncertainty.draft}” in ${controller.uncertainty.conversationId}.`
-        : `Confirmation is unknown in ${controller.uncertainty.conversationId}. Return there to check the same send.`}
-    </Text>{controller.canRecover ? <Button title={controller.busy ? "Checking…" : "Check send"}
-      disabled={controller.busy} onPress={() => { void controller.recover(); }} /> : null}</> : null}
-    {controller.status ? <Text accessibilityRole="text">{controller.status.message}</Text> : null}
-    {controller.status?.canSync ? <Button title={controller.syncing ? "Syncing…" : "Sync now"}
-      disabled={controller.syncing} onPress={() => { void controller.sync(); }} /> : null}
+    <TextInput accessibilityLabel="Message" placeholder="Message" value={body} onChangeText={setBody} multiline />
+    <Button title="Send" disabled={post.inFlight || !post.can.send || !body.trim()} onPress={() => { void send(); }} />
+    {post.can.reason ? <Text accessibilityRole="text">{post.can.reason.message}</Text> : null}
+    {post.can.action === "connect" ? <Button title={syncing ? "Syncing…" : "Sync now"} disabled={syncing}
+      onPress={() => { void sync(); }} /> : null}
     {note ? <Text accessibilityRole="alert">{note}</Text> : null}
   </View>;
 }

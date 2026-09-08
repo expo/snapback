@@ -426,6 +426,8 @@ export interface FollowerHost<Authority> {
   writer(principal: string): Promise<void>;
   following(principal: string, authenticated: boolean, authEpoch?: number): void;
   stopped(): void;
+  /** Admit the rows other tabs left in the inherited inbox, before the first resume (LLP 1018.004 §4). */
+  admitInherited(): Promise<void>;
   /** Load the program and resume the inherited coverage. */
   takeover(): Promise<Authority>;
   /** Replay the inherited queue. */
@@ -481,6 +483,12 @@ export class TabFollower<Authority> {
       wait.inherited = true;
       this.host.inherited(principal);
       if (wait.authenticated) await runtime.reauthenticate(principal, wait.authEpoch);
+      if (!current()) { runtime.followed(wait); return; }
+      // @ref LLP 1018.004#4-liveness-nudges-polls-and-where-admission-runs — inherited
+      // inbox rows are attempted here, while the marker is still set and before
+      // the resume; rows that need what the resume fetches stay queued for the
+      // post-resume triggers.
+      await this.host.admitInherited().catch(() => undefined);
       if (!current()) { runtime.followed(wait); return; }
       const authority = await this.host.takeover();
       if (!current()) { runtime.followed(wait); return; }

@@ -83,7 +83,11 @@ test("readiness maps every outbox status, the fence, and the op-scoped queue to 
     [status("ids-exhausted"), "connected", 5, false, "connect", "ids-exhausted"],
     [status("program-missing"), "connected", 0, false, "connect", "program-missing"],
     [status("follower"), "connected", 0, false, "other-tab", "follower"],
-    [status("writer-discovery"), "connected", 0, false, "wait", "writer-discovery"],
+    // @ref LLP 1018.004#3-readiness-on-a-follower — a follower's rows are durable: forwarding and an unresponsive writer are reasons on a sendable status.
+    [status("forwarding", { ready: true }), "connected", 0, true, undefined, undefined],
+    [status("forwarding", { ready: true }), "connected", 2, true, "wait", "pending"],
+    [status("writer-unresponsive", { ready: true, remaining: 1 }), "connected", 1, true, "wait", "writer-unresponsive"],
+    [status("inbox-full"), "connected", 256, false, "wait", "inbox-full"],
   ];
   for (const [value, connection, queued, send, action, code] of table) {
     const can = readiness(value, connection as any, queued);
@@ -96,6 +100,7 @@ test("readiness maps every outbox status, the fence, and the op-scoped queue to 
   }
   assert.match(readiness(status("ready"), "connected", 2).reason!.message, /^2 queued · Waiting for the server\.$/);
   assert.match(readiness(status("ready"), "reconnecting", 1).reason!.message, /^1 queued · Waiting for connection\.$/);
+  assert.match(readiness(status("forwarding", { ready: true }), "connected", 2).reason!.message, /^2 queued · Waiting for the sending tab\.$/);
   // The status's partition-wide `remaining` is not the op-scoped queue: it must not leak into the sentence.
   assert.equal(readiness(status("ready", { remaining: 9 }), "connected", 0).reason, undefined);
 });
