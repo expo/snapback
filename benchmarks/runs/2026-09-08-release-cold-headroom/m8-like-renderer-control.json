@@ -1,0 +1,36 @@
+{
+  "method": "Synthetic server-render control of stock Action prop shape with installed dependencies; no application import, data, browser execution or grading.",
+  "started": 1788872609.375724,
+  "ended": 1788872609.54009,
+  "command": [
+    "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+    "-e",
+    "const React=require(\"react\");const {renderToStaticMarkup}=require(\"react-dom/server\");const {Pressable,Text}=require(\"react-native-web\");const cases=[];for(const form of [\"accessibilityState\",\"aria-selected\"])for(const active of [false,true]){const props={accessibilityRole:\"button\",testID:\"like-probe\",...(form===\"accessibilityState\"?{accessibilityState:{selected:active}}:{\"aria-selected\":active})};cases.push({form,active,html:renderToStaticMarkup(React.createElement(Pressable,props,React.createElement(Text,null,\"Like\")))});}console.log(JSON.stringify({node:process.version,react:require(\"react/package.json\").version,reactNativeWeb:require(\"react-native-web/package.json\").version,cases}));"
+  ],
+  "exit": 0,
+  "stdout": "{\"node\":\"v24.18.0\",\"react\":\"19.1.0\",\"reactNativeWeb\":\"0.21.2\",\"cases\":[{\"form\":\"accessibilityState\",\"active\":false,\"html\":\"<button role=\\\"button\\\" tabindex=\\\"0\\\" class=\\\"css-view-g5y9jx r-cursor-1loqt21 r-touchAction-1otgn73\\\" data-testid=\\\"like-probe\\\" type=\\\"button\\\"><div dir=\\\"auto\\\" class=\\\"css-text-146c3p1\\\">Like</div></button>\"},{\"form\":\"accessibilityState\",\"active\":true,\"html\":\"<button role=\\\"button\\\" tabindex=\\\"0\\\" class=\\\"css-view-g5y9jx r-cursor-1loqt21 r-touchAction-1otgn73\\\" data-testid=\\\"like-probe\\\" type=\\\"button\\\"><div dir=\\\"auto\\\" class=\\\"css-text-146c3p1\\\">Like</div></button>\"},{\"form\":\"aria-selected\",\"active\":false,\"html\":\"<button role=\\\"button\\\" aria-selected=\\\"false\\\" tabindex=\\\"0\\\" class=\\\"css-view-g5y9jx r-cursor-1loqt21 r-touchAction-1otgn73\\\" data-testid=\\\"like-probe\\\" type=\\\"button\\\"><div dir=\\\"auto\\\" class=\\\"css-text-146c3p1\\\">Like</div></button>\"},{\"form\":\"aria-selected\",\"active\":true,\"html\":\"<button role=\\\"button\\\" aria-selected=\\\"true\\\" tabindex=\\\"0\\\" class=\\\"css-view-g5y9jx r-cursor-1loqt21 r-touchAction-1otgn73\\\" data-testid=\\\"like-probe\\\" type=\\\"button\\\"><div dir=\\\"auto\\\" class=\\\"css-text-146c3p1\\\">Like</div></button>\"}]}\n",
+  "stderr": "",
+  "sourceFiles": [
+    {
+      "path": "node_modules/react-native-web/dist/cjs/modules/createDOMProps/index.js",
+      "sha256": "2399ef88b508d74002ae38f0093d2838f5b04100bfff2af9806397924beff039"
+    },
+    {
+      "path": "node_modules/react-native-web/dist/cjs/modules/forwardedProps/index.js",
+      "sha256": "345374827c1f4119c9ef4848ee3773fdbe2b124a7a08b85b60289cfba06cc34c"
+    }
+  ],
+  "frozenSourceCustody": {
+    "instrument": "social-messenger@0.3.6-m8",
+    "method": "Root checkout and authoritative frozen cold packet hashes compared equal",
+    "files": {
+      "benchmarks/tools/social-messenger/ui/src/FeedCard.tsx": "13be800f84dba8fbad13b545982690a5c1301fcedd0d6d8cdc2741474bba04ff",
+      "benchmarks/tools/social-messenger/choreography/choreography.mjs": "8caf5ebdc9a85a2757fe5109740184bdac37977ac98d0a583f16f9dea383177f"
+    }
+  },
+  "review": {
+    "reviewer": "/root/invalidation_audit",
+    "verdict": "READY",
+    "scope": "Prepared issue and four-case rendered output; exact RN Web dependency interoperability, not app grading"
+  }
+}
