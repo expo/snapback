@@ -261,6 +261,42 @@ so they cannot run concurrently with its readers without first isolating
 that fixture ownership. No assertion, deadline, inventory item or budget
 was removed to obtain these improvements.
 
+## Latest-state channel qualification — 2026-09-08
+
+The initial local channel run reported 430 JavaScript passes and 29 file
+cancellations at the unchanged 10-second deadline; native tests reported
+852 passes, 25 failures and four skips. Host load reached 83 on ten available
+processors. Owner startup and package-lock deadlines accounted for many reds;
+this observation is not a controlled attribution of every failure to load.
+Two guide wording regressions were repaired, and a guide edit temporarily
+exceeded its byte cap during this already-failed run. The stale recipient-axis
+assertion was already repaired upstream and was taken during integration.
+Compiler checks passed 227/227 and the evaluator passed 225 cases plus two
+visibility checks in that local run. It does not qualify the final source.
+
+The stable integrated candidate was then checked on a separate warm EPYC
+`clique-channels` lane with Node 24.18.0, Cargo 1.97.0, Bun 1.3.14 and nextest
+0.9.143. Its first original-script run had 842 JavaScript passes and one stale
+negative fixture: the forged channel lacked the newly required value declaration,
+so it refused before the malformed argument the assertion intended to test.
+All 891 native tests, doctests, 238 evaluator cases plus two visibility checks,
+and 227 compiler checks passed. No JavaScript file timed out.
+
+After adding a valid value declaration to that fixture, candidate
+`ed61dfc23cbfb9b377534922020f8bc75d10df82` passed the focused case and the original
+full script: 843 JavaScript passes, 891 native passes, four native skips, and
+the same successful remaining checks. Native execution took 35.957 seconds;
+the full script took 90.66 seconds. The 60-second total target stays open.
+No assertion, timeout, inventory item or budget was removed.
+
+The separate `measure.mjs --check` on runtime-identical `58145f8283` passed:
+30.01-second warm build, 2.78-second incremental build, 29.39-second installed
+consumer smoke, 0.879-second project check and 0.032/0.033-second doctor samples.
+Its exact metric line is in `snapback2/metrics/loop.jsonl`; fixture/document
+correction alone did not justify another measurement. Raw failed and successful
+logs and process receipts are retained in the coordinating checkout's
+`.llp/ship-runs/20260908-ephemeral-api/`.
+
 
 ## Assessment-items integration on the local M1 Max — 2026-09-08
 
