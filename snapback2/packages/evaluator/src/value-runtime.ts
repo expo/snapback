@@ -484,7 +484,7 @@ export function canonicalBytes(value: unknown): value is string {
 }
 
 export function hasOwn(value: object, key: PropertyKey): boolean {
-  return Object.prototype.hasOwnProperty.call(value, key);
+  return Object.hasOwn(value, key);
 }
 
 export function clone<T>(value: T): T {

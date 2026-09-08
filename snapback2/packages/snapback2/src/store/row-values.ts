@@ -83,7 +83,7 @@ export function hiddenRefs(before: unknown, after: unknown, output = new Map<str
     for (const key of Object.keys(before as object)) {
       hiddenRefs(
         (before as Record<string, unknown>)[key],
-        Object.prototype.hasOwnProperty.call(after, key) ? (after as Record<string, unknown>)[key] : undefined,
+        Object.hasOwn(after, key) ? (after as Record<string, unknown>)[key] : undefined,
         output,
       );
     }
@@ -110,7 +110,7 @@ export function restoreRetained(
     const result = clone(after as Record<string, unknown>);
     for (const key of Object.keys(before as object)) {
       const old = (before as Record<string, unknown>)[key];
-      if (Object.prototype.hasOwnProperty.call(result, key)) result[key] = restoreRetained(old, result[key], retained, clone);
+      if (Object.hasOwn(result, key)) result[key] = restoreRetained(old, result[key], retained, clone);
       else if (collectRefs(old).some((item) => retained.has(rowKey(item)))) result[key] = clone(old);
     }
     return result;

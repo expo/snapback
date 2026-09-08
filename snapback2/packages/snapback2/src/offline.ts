@@ -205,11 +205,7 @@ export class OfflineRuntime {
       now: () => Date.now(),
       seq: () => this.latestSeq,
     });
-    this.stopInputChanges = this.store.subscribeInputs(() => {
-      for (const listener of [...this.inputListeners]) {
-        try { listener(); } catch { /* query observers cannot fail a committed swap */ }
-      }
-    });
+    this.stopInputChanges = this.store.subscribeInputs(() => this.publishInputs());
   }
 
   get principal(): string | undefined { return this.partition; }
