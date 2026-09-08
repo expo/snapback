@@ -94,6 +94,37 @@ test("program replacement and unsupported targets retain intent-only drafts with
   assert.equal(mismatchedPrediction.find(item => item.key === `intent:${queued.intent}`)?.draft?.body, "submitted");
 });
 
+test("declared semantic targets never borrow a contributing prediction when their proof is unavailable", () => {
+  for (const kind of ["create", "update", "remove"] as const) {
+    const bound = entry({ op: kind === "create" ? "deliveries.post" : kind === "update" ? "deliveries.edit" : "deliveries.unsend",
+      args: { conversationId: "chat", messageId: "m", body: "submitted" } });
+    const unavailable: Partial<OutboxEntry>[] = [
+      { targets: undefined },
+      ...(["ambiguous", "repeated", "conditional", "computed"] as const).map(reason => ({ targets: {
+        ...bound.targets!, rows: [], complete: false, unresolved: [{ table: "messages", kind, reason }],
+      } })),
+      { state: "committed", response: { seq: 41, program: { ...mutationProgram, planHash: "f".repeat(64) } } },
+      { state: "committed", response: { seq: 41, program: { ...mutationProgram, schemaHash: "f".repeat(64) } } },
+      { state: "committed", response: { seq: 41, program: undefined } },
+    ];
+    for (const delta of unavailable) {
+      const intent = entry({ ...bound, ...delta });
+      const result = attachItems(spec, args, page, inputs([intent], {
+        predicted: new Map([[itemAddress("messages", "m"), [{ intent: intent.intent, kind }]]]),
+      }));
+      const selected = result.find(item => item.key === "m")!;
+      assert.equal(selected.predicted, true, "the overlay still describes the selected image");
+      assert.deepEqual(selected.pending, [], "prediction cannot replace the declared correspondence proof");
+      assert.equal(result.length, kind === "create" ? 2 : 1);
+      if (kind === "create") {
+        const draft = result.find(item => item.key === `intent:${intent.intent}`)!;
+        assert.deepEqual(draft.draft, { body: "submitted" });
+        assert.deepEqual(draft.pending.map(action => action.intent), [intent.intent]);
+      }
+    }
+  }
+});
+
 test("an edit with no created IDs waits for its exact row; a later value can confirm it beneath another prediction", () => {
   const edit = entry({ op: "deliveries.edit", ids: [], args: { messageId: "m", body: "submitted" },
     state: "committed", response: { seq: 41 } });
@@ -230,7 +261,7 @@ test("only this row's effective prediction marks it, and unchanged items preserv
 });
 
 test("a contributing media prediction attaches its actual intent without an unpredicted draft declaration", () => {
-  const media = entry({ op: "messages.postPhoto" });
+  const media = entry({ op: "messages.postPhoto", targets: undefined });
   const state = inputs([media], { predicted: new Map([[itemAddress("messages", "m"), [{ intent: media.intent, kind: "create" }]]]) });
   const result = attachItems(spec, args, page, state);
   assert.equal(result[0]?.pending[0]?.op, "messages.postPhoto");

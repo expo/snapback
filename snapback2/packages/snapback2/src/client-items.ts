@@ -237,8 +237,11 @@ function workIndex<Args, Result, Row extends ItemRow, Draft>(
   const bindings = new Map<string, Binding<Args, Draft>[]>();
   for (const binding of spec.bindings) bindings.set(binding.op, [...(bindings.get(binding.op) ?? []), binding]);
   for (const [position, entry] of entries.entries()) {
-    index.intents.set(entry.intent, { entry, position });
-    for (const binding of bindings.get(entry.op) ?? []) {
+    const declared = bindings.get(entry.op);
+    // A declared target owns correspondence even when its proof is unavailable.
+    // Only undeclared operations may attach through a contributing prediction.
+    if (!declared) index.intents.set(entry.intent, { entry, position });
+    for (const binding of declared ?? []) {
       const key = binding.key(entry), work = { entry, binding, key, position };
       if (key !== undefined) {
         const target = index.targets.get(key) ?? [];
