@@ -1,3 +1,4 @@
+import type { PredictedRow } from "./types.js";
 import { onceColumns, onceAssetIds, nullOnceMedia } from "./store/asset-policy.js";
 // @ref LLP 1012#6-reads-offline — the twin is the client: with the backend
 // unreachable the certified program runs here over `coverage()`; a read inside
@@ -39,8 +40,8 @@ export interface LocalAnswer {
   site?: string;
   /** Every uncovered site with its reason (`partial`). */
   sites?: PartialSite[];
-  /** Queued intents whose predicted rows are visible in `data`, in order. */
-  predicted?: string[];
+  /** Rows the partition's queued intents predicted, each with its intent; match `id` against rendered rows. */
+  predicted?: PredictedRow[];
   /** The newest delivery the answer was computed from. */
   since?: number;
 }
@@ -65,7 +66,7 @@ interface Hydrated {
   program: HeldProgram;
   coverage: Coverage;
   store: ClientStore;
-  predicted: string[];
+  predicted: PredictedRow[];
   onceAssets: Set<string>;
 }
 
@@ -243,7 +244,7 @@ export class Twin {
       .filter((name) => program.schema.tables![name]?.retain === "delivered-history");
     const overlay = await this.sources.overlay();
     const entries = await this.sources.entries();
-    const predicted: string[] = [];
+    const predicted: PredictedRow[] = [];
     // Only the tagger/hasher's closed failure set means this coverage was not
     // delivered under the held program. Store construction and overlay
     // mutation sit outside this catch: their bugs must never look hydrating.
@@ -259,9 +260,9 @@ export class Twin {
           const value = tagged(tagWireRow, program.schema, row.table, row.row as Record<string, WireValue>);
           if (!value) return decline(`overlay-row:${row.table}`);
           store.put(row.table, value);
+          predicted.push({ table: row.table, id: row.id, intent: entry.intent });
         }
       }
-      predicted.push(entry.intent);
     }
     const onceAssets = onceAssetIds(onceColumns(program.schema), [
       ...coverage.rows, ...Object.values(overlay).flat().filter(row => !row.removed).map(row => ({ table: row.table, id: row.id, row: row.row! })),

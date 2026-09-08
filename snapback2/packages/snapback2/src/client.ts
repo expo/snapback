@@ -83,6 +83,7 @@ export { SnapbackRefusal, isSnapbackRefusal };
 export { browserTokenStore } from "./token-store.js";
 export type { Api, ApiProxy, ChannelRef as Channel, Op };
 export * from "./types.js";
+export * from "./snapshot.js";
 export type {
   Coverage,
   CoverageFacts,

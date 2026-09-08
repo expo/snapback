@@ -1165,15 +1165,36 @@ test("React query reducer preserves every discriminant field and only reuses a d
   assert.equal(equivalent.state, "complete");
   assert.equal(equivalent.live, true);
 
+  assert.equal(live.source, "server");
   const stale = reduceQueryState(live, { state: "stale", live: false, since: 99, data, seq: 1 });
   assert.strictEqual(stale.data, data);
   assert.equal(stale.since, 99);
   assert.equal(stale.live, false);
+  // @ref LLP 1018.003#2-derive-never-add — a stale event keeps the last receipt's outcome and never scrubs delivered data.
+  assert.equal(stale.state === "stale" && stale.outcome, "complete");
+  assert.equal(stale.state === "stale" && stale.source, "server");
+  const staleWithoutData = reduceQueryState(live, { state: "stale", live: false, since: 100 });
+  assert.strictEqual(staleWithoutData.data, data, "a stale event without data keeps the delivered data");
+  assert.equal(staleWithoutData.seq, 1, "and its sequence");
+  const twin = reduceQueryState(hydrating, { state: "complete", live: false, connection: "offline", stale: { since: 5 }, data, seq: 1, next: null } as any);
+  assert.equal(twin.source, "twin", "an offline answer records the twin as its evaluator");
+  const nothingHeld = reduceQueryState(hydrating, { state: "hydrating", live: false, connection: "offline" } as any);
+  assert.deepEqual(nothingHeld, { state: "hydrating", live: false, offline: true });
+  // A stale event that names another sequence carries data the last receipt does not describe: no outcome survives.
+  const otherSeq = reduceQueryState(live, { state: "stale", live: false, since: 101, data: [{ id: "two" }], seq: 9 });
+  assert.equal(otherSeq.state === "stale" && otherSeq.outcome, undefined, "a different seq drops the receipt");
+  assert.deepEqual(otherSeq.data, [{ id: "two" }]);
+  assert.equal(otherSeq.seq, 9);
+  // A kept denial keeps no data, whatever the stale event carried.
+  const deniedFirst = reduceQueryState(hydrating, { state: "denied", live: true, seq: 4, rule: "members only" });
+  const staleDenied = reduceQueryState(deniedFirst, { state: "stale", live: false, since: 102, data, seq: 4 });
+  assert.equal(staleDenied.state === "stale" && staleDenied.outcome, "denied");
+  assert.equal("data" in staleDenied ? staleDenied.data : undefined, undefined, "a denial scrubs data through a stale event");
 
   const partial = reduceQueryState(stale, { state: "partial", live: true, seq: 2, reason: "coverage" });
-  assert.deepEqual(partial, { state: "partial", live: true, seq: 2, reason: "coverage" });
+  assert.deepEqual(partial, { state: "partial", live: true, source: "server", seq: 2, reason: "coverage" });
   const denied = reduceQueryState(stale, { state: "denied", live: true, seq: 2, rule: "members only" });
-  assert.deepEqual(denied, { state: "denied", live: true, seq: 2, rule: "members only" });
+  assert.deepEqual(denied, { state: "denied", live: true, source: "server", seq: 2, rule: "members only" }, "a denial scrubs data");
   const refused = reduceQueryState(stale, {
     state: "refused",
     live: false,
@@ -1202,7 +1223,7 @@ test("React query reducer preserves every discriminant field and only reuses a d
   assert.equal(differentSeq.seq, 3);
 
   assert.deepEqual(reduceQueryState(stale, { state: "complete", data, seq: 2, next: null }), {
-    state: "complete", live: false, data, seq: 2, next: null,
+    state: "complete", live: false, source: "server", data, seq: 2, next: null,
   });
   assert.equal(stableSerialize({ b: 2, a: [1] }), stableSerialize({ a: [1], b: 2 }));
 });
@@ -1284,7 +1305,7 @@ test("useMutation keeps the last server receipt separate from transport failure"
   await act(async () => { await current.run({}); });
   const committed = current.last;
   assert.equal(committed.state, "committed");
-  assert.equal(current.transport, undefined);
+  assert.equal(current.detail.transport, undefined);
 
   let transport: unknown;
   await act(async () => {
@@ -1300,12 +1321,12 @@ test("useMutation keeps the last server receipt separate from transport failure"
   });
   assert.equal(mutationAttempts, 2);
   assert.strictEqual(current.last, committed, "a post-commit 503 invented a rejected receipt");
-  assert.strictEqual(current.transport, transport);
+  assert.strictEqual(current.detail.transport, transport);
 
   await act(async () => { await current.run({}); });
   assert.equal(current.last.state, "rejected");
   assert.equal(current.last.code, "RECIPIENT_UNKNOWN");
-  assert.equal(current.transport, undefined, "a successful server run did not clear transport status");
+  assert.equal(current.detail.transport, undefined, "a successful server run did not clear transport status");
   await act(async () => { renderer!.unmount(); });
 });
 
@@ -1324,7 +1345,7 @@ test("useQuery renders hydrating immediately when its identity changes", async (
   };
   function Harness({ operation }: { operation: any }) {
     const view = useQuery(operation, { identity: operation.op });
-    renders.push({ op: operation.op, state: view.state });
+    renders.push({ op: operation.op, state: view.status });
     return null;
   }
   const element = (operation: any) => React.createElement(
@@ -1337,12 +1358,12 @@ test("useQuery renders hydrating immediately when its identity changes", async (
     renderer = TestRenderer.create(element(api.messages.first));
     await new Promise((resolve) => setTimeout(resolve, 10));
   });
-  assert.equal(renders.filter((render) => render.op === "messages.first").at(-1)?.state, "complete");
+  assert.equal(renders.filter((render) => render.op === "messages.first").at(-1)?.state, "ready");
   await act(async () => {
     renderer!.update(element(api.messages.second));
   });
   const secondIdentityRenders = renders.filter((render) => render.op === "messages.second");
-  assert.equal(secondIdentityRenders[0]?.state, "hydrating", "the old receipt leaked under the new identity");
+  assert.equal(secondIdentityRenders[0]?.state, "loading", "the old receipt leaked under the new identity");
   await act(async () => { renderer!.unmount(); });
 });
 
@@ -1381,11 +1402,12 @@ test("non-live useQuery keeps hydrating across a network failure, reports connec
   });
   await act(async () => { await new Promise((resolve) => setTimeout(resolve, 350)); });
   assert.equal(queryAttempts, 2);
-  assert.ok(views.some((view) => view.state === "hydrating" && view.connection === "reconnecting"));
+  assert.ok(views.some((view) => view.status === "loading" && view.freshness.connection === "reconnecting"));
   const final = views.at(-1);
-  assert.equal(final.state, "complete");
-  assert.equal(final.connection, "connected");
-  assert.ok(!views.some((view) => view.state === "refused" && view.refusal?.code === "E_NETWORK"));
+  assert.equal(final.receipt?.outcome, "complete");
+  assert.equal(final.status, "ready");
+  assert.equal(final.freshness.connection, "connected");
+  assert.ok(!views.some((view) => view.status === "unavailable" && view.refusal?.code === "E_NETWORK"));
   await act(async () => { renderer!.unmount(); });
   await client.close();
 });

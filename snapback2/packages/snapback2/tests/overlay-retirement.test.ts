@@ -69,6 +69,31 @@ async function seed(
   await store.commit({ outbox: { put: [item.committed] } });
 }
 
+// @ref LLP 1018.003#4-pending-rows-attribution-settlement-and-failure — arrival is
+// judged after the outbox puts, so a write that was never predicted and whose
+// settlement lands with its own tail rows is marked `arrived` in that same swap.
+test("an unpredicted committed intent is marked arrived by the tail rows of its own settlement swap on both carriers", async () => {
+  await carriers(async (name, create) => {
+    const store = create();
+    const item = prediction(`${name}-arrival`);
+    const queued = { ...item.queued, predicted: false };
+    const committed = { ...item.committed, predicted: false };
+    await store.open("dev:alice");
+    await store.commit({ outbox: { put: [queued] } });
+    assert.equal((await store.outbox.get(item.intent))?.arrived, undefined, `${name}: nothing has arrived`);
+    await store.commit({
+      deliveries: [page("deliveries.thread", { conversationId: "conversation-1" }, 31, [row("messages", item.id)])],
+      outbox: { put: [committed] },
+    });
+    const entry = await store.outbox.get(item.intent);
+    assert.equal(entry?.state, "committed", `${name}: settled`);
+    assert.equal(entry?.arrived, true, `${name}: the tail row carrying the pinned id is the arrival, even inside the settlement swap`);
+    await store.commit({ deliveries: [page("deliveries.thread", { conversationId: "conversation-1" }, 32, [row("messages", "other")])] });
+    assert.equal((await store.outbox.get(item.intent))?.arrived, true, `${name}: arrival is durable`);
+    await store.close?.();
+  });
+});
+
 test("tail-page retirement requires a non-empty page at a manifest-named position past the commit watermark on both carriers", async () => {
   await carriers(async (name, create) => {
     let store = create();

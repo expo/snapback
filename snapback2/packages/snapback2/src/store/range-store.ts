@@ -184,6 +184,13 @@ export interface OutboxEntry {
   state: OutboxState;
   response?: unknown;
   predicted?: boolean;
+  /**
+   * A delivered row carries one of this committed intent's pinned ids, or its
+   * predicted overlay was confirmed by arrival: the write is authoritative on
+   * this device. The hooks retire the entry on this fact; the runtime never
+   * dismisses (LLP 1018.003 §4, LLP 1012 §7).
+   */
+  arrived?: true;
   /** Prediction and its trace were skipped; the program will check this write on the server. */
   reason?: "fence";
   /** Engine-owned aggregate targets the prediction's overlay omits by design (the server writes them); absent when none. */
@@ -864,7 +871,11 @@ export class PersistentRangeStore implements RangeStore {
     });
   }
 
+  /** Row ids the current swap delivered, consumed by the arrival pass once the outbox puts are in. */
+  private readonly deliveredIds = new Set<string>();
+
   private applySwap(state: PersistedRangeState, swap: StoreSwap, bytes: ByteDelta): PersistedRangeState {
+    this.deliveredIds.clear();
     if (state.sealed) throw new OfflineStoreFailure("E_OFFLINE_CARRIER", "range store is sealed");
     if (swap.resumeSeq !== undefined && (!Number.isSafeInteger(swap.resumeSeq) || swap.resumeSeq < 0)) {
       throw new TypeError("store resume seq must be a non-negative safe integer");
@@ -911,6 +922,15 @@ export class PersistentRangeStore implements RangeStore {
       if (entry.state === "committed" && previous?.state !== "committed") committedNow.add(entry.intent);
       const order = previous?.order ?? entry.order ?? ++state.clock;
       state.outbox[entry.intent] = { ...clone(entry), order };
+    }
+    // @ref LLP 1018.003#4-pending-rows-attribution-settlement-and-failure — a delivered
+    // row carrying a committed intent's pinned id is its arrival, judged after the
+    // outbox puts so a settlement that lands with its own tail counts too.
+    if (this.deliveredIds.size > 0) {
+      for (const entry of Object.values(state.outbox)) {
+        if (entry.state === "committed" && entry.arrived !== true && entry.ids.some((id) => this.deliveredIds.has(id))) entry.arrived = true;
+      }
+      this.deliveredIds.clear();
     }
     if (swap.bounds) state.bounds = clone(swap.bounds);
     if (swap.programs) state.programs = clone(swap.programs);
@@ -1017,6 +1037,7 @@ export class PersistentRangeStore implements RangeStore {
         if (misses > 0) state.overlayMisses[intent] = misses;
         continue;
       }
+      if (arrived) entry.arrived = true;
       delete state.overlay[intent];
       delete state.overlayMisses[intent];
       delete state.overlayWatermarks[intent];
@@ -1128,6 +1149,7 @@ export class PersistentRangeStore implements RangeStore {
         if ((state.rowSeq[storageKey] ?? -1) > delivery.seq) continue;
         state.rows[storageKey] = clone(row);
         state.rowSeq[storageKey] = delivery.seq;
+        this.deliveredIds.add(row.id);
       }
       let data = clone(delivery.data);
       let answerState = delivery.state;

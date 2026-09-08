@@ -12,6 +12,7 @@ import React, {
 import { createClient, isSnapbackRefusal, type SnapbackRefusal } from "./client.js";
 import { viewedAssetIds } from "./client-assets.js";
 import { referenceName, type Channel as ChannelRef, type Op } from "./api.js";
+import { readiness, summarize, type Readiness, type Snapshot } from "./snapshot.js";
 import {
   initialQueryState,
   reduceQueryState,
@@ -30,7 +31,6 @@ import {
   type OutboxEntry,
   type OutboxStatus,
   type Principal,
-  type QueryHookResult,
   type QueryMachineEvent,
   type QueryView,
   type RefusalEnvelope,
@@ -38,7 +38,9 @@ import {
 } from "./types.js";
 
 export { initialQueryState, reduceQueryState } from "./types.js";
-export type { QueryView, QueryViewState } from "./types.js";
+export type { QueryView } from "./types.js";
+export { intentLabel, readiness, readinessMessages, reasonMessages, summarize } from "./snapshot.js";
+export type { Readiness, ReadinessAction, ReadinessCode, Snapshot, SnapshotReasonCode, SnapshotStatus } from "./snapshot.js";
 
 interface ProviderValue {
   client: SnapbackClient;
@@ -54,10 +56,9 @@ export type SnapbackProviderProps = (
 
 /**
  * The offline options by value: the carrier factory by identity, the numbers
- * by value. A parent that renders an inline `offline={{ store, onTombstone:
- * (row) => … }}` allocates a new object and new closures every render; that
- * must not allocate a new lock-holding client, so the callbacks are read
- * through a ref the runtime calls into (`throughRef`) and never compared.
+ * by value. A parent that renders an inline `offline={{ store, … }}` allocates
+ * a new object every render; that must not allocate a new lock-holding client,
+ * so the options are compared by their parts (`sameOffline`).
  */
 function sameOffline(left: OfflineClientOptions | undefined, right: OfflineClientOptions | undefined): boolean {
   if (left === right) return true;
@@ -67,13 +68,12 @@ function sameOffline(left: OfflineClientOptions | undefined, right: OfflineClien
     && left.maxAssetBytes === right.maxAssetBytes;
 }
 
-/** The options the client is created with: stable wrappers that call the latest callbacks the parent rendered. */
-function throughRef(latest: { current: OfflineClientOptions | undefined }, options: OfflineClientOptions): OfflineClientOptions {
+/** The options the client is created with: the parts the client reads, by value. */
+function offlineByValue(options: OfflineClientOptions): OfflineClientOptions {
   return {
     store: options.store,
     ...(options.fenceDays === undefined ? {} : { fenceDays: options.fenceDays }),
     ...(options.maxAssetBytes === undefined ? {} : { maxAssetBytes: options.maxAssetBytes }),
-    onTombstone: (row) => latest.current?.onTombstone?.(row) ?? [],
   };
 }
 
@@ -88,13 +88,11 @@ export function SnapbackProvider({ client: supplied, url, as, token, tokenStore,
   // would leak a lock-holding client; a ref survives the re-render untouched,
   // and the identity compares `offline` by its values, not its reference.
   const identity = [supplied, url, as, token, tokenStore, fetch] as const;
-  const latestOffline = useRef<OfflineClientOptions | undefined>(offline);
-  latestOffline.current = offline;
   const held = useRef<{ identity: readonly unknown[]; offline: OfflineClientOptions | undefined; client: SnapbackClient }>(undefined);
   if (!held.current
     || held.current.identity.some((item, index) => item !== identity[index])
     || !sameOffline(held.current.offline, offline)) {
-    const stable = offline === undefined ? undefined : throughRef(latestOffline, offline);
+    const stable = offline === undefined ? undefined : offlineByValue(offline);
     held.current = {
       identity,
       offline,
@@ -158,7 +156,7 @@ export function useQuery<Args, Result>(
   ref: Op<Args, Result>,
   args: NoInfer<Args>,
   options: { live?: false; drain?: boolean } = {},
-): QueryHookResult<Result> {
+): Snapshot<Result> {
   const { client, snapshot } = provider();
   const argsKey = stableSerialize(args);
   const stableArgs = useMemo(() => args, [argsKey]);
@@ -226,13 +224,14 @@ export function useQuery<Args, Result>(
     };
   }, [identity, stableArgs, restoring]);
 
-  return useMemo(() => ({ ...state, connection: snapshot.connection }), [state, snapshot.connection]);
+  // @ref LLP 1018.003#2-derive-never-add — the screen reads one record; status and reason are projections.
+  return useMemo(() => summarize(state, snapshot.connection), [state, snapshot.connection]);
 }
 
 export function useSubscription<Args, Result>(
   ref: Op<Args, Result>,
   args: NoInfer<Args>,
-): QueryHookResult<Result> {
+): Snapshot<Result> {
   return useQuery(ref, args);
 }
 
@@ -240,34 +239,31 @@ export interface UseMutationResult<Args, Result> {
   run(args: AssetInput<Args>): Promise<MutationResult<Result>>;
   /** A `run()` is awaiting the owner right now. */
   inFlight: boolean;
+  /** Whether `run()` can be accepted now, and what the user can do if not (LLP 1018.003 §2). */
+  can: Readiness;
   /** This op's intents still queued in the durable outbox, FIFO (LLP 1012 §7). */
   pending: OutboxEntry[];
-  /**
-   * `run()` will not refuse `E_OFFLINE_ID_BLOCK` for want of a replay grant, a
-   * known bound, or capacity for `1 + maxNewIds`: no partition, or one holding a
-   * current grant this write fits. False until the device has all three (the
-   * first drain reaching its watermark, or a login, earns the grant); gate the
-   * send on it rather than retrying the refusal (LLP 1012 §7).
-   */
-  ready: boolean;
-  status: OutboxStatus;
   last: MutationResult<Result> | undefined;
-  transport: SnapbackRefusal | undefined;
+  /** The mechanism behind `can`: the full outbox status and the last retryable transport refusal. */
+  detail: { status: OutboxStatus; transport?: SnapbackRefusal };
 }
 
 /** The durable outbox of the open partition, FIFO, with `dismiss` for settled intents. */
 export interface UseOutboxResult {
   entries: OutboxEntry[];
-  /** Grant-present readiness (`client.outbox.ready()`): no particular write bound is implied, and the fence does not gate it. */
-  ready: boolean;
-  status: OutboxStatus;
-  /** Past means queued until this partition resumes; accepting writes remains enabled. */
-  fence: "inside" | "past";
+  /** Grant-present readiness: no particular write bound is implied. */
+  can: Readiness;
+  detail: { status: OutboxStatus };
   dismiss(intent: string): Promise<void>;
 }
 
 // @ref LLP 1012#7-writes-offline — the outbox opens before the first request,
 // so a queued message is on screen at cold start before the network is tried.
+// @ref LLP 1018.003#4-pending-rows-attribution-settlement-and-failure — the runtime
+// records `entry.arrived` when a delivered row carries a committed intent's pinned id,
+// but neither it nor these hooks dismiss: the outbox notification precedes the
+// subscription delivery that puts the row on screen, so only the screen that renders
+// the row can retire the intent without a remount. `entries` is delivered as is.
 function useOutboxState(op?: Op<any, any>): UseOutboxResult {
   const { client, snapshot } = provider();
   const operation = op === undefined ? undefined : referenceName(op);
@@ -287,10 +283,15 @@ function useOutboxState(op?: Op<any, any>): UseOutboxResult {
     return () => { active = false; unsubscribe(); };
   }, [identity]);
   const dismiss = useCallback((intent: string) => client.outbox.dismiss(intent), [client]);
-  return useMemo(() => ({ entries: state.identity === identity ? state.entries : [],
-    ready: state.identity === identity && state.status.ready,
-    status: state.identity === identity ? state.status : initial,
-    fence: state.identity === identity ? state.status.fence : "inside", dismiss }), [state, identity, dismiss]);
+  const mine = state.identity === identity;
+  const entries = mine ? state.entries : [];
+  const status = mine ? state.status : initial;
+  const queued = useMemo(
+    () => entries.filter((entry) => entry.state === "queued" && (operation === undefined || entry.op === operation)).length,
+    [entries, operation],
+  );
+  const can = useMemo(() => readiness(status, snapshot.connection, queued), [status, snapshot.connection, queued]);
+  return useMemo(() => ({ entries, can, detail: { status }, dismiss }), [entries, can, status, dismiss]);
 }
 
 export function useOutbox(): UseOutboxResult {
@@ -303,7 +304,7 @@ export function useMutation<Args, Result>(ref: Op<Args, Result>): UseMutationRes
   const identity = useMemo(() => ({ client, generation: snapshot.authGeneration, operation }), [client, snapshot.authGeneration, operation]);
   const activeIdentity = useRef(identity);
   activeIdentity.current = identity;
-  const { entries, ready, status } = useOutboxState(ref);
+  const { entries, can, detail } = useOutboxState(ref);
   const pending = useMemo(
     () => entries.filter((entry) => entry.op === operation && entry.state === "queued"),
     [entries, operation],
@@ -344,9 +345,13 @@ export function useMutation<Args, Result>(ref: Op<Args, Result>): UseMutationRes
         : current);
     }
   }, [identity]);
+  const fullDetail = useMemo(
+    () => (visible.transport === undefined ? { status: detail.status } : { status: detail.status, transport: visible.transport }),
+    [detail.status, visible.transport],
+  );
   return useMemo(
-    () => ({ run, inFlight: visible.pending > 0, pending, ready, status, last: visible.last, transport: visible.transport }),
-    [run, visible.pending, pending, ready, status, visible.last, visible.transport],
+    () => ({ run, inFlight: visible.pending > 0, can, pending, last: visible.last, detail: fullDetail }),
+    [run, visible.pending, can, pending, visible.last, fullDetail],
   );
 }
 
