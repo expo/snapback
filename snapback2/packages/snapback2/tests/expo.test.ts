@@ -24,6 +24,14 @@ const coreEntry = await import("../dist/react-core.mjs");
 const { SnapbackProvider, createExpoClient, expoSecureTokenStore, expoSqliteDriver } = expoEntry;
 const { useSnapbackClient, useConnection, useAuth, useMutation, useOutbox, useSnapbackSnapshot } = nativeEntry;
 const { witnessControl, runSqliteDriverConformance } = await import("../dist/expo/witness.mjs");
+// Keep the real shared outbox read model when a test supplies transport doubles.
+const outboxBundle = await build({ entryPoints: [fileURLToPath(new URL("../src/client-outbox-observed.ts", import.meta.url))],
+  bundle: true, write: false, format: "esm", platform: "node" });
+const { observeOutbox } = await import(`data:text/javascript;base64,${Buffer.from(outboxBundle.outputFiles[0]!.contents).toString("base64")}`);
+function observeTestOutbox(client: any) {
+  client.outbox.observe = observeOutbox(() => client.outbox.entries(), (op: unknown) => client.outbox.status(op),
+    (notify: () => void) => client.outbox.subscribe(notify), () => String(client.snapshot.authGeneration));
+}
 
 test("Expo opens held history only for a partial composite and reuses the observer after detach", async () => {
   const bundlePath = fileURLToPath(new URL("../dist/.expo-thread-history.test-bundle.mjs", import.meta.url));
@@ -55,9 +63,10 @@ test("Expo opens held history only for a partial composite and reuses the observ
   const compositeListeners = new Set<() => void>(), historyListeners = new Set<() => void>();
   const message = { messageId: "message-held", at: 1, kind: "message",
     message: { id: "message-held", authorId: "profile-alice", body: "independently held" } };
-  let composite: any = { status: "unavailable", receipt: { outcome: "partial", source: "twin", seq: 1 },
+  const items = [{ key: "message-held", data: message.message, predicted: false, pending: [] }];
+  let composite: any = { status: "unavailable", items: [], receipt: { outcome: "partial", source: "twin", seq: 1 },
     freshness: { live: false, connection: "offline" }, local: { predicted: [], retained: false } };
-  const history: any = { status: "ready", data: [message],
+  const history: any = { status: "ready", data: [message], items,
     freshness: { live: false, connection: "offline" }, local: { predicted: [], retained: true },
     reason: { code: "held", message: "Held on this device." } };
   const observation = (snapshot: () => any, listeners: Set<() => void>) => ({
@@ -77,14 +86,16 @@ test("Expo opens held history only for a partial composite and reuses the observ
     mutation: async () => ({ state: "rejected" }),
     recoverMutation: async () => ({ state: "admission-unknown" }),
     outbox: {
+      entries: async () => [],
       subscribe(notify: (entries: any[]) => void) { notify([]); return () => undefined; },
       status: async () => ({ ready: false, reason: "sealed", action: "login", remaining: 0, fence: "past" }),
       dismiss: async () => undefined,
     },
   };
+  observeTestOutbox(client);
   let renderer: TestRenderer.ReactTestRenderer | undefined;
   const publish = async (next: any) => {
-    composite = next;
+    composite = { items: next.data ? items : [], ...next };
     await act(async () => { for (const notify of [...compositeListeners]) notify(); });
   };
   try {
@@ -453,11 +464,15 @@ test("replacing a supplied client clears authentication, mutations, and outbox r
   const lateSuccess = deferred(), lateFailure = deferred(), bobMutation = deferred();
   let delayAlice = false;
   let emitAlice!: (entries: any[]) => void;
-  alice.outbox.subscribe = (callback) => { emitAlice = callback; callback([{ intent: "alice", op: "send", state: "queued" }]); return () => undefined; };
+  let aliceEntries = [{ intent: "alice", op: "send", state: "queued" }];
+  alice.outbox.entries = async () => aliceEntries;
+  alice.outbox.subscribe = (callback) => { emitAlice = entries => { aliceEntries = entries; callback(entries); }; callback(aliceEntries); return () => undefined; };
   const readiness = (ready: boolean) => ({ ready, reason: "ready" as const, action: "none" as const, remaining: 1, fence: "inside" as const });
   alice.outbox.status = () => (delayAlice ? aliceReady.promise : Promise.resolve(true)).then(readiness);
   bob.outbox.subscribe = (callback) => { callback([{ intent: "bob", op: "send", state: "queued" }]); return () => undefined; };
+  bob.outbox.entries = async () => [{ intent: "bob", op: "send", state: "queued" }];
   bob.outbox.status = () => bobReady.promise.then(readiness);
+  observeTestOutbox(alice); observeTestOutbox(bob);
   const transport = new SnapbackRefusal({ code: "E_TRANSPORT", family: "owner", message: "alice transport", guide: "owner" }, true);
   alice.mutation = async (_ref, args: any) => {
     if (args.stage === "last") return { state: "committed", seq: 1, data: "alice" };

@@ -1564,3 +1564,47 @@ exceeded the existing byte limit, so the same contract was condensed within
 that limit. Final installed-consumer checks take 24.14 seconds and first doctor
 0.162 seconds. The implemented child leaves the working set; this diary's
 separate cold benchmark and publication obligations remain.
+
+
+## 2026-09-07 — composed items after the architecture landing
+
+The two remaining client problems shared one missing fact: the screen knew a
+write committed, but could not tell whether its displayed row reflected that
+write. The new item declaration names the query's row selector and each
+operation's target. Both chat arms now render `items` carrying `key`, `data`,
+`draft`, `predicted` and ordered `pending` actions. Filtering nullable messages,
+reversing the page, joining pinned sends/edits/removals and scanning twin triples
+left the screens. The small typed declarations live beside the recipe.
+
+The SDK needed more care than that surface suggests. Positive evidence must
+belong to the row image actually displayed. An unrelated fan-out row or a newer
+partition sequence cannot confirm an edit, especially an edit that allocates
+no IDs. Page membership is separate: a fresh complete answer to this exact
+query can leave an old committed send off the page without calling it arrived.
+The outbox stays intact through both decisions. Online mutations, four mounted
+observers and remounts now retain the same terminal history until explicit
+dismissal, reachable from “Changes on this device” on both platforms.
+
+The history/composite handoff exposed a useful application detail. While a
+create is pending, its submitted draft must remain available even beside a
+predicted row: history can briefly lose permission to render that row during
+reattachment. Keeping the draft let React preserve the same bubble without
+showing uncertain query data or a fabricated server time. The real owner
+transition test now verifies that element identity. The Expo fallback test
+checks lazy attachment and authorization; it does not prove device-mounted
+native element continuity.
+
+Muse, Gemini and Grok reviewed actual frozen packets. Muse and Gemini marked
+the final packet READY. Grok's REVISE identified two further proof edges, both
+accepted: local holes must not revoke valid held membership, and clock-only
+or unvalidated absences must not acquire fresh proof order. Qualification also
+caught a sealed-history read and legacy test assumptions about automatic
+cleanup. Those are fixed rather than hidden by a changed expected status.
+
+At this entry, all 58 focused item, platform, recovery and chat-screen checks
+pass against stable artifacts; broad and loop qualification are recorded in
+LLP 1018.003 as they complete. The earlier simultaneous package-build/test
+runs were poor evidence: changing `dist` underneath readers caused missing
+declarations, compiler failures and fixture timeouts. Verification must use
+one stable build. The runtime/full-client cost and explicit scope amendment
+are documented in that LLP, without calling the increase a saving.

@@ -3,7 +3,7 @@ import { mayNeedAssetPlanning } from "./assets.js";
 import { ClientAuth, anonymousAuth, restoreAuthToken, saveAuthToken, storageRefusal, ensureBearerTransition } from "./client-auth.js";
 import { SharedSse } from "./live.js";
 import type { AssetFetchOptions } from "./store/byte-cache.js";
-import { followerRefusal, throwIfAborted, withAbort } from "./client-wire.js";
+import { followerRefusal, supersededRefusal, throwIfAborted, withAbort } from "./client-wire.js";
 import { api, referenceName, type Api, type ApiProxy, type Channel as ChannelRef, type Op } from "./api.js";
 import { captureGrant, createOutboxApi, drainOutbox, type DrainResult } from "./client-outbox.js";
 import {
@@ -176,7 +176,7 @@ class Client implements SnapbackClient {
     this.forwarding = new ClientForwarding({
       url: this.url, runtime: this.offlineRuntime, closed: () => this.closed, fence: () => this.operationFence,
       write: run => this.trackWrite(run), failure: (error, site) => this.offlineRefusal(error, site).envelope,
-      superseded: () => this.supersededRefusal(),
+      superseded: () => supersededRefusal(),
       admitted: () => { void this.drainNow().catch(() => undefined); },
     });
     this.follower = new TabFollower<Authority>({
@@ -535,7 +535,7 @@ class Client implements SnapbackClient {
       validated: (authority) => this.validated(authority),
       expireSession: (authority) => this.expireSession(authority),
       expirationCurrent: (expiration) => this.expirationCurrent(expiration),
-      supersededRefusal: () => this.supersededRefusal(),
+      supersededRefusal: () => supersededRefusal(),
       recordRefusal: (refusal) => this.recordRefusal(refusal),
       patchSnapshot: (patch) => { this.patchSnapshot(patch); },
       transportFailureState: () => this.transportFailureState(),
@@ -676,7 +676,7 @@ class Client implements SnapbackClient {
   }
   private async me(current = () => true): Promise<AuthMe> {
     const authority = await this.operationAuthority();
-    if (!current()) throw this.supersededRefusal();
+    if (!current()) throw supersededRefusal();
     const result = await this.confirmAuth(authority);
     this.resumeAfterAuth();
     return result;
@@ -888,7 +888,7 @@ class Client implements SnapbackClient {
     if (terminalSession !== "keep" && authority.token !== undefined && isTerminalSession(refusal.envelope) && (expire || !wasCurrent)) {
       expiration = await this.expireSession(authority, { signal, fromAuth: authRestoration && this.authorityCurrent(authority) });
     }
-    if (enforceAuthority && (!wasCurrent || (expiration !== undefined && !this.expirationCurrent(expiration)))) throw this.supersededRefusal();
+    if (enforceAuthority && (!wasCurrent || (expiration !== undefined && !this.expirationCurrent(expiration)))) throw supersededRefusal();
     if (enforceAuthority && !expire) this.ensureAuthority(authority);
     else this.ensureOpen();
     throwIfAborted(signal);
@@ -954,7 +954,7 @@ class Client implements SnapbackClient {
         expiration = await this.expireSession(authority, { origin });
       } catch (error) {
         if (this.closed) {
-          return { retry: false, refusal: this.supersededRefusal() };
+          return { retry: false, refusal: supersededRefusal() };
         }
         const terminal = isSnapbackRefusal(error)
           ? error
@@ -972,14 +972,14 @@ class Client implements SnapbackClient {
         };
       }
       if (this.closed) {
-        return { retry: false, refusal: this.supersededRefusal() };
+        return { retry: false, refusal: supersededRefusal() };
       }
       if (!wasCurrent || !this.expirationCurrent(expiration)) {
-        return { retry: false, refusal: this.supersededRefusal() };
+        return { retry: false, refusal: supersededRefusal() };
       }
     }
     if (this.closed) {
-      return { retry: false, refusal: this.supersededRefusal() };
+      return { retry: false, refusal: supersededRefusal() };
     }
     if (refusal.retryable) {
       this.patchSnapshot({ connection: this.transportFailureState(), lastRefusal: refusal.envelope });
@@ -1213,7 +1213,7 @@ class Client implements SnapbackClient {
     // Discard first; cleanup expiry preserves the already settled outcome.
     const wasCurrent = this.authorityCurrent(authority);
     const expiration = await this.expireSession(authority);
-    if (expiration.cleared ? (!wasCurrent || !this.expirationCurrent(expiration)) : (!wasCurrent && !options.preserveOutcome)) throw this.supersededRefusal();
+    if (expiration.cleared ? (!wasCurrent || !this.expirationCurrent(expiration)) : (!wasCurrent && !options.preserveOutcome)) throw supersededRefusal();
     this.recordRefusal(refusal);
   }
 
@@ -1445,18 +1445,10 @@ class Client implements SnapbackClient {
 
   ensureAuthority(authority: Authority | undefined): asserts authority is Authority {
     if (!this.authorityCurrent(authority)) {
-      throw this.supersededRefusal();
+      throw supersededRefusal();
     }
   }
 
-  private supersededRefusal(): SnapbackRefusal {
-    return new SnapbackRefusal({
-      code: "E_AUTH_SUPERSEDED",
-      family: "auth",
-      message: "operation belonged to a previous authentication generation",
-      guide: "auth/session",
-    });
-  }
 
   private ensureOpen(): void {
     if (this.closed) {

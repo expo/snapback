@@ -424,6 +424,9 @@ journey("offline drain removes an unsent body and survives a cold restart", asyn
     && Array.isArray(value.data)
     && value.data.some((row: { kind?: string; messageId?: string }) =>
       row.kind === "removed" && row.messageId === "message-1"));
+  // Pin the current head for the derived cold-replay comparison. A local
+  // notification may show the tombstone before the tail's decode completes.
+  await alice.query(api.deliveries.inbox, { c: null });
   drain.close();
   await alice.offline();
   const cold = await alice.restart();

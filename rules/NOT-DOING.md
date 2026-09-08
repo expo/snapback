@@ -77,15 +77,15 @@ the third on 2026-09-04, LLP 1012 §12):
   about twelve recipes with CI-executed snippets. No million-word corpus, no embedded
   20 MB guide in the binary, no calendar freshness dates.
 - **WASM anywhere.** The client evaluator is the TypeScript twin. The 2026-09-06
-  search trade, revised under the 2026-09-07 architecture commission, sets
-  **82,500 bytes gzip for the complete local runtime**, with **80,000 the working
+  search trade, revised under the 2026-09-07 architecture and client-item commissions, sets
+  **84,000 bytes gzip for the complete local runtime**, with **80,000 the working
   target**. The canonical measurement uses Node 24.18.0, esbuild 0.25.9, gzip level 9.
   All normalization data, decoding, indexes, incremental state, prediction and
   local cursors participate in the measured entry; relocating required bytes
   does not count as a saving. Historical measurements remain in
   `snapback2/metrics/twin.jsonl`; the complete search integration is not yet
   qualified. The measured scope revision in LLP1012 records why the earlier
-  34,000, 50,000 and 66,000 allocations were replaced; exceeding 82,500 requires
+  34,000, 50,000 and 66,000 allocations were replaced; the item-surface trade in LLP 1018.003 records the 84,000 amendment; exceeding 84,000 requires
   a new explicit scope decision.
 
 ## Process not doing
