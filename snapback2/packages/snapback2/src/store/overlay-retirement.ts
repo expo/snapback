@@ -79,6 +79,26 @@ export function advanceOverlay(mark: OverlayWatermark, tail: WatermarkRecord | u
 /** Two post-commit resumes or proven tail advances retire a stranded prediction. */
 const OVERLAY_PATIENCE = 2;
 
+export interface OverlayAuthorityEvidence {
+  seq: number;
+  source: "absence" | "tombstone" | "row";
+  /** A lower-sequence negative can coexist with the latest accepted positive in one atomic swap. */
+  negative?: { seq: number; source: "absence" | "tombstone" };
+}
+
+/** Retain both the latest accepted fact and the strongest negative in this transaction. */
+export function recordOverlayAuthorityEvidence(target: Map<string, OverlayAuthorityEvidence>, key: string,
+  evidence: Omit<OverlayAuthorityEvidence, "negative">): void {
+  const previous = target.get(key);
+  const latest = evidence.seq > (previous?.seq ?? -1)
+    || (evidence.seq === previous?.seq && evidence.source === "tombstone") ? evidence : previous!;
+  const candidate = evidence.source === "row" ? undefined : { seq: evidence.seq, source: evidence.source };
+  const negative = candidate && (candidate.seq > (previous?.negative?.seq ?? -1)
+    || (candidate.seq === previous?.negative?.seq && candidate.source === "tombstone"))
+    ? candidate : previous?.negative;
+  target.set(key, { seq: latest.seq, source: latest.source, ...(negative ? { negative } : {}) });
+}
+
 /** Bind the exact row or absence authority against which this intent was admitted. */
 export function admitOverlayAuthority(state: PersistedRangeState, intent: string, rows: OverlayRow[],
   owners: (key: string) => Iterable<string>): void {
@@ -107,7 +127,7 @@ export function admitOverlayAuthority(state: PersistedRangeState, intent: string
 export function retireOverlays(
   state: PersistedRangeState,
   swap: StoreSwap,
-  authoritativeEvidence: Map<string, { seq: number; source: "absence" | "tombstone" | "row" }>,
+  authoritativeEvidence: Map<string, OverlayAuthorityEvidence>,
   clockOnly: Set<string>,
   previousTail: WatermarkRecord | undefined,
   tail: WatermarkRecord | undefined,
@@ -142,13 +162,19 @@ export function retireOverlays(
         || (evidence.seq === previous?.seq && evidence.source === "tombstone"))) {
         const basis = previous?.basis ?? (previous?.admitted ? "absence" : undefined);
         const admittedSeq = previous?.admittedSeq ?? previous?.seq;
-        const contradicts = admittedSeq !== undefined && (basis === "absence"
+        const negativeContradicts = admittedSeq !== undefined && evidence.negative !== undefined && (basis === "absence"
+          ? evidence.negative.seq > admittedSeq
+            || (evidence.negative.seq === admittedSeq && evidence.negative.source === "tombstone")
+          : basis === "row" && evidence.negative.seq >= admittedSeq);
+        const latestContradicts = admittedSeq !== undefined && (basis === "absence"
           ? evidence.source !== "absence" || evidence.seq > admittedSeq
           : basis === "row" && evidence.source !== "row" && evidence.seq >= admittedSeq);
+        const contradictionSeq = Math.max(negativeContradicts ? (evidence.negative?.seq ?? -1) : -1,
+          latestContradicts ? evidence.seq : -1);
         (state.overlayNegatives[intent] ??= {})[key] = {
           ...evidence, ...(previous?.admitted ? { admitted: true, basis, admittedSeq,
-            ...((previous.contradictedAt !== undefined || contradicts)
-              ? { contradictedAt: Math.max(previous.contradictedAt ?? -1, contradicts ? evidence.seq : -1) } : {}) } : {}),
+            ...((previous.contradictedAt !== undefined || contradictionSeq >= 0)
+              ? { contradictedAt: Math.max(previous.contradictedAt ?? -1, contradictionSeq) } : {}) } : {}),
         };
       }
     }
@@ -177,11 +203,14 @@ export function retireOverlays(
     const confirmed = new Set<string>();
     for (const row of overlay) {
       const key = rowKey(row), evidence = state.overlayNegatives[intent]?.[key];
+      const advancesAdmission = evidence?.admitted !== true || evidence.seq > (evidence.admittedSeq ?? evidence.seq)
+        || evidence.source !== (evidence.basis ?? "absence");
       if (evidence !== undefined && evidence.seq >= seq && (state.rowSeq[key] ?? -1) <= evidence.seq
-        && (!row.removed || evidence.source !== "row")) confirmed.add(key);
+        && advancesAdmission && (!row.removed || evidence.source !== "row")) confirmed.add(key);
     }
     for (const answer of answers) {
-      if (answer.seq < seq || answer.retained || answer.state === "denied") continue;
+      if (answer.seq < seq || answer.retained || answer.state === "denied"
+        || (entry.order !== undefined && answer.order <= entry.order)) continue;
       for (const ref of answer.refs) if (predicted.has(rowKey(ref)) && state.rows[rowKey(ref)] !== undefined) confirmed.add(rowKey(ref));
     }
     const pageArrived = predicted.size > 0 && committedWatermark !== undefined && pages.some((page) => page.seq >= seq

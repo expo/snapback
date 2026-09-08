@@ -383,6 +383,7 @@ test("authoritative evidence retires an ordinary group while its maintained targ
       try {
         await store.open(`${name}:${effect}-atomic`);
         await store.commit({ programs: maintainedProgram });
+        await store.commit({ deliveries: [page("counts.byId", {}, 30, [{ ...count, row: { ...count.row, value: 1 } }])] });
         await store.close?.();
         await seed(store, `${name}:${effect}-atomic`, item, {
           op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark: "cursor-9", updatedAt: 1,
@@ -399,7 +400,7 @@ test("authoritative evidence retires an ordinary group while its maintained targ
         assert.equal((await store.outbox.get(item.intent))?.predicted, true,
           `${name} ${effect}: prediction custody remains until every visible effect arrives`);
 
-        await store.commit({ deliveries: [page("counts.byId", {}, 30, [count])] });
+        await store.commit({ deliveries: [page("counts.byId", {}, 31, [count])] });
         await assertRetired(store, item.intent, `${name} ${effect}: final maintained row arrival`);
       } finally {
         await store.close?.();

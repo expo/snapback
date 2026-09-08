@@ -26,7 +26,8 @@ import {
   type ByteSwapRequest,
   type ViewedRecord,
 } from "./byte-cache.js";
-import { admitOverlayAuthority, pagePosition, retireOverlays, type OverlayWatermark } from "./overlay-retirement.js";
+import { admitOverlayAuthority, pagePosition, recordOverlayAuthorityEvidence, retireOverlays,
+  type OverlayAuthorityEvidence, type OverlayWatermark } from "./overlay-retirement.js";
 import { canonical } from "./canonical.js";
 import { sha256 } from "../../../evaluator/src/hash.js";
 import { compareArrays, totalCompare } from "../../../evaluator/src/value-runtime.js";
@@ -919,7 +920,7 @@ export class PersistentRangeStore implements RangeStore {
     const schema = swap.schema ?? (swap.programs && Object.values(swap.programs)[0]?.schema);
     if (schema) { const columns = onceColumns(schema); if (canonical(columns) !== canonical(state.onceColumns)) state.onceColumns = columns; }
     const clockOnly = new Set<string>();
-    const authoritativeEvidence = changesCoverage(swap) ? this.applyCoverage(state, swap, bytes, clockOnly) : new Map<string, { seq: number; source: "absence" | "tombstone" | "row" }>();
+    const authoritativeEvidence = changesCoverage(swap) ? this.applyCoverage(state, swap, bytes, clockOnly) : new Map<string, OverlayAuthorityEvidence>();
     if (swap.facts && canonical(state.facts) !== canonical(swap.facts)) state.facts = clone(swap.facts);
     if (swap.superseded === null) delete state.superseded;
     else if (swap.superseded) state.superseded = clone(swap.superseded);
@@ -1044,12 +1045,10 @@ export class PersistentRangeStore implements RangeStore {
     };
     // Keep provenance distinct from hidden-row and extent evictions. These facts
     // join each matching overlay below, even while its response is still queued.
-    const authoritativeEvidence = new Map<string, { seq: number; source: "absence" | "tombstone" | "row" }>();
+    const authoritativeEvidence = new Map<string, OverlayAuthorityEvidence>();
     const recordNegative = (ref: StoreTombstone, source: "absence" | "tombstone") => {
       const key = rowKey(ref);
-      if ((authoritativeEvidence.get(key)?.seq ?? -1) <= ref.seq) {
-        authoritativeEvidence.set(key, { seq: ref.seq, source });
-      }
+      recordOverlayAuthorityEvidence(authoritativeEvidence, key, { seq: ref.seq, source });
       recordEviction(explicitEvictions, ref);
     };
     const recordAbsences = (answer: Pick<StoredAnswer, "receipt" | "seq">) => {
@@ -1201,7 +1200,7 @@ export class PersistentRangeStore implements RangeStore {
         if (state.extentNegative[storageKey]) state.extentNegative[storageKey].active = false;
         state.rows[storageKey] = RowImage.is(row.row) ? { ...row } : clone(row);
         state.rowSeq[storageKey] = delivery.seq;
-        if ((authoritativeEvidence.get(storageKey)?.seq ?? -1) < delivery.seq) authoritativeEvidence.set(storageKey, { seq: delivery.seq, source: "row" });
+        recordOverlayAuthorityEvidence(authoritativeEvidence, storageKey, { seq: delivery.seq, source: "row" });
       }
       let data = clone(delivery.data);
       let answerState = delivery.state;
