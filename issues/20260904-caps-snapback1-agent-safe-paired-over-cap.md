@@ -52,3 +52,21 @@ already belong to the allowed base count. Thus this candidate has no inherited
 caps failure: its remaining overflow is entirely the two active Snapback 2
 repairs. This historical Snapback 1 cleanup ticket must not be used to excuse
 that introduced failure.
+
+## Final architecture census and closure — 2026-09-07
+
+At `776d5dee7`, the tool again printed the unchanged 1,504-line S1 path while
+reporting 205 oversized files. A full committed-source comparison against
+`origin/main` `4506a2eda` found 204 upstream and exactly one introduced overage:
+`offline-store.test.ts`, 1,642 lines versus 1,415. The printed S1 path was not
+the cause. The earlier inherited-failure inference in the run's closing evidence
+was incorrect and is explicitly corrected in its review record.
+
+The test-only split at `1322bbfbc` preserves all 42 top-level tests and moves the
+four public-state/refusal tests byte-for-byte. The files now count 1,490 and 199
+lines. The separate range-store blank-line correction also respects the canonical
+counter's trailing empty line. `node scripts/caps.mjs` now passes all seven
+categories: 204/204 oversized files, working set 58/59, foundation 12/12. This
+closes the architecture's introduced cap failures without changing the baseline.
+The historical S1 cleanup request remains independent; there is no current
+caps failure to attribute to those allowed baseline files.
