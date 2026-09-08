@@ -1798,3 +1798,35 @@ No new Exact or Contract work, competitor timing comparison, non-chat proof,
 successful-history compaction, or native-device qualification belongs to this
 entry. The broad local test attempt hit timeouts under parallel load; its
 results are retained separately from focused passing checks.
+
+
+### Assessment-items integration closeout
+
+The final reviewed source brings the complete local runtime to **83,999 gzip
+bytes**, one byte below the fixed 84,000 ceiling. Full-client exports are
+119,846 gzip bytes. The 80,000 working target remains missed, and one byte
+of room is an immediate constraint on subsequent SDK work. Consolidating the
+row walk and notification path bought space while preserving behavior; no
+required runtime root or resource limit was removed.
+
+The final React/Expo threads are 94/45 lines with 37 shared declaration lines.
+React still misses the 60-line target. More useful than that count: writes use
+the same typed target handle for submission and display, composite data narrows
+through `itemsFrom`, and retained rows no longer imply that a cleared count is
+complete. Those are fewer decisions for an app author to recreate.
+
+Independent Astra Max review has no material finding remaining. The broad
+run passes 881 native tests, 238 evaluator corpus cases and 225 compiler checks;
+the SDK still exceeds its ten-second deadline in three long cases. All three
+complete in 13–16 seconds under separately labelled 30-second diagnostics,
+without any repository deadline or assertion change. The original failures
+and the incomplete legacy inventory check remain recorded, so this is no
+claim that the complete verification loop is green. Success compaction and
+proof outside chat remain the author's separate work.
+
+The final ordinary loop measurement also passes every functional step but
+fails consumer/check/first-doctor time budgets (58.89/1.980/1.064 seconds).
+Its raw failed metric remains append-only. The second doctor sample and the
+release, incremental-build and init-to-dev checks pass; they do not cancel
+the failed samples. These measurements reinforce that loop speed needs
+separate work alongside the improved authoring surface.

@@ -139,3 +139,32 @@ suite separately passes 825 Node tests and the unchanged native/evaluator/
 compiler/doctest counts in 90.720 s. These are single-run observations, not a
 controlled performance comparison. Failed metrics and source-bound receipts are
 retained in the [revised qualification record](../benchmarks/runs/2026-09-08-release-cold-headroom/release-020-r2-qualification.json).
+
+
+## Assessment-items integration on the local M1 Max — 2026-09-08
+
+The ordinary `measure.mjs --check` run at source `85b1f3080`, timestamped
+`2026-09-08T19:31:45.617Z`, exits 1 after **326.050 s**. All functional
+steps pass, including installed consumers. The chat receipt retains the
+standard effects-disabled block; this is not full-engine qualification.
+Three timing checks remain red:
+
+| Step | Observed | Budget |
+|---|---:|---:|
+| Installed consumer verification | 58.89 s | 30 s |
+| Project `check` | 1.980 s | 1 s |
+| First `doctor` sample | 1.064 s | 0.5 s |
+
+The second doctor sample passes at 0.131 s; it does not erase the first.
+Warm release build passes at 236.49 s / 300 s, incremental rebuild at
+8.54 s / 15 s, and init-to-dev at 3.378 s / 10 s. The measurement uses
+Node 24.18.0 and Cargo 1.97.0 on the local M1 Max. The full test script and
+three bounded diagnostic tests completed before this run; no other task-owned
+build or test overlapped it. No paired baseline establishes a breaking commit
+or attributes these overruns to host contention.
+
+The failed append is preserved in `snapback2/metrics/loop.jsonl`. Raw output,
+PID 7609 and completion status are retained in the primary checkout's
+`.llp/ship-runs/20260908-client-123/` (`snapback2-client-123-measure.log` and
+the run ledger). This leaves the timing ticket open and does not qualify the
+complete loop or a package publication.

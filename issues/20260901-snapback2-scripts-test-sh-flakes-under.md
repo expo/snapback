@@ -260,3 +260,52 @@ or safe overlap of independent checks. Package rebuild tests mutate `dist`,
 so they cannot run concurrently with its readers without first isolating
 that fixture ownership. No assertion, deadline, inventory item or budget
 was removed to obtain these improvements.
+
+
+## Assessment-items integration on the local M1 Max — 2026-09-08
+
+The client readiness/semantic-target/composite-page integration at
+`85b1f3080` preserves the original deadlines. The first full parallel run
+reported 792 SDK passes, 32 failures and eight cancellations, plus 867 native
+passes and 13 failures. Stale guide, corpus, wrapper-pagination and proc
+diagnostic expectations were repaired; their assertions now describe the
+changed surface. Five run-owned SDK fixture process trees required termination
+after their tests timed out. That run remains failed.
+
+A second full invocation used Node file concurrency one and two nextest
+workers, without changing the script, inventory, assertions or deadlines.
+The native inventory passes **881/881 with four existing skips in 667.166 s**;
+doctests, all 238 evaluator corpus cases plus indexed regressions, and all
+225 compiler checks pass. The SDK stage, before the fixture-only `85b1f3080` correction, reports
+825 passes, seven failures and four cancellations. Two content failures were synthetic resume fixtures missing the new native cursor
+metadata; both complete files subsequently pass **67/67 in 9.128 s** with
+explicit metadata and unchanged assertions and deadlines.
+
+The remaining SDK failures are the real-session multi-carrier recovery case,
+the real-owner schema-successor/lost-ack case, and the exhaustive extent
+membership parent with cancelled descendants. All exceed their 10-second
+deadline, including focused original-deadline reruns while the two-worker
+native run was still active. The real-session case has an unchanged-baseline
+timeout recorded earlier in this ticket. The successor case passed in 6.40 s
+in this integration's earlier lane run. Neither observation proves a shared
+cause for the current timings. No time limit was increased in source, and
+the failed invocations are not a passing complete-suite claim.
+
+The root `check-inventories` attempt was also stopped after 13 minutes in its
+Snapback 1 diagnostics generator, without a result. This is incomplete legacy
+verification, not a Snapback 2 product failure or an inventory pass. Raw logs,
+owned-process records and review dispositions are retained in the coordinating
+checkout's `.llp/ship-runs/20260908-client-123/` at
+`/Users/ccheever/projects/snapback/.llp/ship-runs/20260908-client-123/`
+(the primary checkout, not the integration worktree).
+
+After the complete script finished, one separately labelled diagnostic per
+remaining case used a 30-second runner allowance without changing repository
+source or assertions. All completed successfully: real sessions **16.149 s**,
+schema successor/lost acknowledgement **13.467 s**, and extent membership
+**14.965 s** (43 passing parent/child tests). These establish functional
+completion for those executions; they do not satisfy the original ten-second
+deadline or replace any failed sample. No same-machine baseline comparison
+attributing the added time was performed. Logs are named
+`snapback2-client-123-diagnostic-{sessions,successor,store}.log` in the run
+evidence directory.
