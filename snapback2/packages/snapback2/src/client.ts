@@ -1,4 +1,3 @@
-import { serverArguments } from "./local-cursor.js";
 import { mayNeedAssetPlanning } from "./assets.js";
 import { ClientAuth, anonymousAuth, restoreAuthToken, saveAuthToken, storageRefusal, ensureBearerTransition } from "./client-auth.js";
 import { SharedSse } from "./live.js";
@@ -261,7 +260,7 @@ class Client implements SnapbackClient {
     this.ensureAuthority(authority);
     await this.ensureOfflineMetadata(authority);
     this.scheduleSupersessionReset(authority);
-    const transportArgs = serverArguments(args, this.offlineRuntime?.declaredCursorArg(op));
+    const transportArgs = this.offlineRuntime?.serverArguments(op, args) ?? args;
     let backoff = 50;
     for (let attempt = 1; ; attempt += 1) {
       try {
@@ -377,7 +376,7 @@ class Client implements SnapbackClient {
     drain = false,
   ): Subscription<SubscriptionDelivery<Result>> {
     const op = referenceName(ref);
-    let transportArgs = serverArguments(args, this.offlineRuntime?.declaredCursorArg(op));
+    let transportArgs = this.offlineRuntime?.serverArguments(op, args) ?? args;
     const mountedKey = `${op}\u0000live\u0000${stableSerialize(args)}`;
     const mountedRecord: MountedQuery = { op, args: transportArgs, drain: false };
     if (!drain) this.mounted.set(mountedKey, mountedRecord);
@@ -397,7 +396,7 @@ class Client implements SnapbackClient {
         if (this.forcedOffline) throw offlineNetworkRefusal();
         if (this.currentToken) await this.authState.settled(signal);
         await this.ensureOfflineMetadata(authority);
-        transportArgs = serverArguments(args, this.offlineRuntime?.declaredCursorArg(op));
+        transportArgs = this.offlineRuntime?.serverArguments(op, args) ?? args;
         mountedRecord.args = transportArgs;
         if (!drain) this.mounted.set(mountedKey, mountedRecord);
         this.scheduleSupersessionReset(authority);
@@ -1153,11 +1152,11 @@ class Client implements SnapbackClient {
         check();
         if (item.principal !== runtime.principal) continue;
         const raw = await json("/api/query?receipt=1", {
-          method: "POST", body: JSON.stringify({ op: item.op, args: serverArguments(item.args, runtime.declaredCursorArg(item.op)) }),
+          method: "POST", body: JSON.stringify({ op: item.op, args: runtime.serverArguments(item.op, item.args) }),
         });
         check();
         const accepted = await acceptOffline(runtime, item.op, item.args, raw, wireShape,
-          () => json("/api/query?receipt=1", { method: "POST", body: JSON.stringify({ op: item.op, args: serverArguments(item.args, runtime.declaredCursorArg(item.op)) }) }));
+          () => json("/api/query?receipt=1", { method: "POST", body: JSON.stringify({ op: item.op, args: runtime.serverArguments(item.op, item.args) }) }));
         check();
         wireQuery(accepted.result);
         superseded = await commitOffline(runtime, item.op, item.args, accepted,

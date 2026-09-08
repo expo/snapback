@@ -11,7 +11,7 @@ import { scopedRuleHash, wireJson } from './value-runtime';
 import { Twin } from '../../snapback2/src/twin';
 import { emptyState, PersistentRangeStore } from '../../snapback2/src/store/range-store';
 import { StoreChanges, SwapJournal } from '../../snapback2/src/store/swap-journal';
-import { decodeLocalCursor, encodeLocalCursor, localBinding, StaleLocalPage, serverArguments } from '../../snapback2/src/local-cursor';
+import { cursorArgument, decodeLocalCursor, encodeLocalCursor, localBinding, StaleLocalPage, serverArguments } from '../../snapback2/src/local-cursor';
 import { SEARCH_CONTRACT, SearchNormalizer } from './unicode';
 import { prepareRange } from './coverage';
 import { queryState } from './runner';
@@ -70,7 +70,7 @@ assert.equal(prefix('e\u0301'.repeat(1000)).length, 2, 'Q independent of the opt
 const scan: any = { site: 'search', table: 'messages', index: 'search', prefix: [{ Scalar: { Variable: 'room' } }, { WordPrefix: { source: { Variable: 'term' }, contract: SEARCH_CONTRACT, source_max: 2000 } }], order: 'Asc', take: { Literal: 2 }, after: { Variable: 'c' }, before: null, range: null, opaque_cursor: true, merge_site: null, provenance: 'Arg' };
 const ir: any = { name: 'search', kind: 'Query', args: { room: { Text: { max: 20 } }, term: { Text: { max: 2000 } }, c: { Optional: 'Cursor' } }, read_time_granularity_ms: null, body: [{ Return: { Scan: scan } }] };
 const schemaHash = sha256(canonicalSchemaJson(schema)), planHash = sha256(canonicalProgramJson(ir));
-const operation: any = { kind: 'query', planHash, ir, certificate: { plan_hash: planHash, schema_hash: schemaHash, completeness: 'Complete', max_steps: 1_000_000, read_sites: [{ site: 'search', hoist: true, decided_true: true }], result_pages: { '0': { site: 'search', table: 'messages', index: 'search', order: 'Asc', suffix: [{ name: 'at', kind: 'Int' }, { name: 'id', kind: 'Id' }] } } } };
+const operation: any = { kind: 'query', cursor: 'c', planHash, ir, certificate: { plan_hash: planHash, schema_hash: schemaHash, completeness: 'Complete', max_steps: 1_000_000, read_sites: [{ site: 'search', hoist: true, decided_true: true }], result_pages: { '0': { site: 'search', table: 'messages', index: 'search', order: 'Asc', suffix: [{ name: 'at', kind: 'Int' }, { name: 'id', kind: 'Id' }] } } } };
 const program: any = { generation: 'g', schemaHash, schema, programs: { search: operation } };
 // Public derived extents order by ordinary suffix values; the query descriptor remains an equality meaning.
 const extentRows = ['e0', 'e1', 'e2'].map((id, at) => ({ table: 'messages', id, row: wireJson(typed(id, 'café', at)) }));
@@ -95,7 +95,7 @@ assert.deepEqual((first.data as any[]).map(r => r.id), ['m0', 'm1']);
 const second = await twin.evaluate('search', { ...args, term: 'CAFE\u0301', c: first.next });
 assert.equal(second?.state, 'held'); assert.deepEqual((second?.data as any[]).map(r => r.id), ['m2', 'm3']);
 assert.equal(snapshots, 1, 'one cold snapshot, no warm snapshot');
-assert.deepEqual(serverArguments({ ...args, c: first.next }, 'c'), args);
+assert.deepEqual(serverArguments({ ...args, c: first.next }, ir.args), args);
 await assert.rejects(twin.evaluate('search', { ...args, room: 'other', c: first.next }), /E_INPUT/);
 const journal = new SwapJournal(state);
 journal.draft.negative['messages\0m0'] = 2; delete journal.draft.rows['messages\0m0']; delete journal.draft.rowSeq['messages\0m0']; changes.publish(state, journal.changed);
@@ -110,6 +110,32 @@ const before = state.rows['messages\0m1'];
 const rollback = new SwapJournal(state); rollback.draft.rows['messages\0m1'].row.body = 'changed'; rollback.rollback();
 assert.equal(state.rows['messages\0m1'], before); assert.equal(before.row.body, 'café');
 console.log('indexed seek, incremental twin, Unicode and h1 regressions passed');
+
+// Synthetic issued metadata names c, even when another Cursor formal sorts first.
+{
+  const pageIr = { ...ir, args: { a: { Optional: 'Cursor' }, ...ir.args }, body: [{ Return: { Object: {
+    count: { Literal: { Int: 4 } }, messages: { Scan: scan },
+  } } }] };
+  const pageOp = { ...operation, ir: pageIr, planHash: sha256(canonicalProgramJson(pageIr)) };
+  const held = { ...program, programs: { search: pageOp } }, rows = emptyState(), revisions = new StoreChanges<typeof rows>(); revisions.reset();
+  rows.facts = state.facts;
+  for (let i = 0; i < 4; i++) { rows.rows[`messages\0m${i}`] = { table: 'messages', id: `m${i}`, row: wireJson(typed(`m${i}`, 'café', i)) as any }; rows.rowSeq[`messages\0m${i}`] = 1; }
+  const local = new Twin({ program: () => held, changes: async since => revisions.read(rows, since), principal: () => 'viewer', now: () => 1, seq: () => 1 });
+  const initial = { a: null, ...args }, page = await local.evaluate('search', initial);
+  assert(page?.next?.startsWith('h1.'));
+  const rest = await local.evaluate('search', { ...initial, c: page.next });
+  assert.deepEqual((page.data as any).messages.map(r => r.id), ['m0', 'm1']);
+  assert.deepEqual((rest?.data as any).messages.map(r => r.id), ['m2', 'm3']);
+  assert.equal(cursorArgument(pageOp), 'c');
+  assert.deepEqual(serverArguments({ ...initial, c: page.next }, pageIr.args), initial);
+  assert.equal(localBinding(pageOp, { ...initial, c: page.next }), localBinding(pageOp, initial));
+  const changed = { ...initial, a: compositeCursorCase.expected.next, c: page.next };
+  assert.notEqual(localBinding(pageOp, changed), localBinding(pageOp, initial), 'the auxiliary Cursor remains bound');
+  await assert.rejects(local.evaluate('search', changed), /E_INPUT/);
+  delete pageOp.cursor;
+  assert.equal(cursorArgument(pageOp), undefined, 'missing native metadata never guesses the first formal');
+  assert.equal((await local.evaluate('search', initial))?.next, null, 'an unrouteable local token is never minted');
+}
 
 // A complete ordinary source scope covers every term, but a term receipt never covers the whole scope.
 const ordinaryReceipt: any = { schema_hash: schemaHash, rows: [], ranges: [{ site: 'ordinary', table: 'messages', index: 'ordinary', prefix: [{ Scalar: { String: 'r' } }], order: 'Asc', take: 1000, after: null, before: null, gt: null, gte: null, lt: null, lte: null, rule_hash: scopedRuleHash(schema, rules.read), row_ids: [], stop: 'Exhausted', absence: false, halo: null, n2_suffix: null }], absences: [], verdicts: [] };
@@ -412,7 +438,7 @@ console.log(`maximum Q2000/144-byte tagged identity h1 reservation: ${cursorRese
 // Actual native v4 provisional-03 artifacts; historical provisional-01 remains a separate custody refusal control.
 const actualProgram: any = { generation: 'engine-provisional-03', schema: searchFixtures.schema,
   schemaHash: sha256(canonicalSchemaJson(searchFixtures.schema)), programs: Object.fromEntries(Object.entries(searchFixtures.operations).map(([name, fixture]) => [name, {
-    kind: 'query', planHash: fixture.certificate.plan_hash, ir: fixture.program, certificate: fixture.certificate,
+    kind: 'query', cursor: 'c', planHash: fixture.certificate.plan_hash, ir: fixture.program, certificate: fixture.certificate,
   }])) };
 for (const op of Object.values<any>(actualProgram.programs)) {
   assert.equal(sha256(canonicalProgramJson(op.ir)), op.certificate.plan_hash);

@@ -19,7 +19,7 @@ pub(crate) mod search;
 mod summary;
 use diagnostic::Cost;
 use page::result_pages;
-pub use page::resumable_log_cursor;
+pub use page::{result_cursor, resumable_log_cursor};
 use summary::Summary;
 
 // Heap is calibrated; output/closure use declared maxima. These are admission bounds, not allocator/serializer proofs.

@@ -1,4 +1,4 @@
-import { isLocalCursor, serverArguments } from "./local-cursor.js";
+import { isLocalCursor } from "./local-cursor.js";
 import { emptyItemInputs, itemInputs, withItemInputs } from "./query-frame.js";
 import { FullRevalidationRequired } from './store/fact-integrity.js';
 // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — offline transport coordination is isolated from auth custody and asset methods.
@@ -236,7 +236,7 @@ export function createOfflineDrain<Args, Result>(options: {
     // The cursor argument is named by the manifest's op descriptor (`c` until it is loaded).
     cursor: async () => {
       await options.ready?.catch(() => undefined);
-      record.args = serverArguments(options.args, options.runtime?.declaredCursorArg(options.op));
+      record.args = options.runtime?.serverArguments(options.op, options.args) ?? options.args;
       return options.cursor();
     },
     mark: async (watermark, current, offline) => {

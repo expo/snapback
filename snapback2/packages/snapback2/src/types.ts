@@ -174,7 +174,7 @@ export interface ChannelHandle<Payload = unknown> {
 }
 
 export type DrainContract = { cursor: string } | { reason: string };
-export interface ManifestOperation { kind: string; args: unknown; planHash: string; drain?: DrainContract }
+export interface ManifestOperation { kind: string; args: unknown; planHash: string; cursor?: string | null; drain?: DrainContract }
 export interface ManifestTable { retain?: "until-revoked" | "delivered-history"; [key: string]: unknown }
 export interface Manifest {
   generation: string;

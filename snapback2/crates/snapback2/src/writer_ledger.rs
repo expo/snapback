@@ -379,6 +379,7 @@ impl State {
                     json!({
                         "kind": match program.kind { ProgramKind::Query => "query", ProgramKind::Job => "job", ProgramKind::Mutation => "mutation" },
                         "args": program.args,
+                        "cursor": snapback2_core::certificate::result_cursor(program, certificate),
                         "drain": writer_resume::drain_metadata(program, certificate),
                         "planHash": certificate.plan_hash,
                     }),

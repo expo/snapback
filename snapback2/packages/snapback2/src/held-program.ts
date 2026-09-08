@@ -33,6 +33,7 @@ export function decodeHeldProgram(value: unknown): HeldProgram | undefined {
       || entry.certificate.value_model_version !== CURRENT_VALUE_MODEL_VERSION || entry.certificate.evaluator_version !== CURRENT_EVALUATOR
       || sha256(canonicalProgramJson(entry.ir)) !== entry.planHash) continue;
     held[name] = { kind: entry.kind, planHash: entry.planHash, ir: entry.ir, certificate: entry.certificate,
+      ...(typeof entry.cursor === 'string' ? { cursor: entry.cursor } : {}),
       ...(object(entry.drain) ? { drain: entry.drain as unknown as DrainContract } : {}) };
   }
   return { generation, schemaHash, schema: schema as HeldProgram["schema"], programs: held };

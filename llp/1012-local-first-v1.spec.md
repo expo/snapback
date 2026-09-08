@@ -796,7 +796,7 @@ queries retain ordinary complete/capped page rules. Complete source scopes
 cover unseen terms; complete term-search ranges never imply whole source scopes.
 No result claims more than its authority/coverage proves.
 
-Local `h1` cursors bind the exact non-cursor query values (word bindings by
+Local `h1` cursors bind every query value except the selected page's cursor (word bindings by
 normalized meaning), operation/page descriptor, partition, program/schema,
 fresh store incarnation and authority/effective-row/overlay revisions plus the
 ordinary suffix. Their byte bound follows declared arguments; current server
@@ -804,6 +804,13 @@ cursor identity and 4,096-byte payload limit stay. Changes reject a local cursor
 and restart paging. Server preflight rejects `h1` before any discovery; clients
 never send it after reconnect. It cannot move a drain watermark, retire an
 overlay or prove server progress. Cold reopen has a fresh incarnation.
+The native return-path proof issues the selected cursor name with manifest and
+program custody. All certified page returns must use the same formal; aliases,
+helper expansion and unrelated earlier cursor arguments do not change it.
+Different cursor bindings across return paths leave local continuation absent.
+Every other cursor argument stays in the local binding. Transport clears local
+tokens in all declared cursor fields, including after a successor loses a
+selected page, and preserves ordinary text arguments unchanged.
 
 Before this integration qualifies: measure the complete twin, actual 100-lane
 whole media-bearing message closure and max-width operations under the existing

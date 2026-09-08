@@ -5,8 +5,9 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { SnapbackRefusal, api } from "../dist/client.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
+import { OfflineRuntime } from "../dist/sqlite-test.mjs";
 import { fixtureClient as createClient } from "./live-fixture.ts";
-import { certifiedDrain, generation, schemaHash, planHash, metadataResponse } from "./offline-metadata-fixture.ts";
+import { certifiedDrain, certifiedDrainProgram, generation, schemaHash, planHash, metadataResponse } from "./offline-metadata-fixture.ts";
 
 const emptyReceipt = () => ({ ranges: [], absences: [], verdicts: [] });
 async function tempRoot(): Promise<string> {
@@ -44,6 +45,33 @@ async function seededResumeStore(root: string, exact = false): Promise<void> {
   });
   await store.close?.();
 }
+
+test('native cursor metadata survives cold custody and transport clears every typed local token after page support is lost', async () => {
+  const root = await tempRoot(), factory = fileRangeStore(root);
+  let runtime = new OfflineRuntime({ store: factory });
+  try {
+    await runtime.open('dev:alice');
+    const args = { a: { Optional: 'Cursor' }, c: { Optional: 'Cursor' }, text: { Text: { max: 200 } } };
+    const metadata = { generation, programGeneration: generation, channels: {}, auth: {}, ops: {
+      composite: { kind: 'query', planHash, args, cursor: 'c', drain: { reason: 'cursor-binding' } },
+    } };
+    const request = { a: 'h1.auxiliary', c: 'h1.selected', text: 'h1.ordinary text' };
+    runtime.manifest(metadata);
+    assert.equal(runtime.declaredCursorArg('composite'), 'c');
+    assert.deepEqual(runtime.serverArguments('composite', request), { a: null, c: null, text: request.text });
+    runtime.manifest({ ...metadata, ops: { composite: { ...metadata.ops.composite, cursor: null } } });
+    assert.equal(runtime.declaredCursorArg('composite'), undefined);
+    assert.deepEqual(runtime.serverArguments('composite', request), { a: null, c: null, text: request.text });
+    const packet = certifiedDrainProgram();
+    Object.assign(packet.programs[certifiedDrain.op], { cursor: 'c' });
+    await runtime.program(packet);
+    await runtime.close(); runtime = new OfflineRuntime({ store: factory }); await runtime.open('dev:alice');
+    const stored = (await runtime.store.outbox.programs())[packet.generation];
+    assert.equal(stored.programs[certifiedDrain.op].cursor, 'c');
+    assert.equal(runtime.declaredCursorArg(certifiedDrain.op), 'c');
+    assert.deepEqual(runtime.serverArguments(certifiedDrain.op, { c: request.c }), { c: null });
+  } finally { await runtime.close(); await rm(root, { recursive: true, force: true }); }
+});
 
 test('conditional public query states preserve denial/partial shape and complete/capped cursors warm and cold', async context => {
   for (const state of ['denied', 'partial', 'complete', 'capped']) for (const cold of [false, true])
