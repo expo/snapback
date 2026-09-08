@@ -128,14 +128,14 @@ export async function submitMutation<Result>(options: SubmitMutationOptions): Pr
       // Session expiry sealed the store; preserve its refusal instead of reading through that seal.
       if (isSnapbackRefusal(error) && isTerminalSession(error.envelope)) throw error;
       const own = (await runtime.store.outbox.get(entry.intent)) ?? slot.entry;
-      if (own && own.state !== "queued") return settledResult<Result>(own, runtime);
+      if (own && own.state !== "queued") return settledResult<Result>(own);
       throw error;
     }
     const settled = (await runtime.store.outbox.get(entry.intent)) ?? slot.entry;
     // A transport failure mid-drain leaves the intent queued: the retry is the same envelope.
     if (!settled || settled.state === "queued") return queued(entry);
     void stopped;
-    return settledResult<Result>(settled, runtime);
+    return settledResult<Result>(settled);
   } finally {
     closeTerminal(runtime, entry.intent);
   }
@@ -164,9 +164,10 @@ function recordTerminal(runtime: OfflineRuntime, entry: OutboxEntry): void {
   if (slot) slot.entry = entry;
 }
 
-/** An online write that settled in its own call: the terminal answer, with the entry retired from the queue. */
-async function settledResult<Result>(entry: OutboxEntry, runtime: OfflineRuntime): Promise<MutationResult<Result>> {
-  await runtime.outbox.dismiss(entry.intent);
+// @ref LLP 1018.003#10-retirement-is-a-read-model-decision-dismissal-is-a-write —
+// settlement does not prove that a query can display the target. Online and
+// initially queued writes keep the same durable terminal until explicit dismissal.
+function settledResult<Result>(entry: OutboxEntry): MutationResult<Result> {
   if (entry.state === "expired") {
     throw new SnapbackRefusal({
       code: "E_OFFLINE_INTENT_EXPIRED",

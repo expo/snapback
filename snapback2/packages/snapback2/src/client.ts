@@ -84,6 +84,7 @@ export { browserTokenStore } from "./token-store.js";
 export type { Api, ApiProxy, ChannelRef as Channel, Op };
 export * from "./types.js";
 export * from "./snapshot.js";
+export { defineItems, type Items, type QueryItem, type ItemAction } from "./client-items.js";
 export type {
   Coverage,
   CoverageFacts,
