@@ -72,6 +72,11 @@ test("offline envelope decoder refuses unknown protocols and malformed shapes", 
     () => decodeDeliveryEnvelope({ ...fixture, data: { $row: { table: "messages" } } }),
     (error: unknown) => error instanceof DeliveryEnvelopeDecodeError && error.path === "$.data",
   );
+  const inherited = Object.assign(Object.create({ application: true }), { $row: { table: "messages", id: "one" } });
+  assert.throws(
+    () => decodeDeliveryEnvelope({ ...fixture, data: inherited }),
+    (error: unknown) => error instanceof DeliveryEnvelopeDecodeError && error.path === "$.data",
+  );
   const decodeError = new DeliveryEnvelopeDecodeError("$", "bad envelope");
   assert.equal("code" in decodeError, false, "decode TypeErrors are not runtime diagnostics");
 });

@@ -11,13 +11,13 @@ import type { Context } from '../../evaluator/src/types.js';
 import type { HeldProgram, PersistedRangeState, StoredAnswer, StoredRow, OutboxEntry, OverlayRow } from './store/range-store.js';
 import type { StoreChange, StoreRevision } from './store/swap-journal.js';
 import type { PredictedRow } from './types.js';
+import { rowKey } from './store/row-values.js';
 
 // Generic sources retain no mutable aliases; owned image leaves are already deeply isolated.
 function isolate<T>(value: T): T {
   if (!value || typeof value !== 'object' || RowImage.is(value) || ImageKeys.is(value) || RangeReceipt.is(value)) return value;
   return (Array.isArray(value) ? value.map(isolate) : Object.fromEntries(Object.entries(value).map(([k,v]) => [k,isolate(v)]))) as T;
 }
-const rowKey = (r: { table: string; id: string }) => `${r.table}\0${r.id}`;
 const ref = (key: string) => { const i = key.indexOf('\0'); return { table: key.slice(0, i), id: key.slice(i + 1) }; };
 type Contribution = { entry: OutboxEntry; row: OverlayRow };
 const fifo = (a: OutboxEntry, b: OutboxEntry) => (a.order ?? a.createdAt) - (b.order ?? b.createdAt) || a.intent.localeCompare(b.intent);

@@ -265,27 +265,26 @@ function normalizeArgType(arg: any): any {
 function normalizeStatement(statement: any): any {
   if (typeof statement === "string") return statement;
   const [kind, raw] = tagged(statement);
-  const order: Record<string, string[]> = { Const: ['name','value'], Let: ['name','value'], Assign: ['name','value'], Push: ['target','value'],
-    If: ['condition','then_body','else_body'], For: ['binding','domain','body'], Require: ['condition','code'], Insert: ['table','row'],
-    Update: ['table','key','patch'], Upsert: ['table','key','row'], Delete: ['table','key'], Emit: ['effect','payload'] };
-  const data = order[kind] ? pick(raw, order[kind], kind) : raw;
+  const shape = Object.hasOwn(STATEMENTS, kind) ? STATEMENTS[kind] : undefined;
+  const data = shape ? pick(raw, shape[0], kind) : raw;
+  for (const field of shape?.[1] ?? []) data[field] = normalizeExpression(data[field]);
   switch (kind) {
-    case "Const": case "Let": case "Assign": case "Push": data.value = normalizeExpression(data.value); break;
     case "If":
-      data.condition = normalizeExpression(data.condition);
       data.then_body = data.then_body.map(normalizeStatement); data.else_body = data.else_body.map(normalizeStatement); break;
     case "For": data.domain = normalizeDomain(data.domain); data.body = data.body.map(normalizeStatement); break;
-    case "Require": data.condition = normalizeExpression(data.condition); break;
-    case "Insert": data.row = normalizeExpression(data.row); break;
-    case "Update": data.key = normalizeExpression(data.key); data.patch = normalizeExpression(data.patch); break;
-    case "Upsert": data.key = normalizeExpression(data.key); data.row = normalizeExpression(data.row); break;
-    case "Delete": data.key = normalizeExpression(data.key); break;
-    case "Emit": data.payload = normalizeExpression(data.payload); break;
     case "Return": return { Return: normalizeExpression(data) };
-    default: return statement;
+    default: if (!shape) return statement;
   }
   return { [kind]: data };
 }
+
+/** Serde field order and expression-bearing fields for statement struct variants. */
+const STATEMENTS: Record<string, readonly [readonly string[], readonly string[]]> = {
+  Const: [['name','value'], ['value']], Let: [['name','value'], ['value']], Assign: [['name','value'], ['value']], Push: [['target','value'], ['value']],
+  If: [['condition','then_body','else_body'], ['condition']], For: [['binding','domain','body'], []], Require: [['condition','code'], ['condition']],
+  Insert: [['table','row'], ['row']], Update: [['table','key','patch'], ['key','patch']], Upsert: [['table','key','row'], ['key','row']],
+  Delete: [['table','key'], ['key']], Emit: [['effect','payload'], ['payload']],
+};
 
 function normalizeDomain(domain: any): any {
   const [kind, raw] = tagged(domain);

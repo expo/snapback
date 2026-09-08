@@ -33,6 +33,7 @@ import {
   tailWatermark,
 } from "./store/range-store.js";
 import { ByteCache } from "./store/byte-cache.js";
+import { rowKey } from "./store/row-values.js";
 import { Twin, readsConnected, type LocalAnswer, type Prediction } from "./twin.js";
 import type { DrainContract, Manifest, OfflineClientOptions, OutboxSettlement, RefusalEnvelope } from "./types.js";
 
@@ -122,10 +123,6 @@ function cursorArgument(args: unknown): string | undefined {
     if (kind === "Cursor" || (object(kind) && kind.Optional === "Cursor")) return name;
   }
   return undefined;
-}
-
-function rowKey(ref: RowRef): string {
-  return `${ref.table}\u0000${ref.id}`;
 }
 
 /**

@@ -1023,6 +1023,11 @@ const expectCode = (run: () => unknown, code: string, label: string) => {
     assert(JSON.stringify(canonical.body[0].For.domain) === JSON.stringify(expected),
       `canonical domain tag/payload changed for ${JSON.stringify(domain)}`);
   }
+  for (const kind of ["constructor", "toString", "__proto__"]) {
+    const statement = { [kind]: { future: true } };
+    const canonical = JSON.parse(canonicalProgramJson({ ...program("items"), body: [statement] }));
+    assert(canonical.body[0][kind].future === true, `statement tag ${kind} inherited a known-variant descriptor`);
+  }
   expectCode(() => canonicalProgramJson(program({})), "E_TRACE_SUBSET", "empty loop-domain tag");
 }
 

@@ -6,6 +6,7 @@ import { onceAssetIds, type OnceColumns } from "./asset-policy.js";
 // @ref LLP 1012#9-asset-bytes-on-the-device — the ByteCache sits beside the range store and joins its swap; once rows are excluded before viewing.
 
 import type { RangeStore, RowRef, StoredRow } from "./range-store.js";
+import { rowKey } from "./row-values.js";
 
 /** One cached rendition: what a component fetched at the width it asked for. */
 export interface ByteCacheEntry {
@@ -69,10 +70,6 @@ const SESSION_VIEW_LIMIT = 8;
 
 export function byteKey(assetId: string, width: number | null): string {
   return width === null ? assetId : `${assetId}.w${width}`;
-}
-
-function rowKey(ref: RowRef): string {
-  return `${ref.table}\u0000${ref.id}`;
 }
 
 function positive(value: unknown): boolean {

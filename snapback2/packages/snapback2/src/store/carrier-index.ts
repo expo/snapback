@@ -12,7 +12,7 @@ import { ExtentIndex } from './extent-index.js';
 import type { PersistedRangeState, Receipt, ReceiptRange, StoredAnswer, StoredRow, OfflineSchema } from './range-store.js';
 import type { ChangedRecords } from './swap-journal.js';
 import { rangeMeaningKey, type RangeMeaning, type KeyImage, type ExtentCondition } from './extent-facts.js';
-const rowKey = (r: { table: string; id: string }) => `${r.table}\0${r.id}`;
+import { rowKey } from './row-values.js';
 type HeldRange = { owner: string; range: ReceiptRange; key: string };
 export class CarrierIndex {
   readonly assets: RowAssets;

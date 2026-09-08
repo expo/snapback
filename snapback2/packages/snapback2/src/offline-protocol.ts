@@ -7,7 +7,7 @@ import { RangeReceipt, prepareWireRanges, wireRangePrefix, wireIndexValues, wire
 import { scalarText, validateIdentity, validateWriteRow, rowFromWire, valueFromWire, wireObject as plain } from "../../evaluator/src/value-runtime.js";
 import type { ClosureReceipt, IndexAtom } from "../../evaluator/src/types.js";
 import { schemaDigest } from "./offline-schema.js";
-import { mapRowValues } from "./store/row-values.js";
+import { asRowRef, escapedFields, mapRowValues } from "./store/row-values.js";
 
 /** Transaction-only decoded image transfer. Symbols never enter wire or persisted state. */
 export { preparedDeliveryRows } from '../../evaluator/src/row-image.js';
@@ -420,13 +420,15 @@ function indexColumns(schema: any, table: string, index: string): string[] {
 }
 
 function validateReferences(value: unknown, pool: Set<string>, path: string): void {
-  if (rowReference(value)) {
-    scalarText(value.$row.id); scalarText(value.$row.table);
-    if (!pool.has(poolKey(value.$row.table, value.$row.id))) fail(path, "references a missing pooled row");
+  const ref = asRowRef(value);
+  if (ref) {
+    scalarText(ref.id); scalarText(ref.table);
+    if (!pool.has(poolKey(ref.table, ref.id))) fail(path, "references a missing pooled row");
     return;
   }
-  if (escapedObject(value)) {
-    for (const [key, item] of Object.entries(value.$row.$value)) {
+  const escaped = escapedFields(value);
+  if (escaped) {
+    for (const [key, item] of Object.entries(escaped)) {
       validateReferences(item, pool, `${path}.$row.$value.${key}`);
     }
     return;
@@ -456,17 +458,6 @@ function wire(value: unknown, path: string): void {
   if (Array.isArray(value)) { value.forEach((item, index) => wire(item, `${path}[${index}]`)); return; }
   object(value, path, [], [], true);
   for (const [key, item] of Object.entries(value)) { scalarText(key); wire(item, `${path}.${key}`); }
-}
-
-function rowReference(value: unknown): value is WireRowReference {
-  return plain(value) && Object.keys(value).length === 1 && plain(value.$row)
-    && Object.keys(value.$row).sort().join(",") === "id,table"
-    && typeof value.$row.table === "string" && typeof value.$row.id === "string";
-}
-
-function escapedObject(value: unknown): value is WireEscapedObject {
-  return plain(value) && Object.keys(value).length === 1 && plain(value.$row)
-    && Object.keys(value.$row).length === 1 && plain(value.$row.$value);
 }
 
 function object(value: any, path: string, required: readonly string[], optional: readonly string[] = [], open = false): asserts value is Record<string, any> {

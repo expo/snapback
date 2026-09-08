@@ -147,6 +147,20 @@ test('ambiguous experimental fact custody resets atomically on cold open while o
   }
 });
 
+test('cold open restores nullable v1 map fields to their established empty state', async () => {
+  let saved: any;
+  const factory = () => new PersistentRangeStore({ carrier: 'memory', open: async () => structuredClone(saved),
+    replace: async state => { saved = structuredClone(state); }, close() {}, wipe: async () => {} });
+  let store = factory(); await store.open('nullable'); await store.close();
+  const nullable = ['watermarks','outbox','grants','overlay','overlayMisses','overlayWatermarks','overlayNegatives','bounds','programs','onceColumns',
+    'negative','rowSeq','rowFacts','verdictFacts','factImages','factExtents','extentGuards','extentNegative','assets','viewed'];
+  for (const field of nullable) saved[field] = null;
+  store = factory(); await store.open('nullable');
+  for (const field of nullable) assert.deepEqual((store as any).state[field], {}, `${field} did not recover its v1 default`);
+  assert.deepEqual(await store.outbox.all(), []);
+  await store.close();
+});
+
 test('carrier projection preserves a missing fact-format marker so experimental custody resets and published ordinary history survives', async context => {
   const { root,factories } = await carriers();
   try {

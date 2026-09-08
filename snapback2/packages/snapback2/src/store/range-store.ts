@@ -481,32 +481,23 @@ function normalizeState(value: PersistedRangeState | undefined): PersistedRangeS
   const { factGuards: legacyGuards, ...current } = value as PersistedRangeState & { factGuards?: object };
   const factFormat = value.factFormat ?? (Object.keys(legacyGuards ?? {}).length || Object.keys(value.rowFacts ?? {}).length
     || Object.keys(value.verdictFacts ?? {}).length || Object.values(value.answers).some(a => a.readTime !== undefined) ? 0 : FACT_FORMAT);
+  for (const field of STATE_MAPS) (current as any)[field] ??= {};
   return {
     ...current,
-    watermarks: value.watermarks ?? {},
-    outbox: value.outbox ?? {},
-    grants: value.grants ?? {},
-    overlay: value.overlay ?? {},
-    overlayMisses: value.overlayMisses ?? {},
-    overlayWatermarks: value.overlayWatermarks ?? {},
-    overlayNegatives: value.overlayNegatives ?? {},
-    bounds: value.bounds ?? {},
-    programs: value.programs ?? {},
     ...normalizeForwardingState(value),
-    onceColumns: value.onceColumns ?? {},
-    negative: value.negative ?? {},
-    rowSeq: value.rowSeq ?? {},
-    rowFacts: value.rowFacts ?? {}, verdictFacts: value.verdictFacts ?? {},
     factFormat,
-    factImages: value.factImages ?? {}, factExtents: value.factExtents ?? {}, extentGuards: value.extentGuards ?? {}, extentNegative: value.extentNegative ?? {},
     factSlots: factFormat !== FACT_FORMAT ? 0 : Object.keys(value.rowFacts ?? {}).length + Object.keys(value.verdictFacts ?? {}).length
       + Object.values(value.factImages ?? {}).reduce((sum,image) => sum + imageSlots(image.keys),0)
       + Object.values(value.factExtents ?? {}).reduce((sum, extent) => sum + extentSlots(extent.condition), 0) + Object.keys(value.extentGuards ?? {}).length
       + Object.keys(value.extentNegative ?? {}).length + Object.values(value.answers).reduce((sum, a) => sum + proofSlots(a), 0),
-    assets: value.assets ?? {},
-    viewed: value.viewed ?? {},
   };
 }
+
+/** Maps introduced since carrier v1 retain their established nullish-to-empty reopen behavior. */
+const STATE_MAPS = [
+  'watermarks','outbox','grants','overlay','overlayMisses','overlayWatermarks','overlayNegatives','bounds','programs','onceColumns',
+  'negative','rowSeq','rowFacts','verdictFacts','factImages','factExtents','extentGuards','extentNegative','assets','viewed',
+] as const;
 
 /**
  * The log a settlement's tail request and a resume's `log` both name: the drained
