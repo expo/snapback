@@ -1,0 +1,19 @@
+{
+  "instrument": "social-messenger@0.3.6-m8",
+  "ui": "0.3.2-m8",
+  "observation": "React Native Web preview root was a DIV with unchanged observed attributes; descendant IMG had a blob URL, complete=true and naturalWidth640. A focused later probe with root data-value mirroring the real child URL passed with loaded=true.",
+  "raw_private": "root .llp/ship-runs/20260908-release-cold-headroom/m5-background-observer/bounded-observations.jsonl",
+  "raw_sha256": "8af9f172a5e88b241a92aabfa9ed5d42ef82732e5de86a5cac3218b94f042a48",
+  "source_sha256": {
+    "benchmarks/tools/social-messenger/choreography/choreography.mjs": "8caf5ebdc9a85a2757fe5109740184bdac37977ac98d0a583f16f9dea383177f",
+    "benchmarks/tools/social-messenger/ui/src/ChatSettingsForm.tsx": "5aec6478ea056eefc9b6f6e7bbcfd56d8d635e5558c017e261725ec2879e1a9a",
+    "benchmarks/tools/social-messenger/CONTRACT.md": "9c928479a447d1b418eefca761098daac9afa014c7d60ed189fc935ae49453ca",
+    "benchmarks/tools/social-messenger/ui/test/observability-contract.test.mjs": "c2e97def1b1751b1bdcb0512040337fd1b2f0835843511a3df4004b4683f21ba"
+  },
+  "review": {
+    "agent": "/root/invalidation_audit",
+    "mode": "read-only source audit",
+    "finding": "Instrument interoperability defect for reported DOM shape; stock preview lacks changing root semantic value while root-only snapshot gates descendant media loading.",
+    "limitations": "No app inspected, test rerun, or app grade; no frozen instrument changes."
+  }
+}

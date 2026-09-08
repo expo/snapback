@@ -108,3 +108,9 @@ first-write versus full-replacement distinction, links and M3 claim limits.
 Its wording correction is applied: both 30.52s and the later 30.40s consumer
 failures remain visible. `ref-check` passed with 419 documents/7,842 references;
 `caps` passed all seven categories. No product test rerun is claimed.
+
+The M5 stock React Native Web preview also has a confirmed
+[observer interoperability gap](../../../issues/20260908-social-messenger-m5-background-observer-misses-rn-web-image.md):
+loaded child media can change without the root snapshot changing. The
+independent source audit and bounded observations are retained; this finding
+does not establish full M5 success or modify the frozen instrument.
