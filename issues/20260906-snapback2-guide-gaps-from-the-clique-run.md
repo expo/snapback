@@ -108,3 +108,44 @@ Evidence: `benchmarks/runs/2026-09-06-clique-improvement/evidence/npm-0.0.9/`.
 Reconcile the checklist with current packaged guides: item 8 time arithmetic is addressed by `guide/grammar.md`; item 11 conflict/new-intent recovery by `guide/offline.md`; cap reserve accounting is also documented in the grammar. Preserve prior item resolutions and the actual published 0.0.9 evidence for item 17. Remaining work includes the concrete bounded-list example, provider-placeholder development recipe, seed-handle collision guidance, PNG/video normalization explanation and first-use asset-custody explanation. Architecture completion does not close this umbrella.
 
 Read-only source and recorded-execution audit against main `2ac15dc2c`; no new test execution or publication is claimed by this update.
+
+## Exact 0.0.19 asset and scheduled-purge audit — 2026-09-08
+
+Read-only audit of published source `c170e53f9b78e7fae6d26f4c7aa92ff5265ea799`;
+these observations were withheld from the continuing cold builder and its fresh
+assessor. They are source findings, not newly executed application failures.
+Relevant paths below are under `snapback2/packages/snapback2/` unless stated.
+
+19. Scheduled deletion has a shipped recipe, but no one guide connects its four
+    parts: row timer (`guide/schedule.md:3`), retained message history and a
+    recipient log with `tombstones` (`templates/chat/snapback/schema.q:59`),
+    timer target emitting expiry events (`templates/chat/snapback/deliveries.q:51`),
+    and an ascending drained client query (`guide/offline.md:25`). Link this
+    complete recipe from the schedule guide. The template's purge loop covers
+    members returned at purge time; do not promise historical-recipient expiry
+    beyond that set. Existing expiry journey checks deletion/log emission;
+    the already-cached row/byte eviction journey uses the analogous `removed`
+    event. An executed reconnect-after-expiry case is still distinct evidence.
+20. Click-to-open view-once images require a conditional mount of `AssetImage`.
+    Both shipped chat clients demonstrate it (`react/src/Thread.tsx:173` and
+    `expo/src/screens/Thread.tsx:69` under the chat template), while README's
+    generic asset example mounts immediately. Document the click gate beside
+    that example. Imperative once-image reads additionally require a stable
+    opaque `viewing` token for the consumer lifetime (`src/client-assets.ts:99`);
+    describe that only where the imperative recipe is offered.
+21. Asset refusals prescribe `guide: "assets/client"`
+    (`src/client-assets.ts:101`, `src/client-upload.ts:414`, native components),
+    but no packaged page or CLI recipe resolves that path. Route the refusal
+    to an existing useful recipe or deliberately provide the missing recipe;
+    retain the actual CLI diagnostic as verification when repairing it.
+22. README's native view-once video section (`README.md:162`) describes a real
+    native memory player, but the public Quarry parser explicitly rejects
+    `video ... once` (`snapback2/packages/compiler/src/quarry/parser.ts:586`).
+    The Quarry guide also says image-only. Reconcile the supported authoring
+    path with the playback claim. This does not reopen or disprove the native
+    player qualification in
+    [the closed playback ruling](closed/20260905-snapback2-native-view-once-video-ruling.md);
+    that evidence and reachable public schema authoring are separate scopes.
+
+The parser rejection and missing route persist at observed main `a9acb134a`.
+No package, compiler, guide, or frozen benchmark was changed by this audit.

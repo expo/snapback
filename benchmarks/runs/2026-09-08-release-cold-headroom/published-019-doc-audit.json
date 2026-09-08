@@ -1,0 +1,81 @@
+{
+  "source": "c170e53f9b78e7fae6d26f4c7aa92ff5265ea799",
+  "version": "0.0.19",
+  "observedMain": "a9acb134a8768c77266c4f169e7a054301e7ce33",
+  "method": "Independent read-only immutable-source audit by release_version_review; root adjudication checked actual parser, route and prior native playback ruling. No new execution, no app grading.",
+  "findings": "issues/20260906-snapback2-guide-gaps-from-the-clique-run.md items19\u201322",
+  "coldSessionCustody": "Findings not supplied to cold builder or fresh assessor.",
+  "files": [
+    {
+      "path": "snapback2/packages/snapback2/README.md",
+      "sourceSha256": "b4e238e991f1e69d3e14d163fa996bee8e65c7c8334f1450cb2a086acd1942d3",
+      "observedMainSha256": "c3737f9588913f34293e054da1cc8edb31bf43adc05eef454992bf79ca2f18ef",
+      "unchangedAtObservedMain": false
+    },
+    {
+      "path": "snapback2/packages/snapback2/guide/schedule.md",
+      "sourceSha256": "a5541a51341ff03997f1de2ab23048f9fa0efad7355a6509fad860a8809a8c61",
+      "observedMainSha256": "a5541a51341ff03997f1de2ab23048f9fa0efad7355a6509fad860a8809a8c61",
+      "unchangedAtObservedMain": true
+    },
+    {
+      "path": "snapback2/packages/snapback2/guide/offline.md",
+      "sourceSha256": "4e69e9fac265ce7188b92f4c313d4c9176a11abbefa64528fcbc4f238688055e",
+      "observedMainSha256": "0e82ab04e45930b2a0f6857c581d83d8c79e8bef29e94c94f346416136649738",
+      "unchangedAtObservedMain": false
+    },
+    {
+      "path": "snapback2/packages/snapback2/guide/quarry.md",
+      "sourceSha256": "df800408ec096c696453e6b212691280f1d51bc11958a4b62f6ae84058331663",
+      "observedMainSha256": "df800408ec096c696453e6b212691280f1d51bc11958a4b62f6ae84058331663",
+      "unchangedAtObservedMain": true
+    },
+    {
+      "path": "snapback2/packages/snapback2/templates/chat/snapback/schema.q",
+      "sourceSha256": "68d11ef4d15a2072a03cd3fb4bd6e8e1f9cd6bd65bfbf99f56f76187f4291107",
+      "observedMainSha256": "68d11ef4d15a2072a03cd3fb4bd6e8e1f9cd6bd65bfbf99f56f76187f4291107",
+      "unchangedAtObservedMain": true
+    },
+    {
+      "path": "snapback2/packages/snapback2/templates/chat/snapback/deliveries.q",
+      "sourceSha256": "7f2f8d51532a90af243cddad13601c53a0c6c5765fa5b4987b04fd90a8268155",
+      "observedMainSha256": "7f2f8d51532a90af243cddad13601c53a0c6c5765fa5b4987b04fd90a8268155",
+      "unchangedAtObservedMain": true
+    },
+    {
+      "path": "snapback2/packages/snapback2/templates/chat/react/src/Thread.tsx",
+      "sourceSha256": "461fa4ff0555720fbcebb3ae032b4398623e22b65a17bedd394ddb5425d6c54f",
+      "observedMainSha256": "7a10ca3d09ac93b5d10cb143ef3f0b5158d4f7933279c41a4fec7a3b3bab15f0",
+      "unchangedAtObservedMain": false
+    },
+    {
+      "path": "snapback2/packages/snapback2/templates/chat/expo/src/screens/Thread.tsx",
+      "sourceSha256": "2827210b5598ee7958db7dec78af11975e87ffe831f207e38657c8a74fd48e0b",
+      "observedMainSha256": "31a199f8b13dc8348346e8abb498a58e174243947d335b14cde0376f7a2f89f9",
+      "unchangedAtObservedMain": false
+    },
+    {
+      "path": "snapback2/packages/snapback2/src/client-assets.ts",
+      "sourceSha256": "c2716dc4e90cdb53e7dbec14c7fdaf5211142c19eecfa1cd10b26f7746c2a4dc",
+      "observedMainSha256": "c2716dc4e90cdb53e7dbec14c7fdaf5211142c19eecfa1cd10b26f7746c2a4dc",
+      "unchangedAtObservedMain": true
+    },
+    {
+      "path": "snapback2/packages/compiler/src/quarry/parser.ts",
+      "sourceSha256": "e431a2bf8c7ba34b144e66296b6d82141dbb3064a36d5b36b57b3ae75b7df8ab",
+      "observedMainSha256": "e431a2bf8c7ba34b144e66296b6d82141dbb3064a36d5b36b57b3ae75b7df8ab",
+      "unchangedAtObservedMain": true
+    },
+    {
+      "path": "snapback2/crates/snapback2/src/guide.rs",
+      "sourceSha256": "d3acdceac0b09f5b9d6cb07b0735781effbbee88ee08fec7a36ea81ae5b0d079",
+      "observedMainSha256": "d3acdceac0b09f5b9d6cb07b0735781effbbee88ee08fec7a36ea81ae5b0d079",
+      "unchangedAtObservedMain": true
+    }
+  ],
+  "review": {
+    "reviewer": "/root/release_version_review",
+    "verdict": "READY",
+    "scope": "Prepared appended issue section and this immutable-source record; no material correction. No product edits, tests, app or builder-log access."
+  }
+}
