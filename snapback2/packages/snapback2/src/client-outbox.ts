@@ -49,6 +49,12 @@ export function wireReplayResponse<Result>(value: unknown): MutationResult<Resul
     };
   }
   const result = wireMutation<Result>(value);
+  if (result.state === "committed" && record.program !== undefined) {
+    const program = wireObject(record.program, `${surface}.program`);
+    if (typeof program.planHash !== "string" || !/^[a-f0-9]{64}$/.test(program.planHash)
+      || typeof program.schemaHash !== "string" || !/^[a-f0-9]{64}$/.test(program.schemaHash)) throw wireShape(`${surface}.program must carry exact plan and schema hashes`);
+    return { ...result, ...intent, program: { planHash: program.planHash, schemaHash: program.schemaHash } };
+  }
   if (result.state === "rejected" && typeof record.reason === "string") return { ...result, reason: record.reason, ...intent };
   return { ...result, ...intent };
 }

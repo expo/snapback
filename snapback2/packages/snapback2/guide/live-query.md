@@ -35,8 +35,9 @@ history.
 Use `{ items: spec }` with `useQuery`/`observe`. Declare `spec` once with
 `snapback2/client`'s `defineItems(query, { table, select, order, create, update,
 remove })`; object results also name `rows`. `select` returns an original row
-or null. Chat's typed `shared/thread.ts` binds each operation to its target;
-only its post recipe uses `ids[0]`.
+or null. Actions name `target: mutationTarget(op, "messages")`: compiler-typed
+table/action choices and certified addresses. Ambiguous or changed-program
+targets stay intent-only.
 
 Items have stable `key`, selected `data`, submitted `draft` while a create is
 pending, `predicted`, and FIFO `pending` actions. Drafts have no server time.

@@ -1,5 +1,6 @@
-import { api, type ImageAsset } from "snapback2/client";
+import { api, mutationTarget, type ImageAsset } from "snapback2/client";
 import { journey } from "snapback2/test";
+const postedMessage = mutationTarget(api.deliveries.post, "messages");
 
 function bytes(...parts: Uint8Array[]): Uint8Array {
   const output = new Uint8Array(parts.reduce((total, part) => total + part.length, 0));
@@ -555,7 +556,7 @@ journey("offline sends queue, survive a restart, replay in order, and a 503 afte
   const rows = thread.data.filter((row: LogRow) => row.message?.body === "queued one" || row.message?.body === "queued two");
   if (rows.length !== 2) throw new Error(`expected exactly one row per send, saw ${rows.length}`);
   // `last 50` pages newest-first: the second send precedes the first.
-  if (rows[0]?.message?.id !== second.ids[0] || rows[1]?.message?.id !== first.ids[0]) {
+  if (rows[0]?.message?.id !== postedMessage.id(queued.find(entry => entry.intent === second.intent)!) || rows[1]?.message?.id !== postedMessage.id(queued.find(entry => entry.intent === first.intent)!)) {
     throw new Error("server rows do not carry the pinned ids in send order");
   }
   await tail.until((value) => "data" in value && bodies(value.data).includes("queued two"));
@@ -662,7 +663,7 @@ journey("a never-opened chat renders offline from the drained log and an offline
   const predicted = await bob.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
   if (!("data" in predicted) || !Array.isArray(predicted.data)) throw new Error("the predicted thread did not return rows");
   // `last 50` pages newest-first: the queued send leads.
-  if (predicted.data[0]?.message?.id !== sent.ids[0] || predicted.data[0]?.message?.body !== "from the train") {
+  if (predicted.data[0]?.message?.id !== postedMessage.id(entry) || predicted.data[0]?.message?.body !== "from the train") {
     throw new Error(`the queued send is not inside the thread in order: ${JSON.stringify(bodies(predicted.data))}`);
   }
   if (!("predicted" in predicted) || !predicted.predicted?.some((row) => row.intent === sent.intent)) throw new Error("the thread did not mark the send predicted");
@@ -672,7 +673,7 @@ journey("a never-opened chat renders offline from the drained log and an offline
   if (settled?.state !== "committed") throw new Error(`the predicted send settled as ${settled?.state}: ${JSON.stringify(settled?.response)}`);
   const online = await bob.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
   if (!("data" in online) || !Array.isArray(online.data)) throw new Error("the online thread did not return rows");
-  if (online.data[0]?.message?.id !== sent.ids[0]) throw new Error("the server row does not carry the pinned id the prediction used");
+  if (online.data[0]?.message?.id !== postedMessage.id(entry)) throw new Error("the server row does not carry the pinned id the prediction used");
   // The offline replay before the send was the server's answer: same rows in the same order, the send aside.
   const replayed = JSON.stringify(local.data.map((row: LogRow) => [row.messageId, row.message?.body]));
   const served = JSON.stringify(online.data.slice(1).map((row: LogRow) => [row.messageId, row.message?.body]));
@@ -709,30 +710,30 @@ journey("a send queued offline into a three-member group shows one bubble, keeps
     if (JSON.stringify(entry.omitted) !== JSON.stringify(["messageCounts"])) throw new Error(`omitted was ${JSON.stringify(entry.omitted)}`);
     const queued = await bob.query(api.deliveries.thread, { conversationId, c: null });
     if (!("data" in queued) || !Array.isArray(queued.data)) throw new Error("the predicted thread did not return rows");
-    const bubbles = queued.data.filter((row: LogRow) => row.message?.id === sent.ids[0]);
+    const bubbles = queued.data.filter((row: LogRow) => row.message?.id === postedMessage.id(entry));
     if (bubbles.length !== 1 || bubbles[0]?.message?.body !== "to the trio") throw new Error(`expected one bubble while queued, saw ${bubbles.length}`);
     await bob.online();
     await bob.settled();
     const settled = (await bob.outbox.entries()).find((item) => item.intent === sent.intent);
     if (settled?.state !== "committed") throw new Error(`the group send settled as ${settled?.state}: ${JSON.stringify(settled?.response)}`);
     const response = settled.response as { data?: { id?: string } };
-    if (response.data?.id !== sent.ids[0]) throw new Error("the server minted the message under another id than the prediction");
+    if (response.data?.id !== postedMessage.id(entry)) throw new Error("the server minted the message under another id than the prediction");
     const served = await bob.query(api.deliveries.thread, { conversationId, c: null });
     if (!("data" in served) || !Array.isArray(served.data)) throw new Error("the online thread did not return rows");
-    const rows = served.data.filter((row: LogRow) => row.messageId === sent.ids[0]);
-    if (rows.length !== 1 || rows[0]?.message?.id !== sent.ids[0]) throw new Error(`expected exactly one delivery row for the send online, saw ${rows.length}`);
+    const rows = served.data.filter((row: LogRow) => row.messageId === postedMessage.id(entry));
+    if (rows.length !== 1 || rows[0]?.message?.id !== postedMessage.id(entry)) throw new Error(`expected exactly one delivery row for the send online, saw ${rows.length}`);
     // Offline again: the twin's overlay left with the settlement's tail, so the server's row is the only one.
     await bob.offline();
     const replayed = await bob.query(api.deliveries.thread, { conversationId, c: null });
     if (!("data" in replayed) || !Array.isArray(replayed.data)) throw new Error("the offline thread did not return rows");
-    const duplicates = replayed.data.filter((row: LogRow) => row.messageId === sent.ids[0]);
+    const duplicates = replayed.data.filter((row: LogRow) => row.messageId === postedMessage.id(entry));
     if (duplicates.length !== 1) throw new Error(`the prediction's delivery row survived beside the server's: ${duplicates.length} rows`);
     if ("predicted" in replayed && replayed.predicted?.some((row) => row.intent === sent.intent)) throw new Error("a settled send is still marked predicted");
     await bob.online();
     for (const [name, member] of [["alice", alice], ["charlie", charlie]] as const) {
       const inbox = await member.query(api.deliveries.inbox, { c: null });
       if (!("data" in inbox) || !Array.isArray(inbox.data)) throw new Error(`${name}'s inbox did not return rows`);
-      const delivered = inbox.data.filter((row: LogRow) => row.messageId === sent.ids[0]);
+      const delivered = inbox.data.filter((row: LogRow) => row.messageId === postedMessage.id(entry));
       if (delivered.length !== 1 || delivered[0]?.message?.body !== "to the trio") {
         throw new Error(`${name} received ${delivered.length} deliveries of the group send`);
       }

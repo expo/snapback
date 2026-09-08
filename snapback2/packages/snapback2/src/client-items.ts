@@ -1,6 +1,7 @@
 // @ref LLP 1018.003.000#2-correspondence —
 // the app names correspondence; the shared query publication attaches work.
 import { referenceName, type Op } from "./api.js";
+import { resolvedMutationTarget, type MutationTargetRef } from "./mutation-targets.js";
 import { intentLabel, type Snapshot } from "./snapshot.js";
 import type { OutboxEntry } from "./store/range-store.js";
 import { itemAddress } from "./query-frame.js";
@@ -29,14 +30,12 @@ export type ItemSnapshot<Result, Row extends ItemRow, Draft> = Snapshot<Result> 
   readonly items: readonly QueryItem<Row, Draft>[];
 };
 interface Create<Args, Query, Draft> {
-  op: Op<Args, unknown>;
+  target: MutationTargetRef<Args, "create">;
   belongs(args: NoInfer<Args>, query: Query): boolean;
-  key(intent: Readonly<OutboxEntry>): string | undefined;
   draft(args: NoInfer<Args>): Draft;
 }
-interface Target<Args> {
-  op: Op<Args, unknown>;
-  key(args: NoInfer<Args>): string | undefined;
+interface Target<Args, Kind extends "update" | "remove"> {
+  target: MutationTargetRef<Args, Kind>;
 }
 interface Binding<Query, Draft> {
   readonly op: string;
@@ -60,8 +59,8 @@ interface ItemSpec<Args, Source, Row, CreateArgs, UpdateArgs, RemoveArgs, Draft>
   select(row: Source): Row | null | undefined;
   order?: "reverse";
   create?: Create<CreateArgs, Args, Draft>;
-  update?: Target<UpdateArgs>;
-  remove?: Target<RemoveArgs>;
+  update?: Target<UpdateArgs, "update">;
+  remove?: Target<RemoveArgs, "remove">;
 }
 export function defineItems<Args, Result extends readonly unknown[], Row extends ItemRow,
   CreateArgs = never, UpdateArgs = never, RemoveArgs = never, Draft = never>(
@@ -81,16 +80,18 @@ export function defineItems<Args, Result, Source, Row extends ItemRow,
   spec: ItemSpec<Args, Source, Row, CreateArgs, UpdateArgs, RemoveArgs, Draft> & { rows?(data: Result): readonly Source[] },
 ): Items<Args, Result, Row, Draft> {
   const bindings: Binding<Args, Draft>[] = [];
+  const address = (target: MutationTargetRef<any>, kind: ItemActionKind) => (entry: OutboxEntry) => {
+    return target.table === spec.table ? resolvedMutationTarget(entry, target.op, target.table, kind) : undefined;
+  };
   if (spec.create) {
-    const { op, belongs, key, draft } = spec.create;
-    bindings.push(Object.freeze({ op: referenceName(op), kind: "create", key,
+    const { target, belongs, draft } = spec.create;
+    bindings.push(Object.freeze({ op: target.op, kind: "create", key: address(target, "create"),
       belongs: (entry: OutboxEntry, args: Args) => belongs(entry.args as CreateArgs, args),
       draft: (entry: OutboxEntry) => draft(entry.args as CreateArgs) }));
   }
-  const target = <A>(kind: "update" | "remove", binding: Target<A> | undefined) => {
+  const target = <A, K extends "update" | "remove">(kind: K, binding: Target<A, K> | undefined) => {
     if (!binding) return;
-    const { op, key } = binding;
-    bindings.push(Object.freeze({ op: referenceName(op), kind, key: (entry: OutboxEntry) => key(entry.args as A) }));
+    bindings.push(Object.freeze({ op: binding.target.op, kind, key: address(binding.target, kind) }));
   };
   target("update", spec.update);
   target("remove", spec.remove);
@@ -171,6 +172,7 @@ export interface ItemObservation {
   readonly absent?: true;
 }
 export interface ItemInputs {
+  readonly program?: { generation: string; schemaHash: string };
   readonly entries: readonly OutboxEntry[];
   /** A complete answer to this query decides page membership, not row contents. */
   readonly selection?: ItemObservation;
@@ -259,7 +261,10 @@ export function attachItems<Args, Result, Row extends ItemRow, Draft>(
     work.add(create);
   }
   const attached = new Map<string, Set<string>>();
-  for (const { entry, binding, key } of [...work].sort((a, b) => a.position - b.position)) {
+  for (const { entry, binding, key: admittedKey } of [...work].sort((a, b) => a.position - b.position)) {
+    const key = entry.targets && (inputs.program?.generation !== entry.targets.generation || inputs.program?.schemaHash !== entry.targets.schemaHash)
+      ? undefined : admittedKey;
+    if (key === undefined && !binding.draft) continue;
     if (binding.belongs && !binding.belongs(entry, args)) continue;
     let item = key === undefined ? undefined : items.get(key);
     const selected = !item?.data || !inputs.values || inputs.values.get(item.data) === itemAddress(spec.table, key!);

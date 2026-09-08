@@ -100,7 +100,22 @@ mutation fallback(value: text <=20, accept: bool):
     let grant = &login.body["grant"];
     let committed_request = replay_request(grant, 0, true);
     let rejected_request = replay_request(grant, 1, false);
+    let before = status(port, &secret);
     let committed = replay(port, token, &committed_request);
+    // Even a successful mutation with no row effects crosses a new sequence.
+    // A matching replay retains that sequence and does not execute it again.
+    let after_commit = status(port, &secret);
+    assert_eq!(committed.body["seq"], before["seq"].as_u64().unwrap() + 1);
+    assert_eq!(after_commit["seq"], committed.body["seq"]);
+    assert_eq!(
+        after_commit["executions"],
+        before["executions"].as_u64().unwrap() + 1
+    );
+    let retried = replay(port, token, &committed_request);
+    assert_eq!(retried.body_bytes, committed.body_bytes);
+    let after_retry = status(port, &secret);
+    assert_eq!(after_retry["seq"], after_commit["seq"]);
+    assert_eq!(after_retry["executions"], after_commit["executions"]);
     let rejected = replay(port, token, &rejected_request);
     assert_eq!(committed.status, 200, "{}", committed.body);
     assert_eq!(committed.body["state"], "committed", "{}", committed.body);

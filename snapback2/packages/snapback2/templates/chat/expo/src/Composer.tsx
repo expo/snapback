@@ -1,6 +1,7 @@
+import { messageWrites } from "../shared/thread";
 import React, { useRef, useState } from "react";
 import { Button, Text, TextInput, View } from "react-native";
-import { api, isSnapbackRefusal } from "snapback2/client";
+import { isSnapbackRefusal } from "snapback2/client";
 import { useMutation, useSnapbackClient, useSnapbackSnapshot } from "snapback2/react-native";
 
 const describe = (error: unknown) => (isSnapbackRefusal(error) ? error.envelope.rewrite ?? error.message : String(error));
@@ -11,7 +12,7 @@ const describe = (error: unknown) => (isSnapbackRefusal(error) ? error.envelope.
 // second tab to recover from; it keeps only the capture, the in-flight guard,
 // and clearing the exact text that was sent.
 export function Composer({ conversationId }: { conversationId: string }) {
-  const post = useMutation(api.deliveries.post);
+  const post = useMutation(messageWrites.create);
   const client = useSnapbackClient();
   const generation = useSnapbackSnapshot().authGeneration;
   const [body, setBody] = useState("");

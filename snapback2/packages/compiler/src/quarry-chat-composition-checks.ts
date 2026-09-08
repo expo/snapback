@@ -39,6 +39,24 @@ export function registerQuarryChatCompositionChecks(test: Test, frontend: string
     const certificate = (name: string) => checked.find((item) => item.program === name)!.certificate!;
     const view = operation(lowered.project.programs, "deliveries.conversationView");
     const post = operation(lowered.project.programs, "deliveries.post");
+    const targets = (name: string) => (certificate(name).mutation_targets as { targets: any[]; complete: boolean });
+    deepStrictEqual(targets(post.name).targets.find(target => target.table === "messages"),
+      { table: "messages", kind: "create", source: { newId: 0 } });
+    deepStrictEqual(targets("deliveries.edit").targets.find(target => target.table === "messages"),
+      { table: "messages", kind: "update", source: { argument: "messageId" } });
+    deepStrictEqual(targets("deliveries.unsend").targets.find(target => target.table === "messages"),
+      { table: "messages", kind: "remove", source: { argument: "messageId" } });
+    assert(!targets(post.name).complete, "the named message target hid repeated delivery fan-out");
+    const reordered = structuredClone(post);
+    const extraSchema = structuredClone(lowered.project.schema);
+    extraSchema.tables.audit = { columns: { id: "Id" }, indexes: { byId: { components: [{ Column: "id" }], unique: true } },
+      rules: { read: "Allow", insert: "Allow", update: "Deny", delete: "Deny" }, constraints: [], retain: "until-revoked" };
+    reordered.body.unshift({ Insert: { table: "audit", row: { Object: { id: { Input: "NewId" } } } } });
+    const reorderedCheck = rustCheck(lowered.project.programs.map(program => program.name === post.name ? reordered : program),
+      "synthetic", extraSchema, undefined, lowered.project.effects).find(result => result.program === post.name)!;
+    assert(!reorderedCheck.error, `reordered mutation refused: ${JSON.stringify(reorderedCheck.error)}`);
+    deepStrictEqual((reorderedCheck.certificate!.mutation_targets as any).targets.find((target: any) => target.table === "messages"),
+      { table: "messages", kind: "create", source: { newId: 1 } });
     const unsend = operation(lowered.project.programs, "deliveries.unsend");
     assert(!certificate(view.name).result_pages,
       `object-composed conversation view acquired a root continuation: ${JSON.stringify(certificate(view.name).result_pages)}`);

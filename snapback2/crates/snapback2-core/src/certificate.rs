@@ -17,6 +17,8 @@ mod output;
 mod page;
 pub(crate) mod search;
 mod summary;
+mod targets;
+pub use targets::{MutationTarget, MutationTargets, TargetKind, TargetSource, UnresolvedTarget};
 use diagnostic::Cost;
 use page::result_pages;
 pub use page::resumable_log_cursor;
@@ -97,6 +99,8 @@ pub struct Certificate {
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub result_pages: BTreeMap<String, ResultPageSite>,
     pub write_sites: Vec<WriteSite>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mutation_targets: Option<MutationTargets>,
     pub maintained_amplification: u64,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub maintained_writes: BTreeMap<String, u64>,
@@ -759,6 +763,7 @@ impl<'a> Checker<'a> {
             merge_sites: analyzer.merge_sites.into_values().collect(),
             result_pages,
             write_sites: summary.writes,
+            mutation_targets: targets::derive(self.schema, program),
             maintained_amplification,
             maintained_writes,
             engine_writes: if timer_writes > 0 {

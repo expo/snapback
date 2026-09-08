@@ -53,6 +53,21 @@ export function registerFinalGateChecks(test: RegisterTest): void {
     await mkdir(buildDir, { recursive: true });
     const apiDts = resolve(buildDir, "api.d.ts");
     await Bun.write(apiDts, lowered.apiDts);
+    const targets = resolve(buildDir, "mutation-target-consumer.ts");
+    await Bun.write(targets, `import { api, mutationTarget } from "snapback2/client";
+const create = mutationTarget(api.deliveries.post, "messages");
+const update = mutationTarget(api.deliveries.edit, "messages");
+const remove = mutationTarget(api.deliveries.unsend, "messages");
+const created: "create" | undefined = create.__kind;
+const updated: "update" | undefined = update.__kind;
+const removed: "remove" | undefined = remove.__kind;
+// @ts-expect-error a table absent from this mutation cannot be selected
+mutationTarget(api.deliveries.post, "nonexistent");
+// @ts-expect-error a query has no mutation targets
+mutationTarget(api.messages.thread, "messages");
+// @ts-expect-error update targets cannot stand in for create targets
+const wrong: typeof create = update;
+void [created, updated, removed, wrong];`);
     const files = async (path: string): Promise<string[]> => {
       const entries = await readdir(path, { withFileTypes: true });
       return (await Promise.all(entries.map((entry) => entry.isDirectory() ? files(resolve(path, entry.name))
@@ -60,7 +75,7 @@ export function registerFinalGateChecks(test: RegisterTest): void {
     };
     const screens = (await Promise.all(["react", "expo", "shared"].map((arm) => files(resolve(template, arm))))).flat();
     const program = ts.createProgram({
-      rootNames: [...screens, apiDts],
+      rootNames: [...screens, apiDts, targets],
       options: {
         baseUrl: packageRoot,
         jsx: ts.JsxEmit.ReactJSX,

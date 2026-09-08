@@ -35,7 +35,7 @@ export function deliveredItemInputs(envelope: DeliveryEnvelopeV1, data: unknown,
     const address = itemAddress(table, key[0]);
     if (!observations.has(address)) observations.set(address, { through: envelope.seq, absent: true });
   }
-  return { entries, values, observations, predicted: new Map(),
+  return { entries, values, observations, predicted: new Map(), program: { generation: envelope.generation, schemaHash: envelope.schemaHash },
     ...(["complete", "capped"].includes(envelope.state) ? { selection: { through: envelope.seq } } : {}) };
 }
 
@@ -94,6 +94,7 @@ export class ItemCapture {
     const selection = this.held?.selection ?? freshItemSelection(this.held);
     return { entries: this.entries ?? Object.values(this.state.outbox).sort((a, b) => (a.order ?? a.createdAt) - (b.order ?? b.createdAt)
       || a.intent.localeCompare(b.intent)), observations: this.observations, values: this.values, predicted: new Map(this.predicted),
+      ...(this.state.facts ? { program: { generation: this.state.facts.generation, schemaHash: this.state.facts.schemaHash } } : {}),
       ...(selection ? { selection } : {}) };
   }
 }

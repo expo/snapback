@@ -193,7 +193,12 @@ impl State {
         if matches!(execution.state, ExecutionState::Committed { .. }) {
             self.after_commit(execution.seq)?;
         }
-        Ok(replay_mutation_response(&execution, &wire.intent))
+        let (_, certificate) = &self.runtime().generation().programs()[op];
+        Ok(replay_mutation_response(
+            &execution,
+            &wire.intent,
+            Some((&certificate.plan_hash, &certificate.schema_hash)),
+        ))
     }
 
     fn decode_replay_trace(&self, trace: &ReplayTraceWire) -> Result<ReplayTrace, Refusal> {

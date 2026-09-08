@@ -829,7 +829,7 @@ fn chat_expo_scaffolds_without_recovery_custody_or_the_retired_log_reducer() {
             .contains(&serde_json::json!(".snapback/build/api.d.ts"))
     );
     let composer = std::fs::read_to_string(project.path.join("src/Composer.tsx")).unwrap();
-    assert!(composer.contains("useMutation(api.deliveries.post)"), "{composer}");
+    assert!(composer.contains("useMutation(messageWrites.create)"), "{composer}");
     assert!(!composer.contains("shared/send") && !composer.contains("shared/recovery"), "{composer}");
     assert!(!project.path.join("shared/log.ts").exists());
     assert!(!project.path.join("shared/offline.ts").exists());
@@ -864,6 +864,6 @@ fn chat_react_scaffolds_without_recovery_custody_or_the_retired_log_reducer() {
     assert!(thread.contains("../shared/thread"), "{thread}");
     assert!(!thread.contains("shared/recovery") && !thread.contains("shared/log"), "{thread}");
     let composer = std::fs::read_to_string(project.path.join("src/Composer.tsx")).unwrap();
-    assert!(composer.contains("useMutation(api.deliveries.post)"), "{composer}");
+    assert!(composer.contains("useMutation(messageWrites.create)"), "{composer}");
     assert!(!composer.contains("shared/send"), "{composer}");
 }

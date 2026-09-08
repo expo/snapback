@@ -1,10 +1,11 @@
 export const referencePath: unique symbol = Symbol.for("snapback.referencePath");
 
-export interface Op<Args, Result> {
+export interface Op<Args, Result, Targets extends Record<string, "create" | "update" | "remove"> = {}> {
   readonly op: string;
   readonly [referencePath]: string;
   readonly __args?: (args: Args) => void;
   readonly __result?: Result;
+  readonly __targets?: Targets;
 }
 
 export interface Channel<Args, Payload = unknown> {

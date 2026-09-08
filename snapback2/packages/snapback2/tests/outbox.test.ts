@@ -645,6 +645,7 @@ test("a grant arriving without an outbox entry change flips useOutbox().ready", 
   assert.ok(observed.some(([ready, entries]) => ready && entries === 0), "React never observed the grant-only readiness change");
   drain.close();
   await act(async () => { renderer!.unmount(); });
+  await client.close();
   await rm(root, { recursive: true, force: true });
 });
 

@@ -64,6 +64,7 @@ import type {
   SnapbackClient, Subscription, SubscriptionDelivery, VideoAsset,
 } from "./types.js";
 export { api };
+export { mutationTarget, type MutationTargetRef, type MutationProgramIdentity, type AdmittedMutationTargets } from "./mutation-targets.js";
 export { SnapbackRefusal, isSnapbackRefusal };
 export { browserTokenStore } from "./token-store.js";
 export type { Api, ApiProxy, ChannelRef as Channel, Op };

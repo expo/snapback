@@ -113,7 +113,30 @@ export function renderBoundArgumentType(
 }
 
 function operationType(program: BoundQuarryProgram, rows: ReadonlyMap<string, string>): string {
-  return `Op<${printArgs(program.args, program.kind === "mutation")}, ${printFacts(program.result, rows).text}>`;
+  return `Op<${printArgs(program.args, program.kind === "mutation")}, ${printFacts(program.result, rows).text}${targetTypes(program)}>`;
+}
+
+// Runtime correspondence comes from Rust certification of the lowered IR;
+// these bound facts only type which table/action choices an app may request.
+function targetTypes(program: BoundQuarryProgram): string {
+  if (program.kind !== "mutation") return "";
+  const tables = new Map<string, Set<string>>();
+  const walk = (value: unknown): void => {
+    if (!value || typeof value !== "object") return;
+    if (Array.isArray(value)) { value.forEach(walk); return; }
+    const node = value as Record<string, any>;
+    if (node.kind === "write") {
+      const kinds = tables.get(node.table.name) ?? new Set<string>();
+      for (const kind of node.op === "upsert" ? ["create", "update"] : [node.op === "insert" ? "create" : node.op === "delete" ? "remove" : "update"]) kinds.add(kind);
+      tables.set(node.table.name, kinds);
+    }
+    for (const [key, child] of Object.entries(node)) {
+      if (!["facts", "source", "symbol", "symbols", "table", "index", "focal"].includes(key)) walk(child);
+    }
+  };
+  walk(program.body);
+  return tables.size ? `, { ${[...tables].sort(([a], [b]) => compare(a, b)).map(([table, kinds]) =>
+    `${quoteProperty(table)}: ${[...kinds].sort().map(kind => JSON.stringify(kind)).join(" | ")}`).join("; ")} }` : "";
 }
 
 function printArgs(args: readonly { name: string; type: ScalarType }[], mutation: boolean): string {

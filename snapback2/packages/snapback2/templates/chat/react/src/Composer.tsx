@@ -1,5 +1,6 @@
+import { messageWrites } from "../shared/thread";
 import { useRef, useState, type FormEvent } from "react";
-import { api, isSnapbackRefusal } from "snapback2/client";
+import { isSnapbackRefusal } from "snapback2/client";
 import { useMutation, useSnapbackClient, useSnapbackSnapshot } from "snapback2/react";
 
 const describe = (error: unknown) => (isSnapbackRefusal(error) ? error.envelope.rewrite ?? error.message : String(error));
@@ -12,7 +13,7 @@ const describe = (error: unknown) => (isSnapbackRefusal(error) ? error.envelope.
 // in-flight guard, clearing only the text that was sent, and a thrown refusal
 // shown as a note, since `useMutation.last` holds results and not exceptions.
 export function Composer({ conversationId, onNote }: { conversationId: string; onNote(note: string): void }) {
-  const post = useMutation(api.deliveries.post);
+  const post = useMutation(messageWrites.create);
   const client = useSnapbackClient();
   const generation = useSnapbackSnapshot().authGeneration;
   const [body, setBody] = useState("");

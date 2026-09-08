@@ -47,10 +47,13 @@ export const schemaHash = schemaDigest(schema);
 const postIr = { name: "deliveries.post", kind: "Mutation", args: { body: { Text: { max: 4000 } }, conversationId: "Id" }, read_time_granularity_ms: null,
   body: [{ Insert: { table: "messages", row: { Object: { at: { Input: "Now" }, authorId: { Input: "Viewer" },
     body: { Variable: "body" }, conversationId: { Variable: "conversationId" }, id: { Input: "NewId" } } } } }] };
-const editIr = { name: "deliveries.edit", kind: "Mutation", args: {}, read_time_granularity_ms: null, body: [] };
+const editIr = { name: "deliveries.edit", kind: "Mutation", args: { messageId: { Ref: { table: "messages" } }, body: { Text: { max: 4000 } } },
+  read_time_granularity_ms: null, body: [{ Update: { table: "messages", key: { Variable: "messageId" }, patch: { Object: { body: { Variable: "body" } } } } }] };
 const digest = (ir: unknown) => createHash('sha256').update(canonicalProgramJson(ir)).digest('hex');
 const certificate = (ir: unknown, kind: string) => ({
   plan_hash: digest(ir), schema_hash: schemaHash,
+  mutation_targets: { complete: true, targets: [{ table: "messages", kind: kind === "Insert" ? "create" : "update",
+    source: kind === "Insert" ? { newId: 0 } : { argument: "messageId" } }] },
   evaluator_version: 'bounded-spike-rust-search-text-refinements-5', value_model_version: 'i53-codepoint-bytes-unicode-search-text-refinements-v5',
   max_steps: 1000000, max_heap_bytes: 8388608, max_closure_bytes: 4194304, max_output_bytes: 1048576,
   write_sites: [{ table: 'messages', kind, max_rows: 1 }, { table: 'deliveries', kind: 'Insert', max_rows: 50 }],
@@ -314,7 +317,7 @@ export function fakeOwner(options: FakeOwnerOptions = {}) {
         response = { state: "rejected", code: "NOT_MEMBER", family: "input", message: "E_REQUIRE:NOT_MEMBER: program requirement failed", rewrite: "fix the rejected mutation input and retry", guide: "input/runtime", intent };
       } else {
         seq += 1;
-        response = { state: "committed", seq, data: apply(body.op, body.args, ids), intent };
+        response = { state: "committed", seq, data: apply(body.op, body.args, ids), intent, program: { planHash: digest(body.op === "deliveries.post" ? postIr : editIr), schemaHash } };
       }
       stored.set(intent, response);
       if (state.failAfterCommit > 0) {
