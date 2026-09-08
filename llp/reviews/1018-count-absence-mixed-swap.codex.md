@@ -63,6 +63,11 @@ and a 290-byte maintained Ref through cold read, prediction and replay.
 The raw result is retained in
 [`zero-count-mixed-swap-public.log`](../../benchmarks/runs/2026-09-07-snapback2-evolution-diagnostic/zero-count-mixed-swap-public.log).
 
-Delivery is a bounded handoff to the active architecture owner: cherry-pick
-`06a07784d` and `886f41706` plus this evidence commit. Do not merge the entire
-verification branch, whose ancestry includes that owner's pending architecture.
+The initial delivery was a bounded handoff to the architecture owner. Before
+this follow-up landed, main incorporated the broader authority join from
+`3a66182cd`, through architecture integration `3891a97b1`. Its shared
+`recordOverlayAuthorityEvidence` already preserves equal-sequence tombstone
+priority for both the latest fact and strongest negative. This landing keeps
+that implementation and ports the exact mixed-swap warm/cold regression plus
+the governing LLP note. The qualification numbers above remain historical
+evidence for `886f41706`, not measurements of the subsequently evolved main.

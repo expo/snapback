@@ -409,6 +409,20 @@ test('primary absence admission survives answer custody changes but not later ro
   }
   {
     const state = await setup();
+    const equivalent = structuredClone(movement.hole);
+    equivalent.readTime += 1; equivalent.receipt.absences = [['events','byId',['one']]];
+    await state.runtime().store.commit({
+      tombstones:[{table:'events',id:'one',seq:equivalent.seq}],
+      deliveries:[{...equivalent,op:'clock.bounded',args:{},clockPlanHash:equivalent.planHash,deliveredAt:Date.now()}],
+    });
+    assert.deepEqual(await state.rows(),[],
+      'an equal-sequence full absence in the same swap cannot undo tombstone dominance');
+    await state.reopen(); assert.deepEqual(await state.rows(),[],
+      'mixed-swap tombstone dominance survives a cold rebuild');
+    await state.runtime().close();
+  }
+  {
+    const state = await setup();
     await state.runtime().store.commit({tombstones:[{table:'events',id:'one',seq:3}]});
     assert.deepEqual(await state.rows(),[],'a later primary revocation dominates an older receipt and prediction');
     await state.reopen(); assert.deepEqual(await state.rows(),[],'the later revocation remains dominant cold');
