@@ -1,0 +1,1 @@
+{"certified":11,"compiler":{"answered":true,"error":null,"found":"/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/consumer/node_modules/snapback2/dist/compiler.mjs","ms":227.451708},"effects":"ibex2 + vanilla hermes","effectsQueued":0,"elapsedMs":281.06375,"media":{"required":false},"ok":true,"owner":null,"refused":[],"version":"0.0.18"}

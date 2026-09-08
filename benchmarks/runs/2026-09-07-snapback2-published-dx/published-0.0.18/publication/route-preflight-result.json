@@ -1,0 +1,36 @@
+{
+  "phase": "route-preflight",
+  "sshPid": 70448,
+  "driverPid": 70367,
+  "startedEpoch": 1788831123.025717,
+  "endedEpoch": 1788831124.741225,
+  "elapsedSeconds": 1.715512458,
+  "exitCode": 0,
+  "timeout": false,
+  "stderrPresent": false,
+  "unclassifiedOutputPresent": false,
+  "events": [
+    {
+      "phase": "route-preflight",
+      "pid": 63307,
+      "epoch": 1788831124.358028,
+      "pass": true,
+      "homeMatches": true,
+      "modelMatches": true,
+      "architectureMatches": true,
+      "pathsAbsent": true,
+      "load": [
+        8.14697265625,
+        5.75048828125,
+        5.26708984375
+      ]
+    }
+  ],
+  "pass": true,
+  "sourceFile": "route-preflight-remote.py",
+  "sourceSha256": "bd9366cd5319964c170282e9dff6ec2659cabac23a0caab68f019fc43fc305fa",
+  "outerSeconds": 15,
+  "childReaped": true,
+  "automaticRetry": false,
+  "authAccess": false
+}

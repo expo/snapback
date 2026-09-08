@@ -1,0 +1,23 @@
+{
+  "actualProcessWaitCompleted": true,
+  "actualReturnCode": 1,
+  "argv": [
+    "/Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/bin/node",
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/consumer/node_modules/snapback2/bin/snapback2.mjs",
+    "check",
+    "--json"
+  ],
+  "attempt": 1,
+  "automaticRetry": false,
+  "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/consumer/todos",
+  "elapsedSeconds": 1.966944916,
+  "endedEpoch": 1788831868.6084611,
+  "exitCode": 1,
+  "logSha256": "3f82a0b0b4ee27c42d1be62df62d9f4e563b8c6e6ad86034237a30faab17aa18",
+  "name": "intentional-diagnostic",
+  "pid": 87271,
+  "processGroup": 87271,
+  "processIdentity": "87271 Mon Sep  7 18:44:26 2026     /Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/bin/node",
+  "startedEpoch": 1788831866.641524,
+  "timeoutSeconds": 30
+}

@@ -1,0 +1,25 @@
+{
+  "commit": "7b947aa4def19d51ea786783625fb023f3bc891d",
+  "tree": "08e09d1c3e8c06cd76c9d859a5e93f7aad131ac6",
+  "snapback2Tree": "f99ca7f6f5c42c93d323f53265d9df6b0031fb3d",
+  "sourceArchive": "/Users/ccheever/clique-improvement/revisions/cli-018-release-preparation-r1/packet/archives/source.tar.gz",
+  "sourceArchiveSha256": "fbb1d7cbd51bd8200754de19086af176dad856912b49a95817d8bf0e9565f1c3",
+  "sourceArchiveLeaves": 20772,
+  "capsuleArchive": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-preparation-r1/source-stage.tar.gz",
+  "capsuleSha256": "10c26438978dd5fe9a68fdf86ae1ece71c61ba3c61ea8715c03a249714eb56d3",
+  "capsuleBytes": 3228929,
+  "sourceLeaves": 947,
+  "extraLeaves": [
+    "snapback2/dist/npm/publish-snapback2-darwin-arm64-0.0.18/resume.json"
+  ],
+  "totalMembers": 948,
+  "allQualifiedSourceHashesAndModesMatch": true,
+  "scope": "Same017 minimal source-selection rule; no unrelated archived body copied",
+  "workingResumeMode": "0o644",
+  "originalResumeMode": "0o444",
+  "originalAndWorkingResumeSha256": "2ac3b852f97e8e65ecc1f3391fa3619a5271b1ed7df3b45bc08ad34d18b8e906",
+  "symlinkPolicy": "Same017 publication capsule: two0755 link members, exact relative targets and Git120000 identity; remote017 os.symlink mechanics unchanged. Separate from dry full archive0777 policy.",
+  "remoteStagingExecuted": false,
+  "productExecuted": false,
+  "repackOrBuildExecuted": false
+}

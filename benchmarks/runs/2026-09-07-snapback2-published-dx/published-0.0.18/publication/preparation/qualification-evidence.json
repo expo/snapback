@@ -1,0 +1,31 @@
+{
+  "sourceCommit": "7b947aa4def19d51ea786783625fb023f3bc891d",
+  "files": [
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-018-release-preparation-r1/packet/REPORT.md",
+      "sha256": "e598b57b6d8023a7e17f39434b77ef3cd6644d08ae3fa54ba63b0c2e6e1809fd",
+      "bytes": 10904
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-018-release-preparation-r1/packet/terminal.json",
+      "sha256": "998f2146650b321a03f769b9fcecb331fc749a689322cad06393a43ee24a1702",
+      "bytes": 616
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-018-release-preparation-r1/packet/phase.json",
+      "sha256": "35f9525c910bb608471563908edcbe3758a50de9e85a593eeccddfde0cac0ee5",
+      "bytes": 28241
+    },
+    {
+      "path": "/Users/ccheever/clique-improvement/revisions/cli-018-release-preparation-r1/packet/supervisor-terminal-identity.json",
+      "sha256": "aeb88e86fd85e9b18a02a2987c0ec2d02d6dda3ee02cb3393cfeb3460354cff4",
+      "bytes": 7636
+    }
+  ],
+  "functional": "PASS",
+  "consumerSummaries": 19,
+  "timing": "RED",
+  "chatCheckSeconds": 1.056400375,
+  "chatCheckBudgetSeconds": 1,
+  "priorDryEvidenceCommit": "a8bb38e384a2ef9925abc089f8216f17e8b21a99"
+}

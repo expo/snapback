@@ -1,0 +1,22 @@
+{
+  "actualProcessWaitCompleted": true,
+  "actualReturnCode": 0,
+  "argv": [
+    "/Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/bin/node",
+    "/Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/lib/node_modules/npm/bin/npm-cli.js",
+    "--version"
+  ],
+  "attempt": 1,
+  "automaticRetry": false,
+  "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation",
+  "elapsedSeconds": 0.35424362500000006,
+  "endedEpoch": 1788831803.943016,
+  "exitCode": 0,
+  "logSha256": "041fb0a6f23ccf0102a18d4591e1bfa36eebc17d27d348727a5eee18806d1c3c",
+  "name": "npm-version",
+  "pid": 86031,
+  "processGroup": 86031,
+  "processIdentity": "86031 Mon Sep  7 18:43:23 2026     /Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/bin/node",
+  "startedEpoch": 1788831803.588754,
+  "timeoutSeconds": 30
+}

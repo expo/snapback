@@ -1,0 +1,15 @@
+{
+  "pid": 70880,
+  "driverPid": 70861,
+  "startedEpoch": 1788831156.465109,
+  "endedEpoch": 1788831223.958435,
+  "elapsedSeconds": 67.49365045900001,
+  "exitCode": 1,
+  "metadataEvents": 179,
+  "unclassifiedOutputPresent": false,
+  "stderrPresent": false,
+  "rawOutputPersisted": false,
+  "localActivationReaped": true,
+  "automaticRetry": false,
+  "remoteOutcomeSource": "explicit reviewed helper metadata only; no inference from local exit"
+}

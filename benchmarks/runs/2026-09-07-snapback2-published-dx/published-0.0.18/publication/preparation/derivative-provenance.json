@@ -1,0 +1,79 @@
+{
+  "helpers": [
+    {
+      "base": "/Users/ccheever/clique-improvement/revisions/cli-017-publication-preparation-r1/custody.py",
+      "baseSha256": "7dd1f9b46c113d1b37153b623c9541c5e4d3e358cbd3f7cf31384ae06aa5ab17",
+      "baseMode": 292,
+      "derivative": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-preparation-r1/custody.py",
+      "derivativeSha256": "81629de2b09499aa26992f84abd9fbbebf12a53495002c6551aace06bca5bb33",
+      "derivativeMode": 292
+    },
+    {
+      "base": "/Users/ccheever/clique-improvement/revisions/cli-017-publication-preparation-r1/control.py",
+      "baseSha256": "1810a45ed73d0aeee546e07a799a9257d5590a11f71975342721eb7b928f1182",
+      "baseMode": 292,
+      "derivative": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-preparation-r1/control.py",
+      "derivativeSha256": "15f520972f558b556323fb8aeb29239d45d6b56f6dcf12605633dfb53af3cb38",
+      "derivativeMode": 292
+    },
+    {
+      "base": "/Users/ccheever/clique-improvement/revisions/cli-017-publication-preparation-r1/remote.py",
+      "baseSha256": "04626233849c819a5267a1b69d5809289d00f5d11112f6a2b7445128afd941a2",
+      "baseMode": 292,
+      "derivative": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-preparation-r1/remote.py",
+      "derivativeSha256": "a768ecf2b9ac1988a17ac5b0f4ec7df5ec778bd116f9eee673c08b629e6a2944",
+      "derivativeMode": 292
+    },
+    {
+      "base": "/Users/ccheever/clique-improvement/revisions/cli-017-publication-preparation-r1/office.py",
+      "baseSha256": "fc82365ed9655e91a4a4d8133d449a4f8281a63a0ec964f36d787380e3647566",
+      "baseMode": 292,
+      "derivative": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-preparation-r1/office.py",
+      "derivativeSha256": "f43b10e57b08b33b668ea8e44f7dc8d54396271bd7e15d7a82bebc6dfe14cb35",
+      "derivativeMode": 292
+    },
+    {
+      "base": "/Users/ccheever/clique-improvement/revisions/cli-017-publication-preparation-r1/feeder.cjs",
+      "baseSha256": "1d7c11d4c8d79a8bab79231751c30d5a6dd7ac307272c9a6a4c004a076e79dd8",
+      "baseMode": 292,
+      "derivative": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-preparation-r1/feeder.cjs",
+      "derivativeSha256": "370e06202e4f2aa1d198407b9bc4659eeeba36092fd5563787b07122d79e5be4",
+      "derivativeMode": 292
+    },
+    {
+      "base": "/Users/ccheever/clique-improvement/revisions/cli-017-publication-execution-r1/stage.py",
+      "baseSha256": "1d56fb37a4097909a5874ddfc9467304d920437409b71c8342485be024e84c06",
+      "baseMode": 292,
+      "derivative": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-execution-r1/stage.py",
+      "derivativeSha256": "2021961bb3e68bc38bddabce4e25f1d2402208f39400662a1e7facdc218a0ffc",
+      "derivativeMode": 292
+    },
+    {
+      "base": "/Users/ccheever/clique-improvement/revisions/cli-017-publication-execution-r1/activation-launch.py",
+      "baseSha256": "44652f1c606b6564a7c66eb665adc1042aac6879fe293c14992992ce60058831",
+      "baseMode": 292,
+      "derivative": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-execution-r1/activation-launch.py",
+      "derivativeSha256": "bd1c4ddda9244b947c6e0e38ed01f38413a515ce8e7e9ecadcb47884f9b517fe",
+      "derivativeMode": 292
+    },
+    {
+      "base": "/Users/ccheever/clique-improvement/revisions/cli-017-publication-execution-r1/observe-stopped-state.py",
+      "baseSha256": "4005408610591d5def857b0f9f8e54ebcef1ecae06836559f218f837f6648f5a",
+      "baseMode": 292,
+      "derivative": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-execution-r1/observe-stopped-state.py",
+      "derivativeSha256": "81f1099447e6d753e2a922aa42848446496398d8b09a099ffbba9d5b5434d294",
+      "derivativeMode": 292
+    },
+    {
+      "base": "/Users/ccheever/clique-improvement/revisions/cli-017-publication-execution-r1/final-remote-custody.py",
+      "baseSha256": "35dd49ef5df488633f56e6746de353488780930b15a370cbbaf625305105810a",
+      "baseMode": 292,
+      "derivative": "/Users/ccheever/clique-improvement/revisions/cli-018-publication-execution-r1/final-remote-custody.py",
+      "derivativeSha256": "c91f92ab56b06989258019b87e2343e3f17e4e8f13cb41c79c32d2b932cd91fb",
+      "derivativeMode": 292
+    }
+  ],
+  "unchangedProtocol": true,
+  "noHelperExecuted": true,
+  "launcher": "pending final schema binding"
+}

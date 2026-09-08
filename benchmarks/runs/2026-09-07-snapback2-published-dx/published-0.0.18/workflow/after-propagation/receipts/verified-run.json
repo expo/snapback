@@ -1,0 +1,27 @@
+{
+  "actualProcessWaitCompleted": true,
+  "actualReturnCode": 0,
+  "argv": [
+    "/Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/bin/node",
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/consumer/node_modules/snapback2/bin/snapback2.mjs",
+    "run",
+    "todos.add",
+    "{\"title\":\"Verified published change\"}",
+    "--as",
+    "alice",
+    "--json"
+  ],
+  "attempt": 1,
+  "automaticRetry": false,
+  "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/consumer/todos",
+  "elapsedSeconds": 0.30882716700000046,
+  "endedEpoch": 1788831928.691106,
+  "exitCode": 0,
+  "logSha256": "aa751489a8e773caa3a8bd310fc16566de1b64239cc8fa477ed1e630fbb59bd4",
+  "name": "verified-run",
+  "pid": 88653,
+  "processGroup": 88653,
+  "processIdentity": "88653 Mon Sep  7 18:45:28 2026     /Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/bin/node",
+  "startedEpoch": 1788831928.382278,
+  "timeoutSeconds": 30
+}

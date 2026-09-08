@@ -1,0 +1,38 @@
+{
+  "observedEpoch": 1788831539.403869,
+  "readOnly": true,
+  "republish": false,
+  "packages": [
+    {
+      "name": "snapback2-darwin-arm64",
+      "expectedIntegrity": "sha512-JLOYb8u5B41XUN5wfGBhpPkONhjqRX4KsiqOCQ6PMupBPDh92ANo7LZhNvoyeb3Z/qtfWOgjBSlTEX4Xiq1yLA==",
+      "version": {
+        "httpStatus": 200,
+        "version": "0.0.18",
+        "integrity": "sha512-JLOYb8u5B41XUN5wfGBhpPkONhjqRX4KsiqOCQ6PMupBPDh92ANo7LZhNvoyeb3Z/qtfWOgjBSlTEX4Xiq1yLA=="
+      },
+      "latest": {
+        "httpStatus": 200,
+        "version": "0.0.18",
+        "integrity": "sha512-JLOYb8u5B41XUN5wfGBhpPkONhjqRX4KsiqOCQ6PMupBPDh92ANo7LZhNvoyeb3Z/qtfWOgjBSlTEX4Xiq1yLA=="
+      },
+      "matched": true
+    },
+    {
+      "name": "snapback2",
+      "expectedIntegrity": "sha512-UBOM7aQErcCB7vIjg19wubG2w521VzEkLvFJhlCPUK3rAxdd8Tkp8UB7bZ334WomaIJEEXMk5LczYcJE7SlvWA==",
+      "version": {
+        "httpStatus": 200,
+        "version": "0.0.18",
+        "integrity": "sha512-UBOM7aQErcCB7vIjg19wubG2w521VzEkLvFJhlCPUK3rAxdd8Tkp8UB7bZ334WomaIJEEXMk5LczYcJE7SlvWA=="
+      },
+      "latest": {
+        "httpStatus": 200,
+        "version": "0.0.18",
+        "integrity": "sha512-UBOM7aQErcCB7vIjg19wubG2w521VzEkLvFJhlCPUK3rAxdd8Tkp8UB7bZ334WomaIJEEXMk5LczYcJE7SlvWA=="
+      },
+      "matched": true
+    }
+  ],
+  "matched": true
+}

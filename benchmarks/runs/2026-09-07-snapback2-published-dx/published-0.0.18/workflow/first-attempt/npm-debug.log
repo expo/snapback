@@ -1,0 +1,121 @@
+0 verbose cli /Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/bin/node /Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/lib/node_modules/npm/bin/npm-cli.js
+1 info using npm@11.16.0
+2 info using node@v24.18.0
+3 silly config load:file:/Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/lib/node_modules/npm/npmrc
+4 silly config load:file:/Users/ccheever/bench-snapback2-dx/published-0.0.18/producer/.npmrc
+5 silly config load:file:/Users/ccheever/bench-snapback2-dx/published-0.0.18/npm-state/user.npmrc
+6 silly config load:file:/Users/ccheever/bench-snapback2-dx/published-0.0.18/npm-state/global.npmrc
+7 verbose title npm install snapback2@0.0.18 react@19.1.1
+8 verbose argv "install" "--no-audit" "--no-fund" "--fetch-retries" "0" "--fetch-timeout" "15000" "--save-exact" "snapback2@0.0.18" "react@19.1.1"
+9 verbose logfile logs-max:10 dir:/Users/ccheever/bench-snapback2-dx/published-0.0.18/npm-state/cache/_logs/2026-09-08T01_39_20_895Z-
+10 verbose logfile /Users/ccheever/bench-snapback2-dx/published-0.0.18/npm-state/cache/_logs/2026-09-08T01_39_20_895Z-debug-0.log
+11 silly logfile done cleaning log files
+12 silly packumentCache heap:4496293888 maxSize:1124073472 maxEntrySize:562036736
+13 silly idealTree buildDeps
+14 silly fetch manifest snapback2@0.0.18
+15 silly packumentCache full:https://registry.npmjs.org/snapback2 cache-miss
+16 http fetch GET 200 https://registry.npmjs.org/snapback2 1256ms (cache miss)
+17 silly packumentCache full:https://registry.npmjs.org/snapback2 set size:undefined disposed:false
+18 silly fetch manifest expo@>=54
+19 silly packumentCache full:https://registry.npmjs.org/expo cache-miss
+20 http fetch GET 200 https://registry.npmjs.org/expo 1246ms (cache miss)
+21 silly packumentCache full:https://registry.npmjs.org/expo set size:undefined disposed:false
+22 silly fetch manifest @expo/metro-runtime@*
+23 silly packumentCache full:https://registry.npmjs.org/@expo%2fmetro-runtime cache-miss
+24 http fetch GET 200 https://registry.npmjs.org/@expo%2fmetro-runtime 393ms (cache miss)
+25 silly packumentCache full:https://registry.npmjs.org/@expo%2fmetro-runtime set size:undefined disposed:false
+26 silly fetch manifest react@19.1.1
+27 silly packumentCache full:https://registry.npmjs.org/react cache-miss
+28 http fetch GET 200 https://registry.npmjs.org/react 1966ms (cache miss)
+29 silly packumentCache full:https://registry.npmjs.org/react set size:undefined disposed:false
+30 silly fetch manifest react-dom@*
+31 silly packumentCache full:https://registry.npmjs.org/react-dom cache-miss
+32 http fetch GET 200 https://registry.npmjs.org/react-dom 3902ms (cache miss)
+33 silly packumentCache full:https://registry.npmjs.org/react-dom set size:undefined disposed:false
+34 silly fetch manifest react@^19.2.8
+35 silly packumentCache full:https://registry.npmjs.org/react cache-miss
+36 http cache https://registry.npmjs.org/react 497ms (cache hit)
+37 silly packumentCache full:https://registry.npmjs.org/react set size:6956072 disposed:false
+38 silly fetch manifest react-native@*
+39 silly packumentCache full:https://registry.npmjs.org/react-native cache-miss
+40 http fetch GET 200 https://registry.npmjs.org/react-native 4869ms (cache miss)
+41 silly packumentCache full:https://registry.npmjs.org/react-native set size:undefined disposed:false
+42 silly fetch manifest @types/react@^19.1.1
+43 silly packumentCache full:https://registry.npmjs.org/@types%2freact cache-miss
+44 http fetch GET 200 https://registry.npmjs.org/@types%2freact 886ms (cache miss)
+45 silly packumentCache full:https://registry.npmjs.org/@types%2freact set size:undefined disposed:false
+46 silly fetch manifest react@^19.2.3
+47 silly packumentCache full:https://registry.npmjs.org/react cache-miss
+48 http cache https://registry.npmjs.org/react 256ms (cache hit)
+49 silly packumentCache full:https://registry.npmjs.org/react set size:6956072 disposed:false
+50 silly fetch manifest react-native-web@*
+51 silly packumentCache full:https://registry.npmjs.org/react-native-web cache-miss
+52 http fetch GET 200 https://registry.npmjs.org/react-native-web 659ms (cache miss)
+53 silly packumentCache full:https://registry.npmjs.org/react-native-web set size:undefined disposed:false
+54 silly fetch manifest react-native-webview@*
+55 silly packumentCache full:https://registry.npmjs.org/react-native-webview cache-miss
+56 http fetch GET 200 https://registry.npmjs.org/react-native-webview 841ms (cache miss)
+57 silly packumentCache full:https://registry.npmjs.org/react-native-webview set size:undefined disposed:false
+58 silly fetch manifest expo-file-system@>=19
+59 silly packumentCache full:https://registry.npmjs.org/expo-file-system cache-miss
+60 http fetch GET 200 https://registry.npmjs.org/expo-file-system 1045ms (cache miss)
+61 silly packumentCache full:https://registry.npmjs.org/expo-file-system set size:undefined disposed:false
+62 silly fetch manifest expo-secure-store@^15
+63 silly packumentCache full:https://registry.npmjs.org/expo-secure-store cache-miss
+64 http fetch GET 200 https://registry.npmjs.org/expo-secure-store 494ms (cache miss)
+65 silly packumentCache full:https://registry.npmjs.org/expo-secure-store set size:undefined disposed:false
+66 silly fetch manifest expo-sqlite@^16
+67 silly packumentCache full:https://registry.npmjs.org/expo-sqlite cache-miss
+68 http fetch GET 200 https://registry.npmjs.org/expo-sqlite 1050ms (cache miss)
+69 silly packumentCache full:https://registry.npmjs.org/expo-sqlite set size:undefined disposed:false
+70 silly fetch manifest expo-video@>=2
+71 silly packumentCache full:https://registry.npmjs.org/expo-video cache-miss
+72 http fetch GET 200 https://registry.npmjs.org/expo-video 319ms (cache miss)
+73 silly packumentCache full:https://registry.npmjs.org/expo-video set size:undefined disposed:false
+74 silly placeDep ROOT react@19.1.1 OK for:  want: 19.1.1
+75 silly placeDep ROOT snapback2@0.0.18 OK for:  want: 0.0.18
+76 silly fetch manifest typescript@5.9.2
+77 silly packumentCache full:https://registry.npmjs.org/typescript cache-miss
+78 silly fetch manifest snapback2-darwin-arm64@0.0.18
+79 silly packumentCache full:https://registry.npmjs.org/snapback2-darwin-arm64 cache-miss
+80 http fetch GET 200 https://registry.npmjs.org/snapback2-darwin-arm64 703ms (cache miss)
+81 silly packumentCache full:https://registry.npmjs.org/snapback2-darwin-arm64 set size:undefined disposed:false
+82 http fetch GET 200 https://registry.npmjs.org/typescript 5922ms (cache miss)
+83 silly packumentCache full:https://registry.npmjs.org/typescript set size:undefined disposed:false
+84 silly placeDep ROOT snapback2-darwin-arm64@0.0.18 OK for: snapback2@0.0.18 want: 0.0.18
+85 silly placeDep ROOT typescript@5.9.2 OK for: snapback2@0.0.18 want: 5.9.2
+86 silly reify moves {}
+87 http cache snapback2@https://registry.npmjs.org/snapback2/-/snapback2-0.0.18.tgz 1ms (cache hit)
+88 http cache react@https://registry.npmjs.org/react/-/react-19.1.1.tgz 0ms (cache hit)
+89 http cache typescript@https://registry.npmjs.org/typescript/-/typescript-5.9.2.tgz 0ms (cache hit)
+90 silly tarball no local data for snapback2@https://registry.npmjs.org/snapback2/-/snapback2-0.0.18.tgz. Extracting by manifest.
+91 silly tarball no local data for react@https://registry.npmjs.org/react/-/react-19.1.1.tgz. Extracting by manifest.
+92 silly tarball no local data for typescript@https://registry.npmjs.org/typescript/-/typescript-5.9.2.tgz. Extracting by manifest.
+93 http cache snapback2-darwin-arm64@https://registry.npmjs.org/snapback2-darwin-arm64/-/snapback2-darwin-arm64-0.0.18.tgz 0ms (cache hit)
+94 silly tarball no local data for snapback2-darwin-arm64@https://registry.npmjs.org/snapback2-darwin-arm64/-/snapback2-darwin-arm64-0.0.18.tgz. Extracting by manifest.
+95 http fetch GET 404 https://registry.npmjs.org/snapback2/-/snapback2-0.0.18.tgz 85ms (cache skip)
+96 http fetch GET 200 https://registry.npmjs.org/react/-/react-19.1.1.tgz 1096ms (cache miss)
+97 http fetch GET 200 https://registry.npmjs.org/snapback2-darwin-arm64/-/snapback2-darwin-arm64-0.0.18.tgz 5138ms (cache miss)
+98 http fetch GET 200 https://registry.npmjs.org/typescript/-/typescript-5.9.2.tgz 8965ms (cache miss)
+99 verbose stack HttpErrorGeneral: 404 Not Found - GET https://registry.npmjs.org/snapback2/-/snapback2-0.0.18.tgz - Not found
+99 verbose stack     at /Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/lib/node_modules/npm/node_modules/npm-registry-fetch/lib/check-response.js:103:15
+99 verbose stack     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+100 verbose statusCode 404
+101 verbose pkgid snapback2@https://registry.npmjs.org/snapback2/-/snapback2-0.0.18.tgz
+102 error code E404
+103 error 404 Not Found - GET https://registry.npmjs.org/snapback2/-/snapback2-0.0.18.tgz - Not found
+104 error 404
+105 error 404  The requested resource 'snapback2@https://registry.npmjs.org/snapback2/-/snapback2-0.0.18.tgz' could not be found or you do not have permission to access it.
+106 error 404
+107 error 404 Note that you can also install from a
+108 error 404 tarball, folder, http url, or git url.
+109 silly unfinished npm timer reify 1788831563258
+110 silly unfinished npm timer reify:unpack 1788831591763
+111 silly unfinished npm timer reifyNode:node_modules/snapback2 1788831591763
+112 verbose cwd /Users/ccheever/bench-snapback2-dx/published-0.0.18/producer
+113 verbose os Darwin 25.6.0
+114 verbose node v24.18.0
+115 verbose npm  v11.16.0
+116 verbose exit 1
+117 verbose code 1
+118 error A complete log of this run can be found in: /Users/ccheever/bench-snapback2-dx/published-0.0.18/npm-state/cache/_logs/2026-09-08T01_39_20_895Z-debug-0.log

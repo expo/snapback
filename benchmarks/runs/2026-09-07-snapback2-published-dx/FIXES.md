@@ -155,3 +155,18 @@ Linux, Node 24.13.1, Bun 1.3.14, Rust 1.97.0. It was idle at allocation
 no Rust build or other dispatched workload overlapped them. Start load averages
 in the pairs were 2.37–4.41, including decaying build/test load. This is not an
 exclusive-host guarantee. The occupied EPYC scale run was not touched.
+
+## Published type fixes and fresh workflow — 2026-09-07
+
+The coordinated publisher reservation transferred to DX. Frozen source
+`7b947aa4d` and its original qualified artifacts are now published as
+`snapback2@0.0.18` plus Darwin arm64, with matching public versions, latest tags,
+and SRIs. A fresh npm11 install/ci and todos edit → diagnostics → focused/full
+tests → verified change passed after retained registry-propagation and app-index
+corrections. Installed public/standalone declarations and generated insert/merge
+rows pass complete scoped type checks; incompatible boolean-to-number assignments
+are rejected. The accepted timeout helper preserves deadline failure separately
+from actual child exit, including the initial install’s unknown child exit and
+a successful deliberate timeout control. Original timing reds remain.
+
+[Complete release/workflow evidence and reproduction](published-0.0.18/README.md).

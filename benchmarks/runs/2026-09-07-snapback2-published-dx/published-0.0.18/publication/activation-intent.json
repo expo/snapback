@@ -1,0 +1,18 @@
+{
+  "argv": [
+    "/usr/bin/python3",
+    "-B",
+    "/Users/ccheever/clique-improvement/revisions/cli-018-publication-preparation-r1/office.py",
+    "--activate-reviewed-production-018",
+    "2fa6edaf3f1edbf89f1b69564425c0c0eaf208e790a805cfee1ba9dfbc611e59"
+  ],
+  "startedEpoch": 1788831156.465109,
+  "driverPid": 70861,
+  "attempts": 1,
+  "environmentCapture": "none",
+  "publisherSeconds": 1800,
+  "consumerSeconds": 30,
+  "fetchMilliseconds": 15000,
+  "fetchRetries": 0,
+  "sshEnvelopeSeconds": 2100
+}

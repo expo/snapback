@@ -1,0 +1,83 @@
+{
+  "checks": [
+    {
+      "actualProcessWaitCompleted": true,
+      "actualReturnCode": 1,
+      "argv": [
+        "/Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/bin/node",
+        "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/consumer/node_modules/snapback2/bin/snapback2.mjs",
+        "check",
+        "--json"
+      ],
+      "attempt": 1,
+      "automaticRetry": false,
+      "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/consumer/todos",
+      "elapsedSeconds": 1.966944916,
+      "endedEpoch": 1788831868.6084611,
+      "exitCode": 1,
+      "logSha256": "3f82a0b0b4ee27c42d1be62df62d9f4e563b8c6e6ad86034237a30faab17aa18",
+      "name": "intentional-diagnostic",
+      "pid": 87271,
+      "processGroup": 87271,
+      "processIdentity": "87271 Mon Sep  7 18:44:26 2026     /Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/bin/node",
+      "startedEpoch": 1788831866.641524,
+      "timeoutSeconds": 30
+    },
+    {
+      "actualProcessWaitCompleted": true,
+      "actualReturnCode": 1,
+      "argv": [
+        "/Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/bin/node",
+        "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/consumer/node_modules/snapback2/bin/snapback2.mjs",
+        "check",
+        "--json"
+      ],
+      "attempt": 1,
+      "automaticRetry": false,
+      "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/consumer/todos",
+      "elapsedSeconds": 1.948023875,
+      "endedEpoch": 1788831870.5704489,
+      "exitCode": 1,
+      "logSha256": "b97d075f7d25a1825afe3ae3920d54963c23800c3ad157b674a8c06f7b0217e8",
+      "name": "check-corrected",
+      "pid": 87303,
+      "processGroup": 87303,
+      "processIdentity": "87303 Mon Sep  7 18:44:28 2026     /Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/bin/node",
+      "startedEpoch": 1788831868.622421,
+      "timeoutSeconds": 30
+    },
+    {
+      "actualProcessWaitCompleted": true,
+      "actualReturnCode": 0,
+      "argv": [
+        "/Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/bin/node",
+        "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/consumer/node_modules/snapback2/bin/snapback2.mjs",
+        "dev",
+        "--stop",
+        "--json"
+      ],
+      "attempt": 1,
+      "automaticRetry": false,
+      "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/consumer/todos",
+      "elapsedSeconds": 0.43525674999999975,
+      "endedEpoch": 1788831871.011476,
+      "exitCode": 0,
+      "logSha256": "f0347164caa2c4eef44de6a90551ac97a917f47587ecb5ca7ab8155728d70340",
+      "name": "dev-stop",
+      "pid": 87326,
+      "processGroup": 87326,
+      "processIdentity": "87326 Mon Sep  7 18:44:30 2026     /Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/bin/node",
+      "startedEpoch": 1788831870.5762072,
+      "timeoutSeconds": 30
+    }
+  ],
+  "endEpoch": 1788831871.0129259,
+  "expectedDiagnosticObserved": true,
+  "failure": {
+    "message": "check-corrected failed; retain first failure and stop",
+    "type": "RuntimeError"
+  },
+  "ok": false,
+  "phase": "edit-diagnostics-tests-types",
+  "startEpoch": 1788831866.63494
+}

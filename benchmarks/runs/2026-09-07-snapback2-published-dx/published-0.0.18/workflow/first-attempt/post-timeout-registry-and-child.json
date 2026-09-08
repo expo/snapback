@@ -1,0 +1,17 @@
+{
+  "epoch": 1788831670.738688,
+  "url": "https://registry.npmjs.org/snapback2/-/snapback2-0.0.18.tgz",
+  "readOnly": true,
+  "error": "HTTP Error 404: Not Found",
+  "installChildLaterObservation": {
+    "pid": 82492,
+    "psExit": 1,
+    "ps": "",
+    "actualExitNotReapedByOriginalParent": true
+  },
+  "lateNpmLog": {
+    "path": "receipts/default-install.log",
+    "sha256": "41cd7d4208327c9b84a6a3e694bd1f2d373775dda4851164880f05cdb6a42b7c",
+    "doesNotReplaceOriginalReceiptSnapshot": true
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "pid": 70880,
+  "driverPid": 70861,
+  "startedEpoch": 1788831156.465109,
+  "argv": [
+    "/usr/bin/python3",
+    "-B",
+    "/Users/ccheever/clique-improvement/revisions/cli-018-publication-preparation-r1/office.py",
+    "--activate-reviewed-production-018",
+    "2fa6edaf3f1edbf89f1b69564425c0c0eaf208e790a805cfee1ba9dfbc611e59"
+  ]
+}

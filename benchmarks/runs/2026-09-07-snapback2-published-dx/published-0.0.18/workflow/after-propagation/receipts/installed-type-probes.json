@@ -1,0 +1,22 @@
+{
+  "actualProcessWaitCompleted": true,
+  "actualReturnCode": 0,
+  "argv": [
+    "/Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/bin/node",
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/consumer/type-probe.mjs",
+    "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/consumer/todos"
+  ],
+  "attempt": 1,
+  "automaticRetry": false,
+  "cwd": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/after-propagation/consumer",
+  "elapsedSeconds": 20.536628999999998,
+  "endedEpoch": 1788831949.2320352,
+  "exitCode": 0,
+  "logSha256": "1c3808faf8231292d8baca8ce1d56592fb299520ff052fb1094d46aa8fea276c",
+  "name": "installed-type-probes",
+  "pid": 88673,
+  "processGroup": 88673,
+  "processIdentity": "88673 Mon Sep  7 18:45:28 2026     /Users/ccheever/clique-improvement/revisions/cli-016-release-qualification/tools/node-24.18.0/bin/node",
+  "startedEpoch": 1788831928.695503,
+  "timeoutSeconds": 30
+}

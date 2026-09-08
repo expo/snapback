@@ -1,0 +1,1 @@
+{"code":"E_QUARRY_AMBIGUOUS","family":"quarry","message":"index selection for todos[...] is ambiguous (byOwnerId, byOwner); name it with by <index>","site":"snapback/todos.q:2:10","rewrite":"-- candidate indexes: todos.byOwnerId (ownerId: principal); todos.byOwner (ownerId: principal, id: reference to todos); select with by <index>","guide":"quarry/indexes"}

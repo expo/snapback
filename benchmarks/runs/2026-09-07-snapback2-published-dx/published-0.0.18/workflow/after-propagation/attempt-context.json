@@ -1,0 +1,12 @@
+{
+  "attempt": 2,
+  "reason": "Original timeout and registry tarball404 retained. Canonical tarball now GET200 with exact qualifiedSRI. New project and node_modules; reuse exclusively owned prior attempt npm cache.",
+  "priorAttempt": "/Users/ccheever/bench-snapback2-dx/published-0.0.18",
+  "priorChildObservedAbsent": true,
+  "registryEvidence": "/Users/ccheever/bench-snapback2-dx/published-0.0.18/tarball-observation-02.json",
+  "originalWorkflowSha256": "1266d1ff57c60dd1a050b7127684315e5525536e6954a33a0a912addd01485e0",
+  "workflowSha256": "814c606caccad9508850c0fc773891256447c3e9fa036878fe3c5a2a80bdd1aa",
+  "onlyScriptChange": "Private npm cache path binding",
+  "timeoutSecondsUnchanged": 30,
+  "createdEpoch": 1788831802.933152
+}

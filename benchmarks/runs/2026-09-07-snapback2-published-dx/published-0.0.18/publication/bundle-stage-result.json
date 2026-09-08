@@ -1,0 +1,29 @@
+{
+  "phase": "bundle-stage",
+  "sshPid": 70484,
+  "driverPid": 70367,
+  "startedEpoch": 1788831124.8053162,
+  "endedEpoch": 1788831128.046263,
+  "elapsedSeconds": 3.240958875,
+  "exitCode": 0,
+  "timeout": false,
+  "stderrPresent": false,
+  "unclassifiedOutputPresent": false,
+  "events": [
+    {
+      "phase": "bundle-stage",
+      "pid": 63325,
+      "epoch": 1788831127.640478,
+      "pass": true,
+      "bundleFiles": 12,
+      "createdBundle": true
+    }
+  ],
+  "pass": true,
+  "sourceFile": "bundle-stage-remote.py",
+  "sourceSha256": "4b6864c1c75f10748b30f8543af01d55ee2770127ab41e98ff98dc4ad3a10a4e",
+  "outerSeconds": 60,
+  "childReaped": true,
+  "automaticRetry": false,
+  "authAccess": false
+}
