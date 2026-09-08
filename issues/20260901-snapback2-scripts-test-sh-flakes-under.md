@@ -169,3 +169,22 @@ run passed in 21.44 seconds with the original startup allowance. These are
 separate functional/scoped results; neither the final default-deadline public
 command nor the broad suite is claimed green. Logs are retained in the local
 `20260907-zero-count-proof` ship-run evidence directory.
+
+## Final architecture semantic qualification — 2026-09-07
+
+The complete unchanged script at `e94b0a61012c20dd2ba4538d7b8007d020355ea3`
+exits zero on the warm EPYC enginefix lane with the configured Rust 1.93.1,
+eight nextest workers and original Node file deadlines. JavaScript passes
+781/781 in 8.854 seconds; nextest passes 857/857 with four skips; doctests,
+224 evaluator cases, two visibility checks and 210 compiler cases pass.
+
+Native execution still takes **78.141 seconds**, exceeding the existing
+60-second blocking-suite budget before other phases. This closes the final
+candidate's semantic/test-harness failures without closing this timing ticket.
+The preceding `35b35dae4` run's two Node file cancellations remain failed samples;
+canonical prebuild of both owner binaries and the corrected React passive wait
+now qualify under the unchanged deadlines. No limit was increased. Earlier
+upstream controls establish an inherited overrun, not a measured attribution
+for this final timing. Exact process 385976, command, binary identities and raw
+SHA-256 `924f6d4e9a5ce459d35c3a8c65e4f712709a3d53ab666d62be71d386d0f960af`
+are retained in the architecture ship run's `final-e94/receipt.md`.

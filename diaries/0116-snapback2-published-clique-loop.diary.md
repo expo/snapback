@@ -1484,3 +1484,22 @@ misses its target at 0.609 seconds; its second 0.040-second sample is not a
 replacement result. The new upstream public zero-count proof also exposed a
 valid long reference and an absence/prediction custody seam. Those integration
 repairs remain in progress; these passing samples do not qualify them.
+
+## 2026-09-07 — Cold zero-count prediction and combined platforms qualify
+
+The final LLP 1018.000 product at `e94b0a610` passes the full canonical tests,
+16 actual browser steps, seven independent browser-session steps and all ten
+Expo simulator steps. A public count query now supplies the proof needed to
+predict the first allocation after a cold reopen; the count becomes one without
+application-authored proof plumbing. Equivalent answer refreshes preserve that
+intent's authority, while newer owner data and deletions override it. The valid
+long-reference case also passes wire acquisition, cold prediction and replay.
+
+This closes the count integration seam recorded above. It also shows why a
+warm in-memory demo was insufficient: the first attempted repair lost proof
+chronology on reopen. Binding the proof to the existing durable intent makes
+warm and cold behavior agree. The complete local runtime is 80,817 gzip bytes,
+within its 82,000 ceiling but above the 80,000 working target. The full client
+entry grows by 8,473 gzip bytes against the recorded pre-forwarding baseline.
+The existing first-doctor and blocking-suite time targets still miss; no new
+publication or holistic benchmark score follows from these source checks.
