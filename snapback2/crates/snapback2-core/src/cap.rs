@@ -3,7 +3,7 @@
 
 use crate::certificate::{CheckError, WriteKind};
 use crate::ir::Expr;
-use crate::schema::{Constraint, Index, Maintain, MaintainKind, Schema, Table};
+use crate::schema::{ColumnType, Constraint, Index, Maintain, MaintainKind, Schema, Table};
 use crate::value::{Value, ValueError, canonical_json};
 use std::collections::BTreeSet;
 
@@ -40,6 +40,123 @@ pub(crate) fn count_maintain<'a>(
             && maintain.by == by
             && matches!(maintain.kind, MaintainKind::Count)
     })
+}
+
+/// Eligibility for an additional primary-ID probe, never address equivalence:
+/// an ordinary surviving target row may have a noncanonical ID/group pairing.
+pub(crate) fn public_count_probe(
+    schema: &Schema,
+    table_name: &str,
+    index_name: &str,
+    arity: usize,
+) -> bool {
+    let Some(table) = schema.table(table_name) else {
+        return false;
+    };
+    let Some(index) = table.index(index_name) else {
+        return false;
+    };
+    let Some(primary) = table.index("byId") else {
+        return false;
+    };
+    table.rules.read.is_uniformly_readable()
+        && primary.unique
+        && primary.columns == ["id"]
+        && index.unique
+        && index.columns.iter().all(|column| {
+            table.columns.get(column).is_some_and(count_key_column)
+        })
+        && schema.maintains.iter().any(|maintain| {
+            maintain.target == table_name
+                && matches!(maintain.kind, MaintainKind::Count)
+                && index.columns == maintain.by
+                && arity == maintain.by.len()
+        })
+}
+
+// Only scalar typed keys have an unambiguous public wire round trip. JSON can
+// contain native Id/Bytes tags which the wire retags as application JSON.
+fn count_key_column(kind: &ColumnType) -> bool {
+    match kind {
+        ColumnType::Optional(inner) => count_key_column(inner),
+        ColumnType::Json { .. } | ColumnType::List { .. }
+        | ColumnType::Image { .. } | ColumnType::Video { .. } => false,
+        _ => true,
+    }
+}
+
+// @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — a full unique
+// group miss and a canonical primary miss are independent facts.
+pub(crate) struct CountAbsenceEvidence {
+    pub(crate) range: crate::engine::ReceiptRange,
+    pub(crate) primary: (String, String, Vec<Value>),
+}
+
+pub(crate) fn count_absence_reserve(schema: &Schema, table: &str, index: &str, site: &str) -> u64 {
+    let quoted = |name: &str| canonical_json(&name).len() as u64;
+    // A schema-sized reserve, not an imposed limit on query keys. Actual proof
+    // bytes are checked below because nominal IDs/lookup keys can exceed it.
+    crate::bounds::declared_serialized_row_max(schema, table)
+        .saturating_mul(3)
+        .saturating_add(512)
+        .saturating_add(quoted(table).saturating_mul(2))
+        .saturating_add(quoted(index))
+        .saturating_add(quoted(site))
+}
+
+pub(crate) fn count_absence_evidence(
+    schema: &Schema,
+    point: &crate::engine::PointTrace,
+    rule_hash: &str,
+) -> Option<CountAbsenceEvidence> {
+    if point.examined
+        || point.visible
+        || point.digest.is_some()
+        || !public_count_probe(schema, &point.table, &point.index, point.key.len())
+    {
+        return None;
+    }
+    let table = schema.table(&point.table)?;
+    let index = table.index(&point.index)?;
+    for (column, value) in index.columns.iter().zip(&point.key) {
+        // Point admission checks arity, not value domains. A String miss on a
+        // Principal index must not become Id coverage after public hydration.
+        crate::engine::validate_column_value(
+            &point.table, column, table.columns.get(column)?, Some(value),
+        ).ok()?;
+    }
+    let range = crate::engine::ReceiptRange {
+        site: point.site.clone(),
+        table: point.table.clone(),
+        index: point.index.clone(),
+        prefix: point.key.clone(),
+        order: crate::ir::Order::Asc,
+        take: 1,
+        after: None,
+        before: None,
+        gt: None,
+        gte: None,
+        lt: None,
+        lte: None,
+        rule_hash: rule_hash.to_owned(),
+        row_ids: vec![],
+        stop: crate::engine::StopReason::Exhausted,
+        absence: true,
+        halo: None,
+        n2_key: None,
+    };
+    let primary = (
+        point.table.clone(),
+        "byId".to_owned(),
+        vec![Value::Id(canonical_json(&point.key))],
+    );
+    // Pair framing bounds the two added receipt elements and their separators.
+    if canonical_json(&(&range, &primary)).len() as u64
+        > count_absence_reserve(schema, &point.table, &point.index, &point.site)
+    {
+        return None;
+    }
+    Some(CountAbsenceEvidence { range, primary })
 }
 
 pub(crate) fn group_key(row: &Value, by: &[String]) -> Vec<Value> {

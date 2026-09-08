@@ -1,0 +1,38 @@
+{
+  "observedAt": "2026-09-07T23:25:02.122059+00:00",
+  "outer": {
+    "sessionId": 58952,
+    "initialChunk": "9bf25e",
+    "state": "RUNNING"
+  },
+  "nativePid": 41880,
+  "processIdentity": {
+    "pid": 41880,
+    "start": "Mon Sep 7 16:24:41 2026",
+    "executable": "/Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex",
+    "observed": true
+  },
+  "supervisorIdentity": {
+    "pid": 41819,
+    "start": "Mon Sep 7 16:24:37 2026",
+    "executable": "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python",
+    "observed": true
+  },
+  "startedUtc": "2026-09-07T23:24:41.311648+00:00",
+  "actualSessionId": "01a07e30-2f54-7a01-99d9-e906630ea814",
+  "nativeSource": "/Users/ccheever/.codex/sessions/2026/09/07/rollout-2026-09-07T16-24-42-01a07e30-2f54-7a01-99d9-e906630ea814.jsonl",
+  "actualTurnContexts": [
+    {
+      "line": 8,
+      "model": "gpt-6-astra",
+      "effort": "xhigh",
+      "cwd": "/Users/ccheever/clique-improvement/revisions/cli-018-release-preparation-r1/packet",
+      "timestamp": "2026-09-07T23:24:46.845Z"
+    }
+  ],
+  "identityMatchesRequest": true,
+  "launchSha256": "2e02ce065a36b6a69316a8f1ffb46d4420413b357830edcca5713b4242e7c21e",
+  "approvalSha256": "221c7e61eccf91cbf68df891964475719a17fae30fe2a4bbc3cfb455a7ba977d",
+  "onlyOwnIdentityRecordsRead": true,
+  "nativeThoughtBodiesNotRetainedOrDisplayed": true
+}

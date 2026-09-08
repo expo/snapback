@@ -1,0 +1,55 @@
+TAP version 13
+# Subtest: stages exactly snapback2-darwin-arm64
+ok 1 - stages exactly snapback2-darwin-arm64
+  ---
+  duration_ms: 26.074542
+  type: 'test'
+  ...
+# Subtest: stages exactly snapback2-linux-x64
+ok 2 - stages exactly snapback2-linux-x64
+  ---
+  duration_ms: 19.747292
+  type: 'test'
+  ...
+# Subtest: stages exactly snapback2-darwin-arm64 and snapback2-linux-x64
+ok 3 - stages exactly snapback2-darwin-arm64 and snapback2-linux-x64
+  ---
+  duration_ms: 27.618375
+  type: 'test'
+  ...
+# Subtest: refuses absent, mismatched, duplicate and non-platform selections without editing the shim
+ok 4 - refuses absent, mismatched, duplicate and non-platform selections without editing the shim
+  ---
+  duration_ms: 1.520083
+  type: 'test'
+  ...
+# Subtest: rejects a resumed shim that advertises a platform outside its immutable artifacts
+ok 5 - rejects a resumed shim that advertises a platform outside its immutable artifacts
+  ---
+  duration_ms: 19.005209
+  type: 'test'
+  ...
+# Subtest: rejects artifact records that disagree with the packed package identity
+ok 6 - rejects artifact records that disagree with the packed package identity
+  ---
+  duration_ms: 18.516458
+  type: 'test'
+  ...
+# Subtest: a selected platform shim installs from an unchanged lock in a fresh npm consumer
+ok 7 - a selected platform shim installs from an unchanged lock in a fresh npm consumer
+  ---
+  duration_ms: 801.177834
+  type: 'test'
+  ...
+# Node v22.23.2; npm 10.9.8; offline synthetic tarballs, default peer and optional dependencies
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 962.902542
+publish: snapback2-test-platform@0.0.1 already matches staged artifact
+publish self-test ok; staged helper qualified; macOS floors and Linux dependencies checked; codec cache archives digest-bound; resume without HEIC refused; helper digest bound; durable dry-run resume preserved

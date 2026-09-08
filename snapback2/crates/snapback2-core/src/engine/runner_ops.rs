@@ -1185,6 +1185,39 @@ impl<'a> Runner<'a> {
         Ok(())
     }
 
+    // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — this
+    // derived range spends no second authored read call and cannot broaden a
+    // point's actual physical absence. A receipt-only store cannot mint it.
+    fn count_range_is_proved(&self, range: &ReceiptRange) -> bool {
+        matches!(self.rule_authority, RuleAuthority::StoreAuthoritative)
+            && self.trace.points.iter().filter(|point|
+                point.site == range.site && point.table == range.table
+                    && point.index == range.index && point.key == range.prefix
+            ).any(|point| {
+                let Some(proof) = crate::cap::count_absence_evidence(
+                    self.schema,
+                    point,
+                    self.hashes.table(&point.table, Effect::Read),
+                ) else {
+                    return false;
+                };
+                proof.range == *range
+                    && self.trace.absences.contains(&(
+                        point.table.clone(),
+                        point.index.clone(),
+                        point.key.clone(),
+                    ))
+                    && self.trace.absences.contains(&proof.primary)
+                    && self.trace.constraint_inputs.iter().any(|input| {
+                        input.table == point.table
+                            && input.check == "public-count-absence"
+                            && input.index == "byId"
+                            && input.prefix == proof.primary.2
+                            && input.examined_ids.is_empty()
+                    })
+            })
+    }
+
     pub(super) fn assert_bounds(&self) -> Result<(), RuntimeError> {
         let certificate = self
             .certificate
@@ -1340,6 +1373,7 @@ impl<'a> Runner<'a> {
                 .ranges
                 .iter()
                 .any(|trace| trace.site == range.site)
+                && !self.count_range_is_proved(range)
             {
                 return Err(RuntimeError::TraceSubset(format!(
                     "receipt range {} absent from trace",

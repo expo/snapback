@@ -70,9 +70,7 @@ mutation allocate(principals: [principal] <=49):
     const scenarios = [
       { name: "held", principals: ["heldA", "heldB"], hold: ["heldA", "heldB"], predicted: true, final: [2, 2] },
       { name: "unheld", principals: ["unheldA", "unheldB"], hold: ["unheldA"], predicted: false, final: [2, 2] },
-      // A cached zero is still a scalar answer. It does not prove absence at
-      // both the canonical ID and unique group address for cap prediction.
-      { name: "zero", principals: ["zero"], hold: ["zero"], predicted: false, final: [1] },
+      { name: "zero", principals: ["zero"], hold: ["zero"], predicted: true, final: [3] },
       { name: "overflow", principals: ["rollbackA", "full"], hold: ["rollbackA", "full"], predicted: false, final: [1, 3] },
     ];
     for (const scenario of scenarios) {
@@ -96,6 +94,13 @@ mutation allocate(principals: [principal] <=49):
       assert.ok(reads.every(read => (read.rows ?? []).every((row: any) => row.table !== "capEntries")), "count queries did not preload source rows");
       if (scenario.name === "zero") {
         assert.deepEqual(before, [0], "the owner proved zero through the public count query");
+        const receipt = reads.at(-1).receipt;
+        assert.ok(receipt.absences.some(([table, index, key]: any) =>
+          table === "principalCounts" && index === "byId"
+          && key[0] === JSON.stringify([{ Id: "dev:zero" }])));
+        assert.ok(receipt.ranges.some((range: any) => range.table === "principalCounts"
+          && range.prefix[0] === "dev:zero" && range.stop === "Exhausted"
+          && range.absence && range.rowIds.length === 0), "the owner supplies independent group absence");
         t.diagnostic(`zero public query receipt: ${JSON.stringify(reads)}`);
       }
       await client.offline();
@@ -121,14 +126,34 @@ mutation allocate(principals: [principal] <=49):
       if (!scenario.predicted) assert.deepEqual(entry.trace, { points: [], verdicts: [] });
       if (scenario.predicted) {
         for (let index = 0; index < scenario.principals.length; index++) {
-          assert.equal(await count(client, scenario.principals[index]), scenario.final[index], "held count advances in the offline overlay");
+          assert.equal(await count(client, scenario.principals[index]), before[index] + 1, "held count advances in the offline overlay");
         }
+      }
+      if (scenario.name === "zero") {
+        // Reopen with an actual predicted aggregate, then consume the remaining
+        // capacity through the same public queue. A fourth insert cannot predict.
+        client = await client.restart();
+        clients.push(client);
+        assert.equal(await count(client, "zero"), 1);
+        for (const nextCount of [2, 3, 4]) {
+          await client.mutation(api.caps.allocate, { principals: ["dev:zero"] });
+          const latest = (await client.outbox.entries()).at(-1)!;
+          assert.equal(latest.predicted === true, nextCount <= 3);
+          assert.equal(await count(client, "zero"), Math.min(nextCount, 3));
+        }
+        assert.equal(mutations, 0);
+        assert.equal(reads.length, readsBeforeReopen);
       }
       await client.online();
       assert.deepEqual(await client.outbox.drain(), { stopped: false, remaining: 0 });
       const [settled] = await client.outbox.entries();
       assert.equal(settled.state, scenario.name === "overflow" ? "rejected" : "committed");
       if (scenario.name === "overflow") assert.equal((settled.response as any).code, "E_CONSTRAINT");
+      if (scenario.name === "zero") {
+        const settledEntries = await client.outbox.entries();
+        assert.deepEqual(settledEntries.map(entry => entry.state), ["committed", "committed", "committed", "rejected"]);
+        assert.equal((settledEntries.at(-1)!.response as any).code, "E_CONSTRAINT");
+      }
       const actual = await Promise.all(scenario.principals.map(principal => count(observer, principal)));
       assert.deepEqual(actual, scenario.final, "owner counts prove complete commit or atomic rollback");
       t.diagnostic(`${scenario.name}: ${JSON.stringify({ before, predicted: entry.predicted === true, trace: entry.trace, state: settled.state, final: actual })}`);

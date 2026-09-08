@@ -9,7 +9,7 @@ Clique benchmark
 2026-09-06); revised by Claude Fable 5.1 after the five-model panel of
 2026-09-06/07 (§9), which the author convened
 **Date:** 2026-09-06
-**Revised:** 2026-09-07 (follow-on LLP 1018.000 linked; closed-ticket links repaired); 2026-09-07 (focused panel: witness-first sequence and finite compiler closeout, §13); 2026-09-07 (two focused draft RFCs and three bounded architecture investigations, §12); 2026-09-07 (pending-client schema conflict exercise and formal M7 handoff); 2026-09-07 (surviving-row uniqueness checked against each actual rebuild); 2026-09-07 (panel revision: a second measure, move one rewritten
+**Revised:** 2026-09-07 (public zero-count proof repair and cold prediction witness); 2026-09-07 (implemented finite compiler/declaration reconciliation); 2026-09-07 (follow-on LLP 1018.000 linked; closed-ticket links repaired); 2026-09-07 (focused panel: witness-first sequence and finite compiler closeout, §13); 2026-09-07 (two focused draft RFCs and three bounded architecture investigations, §12); 2026-09-07 (pending-client schema conflict exercise and formal M7 handoff); 2026-09-07 (surviving-row uniqueness checked against each actual rebuild); 2026-09-07 (panel revision: a second measure, move one rewritten
 around what already exists, the browser-tab policy decided, count-backed cap
 probes decided, the typed IR cut, move four evidence-led, move zero added, the
 Muse scores cited, the clock repair marked landed; implementation record §10);
@@ -255,9 +255,9 @@ transaction's budget keeps the explicit continuation model of
 **Public-acquisition diagnostic (2026-09-07).** Ordinary count queries let
 an offline client predict a two-principal allocation from held nonzero counts;
 leaving one count unheld suppresses prediction. Cap overflow rolls the whole
-owner mutation back. A public zero count currently carries no row or absence
-in its receipt and therefore does not enable prediction; the conservative
-[coverage gap is filed](../issues/20260907-snapback2-public-zero-count-does-not-enable-offline-cap-prediction.md).
+owner mutation back. The initial public zero count carried no row or absence
+and could not enable prediction. The paired-proof continuation in §13 now
+closes that conservative [coverage gap](../issues/closed/20260907-snapback2-public-zero-count-does-not-enable-offline-cap-prediction.md).
 [Raw evidence](../benchmarks/runs/2026-09-07-snapback2-evolution-diagnostic/README.md#public-count-acquisition-and-offline-prediction)
 uses real owner/auth/query paths, not injected count rows. It does not qualify
 49 actual inserts, scale, native clients, or a published cold-builder run.
@@ -555,9 +555,9 @@ dispositions; existing implementation lanes retain their work.
 
 | Direction | Record and next deliverable | Completion criterion |
 |---|---|---|
-| One checked Quarry representation | [LLP 1018.001](./1018.001-quarry-checked-representation.rfc.md), Draft. Map the existing typed compiler candidate to one owner for each semantic fact and count actual deletions. | Reconcile the candidate and independently check semantic parity, diagnostics, and the final maintenance/loop cost; do not build a competing compiler. |
+| One checked Quarry representation | [LLP 1018.001](./1018.001-quarry-checked-representation.rfc.md), Implemented. The direct compiler has one owner for each semantic fact and the final deletion/review census is recorded. | Completed: reconciled direct semantics, diagnostics, maintenance cost, and copied-package declarations without a competing compiler. |
 | Dependency-scoped invalidation | [LLP 1018.002](./1018.002-dependency-scoped-invalidation.rfc.md), Draft. Audit identity producers/consumers and a conservative transitive policy closure. | Review a bounded authorization-preserving proposal with an explicit implementation owner/date, or retain broad invalidation with the reason recorded. |
-| Read evidence | Start with the [public zero-count ticket](../issues/20260907-snapback2-public-zero-count-does-not-enable-offline-cap-prediction.md). Trace the same count from native execution through receipt/store/twin to prediction. | Account for positive count, proved absence, and unheld count; identify the smallest missing evidence or close against an actual witness in the architecture candidate. |
+| Read evidence | Start with the [public zero-count ticket](../issues/closed/20260907-snapback2-public-zero-count-does-not-enable-offline-cap-prediction.md). Trace the same count from native execution through receipt/store/twin to prediction. | Account for positive count, proved absence, and unheld count; identify the smallest missing evidence or close against an actual witness in the architecture candidate. |
 | Query lifecycle ownership | Map mounted queries, shared entries, drains, resume, principal/epoch changes, projection refresh and disposal against the existing client candidate. | Name one owner for each transition, expose duplicated state, and justify each remaining distinct lifetime with a concrete race or behavior. |
 | Public extension points | Inventory actual consumers of public client/runtime/compiler seams in package exports, templates, demos and tests, including effect/carrier needs. | Classify each seam as required, internal, or unsupported; propose deletion with its caller change where justified, without adding a new extension framework. |
 
@@ -609,7 +609,9 @@ round are preserved in the [Muse](./reviews/1018-focused-plan-panel.muse.md),
 [Gemini](./reviews/1018-focused-plan-panel.gemini.md) artifacts. The
 [author assessment](./reviews/1018-focused-plan-panel.codex.md) is not an
 independent review. These are advisory plan discussions, not approvals of code
-or the final revised document bytes. The children remain Draft.
+or the final revised document bytes. Both children were Draft at this panel;
+LLP 1018.001's later implementation and qualification are recorded in §12 and
+that child.
 
 **Decision: make the follow-up a finite sequence driven by witnessed behavior.**
 Consume facts where they were established instead of reconstructing their
@@ -656,18 +658,19 @@ retain their existing qualification requirements.
 ### Execution disposition — 2026-09-07
 
 The finite compiler reconciliation and touched-export census are recorded in
-LLP 1018.001 §6. They reuse all 32 repair dispositions and correct the final
-integrated source census to net **−7,533** after the 130-line diagnostics port.
-The direct compiler's own integration and qualification remain its lane's work;
-this follow-up neither duplicates it nor marks the Draft child Implemented.
-The real built-worker/copied-package negative typing witness is retained in
-`tests/typing.test.ts`. It verifies the landed generator import repair from
-`87def8b02` and qualifies the ambient-copy build correction from preparation
-candidate `367d263b8`: five typing checks pass, including both declaration
-settings with complete diagnostics.
+implemented LLP 1018.001 §6. They reuse all 32 repair dispositions. The current
+integrated source census is net **−7,499 production**, **−4,851 oracle**, and
+**−1,250 fixture** lines after the diagnostic port and final helper/sorted
+review repairs. Package declaration assembly is outside that compiler source
+census. The real built-worker/copied-package witnesses retained in
+`tests/typing.test.ts` and `offline-protocol.test.ts` exercise the self-contained
+external SDK root and standalone declarations: five typing checks and eleven
+public/standalone checks pass, including both declaration settings with complete
+diagnostics. The compiler's private ambient authoring library remains distinct
+from the shipped declaration graph.
 
 The zero-count investigation found a concrete two-proof boundary, recorded in
-[the still-open ticket](../issues/20260907-snapback2-public-zero-count-does-not-enable-offline-cap-prediction.md).
+[the ticket, subsequently closed below](../issues/closed/20260907-snapback2-public-zero-count-does-not-enable-offline-cap-prediction.md).
 Ordinary maintained-target survivors make group addresses and canonical IDs
 inequivalent. A tested additional primary probe supplied the missing primary
 absence, but the actual cold public client still correctly refused the target
@@ -706,3 +709,37 @@ file passed again: **5/5 in 13.32 seconds**, including both generated-package
 declaration settings. Ref-check and caps passed. These scoped passes support
 the declaration/test delivery; they do not close the zero-count ticket or
 qualify the other architecture lane.
+
+### Paired-proof continuation — 2026-09-07
+
+The authorized continuation closes the public zero-count ticket. The existing
+physical group point miss now supplies its exact empty range; a separate
+canonical primary lookup must also miss. Both facts travel existing carriers,
+so the fix changes no client wire shape or uniqueness rule. Certification
+reserves the extra probe and both proof elements; an actual serialized-size
+check omits oversized optional pairs. Store-authoritative Public/Allow Count
+reads alone can acquire them. LLP 1001 §4 and LLP 1012 §8 carry the settled
+constraints; the earlier primary-only experiment above remains superseded.
+
+All 11 focused native controls pass, including ordinary survivors, canonical
+ID collisions, denied/protected and receipt-only stores, exact range custody,
+byte/admission limits, OCC and live invalidation. The public-owner test passes
+in 21.44 seconds including bootstrap: cold zero predicts, another cold reopen
+preserves the prediction, repeated allocations reach cap 3, a fourth cannot
+predict, and reconnect commits three and rejects overflow. Held/unheld and
+atomic rollback controls remain. The original cached scalar alone still grants
+no insertion authority. This closes the read-evidence gap without claiming the
+separately owned architecture/compiler/browser work complete.
+
+Final candidate `6b8530f6e` also closes a review-found wire-domain hole: reject
+mistyped scalar keys and omit JSON/compound grouping proofs before additional
+reads. All **12** focused native cases pass. The fresh
+[Astra source review](./reviews/1018-zero-count-paired-proof.astra.md) reports
+no material findings; the earlier finding and its follow-up are retained.
+The regenerated corpus is unchanged by this guard: **218/218** evaluator
+replays plus two visibility checks pass. Two final public runs failed before
+the test body at the existing 10-second owner-readiness deadline. A bounded
+diagnostic with a temporary 30-second startup allowance passed in **19.20 s**
+(7.06-second body), then restored the harness unchanged. The timing ticket
+retains those failures; this is functional evidence, not normal-deadline or
+complete-suite qualification. Ref-check and caps pass.

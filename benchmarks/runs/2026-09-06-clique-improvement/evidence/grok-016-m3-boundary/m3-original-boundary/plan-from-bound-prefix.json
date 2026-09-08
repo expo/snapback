@@ -1,0 +1,55 @@
+{
+  "type": "plan",
+  "entries": [
+    {
+      "content": "Read ENVIRONMENT.md, instrument docs, protocol; create run-log.md",
+      "priority": "medium",
+      "status": "completed"
+    },
+    {
+      "content": "Install snapback2@0.0.16, init project, study guide",
+      "priority": "medium",
+      "status": "completed"
+    },
+    {
+      "content": "Build M1: identity, threads, messages, seeds, tests, web+iOS",
+      "priority": "medium",
+      "status": "completed"
+    },
+    {
+      "content": "Build M2: posts, follow graph, likes, reposts, replies, feeds",
+      "priority": "medium",
+      "status": "completed"
+    },
+    {
+      "content": "Build M3: DMs, groups, typing, receipts, quotes",
+      "priority": "medium",
+      "status": "in_progress"
+    },
+    {
+      "content": "Build M4: offline writes, push seam",
+      "priority": "medium",
+      "status": "pending"
+    },
+    {
+      "content": "Build M5: custom-client API",
+      "priority": "medium",
+      "status": "pending"
+    },
+    {
+      "content": "Build M6: replay adapter, scale replay, iOS sim",
+      "priority": "medium",
+      "status": "pending"
+    },
+    {
+      "content": "Build M8: insights, digest, multi-device offline, iOS sim",
+      "priority": "medium",
+      "status": "pending"
+    },
+    {
+      "content": "Write essay.md, diary.md, final-report.md",
+      "priority": "medium",
+      "status": "pending"
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 pub use crate::bounds::{declared_serialized_row_max, max_certified_page_rows};
-use crate::collection_rewrite::OutputEstimator;
+use crate::collection_rewrite::{ByteShape, OutputEstimator};
 use crate::cursor::CursorColumn;
 use crate::growth::geometric_sum;
 use crate::identity::CURRENT_VALUE_MODEL_VERSION;
@@ -491,6 +491,13 @@ impl<'a> Checker<'a> {
             // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — a signed i53 readTime member fits in 32 envelope bytes.
             closure.bytes = closure.bytes.saturating_add(32);
         }
+        if summary.count_absence_bytes > 0 {
+            closure.bytes = closure.bytes.saturating_add(summary.count_absence_bytes);
+            closure.children.push(ByteShape::leaf(
+                summary.count_absence_bytes,
+                "public count absence evidence",
+            ));
+        }
         let max_closure_bytes = closure.bytes;
         let mut bound_errors = Vec::new();
         for (name, actual, ceiling) in [
@@ -558,6 +565,12 @@ impl<'a> Checker<'a> {
             .iter()
             .map(|site| format!("{}.{}", site.table, site.index))
             .collect();
+        indexes_required.extend(
+            summary
+                .count_probe_tables
+                .iter()
+                .map(|table| format!("{table}.byId")),
+        );
         let mut rule_hashes: BTreeMap<_, _> = read_sites
             .iter()
             .filter_map(|site| {
@@ -656,7 +669,11 @@ impl<'a> Checker<'a> {
                 checked_tables.insert(maintain.target.clone());
             }
         }
-        let mut constraint_checks = BTreeSet::new();
+        let mut constraint_checks: BTreeSet<_> = summary
+            .count_probe_tables
+            .iter()
+            .map(|table| format!("{table}:public-count-absence"))
+            .collect();
         for table_name in checked_tables {
             let Some(table) = self.schema.table(&table_name) else {
                 continue;
@@ -820,6 +837,8 @@ struct Summary {
     rule_probes: u64,
     steps: u64,
     nonuniform_range: bool,
+    count_absence_bytes: u64,
+    count_probe_tables: BTreeSet<String>,
     costs: WorkTerms,
 }
 
@@ -849,6 +868,10 @@ impl Summary {
         self.index_entries = self.index_entries.saturating_add(other.index_entries);
         self.rule_probes = self.rule_probes.saturating_add(other.rule_probes);
         self.steps = self.steps.saturating_add(other.steps);
+        self.count_absence_bytes = self
+            .count_absence_bytes
+            .saturating_add(other.count_absence_bytes);
+        self.count_probe_tables.extend(other.count_probe_tables);
         self.nonuniform_range |= other.nonuniform_range;
         self
     }
@@ -895,6 +918,8 @@ impl Summary {
         self.index_entries = self.index_entries.max(other.index_entries);
         self.rule_probes = self.rule_probes.max(other.rule_probes);
         self.steps = self.steps.max(other.steps);
+        self.count_absence_bytes = self.count_absence_bytes.max(other.count_absence_bytes);
+        self.count_probe_tables.extend(other.count_probe_tables);
         self.nonuniform_range |= other.nonuniform_range;
         self
     }
@@ -1151,6 +1176,27 @@ impl<'a> Analyzer<'a> {
             .rule_probes
             .saturating_add(calls.saturating_mul(self.table_read_rule_probe_bound(&read.table)));
         summary.steps = summary.steps.saturating_add(calls.saturating_mul(4));
+        // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — only
+        // a missing public count group takes the extra primary-ID evidence probe.
+        // The group read and fallback can examine at most one row together.
+        if crate::cap::public_count_probe(self.schema, &read.table, &read.index, read.key.len()) {
+            summary.steps = summary.steps.saturating_add(calls.saturating_mul(4));
+            summary.costs.step(
+                calls.saturating_mul(4),
+                "public count absence evidence",
+                factors,
+            );
+            summary.count_probe_tables.insert(read.table.clone());
+            let bytes = crate::cap::count_absence_reserve(
+                self.schema,
+                &read.table,
+                &read.index,
+                &read.site,
+            );
+            summary.count_absence_bytes = summary
+                .count_absence_bytes
+                .saturating_add(calls.saturating_mul(bytes));
+        }
         summary.costs.probes(
             &read.site,
             calls,

@@ -1,0 +1,69 @@
+{
+  "command": [
+    "node",
+    "scripts/publish.mjs",
+    "--dry-run"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-worktrees/clique-release-018/snapback2",
+  "pid": 31169,
+  "driverPid": 31162,
+  "publisherIdentity": {
+    "pid": 31169,
+    "start": "Mon Sep 7 16:32:36 2026",
+    "executable": "node",
+    "observed": true
+  },
+  "driverIdentity": {
+    "pid": 31162,
+    "start": "Mon Sep 7 16:32:35 2026",
+    "executable": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python",
+    "observed": true
+  },
+  "sourceCommit": "7b947aa4def19d51ea786783625fb023f3bc891d",
+  "sourceTree": "08e09d1c3e8c06cd76c9d859a5e93f7aad131ac6",
+  "snapback2Tree": "f99ca7f6f5c42c93d323f53265d9df6b0031fb3d",
+  "startedAt": "2026-09-07T23:32:36.618064+00:00",
+  "startLoad": [
+    27.0859375,
+    17.55615234375,
+    11.04150390625
+  ],
+  "host": "Apartment M1 MacBookPro18,2",
+  "outerTimeoutSeconds": 1800,
+  "originalBounds": {
+    "consumerStepMs": 30000,
+    "consumerFetchMs": 15000,
+    "consumerRetries": 0,
+    "publisherCommandTimeout": null
+  },
+  "environment": {
+    "PATH": "/Users/ccheever/clique-improvement/revisions/cli-018-release-qualification/tools/rust-1.97.1/bin:/Users/ccheever/clique-improvement/revisions/cli-018-release-qualification/tools/bun-1.3.12/bin:/Users/ccheever/clique-improvement/revisions/cli-018-release-qualification/tools/node-22.23.2/bin:/opt/homebrew/bin:/Users/ccheever/.cargo/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+    "CARGO_BUILD_JOBS": "2",
+    "CMAKE_BUILD_PARALLEL_LEVEL": "2",
+    "NEXTEST_TEST_THREADS": "2",
+    "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer",
+    "PKG_CONFIG": "/Users/ccheever/projects/snapback-worktrees/clique-release-018/snapback2/target/publish-tools/pkgconf/bin/pkgconf",
+    "IBEX2_VANILLA_HERMES_DIR": "/Users/ccheever/clique-improvement/revisions/asset-release-hermes/install/Frameworks-vanilla",
+    "IBEX2_HERMESC": "/Users/ccheever/clique-improvement/revisions/asset-release-hermes/install/bin/hermesc-macos-arm64",
+    "SNAPBACK2_PUBLISH_NPM": "/Users/ccheever/clique-improvement/revisions/cli-018-release-qualification/npm-capture.py",
+    "NPM_CONFIG_CACHE": "/Users/ccheever/clique-improvement/revisions/cli-018-release-qualification/npm-cache",
+    "TMPDIR": "/Users/ccheever/clique-improvement/revisions/cli-018-release-qualification/tmp"
+  },
+  "scrubbedAmbientKeys": [],
+  "publisherSha256": "8c93e9d5d065f12af2a4a032b34ea8b977e72aa4bbefd9a20a964a05e14a1ceb",
+  "consumerSha256": "5d7038fa4002254794f0f866bf618f08aed11532483b211243fbaad5c1217c1e",
+  "hermesBinding": "input-manifest.json; exact existing qualified install",
+  "runtimeSourceRepairAuthorized": false,
+  "actualPublicationAuthorized": false,
+  "actualProcessWaitCompleted": true,
+  "exitCode": 0,
+  "timedOut": false,
+  "elapsedSeconds": 255.285679166,
+  "endedAt": "2026-09-07T23:36:51.891220+00:00",
+  "endLoad": [
+    27.734375,
+    25.36328125,
+    16.47509765625
+  ],
+  "logSha256": "ed7173d219114b162aef050de912dfd2ee09d31df0f43a7c9a184468e47e8fd1"
+}

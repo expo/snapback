@@ -1,0 +1,27 @@
+{
+  "source": "Unchanged installed snapback2 test durable output copied before original cleanup",
+  "receipts": [
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-release-qualification/tmp/snapback2-consumer-H8IlNC/todos/.snapback/receipts/1788824194808.json",
+      "retained": "/Users/ccheever/clique-improvement/revisions/cli-018-release-qualification/installed-test-receipts/todos-1788824194808.json",
+      "sha256": "c8c699081ca323c1ef4171540c7572e79b1421097ed3d54fd782b24ccc27cbcd",
+      "binary": {
+        "version": "0.0.18",
+        "digest": "rust64:2a76fb298e277863"
+      },
+      "verdict": "pass",
+      "checks": 6
+    },
+    {
+      "source": "/Users/ccheever/clique-improvement/revisions/cli-018-release-qualification/tmp/snapback2-consumer-H8IlNC/chat/.snapback/receipts/1788824200378.json",
+      "retained": "/Users/ccheever/clique-improvement/revisions/cli-018-release-qualification/installed-test-receipts/chat-1788824200378.json",
+      "sha256": "bc1faf4d8b7e685e20f1f5fd4bd5f1847aad305c8df8bf715359216de7ec383b",
+      "binary": {
+        "version": "0.0.18",
+        "digest": "rust64:2a76fb298e277863"
+      },
+      "verdict": "pass",
+      "checks": 30
+    }
+  ]
+}
