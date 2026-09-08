@@ -1,0 +1,138 @@
+{
+  "artifacts": [
+    {
+      "name": "snapback2",
+      "version": "0.0.19",
+      "integrity": "sha512-eqFiv1JV+4NBP0dbnjojqlvqYps0wv+aGVaww0aLnLfK56by7xha0c6sHGItnpgV/cVbkfSQbYOji2Vk3lM6xg==",
+      "matched": true
+    },
+    {
+      "name": "snapback2-darwin-arm64",
+      "version": "0.0.19",
+      "integrity": "sha512-Wty71iA7gBCZOGLtvkRTwCbeItbZUnjSr8Wwr8CAVkz+Fw7fW82A9fK3J6qatU6SNWzHGtO0f18s50Jo66932g==",
+      "matched": true
+    }
+  ],
+  "publication_events": [
+    {
+      "name": "snapback2-darwin-arm64",
+      "version": "0.0.19",
+      "state": "published",
+      "integrity": "sha512-Wty71iA7gBCZOGLtvkRTwCbeItbZUnjSr8Wwr8CAVkz+Fw7fW82A9fK3J6qatU6SNWzHGtO0f18s50Jo66932g==",
+      "at": 1788850080.628844
+    },
+    {
+      "name": "snapback2",
+      "version": "0.0.19",
+      "state": "published",
+      "integrity": "sha512-eqFiv1JV+4NBP0dbnjojqlvqYps0wv+aGVaww0aLnLfK56by7xha0c6sHGItnpgV/cVbkfSQbYOji2Vk3lM6xg==",
+      "at": 1788850169.74837
+    }
+  ],
+  "fresh_registry_consumer": {
+    "steps": [
+      {
+        "name": "install tarballs",
+        "seconds": 5.218701041999999,
+        "ok": true
+      },
+      {
+        "name": "doctor",
+        "seconds": 0.46522662499999934,
+        "ok": true
+      },
+      {
+        "name": "guide auth",
+        "seconds": 0.0384937089999994,
+        "ok": true
+      },
+      {
+        "name": "public client and React exports",
+        "seconds": 0.04682754099999965,
+        "ok": true
+      },
+      {
+        "name": "todos init",
+        "seconds": 0.5266386249999996,
+        "ok": true
+      },
+      {
+        "name": "todos check",
+        "seconds": 0.5241412499999997,
+        "ok": true
+      },
+      {
+        "name": "todos React bundle",
+        "seconds": 1.6454089999999997,
+        "ok": true
+      },
+      {
+        "name": "todos dev",
+        "seconds": 0.27632308399999966,
+        "ok": true
+      },
+      {
+        "name": "React live query round trip",
+        "seconds": 0.11715654199999881,
+        "ok": true
+      },
+      {
+        "name": "todos receipt",
+        "accepted": true,
+        "verdict": "pass"
+      },
+      {
+        "name": "todos test",
+        "seconds": 1.1014254999999993,
+        "ok": true
+      },
+      {
+        "name": "todos stop",
+        "seconds": 0.289809874999999,
+        "ok": true
+      },
+      {
+        "name": "chat init",
+        "seconds": 0.7675636670000003,
+        "ok": true
+      },
+      {
+        "name": "chat check",
+        "seconds": 0.7488684169999997,
+        "ok": true
+      },
+      {
+        "name": "chat React bundle",
+        "seconds": 0.9887617499999997,
+        "ok": true
+      },
+      {
+        "name": "chat dev",
+        "seconds": 0.7564997500000008,
+        "ok": true
+      },
+      {
+        "name": "chat receipt",
+        "accepted": true,
+        "verdict": "pass"
+      },
+      {
+        "name": "chat test",
+        "seconds": 12.739524249999999,
+        "ok": true
+      },
+      {
+        "name": "chat stop",
+        "seconds": 0.18579179099999965,
+        "ok": true
+      }
+    ]
+  },
+  "consumer_exit": 0,
+  "prior_attempts": [
+    "ETARGET shim before npm processing completed",
+    "ETARGET platform from negative metadata cache; reran with freshcache"
+  ],
+  "qualification_source": "c170e53f9",
+  "version_commit_on_main": "c47c44ba3"
+}
