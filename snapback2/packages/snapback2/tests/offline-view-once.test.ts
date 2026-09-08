@@ -13,6 +13,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { SnapbackRefusal, api, browserTokenStore } from "../dist/client.mjs";
 import { AssetImage, AssetVideo, SnapbackProvider, useAssetUrl, useSnapbackClient } from "../dist/react.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
+import { OfflineRuntime } from "../dist/sqlite-test.mjs";
 import { domEnvironment, settle, until } from "./dom-environment.ts";
 
 const A = "s2id-00000000000000000000000000000007-0000000000000001";
@@ -425,6 +426,41 @@ test("a viewed view-once row reads null on a fresh query, a conditional read, an
     subscription.close();
     client.close();
   } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test("view-once expansion owns its pre-await snapshot and preserves escaped application markers", async () => {
+  const root = await tempRoot();
+  const store = fileRangeStore(root)();
+  const runtime = new OfflineRuntime({ store: () => store });
+  try {
+    await runtime.open("dev:alice");
+    let entered!: () => void, release!: () => void;
+    const reading = new Promise<void>(resolve => { entered = resolve; });
+    const waiting = new Promise<void>(resolve => { release = resolve; });
+    store.viewedRows = async () => { entered(); await waiting; return [{ table: "messages", id: "m2" }]; };
+    const literal = ref("messages", "m2");
+    const raw = envelope({ kept: ref("messages", "m1"), removed: ref("messages", "m2"),
+      nested: [ref("messages", "m1"), ref("messages", "m2")], literal: { $row: { $value: literal } }, note: "before" },
+    [messageRow("m1", { body: "before" }), messageRow("m2", { body: "viewed" })]) as any;
+    const pending = runtime.accept("messages.thread", {}, raw);
+    await reading;
+    raw.rows[0].row.body = "caller changed during await";
+    raw.data.note = "caller changed during await";
+    raw.data.addedDuringRead = ref("messages", "m2");
+    const callerSnapshot = structuredClone(raw);
+    release();
+    const data = (await pending).result.data as any;
+    assert.equal(data.kept.body, "before");
+    assert.equal(data.note, "before");
+    assert.equal(Object.hasOwn(data, "addedDuringRead"), false, "a later caller property cannot enter the captured expansion");
+    assert.equal(data.removed, null);
+    assert.equal(data.nested[1], null);
+    assert.deepEqual(data.literal, literal, "the escaped object is not a viewed row reference");
+    assert.notEqual(data.kept, data.nested[0], "repeated references retain independent public row copies");
+    assert.deepEqual(raw, callerSnapshot, "filtering mutates only the runtime's private expansion");
+    const direct = await runtime.accept("messages.thread", {}, { ...raw, data: ref("messages", "m2") });
+    assert.equal(direct.result.data, null, "a root reference can be replaced too");
+  } finally { await runtime.close(); await rm(root, { recursive: true, force: true }); }
 });
 
 test("coverage() hides a viewed view-once row from the twin and marks it absent", async () => {
