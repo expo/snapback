@@ -85,7 +85,7 @@ test("generated Api rejects typos, extra query args, and wrong channel args", as
     const sample = join(root, "sample.ts");
     const apiDts = join(root, "api.d.ts");
     await writeFile(sample, `
-      import { api, browserTokenStore, createClient, type AuthTokenStore, type QueryView, type Snapshot } from "snapback2/client";
+      import { api, browserTokenStore, createClient, defineItems, withHistory, type AuthTokenStore, type HistorySnapshot, type ItemSnapshot, type QueryView, type Snapshot, type SnapbackClient } from "snapback2/client";
       const tokenStore: AuthTokenStore = { load: () => null, save: (_token) => undefined };
       const client = createClient({ url: "http://127.0.0.1:3210", tokenStore });
       const ready: Promise<void> = client.ready;
@@ -96,6 +96,28 @@ test("generated Api rejects typos, extra query args, and wrong channel args", as
       const stopObserved: () => void = observed.subscribe(() => undefined);
       client.observe(api.messages.thread, { conversationId: "general" }, { live: false });
       void ready; void authGeneration; void browserStore; void observedView; void stopObserved;
+      const threadItems = defineItems(api.messages.thread, { table: "messages", select: (delivery) => delivery.message });
+      const viewItems = defineItems(api.messages.view, { table: "messages", rows: (view) => view.messages, select: (delivery) => delivery.message });
+      const declared = withHistory(viewItems, { items: threadItems, args: ({ conversationId }) => ({ conversationId }) });
+      const custody: HistorySnapshot<{ messages: { message: { id: string; body: string } | null }[]; count: number }, { id: string; body: string }, never, { message: { id: string; body: string } | null }[]>
+        = client.observe(api.messages.view, { conversationId: "general" }, { items: declared }).getSnapshot();
+      const from: "query" | "history" | "drafts" = custody.itemsFrom;
+      const historyRows: { message: { id: string; body: string } | null }[] | undefined = custody.history?.data;
+      const plain: ItemSnapshot<unknown, { id: string; body: string }, never> = client.observe(api.messages.view, { conversationId: "general" }, { items: viewItems }).getSnapshot();
+      // @ts-expect-error plain items publish no itemsFrom
+      const missing: string = plain.itemsFrom;
+      const otherItems = defineItems(api.messages.others, { table: "messages", select: (delivery) => delivery.other });
+      // @ts-expect-error a history whose rows lack the declaring items' fields is not assignable
+      withHistory(viewItems, { items: otherItems, args: ({ conversationId }) => ({ conversationId }) });
+      // @ts-expect-error mapped arguments must be the history query's arguments
+      withHistory(viewItems, { items: threadItems, args: ({ conversationId }) => ({ conversation: conversationId }) });
+      const options = { items: declared, drain: false };
+      const viaVariable: "query" | "history" | "drafts" = client.observe(api.messages.view, { conversationId: "general" }, options).getSnapshot().itemsFrom;
+      const iface: SnapbackClient = client;
+      const viaInterface: "query" | "history" | "drafts" = iface.observe(api.messages.view, { conversationId: "general" }, options).getSnapshot().itemsFrom;
+      const plainOptions = { items: viewItems, drain: false };
+      const plainViaVariable: ItemSnapshot<unknown, { id: string; body: string }, never> = client.observe(api.messages.view, { conversationId: "general" }, plainOptions).getSnapshot();
+      void from; void historyRows; void missing; void viaVariable; void viaInterface; void plainViaVariable;
       declare const view: QueryView<string[]>;
       const isLive: boolean = view.live;
       void isLive;
@@ -130,7 +152,11 @@ test("generated Api rejects typos, extra query args, and wrong channel args", as
       import type { Channel, Op } from "snapback2/client";
       declare module "snapback2/client" {
         interface Api {
-          messages: { thread: Op<{ conversationId: string }, unknown> };
+          messages: {
+            thread: Op<{ conversationId: string }, { message: { id: string; body: string } | null }[]>;
+            view: Op<{ conversationId: string }, { messages: { message: { id: string; body: string } | null }[]; count: number }>;
+            others: Op<{ conversationId: string }, { other: { id: string } | null }[]>;
+          };
           assets: { send: Op<{
             photo: File | ImageAsset;
             optional: File | ImageAsset | null;

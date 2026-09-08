@@ -226,6 +226,15 @@ test("useAssetUrl array types require callers to handle refused positions", asyn
       // @ts-expect-error a refused position is undefined
       const unsafe: string[] | undefined = useAssetUrl([asset]);
       if (positions?.[0] !== undefined) positions[0].toUpperCase();
+      import { useQuery } from "snapback2/react";
+      import type { HistorySnapshot, ItemsWithHistory, Op } from "snapback2/client";
+      type Row = { id: string }; type Page = { message: Row | null }[]; type View = { messages: Page; count: number };
+      declare const view: Op<{ conversationId: string }, View>;
+      declare const declared: ItemsWithHistory<{ conversationId: string }, View, Row, never, { conversationId: string; c: null }, Page>;
+      const options = { items: declared, drain: false };
+      const custody: HistorySnapshot<View, Row, never, Page> = useQuery(view, { conversationId: "c" }, options);
+      const from: "query" | "history" | "drafts" = custody.itemsFrom;
+      void from;
     `);
     const program = ts.createProgram({ rootNames: [sample], options: {
       strict: true, noEmit: true, skipLibCheck: true, target: ts.ScriptTarget.ES2022,

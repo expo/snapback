@@ -48,7 +48,7 @@ import {
 import { admitDrain, InvalidOfflineStoreError, type OfflineRuntime, type MountedQuery } from "./offline.js";
 import { TabFollower } from "./client-sessions.js";
 import { ClientQueries } from "./client-observed.js";
-import type { ItemRow, Items, ItemSnapshot } from "./client-items.js";
+import type { HistorySnapshot, ItemRow, Items, ItemSnapshot, ItemsWithHistory } from "./client-items.js";
 import { ClientInbox } from "./client-inbox.js";
 import { performMutation, type MutationClient } from "./client-mutations.js";
 import { createChannel, type ChannelHost } from "./client-channels.js";
@@ -69,7 +69,7 @@ export { browserTokenStore } from "./token-store.js";
 export type { Api, ApiProxy, ChannelRef as Channel, Op };
 export * from "./types.js";
 export * from "./snapshot.js";
-export { defineItems, type Items, type QueryItem, type ItemAction, type ItemSnapshot } from "./client-items.js";
+export { defineItems, withHistory, type Items, type ItemsWithHistory, type QueryItem, type ItemAction, type ItemSnapshot, type HistorySnapshot } from "./client-items.js";
 export type {
   Coverage,
   CoverageFacts,
@@ -348,16 +348,16 @@ class Client implements SnapbackClient {
   get assetCache(): OfflineRuntime["bytes"] | undefined {
     return this.offlineRuntime?.bytes;
   }
-  observe<Args, Result>(
-    ref: Op<Args, Result>, args: Args, options?: { live?: false; drain?: boolean },
-  ): ObservedQuery<Result>;
-  observe<Args, Result, Row extends ItemRow, Draft>(
-    ref: Op<Args, Result>, args: Args, options: { live?: false; drain?: boolean; items: Items<Args, Result, Row, Draft> },
-  ): ObservedQuery<Result, ItemSnapshot<Result, Row, Draft>>;
+  observe<Args, Result, Row extends ItemRow, Draft, HistoryArgs, History>(ref: Op<Args, Result>, args: Args,
+    options: { live?: false; drain?: boolean; items: ItemsWithHistory<Args, Result, Row, Draft, HistoryArgs, History> },
+  ): ObservedQuery<Result, HistorySnapshot<Result, Row, Draft, History>>;
+  observe<Args, Result, Row extends ItemRow, Draft>(ref: Op<Args, Result>, args: Args,
+    options: { live?: false; drain?: boolean; items: Items<Args, Result, Row, Draft> }): ObservedQuery<Result, ItemSnapshot<Result, Row, Draft>>;
+  observe<Args, Result>(ref: Op<Args, Result>, args: Args, options?: { live?: false; drain?: boolean; items?: undefined }): ObservedQuery<Result>;
   observe<Args, Result, Row extends ItemRow, Draft>(
     ref: Op<Args, Result>, args: Args, options: { live?: false; drain?: boolean; items?: Items<Args, Result, Row, Draft> } = {},
   ): ObservedQuery<Result> {
-    return this.queries.observe(ref, args, options);
+    return this.queries.observe(ref, args, options as { live?: false; drain?: boolean; items: Items<Args, Result, Row, Draft> });
   }
   subscribe<Args, Result>(
     ref: Op<Args, Result>,

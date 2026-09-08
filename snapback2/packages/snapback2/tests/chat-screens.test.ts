@@ -24,9 +24,6 @@ const bundlePath = resolve(packageRoot, "dist/.chat-screens.test-bundle.mjs");
 let App: (props: Record<string, never>) => React.ReactElement;
 let Composer: (props: { conversationId: string; onNote(note: string): void }) => React.ReactElement;
 let Thread: (props: { conversationId: string; viewer: string | undefined; onNote(note: string): void }) => React.ReactElement;
-let usableConversationView: (result: any) => any;
-let authorizedHistoryRows: (result: any) => unknown[];
-let needsPartialHistory: (result: any) => boolean;
 
 before(async () => {
   const bundled = await build({
@@ -36,7 +33,7 @@ before(async () => {
       contents: [
         'export { App } from "./App";',
         'export { Composer } from "./Composer";',
-        'export { Thread, usableConversationView, authorizedHistoryRows, needsPartialHistory } from "./Thread";',
+        'export { Thread } from "./Thread";',
       ].join("\n"),
       resolveDir: resolve(packageRoot, "templates/chat/react/src"),
       sourcefile: "screens.tsx",
@@ -57,8 +54,7 @@ before(async () => {
     }],
   });
   await writeFile(bundlePath, bundled.outputFiles[0]!.text);
-  ({ App, Composer, Thread, usableConversationView, authorizedHistoryRows, needsPartialHistory }
-    = await import(pathToFileURL(bundlePath).href));
+  ({ App, Composer, Thread } = await import(pathToFileURL(bundlePath).href));
 });
 
 after(async () => { await rm(bundlePath, { force: true }); });
@@ -149,42 +145,6 @@ async function type(input: HTMLInputElement, value: string): Promise<void> {
     input.dispatchEvent(new view.KeyboardEvent("keyup", { bubbles: true, key: "End" }));
   });
 }
-
-test("the composite selector admits only complete outcomes and never bypasses denial with history", () => {
-  const composite = { messages: [{ message: { id: "m" } }], count: 1, preview: [] };
-  assert.strictEqual(usableConversationView({ receipt: { outcome: "complete" }, data: composite }), composite);
-  assert.strictEqual(usableConversationView({ receipt: { outcome: "capped" }, data: composite }), composite);
-  for (const outcome of ["partial", "denied"]) {
-    assert.equal(usableConversationView({ receipt: { outcome }, data: composite }), undefined,
-      `${outcome} cannot supply messages, count, or preview`);
-  }
-  assert.equal(usableConversationView({ data: composite }), undefined, "held data cannot supply an unproved count or preview");
-  const history = [{ message: { id: "independent" } }];
-  assert.strictEqual(authorizedHistoryRows({ status: "ready", data: history }), history,
-    "readable history remains an independently authorized row result");
-  for (const status of ["loading", "unavailable"]) assert.deepEqual(
-    authorizedHistoryRows({ status, data: history }), [],
-    `${status} cannot expose fallback rows even when stale data is attached`,
-  );
-  assert.equal(needsPartialHistory({ status: "unavailable", receipt: { outcome: "partial" } }), true,
-    "a data-less partial opens independently authorized history");
-  assert.equal(needsPartialHistory({ status: "ready", data: composite, receipt: { outcome: "partial" } }), true,
-    "a partial with data uses the same fallback path");
-  for (const result of [
-    { status: "ready", data: composite },
-    { status: "loading" },
-    { status: "unavailable", receipt: { outcome: "denied" } },
-    { status: "unavailable", refusal: { code: "NO" } },
-    { status: "ready", data: composite, receipt: { outcome: "complete" } },
-    { status: "ready", data: composite, receipt: { outcome: "capped" } },
-  ]) assert.equal(needsPartialHistory(result), false,
-    "held, reset, denied, refused, complete, and capped snapshots do not open fallback history");
-  assert.deepEqual([
-    needsPartialHistory({ status: "unavailable", receipt: { outcome: "partial" } }),
-    needsPartialHistory({ status: "ready", receipt: { outcome: "complete" } }),
-    needsPartialHistory({ status: "unavailable", receipt: { outcome: "partial" } }),
-  ], [true, false, true], "the eligibility transition detaches on completion and reattaches on a later partial");
-});
 
 // @ref LLP 1012#7-writes-offline — a device with a store writes only under a
 // replay grant, which the inbox drain earns when it first reaches its watermark:

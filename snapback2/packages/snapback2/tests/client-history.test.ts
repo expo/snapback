@@ -1,0 +1,234 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { api } from "../dist/client.mjs";
+import { ClientQueries, composeHistory, defineItems, withHistory } from "../dist/client-observed-test.mjs";
+
+// @ref LLP 1018.006#6-checks — the derivation over every input, then the
+// composition's acquisition, retirement, sharing, and identity contract
+// against a stub host.
+
+type Row = { id: string; body: string };
+const offline = { freshness: { live: false, connection: "offline" }, local: { predicted: [], retained: false } };
+const row = (id: string): Row => ({ id, body: id });
+const item = (id: string, extra: Record<string, unknown> = {}) => ({ key: id, data: row(id), predicted: false, pending: [], ...extra });
+const partial = (data?: unknown, items: unknown[] = []) => ({
+  status: data === undefined ? "unavailable" : "ready", ...(data === undefined ? {} : { data }),
+  receipt: { outcome: "partial", source: "twin", seq: 1, next: null, reason: "count" }, ...offline, items,
+});
+const usable = (outcome: "complete" | "capped") => ({
+  status: "ready", data: { messages: [], count: 0, preview: [] }, receipt: { outcome, source: "server", seq: 2, next: null },
+  ...offline, items: [item("server")],
+});
+const ready = { status: "ready", data: [], ...offline, items: [item("history")] };
+
+test("the derivation: usable composites own the items, partial ones lend to a readable history, everything else keeps drafts only", () => {
+  for (const outcome of ["complete", "capped"] as const) {
+    const composed = composeHistory(usable(outcome) as any, ready as any);
+    assert.equal(composed.itemsFrom, "query");
+    assert.equal(composed.history, undefined, "a usable composite never republishes history");
+    assert.equal(composed.items[0]?.key, "server");
+  }
+  const lent = composeHistory(partial() as any, ready as any);
+  assert.equal(lent.itemsFrom, "history");
+  assert.equal(lent.items[0]?.key, "history");
+  assert.equal(lent.history, ready, "history is the independent input republished as itself");
+  for (const history of [{ status: "loading", ...offline, items: [] }, { status: "unavailable", ...offline, items: [], refusal: { code: "E_TEST" } }]) {
+    const waiting = composeHistory(partial({ messages: [row("unusable")], count: 0, preview: [] }, [item("unusable")]) as any, history as any);
+    assert.equal(waiting.itemsFrom, "drafts", "a partial composite's own rows are never rendered");
+    assert.deepEqual(waiting.items, []);
+    assert.equal(waiting.history, history, "loading or refused history is still the fallback in force");
+  }
+  for (const primary of [
+    { status: "ready", data: { messages: [row("held")], count: 1, preview: [] }, ...offline, items: [item("held")] },
+    { status: "unavailable", receipt: { outcome: "denied", source: "server", seq: 3, next: null, rule: "r" }, ...offline, items: [] },
+    { status: "unavailable", refusal: { code: "E_TEST" }, ...offline, items: [] },
+    { status: "loading", ...offline, items: [] },
+  ]) {
+    const composed = composeHistory(primary as any, ready as any);
+    assert.equal(composed.itemsFrom, "drafts", `${primary.status} without a partial receipt is not eligible`);
+    assert.equal(composed.history, undefined);
+    assert.deepEqual(composed.items, []);
+  }
+  const both = item("m", { draft: { body: "submitted" }, pending: [{ intent: "i", kind: "create", state: "queued" }] });
+  const drafts = composeHistory(partial(undefined, [both, item("plain")]) as any, { status: "loading", ...offline, items: [] } as any);
+  assert.deepEqual(drafts.items, [{ key: "m", draft: { body: "submitted" }, predicted: false, pending: both.pending }],
+    "a draft beside a row image is republished without the image");
+  const again = composeHistory(partial(undefined, [both, item("plain")]) as any, { status: "loading", ...offline, items: [] } as any, drafts as any);
+  assert.equal(again.items, drafts.items, "unchanged drafts keep their identity across derivations");
+  const second = item("n", { draft: { body: "second" }, pending: [] });
+  const two = composeHistory(partial(undefined, [both, second]) as any, { status: "loading", ...offline, items: [] } as any);
+  const changed = composeHistory(partial(undefined, [both, { ...second, pending: [{ intent: "j", kind: "create", state: "queued" }] }]) as any,
+    { status: "loading", ...offline, items: [] } as any, two as any);
+  assert.notEqual(changed.items, two.items);
+  assert.equal(changed.items[0], two.items[0], "an untouched sibling keeps its identity when another draft changes");
+  assert.notEqual(changed.items[1], two.items[1]);
+});
+
+test("withHistory refuses a different table and a second level of custody", () => {
+  const path = Symbol.for("snapback.referencePath");
+  const ref = (op: string) => ({ op, [path]: op });
+  const thread = defineItems(ref("t") as any, { table: "messages", select: (r: any) => r });
+  const view = defineItems(ref("v") as any, { table: "messages", rows: (d: any) => d.messages, select: (r: any) => r });
+  const other = defineItems(ref("o") as any, { table: "deliveries", select: (r: any) => r });
+  assert.throws(() => withHistory(view, { items: other, args: (a: any) => a }), /table deliveries, not messages/);
+  const declared = withHistory(view, { items: thread, args: (a: any) => a });
+  assert.throws(() => withHistory(declared, { items: thread, args: (a: any) => a }), /already declare/);
+  assert.throws(() => withHistory(thread, { items: declared as any, args: (a: any) => a }), /history of its own/);
+  assert.equal(declared.history.items, thread);
+});
+
+const threadItems = defineItems(api.deliveries.thread as any, { table: "messages", select: (d: any) => d.message, order: "reverse" });
+const conversationItems = withHistory(defineItems(api.deliveries.conversationView as any, {
+  table: "messages", rows: (v: any) => v.messages, select: (d: any) => d.message, order: "reverse",
+}), { items: threadItems, args: ({ conversationId }: any) => ({ conversationId, c: null }) });
+const viewArgs = { conversationId: "c" }, threadArgs = { conversationId: "c", c: null };
+
+function host() {
+  let identity: readonly [number, number] = [1, 1];
+  const publishers = new Map<string, (event: any) => void>();
+  const queries = new ClientQueries({
+    identity: () => identity,
+    active: (fence: readonly [number, number]) => fence[0] === identity[0] && fence[1] === identity[1],
+    connection: () => "offline",
+    open: (ref: any, _args: unknown, listener: (event: any) => void) => {
+      publishers.set(ref.op, listener);
+      return { close: () => { publishers.delete(ref.op); }, until: async () => { throw new Error("unused"); } };
+    },
+    query: async () => { throw new Error("unused"); },
+    local: async () => { throw new Error("unused"); },
+  } as any);
+  const publish = (op: string, event: any) => { publishers.get(op)!(event); };
+  return { queries, publish, reset: () => { identity = [2, 2]; queries.clear(); }, clear: () => { queries.clear(); } };
+}
+const message = { messageId: "m", message: row("m") };
+
+test("the composition acquires history at subscribe time, releases it on a usable composite, and shares one object", () => {
+  const { queries, publish } = host();
+  const view = api.deliveries.conversationView, thread = api.deliveries.thread;
+  const composed = queries.observe(view, viewArgs, { items: conversationItems });
+  assert.equal(queries.consumers(view, viewArgs), 0, "obtaining a composition opens nothing");
+  assert.equal(composed.getSnapshot().itemsFrom, "drafts");
+  const seen: string[] = [];
+  const stop = composed.subscribe(() => { seen.push(composed.getSnapshot().itemsFrom); });
+  assert.equal(queries.consumers(view, viewArgs), 1);
+  assert.equal(queries.consumers(thread, threadArgs), 0, "a loading composite is not eligible");
+  publish("deliveries.conversationView", { state: "partial", live: true, seq: 1, reason: "count" });
+  assert.equal(queries.consumers(thread, threadArgs), 1, "a partial receipt acquires history in the same notification");
+  assert.equal(composed.getSnapshot().history?.status, "loading");
+  assert.equal(composed.getSnapshot().itemsFrom, "drafts");
+  publish("deliveries.thread", { state: "complete", live: true, seq: 1, next: null, data: [message] });
+  assert.equal(composed.getSnapshot().itemsFrom, "history");
+  assert.equal(composed.getSnapshot().items[0]?.key, "m");
+  const before = composed.getSnapshot();
+  assert.equal(composed.getSnapshot(), before, "identity is stable between input changes");
+  const notified = seen.length;
+  publish("deliveries.thread", { state: "complete", live: true, seq: 1, next: null, data: [message] });
+  assert.equal(composed.getSnapshot(), before, "an identical history republication changes nothing");
+  assert.equal(seen.length, notified, "and notifies nobody");
+  publish("deliveries.conversationView", { state: "complete", live: true, seq: 2, next: null, data: { messages: [message], count: 1, preview: [message] } });
+  assert.equal(queries.consumers(thread, threadArgs), 0, "a usable composite releases history and retires its entry");
+  assert.equal(composed.getSnapshot().itemsFrom, "query");
+  assert.equal(composed.getSnapshot().history, undefined);
+  publish("deliveries.conversationView", { state: "partial", live: true, seq: 3, reason: "count" });
+  assert.equal(queries.consumers(thread, threadArgs), 1, "a later partial reacquires history");
+  assert.deepEqual(seen, ["drafts", "history", "query", "drafts"]);
+
+  const other = queries.observe(view, viewArgs, { items: conversationItems });
+  assert.equal(other.getSnapshot(), composed.getSnapshot(), "a second handle reads the held composition's record");
+  const second = other.subscribe(() => undefined);
+  assert.equal(queries.consumers(view, viewArgs), 1, "two consumers share one composite subscription");
+  const unrelated = queries.observe(thread, threadArgs, { items: threadItems }).subscribe(() => undefined);
+  publish("deliveries.conversationView", { state: "complete", live: true, seq: 4, next: null, data: { messages: [], count: 0, preview: [] } });
+  assert.equal(queries.consumers(thread, threadArgs), 1, "the composition releases only its own history subscription");
+  unrelated();
+  second(); stop(); stop();
+  assert.equal(queries.consumers(view, viewArgs), 0);
+  assert.equal(queries.consumers(thread, threadArgs), 0);
+  assert.equal(queries.observe(view, viewArgs, { items: conversationItems }).getSnapshot().itemsFrom, "drafts", "a released composition is not retained; a new handle reads fallbacks");
+});
+
+test("handles created before any subscribe join one composition, in either cleanup order", () => {
+  for (const order of ["first-then-second", "second-then-first"] as const) {
+    const { queries, publish } = host();
+    const view = api.deliveries.conversationView, thread = api.deliveries.thread;
+    const first = queries.observe(view, viewArgs, { items: conversationItems });
+    const second = queries.observe(view, viewArgs, { items: conversationItems });
+    const stopFirst = first.subscribe(() => undefined);
+    const stopSecond = second.subscribe(() => undefined);
+    assert.equal(queries.consumers(view, viewArgs), 1, `${order}: two handles share one composite subscription`);
+    publish("deliveries.conversationView", { state: "partial", live: true, seq: 1, reason: "count" });
+    assert.equal(queries.consumers(thread, threadArgs), 1, `${order}: and one history subscription`);
+    assert.equal(first.getSnapshot(), second.getSnapshot(), `${order}: both handles read one record`);
+    (order === "first-then-second" ? stopFirst : stopSecond)();
+    assert.equal(queries.consumers(view, viewArgs), 1, `${order}: the remaining consumer keeps the composition`);
+    assert.equal(queries.consumers(thread, threadArgs), 1);
+    (order === "first-then-second" ? stopSecond : stopFirst)();
+    assert.equal(queries.consumers(view, viewArgs), 0, `${order}: the last consumer releases everything`);
+    assert.equal(queries.consumers(thread, threadArgs), 0);
+  }
+});
+
+test("each subscription is its own attachment, listeners are isolated, and a listener removed mid-broadcast does not run", () => {
+  const { queries, publish } = host();
+  const view = api.deliveries.conversationView;
+  const composed = queries.observe(view, viewArgs, { items: conversationItems });
+  const calls: string[] = [];
+  const shared = () => { calls.push("shared"); };
+  const stopA = composed.subscribe(shared);
+  const stopB = composed.subscribe(shared);
+  stopA();
+  assert.equal(queries.consumers(view, viewArgs), 1, "the second subscription of the same callback survives the first's close");
+  publish("deliveries.conversationView", { state: "partial", live: true, seq: 1, reason: "count" });
+  assert.deepEqual(calls, ["shared"]);
+  let stopLate: () => void = () => undefined;
+  const stopThrowing = composed.subscribe(() => { stopLate(); throw new Error("listener failure"); });
+  stopLate = composed.subscribe(() => { calls.push("late"); });
+  const stopAfter = composed.subscribe(() => { calls.push("after"); });
+  publish("deliveries.conversationView", { state: "partial", live: true, seq: 2, reason: "count" });
+  assert.deepEqual(calls, ["shared", "shared", "after"], "a throwing listener silences nobody; a listener removed during the broadcast does not run");
+  stopB(); stopThrowing(); stopAfter(); stopB();
+  assert.equal(queries.consumers(view, viewArgs), 0);
+});
+
+test("clear() retires registered compositions with and without an authority change, and a fresh handle opens again", () => {
+  for (const change of [false, true]) {
+    const { queries, publish, reset, clear } = host();
+    const view = api.deliveries.conversationView, thread = api.deliveries.thread;
+    const composed = queries.observe(view, viewArgs, { items: conversationItems });
+    const states: string[] = [];
+    composed.subscribe(() => { states.push(composed.getSnapshot().status); });
+    publish("deliveries.conversationView", { state: "partial", live: true, seq: 1, reason: "count" });
+    assert.equal(queries.consumers(thread, threadArgs), 1);
+    if (change) reset(); else clear();
+    assert.equal(queries.consumers(view, viewArgs), 0, `clear(change=${change}) released the composition's subscriptions`);
+    assert.equal(queries.consumers(thread, threadArgs), 0);
+    assert.equal(composed.getSnapshot().status, "loading", "a retired handle reads the underlying fallback");
+    assert.equal(states.at(-1), "loading", "retirement notified the consumer once");
+    assert.equal(composed.subscribe(() => undefined)(), undefined);
+    assert.equal(queries.consumers(view, viewArgs), 0, "a retired handle opens nothing");
+    const fresh = queries.observe(view, viewArgs, { items: conversationItems });
+    const stop = fresh.subscribe(() => undefined);
+    assert.equal(queries.consumers(view, viewArgs), 1, `a fresh handle after clear(change=${change}) opens the composite again`);
+    stop();
+  }
+});
+
+test("a composition subscribed to an already-partial composite acquires history at once; remount and reset behave", () => {
+  const { queries, publish, reset } = host();
+  const view = api.deliveries.conversationView, thread = api.deliveries.thread;
+  const raw = queries.observe(view, viewArgs).subscribe(() => undefined);
+  publish("deliveries.conversationView", { state: "partial", live: true, seq: 1, reason: "count" });
+  const composed = queries.observe(view, viewArgs, { items: conversationItems });
+  assert.equal(queries.consumers(thread, threadArgs), 0);
+  const stop = composed.subscribe(() => undefined);
+  assert.equal(queries.consumers(thread, threadArgs), 1, "no later change is needed to acquire history");
+  stop();
+  const remount = composed.subscribe(() => undefined);
+  assert.equal(queries.consumers(view, viewArgs), 2, "StrictMode-style resubscription leaves one composite subscription");
+  assert.equal(queries.consumers(thread, threadArgs), 1);
+  reset();
+  assert.equal(composed.getSnapshot().status, "loading", "a fence change shows through as the underlying fallback");
+  assert.equal(composed.getSnapshot().itemsFrom, "drafts");
+  assert.equal(composed.getSnapshot().history, undefined);
+  remount(); raw();
+});

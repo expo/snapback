@@ -24,12 +24,13 @@ or refusals. Transport `live`/`stale` never replaces the certified outcome.
 local commits reevaluate once; bookkeeping stays silent. Resets load; transport
 state does not replace the certified outcome.
 
-For coherent list/count/preview, use one named query such as
-`deliveries.conversationView`. Only a partial receipt, even without data,
-enables independently observed history; that history supplies no count or
-preview. Complete/capped composite data supplies all three and detaches the
-fallback. Denial, refusal and account reset cannot enable it; `status` grants
-no authority.
+Use one query for list/count/preview. Declare history once:
+`withHistory(items, { items: threadItems, args: q => ({ ...q, c: null }) })`.
+`itemsFrom` is `query` for complete/capped data, `history` for readable
+history, else `drafts`. `history` holds history's snapshot iff the composite
+receipt is partial, even without data; never denial/refusal/reset. History
+gives no count/preview; usable composite data gives all three and detaches
+history.
 
 Use `{ items: spec }` with `useQuery`/`observe`. Declare `spec` once with
 `snapback2/client`'s `defineItems(query, { table, select, order, create, update,

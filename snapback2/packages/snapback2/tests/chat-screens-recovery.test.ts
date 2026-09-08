@@ -25,8 +25,6 @@ const bundlePath = resolve(packageRoot, "dist/.chat-screens-recovery.test-bundle
 let App: (props: Record<string, never>) => React.ReactElement;
 let Composer: (props: { conversationId: string; onNote(note: string): void }) => React.ReactElement;
 let Thread: (props: { conversationId: string; viewer: string | undefined; onNote(note: string): void }) => React.ReactElement;
-let usableConversationView: (result: any) => any;
-let authorizedHistoryRows: (result: any) => unknown[];
 let screenOwner: RealOwnerHarness;
 
 before(async () => {
@@ -38,7 +36,6 @@ before(async () => {
         'export { App } from "./App";',
         'export { Composer } from "./Composer";',
         'export { Thread } from "./Thread";',
-        'export { usableConversationView, authorizedHistoryRows } from "./Thread";',
       ].join("\n"),
       resolveDir: resolve(packageRoot, "templates/chat/react/src"),
       sourcefile: "screens.tsx",
@@ -59,8 +56,7 @@ before(async () => {
     }],
   });
   await writeFile(bundlePath, bundled.outputFiles[0]!.text);
-  ({ App, Composer, Thread, usableConversationView, authorizedHistoryRows }
-    = await import(pathToFileURL(bundlePath).href));
+  ({ App, Composer, Thread } = await import(pathToFileURL(bundlePath).href));
   // The harness starts the production chat fixture when this file runs alone,
   // or uses the suite's already-qualified full-chat owner.
   screenOwner = await RealOwnerHarness.create({ fullChat: true });

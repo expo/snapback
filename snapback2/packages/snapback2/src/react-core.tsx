@@ -13,7 +13,7 @@ import { createClient, isSnapbackRefusal, type SnapbackRefusal } from "./client.
 import { viewedAssetIds } from "./client-assets.js";
 import { referenceName, type Channel as ChannelRef, type Op } from "./api.js";
 import { readiness, type Readiness, type Snapshot } from "./snapshot.js";
-import type { ItemRow, Items, ItemSnapshot } from "./client-items.js";
+import type { HistorySnapshot, ItemRow, Items, ItemSnapshot, ItemsWithHistory } from "./client-items.js";
 import {
   stableSerialize,
   type AuthApi,
@@ -149,13 +149,17 @@ export function useConnection(): ConnectionState {
  */
 /** drain requires an ascending append log (after c first N, N <= 50); emits each page, then its tail.
  * Unsupported returned-page shapes remain refused. For newest-first data subscribe normally at c:null. */
-export function useQuery<Args, Result>(
-  ref: Op<Args, Result>, args: NoInfer<Args>, options?: { live?: false; drain?: boolean },
-): Snapshot<Result>;
+export function useQuery<Args, Result, Row extends ItemRow, Draft, HistoryArgs, History>(
+  ref: Op<Args, Result>, args: NoInfer<Args>,
+  options: { live?: false; drain?: boolean; items: ItemsWithHistory<Args, Result, Row, Draft, HistoryArgs, History> },
+): HistorySnapshot<Result, Row, Draft, History>;
 export function useQuery<Args, Result, Row extends ItemRow, Draft>(
   ref: Op<Args, Result>, args: NoInfer<Args>,
   options: { live?: false; drain?: boolean; items: Items<Args, Result, Row, Draft> },
 ): ItemSnapshot<Result, Row, Draft>;
+export function useQuery<Args, Result>(
+  ref: Op<Args, Result>, args: NoInfer<Args>, options?: { live?: false; drain?: boolean; items?: undefined },
+): Snapshot<Result>;
 export function useQuery<Args, Result, Row extends ItemRow, Draft>(
   ref: Op<Args, Result>,
   args: NoInfer<Args>,
@@ -169,7 +173,7 @@ export function useQuery<Args, Result, Row extends ItemRow, Draft>(
   const operation = referenceName(ref);
   const restoring = !!snapshot.token && snapshot.auth.state === "hydrating";
   const observed = useMemo(
-    () => client.observe(ref, stableArgs, { ...options }),
+    () => client.observe(ref, stableArgs, { ...options } as { live?: false; drain?: boolean; items: Items<Args, Result, Row, Draft> }),
     [client, snapshot.authGeneration, operation, argsKey, live, options.drain, options.items, restoring],
   );
   const state = useSyncExternalStore(observed.subscribe, observed.getSnapshot, observed.getSnapshot);

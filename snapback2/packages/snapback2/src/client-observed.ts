@@ -2,7 +2,10 @@ import { isSnapbackRefusal } from "./client-wire.js";
 import { referenceName, referencePath, type Op } from "./api.js";
 import { SharedSubscriptions } from "./client-sessions.js";
 import { summarize, type Snapshot } from "./snapshot.js";
-import { attachItems, type ItemInputs, type ItemRow, type Items, type ItemSnapshot } from "./client-items.js";
+import {
+  attachItems, composeHistory,
+  type HistorySnapshot, type ItemInputs, type ItemRow, type Items, type ItemSnapshot, type ItemsWithHistory,
+} from "./client-items.js";
 import { carryItemInputs, cloneItemPublication, emptyItemInputs, itemInputs, rebindItemInputs, withItemInputs } from "./query-frame.js";
 import {
   initialQueryState,
@@ -105,6 +108,89 @@ export function queryEntry<Result, Event extends QueryMachineEvent<Result>>(
   };
 }
 
+// @ref LLP 1018.006#3-mechanics — one composition per declaration and query
+// identity while any consumer holds it: handles join the registered core at
+// subscribe time, each subscription is its own attachment, listeners are
+// isolated from one another, acquisition reconciles in the subscribing call
+// because the shared entry registers silently, the core releases only its own
+// history subscription, and `clear()` retires cores while detached handles
+// keep reading the underlying fallbacks.
+interface HistoryCore<Result, Row extends ItemRow, Draft, History> {
+  readonly retired: boolean;
+  getSnapshot(): HistorySnapshot<Result, Row, Draft, History>;
+  subscribe(listener: () => void): () => void;
+  retire(): void;
+}
+
+function historyCore<Result, Row extends ItemRow, Draft, History>(
+  primary: ObservedQuery<Result, ItemSnapshot<Result, Row, Draft>>,
+  history: ObservedQuery<History, ItemSnapshot<History, Row, Draft>>,
+  onIdle: () => void,
+): HistoryCore<Result, Row, Draft, History> {
+  type Attachment = { listener: () => void; closed: boolean };
+  const attachments = new Set<Attachment>();
+  let primaryOff: (() => void) | undefined;
+  let historyOff: (() => void) | undefined;
+  let retired = false;
+  let basis: { primary?: ItemSnapshot<Result, Row, Draft>; history?: ItemSnapshot<History, Row, Draft>;
+    value?: HistorySnapshot<Result, Row, Draft, History> } = {};
+  const notify = () => {
+    for (const attachment of [...attachments]) {
+      if (attachment.closed) continue;
+      try { attachment.listener(); } catch { /* listeners are isolated from one another, as in the shared entry */ }
+    }
+  };
+  const reconcile = () => {
+    if (primaryOff === undefined) return;
+    if (primary.getSnapshot().receipt?.outcome === "partial") historyOff ??= history.subscribe(broadcast);
+    else if (historyOff !== undefined) { historyOff(); historyOff = undefined; }
+  };
+  const broadcast = () => { reconcile(); notify(); };
+  const release = () => {
+    historyOff?.(); historyOff = undefined;
+    primaryOff?.(); primaryOff = undefined;
+  };
+  return {
+    get retired() { return retired; },
+    getSnapshot: () => {
+      const current = primary.getSnapshot();
+      const fallback = current.receipt?.outcome === "partial" ? history.getSnapshot() : undefined;
+      if (basis.value !== undefined && basis.primary === current && basis.history === fallback) return basis.value;
+      basis = { primary: current, history: fallback, value: composeHistory(current, fallback, basis.value) };
+      return basis.value!;
+    },
+    subscribe: (listener) => {
+      if (retired) return () => undefined;
+      const attachment: Attachment = { listener, closed: false };
+      attachments.add(attachment);
+      if (primaryOff === undefined) primaryOff = primary.subscribe(broadcast);
+      reconcile();
+      return () => {
+        if (attachment.closed) return;
+        attachment.closed = true;
+        attachments.delete(attachment);
+        if (attachments.size === 0 && !retired) { release(); onIdle(); }
+      };
+    },
+    retire: () => {
+      if (retired) return;
+      retired = true;
+      release();
+      notify();
+      for (const attachment of attachments) attachment.closed = true;
+      attachments.clear();
+    },
+  };
+}
+
+const declarationIds = new WeakMap<object, number>();
+let nextDeclarationId = 0;
+function declarationId(declaration: object): number {
+  let id = declarationIds.get(declaration);
+  if (id === undefined) { id = ++nextDeclarationId; declarationIds.set(declaration, id); }
+  return id;
+}
+
 type QueryMode = "live" | "drain" | "once";
 type QueryFence = readonly [authGeneration: number, operationFence: number];
 
@@ -121,6 +207,8 @@ interface QueryHost {
 /** Owns query identity, lazy shared entries, and committed-local-input reevaluation for one client. */
 export class ClientQueries {
   private readonly shared = new SharedSubscriptions();
+  /** Composition cores with at least one consumer, by items declaration and composite identity. */
+  private readonly compositions = new Map<string, HistoryCore<any, any, any, any>>();
   constructor(private readonly host: QueryHost) {}
 
   private async local<Args, Result>(
@@ -176,12 +264,16 @@ export class ClientQueries {
     return carryItemInputs(refreshed, { ...fresh, live: true } as SubscriptionDelivery<Result>);
   }
 
-  observe<Args, Result>(
-    ref: Op<Args, Result>, args: Args, options?: { live?: false; drain?: boolean },
-  ): ObservedQuery<Result>;
+  observe<Args, Result, Row extends ItemRow, Draft, HistoryArgs, History>(
+    ref: Op<Args, Result>, args: Args,
+    options: { live?: false; drain?: boolean; items: ItemsWithHistory<Args, Result, Row, Draft, HistoryArgs, History> },
+  ): ObservedQuery<Result, HistorySnapshot<Result, Row, Draft, History>>;
   observe<Args, Result, Row extends ItemRow, Draft>(
     ref: Op<Args, Result>, args: Args, options: { live?: false; drain?: boolean; items: Items<Args, Result, Row, Draft> },
   ): ObservedQuery<Result, ItemSnapshot<Result, Row, Draft>>;
+  observe<Args, Result>(
+    ref: Op<Args, Result>, args: Args, options?: { live?: false; drain?: boolean; items?: undefined },
+  ): ObservedQuery<Result>;
   observe<Args, Result, Row extends ItemRow, Draft>(
     ref: Op<Args, Result>, args: Args, options: { live?: false; drain?: boolean; items?: Items<Args, Result, Row, Draft> } = {},
   ): ObservedQuery<Result> {
@@ -221,7 +313,34 @@ export class ClientQueries {
       (current, authoritative, inputs) => this.local(request, drain, current, fence, authoritative, inputs),
       this.host.connection,
     ), active, projection);
-    return observed;
+    if (!items || !("history" in items)) return observed;
+    const declared = items as ItemsWithHistory<Args, Result, Row, Draft>;
+    const shareKey = `${key}\u0000${declarationId(declared)}`;
+    const historyOp = declared.history.items.query;
+    const historyArgs = structuredClone(declared.history.args(request.args));
+    const historyRef = Object.freeze({ op: historyOp, [referencePath]: historyOp }) as Op<unknown, unknown>;
+    const history = this.observe(historyRef, historyArgs, {
+      ...(once ? { live: false as const } : {}), ...(drain ? { drain: true } : {}),
+      items: declared.history.items as Items<unknown, unknown, Row, Draft>,
+    });
+    // This handle's own core serves detached reads and becomes the registered
+    // core when it is the first to subscribe; otherwise the handle joins the
+    // core another handle registered.
+    let own: HistoryCore<Result, Row, Draft, unknown> | undefined;
+    const detached = () => own ??= historyCore(observed as ObservedQuery<Result, ItemSnapshot<Result, Row, Draft>>, history,
+      () => { if (this.compositions.get(shareKey) === own) this.compositions.delete(shareKey); });
+    // A retired handle (its core was cleared) keeps reading fallbacks and never
+    // registers again; a fresh handle after `clear()` builds a live core.
+    const handle: ObservedQuery<Result, HistorySnapshot<Result, Row, Draft, unknown>> = {
+      getSnapshot: () => (own?.retired ? own : this.compositions.get(shareKey) ?? detached()).getSnapshot(),
+      subscribe: (listener) => {
+        if (own?.retired) return () => undefined;
+        let core = this.compositions.get(shareKey);
+        if (core === undefined) { core = detached(); this.compositions.set(shareKey, core); }
+        return core.subscribe(listener);
+      },
+    };
+    return handle;
   }
 
   subscribe<Args, Result>(
@@ -244,7 +363,11 @@ export class ClientQueries {
   refresh(): void { this.shared.refresh(); }
   reproject(): void { this.shared.reproject(); }
   retireInactive(): void { this.shared.retireInactive(); }
-  clear(except?: Subscription<unknown>): void { this.shared.clear(except); }
+  clear(except?: Subscription<unknown>): void {
+    this.shared.clear(except);
+    for (const core of this.compositions.values()) core.retire();
+    this.compositions.clear();
+  }
 }
 
 /** The non-live source used by `client.observe`; ownership remains in the shared entry. */

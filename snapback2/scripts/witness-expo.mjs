@@ -107,6 +107,10 @@ function coldAssertions(state) {
   assert.ok(state.answer.data.some((row) => row.message?.body === "Café offline first"), "queued send must be inside the never-opened query's data");
   assert.ok(state.bubbles.some((bubble) => bubble.key === queued[0].ids[0] && bubble.kind === "pending"));
   assert.equal(state.conversationView.state, "partial", "missing count authority keeps the whole composite partial");
+  assert.equal(state.composed?.timedOut, false, `the composed observation settled: ${JSON.stringify(state.composed)}`);
+  assert.equal(state.composed?.itemsFrom, "history", `the Thread's composed observation lends items from history: ${JSON.stringify(state.composed)}`);
+  assert.equal(state.composed?.history?.status, "ready", "the declared history is readable while the composite is partial");
+  assert.ok(state.composed?.keys.includes(queued[0].ids[0]), "the queued send is among the composed items");
   assert.equal(state.search.state, "held");
   assert.ok(state.search.data.some((row) => row.id === queued[0].ids[0] && row.body === "Café offline first"),
     `cold indexed search includes the predicted message row; query facts: ${JSON.stringify(facts)}; expected: ${JSON.stringify({ id: queued[0].ids[0], body: "Café offline first", intent: queued[0].intent })}; outbox: ${JSON.stringify(state.outbox.map((entry) => ({ state: entry.state, predicted: entry.predicted, intent: entry.intent, ids: entry.ids })))}`);

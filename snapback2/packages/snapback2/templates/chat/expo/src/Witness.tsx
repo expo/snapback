@@ -21,6 +21,7 @@ function bubbles(rows: LogRow[], entries: Entry[], conversationId: string) {
 }
 import { configuration, persist, databaseState, markerSwap, listFiles, DATABASE } from "./witness-state";
 import { Chat } from "./Chat";
+import { composedFacts } from "./composed-facts";
 
 export default function Witness({ url, controlUrl }: { url: string; controlUrl: string }) {
   const [client, setClient] = useState<SnapbackClient>();
@@ -136,6 +137,10 @@ export default function Witness({ url, controlUrl }: { url: string; controlUrl: 
           return entries;
         }
         if (verb === "state") {
+          // @ref LLP 1018.006#5-surface — the composed observation the Thread
+          // screen renders, reported beside the direct queries so the witness
+          // qualifies the path the screen runs through.
+          const composed = typeof args.conversationId === "string" ? await composedFacts(client, args.conversationId) : undefined;
           const answer = typeof args.conversationId === "string"
             ? await client.query(api.deliveries.thread, { conversationId: args.conversationId, c: null }) : undefined;
           const conversationView = typeof args.conversationId === "string"
@@ -152,7 +157,7 @@ export default function Witness({ url, controlUrl }: { url: string; controlUrl: 
             bubbles: typeof args.conversationId === "string" ? bubbles(rows as LogRow[], entries as Entry[], args.conversationId) : [],
             search, searchVariants, searchProbe: args.searchDiagnostics === true
               ? witnessSearchProbe(client, [...diagnosticTerms, String(args.search)]) : undefined,
-            answer, conversationView, twin: twinLastDecline(), stores: await databaseState(), files: listFiles(),
+            answer, conversationView, composed, twin: twinLastDecline(), stores: await databaseState(), files: listFiles(),
             media: currentMedia ? { loaded: currentMedia.loaded, uri: currentMedia.uri } : null };
         }
         throw new Error(`unknown witness command ${verb}`);

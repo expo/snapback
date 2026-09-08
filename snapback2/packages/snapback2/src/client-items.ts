@@ -100,6 +100,68 @@ export function defineItems<Args, Result, Source, Row extends ItemRow,
     ...(spec.order ? { order: spec.order } : {}), bindings: Object.freeze(bindings) });
 }
 
+// @ref LLP 1018.006#1-the-declaration — the declaring items alone decide row
+// and draft; a history must describe the same table and match those types,
+// and custody has one level.
+export interface ItemsWithHistory<Args, Result, Row extends ItemRow, Draft, HistoryArgs = unknown, History = unknown>
+  extends Items<Args, Result, Row, Draft> {
+  readonly history: {
+    readonly items: Items<HistoryArgs, History, Row, Draft>;
+    /** Pure and deterministic; runs once per observation. */
+    readonly args: (args: Args) => HistoryArgs;
+  };
+}
+export function withHistory<Args, Result, Row extends ItemRow, Draft, HistoryArgs, History>(
+  items: Items<Args, Result, Row, Draft>,
+  history: { items: Items<HistoryArgs, History, NoInfer<Row>, NoInfer<Draft>>; args: (args: NoInfer<Args>) => HistoryArgs },
+): ItemsWithHistory<Args, Result, Row, Draft, HistoryArgs, History> {
+  if ("history" in items) throw new TypeError("these items already declare a history");
+  if ("history" in history.items) throw new TypeError("a history cannot declare a history of its own");
+  if (history.items.table !== items.table) {
+    throw new TypeError(`history items describe table ${history.items.table}, not ${items.table}`);
+  }
+  return Object.freeze({ ...items, history: Object.freeze({ items: history.items, args: history.args }) });
+}
+
+/** An observed query whose items declare a history (LLP 1018.006 §2). */
+export type HistorySnapshot<Result, Row extends ItemRow, Draft, History = unknown> = ItemSnapshot<Result, Row, Draft> & {
+  /** Where `items` come from: the usable query, its declared history, or only this device's drafts. */
+  readonly itemsFrom: "query" | "history" | "drafts";
+  /** The history's own snapshot, present exactly while the query's receipt is partial. */
+  readonly history?: Snapshot<History>;
+};
+
+// @ref LLP 1018.006#2-the-published-record — eligibility is the composite's
+// partial receipt; usability is a complete or capped receipt with data; a
+// readable history supplies items; otherwise only this device's drafts,
+// republished without the row image a draft may already sit beside.
+export function composeHistory<Result, Row extends ItemRow, Draft, History>(
+  primary: ItemSnapshot<Result, Row, Draft>,
+  history: ItemSnapshot<History, Row, Draft> | undefined,
+  previous?: HistorySnapshot<Result, Row, Draft, History>,
+): HistorySnapshot<Result, Row, Draft, History> {
+  const outcome = primary.receipt?.outcome;
+  const eligible = outcome === "partial" ? history : undefined;
+  const usable = (outcome === "complete" || outcome === "capped") && primary.data !== undefined;
+  const itemsFrom = usable ? "query" : eligible?.status === "ready" ? "history" : "drafts";
+  const items = itemsFrom === "query" ? primary.items : itemsFrom === "history" ? eligible!.items
+    : draftsOnly(primary.items, previous?.itemsFrom === "drafts" ? previous.items : undefined);
+  return Object.freeze({ ...primary, items, itemsFrom, ...(eligible === undefined ? {} : { history: eligible }) });
+}
+
+function draftsOnly<Row extends ItemRow, Draft>(
+  items: readonly QueryItem<Row, Draft>[], previous: readonly QueryItem<Row, Draft>[] | undefined,
+): readonly QueryItem<Row, Draft>[] {
+  const before = new Map((previous ?? []).map(item => [item.key, item] as const));
+  const drafts = items.filter(item => item.draft !== undefined).map(item => {
+    const kept = before.get(item.key);
+    if (kept && kept.draft === item.draft && kept.predicted === item.predicted && kept.pending === item.pending) return kept;
+    return item.data === undefined ? item : Object.freeze({ key: item.key, draft: item.draft, predicted: item.predicted, pending: item.pending });
+  });
+  const same = previous !== undefined && previous.length === drafts.length && drafts.every((item, index) => previous[index] === item);
+  return same ? previous : Object.freeze(drafts);
+}
+
 /** Private evidence bound to the value being published, never a partition watermark. */
 export interface ItemObservation {
   /** The owner read this exact authoritative base through this sequence. */

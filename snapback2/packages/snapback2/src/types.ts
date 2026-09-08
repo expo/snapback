@@ -3,7 +3,7 @@ import type { Channel as ChannelRef, Op } from "./api.js";
 import type { AssetCache, ByteCacheEntry, ByteCacheStatus } from "./store/byte-cache.js";
 import type { OutboxEntry, RangeStoreFactory } from "./store/range-store.js";
 import type { Snapshot } from "./snapshot.js";
-import type { ItemRow, Items, ItemSnapshot } from "./client-items.js";
+import type { HistorySnapshot, ItemRow, Items, ItemSnapshot, ItemsWithHistory } from "./client-items.js";
 import { canonical } from "./store/canonical.js";
 
 export type { OutboxEntry, OutboxGrant, OutboxState, OutboxTrace } from "./store/range-store.js";
@@ -376,15 +376,19 @@ export interface SnapbackClient {
   readonly snapshot: ClientSnapshot;
   query<Args, Result>(ref: Op<Args, Result>, args: NoInfer<Args>): Promise<QueryResult<Result>>;
   /** A lazy shared query snapshot. The first listener opens it; the last releases it. */
-  observe<Args, Result>(
-    ref: Op<Args, Result>,
-    args: NoInfer<Args>,
-    options?: { live?: false; drain?: boolean },
-  ): ObservedQuery<Result>;
+  observe<Args, Result, Row extends ItemRow, Draft, HistoryArgs, History>(
+    ref: Op<Args, Result>, args: NoInfer<Args>,
+    options: { live?: false; drain?: boolean; items: ItemsWithHistory<Args, Result, Row, Draft, HistoryArgs, History> },
+  ): ObservedQuery<Result, HistorySnapshot<Result, Row, Draft, History>>;
   observe<Args, Result, Row extends ItemRow, Draft>(
     ref: Op<Args, Result>, args: NoInfer<Args>,
     options: { live?: false; drain?: boolean; items: Items<Args, Result, Row, Draft> },
   ): ObservedQuery<Result, ItemSnapshot<Result, Row, Draft>>;
+  observe<Args, Result>(
+    ref: Op<Args, Result>,
+    args: NoInfer<Args>,
+    options?: { live?: false; drain?: boolean; items?: undefined },
+  ): ObservedQuery<Result>;
   /** Diagnostic count of consumers attached to one shared observed-query identity. */
   sharedConsumers<Args, Result>(ref: Op<Args, Result>, args: NoInfer<Args>, drain?: boolean): number;
   mutation<Args, Result>(ref: Op<Args, Result>, args: NoInfer<AssetInput<Args>>): Promise<MutationResult<Result>>;

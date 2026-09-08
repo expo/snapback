@@ -33,7 +33,7 @@ function observeTestOutbox(client: any) {
     (notify: () => void) => client.outbox.subscribe(notify), () => String(client.snapshot.authGeneration));
 }
 
-test("Expo opens held history only for a partial composite and reuses the observer after detach", async () => {
+test("Expo renders declared history for a partial composite and the composite once it is usable", async () => {
   const bundlePath = fileURLToPath(new URL("../dist/.expo-thread-history.test-bundle.mjs", import.meta.url));
   const bundled = await build({
     stdin: {
@@ -60,26 +60,22 @@ test("Expo opens held history only for a partial composite and reuses the observ
   });
   await writeFile(bundlePath, bundled.outputFiles[0]!.text);
   const { Thread } = await import(`${pathToFileURL(bundlePath).href}?fresh=${Date.now()}`);
-  const compositeListeners = new Set<() => void>(), historyListeners = new Set<() => void>();
+  const listeners = new Set<() => void>();
+  const observed: string[] = [];
   const message = { messageId: "message-held", at: 1, kind: "message",
     message: { id: "message-held", authorId: "profile-alice", body: "independently held" } };
   const items = [{ key: "message-held", data: message.message, predicted: false, pending: [] }];
-  let composite: any = { status: "unavailable", items: [], receipt: { outcome: "partial", source: "twin", seq: 1 },
-    freshness: { live: false, connection: "offline" }, local: { predicted: [], retained: false } };
-  const history: any = { status: "ready", data: [message], items,
-    freshness: { live: false, connection: "offline" }, local: { predicted: [], retained: true },
-    reason: { code: "held", message: "Held on this device." } };
-  const observation = (snapshot: () => any, listeners: Set<() => void>) => ({
-    getSnapshot: snapshot,
-    subscribe(notify: () => void) { listeners.add(notify); return () => { listeners.delete(notify); }; },
-  });
+  const offline = { freshness: { live: false, connection: "offline" }, local: { predicted: [], retained: false } };
+  const history = { status: "ready", data: [message], items, ...offline, reason: { code: "held", message: "Held on this device." } };
+  // The composed record of LLP 1018.006 §2: the screen never opens history itself.
+  let snapshot: any = { status: "unavailable", receipt: { outcome: "partial", source: "twin", seq: 1 }, ...offline,
+    items, itemsFrom: "history", history };
   const client: any = {
     ready: Promise.resolve(),
     snapshot: { authGeneration: 1, connection: "offline", auth: { state: "authenticated", viewer: "profile-alice" } },
-    observe(ref: any) {
-      return ref.op === "deliveries.conversationView"
-        ? observation(() => composite, compositeListeners)
-        : observation(() => history, historyListeners);
+    observe(ref: any, _args: unknown, options: any) {
+      observed.push(`${ref.op}${options?.items?.history ? "+history" : ""}`);
+      return { getSnapshot: () => snapshot, subscribe(notify: () => void) { listeners.add(notify); return () => { listeners.delete(notify); }; } };
     },
     subscribeStatus() { return () => undefined; },
     manifest: async () => ({}),
@@ -94,37 +90,70 @@ test("Expo opens held history only for a partial composite and reuses the observ
   observeTestOutbox(client);
   let renderer: TestRenderer.ReactTestRenderer | undefined;
   const publish = async (next: any) => {
-    composite = { items: next.data ? items : [], ...next };
-    await act(async () => { for (const notify of [...compositeListeners]) notify(); });
+    snapshot = next;
+    await act(async () => { for (const notify of [...listeners]) notify(); });
   };
   try {
     await act(async () => { renderer = TestRenderer.create(React.createElement(SnapbackProvider, { client },
       React.createElement(Thread, { conversationId: "conversation-1" }))); });
-    assert.equal(historyListeners.size, 1, "a data-less partial mounts held history");
+    assert.deepEqual(observed, ["deliveries.conversationView+history"], "one observation, carrying the declared history");
     const partialTree = JSON.stringify(renderer!.toJSON());
     assert.match(partialTree, /independently held/);
     assert.match(partialTree, /Message count unavailable/);
     assert.match(partialTree, /Count and preview unavailable/);
 
-    const value = { messages: [message], count: 1, preview: [message] };
-    await publish({ status: "ready", data: value, receipt: { outcome: "complete", source: "server", seq: 2 },
-      freshness: { live: true, connection: "connected" }, local: { predicted: [], retained: false } });
-    assert.equal(historyListeners.size, 0, "a usable complete composite detaches history");
-    await publish({ status: "unavailable", receipt: { outcome: "partial", source: "twin", seq: 3 },
-      freshness: { live: false, connection: "offline" }, local: { predicted: [], retained: false } });
-    assert.equal(historyListeners.size, 1, "a later partial reattaches the same lazy history resource");
+    await publish({ status: "unavailable", receipt: { outcome: "partial", source: "twin", seq: 2 }, ...offline,
+      items: [], itemsFrom: "drafts", history: { status: "loading", ...offline } });
+    const loadingTree = JSON.stringify(renderer!.toJSON());
+    assert.match(loadingTree, /Count and preview unavailable/, "loading history is still the fallback in force");
+    assert.doesNotMatch(loadingTree, /independently held/);
 
-    for (const ineligible of [
-      { status: "unavailable", receipt: { outcome: "denied", source: "server", seq: 4 } },
-      { status: "unavailable", refusal: { code: "E_TEST", family: "input", message: "refused", guide: "test" } },
-      { status: "loading" },
-      { status: "ready", data: value, receipt: { outcome: "capped", source: "server", seq: 5 } },
-    ]) {
-      await publish({ ...ineligible, freshness: { live: false, connection: "offline" }, local: { predicted: [], retained: false } });
-      assert.equal(historyListeners.size, 0, "denied, refused, reset, and capped snapshots keep history detached");
-    }
+    const value = { messages: [message], count: 1, preview: [message] };
+    await publish({ status: "ready", data: value, receipt: { outcome: "complete", source: "server", seq: 3 },
+      freshness: { live: true, connection: "connected" }, local: { predicted: [], retained: false }, items, itemsFrom: "query" });
+    const usableTree = JSON.stringify(renderer!.toJSON());
+    assert.match(usableTree, /1 message · Latest: independently held/);
+    assert.doesNotMatch(usableTree, /Count and preview unavailable/);
+    assert.equal(observed.length, 1, "the same composed observation serves every state");
   } finally {
     await act(async () => { renderer?.unmount(); });
+    await rm(bundlePath, { force: true });
+  }
+});
+
+test("the Expo witness samples the composed observation only once eligible history has loaded, and reports a timeout", async () => {
+  const bundlePath = fileURLToPath(new URL("../dist/.expo-composed-facts.test-bundle.mjs", import.meta.url));
+  const bundled = await build({
+    stdin: { contents: 'export { composedFacts } from "./composed-facts";',
+      resolveDir: fileURLToPath(new URL("../templates/chat/expo/src", import.meta.url)), sourcefile: "facts.ts", loader: "ts" },
+    bundle: true, write: false, format: "esm", platform: "node", target: "es2022",
+    plugins: [{ name: "package-dist", setup(plugin) {
+      plugin.onResolve({ filter: /^snapback2\/client$/ }, () => ({ path: "./client.mjs", external: true }));
+    } }],
+  });
+  await writeFile(bundlePath, bundled.outputFiles[0]!.text);
+  const { composedFacts } = await import(`${pathToFileURL(bundlePath).href}?fresh=${Date.now()}`);
+  const offline = { freshness: { live: false, connection: "offline" }, local: { predicted: [], retained: false } };
+  const loadingHistory = { status: "loading", ...offline, items: [] };
+  const readyHistory = { status: "ready", data: [], ...offline, items: [{ key: "m", data: { id: "m" }, predicted: false, pending: [] }] };
+  let history: any = loadingHistory;
+  let subscriptions = 0;
+  const client: any = { observe: () => ({
+    getSnapshot: () => ({ status: "unavailable", receipt: { outcome: "partial", source: "twin", seq: 1 }, ...offline,
+      itemsFrom: history.status === "ready" ? "history" : "drafts", items: history.items, history }),
+    subscribe: () => { subscriptions += 1; return () => { subscriptions -= 1; }; },
+  }) };
+  try {
+    setTimeout(() => { history = readyHistory; }, 80);
+    const settled = await composedFacts(client, "c", 2_000);
+    assert.deepEqual(settled, { itemsFrom: "history", status: "unavailable", outcome: "partial",
+      history: { status: "ready", outcome: null }, keys: ["m"], timedOut: false }, "a data-less partial waits for its history");
+    history = loadingHistory;
+    const gaveUp = await composedFacts(client, "c", 60);
+    assert.equal(gaveUp.timedOut, true, "a sample that gave up says so");
+    assert.equal(gaveUp.itemsFrom, "drafts");
+    assert.equal(subscriptions, 0, "the helper releases its own subscription");
+  } finally {
     await rm(bundlePath, { force: true });
   }
 });
