@@ -277,6 +277,11 @@ test("settlement uses the persisted cursor name when live metadata disagrees, wi
     const committed = await cold.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "recorded cursor proof" });
     assert.equal(committed.state, "committed");
     assert.deepEqual(tails, [{ ...args, after: held.watermark }]);
+    const history = await cold.outbox.entries();
+    assert.equal(history.length, 1, "online settlement retains its terminal history");
+    assert.equal(history[0].state, "committed");
+    assert.deepEqual(history[0].response, committed);
+    await cold.outbox.dismiss(history[0].intent);
     assert.equal((await cold.outbox.entries()).length, 0);
     restore?.();
   } finally { drain?.close(); await first.close(); await cold?.close(); await rm(root, { recursive: true, force: true }); }
