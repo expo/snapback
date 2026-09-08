@@ -402,6 +402,13 @@ test('primary absence admission survives answer custody changes but not later ro
   }
   {
     const state = await setup();
+    await state.runtime().store.commit({tombstones:[{table:'events',id:'one',seq:2}]});
+    assert.deepEqual(await state.rows(),[],'a same-sequence tombstone replaces admitted absence custody');
+    await state.reopen(); assert.deepEqual(await state.rows(),[],'the same-sequence tombstone remains dominant cold');
+    await state.runtime().close();
+  }
+  {
+    const state = await setup();
     await state.runtime().store.commit({tombstones:[{table:'events',id:'one',seq:3}]});
     assert.deepEqual(await state.rows(),[],'a later primary revocation dominates an older receipt and prediction');
     await state.reopen(); assert.deepEqual(await state.rows(),[],'the later revocation remains dominant cold');

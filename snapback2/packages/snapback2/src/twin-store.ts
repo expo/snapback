@@ -91,7 +91,7 @@ export class TwinStore {
           if (Object.hasOwn(change.records?.[category] ?? {}, key)) target[key] = change.records![category][key]; else delete target[key];
           if (['rows', 'negative', 'extentNegative', 'rowSeq', 'viewed'].includes(category)) rows.add(key);
           if (category === 'answers') answers.add(key);
-          if (category === 'outbox' || category === 'overlay') intents.add(key);
+          if (category === 'outbox' || category === 'overlay' || category === 'overlayNegatives') intents.add(key);
         }
       }
       if (this.state.sealed || this.state.superseded) { this.revision = undefined; return false; }
