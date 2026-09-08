@@ -1,5 +1,7 @@
 import { gzipSync } from "node:zlib";
-import { cp, link, mkdir, open, readFile, readdir, rm, stat, unlink, writeFile } from "node:fs/promises";
+import { appendFile, cp, link, mkdir, open, readFile, readdir, rm, stat, unlink, writeFile } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
+import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
@@ -25,13 +27,17 @@ if (process.argv.includes("--measure-twin")) {
   const required = ["unicode-tables", "index-store", "twin-store", "swap-journal", "carrier-index", "metadata", "projection", "range-store", "offline.ts", "offline-protocol", "local-cursor", "held-program"];
   const inputs = Object.keys(measured.metafile.inputs);
   for (const name of required) if (!inputs.some(p => p.includes(name))) throw new Error(`unmeasured twin implementation: ${name}`);
-  console.log(JSON.stringify({ entry: "complete-local-runtime", minified: bytes.length, gzip, ceiling: 84000, target: 80000,
-    toolchain: { node: process.version, esbuild: esbuildVersion, gzipLevel: 9 }, inputs }));
+  const record = { at: new Date().toISOString(), sha: execFileSync("git", ["rev-parse", "HEAD"], { cwd: here, encoding: "utf8" }).trim(),
+    entry: "complete-local-runtime", minified: bytes.length, gzip, runtime_gzip_bytes: gzip, ceiling: 84000, target: 80000,
+    toolchain: { node: process.version, esbuild: esbuildVersion, gzipLevel: 9 }, inputs };
+  await appendFile(resolve(here, "../../metrics/twin.jsonl"), `${JSON.stringify(record)}\n`);
+  console.log(JSON.stringify(record));
   if (gzip > 84000) throw new Error(`twin exceeds 84000 gzip bytes: ${gzip}`);
   process.exit(0);
 }
 if (process.argv.includes("--self-test")) {
   await runGuideValidationSelfTest();
+  await runClientBundleSelfTest();
   process.exit(0);
 }
 const dist = resolve(here, "dist");
@@ -70,10 +76,8 @@ const imageRuntime = (path = './image-runtime.mjs') => ({
 await build({ entryPoints: [resolve(here,'src/image-runtime.ts')], outdir: dist, outExtension: { '.js': '.mjs' },
   bundle: true, minify: true, sourcemap: true, platform: 'neutral', format: 'esm', target: 'es2022' });
 
-await build({
+const armBuilds = [{
   entryPoints: {
-    index: resolve(here, "src/index.ts"),
-    client: resolve(here, "src/client.ts"),
     react: resolve(here, "src/react.tsx"),
     "react-core": resolve(here, "src/react-core.tsx"),
     expo: resolve(here, "src/expo.ts"),
@@ -91,15 +95,14 @@ await build({
   target: "es2022",
   external: ["expo", "react", "react-native", "expo-file-system", "expo/fetch", "expo-video", "expo-sqlite", "expo-secure-store", "snapback2/client", "snapback2/react-core", "snapback2/expo", "snapback2/react-native", "snapback2/expo/witness"],
   plugins: [externalClient, imageRuntime()],
-});
+}, {
 
 // This existing nested entry uses the same module by its relative output location.
-await build({ entryPoints: { 'expo/witness': resolve(here,'src/expo/witness.ts') }, outdir: dist,
+  entryPoints: { 'expo/witness': resolve(here,'src/expo/witness.ts') }, outdir: dist,
   outExtension: { '.js': '.mjs' }, sourcemap: true, bundle: true, format: 'esm', minify: true,
   platform: 'neutral', target: 'es2022', external: ['expo','react','react-native','expo-file-system','expo/fetch','expo-video','expo-sqlite','expo-secure-store','snapback2/client','snapback2/react-core','snapback2/expo','snapback2/react-native','snapback2/expo/witness'],
-  plugins: [externalClient,imageRuntime('../image-runtime.mjs')] });
+  plugins: [externalClient,imageRuntime('../image-runtime.mjs')] }, {
 
-await build({
   entryPoints: {
     test: resolve(here, "src/test.ts"),
     "sqlite-test": resolve(here, "tests/sqlite-exports.ts"),
@@ -113,8 +116,13 @@ await build({
   platform: "node",
   target: "node20",
   external: ["expo-file-system", "expo/fetch"],
-  plugins: [imageRuntime()],
-});
+  plugins: [externalClient, imageRuntime()],
+}];
+
+// @ref LLP 1012#indexed-held-search — carriers share the client's complete runtime;
+// a direct internal import must not instantiate another store or twin.
+await build({ ...armBuilds[0], entryPoints: { index: resolve(here, "src/index.ts") } });
+await buildClientArms(armBuilds, imageRuntime());
 
 await build({
   entryPoints: { compiler: resolve(here, "../compiler/src/worker.ts") },
@@ -275,6 +283,90 @@ if (snapshot) {
 
 } finally {
   if (packageBuildToken) await releasePackageBuildLock(packageBuildToken);
+}
+
+async function buildClientArms(arms, imagePlugin) {
+  const client = { entryPoints: [resolve(here, "src/client.ts")], bundle: true, minify: true,
+    platform: "neutral", format: "esm", target: "es2022", external: arms[0].external, plugins: [imagePlugin] };
+  const graph = await build({ ...client, write: false, metafile: true });
+  const shared = new Set(Object.keys(graph.metafile.inputs).map(path => resolve(path)));
+  const imports = new Map();
+  const marker = "client-shared:";
+  const redirect = (probe) => ({ name: "one-client-runtime", setup(builder) {
+    builder.onResolve({ filter: /^\./ }, args => {
+      const stem = resolve(dirname(args.importer), args.path.replace(/\.[jt]sx?$/, ""));
+      const target = [stem, `${stem}.ts`, `${stem}.tsx`, `${stem}.js`].find(path => shared.has(path));
+      if (target) return probe ? { path: marker + target, external: true } : { path: target, namespace: "client-shared" };
+    });
+    builder.onLoad({ filter: /.*/, namespace: "client-shared" }, args => ({
+      contents: [...imports.get(args.path)].map(([name, alias]) =>
+        `export { ${alias} as ${name} } from "snapback2/client";`).join("\n"), loader: "js",
+    }));
+  } });
+  for (const arm of arms) {
+    const probe = await build({ ...arm, write: false, sourcemap: false, minify: false, plugins: [...arm.plugins, redirect(true)] });
+    for (const output of probe.outputFiles) {
+      const source = ts.createSourceFile(output.path, output.text, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+      for (const statement of source.statements) {
+        const specifier = statement.moduleSpecifier?.text;
+        if (!specifier?.startsWith(marker)) continue;
+        const path = specifier.slice(marker.length);
+        const names = imports.get(path) ?? new Map();
+        imports.set(path, names);
+        const bindings = statement.importClause?.namedBindings ?? statement.exportClause;
+        if (bindings && (ts.isNamedImports(bindings) || ts.isNamedExports(bindings))) {
+          for (const element of bindings.elements) names.set((element.propertyName ?? element.name).text, undefined);
+        } else {
+          // Namespace imports and star re-exports retain the module's full value surface.
+          const module = await build({ ...client, entryPoints: [path], write: false, metafile: true });
+          for (const name of Object.values(module.metafile.outputs)[0].exports) names.set(name, undefined);
+        }
+        if (statement.importClause?.name) names.set("default", undefined);
+      }
+    }
+  }
+  const forwarding = [];
+  for (const [index, [path, names]] of [...imports].sort(([a], [b]) => a.localeCompare(b)).entries()) {
+    const source = relative(here, path).split(sep).join("/");
+    for (const name of names.keys()) {
+      const alias = `__client${index}_${name}`;
+      names.set(name, alias);
+      forwarding.push(`export { ${name} as ${alias} } from ${JSON.stringify(source.startsWith(".") ? source : `./${source}`)};`);
+    }
+  }
+  await build({ ...client, entryPoints: undefined,
+    stdin: { contents: [`export * from "./src/client.ts";`, ...forwarding].join("\n"), resolveDir: here, loader: "ts" },
+    outfile: resolve(here, "dist/client.mjs"), sourcemap: true });
+  for (const arm of arms) await build({ ...arm, external: [...arm.external, "snapback2/client"], plugins: [...arm.plugins, redirect(false)] });
+}
+
+async function runClientBundleSelfTest() {
+  const directory = resolve(here, "dist");
+  const entries = ["react", "expo", "react-native", "react-core", "test", "test-runner", "sqlite-test", "client-observed-test", "expo/witness"];
+  for (const entry of entries) {
+    const map = JSON.parse(await readFile(resolve(directory, `${entry}.mjs.map`), "utf8"));
+    assert(!map.sources.some(path => !path.startsWith("client-shared:") && /\/(?:range-store|twin|offline)\.ts$/.test(path)), `${entry} duplicates the client runtime`);
+  }
+  const sqlite = await import(resolve(directory, "sqlite-test.mjs"));
+  const canonical = await import(resolve(directory, "client.mjs"));
+  for (const name of ["PersistentRangeStore", "Twin", "OfflineRuntime"]) {
+    const key = Object.keys(canonical).find(key => key.endsWith(`_${name}`));
+    assert(key, `client must own ${name}`);
+    assert.equal(sqlite[name], canonical[key], `${name} must have one module identity`);
+  }
+  for (const [entry, ceiling] of [["react", 12000], ["expo", 16000]]) {
+    assert(gzipSync(await readFile(resolve(directory, `${entry}.mjs`)), { level: 9 }).length <= ceiling, `${entry} exceeds ${ceiling} gzip bytes`);
+  }
+  const exports = Object.keys(JSON.parse(await readFile(resolve(here, "package.json"), "utf8")).exports);
+  for (const condition of ["browser", "react-native", "node"]) {
+    const resolved = JSON.parse(execFileSync(process.execPath, [`--conditions=${condition}`, "--input-type=module", "-e",
+      `console.log(JSON.stringify(${JSON.stringify(exports)}.map(path => import.meta.resolve(path === '.' ? 'snapback2' : 'snapback2' + path.slice(1)))))`],
+    { cwd: here, encoding: "utf8" }));
+    for (const path of resolved) assert(existsSync(fileURLToPath(path)), `${condition}: missing ${path}`);
+    assert.equal(resolved[exports.indexOf("./client")], new URL("./dist/client.mjs", import.meta.url).href);
+    assert.equal(resolved[exports.indexOf("./react")], new URL(`./dist/${condition === "react-native" ? "react-native" : "react"}.mjs`, import.meta.url).href);
+  }
+  console.log("client bundle self-test ok: 9 entries share one range store, twin and offline runtime; 3 export conditions resolve");
 }
 
 async function runGuideValidationSelfTest() {

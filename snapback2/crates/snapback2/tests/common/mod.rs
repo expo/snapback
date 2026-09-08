@@ -268,6 +268,9 @@ fn copy_package_fixture(target: &Path) {
 }
 
 fn link_typescript(target: &Path, root: &Path) {
+    // Public arms resolve the one client through the package's self-reference.
+    fs::copy(root.join("packages/snapback2/package.json"), target.join("package.json"))
+        .expect("copy isolated package exports");
     let modules = target.join("node_modules");
     fs::create_dir_all(&modules).expect("create isolated package node_modules");
     let source = root.join("packages/snapback2/node_modules/typescript");

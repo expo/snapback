@@ -12,6 +12,7 @@ import {
 import { resolve, dirname } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
+import { gzipSync } from "node:zlib";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const args = new Set(process.argv.slice(2));
@@ -85,6 +86,25 @@ function scoreChecks(checks, budget, failedSteps, report = console.log, refuse =
 
 const failedSummary = (failedSteps) => `failed steps: ${[...failedSteps].join(", ")}`;
 
+const byteFields = ["client_gzip_bytes", "react_gzip_bytes", "expo_gzip_bytes", "runtime_gzip_bytes"];
+
+function scoreBytes(record, history, failedSteps, report = console.log, refuse = fail) {
+  for (const field of byteFields) {
+    const value = record[field];
+    if (!Number.isSafeInteger(value) || value <= 0) {
+      failedSteps.add(field);
+      refuse(`${field}: missing measurement`);
+      continue;
+    }
+    const previous = history.findLast(row => Number.isSafeInteger(row[field]) && row[field] > 0)?.[field];
+    if (previous === undefined) report(`ok ${field}: ${value} bytes (first record)`);
+    else if (value > previous * 1.01) {
+      failedSteps.add(field);
+      refuse(`${field}: ${value} bytes exceeds ${previous} by more than 1%`);
+    } else report(`ok ${field}: ${value} bytes ≤ ${previous} + 1%`);
+  }
+}
+
 function preserveUnchangedExecutable(executable, operation, platform = process.platform) {
   if (platform !== "darwin" || !existsSync(executable)) return operation();
   const started = performance.now();
@@ -134,7 +154,10 @@ function main() {
     at: new Date().toISOString(),
     sha: run("git", ["rev-parse", "--short", "HEAD"]).stdout.trim(),
     steps: {},
+    ...Object.fromEntries(byteFields.map(field => [field, null])),
   };
+  const historyPath = resolve(root, "metrics/loop.jsonl");
+  const history = existsSync(historyPath) ? readFileSync(historyPath, "utf8").trim().split("\n").filter(Boolean).map(line => JSON.parse(line)) : [];
   // The chat template's image columns require the sibling media helper at boot.
   const buildArgs = ["build", "-q", "--release", "-p", "snapback2", "-p", "snapback2-media"];
   const bin = resolve(root, "target/release/snapback2");
@@ -153,9 +176,22 @@ function main() {
 
   const compiler = resolve(root, "packages/snapback2/dist/compiler.mjs");
   recordStep(record, failedSteps, "package_build_s",
-    () => run("node", ["build.mjs"], { cwd: resolve(root, "packages/snapback2") }), 3,
+    () => run(process.execPath, ["build.mjs"], { cwd: resolve(root, "packages/snapback2") }), 3,
     (result) => `package build failed\n${result.stdout ?? ""}\n${result.stderr ?? ""}`);
   const packageDist = resolve(root, "packages/snapback2/dist");
+  recordStep(record, failedSteps, "package_bytes_s", () => {
+    for (const entry of ["client", "react", "expo"]) {
+      record[`${entry}_gzip_bytes`] = gzipSync(readFileSync(resolve(packageDist, `${entry}.mjs`)), { level: 9 }).length;
+    }
+    const measured = run(process.execPath, ["build.mjs", "--measure-twin"], { cwd: resolve(root, "packages/snapback2") });
+    const runtime = JSON.parse(measured.stdout);
+    record.runtime_gzip_bytes = runtime.gzip;
+    record.byte_toolchain = runtime.toolchain;
+    if (runtime.toolchain.node !== "v24.18.0" || runtime.toolchain.esbuild !== "0.25.9" || runtime.toolchain.gzipLevel !== 9) {
+      throw new Error(`byte measurements require Node 24.18.0 / esbuild 0.25.9 / gzip 9: ${JSON.stringify(runtime.toolchain)}`);
+    }
+    return measured;
+  }, 3, result => `package byte measurement failed\n${result.stdout ?? ""}\n${result.stderr ?? ""}`);
   const compilerEnv = {
     ...process.env,
     SNAPBACK2_COMPILER: compiler,
@@ -258,7 +294,7 @@ function main() {
   try { record.production_binary_bytes = statSync(resolve(root, "target/production/snapback2")).size; } catch {}
 
   try {
-    appendFileSync(resolve(root, "metrics/loop.jsonl"), JSON.stringify(record) + "\n");
+    appendFileSync(historyPath, JSON.stringify(record) + "\n");
   } catch (error) {
     const message = errorText(error);
     record.steps.metrics_append = { ok: false, error: message };
@@ -268,6 +304,7 @@ function main() {
   console.log(JSON.stringify(record));
 
   if (args.has("--check")) {
+    scoreBytes(record, history, failedSteps);
     // Budgets live in rules/RULES.md (the repo root); this parses the time table there.
     let rules = "";
     try {
@@ -297,6 +334,24 @@ function main() {
 }
 
 function selfTest() {
+  const byteFailures = new Set(), byteLines = [];
+  const byteRecord = Object.fromEntries(byteFields.map(field => [field, 101]));
+  const byteHistory = [{ client_gzip_bytes: 100 }, { react_gzip_bytes: 100, expo_gzip_bytes: 100, runtime_gzip_bytes: 100 }, {}];
+  const score = () => scoreBytes(byteRecord, byteHistory, byteFailures, line => byteLines.push(line), line => byteLines.push(line));
+  score();
+  assert.equal(byteFailures.size, 0, "exactly 1% growth passes across missing historical fields");
+  for (const field of byteFields) byteRecord[field] = 102;
+  score();
+  assert.deepEqual([...byteFailures], byteFields, "all four regressions report in one run");
+  byteHistory.push(Object.fromEntries(byteFields.map(field => [field, 102])));
+  byteFailures.clear();
+  score();
+  assert.equal(byteFailures.size, 0, "the last record with each field is the baseline");
+  byteRecord.client_gzip_bytes = null;
+  score();
+  assert(byteFailures.has("client_gzip_bytes"), "missing measurements cannot pass");
+  scoreBytes({ ...byteRecord, client_gzip_bytes: 102 }, [], new Set(), line => byteLines.push(line));
+  assert.equal(byteLines.filter(line => line.includes("first record")).length, 4);
   const artifactRoot = mkdtempSync(resolve(tmpdir(), "snapback2-measure-artifact-"));
   const artifact = resolve(artifactRoot, "snapback2");
   writeFileSync(artifact, "same bytes");
