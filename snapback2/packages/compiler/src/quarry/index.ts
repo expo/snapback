@@ -125,7 +125,7 @@ function materializeMaintains(documents: Document[]): void {
   for (const declaration of schema.maintains) {
     if (declaration.source === "connected") throw new QuarryError(declaration.site,
       "connected cannot be a maintained source", "E_QUARRY_UNKNOWN",
-      "replace the maintain with a query returning #connected[p] for p: principal", "quarry/names");
+      "replace the maintain with a query returning connected[p] for p: principal", "quarry/names");
     if (schema.tables.some((table) => table.name === declaration.name)) throw new QuarryError(declaration.site, `maintain target ${declaration.name} duplicates a table`);
     const source = schema.tables.find((table) => table.name === declaration.source);
     if (!source) throw new QuarryError(declaration.site, `maintain ${declaration.name} names unknown source table ${declaration.source}`);
@@ -153,6 +153,7 @@ function materializeMaintains(documents: Document[]): void {
     });
     const assetGrouped = columns.some((column) => containsAsset(column.type));
     const target: TableDecl = {
+      maintained: true,
       name: declaration.name,
       columns,
       // @ref LLP 1006#2a-one-asset-one-home-author-ruling-2026-09-01 — the

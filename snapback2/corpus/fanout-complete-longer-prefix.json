@@ -251,6 +251,16 @@
         "max_rows": 50
       }
     ],
+    "mutation_targets": {
+      "targets": [
+        {
+          "table": "deliveries",
+          "kind": "create",
+          "unresolved": "repeated"
+        }
+      ],
+      "complete": false
+    },
     "maintained_amplification": 0,
     "constraint_checks": [
       "deliveries:Unique(byId)"

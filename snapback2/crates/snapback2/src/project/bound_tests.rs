@@ -447,7 +447,7 @@ maintain replyCounts = count posts by parent:
 "#,
     )
     .unwrap();
-    fs::write(root.join("snapback/posts.q"), r#"shape postCard = { *, authorProfile: profiles[.author], likes: #likeCounts[.id], entries: #entryCounts[.id], replies: #replyCounts[.id], liked: exists likes[viewer, .id], reposted: exists entries[viewer, .id] }
+    fs::write(root.join("snapback/posts.q"), r#"shape postCard = { *, authorProfile: profiles[.author], likes: likeCounts[.id], entries: entryCounts[.id], replies: replyCounts[.id], liked: exists likes[viewer, .id], reposted: exists entries[viewer, .id] }
 shape entryCard = { id, author, post, repost, at, actor: profiles[.author], content: posts[.post] postCard }
 query following(c: cursor ?):
   page = merge entries after c last 20 by byAuthorTime:

@@ -108,6 +108,18 @@
         "max_rows": 1
       }
     ],
+    "mutation_targets": {
+      "targets": [
+        {
+          "table": "media",
+          "kind": "create",
+          "source": {
+            "argument": "rowId"
+          }
+        }
+      ],
+      "complete": true
+    },
     "maintained_amplification": 0,
     "constraint_checks": [],
     "max_examined": 0,

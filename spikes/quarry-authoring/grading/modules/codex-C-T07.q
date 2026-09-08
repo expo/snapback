@@ -8,21 +8,21 @@ table members:
   club: clubs
   user: users
   joinedAt: time
-  by club, joinedAt
-  unique club, user
+  by byClubJoinedAt: club, joinedAt
+  unique byClubUser: club, user
 
 table posts:
   club: clubs
   author: users
   body: text <=4096
   at: time
-  by club, at
+  by byClubAt: club, at
 
 table unseen:
   club: clubs
   user: users
   n: int
-  unique club, user
+  unique byClubUser: club, user
 
 mutation announce(clubId: clubs, body: text <=4096) -> posts:
   require exists members[clubId, viewer] else NOT_MEMBER

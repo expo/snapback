@@ -4,7 +4,7 @@ export type TokenKind = "word" | "number" | "string" | "symbol" | "newline" | "i
 export type Token = Site & { kind: TokenKind; value: string };
 
 const TWO_CHARACTER = new Set(["<-", "->", "<=", ">=", "!=", "??"]);
-const SYMBOLS = new Set(":(),[]{}.?!#+-~*/%=<>");
+const SYMBOLS = new Set(":(),[]{}.?!+-~*/%=<>");
 const HYPHENATED_WORDS = ["until-revoked", "delivered-history"];
 
 export function lex(file: string, source: string): { tokens: Token[]; diagnostics: QuarryDiagnostic[] } {

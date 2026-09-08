@@ -1385,7 +1385,7 @@ fn every_frozen_corpus_case_replays_its_certification_outcome() {
     // range/merge/alias/ambiguity witnesses.
     assert_eq!(
         cases.len(),
-        263,
+        265,
         "the complete frozen corpus must be checked"
     );
     assert!(

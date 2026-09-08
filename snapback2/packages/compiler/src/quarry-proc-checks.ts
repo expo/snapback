@@ -15,7 +15,7 @@ const schema = `table conversations:
 table memberships:
   conversation: conversations
   principal: principal
-  unique conversation, principal
+  unique byConversationPrincipal: conversation, principal
   cap 50 by conversation
   public
   insert <- allow

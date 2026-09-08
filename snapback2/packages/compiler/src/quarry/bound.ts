@@ -180,6 +180,7 @@ class ExpressionBinder {
         const condition = this.expression(statement.condition);
         requireBool(condition, statement.condition.site);
         bound.push({ kind: "require", condition, code: statement.code, source });
+        this.scope = narrowedScope(condition, this.scope, true);
       } else if (statement.kind === "emit") {
         if (this.program.kind === "query") throw new QuarryError(
           this.diagnosticSite(statement.site), "queries cannot emit effects", "E_EMIT_IN_QUERY",
@@ -229,36 +230,6 @@ class ExpressionBinder {
           this.failedBindings = priorFailed;
         }
         bound.push({ kind: "for", symbol, domain, body, source });
-      } else if (statement.kind === "match") {
-        const value = this.expression(statement.read);
-        if (value.kind !== "get" || value.facts.type.kind !== "row") typeError(statement.read.site,
-          "match requires one point read", "match table[key]: some row: ... none: ...");
-        const point = value as BoundExpression & { kind: "get" };
-        const symbol: BoundLocalSymbol = {
-          kind: "local", id: `${this.program.site.file}:${this.program.name}:match:${this.localId++}`,
-          name: statement.someName,
-          facts: facts({ ...value.facts.type, nullable: false }, value.facts.origin, {
-            tableOrigin: value.facts.type.table, readOrigin: point.read,
-          }), source,
-        };
-        const prior = this.scope;
-        const priorFailed = this.failedBindings;
-        let someBody: BoundStatement[];
-        let noneBody: BoundStatement[];
-        try {
-          this.scope = new Map(prior);
-          this.failedBindings = new Set(priorFailed);
-          this.scope.set(statement.someName, symbol);
-          this.failedBindings.delete(statement.someName);
-          someBody = this.statements(statement.someBody, true, completes);
-          this.scope = new Map(prior);
-          this.failedBindings = new Set(priorFailed);
-          noneBody = this.statements(statement.noneBody, true, completes);
-        } finally {
-          this.scope = prior;
-          this.failedBindings = priorFailed;
-        }
-        bound.push({ kind: "match", value: point, symbol, someBody, noneBody, source });
       } else if (statement.kind === "expr" && statement.value.kind === "call"
         && this.procs.has(this.functionFile, statement.value.name)) {
         bound.push(this.procCall(statement.value));
@@ -361,16 +332,6 @@ class ExpressionBinder {
       const read = this.boundRead(expression.read, "exists");
       return { kind: "exists", read, facts: facts(boolType(), "Computed", { readOrigin: read }), source };
     }
-    if (expression.kind === "aggregate") {
-      const readExpression: Extract<Expr, { kind: "read" }> = {
-        kind: "read", table: expression.table, keys: expression.keys, site: expression.site,
-      };
-      const read = this.boundRead(readExpression, "point");
-      const value = this.catalog.get(expression.table)?.columns.get("value");
-      if (!value) refuse(expression.site, `#${expression.table}[...] requires a maintained target with a value column`);
-      const type = { ...value, optional: false } as ScalarType;
-      return { kind: "aggregate", read, facts: facts(type, "Computed", { readOrigin: read }), source };
-    }
     if (expression.kind === "write") return this.write(expression);
     return refuse(expression.site, "created is valid only in an insert table rule");
   }
@@ -395,7 +356,7 @@ class ExpressionBinder {
     if (this.helperDepth > 0) unsupported(this.diagnosticSite(expression.site),
       "fn expressions are read-pure and cannot write", "move the write into the calling mutation");
     if (this.program.kind === "query") refuse(this.diagnosticSite(expression.site), "queries cannot write", "change query to mutation");
-    if (expression.table === "connected") refuse(this.diagnosticSite(expression.site), "connected is read-only", "use exists connected[viewer] or #connected[viewer]");
+    if (expression.table === "connected") refuse(this.diagnosticSite(expression.site), "connected is read-only", "use exists connected[viewer] or connected[viewer]");
     const info = this.catalog.get(expression.table);
     if (!info) refuse(this.diagnosticSite(expression.site), `unknown table ${expression.table}`);
     const table: BoundTableSymbol = { kind: "table", id: `table:${expression.table}`, name: expression.table,
@@ -550,7 +511,14 @@ class ExpressionBinder {
 
   private binary(expression: Extract<Expr, { kind: "binary" }>): BoundExpression {
     let left = this.expression(expression.left);
-    let right = this.expression(expression.right);
+    const priorScope = this.scope;
+    let right: BoundExpression;
+    try {
+      if (expression.op === "and") this.scope = narrowedScope(left, priorScope, true);
+      right = this.expression(expression.right);
+    } finally {
+      this.scope = priorScope;
+    }
     const op = binaryOperator(expression.op);
     if (!op) unsupported(expression.site, `operator ${expression.op}`, "use a comparison, Boolean operator, +, -, or *");
     if (op === "And" || op === "Or") {
@@ -1054,12 +1022,18 @@ class ExpressionBinder {
   }
 
   private read(expression: Extract<Expr, { kind: "read" }>): BoundExpression {
-    if (expression.table === "connected") refuse(expression.site,
-      "connected supports only existence and count reads", "use exists connected[viewer] or #connected[viewer]");
+    if (expression.table === "connected" && expression.range) refuse(expression.site,
+      "connected supports only existence and count reads", "use exists connected[viewer] or connected[viewer]");
     const read = this.boundRead(expression, expression.range ? "range" : "point");
     if (expression.range) {
       const type: BoundType = { kind: "page", table: read.table, max: expression.range.take };
       return { kind: "scan", read, facts: facts(type, "Shape", { max: expression.range.take, tableOrigin: read.table, readOrigin: read }), source: this.source(expression.site) };
+    }
+    // @ref LLP 1011#one-spelling — maintain point reads expose the typed value, not the materialized row.
+    if (read.table.declaration.maintained || expression.table === "connected") {
+      const value = this.catalog.get(expression.table)!.columns.get("value")!;
+      const type = { ...value, optional: false } as ScalarType;
+      return { kind: "aggregate", read, facts: facts(type, "Computed", { readOrigin: read }), source: this.source(expression.site) };
     }
     const type: BoundType = { kind: "row", table: read.table, nullable: true };
     return { kind: "get", read, facts: facts(type, "Shape", { tableOrigin: read.table, readOrigin: read }), source: this.source(expression.site) };
@@ -1259,7 +1233,7 @@ export function firstReturn(statements: QuarryStatement[]): Site | undefined {
     if (statement.kind === "return") return statement.site;
     const nested = statement.kind === "if" ? [...statement.thenBody, ...statement.elseBody]
       : statement.kind === "for" ? statement.body
-        : statement.kind === "match" ? [...statement.someBody, ...statement.noneBody] : [];
+        : [];
     const found = firstReturn(nested);
     if (found) return found;
   }
@@ -1296,6 +1270,10 @@ function narrowedScope(
   scope: Map<string, BoundValueSymbol>,
   thenBranch: boolean,
 ): Map<string, BoundValueSymbol> {
+  // @ref LLP 1011#one-spelling — facts follow binding identity and only paths that prove presence.
+  if (condition.kind === "binary" && condition.op === "And" && thenBranch) {
+    return narrowedScope(condition.right, narrowedScope(condition.left, scope, true), true);
+  }
   const narrowed = new Map(scope);
   if (condition.kind !== "binary" || !["Eq", "Ne"].includes(condition.op)) return narrowed;
   const candidate = condition.right.kind === "literal" && condition.right.value === null

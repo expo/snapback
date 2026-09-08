@@ -235,7 +235,7 @@ fn quarry_optional_reads_total_equality_and_branch_writes_execute() {
     std::fs::remove_dir_all(project.path.join("snapback/tests")).unwrap();
     std::fs::write(
         project.path.join("snapback/schema.q"),
-        "use identity\n\ntable nodes:\n  name: text <=50\n  parent: nodes ?\n  public\n\ntable authors:\n  name: text <=50\n  public\n\ntable posts:\n  author: authors\n  public\n  by author\n\ntable counters:\n  value: int\n  public\n  insert <- allow\n",
+        "use identity\n\ntable nodes:\n  name: text <=50\n  parent: nodes ?\n  public\n\ntable authors:\n  name: text <=50\n  public\n\ntable posts:\n  author: authors\n  public\n  by byAuthor: author\n\ntable counters:\n  value: int\n  public\n  insert <- allow\n",
     ).unwrap();
     std::fs::write(
         project.path.join("snapback/runtime.q"),

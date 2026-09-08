@@ -14,7 +14,7 @@ table users:
   link: text <=200 ?
   followerCount: int
   followingCount: int
-  unique handle
+  unique byHandle: handle
   public
   insert r <- r.id = viewer
   update r <- allow
@@ -48,7 +48,7 @@ table feedItems:
   origAuthor: users
   at: time
   ord: int
-  unique actor, post, kind
+  unique byActorPostKind: actor, post, kind
   by byOrd: ord
   by byActor: actor, at
   by byActorOrd: actor, ord
@@ -60,7 +60,7 @@ table follows:
   follower: users
   followee: users
   at: time
-  unique follower, followee
+  unique byFollowerFollowee: follower, followee
   by byFollower: follower, at
   by byFollowee: followee, at
   public
@@ -71,7 +71,7 @@ table likes:
   user: users
   post: posts
   at: time
-  unique user, post
+  unique byUserPost: user, post
   public
   insert r <- r.user = viewer
   delete r <- r.user = viewer
@@ -100,7 +100,7 @@ table members:
   joinedAt: time
   lastDeliveredAt: time ?
   lastReadAt: time ?
-  unique conv, user
+  unique byConvUser: conv, user
   read r <- exists members[r.conv, viewer]
   insert r <- allow
   update r <- allow
@@ -116,7 +116,7 @@ table inbox:
   user: users
   conv: id
   joinedAt: time
-  unique user, conv
+  unique byUserConv: user, conv
   public
   insert r <- allow
   delete r <- allow
@@ -125,7 +125,7 @@ table dms:
   lo: id
   hi: id
   conv: id
-  unique lo, hi
+  unique byLoHi: lo, hi
   read r <- r.lo = viewer or r.hi = viewer
   insert r <- r.lo = viewer or r.hi = viewer
 

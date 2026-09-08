@@ -70,11 +70,11 @@ export function registerQuarryDirectSearchEligibilityChecks(test: Test): void {
         "read <- exists memberships[.room, viewer] by byRoomPrincipal",
         "read <- .role = 'admin'")],
       ["row-dependent term", globalSearch.replace("[m.room, term]", "[m.room, m.role]"), schema],
-      ["lane setup read", globalSearch.replace("[m.room, term]", "[m.room, docs[term]!.body!]")
+      ["lane setup read", globalSearch.replace("[m.room, term]", "[m.room, docs[term]! else MISSING_DOC.body! else MISSING_BODY]")
         .replace("term: text <=2000", "term: docs"), schema],
       ["extra fixed lane", globalSearch.replace("  return page", "    ['room-other', term]\n  return page"), schema],
       ["captured outer scope", `query search(member: memberships, term: text <=2000, c: cursor ?):
-  outer = memberships[member]!
+  outer = memberships[member]! else NOT_FOUND
   room = outer.room
   page = merge docs after c last 20 by bySearch:
     [room, term] for m in memberships[viewer] first 100 by byPrincipal

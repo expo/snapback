@@ -42,7 +42,6 @@ export function quarryExpression(expr: Expr): string {
     return `merge ${expr.table}${cursor} ${expr.order === "asc" ? "first" : "last"} ${expr.take} by ${expr.index}:\n${lanes}`;
   }
   if (expr.kind === "exists" || expr.kind === "created") return `${expr.kind} ${quarryExpression(expr.read)}`;
-  if (expr.kind === "aggregate") return `#${expr.table}[${expr.keys.map(quarryKeyPart).join(", ")}]`;
   if (expr.kind === "assert") return `(${quarryExpression(expr.value)})! else ${expr.code}`;
   if (expr.kind === "shapeUse") return `(${quarryExpression(expr.base)}) ${expr.name}`;
   if (expr.kind === "shape") {

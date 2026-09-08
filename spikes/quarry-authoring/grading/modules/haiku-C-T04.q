@@ -10,10 +10,10 @@ table entries:
   baker: users
   score: int
   at: time
-  by contest, score
+  by byContestScore: contest, score
   read e <- e.baker = viewer
 
 maintain topScore = max entries of score by contest (readable: public)
 
 query topScore(contestId: contests) -> int:
-  #topScore[contestId]
+  topScore[contestId]

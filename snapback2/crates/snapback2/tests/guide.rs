@@ -202,7 +202,7 @@ fn quarry_keywords_print_grammar_and_definitions_beside_symbol_help() {
         ("first", "`first` is ascending"),
         ("last", "`last` is descending"),
         ("require", "aborts when false"),
-        ("match", "branches on presence"),
+        ("walk", "follows at most N parent links"),
         (
             "for",
             "`for` needs a bounded list/page/range/tokens result",
@@ -388,7 +388,7 @@ fn live_query_guide_explains_connected_and_the_activity_workaround() {
         "heartbeat interval plus the expiry",
         "seen late",
         "read-only virtual table",
-        "`#connected[p]`",
+        "`connected[p]`",
         "`hydrating` and never predicted",
         "live reruns wait up to 1 s",
         "durable receipts",

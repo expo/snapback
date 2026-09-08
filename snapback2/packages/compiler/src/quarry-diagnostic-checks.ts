@@ -12,13 +12,13 @@ table todos:
   title: text <=200
   done: bool
   ownerId: principal
-  by ownerId
+  by byOwnerId: ownerId
   read <- .ownerId = viewer
   insert <- .ownerId = viewer
   update <- .ownerId = viewer
   delete <- .ownerId = viewer
 `;
-const mergeDiagnosticSchema = diagnosticSchema.replace("  by ownerId", "  by byOwner: ownerId, id");
+const mergeDiagnosticSchema = diagnosticSchema.replace("  by byOwnerId: ownerId", "  by byOwner: ownerId, id");
 const originalPrefix = `query list():
   return todos[viewer] first 50
 
@@ -88,7 +88,7 @@ export const quarryDiagnosticCases: Array<{
   row = insert todos { title: "hi", done: null, ownerId: viewer }
   return true
 `, expected: [{ code: "E_OPAQUE", message: "null", absence: false, boolean: true }] },
-  { name: "possibly absent dereference retains presence advice", schema: "table authors:\n  name: text <=50\n  public\n\ntable posts:\n  author: authors\n  public\n  by author\n\ntable copies:\n  name: text <=50\n  public\n", source: "mutation copy():\n  for post in posts[] first 5 by byAuthor { *, author: .author }:\n    insert copies { name: post.author.name }\n  null\n", expected: [{ code: "E_OPAQUE", message: "undefined", absence: true }] },
+  { name: "possibly absent dereference retains presence advice", schema: "table authors:\n  name: text <=50\n  public\n\ntable posts:\n  author: authors\n  public\n  by byAuthor: author\n\ntable copies:\n  name: text <=50\n  public\n", source: "mutation copy():\n  for post in posts[] first 5 by byAuthor { *, author: .author }:\n    insert copies { name: post.author.name }\n  null\n", expected: [{ code: "E_OPAQUE", message: "undefined", absence: true }] },
   { name: "corrected original keeps all three operations", source: originalPrefix + `mutation complete(todoId: todos):
   update todos[todoId] { done: true }
   return true
@@ -110,15 +110,15 @@ export const quarryDiagnosticCases: Array<{
     update todos[todoId] { done }
   return true
 `, expected: [{"code": "E_QUARRY_UNKNOWN", "message": "unknown name missingValue", "site": "2:10"}, {"code": "E_OPAQUE", "message": "Type 'string' is not assignable to type 'boolean | undefined'", "site": "4:5", "absence": false, "boolean": true}], },
-  { name: "lexical match-shadow", source: `mutation complete(todoId: todos):
+  { name: "lexical if-shadow", source: `mutation complete(todoId: todos):
   item = missingValue
-  match todos[todoId]:
-    some item:
-      update todos[todoId] { done: item.title }
-    none:
-      return false
+  if exists todos[todoId]:
+    item = todos[todoId] ! else NOT_FOUND
+    update todos[todoId] { done: item.title }
+  else:
+    return false
   return true
-`, expected: [{"code": "E_QUARRY_UNKNOWN", "message": "unknown name missingValue", "site": "2:10"}, {"code": "E_OPAQUE", "message": "Type 'string' is not assignable to type 'boolean | undefined'", "site": "5:7", "absence": false, "boolean": true}], },
+`, expected: [{"code": "E_QUARRY_UNKNOWN", "message": "unknown name missingValue", "site": "2:10"}, {"code": "E_OPAQUE", "message": "Type 'string' is not assignable to type 'boolean | undefined'", "site": "5:5", "absence": false, "boolean": true}], },
   { name: "lexical loop-capture", source: `mutation complete(todoId: todos):
   item = missingValue
   for item in ["yes"]:
@@ -126,17 +126,17 @@ export const quarryDiagnosticCases: Array<{
     update todos[todoId] { done: box.original }
   return true
 `, expected: [{"code": "E_QUARRY_UNKNOWN", "message": "unknown name missingValue", "site": "2:10"}, {"code": "E_OPAQUE", "message": "Type 'string' is not assignable to type 'boolean | undefined'", "site": "5:5", "absence": false, "boolean": true}], },
-  { name: "lexical match-capture-isolation", source: `mutation complete(todoId: todos):
+  { name: "lexical if-capture-isolation", source: `mutation complete(todoId: todos):
   item = missingValue
-  match todos[todoId]:
-    some item:
-      box = { original: item }
-      update todos[todoId] { done: box.original.title }
-    none:
-      update todos[todoId] { done: item }
+  if exists todos[todoId]:
+    item = todos[todoId] ! else NOT_FOUND
+    box = { original: item }
+    update todos[todoId] { done: box.original.title }
+  else:
+    update todos[todoId] { done: item }
   update todos[todoId] { done: item }
   return true
-`, expected: [{"code": "E_QUARRY_UNKNOWN", "message": "unknown name missingValue", "site": "2:10"}, {"code": "E_OPAQUE", "message": "Type 'string' is not assignable to type 'boolean | undefined'", "site": "6:7", "absence": false, "boolean": true}], },
+`, expected: [{"code": "E_QUARRY_UNKNOWN", "message": "unknown name missingValue", "site": "2:10"}, {"code": "E_OPAQUE", "message": "Type 'string' is not assignable to type 'boolean | undefined'", "site": "6:5", "absence": false, "boolean": true}], },
   { name: "lexical nested-loop-isolation", source: `mutation complete(todoId: todos):
   item = missingValue
   for item in ["yes"]:
@@ -153,13 +153,13 @@ export const quarryDiagnosticCases: Array<{
     update todos[todoId] { done: "yes" }
   return missingAfter
 `, expected: [{"code": "E_QUARRY_UNKNOWN", "message": "unknown name missingValue", "site": "2:10"}, {"code": "E_QUARRY_UNKNOWN", "message": "unknown name missingAfter", "site": "5:10"}], },
-  { name: "lexical failed-match-key", source: `mutation complete(todoId: todos):
+  { name: "lexical failed-if-condition", source: `mutation complete(todoId: todos):
   todoId = missingValue
-  match todos[todoId]:
-    some todoId:
-      update todos[todoId.id] { done: "yes" }
-    none:
-      return missingInside
+  if exists todos[todoId]:
+    todoId = todos[todoId] ! else NOT_FOUND
+    update todos[todoId.id] { done: "yes" }
+  else:
+    return missingInside
   return missingAfter
 `, expected: [{"code": "E_QUARRY_UNKNOWN", "message": "unknown name missingValue", "site": "2:12"}, {"code": "E_QUARRY_UNKNOWN", "message": "unknown name missingAfter", "site": "8:10"}], },
   { name: "lexical failed-tuple-initializer", source: `mutation complete(todoId: todos):
@@ -348,7 +348,7 @@ table todos:
 `, expected: [], irCounts: { '"Merge":': 1, '"Input":"NewId"': 2, '"table":"todos"': 2 } },
   { name: "merge domain lawful-nullable-prefix", schema: mergeDiagnosticSchema, source: `query probe():
   page = merge todos first 3 by byOwner:
-    [todos[item.id]!.ownerId] for item in todos[viewer] first 2 by byOwner
+    [todos[item.id]! else NOT_FOUND.ownerId] for item in todos[viewer] first 2 by byOwner
   return page
 `, expected: [], irCounts: { '"Merge":': 1, '"Get":': 1, '"Require":': 1, '"table":"todos"': 3 } },
   { name: "merge domain lawful-two-discovered-lanes", schema: mergeDiagnosticSchema, source: `query probe(other: principal):

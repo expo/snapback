@@ -163,9 +163,6 @@ function collectExprDependencies(expr: Expr, into: Set<string>): void {
     }
   } else if (expr.kind === "exists" || expr.kind === "created") {
     collectExprDependencies(expr.read, into);
-  } else if (expr.kind === "aggregate") {
-    into.add(expr.table);
-    for (const key of expr.keys) collectExprDependencies(key.value, into);
   } else if (expr.kind === "binary") {
     collectExprDependencies(expr.left, into);
     collectExprDependencies(expr.right, into);

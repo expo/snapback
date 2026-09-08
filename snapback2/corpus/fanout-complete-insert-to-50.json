@@ -273,6 +273,21 @@
         "max_rows": 50
       }
     ],
+    "mutation_targets": {
+      "targets": [
+        {
+          "table": "deliveries",
+          "kind": "create",
+          "unresolved": "repeated"
+        },
+        {
+          "table": "memberships",
+          "kind": "create",
+          "unresolved": "computed"
+        }
+      ],
+      "complete": false
+    },
     "maintained_amplification": 0,
     "constraint_checks": [
       "deliveries:Unique(byId)",

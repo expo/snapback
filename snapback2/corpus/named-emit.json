@@ -163,6 +163,16 @@
         "max_rows": 1
       }
     ],
+    "mutation_targets": {
+      "targets": [
+        {
+          "table": "events",
+          "kind": "create",
+          "unresolved": "ambiguous"
+        }
+      ],
+      "complete": false
+    },
     "maintained_amplification": 0,
     "constraint_checks": [
       "events:Unique(byId)"

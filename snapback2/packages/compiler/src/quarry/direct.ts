@@ -246,21 +246,6 @@ function lowerStatements(statements: BoundStatement[], lowering: Lowering): Stmt
       body.push(...domain.setup, { For: { binding, domain: loopDomain, body: loopBody } });
       continue;
     }
-    const matched = lowerExpression(statement.value, lowering);
-    const matchName = temporary(lowering, "matchValue");
-    const rowName = temporary(lowering, "matchRow");
-    const outerBindings = new Map(lowering.bindings);
-    lowering.bindings = new Map(outerBindings);
-    lowering.bindings.set(statement.symbol.id, { Variable: rowName });
-    const someBody = [{ Const: { name: rowName, value: { Variable: matchName } } } satisfies Stmt,
-      ...lowerStatements(statement.someBody, lowering)];
-    lowering.bindings = new Map(outerBindings);
-    const noneBody = lowerStatements(statement.noneBody, lowering);
-    lowering.bindings = outerBindings;
-    body.push(...matched.setup, { Const: { name: matchName, value: matched.value } }, { If: {
-      condition: { Binary: { op: "Ne", left: { Variable: matchName }, right: { Literal: "Null" } } },
-      then_body: someBody, else_body: noneBody,
-    } });
   }
   return body;
 }
@@ -270,9 +255,6 @@ function boundLocalNames(statements: BoundStatement[]): string[] {
     if (statement.kind === "bind") return statement.symbols.map((symbol) => symbol.name);
     if (statement.kind === "if") return [...boundLocalNames(statement.thenBody), ...boundLocalNames(statement.elseBody)];
     if (statement.kind === "for") return [statement.symbol.name, ...boundLocalNames(statement.body)];
-    if (statement.kind === "match") return [
-      statement.symbol.name, ...boundLocalNames(statement.someBody), ...boundLocalNames(statement.noneBody),
-    ];
     return [];
   });
 }
@@ -283,8 +265,6 @@ function statementsFallThrough(statements: BoundStatement[]): boolean {
     if (statement.kind === "expr" && statement.completion) return false;
     if (statement.kind === "if"
       && !statementsFallThrough(statement.thenBody) && !statementsFallThrough(statement.elseBody)) return false;
-    if (statement.kind === "match"
-      && !statementsFallThrough(statement.someBody) && !statementsFallThrough(statement.noneBody)) return false;
   }
   return true;
 }

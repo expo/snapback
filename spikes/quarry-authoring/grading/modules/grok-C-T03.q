@@ -5,13 +5,13 @@ table postings:
   employer: users
   title: text <=200
   createdAt: time
-  by employer, createdAt
+  by byEmployerCreatedAt: employer, createdAt
 
 table applications:
   posting: postings
   applicant: users
   at: time
-  by posting, at
+  by byPostingAt: posting, at
   read a <- a.applicant = viewer or postings[a.posting].employer = viewer
 
 maintain n = count applications by posting
@@ -19,5 +19,5 @@ maintain n = count applications by posting
 query dashboard():
   postings[viewer] last 20 {
     *,
-    n: #n[.]
+    n: n[.]
   }

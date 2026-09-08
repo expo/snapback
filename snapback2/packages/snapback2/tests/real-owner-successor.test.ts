@@ -116,7 +116,7 @@ test("durable client intents survive a schema successor and a lost acknowledgeme
     }
     for (const body of ["successor first", "successor second"]) assert.equal(after.data.filter((row: any) => row.body === body).length, 1);
     const afterCount: any = await reopened.query(api.messages.summary, { conversationId: "conversation-1" });
-    assert.equal(afterCount.data.messageCount.value, baselineCount.data.messageCount.value + 2);
+    assert.equal(afterCount.data.messageCount, baselineCount.data.messageCount + 2);
     t.diagnostic(`schema reset preserved ${before.data.length} original messages; two predicted intents settled E_OFFLINE_CONFLICT, and two explicit new intents advanced the first room count by two`);
 
     // A committed-but-unacknowledged intent must still settle if its operation

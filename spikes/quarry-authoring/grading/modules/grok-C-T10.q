@@ -10,16 +10,16 @@ table passengers:
   ride: rides
   user: users
   at: time
-  by ride, at
-  unique ride, user
+  by byRideAt: ride, at
+  unique byRideUser: ride, user
 
 maintain seatCount = count passengers by ride
 
 mutation joinRide(rideId: rides) -> passengers:
   ride = rides[rideId]! else NO_RIDE
-  match passengers[rideId, viewer]:
-    some p:
-      p
-    none:
-      require ride.seats > #seatCount[rideId] else RIDE_FULL
-      +passengers { ride: rideId, user: viewer, at: now }
+  p = passengers[rideId, viewer]
+  if p != null:
+    p
+  else:
+    require ride.seats > seatCount[rideId] else RIDE_FULL
+    +passengers { ride: rideId, user: viewer, at: now }

@@ -309,9 +309,12 @@ class Parser {
     };
     const components = [component()];
     while (this.maybe(",")) components.push(component());
-    this.newline();
     const inferred = `by${components.map(c => "Column" in c ? title(c.Column) : `WordPrefixes${c.WordPrefixes.fields.map(title).join("")}`).join("")}`;
-    return { name: explicit ?? inferred, components, unique, site };
+    // @ref LLP 1011#one-spelling — declarations name every index; inference is only a repair.
+    if (!explicit) throw new QuarryError(site, "index declarations require an explicit name", "E_QUARRY_SYNTAX",
+      `${unique ? "unique" : "by"} ${inferred}: ${components.map(c => "Column" in c ? c.Column : `wordPrefixes(${c.WordPrefixes.fields.join(", ")})`).join(", ")}`, undefined, true);
+    this.newline();
+    return { name: explicit, components, unique, site };
   }
 
   private parseMaintain(): MaintainDecl {
@@ -667,7 +670,6 @@ class Parser {
     if (this.at("while")) unsupported(this.peek(), "while", "use a bounded for domain or walk");
     if (this.at("if")) return this.parseIf();
     if (this.at("for")) return this.parseFor();
-    if (this.at("match")) return this.parseMatch();
     if (this.at("require")) return this.parseRequire();
     if (this.at("return")) {
       const site = this.take("return");
@@ -742,26 +744,6 @@ class Parser {
     return { kind: "require", condition, code, site };
   }
 
-  private parseMatch(): Stmt {
-    const site = this.take("match");
-    const read = this.expression(0, new Set([":"]));
-    if (read.kind !== "read" || read.range) syntax(read.site, "match requires a point read t[key]");
-    this.take(":");
-    this.newline();
-    this.takeKind("indent");
-    this.take("some");
-    const someName = this.bindingName();
-    this.take(":");
-    this.newline();
-    const someBody = this.parseBlock();
-    this.take("none");
-    this.take(":");
-    this.newline();
-    const noneBody = this.parseBlock();
-    this.takeKind("dedent");
-    return { kind: "match", read, someName, someBody, noneBody, site };
-  }
-
   private expression(minimum = 0, stops = new Set<string>()): Expr {
     let left = this.prefix(stops);
     for (;;) {
@@ -806,12 +788,6 @@ class Parser {
       || token.value === "~"
       || (token.value === "-" && this.peek(1).kind === "word" && this.peek(2).value === "[")) {
       syntax(token, "write sigils are invalid; use insert, update, upsert, or delete", "use insert, update, upsert, or delete");
-    }
-    if (token.value === "#") {
-      this.position += 1;
-      const table = this.word();
-      const read = this.parseRead(table.value, table);
-      return { kind: "aggregate", table: table.value, keys: read.keys, site: token };
     }
     if (token.value === "merge") return this.parseMerge();
     if (token.value === "device" || token.value === "oblivious") unsupported(token, token.value, "pass an explicit bounded argument to the operation");
@@ -891,13 +867,14 @@ class Parser {
         value = this.parseRange(value);
       } else if (this.maybe("!")) {
         const assertion = this.tokens[this.position - 1]!;
-        let code = "NOT_FOUND";
-        if (this.maybe("else")) code = this.word().value;
+        if (!this.maybe("else")) throw new QuarryError(assertion, "presence assertions require a refusal code",
+          "E_QUARRY_SYNTAX", "! else CODE", undefined, true);
+        const code = this.word().value;
         value = { kind: "assert", value, code, site: assertion };
       } else if (this.at("{")) {
         value = this.parseShape(value);
       } else if (this.atKind("word") && !PRECEDENCE.has(this.peek().value)
-        && !stops.has(this.peek().value) && !["else", "some", "none", "for", "in"].includes(this.peek().value)) {
+        && !stops.has(this.peek().value) && !["else", "for", "in"].includes(this.peek().value)) {
         const named = this.word();
         value = { kind: "shapeUse", base: value, name: named.value, site: named };
       } else {
@@ -1200,7 +1177,6 @@ function focalizeRuleBinding(expr: Expr, binding: string): Expr {
     },
   };
   if (expr.kind === "exists" || expr.kind === "created") return { ...expr, read: focalizeRuleBinding(expr.read, binding) as Extract<Expr, { kind: "read" }> };
-  if (expr.kind === "aggregate") return { ...expr, keys: expr.keys.map((part) => ({ ...part, value: focalizeRuleBinding(part.value, binding) })) };
   if (expr.kind === "assert") return { ...expr, value: focalizeRuleBinding(expr.value, binding) };
   if (expr.kind === "shapeUse") return { ...expr, base: focalizeRuleBinding(expr.base, binding) };
   if (expr.kind === "shape") return {

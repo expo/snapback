@@ -307,6 +307,16 @@
         "max_rows": 49
       }
     ],
+    "mutation_targets": {
+      "targets": [
+        {
+          "table": "memberships",
+          "kind": "create",
+          "unresolved": "repeated"
+        }
+      ],
+      "complete": false
+    },
     "maintained_amplification": 49,
     "maintained_writes": {
       "membershipCounts": 49

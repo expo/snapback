@@ -77,7 +77,7 @@ No history, queries or offline queue.
 ## Connected
 
 `connected` is a read-only virtual table: `exists connected[p]` tests connection;
-`#connected[p]` counts authenticated SSE transports once each (including `--as`).
+`connected[p]` counts authenticated SSE transports once each (including `--as`).
 Pass a nonoptional principal (`viewer` for self).
 Programs may read it; rules/maintains use durable facts. A read costs one probe,
 touches `_connected` at that principal, and shares one immutable snapshot per program run.

@@ -114,7 +114,7 @@ table groups:
 table memberships:
   group: groups
   principal: principal
-  unique group, principal
+  unique byGroupPrincipal: group, principal
   public
 `;
     const values = `query values(photo: image <=5000000, a: int, b: int):
@@ -245,7 +245,7 @@ mutation skippedNew():
 table memberships:
   conversation: conversations
   principal: principal
-  unique conversation, principal
+  unique byConversationPrincipal: conversation, principal
   public
 `;
     const operations = `query guarded(conversationId: conversations, principal: principal, flag: bool):
@@ -268,11 +268,11 @@ query loopedPage():
     require item.title != '' else TITLE_REQUIRED
 
 query matched(id: conversations):
-  match conversations[id]:
-    some row:
-      return row.title
-    none:
-      return null
+  row = conversations[id]
+  if row != null:
+    return row.title
+  else:
+    return null
 
 query narrowed(id: conversations):
   existing = conversations[id]
@@ -592,11 +592,11 @@ query loopNames(values: [int] <=3):
     require __bound_loopItem_0 >= 0 else NONNEGATIVE
 
 query matchNames(id: conversations):
-  match conversations[id]:
-    some __bound_matchRow_0:
-      return __bound_matchRow_0.title
-    none:
-      return null
+  __bound_matchRow_0 = conversations[id]
+  if __bound_matchRow_0 != null:
+    return __bound_matchRow_0.title
+  else:
+    return null
 ` },
     ];
     const namesPrepared = prepareQuarry(nameInputs);
@@ -655,7 +655,7 @@ query matchNames(id: conversations):
   principal: principal
   displayName: text <=80
   handle: text <=40
-  unique principal
+  unique byPrincipal: principal
   public
 `;
     const cards = "shape authorCard = { displayName, handle }\n";
@@ -724,7 +724,7 @@ query byPrincipal(principal: principal):
 table memberships:
   conversation: conversations
   principal: principal
-  unique conversation, principal
+  unique byConversationPrincipal: conversation, principal
   public
 `;
     const access = `fn isMember(c: conversations, p: principal) = exists memberships[c, p]

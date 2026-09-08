@@ -117,8 +117,6 @@ export type BoundStatement =
   | { kind: "emit"; effect: string; payload: BoundExpression; source: BoundSourceStack }
   | { kind: "if"; condition: BoundExpression; thenBody: BoundStatement[]; elseBody: BoundStatement[]; source: BoundSourceStack }
   | { kind: "for"; symbol: BoundLocalSymbol; domain: BoundExpression; body: BoundStatement[]; source: BoundSourceStack }
-  | { kind: "match"; value: BoundExpression & { kind: "get" }; symbol: BoundLocalSymbol;
-      someBody: BoundStatement[]; noneBody: BoundStatement[]; source: BoundSourceStack }
   /** A proc call: argument bindings in `fn`'s shape, then the body's statements elaborated in place (LLP 1018.005 §3). */
   | { kind: "invoke"; bindings: Array<{ symbol: BoundArgumentSymbol; value: BoundExpression; coercion?: "row-id" }>;
       body: BoundStatement[]; source: BoundSourceStack };

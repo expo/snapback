@@ -180,14 +180,14 @@ query scalarOverride():
   return posts[viewer] first 5 by byAuthor { *, id: 'replacement', likeCount: 'many' }
 
 query convSummary(c: conversations):
-  return { total: #convSpend[c], creatorProfile: users[principal = viewer] { displayName, handle } }
+  return { total: convSpend[c], creatorProfile: users[principal = viewer] { displayName, handle } }
 
 query maybeProfile(u: users):
-  match users[u]:
-    some found:
-      return found { displayName, handle }
-    none:
-      return null
+  found = users[u]
+  if found != null:
+    return found { displayName, handle }
+  else:
+    return null
 `;
     await withCliqueProbe(fixtures, source, async (root) => {
       const lowered = await lowerProject(root);

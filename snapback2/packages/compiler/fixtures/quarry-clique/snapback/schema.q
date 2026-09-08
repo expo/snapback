@@ -18,8 +18,8 @@ table users:
   link: text <=200 ?
   followerCount: int
   followingCount: int
-  unique principal
-  unique handle
+  unique byPrincipal: principal
+  unique byHandle: handle
   by byHandlePage: handle, id
   immutable principal
   public
@@ -50,7 +50,7 @@ table feedItems:
   origAuthor: principal
   at: time
   ord: int
-  unique actor, post, kind
+  unique byActorPostKind: actor, post, kind
   by byOrd: ord, id
   by byActor: actor, at, id
   by byActorOrd: actor, ord, id
@@ -63,7 +63,7 @@ table follows:
   followee: users
   followed: principal
   at: time
-  unique follower, followee
+  unique byFollowerFollowee: follower, followee
   by byFollower: follower, at, id
   by byFollowee: followee, at, id
   public
@@ -121,7 +121,7 @@ table dms:
   lo: principal
   hi: principal
   conv: conversations
-  unique lo, hi
+  unique byLoHi: lo, hi
   read <- .lo = viewer or .hi = viewer
   insert <- .lo = viewer or .hi = viewer
 
@@ -175,7 +175,7 @@ table shares:
   expenseAt: time
   settled: bool
   settledAt: time ?
-  unique expense, debtor
+  unique byExpenseDebtor: expense, debtor
   by byConvExpense: conv, expense, debtor
   by byDebtorOpen: debtor, settled, id
   read <- exists members[.conv, viewer]

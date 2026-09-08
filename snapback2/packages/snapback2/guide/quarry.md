@@ -1,21 +1,19 @@
 # Quarry v0.3
 
-Quarry is the backend language. `check` compiles in memory; inspection goes in
-`.snapback/build/quarry/`, never `snapback/`.
+Quarry is the backend language. `check` compiles in memory; inspection goes in `.snapback/build/quarry/`.
 
 ## Project
 
 `snapback/schema.q` holds `use identity`, tables, maintains and channels.
-Other `.q` files hold operations/shapes; stems name API namespaces:
+Stems name API namespaces:
 `messages.q` exports `api.messages.thread`.
 
-TypeScript in `snapback/` is only seeds, tests, and effect I/O; everything
-else is Quarry. Effect/`.q` stems must differ.
+TypeScript is only seeds, tests, and effect I/O. Effect/`.q` stems differ.
 
 ## Types and tables
 
-Virtual `connected` supports only `exists connected[p]` and
-`#connected[p]` for `p: principal`; see `guide connected`.
+Virtual `connected[p]` yields the int connection count for `p: principal`;
+`exists connected[p]` tests presence; see `guide connected`.
 
 Columns and arguments use `principal`, `id`, table references, `int`, `time`,
 `bool`, `decimal <scale>`, `money <CUR> [scale]`, `text <=N`, `text M..N`,
@@ -61,8 +59,9 @@ or `??` fallback) is an Id on the wire; text expressions and wrong-table refs
 refuse. A cursor position takes the token, never an Id literal.
 
 Tables get `id` and `byId` implicitly. `by name: a, b` declares a named
-ordering; `by a, b` infers `byAB`. `unique name: a, b` declares a named unique
-ordering and its uniqueness constraint; `unique a, b` infers `byAB`. `id` may
+ordering. `unique name: a, b` declares a named unique
+ordering and its uniqueness constraint. Declarations name their indexes;
+unnamed indexes refuse with the inferred name as a repair. `id` may
 appear in an index. `immutable a, b` forbids changes to those columns.
 `cap N by a, b` holds every group at N rows (an omitted optional column is the
 `null` group); every writer, seeds included, refuses past it, naming the cap and group; a
@@ -92,7 +91,7 @@ so is an `or` with an arm proven true by the prefix.
 
 ## Maintains
 
-`maintain` builds count/sum targets with the source's group types: count is int; sum
+`maintain` builds count/sum targets with source group types: count is int; sum
 value matches its int/decimal/money source. The group
 index is unique; the block gives its read rule; user writes are denied.
 
@@ -100,9 +99,9 @@ index is unique; the block gives its read rule; user writes are denied.
 summary when raw-source reads are non-uniform (`E_DISCLOSURE`); the target's
 `read` rule still applies.
 
-`total[key]` reads the target row through the unique grouping index;
-`#total[key]` yields its typed value or typed zero when absent/unreadable, and
-a later `#` read in a mutation reflects earlier writes.
+`total[key]` yields its typed value or typed zero when absent/unreadable;
+a later point read in a mutation reflects earlier writes. The `data` verb and
+rules still see maintain rows; program point reads and API types see the value.
 
 ```q
 maintain messageCounts = count messages by conversationId:
@@ -112,8 +111,8 @@ maintain messageCounts = count messages by conversationId:
 ## Programs
 
 Keys are positional (`table[value, …]`) or named (`table[column = value, …]`).
-Point reads need a full unique key; `exists` accepts a prefix. Add `by index`
-to disambiguate. Range syntax is `[after cursor] first|last N [by index]`;
+Point reads need a unique key; `exists` accepts a prefix. `by index`
+disambiguates. Range syntax is `[after cursor] first|last N [by index]`;
 repeats/permutations refuse. `first` is ascending. `last` is descending.
 Shapes use `{ * }`, fields, or `name: expression`. Nested point reads preserve
 page `complete`/`capped`; hidden rows yield `null`. Early exit, count or `require`
@@ -138,10 +137,9 @@ invisible, writes, `emit`, and `require` bind where the caller allows, `return`
 refuses, and a parameter's type is the priced bound.
 
 `after` follows scan order: `after c` with `c: cursor ?`; `null` starts page one.
-Pass `next` unchanged. It encodes table/index/order, typed suffix, and last returned
-row, never a hidden position. `E_INPUT` rejects noncanonical arguments before
+Pass `next` unchanged. It encodes table/index/order, typed suffix, and last returned row. `E_INPUT` rejects noncanonical arguments before
 execution and scope mismatches before the selected page or merge discovery.
-Tokens may cross sites; indexes must end in `id` or be unique.
+Tokens cross sites; indexes end in `id` or are unique.
 
 An `if`/`else` can return a range or merge through aliases and shapes.
 `next` follows that return, never an auxiliary read; shapes may omit index
@@ -159,7 +157,7 @@ and bounds collapse. SQLite streams merge by suffix, deduplicate `id`, and
 return N rows; cost is L heads + N advances + 2 lookahead + discovery,
 non-uniform lanes keeping per-lane reserves, all priced by retention.
 Local merges need a certificate. System reads bypass rule capping, not execution
-limits. No runtime lanes yields an empty page. Shapes, `for`, and `count` work
+limits. No lanes yields an empty page. Shapes, `for`, and `count` work
 as for ranges. Pageable indexes end in `id`; one cursor applies to every lane.
 
 ```q
@@ -173,8 +171,7 @@ query followingFeed(c: cursor ?):
 The recipe admits 50 follows; more is `capped`. `complete` requires exhausted
 lanes and at most N rows in their deduplicated union.
 
-`require condition else CODE` aborts when false. `match read: some name: … none: …`
-branches on presence as a statement, not a binding. Other statements
+`require condition else CODE` aborts when false. Other statements
 bind expressions or `sorted` tuples, `return`, `if/else`, or bounded `for`;
 `return` works in all arms and a body's last expression is an implicit return.
 
@@ -184,10 +181,15 @@ uses shorthand. `count(x)` is
 a field named `length` stays that field. Other built-ins are `range`,
 `min`, `max`, `divmod`, and `share`. `sorted` is only `(lo, hi) = sorted(a, b)`:
 it evaluates `a` then `b` once and returns the values in canonical scalar order.
-`!` or `! else CODE` requires a present value; `??` supplies a fallback. Program `=`/`!=` are total: absent equals absent, differs from present;
+`! else CODE` requires a present value; a bare `!` refuses with that repair.
+`??` supplies a fallback. Program `=`/`!=` are total: absent equals absent, differs from present;
 `!=` is `not (=)`. Ordered comparison refuses an optional operand;
-use `!` or `??` first. `if x != null:` narrows a bound name or one-hop row field in that branch
-only, not an `and` operand or the else.
+use `! else CODE`, `??`, or narrowing first. `if x != null:` narrows a bound
+name or one-hop row field in its then branch; `if x = null:` narrows the else.
+`x != null and R` narrows R and evaluates its reads only when reached;
+`require x != null else CODE` narrows the rest of its block.
+
+`walk table[seed] up .column depth N` follows at most N parent links.
 
 `tokens(text)` extracts `@` mentions. Search uses a schema
 `wordPrefixes(field)` index and an ordinary bounded prefix read; there is no
@@ -201,8 +203,8 @@ evaluation.
 Writes: `insert table { fields }`, `update table[key] { patch }`,
 `upsert table[key] { row }`, `delete table[key]`. Non-insert keys must be complete
 unique keys, including composite alternatives. Alternate-key update/delete
-read the unique index once, require the row (`NOT_FOUND`), then write by `id`;
-alternate-key upsert passes the matched id or a fresh `new` to scalar `db.upsert`.
+read once, require the row (`NOT_FOUND`), then write by `id`;
+alternate-key upsert preserves its id or mints one.
 
 Key expressions evaluate once and supply omitted upsert key columns. A row or
 patch may repeat a key column only with that key expression; otherwise
@@ -267,14 +269,13 @@ point absence on held-page revalidation, not tombstones (LLP 1012 §5).
 
 ## Absence and bounds
 
-Point reads return a row or absence; absent shapes and optional members stay
+Ordinary table point reads return a row or absence; absent shapes and optional members stay
 absent, including in objects, updates, and calls; bases evaluate once in their
-branch. `!` names a refusal and `??` handles absence. Every missing update or
+branch. `! else CODE` names a refusal and `??` handles absence. Every missing update or
 delete is `NOT_FOUND`; upsert keeps its absent insert branch. The residual
 existence-oracle case is by-id unreadable → `E_RULE`, alternate-key unreadable
 → `NOT_FOUND`. A
-missing maintained group is zero only through `#`; the ordinary target-table
-read remains absent.
+missing maintained group is typed zero.
 
 Scans, lists, text, JSON, and bytes are bounded. `for` needs a bounded
 list/page/range/tokens result. Optional-list maxima bound length, not

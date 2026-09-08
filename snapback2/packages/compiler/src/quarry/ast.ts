@@ -50,7 +50,6 @@ export type Expr =
   | MergeExpr
   | { kind: "exists"; read: Extract<Expr, { kind: "read" }>; site: Site }
   | { kind: "created"; read: Extract<Expr, { kind: "read" }>; site: Site }
-  | { kind: "aggregate"; table: string; keys: KeyPart[]; site: Site }
   | { kind: "assert"; value: Expr; code: string; site: Site }
   | { kind: "shapeUse"; base: Expr; name: string; site: Site }
   | { kind: "shape"; base: Expr; fields: ShapeField[]; authoredName?: string; authoredFields?: ShapeField[]; site: Site }
@@ -94,8 +93,7 @@ export type Stmt =
   | { kind: "return"; value: Expr; site: Site }
   | { kind: "emit"; effect: string; payload: Expr; site: Site }
   | { kind: "if"; condition: Expr; thenBody: Stmt[]; elseBody: Stmt[]; site: Site }
-  | { kind: "for"; name: string; domain: Expr; body: Stmt[]; site: Site }
-  | { kind: "match"; read: Extract<Expr, { kind: "read" }>; someName: string; someBody: Stmt[]; noneBody: Stmt[]; site: Site };
+  | { kind: "for"; name: string; domain: Expr; body: Stmt[]; site: Site };
 
 export type IndexDecl = { name: string; components: IndexComponent[]; unique: boolean; site: Site };
 export type RuleDecl = { effect: "read" | "insert" | "update" | "delete"; bindings: string[]; value: Expr; site: Site };
@@ -104,6 +102,8 @@ export type FinalExistsDecl = { value: Extract<Expr, { kind: "exists" }>; site: 
 /** `tombstones <table>[.<column>] if <predicate>`: a delivered row of this table names a row of `table` the client evicts. */
 export type TombstoneDecl = { table: string; column: string; predicate: Expr; site: Site };
 export type TableDecl = {
+  /** Materialized maintain: program point reads yield its value; rules still inspect rows. */
+  maintained?: true;
   name: string;
   columns: ColumnDecl[];
   indexes: IndexDecl[];
