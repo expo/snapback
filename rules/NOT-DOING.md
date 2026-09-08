@@ -190,5 +190,6 @@ PR. If nothing can come off, the answer is no.
   the old ceiling still fails by 85 and that sample remains a failure. The
   explicit 500-byte increase (0.61%) follows bounded readable consolidation,
   funds this reconciliation only, and leaves 415 bytes. Five roots, resource
-  limits and Exact 2 deferral stay; closing independent review and final
-  qualification remain pending. LLP 1012 and LLP 1018.000 record the trade.
+  limits and Exact 2 deferral stay. Both closing reviews are READY and final
+  platform checks pass; the 80,000 target remains missed. LLP 1012 and
+  LLP 1018.000 record the trade and source-bound evidence.

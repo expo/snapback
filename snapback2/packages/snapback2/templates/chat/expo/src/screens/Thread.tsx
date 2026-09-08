@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import { Button, ScrollView, Text, View } from "react-native";
 import { api, type Api } from "snapback2/client";
-import { AssetImage, AssetVideo, useOutbox, useQuery } from "snapback2/react-native";
+import { AssetImage, AssetVideo, useOutbox, useQuery, useSnapbackClient, useSnapbackSnapshot } from "snapback2/react-native";
 import type { RecoveryCustody, SendUncertainty } from "../../shared/recovery";
 import { Composer } from "../Composer";
 import { conversationItems, threadItems } from "../../shared/thread";
@@ -15,6 +15,14 @@ function usable(result: { data?: unknown; receipt?: { outcome: string } }): Conv
     ? data as ConversationView : undefined;
 }
 
+function usePartialHistory(conversationId: string, active: boolean) {
+  const client = useSnapbackClient();
+  const generation = useSnapbackSnapshot().authGeneration;
+  const observed = useMemo(() => client.observe(api.deliveries.thread, { conversationId, c: null }, { items: threadItems }), [client, generation, conversationId]);
+  const subscribe = useCallback((notify: () => void) => active ? observed.subscribe(notify) : () => undefined, [active, observed]);
+  return useSyncExternalStore(subscribe, observed.getSnapshot, observed.getSnapshot);
+}
+
 // @ref LLP 1018.000#4-one-observed-query-one-coherent-snapshot — list, count,
 // and preview render from one named composite when its receipt is complete;
 // the paginated query contributes history only when that composite is partial.
@@ -26,9 +34,9 @@ export function Thread({ conversationId, sendCustody }: {
 }) {
   const [opened, setOpened] = useState<string[]>([]);
   const snapshot = useQuery(api.deliveries.conversationView, { conversationId }, { items: conversationItems });
-  const history = useQuery(api.deliveries.thread, { conversationId, c: null }, { items: threadItems });
   const composite = usable(snapshot);
-  const usingHistory = !composite && snapshot.status === "ready";
+  const usingHistory = !composite && snapshot.receipt?.outcome === "partial";
+  const history = usePartialHistory(conversationId, usingHistory);
   const { dismiss } = useOutbox();
   const readable = !!composite || usingHistory && history.status === "ready";
   const items = composite ? snapshot.items : usingHistory && history.status === "ready" ? history.items : snapshot.items.filter(item => item.draft !== undefined);

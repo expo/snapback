@@ -49,29 +49,33 @@ export const App = () => <SnapbackProvider url="http://127.0.0.1:3210" as="alice
 </SnapbackProvider>;
 ```
 
-Reads surface exactly seven states: `hydrating`, `complete`, `capped`, `partial`,
-`denied`, `refused`, and `stale`. A subscription frame retains its server receipt
-state and sets the orthogonal `live: true`; stream loss changes the view to
-`stale` with `live: false` only after a receipt has been delivered. An initial
-connection failure remains `hydrating`. Transport status is separately exposed as
-`connection: "connected" | "reconnecting" | "offline"`. `useQuery` subscribes by
-default; pass `{ live: false }` for a one-shot query, which remains `hydrating` and
-retries while its connection is reconnecting.
+`useQuery` returns one immutable `Snapshot`: `data`, the certified `receipt`
+(`outcome`, `source`, `seq`, `next`), `freshness`, `local` facts, and any `refusal`.
+Its derived `status` is `loading`, `ready`, or `unavailable`; `ready` means
+readable data, not completeness. `receipt.outcome` preserves `complete`,
+`capped`, `partial`, or `denied`, independently of `freshness.live` and
+`freshness.connection` (`connected`, `reconnecting`, or `offline`). Prediction
+and retention are under `local`. `useQuery` subscribes by default; pass
+`{ live: false }` for a one-shot query, which stays loading and retries while
+its connection is reconnecting.
 
 `client.observe` is the lazy headless form of the same query resource. Its
 first listener opens the shared subscription and its last listener releases
-it. Identical headless and React consumers read the same immutable `QueryView`;
-successor and account resets publish `hydrating` before new-authority data.
+it. Identical headless and React consumers read the same immutable `Snapshot`;
+successor and account resets publish `loading` before new-authority data.
+`QueryView` remains the reducer/event-facing form used by raw subscriptions.
 Committed predictions, settlements, and coverage changes reevaluate mounted
 views once from the atomic store revision; bookkeeping-only commits stay silent.
 
-`useMutation` returns `{ run, inFlight, pending, ready, status, last, transport }`.
+`useMutation` returns `{ run, inFlight, can, pending, last, detail }`.
 `inFlight` marks an active call; `pending` lists this operation's durable queued
-intents. `last` is `queued`, `committed`, `rejected`, or `admission-unknown`; queued means saved on the
-device for FIFO replay after resume. `status` explains readiness, the next action,
-remaining queue, and fence. `useOutbox()` exposes entries; `outbox.drain()` and
-`settled()` report `{ stopped, remaining }`. Transport failures preserve queued
-writes; a thrown failure leaves `last` untouched and sets `transport`.
+intents. `can.send`, `can.reason`, and `can.action` describe readiness and recovery;
+`detail.status` retains the underlying queue/grant/fence facts. `last` is
+`queued`, `committed`, `rejected`, or `admission-unknown`; queued means saved
+on the device for FIFO replay after resume. `useOutbox()` exposes entries,
+`dismiss`, `can`, and `detail`. The client's `outbox.drain()` and `settled()`
+report `{ stopped, remaining }`. Transport failures preserve queued writes;
+a thrown retryable refusal leaves `last` untouched and sets `detail.transport`.
 Run `snapback2 guide offline` for recovery.
 
 A second browser tab for the same account forwards ordinary mutation arguments

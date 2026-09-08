@@ -24,10 +24,12 @@ or refusals. Transport `live`/`stale` never replaces the certified outcome.
 local commits reevaluate once; bookkeeping stays silent. Resets load; transport
 state does not replace the certified outcome.
 
-When a screen needs a list, count, and preview coherently, return all three from
-one named query and mount that ref/arguments in each consumer. Chat's
-`deliveries.conversationView` does this. A partial composite stays partial;
-fallback held history must hide count/preview until it is usable.
+For coherent list/count/preview, use one named query such as
+`deliveries.conversationView`. Only a partial receipt, even without data,
+enables independently observed history; that history supplies no count or
+preview. Complete/capped composite data supplies all three and detaches the
+fallback. Denial, refusal and account reset cannot enable it; `status` grants
+no authority.
 
 Use `{ items: spec }` with `useQuery`/`observe`. Declare `spec` once with
 `snapback2/client`'s `defineItems(query, { table, select, order, create, update,
