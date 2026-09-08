@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { createClient, api, defineItems as publicItems } from "../dist/client.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
 import { indexedDbRangeStore } from "../dist/react.mjs";
+import { itemInputs as capturedInputs } from "../dist/image-runtime.mjs";
 import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
 import { fakeOwner } from "./fake-owner.ts";
 import type { Op } from "../src/api.ts";
@@ -131,6 +132,7 @@ test("a fresh base does not certify an image still masked by that intent's own p
   });
   const masked = attachItems(spec, args, page, state);
   assert.equal(masked[0]?.pending.length, 1, "in particular the predicted creation time is not presented as server time");
+  assert.deepEqual(masked[0]?.draft, { body: "submitted" }, "the owned draft remains available during a view's authorization handoff");
   assert.equal(attachItems(spec, args, page, { ...state, predicted: new Map() })[0]?.pending.length, 0);
 });
 
@@ -239,4 +241,37 @@ test("a computed lookalike cannot borrow another row's observation or prediction
   const result = attachItems({ ...spec, select: () => ({ ...row, body: "computed" }) }, args, page, state);
   assert.equal(result[0]!.predicted, false);
   assert.equal(result[0]!.pending.length, 1);
+});
+
+for (const carrier of ["file", "indexeddb"]) test(`${carrier}: query membership survives reopen; other deliveries cannot advance it`, async () => {
+  const root = await mkdtemp(join(tmpdir(), "snapback-item-membership-"));
+  const factory = carrier === "file" ? fileRangeStore(root)
+    : indexedDbRangeStore({ indexedDB: new FakeIndexedDb() as never, locks: new FakeLocks() as never });
+  let store = factory();
+  const emptyPage = (seq: number) => ({ op: "deliveries.thread", args, seq, state: "complete" as const,
+    data: [], rows: [], receipt: { ranges: [], absences: [], verdicts: [] }, next: null });
+  const items = async () => {
+    const answer = await store.answer("deliveries.thread", args);
+    return attachItems(spec, args, answer!.data, capturedInputs(answer)!);
+  };
+  try {
+    await store.open("dev:alice");
+    await store.commit({ deliveries: [emptyPage(40)] });
+    await store.commit({ outbox: { put: [entry({ order: undefined, state: "committed", response: { seq: 41 } })] } });
+    await store.commit({ deliveries: [{ ...emptyPage(42), op: "messages.other", args: {},
+      data: { $row: { table: "messages", id: "m" } }, rows: [{ table: "messages", id: "m", row }] }] });
+    assert.equal((await items()).length, 1, "the newer pool does not make the old page current");
+    await store.commit({ deliveries: [emptyPage(43)] });
+    assert.deepEqual(await items(), [], "the query itself now chooses a page without the committed create");
+    await store.close?.(); store = factory(); await store.open("dev:alice");
+    assert.deepEqual(await items(), [], "cold reopen cannot resurrect an old success");
+    assert.equal((await store.outbox.all()).length, 1, "presentation has not dismissed it");
+    await store.commit({ outbox: { put: [entry({ intent: "equal-baseline", order: undefined, issuedSeq: 43,
+      state: "committed", response: { seq: 43 } })] } });
+    assert.equal((await items()).length, 1, "an older equal-sequence read precedes admission");
+    await store.commit({ deliveries: [emptyPage(43)] });
+    assert.equal((await items()).length, 1, "an identical envelope replay cannot manufacture a fresh observation");
+    await store.commit({ deliveries: [emptyPage(44)] });
+    assert.deepEqual(await items(), [], "a fresh query observation resolves the remaining draft");
+  } finally { await store.close?.(); await rm(root, { recursive: true, force: true }); }
 });

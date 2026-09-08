@@ -3,6 +3,8 @@
 import { referenceName, type Op } from "./api.js";
 import { intentLabel, type Snapshot } from "./snapshot.js";
 import type { OutboxEntry } from "./store/range-store.js";
+import { itemAddress } from "./query-frame.js";
+export { itemAddress } from "./query-frame.js";
 
 type Element<Result> = Result extends readonly (infer Row)[] ? Row : never;
 export type ItemRow = { readonly id: string };
@@ -116,7 +118,6 @@ export interface ItemInputs {
   /** Object identity proves the selector returned a row, not a computed lookalike. */
   readonly values?: ReadonlyMap<object, string>;
 }
-export const itemAddress = (table: string, id: string): string => `${table}\0${id}`;
 
 // @ref LLP 1018.003#10-retirement-is-a-read-model-decision-dismissal-is-a-write —
 // successful projection is a causal read, not equality with submitted arguments.
@@ -214,6 +215,9 @@ export function attachItems<Args, Result, Row extends ItemRow, Draft>(
       item = items.get(stableKey) ?? { key: stableKey, draft: binding.draft!(entry), predicted: false, pending: [] };
       items.set(stableKey, item);
     }
+    // Keep the submitted representation available while a create is pending,
+    // including when another presentation cannot yet authorize its row image.
+    if (binding.draft && item.draft === undefined) item.draft = binding.draft(entry);
     const seen = attached.get(item.key) ?? new Set<string>();
     if (seen.has(entry.intent)) continue;
     seen.add(entry.intent);

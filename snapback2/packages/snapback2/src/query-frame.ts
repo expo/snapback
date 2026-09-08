@@ -2,6 +2,7 @@
 import type { ItemInputs } from "./client-items.js";
 
 const frames = new WeakMap<object, ItemInputs>();
+export const itemAddress = (table: string, id: string): string => `${table}\0${id}`;
 export const emptyItemInputs: ItemInputs = { entries: [], observations: new Map(), predicted: new Map(), values: new Map() };
 export function itemInputs(value: unknown): ItemInputs | undefined {
   return value !== null && typeof value === "object" ? frames.get(value) : undefined;

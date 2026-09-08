@@ -63,7 +63,8 @@ export function Thread({ conversationId, viewer, onNote, sendCustody, changeCust
   const current = (captured: typeof visit) => activeVisit.current === captured
     && captured.client.snapshot.authGeneration === captured.generation;
   const sameAccount = (captured: typeof visit) => captured.client.snapshot.authGeneration === captured.generation;
-  const items = composite ? snapshot.items : usingHistory && history.status === "ready" ? history.items : snapshot.items.filter(item => !item.data);
+  const readable = !!composite || usingHistory && history.status === "ready";
+  const items = composite ? snapshot.items : usingHistory && history.status === "ready" ? history.items : snapshot.items.filter(item => item.draft !== undefined);
 
   const onEdit = async (messageId: string, body: string) => {
     if (busy || unknown) return;
@@ -148,7 +149,7 @@ export function Thread({ conversationId, viewer, onNote, sendCustody, changeCust
       </p> : null}
       <ol className="bubbles" data-view-state={state} data-view-seq={seq} data-view-source={usingHistory ? "partial-history" : "composite"}>
         {items.map((item) => {
-          const message = item.data, messageId = item.key;
+          const message = readable ? item.data : undefined, messageId = item.key;
           const post = item.pending.find(action => action.kind === "create"), own = message?.authorId === viewer;
           return <li key={messageId} data-message={messageId} data-state={post?.state ?? "row"} className={!message ? "bubble pending" : own ? "bubble own" : "bubble"}>
             <p>{message?.body || item.draft?.body || (message?.photo ? "[photo]" : message?.clip ? "[clip]" : "")}</p>

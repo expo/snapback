@@ -4,7 +4,8 @@ import { RowImage } from "../../evaluator/src/row-image.js";
 import { fieldOrNull, wireJson } from "../../evaluator/src/value-runtime.js";
 import { asRowRef, escapedFields } from "./store/row-values.js";
 import { canonicalAnswerKey, type PersistedRangeState, type StoredAnswer } from "./store/range-store.js";
-import { itemAddress, type ItemInputs, type ItemObservation } from "./client-items.js";
+import type { ItemInputs, ItemObservation } from "./client-items.js";
+import { itemAddress } from "./query-frame.js";
 import type { DeliveryEnvelopeV1 } from "./offline-protocol.js";
 
 function references(markers: unknown, data: unknown, row: (table: string, id: string, value: unknown) => void): void {
