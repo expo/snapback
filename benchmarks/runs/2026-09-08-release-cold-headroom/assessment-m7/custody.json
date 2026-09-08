@@ -1,0 +1,158 @@
+{
+  "session": "21532289-dc69-4f55-8f3a-9ee1ce4ac7c2",
+  "requestedModel": "grok-4.6",
+  "reasoningEffort": "xhigh",
+  "selfReportedModel": "grok-4.6",
+  "terminalModelUsageKeys": [
+    "grok-4.6-build"
+  ],
+  "supervisorStart": 1788888953.421588,
+  "supervisorEnd": 1788890178.295128,
+  "wallSeconds": 1224.8735401630402,
+  "hardCapSeconds": 5400,
+  "exit": 0,
+  "promptSha256": "258e09e18d46a605a4cf20cc426283b181b00b6038fdc081adb944c2b3495c45",
+  "sourceManifestSha256": "035ef999a9f5d804d32a06a0265245305663fd01e670cc19d2ba84802da0dcf1",
+  "sourceEntries": 512,
+  "postAssessmentSourceMismatches": [],
+  "postAssessmentOriginalHelperUnchanged": true,
+  "ownedPortsClosed": [
+    53132,
+    53133
+  ],
+  "files": [
+    {
+      "path": "results/grader-report.json",
+      "bytes": 7373,
+      "sha256": "8f1334549825e90170735a13a50a97564246745b9aef6452b2216d98220356b3",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "results/sanitized-evidence.md",
+      "bytes": 11076,
+      "sha256": "d783473ece20f87bedab8c907ab8a96243fd3581b88124492e66d1c5db38ca08",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "results/private/independent-m7-api.json",
+      "bytes": 4572,
+      "sha256": "13b2f6984be62cae9930a40ff912bafd92f7bb70a98a3e21e08dd890b42511dd",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "results/private/independent-m7-browser.json",
+      "bytes": 1763,
+      "sha256": "7b73c311f444946c74d6a88121b201b980e542d43c288962df25047751cc2f0c",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "results/private/weekend-settings-retry.json",
+      "bytes": 342,
+      "sha256": "ce66abea7f17fbf6ba201fb2556e7594eb68fbe94276d75d933fffadd6101dd0",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "results/private/preflight-starter-probe.json",
+      "bytes": 11934,
+      "sha256": "8eaca16b9691e08e14825a6f13e3f605bd77421e667f2bebe249a14122d0b4e9",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "results/private/snapshot-comparison.json",
+      "bytes": 28258,
+      "sha256": "17601afe153883bbb93c1a5244f5734182e8c7a9b190db5539ec50033d7201d4",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "results/private/preflight-api-snapshot.json",
+      "bytes": 113440,
+      "sha256": "bc48eaa4e0d22d7d8e11e1099449be715655c279de02d110bf9d062c475545a8",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "results/private/export-binding-check.json",
+      "bytes": 528,
+      "sha256": "6781edd9956c662feb31c4ca2950eaf4741a78eb33f9e889f1ace436ccee0908",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "results/private/owner-generation.json",
+      "bytes": 548,
+      "sha256": "28bd71cf86fc789cd88d4dfb04613d0e04e2aa534b5d976d63c56260c1acd2a8",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "results/private/owned-processes.jsonl",
+      "bytes": 669,
+      "sha256": "5614751d1f6cc5af8113a6d8250e15d06b515246bb31de23682addf5e0eebee2",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "results/private/acceptance-receipts/suite-m1-1788889496.json",
+      "bytes": 4141,
+      "sha256": "06b1a700cfb1f43e3284f84a9b24c8f0937c88ded039a84a0af6b9c68d6b3707",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "results/private/acceptance-receipts/suite-m2-1788889501.json",
+      "bytes": 3996,
+      "sha256": "d4b6d9b5ccf46bbc39f9d46e7308d16972ebd2594e0386546ee88a1e10d9bf63",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "results/private/acceptance-receipts/suite-m4-1788889506.json",
+      "bytes": 3907,
+      "sha256": "b414c096ee7857211d0a1360197578eb102127154f75bc0d2338cf9f3df5dd87",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "results/private/acceptance-receipts/suite-m5-1788889511.json",
+      "bytes": 3877,
+      "sha256": "4da10e03f93cfb1db5c932f8586ad9d4ee538a17b4c4a8f99b3eab9116787004",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "results/private/acceptance-receipts/suite-m6-1788889516.json",
+      "bytes": 4798,
+      "sha256": "08cd153b1cc0b1cc7e94e92db7453b92953147c22cf18f00f0ad2419582a9332",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "results/private/acceptance-receipts/suite-m7-1788889521.json",
+      "bytes": 7166,
+      "sha256": "348a30bad567e4031d49d2202464078655b6cb4ac3bd15f6b565d5f7f56f58e0",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "results/private/acceptance-receipts/suite-m8-1788889521.json",
+      "bytes": 4197,
+      "sha256": "58c84c89dfe2c78127502c7849f42f8b6eab401e5d2ccd3fc5d89b406a20a86c",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "results/private/acceptance-receipts/suite-status.json",
+      "bytes": 528,
+      "sha256": "93d9dec4fe9624c3e53029a63b3fdde59127b40e9c268632217dd80eb3a6ebfe",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "setup/assessment-input.json",
+      "bytes": 1125,
+      "sha256": "2abfcdbfad2fc58950447843408fda76c90825d3169be754fe77435805f44193",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "setup/data-copy.json",
+      "bytes": 242,
+      "sha256": "6dd9b351858cfc10ee03734f290d0a490f9b62e324bd6d691348d5900863d8bc",
+      "kind": "verbatim retained artifact"
+    },
+    {
+      "path": "setup/installed-version.json",
+      "bytes": 146,
+      "sha256": "86bbfc09051728c685131b32cf531f4322a87488c70885023db3383984b45f11",
+      "kind": "verbatim retained artifact"
+    }
+  ],
+  "privateArtifacts": "Raw CLI transcript, complete scripts, screenshots, logs, source archive and runtime state retained privately; selected credential-scanned records are public under original results/private paths."
+}

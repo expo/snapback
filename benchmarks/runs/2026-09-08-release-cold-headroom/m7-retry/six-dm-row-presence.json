@@ -1,0 +1,62 @@
+{
+  "method": "exact six named starter rows, stopped original SQLite, mode=ro&immutable=1",
+  "privateOriginalReceiptSha256": "83fe9143b65f9c7692a66e0a5ea354c0ec9a3bf7515fb64a3d3ace47ccc935a4",
+  "preSnapshotSha256": "2f670249a6354baf5e5c23bb677f37e7b9079c3c112f0feabdc99cbd220ff9a3",
+  "databaseSha256Before": "9aa9b9bd78f7b57945a1099e269ae59614fc769ea7e6c7660dc466d9466752a8",
+  "databaseSha256After": "9aa9b9bd78f7b57945a1099e269ae59614fc769ea7e6c7660dc466d9466752a8",
+  "walOrShmPresentBeforeOrAfter": false,
+  "fieldsCompared": [
+    "id",
+    "conversationId",
+    "sender",
+    "at",
+    "kind",
+    "body",
+    "image",
+    "video",
+    "edited",
+    "tombstoned",
+    "replyTo",
+    "viewOnce",
+    "expiresAt"
+  ],
+  "checks": [
+    {
+      "id": "sm0001",
+      "present": true,
+      "originalMessageFieldsMatch": true,
+      "differentFields": []
+    },
+    {
+      "id": "sm0002",
+      "present": true,
+      "originalMessageFieldsMatch": true,
+      "differentFields": []
+    },
+    {
+      "id": "sm0003",
+      "present": true,
+      "originalMessageFieldsMatch": true,
+      "differentFields": []
+    },
+    {
+      "id": "sm0004",
+      "present": true,
+      "originalMessageFieldsMatch": true,
+      "differentFields": []
+    },
+    {
+      "id": "sm0005",
+      "present": true,
+      "originalMessageFieldsMatch": true,
+      "differentFields": []
+    },
+    {
+      "id": "sm0006",
+      "present": true,
+      "originalMessageFieldsMatch": true,
+      "differentFields": []
+    }
+  ],
+  "scope": "Exact six named original message rows in stopped original SQLite. Separate receipt/reaction tables were not queried. This storage witness does not replace API-wide preservation qualification."
+}

@@ -1,0 +1,65 @@
+{
+  "schemaVersion": "clique.acceptance.v1",
+  "milestone": "m8",
+  "start": 1788887550,
+  "backendUrl": "http://127.0.0.1:53134",
+  "webUrl": "http://127.0.0.1:53135",
+  "commands": [
+    {
+      "name": "snapback2-check",
+      "pass": true,
+      "code": 0,
+      "ms": 905,
+      "stdout": "{\"compilerMs\":52.49,\"generation\":\"030479ec81d67bc3fb9ef9bc7b0f27a3848dd6d9300f4b74dc4738ea3274bb03\",\"ok\":true,\"operations\":59,\"schemaCertificate\":{\"disclosures\":[\"messages.onceImage: one image delivery per authenticated principal; owning row read rule; no device byte cache\"],\"schedules\":[{\"name\":\"dailyDigest\",\"target\":\"digests.digestSweep\",\"trigger\":{\"every\":{\"durationMs\":120000}}},{\"name\":\"expireTrending\",\"target\":\"digests.purgeTrending\",\"trigger\":{\"row\":{\"column\":\"expiresAt\",\"table\":\"trendingPosts\"}}},{\"name\":\"expireMessage\",\"target\":\"messages.purgeExpired\",\"trigger\":{\"row\":{\"column\":\"expiresAt\",\"table\":\"messages\"}}}]}}\n",
+      "stderr": ""
+    },
+    {
+      "name": "typescript",
+      "pass": true,
+      "code": 0,
+      "ms": 1309,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "name": "snapback2-authored-journeys",
+      "pass": true,
+      "code": 0,
+      "ms": 2081,
+      "stdout": "{\"binary\":{\"version\":\"0.0.19\",\"digest\":\"rust64:27840c11e1e9f1c6\"},\"generation\":\"030479ec81d67bc3fb9ef9bc7b0f27a3848dd6d9300f4b74dc4738ea3274bb03\",\"commands\":[\"snapback2 dev --foreground --port 0\",\"seed\",\"snapback2 test --journeys-only\"],\"checks\":[{\"name\":\"profiles update through authenticated policy\",\"kind\":\"journey\",\"verdict\":\"pass\",\"ms\":31,\"detail\":{\"file\":\"/Users/ccheever/clique-cold-019-20260908/m7-retry/app/.snapback/test-run-1788887552771/project/.snapback/build/tests/clique.mjs\"}},{\"name\":\"follow post like and reply set-state\",\"kind\":\"journey\",\"verdict\":\"pass\",\"ms\":40,\"detail\":{\"file\":\"/Users/ccheever/clique-cold-019-20260908/m7-retry/app/.snapback/test-run-1788887552771/project/.snapback/build/tests/clique.mjs\"}},{\"name\":\"message receipts reactions and edits\",\"kind\":\"journey\",\"verdict\":\"pass\",\"ms\":36,\"detail\":{\"file\":\"/Users/ccheever/clique-cold-019-20260908/m7-retry/app/.snapback/test-run-1788887552771/project/.snapback/build/tests/clique.mjs\"}},{\"name\":\"m7 poll set-state and visible-message count maintenance\",\"kind\":\"journey\",\"verdict\":\"pass\",\"ms\":69,\"detail\":{\"file\":\"/Users/ccheever/clique-cold-019-20260908/m7-retry/app/.snapback/test-run-1788887552771/project/.snapback/build/tests/clique.mjs\"}},{\"name\":\"scheduled digest emits once and skips empty periods\",\"kind\":\"journey\",\"verdict\":\"pass\",\"ms\":83,\"detail\":{\"file\":\"/Users/ccheever/clique-cold-019-20260908/m7-retry/app/.snapback/test-run-1788887552771/project/.snapback/build/tests/clique.mjs\"}},{\"name\":\"m7 scheduled expiry decrements visible-message count\",\"kind\":\"journey\",\"verdict\":\"pass\",\"ms\":50,\"detail\":{\"file\":\"/Users/ccheever/clique-cold-019-20260908/m7-retry/app/.snapback/test-run-1788887552771/project/.snapback/build/tests/clique.mjs\"}}],\"arms\":[\"headless\"],\"verdict\":\"pass\",\"scope\":{\"changed\":[]},\"schedules\":{\"fired\":6,\"late\":6,\"rejected\":0}}\n",
+      "stderr": ""
+    }
+  ],
+  "tests": [
+    {
+      "name": "m8-insights-activity-and-trending-policy",
+      "pass": true,
+      "ms": 109,
+      "detail": {
+        "totals": {
+          "followers": 3,
+          "following": 2,
+          "id": "s2id-8755dc9ac930975a7de4deeb17a6c734-0000000000000401",
+          "likesReceived": 10,
+          "posts": 30,
+          "principal": "user:AvQls6uw1wF5SY8rXZbqQg",
+          "repliesReceived": 6,
+          "repostsReceived": 1
+        },
+        "today": 20704,
+        "rankedFirst": "sp0001"
+      }
+    }
+  ],
+  "coverage": {
+    "path": "coverage/m8.json",
+    "sha256": "a605dcb59124b5590346797d710934c212705d4af9257d77117a69741cb8ea06",
+    "assertions": 6,
+    "expected": 6,
+    "exactAssertionIds": true,
+    "mappingsReferencePassingTests": true,
+    "complete": true
+  },
+  "pass": true,
+  "end": 1788887554
+}

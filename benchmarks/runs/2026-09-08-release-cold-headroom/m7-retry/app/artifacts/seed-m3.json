@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "clique.replay.v2",
+  "source": "/Users/ccheever/clique-cold-019-20260908/m7-retry/app/harness/benchmarks/fixtures/social-messenger/starter-m3.log",
+  "url": "http://127.0.0.1:53134",
+  "scale": false,
+  "start": 1788882688,
+  "end": 1788882689,
+  "actions": 19,
+  "settledActions": 19,
+  "verbCounts": {
+    "dm-create": 1,
+    "group-create": 1,
+    "member-add": 2,
+    "send": 15
+  },
+  "checkpoints": [],
+  "verifications": [],
+  "manifest": null,
+  "pass": true
+}

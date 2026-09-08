@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "clique.m7-export-endpoint-check.v1",
+  "at": "2026-09-08T16:38:23.700Z",
+  "node": {
+    "version": "v24.18.0",
+    "path": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node"
+  },
+  "export": {
+    "path": "app/artifacts/m7-web-1",
+    "clear": true,
+    "privateTmpdir": "/Users/ccheever/clique-cold-019-20260908/m7-retry/tmp/m7-expo-export-2.pdDzSX",
+    "log": "logs/m7-export-1.log",
+    "logSha256": "c353367689ad54b9fd3319af37261074a96a54e5749d4bb82f56bb7c8ab79309"
+  },
+  "bindings": [
+    {
+      "path": "app/artifacts/m7-web-1/_expo/static/js/web/entry-71183e45646196045dd264256a92392a.js",
+      "sha256": "1c4adbee3ee9e08a92a7e3ba85413213588be8b7974aa524c0c4231f938de9e1",
+      "ports": ["53134"],
+      "activeClientProvider": true,
+      "directClientBindings": true
+    },
+    {
+      "path": "app/artifacts/m7-web-1/_expo/static/js/web/fetch-0d9819d59e3ae46b00a3eba5c82761df.js",
+      "sha256": "4bcd453c52c3a760da11a3ee0be5f3da1f2fc87c332183e8b1c444f2743fd76e",
+      "ports": []
+    },
+    {
+      "path": "app/artifacts/m7-web-1/_expo/static/js/web/index-abdf9ec15092e92e7114d572306efc89.js",
+      "sha256": "1ac270194062eac758efdb23e146466b9c7d9bbc65797c64da187deacf522946",
+      "ports": []
+    }
+  ],
+  "status": "pass",
+  "finding": "All 531xx backend literals in the active web ClientProvider/direct-client bundle bind only to assigned port 53134. Check completed before serving or browser navigation."
+}

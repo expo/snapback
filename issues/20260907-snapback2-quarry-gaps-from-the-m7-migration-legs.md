@@ -51,8 +51,7 @@ the unchanged capture helper and compared both files independently. This covers
 eight personas and six persona-conversation views; media, reactions,
 edited/tombstoned messages, and view-once values were not
 populated. A later direct supervisor capture found a20-row API pagination limit; an exact
-stored-row check found the omitted original message intact. The browser attempt was separately aborted for contamination; a clean retry
-is in progress. See the
+stored-row check found the omitted original message intact. The browser attempt was separately aborted for contamination. See the
 [attempt record](../benchmarks/runs/2026-09-08-release-cold-headroom/m7-aborted.md).
 The intermediate null-valued snapshot and failed migration attempts are retained;
 the final match does not establish uninterrupted intermediate availability.
@@ -63,3 +62,40 @@ constraints, planning, and resumable chunks. Correct the stale diagnostic rewrit
 Value-preserving enum-superset succession would be a separate design improvement.
 The author's bulk-job and bounded-list attempts returned `E_STEPS`; those receipts
 alone do not establish the cause or show that a bounded job recipe is impossible.
+
+The [clean retry](../benchmarks/runs/2026-09-08-release-cold-headroom/m7-retry/README.md)
+subsequently passed its local M7 suite and frozen poll choreography. It avoided
+retyping the old discriminator, added an optional logical message type, and
+used the documented optional-column/backfill/required-narrowing sequence for a
+new stored count. The job visited all three stored conversations; the canonical
+Node 24 API snapshot preserved the two persona-visible conversations exactly.
+This demonstrates one successful additive route, while the guide follow-up
+for preserving values through enum evolution remains. The late snapshot again
+hit the thread's visible window; exact storage checks found all six omitted
+starter DM rows unchanged in their original message fields. The completed
+[independent assessment](../benchmarks/runs/2026-09-08-release-cold-headroom/assessment-m7/README.md)
+also recovered all 15 starter IDs and 13 message fields through Alice's paged
+`offlineHistory` API. That check does not establish late receipt/reaction
+preservation across every persona.
+
+## Inherited thread/API pagination mismatch — 2026-09-08
+
+Independent M7 grading found a 42-row DM returned only 20 rows through
+`messages.thread`, with `state=capped` and `next=null`. The relevant `thread`
+and `offlineHistory` definitions are byte-identical between the original
+continuous app and final M7 source; app `API.md` is also unchanged.
+
+`thread` returns `{ messages: page messageView, members: ... }`. Installed
+0.0.19 explicitly documents that such an object has no root continuation.
+The app API instructions nevertheless promise newest-to-older pagination and
+tell callers to stop at null `next`. The root-page `offlineHistory` query
+returns all 42 rows and retains every starter ID. The problem is the app's
+composition and documentation, not `last 20` itself, migration data loss or an
+established engine cursor-contract violation.
+
+Provide and document a supported history-page path, then prove more than
+20 rows using opaque continuation. Preserve the authorization distinction:
+`thread` permits members; `offlineHistory` requires active members. Do not
+replace one with the other without preserving the intended retained-history
+policy. This follow-up is separate from the repaired conditional root-page
+cursor issue and from native/twin partial-replay parity.

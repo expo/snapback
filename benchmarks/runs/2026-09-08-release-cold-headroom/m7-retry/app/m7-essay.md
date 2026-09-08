@@ -1,0 +1,11 @@
+# M7 Closing Essay
+
+The durable part of this implementation is the separation between message identity, poll state, and visible-count state. A poll is still a message for ordering, receipts, disappearance, and deletion, but its options and votes are normalized into bounded tables. The unique message-and-voter vote row makes “choose this option” a set-state operation: choosing another option moves the row, replaying the same intent does not add another vote, and live tallies derive from maintained vote counts.
+
+Visible-message count is now an application invariant rather than an incidental raw-row total. The migration backfilled the exact live starter database, narrowed the new field only after the job completed, and left legacy message bytes intact. New text, image, video, and poll paths increment it; the first tombstone and scheduled expiry decrement it; repeated deletion cannot decrement twice. Poll creation participates in the same invariant.
+
+Offline correctness required respecting the distinction between durability and pending presentation. The durable outbox may retain settled history, while the mutation hook’s pending collection represents intents still waiting to settle. That difference is why the final UI can honestly show a queued vote during disconnection and clear the marker after reconciliation without discarding durable ledger history.
+
+The browser corrections also reinforce why structural contracts matter. The UI kit described the intended semantics, but the installed web renderer did not materialize all of them in DOM attributes. The app-side bridge preserves the frozen component and makes the contract observable to assistive/browser tooling. Per-tab IndexedDB namespaces similarly preserve durable offline queues while preventing independent browser contexts from contending on one client writer lock.
+
+The result is a locally green M7 diagnostic boundary with a hash-bound suite and a passing fresh-session Chromium segment. It is not a calibrated benchmark score or a protocol-conforming full run: the inherited M3 failure remains, and native M6/M8 behavioral proof was not commissioned or created. Those limits are part of the result, not footnotes to erase.

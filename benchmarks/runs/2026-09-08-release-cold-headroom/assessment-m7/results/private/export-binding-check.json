@@ -1,0 +1,16 @@
+{
+  "attempt": 1,
+  "outputDir": "app/artifacts/assessment-web",
+  "entry": "/Users/ccheever/clique-cold-019-20260908/assessment-m7/app/artifacts/assessment-web/_expo/static/js/web/entry-1661fc02a24eec7aa741520805b6418c.js",
+  "sha256": "c020889c94ada2d7f62645b0df349e587e0eba04e98e678bc26083fc28ae90f8",
+  "urls": [
+    "http://127.0.0.1:53132"
+  ],
+  "clientProviderUrlConst": true,
+  "cliqueAppUrlConst": true,
+  "has53120": false,
+  "has53134": false,
+  "has3210Url": false,
+  "navigable": true,
+  "at": 1788889475.989629
+}

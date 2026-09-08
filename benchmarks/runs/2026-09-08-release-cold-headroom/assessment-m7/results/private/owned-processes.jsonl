@@ -1,0 +1,3 @@
+{"role": "backend", "port": 53132, "pid": 34728, "command": ["node_modules/.bin/snapback2", "dev", "--foreground", "--port", "53132"], "log": "logs/backend-53132.log", "at": 1788889147.7850502}
+{"role": "expo-export", "attempt": 1, "tmpdir": "/Users/ccheever/clique-cold-019-20260908/assessment-m7/tmp/expo-export-1788889414-36206", "outputDir": "artifacts/assessment-web", "clear": true, "EXPO_PUBLIC_SNAPBACK_URL": "http://127.0.0.1:53132", "at": 1788889414.793459}
+{"role": "web", "port": 53133, "pid": 36513, "command": ["node", "scripts/serve-web.mjs", "--dir", "artifacts/assessment-web", "--port", "53133"], "log": "logs/web-53133.log", "at": 1788889476.027012}

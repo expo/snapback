@@ -1,0 +1,260 @@
+{
+  "schemaVersion": "clique.m7-diagnostic-run.v1",
+  "milestone": "M7",
+  "status": "diagnostic-m7-green",
+  "diagnosticContinuation": true,
+  "cleanIsolationQualification": false,
+  "protocolConformingFullRun": false,
+  "calibratedBenchmarkScoreClaimed": false,
+  "authoritativeStartEpochSeconds": 1788883136.39942,
+  "authoringStopEpochSeconds": 1788887679,
+  "authoringElapsedSeconds": 4542.60058,
+  "hardCapSeconds": 14400,
+  "deadlineEpochSeconds": 1788897536.39942,
+  "capExhausted": false,
+  "authorPid": 11683,
+  "model": "gpt-5.6-sol",
+  "effort": "xhigh",
+  "tokenUsage": null,
+  "tokenUsageNote": "No authoritative token counter was supplied; no estimate is reported.",
+  "worktree": "/Users/ccheever/clique-cold-019-20260908/m7-retry/app",
+  "backendUrl": "http://127.0.0.1:53134",
+  "webUrl": "http://127.0.0.1:53135",
+  "contamination": null,
+  "instrument": {
+    "pin": "social-messenger@0.3.6-m8",
+    "manifestSha256": "ee75020c41bb09186dc003e1f2cdf0dedebbb3adc21abfbfeb83addba2e64623",
+    "briefSha256": "129fd79c5a2b19c7312fc41ed931647b79e2c4afc611c3cc431e0e26a452fbc6",
+    "assertionsSha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04",
+    "choreographySha256": "8caf5ebdc9a85a2757fe5109740184bdac37977ac98d0a583f16f9dea383177f",
+    "modified": false
+  },
+  "preM7Snapshot": {
+    "path": "../setup/pre-m7-snapshot.json",
+    "sha256": "2f670249a6354baf5e5c23bb677f37e7b9079c3c112f0feabdc99cbd220ff9a3",
+    "personas": 8,
+    "uniqueConversations": 2,
+    "uniqueMessages": 15,
+    "quotedMessages": 6,
+    "receiptRowsAcrossPersonaViews": 81,
+    "populatedClasses": {
+      "textOrQuote": true,
+      "receipts": true,
+      "image": false,
+      "video": false,
+      "reactions": false,
+      "edited": false,
+      "tombstoned": false,
+      "viewOnce": false
+    }
+  },
+  "preExistingCountStructures": true,
+  "preExistingCountSemantics": "messageCounts maintained every messages row grouped only by conversationId; settings exposed it directly, so tombstoned rows counted and expired rows stopped counting only after scheduled deletion. Pre-transition live values were d-alice-bob=6, derived-conversation=1, and g-starter=9.",
+  "schemaTransition": {
+    "preGeneration": "e80099e9159695ea7e7812ce73b89bbb0b7a05fa70dde975b7424273e957a809",
+    "optionalGeneration": "b3968f33c0a675601671d87ff9f822608404b8a63c7778d72d5e54611840de27",
+    "finalGeneration": "030479ec81d67bc3fb9ef9bc7b0f27a3848dd6d9300f4b74dc4738ea3274bb03",
+    "ownerRestartRequired": false,
+    "backfillJob": {
+      "operation": "admin.backfillConversationMessageCounts",
+      "jobId": "job_s2id-8755dc9ac930975a7de4deeb17a6c734-000000000004a001",
+      "chunks": 1,
+      "visited": 3,
+      "written": 3,
+      "counts": {
+        "d-alice-bob": 6,
+        "derived-conversation": 1,
+        "g-starter": 9
+      }
+    },
+    "design": [
+      "conversations.visibleMessageCount is a required stored count backfilled from the tombstone-aware visibleMessageCounts maintain.",
+      "Polls use separate pollOptions and pollVotes tables; a unique message/voter vote row implements one changeable set-state vote.",
+      "messages.messageType is additive and optional; legacy kind bytes are unchanged and projections fall back to kind.",
+      "Poll creation, text/image/video sends, tombstoning, and scheduled expiry maintain visibleMessageCount; polls count as messages."
+    ]
+  },
+  "postMigrationSnapshot": {
+    "earlyNode26Attempt": {
+      "path": "../evidence/post-migration-snapshot-node26-attempt.json",
+      "sha256": "8636d1e8766d330a38f30b4a1f77c2c3f1c4322a91b6019a0568f29c981e61cc",
+      "qualification": false
+    },
+    "canonical": {
+      "path": "../evidence/post-migration-snapshot.json",
+      "sha256": "64ca0e085c27f076b762f74fe72279d912a7fe09d1ebc093dff44e65e22a837c",
+      "node": "v24.18.0",
+      "ranBeforeAcceptanceMutation": true,
+      "semanticPayloadMatchesPreM7IgnoringCaptureTimes": true,
+      "uniqueMessageIds": [
+        "sm0001",
+        "sm0002",
+        "sm0003",
+        "sm0004",
+        "sm0005",
+        "sm0006",
+        "sm0007",
+        "sm0008",
+        "sm0009",
+        "sm0010",
+        "sm0011",
+        "sm0012",
+        "sm0013",
+        "sm0014",
+        "sm0015"
+      ]
+    }
+  },
+  "acceptance": {
+    "entrypoint": "npm run acceptance -- --milestone m7",
+    "receipt": "artifacts/suite-m7-1788887554.json",
+    "receiptSha256": "2584f8a79fafb94b450527912c168f2e4484b8e7f5472908d483049619fccad4",
+    "startEpochSeconds": 1788887520,
+    "endEpochSeconds": 1788887554,
+    "pass": true,
+    "tests": [
+      "m7-polls-count-backfill-maintenance",
+      "m7-prior-green-regressions"
+    ],
+    "coverage": {
+      "path": "coverage/m7.json",
+      "sha256": "29cab2533f1113f7900c5d1940afcf129636561539d26f61a365c1487b911d7f",
+      "suiteRequiredAssertionIds": [
+        "m7-a01",
+        "m7-a03",
+        "m7-a04",
+        "m7-a06",
+        "m7-a07",
+        "m7-a09"
+      ],
+      "exactAssertionIds": true,
+      "mappingsReferencePassingTests": true,
+      "completeForSuiteRequiredIds": true,
+      "independentAssessment": false
+    },
+    "commonCommands": {
+      "snapback2Check": true,
+      "typescript": true,
+      "authoredJourneys": true
+    }
+  },
+  "regressions": {
+    "pass": true,
+    "m3ExcludedAsPriorFailure": true,
+    "nativeM6M8RequalificationCommissioned": false,
+    "receipts": [
+      { "milestone": "m1", "path": "artifacts/suite-m1-1788887530.json", "sha256": "71381975b0b1c868523214cb0d7820c05ae84d8965e3185cfdca45cf44450dfb", "pass": true },
+      { "milestone": "m2", "path": "artifacts/suite-m2-1788887535.json", "sha256": "88e6c7ad75f1d299a795c3981c3405a3692a5df93756e626a89cc7acf6b7b7cd", "pass": true },
+      { "milestone": "m4", "path": "artifacts/suite-m4-1788887540.json", "sha256": "cd1a6645b4852554501e8e820f58a1758d572cb05781c908c26e8abb6a4905a9", "pass": true },
+      { "milestone": "m5", "path": "artifacts/suite-m5-1788887545.json", "sha256": "9c84a3ced43b6f119b12699b5f12ded59b3cf33f5732e09c94a12027e9dae08a", "pass": true },
+      { "milestone": "m6", "path": "artifacts/suite-m6-1788887550.json", "sha256": "983e318237c1a9454860f7ddd713626f41343e910cce9fea2e5a39c3b61eba0f", "pass": true },
+      { "milestone": "m8", "path": "artifacts/suite-m8-1788887554.json", "sha256": "af261ca5d78fb8c395b513a48dab2a33ea4d2df122e3aa49fbfe03ec720f22dc", "pass": true }
+    ]
+  },
+  "webExport": {
+    "path": "artifacts/m7-web-4",
+    "entryBundle": "artifacts/m7-web-4/_expo/static/js/web/entry-93c12ecd6c5945d8ea91391e7e78ed69.js",
+    "entryBundleSha256": "3a2223f33d2ce7bdb22da388e630a4cc1dd9b730b76349ff1e6ab6406edb159d",
+    "endpointCheck": "../evidence/m7-export-4-endpoint-check.json",
+    "endpointCheckSha256": "ea7c6eb0a7733516ea47743967dcb80e8cbb660de450ef27b18c536d69f2028e",
+    "activeBackendUrls": ["http://127.0.0.1:53134"],
+    "unexpectedLocalhostPorts": [],
+    "navigationOccurredBeforeEndpointCheck": false
+  },
+  "choreography": {
+    "freshSessionInvocation": true,
+    "browser": "chromium",
+    "playwrightVersion": "1.62.1",
+    "setupIdentity": "../evidence/m7-setup-identity.json",
+    "setupIdentitySha256": "c5d4a683906863be85a9e8fae333dd23c89bde8796ceba38b8cf2a4135d1e67f",
+    "receipt": "../evidence/m7-choreography-attempt-6.jsonl",
+    "receiptSha256": "ce469977719e3ce4bb5f38b4a9e6dfac058db8537a2300e36f6ea32dda011e0c",
+    "observations": "../evidence/m7-choreography-attempt-6.observations.jsonl",
+    "observationsSha256": "0184e42a687b45c0ff5ba53dc8885f7cacff0836bb311858282ef862a88b5248",
+    "pass": true,
+    "assertions": {
+      "m7-a02-live-poll-tallies": {
+        "pass": true,
+        "attemptsPassed": 3,
+        "attemptsRequired": 3,
+        "visibleMs": [168.4, 168.1, 170.8]
+      },
+      "m7-a05-offline-vote-reconciles": {
+        "pass": true,
+        "attemptsPassed": 1,
+        "attemptsRequired": 1
+      }
+    }
+  },
+  "retainedAttempts": {
+    "compileAndMigration": [
+      "Initial branch-local poll return failed E_QUARRY_UNKNOWN.",
+      "Nested generic-history poll projection failed E_BOUND.",
+      "Direct kind widening apply was refused E_SUCCESSOR_COLUMN_REQUIRED before data change.",
+      "Initial discriminator rewrite job failed E_STEPS.",
+      "Required-runtime journey attempt failed due cross-journey clock pollution; corrected attempt passed."
+    ],
+    "suite": [
+      "Attempt 1 passed but was superseded by browser source changes.",
+      "Attempt 2 command used malformed --milVILLE and failed before acceptance.",
+      "Attempt 3 failed the retry-sensitive exact starter count after prior regression fixtures; every commissioned regression still ran and passed.",
+      "Attempts 4 and 5 passed but were superseded by later browser source changes.",
+      "Attempt 6 is the final-source passing suite."
+    ],
+    "choreography": [
+      "Attempt 1: pre-login hydration timeout; empty evidence files retained.",
+      "Attempt 2: application miss for absent structural poll option semantics.",
+      "Attempt 3: intermittent pre-login hydration timeout; empty evidence files retained.",
+      "Attempt 4: command-entry setup refusal from an accidental extra argument; no receipt file created.",
+      "Attempt 5: all live tally attempts passed; offline tally reconciled but pending marker did not clear.",
+      "Attempt 6: both required assertions passed."
+    ],
+    "operational": "Malformed export/server/tool command entries, the Node 26 probe/snapshot, private export attempts, and all M7 logs are retained and described in m7-run-log.md."
+  },
+  "firstGreenBoundary": {
+    "suiteReceipt": "artifacts/suite-m7-1788887554.json",
+    "suiteReceiptSha256": "2584f8a79fafb94b450527912c168f2e4484b8e7f5472908d483049619fccad4",
+    "choreographyReceipt": "../evidence/m7-choreography-attempt-6.jsonl",
+    "choreographyReceiptSha256": "ce469977719e3ce4bb5f38b4a9e6dfac058db8537a2300e36f6ea32dda011e0c",
+    "coverageSha256": "29cab2533f1113f7900c5d1940afcf129636561539d26f61a365c1487b911d7f",
+    "authoringStopEpochSeconds": 1788887679
+  },
+  "claimsNotMade": [
+    "M3 green or repaired",
+    "native M6/M8 behavioral qualification",
+    "independent coverage assessment",
+    "protocol-conforming full-run qualification",
+    "calibrated benchmark score",
+    "populated-value migration proof for baseline classes that were empty"
+  ],
+  "postAuthoringVerification": {
+    "completedEpochSeconds": 1788888783,
+    "firstAttemptDetectedNarrativeHashTranscriptionErrors": true,
+    "underlyingArtifactsChanged": false,
+    "finalArtifactHashChecks": 19,
+    "finalArtifactHashChecksPass": true,
+    "coverageManifest": "coverage/manifest.json",
+    "coverageManifestSha256": "af8c9f7358526d3a156c2fff0af69412b040d4be94f12ac3911d269762944291",
+    "coverageManifestHashesPass": true,
+    "suiteStatusSha256": "24aa52dc6a1fabc8061c6593bdd33e247df43b6d53e21498da64394808007749",
+    "backendListening": true,
+    "webListening": true
+  },
+  "ownedProcessesStillRunning": [
+    {
+      "role": "backend-wrapper",
+      "pid": 9726,
+      "command": "node node_modules/.bin/snapback2 dev --foreground --port 53134"
+    },
+    {
+      "role": "backend-listener",
+      "pid": 9727,
+      "command": "node_modules/snapback2-darwin-arm64/bin/snapback2 dev --foreground --port 53134"
+    },
+    {
+      "role": "static-web-listener",
+      "pid": 29215,
+      "command": "node scripts/serve-web.mjs --dir artifacts/m7-web-4 --port 53135"
+    }
+  ]
+}

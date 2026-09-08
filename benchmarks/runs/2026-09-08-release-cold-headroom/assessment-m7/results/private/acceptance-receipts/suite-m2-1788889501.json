@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "clique.acceptance.v1",
+  "milestone": "m2",
+  "start": 1788889496,
+  "backendUrl": "http://127.0.0.1:53132",
+  "webUrl": "http://127.0.0.1:53133",
+  "commands": [
+    {
+      "name": "snapback2-check",
+      "pass": true,
+      "code": 0,
+      "ms": 926,
+      "stdout": "{\"compilerMs\":61.82,\"generation\":\"030479ec81d67bc3fb9ef9bc7b0f27a3848dd6d9300f4b74dc4738ea3274bb03\",\"ok\":true,\"operations\":59,\"schemaCertificate\":{\"disclosures\":[\"messages.onceImage: one image delivery per authenticated principal; owning row read rule; no device byte cache\"],\"schedules\":[{\"name\":\"dailyDigest\",\"target\":\"digests.digestSweep\",\"trigger\":{\"every\":{\"durationMs\":120000}}},{\"name\":\"expireTrending\",\"target\":\"digests.purgeTrending\",\"trigger\":{\"row\":{\"column\":\"expiresAt\",\"table\":\"trendingPosts\"}}},{\"name\":\"expireMessage\",\"target\":\"messages.purgeExpired\",\"trigger\":{\"row\":{\"column\":\"expiresAt\",\"table\":\"messages\"}}}]}}\n",
+      "stderr": ""
+    },
+    {
+      "name": "typescript",
+      "pass": true,
+      "code": 0,
+      "ms": 1370,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "name": "snapback2-authored-journeys",
+      "pass": true,
+      "code": 0,
+      "ms": 2125,
+      "stdout": "{\"binary\":{\"version\":\"0.0.19\",\"digest\":\"rust64:27840c11e1e9f1c6\"},\"generation\":\"030479ec81d67bc3fb9ef9bc7b0f27a3848dd6d9300f4b74dc4738ea3274bb03\",\"commands\":[\"snapback2 dev --foreground --port 0\",\"seed\",\"snapback2 test --journeys-only\"],\"checks\":[{\"name\":\"profiles update through authenticated policy\",\"kind\":\"journey\",\"verdict\":\"pass\",\"ms\":28,\"detail\":{\"file\":\"/Users/ccheever/clique-cold-019-20260908/assessment-m7/app/.snapback/test-run-1788889499050/project/.snapback/build/tests/clique.mjs\"}},{\"name\":\"follow post like and reply set-state\",\"kind\":\"journey\",\"verdict\":\"pass\",\"ms\":40,\"detail\":{\"file\":\"/Users/ccheever/clique-cold-019-20260908/assessment-m7/app/.snapback/test-run-1788889499050/project/.snapback/build/tests/clique.mjs\"}},{\"name\":\"message receipts reactions and edits\",\"kind\":\"journey\",\"verdict\":\"pass\",\"ms\":39,\"detail\":{\"file\":\"/Users/ccheever/clique-cold-019-20260908/assessment-m7/app/.snapback/test-run-1788889499050/project/.snapback/build/tests/clique.mjs\"}},{\"name\":\"m7 poll set-state and visible-message count maintenance\",\"kind\":\"journey\",\"verdict\":\"pass\",\"ms\":68,\"detail\":{\"file\":\"/Users/ccheever/clique-cold-019-20260908/assessment-m7/app/.snapback/test-run-1788889499050/project/.snapback/build/tests/clique.mjs\"}},{\"name\":\"scheduled digest emits once and skips empty periods\",\"kind\":\"journey\",\"verdict\":\"pass\",\"ms\":85,\"detail\":{\"file\":\"/Users/ccheever/clique-cold-019-20260908/assessment-m7/app/.snapback/test-run-1788889499050/project/.snapback/build/tests/clique.mjs\"}},{\"name\":\"m7 scheduled expiry decrements visible-message count\",\"kind\":\"journey\",\"verdict\":\"pass\",\"ms\":50,\"detail\":{\"file\":\"/Users/ccheever/clique-cold-019-20260908/assessment-m7/app/.snapback/test-run-1788889499050/project/.snapback/build/tests/clique.mjs\"}}],\"arms\":[\"headless\"],\"verdict\":\"pass\",\"scope\":{\"changed\":[]},\"schedules\":{\"fired\":6,\"late\":6,\"rejected\":0}}\n",
+      "stderr": ""
+    }
+  ],
+  "tests": [
+    {
+      "name": "m2-post-follow-feed-toggle-thread-pagination",
+      "pass": true,
+      "ms": 556,
+      "detail": {
+        "textId": "accept-text-mtsymd6h",
+        "imagesId": "accept-images-mtsymd6h",
+        "videoId": "accept-video-mtsymd6h",
+        "pageOne": 20,
+        "pageTwo": 20
+      }
+    }
+  ],
+  "coverage": {
+    "path": "coverage/m2.json",
+    "sha256": "34b42184e8522beb3322be8f40abe903d77da42fd0532a20f129c1d9f0e93c45",
+    "assertions": 22,
+    "expected": 22,
+    "exactAssertionIds": true,
+    "mappingsReferencePassingTests": true,
+    "complete": true
+  },
+  "pass": true,
+  "end": 1788889501
+}

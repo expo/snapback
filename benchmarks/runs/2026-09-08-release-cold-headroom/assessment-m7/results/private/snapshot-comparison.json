@@ -1,0 +1,1104 @@
+{
+  "emptyPopulatedValueClassesInPreM7": {
+    "imageMessages": 0,
+    "videoMessages": 0,
+    "reactedMessages": 0,
+    "editedMessages": 0,
+    "tombstonedMessages": 0,
+    "viewOnceMessages": 0,
+    "expiresAtNonNull": 0,
+    "note": "Pre-M7 snapshot has no image/video/reaction/edit/tombstone/view-once populated values. m7-a08 media/reaction intactness for PRE-EXISTING rows is vacuously empty for those classes; later snapshots gained media from subsequent M7/author tests, not from pre-M7 corpus."
+  },
+  "scope": {
+    "pre": {
+      "endpoint": "http://127.0.0.1:53134",
+      "coverage": {
+        "personas": 8,
+        "personaConversationViews": 6,
+        "uniqueConversations": 2,
+        "visibleMessageCopies": 48,
+        "uniqueMessages": 15,
+        "imageMessages": 0,
+        "videoMessages": 0,
+        "reactedMessages": 0,
+        "quotedMessages": 6,
+        "receiptRows": 81,
+        "editedMessages": 0,
+        "tombstonedMessages": 0,
+        "viewOnceMessages": 0
+      },
+      "fieldMapping": [
+        "id",
+        "conversationId",
+        "sender",
+        "at",
+        "kind",
+        "body",
+        "image",
+        "video",
+        "edited",
+        "tombstoned",
+        "replyTo",
+        "viewOnce",
+        "expiresAt"
+      ],
+      "scopeLimits": [
+        "chats.list enumerates active-member conversations visible through the documented API",
+        "messages.thread embeds at most10 reactions and50 receipt rows per message; no arbitrary larger-roster proof",
+        "Media preservation covers reference fields, not fetched byte integrity"
+      ],
+      "chatPagesObserved": [
+        1,
+        2
+      ],
+      "messagePagesObserved": [
+        1
+      ],
+      "maxEmbeddedReactions": 0,
+      "maxEmbeddedReceipts": 4,
+      "cursorPagingUsed": true,
+      "query": "chats.list + messages.thread, every starter persona, every returned cursor page"
+    },
+    "postMigration": {
+      "endpoint": "http://127.0.0.1:53134",
+      "coverage": {
+        "personas": 8,
+        "personaConversationViews": 6,
+        "uniqueConversations": 2,
+        "visibleMessageCopies": 48,
+        "uniqueMessages": 15,
+        "imageMessages": 0,
+        "videoMessages": 0,
+        "reactedMessages": 0,
+        "quotedMessages": 6,
+        "receiptRows": 81,
+        "editedMessages": 0,
+        "tombstonedMessages": 0,
+        "viewOnceMessages": 0
+      },
+      "fieldMapping": [
+        "id",
+        "conversationId",
+        "sender",
+        "at",
+        "kind",
+        "body",
+        "image",
+        "video",
+        "edited",
+        "tombstoned",
+        "replyTo",
+        "viewOnce",
+        "expiresAt"
+      ],
+      "scopeLimits": [
+        "chats.list enumerates active-member conversations visible through the documented API",
+        "messages.thread embeds at most10 reactions and50 receipt rows per message; no arbitrary larger-roster proof",
+        "Media preservation covers reference fields, not fetched byte integrity"
+      ],
+      "chatPagesObserved": [
+        1,
+        2
+      ],
+      "messagePagesObserved": [
+        1
+      ],
+      "maxEmbeddedReactions": 0,
+      "maxEmbeddedReceipts": 4,
+      "cursorPagingUsed": true,
+      "query": "chats.list + messages.thread, every starter persona, every returned cursor page"
+    },
+    "rootPostAuthor": {
+      "endpoint": "http://127.0.0.1:53134",
+      "coverage": {
+        "personas": 8,
+        "personaConversationViews": 9,
+        "uniqueConversations": 3,
+        "visibleMessageCopies": 104,
+        "uniqueMessages": 38,
+        "imageMessages": 3,
+        "videoMessages": 3,
+        "reactedMessages": 0,
+        "quotedMessages": 3,
+        "receiptRows": 170,
+        "editedMessages": 3,
+        "tombstonedMessages": 4,
+        "viewOnceMessages": 7
+      },
+      "fieldMapping": [
+        "id",
+        "conversationId",
+        "sender",
+        "at",
+        "kind",
+        "body",
+        "image",
+        "video",
+        "edited",
+        "tombstoned",
+        "replyTo",
+        "viewOnce",
+        "expiresAt"
+      ],
+      "scopeLimits": [
+        "chats.list enumerates active-member conversations visible through the documented API",
+        "messages.thread embeds at most10 reactions and50 receipt rows per message; no arbitrary larger-roster proof",
+        "Media preservation covers reference fields, not fetched byte integrity"
+      ],
+      "chatPagesObserved": [
+        1,
+        2
+      ],
+      "messagePagesObserved": [
+        1
+      ],
+      "maxEmbeddedReactions": 0,
+      "maxEmbeddedReceipts": 4,
+      "cursorPagingUsed": true,
+      "query": "chats.list + messages.thread, every starter persona, every returned cursor page"
+    },
+    "preflight": {
+      "endpoint": "http://127.0.0.1:53132",
+      "coverage": {
+        "personas": 8,
+        "personaConversationViews": 9,
+        "uniqueConversations": 3,
+        "visibleMessageCopies": 104,
+        "uniqueMessages": 38,
+        "imageMessages": 3,
+        "videoMessages": 3,
+        "reactedMessages": 0,
+        "quotedMessages": 3,
+        "receiptRows": 170,
+        "editedMessages": 3,
+        "tombstonedMessages": 4,
+        "viewOnceMessages": 7
+      },
+      "fieldMapping": [
+        "id",
+        "conversationId",
+        "sender",
+        "at",
+        "kind",
+        "body",
+        "image",
+        "video",
+        "edited",
+        "tombstoned",
+        "replyTo",
+        "viewOnce",
+        "expiresAt"
+      ],
+      "scopeLimits": [
+        "chats.list enumerates active-member conversations visible through the documented API",
+        "messages.thread embeds at most10 reactions and50 receipt rows per message; no arbitrary larger-roster proof",
+        "Media preservation covers reference fields, not fetched byte integrity"
+      ],
+      "chatPagesObserved": [
+        1,
+        2
+      ],
+      "messagePagesObserved": [
+        1
+      ],
+      "maxEmbeddedReactions": 0,
+      "maxEmbeddedReceipts": 4,
+      "cursorPagingUsed": true,
+      "query": "chats.list + messages.thread, every starter persona, every returned cursor page"
+    },
+    "starterConversationPaging": {
+      "d-alice-bob": {
+        "pre": [
+          {
+            "persona": "alice",
+            "messagePages": 1,
+            "n": 6
+          },
+          {
+            "persona": "bob",
+            "messagePages": 1,
+            "n": 6
+          }
+        ],
+        "postMigration": [
+          {
+            "persona": "alice",
+            "messagePages": 1,
+            "n": 6
+          },
+          {
+            "persona": "bob",
+            "messagePages": 1,
+            "n": 6
+          }
+        ],
+        "rootPostAuthor": [
+          {
+            "persona": "alice",
+            "messagePages": 1,
+            "n": 20
+          },
+          {
+            "persona": "bob",
+            "messagePages": 1,
+            "n": 20
+          }
+        ],
+        "preflight": [
+          {
+            "persona": "alice",
+            "messagePages": 1,
+            "n": 20
+          },
+          {
+            "persona": "bob",
+            "messagePages": 1,
+            "n": 20
+          }
+        ]
+      },
+      "g-starter": {
+        "pre": [
+          {
+            "persona": "alice",
+            "messagePages": 1,
+            "n": 9
+          },
+          {
+            "persona": "bob",
+            "messagePages": 1,
+            "n": 9
+          },
+          {
+            "persona": "carol",
+            "messagePages": 1,
+            "n": 9
+          },
+          {
+            "persona": "erin",
+            "messagePages": 1,
+            "n": 9
+          }
+        ],
+        "postMigration": [
+          {
+            "persona": "alice",
+            "messagePages": 1,
+            "n": 9
+          },
+          {
+            "persona": "bob",
+            "messagePages": 1,
+            "n": 9
+          },
+          {
+            "persona": "carol",
+            "messagePages": 1,
+            "n": 9
+          },
+          {
+            "persona": "erin",
+            "messagePages": 1,
+            "n": 9
+          }
+        ],
+        "rootPostAuthor": [
+          {
+            "persona": "alice",
+            "messagePages": 1,
+            "n": 10
+          },
+          {
+            "persona": "bob",
+            "messagePages": 1,
+            "n": 10
+          },
+          {
+            "persona": "carol",
+            "messagePages": 1,
+            "n": 10
+          },
+          {
+            "persona": "erin",
+            "messagePages": 1,
+            "n": 10
+          }
+        ],
+        "preflight": [
+          {
+            "persona": "alice",
+            "messagePages": 1,
+            "n": 10
+          },
+          {
+            "persona": "bob",
+            "messagePages": 1,
+            "n": 10
+          },
+          {
+            "persona": "carol",
+            "messagePages": 1,
+            "n": 10
+          },
+          {
+            "persona": "erin",
+            "messagePages": 1,
+            "n": 10
+          }
+        ]
+      },
+      "m7-acceptance-group": {
+        "pre": [],
+        "postMigration": [],
+        "rootPostAuthor": [
+          {
+            "persona": "alice",
+            "messagePages": 1,
+            "n": 8
+          },
+          {
+            "persona": "bob",
+            "messagePages": 1,
+            "n": 8
+          },
+          {
+            "persona": "carol",
+            "messagePages": 1,
+            "n": 8
+          }
+        ],
+        "preflight": [
+          {
+            "persona": "alice",
+            "messagePages": 1,
+            "n": 8
+          },
+          {
+            "persona": "bob",
+            "messagePages": 1,
+            "n": 8
+          },
+          {
+            "persona": "carol",
+            "messagePages": 1,
+            "n": 8
+          }
+        ]
+      }
+    }
+  },
+  "identity": {
+    "conversationIds": {
+      "pre": [
+        "d-alice-bob",
+        "g-starter"
+      ],
+      "postMigration": [
+        "d-alice-bob",
+        "g-starter"
+      ],
+      "rootPostAuthor": [
+        "d-alice-bob",
+        "g-starter",
+        "m7-acceptance-group"
+      ],
+      "preflight": [
+        "d-alice-bob",
+        "g-starter",
+        "m7-acceptance-group"
+      ]
+    },
+    "preM7MessageIds": [
+      "sm0001",
+      "sm0002",
+      "sm0003",
+      "sm0004",
+      "sm0005",
+      "sm0006",
+      "sm0007",
+      "sm0008",
+      "sm0009",
+      "sm0010",
+      "sm0011",
+      "sm0012",
+      "sm0013",
+      "sm0014",
+      "sm0015"
+    ],
+    "preM7Quoted": [
+      "sm0002",
+      "sm0003",
+      "sm0006",
+      "sm0008",
+      "sm0011",
+      "sm0014"
+    ],
+    "conversationTitles": {
+      "pre": [
+        [
+          "d-alice-bob",
+          "dm",
+          ""
+        ],
+        [
+          "g-starter",
+          "group",
+          "Weekend Plans"
+        ]
+      ],
+      "postMigration": [
+        [
+          "d-alice-bob",
+          "dm",
+          ""
+        ],
+        [
+          "g-starter",
+          "group",
+          "Weekend Plans"
+        ]
+      ],
+      "rootPostAuthor": [
+        [
+          "d-alice-bob",
+          "dm",
+          ""
+        ],
+        [
+          "g-starter",
+          "group",
+          "Weekend Plans"
+        ],
+        [
+          "m7-acceptance-group",
+          "group",
+          "M7 Acceptance"
+        ]
+      ],
+      "preflight": [
+        [
+          "d-alice-bob",
+          "dm",
+          ""
+        ],
+        [
+          "g-starter",
+          "group",
+          "Weekend Plans"
+        ],
+        [
+          "m7-acceptance-group",
+          "group",
+          "M7 Acceptance"
+        ]
+      ]
+    }
+  },
+  "comparisons": {
+    "pre_vs_postMigration": {
+      "leftUnique": 15,
+      "rightUnique": 15,
+      "baselineIds": 15,
+      "missingFromRight": [],
+      "fieldDiffsOnBaseline": [],
+      "fieldDiffCount": 0,
+      "identityFieldMatchCount": 15,
+      "reactionDiffs": [],
+      "receiptChanges": [],
+      "receiptChangeCount": 0,
+      "ownReceiptDiffs": [],
+      "ownReceiptDiffCount": 0,
+      "conversationViewsMissing": [],
+      "newIdsOnRightNotInLeft": [],
+      "newIdCount": 0,
+      "uniqueMessagePayloadsEqual": true
+    },
+    "pre_vs_rootPostAuthor": {
+      "leftUnique": 15,
+      "rightUnique": 38,
+      "baselineIds": 15,
+      "missingFromRight": [
+        "sm0001",
+        "sm0002",
+        "sm0003",
+        "sm0004",
+        "sm0005",
+        "sm0006"
+      ],
+      "fieldDiffsOnBaseline": [],
+      "fieldDiffCount": 0,
+      "identityFieldMatchCount": 9,
+      "reactionDiffs": [],
+      "receiptChanges": [
+        {
+          "id": "sm0007",
+          "missingRecipients": [],
+          "extraRecipients": [],
+          "statusChanges": [
+            {
+              "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+              "left": "sent",
+              "right": "read",
+              "monotonicAdvance": true
+            }
+          ],
+          "leftCount": 4,
+          "rightCount": 4
+        },
+        {
+          "id": "sm0008",
+          "missingRecipients": [],
+          "extraRecipients": [],
+          "statusChanges": [
+            {
+              "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+              "left": "sent",
+              "right": "read",
+              "monotonicAdvance": true
+            }
+          ],
+          "leftCount": 1,
+          "rightCount": 1
+        },
+        {
+          "id": "sm0009",
+          "missingRecipients": [],
+          "extraRecipients": [],
+          "statusChanges": [
+            {
+              "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+              "left": "sent",
+              "right": "read",
+              "monotonicAdvance": true
+            }
+          ],
+          "leftCount": 1,
+          "rightCount": 1
+        },
+        {
+          "id": "sm0010",
+          "missingRecipients": [],
+          "extraRecipients": [],
+          "statusChanges": [
+            {
+              "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+              "left": "sent",
+              "right": "read",
+              "monotonicAdvance": true
+            }
+          ],
+          "leftCount": 1,
+          "rightCount": 1
+        },
+        {
+          "id": "sm0011",
+          "missingRecipients": [],
+          "extraRecipients": [],
+          "statusChanges": [
+            {
+              "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+              "left": "sent",
+              "right": "read",
+              "monotonicAdvance": true
+            }
+          ],
+          "leftCount": 4,
+          "rightCount": 4
+        },
+        {
+          "id": "sm0012",
+          "missingRecipients": [],
+          "extraRecipients": [],
+          "statusChanges": [
+            {
+              "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+              "left": "sent",
+              "right": "read",
+              "monotonicAdvance": true
+            }
+          ],
+          "leftCount": 1,
+          "rightCount": 1
+        },
+        {
+          "id": "sm0013",
+          "missingRecipients": [],
+          "extraRecipients": [],
+          "statusChanges": [
+            {
+              "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+              "left": "sent",
+              "right": "read",
+              "monotonicAdvance": true
+            }
+          ],
+          "leftCount": 1,
+          "rightCount": 1
+        },
+        {
+          "id": "sm0014",
+          "missingRecipients": [],
+          "extraRecipients": [],
+          "statusChanges": [
+            {
+              "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+              "left": "sent",
+              "right": "read",
+              "monotonicAdvance": true
+            }
+          ],
+          "leftCount": 1,
+          "rightCount": 1
+        },
+        {
+          "id": "sm0015",
+          "missingRecipients": [],
+          "extraRecipients": [],
+          "statusChanges": [
+            {
+              "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+              "left": "sent",
+              "right": "read",
+              "monotonicAdvance": true
+            }
+          ],
+          "leftCount": 4,
+          "rightCount": 4
+        }
+      ],
+      "receiptChangeCount": 9,
+      "ownReceiptDiffs": [],
+      "ownReceiptDiffCount": 0,
+      "conversationViewsMissing": [],
+      "newIdsOnRightNotInLeft": [
+        "accept-once-mtswwfn2",
+        "accept-once-mtsx8naq",
+        "accept-once-mtsxgfs9",
+        "accept-photo-mtswwbyz",
+        "accept-photo-mtsx8jnm",
+        "accept-photo-mtsxgc3h",
+        "accept-push-mtswwj9q",
+        "accept-push-mtsx8qw3",
+        "accept-push-mtsxgjea",
+        "accept-push-once-mtswsic2",
+        "accept-push-once-mtswwj9q",
+        "accept-push-once-mtsx8qw3",
+        "accept-push-once-mtsxgjea",
+        "accept-video-message-mtswwbyz",
+        "accept-video-message-mtsx8jnm",
+        "accept-video-message-mtsxgc3h",
+        "custom-demo-mtswsiha",
+        "custom-demo-mtswwjfn",
+        "custom-demo-mtsx8r2b",
+        "custom-demo-mtsxgjk7",
+        "m7-acceptance-poll-mtswbgk8",
+        "m7-acceptance-poll-mtsww0by",
+        "m7-acceptance-poll-mtsx8552",
+        "m7-acceptance-poll-mtsxg0hg",
+        "m7-choreography-poll",
+        "m7-forward-text-mtswbgk8",
+        "m7-forward-text-mtsww0by",
+        "m7-forward-text-mtsx8552",
+        "m7-forward-text-mtsxg0hg"
+      ],
+      "newIdCount": 29
+    },
+    "pre_vs_preflight": {
+      "leftUnique": 15,
+      "rightUnique": 38,
+      "baselineIds": 15,
+      "missingFromRight": [
+        "sm0001",
+        "sm0002",
+        "sm0003",
+        "sm0004",
+        "sm0005",
+        "sm0006"
+      ],
+      "fieldDiffsOnBaseline": [],
+      "fieldDiffCount": 0,
+      "identityFieldMatchCount": 9,
+      "reactionDiffs": [],
+      "receiptChanges": [
+        {
+          "id": "sm0007",
+          "missingRecipients": [],
+          "extraRecipients": [],
+          "statusChanges": [
+            {
+              "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+              "left": "sent",
+              "right": "read",
+              "monotonicAdvance": true
+            }
+          ],
+          "leftCount": 4,
+          "rightCount": 4
+        },
+        {
+          "id": "sm0008",
+          "missingRecipients": [],
+          "extraRecipients": [],
+          "statusChanges": [
+            {
+              "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+              "left": "sent",
+              "right": "read",
+              "monotonicAdvance": true
+            }
+          ],
+          "leftCount": 1,
+          "rightCount": 1
+        },
+        {
+          "id": "sm0009",
+          "missingRecipients": [],
+          "extraRecipients": [],
+          "statusChanges": [
+            {
+              "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+              "left": "sent",
+              "right": "read",
+              "monotonicAdvance": true
+            }
+          ],
+          "leftCount": 1,
+          "rightCount": 1
+        },
+        {
+          "id": "sm0010",
+          "missingRecipients": [],
+          "extraRecipients": [],
+          "statusChanges": [
+            {
+              "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+              "left": "sent",
+              "right": "read",
+              "monotonicAdvance": true
+            }
+          ],
+          "leftCount": 1,
+          "rightCount": 1
+        },
+        {
+          "id": "sm0011",
+          "missingRecipients": [],
+          "extraRecipients": [],
+          "statusChanges": [
+            {
+              "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+              "left": "sent",
+              "right": "read",
+              "monotonicAdvance": true
+            }
+          ],
+          "leftCount": 4,
+          "rightCount": 4
+        },
+        {
+          "id": "sm0012",
+          "missingRecipients": [],
+          "extraRecipients": [],
+          "statusChanges": [
+            {
+              "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+              "left": "sent",
+              "right": "read",
+              "monotonicAdvance": true
+            }
+          ],
+          "leftCount": 1,
+          "rightCount": 1
+        },
+        {
+          "id": "sm0013",
+          "missingRecipients": [],
+          "extraRecipients": [],
+          "statusChanges": [
+            {
+              "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+              "left": "sent",
+              "right": "read",
+              "monotonicAdvance": true
+            }
+          ],
+          "leftCount": 1,
+          "rightCount": 1
+        },
+        {
+          "id": "sm0014",
+          "missingRecipients": [],
+          "extraRecipients": [],
+          "statusChanges": [
+            {
+              "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+              "left": "sent",
+              "right": "read",
+              "monotonicAdvance": true
+            }
+          ],
+          "leftCount": 1,
+          "rightCount": 1
+        },
+        {
+          "id": "sm0015",
+          "missingRecipients": [],
+          "extraRecipients": [],
+          "statusChanges": [
+            {
+              "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+              "left": "sent",
+              "right": "read",
+              "monotonicAdvance": true
+            }
+          ],
+          "leftCount": 4,
+          "rightCount": 4
+        }
+      ],
+      "receiptChangeCount": 9,
+      "ownReceiptDiffs": [],
+      "ownReceiptDiffCount": 0,
+      "conversationViewsMissing": [],
+      "newIdsOnRightNotInLeft": [
+        "accept-once-mtswwfn2",
+        "accept-once-mtsx8naq",
+        "accept-once-mtsxgfs9",
+        "accept-photo-mtswwbyz",
+        "accept-photo-mtsx8jnm",
+        "accept-photo-mtsxgc3h",
+        "accept-push-mtswwj9q",
+        "accept-push-mtsx8qw3",
+        "accept-push-mtsxgjea",
+        "accept-push-once-mtswsic2",
+        "accept-push-once-mtswwj9q",
+        "accept-push-once-mtsx8qw3",
+        "accept-push-once-mtsxgjea",
+        "accept-video-message-mtswwbyz",
+        "accept-video-message-mtsx8jnm",
+        "accept-video-message-mtsxgc3h",
+        "custom-demo-mtswsiha",
+        "custom-demo-mtswwjfn",
+        "custom-demo-mtsx8r2b",
+        "custom-demo-mtsxgjk7",
+        "m7-acceptance-poll-mtswbgk8",
+        "m7-acceptance-poll-mtsww0by",
+        "m7-acceptance-poll-mtsx8552",
+        "m7-acceptance-poll-mtsxg0hg",
+        "m7-choreography-poll",
+        "m7-forward-text-mtswbgk8",
+        "m7-forward-text-mtsww0by",
+        "m7-forward-text-mtsx8552",
+        "m7-forward-text-mtsxg0hg"
+      ],
+      "newIdCount": 29
+    },
+    "postMigration_vs_rootPostAuthor": {
+      "leftUnique": 15,
+      "rightUnique": 38,
+      "baselineIds": 15,
+      "missingFromRight": [
+        "sm0001",
+        "sm0002",
+        "sm0003",
+        "sm0004",
+        "sm0005",
+        "sm0006"
+      ],
+      "fieldDiffsOnBaseline": [],
+      "fieldDiffCount": 0,
+      "identityFieldMatchCount": 9,
+      "reactionDiffs": [],
+      "receiptChanges": [
+        {
+          "id": "sm0007",
+          "missingRecipients": [],
+          "extraRecipients": [],
+          "statusChanges": [
+            {
+              "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+              "left": "sent",
+              "right": "read",
+              "monotonicAdvance": true
+            }
+          ],
+          "leftCount": 4,
+          "rightCount": 4
+        },
+        {
+          "id": "sm0008",
+          "missingRecipients": [],
+          "extraRecipients": [],
+          "statusChanges": [
+            {
+              "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+              "left": "sent",
+              "right": "read",
+              "monotonicAdvance": true
+            }
+          ],
+          "leftCount": 1,
+          "rightCount": 1
+        },
+        {
+          "id": "sm0009",
+          "missingRecipients": [],
+          "extraRecipients": [],
+          "statusChanges": [
+            {
+              "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+              "left": "sent",
+              "right": "read",
+              "monotonicAdvance": true
+            }
+          ],
+          "leftCount": 1,
+          "rightCount": 1
+        },
+        {
+          "id": "sm0010",
+          "missingRecipients": [],
+          "extraRecipients": [],
+          "statusChanges": [
+            {
+              "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+              "left": "sent",
+              "right": "read",
+              "monotonicAdvance": true
+            }
+          ],
+          "leftCount": 1,
+          "rightCount": 1
+        },
+        {
+          "id": "sm0011",
+          "missingRecipients": [],
+          "extraRecipients": [],
+          "statusChanges": [
+            {
+              "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+              "left": "sent",
+              "right": "read",
+              "monotonicAdvance": true
+            }
+          ],
+          "leftCount": 4,
+          "rightCount": 4
+        },
+        {
+          "id": "sm0012",
+          "missingRecipients": [],
+          "extraRecipients": [],
+          "statusChanges": [
+            {
+              "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+              "left": "sent",
+              "right": "read",
+              "monotonicAdvance": true
+            }
+          ],
+          "leftCount": 1,
+          "rightCount": 1
+        },
+        {
+          "id": "sm0013",
+          "missingRecipients": [],
+          "extraRecipients": [],
+          "statusChanges": [
+            {
+              "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+              "left": "sent",
+              "right": "read",
+              "monotonicAdvance": true
+            }
+          ],
+          "leftCount": 1,
+          "rightCount": 1
+        },
+        {
+          "id": "sm0014",
+          "missingRecipients": [],
+          "extraRecipients": [],
+          "statusChanges": [
+            {
+              "recipient": "user:AvQls6uw1wF5SY8rXZbqQg",
+              "left": "sent",
+              "right": "read",
+              "monotonicAdvance": true
+            }
+          ],
+          "leftCount": 1,
+          "rightCount": 1
+        },
+        {
+          "id": "sm0015",
+          "missingRecipients": [],
+          "extraRecipients": [],
+          "statusChanges": [
+            {
+              "recipient": "user:aO_5S1KiOOVkSrsBf3FZeQ",
+              "left": "sent",
+              "right": "read",
+              "monotonicAdvance": true
+            }
+          ],
+          "leftCount": 4,
+          "rightCount": 4
+        }
+      ],
+      "receiptChangeCount": 9,
+      "ownReceiptDiffs": [],
+      "ownReceiptDiffCount": 0,
+      "conversationViewsMissing": [],
+      "newIdsOnRightNotInLeft": [
+        "accept-once-mtswwfn2",
+        "accept-once-mtsx8naq",
+        "accept-once-mtsxgfs9",
+        "accept-photo-mtswwbyz",
+        "accept-photo-mtsx8jnm",
+        "accept-photo-mtsxgc3h",
+        "accept-push-mtswwj9q",
+        "accept-push-mtsx8qw3",
+        "accept-push-mtsxgjea",
+        "accept-push-once-mtswsic2",
+        "accept-push-once-mtswwj9q",
+        "accept-push-once-mtsx8qw3",
+        "accept-push-once-mtsxgjea",
+        "accept-video-message-mtswwbyz",
+        "accept-video-message-mtsx8jnm",
+        "accept-video-message-mtsxgc3h",
+        "custom-demo-mtswsiha",
+        "custom-demo-mtswwjfn",
+        "custom-demo-mtsx8r2b",
+        "custom-demo-mtsxgjk7",
+        "m7-acceptance-poll-mtswbgk8",
+        "m7-acceptance-poll-mtsww0by",
+        "m7-acceptance-poll-mtsx8552",
+        "m7-acceptance-poll-mtsxg0hg",
+        "m7-choreography-poll",
+        "m7-forward-text-mtswbgk8",
+        "m7-forward-text-mtsww0by",
+        "m7-forward-text-mtsx8552",
+        "m7-forward-text-mtsxg0hg"
+      ],
+      "newIdCount": 29
+    },
+    "rootPostAuthor_vs_preflight": {
+      "leftUnique": 38,
+      "rightUnique": 38,
+      "baselineIds": 38,
+      "missingFromRight": [],
+      "fieldDiffsOnBaseline": [],
+      "fieldDiffCount": 0,
+      "identityFieldMatchCount": 38,
+      "reactionDiffs": [],
+      "receiptChanges": [],
+      "receiptChangeCount": 0,
+      "ownReceiptDiffs": [],
+      "ownReceiptDiffCount": 0,
+      "conversationViewsMissing": [],
+      "newIdsOnRightNotInLeft": [],
+      "newIdCount": 0
+    }
+  }
+}
