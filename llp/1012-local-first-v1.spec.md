@@ -1156,10 +1156,12 @@ the range store now import the same canonical serializer. The real-owner regress
 uses minted cursors and validates the recorded cursor name's precedence over a stale
 metadata fallback; the owner refuses the wrong spelling. Scalar-field projections
 of a returned page remain supported, including after cold reopen. An outer object
-wrapper (`return { entries: page }`) has no certified `result_pages` in the current
-contract and is refused as a resume log; the follow-up's alleged object-tail defect
-was not reproducible through that contract. This changes no supported projection
-shape and does not add wrapped-page cursor semantics.
+wrapper (`return { entries: page }`) is refused as a resume log; the follow-up's
+alleged object-tail defect was not reproducible through that contract. The
+2026-09-08 composite amendment (LLP 1011 B1) adds ordinary query continuation
+through one cursor-bearing page in record fields. It preserves this admission
+boundary: a record result is distinct from the direct ascending log page that
+resume and drain support.
 
 **The supersession and reset rule as landed (lane T2, three review rounds, 2026-09-04).** Any
 delivery under a generation or schema other than the held program's is never installed: the

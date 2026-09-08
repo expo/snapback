@@ -227,6 +227,36 @@ pub(super) fn add_enriched_page_case(cases: &mut Vec<CorpusCase>) {
             "incomplete local authorization cannot mint a cursor"
         );
         cases.push(case);
+        let mut composite = conditional.clone();
+        let Stmt::If { then_body, .. } = &mut composite.body[0] else {
+            unreachable!()
+        };
+        *then_body.last_mut().unwrap() = Stmt::Return(Expr::Object(BTreeMap::from([(
+            "messages".into(),
+            var("rows"),
+        )])));
+        let wrapped = authoritative(&mut engine, &schema, &composite, page_context.clone());
+        assert_eq!(wrapped.result.field("messages").unwrap(), &served.result);
+        assert_eq!(
+            wrapped.next, served.next,
+            "wrapping cannot expose an examined position"
+        );
+        let case = case_from_parts(
+            &format!("composite-hidden-page-{page}"),
+            "scenario",
+            schema.clone(),
+            composite,
+            page_context.clone(),
+            wrapped.receipt,
+            vec![],
+            None,
+            None,
+        );
+        assert_eq!(
+            case.expected.next, None,
+            "partial composite cannot mint a cursor"
+        );
+        cases.push(case);
         page_context.args.insert(
             "c".into(),
             served.next.map(Value::String).unwrap_or(Value::Null),
@@ -441,6 +471,7 @@ fn add_conditional_page_cases(cases: &mut Vec<CorpusCase>) {
             ]),
         )
         .unwrap();
+    add_composite_page_cases(cases, &schema, &mut engine, &program, &range);
     let mut tokens = Vec::new();
     for global in [true, false] {
         let mut context = query_context([("global", Value::Bool(global)), ("c", Value::Null)]);
@@ -567,6 +598,259 @@ fn add_conditional_page_cases(cases: &mut Vec<CorpusCase>) {
         "scenario",
         schema.clone(),
         auxiliary,
+        context,
+        execution.receipt,
+        vec![],
+        None,
+        None,
+    ));
+}
+
+// Shared native/evaluator/twin witness: one atomic object carries one page's
+// cursor even when the count and fixed preview execute after that page.
+fn add_composite_page_cases(
+    cases: &mut Vec<CorpusCase>,
+    schema: &Schema,
+    engine: &mut Engine,
+    original: &Program,
+    range: &Scan,
+) {
+    let object = |fields: Vec<(&str, Expr)>| {
+        Expr::Object(fields.into_iter().map(|(k, v)| (k.into(), v)).collect())
+    };
+    let mut program = original.clone();
+    program.name = "feed.composite".into();
+    let Stmt::If {
+        then_body,
+        else_body,
+        ..
+    } = &mut program.body[1]
+    else {
+        unreachable!()
+    };
+    for (arm, body) in [("range", then_body), ("merge", else_body)] {
+        body.pop();
+        body.extend([
+            Stmt::Let {
+                name: "view".into(),
+                value: object(vec![("nested", object(vec![("entries", var("rows"))]))]),
+            },
+            Stmt::Const {
+                name: "snapshot".into(),
+                value: var("view"),
+            },
+            Stmt::Assign {
+                name: "view".into(),
+                value: object(vec![(
+                    "nested",
+                    object(vec![("entries", Expr::Array(vec![]))]),
+                )]),
+            },
+            Stmt::Const {
+                name: "count".into(),
+                value: Expr::Builtin {
+                    builtin: Builtin::Len,
+                    args: vec![Expr::Scan(Scan {
+                        site: format!("feed.composite.{arm}.count"),
+                        take: Bound::Literal(50),
+                        after: None,
+                        opaque_cursor: false,
+                        ..range.clone()
+                    })],
+                },
+            },
+            Stmt::Const {
+                name: "preview".into(),
+                value: Expr::Scan(Scan {
+                    site: format!("feed.composite.{arm}.preview"),
+                    take: Bound::Literal(1),
+                    after: None,
+                    opaque_cursor: false,
+                    ..range.clone()
+                }),
+            },
+            Stmt::Return(object(vec![
+                (
+                    "messages",
+                    field(field(var("snapshot"), "nested"), "entries"),
+                ),
+                ("page", var("rows")),
+                ("count", var("count")),
+                ("preview", var("preview")),
+            ])),
+        ]);
+    }
+    let certificate = Checker::new(schema, Ceilings::default())
+        .check(&program)
+        .unwrap();
+    assert_eq!(certificate.result_pages.len(), 2);
+    assert_eq!(
+        snapback2_core::certificate::resumable_log_cursor(&program, &certificate),
+        Err("cursor-binding")
+    );
+    for global in [true, false] {
+        let total = if global { 47 } else { 43 };
+        let mut context = query_context([("global", Value::Bool(global)), ("c", Value::Null)]);
+        let mut previous = None;
+        for page in 0..4 {
+            let execution = authoritative(engine, schema, &program, context.clone());
+            let rows = Value::Array(
+                (page * 20..std::cmp::min((page + 1) * 20, total))
+                    .map(|n| row([("body", text(&format!("entry-{}", total - 1 - n)))]))
+                    .collect(),
+            );
+            assert_eq!(execution.result.field("messages").unwrap(), &rows);
+            assert_eq!(execution.result.field("page").unwrap(), &rows);
+            assert_eq!(execution.result.field("count").unwrap(), &Value::Int(47));
+            let preview = execution
+                .result
+                .field("preview")
+                .unwrap()
+                .as_array()
+                .unwrap();
+            assert_eq!(preview.len(), 1);
+            assert_eq!(preview[0].field("id").unwrap(), &id("p46"));
+            assert_eq!(
+                execution.state,
+                ExecutionState::Capped,
+                "the fixed preview stays capped"
+            );
+            assert_eq!(execution.next.is_some(), page < 3);
+            if let Some(token) = &execution.next {
+                assert_ne!(
+                    Some(token),
+                    previous.as_ref(),
+                    "continuation must make progress"
+                );
+                let position = snapback2_core::cursor::decode_cursor(schema, token).unwrap();
+                assert_eq!(
+                    position.values.last(),
+                    Some(&id(&format!("p{}", (total - (page + 1) * 20).max(0))))
+                );
+            }
+            let case = case_from_parts(
+                &format!(
+                    "composite-{}-page-{}",
+                    if global { "range" } else { "merge" },
+                    page + 1
+                ),
+                "scenario",
+                schema.clone(),
+                program.clone(),
+                context.clone(),
+                execution.receipt,
+                vec![],
+                None,
+                None,
+            );
+            assert_eq!(case.expected.local_result, Some(execution.result));
+            assert_eq!(case.expected.next, execution.next);
+            cases.push(case);
+            previous = execution.next.clone();
+            context.args.insert(
+                "c".into(),
+                execution.next.map(Value::String).unwrap_or(Value::Null),
+            );
+        }
+    }
+    for return_mutated in [false, true] {
+        let mut pushed = program.clone();
+        let Stmt::If {
+            then_body,
+            else_body,
+            ..
+        } = &mut pushed.body[1]
+        else {
+            unreachable!()
+        };
+        for body in [then_body, else_body] {
+            let Stmt::Return(Expr::Object(mut fields)) = body.pop().unwrap() else {
+                unreachable!()
+            };
+            fields.remove("page");
+            if return_mutated {
+                fields.insert("messages".into(), var("extracted"));
+            }
+            body.extend([
+                Stmt::Let {
+                    name: "extracted".into(),
+                    value: field(field(var("snapshot"), "nested"), "entries"),
+                },
+                Stmt::Push {
+                    target: "extracted".into(),
+                    value: lit(row([("body", text("appended"))])),
+                },
+                Stmt::Return(Expr::Object(fields)),
+            ]);
+        }
+        let certificate = Checker::new(schema, Ceilings::default())
+            .check(&pushed)
+            .unwrap();
+        assert_eq!(certificate.result_pages.is_empty(), return_mutated);
+        let context = query_context([("global", Value::Bool(true)), ("c", Value::Null)]);
+        let execution = authoritative(engine, schema, &pushed, context.clone());
+        assert_eq!(
+            execution
+                .result
+                .field("messages")
+                .unwrap()
+                .as_array()
+                .unwrap()
+                .len(),
+            if return_mutated { 21 } else { 20 }
+        );
+        assert_eq!(execution.next.is_none(), return_mutated);
+        cases.push(case_from_parts(
+            if return_mutated {
+                "composite-pushed-page-no-next"
+            } else {
+                "composite-copied-page-survives-push"
+            },
+            "scenario",
+            schema.clone(),
+            pushed,
+            context,
+            execution.receipt,
+            vec![],
+            None,
+            None,
+        ));
+    }
+    let mut ambiguous = program.clone();
+    let Stmt::If {
+        then_body,
+        else_body,
+        ..
+    } = &mut ambiguous.body[1]
+    else {
+        unreachable!()
+    };
+    for (arm, body) in [("range", then_body), ("merge", else_body)] {
+        let Stmt::Return(Expr::Object(fields)) = body.last_mut().unwrap() else {
+            unreachable!()
+        };
+        fields.insert(
+            "other".into(),
+            Expr::Scan(Scan {
+                site: format!("feed.composite.{arm}.other"),
+                take: Bound::Literal(1),
+                ..range.clone()
+            }),
+        );
+    }
+    let certificate = Checker::new(schema, Ceilings::default())
+        .check(&ambiguous)
+        .unwrap();
+    assert!(certificate.result_pages.is_empty());
+    let context = query_context([("global", Value::Bool(true)), ("c", Value::Null)]);
+    let execution = authoritative(engine, schema, &ambiguous, context.clone());
+    assert_eq!(execution.state, ExecutionState::Capped);
+    assert_eq!(execution.next, None);
+    cases.push(case_from_parts(
+        "composite-ambiguous-pages-no-next",
+        "scenario",
+        schema.clone(),
+        ambiguous,
         context,
         execution.receipt,
         vec![],

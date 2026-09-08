@@ -8,6 +8,7 @@ use crate::Value;
 enum Origin {
     Empty,
     Page(String, Option<String>),
+    Record(BTreeMap<String, Origin>),
     Cursor(String),
 }
 type Bindings = BTreeMap<String, Origin>;
@@ -22,13 +23,34 @@ pub(super) fn result_pages(
     let returns = returned_origins(program);
     returns
         .into_iter()
-        .filter_map(|(path, origin)| match origin {
-            Origin::Page(site, _) => Some(
-                resolve_result_page_site(schema, &program.body, &site).map(|page| (path, page)),
-            ),
-            _ => None,
+        .filter_map(|(path, origin)| {
+            result_site(&origin).map(|site| {
+                resolve_result_page_site(schema, &program.body, site).map(|page| (path, page))
+            })
         })
         .collect()
+}
+
+// @ref LLP 1011#b1-opaque-cursors — records transport one cursor-bearing
+// page; fixed previews are auxiliary and distinct origins have no continuation.
+// Keep the record distinct from Page so it cannot become a resumable log.
+fn result_site(origin: &Origin) -> Option<&str> {
+    fn collect<'a>(origin: &'a Origin, pages: &mut BTreeSet<(&'a str, &'a str)>) -> bool {
+        match origin {
+            Origin::Page(site, Some(cursor)) => {
+                pages.insert((site, cursor));
+                true
+            }
+            Origin::Record(fields) => fields.values().all(|value| collect(value, pages)),
+            Origin::Page(_, None) => false,
+            _ => true,
+        }
+    }
+    if let Origin::Page(site, _) = origin {
+        return Some(site);
+    }
+    let mut pages = BTreeSet::new();
+    (collect(origin, &mut pages) && pages.len() == 1).then(|| pages.first().unwrap().0)
 }
 
 fn returned_origins(program: &Program) -> BTreeMap<String, Origin> {
@@ -126,6 +148,18 @@ fn expression_origin(value: &Expr, bindings: &Bindings) -> Option<Origin> {
             Some(Origin::Page(merge.site.clone(), cursor))
         }
         Expr::Variable(name) => bindings.get(name).cloned(),
+        Expr::Object(fields) => Some(Origin::Record(
+            fields
+                .iter()
+                .filter_map(|(name, value)| {
+                    expression_origin(value, bindings).map(|origin| (name.clone(), origin))
+                })
+                .collect(),
+        )),
+        Expr::Field { base, name } => match expression_origin(base, bindings) {
+            Some(Origin::Record(mut fields)) => fields.remove(name),
+            _ => None,
+        },
         Expr::Array(values) if values.is_empty() => Some(Origin::Empty),
         Expr::Literal(Value::Array(values)) if values.is_empty() => Some(Origin::Empty),
         _ => None,
@@ -481,7 +515,7 @@ mod drain_tests {
             provenance: KeyProvenance::Const,
         })
     }
-    fn contract(body: Vec<Stmt>) -> Result<String, &'static str> {
+    fn checked(body: Vec<Stmt>) -> (Program, Certificate) {
         let schema = Schema {
             tables: BTreeMap::from([(
                 "rows".into(),
@@ -514,8 +548,214 @@ mod drain_tests {
         let certificate = Checker::new(&schema, Ceilings::default())
             .check(&p)
             .unwrap();
+        (p, certificate)
+    }
+    fn contract(body: Vec<Stmt>) -> Result<String, &'static str> {
+        let (p, certificate) = checked(body);
         resumable_log_cursor(&p, &certificate)
     }
+    fn record(fields: impl IntoIterator<Item = (&'static str, Expr)>) -> Expr {
+        Expr::Object(fields.into_iter().map(|(k, v)| (k.into(), v)).collect())
+    }
+    fn variable(name: &str) -> Expr {
+        Expr::Variable(name.into())
+    }
+    fn field(base: Expr, name: &str) -> Expr {
+        Expr::Field {
+            base: Box::new(base),
+            name: name.into(),
+        }
+    }
+
+    #[test]
+    fn composite_page_is_not_a_resumable_log_but_extracted_page_is() {
+        let wrapped = record([
+            ("entries", page("result", Order::Asc, 2, "c")),
+            ("count", Expr::Literal(Value::Int(2))),
+        ]);
+        let (program, certificate) = checked(vec![Stmt::Return(wrapped.clone())]);
+        assert_eq!(certificate.result_pages["0"].site, "result");
+        assert_eq!(
+            resumable_log_cursor(&program, &certificate),
+            Err("cursor-binding")
+        );
+        assert!(
+            checked(vec![Stmt::Return(field(wrapped.clone(), "count"))])
+                .1
+                .result_pages
+                .is_empty()
+        );
+        assert_eq!(
+            contract(vec![Stmt::Return(field(wrapped, "entries"))]),
+            Ok("c".into())
+        );
+    }
+
+    #[test]
+    fn composite_uses_unique_cursor_origin_and_ignores_fixed_preview() {
+        let mut fixed = page("preview", Order::Asc, 1, "c");
+        let Expr::Scan(scan) = &mut fixed else {
+            unreachable!()
+        };
+        scan.after = None;
+        scan.opaque_cursor = false;
+        let body = vec![
+            Stmt::Const {
+                name: "page".into(),
+                value: page("messages", Order::Asc, 2, "c"),
+            },
+            Stmt::Return(record([
+                ("messages", variable("page")),
+                ("page", record([("alias", variable("page"))])),
+                ("preview", fixed.clone()),
+            ])),
+        ];
+        assert_eq!(checked(body).1.result_pages["1"].site, "messages");
+        for other in [
+            page("other", Order::Asc, 1, "c"),
+            page("other", Order::Asc, 1, "a"),
+        ] {
+            let (_, certificate) = checked(vec![Stmt::Return(record([
+                ("messages", page("messages", Order::Asc, 2, "c")),
+                ("other", other),
+            ]))]);
+            assert!(certificate.result_pages.is_empty());
+        }
+        assert!(
+            checked(vec![Stmt::Return(record([("preview", fixed)]))])
+                .1
+                .result_pages
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn an_unproved_cursor_binding_is_not_an_auxiliary_preview() {
+        let returned = Stmt::Return(record([
+            ("messages", page("messages", Order::Asc, 2, "c")),
+            ("other", page("other", Order::Asc, 1, "position")),
+        ]));
+        let (mut program, _) = checked(vec![Stmt::Return(page("base", Order::Asc, 2, "c"))]);
+        program.body = vec![
+            Stmt::Let {
+                name: "position".into(),
+                value: variable("c"),
+            },
+            Stmt::If {
+                condition: variable("flag"),
+                then_body: vec![Stmt::Assign {
+                    name: "position".into(),
+                    value: variable("a"),
+                }],
+                else_body: vec![],
+            },
+            returned,
+        ];
+        // The current type checker also refuses this lost cursor binding. The
+        // page proof must independently avoid treating it as a fixed preview.
+        assert!(result_site(&returned_origins(&program)["2"]).is_none());
+    }
+
+    #[test]
+    fn nested_fields_and_value_aliases_preserve_only_unmodified_pages() {
+        let prefix = vec![
+            Stmt::Let {
+                name: "page".into(),
+                value: page("result", Order::Asc, 2, "c"),
+            },
+            Stmt::Const {
+                name: "box".into(),
+                value: record([("nested", record([("entries", variable("page"))]))]),
+            },
+            Stmt::Assign {
+                name: "page".into(),
+                value: Expr::Array(vec![]),
+            },
+            Stmt::Let {
+                name: "extracted".into(),
+                value: field(field(variable("box"), "nested"), "entries"),
+            },
+            Stmt::Push {
+                target: "extracted".into(),
+                value: Expr::Literal(Value::Null),
+            },
+        ];
+        let mut original = prefix.clone();
+        original.push(Stmt::Return(variable("box")));
+        assert_eq!(checked(original).1.result_pages["5"].site, "result");
+        let mut mutated = prefix;
+        mutated.push(Stmt::Return(record([("entries", variable("extracted"))])));
+        assert!(checked(mutated).1.result_pages.is_empty());
+    }
+
+    #[test]
+    fn conditional_composites_keep_the_executed_return_and_kill_changed_fields() {
+        let branches = vec![Stmt::If {
+            condition: variable("flag"),
+            then_body: vec![Stmt::Return(record([(
+                "messages",
+                page("yes", Order::Asc, 2, "c"),
+            )]))],
+            else_body: vec![Stmt::Return(record([(
+                "messages",
+                page("no", Order::Desc, 2, "c"),
+            )]))],
+        }];
+        let (_, certificate) = checked(branches);
+        assert_eq!(certificate.result_pages["0/then/0"].site, "yes");
+        assert_eq!(certificate.result_pages["0/else/0"].site, "no");
+        let (_, certificate) = checked(vec![
+            Stmt::Let {
+                name: "view".into(),
+                value: record([("messages", page("result", Order::Asc, 2, "c"))]),
+            },
+            Stmt::If {
+                condition: variable("flag"),
+                then_body: vec![Stmt::Assign {
+                    name: "view".into(),
+                    value: record([("messages", Expr::Array(vec![]))]),
+                }],
+                else_body: vec![],
+            },
+            Stmt::Return(variable("view")),
+        ]);
+        assert!(certificate.result_pages.is_empty());
+    }
+
+    #[test]
+    fn wrapping_does_not_relax_collector_cardinality_or_early_exit_proofs() {
+        let push = Stmt::Push {
+            target: "rows".into(),
+            value: variable("item"),
+        };
+        for body in [
+            vec![push.clone(), push.clone()],
+            vec![Stmt::If {
+                condition: variable("flag"),
+                then_body: vec![push.clone()],
+                else_body: vec![],
+            }],
+            vec![push, Stmt::Break],
+        ] {
+            let Expr::Scan(scan) = page("result", Order::Asc, 2, "c") else {
+                unreachable!()
+            };
+            let (_, certificate) = checked(vec![
+                Stmt::Let {
+                    name: "rows".into(),
+                    value: Expr::Array(vec![]),
+                },
+                Stmt::For {
+                    binding: "item".into(),
+                    domain: LoopDomain::Page(scan),
+                    body,
+                },
+                Stmt::Return(record([("messages", variable("rows"))])),
+            ]);
+            assert!(certificate.result_pages.is_empty());
+        }
+    }
+
     #[test]
     fn returned_cursor_not_first_arg_or_auxiliary_read() {
         assert_eq!(
