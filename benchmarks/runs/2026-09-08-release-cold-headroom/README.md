@@ -44,6 +44,9 @@ Disclose model/host differences and incomplete baseline native/M7 evidence;
 compare applicable dimensions only. Neither source integration nor this single
 run establishes an overall winner.
 
+The [retained baseline comparison](retained-baseline-comparison.md) records the
+overlapping replay clocks, differing M3 fixture handling, and qualification limits.
+
 The fresh session started at 2026-09-08T06:58:29.447490+00:00 (session
 `01a07fcf-a3b8-7761-b378-d22df2d7d8aa`). It completed and exited0. See [continuous closeout](continuous-closeout.md)
 for passing local receipts, the M3 abort/dependency deviation, clock corrections,
@@ -126,11 +129,12 @@ its supplemental web retry remained incomplete. Read the
 [original evidence and root adjudication](assessment-grok/README.md): coverage
 gaps and a missing feed-link handler are supported, while several receipt,
 search, pagination and total claims require narrower wording. Native proof
-remains absent. A fresh Sol/xhigh fallback is running separately, labeled
-same-family; the original Grok report is retained unchanged.
+remains absent. The fresh Sol/xhigh fallback finished separately, labeled
+same-family; both original reports are retained unchanged. Its scope and
+isolation limits are recorded below.
 
-Fresh M7 is also running in its own session on exact starter data. Before its
-first edit, the custom-client snapshot captured eight personas, two unique
+Each fresh M7 attempt starts in its own session on exact starter data. Before
+its first edit, the custom-client snapshot captured eight personas, two unique
 conversations and 15 messages (six quoted messages, 81 receipt rows across
 persona views). Media, reaction, edited, tombstoned and view-once populated
 classes were empty. The existing schema already had count structures; M7 must
