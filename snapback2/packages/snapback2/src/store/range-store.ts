@@ -27,7 +27,7 @@ import {
   type ViewedRecord,
 } from "./byte-cache.js";
 
-import { pagePosition, retireOverlays, type OverlayWatermark } from "./overlay-retirement.js";
+import { admitOverlayAbsences, pagePosition, retireOverlays, type OverlayWatermark } from "./overlay-retirement.js";
 import { canonical } from "./canonical.js";
 import { sha256 } from "../../../evaluator/src/hash.js";
 import { compareArrays, totalCompare } from "../../../evaluator/src/value-runtime.js";
@@ -383,7 +383,7 @@ export interface PersistedRangeState extends ForwardingState {
   /** The commit-time tail snapshot; null after reset until the next drain establishes a new head. */
   overlayWatermarks: Record<string, OverlayWatermark | null>;
   /** Coverage-scoped primary absences and tombstones for each prediction's ids; cleared on reset. */
-  overlayNegatives: Record<string, Record<string, { seq: number; source: "absence" | "tombstone" }>>;
+  overlayNegatives: Record<string, Record<string, { seq: number; source: "absence" | "tombstone"; admitted?: true }>>;
   bounds: Record<string, number>;
   programs: Record<string, HeldProgram>;
   facts?: CoverageFacts;
@@ -978,6 +978,10 @@ export class PersistentRangeStore implements RangeStore {
       delete state.overlayMisses[intent];
       delete state.overlayWatermarks[intent];
       delete state.overlayNegatives[intent];
+      admitOverlayAbsences(state, intent, rows, key => {
+        const index = this.referenceIndex ??= new CarrierIndex(state, this.referenceSchema);
+        return index.absences.get(key) ?? [];
+      });
     }
     retireOverlays(state, swap, authoritativeNegatives, clockOnly, previousTail, tail, committedNow, canonicalAnswerKey, clone);
     return state;

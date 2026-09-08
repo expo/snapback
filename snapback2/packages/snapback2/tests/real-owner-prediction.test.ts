@@ -24,6 +24,8 @@ test("public count reads enable multi-principal offline cap prediction without i
   delete process.env.SNAPBACK_URL;
   const directory = await mkdtemp(join(tmpdir(), "snapback-public-counts-"));
   const fixture = join(directory, "source");
+  const longRealm = "😀".repeat(64);
+  const longRealmRef = JSON.stringify([{ Id: "dev:alice" }, { String: longRealm }]);
   let local: RealOwnerHarness | undefined;
   const clients: ReturnType<typeof createClient>[] = [];
   try {
@@ -42,6 +44,31 @@ table capEntries:
 
 maintain principalCounts = count capEntries by principal:
   read <- allow
+
+table realmMemberships:
+  principal: principal
+  realm: text <=64 ?
+  by byPrincipalRealm: principal, realm, id
+  read <- allow
+  insert <- allow
+  update <- deny
+  delete <- deny
+
+maintain realmCounts = count realmMemberships by principal, realm:
+  read <- allow
+
+table refCapEntries:
+  realm: realmCounts
+  author: principal
+  by byRealm: realm, id
+  cap 3 by realm
+  read <- allow
+  insert <- .author = viewer
+  update <- deny
+  delete <- deny
+
+maintain refCounts = count refCapEntries by realm:
+  read <- allow
 `);
     await writeFile(join(fixture, "caps.q"), `query countFor(principal: principal):
   return #principalCounts[principal]
@@ -53,12 +80,22 @@ mutation allocate(principals: [principal] <=49):
   for principal in principals:
     insert capEntries { principal, author: viewer }
   return null
+
+query refCountFor(realm: realmCounts):
+  return #refCounts[realm]
+
+mutation allocateRef(realms: [realmCounts] <=3):
+  for realm in realms:
+    insert refCapEntries { realm, author: viewer }
+  return null
 `);
     const sizes = { heldA: 1, heldB: 1, unheldA: 1, unheldB: 1, rollbackA: 1, full: 3 };
     const rows = Object.entries(sizes).flatMap(([principal, size]) => Array.from({ length: size }, (_, index) => ({
       id: `${principal}-${index}`, principal: `dev:${principal}`, author: "dev:alice",
     })));
-    await writeFile(join(fixture, "seed.ts"), `import { seed } from 'snapback2';\nexport default seed(${JSON.stringify({ personas: ["alice"], rows: { capEntries: rows } })});\n`);
+    await writeFile(join(fixture, "seed.ts"), `import { seed } from 'snapback2';\nexport default seed(${JSON.stringify({ personas: ["alice"], rows: {
+      capEntries: rows, realmMemberships: [{ id: "long-realm", principal: "dev:alice", realm: longRealm }],
+    } })});\n`);
     local = await RealOwnerHarness.create({ fixture });
     const observer = createClient({ url: local.url, as: "alice" });
     clients.push(observer);
@@ -159,6 +196,44 @@ mutation allocate(principals: [principal] <=49):
       t.diagnostic(`${scenario.name}: ${JSON.stringify({ before, predicted: entry.predicted === true, trace: entry.trace, state: settled.state, final: actual })}`);
       await client.close();
     }
+
+    assert.ok(longRealmRef.length > 144, "the Ref exceeds the ordinary identity domain");
+    const reads: any[] = [];
+    let mutations = 0;
+    const refCountFor = (api as any).caps.refCountFor;
+    const allocateRef = (api as any).caps.allocateRef;
+    let refClient = createClient({ url: local.url, offline: { store: fileRangeStore(join(directory, "long-ref")) },
+      fetch: async (input, init) => {
+        const response = await fetch(input, init);
+        const path = new URL(String(input)).pathname;
+        if (path === "/api/query") reads.push(await response.clone().json());
+        if (path === "/api/mutation") mutations++;
+        return response;
+      } });
+    clients.push(refClient); await refClient.ready; await refClient.auth.guest();
+    const before: any = await refClient.query(refCountFor, { realm: longRealmRef });
+    assert.equal(before.state, "complete", JSON.stringify(before)); assert.equal(before.data, 0);
+    const evidence = reads.at(-1).receipt;
+    assert.ok(evidence.ranges.some((range: any) => range.table === "refCounts"
+      && range.prefix[0]?.Scalar === longRealmRef && range.absence && range.stop === "Exhausted"));
+    assert.ok(evidence.absences.some(([table, index, key]: any) => table === "refCounts" && index === "byId"
+      && key[0] === JSON.stringify([{ Id: longRealmRef }])));
+    await refClient.offline(); const readsBeforeReopen = reads.length;
+    refClient = await refClient.restart(); clients.push(refClient);
+    const cold: any = await refClient.query(refCountFor, { realm: longRealmRef });
+    assert.equal(cold.state, "complete"); assert.equal(cold.data, 0); assert.equal(cold.live, false);
+    const queued = await refClient.mutation(allocateRef, { realms: [longRealmRef] });
+    assert.equal(queued.state, "queued"); assert.equal(mutations, 0);
+    assert.equal((await refClient.outbox.entries())[0].predicted, true);
+    const predicted: any = await refClient.query(refCountFor, { realm: longRealmRef });
+    assert.equal(predicted.state, "complete"); assert.equal(predicted.data, 1);
+    assert.equal(reads.length, readsBeforeReopen);
+    await refClient.online(); assert.deepEqual(await refClient.outbox.drain(), { stopped: false, remaining: 0 });
+    const final: any = await observer.query(refCountFor, { realm: longRealmRef });
+    assert.equal(final.state, "complete"); assert.equal(final.data, 1);
+    t.diagnostic(`long maintained Ref: ${JSON.stringify({ bytes: longRealmRef.length, cold: cold.data,
+      predicted: predicted.data, final: final.data })}`);
+    await refClient.close();
   } finally {
     for (const client of clients) await client.close();
     await local?.close();

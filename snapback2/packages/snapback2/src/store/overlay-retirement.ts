@@ -1,7 +1,7 @@
 // @ref LLP 1012#7-writes-offline — cursor identity is not order. Only held,
 // post-commit next links prove progress; explicit negatives settle deletions.
 import { collectRefs, rowKey } from "./row-values.js";
-import type { PersistedRangeState, StoreSwap, StoredAnswer, WatermarkRecord } from "./range-store.js";
+import type { OverlayRow, PersistedRangeState, StoreSwap, StoredAnswer, WatermarkRecord } from "./range-store.js";
 import { canonical } from "./canonical.js";
 
 export interface OverlayWatermark extends Pick<WatermarkRecord, "op" | "args" | "watermark"> {
@@ -79,6 +79,24 @@ export function advanceOverlay(mark: OverlayWatermark, tail: WatermarkRecord | u
 /** Two post-commit resumes or proven tail advances retire a stranded prediction. */
 const OVERLAY_PATIENCE = 2;
 
+/** Bind an exact held absence to the intent that was admitted against it. */
+export function admitOverlayAbsences(state: PersistedRangeState, intent: string, rows: OverlayRow[],
+  owners: (key: string) => Iterable<string>): void {
+  const entry = state.outbox[intent];
+  if (entry?.predicted !== true) return;
+  for (const row of rows) {
+    if (row.removed || row.fields) continue;
+    const key = rowKey(row), seq = state.negative[key];
+    if (seq === undefined) continue;
+    const heldBeforeAdmission = [...owners(key)].some(owner => {
+      const answer = state.answers[owner]; return answer?.seq === seq && answer.order < entry.order!;
+    });
+    if (heldBeforeAdmission) (state.overlayNegatives[intent] ??= {})[key] = {
+      seq, source: "absence", admitted: true,
+    };
+  }
+}
+
 /** Retire committed prediction rows against the authority landed in this complete swap. */
 export function retireOverlays(
   state: PersistedRangeState,
@@ -113,7 +131,9 @@ export function retireOverlays(
     }
     for (const row of state.overlay[intent]!) {
       const key = rowKey(row), evidence = authoritativeNegatives.get(key);
-      if (evidence !== undefined && evidence.seq >= (state.overlayNegatives[intent]?.[key]?.seq ?? -1)) {
+      const previous = state.overlayNegatives[intent]?.[key];
+      if (evidence !== undefined && (evidence.seq > (previous?.seq ?? -1)
+        || (evidence.seq === previous?.seq && evidence.source === "tombstone"))) {
         (state.overlayNegatives[intent] ??= {})[key] = evidence;
       }
     }

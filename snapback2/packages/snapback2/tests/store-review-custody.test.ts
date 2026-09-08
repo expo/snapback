@@ -333,6 +333,100 @@ test('scoped holes dominate every FIFO overlay state until a compatible authorit
   }
 });
 
+test('a receipt-owned primary absence admits only a later predicted overlay image', async () => {
+  const { nativeR8: { movement } } = JSON.parse(await readFile(new URL('../../evaluator/src/test-search-v5-fixtures.json', import.meta.url), 'utf8'));
+  for (const proofFirst of [true, false]) {
+    let saved: any;
+    const factory = () => new PersistentRangeStore({carrier:'memory',open:async()=>saved,replace:async state=>{saved=structuredClone(state);},close(){},wipe:async()=>{}});
+    const runtime = new OfflineRuntime({store:factory});
+    await runtime.open(movement.first.authority.principal,true); await runtime.program(movement.packet);
+    const absent = structuredClone(movement.hole);
+    absent.receipt.absences = [['events','byId',['one']]];
+    const admit = async () => runtime.commit('clock.bounded',{},await runtime.accept('clock.bounded',{},absent));
+    const overlay = async () => runtime.store.commit({outbox:{put:[{...entry('predicted'),predicted:true,issuedSeq:0}]},
+      overlay:{put:{predicted:[{table:'events',id:'one',row:{id:'one',at:9}}]}}});
+    if (proofFirst) { await admit(); await overlay(); } else { await overlay(); await admit(); }
+    const rows = (await runtime.twin.evaluate('clock.read',{}) as any)?.data?.rows ?? [];
+    assert.deepEqual(rows.map((row:any)=>row.at),proofFirst?[9]:[],
+      'only an intent durably ordered after the receipt may create over its proved absence');
+    await runtime.close();
+  }
+});
+
+test('primary absence admission survives answer custody changes but not later row authority', async () => {
+  const { nativeR8: { movement } } = JSON.parse(await readFile(new URL('../../evaluator/src/test-search-v5-fixtures.json', import.meta.url), 'utf8'));
+  const setup = async () => {
+    let saved: any;
+    const factory = () => new PersistentRangeStore({carrier:'memory',open:async()=>saved,replace:async state=>{saved=structuredClone(state);},close(){},wipe:async()=>{}});
+    let runtime = new OfflineRuntime({store:factory});
+    await runtime.open(movement.first.authority.principal,true); await runtime.program(movement.packet);
+    const absent = structuredClone(movement.hole);
+    absent.receipt.absences = [['events','byId',['one']]];
+    await runtime.commit('clock.bounded',{},await runtime.accept('clock.bounded',{},absent));
+    await runtime.store.commit({outbox:{put:[{...entry('predicted'),predicted:true,issuedSeq:0}]},
+      overlay:{put:{predicted:[{table:'events',id:'one',row:{id:'one',at:9}}]}}});
+    const rows = async () => (await runtime.twin.evaluate('clock.read',{}) as any)?.data?.rows ?? [];
+    assert.deepEqual((await rows()).map((row:any)=>row.at),[9]);
+    return { factory, rows, runtime: () => runtime, reopen: async () => {
+      await runtime.close(); runtime = new OfflineRuntime({store:factory}); await runtime.open(movement.first.authority.principal,true);
+    }};
+  };
+  {
+    const state = await setup();
+    const equivalent = structuredClone(movement.hole);
+    equivalent.readTime += 1; equivalent.receipt.absences = [['events','byId',['one']]];
+    await state.runtime().commit('clock.bounded',{},await state.runtime().accept('clock.bounded',{},equivalent));
+    assert.deepEqual((await state.rows()).map((row:any)=>row.at),[9],
+      'an equivalent timed refresh at the same database seq preserves earlier proof chronology');
+    await state.reopen(); assert.deepEqual((await state.rows()).map((row:any)=>row.at),[9],
+      'the admission fact survives an equivalent refresh and cold rebuild');
+    await state.runtime().close();
+  }
+  {
+    const state = await setup();
+    await state.runtime().store.commit({dropAnswers:['clock.bounded\0{}']});
+    assert.deepEqual((await state.rows()).map((row:any)=>row.at),[9],
+      'answer GC does not discard the exact absence already bound to the durable intent');
+    await state.reopen(); assert.deepEqual((await state.rows()).map((row:any)=>row.at),[9],
+      'the intent-bound fact survives answer GC and a cold rebuild');
+    await state.runtime().close();
+  }
+  {
+    const state = await setup();
+    const replacement = structuredClone(movement.hole);
+    replacement.seq = 3; replacement.readTime += 1; replacement.receipt.absences = [];
+    await state.runtime().commit('clock.bounded',{},await state.runtime().accept('clock.bounded',{},replacement));
+    assert.deepEqual((await state.rows()).map((row:any)=>row.at),[9],
+      'answer replacement alone does not erase a still-uncontradicted absence held before admission');
+    await state.runtime().close();
+  }
+  {
+    const state = await setup();
+    await state.runtime().store.commit({tombstones:[{table:'events',id:'one',seq:2}]});
+    assert.deepEqual(await state.rows(),[],'a same-sequence tombstone replaces admitted absence custody');
+    await state.reopen(); assert.deepEqual(await state.rows(),[],'the same-sequence tombstone remains dominant cold');
+    await state.runtime().close();
+  }
+  {
+    const state = await setup();
+    await state.runtime().store.commit({tombstones:[{table:'events',id:'one',seq:3}]});
+    assert.deepEqual(await state.rows(),[],'a later primary revocation dominates an older receipt and prediction');
+    await state.reopen(); assert.deepEqual(await state.rows(),[],'the later revocation remains dominant cold');
+    await state.runtime().close();
+  }
+  {
+    const state = await setup();
+    const newer = structuredClone(movement.moved);
+    newer.seq = 3; newer.readTime += 1;
+    await state.runtime().commit('clock.read',{},await state.runtime().accept('clock.read',{},newer));
+    assert.deepEqual((await state.rows()).map((row:any)=>row.at),[5],
+      'an old absence cannot let an older prediction overwrite a newer authoritative row');
+    await state.reopen(); assert.deepEqual((await state.rows()).map((row:any)=>row.at),[5],
+      'positive authority removes stale raw absence custody before a cold rebuild');
+    await state.runtime().close();
+  }
+});
+
 test('native-certified Unicode search accepts scope movement in either arrival order and retains exact Q custody cold', async () => {
   const f = JSON.parse(await readFile(new URL('../../evaluator/src/test-search-v5-fixtures.json', import.meta.url),'utf8'));
   const operation = f.operations['search.inConversation'], op = operation.program.name;

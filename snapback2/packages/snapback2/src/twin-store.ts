@@ -91,7 +91,7 @@ export class TwinStore {
           if (Object.hasOwn(change.records?.[category] ?? {}, key)) target[key] = change.records![category][key]; else delete target[key];
           if (['rows', 'negative', 'extentNegative', 'rowSeq', 'viewed'].includes(category)) rows.add(key);
           if (category === 'answers') answers.add(key);
-          if (category === 'outbox' || category === 'overlay') intents.add(key);
+          if (category === 'outbox' || category === 'overlay' || category === 'overlayNegatives') intents.add(key);
         }
       }
       if (this.state.sealed || this.state.superseded) { this.revision = undefined; return false; }
@@ -128,6 +128,13 @@ export class TwinStore {
     }
     this.intentRows.set(intent, keys); this.pendingEntries.set(intent, entry); this.pending.set(entry, intent);
   }
+  private provedPrimaryAbsence(key: string, seq: number, entry: OutboxEntry): boolean {
+    // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — the
+    // durable intent records that this exact absence preceded admission.
+    const proved = this.state.overlayNegatives[entry.intent]?.[key];
+    return entry.predicted === true && proved?.admitted === true
+      && proved.source === "absence" && proved.seq === seq;
+  }
   private row(key: string): boolean {
     const { table, id } = ref(key), negative = this.state.negative[key];
     let base = this.state.rows[key];
@@ -143,7 +150,10 @@ export class TwinStore {
     const contributions = [...(this.contributions.get(key)?.values() ?? [])].sort((a, b) => fifo(a.entry, b.entry));
     for (const { entry, row } of contributions) {
       if (hole !== undefined && (masked || entry.issuedSeq <= hole.seq)) continue;
-      if (negative !== undefined && (!base || (this.state.rowSeq[key] ?? -1) <= negative || entry.issuedSeq <= negative)) continue;
+      const newerBase = base && (this.state.rowSeq[key] ?? -1) > (negative ?? -1);
+      const createsOverProof = negative !== undefined && !newerBase && this.provedPrimaryAbsence(key, negative, entry);
+      if (negative !== undefined && !createsOverProof
+        && (!newerBase || entry.issuedSeq <= negative)) continue;
       if (row.removed) effective = undefined;
       else if (row.fields) {
         if (effective) effective = { table, id, row: { ...imageWire(effective.row), ...Object.fromEntries(row.fields.map(f => [f, row.row[f]])) } };

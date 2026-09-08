@@ -741,25 +741,127 @@ fn public_count_live_subscription_reruns_after_first_maintained_row_is_created()
 }
 
 #[test]
-fn public_count_invalid_oversized_key_cannot_mint_the_paired_extra_evidence() {
+fn public_count_key_domains_fit_the_pair_reserve_and_reject_invalid_evidence() {
     let schema = public_count_schema();
-    let key = vec![Value::Id("x".repeat(10_000))];
+    let point = |key| PointTrace {
+        site: "count.group".into(),
+        table: "counts".into(),
+        index: "byPrincipal".into(),
+        key,
+        examined: false,
+        visible: false,
+        digest: None,
+    };
+    let boundary = "x".repeat(135);
+    assert!(crate::value::identity_fits(&boundary));
+    let evidence =
+        crate::cap::count_absence_evidence(&schema, &point(vec![Value::Id(boundary)]), "rule")
+            .expect("the largest admitted identity must fit the certified evidence reserve");
+    assert!(
+        canonical_json(&(&evidence.range, &evidence.primary)).len() as u64
+            <= crate::cap::count_absence_reserve(&schema, "counts", "byPrincipal", "count.group")
+    );
     assert!(
         crate::cap::count_absence_evidence(
             &schema,
-            &PointTrace {
-                site: "count.group".into(),
-                table: "counts".into(),
-                index: "byPrincipal".into(),
-                key,
-                examined: false,
-                visible: false,
-                digest: None,
-            },
+            &point(vec![Value::Id("x".repeat(10_000))]),
             "rule",
         )
         .is_none(),
         "an invalid oversized point key cannot mint either member of the proof pair"
+    );
+
+    let memberships = public_table(
+        BTreeMap::from([
+            ("id".into(), ColumnType::Id),
+            ("principal".into(), ColumnType::Principal),
+            (
+                "realm".into(),
+                ColumnType::Optional(Box::new(ColumnType::Text { max: 64 })),
+            ),
+        ]),
+        BTreeMap::from([(
+            "byId".into(),
+            Index {
+                components: vec![IndexComponent::Column("id".into())],
+                unique: true,
+            },
+        )]),
+    );
+    let membership_counts = public_table(
+        BTreeMap::from([
+            ("id".into(), ColumnType::Id),
+            ("principal".into(), ColumnType::Principal),
+            (
+                "realm".into(),
+                ColumnType::Optional(Box::new(ColumnType::Text { max: 64 })),
+            ),
+            ("value".into(), ColumnType::Int),
+        ]),
+        BTreeMap::from([
+            (
+                "byId".into(),
+                Index {
+                    components: vec![IndexComponent::Column("id".into())],
+                    unique: true,
+                },
+            ),
+            (
+                "byAddress".into(),
+                Index {
+                    components: vec![
+                        IndexComponent::Column("principal".into()),
+                        IndexComponent::Column("realm".into()),
+                    ],
+                    unique: true,
+                },
+            ),
+        ]),
+    );
+    let mut refs = schema.clone();
+    refs.tables.insert("memberships".into(), memberships);
+    refs.tables
+        .insert("membershipCounts".into(), membership_counts);
+    refs.maintains.push(Maintain {
+        kind: MaintainKind::Count,
+        source: "memberships".into(),
+        by: vec!["principal".into(), "realm".into()],
+        target: "membershipCounts".into(),
+        readable: None,
+    });
+    for table in ["entries", "counts"] {
+        refs.tables.get_mut(table).unwrap().columns.insert(
+            "principal".into(),
+            ColumnType::Ref {
+                table: "membershipCounts".into(),
+            },
+        );
+    }
+    let maintained_ref = canonical_json(&vec![
+        Value::Id("a".repeat(135)),
+        Value::String("😀".repeat(64)),
+    ]);
+    assert!(!crate::value::identity_fits(&maintained_ref));
+    let evidence = crate::cap::count_absence_evidence(
+        &refs,
+        &point(vec![Value::Id(maintained_ref.clone())]),
+        "rule",
+    )
+    .expect("a valid long Ref to a maintained target must mint the proof pair");
+    assert_eq!(
+        evidence.range.prefix,
+        vec![crate::search_key::IndexAtom::Scalar(Value::Id(
+            maintained_ref.clone()
+        ))]
+    );
+    assert_eq!(
+        evidence.primary.2,
+        vec![Value::Id(canonical_json(&vec![Value::Id(maintained_ref)]))]
+    );
+    assert!(
+        canonical_json(&(&evidence.range, &evidence.primary)).len() as u64
+            <= crate::cap::count_absence_reserve(&refs, "counts", "byPrincipal", "count.group"),
+        "the maximum declared maintained Ref witness fits the schema-sized pair reserve"
     );
 }
 

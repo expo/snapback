@@ -130,7 +130,8 @@ pub(crate) fn count_absence_evidence(
     for (column, value) in columns.iter().zip(&point.key) {
         // Point admission checks arity, not value domains. A String miss on a
         // Principal index must not become Id coverage after public hydration.
-        crate::engine::validate_column_value(
+        crate::engine::validate_typed_column_value(
+            schema,
             &point.table,
             column,
             table.columns.get(column)?,
