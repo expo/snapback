@@ -21,7 +21,7 @@ ultra, grok-4.6 at xhigh), `llp/reviews/1011-quarry-ergonomics.*`
 **Implementer:** codex gpt-5.6-sol (xhigh), lane `s2/quarry-ergo`
 (`~/projects/snapback-s2`), orchestrated and landed by Claude Fable 5.1
 **Date:** 2026-09-03
-**Revised:** 2026-09-08 (statement helpers, LLP 1018.005); 2026-09-07 (expression helpers refuse authorization assertions throughout nested shapes); 2026-09-07 (typed bound shape/function elaboration and one decimal representation); 2026-09-06 (session-delegated Unicode key/cursor integration contract, foundation only); 2026-09-06 (nested named-shape collection snapshots implemented by GPT-6 Astra; conditional page returns implemented by GPT-6 Astra; certification-derived provenance); 2026-09-05 (null keys and non-empty Id literals implemented by GPT-6 Astra, Clique L2); 2026-09-05 (d — Codex implements imported shapes, read-authorized
+**Revised:** 2026-09-08 (one cursor-bearing page through composite records); 2026-09-08 (statement helpers, LLP 1018.005); 2026-09-07 (expression helpers refuse authorization assertions throughout nested shapes); 2026-09-07 (typed bound shape/function elaboration and one decimal representation); 2026-09-06 (session-delegated Unicode key/cursor integration contract, foundation only); 2026-09-06 (nested named-shape collection snapshots implemented by GPT-6 Astra; conditional page returns implemented by GPT-6 Astra; certification-derived provenance); 2026-09-05 (null keys and non-empty Id literals implemented by GPT-6 Astra, Clique L2); 2026-09-05 (d — Codex implements imported shapes, read-authorized
 write results, and order-preserving filter repairs under the author's request
 to advance Quarry); 2026-09-03 (c — implemented: §8 records the two lane commits
 and the one re-pinned expectation); 2026-09-03 (b — after the panel: `fn` deferred and `shape` kept;
@@ -112,8 +112,9 @@ chat `globalFeed`/`followingFeed`, Clique `globalFeed`/`followingFeed`/
 
 **Amendment.**
 
-- **A `cursor` value type.** A delivery whose operation's result is one
-  page carries `next: cursor | null` beside `data`, on `complete` and
+- **A `cursor` value type.** A delivery whose operation returns one
+  certified page, directly or through record fields, carries
+  `next: cursor | null` beside `data`, on `complete` and
   `capped` deliveries only (`execution_json`, `writer_wire.rs:8–24`;
   `client.ts` validates it; `denied` and `partial` carry none).
 - **The mint rule.** `complete` → `null`. Nonempty `capped` → a token from
@@ -139,10 +140,31 @@ chat `globalFeed`/`followingFeed`, Clique `globalFeed`/`followingFeed`/
   without losing the structural checker's accumulated diagnostics.
   A shape collector must start empty and receive
   exactly one unconditional push per row without early exits or other writes.
-  Nesting a page in an object, truncating/reordering it, or returning a
-  non-page value yields no cursor for that return. An unexecuted merge is not
+  **Composite amendment (2026-09-08):** record fields, nested records,
+  field extraction and value aliases transport page provenance. A record has
+  one continuation only when it contains one distinct supported page origin
+  continued through an argument typed `cursor` or `cursor ?`. Repeating that
+  same page in several fields is unambiguous. A fixed preview without a
+  cursor argument is auxiliary, even when evaluated after the returned page.
+  Two distinct cursor-bearing origins, even through the same cursor argument,
+  produce `next: null`; there is no designated field or multiple-cursor format.
+  An unproved returned cursor binding also prevents continuation; it cannot
+  be treated as an uncursored fixed preview.
+  Reassigning or pushing into a binding kills its provenance; earlier value
+  copies retain theirs, matching the native and twin value semantics.
+  Array wrapping (`other: [page]`), truncation/reordering and other derived
+  collections carry no supported page provenance. This is a record-field
+  proof, not a detector for every scan contained in a returned value. Such
+  siblings do not contribute a continuation candidate; a supported page in
+  another record field can still supply the one `next`. An unexecuted merge is not
   counted as an unfinished union. The return path stays internal; result
   shapes need not expose index columns and receipts gain no hidden position.
+  The mint rule stays global: a fixed preview can keep the composite `capped`
+  after the selected page exhausts. A nonempty selected page can then yield
+  one extra request; its empty successor has `next: null` even when the
+  preview is still capped. No preview row or hidden examined row becomes the
+  continuation anchor. An object result remains unsupported for resume/drain;
+  those require the existing direct ascending log page (LLP 1012 §6).
 - **The token.** Canonical, versioned, tagged: version, table, index, scan
   order, the exact remaining-suffix descriptor, and the suffix values typed
   by the index's columns — because the wire collapses ids and strings

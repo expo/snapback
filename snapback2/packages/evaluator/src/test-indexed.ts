@@ -19,6 +19,7 @@ import { encodeCursor, decodeCursor } from './cursor';
 import historicalFixtures from './test-search-fixtures.json';
 import v4Fixtures from './test-search-v4-fixtures.json';
 import searchFixtures from './test-search-v5-fixtures.json';
+import compositeCursorCase from '../../../corpus/composite-range-page-1.json';
 import { decodeHeldProgram } from '../../snapback2/src/held-program';
 import { tagWireRow, deliveryRangeExtent, decodeDeliveryEnvelope, tagReceipt } from '../../snapback2/src/offline-protocol';
 import { tagArguments } from '../../snapback2/src/twin-hydrate';
@@ -658,6 +659,25 @@ assert.throws(() => decodeLocalCursor(wrongPageToken, { ...f, incarnation: 'reop
   [{ table: 'messages', index: 'search', order: 'Asc', suffix: [{ name: 'id', kind: 'Id' }] }]), error =>
   (error as any).code === 'E_INPUT' && !(error instanceof StaleLocalPage));
 console.log('local cursor operation, binding, partition, schema, program, generation and page/suffix fences passed');
+
+// A sibling array is outside the record-page proof. Its argument remains in
+// the local binding while the selected c advances; changing it rejects h1.
+{
+  const compositeIr: any = structuredClone(compositeCursorCase.program);
+  compositeIr.args.otherCursor = { Optional: 'Cursor' };
+  const body = compositeIr.body[1].If.then_body;
+  const sibling = structuredClone(body[0].Const.value.Scan);
+  sibling.site = 'composite.array.other'; sibling.after = { Variable: 'otherCursor' };
+  body.at(-1).Return.Object.other = { Array: [{ Scan: sibling }] };
+  const op = { ...operation, ir: compositeIr }, initial = { c: null, global: true, otherCursor: null };
+  const bound = localBinding(op, initial), next = compositeCursorCase.expected.next!;
+  assert.equal(localBinding(op, { ...initial, c: next }), bound);
+  const changed = localBinding(op, { ...initial, otherCursor: next });
+  assert.notEqual(changed, bound);
+  const local = encodeLocalCursor(f, bound, decodeCursor(next));
+  assert.equal(decodeLocalCursor(local, f, bound), next);
+  assert.throws(() => decodeLocalCursor(local, f, changed), { code: 'E_INPUT' });
+}
 
 // Independent source/ordering oracle stresses compact posting removal, slot reuse, shared trie nodes and ordinary seeks.
 const indexedOracle = new ClientStore(schema), oracleRows = new Map<string, { body: number; room: string; at: number }>();

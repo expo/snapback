@@ -1,0 +1,477 @@
+{
+  "corpusVersion": 1,
+  "name": "composite-hidden-page-2",
+  "category": "scenario",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "items": {
+        "columns": {
+          "at": "Time",
+          "group": "Id",
+          "id": "Id",
+          "owner": "Principal"
+        },
+        "indexes": {
+          "byGroup": {
+            "components": [
+              {
+                "Column": "group"
+              },
+              {
+                "Column": "at"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          },
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Exists": {
+              "table": "shares",
+              "index": "byItemViewer",
+              "key": [
+                {
+                  "Field": "id"
+                },
+                "Viewer"
+              ],
+              "provenance": "Shape"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "profiles": {
+        "columns": {
+          "id": "Id",
+          "name": {
+            "Text": {
+              "max": 20
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Eq": [
+              {
+                "Field": "id"
+              },
+              "Viewer"
+            ]
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "shares": {
+        "columns": {
+          "id": "Id",
+          "item": "Id",
+          "viewer": "Principal"
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          },
+          "byItemViewer": {
+            "components": [
+              {
+                "Column": "item"
+              },
+              {
+                "Column": "viewer"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "items.enriched",
+    "kind": "Query",
+    "args": {
+      "c": {
+        "Optional": "Cursor"
+      },
+      "global": "Bool"
+    },
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "If": {
+          "condition": {
+            "Variable": "global"
+          },
+          "then_body": [
+            {
+              "Let": {
+                "name": "rows",
+                "value": {
+                  "Array": []
+                }
+              }
+            },
+            {
+              "For": {
+                "binding": "item",
+                "domain": {
+                  "Page": {
+                    "site": "items.page",
+                    "table": "items",
+                    "index": "byGroup",
+                    "prefix": [
+                      {
+                        "Scalar": {
+                          "Literal": {
+                            "Id": "g1"
+                          }
+                        }
+                      }
+                    ],
+                    "order": "Asc",
+                    "take": {
+                      "Literal": 50
+                    },
+                    "after": {
+                      "Variable": "c"
+                    },
+                    "before": null,
+                    "range": null,
+                    "opaque_cursor": true,
+                    "merge_site": null,
+                    "provenance": "Const"
+                  }
+                },
+                "body": [
+                  {
+                    "Const": {
+                      "name": "profile",
+                      "value": {
+                        "Get": {
+                          "site": "profiles.byId",
+                          "table": "profiles",
+                          "index": "byId",
+                          "key": [
+                            {
+                              "Field": {
+                                "base": {
+                                  "Variable": "item"
+                                },
+                                "name": "owner"
+                              }
+                            }
+                          ],
+                          "provenance": "Shape"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "Let": {
+                      "name": "shape",
+                      "value": {
+                        "Literal": "Null"
+                      }
+                    }
+                  },
+                  {
+                    "If": {
+                      "condition": {
+                        "Binary": {
+                          "op": "Ne",
+                          "left": {
+                            "Variable": "profile"
+                          },
+                          "right": {
+                            "Literal": "Null"
+                          }
+                        }
+                      },
+                      "then_body": [
+                        {
+                          "Assign": {
+                            "name": "shape",
+                            "value": {
+                              "Object": {
+                                "name": {
+                                  "Field": {
+                                    "base": {
+                                      "Variable": "profile"
+                                    },
+                                    "name": "name"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ],
+                      "else_body": []
+                    }
+                  },
+                  {
+                    "Push": {
+                      "target": "rows",
+                      "value": {
+                        "Object": {
+                          "id": {
+                            "Field": {
+                              "base": {
+                                "Variable": "item"
+                              },
+                              "name": "id"
+                            }
+                          },
+                          "owner": {
+                            "Variable": "shape"
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "Return": {
+                "Object": {
+                  "messages": {
+                    "Variable": "rows"
+                  }
+                }
+              }
+            }
+          ],
+          "else_body": [
+            {
+              "Return": {
+                "Array": []
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "items.enriched",
+    "plan_hash": "82c39c1502f6dae9f38786d2f5b95060c1f2ad160c879888226ac5a88e45ef51",
+    "schema_hash": "ba166087c4aefdd29b0b208a1ceba5cae8eb96145d80307c4ea8d1544eb80e05",
+    "tables": {
+      "items": {
+        "retain": "until-revoked"
+      },
+      "profiles": {
+        "retain": "until-revoked"
+      },
+      "shares": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "items.read": "ce546f6d28ea1d2823ddd9da28d0cd0b1c128392073308c95d156eda437989d0",
+      "profiles.read": "dd0f14161df560b8eadee94e36dea41684c12b094fca46724484aae7caec3859"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [
+      {
+        "site": "items.page",
+        "table": "items",
+        "index": "byGroup",
+        "prefix_template": "Const",
+        "take": 50,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 1,
+        "hoist": false,
+        "complete": false
+      },
+      {
+        "site": "profiles.byId",
+        "table": "profiles",
+        "index": "byId",
+        "prefix_template": "Shape",
+        "take": 1,
+        "max_calls": 50,
+        "rule_probes_per_candidate": 0,
+        "hoist": false,
+        "complete": false
+      }
+    ],
+    "result_pages": {
+      "0/then/2": {
+        "site": "items.page",
+        "table": "items",
+        "index": "byGroup",
+        "order": "Asc",
+        "suffix": [
+          {
+            "name": "at",
+            "kind": "Time"
+          },
+          {
+            "name": "id",
+            "kind": "Id"
+          }
+        ],
+        "merge": false
+      }
+    },
+    "write_sites": [],
+    "maintained_amplification": 0,
+    "constraint_checks": [],
+    "max_examined": 10240,
+    "max_index_entries": 10240,
+    "max_rule_probes": 10240,
+    "max_steps": 52110,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
+    "max_heap_bytes": 1667520,
+    "max_output_bytes": 14234,
+    "max_closure_bytes": 12700,
+    "completeness": "Capped",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "items.byGroup",
+      "profiles.byId",
+      "shares.byItemViewer"
+    ],
+    "disclosures": [],
+    "bound_product": "items.page take 50 (+2 reserve) × 1 calls on items = 52 + profiles.byId point read on profiles × 50 calls (calls from items.page take 50) = 50"
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {
+      "c": {
+        "String": "WzEsIml0ZW1zIiwiYnlHcm91cCIsIkFzYyIsW3sibmFtZSI6ImF0Iiwia2luZCI6IlRpbWUifSx7Im5hbWUiOiJpZCIsImtpbmQiOiJJZCJ9XSxbeyJJbnQiOjJ9LHsiSWQiOiJpMiJ9XV0"
+      },
+      "global": {
+        "Bool": true
+      }
+    },
+    "now": null,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "ba166087c4aefdd29b0b208a1ceba5cae8eb96145d80307c4ea8d1544eb80e05",
+    "rows": [],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": {
+      "Row": {
+        "messages": {
+          "Array": []
+        }
+      }
+    },
+    "errorCode": null,
+    "localState": "partial",
+    "partialSites": [
+      "items.page"
+    ],
+    "canonicalResult": "{\"Row\":{\"messages\":{\"Array\":[]}}}",
+    "digest": "a74b87924104056ba099b22a29ed218fd0407f4ecc6fcda5ac99f89cea03442a",
+    "rangeStops": {
+      "items.page": [
+        "exhausted"
+      ]
+    },
+    "evictedRows": null,
+    "next": null
+  }
+}
