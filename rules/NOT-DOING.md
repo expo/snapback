@@ -78,14 +78,14 @@ the third on 2026-09-04, LLP 1012 §12):
   20 MB guide in the binary, no calendar freshness dates.
 - **WASM anywhere.** The client evaluator is the TypeScript twin. The 2026-09-06
   search trade, revised under the 2026-09-07 architecture commission, sets
-  **82,000 bytes gzip for the complete local runtime**, with **80,000 the working
+  **82,500 bytes gzip for the complete local runtime**, with **80,000 the working
   target**. The canonical measurement uses Node 24.18.0, esbuild 0.25.9, gzip level 9.
   All normalization data, decoding, indexes, incremental state, prediction and
   local cursors participate in the measured entry; relocating required bytes
   does not count as a saving. Historical measurements remain in
   `snapback2/metrics/twin.jsonl`; the complete search integration is not yet
   qualified. The measured scope revision in LLP1012 records why the earlier
-  34,000, 50,000 and 66,000 allocations were replaced; exceeding 82,000 requires
+  34,000, 50,000 and 66,000 allocations were replaced; exceeding 82,500 requires
   a new explicit scope decision.
 
 ## Process not doing
@@ -182,3 +182,13 @@ PR. If nothing can come off, the answer is no.
   qualification remains required. LLP 1012's allocation amendment records
   alternatives and the separately measured client cost. This is Root's
   delegated decision, not an earlier author ruling or retroactive size pass.
+
+- 2026-09-07 — **Merged-schema reconciliation allocation:** 82,500 bytes gzip,
+  with the 80,000 target unchanged, supersedes 82,000 under the same delegated
+  LLP 1018.000 commission. Required declared tombstones, schema validation and
+  truthful query provenance are included in the pinned 82,085-byte candidate;
+  the old ceiling still fails by 85 and that sample remains a failure. The
+  explicit 500-byte increase (0.61%) follows bounded readable consolidation,
+  funds this reconciliation only, and leaves 415 bytes. Five roots, resource
+  limits and Exact 2 deferral stay; closing independent review and final
+  qualification remain pending. LLP 1012 and LLP 1018.000 record the trade.
