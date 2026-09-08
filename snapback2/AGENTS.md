@@ -5,7 +5,8 @@ Read this, then `rules/RULES.md` and `rules/NOT-DOING.md` at the repo root, then
 
 ```
 cargo build                          # data plane + binary; no JS engine, no bootstrap
-NEXTEST_TEST_THREADS=32 cargo nextest run \
+rust_test_threads="${SNAPBACK_RUST_TEST_THREADS:-$(node -e 'process.stdout.write(String(Math.max(8, Math.min(32, require("node:os").availableParallelism()))))' 2>/dev/null || printf '8\n')}"
+NEXTEST_TEST_THREADS="$rust_test_threads" cargo nextest run \
   --config-file ../.config/nextest.toml --profile local-proof \
   --workspace --no-fail-fast          # Rust executable tests (~36 s on the measured EPYC host)
 cargo test --workspace --doc --no-fail-fast  # workspace doctests omitted by nextest

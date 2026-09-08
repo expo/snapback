@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -6,9 +7,36 @@ type Test = (name: string, run: () => void | Promise<void>) => void;
 type Assert = (condition: unknown, message: string) => asserts condition;
 export type PackageBuildProof = () => Set<string>;
 
-function killLockHolder(pid: unknown): void {
-  if (typeof pid !== "number" || !Number.isInteger(pid) || pid <= 1) return;
-  try { process.kill(pid, 9); } catch {}
+type LockOwner = { pid: number; token: string };
+
+function parseLockOwner(text: string): LockOwner | undefined {
+  try {
+    const value = JSON.parse(text);
+    return typeof value?.token === "string" && Number.isInteger(value?.pid) && value.pid > 1
+      ? { pid: value.pid, token: value.token }
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function stopOwnedProcess(pid: number): boolean {
+  try {
+    process.kill(pid, 9);
+    return true;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === "ESRCH";
+  }
+}
+
+async function removeOwnedLock(lock: string, owner: LockOwner | undefined): Promise<void> {
+  if (!owner) return;
+  try {
+    const current = parseLockOwner(await readFile(lock, "utf8"));
+    if (current?.pid === owner.pid && current.token === owner.token) await rm(lock, { force: true });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+  }
 }
 
 export function registerPackageRegressionChecks(test: Test, assert: Assert, crate: string): PackageBuildProof {
@@ -25,16 +53,50 @@ export function registerPackageRegressionChecks(test: Test, assert: Assert, crat
     const report = JSON.parse(new TextDecoder().decode(packed.stdout));
     return new Set((report[0]?.files ?? []).map((item: { path: string }) => item.path));
   };
+  const packWithRecovery = (): Set<string> => {
+    try {
+      return pack();
+    } catch (failure) {
+      const rebuild = () => Bun.spawnSync({
+        cmd: ["node", "build.mjs"],
+        cwd: `${crate}packages/snapback2`,
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      let rebuilt: ReturnType<typeof rebuild>;
+      try {
+        rebuilt = rebuild();
+      } catch (recoveryFailure) {
+        const original = failure instanceof Error ? failure.message : String(failure);
+        const recovery = recoveryFailure instanceof Error ? recoveryFailure.message : String(recoveryFailure);
+        throw new AggregateError(
+          [failure, recoveryFailure],
+          `${original}\npackage fixture recovery failed: ${recovery}`,
+        );
+      }
+      if (rebuilt.exitCode !== 0) {
+        const original = failure instanceof Error ? failure.message : String(failure);
+        const recovery = `${new TextDecoder().decode(rebuilt.stdout)}${new TextDecoder().decode(rebuilt.stderr)}`;
+        throw new AggregateError(
+          [failure, new Error(`package fixture recovery failed: ${recovery}`)],
+          `${original}\npackage fixture recovery failed: ${recovery}`,
+        );
+      }
+      throw failure;
+    }
+  };
 
   test("a killed package builder leaves a lock that the next build reclaims", async () => {
     const lock = resolve(crate, "target/b2-package-build.lock");
-    await rm(lock, { force: true });
+    const token = randomUUID();
+    let owner: LockOwner | undefined;
+    let ownerStopped = false;
     const holder = Bun.spawn({
       cmd: ["node", "-e", `
         const fs = require("node:fs");
-        fs.writeFileSync(process.argv[1], JSON.stringify({ pid: process.pid, token: "killed-builder" }) + "\\n", { flag: "wx" });
+        fs.writeFileSync(process.argv[1], JSON.stringify({ pid: process.pid, token: process.argv[2] }) + "\\n", { flag: "wx" });
         setInterval(() => {}, 1000);
-      `, lock],
+      `, lock, token],
       stdout: "ignore",
       stderr: "pipe",
     });
@@ -42,20 +104,22 @@ export function registerPackageRegressionChecks(test: Test, assert: Assert, crat
       const deadline = Date.now() + 2_000;
       while (Date.now() < deadline) {
         try {
-          if ((await readFile(lock, "utf8")).includes("killed-builder")) break;
+          if ((await readFile(lock, "utf8")).includes(token)) break;
         } catch {}
         await Bun.sleep(10);
       }
       const held = await readFile(lock, "utf8");
-      assert(held.includes("killed-builder"), "lock holder did not acquire the package build lock");
+      const acquired = parseLockOwner(held);
+      assert(acquired?.token === token, "lock holder did not acquire the package build lock");
+      owner = acquired;
       // The holder recorded its own pid. When `node` on PATH is a shim (volta spawns the
       // real node as a child), killing the spawned pid orphans the real holder, which keeps
       // the lock alive and its stderr pipe open; kill the recorded pid too.
-      killLockHolder(JSON.parse(held.trim()).pid);
-      holder.kill(9);
+      ownerStopped = stopOwnedProcess(owner.pid);
+      if (holder.exitCode === null) holder.kill(9);
       await holder.exited;
       await rm(resolve(crate, "packages/snapback2/dist"), { recursive: true, force: true });
-      reclaimedPackageFiles = pack();
+      reclaimedPackageFiles = packWithRecovery();
       assert(reclaimedPackageFiles.has("dist/compiler.mjs"), "package rebuild did not produce the compiler bundle");
       let lockRemains = true;
       try { await readFile(lock); }
@@ -65,10 +129,10 @@ export function registerPackageRegressionChecks(test: Test, assert: Assert, crat
       }
       assert(!lockRemains, "package rebuild did not reclaim and release the killed holder's lock");
     } finally {
-      try { killLockHolder(JSON.parse((await readFile(lock, "utf8")).trim()).pid); } catch {}
+      if (owner && !ownerStopped) ownerStopped = stopOwnedProcess(owner.pid);
       if (holder.exitCode === null) holder.kill(9);
       await holder.exited;
-      await rm(lock, { force: true });
+      if (ownerStopped) await removeOwnedLock(lock, owner);
     }
   });
 
@@ -126,5 +190,5 @@ export function registerPackageRegressionChecks(test: Test, assert: Assert, crat
 
   // If lock recovery failed before it reached the real package build, the
   // package-content check still runs independently and reports its own result.
-  return () => reclaimedPackageFiles ?? pack();
+  return () => reclaimedPackageFiles ?? packWithRecovery();
 }
