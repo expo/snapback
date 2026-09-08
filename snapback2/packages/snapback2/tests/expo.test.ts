@@ -91,10 +91,13 @@ test("Expo opens held history only for a partial composite and reuses the observ
     await act(async () => { renderer = TestRenderer.create(React.createElement(SnapbackProvider, { client },
       React.createElement(Thread, { conversationId: "conversation-1" }))); });
     assert.equal(historyListeners.size, 1, "a data-less partial mounts held history");
-    assert.match(JSON.stringify(renderer!.toJSON()), /independently held/);
+    const partialTree = JSON.stringify(renderer!.toJSON());
+    assert.match(partialTree, /independently held/);
+    assert.match(partialTree, /Message count unavailable/);
+    assert.match(partialTree, /Count and preview unavailable/);
 
     const value = { messages: [message], count: 1, preview: [message] };
-    await publish({ status: "ready", data: value, receipt: { outcome: "complete", source: "owner", seq: 2 },
+    await publish({ status: "ready", data: value, receipt: { outcome: "complete", source: "server", seq: 2 },
       freshness: { live: true, connection: "connected" }, local: { predicted: [], retained: false } });
     assert.equal(historyListeners.size, 0, "a usable complete composite detaches history");
     await publish({ status: "unavailable", receipt: { outcome: "partial", source: "twin", seq: 3 },
@@ -102,10 +105,10 @@ test("Expo opens held history only for a partial composite and reuses the observ
     assert.equal(historyListeners.size, 1, "a later partial reattaches the same lazy history resource");
 
     for (const ineligible of [
-      { status: "unavailable", receipt: { outcome: "denied", source: "owner", seq: 4 } },
+      { status: "unavailable", receipt: { outcome: "denied", source: "server", seq: 4 } },
       { status: "unavailable", refusal: { code: "E_TEST", family: "input", message: "refused", guide: "test" } },
       { status: "loading" },
-      { status: "ready", data: value, receipt: { outcome: "capped", source: "owner", seq: 5 } },
+      { status: "ready", data: value, receipt: { outcome: "capped", source: "server", seq: 5 } },
     ]) {
       await publish({ ...ineligible, freshness: { live: false, connection: "offline" }, local: { predicted: [], retained: false } });
       assert.equal(historyListeners.size, 0, "denied, refused, reset, and capped snapshots keep history detached");

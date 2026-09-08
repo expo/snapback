@@ -8,6 +8,7 @@ import { Composer } from "../Composer";
 type Args = { conversationId?: string; body?: string; messageId?: string };
 type ResultOf<T> = T extends { readonly __result?: infer Result } ? NonNullable<Result> : never;
 type ConversationView = ResultOf<Api["deliveries"]["conversationView"]>;
+type LogRow = ConversationView["messages"][number];
 function usable(result: { data?: unknown; receipt?: { outcome: string } }): ConversationView | undefined {
   if (result.receipt?.outcome !== "complete" && result.receipt?.outcome !== "capped") return undefined;
   const data = result.data as Partial<ConversationView> | undefined;
