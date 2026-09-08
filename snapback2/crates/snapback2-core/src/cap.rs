@@ -59,17 +59,23 @@ pub(crate) fn public_count_probe(
     let Some(primary) = table.index("byId") else {
         return false;
     };
+    let Some(primary_columns) = primary.scalar_columns() else {
+        return false;
+    };
+    let Some(columns) = index.scalar_columns() else {
+        return false;
+    };
     table.rules.read.is_uniformly_readable()
         && primary.unique
-        && primary.columns == ["id"]
+        && matches!(primary_columns.as_slice(), [column] if column == "id")
         && index.unique
-        && index.columns.iter().all(|column| {
-            table.columns.get(column).is_some_and(count_key_column)
-        })
+        && columns
+            .iter()
+            .all(|column| table.columns.get(column).is_some_and(count_key_column))
         && schema.maintains.iter().any(|maintain| {
             maintain.target == table_name
                 && matches!(maintain.kind, MaintainKind::Count)
-                && index.columns == maintain.by
+                && columns == maintain.by
                 && arity == maintain.by.len()
         })
 }
@@ -79,8 +85,10 @@ pub(crate) fn public_count_probe(
 fn count_key_column(kind: &ColumnType) -> bool {
     match kind {
         ColumnType::Optional(inner) => count_key_column(inner),
-        ColumnType::Json { .. } | ColumnType::List { .. }
-        | ColumnType::Image { .. } | ColumnType::Video { .. } => false,
+        ColumnType::Json { .. }
+        | ColumnType::List { .. }
+        | ColumnType::Image { .. }
+        | ColumnType::Video { .. } => false,
         _ => true,
     }
 }
@@ -118,18 +126,28 @@ pub(crate) fn count_absence_evidence(
     }
     let table = schema.table(&point.table)?;
     let index = table.index(&point.index)?;
-    for (column, value) in index.columns.iter().zip(&point.key) {
+    let columns = index.scalar_columns()?;
+    for (column, value) in columns.iter().zip(&point.key) {
         // Point admission checks arity, not value domains. A String miss on a
         // Principal index must not become Id coverage after public hydration.
         crate::engine::validate_column_value(
-            &point.table, column, table.columns.get(column)?, Some(value),
-        ).ok()?;
+            &point.table,
+            column,
+            table.columns.get(column)?,
+            Some(value),
+        )
+        .ok()?;
     }
     let range = crate::engine::ReceiptRange {
         site: point.site.clone(),
         table: point.table.clone(),
         index: point.index.clone(),
-        prefix: point.key.clone(),
+        prefix: point
+            .key
+            .iter()
+            .cloned()
+            .map(crate::search_key::IndexAtom::Scalar)
+            .collect(),
         order: crate::ir::Order::Asc,
         take: 1,
         after: None,
@@ -143,7 +161,7 @@ pub(crate) fn count_absence_evidence(
         stop: crate::engine::StopReason::Exhausted,
         absence: true,
         halo: None,
-        n2_key: None,
+        n2_suffix: None,
     };
     let primary = (
         point.table.clone(),

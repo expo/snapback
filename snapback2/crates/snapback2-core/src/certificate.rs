@@ -17,7 +17,7 @@ mod output;
 mod page;
 pub(crate) mod search;
 mod summary;
-use diagnostic::{Cost, WorkTerms};
+use diagnostic::Cost;
 use page::result_pages;
 pub use page::resumable_log_cursor;
 use summary::Summary;

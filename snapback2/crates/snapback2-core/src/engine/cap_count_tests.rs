@@ -10,7 +10,7 @@ fn public_count_schema() -> Schema {
         BTreeMap::from([(
             "byId".into(),
             Index {
-                columns: vec!["id".into()],
+                components: vec![IndexComponent::Column("id".into())],
                 unique: true,
             },
         )]),
@@ -25,14 +25,14 @@ fn public_count_schema() -> Schema {
             (
                 "byId".into(),
                 Index {
-                    columns: vec!["id".into()],
+                    components: vec![IndexComponent::Column("id".into())],
                     unique: true,
                 },
             ),
             (
                 "byPrincipal".into(),
                 Index {
-                    columns: vec!["principal".into()],
+                    components: vec![IndexComponent::Column("principal".into())],
                     unique: true,
                 },
             ),
@@ -132,7 +132,9 @@ fn public_count_missing_group_acquires_a_separately_proved_primary_absence() {
                 site: "count.group".into(),
                 table: "counts".into(),
                 index: "byPrincipal".into(),
-                prefix: vec![Value::Id("alice".into())],
+                prefix: vec![crate::search_key::IndexAtom::Scalar(Value::Id(
+                    "alice".into()
+                ))],
                 order: Order::Asc,
                 take: 1,
                 after: None,
@@ -146,7 +148,7 @@ fn public_count_missing_group_acquires_a_separately_proved_primary_absence() {
                 stop: StopReason::Exhausted,
                 absence: true,
                 halo: None,
-                n2_key: None,
+                n2_suffix: None,
             }],
             "group coverage and primary absence are separately justified facts"
         );
@@ -819,7 +821,9 @@ fn public_count_derived_group_range_rejects_each_changed_authority_field() {
         ("table", |range| range.table = "entries".into()),
         ("index", |range| range.index = "byId".into()),
         ("prefix", |range| {
-            range.prefix = vec![Value::Id("bob".into())]
+            range.prefix = vec![crate::search_key::IndexAtom::Scalar(Value::Id(
+                "bob".into(),
+            ))]
         }),
         ("order", |range| range.order = Order::Desc),
         ("take", |range| range.take = 2),
@@ -845,7 +849,7 @@ fn public_count_derived_group_range_rejects_each_changed_authority_field() {
             })
         }),
         ("n2", |range| {
-            range.n2_key = Some(vec![Value::Id("unobserved".into())])
+            range.n2_suffix = Some(vec![Value::Id("unobserved".into())])
         }),
     ];
     for (field, corrupt) in corruptions {

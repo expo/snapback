@@ -131,7 +131,7 @@ pub struct MergeTrace {
     pub last_returned_suffix: Option<Vec<Value>>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ReceiptRange {
     pub site: String,
     pub table: String,
