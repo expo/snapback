@@ -3,13 +3,18 @@ import { useState, type FormEvent } from "react";
 import { useAuth, useMutation, useOutbox, useSnapbackClient } from "snapback2/react";
 
 export function Composer({ conversationId }: { conversationId: string }) {
-  const { viewer } = useAuth();
-  return <Draft key={JSON.stringify([viewer, conversationId])} conversationId={conversationId} />;
+  const auth = useAuth();
+  const account = auth.state === "anonymous" ? null : auth.viewer ?? auth.restoringViewer;
+  const [scope, setScope] = useState({ account, key: 0 });
+  // First confirmation adopts the cold draft; logout and account switches reset it.
+  if (account !== undefined && account !== scope.account) {
+    setScope({ account, key: scope.key + (scope.account === undefined && account !== null ? 0 : 1) });
+  }
+  return <Draft key={JSON.stringify([scope.key, conversationId])} conversationId={conversationId} />;
 }
 function Draft({ conversationId }: { conversationId: string }) {
   const post = useMutation(messageWrites.create);
   const outbox = useOutbox();
-  const client = useSnapbackClient();
   const [body, setBody] = useState("");
   const [syncing, setSyncing] = useState(false);
   const [syncNote, setSyncNote] = useState("");
@@ -24,6 +29,7 @@ function Draft({ conversationId }: { conversationId: string }) {
     const result = await post.run({ conversationId, body: text });
     if (result.state !== "rejected") setBody(now => now === draft ? "" : now);
   };
+  const client = useSnapbackClient();
   const sync = async () => {
     setSyncing(true);
     try {
@@ -39,7 +45,7 @@ function Draft({ conversationId }: { conversationId: string }) {
     <input aria-label="Message" value={body} placeholder="Message" onChange={(event) => setBody(event.target.value)} />
     <button type="submit" disabled={post.inFlight || !post.can.send}>Send</button>
     {post.can.reason ? <small role="status" data-waiting={post.can.reason.code}>{post.can.reason.message}</small> : null}
-    {post.can.action === "connect" ? <button type="button" disabled={syncing}
+    {syncing || post.can.action === "connect" ? <button type="button" disabled={syncing}
       onClick={() => { void sync(); }}>{syncing ? "Syncing…" : "Sync now"}</button> : null}
     {note ? <p role="alert">{note}</p> : null}
     {syncNote ? <p role="alert">{syncNote}</p> : null}

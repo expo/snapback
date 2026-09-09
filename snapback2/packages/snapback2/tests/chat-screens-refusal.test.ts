@@ -75,9 +75,9 @@ function requestBody(init?: RequestInit): any | undefined {
 }
 
 const rejected = (intent?: string) => ({
-  state: "rejected", code: "NOT_MEMBER", family: "input",
-  message: "E_REQUIRE:NOT_MEMBER: program requirement failed",
-  rewrite: "fix the rejected mutation input and retry", guide: "input/runtime", intent,
+  state: "rejected", code: "MEMBERSHIP_REQUIRED", family: "rule", rule: "MEMBERSHIP_REQUIRED",
+  site: "snapback/messages.q:7:3", message: "Membership required",
+  rewrite: "Join this conversation before sending", guide: "live-query", intent,
 });
 
 function installDom(): () => void {
@@ -177,7 +177,7 @@ test("a refused send keeps the draft and shows the recovery advice", async () =>
     await type(input, "keep this draft");
     await waitFor(() => !document.querySelector<HTMLButtonElement>("form[aria-label=Composer] button[type=submit]")!.disabled, "sending readiness");
     await act(async () => { document.querySelector<HTMLFormElement>("form[aria-label=Composer]")!.requestSubmit(); });
-    await waitFor(() => /fix the rejected mutation input/.test(text(document.querySelector("[role=alert]"))), "the refusal advice");
+    await waitFor(() => /Join this conversation/.test(text(document.querySelector("[role=alert]"))), "the refusal advice");
     assert.equal(input.value, "keep this draft", "the server refusal must not discard unsent text");
   } finally {
     await act(async () => { reactRoot.unmount(); });
@@ -205,7 +205,7 @@ for (const transport of [false, true]) test(`Composer renders ${transport ? "tra
     await type(input, "keep my text");
     await act(async () => document.querySelector<HTMLFormElement>("form")!.requestSubmit());
     await waitFor(() => text(document.querySelector("form [role=alert]")).startsWith("Not sent:"), "the inline refusal");
-    assert.match(text(document.querySelector("form [role=alert]")), transport ? /connection|connect|retry/i : /fix the rejected mutation input/);
+    assert.match(text(document.querySelector("form [role=alert]")), transport ? /connection|connect|retry/i : /Join this conversation/);
     assert.equal(input.value, "keep my text");
     await act(async () => { await client.auth.logout(); });
     assert.equal(document.querySelector("form [role=alert]"), null, "the previous account's result is gone");
@@ -229,9 +229,9 @@ test("Thread renders edit and unsend refusals locally and drops them when the co
     window.prompt = () => "edited text";
     const actions = () => document.querySelectorAll<HTMLButtonElement>("li[data-message=message-1] .actions button");
     await act(async () => actions()[0]!.click());
-    await waitFor(() => /Edit not sent: fix/.test(text(document.querySelector("section header"))), "edit refusal");
+    await waitFor(() => /Edit not sent: Join/.test(text(document.querySelector("section header"))), "edit refusal");
     await act(async () => actions()[1]!.click());
-    await waitFor(() => /Unsend refused: fix/.test(text(document.querySelector("section header"))), "unsend refusal");
+    await waitFor(() => /Unsend refused: Join/.test(text(document.querySelector("section header"))), "unsend refusal");
     await act(async () => root.render(render("conversation-2")));
     assert.equal(document.querySelector("[role=alert]"), null);
   } finally { await act(async () => root.unmount()); await client.close(); restore(); }
@@ -239,16 +239,23 @@ test("Thread renders edit and unsend refusals locally and drops them when the co
 
 for (const state of ["committed", "rejected"]) test(`a late ${state} send cannot change another conversation's draft or result`, async () => {
   const restore = installDom();
-  let release!: () => void, started!: () => void;
+  let release!: () => void, started!: () => void, consumed!: (value: any) => void, finished!: (value: any) => void;
+  const bodyConsumed = new Promise<any>(done => { consumed = done; });
+  const mutationFinished = new Promise<any>(done => { finished = done; });
   const gate = new Promise<void>(done => { release = done; });
   const entered = new Promise<void>(done => { started = done; });
   const client = createClient({ url: screenOwner.url, persona: "alice", fetch: async (input, init) => {
     if (new URL(String(input)).pathname === "/api/mutation") {
       started(); await gate;
-      return state === "rejected" ? json(rejected()) : globalThis.fetch(input, init);
+      const response = state === "rejected" ? json(rejected()) : await globalThis.fetch(input, init);
+      const read = response.json.bind(response);
+      response.json = async () => { const value = await read(); consumed(value); return value; };
+      return response;
     }
     return globalThis.fetch(input, init);
   } });
+  const mutate = client.mutation.bind(client);
+  client.mutation = (...args) => { const result = mutate(...args); void result.then(finished); return result; };
   const root = createRoot(document.getElementById("root")!);
   const render = (conversationId: string) => React.createElement(SnapbackProvider, { client }, React.createElement(Composer, { conversationId }));
   try {
@@ -259,7 +266,12 @@ for (const state of ["committed", "rejected"]) test(`a late ${state} send cannot
     await act(async () => root.render(render("conversation-2")));
     assert.equal(document.querySelector<HTMLInputElement>("form input")!.value, "", "drafts belong to a conversation");
     await type(document.querySelector<HTMLInputElement>("form input")!, "same draft");
-    release(); await settle(75);
+    await act(async () => {
+      release();
+      assert.equal((await bodyConsumed).state, state, "the old response body was consumed");
+      assert.equal((await mutationFinished).state, state);
+      await new Promise<void>(done => setImmediate(done)); // Flush the hook and send continuation.
+    });
     assert.equal(document.querySelector<HTMLInputElement>("form input")!.value, "same draft");
     assert.equal(document.querySelector("form [role=alert]"), null);
     assert.equal(document.querySelector<HTMLButtonElement>("form button[type=submit]")!.disabled, false);

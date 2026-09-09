@@ -3,7 +3,7 @@ import { subscribe } from "../src/internal.js";
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { after, before, test } from "node:test";
 import { build } from "esbuild";
@@ -72,16 +72,28 @@ for (const arm of ["react/src", "expo/src/screens"]) test(`${arm}/Thread fits th
 
 test("shipped chat files contain no design citations or app-owned mutation fences", async () => {
   const root = resolve(packageRoot, "templates/chat");
-  for (const file of await readdir(root, { recursive: true })) {
-    if (!/\.(?:tsx?|q|md|[cm]?js)$/.test(file)) continue;
+  const witness = await readFile(resolve(root, "react/src/witness.ts"), "utf8");
+  assert.match(witness, /snapshot\.partial \|\| snapshot\.reason\?\.code === "partial"/);
+  assert.doesNotMatch(witness, /snapshot\.history \? "partial-history"/);
+  for (const entry of await readdir(root, { recursive: true, withFileTypes: true })) {
+    if (!entry.isFile()) continue;
+    const file = relative(root, resolve(entry.parentPath, entry.name));
     const source = await readFile(resolve(root, file), "utf8");
     assert.doesNotMatch(source, /@ref/, file);
-    if (file.includes("/src/")) assert.doesNotMatch(source, /useSnapbackSnapshot|authGeneration|\b(?:visit|captured)\b/, file);
-    if (file.endsWith("/Composer.tsx")) {
-      const send = source.slice(source.indexOf("const send ="), source.indexOf("const sync ="));
+    assert.doesNotMatch(source, /useSnapbackSnapshot/, file);
+    if (file.includes("/src/")) assert.doesNotMatch(source, /authGeneration|\b(?:visit|captured)\b/, file);
+    if (file === "react/src/Composer.tsx" || file === "expo/src/Composer.tsx") {
+      const recovery = source.match(/  const client = useSnapbackClient\(\);\n  const sync = async \(\) => \{[\s\S]*?\n  \};/);
+      assert.ok(recovery, `${file}: the client hook belongs to the explicit Sync slice`);
+      assert.equal((recovery[0].match(/\bclient\b/g) ?? []).length, 3, "only declaration, online and settled");
+      assert.match(recovery[0], /await client\.online\(\);/);
+      assert.match(recovery[0], /await client\.outbox\.settled\(\);/);
+      const rest = source.replace(recovery[0], "").replace(/, useSnapbackClient(?= \} from)/, "");
+      assert.doesNotMatch(rest, /useSnapbackClient|\bclient\b/, `${file}: no client use outside Sync`);
+      const send = source.slice(source.indexOf("const send ="), source.indexOf("const client ="));
       assert.doesNotMatch(send, /\b(?:try|catch|client|generation|current)\b/, file);
       assert.match(source, /post\.last/, `${file}: refusal presentation uses the hook's last result`);
-    }
+    } else assert.doesNotMatch(source, /useSnapbackClient/, file);
   }
 });
 

@@ -12,7 +12,7 @@ import { build } from "esbuild";
 import React, { act } from "react";
 import TestRenderer from "react-test-renderer";
 import { api, browserTokenStore, createClient } from "../dist/client.mjs";
-import { RefusalError } from "../dist/client-observed-test.mjs";
+import { RefusalError, composeHistory } from "../dist/client-observed-test.mjs";
 import { nodeSqliteDriver } from "../dist/sqlite-test.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
 import { fakeOwner, seededStore } from "./fake-owner.ts";
@@ -35,12 +35,12 @@ function observeTestOutbox(client: any) {
     (notify: () => void) => client.outbox.subscribe(notify), () => String(client.snapshot.authGeneration));
 }
 
-test("Expo renders declared history for a partial composite and the composite once it is usable", async () => {
+for (const arm of ["Expo", "React"]) test(`${arm} renders real loading-history drafts and keeps the bubble into a usable composite`, async () => {
   const bundlePath = fileURLToPath(new URL("../dist/.expo-thread-history.test-bundle.mjs", import.meta.url));
   const bundled = await build({
     stdin: {
-      contents: 'export { Thread } from "./screens/Thread";',
-      resolveDir: fileURLToPath(new URL("../templates/chat/expo/src", import.meta.url)),
+      contents: arm === "Expo" ? 'export { Thread } from "./screens/Thread";' : 'export { Thread } from "./Thread";',
+      resolveDir: fileURLToPath(new URL(`../templates/chat/${arm.toLowerCase()}/src`, import.meta.url)),
       sourcefile: "expo-thread.tsx",
       loader: "tsx",
     },
@@ -54,7 +54,7 @@ test("Expo renders declared history for a partial composite and the composite on
     plugins: [{
       name: "package-dist",
       setup(plugin) {
-        plugin.onResolve({ filter: /^snapback2\/(react-native|client)$/ }, (args) => ({
+        plugin.onResolve({ filter: /^snapback2\/(react|react-native|client)$/ }, (args) => ({
           path: `./${args.path.slice("snapback2/".length)}.mjs`, external: true,
         }));
       },
@@ -68,8 +68,10 @@ test("Expo renders declared history for a partial composite and the composite on
     message: { id: "message-held", at: 1, authorId: "profile-alice", body: "independently held" } };
   const items = [{ key: "message-held", data: message.message, predicted: false, pending: [] }];
   const reason = { code: "partial", message: "Some data is not downloaded." };
-  // Only the plain fields are supplied: screen display needs no truthful-tier axes.
-  let snapshot: any = { status: "unavailable", data: undefined, partial: true, next: null, reason, items };
+  const receipt = { state: "partial", source: "twin", seq: 1, next: null };
+  const primary: any = { status: "unavailable", data: undefined, partial: false, next: null, reason, receipt, items };
+  const history: any = { status: "ready", data: [message], items, receipt: { ...receipt, state: "complete" } };
+  let snapshot: any = composeHistory(primary, history);
   const client: any = {
     ready: Promise.resolve(),
     snapshot: { authGeneration: 1, connection: "offline", auth: { state: "authenticated", viewer: "profile-alice" } },
@@ -95,20 +97,42 @@ test("Expo renders declared history for a partial composite and the composite on
   };
   try {
     await act(async () => { renderer = TestRenderer.create(React.createElement(SnapbackProvider, { client },
-      React.createElement(Thread, { conversationId: "conversation-1" }))); });
+      React.createElement(Thread, { conversationId: "conversation-1", viewer: "profile-alice" }))); });
     assert.deepEqual(observed, ["messages.conversationView+history"], "one observation, carrying the declared history");
     const partialTree = JSON.stringify(renderer!.toJSON());
     assert.match(partialTree, /independently held/);
     assert.match(partialTree, /Message count unavailable/);
     assert.match(partialTree, /Count and preview unavailable/);
 
-    await publish({ status: "unavailable", data: undefined, partial: false, next: null, reason, items: [] });
+    const draft = { key: "draft-1", data: { id: "draft-1", body: "hidden primary row", at: 1 },
+      draft: { body: "unfinished local send" }, predicted: true,
+      pending: [{ intent: "intent-1", kind: "create", state: "queued", label: "Sending…", dismissible: false }] };
+    const loading = composeHistory({ ...primary, items: [...items, draft] }, { status: "loading", items: [] } as any);
+    assert.equal(loading.partial, false);
+    assert.equal(loading.itemsFrom, "drafts");
+    assert.equal(loading.history.status, "loading");
+    assert.equal(loading.items.length, 1);
+    assert.equal(loading.items[0].data, undefined);
+    await publish(loading);
     const loadingTree = JSON.stringify(renderer!.toJSON());
     assert.match(loadingTree, /Count and preview unavailable/, "loading history is still the fallback in force");
-    assert.doesNotMatch(loadingTree, /independently held/);
-
+    assert.doesNotMatch(loadingTree, /independently held|hidden primary row/);
+    assert.match(loadingTree, /unfinished local send|Sending…/);
+    assert.match(loadingTree, /Message count unavailable/);
+    const bubble = () => arm === "Expo"
+      ? renderer!.root.findAllByType("NativeView").find(node => node.props.testID === "message-draft-1")
+      : renderer!.root.findAllByType("li").find(node => node.props["data-message"] === "draft-1");
+    const pending = bubble(); assert.ok(pending);
+    if (arm === "React") {
+      assert.equal(renderer!.root.findByType("ol").props["data-view-source"], "partial-history");
+      assert.equal(renderer!.root.findByType("ol").props["data-view-state"], "loading");
+      assert.equal(renderer!.root.findAllByType("p").find(node => node.props.className === "thread-history-note")!.props["data-history-state"], "loading");
+    }
     const value = { messages: [message], count: 1, preview: [message] };
-    await publish({ status: "ready", data: value, partial: false, next: null, items });
+    await publish(composeHistory({ status: "ready", data: value, partial: false, next: null,
+      receipt: { ...receipt, state: "complete" }, items: [...items, { ...draft, data: { ...draft.data, body: draft.draft.body } }] } as any, undefined));
+    assert.strictEqual(bubble(), pending, "the drafts-only bubble survives composite publication");
+    if (arm === "React") assert.equal(renderer!.root.findByType("ol").props["data-view-source"], "composite");
     const usableTree = JSON.stringify(renderer!.toJSON());
     assert.match(usableTree, /1 message · Latest: independently held/);
     assert.doesNotMatch(usableTree, /Count and preview unavailable/);

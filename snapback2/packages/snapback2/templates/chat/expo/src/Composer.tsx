@@ -4,13 +4,18 @@ import { Button, Text, TextInput, View } from "react-native";
 import { useAuth, useMutation, useOutbox, useSnapbackClient } from "snapback2/react-native";
 
 export function Composer({ conversationId }: { conversationId: string }) {
-  const { viewer } = useAuth();
-  return <Draft key={JSON.stringify([viewer, conversationId])} conversationId={conversationId} />;
+  const auth = useAuth();
+  const account = auth.state === "anonymous" ? null : auth.viewer ?? auth.restoringViewer;
+  const [scope, setScope] = useState({ account, key: 0 });
+  // First confirmation adopts the cold draft; logout and account switches reset it.
+  if (account !== undefined && account !== scope.account) {
+    setScope({ account, key: scope.key + (scope.account === undefined && account !== null ? 0 : 1) });
+  }
+  return <Draft key={JSON.stringify([scope.key, conversationId])} conversationId={conversationId} />;
 }
 function Draft({ conversationId }: { conversationId: string }) {
   const post = useMutation(messageWrites.create);
   const outbox = useOutbox();
-  const client = useSnapbackClient();
   const [body, setBody] = useState("");
   const [syncing, setSyncing] = useState(false);
   const [syncNote, setSyncNote] = useState("");
@@ -25,6 +30,7 @@ function Draft({ conversationId }: { conversationId: string }) {
     const result = await post.run({ conversationId, body: text });
     if (result.state !== "rejected") setBody(now => now === draft ? "" : now);
   };
+  const client = useSnapbackClient();
   const sync = async () => {
     setSyncing(true);
     try {
@@ -39,7 +45,7 @@ function Draft({ conversationId }: { conversationId: string }) {
     <TextInput accessibilityLabel="Message" placeholder="Message" value={body} onChangeText={setBody} multiline />
     <Button title="Send" disabled={post.inFlight || !post.can.send || !body.trim()} onPress={() => { void send(); }} />
     {post.can.reason ? <Text accessibilityRole="text">{post.can.reason.message}</Text> : null}
-    {post.can.action === "connect" ? <Button title={syncing ? "Syncing…" : "Sync now"} disabled={syncing}
+    {syncing || post.can.action === "connect" ? <Button title={syncing ? "Syncing…" : "Sync now"} disabled={syncing}
       onPress={() => { void sync(); }} /> : null}
     {note ? <Text accessibilityRole="alert">{note}</Text> : null}
     {syncNote ? <Text accessibilityRole="alert">{syncNote}</Text> : null}

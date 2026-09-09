@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { after, before, test } from "node:test";
+import { after, before, describe, test } from "node:test";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { mkdtemp, readFile, readdir, rm, writeFile, mkdir, stat } from "node:fs/promises";
@@ -22,15 +22,15 @@ const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const workspace = resolve(packageRoot, "../..");
 const execute = promisify(execFile);
 const tick = () => act(async () => { await new Promise((done) => setTimeout(done, 1)); });
-async function until(predicate: () => boolean) { for (let i = 0; i < 1000 && !predicate(); i++) await tick(); assert.ok(predicate()); }
+async function until(predicate: () => boolean, label: string | (() => string) = "native rendered state") {
+  for (let i = 0; i < 1000 && !predicate(); i++) await tick();
+  assert.ok(predicate(), typeof label === "function" ? label() : label);
+}
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 (globalThis as any).__snapbackNative ??= { React, fileBodies: new Map(), fileUris: [], videoSources: [] };
 register(new URL("./native-mocks/loader.mjs", import.meta.url));
-const { SnapbackProvider } = await import("../dist/expo.mjs");
-const { MediaView, configuration, persist, NormalApp, Chat, Composer } = await import("../dist/witness-test.mjs");
-let chatOwner: RealOwnerHarness;
-before(async () => { chatOwner = await RealOwnerHarness.create({ fullChat: true }); });
-after(async () => { await chatOwner?.close(); });
+const { SnapbackProvider, useAuth } = await import("../dist/expo.mjs");
+const { MediaView, configuration, persist, NormalApp, Chat, Composer, Thread } = await import("../dist/witness-test.mjs");
 
 test("built Expo under Hermes-like globals logs in, drains, and views a photo", async () => {
   const { stdout } = await execute(process.execPath, [join(packageRoot, "tests/hermes-expo.ts")], { timeout: 5_000 });
@@ -263,6 +263,11 @@ const nativeButton = (renderer: ReturnType<typeof TestRenderer.create>, title: s
 const refusal = () => new Response(JSON.stringify({ state: "rejected", code: "MEMBERSHIP_REQUIRED", family: "rule",
   message: "Membership required", rewrite: "Join this conversation before sending" }), { headers: { "content-type": "application/json" } });
 
+describe("rendered Expo chat", () => {
+let chatOwner: RealOwnerHarness;
+before(async () => { chatOwner = await RealOwnerHarness.create({ fullChat: true }); });
+after(async () => { await chatOwner?.close(); });
+
 for (const transport of [false, true]) test(`Expo Composer renders ${transport ? "transport" : "rule"} refusal and clears account-owned text`, async () => {
   const client = createClient({ url: chatOwner.url, fetch: async (input, init) => {
     if (new URL(String(input)).pathname === "/api/mutation") {
@@ -288,16 +293,23 @@ for (const transport of [false, true]) test(`Expo Composer renders ${transport ?
 });
 
 for (const state of ["committed", "rejected"]) test(`Expo ignores a late ${state} send after changing conversations`, async () => {
-  let release!: () => void, started!: () => void;
+  let release!: () => void, started!: () => void, consumed!: (value: any) => void, finished!: (value: any) => void;
+  const bodyConsumed = new Promise<any>(done => { consumed = done; });
+  const mutationFinished = new Promise<any>(done => { finished = done; });
   const gate = new Promise<void>(done => { release = done; });
   const entered = new Promise<void>(done => { started = done; });
   const client = createClient({ url: chatOwner.url, persona: "alice", fetch: async (input, init) => {
     if (new URL(String(input)).pathname === "/api/mutation") {
       started(); await gate;
-      return state === "rejected" ? refusal() : globalThis.fetch(input, init);
+      const response = state === "rejected" ? refusal() : await globalThis.fetch(input, init);
+      const read = response.json.bind(response);
+      response.json = async () => { const value = await read(); consumed(value); return value; };
+      return response;
     }
     return globalThis.fetch(input, init);
   } });
+  const mutate = client.mutation.bind(client);
+  client.mutation = (...args) => { const result = mutate(...args); void result.then(finished); return result; };
   let renderer!: ReturnType<typeof TestRenderer.create>;
   const view = (conversationId: string) => React.createElement(SnapbackProvider, { client }, React.createElement(Composer, { conversationId }));
   try {
@@ -308,7 +320,12 @@ for (const state of ["committed", "rejected"]) test(`Expo ignores a late ${state
     await act(async () => renderer.update(view("conversation-2")));
     assert.equal(nativeInput(renderer).props.value, "", "a different conversation has its own draft");
     await act(async () => nativeInput(renderer).props.onChangeText("same native draft"));
-    release(); await act(async () => { await new Promise(done => setTimeout(done, 75)); });
+    await act(async () => {
+      release();
+      assert.equal((await bodyConsumed).state, state, "the old response body was consumed");
+      assert.equal((await mutationFinished).state, state);
+      await new Promise<void>(done => setImmediate(done)); // Flush the hook and send continuation.
+    });
     assert.equal(nativeInput(renderer).props.value, "same native draft");
     assert.doesNotMatch(nativeText(renderer), /Not sent:/);
     assert.equal(nativeButton(renderer, "Send").props.disabled, false);
@@ -373,4 +390,134 @@ test("Expo Thread queues in partial history, preserves the bubble through failed
     if (renderer) await act(async () => renderer.unmount());
     await warm.close(); await client?.close(); await writer.close(); await rm(directory, { recursive: true, force: true });
   }
+});
+
+
+for (const boundary of ["navigation", "account", "anonymous"]) test(`Expo cold Composer preserves confirmation and clears draft/Sync state at ${boundary}`, async (t) => {
+  let renderer!: ReturnType<typeof TestRenderer.create>;
+  const update = async (client: any, conversationId: string) => { await act(async () => {
+    const view = React.createElement(SnapbackProvider, { client }, React.createElement(Composer, { conversationId }), React.createElement(CommitProbe, { conversationId }));
+    if (renderer) renderer.update(view); else renderer = TestRenderer.create(view);
+  }); };
+  const input = () => nativeInput(renderer);
+  const body = () => input().props.value;
+  const typeDraft = async (value: string) => { await act(async () => input().props.onChangeText(value)); };
+  const tree = () => nativeText(renderer);
+  const syncButton = (title: string) => nativeButton(renderer, title).props;
+  const pressSync = async () => { await act(async () => syncButton("Sync now").onPress()); };
+  const wait = until;
+  const commits: { conversationId: string; state: string; viewer?: string; body: string }[] = [];
+  function CommitProbe({ conversationId }: { conversationId: string }) {
+    const auth = useAuth();
+    React.useLayoutEffect(() => {
+      if (renderer) commits.push({ conversationId, state: auth.state, viewer: auth.viewer, body: body() });
+    });
+    return null;
+  }
+  const directory = await mkdtemp(join(tmpdir(), "a2-cold-composer-"));
+  const store = fileRangeStore(directory);
+  const warm = createClient({ url: chatOwner.url, persona: "alice", offline: { store } });
+  const other = createClient({ url: chatOwner.url });
+  let client: any, release!: () => void, entered!: () => void;
+  const gate = new Promise<void>(done => { release = done; });
+  const replayEntered = new Promise<void>(done => { entered = done; });
+  let sends = 0;
+  try {
+    await warm.ready;
+    await warm.query(api.messages.thread, { conversationId: "conversation-1" });
+    const drain = subscribe(warm, api.messages.inbox, {}, () => undefined, { drain: true });
+    await drain.until(event => event.live === true && event.caughtUp === true, 5_000);
+    await warm.offline();
+    const queued = await warm.mutation(api.messages.send, { conversationId: "conversation-1", body: "queued before cold confirmation" });
+    assert.equal(queued.state, "queued");
+    drain.close(); await warm.close();
+    client = createClient({ url: chatOwner.url, persona: "alice", startOffline: true, offline: { store }, fetch: async (input, init) => {
+      const response = await globalThis.fetch(input, init);
+      if (new URL(String(input)).pathname !== "/api/mutation") return response;
+      sends++;
+      assert.equal((await response.json()).state, "committed");
+      entered(); await gate;
+      return new Response(JSON.stringify({ message: "lost receipt" }), { status: 503 });
+    } });
+    await client.ready;
+    await update(client, "conversation-1");
+    assert.equal(client.snapshot.auth.viewer, undefined);
+    await typeDraft("unfinished cold draft");
+    const coldInput = input();
+    await pressSync();
+    await act(async () => { await replayEntered; });
+    assert.equal(client.snapshot.auth.viewer, "dev:alice");
+    assert.equal(body(), "unfinished cold draft", "first confirmation preserves the unsent draft");
+    assert.strictEqual(input(), coldInput, "first confirmation keeps the Composer mounted");
+    assert.equal(syncButton("Syncing…").disabled, true, "Sync stays in flight while its response is held");
+    release();
+    await wait(() => tree().includes("1 queued; sync paused. Your messages are saved."));
+    assert.equal(body(), "unfinished cold draft");
+    assert.equal(syncButton("Sync now").disabled, false);
+    assert.equal(sends, 1, "confirmation must not trigger an extra replay");
+    assert.equal((await client.outbox.entries())[0].state, "queued");
+    await other.ready; await other.auth.guest();
+    if (boundary === "anonymous") await other.auth.logout();
+    commits.length = 0;
+    await update(boundary === "navigation" ? client : other, boundary === "navigation" ? "conversation-2" : "conversation-1");
+    assert.ok(commits.length > 0);
+    assert.ok(commits.every(commit => commit.body === ""), `${boundary}: no committed frame exposes the old draft`);
+    assert.equal(body(), "", `${boundary}: draft reset is synchronous`);
+    assert.ok(!tree().includes("sync paused"), `${boundary}: old Sync advice is gone`);
+    assert.ok(!tree().includes("Syncing…"), `${boundary}: old Sync activity is gone`);
+    // Exercise navigation and a live logout independently of the boundary above.
+    await typeDraft("navigation draft");
+    commits.length = 0;
+    await update(boundary === "navigation" ? client : other, boundary === "navigation" ? "conversation-1" : "conversation-2");
+    assert.ok(commits.length > 0 && commits.every(commit => commit.body === ""));
+    await update(other, "conversation-1");
+    if (boundary === "anonymous") await act(async () => { await other.auth.guest(); });
+    await typeDraft("logout draft");
+    commits.length = 0;
+    await act(async () => { await other.auth.logout(); });
+    const anonymous = commits.filter(commit => commit.state === "anonymous");
+    assert.ok(anonymous.length > 0);
+    assert.ok(anonymous.every(commit => commit.body === ""), "no anonymous commit exposes the old draft");
+    assert.equal(other.snapshot.auth.state, "anonymous");
+    assert.equal(body(), "", "logout resets the draft synchronously");
+    t.diagnostic("cold confirmation: unsent draft + input identity + in-flight Sync + stopped advice preserved; 1 replay; all scope resets verified");
+  } finally {
+    release(); await act(async () => renderer?.unmount());
+    await warm.close(); await client?.close(); await other.close();
+
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+
+test("Expo keeps the conversation mounted without carrying a once-photo opening to the next viewer", async () => {
+  let bobAssetRequests = 0;
+  const alice = createClient({ url: chatOwner.url, persona: "alice" });
+  const bob = createClient({ url: chatOwner.url, persona: "bob", fetch: async (input, init) => {
+    if (new URL(String(input)).pathname.startsWith("/api/assets/")) bobAssetRequests++;
+    return globalThis.fetch(input, init);
+  } });
+  let renderer!: ReturnType<typeof TestRenderer.create>;
+  const view = (client: any) => React.createElement(SnapbackProvider, { client }, React.createElement(Thread, { conversationId: "conversation-1" }));
+  try {
+    await alice.ready; await alice.auth.me(); await bob.ready; await bob.auth.me();
+    const png = await readFile(new URL("../../../scripts/witness-expo/view-once.png", import.meta.url));
+    const photo = await alice.upload(new Blob([png], { type: "image/png" }), { kind: "image" });
+    const sent = await alice.mutation(api.messages.sendOncePhoto, { conversationId: "conversation-1", photo });
+    assert.equal(sent.state, "committed");
+    await act(async () => { renderer = TestRenderer.create(view(alice)); });
+    const bubble = () => renderer.root.findAllByType("NativeView").find(node => node.props.testID === `message-${sent.data.id}`);
+    const button = () => bubble()?.findAllByType("NativeButton").find(node => node.props.title === "View photo once");
+    await until(() => Boolean(button()));
+    const list = renderer.root.findAllByType("NativeScrollView").find(node => node.findAllByProps({ testID: "thread-summary" }).length)!;
+    await act(async () => button()!.props.onPress());
+    await until(() => !!bubble()?.findAllByType("NativeImage").length);
+    await act(async () => renderer.update(view(bob)));
+    await until(() => Boolean(button()), () => `Bob unopened photo: ${JSON.stringify(bob.snapshot.auth)} ${nativeText(renderer)}`);
+    assert.ok(renderer.root.findAllByType("NativeScrollView").find(node => node.findAllByProps({ testID: "thread-summary" }).length) === list, "viewer changes preserve the conversation/list");
+    assert.equal(bubble()!.findAllByType("NativeImage").length, 0);
+    assert.equal(bobAssetRequests, 0, "Bob has not chosen to spend his view-once delivery");
+  } finally { if (renderer) await act(async () => renderer.unmount()); await alice.close(); await bob.close(); }
+});
+
 });
