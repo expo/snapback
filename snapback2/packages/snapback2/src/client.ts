@@ -31,10 +31,9 @@ import {
   type Authority,
 } from "./client-upload.js";
 import {
-  RefusalError,
+  RefusalError, isRefusalError,
   copyRefusal, toRefusal, requestRefusal,
   fallbackRefusal, followerRefusal, supersededRefusal, throwIfAborted, withAbort,
-  isRefusalError,
   isTerminalSession,
   responseRefusal, responseJson, type JsonRequestOptions,
   sseObject,
