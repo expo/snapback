@@ -107,14 +107,16 @@ async function discardAutomaticUploads(host: UploadHost, records: readonly Asset
 export async function withMutationUploads<Result>(
   host: UploadHost, operation: string, args: unknown, authority: Authority,
   manifest: () => Promise<Manifest>,
-  submit: (args: unknown, onCustody: (kind: "wire" | "outbox") => void) => Promise<MutationResult<Result>>,
+  submit: (args: unknown, onCustody: (kind: "wire" | "outbox") => void, expectedGeneration?: string) => Promise<MutationResult<Result>>,
 ): Promise<MutationResult<Result>> {
   const records: AssetRecord[] = [];
   let custody: "wire" | "outbox" | undefined;
   try {
     let mutationArgs = args;
+    let expectedGeneration: string | undefined;
     if (mayNeedAssetPlanning(args)) {
       const descriptorManifest = await manifest();
+      expectedGeneration = descriptorManifest.programGeneration;
       const descriptor = descriptorManifest.ops[operation]?.args;
       if (descriptor === undefined) throw assetInput(host, new AssetInputError("E_ASSET_TYPE",
         `manifest generation ${descriptorManifest.generation} has no argument descriptor for ${operation}`));
@@ -123,12 +125,12 @@ export async function withMutationUploads<Result>(
       if (placements.length > 0) {
         for (const placement of placements) records.push(await uploadPrepared(host, placement.prepared, {}, authority));
         const current = await manifest();
-        if (current.generation !== descriptorManifest.generation) throw assetInput(host, new AssetInputError("E_ASSET_NOT_READY",
+        if (current.programGeneration !== descriptorManifest.programGeneration) throw assetInput(host, new AssetInputError("E_ASSET_NOT_READY",
           `descriptor generation changed from ${descriptorManifest.generation} to ${current.generation} during asset upload`));
         mutationArgs = substituteAssetRecords(args, placements, records);
       }
     }
-    const result = await submit(mutationArgs, (kind) => { custody = kind; });
+    const result = await submit(mutationArgs, (kind) => { custody = kind; }, expectedGeneration);
     if (result.state === "rejected") await discardAutomaticUploads(host, records, authority);
     return result;
   } catch (error) {

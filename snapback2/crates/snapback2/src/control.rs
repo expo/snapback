@@ -119,6 +119,7 @@ pub fn route(
             args: body.get("args").cloned().unwrap_or_else(|| json!({})),
             identity: control_identity(&body),
             expected: None,
+            expected_generation: None,
             offline: Default::default(),
             replay: None,
         }),

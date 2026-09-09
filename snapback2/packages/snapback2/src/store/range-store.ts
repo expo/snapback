@@ -200,6 +200,7 @@ export interface OutboxEntry {
   op: string;
   args: unknown;
   issuedSeq: number;
+  expectedGeneration?: string;
   state: OutboxState;
   response?: unknown;
   presentation?: string; // The submitter's table choice, fixed with admission.

@@ -77,6 +77,7 @@ export interface EnqueueInput {
   op: string;
   args: unknown;
   issuedSeq: number;
+  expectedGeneration?: string;
   presentation?: string;
   trace?: OutboxTrace;
   /** The inbox row this intent is admitted from (LLP 1018.004 §2). */
@@ -377,6 +378,7 @@ export class OutboxLedger {
         op: input.op,
         args,
         issuedSeq: input.issuedSeq,
+        ...(input.expectedGeneration ? { expectedGeneration: input.expectedGeneration } : {}),
         state: "queued",
         ...(prediction?.predicted ? { predicted: true } : {}),
         ...(pastFence ? { predicted: false, reason: "fence" as const } : {}),
@@ -509,11 +511,13 @@ export class OutboxLedger {
 export function replayEnvelope(entry: OutboxEntry): {
   op: string;
   args: unknown;
+  expectedGeneration?: string;
   replay: { grant: string; offset: number; count: number; intent: string; trace: OutboxTrace };
 } {
   return {
     op: entry.op,
     args: entry.args,
+    ...(entry.expectedGeneration ? { expectedGeneration: entry.expectedGeneration } : {}),
     replay: {
       grant: entry.grant,
       offset: entry.offset,

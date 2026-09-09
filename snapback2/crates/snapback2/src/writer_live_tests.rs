@@ -401,3 +401,39 @@ fn live_ids_survive_clock_and_successor_reruns_and_terminal_cleanup_detaches_onc
     assert!(state.runtime().subscriptions().is_empty());
     std::fs::remove_dir_all(&state.root).unwrap();
 }
+
+#[test]
+fn mutation_generation_fence_is_atomic_and_replay_terminals_survive_successors() {
+    let mut state = state("generation-fence");
+    let generation = state.runtime().generation().program_hash().to_owned();
+    let authority = state.resolve_authority(Identity::Persona("alice".into())).unwrap();
+    let grant = state.mint_replay_grant(authority.principal.id.as_str()).unwrap();
+    let request = |offset, expected: &str| Action::Execute {
+        op: "items.change".into(), args: json!({"key":"target", "value":7}),
+        identity: Identity::Persona("alice".into()), expected: Some(ProgramKind::Mutation),
+        expected_generation: Some(json!(expected)), offline: OfflineOptions::default(),
+        replay: Some(json!({"grant":grant.id,"offset":offset,"count":1,
+            "intent":format!("{}:{offset}",grant.id),"trace":{"points":[],"verdicts":[]}})),
+    };
+    let committed = state.handle(request(0, &generation)).unwrap();
+    assert_eq!(committed["state"], "committed");
+    let mut successor = state.compiled.project.clone();
+    successor.programs.iter_mut().find(|p| p.name == "items.change").unwrap().body.pop();
+    let next = Generation::certify(&successor, Ceilings::default()).unwrap();
+    state.apply(compiled(&successor, next), None, None, None).unwrap();
+    let seq = state.runtime().store().commit_seq().unwrap();
+    assert_eq!(state.handle(request(0, &generation)).unwrap(), committed);
+    let rejected = state.handle(request(1, &generation)).unwrap();
+    assert_eq!(rejected["reason"], "generation_changed");
+    assert_eq!(rejected["code"], "E_GENERATION_CHANGED");
+    assert_eq!(state.runtime().store().commit_seq().unwrap(), seq);
+    assert_eq!(state.handle(request(1, &generation)).unwrap(), rejected);
+    let plain = state.handle(Action::Execute {
+        op:"items.change".into(), args:json!({"key":"target","value":9}),
+        identity:Identity::Persona("alice".into()), expected:Some(ProgramKind::Mutation),
+        expected_generation:Some(json!(generation)), offline:OfflineOptions::default(), replay:None,
+    }).unwrap();
+    assert_eq!(plain["reason"], "generation_changed");
+    assert_eq!(state.runtime().store().commit_seq().unwrap(), seq);
+    std::fs::remove_dir_all(&state.root).unwrap();
+}

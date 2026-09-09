@@ -13,6 +13,8 @@ use snapback2_core::{
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct ReplayEnvelope {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    expected_generation: Option<Json>,
     grant: String,
     offset: u32,
     count: u32,
@@ -130,8 +132,6 @@ impl State {
                 "the replay intent was already settled for different request bytes",
             ));
         }
-        self.operation_kind(op, Some(ProgramKind::Mutation))?;
-        let trace = self.decode_replay_trace(&wire.trace)?;
         let stored_grant = self
             .runtime()
             .store()
@@ -174,6 +174,16 @@ impl State {
                 "the replay id slice overlaps an already settled intent",
             ));
         }
+        if let Some(mut response) = self.generation_rejection(wire.expected_generation.as_ref())? {
+            response["intent"] = json!(wire.intent);
+            let replay = ReplayCommit { grant: wire.grant, offset: wire.offset, count: wire.count,
+                intent: wire.intent, request_digest, trace: ReplayTrace::default(), at: now };
+            self.runtime().store().record_replay_rejection(principal, &replay, &response)
+                .map_err(|error| Refusal::from_runtime(&error))?;
+            return Ok(response);
+        }
+        self.operation_kind(op, Some(ProgramKind::Mutation))?;
+        let trace = self.decode_replay_trace(&wire.trace)?;
         let mut context = self.context(authority, op, args)?;
         // The grant's reserved ids replace the ordinary 1,024-id reservation.
         context.new_ids = ids;

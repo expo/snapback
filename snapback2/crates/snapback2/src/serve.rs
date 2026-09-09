@@ -479,6 +479,7 @@ fn handle(mut request: Request, context: Context, streams: live::Streams) {
                 args: body.get("args").cloned().unwrap_or_else(|| json!({})),
                 identity,
                 expected: Some(snapback2_core::ProgramKind::Query),
+                expected_generation: None,
                 offline: offline_options(&body, &query),
                 replay: None,
             },
@@ -492,6 +493,7 @@ fn handle(mut request: Request, context: Context, streams: live::Streams) {
                 args: body.get("args").cloned().unwrap_or_else(|| json!({})),
                 identity,
                 expected: Some(snapback2_core::ProgramKind::Mutation),
+                expected_generation: body.get("expectedGeneration").cloned(),
                 offline: OfflineOptions::default(),
                 // A client that sends `replay: null` is a client without a store.
                 replay: body.get("replay").filter(|value| !value.is_null()).cloned(),

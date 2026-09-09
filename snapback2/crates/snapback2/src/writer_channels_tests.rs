@@ -149,6 +149,7 @@ fn remove_permission(state: &mut State, id: &str) {
             args: json!({"id":id}),
             identity: Identity::Persona("alice".into()),
             expected: Some(ProgramKind::Mutation),
+            expected_generation: None,
             offline: Default::default(),
             replay: None,
         })

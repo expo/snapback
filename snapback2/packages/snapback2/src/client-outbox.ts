@@ -70,6 +70,7 @@ export interface SubmitMutationOptions {
   op: string;
   args: unknown;
   presentation?: string;
+  expectedGeneration?: string;
   json: Transport;
   failure(error: unknown): Error;
   drain(): Promise<{ stopped: boolean }>;
@@ -95,7 +96,7 @@ export async function submitMutation<Result>(options: SubmitMutationOptions): Pr
   const plain = async () => {
     return wireMutation<Result>(await options.json("/api/mutation", {
       method: "POST",
-      body: JSON.stringify({ op: options.op, args: options.args }),
+      body: JSON.stringify({ op: options.op, args: options.args, expectedGeneration: options.expectedGeneration }),
     }, () => options.onCustody?.("wire")));
   };
   // A follower tab never sends plain bytes: a write landing ahead of the writer
@@ -112,7 +113,7 @@ export async function submitMutation<Result>(options: SubmitMutationOptions): Pr
   const enqueue = async (): Promise<OutboxEntry> => {
     try {
       return await runtime.outbox.enqueue(
-        { op: options.op, args: options.args, issuedSeq: runtime.seq, presentation: options.presentation },
+        { op: options.op, args: options.args, expectedGeneration: options.expectedGeneration, issuedSeq: runtime.seq, presentation: options.presentation },
         (ids) => runtime.predict(options.op, options.args, ids),
         () => options.onCustody?.("outbox"),
       );

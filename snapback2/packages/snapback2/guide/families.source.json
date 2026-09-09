@@ -107,7 +107,7 @@
   {
     "family": "bound",
     "code": "E_BOUND",
-    "wrong": "500 merge lanes × (20 + 2), 50 writes × cap 1000, or a wide nested result exceeds a named ceiling",
+    "wrong": "500 merge lanes \u00d7 (20 + 2), 50 writes \u00d7 cap 1000, or a wide nested result exceeds a named ceiling",
     "right": "Follow the largest sourced term: structurally reduce merge lanes/page, use two reads (two snapshots), or maintain a feed; for a cap use the named fitting chunk; for nested scans use maintain.count/sum; for bytes narrow the named collection and fields",
     "guide": "quarry"
   },
@@ -511,7 +511,7 @@
     "site": "by",
     "guide": "operator",
     "wrong": "send a control request with by: \"alice.smith\"",
-    "right": "set by to 1–80 ASCII letters, numbers, dashes, or underscores, such as operator-alice; system is reserved"
+    "right": "set by to 1\u201380 ASCII letters, numbers, dashes, or underscores, such as operator-alice; system is reserved"
   },
   {
     "family": "successor",
@@ -608,5 +608,12 @@
     "guide": "schedule",
     "wrong": "```q\n-- snapback/schema.q\ntable messages:\n  body: text <=100\n  at: time\n  expiresAt: time ?\n  public\n\n-- snapback/ops.q\nmutation purgeMessage(id: messages):\n  delete messages[id]\n  return null\nquery thread(id: messages):\n  return messages[id]\nmutation digestSweep():\n  return null\nschedule dailyDigest every 30s:\n  digestSweep\n```",
     "right": "```q\n-- snapback/schema.q\ntable messages:\n  body: text <=100\n  at: time\n  expiresAt: time ?\n  public\n\n-- snapback/ops.q\nmutation purgeMessage(id: messages):\n  delete messages[id]\n  return null\nquery thread(id: messages):\n  return messages[id]\nmutation digestSweep():\n  return null\nschedule dailyDigest every 24h:\n  digestSweep\n```"
+  },
+  {
+    "family": "successor",
+    "code": "E_GENERATION_CHANGED",
+    "wrong": "A mutation sends expectedGeneration from an older manifest.",
+    "right": "Read /api/manifest again, inspect the operation and arguments, then submit a new write using programGeneration as expectedGeneration. The refused request made no application writes; do not blindly retry with a replacement expectation.",
+    "guide": "operator"
   }
 ]

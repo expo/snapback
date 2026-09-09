@@ -12,6 +12,7 @@ import type { AssetInput, ClientSnapshot, Manifest, MutationResult, Refusal } fr
 /** The narrow client seam used by the mutation arm; Client owns every lifecycle transition. */
 export interface MutationClient extends UploadHost {
   readonly offlineRuntime?: OfflineRuntime;
+  readonly observedProgramGeneration?: string;
   readonly inbox: ClientInbox;
   readonly forcedOffline: boolean;
   operationAuthority(): Promise<Authority>;
@@ -41,8 +42,9 @@ export async function performMutation<Args, Result>(
   return host.trackWrite(async () => {
     try {
       const result = await withMutationUploads(host, op, args, authority,
-        () => host.manifestFor(authority), async (mutationArgs, onCustody) => {
+        () => host.manifestFor(authority), async (mutationArgs, onCustody, expectedGeneration) => {
           const result = await submitMutation<Result>({
+            expectedGeneration: expectedGeneration ?? (!host.offlineRuntime ? host.observedProgramGeneration : undefined),
             runtime: host.offlineRuntime, offline: host.forcedOffline, op, args: mutationArgs, presentation,
             json: (path, init, onSend) => host.json(path, init, authority, { terminalSession: "after-cleanup", onSend }),
             failure: error => host.offlineRefusal(error), drain: () => host.drainNow(authority), onCustody,

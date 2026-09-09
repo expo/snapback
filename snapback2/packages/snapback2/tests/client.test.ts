@@ -1248,3 +1248,22 @@ test("plain online query and subscription preserve h1-prefixed noncursor text wi
   await sub.until(delivery => delivery.state === "complete", 500);
   assert.deepEqual(seen, [args, args]);
 });
+
+test("plain mutations bind the observed program generation and preserve generation rejection without retry", async () => {
+  let mutations = 0;
+  const value = createClient({ url: "http://generation.test", fetch: async (input, init) => {
+    if (new URL(String(input)).pathname === "/api/manifest") return fetchJson({
+      generation: "a".repeat(64), programGeneration: "b".repeat(64), ops: {}, channels: {}, auth: {},
+    });
+    mutations++;
+    assert.equal(JSON.parse(String(init?.body)).expectedGeneration, "b".repeat(64));
+    return fetchJson({ state: "rejected", reason: "generation_changed", code: "E_GENERATION_CHANGED", family: "successor",
+      message: "the mutation's expected generation is no longer active", guide: "successor/runtime" });
+  } });
+  await value.manifest();
+  const result = await value.mutation(api.messages.send, {});
+  assert.equal(result.state, "rejected");
+  assert.equal(result.reason, "generation_changed");
+  assert.equal(mutations, 1);
+  value.close();
+});

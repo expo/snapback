@@ -492,6 +492,16 @@ impl Store {
         )
     }
 
+    /// Persist a refusal made at owner admission after the grant and slice were validated.
+    pub fn record_replay_rejection(&self, principal: &str, replay: &ReplayCommit,
+        response: &serde_json::Value) -> Result<(), RuntimeError> {
+        let transaction = self.conn.unchecked_transaction()?;
+        let seq = self.commit_seq()?;
+        Self::record_replay_terminal(&transaction, principal, replay, response, seq)?;
+        transaction.commit()?;
+        Ok(())
+    }
+
     pub(crate) fn record_replay_terminal(
         transaction: &rusqlite::Transaction<'_>,
         principal: &str,

@@ -738,11 +738,13 @@ class Client implements SnapbackClient {
     if (this.persona) headers.set("X-Snapback-As", this.persona);
     return headers;
   }
+  private observedProgramGeneration?: string;
   private async manifestFor(authority: Authority, signal?: AbortSignal): Promise<Manifest> {
     throwIfAborted(signal);
     const value = wireManifest(await this.json("/api/manifest", { signal }, authority));
     throwIfAborted(signal);
     this.validated(authority);
+    this.observedProgramGeneration = value.programGeneration;
     this.patchSnapshot({ generation: value.generation });
     this.queryCursors = value.ops;
     this.offlineRuntime?.manifest(value);

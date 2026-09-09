@@ -17,3 +17,11 @@ refuse before the program runs or writes. Specify the refusal envelope, raw
 wire compatibility posture, hot-successor race tests, and client retry/non-
 retry behavior in LLP 1002 before implementing it. Do not describe the current
 descriptor fence as providing this atomic guarantee.
+
+## Resolution — 2026-09-09
+
+Implemented atomic owner admission with a complete generation_changed rejection,
+plain SDK and upload descriptor binding, durable queued asset expectations, and
+ledger-first replay settlement. Owner regression proves both stale no-write
+rejection and unchanged terminal results across successors. LLP 1002 §4 records
+the optional raw-wire posture and non-retry behavior.

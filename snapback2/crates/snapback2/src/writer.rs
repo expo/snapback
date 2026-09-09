@@ -183,6 +183,7 @@ pub enum Action {
         args: Json,
         identity: Identity,
         expected: Option<ProgramKind>,
+        expected_generation: Option<Json>,
         offline: OfflineOptions,
         replay: Option<Json>,
     },
@@ -586,9 +587,23 @@ impl State {
                 args,
                 identity,
                 expected,
+                expected_generation,
                 offline,
                 replay,
-            } => self.execute(&op, args, identity, expected, offline, replay),
+            } => {
+                let mut replay = replay;
+                if replay.is_some() {
+                    if let Some(generation) = expected_generation {
+                        replay.as_mut().and_then(Json::as_object_mut)
+                            .ok_or_else(|| Refusal::input("replay must be an object", "send the SDK replay envelope"))?
+                            .insert("expectedGeneration".into(), generation);
+                    }
+                } else if let Some(response) = self.generation_rejection(expected_generation.as_ref())? {
+                    self.resolve_authority(identity.clone())?;
+                    return Ok(response);
+                }
+                self.execute(&op, args, identity, expected, offline, replay)
+            },
             Action::Resume { body, identity } => self.resume(body, identity),
             Action::Subscribe {
                 op,
@@ -972,6 +987,18 @@ impl State {
                 "auth/personas",
             ))
         }
+    }
+
+    pub(super) fn generation_rejection(&self, expected: Option<&Json>) -> Result<Option<Json>, Refusal> {
+        let Some(expected) = expected else { return Ok(None); };
+        let generation = expected.as_str().filter(|value| value.len() == 64
+            && value.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()))
+            .ok_or_else(|| Refusal::input("expectedGeneration must be a generation hash", "copy programGeneration from /api/manifest"))?;
+        Ok((generation != self.runtime().generation().program_hash()).then(|| json!({
+            "state":"rejected", "reason":"generation_changed", "code":"E_GENERATION_CHANGED", "family":"successor",
+            "message":"the mutation's expected generation is no longer active", "site":"/api/mutation.expectedGeneration",
+            "guide":"successor/runtime", "rewrite":"refresh the manifest, review the changed operation, and submit a new write"
+        })))
     }
 
     fn execute(

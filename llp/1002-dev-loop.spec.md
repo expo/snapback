@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2` (the binary: owner, server, verbs), `snapback2/packages/compiler` (project lowering, worker), `snapback2/packages/snapback2` (authoring runtime, client, React, test runner, shim), `snapback2/scripts/measure.mjs`
 **Author:** Claude Fable 5 (orchestrator) — implementers: codex gpt-5.6-sol, lanes B0 (compiler + authoring surface), B1 (owner + server + verbs), B2 (`init`, `test`, `why`, `trace`, `guide`), D (client + React + evaluator)
 **Date:** 2026-08-29
-**Revised:** 2026-09-08 (lane D final focused repair: conditional stale-cache recovery and multi-fence effect guide coverage); 2026-09-08 (lane D second repair pass: valid guide fences, legal walk repairs, published family context, successor recovery and unique-source regression pins); 2026-09-08 (lane D review fixes: complete requirement metadata, conservative lookup explanations, executable families, CLI spelling repairs and complete subscriptions); 2026-09-08 (diagnostics say the fix: missing bounds, spelling repairs, current families, wrapping check, source-mapped why prose; implementer GPT-6 Astra, lane D); 2026-09-08 (Lane C final repair: reject statement-bearing expressions throughout policy probes; admit usable inbox arrays before comparison); 2026-09-08 (Lane C round 2: protected-independent guard proof, candidate rejection reasons, isolated count journey); 2026-09-08 (Lane C review: proved carrier projections, derived policy counts, executable Vite precedence and seeded maintain assertions); 2026-09-08 (templates are products, elegance program Lane C, implementer GPT-6 Astra); 2026-09-08 (LLP 1001.000 typed latest-state channels, leases and snapshot clients); 2026-09-08 (resource-aware blocking Rust test scheduling and paired timing); 2026-09-07 (generated insert/merge consumer type bindings; implementer GPT-6 Astra); 2026-09-07 (independent Quarry diagnostics, checked-type repair advice, lexical failure isolation and merge discovery ordering; implementer GPT-6 Astra); 2026-09-07 (preserve unrelated prefixed optional packages; staged platform dependency selection and exact-lock packaging regression; durable browser-follower admission and unknown-outcome recovery; client-owned observed query snapshots; explicit named-journey verification and executable React startup; startup cleanup fixture custody); 2026-09-06 (app guide operation/certificate custody; native logical SSE body; CLI help and executable migration recovery; auth startup recovery and held transition reads; queued transitions, interrupted sync, live held reads); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
+**Revised:** 2026-09-09 (atomic expectedGeneration mutation admission, implementer GPT-6 Astra); 2026-09-08 (lane D final focused repair: conditional stale-cache recovery and multi-fence effect guide coverage); 2026-09-08 (lane D second repair pass: valid guide fences, legal walk repairs, published family context, successor recovery and unique-source regression pins); 2026-09-08 (lane D review fixes: complete requirement metadata, conservative lookup explanations, executable families, CLI spelling repairs and complete subscriptions); 2026-09-08 (diagnostics say the fix: missing bounds, spelling repairs, current families, wrapping check, source-mapped why prose; implementer GPT-6 Astra, lane D); 2026-09-08 (Lane C final repair: reject statement-bearing expressions throughout policy probes; admit usable inbox arrays before comparison); 2026-09-08 (Lane C round 2: protected-independent guard proof, candidate rejection reasons, isolated count journey); 2026-09-08 (Lane C review: proved carrier projections, derived policy counts, executable Vite precedence and seeded maintain assertions); 2026-09-08 (templates are products, elegance program Lane C, implementer GPT-6 Astra); 2026-09-08 (LLP 1001.000 typed latest-state channels, leases and snapshot clients); 2026-09-08 (resource-aware blocking Rust test scheduling and paired timing); 2026-09-07 (generated insert/merge consumer type bindings; implementer GPT-6 Astra); 2026-09-07 (independent Quarry diagnostics, checked-type repair advice, lexical failure isolation and merge discovery ordering; implementer GPT-6 Astra); 2026-09-07 (preserve unrelated prefixed optional packages; staged platform dependency selection and exact-lock packaging regression; durable browser-follower admission and unknown-outcome recovery; client-owned observed query snapshots; explicit named-journey verification and executable React startup; startup cleanup fixture custody); 2026-09-06 (app guide operation/certificate custody; native logical SSE body; CLI help and executable migration recovery; auth startup recovery and held transition reads; queued transitions, interrupted sync, live held reads); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
 **Related:** LLP 1000, LLP 1001 (the engine this serves), LLP 1003 (effects),
 LLP 0329.016 §5 (the design this implements verbatim where it can), LLP
 0329.016 §5.11 (the verb table — no verb exists without its row), LLP
@@ -513,6 +513,29 @@ which is the only error shape on every surface (HTTP, CLI `--json`, worker):
 { "code": "E_UNBOUND_SCAN", "family": "bound", "message": "`todos[viewer]` reads a range; name its bound", "site": "snapback/todos.q:14:9",
   "rewrite": "todos[viewer] first 50 by byOwner", "guide": "quarry/indexes" }
 ```
+
+**Generation-bound writes (2026-09-09).** `POST /api/mutation` accepts
+`expectedGeneration`, the exact manifest `programGeneration` hash (schema
+plus certified operations; the schema-only `generation` is insufficient). The sole writer
+compares it before resolving the operation or decoding its arguments, in the
+same admitted action as execution. A mismatch returns a terminal rejected
+result with `reason: "generation_changed"`, `code: "E_GENERATION_CHANGED"`,
+family `successor`, and the repair to refresh the manifest and submit a new
+write. It runs no program and advances no application commit. A malformed
+expectation is `E_INPUT`; omitted expectations intentionally execute against
+the current generation (raw tools and cold offline intents).
+
+The SDK binds plain mutations to its last observed manifest generation, when
+available, and
+asset substitutions to the descriptor generation captured before upload. That
+expectation is persisted with a queued asset intent and resent unchanged.
+Replay first authenticates and consults its existing terminal ledger; a lost
+successful response stays successful across successors. For a fresh replay,
+valid grant/slice admission precedes the expectation check; a mismatch claims
+that slice and records the refusal atomically. The SDK never retries a
+generation refusal as a different write or silently reinterprets uploaded
+arguments under a successor. Ordinary non-asset offline intents continue to
+use the admitted live program and their read-trace OCC contract.
 
 A mutation denied by a table rule is the stable envelope
 `{ state: "rejected", code: "E_RULE", family: "rule", guide: "rule/runtime", … }`;
