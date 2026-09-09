@@ -170,16 +170,22 @@ fn refusal_code_guide_prints_the_wrong_and_right_pair() {
 }
 
 #[test]
-fn core_refusal_examples_preserve_markdown_preambles_and_json_fences() {
+fn refusal_examples_preserve_markdown_preambles_and_paired_fences() {
     let project = Project::new();
     let families: serde_json::Value = serde_json::from_str(include_str!(
         "../../../packages/snapback2/guide/families.source.json"
     )).unwrap();
     let mut count = 0;
     for entry in families.as_array().unwrap() {
-        if !entry["wrong"].as_str().unwrap().contains("`snapback2 check --ir`") { continue; }
-        count += 1;
         let code = entry["code"].as_str().unwrap();
+        let expected_fences: &[&str] = if entry["wrong"].as_str().unwrap().contains("`snapback2 check --ir`") {
+            &["```json", "```", "```json", "```"]
+        } else if code == "E_EFFECT_THEN_ARGS" {
+            &["```q", "```", "```ts", "```", "```q", "```", "```ts", "```"]
+        } else {
+            continue;
+        };
+        count += 1;
         let output = project.run(&["guide", code]);
         assert!(output.status.success());
         let expected = format!("# {code}\n\nFamily: `{}`\n\nWrong:\n\n{}\n\nRight:\n\n{}\n",
@@ -187,9 +193,9 @@ fn core_refusal_examples_preserve_markdown_preambles_and_json_fences() {
         let content = String::from_utf8(output.stdout).unwrap();
         assert_eq!(content, expected, "{code}");
         let fences: Vec<_> = content.lines().filter(|line| line.starts_with("```")).collect();
-        assert_eq!(fences, ["```json", "```", "```json", "```"], "{code}");
+        assert_eq!(fences, expected_fences, "{code}");
     }
-    assert_eq!(count, 6);
+    assert_eq!(count, 7);
 }
 
 #[test]

@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2` (the binary: owner, server, verbs), `snapback2/packages/compiler` (project lowering, worker), `snapback2/packages/snapback2` (authoring runtime, client, React, test runner, shim), `snapback2/scripts/measure.mjs`
 **Author:** Claude Fable 5 (orchestrator) — implementers: codex gpt-5.6-sol, lanes B0 (compiler + authoring surface), B1 (owner + server + verbs), B2 (`init`, `test`, `why`, `trace`, `guide`), D (client + React + evaluator)
 **Date:** 2026-08-29
-**Revised:** 2026-09-08 (lane D second repair pass: valid guide fences, legal walk repairs, published family context, successor recovery and unique-source regression pins); 2026-09-08 (lane D review fixes: complete requirement metadata, conservative lookup explanations, executable families, CLI spelling repairs and complete subscriptions); 2026-09-08 (diagnostics say the fix: missing bounds, spelling repairs, current families, wrapping check, source-mapped why prose; implementer GPT-6 Astra, lane D); 2026-09-08 (LLP 1001.000 typed latest-state channels, leases and snapshot clients); 2026-09-08 (resource-aware blocking Rust test scheduling and paired timing); 2026-09-07 (generated insert/merge consumer type bindings; implementer GPT-6 Astra); 2026-09-07 (independent Quarry diagnostics, checked-type repair advice, lexical failure isolation and merge discovery ordering; implementer GPT-6 Astra); 2026-09-07 (preserve unrelated prefixed optional packages; staged platform dependency selection and exact-lock packaging regression; durable browser-follower admission and unknown-outcome recovery; client-owned observed query snapshots; explicit named-journey verification and executable React startup; startup cleanup fixture custody); 2026-09-06 (app guide operation/certificate custody; native logical SSE body; CLI help and executable migration recovery; auth startup recovery and held transition reads; queued transitions, interrupted sync, live held reads); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
+**Revised:** 2026-09-08 (lane D final focused repair: conditional stale-cache recovery and multi-fence effect guide coverage); 2026-09-08 (lane D second repair pass: valid guide fences, legal walk repairs, published family context, successor recovery and unique-source regression pins); 2026-09-08 (lane D review fixes: complete requirement metadata, conservative lookup explanations, executable families, CLI spelling repairs and complete subscriptions); 2026-09-08 (diagnostics say the fix: missing bounds, spelling repairs, current families, wrapping check, source-mapped why prose; implementer GPT-6 Astra, lane D); 2026-09-08 (LLP 1001.000 typed latest-state channels, leases and snapshot clients); 2026-09-08 (resource-aware blocking Rust test scheduling and paired timing); 2026-09-07 (generated insert/merge consumer type bindings; implementer GPT-6 Astra); 2026-09-07 (independent Quarry diagnostics, checked-type repair advice, lexical failure isolation and merge discovery ordering; implementer GPT-6 Astra); 2026-09-07 (preserve unrelated prefixed optional packages; staged platform dependency selection and exact-lock packaging regression; durable browser-follower admission and unknown-outcome recovery; client-owned observed query snapshots; explicit named-journey verification and executable React startup; startup cleanup fixture custody); 2026-09-06 (app guide operation/certificate custody; native logical SSE body; CLI help and executable migration recovery; auth startup recovery and held transition reads; queued transitions, interrupted sync, live held reads); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
 **Related:** LLP 1000, LLP 1001 (the engine this serves), LLP 1003 (effects),
 LLP 0329.016 §5 (the design this implements verbatim where it can), LLP
 0329.016 §5.11 (the verb table — no verb exists without its row), LLP
@@ -917,10 +917,21 @@ file placement and effect context, including the non-uniform read rule for
 The existing executable harness compiles those published files without
 per-code semantic injection. The intended code must be first; only dependent
 certification refusals may follow it. Six core-only examples remain explicitly
-`check --ir` inputs. `E_WHY_STALE` keeps failing closed and names the refused
-successor recovery (`dev --status --json`, review/apply or revert), followed
-by a cache refresh and retry. Unique local/assertion sources exclude ambiguity;
+`check --ir` inputs. The unconditional refused-successor recovery wording
+for `E_WHY_STALE` is superseded by the final repair below; fail-closed
+certificate custody remains unchanged. Unique local/assertion sources exclude ambiguity;
 repeated-code controls and all executed lookups remain covered.
+
+Final focused repair (Revised 2026-09-08): inspect `dev --status --json`; if
+a successor is refused, resolve it through the published reviewed-migration
+(`migrationFile` plan/project, then `applyCommand`) or revert path first.
+Otherwise go directly to `snapback2 check`. In either case, `check` refreshes
+the missing, malformed or stale certificate cache before retrying `why`; it
+does not install a successor. The existing cache-corruption assertion follows
+that refresh with a ready owner, while the refused-successor assertion retains
+the revert path. The complete rendered-guide assertion covers
+`E_EFFECT_THEN_ARGS` with prose labels and paired Quarry/TypeScript fences
+as well as the six core JSON examples.
 
 ## 9. The client (`snapback2/client`, `snapback2/react`, `snapback2/test`)
 

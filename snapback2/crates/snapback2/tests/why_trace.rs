@@ -188,9 +188,22 @@ fn why_refuses_missing_corrupt_and_incomplete_certificates_as_stale() {
             );
             let refusal = json_stdout(&why);
             assert_eq!(refusal["code"], "E_WHY_STALE", "{refusal}");
-            assert!(refusal["rewrite"].as_str().unwrap().contains("snapback2 dev --status --json"), "{refusal}");
+            let rewrite = refusal["rewrite"].as_str().unwrap();
+            assert!(rewrite.contains("snapback2 dev --status --json"), "{refusal}");
+            assert!(rewrite.contains("if a successor is refused"), "{refusal}");
+            assert!(rewrite.contains("with no refused successor, skip that step; run snapback2 check"), "{refusal}");
+            assert!(rewrite.contains("refresh the certificate cache and retry why"), "{refusal}");
         }
-        fs::write(&certificate_path, &valid).unwrap();
+        // Follow the cache-only recovery with a ready owner, without restoring bytes by hand.
+        let status = project.run(&["dev", "--status", "--json"]);
+        assert!(status.status.success());
+        assert_eq!(json_stdout(&status)["status"], "ready");
+        let checked = project.run(&["check", "--json"]);
+        assert!(checked.status.success(), "{}", String::from_utf8_lossy(&checked.stdout));
+        for persona in ["alice", "system"] {
+            let recovered = project.run(&["why", "todos.list", "--as", persona]);
+            assert!(recovered.status.success(), "{}", String::from_utf8_lossy(&recovered.stdout));
+        }
     }
 }
 
