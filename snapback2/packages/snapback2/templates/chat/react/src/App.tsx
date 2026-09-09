@@ -9,10 +9,9 @@ export function App() {
   const connection = useConnection();
   const auth = useAuth();
   const outbox = useOutbox();
-  const inbox = useQuery(api.messages.inbox, { c: null }, { drain: true });
+  const inbox = useQuery(api.messages.inbox, {}, { drain: true });
   const rows = (inbox.data ?? []) as LogRow[];
   const [selected, setSelected] = useState<string>();
-  const [note, setNote] = useState("");
   return (
     <main>
       <header>
@@ -21,7 +20,6 @@ export function App() {
           {connection === "connected" ? "Connected" : connection === "offline" ? "Offline" : "Reconnecting…"}
           {inbox.local.caughtUp ? " · log downloaded" : inbox.status === "loading" ? " · loading" : ""}
         </p>
-        {note ? <p role="alert">{note}</p> : null}
         {outbox.entries.length > 0 ? <details><summary>Changes on this device ({outbox.entries.length})</summary><ul>
           {outbox.entries.map(entry => <li key={entry.intent}>{entry.op} · {intentLabel(entry)}
             {entry.state !== "queued" ? <button type="button" onClick={() => { void outbox.dismiss(entry.intent); }}>Dismiss</button> : null}
@@ -30,7 +28,7 @@ export function App() {
       </header>
       <Search onOpen={setSelected} />
       <Inbox rows={rows} selected={selected} onSelect={setSelected} />
-      {selected ? <Thread conversationId={selected} viewer={auth.viewer} onNote={setNote} /> : <p>Pick a conversation.</p>}
+      {selected ? <Thread conversationId={selected} viewer={auth.viewer} /> : <p>Pick a conversation.</p>}
       <DevOverlay />
     </main>
   );

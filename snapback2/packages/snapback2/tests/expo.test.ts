@@ -65,13 +65,11 @@ test("Expo renders declared history for a partial composite and the composite on
   const listeners = new Set<() => void>();
   const observed: string[] = [];
   const message = { messageId: "message-held", at: 1, kind: "message",
-    message: { id: "message-held", authorId: "profile-alice", body: "independently held" } };
+    message: { id: "message-held", at: 1, authorId: "profile-alice", body: "independently held" } };
   const items = [{ key: "message-held", data: message.message, predicted: false, pending: [] }];
-  const offline = { freshness: { live: false, connection: "offline" }, local: { predicted: [], retained: false } };
-  const history = { status: "ready", data: [message], items, ...offline, reason: { code: "held", message: "Held on this device." } };
-  // The composed record of LLP 1018.006 §2: the screen never opens history itself.
-  let snapshot: any = { status: "unavailable", receipt: { state: "partial", source: "twin", seq: 1 }, ...offline,
-    items, itemsFrom: "history", history };
+  const reason = { code: "partial", message: "Some data is not downloaded." };
+  // Only the plain fields are supplied: screen display needs no truthful-tier axes.
+  let snapshot: any = { status: "unavailable", data: undefined, partial: true, next: null, reason, items };
   const client: any = {
     ready: Promise.resolve(),
     snapshot: { authGeneration: 1, connection: "offline", auth: { state: "authenticated", viewer: "profile-alice" } },
@@ -104,15 +102,13 @@ test("Expo renders declared history for a partial composite and the composite on
     assert.match(partialTree, /Message count unavailable/);
     assert.match(partialTree, /Count and preview unavailable/);
 
-    await publish({ status: "unavailable", receipt: { state: "partial", source: "twin", seq: 2 }, ...offline,
-      items: [], itemsFrom: "drafts", history: { status: "loading", ...offline } });
+    await publish({ status: "unavailable", data: undefined, partial: false, next: null, reason, items: [] });
     const loadingTree = JSON.stringify(renderer!.toJSON());
     assert.match(loadingTree, /Count and preview unavailable/, "loading history is still the fallback in force");
     assert.doesNotMatch(loadingTree, /independently held/);
 
     const value = { messages: [message], count: 1, preview: [message] };
-    await publish({ status: "ready", data: value, receipt: { state: "complete", source: "server", seq: 3 },
-      freshness: { live: true, connection: "connected" }, local: { predicted: [], retained: false }, items, itemsFrom: "query" });
+    await publish({ status: "ready", data: value, partial: false, next: null, items });
     const usableTree = JSON.stringify(renderer!.toJSON());
     assert.match(usableTree, /1 message · Latest: independently held/);
     assert.doesNotMatch(usableTree, /Count and preview unavailable/);

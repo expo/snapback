@@ -25,10 +25,8 @@ import { RealOwnerHarness } from "./owner-harness.ts";
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const bundlePath = resolve(packageRoot, "dist/.chat-screens-transition.test-bundle.mjs");
 let App: (props: Record<string, never>) => React.ReactElement;
-let Composer: (props: { conversationId: string; onNote(note: string): void }) => React.ReactElement;
-let Thread: (props: { conversationId: string; viewer: string | undefined; onNote(note: string): void }) => React.ReactElement;
-let usableConversationView: (result: any) => any;
-let authorizedHistoryRows: (result: any) => unknown[];
+let Composer: (props: { conversationId: string }) => React.ReactElement;
+let Thread: (props: { conversationId: string; viewer: string | undefined }) => React.ReactElement;
 let screenOwner: RealOwnerHarness;
 
 before(async () => {
@@ -40,7 +38,6 @@ before(async () => {
         'export { App } from "./App";',
         'export { Composer } from "./Composer";',
         'export { Thread } from "./Thread";',
-        'export { usableConversationView, authorizedHistoryRows } from "./Thread";',
       ].join("\n"),
       resolveDir: resolve(packageRoot, "templates/chat/react/src"),
       sourcefile: "screens.tsx",
@@ -61,7 +58,7 @@ before(async () => {
     }],
   });
   await writeFile(bundlePath, bundled.outputFiles[0]!.text);
-  ({ App, Composer, Thread, usableConversationView, authorizedHistoryRows }
+  ({ App, Composer, Thread }
     = await import(pathToFileURL(bundlePath).href));
   // The harness starts the production chat fixture when this file runs alone,
   // or uses the suite's already-qualified full-chat owner.
@@ -180,7 +177,7 @@ test("partial history becomes one coherent view without remounting its pending b
     client = createClient({ url: screenOwner.url, persona: "alice", startOffline: true, offline: { store } });
     await client.ready;
     await act(async () => reactRoot.render(React.createElement(SnapbackProvider, { client },
-      React.createElement(Thread, { conversationId, viewer: "dev:alice", onNote: () => undefined }))));
+      React.createElement(Thread, { conversationId, viewer: "dev:alice" }))));
     await waitFor(() => document.querySelector("ol.bubbles")?.getAttribute("data-view-source") === "partial-history",
       "the independently covered history fallback");
     assert.equal(sharedConsumers(client, api.messages.thread, { conversationId, c: null }), 1,

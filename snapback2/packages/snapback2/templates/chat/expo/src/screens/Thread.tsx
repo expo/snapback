@@ -8,7 +8,7 @@ import { conversationItems } from "../../shared/thread";
 export function Thread({ conversationId }: { conversationId: string }) {
   const [opened, setOpened] = useState<string[]>([]);
   const snapshot = useQuery(api.messages.conversationView, { conversationId }, { items: conversationItems });
-  const composite = snapshot.itemsFrom === "query" ? snapshot.data : undefined;
+  const composite = snapshot.data;
   const { dismiss } = useOutbox();
   const preview = composite?.preview[0]?.message?.body;
   return <View style={{ flex: 1 }}><ScrollView contentContainerStyle={{ padding: 16 }}>
@@ -16,7 +16,7 @@ export function Thread({ conversationId }: { conversationId: string }) {
       ? `${composite.count} message${composite.count === 1 ? "" : "s"}${preview ? ` · Latest: ${preview}` : ""}`
       : "Message count unavailable"}</Text>
     {snapshot.status === "loading" ? <Text>Loading…</Text> : snapshot.reason ? <Text>{snapshot.reason.message}</Text> : null}
-    {snapshot.history ? <Text testID="thread-history-state">Downloaded history · Count and preview unavailable.</Text> : null}
+    {snapshot.partial || snapshot.reason?.code === "partial" ? <Text testID="thread-history-state">Downloaded history · Count and preview unavailable.</Text> : null}
     {snapshot.items.map((item) => {
       const message = item.data, messageId = item.key;
       const post = item.pending.find(action => action.kind === "create");

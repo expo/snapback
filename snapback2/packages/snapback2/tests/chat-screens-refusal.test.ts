@@ -23,10 +23,8 @@ import { RealOwnerHarness } from "./owner-harness.ts";
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const bundlePath = resolve(packageRoot, "dist/.chat-screens-refusal.test-bundle.mjs");
 let App: (props: Record<string, never>) => React.ReactElement;
-let Composer: (props: { conversationId: string; onNote(note: string): void }) => React.ReactElement;
-let Thread: (props: { conversationId: string; viewer: string | undefined; onNote(note: string): void }) => React.ReactElement;
-let usableConversationView: (result: any) => any;
-let authorizedHistoryRows: (result: any) => unknown[];
+let Composer: (props: { conversationId: string }) => React.ReactElement;
+let Thread: (props: { conversationId: string; viewer: string | undefined }) => React.ReactElement;
 let screenOwner: RealOwnerHarness;
 
 before(async () => {
@@ -38,7 +36,6 @@ before(async () => {
         'export { App } from "./App";',
         'export { Composer } from "./Composer";',
         'export { Thread } from "./Thread";',
-        'export { usableConversationView, authorizedHistoryRows } from "./Thread";',
       ].join("\n"),
       resolveDir: resolve(packageRoot, "templates/chat/react/src"),
       sourcefile: "screens.tsx",
@@ -59,7 +56,7 @@ before(async () => {
     }],
   });
   await writeFile(bundlePath, bundled.outputFiles[0]!.text);
-  ({ App, Composer, Thread, usableConversationView, authorizedHistoryRows }
+  ({ App, Composer, Thread }
     = await import(pathToFileURL(bundlePath).href));
   // The harness starts the production chat fixture when this file runs alone,
   // or uses the suite's already-qualified full-chat owner.
@@ -188,4 +185,83 @@ test("a refused send keeps the draft and shows the recovery advice", async () =>
     restore();
     await rm(root, { recursive: true, force: true });
   }
+});
+
+for (const transport of [false, true]) test(`Composer renders ${transport ? "transport" : "rule"} refusals inline and clears them on account change`, async () => {
+  const restore = installDom();
+  const client = createClient({ url: screenOwner.url, fetch: async (input, init) => {
+    if (new URL(String(input)).pathname === "/api/mutation") {
+      if (transport) throw new TypeError("connection lost");
+      return json(rejected());
+    }
+    return globalThis.fetch(input, init);
+  } });
+  const root = createRoot(document.getElementById("root")!);
+  try {
+    await client.ready; await client.auth.guest();
+    await act(async () => root.render(React.createElement(SnapbackProvider, { client },
+      React.createElement(Composer, { conversationId: "conversation-1" }))));
+    const input = document.querySelector<HTMLInputElement>("form input")!;
+    await type(input, "keep my text");
+    await act(async () => document.querySelector<HTMLFormElement>("form")!.requestSubmit());
+    await waitFor(() => text(document.querySelector("form [role=alert]")).startsWith("Not sent:"), "the inline refusal");
+    assert.match(text(document.querySelector("form [role=alert]")), transport ? /connection|connect|retry/i : /fix the rejected mutation input/);
+    assert.equal(input.value, "keep my text");
+    await act(async () => { await client.auth.logout(); });
+    assert.equal(document.querySelector("form [role=alert]"), null, "the previous account's result is gone");
+    assert.equal(document.querySelector<HTMLInputElement>("form input")!.value, "", "the previous account's draft is gone");
+  } finally { await act(async () => root.unmount()); await client.close(); restore(); }
+});
+
+test("Thread renders edit and unsend refusals locally and drops them when the conversation changes", async () => {
+  const restore = installDom();
+  const client = createClient({ url: screenOwner.url, persona: "alice", fetch: async (input, init) => {
+    if (new URL(String(input)).pathname === "/api/mutation") return json(rejected());
+    return globalThis.fetch(input, init);
+  } });
+  const root = createRoot(document.getElementById("root")!);
+  const render = (conversationId: string) => React.createElement(SnapbackProvider, { client },
+    React.createElement(Thread, { conversationId, viewer: "dev:alice" }));
+  try {
+    await client.ready; await client.auth.me();
+    await act(async () => root.render(render("conversation-1")));
+    await waitFor(() => document.querySelector("li[data-message=message-1] .actions") !== null, "owner actions");
+    window.prompt = () => "edited text";
+    const actions = () => document.querySelectorAll<HTMLButtonElement>("li[data-message=message-1] .actions button");
+    await act(async () => actions()[0]!.click());
+    await waitFor(() => /Edit not sent: fix/.test(text(document.querySelector("section header"))), "edit refusal");
+    await act(async () => actions()[1]!.click());
+    await waitFor(() => /Unsend refused: fix/.test(text(document.querySelector("section header"))), "unsend refusal");
+    await act(async () => root.render(render("conversation-2")));
+    assert.equal(document.querySelector("[role=alert]"), null);
+  } finally { await act(async () => root.unmount()); await client.close(); restore(); }
+});
+
+for (const state of ["committed", "rejected"]) test(`a late ${state} send cannot change another conversation's draft or result`, async () => {
+  const restore = installDom();
+  let release!: () => void, started!: () => void;
+  const gate = new Promise<void>(done => { release = done; });
+  const entered = new Promise<void>(done => { started = done; });
+  const client = createClient({ url: screenOwner.url, persona: "alice", fetch: async (input, init) => {
+    if (new URL(String(input)).pathname === "/api/mutation") {
+      started(); await gate;
+      return state === "rejected" ? json(rejected()) : globalThis.fetch(input, init);
+    }
+    return globalThis.fetch(input, init);
+  } });
+  const root = createRoot(document.getElementById("root")!);
+  const render = (conversationId: string) => React.createElement(SnapbackProvider, { client }, React.createElement(Composer, { conversationId }));
+  try {
+    await client.ready; await client.auth.me();
+    await act(async () => root.render(render("conversation-1")));
+    await type(document.querySelector<HTMLInputElement>("form input")!, "same draft");
+    await act(async () => { document.querySelector<HTMLFormElement>("form")!.requestSubmit(); await entered; });
+    await act(async () => root.render(render("conversation-2")));
+    assert.equal(document.querySelector<HTMLInputElement>("form input")!.value, "", "drafts belong to a conversation");
+    await type(document.querySelector<HTMLInputElement>("form input")!, "same draft");
+    release(); await settle(75);
+    assert.equal(document.querySelector<HTMLInputElement>("form input")!.value, "same draft");
+    assert.equal(document.querySelector("form [role=alert]"), null);
+    assert.equal(document.querySelector<HTMLButtonElement>("form button[type=submit]")!.disabled, false);
+  } finally { release(); await act(async () => root.unmount()); await client.close(); restore(); }
 });

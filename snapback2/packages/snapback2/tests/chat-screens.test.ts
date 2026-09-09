@@ -1,7 +1,7 @@
 import { assertRefused } from "./live-fixture.ts";
 import { subscribe } from "../src/internal.js";
 import assert from "node:assert/strict";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -24,8 +24,8 @@ import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const bundlePath = resolve(packageRoot, "dist/.chat-screens.test-bundle.mjs");
 let App: (props: Record<string, never>) => React.ReactElement;
-let Composer: (props: { conversationId: string; onNote(note: string): void }) => React.ReactElement;
-let Thread: (props: { conversationId: string; viewer: string | undefined; onNote(note: string): void }) => React.ReactElement;
+let Composer: (props: { conversationId: string }) => React.ReactElement;
+let Thread: (props: { conversationId: string; viewer: string | undefined }) => React.ReactElement;
 
 before(async () => {
   const bundled = await build({
@@ -60,6 +60,30 @@ before(async () => {
 });
 
 after(async () => { await rm(bundlePath, { force: true }); });
+
+for (const arm of ["react/src", "expo/src/screens"]) test(`${arm}/Thread fits the plain screen contract`, async () => {
+  const source = await readFile(resolve(packageRoot, `templates/chat/${arm}/Thread.tsx`), "utf8");
+  const lines = source.split("\n").length - (source.endsWith("\n") ? 1 : 0);
+  assert.ok(lines <= 60, `${arm}/Thread.tsx: ${lines} physical lines > 60`);
+  assert.doesNotMatch(source, /@ref|useSnapbackClient|useSnapbackSnapshot|\bcatch\b|\b(?:generation|authGeneration|visit|captured)\b/);
+  assert.doesNotMatch(source, /\.(?:itemsFrom|history|receipt|freshness|local|refusal)\b/,
+    "display reads use plain fields; witness receipt projection belongs in its helper");
+});
+
+test("shipped chat files contain no design citations or app-owned mutation fences", async () => {
+  const root = resolve(packageRoot, "templates/chat");
+  for (const file of await readdir(root, { recursive: true })) {
+    if (!/\.(?:tsx?|q|md|[cm]?js)$/.test(file)) continue;
+    const source = await readFile(resolve(root, file), "utf8");
+    assert.doesNotMatch(source, /@ref/, file);
+    if (file.includes("/src/")) assert.doesNotMatch(source, /useSnapbackSnapshot|authGeneration|\b(?:visit|captured)\b/, file);
+    if (file.endsWith("/Composer.tsx")) {
+      const send = source.slice(source.indexOf("const send ="), source.indexOf("const sync ="));
+      assert.doesNotMatch(send, /\b(?:try|catch|client|generation|current)\b/, file);
+      assert.match(source, /post\.last/, `${file}: refusal presentation uses the hook's last result`);
+    }
+  }
+});
 
 function json(value: unknown, status = 200): Response {
   return new Response(JSON.stringify(value), { status, headers: { "content-type": "application/json" } });
@@ -174,7 +198,7 @@ test("the composer is disabled until the inbox drain catches up and the first gr
         SnapbackProvider,
         { url: "http://grant.test", persona: "alice", fetch, offline: { store: fileRangeStore(root) } },
         React.createElement(Probe),
-        React.createElement(Composer, { conversationId: "conversation-1", onNote: () => undefined }),
+        React.createElement(Composer, { conversationId: "conversation-1" }),
       ));
     });
     const drain = subscribe(client, api.messages.inbox, { c: null }, () => undefined, { drain: true });

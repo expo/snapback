@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { after, before, test } from "node:test";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { mkdtemp, readFile, readdir, rm, writeFile, mkdir, stat } from "node:fs/promises";
@@ -13,17 +13,24 @@ import { nativeFixture, deferred, photo, clip, delivery, payload } from "./nativ
 import { assertNoMediaOnDisk } from "../../../scripts/witness-expo/container.mjs";
 import { twinSource } from "../../../scripts/witness-expo/attribution.mjs";
 import { controlServer } from "../../../scripts/witness-expo/control.mjs";
+import { RealOwnerHarness } from "./owner-harness.ts";
+import { subscribe } from "../src/internal.js";
+import { api, createClient, mutationTarget } from "../dist/client.mjs";
+import { fileRangeStore } from "../dist/test.mjs";
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const workspace = resolve(packageRoot, "../..");
 const execute = promisify(execFile);
 const tick = () => act(async () => { await new Promise((done) => setTimeout(done, 1)); });
-async function until(predicate: () => boolean) { for (let i = 0; i < 100 && !predicate(); i++) await tick(); assert.ok(predicate()); }
+async function until(predicate: () => boolean) { for (let i = 0; i < 1000 && !predicate(); i++) await tick(); assert.ok(predicate()); }
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 (globalThis as any).__snapbackNative ??= { React, fileBodies: new Map(), fileUris: [], videoSources: [] };
 register(new URL("./native-mocks/loader.mjs", import.meta.url));
 const { SnapbackProvider } = await import("../dist/expo.mjs");
-const { MediaView, configuration, persist, NormalApp } = await import("../dist/witness-test.mjs");
+const { MediaView, configuration, persist, NormalApp, Chat, Composer } = await import("../dist/witness-test.mjs");
+let chatOwner: RealOwnerHarness;
+before(async () => { chatOwner = await RealOwnerHarness.create({ fullChat: true }); });
+after(async () => { await chatOwner?.close(); });
 
 test("built Expo under Hermes-like globals logs in, drains, and views a photo", async () => {
   const { stdout } = await execute(process.execPath, [join(packageRoot, "tests/hermes-expo.ts")], { timeout: 5_000 });
@@ -245,4 +252,123 @@ test("useAssetUrl array types require callers to handle refused positions", asyn
     } });
     assert.deepEqual(ts.getPreEmitDiagnostics(program).map((d) => ts.flattenDiagnosticMessageText(d.messageText, "\n")), []);
   } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+const nativeText = (renderer: ReturnType<typeof TestRenderer.create>) => JSON.stringify(renderer.toJSON());
+const nativeInput = (renderer: ReturnType<typeof TestRenderer.create>) => renderer.root.findByType("NativeTextInput");
+const nativeButton = (renderer: ReturnType<typeof TestRenderer.create>, title: string) =>
+  renderer.root.findAllByType("NativeButton").find(node => node.props.title === title)!;
+const refusal = () => new Response(JSON.stringify({ state: "rejected", code: "MEMBERSHIP_REQUIRED", family: "rule",
+  message: "Membership required", rewrite: "Join this conversation before sending" }), { headers: { "content-type": "application/json" } });
+
+for (const transport of [false, true]) test(`Expo Composer renders ${transport ? "transport" : "rule"} refusal and clears account-owned text`, async () => {
+  const client = createClient({ url: chatOwner.url, fetch: async (input, init) => {
+    if (new URL(String(input)).pathname === "/api/mutation") {
+      if (transport) throw new TypeError("connection lost");
+      return refusal();
+    }
+    return globalThis.fetch(input, init);
+  } });
+  let renderer!: ReturnType<typeof TestRenderer.create>;
+  try {
+    await client.ready; await client.auth.guest();
+    await act(async () => { renderer = TestRenderer.create(React.createElement(SnapbackProvider, { client },
+      React.createElement(Composer, { conversationId: "conversation-1" }))); });
+    await act(async () => nativeInput(renderer).props.onChangeText("keep native draft"));
+    await act(async () => nativeButton(renderer, "Send").props.onPress());
+    await until(() => nativeText(renderer).includes("Not sent:"));
+    assert.match(nativeText(renderer), transport ? /connect|retry/i : /Join this conversation/);
+    assert.equal(nativeInput(renderer).props.value, "keep native draft");
+    await act(async () => { await client.auth.logout(); });
+    assert.doesNotMatch(nativeText(renderer), /Not sent:|Join this conversation/);
+    assert.equal(nativeInput(renderer).props.value, "");
+  } finally { if (renderer) await act(async () => renderer.unmount()); await client.close(); }
+});
+
+for (const state of ["committed", "rejected"]) test(`Expo ignores a late ${state} send after changing conversations`, async () => {
+  let release!: () => void, started!: () => void;
+  const gate = new Promise<void>(done => { release = done; });
+  const entered = new Promise<void>(done => { started = done; });
+  const client = createClient({ url: chatOwner.url, persona: "alice", fetch: async (input, init) => {
+    if (new URL(String(input)).pathname === "/api/mutation") {
+      started(); await gate;
+      return state === "rejected" ? refusal() : globalThis.fetch(input, init);
+    }
+    return globalThis.fetch(input, init);
+  } });
+  let renderer!: ReturnType<typeof TestRenderer.create>;
+  const view = (conversationId: string) => React.createElement(SnapbackProvider, { client }, React.createElement(Composer, { conversationId }));
+  try {
+    await client.ready; await client.auth.me();
+    await act(async () => { renderer = TestRenderer.create(view("conversation-1")); });
+    await act(async () => nativeInput(renderer).props.onChangeText("same native draft"));
+    await act(async () => { nativeButton(renderer, "Send").props.onPress(); await entered; });
+    await act(async () => renderer.update(view("conversation-2")));
+    assert.equal(nativeInput(renderer).props.value, "", "a different conversation has its own draft");
+    await act(async () => nativeInput(renderer).props.onChangeText("same native draft"));
+    release(); await act(async () => { await new Promise(done => setTimeout(done, 75)); });
+    assert.equal(nativeInput(renderer).props.value, "same native draft");
+    assert.doesNotMatch(nativeText(renderer), /Not sent:/);
+    assert.equal(nativeButton(renderer, "Send").props.disabled, false);
+  } finally { release(); if (renderer) await act(async () => renderer.unmount()); await client.close(); }
+});
+
+test("Expo Thread queues in partial history, preserves the bubble through failed Sync and recovery, and follows owner removal", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "a2-native-history-"));
+  const store = fileRangeStore(directory);
+  const warm = createClient({ url: chatOwner.url, persona: "alice", offline: { store } });
+  const writer = createClient({ url: chatOwner.url, persona: "alice" });
+  let client: ReturnType<typeof createClient> | undefined, renderer!: ReturnType<typeof TestRenderer.create>;
+  let failResume = true, sends = 0;
+  try {
+    await warm.ready;
+    const group = await writer.mutation(api.groups.groupCreate, { title: "Native transition", members: ["dev:bob"] });
+    assert.equal(group.state, "committed");
+    const conversationId = group.data.id;
+    assert.equal((await writer.mutation(api.messages.send, { conversationId, body: "native held message" })).state, "committed");
+    assert.equal((await warm.query(api.messages.thread, { conversationId })).state, "complete");
+    const drain = subscribe(warm, api.messages.inbox, {}, () => undefined, { drain: true });
+    await drain.until(event => event.caughtUp === true, 5_000); drain.close(); await warm.close();
+    client = createClient({ url: chatOwner.url, persona: "alice", startOffline: true, offline: { store }, fetch: async (input, init) => {
+      const path = new URL(String(input)).pathname;
+      if (failResume && path === "/api/resume") throw new TypeError("native sync cut");
+      if (path === "/api/mutation") sends++;
+      return globalThis.fetch(input, init);
+    } });
+    await client.ready;
+    await act(async () => { renderer = TestRenderer.create(React.createElement(SnapbackProvider, { client },
+      React.createElement(Chat))); });
+    const conversation = () => renderer.root.findAllByType("NativePressable").find(node =>
+      node.findAllByType("NativeText").some(text => text.children.includes(conversationId)));
+    await until(() => Boolean(conversation()));
+    await act(async () => conversation()!.props.onPress());
+    await until(() => nativeText(renderer).includes("Downloaded history"));
+    assert.match(nativeText(renderer), /Message count unavailable/);
+    await act(async () => nativeInput(renderer).props.onChangeText("native recovery message"));
+    await act(async () => nativeButton(renderer, "Send").props.onPress());
+    await until(() => nativeText(renderer).includes("Sending…"));
+    assert.equal(nativeInput(renderer).props.value, "");
+    const [entry] = await client.outbox.entries();
+    const id = mutationTarget(api.messages.send, "messages").id(entry)!;
+    const bubble = () => renderer.root.findAllByType("NativeView").find(node => node.props.testID === `message-${id}`);
+    const pending = bubble(); assert.ok(pending);
+    await act(async () => nativeButton(renderer, "Sync now").props.onPress());
+    await until(() => nativeText(renderer).includes("native sync cut"));
+    assert.equal((await client.outbox.entries())[0].state, "queued");
+    assert.strictEqual(bubble(), pending);
+    failResume = false;
+    await act(async () => nativeButton(renderer, "Sync now").props.onPress());
+    await until(() => nativeText(renderer).includes("2 messages · Latest: native recovery message")
+      && !nativeText(renderer).includes("Sending…"));
+    assert.strictEqual(bubble(), pending, "the rendered bubble survives history to composite transition");
+    assert.doesNotMatch(nativeText(renderer), /Downloaded history|Sending…|native sync cut/);
+    assert.equal(sends, 1, "recovery executes the queued send exactly once");
+    assert.equal((await writer.mutation(api.messages.unsend, { messageId: id })).state, "committed");
+    const summary = () => renderer.root.findAllByType("NativeText").find(node => node.props.testID === "thread-summary")!.children.join("");
+    await until(() => !bubble() && summary() === "1 message");
+    assert.equal(summary(), "1 message", "the removed latest delivery supplies no preview");
+  } finally {
+    if (renderer) await act(async () => renderer.unmount());
+    await warm.close(); await client?.close(); await writer.close(); await rm(directory, { recursive: true, force: true });
+  }
 });
