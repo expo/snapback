@@ -100,7 +100,13 @@ export function queryEntry<Result, Event extends QueryMachineEvent<Result>>(
       const inputs = received ? rebindItemInputs(received, "data" in event ? event.data : undefined, "data" in next ? next.data : undefined)
         : "data" in next ? current.inputs : { ...emptyItemInputs, entries: current.inputs.entries };
       if (next === current.view && inputs === current.inputs) return current;
-      return Object.freeze({ view: next, snapshot: freezeTree(summarize(next, connection(), inputs.compactedThrough)), inputs });
+      const summary = summarize(next, connection(), inputs.compactedThrough);
+      // New item evidence may leave the public query snapshot unchanged.
+      const snapshot = next === current.view
+        && summary.freshness.connection === current.snapshot.freshness.connection
+        && summary.freshness.compactedThrough === current.snapshot.freshness.compactedThrough
+        ? current.snapshot : freezeTree(summary);
+      return Object.freeze({ view: next, snapshot, inputs });
     },
     reproject: (current: QuerySnapshot<Result>) => current.snapshot.freshness.connection === connection()
       ? current : Object.freeze({ ...current, snapshot: freezeTree(summarize(current.view, connection(), current.inputs.compactedThrough)) }),
