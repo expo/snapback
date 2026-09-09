@@ -24,7 +24,8 @@
     "family": "transport",
     "code": "E_TRANSPORT",
     "wrong": "```text\nAssume a mutation committed when the owner could not be reached.\n```",
-    "right": "```text\nInspect the returned state. A transport failure resolves as rejected (writes) or refused (reads), with family transport and retryable: true. Restore the connection and retry. See guide live-query.\n```"
+    "right": "```text\nInspect the returned state. A transport failure resolves as rejected (writes) or refused (reads), with family transport and retryable: true. Restore the connection and retry. See guide live-query.\n```",
+    "guide": "live-query"
   },
   {
     "family": "args",
