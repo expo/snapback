@@ -242,6 +242,15 @@ mutation afterWrite():
         const replay = op === "afterWrite" ? store.applyMutation(program, corpus.context) : store.reexecute(program, corpus.context);
         deepStrictEqual(replay.state, corpus.expected.localState, caseName);
         equal(replay.execution.result, corpus.expected.localResult);
+        deepStrictEqual(replay.partialSites, caseName === "maintain-numeric-group-unreadable"
+          ? ["probe.valuesFor.0", "probe.valuesFor.1", "probe.valuesFor.2"] : [], `${caseName}: partial sites`);
+        if (op === "valuesFor") {
+          deepStrictEqual(replay.execution.trace.points.map(({ site, table, index }) => [site, table, index]), [
+            ["probe.valuesFor.0", "counts", "byOwner"],
+            ["probe.valuesFor.1", "balances", "byOwner"],
+            ["probe.valuesFor.2", "decimals", "byOwner"],
+          ], `${caseName}: compiler grouping Gets`);
+        }
       }
     }, declarations);
   });

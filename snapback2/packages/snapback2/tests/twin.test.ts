@@ -15,10 +15,8 @@ import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
 import { engineId } from "./fake-owner.ts";
 import { fixtureClient } from "./live-fixture.ts";
 
-// @ref LLP 1012#6-reads-offline — the twin is the client: hydration from
-// atomic snapshots retain each issuing receipt and same-pool row references, local evaluation with
-// `partial` reasons, the stored answer as the covered case, program custody
-// under the successor and auth-epoch fences.
+// @ref LLP 1012#6-reads-offline — atomic snapshots retain issuing receipts, pooled rows,
+// partial reasons, covered answers and program custody under successor/auth-epoch fences.
 // @ref LLP 1012#7-writes-offline — prediction: the overlay keyed by the intent,
 // the trace of point digests and verdicts, discarded when the rows arrive.
 
@@ -82,34 +80,29 @@ function typedProgram(testCase: any): any {
 
 /** The corpus receipt as the wire delivers it: pooled rows, camelCase ranges, primary absences, public verdicts. */
 function wireReceipt(receipt: any): { rows: any[]; receipt: any } {
-  const rows: any[] = receipt.rows.map((row: any) => ({ table: row.table, id: row.id, row: wire(row.row) }));
-  return {
-    rows,
-    receipt: {
-      ranges: receipt.ranges.map((range: any) => ({
-        site: range.site, table: range.table, index: range.index,
-        prefix: range.prefix.map((atom: any) => 'Scalar' in atom ? { Scalar: wire(atom.Scalar) } : atom), order: range.order, take: range.take,
-        after: range.after === null ? null : wire(range.after), before: range.before === null ? null : wire(range.before),
-        gt: range.gt === null ? null : wire(range.gt), gte: range.gte === null ? null : wire(range.gte),
-        lt: range.lt === null ? null : wire(range.lt), lte: range.lte === null ? null : wire(range.lte),
-        ruleHash: range.rule_hash, rowIds: [...range.row_ids], stop: range.stop, absence: range.absence,
-        ...(range.halo === null ? {} : { haloId: range.halo.id }),
-      })),
-      absences: receipt.absences.map(([table, index, key]: any) => [table, index, key.map(wire)]),
-      verdicts: receipt.verdicts.map((verdict: any) => ({
-        ruleHash: verdict.rule_hash, pinnedInputsDigest: verdict.pinned_inputs_digest,
-        principal: verdict.principal, authEpoch: verdict.auth_epoch, result: verdict.result,
-      })),
-    },
-  };
+  return { rows: receipt.rows.map((row: any) => ({ table: row.table, id: row.id, row: wire(row.row) })), receipt: {
+    ranges: receipt.ranges.map((range: any) => ({
+      site: range.site, table: range.table, index: range.index,
+      prefix: range.prefix.map((atom: any) => 'Scalar' in atom ? { Scalar: wire(atom.Scalar) } : atom), order: range.order, take: range.take,
+      after: range.after === null ? null : wire(range.after), before: range.before === null ? null : wire(range.before),
+      gt: range.gt === null ? null : wire(range.gt), gte: range.gte === null ? null : wire(range.gte),
+      lt: range.lt === null ? null : wire(range.lt), lte: range.lte === null ? null : wire(range.lte),
+      ruleHash: range.rule_hash, rowIds: [...range.row_ids], stop: range.stop, absence: range.absence,
+      ...(range.halo === null ? {} : { haloId: range.halo.id }),
+    })),
+    absences: receipt.absences.map(([table, index, key]: any) => [table, index, key.map(wire)]),
+    verdicts: receipt.verdicts.map((verdict: any) => ({
+      ruleHash: verdict.rule_hash, pinnedInputsDigest: verdict.pinned_inputs_digest,
+      principal: verdict.principal, authEpoch: verdict.auth_epoch, result: verdict.result,
+    })),
+  } };
 }
 
 /** The corpus receipt as the store can hold it: `n2_suffix` never crosses the wire, an absence a held row disproves is dropped. */
 function holdableReceipt(receipt: any, schemaHash: string): unknown {
   const held = new Set(receipt.rows.map((row: any) => `${row.table}\u0000${row.id}`));
   return {
-    schema_hash: schemaHash,
-    rows: receipt.rows,
+    schema_hash: schemaHash, rows: receipt.rows,
     ranges: receipt.ranges.map((range: any) => ({ ...range, n2_suffix: null })),
     absences: receipt.absences.filter(([table, index, key]: any) =>
       !(index === "byId" && key.length === 1 && key[0] !== "Null" && "Id" in key[0] && held.has(`${table}\u0000${key[0].Id}`))),
@@ -186,14 +179,12 @@ function corpusOwner(options: CorpusOwnerOptions) {
     const url = new URL(String(input));
     requests.push(url.pathname + url.search);
     if (options.dead?.()) throw new TypeError("fetch failed");
-    if (url.pathname === "/api/manifest") {
-      return json({
-        generation: "schema-generation", programGeneration: current.generation, channels: {}, auth: {}, tables: {},
-        ops: Object.fromEntries(Object.entries(current.programs).map(([name, entry]) => [name, {
-          kind: entry.kind, cursor: entry.cursor, args: (entry.ir as { args?: unknown }).args ?? {}, planHash: entry.certificate.plan_hash,
-        }])),
-      });
-    }
+    if (url.pathname === "/api/manifest") return json({
+      generation: "schema-generation", programGeneration: current.generation, channels: {}, auth: {}, tables: {},
+      ops: Object.fromEntries(Object.entries(current.programs).map(([name, entry]) => [name, {
+        kind: entry.kind, cursor: entry.cursor, args: (entry.ir as { args?: unknown }).args ?? {}, planHash: entry.certificate.plan_hash,
+      }])),
+    });
     if (url.pathname === "/api/program") {
       const generation = url.searchParams.get("generation");
       if (generation !== current.generation) return json({ code: "E_OP_UNKNOWN", family: "op", message: "not active", guide: "op/manifest" }, 404);
@@ -235,12 +226,9 @@ function corpusOwner(options: CorpusOwnerOptions) {
 
 /** Seeds a partition with a corpus receipt as coverage (op `coverage`), its facts, and optionally a held answer. */
 async function seedCoverage(
-  factory: ReturnType<typeof fileRangeStore>,
-  viewer: string,
-  testCase: any,
+  factory: ReturnType<typeof fileRangeStore>, viewer: string, testCase: any,
   facts: { generation: string; schemaHash: string; authEpoch: number },
-  held?: { op: string; args: unknown; data: unknown; next: string | null },
-  extra: Record<string, unknown> = {},
+  held?: { op: string; args: unknown; data: unknown; next: string | null }, extra: Record<string, unknown> = {},
 ): Promise<void> {
   const store = factory();
   await store.open(viewer);
@@ -248,7 +236,7 @@ async function seedCoverage(
   const derived = receipt.ranges.some((r: any) => r.prefix.some((p: any) => "WordPrefix" in p));
   // Synthetic public filing of this native execution retains its actual pinned input, never reception time.
   const clock = testCase.context?.read_time != null ? { readTime: testCase.context.read_time, clockPlanHash: testCase.certificate.plan_hash } : {};
-  await store.commit({
+  try { await store.commit({
     deliveries: derived ? [{ op: testCase.name, args: held?.args ?? {}, state: "complete", data: held?.data ?? null,
       next: held?.next ?? null, seq: 1, validator: hex("1"), rows, receipt, ...clock }] : [
       { op: "coverage", args: {}, state: "complete", data: null, next: null, seq: 1, validator: hex("1"), rows, receipt },
@@ -259,8 +247,7 @@ async function seedCoverage(
       programs: { [testCase.name]: { kind: "query", cursor: corpusPageCursors[testCase.name], ir: testCase.program, planHash: testCase.certificate.plan_hash, certificate: testCase.certificate } } } } } : {}),
     facts, schema: testCase.schema,
     ...extra,
-  });
-  await store.close?.();
+  }); } finally { await store.close?.(); }
 }
 
 test("atomic carrier snapshots retain every envelope golden's issuing ClosureReceipt byte-identically", async () => {
@@ -327,19 +314,11 @@ test("corpus queries round-trip through atomic carriers or refuse native-only ab
     try {
       const facts = { generation, schemaHash, authEpoch: testCase.context.auth_epoch as number };
       // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — primary-index absence projection.
-      // Native/evaluator receipts can carry grouping-index absences. The public
-      // wire deliberately admits only byId absences; retain that refusal rather
-      // than turning native conformance cases into new carrier capabilities.
+      // Native grouping-index absences must refuse on the public byId-only wire.
       if (testCase.receipt.absences.some(([, index]: any) => index !== "byId")) {
-        const store = fileRangeStore(root)();
-        await store.open(testCase.context.viewer);
-        try {
-          const { rows, receipt } = wireReceipt(testCase.receipt);
-          await assert.rejects(store.commit({ facts, schema: testCase.schema, deliveries: [{
-            op: testCase.name, args, state: "complete", data: wire(testCase.expected.localResult),
-            next: null, seq: 1, validator: hex("1"), rows, receipt,
-          }] }), /store receipts may evict only a primary byId absence/, testCase.name);
-        } finally { await store.close?.(); }
+        await assert.rejects(() => seedCoverage(fileRangeStore(root), testCase.context.viewer, testCase, facts,
+          { op: testCase.name, args, data: wire(testCase.expected.localResult), next: null }),
+        /store receipts may evict only a primary byId absence/, testCase.name);
         checked += 1;
         continue;
       }

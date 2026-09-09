@@ -21,7 +21,7 @@ ultra, grok-4.6 at xhigh), `llp/reviews/1011-quarry-ergonomics.*`
 **Implementer:** codex gpt-5.6-sol (xhigh), lane `s2/quarry-ergo`
 (`~/projects/snapback-s2`), orchestrated and landed by Claude Fable 5.1
 **Date:** 2026-09-03
-**Revised:** 2026-09-08 (one spelling review fixes: maintained reference repairs, source word dispatch coverage, engine/twin numeric and visibility evidence); 2026-09-08 (one spelling: commissioned B1–B6, implemented by GPT-6 Astra in lane B); 2026-09-08 (one cursor-bearing page through composite records); 2026-09-08 (statement helpers, LLP 1018.005); 2026-09-07 (expression helpers refuse authorization assertions throughout nested shapes); 2026-09-07 (typed bound shape/function elaboration and one decimal representation); 2026-09-06 (session-delegated Unicode key/cursor integration contract, foundation only); 2026-09-06 (nested named-shape collection snapshots implemented by GPT-6 Astra; conditional page returns implemented by GPT-6 Astra; certification-derived provenance); 2026-09-05 (null keys and non-empty Id literals implemented by GPT-6 Astra, Clique L2); 2026-09-05 (d — Codex implements imported shapes, read-authorized
+**Revised:** 2026-09-08 (one spelling second repair: exact compiler receipt sites, point-read guide scope, carrier test headroom, historical lowering/budget references); 2026-09-08 (one spelling review fixes: maintained reference repairs, source word dispatch coverage, engine/twin numeric and visibility evidence); 2026-09-08 (one spelling: commissioned B1–B6, implemented by GPT-6 Astra in lane B); 2026-09-08 (one cursor-bearing page through composite records); 2026-09-08 (statement helpers, LLP 1018.005); 2026-09-07 (expression helpers refuse authorization assertions throughout nested shapes); 2026-09-07 (typed bound shape/function elaboration and one decimal representation); 2026-09-06 (session-delegated Unicode key/cursor integration contract, foundation only); 2026-09-06 (nested named-shape collection snapshots implemented by GPT-6 Astra; conditional page returns implemented by GPT-6 Astra; certification-derived provenance); 2026-09-05 (null keys and non-empty Id literals implemented by GPT-6 Astra, Clique L2); 2026-09-05 (d — Codex implements imported shapes, read-authorized
 write results, and order-preserving filter repairs under the author's request
 to advance Quarry); 2026-09-03 (c — implemented: §8 records the two lane commits
 and the one re-pinned expectation); 2026-09-03 (b — after the panel: `fn` deferred and `shape` kept;
@@ -94,10 +94,10 @@ unbounded program. B1 changes the normative typed-state and wire contracts
 
 ## B1. Opaque cursors
 
-**Today.** A cursor is the suffix tuple of the index after the prefix,
+**Historical baseline (2026-09-03, superseded below).** A cursor was the suffix tuple of the index after the prefix,
 assembled by the client from the previous page's rows: `after (cursorAt,
 cursorId) first 20`. `before c last N` is sugar the lowering already turns
-into descending `after` (`program.ts:537, 594–598`). Since LLP 1010 A6, a
+into descending `after` (deleted `program.ts:537, 594–598`). Since LLP 1010 A6, a
 tuple of optional arguments is an optional group whose mixed presence
 refuses. Three refusal families teach the tuple's shape
 (`program.ts:539–593`). Every shipped feed then shapes its page, and
@@ -207,9 +207,11 @@ rule; the client's suffix plucking; first-page-only CLI exploration.
 the merge anchor; the wire field; client and React types; the twin's
 identical mint; the compiler's provenance and grammar; the seven paging
 expressions and both chat `thread` copies; the journeys that page; LLP
-1001/1002 text. `program.ts` is 1,293 of 1,500 lines and `quarry.md` is
-13,455 of 14,336 bytes: the provenance pass goes in a new file and the
-reference is compressed before anything grows.
+1001/1002 text. The 2026-09-03 budget estimate was 1,293/1,500 lines
+for the now-deleted `program.ts` and 13,455/14,336 bytes for `quarry.md`.
+That implementation split is historical. Current cursor/range lowering lives
+in `quarry/direct.ts`; `quarry/bound.ts` binds its types, and native
+certification supplies page provenance. Current caps and guide budgets apply.
 
 ### Unicode search cursor integration (2026-09-06 session decision)
 
@@ -229,7 +231,7 @@ only after that coherent integration; the current repair behavior stays active.
 
 ## B2. `shape`
 
-**Historical baseline.** User functions and shape reuse refused as `E_QUARRY_UNSUPPORTED`
+**Historical baseline (2026-09-03; `program.ts` is now deleted).** User functions and shape reuse refused as `E_QUARRY_UNSUPPORTED`
 (`program.ts:453–454`). The same profile projection occurs fourteen times
 across the Clique fixture's `social.q`, `chat.q`, and `pay.q`; the chat
 template repeats a two-line author card. LLP 0329.014.010 open question 4
@@ -319,7 +321,7 @@ message cards in history, inbox recent-message pages, and repeated point uses.
 
 ## B3. One missing-row rule; no `id` in an upsert row
 
-**Today.** Four stories. A by-id `delete` of a missing row is a no-op with a
+**Historical baseline (2026-09-03; `program.ts` is now deleted).** Four stories. A by-id `delete` of a missing row is a no-op with a
 `missing_preimages` note (`program.ts:806–808`; `runner_ops.rs:118–126`); a
 by-id `update` of a missing row leaks the platform's `E_INPUT`
 (`runner_ops.rs:49–56`); a focal by-id update lowers to a real `Get` and
@@ -523,12 +525,13 @@ The orchestrator's one hand edit after lane 2: the chat template receipt test
 pins the interpreter step count of `messages.thread`; the thread now pages, so
 an admitted execution costs one more step (7 → 8).
 
-**Budgets after landing.** `quarry/program.ts` 1,247 of 1,500 lines;
+**Historical budgets at the 2026-09-03 landing.** The now-deleted
+`quarry/program.ts` was 1,247 of 1,500 lines;
 `guide/quarry.md` 13,509 of 14,336 bytes; `guide/grammar.md` 2,032 of 2,048 —
 both guide pages shrank when tuples, `before`, the optional group, and three
 refusal families left. No budget was raised.
 
-**What binds now.** The reference (`snapback2 guide quarry`) states the
+**At that landing (2026-09-03).** The reference (`snapback2 guide quarry`) states the
 implemented language; the corpus carries 130 cases including eight
 opaque-cursor and five missing-row cases; LLP 1001 §3 and LLP 1002 §4/§6
 carry `next` and `data --after`; LLP 1010's A6 is marked superseded. This
@@ -595,14 +598,19 @@ only its point reads bind as a numeric aggregate; ordinary tables with a
 check and typed zero implement the value read, preserving authority and
 same-mutation writes. Implicit typed-reference row projections and member
 access, including aliases and named shapes, refuse in `bound.ts`'s `shapeBase`
-with a canonical bracket-read repair; optional references first require
-`! else CODE`. Count, money and decimal API regressions compile the repairs.
+with a canonical bracket-read repair, including `counts[c ! else CODE]`
+for optional references. Count, money and decimal API regressions compile the repairs.
 The shared corpus covers grouping-index and by-id absence, existing and
 new-group same-mutation counts and branded sums, and unreadable groups.
 Hidden rows contribute no payload or absence to the receipt. The server
 returns typed zero; receipt-only replay computes the same value but remains
 partial at each uncovered point, never a falsely established zero. Compiler
-lowering replays those native typed results and custody states.
+lowering replays those native typed results and custody states. The second
+repair pass pins count/money/decimal grouping Gets at `probe.valuesFor.0`,
+`.1`, and `.2`: all three partial for unreadable custody, none partial for
+the fresh absent-group receipt. Bounded maintained ranges retain rows/pages;
+only program point reads and their API types yield values. Carrier tests
+retain the public-wire refusal of alternate-index absence proofs.
 Names and one-hop fields narrow by binding identity on the proven path.
 
 **Source word freeze (review revision, 2026-09-08).** One sorted literal pins

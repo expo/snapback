@@ -98,10 +98,11 @@ sum matches its source. Each has a unique group index and read rule; user writes
 `readable <- rule` permits certification over non-uniform sources (`E_DISCLOSURE`);
 the target's `read` still applies.
 
-`total[key]` yields its typed value or typed zero when absent/unreadable;
-a later point read in a mutation reflects earlier writes. The `data` verb and
-rules still see rows; API types see values. For `c: total`, `c.value` and `c { * }`
-(also aliases/named shapes) refuse: use `total[c]`; assert optional `c` first.
+`total[key]` yields its value or typed zero if absent/unreadable, reflecting
+earlier mutation writes. Program point reads and their API types see values;
+`data` and rules see rows; bounded ranges keep rows/pages.
+For `c: counts`, `c.value`/`c { * }` (aliases/named shapes too) refuse:
+use `counts[c]` or, if optional, `counts[c ! else CODE]`.
 
 ```q
 maintain messageCounts = count messages by conversationId:
@@ -272,10 +273,9 @@ point absence on held-page revalidation, not tombstones (LLP 1012 §5).
 Ordinary table point reads return a row or absence; absent shapes and optional members stay
 absent, including in objects, updates, and calls; bases evaluate once in their
 branch. `! else CODE` names a refusal and `??` handles absence. Every missing update or
-delete is `NOT_FOUND`; upsert keeps its absent insert branch. The residual
-existence-oracle case is by-id unreadable → `E_RULE`, alternate-key unreadable
-→ `NOT_FOUND`. A
-missing maintained group is typed zero.
+delete is `NOT_FOUND`; upsert keeps its absent insert branch. Unreadable writes
+retain the existence oracle: by-id → `E_RULE`, alternate-key → `NOT_FOUND`.
+Maintained point reads yield typed zero if missing/unreadable.
 
 Scans, lists, text, JSON, and bytes are bounded. `for` needs a bounded
 list/page/range/tokens result. Optional-list maxima bound length, not
