@@ -403,7 +403,9 @@ or grants custody of the conflicting row. The certificate keeps the insert
 write bound, prices its result binding, and marks the potential target
 conditional; covering-cap fanout and query-write refusals still apply.
 Receipt-only execution needs authoritative point-absence coverage
-for unmatched unique keys; missing coverage is partial and rolls back,
+for unmatched unique keys; a held duplicate decides the no-op even when an
+earlier key lacked absence coverage. The primitive owns these proof checks;
+missing coverage is partial and rolls back,
 not evidence of absence. The four write corpus cases exercise creation,
 collision, missing authority, and conditional rejection in Rust and the twin.
 

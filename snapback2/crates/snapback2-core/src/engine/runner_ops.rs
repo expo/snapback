@@ -39,11 +39,16 @@ impl<'a> Runner<'a> {
             let indexes: BTreeSet<_> = definition.indexes.iter().filter(|(_, index)| index.unique)
                 .map(|(name, _)| name.clone()).chain(definition.constraints.iter().filter_map(|constraint|
                     if let Constraint::Unique { index } = constraint { Some(index.clone()) } else { None })).collect();
+            let checkpoint = self.trace.constraint_inputs.len();
+            let local = self.rule_authority == RuleAuthority::ReceiptOnly;
             let mut missing = false;
             for index in indexes {
                 let key = index_values(&row, definition.index(&index).expect("unique index"));
                 match self.check_unique(table, &definition, &index, None, &row) {
-                    Err(RuntimeError::Unique { .. }) => return Ok(false),
+                    Err(RuntimeError::Unique { .. }) => {
+                        if local { self.trace.constraint_inputs.truncate(checkpoint); }
+                        return Ok(false);
+                    },
                     result => result?,
                 }
                 if self.rule_authority == RuleAuthority::ReceiptOnly
@@ -51,6 +56,9 @@ impl<'a> Runner<'a> {
                     missing = true;
                 }
             }
+            // This primitive owns its absence proof; preliminary misses are
+            // not independent ClientStore obligations after its decision.
+            if local { self.trace.constraint_inputs.truncate(checkpoint); }
             if missing { self.missing_authority = true; return Ok(false); }
         }
         self.check_constraints_inner(table, None, &row, Effect::Insert, if_absent)?;

@@ -441,16 +441,19 @@ fn upsert_program() -> Program {
 }
 
 fn add_guarded_write_cases(cases: &mut Vec<CorpusCase>) {
-    let schema = write_schema();
+    let mut schema = write_schema();
+    let table = schema.tables.get_mut("items").unwrap();
+    table.indexes.insert("byAId".into(), table.indexes["byId"].clone());
     let program = Program { name: "guarded.insert".into(), kind: ProgramKind::Mutation,
         args: BTreeMap::new(), read_time_granularity_ms: None, body: vec![
             Stmt::InsertIfAbsent { table: "items".into(), result: "created".into(),
                 row: Expr::Object(BTreeMap::from([("id".into(), Expr::Literal(id("new"))),
                     ("label".into(), Expr::Literal(text("same")))])) }, Stmt::Return(var("created"))] };
-    let absent = ClosureReceipt { absences: vec![("items".into(), "byId".into(), vec![id("new")]),
+    let absent = ClosureReceipt { absences: vec![("items".into(), "byAId".into(), vec![id("new")]),
+        ("items".into(), "byId".into(), vec![id("new")]),
         ("items".into(), "byLabel".into(), vec![text("same")])], ..ClosureReceipt::default() };
     let held = ClosureReceipt { rows: vec![RowRecord { table: "items".into(), id: "old".into(),
-        row: row([("id", id("old")), ("label", text("same"))]) }], ..absent.clone() };
+        row: row([("id", id("old")), ("label", text("same"))]) }], ..ClosureReceipt::default() };
     for (name, receipt, state) in [("write-insert-if-absent-created", absent, "predicted"),
         ("write-insert-if-absent-conflicting-key", held.clone(), "predicted"),
         ("write-insert-if-absent-unheld", ClosureReceipt::default(), "partial")] {

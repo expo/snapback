@@ -15,6 +15,14 @@
           }
         },
         "indexes": {
+          "byAId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          },
           "byId": {
             "components": [
               {
@@ -103,15 +111,15 @@
   "certificate": {
     "program": "guarded.update",
     "plan_hash": "5823f925ec7ae431aed1b4928565a1184e9aac49f846b04bd412793bea7231e4",
-    "schema_hash": "3c599a9d6ec003263bd8a97d398f7056c38d71a6b49025cd0743d17555aecd96",
+    "schema_hash": "b1e8d740838ccc4ba97fd1f377af5748bfdab378591d8772b881e9e85d96f434",
     "tables": {
       "items": {
         "retain": "until-revoked"
       }
     },
     "rule_hashes": {
-      "items.delete": "e1f80eea22131af041ac1d4aabac4278bb0c1708f36abdc6966a212d14269614",
-      "items.read": "e1f80eea22131af041ac1d4aabac4278bb0c1708f36abdc6966a212d14269614"
+      "items.delete": "10169884768acb0601566f669741fceca05fb0716f87ff4a6789b2af16dbbad2",
+      "items.read": "10169884768acb0601566f669741fceca05fb0716f87ff4a6789b2af16dbbad2"
     },
     "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
     "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
@@ -147,6 +155,7 @@
     },
     "maintained_amplification": 0,
     "constraint_checks": [
+      "items:Unique(byAId)",
       "items:Unique(byId)",
       "items:Unique(byLabel)"
     ],
@@ -179,7 +188,7 @@
     "read_time": null
   },
   "receipt": {
-    "schema_hash": "3c599a9d6ec003263bd8a97d398f7056c38d71a6b49025cd0743d17555aecd96",
+    "schema_hash": "b1e8d740838ccc4ba97fd1f377af5748bfdab378591d8772b881e9e85d96f434",
     "rows": [
       {
         "table": "items",
@@ -197,26 +206,7 @@
       }
     ],
     "ranges": [],
-    "absences": [
-      [
-        "items",
-        "byId",
-        [
-          {
-            "Id": "new"
-          }
-        ]
-      ],
-      [
-        "items",
-        "byLabel",
-        [
-          {
-            "String": "same"
-          }
-        ]
-      ]
-    ],
+    "absences": [],
     "verdicts": []
   },
   "prelude": [],
