@@ -352,6 +352,10 @@ fn offline_replay_envelope_pins_ids_and_dedups_by_intent() {
         first.body["intent"],
         format!("{}:0", grant["id"].as_str().unwrap())
     );
+    let effects = first.body["effects"].as_array().unwrap();
+    assert_eq!(effects.iter().map(|effect| effect["table"].as_str().unwrap()).collect::<Vec<_>>(),
+        ["deliveries", "messageCounts", "messages"], "only the sender's delivery is observable");
+    assert_eq!(effects[2]["id"], first.body["data"]["id"]);
     let seq_after_first = status(port, &secret)["seq"].as_u64().unwrap();
     let retry = mutation(
         port,

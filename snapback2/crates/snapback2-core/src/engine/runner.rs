@@ -64,6 +64,9 @@ pub(super) struct Runner<'a> {
     pub(super) env_provenance: BTreeMap<String, ResultProvenance>,
     pub(super) consts: BTreeSet<String>,
     pub(super) trace: AuthoritativeTrace,
+    /// First before-image of each physically changed row, enabled only for replay.
+    pub(super) replay_preimages: Option<BTreeMap<(String, String), Option<Value>>>,
+    pub(super) replay_preimage_bytes: u64,
     pub(super) receipt: ClosureReceipt,
     pub(super) rule_memo: BTreeMap<String, bool>,
     pub(super) rule_memo_entries: Vec<String>,
@@ -126,6 +129,8 @@ impl<'a> Runner<'a> {
             env_provenance: BTreeMap::new(),
             consts: BTreeSet::new(),
             trace: AuthoritativeTrace::default(),
+            replay_preimages: None,
+            replay_preimage_bytes: 0,
             receipt: ClosureReceipt {
                 schema_hash: Some(hashes.schema.clone()),
                 ..ClosureReceipt::default()
@@ -176,6 +181,8 @@ impl<'a> Runner<'a> {
             env_provenance: BTreeMap::new(),
             consts: BTreeSet::new(),
             trace: AuthoritativeTrace::default(),
+            replay_preimages: None,
+            replay_preimage_bytes: 0,
             receipt: ClosureReceipt {
                 schema_hash: Some(hashes.schema.clone()),
                 ..ClosureReceipt::default()

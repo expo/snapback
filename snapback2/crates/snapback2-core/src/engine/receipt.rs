@@ -96,6 +96,9 @@ pub struct EmitRecord {
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct AuthoritativeTrace {
+    /// Runtime-only final read-authorized replay obligations, persisted by the intent ledger.
+    #[serde(skip)]
+    pub observable_effects: Option<Vec<crate::offline::MutationEffect>>,
     /// Runtime-only return identity for page minting; never a receipt or wire field.
     #[serde(skip)]
     pub result_page_return: Option<String>,

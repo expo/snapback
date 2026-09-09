@@ -176,6 +176,20 @@ impl<'a> Runner<'a> {
         index_work: search_index::Derivation,
         origin: RowChangeOrigin,
     ) -> Result<(), RuntimeError> {
+        if let Some(preimages) = &mut self.replay_preimages {
+            let row = old.or(new).expect("physical row change has an image");
+            let id = row.field("id")?.as_str()?.to_owned();
+            if !preimages.contains_key(&(table.to_owned(), id.clone())) {
+                self.replay_preimage_bytes = self.replay_preimage_bytes.saturating_add(
+                    128 + table.len() as u64 + id.len() as u64 + old.map_or(0, Value::heap_bytes),
+                );
+                if self.replay_preimage_bytes > crate::certificate::Ceilings::default().heap_bytes {
+                    self.replay_preimages = None;
+                } else {
+                    preimages.insert((table.to_owned(), id), old.cloned());
+                }
+            }
+        }
         self.search_nodes.clear();
         self.derive_charge(index_work)?;
         match (old, new) {

@@ -683,6 +683,7 @@ impl Engine {
             self.rule_authority,
             seq,
         );
+        runner.replay_preimages = replay.map(|_| BTreeMap::new());
         let mut attempted = entry_validation.and_then(|()| runner.statements(&program.body));
         if attempted.is_ok()
             && program.kind == ProgramKind::Mutation

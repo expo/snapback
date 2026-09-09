@@ -8,6 +8,7 @@ pub(super) struct PolicyHashes {
     pub(super) schema: String,
     tables: BTreeMap<String, [String; 4]>,
     channels: BTreeMap<String, String>,
+    pub(super) read_certificates: BTreeMap<String, Option<RuleCertificate>>,
 }
 
 impl PolicyHashes {
@@ -35,10 +36,19 @@ impl PolicyHashes {
             .flat_map(|channel| [&channel.publish, &channel.subscribe])
             .map(|rule| (canonical_json(rule), digest(&(&hash, rule))))
             .collect();
+        // Prepare projection bounds with the schema, never on a mutation request.
+        let checker =
+            crate::certificate::Checker::new(schema, crate::certificate::Ceilings::default());
+        let read_certificates = schema
+            .tables
+            .iter()
+            .map(|(name, table)| (name.clone(), checker.check_rule(&table.rules.read).ok()))
+            .collect();
         Self {
             schema: hash,
             tables,
             channels,
+            read_certificates,
         }
     }
 

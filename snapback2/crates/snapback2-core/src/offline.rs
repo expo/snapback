@@ -70,6 +70,15 @@ pub struct ReplayCommit {
     pub at: i64,
 }
 
+/// An actual changed row whose identity the replaying principal may observe.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MutationEffect {
+    pub table: String,
+    pub id: String,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub removed: bool,
+}
+
 /// The exact terminal mutation object persisted for replay deduplication.
 // @ref LLP 1012#7-writes-offline — the intent ledger stores the same terminal
 // object returned on the wire, including typed rejections and conflicts.
@@ -83,8 +92,6 @@ pub fn replay_mutation_response(
             "state": "committed",
             "seq": seq,
             "data": value_to_wire_json(&execution.result),
-            "effects": digest(&execution.trace.touched.iter()
-                .map(|key| (&key.table, &key.row_id)).collect::<BTreeSet<_>>()),
         }),
         ExecutionState::Rejected { code, message, rule: None, .. } if code == "conflict" => json!({
             "state": "rejected",
@@ -124,6 +131,9 @@ pub fn replay_mutation_response(
     };
     // @ref LLP 1018.003.001#3-semantic-mutation-targets — the ledger preserves the executing program, never the program current at retry.
     if matches!(execution.state, ExecutionState::Committed { .. }) {
+        if let Some(effects) = &execution.trace.observable_effects {
+            response["effects"] = json!(effects);
+        }
         if let Some((plan_hash, schema_hash)) = program {
             response
                 .as_object_mut()
@@ -653,24 +663,29 @@ mod tests {
     use crate::object;
 
     #[test]
-    fn replay_effect_digest_covers_every_unique_address_without_disclosing_rows() {
+    fn replay_effects_emit_only_the_authorized_projection_and_preserve_unknown() {
         let mut run = execution(ClosureReceipt::default());
         run.state = ExecutionState::Committed { seq: 8 };
-        let identity = ("a".repeat(64), "b".repeat(64));
-        let terminal = |run: &Execution| replay_mutation_response(run, "intent", Some((&identity.0, &identity.1)));
-        assert_eq!(terminal(&run)["effects"], digest(&Vec::<(String, String)>::new()));
-        for (table, id, index) in [("messages", "m", "byId"), ("counts", "aggregate", "byId"), ("messages", "m", "byGroup")] {
-            run.trace.touched.push(crate::store::TouchedKey {
-                table: table.into(), row_id: id.into(), index: index.into(), key: vec![],
-            });
-        }
-        let result = terminal(&run);
-        assert_eq!(result["effects"], digest(&vec![("counts", "aggregate"), ("messages", "m")]));
-        assert!(!result.to_string().contains("aggregate"));
-        run.trace.touched.pop();
-        assert_eq!(terminal(&run)["effects"], result["effects"], "multiple indexes are one row obligation");
-        run.trace.touched.pop();
-        assert_ne!(terminal(&run)["effects"], result["effects"], "a message alone cannot discharge its maintained target");
+        let terminal = |run: &Execution| replay_mutation_response(run, "intent", None);
+        assert!(terminal(&run).get("effects").is_none());
+        run.trace.observable_effects = Some(vec![]);
+        assert_eq!(terminal(&run)["effects"], json!([]));
+        run.trace.observable_effects = Some(vec![MutationEffect {
+            table: "messages".into(),
+            id: "visible".into(),
+            removed: true,
+        }]);
+        run.trace.touched.push(crate::store::TouchedKey {
+            table: "hidden".into(),
+            row_id: "secret".into(),
+            index: "byId".into(),
+            key: vec![],
+        });
+        assert_eq!(
+            terminal(&run)["effects"],
+            json!([{ "table": "messages", "id": "visible", "removed": true }])
+        );
+        assert!(!terminal(&run).to_string().contains("secret"));
     }
 
     fn hash(character: char) -> String {

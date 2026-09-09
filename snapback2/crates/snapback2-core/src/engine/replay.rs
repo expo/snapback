@@ -79,6 +79,9 @@ pub(super) fn finish_run(
         rollback_savepoint(runner.tx)?;
         probe_unreached(&mut runner, &replay.trace)?;
     }
+    if !missing_authority && attempted.is_ok() {
+        runner.trace.observable_effects = observable_effects(&runner)?;
+    }
     let rule_inputs = disclosed_rule_inputs(&runner);
     Ok(ReplayRun {
         attempted,
@@ -87,6 +90,93 @@ pub(super) fn finish_run(
         receipt: std::mem::take(&mut runner.receipt),
         rule_inputs,
     })
+}
+
+/// Only final read-authorized row identities are echo obligations. A fresh rule
+/// runner has no verdicts or memos from temporary writes. Deletions use the
+/// first preimage, not a row made readable temporarily by the mutation.
+// @ref LLP 1012#7-writes-offline — private fanout is settled by the commit; the
+// complete observable subset, including maintained rows, is the client's echo work.
+fn observable_effects(
+    runner: &Runner<'_>,
+) -> Result<Option<Vec<crate::offline::MutationEffect>>, RuntimeError> {
+    if runner.rule_authority != RuleAuthority::StoreAuthoritative {
+        return Ok(None);
+    }
+    let Some(preimages) = &runner.replay_preimages else {
+        return Ok(None);
+    };
+    let ceilings = crate::certificate::Ceilings::default();
+    let max_writes: u64 = runner
+        .certificate
+        .expect("replay has a certificate")
+        .write_sites
+        .iter()
+        .map(|site| site.max_rows)
+        .sum();
+    if preimages.len() as u64 > max_writes {
+        return Ok(None);
+    }
+    let mut effects = Vec::new();
+    let (mut steps, mut probes, mut output_bytes) = (0u64, 0u64, 2u64);
+    for ((table, id), before) in preimages {
+        let after = runner.fetch_id(table, id)?;
+        let removed = after.is_none();
+        let Some(row) = after.as_ref().or(before.as_ref()) else {
+            continue;
+        };
+        let Some(certificate) = runner
+            .hashes
+            .read_certificates
+            .get(table)
+            .and_then(Option::as_ref)
+        else {
+            return Ok(None);
+        };
+        // Never truncate a complete-set claim. Complex projection keeps the
+        // successful intent explicit; it does not change the mutation outcome.
+        if steps.saturating_add(certificate.max_steps) > ceilings.steps
+            || probes.saturating_add(certificate.max_rule_probes) > ceilings.rule_probes
+        {
+            return Ok(None);
+        }
+        let mut probe = Runner::probe(
+            runner.tx,
+            runner.schema,
+            runner.hashes,
+            runner.context.clone(),
+            &[],
+            &[],
+            RuleAuthority::StoreAuthoritative,
+            runner.seq,
+            Some(certificate),
+        );
+        let visible = match probe.check_rule(table, Effect::Read, None, row) {
+            Ok(visible) => visible,
+            Err(RuntimeError::Steps(_) | RuntimeError::TraceSubset(_)) => return Ok(None),
+            Err(error) => return Err(error),
+        };
+        if probe.assert_rule_bounds().is_err() {
+            return Ok(None);
+        }
+        steps = steps
+            .saturating_add(probe.trace.steps)
+            .saturating_add(probe.trace.derived_steps);
+        probes = probes.saturating_add(probe.trace.rule_probes);
+        if visible {
+            let effect = crate::offline::MutationEffect {
+                table: table.clone(),
+                id: id.clone(),
+                removed,
+            };
+            output_bytes = output_bytes.saturating_add(canonical_json(&effect).len() as u64 + 1);
+            if output_bytes > ceilings.output_bytes {
+                return Ok(None);
+            }
+            effects.push(effect);
+        }
+    }
+    Ok(Some(effects))
 }
 
 /// The rule inputs a client-facing compare may see. A rule check on a
@@ -616,6 +706,282 @@ mod tests {
         assert_eq!(
             conflict_site(&expected, &actual.points, &actual.rule_inputs, false),
             None
+        );
+    }
+
+    fn wait_row(id: &str, owner: &str) -> Value {
+        object([
+            ("id", Value::Id(id.to_owned())),
+            ("resourceId", Value::Id("resource-1".to_owned())),
+            ("ownerId", Value::Id(owner.to_owned())),
+        ])
+    }
+
+    fn insert_row(table: &str, row: Value) -> Stmt {
+        Stmt::Insert {
+            table: table.to_owned(),
+            row: Expr::Literal(row),
+        }
+    }
+
+    fn delete_row(table: &str, id: &str) -> Stmt {
+        Stmt::Delete {
+            table: table.to_owned(),
+            key: Expr::Literal(Value::Id(id.to_owned())),
+        }
+    }
+
+    fn update_row(table: &str, id: &str, patch: Value) -> Stmt {
+        Stmt::Update {
+            table: table.to_owned(),
+            key: Expr::Literal(Value::Id(id.to_owned())),
+            patch: Expr::Literal(patch),
+        }
+    }
+
+    /// Exercise the same atomic execution + persisted terminal as owner replay.
+    fn effect_replay(engine: &mut Engine, body: Vec<Stmt>) -> serde_json::Value {
+        let program = Program {
+            name: "effects".to_owned(),
+            kind: ProgramKind::Mutation,
+            args: BTreeMap::new(),
+            read_time_granularity_ms: None,
+            body,
+        };
+        let certificate = Checker::new(&engine.schema, Ceilings::default())
+            .check(&program)
+            .unwrap();
+        let replay = ReplayCommit {
+            grant: "grant-1".to_owned(),
+            offset: 0,
+            count: 1,
+            intent: "grant-1:0".to_owned(),
+            request_digest: "d".repeat(64),
+            trace: ReplayTrace::default(),
+            at: 5,
+        };
+        let execution = engine
+            .execute_replay(
+                &program,
+                &certificate,
+                Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new()),
+                &replay,
+            )
+            .unwrap();
+        assert!(
+            matches!(execution.state, ExecutionState::Committed { .. }),
+            "{:?}",
+            execution.state
+        );
+        let response = replay_mutation_response(
+            &execution,
+            &replay.intent,
+            Some((&certificate.plan_hash, &certificate.schema_hash)),
+        );
+        let stored = engine
+            .store()
+            .stored_client_intent("u1", "grant-1:0")
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            stored.response, response,
+            "dedup keeps the same observable set"
+        );
+        response
+    }
+
+    #[test]
+    fn observable_effects_include_visible_fanout_and_maintains_without_hidden_addresses() {
+        let mut engine = Engine::memory(spike_schema()).unwrap();
+        let response = effect_replay(
+            &mut engine,
+            vec![
+                insert_row("waitlist", wait_row("own", "u1")),
+                insert_row("waitlist", wait_row("peer-secret-id", "u2")),
+                update_row(
+                    "waitlist",
+                    "own",
+                    object([("ownerId", Value::Id("u1".to_owned()))]),
+                ),
+            ],
+        );
+        let effects = response["effects"].as_array().unwrap();
+        assert_eq!(
+            effects.len(),
+            2,
+            "one source row and one maintained count, each once"
+        );
+        assert_eq!(effects[1], json!({"table":"waitlist", "id":"own"}));
+        assert_eq!(effects[0]["table"], "waitCounts");
+        assert!(!response.to_string().contains("peer-secret-id"));
+        assert_eq!(
+            engine
+                .store()
+                .conn
+                .query_row(
+                    "SELECT COUNT(*) FROM rows WHERE table_name = 'waitlist'",
+                    [],
+                    |row| row.get::<_, i64>(0)
+                )
+                .unwrap(),
+            2,
+            "hidden fanout still commits"
+        );
+    }
+
+    #[test]
+    fn observable_effects_remove_visible_preimages_but_never_temporary_ownership() {
+        let mut schema = spike_schema();
+        schema.maintains.clear();
+        let mut engine = Engine::memory(schema).unwrap();
+        engine.seed("waitlist", wait_row("own", "u1")).unwrap();
+        engine.seed("waitlist", wait_row("hidden", "u2")).unwrap();
+        engine.seed("waitlist", wait_row("revoked", "u1")).unwrap();
+        let response = effect_replay(
+            &mut engine,
+            vec![
+                delete_row("waitlist", "own"),
+                update_row(
+                    "waitlist",
+                    "hidden",
+                    object([("ownerId", Value::Id("u1".to_owned()))]),
+                ),
+                delete_row("waitlist", "hidden"),
+                update_row(
+                    "waitlist",
+                    "revoked",
+                    object([("ownerId", Value::Id("u2".to_owned()))]),
+                ),
+                insert_row("waitlist", wait_row("ephemeral", "u1")),
+                delete_row("waitlist", "ephemeral"),
+            ],
+        );
+        assert_eq!(
+            response["effects"],
+            json!([{"table":"waitlist", "id":"own", "removed":true}])
+        );
+    }
+
+    #[test]
+    fn observable_effects_recheck_final_rule_dependencies_after_revocation() {
+        let mut schema = spike_schema();
+        schema.maintains.clear();
+        schema.tables.get_mut("entitlements").unwrap().rules.read =
+            RuleExpr::Eq(RuleTerm::Field("userId".to_owned()), RuleTerm::Viewer);
+        for temporary in [false, true] {
+            let mut engine = Engine::memory(schema.clone()).unwrap();
+            engine
+                .seed(
+                    "secretDocs",
+                    object([
+                        ("id", Value::Id("hidden-doc".to_owned())),
+                        ("title", Value::String("secret".to_owned())),
+                    ]),
+                )
+                .unwrap();
+            let grant = object([
+                ("id", Value::Id("grant".to_owned())),
+                ("userId", Value::Id("u1".to_owned())),
+            ]);
+            let mut body = Vec::new();
+            if temporary {
+                body.push(insert_row("entitlements", grant));
+            } else {
+                engine.seed("entitlements", grant).unwrap();
+            }
+            body.push(update_row(
+                "secretDocs",
+                "hidden-doc",
+                object([("title", Value::String("changed".to_owned()))]),
+            ));
+            body.push(delete_row("secretDocs", "hidden-doc"));
+            body.push(delete_row("entitlements", "grant"));
+            let response = effect_replay(&mut engine, body);
+            let expected = if temporary {
+                json!([])
+            } else {
+                json!([{"table":"entitlements", "id":"grant", "removed":true}])
+            };
+            assert_eq!(response["effects"], expected, "temporary={temporary}");
+            assert!(!response.to_string().contains("hidden-doc"));
+        }
+    }
+
+    #[test]
+    fn observable_effects_noop_is_complete_and_unbounded_projection_is_unknown() {
+        let mut engine = Engine::memory(spike_schema()).unwrap();
+        assert_eq!(effect_replay(&mut engine, vec![])["effects"], json!([]));
+        let mut schema = spike_schema();
+        schema.maintains.clear();
+        let mut engine = Engine::memory(schema).unwrap();
+        // An unavailable or over-budget projection must preserve a successful
+        // write without advertising a truncated complete obligation set.
+        engine
+            .hashes
+            .read_certificates
+            .get_mut("waitlist")
+            .unwrap()
+            .as_mut()
+            .unwrap()
+            .max_steps = Ceilings::default().steps + 1;
+        let response = effect_replay(
+            &mut engine,
+            vec![insert_row("waitlist", wait_row("own", "u1"))],
+        );
+        assert!(response.get("effects").is_none());
+        assert_eq!(
+            engine
+                .store()
+                .conn
+                .query_row(
+                    "SELECT COUNT(*) FROM rows WHERE table_name = 'waitlist'",
+                    [],
+                    |row| row.get::<_, i64>(0)
+                )
+                .unwrap(),
+            1
+        );
+    }
+
+    #[test]
+    fn observable_effects_drop_preimages_at_the_memory_ceiling_without_refusing_deletion() {
+        let mut schema = spike_schema();
+        schema.maintains.clear();
+        let docs = schema.tables.get_mut("secretDocs").unwrap();
+        docs.rules.read = RuleExpr::Allow;
+        docs.columns
+            .insert("title".to_owned(), ColumnType::Text { max: 512 * 1024 });
+        let mut engine = Engine::memory(schema).unwrap();
+        let mut body = Vec::new();
+        for index in 0..17 {
+            let id = format!("doc-{index}");
+            engine
+                .seed(
+                    "secretDocs",
+                    object([
+                        ("id", Value::Id(id.clone())),
+                        ("title", Value::String("x".repeat(512 * 1024))),
+                    ]),
+                )
+                .unwrap();
+            body.push(delete_row("secretDocs", &id));
+        }
+        let response = effect_replay(&mut engine, body);
+        assert!(
+            response.get("effects").is_none(),
+            "a partial projection is never complete"
+        );
+        assert_eq!(
+            engine
+                .store()
+                .conn
+                .query_row(
+                    "SELECT COUNT(*) FROM rows WHERE table_name = 'secretDocs'",
+                    [],
+                    |row| row.get::<_, i64>(0)
+                )
+                .unwrap(),
+            0
         );
     }
 
