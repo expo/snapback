@@ -78,9 +78,9 @@ the third on 2026-09-04, LLP 1012 §12):
   allocation; no fixed page count. No million-word corpus, no embedded
   20 MB guide in the binary, no calendar freshness dates.
 - **WASM anywhere.** The client evaluator is the TypeScript twin. The complete
-  local runtime has an **84,000-byte gzip ceiling**, **80,000 the target**,
-  frozen **2026-09-08 by the author's word**, superseding every prior allocation
-  increase. A feature that does not fit is
+  local runtime has an **85,000-byte gzip ceiling**, **80,000 the target**,
+  explicitly approved **2026-09-09 by the author** to land the six small-items
+  changes, superseding the 2026-09-08 allocation of 84,000. A feature that does not fit is
   descoped or paid for by deletion. The five-root measurement uses Node 24.18.0,
   esbuild 0.25.9, gzip level 9; all normalization data, decoding, indexes,
   incremental state, prediction and local cursors participate. Relocating
