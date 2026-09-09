@@ -23,8 +23,8 @@
   {
     "family": "args",
     "code": "E_ARGS_TYPE",
-    "wrong": "snapback2 run messages.thread '{\"conversationId\":1}' --as alice",
-    "right": "snapback2 run messages.thread '{\"conversationId\":\"conversation-1\"}' --as alice",
+    "wrong": "`snapback2 check --ir` input (Quarry rejects malformed forms before this boundary):\n```json\n{\"schema\":{\"tables\":{\"todos\":{\"columns\":{\"id\":\"Id\",\"title\":{\"Text\":{\"max\":100}},\"ownerId\":\"Principal\"},\"indexes\":{\"byId\":{\"components\":[{\"Column\":\"id\"}],\"unique\":true},\"byTitle\":{\"components\":[{\"Column\":\"title\"},{\"Column\":\"id\"}],\"unique\":false}},\"rules\":{\"read\":{\"Eq\":[{\"Field\":\"ownerId\"},\"Viewer\"]},\"insert\":\"Allow\",\"update\":\"Allow\",\"delete\":\"Deny\"},\"constraints\":[],\"retain\":\"until-revoked\"}},\"maintains\":[],\"channels\":{},\"auth\":{\"password\":true,\"guests\":true},\"effects\":[]},\"programs\":[{\"name\":\"ops.add\",\"kind\":\"Mutation\",\"args\":{\"title\":{\"Text\":{\"max\":100}}},\"read_time_granularity_ms\":null,\"body\":[{\"Const\":{\"name\":\"__operand0\",\"value\":{\"Input\":\"NewId\"}}},{\"Insert\":{\"table\":\"todos\",\"row\":{\"Object\":{\"id\":{\"Variable\":\"__operand0\"},\"ownerId\":{\"Input\":\"Viewer\"},\"title\":{\"Literal\":{\"Int\":1}}}}}},{\"Return\":{\"Literal\":\"Null\"}}]}],\"effects\":[]}\n```",
+    "right": "`snapback2 check --ir` input (Quarry rejects malformed forms before this boundary):\n```json\n{\"schema\":{\"tables\":{\"todos\":{\"columns\":{\"id\":\"Id\",\"title\":{\"Text\":{\"max\":100}},\"ownerId\":\"Principal\"},\"indexes\":{\"byId\":{\"components\":[{\"Column\":\"id\"}],\"unique\":true},\"byTitle\":{\"components\":[{\"Column\":\"title\"},{\"Column\":\"id\"}],\"unique\":false}},\"rules\":{\"read\":{\"Eq\":[{\"Field\":\"ownerId\"},\"Viewer\"]},\"insert\":\"Allow\",\"update\":\"Allow\",\"delete\":\"Deny\"},\"constraints\":[],\"retain\":\"until-revoked\"}},\"maintains\":[],\"channels\":{},\"auth\":{\"password\":true,\"guests\":true},\"effects\":[]},\"programs\":[{\"name\":\"ops.add\",\"kind\":\"Mutation\",\"args\":{\"title\":{\"Text\":{\"max\":100}}},\"read_time_granularity_ms\":null,\"body\":[{\"Const\":{\"name\":\"__operand0\",\"value\":{\"Input\":\"NewId\"}}},{\"Insert\":{\"table\":\"todos\",\"row\":{\"Object\":{\"id\":{\"Variable\":\"__operand0\"},\"ownerId\":{\"Input\":\"Viewer\"},\"title\":{\"Variable\":\"title\"}}}}},{\"Return\":{\"Literal\":\"Null\"}}]}],\"effects\":[]}\n```",
     "guide": "quarry"
   },
   {
@@ -72,29 +72,29 @@
   {
     "family": "bound",
     "code": "E_UNBOUND_LOOP",
-    "wrong": "```q\nmutation visit(items: json <=4096):\n  for item in items:\n    insert todos { title: item.title }\n```",
-    "right": "```q\nmutation visit(items: [text <=100] <=20):\n  for title in items:\n    insert todos { title }\n```",
+    "wrong": "```q\nmutation visit(items: json <=4096):\n  for item in items.values:\n    value = item\n  return null\n```",
+    "right": "```q\nmutation visit(items: [text <=100] <=20):\n  for title in items:\n    insert todos { title, ownerId: viewer }\n  return null\n```",
     "guide": "quarry"
   },
   {
     "family": "bound",
     "code": "E_STRUCTURAL_COUNT",
-    "wrong": "```q\nquery total():\n  return count posts[] first 50 by byTime\n```",
+    "wrong": "```q\nquery total():\n  return (posts[] first 50 by byTime).length\n```",
     "right": "```q\nquery total():\n  return postCounts[viewer]\n```",
     "guide": "quarry"
   },
   {
     "family": "opaque",
     "code": "E_AMBIENT_TIME",
-    "wrong": "```q\nquery current():\n  return Date.now()\n```",
+    "wrong": "```q\nquery current():\n  return commit\n```",
     "right": "```q\nquery current():\n  return now\n```",
     "guide": "quarry"
   },
   {
     "family": "opaque",
     "code": "E_OPAQUE",
-    "wrong": "```q\nquery one():\n  return unknownLibraryCall()\n```",
-    "right": "```q\nquery one(id: todos):\n  return todos[id]\n```",
+    "wrong": "```q\nquery size(value: json <=1000):\n  return value.length\n```",
+    "right": "```q\nquery size(value: [int] <=20):\n  return value.length\n```",
     "guide": "quarry"
   },
   {
@@ -107,8 +107,8 @@
   {
     "family": "op",
     "code": "E_OP_INVALID",
-    "wrong": "```q\nquery broken():\n  return missingName\n```",
-    "right": "```q\nquery valid():\n  return null\n```",
+    "wrong": "```q\n-- snapback/nested/example.q\nquery valid():\n  return null\n```",
+    "right": "```q\n-- snapback/example.q\nquery valid():\n  return null\n```",
     "guide": "quarry"
   },
   {
@@ -121,8 +121,8 @@
   {
     "family": "op",
     "code": "E_OP_RESERVED",
-    "wrong": "```q\nquery then():\n  return null\n```",
-    "right": "```q\nquery next():\n  return null\n```",
+    "wrong": "```q\nquery check():\n  require false else E_AUTH_CUSTOM\n  return null\n```",
+    "right": "```q\nquery check():\n  require false else ACCESS_DENIED\n  return null\n```",
     "guide": "quarry"
   },
   {
@@ -149,29 +149,29 @@
   {
     "family": "schema",
     "code": "E_SCHEMA_ID_RESERVED",
-    "wrong": "```q\ntable todos:\n  id: todos\n  title: text <=100\n```",
-    "right": "```q\ntable todos:\n  title: text <=100\n  public\n```",
+    "wrong": "`snapback2 check --ir` input (Quarry rejects malformed forms before this boundary):\n```json\n{\"schema\":{\"tables\":{\"todos\":{\"columns\":{\"id\":\"Id\",\"title\":{\"Text\":{\"max\":100}},\"ownerId\":\"Principal\"},\"indexes\":{\"byId\":{\"components\":[{\"Column\":\"id\"}],\"unique\":true},\"byTitle\":{\"components\":[{\"Column\":\"title\"},{\"Column\":\"id\"}],\"unique\":false}},\"rules\":{\"read\":{\"Eq\":[{\"Field\":\"ownerId\"},\"Viewer\"]},\"insert\":\"Allow\",\"update\":\"Allow\",\"delete\":\"Deny\"},\"constraints\":[],\"retain\":\"until-revoked\"}},\"maintains\":[],\"channels\":{},\"auth\":{\"password\":true,\"guests\":true},\"effects\":[]},\"programs\":[{\"name\":\"ops.add\",\"kind\":\"Mutation\",\"args\":{\"title\":{\"Text\":{\"max\":100}}},\"read_time_granularity_ms\":null,\"body\":[{\"Update\":{\"table\":\"todos\",\"key\":{\"Input\":\"NewId\"},\"patch\":{\"Object\":{\"id\":{\"Input\":\"NewId\"}}}}},{\"Return\":{\"Literal\":\"Null\"}}]}],\"effects\":[]}\n```",
+    "right": "`snapback2 check --ir` input (Quarry rejects malformed forms before this boundary):\n```json\n{\"schema\":{\"tables\":{\"todos\":{\"columns\":{\"id\":\"Id\",\"title\":{\"Text\":{\"max\":100}},\"ownerId\":\"Principal\"},\"indexes\":{\"byId\":{\"components\":[{\"Column\":\"id\"}],\"unique\":true},\"byTitle\":{\"components\":[{\"Column\":\"title\"},{\"Column\":\"id\"}],\"unique\":false}},\"rules\":{\"read\":{\"Eq\":[{\"Field\":\"ownerId\"},\"Viewer\"]},\"insert\":\"Allow\",\"update\":\"Allow\",\"delete\":\"Deny\"},\"constraints\":[],\"retain\":\"until-revoked\"}},\"maintains\":[],\"channels\":{},\"auth\":{\"password\":true,\"guests\":true},\"effects\":[]},\"programs\":[{\"name\":\"ops.add\",\"kind\":\"Mutation\",\"args\":{\"title\":{\"Text\":{\"max\":100}}},\"read_time_granularity_ms\":null,\"body\":[{\"Const\":{\"name\":\"__operand0\",\"value\":{\"Input\":\"NewId\"}}},{\"Insert\":{\"table\":\"todos\",\"row\":{\"Object\":{\"id\":{\"Variable\":\"__operand0\"},\"ownerId\":{\"Input\":\"Viewer\"},\"title\":{\"Variable\":\"title\"}}}}},{\"Return\":{\"Literal\":\"Null\"}}]}],\"effects\":[]}\n```",
     "guide": "quarry"
   },
   {
     "family": "schema",
     "code": "E_SCHEMA_INDEX_COLUMN",
-    "wrong": "```q\nby byMissing: missing\n```",
-    "right": "```q\nby byTitle: title\n```",
+    "wrong": "```q\nby byPhoto: photo\n```",
+    "right": "```q\nby byTime: at, id\n```",
     "guide": "quarry"
   },
   {
     "family": "schema",
     "code": "E_SCHEMA_CONSTRAINT",
-    "wrong": "```q\ncap 50 by missing\n```",
+    "wrong": "```q\ncap 50 by ownerId, ownerId\n```",
     "right": "```q\ncap 50 by ownerId\n```",
     "guide": "quarry"
   },
   {
     "family": "schema",
     "code": "E_SCHEMA_MAINTAIN",
-    "wrong": "```q\nmaintain counts = count missing by ownerId:\n  read <- .ownerId = viewer\n```",
-    "right": "```q\nmaintain counts = count todos by ownerId:\n  read <- .ownerId = viewer\n```",
+    "wrong": "```q\nmaintain counts = count postCounts by ownerId:\n  read <- allow\n```",
+    "right": "```q\nmaintain counts = count posts by ownerId:\n  read <- allow\n```",
     "guide": "quarry"
   },
   {
@@ -196,17 +196,10 @@
     "guide": "quarry"
   },
   {
-    "family": "schema",
-    "code": "E_SCHEMA_INVALID",
-    "wrong": "```q\ntable todos:\n  title: unrecognized\n```",
-    "right": "```q\ntable todos:\n  title: text <=100\n  public\n```",
-    "guide": "quarry"
-  },
-  {
     "family": "rule",
     "code": "E_RULE_INVALID",
-    "wrong": "```q\nread <- customRule()\n```",
-    "right": "```q\nread <- .ownerId = viewer\n```",
+    "wrong": "`snapback2 check --ir` input (Quarry rejects malformed forms before this boundary):\n```json\n{\"schema\":{\"tables\":{\"todos\":{\"columns\":{\"id\":\"Id\",\"title\":{\"Text\":{\"max\":100}},\"ownerId\":\"Principal\"},\"indexes\":{\"byId\":{\"components\":[{\"Column\":\"id\"}],\"unique\":true},\"byTitle\":{\"components\":[{\"Column\":\"title\"},{\"Column\":\"id\"}],\"unique\":false}},\"rules\":{\"read\":{\"Eq\":[{\"Field\":\"ownerId\"},{\"Literal\":{\"Int\":1}}]},\"insert\":\"Allow\",\"update\":\"Allow\",\"delete\":\"Deny\"},\"constraints\":[],\"retain\":\"until-revoked\"}},\"maintains\":[],\"channels\":{},\"auth\":{\"password\":true,\"guests\":true},\"effects\":[]},\"programs\":[{\"name\":\"ops.add\",\"kind\":\"Mutation\",\"args\":{\"title\":{\"Text\":{\"max\":100}}},\"read_time_granularity_ms\":null,\"body\":[{\"Const\":{\"name\":\"__operand0\",\"value\":{\"Input\":\"NewId\"}}},{\"Insert\":{\"table\":\"todos\",\"row\":{\"Object\":{\"id\":{\"Variable\":\"__operand0\"},\"ownerId\":{\"Input\":\"Viewer\"},\"title\":{\"Variable\":\"title\"}}}}},{\"Return\":{\"Literal\":\"Null\"}}]}],\"effects\":[]}\n```",
+    "right": "`snapback2 check --ir` input (Quarry rejects malformed forms before this boundary):\n```json\n{\"schema\":{\"tables\":{\"todos\":{\"columns\":{\"id\":\"Id\",\"title\":{\"Text\":{\"max\":100}},\"ownerId\":\"Principal\"},\"indexes\":{\"byId\":{\"components\":[{\"Column\":\"id\"}],\"unique\":true},\"byTitle\":{\"components\":[{\"Column\":\"title\"},{\"Column\":\"id\"}],\"unique\":false}},\"rules\":{\"read\":{\"Eq\":[{\"Field\":\"ownerId\"},\"Viewer\"]},\"insert\":\"Allow\",\"update\":\"Allow\",\"delete\":\"Deny\"},\"constraints\":[],\"retain\":\"until-revoked\"}},\"maintains\":[],\"channels\":{},\"auth\":{\"password\":true,\"guests\":true},\"effects\":[]},\"programs\":[{\"name\":\"ops.add\",\"kind\":\"Mutation\",\"args\":{\"title\":{\"Text\":{\"max\":100}}},\"read_time_granularity_ms\":null,\"body\":[{\"Const\":{\"name\":\"__operand0\",\"value\":{\"Input\":\"NewId\"}}},{\"Insert\":{\"table\":\"todos\",\"row\":{\"Object\":{\"id\":{\"Variable\":\"__operand0\"},\"ownerId\":{\"Input\":\"Viewer\"},\"title\":{\"Variable\":\"title\"}}}}},{\"Return\":{\"Literal\":\"Null\"}}]}],\"effects\":[]}\n```",
     "guide": "auth"
   },
   {
@@ -289,15 +282,15 @@
   {
     "family": "effect",
     "code": "E_EFFECT_UNKNOWN",
-    "wrong": "```q\nmutation send():\n  emit missingEffect null\n```",
-    "right": "```q\nmutation send():\n  emit notify null\n```",
+    "wrong": "```q\nquery ping():\n  return null\neffect missing from unavailable\n```",
+    "right": "```q\nquery ping():\n  return null\neffect notify from delivery\n```",
     "guide": "effects"
   },
   {
     "family": "effect",
     "code": "E_EMIT_IN_QUERY",
-    "wrong": "```q\nquery notifyNow():\n  emit notify null\n  return null\n```",
-    "right": "```q\nmutation notifyNow():\n  emit notify null\n  return null\n```",
+    "wrong": "```q\nquery notifyNow():\n  emit notify null\n  return null\neffect notify from delivery\n```",
+    "right": "```q\nmutation notifyNow():\n  emit notify null\n  return null\neffect notify from delivery\n```",
     "guide": "effects"
   },
   {
@@ -366,8 +359,8 @@
   {
     "family": "args",
     "code": "E_ARGS_CURSOR_INDEX",
-    "wrong": "```q\nby byConvTime: conversationId, at\n```",
-    "right": "```q\nby byConvTime: conversationId, at, id\n```",
+    "wrong": "`snapback2 check --ir` input (Quarry rejects malformed forms before this boundary):\n```json\n{\"schema\":{\"tables\":{\"todos\":{\"columns\":{\"id\":\"Id\",\"title\":{\"Text\":{\"max\":100}},\"ownerId\":\"Principal\"},\"indexes\":{\"byId\":{\"components\":[{\"Column\":\"id\"}],\"unique\":true},\"byTitle\":{\"components\":[{\"Column\":\"title\"}],\"unique\":false}},\"rules\":{\"read\":{\"Eq\":[{\"Field\":\"ownerId\"},\"Viewer\"]},\"insert\":\"Allow\",\"update\":\"Allow\",\"delete\":\"Deny\"},\"constraints\":[],\"retain\":\"until-revoked\"}},\"maintains\":[],\"channels\":{},\"auth\":{\"password\":true,\"guests\":true},\"effects\":[]},\"programs\":[{\"name\":\"ops.page\",\"kind\":\"Query\",\"args\":{\"c\":{\"Optional\":\"Cursor\"}},\"read_time_granularity_ms\":null,\"body\":[{\"Return\":{\"Scan\":{\"site\":\"ops.page.0\",\"table\":\"todos\",\"index\":\"byTitle\",\"prefix\":[],\"order\":\"Asc\",\"take\":{\"Literal\":5},\"after\":{\"Variable\":\"c\"},\"before\":null,\"range\":null,\"opaque_cursor\":true,\"merge_site\":null,\"provenance\":\"Const\"}}}]}],\"effects\":[]}\n```",
+    "right": "`snapback2 check --ir` input (Quarry rejects malformed forms before this boundary):\n```json\n{\"schema\":{\"tables\":{\"todos\":{\"columns\":{\"id\":\"Id\",\"title\":{\"Text\":{\"max\":100}},\"ownerId\":\"Principal\"},\"indexes\":{\"byId\":{\"components\":[{\"Column\":\"id\"}],\"unique\":true},\"byTitle\":{\"components\":[{\"Column\":\"title\"},{\"Column\":\"id\"}],\"unique\":false}},\"rules\":{\"read\":{\"Eq\":[{\"Field\":\"ownerId\"},\"Viewer\"]},\"insert\":\"Allow\",\"update\":\"Allow\",\"delete\":\"Deny\"},\"constraints\":[],\"retain\":\"until-revoked\"}},\"maintains\":[],\"channels\":{},\"auth\":{\"password\":true,\"guests\":true},\"effects\":[]},\"programs\":[{\"name\":\"ops.page\",\"kind\":\"Query\",\"args\":{\"c\":{\"Optional\":\"Cursor\"}},\"read_time_granularity_ms\":null,\"body\":[{\"Return\":{\"Scan\":{\"site\":\"ops.page.0\",\"table\":\"todos\",\"index\":\"byTitle\",\"prefix\":[],\"order\":\"Asc\",\"take\":{\"Literal\":5},\"after\":{\"Variable\":\"c\"},\"before\":null,\"range\":null,\"opaque_cursor\":true,\"merge_site\":null,\"provenance\":\"Const\"}}}]}],\"effects\":[]}\n```",
     "guide": "quarry"
   },
   {
@@ -422,15 +415,15 @@
   {
     "family": "args",
     "code": "E_ARGS_ID_SCALAR",
-    "wrong": "```q\ninsert todos { id: '', title }\n```",
-    "right": "```q\ninsert todos { title }\n```",
+    "wrong": "`snapback2 check --ir` input (Quarry rejects malformed forms before this boundary):\n```json\n{\"schema\":{\"tables\":{\"todos\":{\"columns\":{\"id\":\"Id\",\"title\":{\"Text\":{\"max\":100}},\"ownerId\":\"Principal\"},\"indexes\":{\"byId\":{\"components\":[{\"Column\":\"id\"}],\"unique\":true},\"byTitle\":{\"components\":[{\"Column\":\"title\"},{\"Column\":\"id\"}],\"unique\":false}},\"rules\":{\"read\":{\"Eq\":[{\"Field\":\"ownerId\"},\"Viewer\"]},\"insert\":\"Allow\",\"update\":\"Allow\",\"delete\":\"Deny\"},\"constraints\":[],\"retain\":\"until-revoked\"}},\"maintains\":[],\"channels\":{},\"auth\":{\"password\":true,\"guests\":true},\"effects\":[]},\"programs\":[{\"name\":\"ops.add\",\"kind\":\"Mutation\",\"args\":{\"title\":{\"Text\":{\"max\":100}}},\"read_time_granularity_ms\":null,\"body\":[{\"Const\":{\"name\":\"__operand0\",\"value\":{\"Input\":\"NewId\"}}},{\"Insert\":{\"table\":\"todos\",\"row\":{\"Object\":{\"id\":{\"Variable\":\"__operand0\"},\"ownerId\":{\"Literal\":{\"Int\":1}},\"title\":{\"Variable\":\"title\"}}}}},{\"Return\":{\"Literal\":\"Null\"}}]}],\"effects\":[]}\n```",
+    "right": "`snapback2 check --ir` input (Quarry rejects malformed forms before this boundary):\n```json\n{\"schema\":{\"tables\":{\"todos\":{\"columns\":{\"id\":\"Id\",\"title\":{\"Text\":{\"max\":100}},\"ownerId\":\"Principal\"},\"indexes\":{\"byId\":{\"components\":[{\"Column\":\"id\"}],\"unique\":true},\"byTitle\":{\"components\":[{\"Column\":\"title\"},{\"Column\":\"id\"}],\"unique\":false}},\"rules\":{\"read\":{\"Eq\":[{\"Field\":\"ownerId\"},\"Viewer\"]},\"insert\":\"Allow\",\"update\":\"Allow\",\"delete\":\"Deny\"},\"constraints\":[],\"retain\":\"until-revoked\"}},\"maintains\":[],\"channels\":{},\"auth\":{\"password\":true,\"guests\":true},\"effects\":[]},\"programs\":[{\"name\":\"ops.add\",\"kind\":\"Mutation\",\"args\":{\"title\":{\"Text\":{\"max\":100}}},\"read_time_granularity_ms\":null,\"body\":[{\"Const\":{\"name\":\"__operand0\",\"value\":{\"Input\":\"NewId\"}}},{\"Insert\":{\"table\":\"todos\",\"row\":{\"Object\":{\"id\":{\"Variable\":\"__operand0\"},\"ownerId\":{\"Input\":\"Viewer\"},\"title\":{\"Variable\":\"title\"}}}}},{\"Return\":{\"Literal\":\"Null\"}}]}],\"effects\":[]}\n```",
     "guide": "quarry"
   },
   {
     "family": "args",
     "code": "E_ARGS_ID_TEXT",
-    "wrong": "```q\npair = leftId + ':' + rightId\n```",
-    "right": "```q\npair = dmPairs[leftId, rightId]\n```",
+    "wrong": "`snapback2 check --ir` input (Quarry rejects malformed forms before this boundary):\n```json\n{\"schema\":{\"tables\":{\"todos\":{\"columns\":{\"id\":\"Id\",\"title\":{\"Text\":{\"max\":100}},\"ownerId\":\"Principal\"},\"indexes\":{\"byId\":{\"components\":[{\"Column\":\"id\"}],\"unique\":true},\"byTitle\":{\"components\":[{\"Column\":\"title\"},{\"Column\":\"id\"}],\"unique\":false}},\"rules\":{\"read\":{\"Eq\":[{\"Field\":\"ownerId\"},\"Viewer\"]},\"insert\":\"Allow\",\"update\":\"Allow\",\"delete\":\"Deny\"},\"constraints\":[],\"retain\":\"until-revoked\"}},\"maintains\":[],\"channels\":{},\"auth\":{\"password\":true,\"guests\":true},\"effects\":[]},\"programs\":[{\"name\":\"ops.add\",\"kind\":\"Mutation\",\"args\":{\"title\":{\"Text\":{\"max\":100}}},\"read_time_granularity_ms\":null,\"body\":[{\"Const\":{\"name\":\"__operand0\",\"value\":{\"Input\":\"NewId\"}}},{\"Insert\":{\"table\":\"todos\",\"row\":{\"Object\":{\"id\":{\"Variable\":\"__operand0\"},\"ownerId\":{\"Binary\":{\"op\":\"Add\",\"left\":{\"Input\":\"Viewer\"},\"right\":{\"Literal\":{\"Int\":1}}}},\"title\":{\"Variable\":\"title\"}}}}},{\"Return\":{\"Literal\":\"Null\"}}]}],\"effects\":[]}\n```",
+    "right": "`snapback2 check --ir` input (Quarry rejects malformed forms before this boundary):\n```json\n{\"schema\":{\"tables\":{\"todos\":{\"columns\":{\"id\":\"Id\",\"title\":{\"Text\":{\"max\":100}},\"ownerId\":\"Principal\"},\"indexes\":{\"byId\":{\"components\":[{\"Column\":\"id\"}],\"unique\":true},\"byTitle\":{\"components\":[{\"Column\":\"title\"},{\"Column\":\"id\"}],\"unique\":false}},\"rules\":{\"read\":{\"Eq\":[{\"Field\":\"ownerId\"},\"Viewer\"]},\"insert\":\"Allow\",\"update\":\"Allow\",\"delete\":\"Deny\"},\"constraints\":[],\"retain\":\"until-revoked\"}},\"maintains\":[],\"channels\":{},\"auth\":{\"password\":true,\"guests\":true},\"effects\":[]},\"programs\":[{\"name\":\"ops.add\",\"kind\":\"Mutation\",\"args\":{\"title\":{\"Text\":{\"max\":100}}},\"read_time_granularity_ms\":null,\"body\":[{\"Const\":{\"name\":\"__operand0\",\"value\":{\"Input\":\"NewId\"}}},{\"Insert\":{\"table\":\"todos\",\"row\":{\"Object\":{\"id\":{\"Variable\":\"__operand0\"},\"ownerId\":{\"Input\":\"Viewer\"},\"title\":{\"Variable\":\"title\"}}}}},{\"Return\":{\"Literal\":\"Null\"}}]}],\"effects\":[]}\n```",
     "guide": "quarry"
   },
   {

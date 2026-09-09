@@ -9,7 +9,7 @@ pub(crate) fn certification_family_guide(code: &str) -> (&'static str, &'static 
     match code {
         code if code.starts_with("E_SCHEDULE") => ("schedule", "schedule"),
         code if code.starts_with("E_JOB") => ("job", "job"),
-        "E_UNBOUND_SCAN" => ("bound", "bound/scan"),
+        "E_UNBOUND_SCAN" => ("bound", "quarry"),
         "E_UNBOUND_LOOP" | "E_STRUCTURAL_FANOUT" => ("bound", "bound/loop"),
         "E_STRUCTURAL_COUNT" => ("bound", "bound/count"),
         "E_AMBIENT_TIME" => ("opaque", "opaque/time"),
@@ -66,6 +66,24 @@ impl Refusal {
             guide: guide.into(),
             detail: BTreeMap::new(),
         }
+    }
+
+    // @ref LLP 1002#diagnostics-say-the-fix — use the same declared catalog on CLI and owner paths.
+    pub fn unknown_operation<'a>(op: &str, names: impl IntoIterator<Item = &'a str>) -> Self {
+        let mut names: Vec<_> = names.into_iter().collect();
+        names.sort_unstable();
+        names.dedup();
+        let nearest = names.iter().filter_map(|name| {
+            let candidate = if op.contains('.') { name } else { name.rsplit('.').next().unwrap_or(name) };
+            let same_case = candidate.eq_ignore_ascii_case(op);
+            let distance = spelling_distance(op, candidate);
+            (same_case || distance <= 2).then_some((!same_case, distance, *name))
+        }).min();
+        let rewrite = match nearest {
+            Some((_, _, name)) => format!("did you mean `{name}`? use a qualified name from /api/manifest"),
+            None => format!("declared operations: {}; use a qualified name from /api/manifest", if names.is_empty() { "none".to_owned() } else { names.join(", ") }),
+        };
+        Self::new("E_OP_UNKNOWN", "op", format!("unknown or ambiguous operation {op}"), rewrite, "quarry").with_site(op)
     }
 
     pub fn owner(code: &str, message: impl Into<String>, rewrite: impl Into<String>) -> Self {
@@ -292,6 +310,32 @@ pub(crate) fn refusal_message<'a>(code: &str, message: &'a str) -> &'a str {
         .or_else(|| message.strip_prefix(&format!("{code}:")))
         .map(str::trim_start)
         .unwrap_or(message)
+}
+
+// Unrestricted Damerau–Levenshtein: adjacent transpositions cost one edit.
+fn spelling_distance(left: &str, right: &str) -> usize {
+    let a: Vec<_> = left.chars().collect();
+    let b: Vec<_> = right.chars().collect();
+    if a.len().abs_diff(b.len()) > 2 { return 3; }
+    let max = a.len() + b.len();
+    let mut d = vec![vec![0; b.len() + 2]; a.len() + 2];
+    d[0][0] = max;
+    for i in 0..=a.len() { d[i + 1][0] = max; d[i + 1][1] = i; }
+    for j in 0..=b.len() { d[0][j + 1] = max; d[1][j + 1] = j; }
+    let mut last = BTreeMap::new();
+    for i in 1..=a.len() {
+        let mut matched = 0;
+        for j in 1..=b.len() {
+            let row = *last.get(&b[j - 1]).unwrap_or(&0);
+            let col = matched;
+            let cost = usize::from(a[i - 1] != b[j - 1]);
+            if cost == 0 { matched = j; }
+            d[i + 1][j + 1] = (d[i][j] + cost).min(d[i + 1][j] + 1).min(d[i][j + 1] + 1)
+                .min(d[row][col] + (i - row - 1) + 1 + (j - col - 1));
+        }
+        last.insert(a[i - 1], i);
+    }
+    d[a.len() + 1][b.len() + 1]
 }
 
 #[cfg(test)]

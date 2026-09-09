@@ -175,7 +175,6 @@ export type DiagnosticCode =
   | "E_SCHEMA_CONSTRAINT"
   | "E_SCHEMA_MAINTAIN"
   | "E_SCHEMA_DEFAULT_EXPORT"
-  | "E_SCHEMA_INVALID"
   | "E_RULE_INVALID"
   | "E_DECIMAL_SCALE"
   | "E_SEED_INVALID"
@@ -242,7 +241,7 @@ export type ProjectJson = {
   effects: EffectJson[];
 };
 
-export type SourceSite = { file: string; line: number; col: number; text?: string; use?: SourceSite; guard?: string; requirement?: string };
+export type SourceSite = { file: string; line: number; col: number; text?: string; use?: SourceSite; requirement?: string };
 export type QuarryGenerated = { file: string; generated: string; source: string };
 
 export type ProjectResult =

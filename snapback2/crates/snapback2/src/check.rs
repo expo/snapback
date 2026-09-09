@@ -785,20 +785,23 @@ fn format_diagnostic(
 }
 
 fn wrap_diagnostic(output: &mut String, text: &str) {
+    let mut first = true;
     for line in text.split('\n') {
         let chars: Vec<char> = line.chars().collect();
         let mut remaining = chars.as_slice();
         loop {
-            let count = if remaining.len() <= 98 {
+            let width = if first { 98 } else { 96 };
+            let count = if remaining.len() <= width {
                 remaining.len()
             } else {
-                remaining[..98]
+                remaining[..width]
                     .iter()
                     .rposition(|c| c.is_whitespace())
                     .map(|i| i + 1)
-                    .unwrap_or(98)
+                    .unwrap_or(width)
             };
-            output.push_str("  ");
+            output.push_str(if first { "  " } else { "    " });
+            first = false;
             output.extend(&remaining[..count]);
             output.push('\n');
             remaining = &remaining[count..];
@@ -819,7 +822,20 @@ fn check_preserves_a_200_character_rewrite_and_unicode_message() {
     let joined = printed
         .lines()
         .skip(1)
-        .map(|line| line.strip_prefix("  ").unwrap())
+        .map(|line| line.strip_prefix("    ").or_else(|| line.strip_prefix("  ")).unwrap())
         .collect::<String>();
     assert_eq!(joined, format!("message: {message}rewrite: {rewrite}"));
+}
+
+#[cfg(test)]
+#[test]
+fn check_hangs_wrapped_candidate_index_repairs_under_the_rewrite() {
+    let rewrite = "posts[] first 50 by byTime; posts[] first 50 by byAuthorTime; candidate indexes: posts.byTime (at: time, id: posts); posts.byAuthorTime (authorId: principal, at: time, id: posts)";
+    let printed = format_diagnostic("E_UNBOUND_SCAN", Some("posts.q:2:3"), "`posts[]` reads a range; name its bound", Some(rewrite));
+    let lines: Vec<_> = printed.lines().skip_while(|line| !line.starts_with("  rewrite:")).collect();
+    assert!(lines.len() > 1);
+    assert!(lines.iter().skip(1).all(|line| line.starts_with("    ")), "{printed}");
+    let joined: String = lines.iter().enumerate().map(|(i, line)| &line[if i == 0 { 2 } else { 4 }..]).collect();
+    assert_eq!(joined, format!("rewrite: {rewrite}"));
+    assert!(printed.lines().all(|line| line.chars().count() <= 100));
 }

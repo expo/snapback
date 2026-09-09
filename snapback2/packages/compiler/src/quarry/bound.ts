@@ -841,15 +841,18 @@ class ExpressionBinder {
     const source = this.source(expression.site);
     const builtin = bindBuiltinCall(expression, args, source);
     if (builtin) return builtin;
-    refuse(expression.site, `unknown fn ${expression.name}`, nameRewrite(expression.name, [...this.functions.names(this.functionFile), ...this.procs.names(this.functionFile)]));
+    refuse(expression.site, `unknown fn ${expression.name}`, nameRewrite(expression.name, [...this.functions.names(this.functionFile), ...this.procs.names(this.functionFile)], "use a direct Quarry pure builtin, or declare/import the fn before calling it"));
   }
 
   private walk(expression: Extract<Expr, { kind: "walk" }>): BoundExpression {
     const info = this.catalog.get(expression.table);
     if (!info) refuse(expression.site, `unknown table ${expression.table}`, nameRewrite(expression.table, this.catalog.keys()));
     const column = info.columns.get(expression.column);
-    if (column?.kind !== "ref" || column.table !== expression.table) refuse(expression.site,
-      `walk ${expression.table} up .${expression.column} requires a self-reference column`, nameRewrite(expression.column, info.columns.keys()));
+    if (!column) refuse(expression.site, `unknown ${expression.table} field \`${expression.column}\``,
+      nameRewrite(expression.column, info.columns.keys(), `declare ${expression.column}: ${expression.table} ? in schema.q`));
+    if (column.kind !== "ref" || column.table !== expression.table) typeError(expression.site,
+      `walk ${expression.table} up .${expression.column} requires a self-reference column`,
+      `declare ${expression.column}: ${expression.table} ? in schema.q, or walk a self-reference column`);
     if (!Number.isSafeInteger(expression.depth) || expression.depth < 0 || expression.depth > 10_000) typeError(expression.site,
       "walk depth must be an integer from 0 through 10000", "use a finite depth no greater than 10000");
     const seed = contextualValue(this.expression(expression.seed),

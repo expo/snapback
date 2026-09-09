@@ -450,3 +450,135 @@ fn why_prose_explains_admitted_chat_reads_bounds_rules_and_subscriptions() {
         )
     );
 }
+
+
+#[test]
+fn why_keeps_failed_assertions_locals_and_ambiguous_branches_honest() {
+    let project = Project::new();
+    assert!(project.init("todos", "none").status.success());
+    fs::write(project.path.join("snapback/explain.q"), r#"query assertion(id: todos):
+  require true else MISSING
+  return todos[id] ! else MISSING
+query local(id: todos):
+  p = todos[id]
+  require p != null else MISSING
+  return p
+query branches(id: todos, flag: bool):
+  if flag:
+    require true else MISSING
+  else:
+    require exists todos[id] else MISSING
+  return null
+query nested(id: todos):
+  require (todos[id] ! else MISSING).title != '' else MISSING
+  return null
+query assertionOnly(id: todos):
+  return todos[id] ! else MISSING
+"#).unwrap();
+    let seed = project.path.join("snapback/seed.ts");
+    fs::write(&seed, fs::read_to_string(&seed).unwrap().replace("ownerId: \"dev:alice\"", "ownerId: \"dev:bob\"" )).unwrap();
+    let checked = project.run(&["check", "--json"]);
+    assert!(checked.status.success(), "{}", String::from_utf8_lossy(&checked.stdout));
+    let _owner = OwnerGuard::start(&project);
+    let mut failures = Vec::new();
+    for op in ["assertion", "local", "branches", "nested", "assertionOnly"] {
+        for id in ["missing", "todo-1"] {
+            let args = format!(r#"{{"id":"{id}"{}}}"#, if op == "branches" { r#", "flag":false"# } else { "" });
+            let output = project.run(&["why", &format!("explain.{op}"), &args, "--as", "alice"]);
+            let text = String::from_utf8(output.stdout).unwrap();
+            let visibility = if id == "missing" { "absent" } else { "hidden" };
+            if !output.status.success() || !text.contains("denied (MISSING)")
+                || text.contains("require true") || !text.contains(&format!("todos[{id}]   {visibility}"))
+                || (matches!(op, "assertion" | "branches" | "nested") && !text.contains("ambiguous"))
+                || (op == "assertionOnly" && !text.contains("return todos[id] ! else MISSING")) {
+                failures.push(text);
+            }
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+#[test]
+fn operation_typos_offer_declared_names_in_run_and_why() {
+    let project = Project::new();
+    assert!(project.init("todos", "none").status.success());
+    assert!(project.run(&["check", "--json"]).status.success());
+    let _owner = OwnerGuard::start(&project);
+    let mut failures = Vec::new();
+    for verb in ["run", "why"] {
+        for persona in ["alice", "system"] {
+            for (op, expected) in [("todos.lits", "did you mean `todos.list`?"), ("TODOS.LIST", "did you mean `todos.list`?"), ("unrelated", "todos.list")] {
+                let output = project.run(&[verb, op, "--as", persona, "--json"]);
+                let refusal = json_stdout(&output);
+                if output.status.success() || refusal["code"] != "E_OP_UNKNOWN"
+                    || !refusal["rewrite"].as_str().unwrap_or_default().contains(expected) {
+                    failures.push(format!("{verb} {op} as {persona}: {refusal}"));
+                }
+            }
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+
+#[test]
+fn why_prose_includes_real_capped_reads_absences_and_constraint_dependencies() {
+    let project = Project::new();
+    assert!(project.init("todos", "none").status.success());
+    fs::write(project.path.join("snapback/schema.q"), "use identity\ntable items:\n  ownerId: principal\n  group: principal\n  label: text <=20\n  read <- .ownerId = viewer\nmaintain itemCounts = count items by group:\n  read <- allow\n").unwrap();
+    fs::write(project.path.join("snapback/todos.q"), "query list():\n  return { page: items[] first 2 by byId, total: #itemCounts[viewer] }\n").unwrap();
+    fs::write(project.path.join("snapback/seed.ts"), r#"import { seed } from "snapback2";
+export default seed({ personas: ["alice"], rows: { items: [
+  { id: "1", ownerId: "dev:bob", group: "dev:bob", label: "visible" },
+  { id: "2", ownerId: "dev:alice", group: "dev:bob", label: "hidden" },
+  { id: "3", ownerId: "dev:alice", group: "dev:bob", label: "cut" },
+], itemCounts: [] } });"#).unwrap();
+    fs::remove_dir_all(project.path.join("snapback/tests")).unwrap();
+    let checked = project.run(&["check", "--json"]);
+    assert!(checked.status.success(), "{}", String::from_utf8_lossy(&checked.stdout));
+    let _owner = OwnerGuard::start(&project);
+    let json = json_stdout(&project.run(&["why", "todos.list", "--as", "alice", "--json"]));
+    let trace = &json["authoritativeTrace"];
+    let range = &trace["ranges"][0];
+    assert_eq!(range["stop"], "Limit", "{json}");
+    assert_eq!(range["examined_ids"].as_array().unwrap().len(), 3);
+    assert_eq!(range["visible_ids"].as_array().unwrap().len(), 2);
+    assert!(!trace["absences"].as_array().unwrap().is_empty(), "{json}");
+    assert!(!trace["constraint_inputs"].as_array().unwrap().is_empty(), "{json}");
+    let printed = project.run(&["why", "todos.list", "--as", "alice"]);
+    assert!(printed.status.success());
+    let text = String::from_utf8(printed.stdout).unwrap();
+    assert!(text.contains("3 rows examined, 2 visible"), "{text}");
+    assert!(text.contains("first 2 by byId — capped"), "{text}");
+    assert!(text.contains("itemCounts byGroup [dev:alice]"), "{text}");
+    assert!(text.contains("itemCounts byId ["), "{text}");
+    assert!(text.contains("itemCounts (whole table; constraint input)"), "{text}");
+    let cache = project.path.join(".snapback/build/certificates.json");
+    let mut certificates: serde_json::Value = serde_json::from_slice(&fs::read(&cache).unwrap()).unwrap();
+    certificates["todos.list"].as_object_mut().unwrap().remove("sources");
+    fs::write(&cache, serde_json::to_vec(&certificates).unwrap()).unwrap();
+    let fallback = project.run(&["why", "todos.list", "--as", "alice"]);
+    let fallback = String::from_utf8(fallback.stdout).unwrap();
+    assert!(fallback.contains(range["site"].as_str().unwrap()), "{fallback}");
+    assert!(fallback.contains("3 rows examined, 2 visible"), "{fallback}");
+    assert!(fallback.contains("itemCounts (whole table; constraint input)"), "{fallback}");
+}
+
+#[test]
+fn why_does_not_quote_a_valid_but_unapplied_schema() {
+    let project = Project::new();
+    assert!(project.init("todos", "none").status.success());
+    let schema_path = project.path.join("snapback/schema.q");
+    let original = fs::read_to_string(&schema_path).unwrap();
+    fs::write(&schema_path, original.replace("table todos:", "table todos:\n  legacy: text <=10 ?")).unwrap();
+    let checked = project.run(&["check", "--json"]);
+    assert!(checked.status.success(), "{}", String::from_utf8_lossy(&checked.stdout));
+    let _owner = OwnerGuard::start(&project);
+    // Removing the unused legacy column makes this valid rule edit destructive.
+    fs::write(&schema_path, original.replace("read <- .ownerId = viewer", "read <- deny")).unwrap();
+    let checked = project.run(&["check", "--json"]);
+    assert!(checked.status.success(), "{}", String::from_utf8_lossy(&checked.stdout));
+    let why = project.run(&["why", "todos.list", "--as", "alice", "--json"]);
+    assert!(!why.status.success(), "{}", String::from_utf8_lossy(&why.stdout));
+    assert_eq!(json_stdout(&why)["code"], "E_WHY_STALE");
+}

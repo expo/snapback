@@ -131,7 +131,7 @@ function diagnosticGuide(code: DiagnosticCode): string {
   if (code === "E_QUARRY_RETAIN" || code === "E_QUARRY_TOMBSTONE") return "quarry/grammar";
   if (code === "E_QUARRY_ONLY") return "quarry/projects";
   if (code === "E_QUARRY_UNKNOWN") return "quarry/names";
-  if (code === "E_UNBOUND_SCAN") return "bound/scan";
+  if (code === "E_UNBOUND_SCAN") return "quarry";
   if (code === "E_UNBOUND_LOOP" || code === "E_STRUCTURAL_FANOUT") return "bound/loop";
   if (code === "E_STRUCTURAL_COUNT") return "bound/count";
   if (code === "E_BOUND") return "bound/ceiling";

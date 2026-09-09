@@ -54,7 +54,7 @@ export function buildCatalog(documents: Document[]): TableCatalog {
           const column = columns.get(name);
           if (!column) {
             refuse(cap.site, `${table.name} cap names unknown column ${name}`,
-              nameRewrite(name, columns.keys()));
+              nameRewrite(name, columns.keys(), suggestion => `cap ${cap.max} by ${cap.by.map(column => column === name ? suggestion ?? "<scalar column>" : column).join(", ")}`));
           }
           if (["list", "image", "video"].includes(column.kind)) {
             throw new QuarryError(cap.site, `cap on ${table.name} needs indexable grouping column ${name}`, "E_SCHEMA_CONSTRAINT", "cap 50 by <scalar columns>", "schema/project");
@@ -233,7 +233,7 @@ export function selectIndex(
     if (choices.length === 0) choices.push(...(explicitIndex ? [explicitIndex] : prefixes));
     const fixes = choices.map(index => `${read}${index.unique && index.components.length === keys.length ? "" : " first 50"} by ${index.name}`);
     throw new QuarryError(site, `\`${read}\` reads a range; name its bound`, "E_UNBOUND_SCAN",
-      `${fixes.join("; ")}; ${indexGuidance(info.declaration, choices)}`, "quarry/indexes");
+      `${fixes.join("; ")}; ${indexGuidance(info.declaration, choices)}`, "quarry");
   }
   if (explicit) {
     const selected = info.indexes.find((index) => index.name === explicit);

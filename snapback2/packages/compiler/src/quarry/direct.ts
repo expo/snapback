@@ -92,9 +92,9 @@ function lowerExpression(expression: BoundExpression, lowering: Lowering): Lower
   if (expression.kind === "assert") {
     const value = captureObservable(lowerExpression(expression.value, lowering), lowering);
     return {
-      setup: [...value.setup, { Require: { condition: {
+      setup: [...value.setup, requirement(lowering, expression.source, expression.code, {
         Binary: { op: "Ne", left: value.value, right: { Literal: "Null" } },
-      }, code: expression.code } }],
+      })],
       value: value.value,
     };
   }
@@ -136,6 +136,13 @@ function lowerExpression(expression: BoundExpression, lowering: Lowering): Lower
   return lowerPointRead(expression.read, expression.kind, lowering);
 }
 
+// @ref LLP 1002#diagnostics-say-the-fix — count all executable requirements before attributing a code.
+function requirement(lowering: Lowering, source: BoundSourceStack, code: string, condition: Expr): Stmt {
+  lowering.sources.push([`${lowering.program}/require/${lowering.sources.length}`,
+    { ...(source.use ?? source.definition), requirement: code }]);
+  return { Require: { condition, code } };
+}
+
 function lowerStatements(statements: BoundStatement[], lowering: Lowering): Stmt[] {
   const body: Stmt[] = [];
   for (const statement of statements) {
@@ -171,12 +178,8 @@ function lowerStatements(statements: BoundStatement[], lowering: Lowering): Stmt
       continue;
     }
     if (statement.kind === "require") {
-      const guard = `${lowering.program}/require/${lowering.sources.length}`;
-      const start = lowering.sources.length;
       const condition = captureObservable(lowerExpression(statement.condition, lowering), lowering);
-      for (const [, source] of lowering.sources.slice(start)) source.guard = guard;
-      lowering.sources.push([guard, { ...(statement.source.use ?? statement.source.definition), requirement: statement.code }]);
-      body.push(...condition.setup, { Require: { condition: condition.value, code: statement.code } });
+      body.push(...condition.setup, requirement(lowering, statement.source, statement.code, condition.value));
       continue;
     }
     if (statement.kind === "emit") {
@@ -410,9 +413,8 @@ function lowerWrite(
     } } } });
     row = { Variable: rowName };
     if (!directId) {
-      if (expression.op === "delete" || expression.op === "update") setup.push({ Require: {
-        condition: { Binary: { op: "Ne", left: row, right: { Literal: "Null" } } }, code: "NOT_FOUND",
-      } });
+      if (expression.op === "delete" || expression.op === "update") setup.push(requirement(lowering, expression.source, "NOT_FOUND",
+        { Binary: { op: "Ne", left: row, right: { Literal: "Null" } } }));
       identity = { Field: { base: row, name: "id" } };
     }
   }

@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2` (the binary: owner, server, verbs), `snapback2/packages/compiler` (project lowering, worker), `snapback2/packages/snapback2` (authoring runtime, client, React, test runner, shim), `snapback2/scripts/measure.mjs`
 **Author:** Claude Fable 5 (orchestrator) — implementers: codex gpt-5.6-sol, lanes B0 (compiler + authoring surface), B1 (owner + server + verbs), B2 (`init`, `test`, `why`, `trace`, `guide`), D (client + React + evaluator)
 **Date:** 2026-08-29
-**Revised:** 2026-09-08 (diagnostics say the fix: missing bounds, spelling repairs, current families, wrapping check, source-mapped why prose; implementer GPT-6 Astra, lane D); 2026-09-08 (LLP 1001.000 typed latest-state channels, leases and snapshot clients); 2026-09-08 (resource-aware blocking Rust test scheduling and paired timing); 2026-09-07 (generated insert/merge consumer type bindings; implementer GPT-6 Astra); 2026-09-07 (independent Quarry diagnostics, checked-type repair advice, lexical failure isolation and merge discovery ordering; implementer GPT-6 Astra); 2026-09-07 (preserve unrelated prefixed optional packages; staged platform dependency selection and exact-lock packaging regression; durable browser-follower admission and unknown-outcome recovery; client-owned observed query snapshots; explicit named-journey verification and executable React startup; startup cleanup fixture custody); 2026-09-06 (app guide operation/certificate custody; native logical SSE body; CLI help and executable migration recovery; auth startup recovery and held transition reads; queued transitions, interrupted sync, live held reads); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
+**Revised:** 2026-09-08 (lane D review fixes: complete requirement metadata, conservative lookup explanations, executable families, CLI spelling repairs and complete subscriptions); 2026-09-08 (diagnostics say the fix: missing bounds, spelling repairs, current families, wrapping check, source-mapped why prose; implementer GPT-6 Astra, lane D); 2026-09-08 (LLP 1001.000 typed latest-state channels, leases and snapshot clients); 2026-09-08 (resource-aware blocking Rust test scheduling and paired timing); 2026-09-07 (generated insert/merge consumer type bindings; implementer GPT-6 Astra); 2026-09-07 (independent Quarry diagnostics, checked-type repair advice, lexical failure isolation and merge discovery ordering; implementer GPT-6 Astra); 2026-09-07 (preserve unrelated prefixed optional packages; staged platform dependency selection and exact-lock packaging regression; durable browser-follower admission and unknown-outcome recovery; client-owned observed query snapshots; explicit named-journey verification and executable React startup; startup cleanup fixture custody); 2026-09-06 (app guide operation/certificate custody; native logical SSE body; CLI help and executable migration recovery; auth startup recovery and held transition reads; queued transitions, interrupted sync, live held reads); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
 **Related:** LLP 1000, LLP 1001 (the engine this serves), LLP 1003 (effects),
 LLP 0329.016 §5 (the design this implements verbatim where it can), LLP
 0329.016 §5.11 (the verb table — no verb exists without its row), LLP
@@ -260,9 +260,10 @@ specializations, preserves ambiguity; an authored `orderedPair` destructuring
 default is refused until it can be lowered rather than discarded. A nested path
 under one declared operation argument (for example `args.payload.inner.key`)
 remains `Arg`: provenance records the input origin while the full field path
-remains in IR. An unknown or mutable binding matches no single rule and refuses
-with `E_PROVENANCE_AMBIGUOUS`; the standard envelope carries family and source
-site. Its pasted rewrite names only direct origins actually discovered through
+remains in IR. **Superseded 2026-09-08:** the following TypeScript-binding
+refusal/sentinel protocol is historical; direct Quarry binding replaces it
+(LLP 1018.000). Unknown Quarry names emit `E_QUARRY_UNKNOWN`; type failures emit
+`E_QUARRY_TYPE`. The old provenance-ambiguity diagnostic has been deleted. Its pasted rewrite names only direct origins actually discovered through
 the binding and member-selection path. Incomplete discovery retains every known
 candidate plus an explicit `<unknown origin>` marker in an intentionally
 non-lowerable sentinel expression; member names never guess an argument. A
@@ -884,6 +885,25 @@ Range visibility remains a range fact even without source metadata; fallback
 prose never calls a range's hidden rows an absent point. Runtime refusal messages
 omit their own platform or application code, which stays in the `code` field.
 
+Review fixes (Revised 2026-09-08): every emitted `Require` has a source entry,
+including postfix assertions and implicit non-ID write-address checks. An
+application code identifies a failed source only when exactly one requirement
+uses it; repeated codes and branches stay explicitly ambiguous. All executed
+lookups remain visible, including rows bound to locals before a requirement;
+there is no incomplete guard filter. Prose subscriptions include primary-key
+absences and whole-table constraint inputs, matching runtime invalidation.
+`run`, owner operation lookups and `why` use declared-name spelling repairs;
+`why` resolves the active operation before inspecting certificate custody.
+An existing wrong-typed `walk` column gets a self-reference declaration repair,
+never its unchanged name as a spelling suggestion. Name suggestions preserve
+cap/declaration/builtin fallback repairs. Wrapped continuation lines hang under
+the field. Auth diagnosis starts with prose; `--json` remains authoritative.
+`E_UNBOUND_SCAN` resolves to the flat `quarry` guide in Quarry, shared frontend
+diagnostics and native certification. Family fixtures compile
+both sides and check the claimed code. Six core-only families use explicit
+`check --ir` CLI input because Quarry refuses those malformed forms earlier;
+the unreachable TypeScript-schema family and its emit branch are deleted.
+
 ## 9. The client (`snapback2/client`, `snapback2/react`, `snapback2/test`)
 
 ```ts
@@ -1190,9 +1210,10 @@ schedule kind, retention.
    measures naturally written TypeScript; a Contract surface scores 0 there
    by construction) and treats the Contract block as the Exact 2 arm's
    authoring form over the same IR. **Resolved 2026-08-30:** keep inference
-   under §2's closed rules, refuse every unmatched provenance origin with
-   `E_PROVENANCE_AMBIGUOUS`, and pin site identity to module, export, and
-   ordinal. Classification is body-derived and name-independent: the LLP
+   under §2's closed rules and pin site identity to module, export, and
+   ordinal. **Superseded 2026-09-08:** the TypeScript provenance refusal rule
+   is historical; direct Quarry binding uses `E_QUARRY_UNKNOWN`/`E_QUARRY_TYPE`
+   and the old provenance-ambiguity code is deleted. Classification is body-derived and name-independent: the LLP
    0329.017 C4 trio is reproducibly `Arg` / `Arg` / `Computed`, because two helper
    bodies pass their argument through while the third applies a template-string
    transform. That disagreement is principled rather than silent; helper names

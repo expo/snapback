@@ -77,8 +77,6 @@ pub struct SourceSite {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub r#use: Option<Box<SourceSite>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub guard: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub requirement: Option<String>,
 }
 

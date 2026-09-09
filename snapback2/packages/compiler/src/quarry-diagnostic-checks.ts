@@ -432,6 +432,9 @@ table posts:
   public
 `;
   const cases = [
+    { name: "walk rejects a wrong self-reference type", source: "query one(id: posts):\n  return walk posts[id] up .body depth 3", message: "requires a self-reference column", fixes: ["declare body: posts ?"], code: "E_QUARRY_TYPE" },
+    { name: "walk misspelled column", source: "query one(id: posts):\n  return walk posts[id] up .bodu depth 3", message: "unknown posts field", fixes: ["did you mean `body`?"], code: "E_QUARRY_UNKNOWN" },
+    { name: "unknown call preserves fallback", source: "fn identity from access\nquery one():\n  return idnetity(1)", message: "unknown fn", fixes: ["did you mean `identity`?", "use a direct Quarry pure builtin"], code: "E_QUARRY_UNKNOWN" },
     { name: "empty range needs a bound", source: "query all():\n  return posts[]", message: "`posts[]` reads a range; name its bound", fixes: ["posts[] first 50 by byTime", "posts[] first 50 by byAuthorTime"], code: "E_UNBOUND_SCAN" },
     { name: "principal prefix needs a bound", source: "query any(p: principal):\n  return memberships[p]", message: "`memberships[p]` reads a range; name its bound", fixes: ["memberships[p] first 50 by byPrincipalConversation", "principal: principal"], code: "E_UNBOUND_SCAN" },
     { name: "explicit nonunique prefix needs a bound", source: "query any(p: principal):\n  return memberships[p] by byPrincipalConversation", message: "reads a range; name its bound", fixes: ["first 50 by byPrincipalConversation"], code: "E_UNBOUND_SCAN" },
@@ -459,8 +462,53 @@ table posts:
       assert(!result.ok, "invalid source escaped");
       const diagnostic = result.diagnostics.find(d => d.code === item.code && d.message.includes(item.message));
       assert(diagnostic && item.fixes.every(fix => diagnostic.rewrite.includes(fix)), JSON.stringify(result));
+      if (item.code === "E_UNBOUND_SCAN") assert(diagnostic.guide === "quarry", JSON.stringify(diagnostic));
       assert(!diagnostic.message.includes("[?]"), JSON.stringify(diagnostic));
+      if (item.name === "walk rejects a wrong self-reference type") assert(!diagnostic.rewrite.includes("did you mean `body`"), JSON.stringify(diagnostic));
       if (item.name.startsWith("distant")) assert(!diagnostic.rewrite.includes("did you mean"), JSON.stringify(diagnostic));
+    });
+  });
+
+  test("diagnostic fix: cap suggestions retain a compiling repair", async () => {
+    await withProject({ "snapback/schema.q": schema.replace("  by byTime:", "  cap 50 by authorid\n  by byTime:"),
+      "snapback/ops.q": "query one():\n  return null\n" }, async root => {
+      const result = await lowerProject(root);
+      assert(!result.ok, "misspelled cap compiled");
+      const rewrite = result.diagnostics[0]!.rewrite;
+      assert(rewrite.includes("did you mean `authorId`?") && rewrite.includes("cap 50 by authorId"), rewrite);
+    });
+    await withProject({ "snapback/schema.q": schema.replace("  by byTime:", "  cap 50 by authorId\n  by byTime:"),
+      "snapback/ops.q": "query one():\n  return null\n" }, async root => assert((await lowerProject(root)).ok, "cap repair failed"));
+  });
+  for (const [kind, use, repair] of [["fn", "missing(1)", "fn missing(value: int) = value"], ["shape", "posts[id] missing", "shape missing = { * }"], ["proc", "missing(1)", "proc missing(value: int):"]]) {
+    for (const module of ["access", "unavailable"]) test(`diagnostic fix: ${kind} empty catalog ${module}`, async () => {
+      const source = `${kind} missing from ${module}\n${kind === "proc" ? "mutation" : "query"} one(id: posts):\n  ${kind === "proc" ? use + "\n  return null" : "return " + use}\n`;
+      await withProject({ "snapback/schema.q": schema, "snapback/ops.q": source,
+        "snapback/access.q": "query ping():\n  return null\n" }, async root => {
+        const result = await lowerProject(root);
+        assert(!result.ok, "unknown declaration compiled");
+        const rewrite = result.diagnostics[0]!.rewrite;
+        assert(rewrite.includes(module === "access" ? repair : "create snapback/unavailable.q"), rewrite);
+      });
+    });
+  }
+
+  test("diagnostic fix: every emitted Require has source attribution", async () => {
+    await withProject({ "snapback/schema.q": schema,
+      "snapback/ops.q": `query one(id: posts):
+  require true else MISSING
+  return posts[id] ! else MISSING
+mutation remove(c: conversations, p: principal):
+  delete memberships[c, p]
+  return null
+` }, async root => {
+      const result = await lowerProject(root);
+      assert(result.ok, JSON.stringify(result));
+      for (const program of result.project.programs) {
+        const emitted = JSON.stringify(program.body).match(/"Require":/g)?.length ?? 0;
+        const recorded = Object.entries(result.sources).filter(([site, source]) => site.startsWith(program.name + "/require/") && source.requirement).length;
+        assert(emitted === recorded, `${program.name}: ${emitted} Require, ${recorded} source associations`);
+      }
     });
   });
 

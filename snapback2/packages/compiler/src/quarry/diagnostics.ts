@@ -72,7 +72,7 @@ function guideFor(code: QuarryCode): string {
   if (code === "E_EMIT_IN_QUERY") return "effects/authoring";
   if (code === "E_OPAQUE") return "programs/refusals";
   if (code === "E_OP_RESERVED") return "programs/refusals";
-  if (code === "E_UNBOUND_SCAN") return "quarry/indexes";
+  if (code === "E_UNBOUND_SCAN") return "quarry";
   if (code === "E_UNBOUND_LOOP") return "bound/loop";
   if (code === "E_QUARRY_SYNTAX") return "quarry/grammar";
   if (code === "E_QUARRY_AMBIGUOUS") return "quarry/indexes";
@@ -99,14 +99,17 @@ export function currentRule(expr: Expr): Expr {
 }
 
 // @ref LLP 1002#diagnostics-say-the-fix — one spelling repair across every declared namespace.
-export function nameRewrite(name: string, declared: Iterable<string>, fallback?: string): string {
+export function nameRewrite(name: string, declared: Iterable<string>, fallback?: string | ((suggestion: string | undefined) => string)): string {
   const names = [...new Set(declared)].sort();
   const ranked = names.filter(candidate => Math.abs(candidate.length - name.length) <= 2 || candidate.toLowerCase() === name.toLowerCase()).map(candidate => ({ candidate, distance: nameDistance(name, candidate) }))
     .filter(item => item.distance <= 2 || item.candidate.toLowerCase() === name.toLowerCase())
     .sort((a, b) => Number(b.candidate.toLowerCase() === name.toLowerCase()) - Number(a.candidate.toLowerCase() === name.toLowerCase())
       || a.distance - b.distance || a.candidate.localeCompare(b.candidate));
-  return ranked[0] ? `did you mean \`${ranked[0].candidate}\`?`
-    : fallback ?? `declared names: ${names.length ? names.join(", ") : "none"}`;
+  const suggestion = ranked[0]?.candidate;
+  const repair = typeof fallback === "function" ? fallback(suggestion) : fallback;
+  const namesText = suggestion ? `did you mean \`${suggestion}\`?`
+    : `declared names: ${names.length ? names.join(", ") : "none"}`;
+  return repair ? `${namesText}; ${repair}` : namesText;
 }
 
 // Unrestricted Damerau–Levenshtein, including adjacent transpositions.

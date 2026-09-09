@@ -51,10 +51,6 @@ pub fn run(args: &[String]) -> ExitCode {
         Ok(owner) => owner,
         Err(error) => return owner::print_refusal(error, json_output, 1),
     };
-    let mut certificate = match read_certificate(&root, &positional[1]) {
-        Ok(certificate) => certificate,
-        Err(error) => return owner::print_refusal(error, json_output, 1),
-    };
     let response = match client::control(
         &attached,
         "POST",
@@ -66,6 +62,10 @@ pub fn run(args: &[String]) -> ExitCode {
             println!("{}", response.body);
             return ExitCode::from(1);
         }
+        Err(error) => return owner::print_refusal(error, json_output, 1),
+    };
+    let mut certificate = match read_certificate(&root, &positional[1]) {
+        Ok(certificate) => certificate,
         Err(error) => return owner::print_refusal(error, json_output, 1),
     };
     let (Some(active_plan_hash), Some(active_schema_hash)) = (
@@ -275,40 +275,27 @@ fn prose(op: &str, persona: &str, output: &Json, sources: &BTreeMap<String, Sour
             .iter()
             .filter(|(_, source)| source.requirement.as_deref() == rule && rule.is_some())
             .collect();
-        // A repeated code alone cannot identify which requirement failed.
+        // Codes identify a source only when every emitted Require agrees on one site.
         let guard = (guards.len() == 1).then(|| guards[0]);
         if let Some((site, source)) = guard {
             source_line(&mut text, site, Some(source));
-            for read in points.iter().chain(ranges.iter()).filter(|read| {
-                sources
-                    .get(read["site"].as_str().unwrap_or_default())
-                    .and_then(|source| source.guard.as_ref())
-                    == Some(site)
-            }) {
-                text.push_str(&format!(
-                    "    {}   {}   ({})\n",
-                    lookup(read),
-                    read_visibility(read),
-                    read["index"].as_str().unwrap_or("?")
-                ));
+        } else if !guards.is_empty() {
+            text.push_str("  failed requirement source is ambiguous; executed reads follow\n");
+        }
+        // A lookup can precede its requirement through a local or helper argument.
+        // Keep all executed reads; condition-local associations cannot prove completeness.
+        for read in points.iter().chain(ranges.iter()) {
+            if guard.is_none() {
+                let site = read["site"].as_str().unwrap_or(op);
+                source_line(&mut text, site, sources.get(site));
             }
-        } else {
-            for read in points.iter().chain(ranges.iter()) {
-                source_line(
-                    &mut text,
-                    read["site"].as_str().unwrap_or(op),
-                    sources.get(read["site"].as_str().unwrap_or(op)),
-                );
-                text.push_str(&format!(
-                    "    {}   {}   ({})\n",
-                    lookup(read),
-                    read_visibility(read),
-                    read["index"].as_str().unwrap_or("?")
-                ));
-            }
-            if points.is_empty() && ranges.is_empty() {
-                text.push_str("  no table reads executed\n");
-            }
+            text.push_str(&format!(
+                "    {}   {}   ({})\n",
+                lookup(read), read_visibility(read), read["index"].as_str().unwrap_or("?")
+            ));
+        }
+        if points.is_empty() && ranges.is_empty() {
+            text.push_str("  no table reads executed\n");
         }
         return text;
     }
@@ -396,6 +383,15 @@ fn prose(op: &str, persona: &str, output: &Json, sources: &BTreeMap<String, Sour
         if !subscriptions.contains(&entry) {
             subscriptions.push(entry);
         }
+    }
+    for absence in entries(&trace["absences"]) {
+        let read = json!({ "table": absence[0], "index": absence[1], "key": absence[2] });
+        let entry = format!("    {} {} [{}]\n", read["table"].as_str().unwrap_or("?"), read["index"].as_str().unwrap_or("?"), keys(&read));
+        if !subscriptions.contains(&entry) { subscriptions.push(entry); }
+    }
+    for input in entries(&trace["constraint_inputs"]) {
+        let entry = format!("    {} (whole table; constraint input)\n", input["table"].as_str().unwrap_or("?"));
+        if !subscriptions.contains(&entry) { subscriptions.push(entry); }
     }
     if !subscriptions.is_empty() {
         text.push_str("  subscriptions:\n");
