@@ -2,7 +2,6 @@ import { assertRefused } from "./live-fixture.ts";
 import { isRefusalError } from "../dist/client-observed-test.mjs";
 import { subscribe } from "../src/internal.js";
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -1158,11 +1157,10 @@ test("a cold start with the owner unreachable serves the held log and the outbox
 test("successful history compacts atomically only after the entire effect set on every carrier", async () => {
   const identity = { planHash: "a".repeat(64), schemaHash };
   const refs = [{ table: "messages", id: "m" }, { table: "counts", id: "aggregate" }];
-  const digest = (rows: typeof refs) => createHash("sha256").update(JSON.stringify(rows.map(r => [r.table, r.id]).sort())).digest("hex");
   const entry = (intent: string, rows = refs, state = "committed", seq = 10): any => ({
     intent, grant: "g", offset: 0, count: 1, ids: [], op: "edit", args: { body: "new" }, issuedSeq: seq - 1,
     createdAt: 1, updatedAt: 2, state, targets: { ...identity, generation, complete: true, unresolved: [], rows: [] },
-    effects: { digest: digest(rows), pending: rows }, response: { state, seq, data: null, program: { ...identity }, effects: digest(rows) },
+    response: { state, seq, data: null, program: { ...identity }, effects: rows },
   });
   const delivery = (seq: number, rows: typeof refs): any => ({ op: "view", args: {}, seq, state: "complete", next: null,
     rows: rows.map(r => ({ ...r, row: { id: r.id, body: "new" } })), data: rows.map(r => ({ $row: r })),
@@ -1171,20 +1169,20 @@ test("successful history compacts atomically only after the entire effect set on
     const factory = carrier.factory(); let store = factory();
     try {
       await store.open("dev:alice");
-      await store.commit({ facts: { generation, schemaHash, authEpoch: 7 }, outbox: { put: [entry("success")] } });
+      await store.commit({ facts: { generation, schemaHash, authEpoch: 7 }, programs: { [generation]: { generation, schemaHash, schema: { tables: {} }, programs: { edit: { kind: "mutation", planHash: identity.planHash, ir: {}, certificate: {} } } } }, outbox: { put: [entry("success")] } });
       await store.commit({ deliveries: [delivery(11, [refs[0]!])] });
-      assert.equal((await store.outbox.get("success"))?.effects?.pending.length, 1, carrier.name);
+      assert.equal((await store.outbox.get("success"))?.effects?.length, 1, carrier.name);
       await store.close?.(); store = factory(); await store.open("dev:alice");
-      assert.equal((await store.outbox.get("success"))?.effects?.pending.length, 1, "partial discharge survives reopen");
+      assert.equal((await store.outbox.get("success"))?.effects?.length, 1, "partial discharge survives reopen");
       await store.commit({ deliveries: [delivery(12, [refs[1]!])] });
       assert.equal(await store.outbox.get("success"), undefined, "maintained sibling authority completes the atomic set");
       assert.equal(await store.outbox.compactedThrough?.(), 10);
       await store.commit({ outbox: { put: [entry("rejected", [], "rejected"), entry("expired", [], "expired"), entry("queued", [], "queued"), entry("empty", [])] } });
       assert.equal(await store.outbox.get("empty"), undefined, "actual empty write set needs no query observer");
       assert.deepEqual((await store.outbox.all()).map(e => e.intent).sort(), ["expired", "queued", "rejected"]);
-      const hidden = entry("fanout", [refs[0]!]); hidden.response.effects = digest(refs);
+      const hidden = entry("fanout", [{ table: "deliveries", id: "unseen" }]);
       await store.commit({ outbox: { put: [hidden] } });
-      assert(await store.outbox.get("fanout"), "one displayed row is not proof of unseen fanout");
+      assert(await store.outbox.get("fanout"), "one displayed row is not proof of another observable effect");
       const replacement = entry("replacement", []); replacement.response.program.planHash = "f".repeat(64);
       await store.commit({ outbox: { put: [replacement] } });
       assert(await store.outbox.get("replacement"), "success under another program retains custody");
@@ -1196,5 +1194,51 @@ test("successful history compacts atomically only after the entire effect set on
       assert.equal(await store.outbox.compactedThrough?.(), 119, "one durable watermark survives reopening");
       assert.equal((await store.outbox.all()).length, 5, "reopen cannot resurrect compacted drafts");
     } finally { await store.close?.(); await carrier.cleanup(); }
+  }
+});
+
+
+test("compaction crash rollback preserves entries, aliases, and freshness on all carriers", async () => {
+  for (const carrier of ["file", "IndexedDB", "SQLite"] as const) {
+    const root = await tempRoot(); let crash = false;
+    const before = () => { if (crash) { crash = false; throw new Error("compaction crash"); } };
+    const database = new FakeIndexedDb(), locks = new FakeLocks();
+    const factory = carrier === "file" ? fileRangeStore(root, { beforeRename: before }) : carrier === "SQLite"
+      ? sqliteFactory(join(root, "state.db"), { beforeCommit: before })
+      : indexedDbRangeStore({ indexedDB: database as never, locks: locks as never, beforeReplace: before });
+    let store = factory(); let follower: Awaited<ReturnType<NonNullable<typeof store.inbox>>> | undefined;
+    const program = { planHash: "a".repeat(64), schemaHash }, effects = [{ table: "messages", id: "m", removed: true as const }];
+    const success: any = { intent: "remove", inbox: 1, grant: "g", offset: 0, count: 1, ids: [], op: "remove", args: {},
+      issuedSeq: 9, createdAt: 1, updatedAt: 2, state: "committed", response: { state: "committed", seq: 10, data: null, program, effects } };
+    const alias: any = { key: 1, kind: "mutation", scope: "test", principal: "dev:alice", followerId: "f", op: "remove", args: {},
+      state: "queued", admitted: "remove", ids: [], createdAt: 1, updatedAt: 2 };
+    try {
+      await store.open("dev:alice");
+      await store.commit({ facts: { generation, schemaHash, authEpoch: 7 }, programs: { [generation]: { generation, schemaHash, schema: { tables: {} },
+        programs: { remove: { kind: "mutation", planHash: program.planHash, ir: {}, certificate: {} } } } },
+        outbox: { put: [success] }, ...(carrier === "IndexedDB" ? { inbox: { put: [alias] } } : {}) });
+      // A capped empty page and an unrelated high sequence do not witness removal.
+      await store.commit({ deliveries: [{ op: "page", args: {}, state: "capped", data: [], next: "more", seq: 20,
+        rows: [], receipt: { ranges: [], absences: [], verdicts: [] } }] });
+      assert(await store.outbox.get("remove"));
+      crash = true;
+      await assert.rejects(store.commit({ tombstones: [{ table: "messages", id: "m", seq: 21 }] }), /compaction crash/);
+      assert(await store.outbox.get("remove"), "in-memory journal rolls back failed deletion");
+      assert.equal(await store.outbox.compactedThrough?.(), 0);
+      await store.close?.(); store = factory(); await store.open("dev:alice");
+      assert(await store.outbox.get("remove"), "pre-transaction entry survives crash/reopen");
+      if (carrier === "IndexedDB") {
+        follower = await store.inbox!("dev:alice");
+        assert.equal((await follower.read()).rows.length, 1, "alias survives the same failed transaction");
+      }
+      await store.commit({ tombstones: [{ table: "messages", id: "m", seq: 21 }] });
+      assert.equal(await store.outbox.get("remove"), undefined);
+      if (follower) {
+        const snapshot = await follower.read();
+        assert.equal(snapshot.rows.length, 0); assert.deepEqual(snapshot.ledger, {});
+        assert.equal(snapshot.compactedThrough, 10, "follower sees alias removal and watermark in one transaction");
+      }
+      assert.equal(await store.outbox.compactedThrough?.(), 10);
+    } finally { follower?.close(); await store.close?.(); await rm(root, { recursive: true, force: true }); }
   }
 });

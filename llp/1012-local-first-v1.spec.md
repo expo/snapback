@@ -867,7 +867,7 @@ is evidence for its primitive, not those integration claims.
 
 Successful terminal history now compacts through the carrier transaction under
 [LLP 1018.003.001 §4](./1018.003.001-client-follow-ups.plan.md#4-automatic-compaction-of-successful-history):
-actual-effect digest equality and authoritative discharge of every address,
+owner-declared observable effects and authoritative discharge of every address,
 with program identity, precede deletion. A single `compactedThrough` watermark
 marks older public images as changed without advancing their data. Unresolved
 successes, queued work and failures retain custody; there is no total-store cap.

@@ -167,3 +167,38 @@ test("durable client intents survive a schema successor and a lost acknowledgeme
     else process.env.SNAPBACK_URL = previousUrl;
   }
 });
+
+
+// @ref LLP 1018.003.001#4-automatic-compaction-of-successful-history —
+// even an immediate empty-effect compaction must hand the online caller its terminal.
+test("real owner no-op successes compact with zero readers and preserve each issuing result", async (t) => {
+  if (process.env.SNAPBACK_URL) return t.skip("requires isolated owner");
+  const { mkdtemp, writeFile, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os"), { join } = await import("node:path");
+  const { fileRangeStore } = await import("../dist/test.mjs");
+  const root = await mkdtemp(join(tmpdir(), "snapback-compacted-result-"));
+  const previousUrl = process.env.SNAPBACK_URL;
+  let local: RealOwnerHarness | undefined, client: ReturnType<typeof createClient> | undefined;
+  try {
+    local = await RealOwnerHarness.create({ prepare: async project => {
+      await writeFile(join(project, "snapback/noop.q"), "mutation echo(value: int):\n  return value\n");
+    } });
+    const factory = fileRangeStore(root);
+    client = createClient({ url: local.url, persona: "alice", offline: { store: factory } });
+    await client.ready;
+    for (let value = 0; value < 20; value++) {
+      const result = await client.mutation(api.noop.echo, { value });
+      assert.equal(result.state, "committed");
+      if (result.state === "committed") { assert.equal(result.data, value); assert.deepEqual(result.effects, []); }
+      assert.deepEqual(await client.outbox.entries(), [], "zero observers; no success accumulates");
+    }
+    await client.close(); client = undefined;
+    const reopened = factory(); await reopened.open("dev:alice");
+    assert.deepEqual(await reopened.outbox.all(), []);
+    assert((await reopened.outbox.compactedThrough!()) > 0);
+    await reopened.close?.();
+  } finally {
+    await client?.close(); await local?.close(); await rm(root, { recursive: true, force: true });
+    if (previousUrl === undefined) delete process.env.SNAPBACK_URL; else process.env.SNAPBACK_URL = previousUrl;
+  }
+});
