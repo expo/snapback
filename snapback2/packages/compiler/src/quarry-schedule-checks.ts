@@ -12,21 +12,20 @@ export function registerScheduleChecks(test: Test, frontend: string): void {
     const lowered = await lowerProject(fixture);
     assert(lowered.ok, JSON.stringify(lowered));
     const schedules = lowered.project.schema.schedules ?? [];
-    assert(schedules.length === 4, JSON.stringify(schedules));
+    assert(schedules.length === 3, JSON.stringify(schedules));
     const daily = schedules.find((s) => s.name === "dailyDigest")!;
     const expire = schedules.find((s) => s.name === "expireMessage")!;
     const recipeDigest = schedules.find((s) => s.name === "recipeDigest")!;
-    const recipePrune = schedules.find((s) => s.name === "recipePeriodUnreadPrune")!;
     assert(JSON.stringify(daily.trigger) === '{"every":{"durationMs":86400000}}' && daily.target === "admin.digestSweep", JSON.stringify(daily));
     assert(JSON.stringify(expire.trigger) === '{"row":{"table":"messages","column":"expiresAt"}}' && expire.target === "admin.purgeMessage", JSON.stringify(expire));
     assert(JSON.stringify(recipeDigest.trigger) === '{"every":{"durationMs":120000}}'
       && recipeDigest.target === "digest-recipes.periodDigestSweep", JSON.stringify(recipeDigest));
-    assert(JSON.stringify(recipePrune.trigger) === '{"every":{"durationMs":120000}}'
-      && recipePrune.target === "digest-recipes.pruneRecipePeriodUnread", JSON.stringify(recipePrune));
     const expireBinding = lowered.project.programs.find((p) => p.name === expire.binding)!;
     const dailyBinding = lowered.project.programs.find((p) => p.name === daily.binding)!;
+    const recipeBinding = lowered.project.programs.find((p) => p.name === recipeDigest.binding)!;
     assert(expireBinding?.kind === "Query" && Object.keys(expireBinding.args).join() === "id", JSON.stringify(expireBinding));
     assert(dailyBinding?.kind === "Query" && Object.keys(dailyBinding.args).length === 0, JSON.stringify(dailyBinding));
+    assert(recipeBinding?.kind === "Query" && JSON.stringify(recipeBinding.args) === '{"periodEnd":"Time"}', JSON.stringify(recipeBinding));
     assert(expire.site.startsWith("snapback/admin.q:") && daily.site.startsWith("snapback/admin.q:"), "schedule sites");
     assert(!lowered.apiDts.includes("_timerBinding_") && !lowered.apiDts.includes("digestSweep"), "a binding or job leaked into the client API");
     assert(!lowered.apiDts.includes("purgeMessage"), "a schedule target leaked into the client API");
@@ -118,7 +117,7 @@ export function registerScheduleChecks(test: Test, frontend: string): void {
     const checked = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema, undefined, lowered.project.effects);
     const job = operation(lowered.project.programs, "digest-recipes.periodDigestSweep");
     const certificate = checked.find((item) => item.program === job.name)!.certificate!;
-    assert(certificate.kind === "job" && (certificate.perChunk as any[]).length === 1, JSON.stringify(certificate));
+    assert(certificate.kind === "job" && (certificate.perChunk as any[]).length === 2, JSON.stringify(certificate));
     const body = JSON.stringify(job.body);
     for (const required of ["digestFollows", "postPeriodCounters", "memberships", "periodUnreadByMembershipPeriod", "digests", "pushLog", "push.notify"]) {
       assert(body.includes(required), `digest job lost ${required}`);
@@ -143,10 +142,44 @@ export function registerScheduleChecks(test: Test, frontend: string): void {
     const post = JSON.stringify(operation(lowered.project.programs, "digest-recipes.createRecipePost").body);
     assert(post.includes("posts") && post.includes("postPeriodCounters") && post.includes("replayMode")
       && !post.includes("digestFollows") && !post.includes("For"), "post creation lost its follower-independent period counter");
-    const prune = operation(lowered.project.programs, "digest-recipes.pruneRecipePeriodUnread");
-    assert(prune.kind === "job" && JSON.stringify(prune.body).includes("periodUnread"), "period unread prune lost owner custody");
+    assert(source.includes("job periodDigestSweep(cutoff: time):")
+      && source.indexOf("chunk row in periodUnread") > source.indexOf("chunk p in profiles")
+      && source.includes("schedule recipeDigest every 2m: periodDigestSweep(.periodEnd)"),
+    "period cutoff or post-digest prune ordering moved");
     assert(source.includes("row.periodStart < currentPeriodStart - cfg.digestPeriodMs"),
-      "period unread prune can race the last completed digest bucket");
+      "period unread prune can delete the active completed digest bucket");
+  });
+  test("period schedules expose only typed logical boundary fields", async () => {
+    const schema = readFileSync(resolve(fixture, "snapback/schema.q"), "utf8");
+    const valid = `job sweep(cutoff: time):
+  chunk p in profiles first 1 by byId:
+    update profiles[p] { unreadMessages: 0 }
+
+schedule digest every 2m: sweep(.periodEnd)
+`;
+    await withProject({ "snapback/schema.q": schema, "snapback/period.q": valid }, async (root) => {
+      const lowered = await lowerProject(root);
+      assert(lowered.ok, JSON.stringify(lowered));
+      const schedule = lowered.project.schema.schedules![0]!;
+      const binding = operation(lowered.project.programs, schedule.binding);
+      assert(JSON.stringify(binding.args) === '{"periodEnd":"Time"}', JSON.stringify(binding));
+    });
+    for (const [argument, message] of [
+      [".missing", "unknown period field"],
+      [".periodEnd", "does not satisfy target bool"],
+    ]) {
+      const target = message.includes("bool") ? "enabled: bool" : "cutoff: time";
+      const source = `job sweep(${target}):
+  chunk p in profiles first 1 by byId:
+    update profiles[p] { unreadMessages: 0 }
+
+schedule digest every 2m: sweep(${argument})
+`;
+      await withProject({ "snapback/schema.q": schema, "snapback/period.q": source }, async (root) => {
+        const lowered = await lowerProject(root);
+        assert(!lowered.ok && JSON.stringify(lowered.diagnostics).includes(message), JSON.stringify(lowered));
+      });
+    }
   });
   test("Quarry schedules refuse non-time columns, bad targets, and sub-minute or calendar durations with the schedule family", async () => {
     const schema = readFileSync(resolve(fixture, "snapback/schema.q"), "utf8");

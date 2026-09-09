@@ -45,12 +45,12 @@ mutation clearRecipeUnread(messageId: messages, recipient: principal):
     delete periodUnread[pending]
   return null
 
-job periodDigestSweep():
+job periodDigestSweep(cutoff: time):
   chunk p in profiles first 1 by byId:
     cfg = settings() ! else CONFIG
     if cfg.replayMode = false:
-      (_period, rem) = divmod(now, cfg.digestPeriodMs)
-      periodEnd = now - rem
+      (_period, rem) = divmod(cutoff, cfg.digestPeriodMs)
+      periodEnd = cutoff - rem
       periodStart = periodEnd - cfg.digestPeriodMs
       prior = digests[p.principal, periodStart]
       if prior = null:
@@ -92,14 +92,11 @@ job periodDigestSweep():
           }
           emit notify { to: p.principal, body: 'digest' }
         delete digestScratch[summary]
-
-job pruneRecipePeriodUnread():
   chunk row in periodUnread first 50 by byPeriod:
     cfg = settings() ! else CONFIG
-    (_period, rem) = divmod(now, cfg.digestPeriodMs)
-    currentPeriodStart = now - rem
+    (_period, rem) = divmod(cutoff, cfg.digestPeriodMs)
+    currentPeriodStart = cutoff - rem
     if row.periodStart < currentPeriodStart - cfg.digestPeriodMs:
       delete periodUnread[row]
 
-schedule recipeDigest every 2m: periodDigestSweep()
-schedule recipePeriodUnreadPrune every 2m: pruneRecipePeriodUnread()
+schedule recipeDigest every 2m: periodDigestSweep(.periodEnd)

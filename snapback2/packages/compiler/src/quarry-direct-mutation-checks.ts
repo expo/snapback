@@ -333,11 +333,11 @@ mutation branch(owner: principal, flag: bool):
 
   test("direct Quarry schedule bindings retain focal row arguments and pure results", async () => {
     const schema = readFileSync(join(frontend, "fixtures/quarry-schedules/snapback/schema.q"), "utf8");
-    const admin = `job digestSweep():
+    const admin = `job digestSweep(cutoff: time):
   chunk p in profiles first 100 by byId:
     update profiles[p.id] { newFollowers: p.newFollowers }
 
-schedule dailyDigest every 24h: digestSweep()
+schedule dailyDigest every 24h: digestSweep(.periodEnd)
 
 mutation purgeMessage(id: messages):
   update messages[id] { body: null, expiresAt: null }
@@ -375,7 +375,10 @@ schedule expireMessage on messages at .expiresAt: purgeMessage(.id)
         assert(!legacyCheck.error && legacyCheck.certificate, `${schedule.name} oracle binding did not certify: ${JSON.stringify(legacyCheck)}`);
         assert(String(directCheck.certificate.evaluator_version).endsWith("-5"),
           `${schedule.name} binding used a pre-v5 native checker`);
-        const args: Record<string, Value> = "row" in schedule.trigger ? { id: { Id: "message-1" } } : {};
+        const args: Record<string, Value> = "row" in schedule.trigger
+          ? { id: { Id: "message-1" } }
+          : Object.fromEntries(Object.keys(direct.args).map((name) => [name,
+            { Int: name === "periodStart" ? 11 : 23 } as Value]));
         const context: Context = { viewer: "system", principal_kind: "system", auth_epoch: 1,
           args, now: 23, read_time: 19, new_ids: [] };
         const directExecution: Execution = new ClientStore(oracle.project.schema).reexecute(direct, context, directCheck.certificate).execution;

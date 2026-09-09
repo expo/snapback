@@ -12,6 +12,22 @@ schedule expireMessage on messages at .expiresAt: purgeMessage(.id)
 schedule dailyDigest every 24h: digestSweep()
 ```
 
+An `every` binding may pass `.periodStart` or `.periodEnd`, both `time`, to
+the target. These are the logical boundaries of the scheduled occurrence,
+even when the owner fires it late; they are not ambient `now`.
+
+```q
+job digestSweep(cutoff: time):
+  chunk profile in profiles first 1 by byId:
+    // derive the completed bucket from the same cutoff in every chunk
+    return null
+  chunk row in periodUnread first 50 by byPeriod:
+    // cleanup starts only after the profile sweep finishes
+    return null
+
+schedule digest every 2m: digestSweep(.periodEnd)
+```
+
 The engine keeps `_timers` as it keeps an index: writing a present `expiresAt`
 enqueues, a different value reschedules, `null` or delete cancels, all inside
 the row's own transaction; every program that writes the table certifies
@@ -40,8 +56,9 @@ turn; a journey writes `expiresAt`, calls `tick(ms)`, and asserts the purge.
 
 Refusals (`schedule`): `E_SCHEDULE_COLUMN` (declare the column `time ?`),
 `E_SCHEDULE_TARGET` (a mutation or job whose arguments the row expressions
-satisfy; `every` targets take none), `E_SCHEDULE_DURATION` (`Nm`, `Nh`, or
-`Nd`, at least one minute; no time-of-day or calendar syntax).
+satisfy; `every` exposes only typed `.periodStart` and `.periodEnd`),
+`E_SCHEDULE_DURATION` (`Nm`, `Nh`, or `Nd`, at least one minute; no time-of-day
+or calendar syntax).
 
 Customers: the `chat` template's disappearing messages (`purgeMessage` writes
 the `expired` log rows and deletes the body) and the `periodDigestSweep` fixture.
@@ -55,7 +72,9 @@ message author only with an explicit current-membership conjunction; keep its
 maintained count owner-only. Send, mark-read, unsend/expiry, and self-leave must
 update period custody atomically. Count only the current membership id, so an
 admin remove/rejoin cannot revive an old incarnation; an owner chunk job may
-prune rows strictly older than the last completed bucket.
+prune rows strictly older than the last completed bucket. Put that prune in a
+later chunk of the same cutoff-bound digest job: a separate schedule can race
+or overtake the digest that still needs the bucket.
 
 A compact explicit post counter can replace an over-budget `maintain`, but
 every create, delete, or key-changing update must adjust it in the same

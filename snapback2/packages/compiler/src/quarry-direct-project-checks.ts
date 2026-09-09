@@ -93,13 +93,12 @@ export function registerQuarryDirectProjectChecks(test: Test, frontend: string):
     const client = new Set(project.clientPrograms.map((program) => program.name));
     const effectDeclarations = boundEffectDeclarationSources(prepared.catalog, project.boundPrograms);
     const admin = effectDeclarations.modules.find((module) => module.fileName === "snapback/admin.ts")?.source ?? "";
-    assert(project.schema.schedules?.length === 4
+    assert(project.schema.schedules?.length === 3
       && project.programs.some((program) => program.name === "admin.digestSweep" && program.kind === "job")
       && project.programs.some((program) => program.name === "digest-recipes.periodDigestSweep" && program.kind === "job")
-      && project.programs.some((program) => program.name === "digest-recipes.pruneRecipePeriodUnread" && program.kind === "job")
       && project.programs.some((program) => program.name.includes("_timerBinding_"))
       && !client.has("admin.digestSweep") && !client.has("admin.purgeMessage")
-      && !client.has("digest-recipes.periodDigestSweep") && !client.has("digest-recipes.pruneRecipePeriodUnread")
+      && !client.has("digest-recipes.periodDigestSweep")
       && ![...client].some((name) => name.includes("_timerBinding_"))
       && admin.includes(" as purgeMessage }") && !admin.includes("digestSweep") && !admin.includes("_timerBinding_"),
     `system programs leaked into the direct client set: ${JSON.stringify([...client])}`);

@@ -625,7 +625,7 @@ a prose correction within the unchanged guide budget; runtime, tests, corpus,
 point/range semantics, and optional-reference repairs remain unchanged.
 
 **Source word freeze (review revision, 2026-09-08).** One sorted literal pins
-121 words. The extractor scans `src/quarry/*.ts` for literal equality/inequality
+123 words. The extractor scans `src/quarry/*.ts` for literal equality/inequality
 comparisons and switch labels on `value`, `name`, `table`, or `column` properties
 (dot/bracket access), contextual `name`/`unit`/`policy` variables and their
 initializer aliases; parser `this.at/take/maybe` calls; literal array/Set/Map
@@ -676,3 +676,11 @@ text. Positions are Unicode scalar values, matching text-column bounds in LLP
 endpoints narrow the inferred output maximum, so an application can derive one
 `text <=80` value and use it unchanged for a stored preview and an emitted
 payload. Dynamic integer endpoints remain sound at the input text's maximum.
+
+### Period schedule bindings (2026-09-09)
+
+An `every` schedule exposes only `.periodStart` and `.periodEnd`, both `time`,
+to its target binding. They are the logical timer-occurrence boundaries, not
+the possibly late fire clock. A multi-chunk job can therefore carry one pinned
+cutoff across all sweeps. Zero-argument period schedules remain valid; row
+schedule fields and bindings are unchanged.

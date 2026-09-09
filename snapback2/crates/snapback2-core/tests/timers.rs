@@ -135,6 +135,11 @@ fn period_schedule(name: &str, target: &str, duration_ms: i64) -> Schedule {
         site: "snapback/admin.q:2:1".into(),
     }
 }
+fn period_bound_schedule(name: &str, target: &str, duration_ms: i64) -> Schedule {
+    let mut schedule = period_schedule(name, target, duration_ms);
+    schedule.binding = format!("admin._timerBinding_{name}_period_bound");
+    schedule
+}
 /// The binding programs the compiler would emit for these schedules, keyed by the binding name's suffix.
 fn bindings(schedules: &[Schedule]) -> Vec<Program> {
     schedules
@@ -142,7 +147,13 @@ fn bindings(schedules: &[Schedule]) -> Vec<Program> {
         .map(|schedule| {
             let name = schedule.binding.as_str();
             let (args, enabled, bound): (Vec<(&str, ArgType)>, Expr, Vec<(&str, Expr)>) =
-                if name.ends_with("_period") {
+                if name.ends_with("_period_bound") {
+                    (
+                        vec![("periodStart", ArgType::Time), ("periodEnd", ArgType::Time)],
+                        lit(Value::Bool(true)),
+                        vec![("cutoff", var("periodEnd"))],
+                    )
+                } else if name.ends_with("_period") {
                     (vec![], lit(Value::Bool(true)), vec![])
                 } else if name.ends_with("_scope") {
                     (
@@ -275,6 +286,72 @@ fn sweep(name: &str, scoped: bool) -> Program {
         }],
     )
 }
+fn sweep_at() -> Program {
+    let scan = |site: &str| {
+        LoopDomain::Page(Scan {
+            site: site.into(),
+            table: "items".into(),
+            index: "byId".into(),
+            prefix: vec![],
+            order: Order::Asc,
+            take: Bound::Literal(1),
+            after: None,
+            before: None,
+            range: None,
+            opaque_cursor: false,
+            merge_site: None,
+            provenance: KeyProvenance::Const,
+        })
+    };
+    program(
+        "admin.sweepAt",
+        ProgramKind::Job,
+        vec![("cutoff", ArgType::Time)],
+        vec![
+            Stmt::For {
+                binding: "row".into(),
+                domain: scan("digest"),
+                body: vec![Stmt::Update {
+                    table: "items".into(),
+                    key: Expr::Field {
+                        base: Box::new(var("row")),
+                        name: "id".into(),
+                    },
+                    patch: Expr::Object(BTreeMap::from([("n".into(), var("cutoff"))])),
+                }],
+            },
+            Stmt::For {
+                binding: "row".into(),
+                domain: scan("prune"),
+                body: vec![
+                    Stmt::Require {
+                        site: None,
+                        condition: Expr::Binary {
+                            op: BinaryOp::Eq,
+                            left: Box::new(Expr::Field {
+                                base: Box::new(var("row")),
+                                name: "n".into(),
+                            }),
+                            right: Box::new(var("cutoff")),
+                        },
+                        code: "DIGEST_NOT_DONE".into(),
+                    },
+                    Stmt::Update {
+                        table: "items".into(),
+                        key: Expr::Field {
+                            base: Box::new(var("row")),
+                            name: "id".into(),
+                        },
+                        patch: Expr::Object(BTreeMap::from([(
+                            "ok".into(),
+                            lit(Value::Bool(false)),
+                        )])),
+                    },
+                ],
+            },
+        ],
+    )
+}
 fn certify(schedules: Vec<Schedule>) -> Result<Generation, Vec<(String, CheckError)>> {
     let programs = bindings(&schedules);
     certify_with(schedules, programs)
@@ -288,6 +365,7 @@ fn certify_with(
         reject(),
         sweep("admin.sweep", false),
         sweep("admin.sweepScope", true),
+        sweep_at(),
     ];
     programs.extend(bindings);
     let schema = Schema {
@@ -716,6 +794,88 @@ fn period_timer_installs_at_now_plus_duration_rearms_anchored_and_fires_once_for
 }
 
 #[test]
+fn period_binding_enqueues_the_logical_boundaries_not_the_late_fire_clock() {
+    let schedule = period_bound_schedule("digest", "admin.sweepAt", MINUTE);
+    let mut rt = runtime(vec![schedule]);
+    seed(&mut rt, vec![row("a", None, true)]);
+    let armed = timers(&rt);
+    let start = armed[0].period_start.unwrap();
+    let scheduled_end = start + MINUTE;
+    let fired_at = scheduled_end + 7;
+    let fired = rt.fire_due_at(64, fired_at).unwrap();
+    assert_eq!(fired.len(), 1);
+    let job = fired[0].firing.outcome["job"].as_str().unwrap();
+    let record = rt.job_record(job).unwrap();
+    assert_eq!(
+        record.args,
+        BTreeMap::from([("cutoff".into(), Value::Int(scheduled_end))]),
+        "a late firing must not move the job cutoff"
+    );
+    while rt.job_record(job).unwrap().state != "done" {
+        assert_ne!(rt.run_chunk_at(job, fired_at).unwrap().job.state, "parked");
+    }
+    assert_eq!(
+        rows(&mut rt, "items")[0].field("n").unwrap(),
+        &Value::Int(scheduled_end)
+    );
+}
+
+#[test]
+fn period_cutoff_survives_restart_and_the_second_sweep_waits_for_the_first() {
+    let schedule = period_bound_schedule("digest", "admin.sweepAt", MINUTE);
+    let mut rt = runtime(vec![schedule.clone()]);
+    seed(
+        &mut rt,
+        vec![
+            row("a", None, true),
+            row("b", None, true),
+            row("c", None, true),
+        ],
+    );
+    let timer = timers(&rt)[0].clone();
+    let cutoff = timer.at;
+    let fired = rt.fire_due_at(64, cutoff + 9).unwrap();
+    let job = fired[0].firing.outcome["job"].as_str().unwrap().to_owned();
+    let first = rt.run_chunk_at(&job, cutoff + 9).unwrap();
+    assert_eq!((first.job.sweep, first.job.chunks), (0, 1));
+
+    let path = std::env::temp_dir().join(format!(
+        "period-cutoff-restart-{}.sqlite",
+        std::process::id()
+    ));
+    rt.store().snapshot_to(&path).unwrap();
+    drop(rt);
+    let mut reopened =
+        Runtime::open(Store::open(&path).unwrap(), generation(vec![schedule])).unwrap();
+    assert_eq!(
+        reopened.job_record(&job).unwrap().args["cutoff"],
+        Value::Int(cutoff)
+    );
+    while reopened.job_record(&job).unwrap().sweep == 0 {
+        let outcome = reopened.run_chunk_at(&job, cutoff + 2 * MINUTE).unwrap();
+        assert_ne!(outcome.job.state, "parked", "{outcome:?}");
+    }
+    let digested = rows(&mut reopened, "items");
+    assert!(
+        digested
+            .iter()
+            .all(|item| item.field("n").unwrap() == &Value::Int(cutoff)
+                && item.field("ok").unwrap() == &Value::Bool(true)),
+        "cleanup began before the digest sweep completed: {digested:?}"
+    );
+    while reopened.job_record(&job).unwrap().state != "done" {
+        let outcome = reopened.run_chunk_at(&job, cutoff + 3 * MINUTE).unwrap();
+        assert_ne!(outcome.job.state, "parked", "{outcome:?}");
+    }
+    let cleaned = rows(&mut reopened, "items");
+    assert!(cleaned
+        .iter()
+        .all(|item| item.field("ok").unwrap() == &Value::Bool(false)));
+    drop(reopened);
+    std::fs::remove_file(path).unwrap();
+}
+
+#[test]
 fn a_job_target_enqueues_with_row_args_and_the_same_occurrence_coalesces() {
     let mut rt = runtime(vec![scope_schedule("sweepAt", "admin.sweepScope")]);
     seed(&mut rt, vec![row("a", Some(5), true), row("b", None, true)]);
@@ -828,6 +988,25 @@ fn certification_refuses_non_time_columns_bad_targets_and_sub_minute_or_ragged_d
     assert!(
         errors.iter().any(|(_, e)| e.code == "E_SCHEDULE_TARGET"),
         "{errors:?}"
+    );
+    let period = period_bound_schedule("digest", "admin.sweepAt", MINUTE);
+    let mut mistyped = bindings(std::slice::from_ref(&period));
+    mistyped[0].args.insert("periodEnd".into(), ArgType::Int);
+    let errors = certify_with(vec![period.clone()], mistyped).unwrap_err();
+    assert!(
+        errors
+            .iter()
+            .any(|(_, error)| error.code == "E_SCHEDULE_TARGET"
+                && error.message.contains("periodEnd")),
+        "mistyped period binding: {errors:?}"
+    );
+    let mut unknown = bindings(std::slice::from_ref(&period));
+    unknown[0].args.insert("cutoff".into(), ArgType::Time);
+    let errors = certify_with(vec![period], unknown).unwrap_err();
+    assert!(
+        errors.iter().any(|(_, error)| error.code == "E_SCHEDULE_TARGET"
+            && error.message.contains("cutoff")),
+        "unknown period binding: {errors:?}"
     );
     // Two declarations of one name: the engine refuses on its own, with the unique-name rewrite.
     let first = row_schedule("expire", "admin.purge", false);

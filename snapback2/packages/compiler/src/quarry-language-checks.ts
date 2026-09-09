@@ -120,7 +120,7 @@ absent after allow and at before bool by byId byPrincipal bytes cap channel chan
 count created cursor d decimal delete delivered-history deny depth device divmod duration effect
 else emit enum every exists false first fn for format from guests h handle height id identity if
 image immutable in index insert int job json last length m maintain max merge min money mutation new
-not now null oblivious of on once op or password principal proc public publish query quotient range
+not now null oblivious of on once op or password periodEnd periodStart principal proc public publish query quotient range
 read readable remainder require retain return s schedule shape share slice sorted subscribe sum system
 table text then time toJSON tokens tombstones true ttl unique until-revoked up update upsert url use
 value video viewer walk where while width wordPrefixes words

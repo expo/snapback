@@ -60,21 +60,33 @@ impl Engine {
             context.now = Some(now);
             context.read_time = Some(now);
             context.new_ids = ids;
-            if let (Trigger::Row { table, .. }, Some(id)) = (&schedule.trigger, &timer.row_id) {
-                let row: Option<String> = tx
-                    .query_row(
-                        "SELECT data FROM rows WHERE table_name=?1 AND row_id=?2",
-                        params![table, id],
-                        |r| r.get(0),
-                    )
-                    .optional()?;
-                let Some(row) = row else {
-                    return Ok(json!({"state":"skipped","reason":"row absent"}));
-                };
-                let mut row: Value = serde_json::from_str(&row)
-                    .map_err(|e| RuntimeError::Serialization(e.to_string()))?;
-                materialize_optional_fields(&mut row, &self.schema.tables[table]);
-                context.args = row.as_object()?.clone();
+            match (&schedule.trigger, &timer.row_id) {
+                (Trigger::Row { table, .. }, Some(id)) => {
+                    let row: Option<String> = tx
+                        .query_row(
+                            "SELECT data FROM rows WHERE table_name=?1 AND row_id=?2",
+                            params![table, id],
+                            |r| r.get(0),
+                        )
+                        .optional()?;
+                    let Some(row) = row else {
+                        return Ok(json!({"state":"skipped","reason":"row absent"}));
+                    };
+                    let mut row: Value = serde_json::from_str(&row)
+                        .map_err(|e| RuntimeError::Serialization(e.to_string()))?;
+                    materialize_optional_fields(&mut row, &self.schema.tables[table]);
+                    context.args = row.as_object()?.clone();
+                }
+                (Trigger::Every { .. }, None) => {
+                    context.args.insert(
+                        "periodStart".into(),
+                        Value::Int(start.expect("period start")),
+                    );
+                    context
+                        .args
+                        .insert("periodEnd".into(), Value::Int(scheduled_at));
+                }
+                _ => {}
             }
             validate_inputs(&self.schema, binding, &context.args)?;
             let mut binder = Runner::new(

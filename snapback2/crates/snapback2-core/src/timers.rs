@@ -1,6 +1,7 @@
 //! Owner-clock schedules and their certified row bindings.
 use crate::{
-    Ceilings, Certificate, CheckError, Checker, ColumnType, Program, ProgramKind, Schema, WriteSite,
+    ArgType, Ceilings, Certificate, CheckError, Checker, ColumnType, Expr, Program, ProgramKind,
+    Schema, Stmt, WriteSite,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -133,6 +134,26 @@ pub(crate) fn certify(
                 "target a mutation or job of this project with matching arguments",
             );
         }
+        let bound_arg_names = binding.body.iter().find_map(|statement| {
+            let Stmt::Return(Expr::Object(result)) = statement else {
+                return None;
+            };
+            let Some(Expr::Object(args)) = result.get("args") else {
+                return None;
+            };
+            Some(args.keys().collect::<Vec<_>>())
+        });
+        if target.is_some_and(|target| {
+            bound_arg_names.as_ref().is_none_or(|bound| {
+                bound.as_slice() != target.args.keys().collect::<Vec<_>>().as_slice()
+            })
+        }) {
+            fail(
+                "E_SCHEDULE_TARGET",
+                "schedule binding arguments do not match the target".into(),
+                "pass one matching value for each target argument",
+            );
+        }
         match &schedule.trigger {
             Trigger::Row { table, column } => {
                 if schema.tables.get(table).and_then(|t| t.columns.get(column))
@@ -156,12 +177,16 @@ pub(crate) fn certify(
                         "schedule dailyDigest every 24h: digestSweep",
                     );
                 }
-                if target.is_some_and(|p| !p.args.is_empty()) || !binding.args.is_empty() {
-                    fail(
-                        "E_SCHEDULE_TARGET",
-                        "every targets take no arguments".into(),
-                        "declare a no-argument mutation or job",
-                    );
+                for (name, kind) in &binding.args {
+                    if !matches!(name.as_str(), "periodStart" | "periodEnd")
+                        || kind != &ArgType::Time
+                    {
+                        fail(
+                            "E_SCHEDULE_TARGET",
+                            format!("unknown or mistyped period binding field {name}"),
+                            "pass .periodStart or .periodEnd to the period target",
+                        );
+                    }
                 }
             }
         }
