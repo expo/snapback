@@ -514,8 +514,9 @@ can be shared, while generic mutable source values remain isolated.
 observed page keeps a receipt-backed capped owner answer whole when its local
 rerun has that same owner's selection proof but cannot reconstruct the
 computed projection or owner continuation. It does not attach an old cursor
-to a different local result. Newer local sequence, visible queued/predicted
-work, denied or invalidated custody, and maintained-sibling incoherence must
+to a different local result. Newer local sequence, active overlay custody
+(including a committed removal awaiting retirement), denied or invalidated
+custody, and maintained-sibling incoherence must
 still win over that fallback. Drain observations retain their independent
 page/tail lifecycle. The 45-row real owner/carrier/React witness exercises
 Global, Following and author pages across refresh, moving boundaries and
@@ -951,6 +952,12 @@ grant: { id, from, count: 8192, mintedAt, expiresAt }   // principal-bound; ids 
 Signup has no prior remaining-ID count, so its owner response mints the same
 principal-bound grant as login. A fresh account need not reload or perform a
 second authentication transition to admit its first durable write.
+
+Pending client grant custody names the validated session principal, or the
+principal captured for the resume request. A failed partition opening cannot
+transfer that grant to the previous account; mismatch discards it and wipe
+clears it. Same-principal persistence retries remain recoverable, but a failed
+older adoption cannot overwrite a newer grant that arrived while it waited.
 
 Reconnect/facts loading and committed-send tail selection read a small carrier
 metadata snapshot (watermarks, facts and supersession) rather than expanding
