@@ -4,7 +4,6 @@ import { mayNeedAssetPlanning } from "./assets.js";
 import { ClientAuth, anonymousAuth, restoreAuthToken, saveAuthToken, storageRefusal, ensureBearerTransition } from "./client-auth.js";
 import { SharedSse } from "./live.js";
 import type { AssetFetchOptions } from "./store/byte-cache.js";
-import { followerRefusal, supersededRefusal, throwIfAborted, withAbort } from "./client-wire.js";
 import { api, referenceName, type Api, type ApiProxy, type Channel as ChannelRef, type Op } from "./api.js";
 import { captureGrant, createOutboxApi, drainOutbox, type DrainResult } from "./client-outbox.js";
 import {
@@ -34,7 +33,7 @@ import {
 import {
   RefusalError,
   copyRefusal, toRefusal, requestRefusal,
-  fallbackRefusal,
+  fallbackRefusal, followerRefusal, supersededRefusal, throwIfAborted, withAbort,
   isRefusalError,
   isTerminalSession,
   responseRefusal, responseJson, type JsonRequestOptions,
@@ -197,7 +196,15 @@ class Client implements SnapbackClient {
         await this.localReady;
         const cursor = this.offlineRuntime?.declaredCursorArg(op);
         if (cursor || this.offlineRuntime?.programGeneration || this.queryCursors) return cursor ?? cursorArgument(this.queryCursors?.[op]);
-        return cursorArgument((await this.manifest()).ops[op]);
+        // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test — retry cold preparation once across the captured bearer restoration.
+        const authority = await this.operationAuthority(), restoring = !!authority.token && this.authState.value.state === "hydrating";
+        try { return cursorArgument((await this.manifestFor(authority)).ops[op]); }
+        catch (error) {
+          if (!restoring || !isRefusalError(error) || !error.retryable) throw error;
+          await this.authState.settled(this.lifetimeController.signal);
+          this.ensureAuthority(authority);
+          return cursorArgument((await this.manifestFor(authority)).ops[op]);
+        }
       },
       identity: () => [this.authGeneration, this.operationFence],
       active: ([generation, fence]) => !this.closed && this.authGeneration === generation && this.operationFence === fence,
@@ -231,9 +238,7 @@ class Client implements SnapbackClient {
         && this.authState.value.retryAt === undefined) return this.me();
     }).catch(() => undefined); // Each restoration attempt publishes its own failure.
   }
-  get snapshot(): ClientSnapshot {
-    return this.currentSnapshot;
-  }
+  get snapshot(): ClientSnapshot { return this.currentSnapshot; }
   async query<Args, Result>(ref: Op<Args, Result>, args: Args): Promise<QueryResult<Result>> {
     try { return await this.queryInternal(ref, args); }
     catch (error) { return { state: "refused", ...toRefusal(error) }; }

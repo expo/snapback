@@ -1130,6 +1130,10 @@ network authority. Confirming the same bearer preserves live React query observe
 their held item identity; the client resumes those reads in place. A one-shot read
 retries on confirmation if it could not answer while hydrating. Actual account
 transitions still replace observations through `authGeneration`.
+If an uncached query's metadata request starts during bearer restoration and fails
+with a retryable transport error, preparation waits on that restoration and retries
+once after rechecking authority. This also covers a failure received after confirmation;
+without held metadata the query stays loading while restoration is unresolved.
 Explicit `me()` replaces its backoff timer. `offline()`
 pauses retry clocks without splitting a pending `me()` flight; an offline
 restart remains paused until `online()`. An online restart starts the new

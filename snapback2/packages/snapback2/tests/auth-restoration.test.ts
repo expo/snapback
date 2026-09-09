@@ -661,6 +661,61 @@ test("an offline query hook leaves hydration when the stored bearer is confirmed
   } finally { if (renderer) await act(async () => renderer.unmount()); await client.close(); }
 });
 
+for (const lateFailure of [false, true]) test(`a live query recovers preparation failure ${lateFailure ? "after" : "before"} empty-cache bearer confirmation`, async context => {
+  context.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 1_000 });
+  const owner = fakeOwner({ seed: true }), paths: string[] = [];
+  let cut = true, view: any;
+  const manifest = deferred<Response>();
+  const client = createClient({ url: "http://auth.test", tokenStore: custody("dev:alice"), offline: { store: offlineStore(context) },
+    fetch: async (input, init) => {
+      paths.push(new URL(String(input)).pathname);
+      if (cut && lateFailure && String(input).endsWith("/api/manifest")) return manifest.promise;
+      if (cut) throw new TypeError("cut");
+      return owner.fetch(input, init);
+    } });
+  function Probe() { view = useQuery(api.messages.inbox, {}); return null; }
+  let renderer!: TestRenderer.ReactTestRenderer;
+  try {
+    await restored(client);
+    await act(async () => { renderer = TestRenderer.create(React.createElement(SnapbackProvider, { client }, React.createElement(Probe))); await flush(); });
+    assert.equal(client.snapshot.auth.restoringViewer, "dev:alice");
+    assert.ok(paths.includes("/api/manifest"), "the empty cache requires preparation");
+    assert.equal(view.status, "loading", "preparation waits on the same bearer restoration");
+    assert.equal(view.receipt, undefined);
+    await act(async () => { cut = false; await client.offline(); await client.online(); await client.auth.me(); await flush(); });
+    await act(async () => { manifest.resolve(json({ message: "late cut" }, 503)); await flush(); });
+    for (let i = 0; i < 20 && view.receipt?.state !== "complete"; i++) await act(async () => { await flush(); });
+    assert.equal(client.snapshot.auth.viewer, "dev:alice");
+    assert.equal(view.receipt?.state, "complete");
+    assert.equal(view.data.length, 2);
+  } finally { if (renderer) await act(async () => renderer.unmount()); await client.close(); }
+});
+
+for (const boundary of ["login", "logout", "close"] as const) test(`pending cold preparation cannot retry across ${boundary}`, async () => {
+  const paths: string[] = [];
+  const client = createClient({ url: "http://auth.test", tokenStore: custody("alice"), fetch: async input => {
+    const path = new URL(String(input)).pathname; paths.push(path);
+    if (path === "/api/auth/login") return json({ token: "token-b", viewer: "bob", kind: "user" });
+    if (path === "/api/auth/logout") return json({ ok: true });
+    throw new TypeError("cut");
+  } });
+  let stop: (() => void) | undefined;
+  try {
+    await restored(client);
+    const held = client.observe(api.current, {});
+    stop = held.subscribe(() => undefined);
+    await flush();
+    assert.equal(paths.filter(path => path === "/api/manifest").length, 1);
+    if (boundary === "login") await client.auth.login({ email: "bob@example.test", password: "password" });
+    else if (boundary === "logout") await client.auth.logout();
+    else await client.close();
+    await flush();
+    assert.equal(paths.filter(path => path === "/api/manifest").length, 1, "the previous authority never retries metadata");
+    assert.equal(paths.includes("/api/subscribe"), false);
+    assert.equal(held.getSnapshot().data, undefined);
+  } finally { stop?.(); await client.close(); }
+});
+
 test("a terminal write wakes a read waiting on restoration without dispatching it", async () => {
   const response = deferred<Response>();
   const paths: string[] = [];
