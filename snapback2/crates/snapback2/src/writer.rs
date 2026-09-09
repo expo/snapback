@@ -1015,7 +1015,6 @@ impl State {
             let execution = self.operator_execution(op, args, by)?;
             return Ok(writer_operator::operator_json(&execution));
         }
-        self.refuse_schedule_target(op)?;
         // Only the mutation route accepts replay. Resolve its live authority
         // before consulting the ledger; a terminal belongs to the principal
         // even when a successor removed or changed the original program.
@@ -1023,6 +1022,7 @@ impl State {
             let authority = self.resolve_authority(identity)?;
             return self.execute_replayed_mutation(op, args, &authority, replay);
         }
+        self.refuse_schedule_target(op)?;
         let kind = self.operation_kind(op, expected)?;
         let authority = self.resolve_authority(identity)?;
         if offline.drain {

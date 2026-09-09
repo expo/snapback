@@ -13,13 +13,17 @@ use snapback2_core::{
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct ReplayEnvelope {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "present_generation")]
     expected_generation: Option<Json>,
     grant: String,
     offset: u32,
     count: u32,
     intent: String,
     trace: ReplayTraceWire,
+}
+
+fn present_generation<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<Option<Json>, D::Error> {
+    Json::deserialize(deserializer).map(Some)
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -182,6 +186,7 @@ impl State {
                 .map_err(|error| Refusal::from_runtime(&error))?;
             return Ok(response);
         }
+        self.refuse_schedule_target(op)?;
         self.operation_kind(op, Some(ProgramKind::Mutation))?;
         let trace = self.decode_replay_trace(&wire.trace)?;
         let mut context = self.context(authority, op, args)?;

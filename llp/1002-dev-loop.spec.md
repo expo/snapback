@@ -530,7 +530,9 @@ available, and
 asset substitutions to the descriptor generation captured before upload. That
 expectation is persisted with a queued asset intent and resent unchanged.
 Replay first authenticates and consults its existing terminal ledger; a lost
-successful response stays successful across successors. For a fresh replay,
+successful response stays successful across successors, including a mutation
+that becomes a schedule-only target. Present-null expectations remain malformed
+on replay as on the plain route; absence alone opts out. For a fresh replay,
 valid grant/slice admission precedes the expectation check; a mismatch claims
 that slice and records the refusal atomically. The SDK never retries a
 generation refusal as a different write or silently reinterprets uploaded

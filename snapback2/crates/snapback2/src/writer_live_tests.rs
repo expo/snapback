@@ -435,5 +435,27 @@ fn mutation_generation_fence_is_atomic_and_replay_terminals_survive_successors()
     }).unwrap();
     assert_eq!(plain["reason"], "generation_changed");
     assert_eq!(state.runtime().store().commit_seq().unwrap(), seq);
+    for invalid in [Json::Null, json!(17), json!([]), json!("not-a-hash")] {
+        let mut malformed = request(2, &generation);
+        if let Action::Execute { expected_generation, .. } = &mut malformed { *expected_generation = Some(invalid); }
+        assert_eq!(state.handle(malformed).unwrap_err().code, "E_INPUT");
+    }
+    let mut scheduled = state.compiled.project.clone();
+    let target = scheduled.programs.iter_mut().find(|p| p.name == "items.change").unwrap();
+    target.args.clear(); target.body = vec![Stmt::Return(Expr::Literal(Value::Null))];
+    scheduled.programs.push(Program { name:"items.timerBinding".into(), kind:ProgramKind::Query,
+        args:BTreeMap::new(), read_time_granularity_ms:None, body:vec![Stmt::Return(Expr::Object(BTreeMap::from([
+            ("enabled".into(), Expr::Literal(Value::Bool(true))), ("args".into(), Expr::Object(BTreeMap::new()))
+        ])))] });
+    scheduled.schema.schedules.push(snapback2_core::timers::Schedule { name:"periodic".into(),
+        trigger:snapback2_core::timers::Trigger::Every { duration_ms:86_400_000 }, target:"items.change".into(),
+        binding:"items.timerBinding".into(), site:"test".into() });
+    let next = Generation::certify(&scheduled, Ceilings::default()).unwrap();
+    state.apply(compiled(&scheduled, next), None, None, None).unwrap();
+    assert_eq!(state.handle(request(0, &generation)).unwrap(), committed);
+    assert_eq!(state.handle(request(1, &generation)).unwrap(), rejected);
+    let mut fresh = request(2, state.runtime().generation().program_hash());
+    if let Action::Execute { args, .. } = &mut fresh { *args = json!({}); }
+    assert_eq!(state.handle(fresh).unwrap_err().code, "E_OPERATOR_REQUIRED");
     std::fs::remove_dir_all(&state.root).unwrap();
 }
