@@ -10,13 +10,14 @@ npm install snapback2 react
 Start an Expo app with `npx snapback2 init my-app --template chat --client expo`.
 Use `npx snapback2 guide init` for scaffolding and CLI setup, `npx snapback2 guide auth`
 for authentication, and `npx snapback2 guide app` for the current backend's certified
-facts.
+facts. For client hooks use `npx snapback2 guide live-query`; for recovery use
+`npx snapback2 guide offline`.
 
 ```ts
 import { api, createClient } from "snapback2/client";
 
 const client = createClient({ url: process.env.SNAPBACK_URL!, persona: "alice" });
-const page = await client.query(api.messages.thread, { conversationId: "conversation-1", c: null });
+const page = await client.query(api.messages.thread, { conversationId: "conversation-1" });
 
 const observed = client.observe(api.messages.thread, { conversationId: "conversation-1" });
 const stop = observed.subscribe(() => console.log(observed.getSnapshot()));
@@ -32,10 +33,10 @@ import { SnapbackProvider, useMutation, useQuery } from "snapback2/react";
 import { api } from "snapback2/client";
 
 function Messages() {
-  const messages = useQuery(api.messages.thread, { conversationId: "conversation-1", c: null });
+  const messages = useQuery(api.messages.thread, { conversationId: "conversation-1" });
   const send = useMutation(api.messages.send);
   if (messages.status === "loading") return <>Loading…</>;
-  return <button disabled={send.inFlight} onClick={() => send.run({ conversationId: "conversation-1", recipientId: "profile-bob", body: "Hi" })}>
+  return <button disabled={send.inFlight} onClick={() => send.run({ conversationId: "conversation-1", body: "Hi" })}>
     {messages.status}
   </button>;
 }
@@ -61,7 +62,6 @@ its connection is reconnecting.
 first listener opens the shared subscription and its last listener releases
 it. Identical headless and React consumers read the same immutable `Snapshot`;
 successor and account resets publish `loading` before new-authority data.
-`QueryView` remains the reducer/event-facing form used by raw subscriptions.
 Committed predictions, settlements, and coverage changes reevaluate mounted
 views once from the atomic store revision; bookkeeping-only commits stay silent.
 
@@ -71,9 +71,9 @@ describe readiness and recovery. `last` is
 `queued`, `committed`, or `rejected`; every state is terminal or durable, and
 queued means saved on the device for FIFO replay after resume. `useOutbox()` exposes entries,
 `dismiss`, `can`, and `detail`. The client's `outbox.drain()` and `settled()`
-report `{ stopped, remaining }`. Transport failures preserve queued writes;
-`run` and `client.mutation` resolve a `rejected` refusal on transport failure;
-neither throws. `last` clears on account or operation changes.
+report `{ stopped, remaining }`. Transport loss during replay preserves queued writes;
+without durable admission, `run` and `client.mutation` resolve a `rejected` refusal.
+Neither throws. `last` clears on account or operation changes.
 Run `snapback2 guide offline` for recovery.
 
 A second browser tab for the same account writes its mutation as a durable row
@@ -153,8 +153,8 @@ const record = await client.upload(file, {
 `client.upload` is the explicit two-step form. Pass `kind` to get the nominal
 `ImageAsset`/`VideoAsset` back for a later mutation; the server still decides by
 sniffing the bytes and the client refuses `E_ASSET_TYPE` if the two disagree.
-Without `kind` the result is the union. Upload and transport failures
-reject; a mutation refusal still resolves as a `MutationRejected` receipt.
+Without `kind` the result is the union. Explicit `client.upload` failures reject
+its promise; automatic uploads through a mutation resolve failures as `rejected`.
 
 React renders closed records and keeps authority out of image URLs:
 

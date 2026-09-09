@@ -542,7 +542,15 @@ fn offline_guide_page_respects_its_budget_and_its_codes_have_pages() {
         let text = String::from_utf8_lossy(&refusal.stdout);
         assert!(refusal.status.success(), "{code}: {text}");
         assert!(text.contains("Family: `offline`"), "{code}: {text}");
+        assert!(!text.contains("client.resume("), "{code}: {text}");
+        if matches!(code, "E_OFFLINE_RESET" | "E_OFFLINE_RESUME") {
+            assert!(text.contains("await client.online()"), "{code}: {text}");
+        }
     }
+    let follower = project.run(&["guide", "E_OFFLINE_FOLLOWER"]);
+    assert!(follower.status.success());
+    let text = String::from_utf8_lossy(&follower.stdout);
+    assert!(text.contains("followers with an inbox route queue mutations durably"), "{text}");
     let listed = project.run(&["guide", "does-not-exist", "--json"]);
     assert!(
         json_stdout(&listed)["message"]

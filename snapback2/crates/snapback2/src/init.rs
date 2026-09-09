@@ -28,10 +28,11 @@ fn agent_block() -> &'static str {
 - `snapback2 why <query> --as <persona>` explains rows, rules, and bounds.
 - `snapback2 trace latest` follows commit → invalidation → delivery.
 - Backends are `snapback/*.q`; `snapback2 guide quarry` is the language reference.
+- Clients: `snapback2 guide live-query` for `data`, `status`, and non-throwing `run`; `snapback2 guide offline` for offline/recovery.
 - Effect modules, `seed.ts`, and `tests/*.test.ts` are TypeScript.
 
 Gotchas: authentication is always on; use `--as <persona>` only in development.
-Every scan names `take`; empty, capped, denied, and stale are distinct states.
+Every range names a `first`/`last` bound. Hook `status`, `receipt.state`, and `freshness` are separate.
 Generated files stay under `.snapback/` and are never committed.
 <!-- snapback2:end -->"#
 }

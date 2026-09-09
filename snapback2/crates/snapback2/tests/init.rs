@@ -39,6 +39,13 @@ fn assert_rendering(template: &str, chat: bool) {
     assert!(!authored.join("schema.ts").exists());
     let agents = std::fs::read_to_string(project.path.join("AGENTS.md")).unwrap();
     assert!(agents.contains("snapback/*.q"), "{agents}");
+    for current in ["snapback2 guide live-query", "snapback2 guide offline", "first", "last", "receipt.state", "freshness"] {
+        assert!(agents.contains(current), "scaffold instructions lack {current}: {agents}");
+    }
+    assert!(!agents.contains("`take`"), "{agents}");
+    let managed = agents.split("<!-- snapback2:start -->").nth(1).unwrap()
+        .split("<!-- snapback2:end -->").next().unwrap();
+    assert!(managed.lines().count() <= 40, "{agents}");
     let stale_inspection = project.path.join(".snapback/build/quarry/stale.ts");
     if template == "todos" {
         std::fs::write(&stale_inspection, "stale").expect("write stale inspection fixture");

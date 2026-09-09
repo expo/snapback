@@ -35,8 +35,8 @@ Offline drains need held eligibility; repeated cursors refuse. Offline keeps its
 
 ## Recovery
 
-Offline `run()`: `{ state: "queued", intent, ids }`; replay is FIFO; every
-result is terminal or durable. A non-writer tab inserts a durable `inbox` row
+Admitted offline `run()`: `{ state: "queued", intent, ids }`; replay is FIFO.
+A non-writer tab inserts a durable `inbox` row
 and resolves `{ state: "queued", intent: "inbox:<key>", ids: [] }`;
 the writer admits rows in order. Follower status: `forwarding` or
 `writer-unresponsive` (ready), `inbox-full`, `follower` (no route).
@@ -53,7 +53,7 @@ through commit. `arrived`/global sequence cannot substitute. Expose failures.
 
 `outbox.drain()`/`settled()`: `{ stopped, remaining }`; false is drained.
 Fence/transport/authority/offline/pending/writer-unresponsive pauses keep
-queued bytes. Retry `online()` or an online drain; reconnect never replays.
+queued bytes. Retry `online()` or an online drain; transport reconnect alone never replays.
 
 ## Resume
 

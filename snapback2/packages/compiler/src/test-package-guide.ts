@@ -2,6 +2,7 @@ import { mkdir, readFile, symlink } from "node:fs/promises";
 import { resolve } from "node:path";
 import ts from "typescript";
 import type { PackageBuildProof } from "./package-regression-checks";
+import { lowerProject } from "./project";
 
 type Test = (name: string, run: () => void | Promise<void>) => void;
 type Assert = (condition: unknown, message: string) => asserts condition;
@@ -14,38 +15,39 @@ export function registerPackageGuideChecks(
   crate: string,
   packageBuildProof: PackageBuildProof,
 ): void {
-  test("README mutation example typechecks with a last result and an inFlight button", async () => {
+  test("README client examples typecheck against the shipped chat's generated contract", async () => {
     const packageRoot = resolve(crate, "packages/snapback2");
     const readme = await readFile(resolve(packageRoot, "README.md"), "utf8");
     const snippet = /```tsx\n([\s\S]*?)\n```/.exec(readme)?.[1];
     assert(snippet, "README lost its React example");
+    const headless = /```ts\n([\s\S]*?)\n```/.exec(readme)?.[1];
+    assert(headless, "README lost its headless example");
+    const lowered = await lowerProject(resolve(packageRoot, "templates/chat"));
+    assert(lowered.ok, `shipped chat refused: ${JSON.stringify(lowered)}`);
     await withProject({
+      "headless.ts": headless,
       "sample.tsx": `${snippet}
-        import type { MutationResult } from "snapback2/client";
+        import type { ArgsOf, MutationResult, ResultOf } from "snapback2/client";
         function MutationTypes() {
           const send = useMutation(api.messages.send);
-          const last: MutationResult<null> | undefined = send.last;
+          const last: MutationResult<{ id: string }> | undefined = send.last;
+          const args: ArgsOf<typeof api.messages.send> = { conversationId: "conversation-1", body: "Hi", expiresAt: 1 };
+          const result: ResultOf<typeof api.messages.send> = { id: "message-1" };
+          // @ts-expect-error Text send fans out to members; it has no recipient argument.
+          const stale: ArgsOf<typeof api.messages.send> = { ...args, recipientId: "profile-bob" };
           const inFlight: boolean = send.inFlight;
           // @ts-expect-error A mutation result is not a DOM disabled flag.
           const badButton = <button disabled={send.last} />;
-          void [last, inFlight, badButton];
+          void [last, args, result, stale, inFlight, badButton];
           return <button disabled={send.inFlight} />;
         }`,
-      "api.d.ts": `import type { Op } from "snapback2/client";
-        declare module "snapback2/client" {
-          interface Api {
-            messages: {
-              thread: Op<{ conversationId: string; c: string | null }, unknown[]>;
-              send: Op<{ conversationId: string; recipientId: string; body: string }, null>;
-            };
-          }
-        }`,
+      "api.d.ts": lowered.apiDts,
     }, async (root) => {
       await mkdir(resolve(root, "node_modules"));
       await symlink(packageRoot, resolve(root, "node_modules/snapback2"), "dir");
       await symlink(resolve(packageRoot, "node_modules/@types"), resolve(root, "node_modules/@types"), "dir");
       const diagnostics = ts.getPreEmitDiagnostics(ts.createProgram({
-        rootNames: [resolve(root, "sample.tsx"), resolve(root, "api.d.ts")],
+        rootNames: [resolve(root, "sample.tsx"), resolve(root, "headless.ts"), resolve(root, "api.d.ts")],
         options: {
           lib: ["lib.es2022.d.ts", "lib.dom.d.ts", "lib.dom.iterable.d.ts"],
           module: ts.ModuleKind.ESNext,
@@ -53,19 +55,24 @@ export function registerPackageGuideChecks(
           jsx: ts.JsxEmit.Preserve,
           noEmit: true, skipLibCheck: true, strict: true,
           target: ts.ScriptTarget.ES2022,
-          types: ["react"],
+          types: ["react", "node"],
           typeRoots: [resolve(root, "node_modules/@types")],
         },
       }));
       assert(diagnostics.length === 0, diagnostics.map((item) =>
         `TS${item.code}: ${ts.flattenDiagnosticMessageText(item.messageText, "\n")}`).join("\n"));
     });
+    assert(!`${headless}\n${snippet}`.includes("c: null"), "README queries should omit the initial cursor");
     assert(readme.includes("snapback2 guide offline"), "README recovery pointer must work in a source checkout");
   });
 
   test("the built keyword guide resolves grammar constructs and the README Assets and Channels topics", async () => {
     const guide = `${crate}packages/snapback2/dist/guide`;
     const grammar = await readFile(`${guide}/grammar.md`, "utf8");
+    const quarry = await readFile(`${guide}/quarry.md`, "utf8");
+    assert(quarry.includes("One cursor-bearing page nested in a record supplies root `next`"),
+      "guide lost the certified composite-page continuation used by chat conversationView");
+    assert(!quarry.includes("without root continuation"), "guide still denies composite-page continuation");
     const keywords = JSON.parse(await readFile(`${guide}/keywords.json`, "utf8"));
     const entries = [...grammar.matchAll(/^- `([a-z][a-z0-9-]*)`: .+$/gm)];
     assert(entries.length === 23, "grammar must keep its 23 constructs");

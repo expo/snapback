@@ -146,9 +146,9 @@ An `if`/`else` can return a range or merge through aliases and shapes.
 columns. Reset `c` when changing index/order. Non-page and local `partial`
 results have no continuation.
 
-`{messages,count,preview}` is one outcome without root continuation; nested
-bounded arrays are not drainable. Missing count authority makes the whole record
-partial (chat `conversationView`).
+One cursor-bearing page nested in a record supplies root `next`; fixed arrays
+do not (chat `conversationView`). Drain requires an ascending append page.
+Missing count authority makes the whole record partial.
 
 `merge table [after cursor] first|last N by index:` combines structurally
 distinct `[prefix keys]` lanes (named or positional), optionally `for name in`
@@ -209,7 +209,7 @@ Keys evaluate once and supply omitted upsert key columns. A row/patch may repeat
 a key column only with its key expression; otherwise `E_QUARRY_TYPE` names the
 field to remove. Upsert cannot spell `id`: by-id uses the key; alternate-key
 keeps a hit's id or mints one.
-Insert yields its row. A bound or returned update/upsert reads its result once
+A bound or returned update/upsert reads its result once
 right after writing: a snapshot, or absence when its read rule denies the
 caller (including self-revocation). `! else CODE` requires that view and
 rolls back on refusal. Ignored update/upsert adds no result read. Delete yields

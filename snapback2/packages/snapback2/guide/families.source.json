@@ -415,8 +415,8 @@
   {
     "family": "offline",
     "code": "E_OFFLINE_FOLLOWER",
-    "wrong": "send from a browser tab while another tab holds the account's writer lock",
-    "right": "send from the writer tab or close it; this tab reads live and inherits the queue when the writer closes",
+    "wrong": "upload an asset or write a channel from a follower tab, or submit a mutation without an inbox route",
+    "right": "use the writer tab for uploads/channels; followers with an inbox route queue mutations durably and inherit the queue when the writer closes",
     "guide": "offline"
   },
   {
@@ -436,15 +436,15 @@
   {
     "family": "offline",
     "code": "E_OFFLINE_RESET",
-    "wrong": "client.resume({ generation: heldGeneration }) // after the program changed",
-    "right": "on 409 drop held coverage, keep the outbox, fetch /api/program?generation=<returned>, cold-drain",
+    "wrong": "POST /api/resume with the previous generation after a program change",
+    "right": "await client.online(); // the SDK drops coverage, keeps the outbox, fetches the program and re-resumes; mounted drains restart once at null",
     "guide": "offline"
   },
   {
     "family": "offline",
     "code": "E_OFFLINE_RESUME",
-    "wrong": "client.resume({ mounted: fortyQueries })",
-    "right": "client.resume({ mounted: first32 }) // re-subscribe the rest as ordinary reads",
+    "wrong": "POST /api/resume with more than 32 mounted queries or an unsupported log shape",
+    "right": "await client.online(); // retries a mounted-limit refusal once with fewer queries; unsupported logs keep their refusal and watermark. A drain needs after c first N (N <=50).",
     "guide": "offline"
   },
   {
