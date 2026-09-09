@@ -1,7 +1,7 @@
 // @ref LLP 1018#3-move-one-one-coherent-reactive-client — identical live
 // queries share one entry: one transport child, one current delivery, one
 // mounted record, released when the last consumer closes.
-import { SnapbackRefusal, copyRefusal } from "./client-wire.js";
+import { RefusalError, copyRefusal } from "./client-wire.js";
 import type { Subscription } from "./types.js";
 
 interface Waiter<Event> {
@@ -77,11 +77,11 @@ function subscriptionClosed(): Error {
   return error;
 }
 
-function refusalEvent(event: unknown): SnapbackRefusal | undefined {
+function refusalEvent(event: unknown): RefusalError | undefined {
   const value = event as { state?: unknown; code?: unknown; family?: unknown; message?: unknown; guide?: unknown } | undefined;
   return value?.state === "refused" && typeof value.code === "string" && typeof value.family === "string"
     && typeof value.message === "string" && typeof value.guide === "string"
-    ? new SnapbackRefusal(copyRefusal(value as never)) : undefined;
+    ? new RefusalError(copyRefusal(value as never)) : undefined;
 }
 
 /**

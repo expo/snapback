@@ -14,21 +14,21 @@ export function registerPackageGuideChecks(
   crate: string,
   packageBuildProof: PackageBuildProof,
 ): void {
-  test("README mutation example typechecks with queued pending entries and an inFlight button", async () => {
+  test("README mutation example typechecks with a last result and an inFlight button", async () => {
     const packageRoot = resolve(crate, "packages/snapback2");
     const readme = await readFile(resolve(packageRoot, "README.md"), "utf8");
     const snippet = /```tsx\n([\s\S]*?)\n```/.exec(readme)?.[1];
     assert(snippet, "README lost its React example");
     await withProject({
       "sample.tsx": `${snippet}
-        import type { OutboxEntry } from "snapback2/client";
+        import type { MutationResult } from "snapback2/client";
         function MutationTypes() {
           const send = useMutation(api.messages.send);
-          const pending: OutboxEntry[] = send.pending;
+          const last: MutationResult<null> | undefined = send.last;
           const inFlight: boolean = send.inFlight;
-          // @ts-expect-error Pending intents are an array, not a DOM disabled flag.
-          const badButton = <button disabled={send.pending} />;
-          void [pending, inFlight, badButton];
+          // @ts-expect-error A mutation result is not a DOM disabled flag.
+          const badButton = <button disabled={send.last} />;
+          void [last, inFlight, badButton];
           return <button disabled={send.inFlight} />;
         }`,
       "api.d.ts": `import type { Op } from "snapback2/client";
@@ -68,7 +68,7 @@ export function registerPackageGuideChecks(
     const grammar = await readFile(`${guide}/grammar.md`, "utf8");
     const keywords = JSON.parse(await readFile(`${guide}/keywords.json`, "utf8"));
     const entries = [...grammar.matchAll(/^- `([a-z][a-z0-9-]*)`: .+$/gm)];
-    assert(entries.length > 0, "grammar lost its construct list");
+    assert(entries.length === 23, "grammar must keep its 23 constructs");
     assert(Object.keys(keywords).length === entries.length + 2, "keyword index differs from grammar plus Assets and Channels");
     for (const [line, keyword] of entries) {
       const content = keywords[keyword!];

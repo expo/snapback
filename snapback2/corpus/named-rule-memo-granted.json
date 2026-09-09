@@ -225,6 +225,21 @@
         "max_rows": 1
       }
     ],
+    "mutation_targets": {
+      "targets": [
+        {
+          "table": "actions",
+          "kind": "create",
+          "unresolved": "computed"
+        },
+        {
+          "table": "grants",
+          "kind": "create",
+          "unresolved": "computed"
+        }
+      ],
+      "complete": false
+    },
     "maintained_amplification": 0,
     "constraint_checks": [
       "actions:Unique(byId)",

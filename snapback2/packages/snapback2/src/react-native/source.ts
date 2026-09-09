@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useSnapbackClient, useSnapbackSnapshot } from "../react-core.js";
-import { isSnapbackRefusal, SnapbackRefusal } from "../client.js";
+import { isRefusalError, RefusalError } from "../client-wire.js";
 import type { AssetRecord } from "../types.js";
 import type { AssetBytes } from "../store/byte-cache.js";
 import { nativeAssetFiles } from "./files.js";
 
 const none = () => "0";
 const noSubscription = () => () => {};
-const fileRefusal = (error: unknown): SnapbackRefusal => isSnapbackRefusal(error) ? error : new SnapbackRefusal({
+const fileRefusal = (error: unknown): RefusalError => isRefusalError(error) ? error : new RefusalError({
   code: "E_OFFLINE_CARRIER", family: "offline", message: String(error), site: "useAssetFile",
   rewrite: "open a writable Expo cache directory and retry", guide: "offline",
 });
@@ -62,7 +62,7 @@ export function useNativeSource(asset: AssetRecord | null | undefined, options: 
   // Layout selects a derivative; it never starts another viewing session.
   const identity = useMemo(() => ({ client, id: asset?.id, auth: snapshot.authGeneration, custody: file.custody }),
     [client, asset?.id, snapshot.authGeneration, file.custody]);
-  const [memory, setMemory] = useState<{ identity: typeof identity; revision?: string; uri?: string; refusal?: SnapbackRefusal }>();
+  const [memory, setMemory] = useState<{ identity: typeof identity; revision?: string; uri?: string; refusal?: RefusalError }>();
   useEffect(() => { if (!asset) setMemory(undefined); }, [asset?.id]);
   const attempted = useRef<{ identity: typeof identity; width?: number } | undefined>(undefined);
   const current = useRef<typeof identity | undefined>(identity);

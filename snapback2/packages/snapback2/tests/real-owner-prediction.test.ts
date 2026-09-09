@@ -1,12 +1,10 @@
 import assert from "node:assert/strict";
 import { after, test } from "node:test";
-import {
-  SnapbackRefusal,
-  api,
+import { api,
   createClient,
   initialQueryState,
-  reduceQueryState,
-} from "../dist/client.mjs";
+  reduceQueryState } from "../dist/client.mjs";
+import { RefusalError } from "../dist/client-observed-test.mjs";
 import { configureRealOwner, RealOwnerHarness } from "./owner-harness.ts";
 
 const owner = await configureRealOwner();
@@ -71,7 +69,7 @@ maintain refCounts = count refCapEntries by realm:
   read <- allow
 `);
     await writeFile(join(fixture, "caps.q"), `query countFor(principal: principal):
-  return #principalCounts[principal]
+  return principalCounts[principal]
 
 query entriesFor(principal: principal):
   return capEntries[principal] first 50 by byPrincipal
@@ -82,7 +80,7 @@ mutation allocate(principals: [principal] <=49):
   return null
 
 query refCountFor(realm: realmCounts):
-  return #refCounts[realm]
+  return refCounts[realm]
 
 mutation allocateRef(realms: [realmCounts] <=3):
   for realm in realms:
@@ -97,7 +95,7 @@ mutation allocateRef(realms: [realmCounts] <=3):
       capEntries: rows, realmMemberships: [{ id: "long-realm", principal: "dev:alice", realm: longRealm }],
     } })});\n`);
     local = await RealOwnerHarness.create({ fixture });
-    const observer = createClient({ url: local.url, as: "alice" });
+    const observer = createClient({ url: local.url, persona: "alice" });
     clients.push(observer);
     const count = async (client: ReturnType<typeof createClient>, principal: string) => {
       const result: any = await client.query(api.caps.countFor, { principal: `dev:${principal}` });

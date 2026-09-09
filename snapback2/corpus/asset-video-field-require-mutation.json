@@ -137,6 +137,16 @@
         "max_rows": 1
       }
     ],
+    "mutation_targets": {
+      "targets": [
+        {
+          "table": "events",
+          "kind": "create",
+          "unresolved": "computed"
+        }
+      ],
+      "complete": false
+    },
     "maintained_amplification": 0,
     "constraint_checks": [],
     "max_examined": 0,

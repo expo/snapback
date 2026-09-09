@@ -1,3 +1,4 @@
+import { ClientPages, type PageSnapshot } from "./client-pages.js";
 import React, {
   createContext,
   useCallback,
@@ -9,7 +10,8 @@ import React, {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
-import { createClient, isSnapbackRefusal, type SnapbackRefusal } from "./client.js";
+import { createClient } from "./client.js";
+import { toRefusal } from "./client-wire.js";
 import { viewedAssetIds } from "./client-assets.js";
 import { referenceName, type Channel as ChannelRef, type Op } from "./api.js";
 import { readiness, type Readiness, type Snapshot } from "./snapshot.js";
@@ -32,14 +34,14 @@ import {
   type OutboxEntry,
   type OutboxStatus,
   type Principal,
-  type RefusalEnvelope,
+  type Refusal,
   type SnapbackClient,
 } from "./types.js";
 
 export { initialQueryState, reduceQueryState } from "./types.js";
 export type { QueryView } from "./types.js";
 export { intentLabel, readiness, readinessMessages, reasonMessages, summarize } from "./snapshot.js";
-export type { Readiness, ReadinessAction, ReadinessCode, Snapshot, SnapshotReasonCode, SnapshotStatus } from "./snapshot.js";
+export type { Readiness, ReadinessCode, Snapshot, SnapshotReasonCode, SnapshotStatus } from "./snapshot.js";
 
 interface ProviderValue {
   client: SnapbackClient;
@@ -50,7 +52,7 @@ const Context = createContext<ProviderValue | null>(null);
 
 export type SnapbackProviderProps = (
   | (CreateClientOptions & { client?: never })
-  | { client: SnapbackClient; url?: never; as?: never; token?: never; tokenStore?: never; fetch?: never; offline?: never }
+  | { client: SnapbackClient; startOffline?: never; url?: never; persona?: never; token?: never; tokenStore?: never; fetch?: never; offline?: never }
 ) & { children: ReactNode };
 
 /**
@@ -77,16 +79,16 @@ function offlineByValue(options: OfflineClientOptions): OfflineClientOptions {
 }
 
 // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test — React web is the first arm over the shared headless client.
-export function SnapbackProvider({ client: supplied, url, as, token, tokenStore, fetch, offline, children }: SnapbackProviderProps): React.ReactElement {
-  if (as !== undefined && (token !== undefined || tokenStore !== undefined)) {
-    throw new TypeError("SnapbackProvider cannot combine dev persona `as` with bearer token custody");
+export function SnapbackProvider({ client: supplied, url, persona, token, tokenStore, fetch, offline, startOffline, children }: SnapbackProviderProps): React.ReactElement {
+  if (persona !== undefined && (token !== undefined || tokenStore !== undefined)) {
+    throw new TypeError("SnapbackProvider cannot combine dev persona `persona` with bearer token custody");
   }
   // A client opens its offline partition (and takes the principal's Web Lock)
   // the moment it is created, so it must be created exactly once per identity.
   // StrictMode double-invokes memo factories and discards one result, which
   // would leak a lock-holding client; a ref survives the re-render untouched,
   // and the identity compares `offline` by its values, not its reference.
-  const identity = [supplied, url, as, token, tokenStore, fetch] as const;
+  const identity = [supplied, url, persona, token, tokenStore, fetch, startOffline] as const;
   const held = useRef<{ identity: readonly unknown[]; offline: OfflineClientOptions | undefined; client: SnapbackClient }>(undefined);
   if (!held.current
     || held.current.identity.some((item, index) => item !== identity[index])
@@ -95,7 +97,7 @@ export function SnapbackProvider({ client: supplied, url, as, token, tokenStore,
     held.current = {
       identity,
       offline,
-      client: supplied ?? createClient(as !== undefined ? { url: url!, as, fetch, offline: stable } : { url: url!, token, tokenStore, fetch, offline: stable }),
+      client: supplied ?? createClient(persona !== undefined ? { url: url!, persona, fetch, startOffline, offline: stable } : { url: url!, token, tokenStore, fetch, startOffline, offline: stable }),
     };
   }
   const client = held.current.client;
@@ -182,11 +184,17 @@ export function useQuery<Args, Result, Row extends ItemRow, Draft>(
   return state;
 }
 
-export function useSubscription<Args, Result>(
-  ref: Op<Args, Result>,
-  args: NoInfer<Args>,
-): Snapshot<Result> {
-  return useQuery(ref, args);
+export type { PageSnapshot } from "./client-pages.js";
+// @ref LLP 1018.003#the-plain-tier — paging owns live observations, not a screen's cursor array.
+export function usePage<Args, Result extends readonly unknown[], Key extends string = "c">(
+  ref: Op<Args, Result>, args: NoInfer<Omit<Args, Key>>, options: { cursor?: Key } = {},
+): PageSnapshot<Result> {
+  const { client, snapshot } = provider();
+  const cursor = options.cursor ?? "c", operation = referenceName(ref);
+  const argsKey = stableSerialize(args);
+  const pages = useMemo(() => new ClientPages(client, ref, structuredClone(args), cursor),
+    [client, snapshot.authGeneration, operation, argsKey, cursor]);
+  return useSyncExternalStore(pages.subscribe, pages.getSnapshot, pages.getSnapshot);
 }
 
 export interface UseMutationResult<Args, Result> {
@@ -195,11 +203,7 @@ export interface UseMutationResult<Args, Result> {
   inFlight: boolean;
   /** Whether `run()` can be accepted now, and what the user can do if not (LLP 1018.003 §2). */
   can: Readiness;
-  /** This op's intents still queued in the durable outbox, FIFO (LLP 1012 §7). */
-  pending: OutboxEntry[];
   last: MutationResult<Result> | undefined;
-  /** The mechanism behind `can`: the full outbox status, the last retryable transport refusal, and on a follower the writer's announced status. */
-  detail: { status: OutboxStatus; transport?: SnapbackRefusal; writer?: OutboxStatus };
 }
 
 /** The durable outbox of the open partition, FIFO, with `dismiss` for settled intents. */
@@ -241,24 +245,18 @@ export function useMutation<Args, Result>(ref: Op<Args, Result>): UseMutationRes
   const identity = useMemo(() => ({ client, generation: snapshot.authGeneration, operation }), [client, snapshot.authGeneration, operation]);
   const activeIdentity = useRef(identity);
   activeIdentity.current = identity;
-  const { entries, can, detail } = useOutboxState(ref);
-  const pending = useMemo(
-    () => entries.filter((entry) => entry.op === operation && entry.state === "queued"),
-    [entries, operation],
-  );
+  const { can } = useOutboxState(ref);
   const [machine, setMachine] = useState<{
     identity: typeof identity;
     pending: number;
     last?: MutationResult<Result>;
-    transport?: SnapbackRefusal;
   }>({ identity, pending: 0 });
   const visible = machine.identity === identity
     ? machine
     : { identity, pending: 0 };
   const run = useCallback(async (args: AssetInput<Args>) => {
     const active = () => activeIdentity.current === identity && client.snapshot.authGeneration === identity.generation;
-    if (!active()) return client.mutation(ref, args);
-    setMachine((current) => current.identity === identity
+    if (active()) setMachine((current) => current.identity === identity
       ? { ...current, pending: current.pending + 1 }
       : { identity, pending: 1 });
     try {
@@ -270,26 +268,18 @@ export function useMutation<Args, Result>(ref: Op<Args, Result>): UseMutationRes
       }));
       return result;
     } catch (error) {
-      if (active() && isSnapbackRefusal(error) && error.retryable) {
-        setMachine((current) => current.identity === identity
-          ? { ...current, transport: error }
-          : { identity, pending: 0, transport: error });
-      }
-      throw error;
+      const result = { state: "rejected" as const, ...toRefusal(error) };
+      if (active()) setMachine(current => ({ identity, pending: current.identity === identity ? current.pending : 0, last: result }));
+      return result;
     } finally {
       if (active()) setMachine((current) => current.identity === identity
         ? { ...current, pending: Math.max(0, current.pending - 1) }
         : current);
     }
   }, [identity, ref]);
-  const fullDetail = useMemo(
-    () => ({ status: detail.status, ...(visible.transport === undefined ? {} : { transport: visible.transport }),
-      ...(detail.writer === undefined ? {} : { writer: detail.writer }) }),
-    [detail.status, detail.writer, visible.transport],
-  );
   return useMemo(
-    () => ({ run, inFlight: visible.pending > 0, can, pending, last: visible.last, detail: fullDetail }),
-    [run, visible.pending, can, pending, visible.last, fullDetail],
+    () => ({ run, inFlight: visible.pending > 0, can, last: visible.last }),
+    [run, visible.pending, can, visible.last],
   );
 }
 

@@ -1,3 +1,5 @@
+import { cursorArgument } from "../local-cursor.js";
+import type { PersistedRangeState } from "./range-store.js";
 import { imageCanonical as canonical } from "../../../evaluator/src/row-image.js";
 
 /** The store's answer and cursor-chain keys retain their shape-preserving encoding. */
@@ -8,6 +10,30 @@ export function jsonState<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
-export function canonicalAnswerKey(op: string, args: unknown): string {
-  return `${op}\u0000${canonical(args === undefined ? args : jsonState(args))}`;
+export function canonicalAnswerKey(op: string, args: unknown, cursor?: string | null): string {
+  return `${op}\u0000${canonical(args === undefined ? args : jsonState(queryArgs(args, cursor)))}`;
+}
+
+/** A missing first-page cursor and an explicit null name the same observation. */
+export function queryArgs<Args>(args: Args, cursor?: string | null): Args {
+  if (!cursor || !args || typeof args !== "object" || (args as Record<string, unknown>)[cursor] != null) return args;
+  const { [cursor]: _cursor, ...rest } = args as Record<string, unknown>;
+  return rest as Args;
+}
+
+/** Declared operation arguments spell the first page as null; keys omit it. */
+export function operationArgs<Args>(args: Args, cursor?: string | null): Args {
+  return cursor && args && typeof args === "object" && (args as Record<string, unknown>)[cursor] == null
+    ? { ...args, [cursor]: null } : args;
+}
+
+/** Use the incoming program when present, otherwise the partition's held generation. */
+export function storedProgram(state: PersistedRangeState, swap: Pick<Partial<PersistedRangeState>, "facts" | "programs"> = {}) {
+  const generation = swap.facts?.generation ?? state.facts?.generation ?? "";
+  return swap.programs?.[generation] ?? state.programs[generation]
+    ?? Object.values(swap.programs ?? {})[0] ?? Object.values(state.programs)[0];
+}
+
+export function storedAnswerKey(state: PersistedRangeState, op: string, args: unknown): string {
+  return canonicalAnswerKey(op, args, cursorArgument(storedProgram(state)?.programs[op]));
 }

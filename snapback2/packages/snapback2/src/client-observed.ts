@@ -1,4 +1,5 @@
-import { isSnapbackRefusal } from "./client-wire.js";
+import { operationArgs, queryArgs } from "./store/canonical.js";
+import { isRefusalError, toRefusal } from "./client-wire.js";
 import { referenceName, referencePath, type Op } from "./api.js";
 import { SharedSubscriptions } from "./client-sessions.js";
 import { summarize, type Snapshot } from "./snapshot.js";
@@ -68,17 +69,17 @@ function immutablePublication<Value>(value: Value, current?: QueryView<unknown>)
 }
 
 /** Isolate a deferred query from caller mutation after observe/subscribe returns. */
-export function bindQueryRequest<Args, Result>(ref: Op<Args, Result>, args: Args) {
+export function bindQueryRequest<Args, Result>(ref: Op<Args, Result>, args: Args, cursor?: string | null) {
   const op = referenceName(ref);
   return {
     op,
     ref: Object.freeze({ op, [referencePath]: op }) as Op<Args, Result>,
-    args: structuredClone(args),
+    args: structuredClone(operationArgs(args, cursor)),
   };
 }
 
-export function queryIdentity(authGeneration: number, fence: number, mode: "live" | "drain" | "once", op: string, args: unknown): string {
-  return `${authGeneration}\u0000${fence}\u0000${mode}\u0000${op}\u0000${stableSerialize(args)}`;
+export function queryIdentity(authGeneration: number, fence: number, mode: "live" | "drain" | "once", op: string, args: unknown, cursor?: string | null): string {
+  return `${authGeneration}\u0000${fence}\u0000${mode}\u0000${op}\u0000${stableSerialize(queryArgs(args, cursor))}`;
 }
 
 export function queryEntry<Result, Event extends QueryMachineEvent<Result>>(
@@ -142,7 +143,7 @@ function historyCore<Result, Row extends ItemRow, Draft, History>(
   };
   const reconcile = () => {
     if (primaryOff === undefined) return;
-    if (primary.getSnapshot().receipt?.outcome === "partial") historyOff ??= history.subscribe(broadcast);
+    if (primary.getSnapshot().receipt?.state === "partial") historyOff ??= history.subscribe(broadcast);
     else if (historyOff !== undefined) { historyOff(); historyOff = undefined; }
   };
   const broadcast = () => { reconcile(); notify(); };
@@ -154,7 +155,7 @@ function historyCore<Result, Row extends ItemRow, Draft, History>(
     get retired() { return retired; },
     getSnapshot: () => {
       const current = primary.getSnapshot();
-      const fallback = current.receipt?.outcome === "partial" ? history.getSnapshot() : undefined;
+      const fallback = current.receipt?.state === "partial" ? history.getSnapshot() : undefined;
       if (basis.value !== undefined && basis.primary === current && basis.history === fallback) return basis.value;
       basis = { primary: current, history: fallback, value: composeHistory(current, fallback, basis.value) };
       return basis.value!;
@@ -195,6 +196,8 @@ type QueryMode = "live" | "drain" | "once";
 type QueryFence = readonly [authGeneration: number, operationFence: number];
 
 interface QueryHost {
+  cursor?(op: string): string | null | undefined;
+  prepare?(op: string): Promise<string | undefined>;
   identity(): QueryFence;
   active(fence: QueryFence): boolean;
   connection(): import("./types.js").ConnectionState;
@@ -220,8 +223,8 @@ export class ClientQueries {
     try {
       event = await this.host.local(request.ref, request.args, drain);
     } catch (error) {
-      if (!this.host.active(fence) || (isSnapbackRefusal(error) && error.code === "E_AUTH_SUPERSEDED")) return undefined;
-      const envelope = isSnapbackRefusal(error)
+      if (!this.host.active(fence) || (isRefusalError(error) && error.code === "E_AUTH_SUPERSEDED")) return undefined;
+      const envelope = isRefusalError(error)
         ? error.envelope
         : { code: "E_CLIENT", family: "owner", message: String(error), guide: "owner/connect" };
       return { state: "refused", live: false, ...envelope };
@@ -277,12 +280,34 @@ export class ClientQueries {
   observe<Args, Result, Row extends ItemRow, Draft>(
     ref: Op<Args, Result>, args: Args, options: { live?: false; drain?: boolean; items?: Items<Args, Result, Row, Draft> } = {},
   ): ObservedQuery<Result> {
+    return this.observeReady(ref, args, { ...options });
+  }
+  private observeReady<Args, Result, Row extends ItemRow, Draft>(
+    ref: Op<Args, Result>, args: Args, options: { live?: false; drain?: boolean; items?: Items<Args, Result, Row, Draft> },
+  ): ObservedQuery<Result> {
     const once = options.live === false, drain = options.drain === true;
     if (once && drain) throw new TypeError("query observation drain requires a live subscription");
-    const request = bindQueryRequest(ref, args), fence = this.host.identity();
+    const cursor = this.host.cursor?.(referenceName(ref));
+    const request = bindQueryRequest(ref, args, cursor), fence = this.host.identity();
+    if (this.host.prepare && cursor === undefined) {
+      let snapshot = freezeTree({ ...summarize(initialQueryState<Result>(), this.host.connection()),
+        ...(options.items ? { items: [], ...("history" in options.items ? { itemsFrom: "drafts" } : {}) } : {}) });
+      const fallback = { getSnapshot: () => snapshot, subscribe: () => () => undefined };
+      return preparedObservation(fallback, async () => {
+        try { await this.host.prepare!(request.op); }
+        catch (error) {
+          // @ref LLP 1018.003#final-review-repair-2026-09-08 — failed metadata
+          // cannot bind an unnormalized shared identity or history selection.
+          if (this.host.active(fence)) snapshot = freezeTree({ ...snapshot,
+            ...summarize<Result>({ state: "refused", live: false, refusal: toRefusal(error) }, this.host.connection()) });
+          return fallback;
+        }
+        return this.host.active(fence) ? this.observeReady(request.ref, request.args, options) : fallback;
+      });
+    }
     const active = () => this.host.active(fence);
     const mode: QueryMode = once ? "once" : drain ? "drain" : "live";
-    const key = queryIdentity(fence[0], fence[1], mode, request.op, request.args);
+    const key = queryIdentity(fence[0], fence[1], mode, request.op, request.args, cursor);
     const items = options.items;
     if (items && items.query !== request.op) throw new TypeError("items must describe the observed query");
     const projection = {
@@ -290,7 +315,7 @@ export class ClientQueries {
       project: (current: QuerySnapshot<Result>, previous?: Snapshot<Result>) => {
         if (!items) return current.snapshot;
         const before = previous as ItemSnapshot<Result, Row, Draft> | undefined;
-        const joined = attachItems(items, request.args, current.snapshot.data, current.inputs, before?.items);
+        const joined = attachItems(items, operationArgs(request.args, this.host.cursor?.(request.op)), current.snapshot.data, current.inputs, before?.items);
         if (before && before.items === joined && before.receipt === current.snapshot.receipt
           && before.data === current.snapshot.data && before.freshness === current.snapshot.freshness
           && before.local === current.snapshot.local && before.refusal === current.snapshot.refusal
@@ -346,10 +371,11 @@ export class ClientQueries {
   subscribe<Args, Result>(
     ref: Op<Args, Result>, args: Args, callback: (event: SubscriptionDelivery<Result>) => void, options: { drain?: boolean } = {},
   ): Subscription<SubscriptionDelivery<Result>> {
-    const request = bindQueryRequest(ref, args), drain = options.drain === true, fence = this.host.identity();
+    const cursor = this.host.cursor?.(referenceName(ref));
+    const request = bindQueryRequest(ref, args, cursor), drain = options.drain === true, fence = this.host.identity();
     const mode: QueryMode = drain ? "drain" : "live";
     return this.shared.attach(queryEntry<Result, SubscriptionDelivery<Result>>(
-      queryIdentity(fence[0], fence[1], mode, request.op, request.args),
+      queryIdentity(fence[0], fence[1], mode, request.op, request.args, cursor),
       (fanout) => this.host.open(request.ref, request.args, fanout, drain),
       (current, authoritative, inputs) => this.local(request, drain, current, fence, authoritative, inputs),
       this.host.connection,
@@ -358,7 +384,9 @@ export class ClientQueries {
 
   consumers(ref: Op<any, any>, args: unknown, drain = false): number {
     const [generation, fence] = this.host.identity();
-    return this.shared.consumers(queryIdentity(generation, fence, drain ? "drain" : "live", referenceName(ref), args));
+    const key = queryIdentity(generation, fence, drain ? "drain" : "live", referenceName(ref), args, this.host.cursor?.(referenceName(ref)));
+    const raw = queryIdentity(generation, fence, drain ? "drain" : "live", referenceName(ref), args);
+    return this.shared.consumers(key) + (raw === key ? 0 : this.shared.consumers(raw));
   }
   refresh(): void { this.shared.refresh(); }
   reproject(): void { this.shared.reproject(); }
@@ -408,8 +436,8 @@ export function oneShotQuery<Result>(
         deliver(await query());
         return;
       } catch (error) {
-        if (closed || (isSnapbackRefusal(error) && error.code === "E_AUTH_SUPERSEDED")) return;
-        if (isSnapbackRefusal(error) && error.retryable) {
+        if (closed || (isRefusalError(error) && error.code === "E_AUTH_SUPERSEDED")) return;
+        if (isRefusalError(error) && error.retryable) {
           await new Promise<void>((resolve) => {
             wake = resolve;
             timer = setTimeout(resolve, backoff);
@@ -419,7 +447,7 @@ export function oneShotQuery<Result>(
           backoff = Math.min(backoff * 2, 5_000);
           continue;
         }
-        const envelope = isSnapbackRefusal(error)
+        const envelope = isRefusalError(error)
           ? error.envelope
           : { code: "E_CLIENT", family: "owner", message: String(error), guide: "owner/connect" };
         deliver({ state: "refused", live: false, ...envelope });
@@ -455,6 +483,28 @@ export function oneShotQuery<Result>(
         };
         waiters.add(waiter);
       });
+    },
+  };
+}
+
+/** Resolve cursor metadata before fixing identity or invoking declaration callbacks. */
+function preparedObservation<Result>(fallback: ObservedQuery<Result>, prepare: () => Promise<ObservedQuery<Result>>): ObservedQuery<Result> {
+  let observed: ObservedQuery<Result> | undefined;
+  let pending: Promise<void> | undefined;
+  const listeners = new Map<() => void, () => void>();
+  return {
+    getSnapshot: () => (observed ?? fallback).getSnapshot(),
+    subscribe: listener => {
+      const notify = () => listener();
+      listeners.set(notify, observed?.subscribe(notify) ?? (() => undefined));
+      pending ??= prepare().then(value => {
+        observed = value;
+        for (const [notify, off] of listeners) {
+          off(); listeners.set(notify, value.subscribe(notify));
+          try { notify(); } catch { /* isolate observers */ }
+        }
+      });
+      return () => { listeners.get(notify)?.(); listeners.delete(notify); };
     },
   };
 }

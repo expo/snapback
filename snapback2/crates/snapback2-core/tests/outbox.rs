@@ -786,6 +786,7 @@ fn mutation_refusal_is_a_typed_rejected_execution_without_a_commit() {
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
         body: vec![Stmt::Require {
+            site: None,
             condition: Expr::Literal(Value::Bool(false)),
             code: "NOPE".to_owned(),
         }],
@@ -821,6 +822,7 @@ fn auth_refusal_namespace_is_reserved_at_the_raw_ir_certificate_boundary() {
         body: vec![Stmt::If {
             condition: Expr::Literal(Value::Bool(true)),
             then_body: vec![Stmt::Require {
+                site: None,
                 condition: Expr::Literal(Value::Bool(false)),
                 code: "E_AUTH_SESSION".to_owned(),
             }],
@@ -871,6 +873,7 @@ fn query_require_is_a_typed_denied_execution() {
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
         body: vec![Stmt::Require {
+            site: None,
             condition: Expr::Literal(Value::Bool(false)),
             code: "QUERY_REFUSED".to_owned(),
         }],

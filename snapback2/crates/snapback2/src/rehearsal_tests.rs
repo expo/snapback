@@ -127,6 +127,7 @@ fn project(url: &str) -> ProjectJson {
                     record,
                     emit(),
                     Stmt::Require {
+                        site: None,
                         condition: field("ok"),
                         code: "FIX_ROW".into(),
                     },
@@ -135,6 +136,7 @@ fn project(url: &str) -> ProjectJson {
             sweep(
                 "audit",
                 vec![Stmt::Require {
+                    site: None,
                     condition: Expr::Binary {
                         op: BinaryOp::Eq,
                         left: Box::new(field("at")),

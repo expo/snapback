@@ -142,13 +142,7 @@ pub fn run(args: &[String]) -> ExitCode {
             names[0]
         } else {
             return refused(
-                Refusal::new(
-                    "E_OP_UNKNOWN",
-                    "op",
-                    format!("unknown or ambiguous operation {requested}"),
-                    "use a qualified name from /api/manifest",
-                    "op/manifest",
-                ),
+                Refusal::unknown_operation(requested, ops.as_object().into_iter().flat_map(|o| o.keys().map(String::as_str))),
                 json_output,
                 1,
             );

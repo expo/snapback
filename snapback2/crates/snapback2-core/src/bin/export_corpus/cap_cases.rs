@@ -386,6 +386,7 @@ pub(super) fn add_cap_cases(cases: &mut Vec<CorpusCase>) {
                 binding: "m".into(),
                 domain: LoopDomain::Page(scan("members.query")),
                 body: vec![Stmt::Require {
+                    site: None,
                     condition: Expr::Literal(Value::Bool(true)),
                     code: "OK".into(),
                 }],
@@ -568,7 +569,8 @@ fn add_count_backed_cases(cases: &mut Vec<CorpusCase>) {
             error.code == "E_BOUND" && error.message.starts_with("examined entries 49000")
         })
         .unwrap();
-    let maintain_line = "maintain membershipsCounts = count memberships by principal:\n  read <- deny";
+    let maintain_line =
+        "maintain membershipsCounts = count memberships by principal:\n  read <- deny";
     assert!(error.rewrite.contains(maintain_line), "{error}");
     assert!(
         error.rewrite.contains("prices at one row per write"),

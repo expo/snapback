@@ -227,6 +227,15 @@ export class ReconnectingSse<Event> implements Subscription<Event> {
         }
         if (this.closed || this.controller.signal.aborted) return;
         if (reset !== this.resets) continue;
+        // reconnect() cancels an attempt, not the caller's mounted observation.
+        if (attempt.signal.aborted && !idle) {
+          if (!lossReported) {
+            const loss = this.options.onLoss(this.last);
+            if (loss !== undefined) this.deliver(loss);
+            lossReported = true;
+          }
+          continue;
+        }
         const failure = idle
           ? new Error("SSE stream idle for 30000 ms")
           : error;

@@ -1,3 +1,6 @@
+import { assertRefused } from "./live-fixture.ts";
+import { isRefusalError } from "../dist/client-observed-test.mjs";
+import { subscribe } from "../src/internal.js";
 import { createClient as rawClient } from "../dist/client.mjs";
 import { fixtureClient as createClient, channelFrame } from "./live-fixture.ts";
 // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test —
@@ -7,12 +10,10 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import React from "react";
 import TestRenderer, { act } from "react-test-renderer";
-import {
-  SnapbackRefusal,
-  api,
+import { api,
   browserTokenStore,
-  type AuthTokenStore,
-} from "../dist/client.mjs";
+  type AuthTokenStore } from "../dist/client.mjs";
+import { RefusalError } from "../dist/client-observed-test.mjs";
 import { SnapbackProvider, useAuth, useQuery, type UseAuthResult } from "../dist/react.mjs";
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
@@ -140,7 +141,7 @@ async function waitFor(predicate: () => boolean, message: string, timeoutMs = 2_
 }
 
 function isCode(code: string): (error: unknown) => boolean {
-  return (error) => error instanceof SnapbackRefusal && error.code === code;
+  return (error: any) => (isRefusalError(error) || error?.state === "refused" || error?.state === "rejected") && error.code === code;
 }
 
 test("browser token custody is explicit and no storage is selected by default", async () => {
@@ -189,13 +190,13 @@ test("browser token custody is explicit and no storage is selected by default", 
 
 test("dev personas cannot be combined with bearer custody", () => {
   assert.throws(
-    () => createClient({ url: "http://auth.test", as: "alice", token: "token-a" } as any),
+    () => createClient({ url: "http://auth.test", persona: "alice", token: "token-a" } as any),
     /cannot combine dev persona/,
   );
   assert.throws(
     () => createClient({
       url: "http://auth.test",
-      as: "alice",
+      persona: "alice",
       tokenStore: { load: () => "token-a", save: () => undefined },
     } as any),
     /cannot combine dev persona/,
@@ -208,7 +209,7 @@ test("SnapbackProvider rejects a runtime persona and bearer combination", async 
       await act(async () => {
         TestRenderer.create(React.createElement(
           SnapbackProvider,
-          { url: "http://auth.test", as: "alice", token: "token-a" } as any,
+          { url: "http://auth.test", persona: "alice", token: "token-a" } as any,
           React.createElement("output"),
         ));
         await flush();
@@ -253,7 +254,7 @@ test("dev persona clients refuse bearer-session transitions without sending a re
   let requests = 0;
   const value = createClient({
     url: "http://auth.test",
-    as: "alice",
+    persona: "alice",
     fetch: async () => {
       requests += 1;
       return json({});
@@ -303,7 +304,7 @@ test("ready blocks every data transport until explicit token restore settles", a
 
   const query = value.query(api.messages.thread, {});
   const mutation = value.mutation(api.messages.send, {});
-  const querySubscription = value.subscribe(api.messages.thread, {}, () => undefined);
+  const querySubscription = subscribe(value, api.messages.thread, {}, () => undefined);
   const queryDelivery = querySubscription.until((event) => event.state === "complete");
   const channel = value.channel(api.typing, {});
   const set = channel.set({ typing: true });
@@ -392,7 +393,7 @@ test("principal replacement fences streams, suppresses delayed old reads, and wa
   });
   await value.ready;
   const oldGeneration = value.snapshot.authGeneration;
-  const querySubscription = value.subscribe(api.messages.thread, {}, () => undefined);
+  const querySubscription = subscribe(value, api.messages.thread, {}, () => undefined);
   const channelSubscription = value.channel(api.typing, {}).subscribe(() => undefined);
   await waitFor(() => requests.filter((request) => request.path.endsWith("/subscribe")).length === 2, "old streams");
   const oldQuery = value.query(api.messages.thread, {});
@@ -414,7 +415,7 @@ test("principal replacement fences streams, suppresses delayed old reads, and wa
   assert.equal(value.snapshot.authGeneration, oldGeneration + 1);
   assert.equal((await queuedQuery).state, "complete");
   oldResponse.resolve(json({ state: "complete", data: ["old"], seq: 1, next: null }));
-  await assert.rejects(oldQuery, isCode("E_AUTH_SUPERSEDED"));
+  await assertRefused(oldQuery, isCode("E_AUTH_SUPERSEDED"));
 
   const queryBearers = requests
     .filter((request) => request.path === "/api/query")
@@ -458,7 +459,7 @@ test("delayed malformed response bodies cannot overwrite newer auth custody", as
         await value.auth.logout();
       }
       scenario.settle(gate);
-      await assert.rejects(query, isCode("E_AUTH_SUPERSEDED"), `${transition}: ${scenario.name}`);
+      await assertRefused(query, isCode("E_AUTH_SUPERSEDED"), `${transition}: ${scenario.name}`);
       assert.equal(value.snapshot.token, transition === "login" ? "new-token" : undefined, scenario.name);
       assert.equal(value.snapshot.connection, "connected", scenario.name);
       assert.equal(value.snapshot.lastRefusal, undefined, scenario.name);
@@ -485,7 +486,7 @@ test("delayed malformed response bodies cannot mutate a closed client", async ()
     await gate.started;
     value.close();
     scenario.settle(gate);
-    await assert.rejects(query, isCode("E_AUTH_SUPERSEDED"), scenario.name);
+    await assertRefused(query, isCode("E_AUTH_SUPERSEDED"), scenario.name);
     assert.equal(value.snapshot.connection, "offline", scenario.name);
     assert.equal(value.snapshot.lastRefusal, undefined, scenario.name);
   }
@@ -502,7 +503,7 @@ test("delayed subscription opens cannot mutate a closed client", async () => {
     },
   });
   await value.ready;
-  const subscription = value.subscribe(api.messages.thread, {}, () => undefined);
+  const subscription = subscribe(value, api.messages.thread, {}, () => undefined);
   await waitFor(() => started, "subscription open");
   value.close();
   response.resolve(hangingSse());
@@ -524,7 +525,7 @@ test("delayed subscription opens cannot mutate an individually closed subscripti
     },
   });
   await value.ready;
-  const subscription = value.subscribe(api.messages.thread, {}, () => undefined);
+  const subscription = subscribe(value, api.messages.thread, {}, () => undefined);
   await waitFor(() => started, "subscription open");
   const connection = value.snapshot.connection;
   subscription.close();
@@ -552,7 +553,7 @@ test("delayed malformed subscription refusals cannot pollute a newer bearer", as
     },
   });
   await value.ready;
-  const subscription = value.subscribe(api.messages.thread, {}, () => undefined);
+  const subscription = subscribe(value, api.messages.thread, {}, () => undefined);
   await response.started;
   await value.auth.login({ email: "new@example.com", password: "password" });
   response.resolve({ code: "E_AUTH_SESSION" });
@@ -583,7 +584,7 @@ test("a delayed valid subscription expiry clears custody after a failed replacem
     },
   });
   await value.ready;
-  const subscription = value.subscribe(api.messages.thread, {}, () => undefined);
+  const subscription = subscribe(value, api.messages.thread, {}, () => undefined);
   await response.started;
   await assert.rejects(
     value.auth.login({ email: "new@example.com", password: "wrong-password" }),
@@ -620,7 +621,7 @@ test("an already-read terminal subscription frame survives a replacement fence",
       },
     });
     await value.ready;
-    const subscription = value.subscribe(api.messages.thread, {}, (delivery) => deliveries.push(delivery));
+    const subscription = subscribe(value, api.messages.thread, {}, (delivery) => deliveries.push(delivery));
     await stream.readStarted;
 
     // Both frames have been returned by reader.read(), but the transition
@@ -661,7 +662,7 @@ test("an individually closed subscription still applies already-read terminal ev
     fetch: async input => pathOf(input) === "/api/auth/me" ? json({ viewer: "principal-a", kind: "account" }) : stream.response,
   });
   await value.ready;
-  const subscription = value.subscribe(api.messages.thread, {}, (delivery) => deliveries.push(delivery));
+  const subscription = subscribe(value, api.messages.thread, {}, (delivery) => deliveries.push(delivery));
   await stream.readStarted;
   stream.enqueue({ state: "refused", ...refusal("E_AUTH_SESSION", "expired") });
   subscription.close();
@@ -684,7 +685,7 @@ test("whole-client close still applies already-read terminal evidence without de
     fetch: async input => pathOf(input) === "/api/auth/me" ? json({ viewer: "principal-a", kind: "account" }) : stream.response,
   });
   await value.ready;
-  value.subscribe(api.messages.thread, {}, (delivery) => deliveries.push(delivery));
+  subscribe(value, api.messages.thread, {}, (delivery) => deliveries.push(delivery));
   await stream.readStarted;
   stream.enqueue({ state: "refused", ...refusal("E_AUTH_SESSION", "expired") });
   value.close();
@@ -732,11 +733,11 @@ test("E_AUTH_SESSION clears custody only for the auth refusal family", async () 
   });
   await value.ready;
 
-  await assert.rejects(value.query(api.messages.thread, {}), isCode("E_AUTH_SESSION"));
+  await assertRefused(value.query(api.messages.thread, {}), isCode("E_AUTH_SESSION"));
   assert.equal((await value.mutation(api.messages.send, {})).state, "rejected");
   assert.equal((await value.channel(api.typing, {}).set({ typing: true })).state, "refused");
 
-  const querySubscription = value.subscribe(api.messages.thread, {}, () => undefined);
+  const querySubscription = subscribe(value, api.messages.thread, {}, () => undefined);
   const queryDelivery = await querySubscription.until((delivery) => delivery.state === "refused");
   assert.equal((queryDelivery as { family?: string }).family, "rule");
   querySubscription.close();
@@ -785,7 +786,7 @@ test("auth transitions serialize and already-dispatched writes settle before rep
   assert.deepEqual(paths, ["/api/mutation"]);
 
   mutationResponse.resolve(json({ state: "committed", data: { id: "message-1" }, seq: 1 }));
-  await assert.rejects(mutation, isCode("E_AUTH_SUPERSEDED"));
+  await assertRefused(mutation, isCode("E_AUTH_SUPERSEDED"));
   await waitFor(() => paths.includes("/api/auth/login"), "login after write settlement");
   assert.equal(paths.includes("/api/auth/guest"), false);
   loginResponse.resolve(json({ token: "token-a", viewer: "principal-a", kind: "user" }));
@@ -827,7 +828,7 @@ test("a delayed terminal write clears the old bearer before a failed replacement
   assert.equal(requests.some((request) => request.path === "/api/auth/login"), false);
 
   mutationResponse.resolve(json({ state: "rejected", ...refusal("E_AUTH_SESSION") }));
-  await assert.rejects(mutation, isCode("E_AUTH_SUPERSEDED"));
+  await assertRefused(mutation, isCode("E_AUTH_SUPERSEDED"));
   await assert.rejects(login, isCode("E_AUTH_INVALID"));
   assert.deepEqual(requests, [
     { path: "/api/mutation", bearer: "Bearer expired-token" },
@@ -842,7 +843,7 @@ for (const replacementSucceeds of [false, true]) {
   test(`a status-listener replacement cannot bypass terminal mutation invalidation (replacement succeeds: ${replacementSucceeds})`, async () => {
     let stored: string | null = "expired-token";
     let mutations = 0;
-    let loginOutcome: Promise<{ error?: any }> | undefined;
+    let loginVerdict: Promise<{ error?: any }> | undefined;
     const loginBearers: Array<string | null> = [];
     const value = rawClient({
       url: "http://auth.test",
@@ -867,20 +868,20 @@ for (const replacementSucceeds of [false, true]) {
     try {
       await value.ready;
       await value.auth.me();
-      await assert.rejects(value.mutation(api.messages.send, {}), isCode("E_NETWORK"));
+      await assertRefused(value.mutation(api.messages.send, {}), isCode("E_TRANSPORT"));
       assert.equal(value.snapshot.connection, "reconnecting");
       let armed = true;
       unsubscribe = value.subscribeStatus(snapshot => {
         if (armed && snapshot.connection === "connected") {
           armed = false;
-          loginOutcome = value.auth.login({ email: "a@example.com", password: "password" })
+          loginVerdict = value.auth.login({ email: "a@example.com", password: "password" })
             .then(() => ({}), error => ({ error }));
         }
       });
-      await assert.rejects(value.mutation(api.messages.send, {}), isCode("E_AUTH_SUPERSEDED"));
-      assert.ok(loginOutcome, "the connected notification must start the replacement");
-      const outcome = await loginOutcome;
-      assert.equal(outcome.error?.code, replacementSucceeds ? undefined : "E_AUTH_INVALID");
+      await assertRefused(value.mutation(api.messages.send, {}), isCode("E_AUTH_SUPERSEDED"));
+      assert.ok(loginVerdict, "the connected notification must start the replacement");
+      const verdict = await loginVerdict;
+      assert.equal(verdict.error?.code, replacementSucceeds ? undefined : "E_AUTH_INVALID");
       assert.deepEqual(loginBearers, [null], "known-invalid custody is cleared before replacement dispatch");
       assert.equal(stored, replacementSucceeds ? "replacement-token" : null);
       assert.equal(value.snapshot.token, replacementSucceeds ? "replacement-token" : undefined);
@@ -917,7 +918,7 @@ test("a delayed terminal read cannot clear a successfully replaced bearer", asyn
   await waitFor(() => queryStarted, "old query dispatch");
   await value.auth.login({ email: "a@example.com", password: "password" });
   oldResponse.resolve(json(refusal("E_AUTH_SESSION"), 401));
-  await assert.rejects(query, isCode("E_AUTH_SUPERSEDED"));
+  await assertRefused(query, isCode("E_AUTH_SUPERSEDED"));
   assert.equal(stored, "replacement-token");
   assert.equal(value.snapshot.token, "replacement-token");
   value.close();
@@ -967,7 +968,7 @@ test("a transition during slow terminal cleanup suppresses typed mutation and ch
     await flush();
     assert.equal(loginStarted, false, `${surface}: login must wait for the old write`);
     clear.resolve();
-    await assert.rejects(old, isCode("E_AUTH_SUPERSEDED"));
+    await assertRefused(old, isCode("E_AUTH_SUPERSEDED"));
     await login;
     assert.equal(stored, "replacement-token", surface);
     assert.equal(value.snapshot.token, "replacement-token", surface);
@@ -1076,7 +1077,7 @@ test("predecessor expiry cannot erase a durably saved replacement after close", 
   replacementSave.resolve();
 
   await assert.rejects(login, isCode("E_CLIENT_CLOSED"));
-  await assert.rejects(oldQuery, isCode("E_AUTH_SUPERSEDED"));
+  await assertRefused(oldQuery, isCode("E_AUTH_SUPERSEDED"));
   assert.equal(clears, 0);
   assert.equal(stored, "new-token");
   assert.equal(value.snapshot.token, "old-token");
@@ -1135,7 +1136,7 @@ async function exerciseFailedReplacementSave(closeDuringSave: boolean): Promise<
   replacementSave.resolve();
 
   await assert.rejects(login, isCode("E_AUTH_TOKEN_STORE"));
-  await assert.rejects(oldQuery, isCode("E_AUTH_SUPERSEDED"));
+  await assertRefused(oldQuery, isCode("E_AUTH_SUPERSEDED"));
   assert.equal(clears, 1);
   assert.equal(stored, null);
   assert.equal(value.snapshot.token, undefined);
@@ -1152,7 +1153,7 @@ test("predecessor expiry clears the old bearer after replacement persistence fai
 });
 
 test("close during terminal subscription cleanup stays offline and suppresses late delivery", async () => {
-  for (const outcome of ["saved", "failed"] as const) {
+  for (const verdict of ["saved", "failed"] as const) {
     const clear = deferred<void>();
     const clearStarted = deferred<void>();
     const deliveries: unknown[] = [];
@@ -1165,7 +1166,7 @@ test("close during terminal subscription cleanup stays offline and suppresses la
           if (token === null) {
             clearStarted.resolve();
             await clear.promise;
-            if (outcome === "failed") throw new Error("storage unavailable");
+            if (verdict === "failed") throw new Error("storage unavailable");
           }
           stored = token;
         },
@@ -1176,17 +1177,17 @@ test("close during terminal subscription cleanup stays offline and suppresses la
       }),
     });
     await value.ready;
-    value.subscribe(api.messages.thread, {}, (delivery) => deliveries.push(delivery));
+    subscribe(value, api.messages.thread, {}, (delivery) => deliveries.push(delivery));
     await clearStarted.promise;
     value.close();
     clear.resolve();
-    await waitFor(() => value.snapshot.token === undefined, `${outcome} terminal cleanup`);
+    await waitFor(() => value.snapshot.token === undefined, `${verdict} terminal cleanup`);
     await flush();
     await flush();
 
-    assert.equal(value.snapshot.connection, "offline", outcome);
-    assert.deepEqual(deliveries, [], `${outcome}: closed subscription delivered a late refusal`);
-    assert.equal(stored, outcome === "saved" ? null : "expired-token", outcome);
+    assert.equal(value.snapshot.connection, "offline", verdict);
+    assert.deepEqual(deliveries, [], `${verdict}: closed subscription delivered a late refusal`);
+    assert.equal(stored, verdict === "saved" ? null : "expired-token", verdict);
   }
 });
 
@@ -1210,7 +1211,7 @@ test("logout and terminal session expiry clear custody and stop old-bearer recon
   });
   await logoutClient.ready;
   const generation = logoutClient.snapshot.authGeneration;
-  logoutClient.subscribe(api.messages.thread, {}, () => undefined);
+  subscribe(logoutClient, api.messages.thread, {}, () => undefined);
   await flush();
   const logout = logoutClient.auth.logout();
   await waitFor(() => cancelled === 1, "logout stream cancellation");
@@ -1244,7 +1245,7 @@ test("logout and terminal session expiry clear custody and stop old-bearer recon
     },
   });
   await expiredClient.ready;
-  const subscription = expiredClient.subscribe(api.messages.thread, {}, (event) => delivered.resolve(event));
+  const subscription = subscribe(expiredClient, api.messages.thread, {}, (event) => delivered.resolve(event));
   const terminal = subscription.until(() => true);
   await waitFor(() => opens === 1, "expired stream open");
   await flush();
@@ -1268,6 +1269,7 @@ test("token-store clear failures stay visible on every request-based terminal pa
   const exercise = async (
     response: Response,
     run: (value: ReturnType<typeof createClient>) => Promise<unknown>,
+    plain = false,
   ): Promise<void> => {
     const value = createClient({
       url: "http://auth.test",
@@ -1286,7 +1288,8 @@ test("token-store clear failures stay visible on every request-based terminal pa
     });
     await value.ready;
     const generation = value.snapshot.authGeneration;
-    await assert.rejects(() => run(value), isCode("E_AUTH_TOKEN_STORE"));
+    if (plain) await assertRefused(() => run(value), isCode("E_AUTH_TOKEN_STORE"));
+    else await assert.rejects(() => run(value), isCode("E_AUTH_TOKEN_STORE"));
     assert.equal(value.snapshot.token, undefined);
     assert.equal(value.snapshot.authGeneration, generation + 1);
     assert.equal(value.snapshot.lastRefusal?.code, "E_AUTH_TOKEN_STORE");
@@ -1294,11 +1297,11 @@ test("token-store clear failures stay visible on every request-based terminal pa
   };
 
   await exercise(json(refusal("E_AUTH_SESSION"), 401), (value) =>
-    value.query(api.messages.thread, {}));
+    value.query(api.messages.thread, {}), true);
   await exercise(json({ state: "rejected", ...refusal("E_AUTH_SESSION") }), (value) =>
-    value.mutation(api.messages.send, {}));
+    value.mutation(api.messages.send, {}), true);
   await exercise(json({ state: "refused", ...refusal("E_AUTH_SESSION") }), (value) =>
-    value.channel(api.typing, {}).set({ typing: true }));
+    value.channel(api.typing, {}).set({ typing: true }), true);
   await exercise(json({ ok: true }), (value) => value.auth.logout());
 });
 
@@ -1320,7 +1323,7 @@ test("terminal expiry remains terminal when persisted custody cannot be cleared"
     },
   });
   await value.ready;
-  const subscription = value.subscribe(api.messages.thread, {}, (event) => delivered.resolve(event));
+  const subscription = subscribe(value, api.messages.thread, {}, (event) => delivered.resolve(event));
   const terminal = subscription.until(() => true);
   assert.deepEqual(await delivered.promise, {
     state: "refused",
@@ -1372,8 +1375,8 @@ test("React query identity moves to a hydrating auth-generation partition", asyn
     views.push({
       auth: auth.state,
       ...(auth.token === undefined ? {} : { token: auth.token }),
-      query: query.receipt?.outcome ?? query.status,
-      ...(query.receipt?.outcome === "complete" ? { data: query.data } : {}),
+      query: query.receipt?.state ?? query.status,
+      ...(query.receipt?.state === "complete" ? { data: query.data } : {}),
     });
     return React.createElement("output", null, `${auth.state}:${query.status}`);
   }

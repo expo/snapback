@@ -426,9 +426,9 @@ export class FakeLocks {
     // The callback starts synchronously, as the browser's does, so a holder's
     // release reaches the next requester without extra ticks.
     const run = (): Promise<T> => {
-      let outcome: Promise<T>;
-      try { outcome = Promise.resolve(callback({ name })); } catch (error) { outcome = Promise.reject(error); }
-      return outcome.finally(() => {
+      let verdict: Promise<T>;
+      try { verdict = Promise.resolve(callback({ name })); } catch (error) { verdict = Promise.reject(error); }
+      return verdict.finally(() => {
         const next = this.held.get(name)?.shift();
         if (next) next.run(); else this.held.delete(name);
       });

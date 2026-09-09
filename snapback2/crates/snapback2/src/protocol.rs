@@ -9,9 +9,9 @@ pub(crate) fn certification_family_guide(code: &str) -> (&'static str, &'static 
     match code {
         code if code.starts_with("E_SCHEDULE") => ("schedule", "schedule"),
         code if code.starts_with("E_JOB") => ("job", "job"),
-        "E_UNBOUND_SCAN" => ("bound", "bound/scan"),
+        "E_UNBOUND_SCAN" => ("bound", "quarry"),
         "E_UNBOUND_LOOP" | "E_STRUCTURAL_FANOUT" => ("bound", "bound/loop"),
-        "E_UNBOUND_COUNT" | "E_STRUCTURAL_COUNT" => ("bound", "bound/count"),
+        "E_STRUCTURAL_COUNT" => ("bound", "bound/count"),
         "E_AMBIENT_TIME" => ("opaque", "opaque/time"),
         code if code.starts_with("E_BOUND") || code.starts_with("E_UNBOUND") => {
             ("bound", "bound/ceiling")
@@ -21,7 +21,7 @@ pub(crate) fn certification_family_guide(code: &str) -> (&'static str, &'static 
         code if code.starts_with("E_SEED") => ("input", "schema/seed"),
         "E_EMIT_IN_QUERY" => ("effect", "effects/authoring"),
         code if code.starts_with("E_EFFECT") => ("effect", "effects/authoring"),
-        "E_DECIMAL_SCALE" | "E_ENUM_VARIANT" => ("args", "programs/types"),
+        "E_DECIMAL_SCALE" => ("args", "programs/types"),
         code if code.starts_with("E_ARGS") => ("args", "programs/types"),
         code if code.starts_with("E_OP") => ("op", "programs/operations"),
         _ => ("opaque", "opaque/subset"),
@@ -53,16 +53,37 @@ impl Refusal {
         rewrite: impl Into<String>,
         guide: impl Into<String>,
     ) -> Self {
+        let code = code.into();
+        let message = message.into();
+        let message = refusal_message(&code, &message).to_owned();
         Self {
-            code: code.into(),
+            code,
             family: family.into(),
-            message: message.into(),
+            message,
             site: None,
             rule: None,
             rewrite: Some(rewrite.into()),
             guide: guide.into(),
             detail: BTreeMap::new(),
         }
+    }
+
+    // @ref LLP 1002#diagnostics-say-the-fix — use the same declared catalog on CLI and owner paths.
+    pub fn unknown_operation<'a>(op: &str, names: impl IntoIterator<Item = &'a str>) -> Self {
+        let mut names: Vec<_> = names.into_iter().collect();
+        names.sort_unstable();
+        names.dedup();
+        let nearest = names.iter().filter_map(|name| {
+            let candidate = if op.contains('.') { name } else { name.rsplit('.').next().unwrap_or(name) };
+            let same_case = candidate.eq_ignore_ascii_case(op);
+            let distance = spelling_distance(op, candidate);
+            (same_case || distance <= 2).then_some((!same_case, distance, *name))
+        }).min();
+        let rewrite = match nearest {
+            Some((_, _, name)) => format!("did you mean `{name}`? use a qualified name from /api/manifest"),
+            None => format!("declared operations: {}; use a qualified name from /api/manifest", if names.is_empty() { "none".to_owned() } else { names.join(", ") }),
+        };
+        Self::new("E_OP_UNKNOWN", "op", format!("unknown or ambiguous operation {op}"), rewrite, "quarry").with_site(op)
     }
 
     pub fn owner(code: &str, message: impl Into<String>, rewrite: impl Into<String>) -> Self {
@@ -105,6 +126,13 @@ impl Refusal {
     }
 
     pub fn from_runtime(error: &RuntimeError) -> Self {
+        if let RuntimeError::Require { code, site } = error {
+            let mut refusal = Self::new(code, "rule", error.to_string(),
+                "satisfy the program requirement before retrying", "rule/runtime");
+            refusal.rule = Some(code.clone());
+            refusal.site = site.clone();
+            return refusal;
+        }
         if let RuntimeError::Successor(refusal) = error {
             return Self::from_successor(refusal);
         }
@@ -282,6 +310,41 @@ impl Refusal {
     }
 }
 
+// The engine's Display text is also used in logs; envelopes carry its code separately.
+pub(crate) fn refusal_message<'a>(code: &str, message: &'a str) -> &'a str {
+    message
+        .strip_prefix(&format!("E_REQUIRE:{code}:"))
+        .or_else(|| message.strip_prefix(&format!("{code}:")))
+        .map(str::trim_start)
+        .unwrap_or(message)
+}
+
+// Unrestricted Damerau–Levenshtein: adjacent transpositions cost one edit.
+fn spelling_distance(left: &str, right: &str) -> usize {
+    let a: Vec<_> = left.chars().collect();
+    let b: Vec<_> = right.chars().collect();
+    if a.len().abs_diff(b.len()) > 2 { return 3; }
+    let max = a.len() + b.len();
+    let mut d = vec![vec![0; b.len() + 2]; a.len() + 2];
+    d[0][0] = max;
+    for i in 0..=a.len() { d[i + 1][0] = max; d[i + 1][1] = i; }
+    for j in 0..=b.len() { d[0][j + 1] = max; d[1][j + 1] = j; }
+    let mut last = BTreeMap::new();
+    for i in 1..=a.len() {
+        let mut matched = 0;
+        for j in 1..=b.len() {
+            let row = *last.get(&b[j - 1]).unwrap_or(&0);
+            let col = matched;
+            let cost = usize::from(a[i - 1] != b[j - 1]);
+            if cost == 0 { matched = j; }
+            d[i + 1][j + 1] = (d[i][j] + cost).min(d[i + 1][j] + 1).min(d[i][j + 1] + 1)
+                .min(d[row][col] + (i - row - 1) + 1 + (j - col - 1));
+        }
+        last.insert(a[i - 1], i);
+    }
+    d[a.len() + 1][b.len() + 1]
+}
+
 #[cfg(test)]
 const OFFLINE_CODES: [&str; 6] = [
     "E_OFFLINE_RESET",
@@ -369,6 +432,16 @@ mod tests {
     use super::*;
 
     #[test]
+    fn authored_require_uses_the_first_class_rule_field() {
+        let refusal = Refusal::from_runtime(&RuntimeError::Require { code: "conflict".into(), site: Some("snapback/rules.q:8:3".into()) });
+        assert_eq!(refusal.rule.as_deref(), Some("conflict"));
+        assert!(!refusal.detail.contains_key("rule"));
+        let wire = serde_json::to_value(&refusal).unwrap();
+        assert_eq!(wire["rule"], "conflict");
+        assert_eq!(wire["site"], "snapback/rules.q:8:3");
+    }
+
+    #[test]
     fn operator_argument_name_has_a_registered_site_rewrite_and_guide_page() {
         let families: Json = serde_json::from_str(include_str!(
             "../../../packages/snapback2/guide/families.source.json"
@@ -437,4 +510,24 @@ mod tests {
             Some("stop snapback2 dev, delete .snapback/store.sqlite, and restart the owner")
         );
     }
+}
+
+#[cfg(test)]
+#[test]
+fn runtime_input_message_does_not_repeat_its_code() {
+    let refusal = Refusal::from_runtime(&RuntimeError::Input(
+        "cursor belongs to another index".to_owned(),
+    ));
+    assert_eq!(refusal.code, "E_INPUT");
+    assert_eq!(refusal.message, "cursor belongs to another index");
+}
+
+#[cfg(test)]
+#[test]
+fn runtime_requirement_message_does_not_embed_its_application_code() {
+    let refusal = Refusal::from_runtime(&RuntimeError::Require {
+        code: "MEMBERSHIP_REQUIRED".to_owned(),
+    });
+    assert_eq!(refusal.code, "MEMBERSHIP_REQUIRED");
+    assert_eq!(refusal.message, "program requirement failed");
 }

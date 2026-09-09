@@ -1,3 +1,4 @@
+import { nameRewrite } from "./diagnostics";
 import { columnComponents } from "../index-components";
 import { basename } from "node:path";
 import type { Document, QuarryDiagnostic, RuleDecl, ScalarType, TableCatalog, TableDecl } from "./ast";
@@ -125,18 +126,20 @@ function materializeMaintains(documents: Document[]): void {
   for (const declaration of schema.maintains) {
     if (declaration.source === "connected") throw new QuarryError(declaration.site,
       "connected cannot be a maintained source", "E_QUARRY_UNKNOWN",
-      "replace the maintain with a query returning #connected[p] for p: principal", "quarry/names");
+      "replace the maintain with a query returning connected[p] for p: principal", "quarry/names");
     if (schema.tables.some((table) => table.name === declaration.name)) throw new QuarryError(declaration.site, `maintain target ${declaration.name} duplicates a table`);
     const source = schema.tables.find((table) => table.name === declaration.source);
-    if (!source) throw new QuarryError(declaration.site, `maintain ${declaration.name} names unknown source table ${declaration.source}`);
+    if (!source) throw new QuarryError(declaration.site, `maintain ${declaration.name} names unknown source table ${declaration.source}`, "E_QUARRY_UNKNOWN", nameRewrite(declaration.source, schema.tables.map(table => table.name)));
     const columns = declaration.by.map((name) => {
       const sourceColumn = source.columns.find((column) => column.name === name);
-      if (!sourceColumn) throw new QuarryError(declaration.site, `maintain ${declaration.name} names unknown source column ${declaration.source}.${name}`);
+      if (!sourceColumn) throw new QuarryError(declaration.site, `maintain ${declaration.name} names unknown source column ${declaration.source}.${name}`, "E_QUARRY_UNKNOWN", nameRewrite(name, source.columns.map(column => column.name)));
       return { name, type: structuredClone(sourceColumn.type), site: declaration.site };
     });
     if (declaration.aggregate === "sum") {
       const summed = source.columns.find((column) => column.name === declaration.column);
-      if (!summed || !["int", "decimal", "money"].includes(summed.type.kind)) {
+      if (!summed) throw new QuarryError(declaration.site, `unknown source column ${declaration.source}.${declaration.column}`,
+        "E_QUARRY_UNKNOWN", nameRewrite(declaration.column!, source.columns.map(column => column.name)));
+      if (!["int", "decimal", "money"].includes(summed.type.kind)) {
         throw new QuarryError(declaration.site, `sum maintain ${declaration.name} requires an int, decimal, or money source column`);
       }
     }
@@ -153,6 +156,7 @@ function materializeMaintains(documents: Document[]): void {
     });
     const assetGrouped = columns.some((column) => containsAsset(column.type));
     const target: TableDecl = {
+      maintained: true,
       name: declaration.name,
       columns,
       // @ref LLP 1006#2a-one-asset-one-home-author-ruling-2026-09-01 — the

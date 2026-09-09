@@ -1,3 +1,4 @@
+import { sharedConsumers } from "../src/internal.js";
 import assert from "node:assert/strict";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -155,7 +156,7 @@ test("the chat screens render the log, queue offline sends as pinned bubbles, se
   const restore = installDom();
   const root = await mkdtemp(join(tmpdir(), "snapback2-screens-"));
   const mutationBodies: any[] = [];
-  const writer = createClient({ url: screenOwner.url, as: "alice" });
+  const writer = createClient({ url: screenOwner.url, persona: "alice" });
   let moved = false;
   const fetch = async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
     const body = requestBody(init);
@@ -169,9 +170,9 @@ test("the chat screens render the log, queue offline sends as pinned bubbles, se
         rewrite: "resume for a fresh grant and send again", guide: "offline",
       }, 409);
     }
-    if (!moved && body.op === "deliveries.edit" && body.args?.body === "mine") {
+    if (!moved && body.op === "messages.edit" && body.args?.body === "mine") {
       moved = true;
-      const result = await writer.mutation(api.deliveries.edit, {
+      const result = await writer.mutation(api.messages.edit, {
         messageId: body.args.messageId, body: "changed at the owner", baseBody: body.args.baseBody,
       });
       assert.equal(result.state, "committed", "the second real client creates the edit conflict");
@@ -186,7 +187,7 @@ test("the chat screens render the log, queue offline sends as pinned bubbles, se
     await act(async () => {
       reactRoot.render(React.createElement(
         SnapbackProvider,
-        { url: screenOwner.url, as: "alice", fetch, offline: { store: fileRangeStore(root), fenceDays: 2 } },
+        { url: screenOwner.url, persona: "alice", fetch, offline: { store: fileRangeStore(root), fenceDays: 2 } },
         React.createElement(Probe),
         React.createElement(App),
       ));
@@ -209,7 +210,7 @@ test("the chat screens render the log, queue offline sends as pinned bubbles, se
     const [entry] = await client.outbox.entries();
     assert.equal(entry.state, "queued");
     assert.equal(entry.presentation, "messages", "the actual Composer submits its selected semantic target");
-    const pinned = mutationTarget(api.deliveries.post, "messages").id(entry);
+    const pinned = mutationTarget(api.messages.send, "messages").id(entry);
     assert.ok(pinned, "the writer certifies the message address at admission");
     const pending = document.querySelector(`li[data-message="${pinned}"]`)!;
     assert.ok(pending, "the pending bubble is keyed by its certified message target");
@@ -241,7 +242,7 @@ test("the chat screens render the log, queue offline sends as pinned bubbles, se
     assert.equal(summary.getAttribute("data-view-state"), bubbles.getAttribute("data-view-state"));
     assert.equal(summary.getAttribute("data-view-seq"), bubbles.getAttribute("data-view-seq"));
     assert.equal(bubbles.getAttribute("data-view-source"), "composite");
-    assert.equal(client.sharedConsumers(api.deliveries.conversationView, { conversationId: "conversation-1" }), 1,
+    assert.equal(sharedConsumers(client, api.messages.conversationView, { conversationId: "conversation-1" }), 1,
       "one composite observer feeds both the summary and message list");
     assert.equal(summary.hasAttribute("data-count"), true);
     assert.equal(Number.isSafeInteger(Number(summary.getAttribute("data-count"))), true);
@@ -254,20 +255,20 @@ test("the chat screens render the log, queue offline sends as pinned bubbles, se
     // A live drain tail is incremental, while its observed value is the whole
     // held log. A post followed by a bodyless removal must not collapse the
     // mounted inbox to only the tail event's conversation.
-    const transient = await client.mutation(api.deliveries.post, {
+    const transient = await client.mutation(api.messages.send, {
       conversationId: "conversation-1", body: "removed after a live tail",
     });
     if (transient.state !== "committed") throw new Error(`transient post was ${transient.state}`);
     await waitFor(() => document.querySelector(`li[data-message="${transient.data.id}"]`) !== null,
       "the transient live row");
-    const afterTransient = client.observe(api.deliveries.inbox, { c: null }, { drain: true }).getSnapshot();
-    const removedTransient = await client.mutation(api.deliveries.unsend, { messageId: transient.data.id });
+    const afterTransient = client.observe(api.messages.inbox, { c: null }, { drain: true }).getSnapshot();
+    const removedTransient = await client.mutation(api.messages.unsend, { messageId: transient.data.id });
     assert.equal(removedTransient.state, "committed");
     await waitFor(() => document.querySelector(`li[data-message="${transient.data.id}"]`) === null,
       "the transient row removal");
     await waitFor(() => document.querySelectorAll("nav[aria-label=Inbox] li").length === 2,
       `the complete inbox after removal: ${JSON.stringify({ afterTransient,
-        afterRemoval: client.observe(api.deliveries.inbox, { c: null }, { drain: true }).getSnapshot() })}`);
+        afterRemoval: client.observe(api.messages.inbox, { c: null }, { drain: true }).getSnapshot() })}`);
 
     // Search is the named indexed query, including its case-normalized prefix semantics.
     const search = document.querySelector<HTMLInputElement>("section[aria-label=Search] input")!;
@@ -294,7 +295,7 @@ test("the chat screens render the log, queue offline sends as pinned bubbles, se
 
     // Conflict: an offline edit against a row that moved reads "Message changed" on its row.
     await act(async () => { await client.offline(); });
-    const editResult = await client.mutation(api.deliveries.edit, { messageId: pinned, body: "mine", baseBody: "queued while offline" });
+    const editResult = await client.mutation(api.messages.edit, { messageId: pinned, body: "mine", baseBody: "queued while offline" });
     assert.equal(editResult.state, "queued");
     await waitFor(() => document.querySelector(`li[data-message="${pinned}"] small[data-edit=queued]`) !== null, "the pending edit note");
     assert.match(text(document.querySelector(`li[data-message="${pinned}"] small[data-edit]`)), /Edit sending…/);
@@ -330,8 +331,8 @@ test("the chat screens render the log, queue offline sends as pinned bubbles, se
     // Expired remains a visible, dismissible state, but only after the owner
     // refuses that intent; the next intent still commits.
     await act(async () => { await client.offline(); });
-    const ownerExpired = await client.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "owner expired" });
-    const afterExpiry = await client.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "after owner expiry" });
+    const ownerExpired = await client.mutation(api.messages.send, { conversationId: "conversation-1", body: "owner expired" });
+    const afterExpiry = await client.mutation(api.messages.send, { conversationId: "conversation-1", body: "after owner expiry" });
     assert.equal(ownerExpired.state, "queued");
     assert.equal(afterExpiry.state, "queued");
     const serverMutations = mutationBodies.length;

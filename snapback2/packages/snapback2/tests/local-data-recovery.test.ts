@@ -1,3 +1,5 @@
+import { assertRefused } from "./live-fixture.ts";
+import { subscribe } from "../src/internal.js";
 import assert from "node:assert/strict";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -25,17 +27,17 @@ test("transport stops and successful retries report their remaining queue and pr
   const root = await mkdtemp(join(tmpdir(), "s2-recovery-"));
   const owner = fakeOwner({ failAfterCommit: 1 });
   await seededStore(fileRangeStore(root));
-  const client = createClient({ url: "http://recovery.test", as: "alice", fetch: owner.fetch, offline: { store: fileRangeStore(root) } });
+  const client = createClient({ url: "http://recovery.test", persona: "alice", fetch: owner.fetch, offline: { store: fileRangeStore(root) } });
   try {
     await client.ready;
-    const result = await client.mutation(api.deliveries.post as any, { conversationId: "conversation-1", body: "retry once" });
+    const result = await client.mutation(api.messages.send as any, { conversationId: "conversation-1", body: "retry once" });
     assert.equal(result.state, "queued");
     assert.deepEqual(await client.outbox.settled(), { stopped: "transport", remaining: 1 });
     assert.deepEqual(await client.outbox.drain(), { stopped: false, remaining: 0 });
     assert.deepEqual(await client.outbox.settled(), { stopped: false, remaining: 0 });
     assert.equal(owner.executions.length, 1);
     await client.offline();
-    await client.mutation(api.deliveries.post as any, { conversationId: "conversation-1", body: "explicit offline" });
+    await client.mutation(api.messages.send as any, { conversationId: "conversation-1", body: "explicit offline" });
     assert.deepEqual(await client.outbox.settled(), { stopped: "offline", remaining: 1 }, "settled never reports an undrained queue as complete");
     assert.deepEqual(await client.outbox.drain(), { stopped: "offline", remaining: 1 });
     assert.equal(owner.executions.length, 1, "explicit offline does not reconnect implicitly");
@@ -48,21 +50,21 @@ test("grant expiry and exhausted IDs expose actionable admission without consumi
   const factory = fileRangeStore(root);
   await seededStore(factory);
   let store: ReturnType<typeof factory>;
-  const client = createClient({ url: "http://admission.test", as: "alice", fetch: owner.fetch, offline: { store: () => (store = factory()) } });
+  const client = createClient({ url: "http://admission.test", persona: "alice", fetch: owner.fetch, offline: { store: () => (store = factory()) } });
   try {
     await client.ready;
     await client.offline();
     const grant = (await store!.outbox.grant())!;
     await store!.commit({ grants: { put: [{ ...grant, expiresAt: Date.now() - 1 }] } });
-    const status = await client.outbox.status(api.deliveries.post as any);
+    const status = await client.outbox.status(api.messages.send as any);
     assert.equal(status.reason, "grant-expired");
-    assert.equal(status.action, "resume");
-    assert.equal(await client.outbox.ready(api.deliveries.post as any), false);
-    await assert.rejects(client.mutation(api.deliveries.post as any, { conversationId: "conversation-1", body: "expired" }), (error: any) => error.code === "E_OFFLINE_ID_BLOCK" && /expired/.test(error.message));
+    assert.equal(status.action, "connect");
+    assert.equal(await client.outbox.ready(api.messages.send as any), false);
+    await assertRefused(client.mutation(api.messages.send as any, { conversationId: "conversation-1", body: "expired" }), (error: any) => error.code === "E_OFFLINE_ID_BLOCK" && /expired/.test(error.message));
     assert.equal((await client.outbox.entries()).length, 0);
     assert.equal((await store!.outbox.grant())!.used, grant.used);
     await store!.commit({ grants: { put: [{ ...grant, used: grant.count - 1 }] } });
-    assert.equal((await client.outbox.status(api.deliveries.post as any)).reason, "ids-exhausted");
+    assert.equal((await client.outbox.status(api.messages.send as any)).reason, "ids-exhausted");
     assert.equal((await client.outbox.status(api.missing.write as any)).reason, "program-missing");
   } finally { await client.close(); await rm(root, { recursive: true, force: true }); }
 });
@@ -83,13 +85,13 @@ test("retained reads, readiness and offline escape do not wait on stalled authen
   });
   try {
     await started.promise;
-    const answer = await bounded(client.query(api.deliveries.inbox as any, { c: null }));
+    const answer = await bounded(client.query(api.messages.inbox as any, { c: null }));
     assert.equal(answer.state, "complete");
     await bounded(client.offline());
     await bounded(client.ready);
     assert.equal((await bounded(client.outbox.status())).ready, false, "held answers need no replay grant");
     await store!.seal();
-    const sealed = await bounded(client.query(api.deliveries.inbox as any, { c: null }));
+    const sealed = await bounded(client.query(api.messages.inbox as any, { c: null }));
     assert.equal(sealed.state, "hydrating");
     assert.equal("data" in sealed, false);
     assert.equal((await client.outbox.status()).reason, "sealed");
@@ -104,7 +106,7 @@ test("repeated drain cursors refuse instead of looping or replacing the server w
   await seededStore(factory);
   let requests = 0;
   let store: ReturnType<typeof factory>;
-  const client = createClient({ url: "http://cursor-loop.test", as: "alice", offline: { store: () => (store = factory()) },
+  const client = createClient({ url: "http://cursor-loop.test", persona: "alice", offline: { store: () => (store = factory()) },
     fetch: async (input, init) => {
       const response = await owner.fetch(input, init);
       if (new URL(String(input)).pathname !== "/api/query") return response;
@@ -117,7 +119,7 @@ test("repeated drain cursors refuse instead of looping or replacing the server w
   try {
     await client.ready;
     const before = (await store!.coverage()).watermarks;
-    subscription = client.subscribe(api.deliveries.inbox as any, { nextPage: null }, () => {}, { drain: true });
+    subscription = subscribe(client, api.messages.inbox as any, { nextPage: null }, () => {}, { drain: true });
     const event = await subscription.until((value: any) => value.state === "refused", 2_000);
     assert.equal(event.code, "E_OFFLINE_RESUME");
     assert.match(event.message, /cursor/);
@@ -126,23 +128,23 @@ test("repeated drain cursors refuse instead of looping or replacing the server w
   } finally { subscription?.close(); await client.close(); await rm(root, { recursive: true, force: true }); }
 });
 
-test("real sessions change epochs across re-login, seal and cold auth; custom cursor custody drains offline on every carrier", async () => {
-  const owner = await RealOwnerHarness.create();
+function recoveryOwner() {
+  return RealOwnerHarness.create({ prepare: async ownerRoot => {
+    await writeFile(join(ownerRoot, "snapback/recovery.q"), "query page(nextPage: cursor ?):\n  return profiles[] after nextPage first 1 by byId\n\nmutation echo(value: text <=100):\n  return value\n");
+  } });
+}
+
+test("real sessions change epochs across re-login, seal and cold auth", async () => {
+  const owner = await recoveryOwner();
   assert.ok(owner.root, "this regression requires its own owner");
   const root = await mkdtemp(join(tmpdir(), "s2-real-recovery-"));
   let client: ReturnType<typeof createClient> | undefined;
   const clients: Array<ReturnType<typeof createClient>> = [];
+  const releaseQuery = Promise.withResolvers<void>();
   try {
-    await writeFile(join(owner.root, "snapback/recovery.q"), "query page(nextPage: cursor ?):\n  return profiles[] after nextPage first 1 by byId\n\nmutation echo(value: text <=100):\n  return value\n");
-    for (let attempt = 0; attempt < 100; attempt++) {
-      const manifest = await (await fetch(`${owner.url}/api/manifest`)).json();
-      if (manifest.ops["recovery.page"]) break;
-      await tick();
-    }
     let failWrites = true;
     let holdQuery = false;
     const queryStarted = Promise.withResolvers<void>();
-    const releaseQuery = Promise.withResolvers<void>();
     const transport: typeof fetch = async (input, init) => {
       if (failWrites && new URL(String(input)).pathname === "/api/mutation") throw new TypeError("write transport cut");
       const response = await fetch(input, init);
@@ -159,7 +161,7 @@ test("real sessions change epochs across re-login, seal and cold auth; custom cu
     const first = await client.auth.signup(account);
     // Signup carries no grant; a completed drain earns it without using an
     // extra password login while testing token restoration.
-    const initialDrain = client.subscribe(api.recovery.page as any, { nextPage: null }, () => {}, { drain: true });
+    const initialDrain = subscribe(client, api.recovery.page as any, { nextPage: null }, () => {}, { drain: true });
     await initialDrain.until(caughtUp, 2_000);
     initialDrain.close();
     await client.query(api.integration.capped as any, {});
@@ -200,23 +202,31 @@ test("real sessions change epochs across re-login, seal and cold auth; custom cu
     assert.equal((await client.outbox.entries())[0]?.state, "committed");
     await client.close();
 
+  } finally { releaseQuery.resolve(); await Promise.allSettled(clients.map(entry => entry.close())); await owner.close(); if (owner.owned) delete process.env.SNAPBACK_URL; await rm(root, { recursive: true, force: true }); }
+});
+
+test("custom cursor custody drains offline on every carrier", async () => {
+  const owner = await recoveryOwner();
+  const root = await mkdtemp(join(tmpdir(), "s2-cursor-recovery-"));
+  const clients: Array<ReturnType<typeof createClient>> = [];
+  try {
     const db = new FakeIndexedDb(), locks = new FakeLocks();
     const factories = [fileRangeStore(join(root, "cursor")), sqliteFactory(join(root, "cursor.db")), indexedDbRangeStore({ indexedDB: db as any, locks: locks as any })];
     for (const store of factories) {
-      const warm = createClient({ url: owner.url, as: "alice", offline: { store } }); clients.push(warm);
+      const warm = createClient({ url: owner.url, persona: "alice", offline: { store } }); clients.push(warm);
       await warm.ready;
       const expected: string[] = [];
-      const drain = warm.subscribe(api.recovery.page as any, { nextPage: null }, (event: any) => { if (event.data) expected.push(...event.data.map((row: any) => row.id)); }, { drain: true });
+      const drain = subscribe(warm, api.recovery.page as any, { nextPage: null }, (event: any) => { if (event.data) expected.push(...event.data.map((row: any) => row.id)); }, { drain: true });
       await drain.until(caughtUp, 2_000);
       drain.close(); await warm.close();
       const inspect = store();
       await inspect.open("dev:alice");
       const saved = (await inspect.coverage()).watermarks;
       await inspect.close?.();
-      const cold = createClient({ url: owner.url, as: "alice", startOffline: true, offline: { store } }); clients.push(cold);
+      const cold = createClient({ url: owner.url, persona: "alice", startOffline: true, offline: { store } }); clients.push(cold);
       await cold.ready;
       const actual: string[] = [];
-      const restored = cold.subscribe(api.recovery.page as any, { nextPage: null }, (event: any) => { if (event.data) actual.push(...event.data.map((row: any) => row.id)); }, { drain: true });
+      const restored = subscribe(cold, api.recovery.page as any, { nextPage: null }, (event: any) => { if (event.data) actual.push(...event.data.map((row: any) => row.id)); }, { drain: true });
       const end = await restored.until(caughtUp, 2_000);
       assert.deepEqual([...new Set(actual)], [...new Set(expected)], "cold and warm drains cover the same row identities");
       assert.equal(end.watermark, saved.find((entry) => entry.op === "recovery.page")?.watermark, "offline cursor chain uses the persisted server watermark");
@@ -225,7 +235,7 @@ test("real sessions change epochs across re-login, seal and cold auth; custom cu
       assert.deepEqual((await inspect.coverage()).watermarks, saved, "offline draining does not rewrite server watermarks");
       await inspect.close?.();
     }
-  } finally { await Promise.allSettled(clients.map((entry) => entry.close())); await owner.close(); await rm(root, { recursive: true, force: true }); }
+  } finally { await Promise.allSettled(clients.map((entry) => entry.close())); await owner.close(); if (owner.owned) delete process.env.SNAPBACK_URL; await rm(root, { recursive: true, force: true }); }
 });
 
 test("replacing an explicit bearer clears the old principal before persistence, so stalled cold auth cannot reveal its history", async () => {
@@ -255,7 +265,7 @@ test("replacing an explicit bearer clears the old principal before persistence, 
     client = createClient({ url: "http://token-binding.test", tokenStore, fetch: stalled, offline: { store: factory } });
     await started.promise;
     let delivered = false;
-    const read = client.query(api.deliveries.inbox as any, { c: null }).then((result) => { delivered = true; return result; });
+    const read = client.query(api.messages.inbox as any, { c: null }).then((result) => { delivered = true; return result; });
     await tick();
     assert.equal(delivered, false, "a new bearer has no local principal until the owner confirms it");
     await bounded(client.offline());
@@ -270,7 +280,7 @@ test("readiness still observes grant expiry after the earlier fence timer fired"
   const factory = fileRangeStore(root);
   await seededStore(factory);
   let store: ReturnType<typeof factory>;
-  const client = createClient({ url: "http://expiry-observer.test", as: "alice", fetch: fakeOwner().fetch, offline: { fenceDays: 1, store: () => (store = factory()) } });
+  const client = createClient({ url: "http://expiry-observer.test", persona: "alice", fetch: fakeOwner().fetch, offline: { fenceDays: 1, store: () => (store = factory()) } });
   let unsubscribe = () => {};
   try {
     await client.ready;
@@ -313,11 +323,11 @@ test("authenticated startup restores a cleared token binding across restart and 
     await client.offline();
     client = await client.restart();
     assert.equal(principal, "dev:alice", "offline restart preserves the matching authenticated token binding");
-    assert.equal((await client.query(api.deliveries.inbox as any, { c: null })).state, "complete");
+    assert.equal((await client.query(api.messages.inbox as any, { c: null })).state, "complete");
     await client.close();
     client = createClient({ url: "http://confirmed-binding.test", tokenStore, startOffline: true, fetch: async () => { throw new Error("no network expected"); }, offline: { store: factory } });
     await client.ready;
-    assert.equal((await client.query(api.deliveries.inbox as any, { c: null })).state, "complete");
+    assert.equal((await client.query(api.messages.inbox as any, { c: null })).state, "complete");
   } finally { await client.close(); await rm(root, { recursive: true, force: true }); }
 });
 
@@ -350,7 +360,7 @@ test("a token-store write crossing hydration discards the mixed principal snapsh
     releasePrincipal.resolve();
     await ownerStarted.promise;
     let delivered = false;
-    const read = client.query(api.deliveries.inbox as any, { c: null }).then((result) => { delivered = true; return result; });
+    const read = client.query(api.messages.inbox as any, { c: null }).then((result) => { delivered = true; return result; });
     await tick();
     assert.equal(delivered, false, "the old principal must not be paired with the replacement token");
     await bounded(client.offline());
@@ -364,14 +374,14 @@ test("settled waits for cold local custody before reporting an offline queue", a
   const root = await mkdtemp(join(tmpdir(), "s2-cold-settled-"));
   const factory = fileRangeStore(root);
   await seededStore(factory);
-  let client = createClient({ url: "http://cold-settled.test", as: "alice", fetch: fakeOwner().fetch, offline: { store: factory } });
+  let client = createClient({ url: "http://cold-settled.test", persona: "alice", fetch: fakeOwner().fetch, offline: { store: factory } });
   try {
     await client.ready;
     await client.offline();
-    await client.mutation(api.deliveries.post as any, { conversationId: "conversation-1", body: "cold queued" });
+    await client.mutation(api.messages.send as any, { conversationId: "conversation-1", body: "cold queued" });
     await client.close();
     const openStarted = Promise.withResolvers<void>(), releaseOpen = Promise.withResolvers<void>();
-    client = createClient({ url: "http://cold-settled.test", as: "alice", startOffline: true, offline: { store: () => {
+    client = createClient({ url: "http://cold-settled.test", persona: "alice", startOffline: true, offline: { store: () => {
       const store = factory(), open = store.open.bind(store);
       store.open = async (partition) => { openStarted.resolve(); await releaseOpen.promise; await open(partition); };
       return store;

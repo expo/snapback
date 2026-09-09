@@ -8,6 +8,11 @@ export interface Op<Args, Result, Targets extends Record<string, "create" | "upd
   readonly __targets?: Targets;
 }
 
+/** The generated operation's result, including a nullable result. */
+export type ResultOf<Operation> = Operation extends Op<any, infer Result, any> ? Result : never;
+/** The generated operation's input record. */
+export type ArgsOf<Operation> = Operation extends Op<infer Args, any, any> ? Args : never;
+
 export interface Channel<Args, Value> {
   readonly [referencePath]: string;
   readonly __channelArgs?: (args: Args) => void;

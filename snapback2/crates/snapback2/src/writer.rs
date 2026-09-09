@@ -1039,13 +1039,7 @@ impl State {
             .get(op)
             .map(|entry| entry.0.kind)
             .ok_or_else(|| {
-                Refusal::new(
-                    "E_OP_UNKNOWN",
-                    "op",
-                    format!("unknown operation {op}"),
-                    "use an operation listed by /api/manifest",
-                    "op/manifest",
-                )
+                Refusal::unknown_operation(op.as_ref(), self.runtime().generation().programs().keys().map(String::as_str))
             })?;
         if kind == ProgramKind::Job {
             return Err(Refusal::operator_required());

@@ -93,7 +93,7 @@ const armBuilds = [{
   minify: true,
   platform: "neutral",
   target: "es2022",
-  external: ["expo", "react", "react-native", "expo-file-system", "expo/fetch", "expo-video", "expo-sqlite", "expo-secure-store", "snapback2/client", "snapback2/react-core", "snapback2/expo", "snapback2/react-native", "snapback2/expo/witness"],
+  external: ["expo", "expo-constants", "react", "react-native", "expo-file-system", "expo/fetch", "expo-video", "expo-sqlite", "expo-secure-store", "snapback2/client", "snapback2/react-core", "snapback2/expo", "snapback2/react-native", "snapback2/expo/witness"],
   plugins: [externalClient, imageRuntime()],
 }, {
 
@@ -239,7 +239,7 @@ for (const name of ["todos", "chat"]) {
 await cp(resolve(here, "templates/react"), resolve(templateDist, "react"), { recursive: true });
 
 const fixturePaths = await fixtureFiles(fixtures);
-const tsFixtureText = (await Promise.all(fixturePaths.filter((path) => path.endsWith(".ts")).map((path) => readFile(path, "utf8")))).join("\n");
+const tsFixtureText = (await Promise.all([...fixturePaths.filter((path) => path.endsWith(".ts")), ...["delivery.ts", "seed.ts"].map(name => resolve(here, "templates/chat/snapback", name))].map((path) => readFile(path, "utf8")))).join("\n");
 const templateQuarryPaths = await quarryTemplateFiles(resolve(here, "templates"));
 const quarryFixtureText = (await Promise.all([...fixturePaths, ...templateQuarryPaths]
   .filter((path) => path.endsWith(".q")).map((path) => readFile(path, "utf8")))).join("\n");

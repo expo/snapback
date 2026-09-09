@@ -3,7 +3,7 @@ import { twinLastDecline } from "../twin.js";
 import type { SnapbackClient } from "../types.js";
 import type { PersistedRangeState } from "../store/range-store.js";
 import type { ByteCache, ByteDelta } from "../store/byte-cache.js";
-import { isSnapbackRefusal } from "../client.js";
+import { isRefusalError } from "../client-wire.js";
 import { runSqliteDriverConformance as conformance } from "../store/sqlite-driver.conformance.js";
 import type { SqliteDriver } from "../store/sqlite-driver.js";
 import { SearchExecution } from "../../../evaluator/src/search-runtime.js";
@@ -117,7 +117,7 @@ export function witnessControl(source: SnapbackClient | WitnessApplication, url:
           const result = await run(request.verb, request.args ?? {});
           send({ id, ok: true, result });
         } catch (error) {
-          const details = isSnapbackRefusal(error) ? error.envelope : { message: String(error) };
+          const details = isRefusalError(error) ? error.envelope : { message: String(error) };
           send({ id, ok: false, error: { ...details, phase,
             stack: error instanceof Error ? error.stack : undefined } });
         }

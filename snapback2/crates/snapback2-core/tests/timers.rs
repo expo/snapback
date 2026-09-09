@@ -207,6 +207,7 @@ fn reject() -> Program {
         vec![
             log_insert(),
             Stmt::Require {
+                site: None,
                 condition: lit(Value::Bool(false)),
                 code: "NOPE".into(),
             },

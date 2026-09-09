@@ -16,8 +16,8 @@ const file = () => new File([png], "photo.png", { type: "image/png" });
 const hash = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 
 test("43 public claims, 40 successful releases, restart and a fresh small upload preserve original custody", async (t) => {
-  const alice = createClient({ url: owner.url, as: "releases" });
-  const fresh = createClient({ url: owner.url, as: "fresh" });
+  const alice = createClient({ url: owner.url, persona: "releases" });
+  const fresh = createClient({ url: owner.url, persona: "fresh" });
   const rows: any[] = [];
   try {
     for (let index = 0; index < 43; index++) {

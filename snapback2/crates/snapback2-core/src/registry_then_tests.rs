@@ -129,6 +129,7 @@ fn timed_then_generation() -> Generation {
                     args: BTreeMap::new(),
                     read_time_granularity_ms: None,
                     body: vec![Stmt::Require {
+                        site: None,
                         condition: Expr::Binary {
                             op: crate::ir::BinaryOp::Gte,
                             left: Box::new(Expr::Input(crate::ir::Input::Now)),

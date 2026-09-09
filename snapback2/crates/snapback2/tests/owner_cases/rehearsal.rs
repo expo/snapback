@@ -255,7 +255,10 @@ fn control_run_source_modes_and_declared_job_route_share_operator_admission() {
         json!({"source":"query inspect():\n  return now\n","mode":"run"}),
     );
     assert_eq!(clock["state"], "complete");
-    let wall_now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as i64;
+    let wall_now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as i64;
     assert!(clock["data"].as_i64().unwrap() > wall_now + 86000000);
     let source =
         "job repair:\n  chunk p in items first 100 by byId:\n    update items[p.id] { n: 9 }\n";

@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useAssetUrl, useSnapbackClient, useSnapbackSnapshot } from "./react-core.js";
-import { isSnapbackRefusal, type SnapbackRefusal } from "./client.js";
+import { toRefusal } from "./client-wire.js";
 import { viewedRefusal } from "./client-assets.js";
-import type { ImageAsset, VideoAsset } from "./types.js";
+import type { ImageAsset, VideoAsset, Refusal } from "./types.js";
 export * from "./react-core.js";
 export { indexedDbRangeStore } from "./store/indexeddb.js";
 
@@ -17,7 +17,7 @@ function useAssetBlob(url: string | undefined) {
   const custody = useSyncExternalStore(cache?.subscribeCustody ?? noSubscription, cache?.getCustody ?? noCustody, noCustody);
   const viewing = useRef({}).current;
   const identity = useMemo(() => ({ client, url, auth: snapshot.authGeneration, custody }), [client, url, snapshot.authGeneration, custody]);
-  const [result, setResult] = useState<{ identity: typeof identity; url?: string; refusal?: SnapbackRefusal }>();
+  const [result, setResult] = useState<{ identity: typeof identity; url?: string; refusal?: Refusal }>();
   useEffect(() => {
     if (!url || typeof URL.createObjectURL !== "function") return;
     let active = true;
@@ -28,7 +28,7 @@ function useAssetBlob(url: string | undefined) {
       if (!active || (cache?.getCustody?.() ?? 0) !== custody) return;
       created = URL.createObjectURL(blob);
       setResult({ identity, url: created });
-    }).catch((error) => { if (active && isSnapbackRefusal(error)) setResult({ identity, refusal: error }); });
+    }).catch((error) => { if (active) setResult({ identity, refusal: toRefusal(error) }); });
     return () => {
       active = false;
       controller.abort();
@@ -79,7 +79,7 @@ export function AssetImage({ asset, width, height, style, ...props }: AssetImage
 
 export type AssetVideoProps = Omit<React.VideoHTMLAttributes<HTMLVideoElement>, "src" | "width" | "height"> & {
   asset: VideoAsset;
-  onRefusal?: (refusal: SnapbackRefusal) => void;
+  onRefusal?: (refusal: Refusal) => void;
   width?: number | string;
   height?: number | string;
 };
@@ -104,9 +104,9 @@ export function AssetVideo({ asset, width, height, style, controls, onPlay, onRe
       const once = viewed || (await cache?.viewOnce(asset.id) ?? false);
       if (active) {
         setPolicy({ identity, once, viewed });
-        if (viewed) callback.current?.(viewedRefusal(asset.id));
+        if (viewed) callback.current?.(toRefusal(viewedRefusal(asset.id)));
       }
-    })().catch((error) => { if (active && isSnapbackRefusal(error)) callback.current?.(error); });
+    })().catch((error) => { if (active) callback.current?.(toRefusal(error)); });
     return () => { active = false; };
   }, [identity, cache]);
   const current = policy?.identity === identity ? policy : undefined;
@@ -122,7 +122,7 @@ export function AssetVideo({ asset, width, height, style, controls, onPlay, onRe
       const url = await client.assetUrl(asset);
       if (!url) throw viewedRefusal(asset.id);
       if (active) setRequest({ identity, url });
-    })().catch((error) => { if (active && isSnapbackRefusal(error)) callback.current?.(error); });
+    })().catch((error) => { if (active) callback.current?.(toRefusal(error)); });
     return () => { active = false; };
   }, [identity, admitted]);
   const tokenless = request?.identity === identity ? request.url : undefined;

@@ -19,7 +19,7 @@ test("built Quarry API preserves row and channel types in a packaged Expo consum
     // missing package declarations. Only ordinary installed dependencies link out.
     await cp(join(packageRoot, "package.json"), join(installed, "package.json"));
     await cp(join(packageRoot, "dist"), join(installed, "dist"), { recursive: true });
-    for (const dependency of ["typescript", "expo"]) {
+    for (const dependency of ["typescript", "expo", "react", "react-native", "expo-video", "@types"]) {
       await symlink(join(packageRoot, "node_modules", dependency), join(root, "node_modules", dependency), "dir");
     }
     await writeFile(join(root, "package.json"), JSON.stringify({ private: true, type: "module" }));
@@ -41,6 +41,12 @@ channel typing(todoId: todos):
     await writeFile(join(root, "snapback/todos.q"), `mutation add(done: bool ?):
   row = insert todos { title: 'typed row', done: done ?? false, ownerId: viewer }
   return { row, next: 'saved' }
+
+query page(c: cursor ?):
+  return todos[] after c first 20 by byId
+
+query customPage(after: cursor ?):
+  return todos[] after after first 20 by byId
 `);
     const compiled = spawnSync(process.execPath, [join(installed, "dist/compiler.mjs"), "--project", root], {
       cwd: root, encoding: "utf8", timeout: 15_000,
@@ -50,8 +56,22 @@ channel typing(todoId: todos):
     assert.equal(output.ok, true, compiled.stdout);
     assert.equal(typeof output.apiDts, "string", "built worker did not return the generated API");
     await writeFile(join(root, ".snapback/build/api.d.ts"), output.apiDts);
-    await writeFile(join(root, "App.tsx"), `import { api, createClient } from "snapback2/client";
-type Result = NonNullable<(typeof api.todos.add)["__result"]>;
+    await writeFile(join(root, "App.tsx"), `import { api, createClient, type ResultOf, type ArgsOf } from "snapback2/client";
+import { usePage, useQuery } from "snapback2/react-core";
+const page = usePage(api.todos.page, {});
+const custom = usePage(api.todos.customPage, {}, { cursor: "after" });
+const title: string | undefined = page.items[0]?.title;
+const customTitle: string | undefined = custom.items[0]?.title;
+useQuery(api.todos.page, {});
+useQuery(api.todos.page, { c: null });
+// @ts-expect-error pagination requires an array result
+usePage(api.todos.add, {});
+// @ts-expect-error page items preserve the generated row's field types
+const wrongTitle: number = page.items[0]!.title;
+void [title, customTitle, wrongTitle];
+type Result = ResultOf<typeof api.todos.add>;
+const args: ArgsOf<typeof api.todos.add> = { done: true };
+void args;
 declare const result: Result;
 const done: boolean = result.row.done;
 // @ts-expect-error a boolean field is not a number, even with skipLibCheck
@@ -67,6 +87,17 @@ client.channel(api.channels.typing, { todoId: "todo-1" }).set({ typing: true, ex
 void active;
 void [done, wrong];
 `);
+    await writeFile(join(root, "Native.tsx"), `import { api } from "snapback2/client";
+import { usePage as nativePage } from "snapback2/react-native";
+import { usePage as expoPage } from "snapback2/expo";
+const nativeTitle: string | undefined = nativePage(api.todos.page, {}).items[0]?.title;
+const expoTitle: string | undefined = expoPage(api.todos.customPage, {}, { cursor: "after" }).items[0]?.title;
+// @ts-expect-error native paging requires arrays
+nativePage(api.todos.add, {});
+// @ts-expect-error Expo preserves item field types
+const badExpo: number = expoPage(api.todos.page, {}).items[0]!.title;
+void [nativeTitle, expoTitle, badExpo];
+`);
     const config = ts.getParsedCommandLineOfConfigFile(join(root, "tsconfig.json"), {}, {
       ...ts.sys, onUnRecoverableConfigFileDiagnostic: diagnostic => {
         assert.fail(ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n"));
@@ -76,9 +107,11 @@ void [done, wrong];
     assert.deepEqual(config.errors, []);
     assert.equal(config.options.skipLibCheck, true, "witness must retain Expo's declaration-checking setting");
     assert.equal(config.options.paths, undefined, "package exports must resolve without path substitution");
+    // Expo native peers declare their own DOM globals; use Expo's skipLibCheck
+    // for that graph. The core consumer still checks every shipped declaration.
     for (const skipLibCheck of [true, false]) {
       await context.test(`skipLibCheck=${skipLibCheck}`, () => {
-        const program = ts.createProgram({ rootNames: config.fileNames, options: { ...config.options, skipLibCheck } });
+        const program = ts.createProgram({ rootNames: config.fileNames.filter(file => skipLibCheck || !file.endsWith("/Native.tsx")), options: { ...config.options, skipLibCheck } });
         const diagnostics = ts.getPreEmitDiagnostics(program);
         const rendered = ts.formatDiagnostics(diagnostics, {
           getCanonicalFileName: name => name, getCurrentDirectory: () => root, getNewLine: () => "\n",
@@ -101,8 +134,28 @@ test("generated Api rejects typos, extra query args, and wrong channel args", as
     const apiDts = join(root, "api.d.ts");
     await writeFile(sample, `
       import { api, browserTokenStore, createClient, defineItems, withHistory, type AuthTokenStore, type HistorySnapshot, type ItemSnapshot, type QueryView, type Snapshot, type SnapbackClient } from "snapback2/client";
+      // @ts-expect-error carrier internals are absent from the client entry
+      import type { Coverage } from "snapback2/client";
+      // @ts-expect-error carrier internals are absent from the client entry
+      import type { HeldAnswer } from "snapback2/client";
+      // @ts-expect-error carrier internals are absent from the client entry
+      import type { HeldProgram } from "snapback2/client";
+      // @ts-expect-error carrier internals are absent from the client entry
+      import type { OverlayRow } from "snapback2/client";
+      // @ts-expect-error carrier internals are absent from the client entry
+      import type { StoreSwap } from "snapback2/client";
+      // @ts-expect-error twin internals are absent from the client entry
+      import type { LocalAnswer } from "snapback2/client";
+      // @ts-expect-error twin internals are absent from the client entry
+      import type { Prediction } from "snapback2/client";
+      // @ts-expect-error twin internals are absent from the client entry
+      import type { PartialSite } from "snapback2/client";
       const tokenStore: AuthTokenStore = { load: () => null, save: (_token) => undefined };
       const client = createClient({ url: "http://127.0.0.1:3210", tokenStore });
+      // @ts-expect-error observe is the application read subscription
+      client.subscribe(api.messages.thread, { conversationId: "general" }, () => {});
+      // @ts-expect-error shared reader counts belong to the internal entry
+      client.sharedConsumers(api.messages.thread, { conversationId: "general" });
       const ready: Promise<void> = client.ready;
       const authGeneration: number = client.snapshot.authGeneration;
       const browserStore: AuthTokenStore = browserTokenStore(localStorage, "snapback2:http://127.0.0.1:3210:auth");
@@ -120,9 +173,9 @@ test("generated Api rejects typos, extra query args, and wrong channel args", as
       const historyRows: { message: { id: string; body: string } | null }[] | undefined = custody.history?.data;
       if (custody.itemsFrom === "query") {
         const count: number = custody.data.count;
-        const outcome: "complete" | "capped" = custody.receipt.outcome;
+        const verdict: "complete" | "capped" = custody.receipt.state;
         const noHistory: undefined = custody.history;
-        void [count, outcome, noHistory];
+        void [count, verdict, noHistory];
       } else {
         // @ts-expect-error history and drafts cannot assert the composite's data is present
         const count: number = custody.data.count;
@@ -192,7 +245,7 @@ test("generated Api rejects typos, extra query args, and wrong channel args", as
       client.query(api.messages.thread, { conversationId: "general", extra: true });
       client.channel(api.typing, { bogus: true });
       createClient({ url: "http://127.0.0.1:3210", persist: (_token: string | null) => undefined });
-      createClient({ url: "http://127.0.0.1:3210", as: "alice", token: "bearer" });
+      createClient({ url: "http://127.0.0.1:3210", persona: "alice", token: "bearer" });
     `);
     await writeFile(apiDts, `
       import type { ImageAsset, VideoAsset } from "snapback2";
@@ -248,7 +301,7 @@ test("generated Api rejects typos, extra query args, and wrong channel args", as
   }
 });
 
-test("public refusal types require family and guide", async (context) => {
+test("public refusals require family and accept an optional guide", async (context) => {
   const root = await mkdtemp(join(tmpdir(), "snapback2-refusal-types-"));
   try {
     const sample = join(root, "sample.ts");
@@ -256,11 +309,11 @@ test("public refusal types require family and guide", async (context) => {
       import type {
         ChannelWriteResult,
         MutationRejected,
-        RefusalEnvelope,
+        Refusal,
         RefusedDelivery,
       } from "snapback2/client";
-      const envelopeWithoutGuide: RefusalEnvelope = { code: "E_NO", family: "op", message: "no" };
-      const envelopeWithoutFamily: RefusalEnvelope = { code: "E_NO", message: "no", guide: "op/no" };
+      const envelopeWithoutGuide: Refusal = { code: "E_NO", family: "op", message: "no" };
+      const envelopeWithoutFamily: Refusal = { code: "E_NO", message: "no", guide: "op/no" };
       const rejectedWithoutGuide: MutationRejected = { state: "rejected", code: "E_NO", family: "op", message: "no" };
       const rejectedWithoutFamily: MutationRejected = { state: "rejected", code: "E_NO", message: "no", guide: "op/no" };
       const deliveryWithoutGuide: RefusedDelivery = { state: "refused", code: "E_NO", family: "op", message: "no" };
@@ -291,8 +344,8 @@ test("public refusal types require family and guide", async (context) => {
     });
     const diagnostics = ts.getPreEmitDiagnostics(program).filter((item) => item.file?.fileName === sample);
     const rendered = diagnostics.map((item) => ts.flattenDiagnosticMessageText(item.messageText, "\n"));
-    assert.equal(diagnostics.length, 8, `expected family/guide diagnostics for four refusal types:\n${rendered.join("\n")}`);
-    assert.ok(rendered.filter((message) => message.includes("guide")).length >= 4, rendered.join("\n"));
+    assert.equal(diagnostics.length, 4, `expected family diagnostics for four refusal types:\n${rendered.join("\n")}`);
+    
     assert.ok(rendered.filter((message) => message.includes("family")).length >= 4, rendered.join("\n"));
     context.diagnostic(diagnostics.map((item, index) => `TS${item.code}: ${rendered[index]}`).join("\n"));
   } finally {

@@ -895,6 +895,7 @@ fn add_member_case(cases: &mut Vec<CorpusCase>) {
         read_time_granularity_ms: None,
         body: vec![
             Stmt::Require {
+                site: None,
                 condition: Expr::Binary {
                     op: BinaryOp::Lte,
                     left: Box::new(duration.clone()),
@@ -1084,6 +1085,7 @@ fn forged_first_require_case() -> CorpusCase {
         read_time_granularity_ms: None,
         body: vec![
             Stmt::Require {
+                site: None,
                 condition: Expr::Binary {
                     op: BinaryOp::Lte,
                     left: Box::new(duration),

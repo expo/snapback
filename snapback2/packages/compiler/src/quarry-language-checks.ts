@@ -1,5 +1,9 @@
 import { deepStrictEqual, throws } from "node:assert";
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+import ts from "typescript";
 import { canonicalValue, ClientStore, type Context, type Value } from "../../evaluator/src/evaluator";
+import { canonicalSchemaJson } from "../../evaluator/src/certificate-identity";
 import { lowerProject } from "./project";
 import { rustCheck } from "./rust-check";
 import { assert, compileInline, diagnosticsText, operation, withProject, type Test } from "./quarry-check-helpers";
@@ -54,6 +58,263 @@ function refusal(source: string, text: string, declarations = schema) {
 }
 
 export function registerQuarryLanguageChecks(test: Test, frontend: string): void {
+  test("one spelling: significant Quarry words are frozen", () => {
+    // One pin, derived on the other side from the actual lexer/parser/binder decisions.
+    const expected = `
+after allow and at before bool by byId byPrincipal bytes cap channel channels chunk commit connected
+count created cursor d decimal delete delivered-history deny depth device divmod duration effect
+else emit enum every exists false first fn for format from guests h handle height id identity if
+image immutable in index insert int job json last length m maintain max merge min money mutation new
+not now null oblivious of on once op or password principal proc public publish query quotient range
+read readable remainder require retain return s schedule shape share sorted subscribe sum system
+table text then time toJSON tokens tombstones true ttl unique until-revoked up update upsert url use
+value video viewer walk where while width wordPrefixes words
+`.split(/\s+/).filter(Boolean);
+    deepStrictEqual(recognizedQuarryWords(frontend), expected);
+  });
+  test("one spelling: word freeze detects ordinary dispatch forms and aliases", async () => {
+    for (const decision of [
+      'switch (token.value) { case "unfrozenword": break; }',
+      'switch (expression.name) { case "unfrozenword": break; }',
+      'const spelling = token.value; switch (spelling) { case "unfrozenword": break; }',
+      'if (token.value == "unfrozenword") {}',
+      'if ("unfrozenword" !== token["value"]) {}',
+      'const spelling = expression.name; if (spelling === "unfrozenword") {}',
+      'const choices = ["unfrozenword"]; if (choices.includes(token.value)) {}',
+      'const choices = new Set(["unfrozenword"]); if (choices.has(token.value)) {}',
+      'const choices = new Map([["unfrozenword", 1]]); choices.get(expression.name);',
+    ]) await withProject({ "src/quarry/parser.ts": `function dispatch(token, expression) { ${decision} }` }, async root => {
+      deepStrictEqual(recognizedQuarryWords(root), ["unfrozenword"], decision);
+    });
+  });
+  // @ref LLP 1011#one-spelling — the commissioned spelling changes and their refusal repairs.
+  test("one spelling: indexes require explicit names and pasteable inferred-name repairs", () => {
+    for (const [authored, rewrite] of [
+      ["by author", "by byAuthor: author"],
+      ["unique author, at", "unique byAuthorAt: author, at"],
+      ["by author, wordPrefixes(body), at", "by byAuthorWordPrefixesBodyAt: author, wordPrefixes(body), at"],
+    ]) {
+      const declarations = `table rows:\n  author: principal\n  body: text <=100\n  at: time\n  ${authored}\n  public\n`;
+      const result = compile("query probe():\n  return true\n", declarations);
+      assert(!result.ok, `${authored} admitted an unnamed index`);
+      const diagnostic = result.diagnostics.find(d => d.message === "index declarations require an explicit name");
+      assert(diagnostic?.code === "E_QUARRY_SYNTAX" && diagnostic.site === "snapback/schema.q:5:3"
+        && diagnostic.family === "quarry" && diagnostic.guide === "quarry/grammar", JSON.stringify(result));
+      deepStrictEqual(diagnostic.rewrite, rewrite);
+      assert(compile("query probe():\n  return true\n", declarations.replace(authored!, rewrite!)).ok, `${rewrite} did not compile`);
+    }
+  });
+  test("one spelling: bare assertions, match and hash reads refuse", () => {
+    for (const source of [
+      "query probe():\n  return posts['p']!\n",
+      "query probe():\n  match posts['p']:\n    some p:\n      return p\n    none:\n      return null\n",
+      "query probe():\n  return #replyCounts[null]\n",
+      "query probe():\n  return #connected[viewer]\n",
+    ]) {
+      const result = compile(source);
+      assert(!result.ok && result.diagnostics.some(d => d.code === "E_QUARRY_SYNTAX"), JSON.stringify(result));
+      if (source.includes("!")) {
+        const assertion = result.diagnostics.find(d => d.message === "presence assertions require a refusal code");
+        assert(assertion?.rewrite === "! else CODE", JSON.stringify(result));
+        assert(compile(source.replace("!", "! else MISSING_POST")).ok, "named assertion refused");
+      }
+    }
+  });
+  test("one spelling: if-null else narrows names and one-hop fields", async () => {
+    await project(`query scalar(x: int ?):
+  if x = null:
+    return false
+  else:
+    return x > 0
+query field(p: posts):
+  x = posts[p] ! else MISSING
+  if x.parent = null:
+    return false
+  else:
+    return exists posts[x.parent]
+`, lowered => {
+      for (const [x, expected] of [["Null", false], [{ Int: 2 }, true]] as const) {
+        const result = new ClientStore(lowered.project.schema, empty).reexecute(
+          operation(lowered.project.programs, "probe.scalar"), { ...context, args: { x } }).execution;
+        equal(result.result, { Bool: expected });
+      }
+    });
+  });
+  test("one spelling: and narrows the right operand and skips its reads and assertion preludes", async () => {
+    await project(`query probe(x: int ?, p: posts):
+  return x != null and x > 0 and (posts[p] ! else MISSING_POST).at > now
+query field(p: posts):
+  x = posts[p] ! else MISSING
+  return x.parent != null and exists posts[x.parent]
+query body(p: posts):
+  x = posts[p]
+  return x != null and x.at > now
+`, lowered => {
+      const program = operation(lowered.project.programs, "probe.probe");
+      const receipt = { ...empty, absences: [["posts", "byId", [id("missing")]]] } as any;
+      for (const x of ["Null", { Int: -1 }] as Value[]) {
+        const result = new ClientStore(lowered.project.schema, receipt).reexecute(program, {
+          ...context, args: { x, p: id("missing") },
+        }).execution;
+        equal(result.result, { Bool: false });
+        assert(result.trace.points.length === 0 && result.trace.absences.length === 0, "unreached right-hand point read was evaluated");
+      }
+      throws(() => new ClientStore(lowered.project.schema, receipt).reexecute(program, {
+        ...context, args: { x: { Int: 1 }, p: id("missing") },
+      }), (error: any) => error.authoredCode === "MISSING_POST");
+    });
+  });
+  test("one spelling: require narrows the rest of its block without leaking to siblings or shadows", async () => {
+    await project(`query scalar(x: int ?):
+  require x != null else MISSING
+  return x > 0
+query field(p: posts):
+  x = posts[p] ! else MISSING
+  require x.parent != null else ROOT
+  return exists posts[x.parent]
+`, lowered => {
+      for (const [x, code] of [["Null", "MISSING"], [{ Int: 2 }, undefined]] as const) {
+        const execute = () => new ClientStore(lowered.project.schema, empty).reexecute(
+          operation(lowered.project.programs, "probe.scalar"), { ...context, args: { x } }).execution;
+        if (code) throws(execute, (error: any) => error.authoredCode === code);
+        else equal(execute().result, { Bool: true });
+      }
+    });
+    for (const body of [
+      "  return x > 0\n",
+      "  return x != null or x > 0\n",
+      "  if x != null:\n    return true\n  else:\n    return x > 0\n",
+      "  if flag:\n    require x != null else MISSING\n  return x > 0\n",
+      "  require x != null else MISSING\n  if flag:\n    x = y\n    return x > 0\n  return false\n",
+    ]) refusal(`query probe(x: int ?, y: int ?, flag: bool):\n${body}`, "ordered comparison > requires present operands");
+  });
+  test("one spelling: maintain point reads type as values and keep numeric brands", async () => {
+    const declarations = `table ledger:
+  owner: principal
+  amount: money USD 2
+  decimal: decimal 3
+  value: int
+  public
+  insert <- allow
+maintain counts = count ledger by owner:
+  read <- .owner = viewer
+maintain balances = sum ledger of amount by owner:
+  read <- .owner = viewer
+maintain decimals = sum ledger of decimal by owner:
+  read <- .owner = viewer
+`;
+    await project(`query values():
+  return { count: counts[viewer], money: balances[viewer], decimal: decimals[viewer] }
+query valuesFor(owner: principal):
+  return { count: counts[owner], money: balances[owner], decimal: decimals[owner] }
+query online():
+  return connected[viewer]
+query ordinary(p: ledger):
+  return ledger[p]
+mutation afterWrite():
+  before = counts[viewer]
+  insert ledger { owner: viewer, amount: 2.50, decimal: 1.125, value: 9 }
+  return { before, after: counts[viewer], money: balances[viewer], decimal: decimals[viewer] }
+`, lowered => {
+      assert(lowered.apiDts.includes('count: number; money: Money<"USD", 2>; decimal: Decimal<3>'), lowered.apiDts);
+      assert(lowered.apiDts.includes('online: Op<{}, number>'), lowered.apiDts);
+      assert(lowered.apiDts.includes('LedgerRow | null'), "ordinary row with a value column became an aggregate");
+      assert(!/Op<[^\n]*CountsRow/.test(lowered.apiDts), lowered.apiDts);
+      const receipt = { ...empty, absences: [
+        ["counts", "byOwner", [id("alice")]], ["balances", "byOwner", [id("alice")]],
+        ["decimals", "byOwner", [id("alice")]], ["_connected", "byPrincipal", [id("alice")]],
+      ] } as any;
+      const value = new ClientStore(lowered.project.schema, receipt).reexecute(
+        operation(lowered.project.programs, "probe.values"), context).execution;
+      equal(value.result, row({ count: { Int: 0 }, money: { Int: 0 }, decimal: { Int: 0 } }));
+      for (const [caseName, op] of [
+        ["maintain-numeric-after-write-present", "afterWrite"],
+        ["maintain-numeric-after-write-absent", "afterWrite"],
+        ["maintain-numeric-group-absent", "valuesFor"],
+        ["maintain-numeric-group-unreadable", "valuesFor"],
+      ]) {
+        const corpus = JSON.parse(readFileSync(join(frontend, "../../corpus", `${caseName}.json`), "utf8"));
+        // Use the authored operation, branded schema, authoritative receipt and exact
+        // typed expectation, not merely api.d.ts or the corpus's hand-built IR.
+        deepStrictEqual(canonicalSchemaJson(lowered.project.schema), canonicalSchemaJson(corpus.schema));
+        const store = new ClientStore(lowered.project.schema, corpus.receipt);
+        const program = operation(lowered.project.programs, `probe.${op}`);
+        const replay = op === "afterWrite" ? store.applyMutation(program, corpus.context) : store.reexecute(program, corpus.context);
+        deepStrictEqual(replay.state, corpus.expected.localState, caseName);
+        equal(replay.execution.result, corpus.expected.localResult);
+        deepStrictEqual(replay.partialSites, caseName === "maintain-numeric-group-unreadable"
+          ? ["probe.valuesFor.0", "probe.valuesFor.1", "probe.valuesFor.2"] : [], `${caseName}: partial sites`);
+        if (op === "valuesFor") {
+          deepStrictEqual(replay.execution.trace.points.map(({ site, table, index }) => [site, table, index]), [
+            ["probe.valuesFor.0", "counts", "byOwner"],
+            ["probe.valuesFor.1", "balances", "byOwner"],
+            ["probe.valuesFor.2", "decimals", "byOwner"],
+          ], `${caseName}: compiler grouping Gets`);
+        }
+      }
+    }, declarations);
+  });
+  test("one spelling: maintained reference projections refuse with executable scalar API repairs", async () => {
+    const declarations = `table ledger:
+  owner: principal
+  amount: money USD 2
+  decimal: decimal 3
+  public
+maintain counts = count ledger by owner:
+  read <- allow
+maintain balances = sum ledger of amount by owner:
+  read <- allow
+maintain decimals = sum ledger of decimal by owner:
+  read <- allow
+`;
+    for (const [table, expected] of [["counts", "number"], ["balances", 'Money<"USD", 2>'], ["decimals", "Decimal<3>"]]) {
+      for (const [binding, expression, optional] of [
+        ["", "c { * }", false], ["", "c.value", false], ["", "c tally", false],
+        ["  a = c\n", "a { * }", false], ["  a = c\n", "a.value", false], ["  a = c\n", "a tally", false],
+        ["", "c { * }", true], ["  a = c\n", "a.value", true], ["", "c tally", true],
+      ] as const) {
+        const source = `shape tally = { * }\nquery read(c: ${table}${optional ? " ?" : ""}):\n${binding}  return ${expression}\n`;
+        await withProject({ "snapback/schema.q": declarations, "snapback/probe.q": source }, async root => {
+          const lowered = await lowerProject(root);
+          assert(!lowered.ok, `${table}: ${expression} exposed a maintained row in api.d.ts`);
+          const diagnostic = lowered.diagnostics[0]!;
+          assert(diagnostic.code === "E_QUARRY_TYPE" && diagnostic.family === "quarry"
+            && diagnostic.site?.startsWith("snapback/probe.q:") && diagnostic.guide === "quarry/types", JSON.stringify(diagnostic));
+          const repair = `${table}[${binding ? "a" : "c"}${optional ? " ! else CODE" : ""}]`;
+          deepStrictEqual(diagnostic.rewrite, repair);
+          await project(source.replace(expression, repair), result => {
+            assert(result.apiDts.includes(`readonly read: Op<{ c${optional ? "?" : ""}: string${optional ? " | null" : ""} }, ${expected}>;`), result.apiDts);
+          }, declarations);
+        });
+      }
+    }
+  });
+  test("one spelling: compiler maintain query and mutation agree with engine and twin corpus values", async () => {
+    const declarations = `table ledger:
+  owner: principal
+  public 'maintain value corpus'
+  insert <- allow
+maintain counts = count ledger by owner:
+  read <- allow
+`;
+    await project(`query values(other: counts):
+  return { present: counts[viewer], absent: counts[other] }
+query valuesGroup(other: principal):
+  return { present: counts[viewer], absent: counts[other] }
+mutation afterWrite(other: counts):
+  insert ledger { id: new, owner: viewer }
+  return { present: counts[viewer], absent: counts[other] }
+`, lowered => {
+      for (const [caseName, op] of [["maintain-value-query", "values"], ["maintain-value-group-query", "valuesGroup"], ["maintain-value-after-write", "afterWrite"]]) {
+        const corpus = JSON.parse(readFileSync(join(frontend, "../../corpus", `${caseName}.json`), "utf8"));
+        const store = new ClientStore(lowered.project.schema, corpus.receipt);
+        const program = operation(lowered.project.programs, `probe.${op}`);
+        const result = op === "afterWrite" ? store.applyMutation(program, corpus.context) : store.reexecute(program, corpus.context);
+        deepStrictEqual(result.state, corpus.expected.localState);
+        equal(result.execution.result, corpus.expected.localResult);
+      }
+    }, declarations);
+  });
   test("connected refuses Quarry maintains and table rules with a site and rewrite", () => {
     for (const declarations of [
       schema + "\nmaintain counts = count connected by principal:\n  read <- allow\n",
@@ -78,7 +339,11 @@ export function registerQuarryLanguageChecks(test: Test, frontend: string): void
     });
   }
   test("connected certifies one probe per principal read and refuses nonprogram surfaces", async () => {
-    await project("query count(p: principal):\n  return #connected[p]\nquery online():\n  return exists connected[viewer]\nmutation gate(p: principal):\n  require exists connected[p] else OFFLINE\n  return #connected[p]\n", result => {
+    const invalidKey = compile("query bad(p: principal ?):\n  return connected[p] by byPrincipal\n");
+    assert(!invalidKey.ok, "connected admitted an optional principal");
+    deepStrictEqual(invalidKey.diagnostics[0]?.rewrite,
+      "-- use connected[viewer] or exists connected[p] with p: principal");
+    await project("query count(p: principal):\n  return connected[p]\nquery online():\n  return exists connected[viewer]\nmutation gate(p: principal):\n  require exists connected[p] else OFFLINE\n  return connected[p]\n", result => {
       assert(!("connected" in result.project.schema.tables) && !("_connected" in result.project.schema.tables), "virtual table leaked into durable schema");
       const checked = rustCheck(result.project.programs, "synthetic", result.project.schema);
       for (const item of checked) {
@@ -88,14 +353,13 @@ export function registerQuarryLanguageChecks(test: Test, frontend: string): void
       }
     });
     for (const key of ["'alice'", "1", "null", "", "viewer, viewer"]) {
-      const result = compile(`query bad():\n  return #connected[${key}]\n`);
+      const result = compile(`query bad():\n  return connected[${key}]\n`);
       assert(!result.ok, `connected admitted key ${key}`);
     }
     for (const arg of ["p: id", "p: posts", "p: principal ?"]) {
       assert(!compile(`query bad(${arg}):\n  return exists connected[p]\n`).ok, `connected admitted ${arg}`);
     }
     for (const source of [
-      "query bad():\n  return connected[viewer]\n",
       "query bad():\n  return connected[] first 10\n",
       "mutation bad():\n  insert connected { principal: viewer, value: 1 }\n",
     ]) assert(!compile(source).ok, `connected admitted ${source}`);
@@ -136,7 +400,7 @@ table buckets:
   insert <- exists replyCounts[null]
 `;
     await project(`query probe(parent: posts ?):
-  return { literal: #replyCounts[null], typed: #replyCounts[parent], named: #replyCounts[parent = null],
+  return { literal: replyCounts[null], typed: replyCounts[parent], named: replyCounts[parent = null],
     found: exists buckets[null], bucket: buckets[parent = null] }
 `, (lowered) => {
       const program = lowered.project.programs[0]!;
@@ -192,7 +456,7 @@ query probe():
   });
   test("Quarry optional access lowers in update patches without a coalesce workaround", async () => {
     await project(`mutation probe(id: posts, copy: posts):
-  p = posts[id]!
+  p = posts[id]! else NOT_FOUND
   update posts[p] { parentAuthor: posts[p.parent].author ?? viewer }
   upsert posts[copy] { author: viewer, at: now, parentAuthor: posts[p.parent].author ?? viewer }
   return true
@@ -258,13 +522,13 @@ query probe():
     assert(!noMatch.ok, "missing index accepted");
     const guidance = noMatch.diagnostics[0]!.rewrite;
     assert(guidance.startsWith("-- "), guidance);
-    assert(guidance.includes("settings.byId (id: reference to settings)") && guidance.includes("settings.byKey (key: text <=20)"), guidance);
+    assert(guidance.includes("settings.byId (id: settings)") && guidance.includes("settings.byKey (key: text <=20)"), guidance);
     const wrong = compile("query probe(p: posts):\n  return settings[id = p]\n");
-    assert(!wrong.ok && wrong.diagnostics[0]!.rewrite.includes("reference to settings; received reference to posts"), JSON.stringify(wrong));
+    assert(!wrong.ok && wrong.diagnostics[0]!.rewrite.includes("settings; received posts"), JSON.stringify(wrong));
     assert(wrong.diagnostics[0]!.rewrite.startsWith("-- "), JSON.stringify(wrong));
     const repair = compile("query probe(key: text <=20):\n  return settings[id = key]\n");
     assert(!repair.ok && repair.diagnostics[0]!.rewrite === "settings[key = key]", JSON.stringify(repair));
-    assert(JSON.stringify(repair.diagnostics[0]) === '{"code":"E_QUARRY_UNKNOWN","family":"quarry","message":"settings.byId expects reference to settings for id, got text <=20","site":"snapback/probe.q:2:24","rewrite":"settings[key = key]","guide":"quarry/names"}', JSON.stringify(repair));
+    assert(JSON.stringify(repair.diagnostics[0]) === '{"code":"E_QUARRY_UNKNOWN","family":"quarry","message":"settings.byId expects settings for id, got text <=20","site":"snapback/probe.q:2:24","rewrite":"settings[key = key]","guide":"quarry/names"}', JSON.stringify(repair));
     await project(`query probe(key: text <=20):\n  return ${repair.diagnostics[0]!.rewrite}\n`, () => {});
     // Non-empty strings are legal Id literals (F6-C); this spelling cannot truthfully refuse.
     await project("query probe():\n  return settings[id = 'windows']\n", () => {});
@@ -301,7 +565,7 @@ schedule expire on posts at .expiresAt: receive(.other)
   });
   test("Quarry optional list domains refuse before an omitted column can reach array execution", async () => {
     for (const domain of ["p.tags", "alias"]) {
-      const source = `query probe(id: posts):\n  p = posts[id]!\n  alias = p.tags\n  for t in ${domain}:\n    require t != '' else EMPTY\n  return true\n`;
+      const source = `query probe(id: posts):\n  p = posts[id]! else NOT_FOUND\n  alias = p.tags\n  for t in ${domain}:\n    require t != '' else EMPTY\n  return true\n`;
       const refused = compile(source);
       assert(!refused.ok, "unguarded optional list compiled");
       const diagnostic = refused.diagnostics[0]!;
@@ -318,7 +582,7 @@ schedule expire on posts at .expiresAt: receive(.other)
     await project(`query probe(tags: [text 1..32] <=8, id: posts):
   for t in tags:
     require t != '' else EMPTY
-  p = posts[id]!
+  p = posts[id]! else NOT_FOUND
   for t in p.tags ?? []:
     require t != '' else EMPTY
   return true
@@ -332,7 +596,7 @@ schedule expire on posts at .expiresAt: receive(.other)
   test("Quarry bounded list columns survive aliases, optional narrowing, coalescing and nested shapes", async () => {
     await project(`shape tagsCard = { nested: { tags: .tags } }
 query optional(id: posts):
-  p = posts[id]!
+  p = posts[id]! else NOT_FOUND
   alias = p.tags
   for tag in alias ?? []:
     require tag != '' else EMPTY
@@ -344,7 +608,7 @@ query optional(id: posts):
     require tag != '' else EMPTY
   return true
 query required(id: posts):
-  p = posts[id]!
+  p = posts[id]! else NOT_FOUND
   for tag in p.requiredTags:
     require tag != '' else EMPTY
   return true
@@ -364,9 +628,93 @@ query required(id: posts):
   });
   test("Quarry json lists still lack a static cardinality", async () => {
     await withProject({ "snapback/schema.q": schema.replace("  at: time", "  payload: json <=1000\n  at: time"),
-      "snapback/probe.q": "query probe(id: posts):\n  p = posts[id]!\n  for tag in p.payload.tags:\n    value = tag\n  return true\n" }, async (root) => {
+      "snapback/probe.q": "query probe(id: posts):\n  p = posts[id]! else NOT_FOUND\n  for tag in p.payload.tags:\n    value = tag\n  return true\n" }, async (root) => {
       const result = await lowerProject(root);
       assert(!result.ok && result.diagnostics.some((d) => d.code === "E_UNBOUND_LOOP"), JSON.stringify(result));
     });
   });
+}
+
+/** Extract the front end's literal word dispatch: comparisons, switches,
+ * initializer aliases, parser calls, lookups and intrinsic declarations.
+ * Computed strings/regexes and cross-file aliases need explicit extractor
+ * support; this source-AST freeze is not a runtime vocabulary census. */
+export function recognizedQuarryWords(frontend: string): string[] {
+  const words = new Set<string>();
+  const directory = join(frontend, "src/quarry");
+  for (const file of readdirSync(directory).filter(file => file.endsWith(".ts"))) {
+    const source = ts.createSourceFile(file, readFileSync(join(directory, file), "utf8"), ts.ScriptTarget.Latest, true);
+    const declarations = new Map<string, ts.Expression[]>();
+    const visit = (node: ts.Node, fn: (node: ts.Node) => void): void => { fn(node); node.forEachChild(child => visit(child, fn)); };
+    visit(source, node => {
+      if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
+        declarations.set(node.name.text, [...declarations.get(node.name.text) ?? [], node.initializer]);
+      }
+    });
+    const examined = new Set<ts.Node>();
+    const literals = (node: ts.Node): void => {
+      if (examined.has(node)) return;
+      examined.add(node);
+      if (ts.isStringLiteralLike(node)) {
+        if (/^[a-z][a-zA-Z0-9-]*$/.test(node.text)) words.add(node.text);
+      } else if (ts.isIdentifier(node)) {
+        for (const value of declarations.get(node.text) ?? []) literals(value);
+      } else if (ts.isArrayLiteralExpression(node)) node.elements.forEach(item => literals(item));
+      else if (ts.isNewExpression(node) && ["Set", "Map"].includes(node.expression.getText(source))) {
+        node.arguments?.forEach(item => literals(item));
+      } else if (ts.isConditionalExpression(node)) {
+        literals(node.whenTrue); literals(node.whenFalse);
+      } else if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)
+        && node.expression.name.text === "map") literals(node.expression.expression);
+    };
+    const wordOperand = (node: ts.Node, seen = new Set<ts.Node>()): boolean => {
+      if (seen.has(node)) return false;
+      seen.add(node);
+      if (ts.isParenthesizedExpression(node) || ts.isAsExpression(node) || ts.isNonNullExpression(node)) return wordOperand(node.expression, seen);
+      if (ts.isPropertyAccessExpression(node)) return ["value", "name", "table", "column"].includes(node.name.text);
+      if (ts.isElementAccessExpression(node) && ts.isStringLiteralLike(node.argumentExpression)) {
+        return ["value", "name", "table", "column"].includes(node.argumentExpression.text);
+      }
+      if (!ts.isIdentifier(node)) return false;
+      if (!["name", "unit", "policy"].includes(node.text)) {
+        return (declarations.get(node.text) ?? []).some(value => wordOperand(value, seen));
+      }
+      // Object serialization's destructured property labels aren't authored word decisions.
+      for (let parent = node.parent; parent; parent = parent.parent) {
+        if (ts.isArrowFunction(parent)) return !parent.parameters.some(p => ts.isArrayBindingPattern(p.name));
+        if (ts.isFunctionDeclaration(parent) || ts.isMethodDeclaration(parent)) break;
+      }
+      return true;
+    };
+    visit(source, node => {
+      if (ts.isBinaryExpression(node) && [ts.SyntaxKind.EqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsToken,
+        ts.SyntaxKind.EqualsEqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsEqualsToken].includes(node.operatorToken.kind)) {
+        if (wordOperand(node.left)) literals(node.right);
+        if (wordOperand(node.right)) literals(node.left);
+      }
+      if (ts.isSwitchStatement(node) && wordOperand(node.expression)) {
+        for (const clause of node.caseBlock.clauses) if (ts.isCaseClause(clause)) literals(clause.expression);
+      }
+      if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)) {
+        const call = node.expression;
+        if (call.expression.kind === ts.SyntaxKind.ThisKeyword && ["at", "take", "maybe"].includes(call.name.text)) {
+          node.arguments.forEach(arg => literals(arg));
+        } else if (["includes", "has", "get"].includes(call.name.text) && node.arguments.some(arg => wordOperand(arg))) {
+          literals(call.expression);
+        }
+      }
+      // Intrinsic rows/indexes and result fields, rather than arbitrary authored names.
+      if (["catalog.ts", "index.ts"].includes(file) && ts.isPropertyAssignment(node)
+        && node.name.getText(source) === "name" && ts.isStringLiteralLike(node.initializer)) {
+        literals(node.initializer);
+      }
+      if (file === "lexer.ts" && ts.isVariableDeclaration(node) && node.initializer && ts.isArrayLiteralExpression(node.initializer)) {
+        literals(node.initializer);
+      }
+      if (file === "bound-builtins.ts" && ts.isNewExpression(node) && node.expression.getText(source) === "Map") {
+        node.arguments?.forEach(arg => literals(arg));
+      }
+    });
+  }
+  return [...words].sort();
 }

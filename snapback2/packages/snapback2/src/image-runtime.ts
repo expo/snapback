@@ -6,3 +6,4 @@ export { SEARCH_CONTRACT, SearchInputError, SearchNormalizer, scalarLength, sear
   searchQueryToken, searchWords, normalizationSteps } from '../../evaluator/src/unicode.js';
 export * from '../../evaluator/src/range-preparation.js';
 export * from './query-frame.js';
+export { subscribe, sharedConsumers, internalSubscribe, internalConsumers } from './internal-access.js';

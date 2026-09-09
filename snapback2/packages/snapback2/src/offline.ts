@@ -1,8 +1,9 @@
+import { operationArgs, queryArgs } from "./store/canonical.js";
 import { decodeHeldProgram, queryClock } from "./held-program.js";
 import { cursorArgument, serverArguments } from "./local-cursor.js";
 export { decodeHeldProgram } from "./held-program.js";
 import { tombstonesFor } from "./tombstones.js";
-import { SnapbackRefusal, throwIfAborted, isSnapbackRefusal } from "./client-wire.js";
+import { RefusalError, throwIfAborted, isRefusalError } from "./client-wire.js";
 import { ClockCoverageReset, FullRevalidationRequired } from './store/fact-integrity.js';
 import {
   DeliveryEnvelopeDecodeError,
@@ -40,7 +41,7 @@ import { rowKey, mapExpandedRows } from "./store/row-values.js";
 import { Twin, readsConnected, type LocalAnswer, type Prediction } from "./twin.js";
 import { carryItemInputs, emptyItemInputs, itemInputs, withItemInputs } from "./query-frame.js";
 import { deliveredItemInputs } from "./query-items.js";
-import type { DrainContract, Manifest, OfflineClientOptions, OutboxSettlement, RefusalEnvelope } from "./types.js";
+import type { DrainContract, Manifest, OfflineClientOptions, OutboxSettlement, Refusal } from "./types.js";
 
 /**
  * Ids a certified mutation can mint: the certificate's insert/upsert bounds, which
@@ -69,7 +70,7 @@ export interface MountedQuery {
   op: string;
   args: unknown;
   drain: boolean;
-  refuse?(refusal: RefusalEnvelope): void;
+  refuse?(refusal: Refusal): void;
 }
 
 export interface ResumeRequestV1 {
@@ -102,6 +103,21 @@ export interface AcceptedDelivery<Result> {
 
 type ResumeFacts = CoverageFacts;
 
+/** Cache revalidation and full deliveries expose the same query value fields. */
+function queryResult<Result>(source: Omit<AcceptedDelivery<unknown>["result"], "data">, data: Result | undefined, seq = source.seq): AcceptedDelivery<Result>["result"] {
+  return {
+    state: source.state, seq,
+    ...(source.state !== "denied" && data !== undefined ? { data } : {}),
+    ...((source.state === "complete" || source.state === "capped") && source.next !== undefined ? { next: source.next } : {}),
+    ...(source.reason === undefined ? {} : { reason: source.reason }),
+    ...(source.rule === undefined ? {} : { rule: source.rule }),
+  };
+}
+
+function sameProgram(a: Pick<CoverageFacts, "generation" | "schemaHash">, b: Pick<CoverageFacts, "generation" | "schemaHash">): boolean {
+  return a.generation === b.generation && a.schemaHash === b.schemaHash;
+}
+
 // @ref LLP 1012#15-diagnostics — a local authority violation (a delivery for
 // another principal or auth epoch; a commit with no partition open) has its
 // own code: it is never `E_OFFLINE_RESET`, which drops held coverage, so a
@@ -126,10 +142,10 @@ function object(value: unknown): value is Record<string, unknown> {
 export function admitDrain(op: string, contract: DrainContract | undefined): string {
   if (contract && "cursor" in contract && typeof contract.cursor === "string" && contract.cursor.length > 0) return contract.cursor;
   const shape = contract && "reason" in contract ? contract.reason : "metadata-unavailable";
-  throw new SnapbackRefusal({ code: "E_OFFLINE_RESUME", family: "offline", guide: "offline",
-    reason: "unsupported-log", which: "log", op, shape, site: "client.subscribe.drain",
-    message: `operation ${op} cannot drain/resume a log (${shape}); every returned page must ascend after the same cursor with at most 50 rows`,
-    rewrite: "use an ascending delivery log (after c first N, N <= 50); subscribe normally at c: null for newest-first data; reconnect if metadata is unavailable; queued writes are kept" });
+  throw new RefusalError({ code: "E_OFFLINE_RESUME", family: "offline", guide: "offline",
+    reason: "unsupported-log", which: "log", op, shape, site: "client.observe.drain",
+    message: `${op} cannot drain (${shape})`,
+    rewrite: "use after c first N (N <= 50); omit drain for newest-first queries; connect for missing metadata" });
 }
 
 // @ref LLP 1012#15-diagnostics — invalid options are TypeErrors; carrier-thrown errors retain their refusal semantics.
@@ -147,11 +163,11 @@ export class OfflineRuntime {
   /** Activity of the existing serialized replay owner, independent of live reads. */
   draining = false;
   /**
-   * The last drain's outcome, rejection kept: `settled()` awaits this so a
+   * The last drain's verdict, rejection kept: `settled()` awaits this so a
    * non-retryable refusal that stopped the replay reaches the caller instead of
    * resolving with intents still queued (LLP 1012 §7).
    */
-  drainOutcome: Promise<OutboxSettlement> = Promise.resolve({ stopped: false, remaining: 0 });
+  drainVerdict: Promise<OutboxSettlement> = Promise.resolve({ stopped: false, remaining: 0 });
   /** The twin: the certified program over this partition's coverage (LLP 1012 §6, §7). */
   readonly twin: Twin;
   private partition?: string;
@@ -189,7 +205,7 @@ export class OfflineRuntime {
     this.store = options.store();
     // Check the result once, structurally: custom carriers need no built-in brand.
     if (typeof this.store?.open !== "function") {
-      throw new InvalidOfflineStoreError("createClient offline.store must return a RangeStore with open(); for IndexedDB, use offline: { store: indexedDbRangeStore() }. See snapback2 guide offline");
+      throw new InvalidOfflineStoreError("offline.store must return a RangeStore with open(); use store: indexedDbRangeStore(); snapback2 guide offline");
     }
     this.fenceDays = options.fenceDays ?? 7;
     this.maxAssetBytes = options.maxAssetBytes ?? 256 * 1024 * 1024;
@@ -364,7 +380,7 @@ export class OfflineRuntime {
   async insertInbox(row: InboxInsert): Promise<number> {
     const connection = this.inboxConnection;
     if (!connection || connection.ended) {
-      throw new OfflineStoreFailure("E_OFFLINE_LOCK", "this tab has no route to the account's partition; another tab holds it and this one cannot reach its inbox");
+      throw new OfflineStoreFailure("E_OFFLINE_LOCK", "this tab has no route to the account's partition");
     }
     const key = await connection.insert({ ...row, ...(row.kind === "mutation" ? { args: jsonArguments(row.args) } : {}) });
     await this.refreshInbox().catch(() => undefined);
@@ -442,13 +458,13 @@ export class OfflineRuntime {
       }
       try {
         // Custody is checked inside the serial, before and after prediction, and before the commit (LLP 1018.004 §2).
-        const outcome = await this.outbox.admitInbox(row, check.custody, this.seq, async (ids) => {
+        const verdict = await this.outbox.admitInbox(row, check.custody, this.seq, async (ids) => {
           check.custody();
           const prediction = await this.predict(row.op!, row.args, ids);
           check.custody();
           return prediction;
         }, check.custody);
-        if (outcome.outcome === "admitted") admitted += 1;
+        if (verdict.state === "admitted") admitted += 1;
       } catch (error) {
         if (error instanceof OutboxRefusal) { stopped = error.code; break; }
         throw error;
@@ -478,7 +494,7 @@ export class OfflineRuntime {
         this.superseded = undefined;
         this.held = undefined;
         this.operations = {};
-        this.drainOutcome = Promise.resolve({ stopped: false, remaining: 0 });
+        this.drainVerdict = Promise.resolve({ stopped: false, remaining: 0 });
       }
       if (this.partition !== undefined && this.partition !== principal) await this.store.wipe(this.partition);
       if (this.partition !== principal) {
@@ -515,7 +531,7 @@ export class OfflineRuntime {
     if (changed) { this.coverageRevision += 1; this.outbox.resetTrust(); }
     await this.serial(async () => {
       if (this.partition !== principal) {
-        throw new OfflineAuthorityError(`authenticated principal ${principal} does not match the open offline partition`);
+        throw new OfflineAuthorityError(`offline principal mismatch: ${principal}`);
       }
       await this.store.unseal();
       await this.loadFacts();
@@ -623,7 +639,7 @@ export class OfflineRuntime {
   }
   cursorArg(op: string): string { return this.declaredCursorArg(op) ?? "c"; }
   serverArguments(op: string, args: unknown): unknown {
-    return serverArguments(args, (this.held?.programs[op]?.ir as any)?.args ?? this.operations[op]?.args);
+    return serverArguments(operationArgs(args, this.declaredCursorArg(op)), (this.held?.programs[op]?.ir as any)?.args ?? this.operations[op]?.args);
   }
 
   /**
@@ -668,7 +684,7 @@ export class OfflineRuntime {
       let raw: unknown;
       try { raw = await revalidate(); }
       catch (error) {
-        if (isSnapbackRefusal(error) && error.retryable && (error.code === 'E_NETWORK' || error.code === 'E_TRANSPORT'))
+        if (isRefusalError(error) && error.retryable && error.code === 'E_TRANSPORT')
           throw new FullRevalidationRequired(op, args);
         throw error;
       }
@@ -687,14 +703,7 @@ export class OfflineRuntime {
         throw new DeliveryEnvelopeDecodeError("$.validator", "does not match the held answer");
       }
       if (held.needsFactProofs) { if (full) return full(); throw new FullRevalidationRequired(op, args); }
-      const result = {
-        state: held.state,
-        ...(held.state === 'denied' || held.data === undefined ? {} : { data: held.data }),
-        ...((held.state === 'complete' || held.state === 'capped') && held.next !== undefined ? { next: held.next } : {}),
-        seq: raw.seq as number,
-        ...(held.reason === undefined ? {} : { reason: held.reason }),
-        ...(held.rule === undefined ? {} : { rule: held.rule }),
-      } as AcceptedDelivery<Result>["result"];
+      const result = queryResult(held, held.data, raw.seq as number);
       return {
         result: carryItemInputs(held, result),
         refresh: { op, args, seq: raw.seq as number, validator: raw.validator, deliveredAt: Date.now() },
@@ -705,14 +714,8 @@ export class OfflineRuntime {
       return { result: raw as AcceptedDelivery<Result>["result"] };
     }
     const envelope = decodeDeliveryEnvelope(raw);
-    const result: AcceptedDelivery<Result>["result"] = {
-      state: envelope.state,
-      ...(envelope.state === "denied" ? {} : { data: await this.expandUnviewed(envelope) as Result }),
-      ...(envelope.state === "complete" || envelope.state === "capped" ? { next: envelope.next } : {}),
-      seq: envelope.seq,
-      ...(envelope.reason === undefined ? {} : { reason: envelope.reason }),
-      ...(envelope.rule === undefined ? {} : { rule: envelope.rule }),
-    };
+    const result = queryResult<Result>(envelope,
+      envelope.state === "denied" ? undefined : await this.expandUnviewed(envelope) as Result);
     return { result, envelope };
   }
 
@@ -737,7 +740,7 @@ export class OfflineRuntime {
       if (this.partition === undefined) {
         // A follower tab's live deliveries are shown, not held: the writer tab owns the partition.
         if (this.followingPrincipal !== undefined) return false;
-        throw new OfflineAuthorityError("an offline partition must be opened before committing a delivery");
+        throw new OfflineAuthorityError("open an offline partition before committing a delivery");
       }
       const deliveries: StoreDelivery[] = [];
       const refreshes: StoreRefresh[] = [];
@@ -749,7 +752,7 @@ export class OfflineRuntime {
         const envelope = accepted.envelope;
         if (envelope && envelope.authority.principal !== this.partition) {
           throw new OfflineAuthorityError(
-            `delivery principal ${envelope.authority.principal} does not match open partition ${this.partition}`,
+            `delivery principal ${envelope.authority.principal} differs from ${this.partition}`,
           );
         }
         if (accepted.refresh) {
@@ -774,8 +777,9 @@ export class OfflineRuntime {
           // superseded so the twin serves nothing stale-exact from it; the next
           // resume carries the old facts, is refused `E_OFFLINE_RESET`, and the
           // reset path drops the coverage and re-fetches the program.
-          if (nextFacts && (envelope.generation !== nextFacts.generation || envelope.schemaHash !== nextFacts.schemaHash)) {
-            superseded = { generation: envelope.generation, schemaHash: envelope.schemaHash, authEpoch: envelope.authority.authEpoch };
+          const received = { generation: envelope.generation, schemaHash: envelope.schemaHash, authEpoch: envelope.authority.authEpoch };
+          if (nextFacts && !sameProgram(envelope, nextFacts)) {
+            superseded = received;
             sawSupersession = true;
             continue;
           }
@@ -784,11 +788,7 @@ export class OfflineRuntime {
           if (nextFacts && envelope.authority.authEpoch !== nextFacts.authEpoch) {
             throw new OfflineAuthorityError("delivery auth epoch does not match the open coverage");
           }
-          nextFacts = {
-            generation: envelope.generation,
-            schemaHash: envelope.schemaHash,
-            authEpoch: envelope.authority.authEpoch,
-          };
+          nextFacts = received;
         }
         const source = envelope ?? accepted.result;
         // @ref LLP 1001#51-connected — changing live counts can share a durable seq;
@@ -804,7 +804,7 @@ export class OfflineRuntime {
         }
         deliveries.push({
           ...(prepared ? { [preparedDeliveryRows]: prepared.rows as unknown as StoreDelivery['rows'], [preparedDeliveryRanges]: prepared[preparedDeliveryRanges] } : {}),
-          cursorArg: this.cursorArg(op),
+          cursorArg: this.declaredCursorArg(op),
           op,
           args,
           state: source.state,
@@ -829,10 +829,8 @@ export class OfflineRuntime {
       const settlement = sawSupersession ? undefined : outbox;
       const watermarkRecord = !sawSupersession && watermark ? {
         ...watermark,
-        cursorArg: this.cursorArg(watermark.op),
-        ...(nextFacts?.generation === undefined ? {} : { generation: nextFacts.generation }),
-        ...(nextFacts?.schemaHash === undefined ? {} : { schemaHash: nextFacts.schemaHash }),
-        ...(nextFacts?.authEpoch === undefined ? {} : { authEpoch: nextFacts.authEpoch }),
+        cursorArg: this.declaredCursorArg(watermark.op),
+        ...(nextFacts ? { generation: nextFacts.generation, schemaHash: nextFacts.schemaHash, authEpoch: nextFacts.authEpoch } : {}),
         updatedAt: Date.now(),
       } : undefined;
       await this.store.commit({
@@ -868,7 +866,7 @@ export class OfflineRuntime {
       if (!(FullRevalidationRequired.is(error))) throw error;
       // No I/O inside a carrier transaction or runtime queue. The same request
       // acquires proofs once per affected answer, including a multi-query resume.
-      const item = items.find(i => canonicalAnswerKey(i.op, i.args) === canonicalAnswerKey(error.op, error.args));
+      const item = items.find(i => canonicalAnswerKey(i.op, i.args, this.declaredCursorArg(i.op)) === canonicalAnswerKey(error.op, error.args, this.declaredCursorArg(error.op)));
       if (!item?.accepted.revalidate) throw error;
       const revalidate = item.accepted.revalidate; delete item.accepted.revalidate;
       const full = await revalidate(); delete item.accepted.refresh;
@@ -882,14 +880,13 @@ export class OfflineRuntime {
     // are never sent, so a conditional `unchanged` cannot carry a stale answer forward.
     if (!this.coverageCurrent()) return undefined;
     const revision = this.coverageRevision;
-    const answer = await this.store.answer<Result>(op, args);
+    const answer = await this.store.answer<Result>(op, queryArgs(args, this.declaredCursorArg(op)));
     return revision === this.coverageRevision && this.coverageCurrent() ? answer : undefined;
   }
 
   private coverageCurrent(): boolean {
     return this.partition !== undefined && this.superseded === undefined
-      && (!this.facts || !this.held || (this.facts.generation === this.held.generation
-        && this.facts.schemaHash === this.held.schemaHash));
+      && (!this.facts || !this.held || sameProgram(this.facts, this.held));
   }
 
   /** The envelope's data with every viewed view-once row read as `null`, on the wire as in the store. */
@@ -904,7 +901,7 @@ export class OfflineRuntime {
 
   async markWatermark(op: string, args: unknown, watermark: string | null, validator?: string, revision = this.coverageRevision): Promise<void> {
     if (this.partition === undefined) return;
-    await this.commitMany([], { op, args, watermark, ...(validator === undefined ? {} : { validator }) }, undefined, revision);
+    await this.commitMany([], { op, args: operationArgs(args, this.declaredCursorArg(op)), watermark, ...(validator === undefined ? {} : { validator }) }, undefined, revision);
   }
 
   /** Offline admission uses the held generation; current metadata never certifies stale coverage. */
@@ -970,10 +967,8 @@ export class OfflineRuntime {
       throwIfAborted(signal);
       if (revision !== this.coverageRevision) return false;
       if (!this.superseded) return true;
-      if (!this.facts || !this.held || this.facts.generation !== this.held.generation
-        || this.facts.schemaHash !== this.held.schemaHash
-        || this.superseded.generation !== this.held.generation
-        || this.superseded.schemaHash !== this.held.schemaHash) return false;
+      if (!this.facts || !this.held || !sameProgram(this.facts, this.held)
+        || !sameProgram(this.superseded, this.held)) return false;
       await this.store.commit({ superseded: null });
       this.superseded = undefined;
       return true;

@@ -155,7 +155,7 @@ export function metadataResponse(input: RequestInfo | URL): Response | undefined
     return new Response(JSON.stringify({
       generation: "schema-generation",
       programGeneration: generation,
-      ops: { "deliveries.inbox": { kind: "query", planHash, drain: { cursor: "c" }, args: { c: { Optional: "Cursor" } } } },
+      ops: { "messages.inbox": { kind: "query", planHash, drain: { cursor: "c" }, args: { c: { Optional: "Cursor" } } } },
       channels: {},
       auth: {},
       tables: { messages: { retain: "delivered-history" } },

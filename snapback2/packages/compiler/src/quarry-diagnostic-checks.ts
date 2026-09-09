@@ -12,13 +12,13 @@ table todos:
   title: text <=200
   done: bool
   ownerId: principal
-  by ownerId
+  by byOwnerId: ownerId
   read <- .ownerId = viewer
   insert <- .ownerId = viewer
   update <- .ownerId = viewer
   delete <- .ownerId = viewer
 `;
-const mergeDiagnosticSchema = diagnosticSchema.replace("  by ownerId", "  by byOwner: ownerId, id");
+const mergeDiagnosticSchema = diagnosticSchema.replace("  by byOwnerId: ownerId", "  by byOwner: ownerId, id");
 const originalPrefix = `query list():
   return todos[viewer] first 50
 
@@ -88,7 +88,7 @@ export const quarryDiagnosticCases: Array<{
   row = insert todos { title: "hi", done: null, ownerId: viewer }
   return true
 `, expected: [{ code: "E_OPAQUE", message: "null", absence: false, boolean: true }] },
-  { name: "possibly absent dereference retains presence advice", schema: "table authors:\n  name: text <=50\n  public\n\ntable posts:\n  author: authors\n  public\n  by author\n\ntable copies:\n  name: text <=50\n  public\n", source: "mutation copy():\n  for post in posts[] first 5 by byAuthor { *, author: .author }:\n    insert copies { name: post.author.name }\n  null\n", expected: [{ code: "E_OPAQUE", message: "undefined", absence: true }] },
+  { name: "possibly absent dereference retains presence advice", schema: "table authors:\n  name: text <=50\n  public\n\ntable posts:\n  author: authors\n  public\n  by byAuthor: author\n\ntable copies:\n  name: text <=50\n  public\n", source: "mutation copy():\n  for post in posts[] first 5 by byAuthor { *, author: .author }:\n    insert copies { name: post.author.name }\n  null\n", expected: [{ code: "E_OPAQUE", message: "undefined", absence: true }] },
   { name: "corrected original keeps all three operations", source: originalPrefix + `mutation complete(todoId: todos):
   update todos[todoId] { done: true }
   return true
@@ -110,15 +110,15 @@ export const quarryDiagnosticCases: Array<{
     update todos[todoId] { done }
   return true
 `, expected: [{"code": "E_QUARRY_UNKNOWN", "message": "unknown name missingValue", "site": "2:10"}, {"code": "E_OPAQUE", "message": "Type 'string' is not assignable to type 'boolean | undefined'", "site": "4:5", "absence": false, "boolean": true}], },
-  { name: "lexical match-shadow", source: `mutation complete(todoId: todos):
+  { name: "lexical if-shadow", source: `mutation complete(todoId: todos):
   item = missingValue
-  match todos[todoId]:
-    some item:
-      update todos[todoId] { done: item.title }
-    none:
-      return false
+  if exists todos[todoId]:
+    item = todos[todoId] ! else NOT_FOUND
+    update todos[todoId] { done: item.title }
+  else:
+    return false
   return true
-`, expected: [{"code": "E_QUARRY_UNKNOWN", "message": "unknown name missingValue", "site": "2:10"}, {"code": "E_OPAQUE", "message": "Type 'string' is not assignable to type 'boolean | undefined'", "site": "5:7", "absence": false, "boolean": true}], },
+`, expected: [{"code": "E_QUARRY_UNKNOWN", "message": "unknown name missingValue", "site": "2:10"}, {"code": "E_OPAQUE", "message": "Type 'string' is not assignable to type 'boolean | undefined'", "site": "5:5", "absence": false, "boolean": true}], },
   { name: "lexical loop-capture", source: `mutation complete(todoId: todos):
   item = missingValue
   for item in ["yes"]:
@@ -126,17 +126,17 @@ export const quarryDiagnosticCases: Array<{
     update todos[todoId] { done: box.original }
   return true
 `, expected: [{"code": "E_QUARRY_UNKNOWN", "message": "unknown name missingValue", "site": "2:10"}, {"code": "E_OPAQUE", "message": "Type 'string' is not assignable to type 'boolean | undefined'", "site": "5:5", "absence": false, "boolean": true}], },
-  { name: "lexical match-capture-isolation", source: `mutation complete(todoId: todos):
+  { name: "lexical if-capture-isolation", source: `mutation complete(todoId: todos):
   item = missingValue
-  match todos[todoId]:
-    some item:
-      box = { original: item }
-      update todos[todoId] { done: box.original.title }
-    none:
-      update todos[todoId] { done: item }
+  if exists todos[todoId]:
+    item = todos[todoId] ! else NOT_FOUND
+    box = { original: item }
+    update todos[todoId] { done: box.original.title }
+  else:
+    update todos[todoId] { done: item }
   update todos[todoId] { done: item }
   return true
-`, expected: [{"code": "E_QUARRY_UNKNOWN", "message": "unknown name missingValue", "site": "2:10"}, {"code": "E_OPAQUE", "message": "Type 'string' is not assignable to type 'boolean | undefined'", "site": "6:7", "absence": false, "boolean": true}], },
+`, expected: [{"code": "E_QUARRY_UNKNOWN", "message": "unknown name missingValue", "site": "2:10"}, {"code": "E_OPAQUE", "message": "Type 'string' is not assignable to type 'boolean | undefined'", "site": "6:5", "absence": false, "boolean": true}], },
   { name: "lexical nested-loop-isolation", source: `mutation complete(todoId: todos):
   item = missingValue
   for item in ["yes"]:
@@ -153,13 +153,13 @@ export const quarryDiagnosticCases: Array<{
     update todos[todoId] { done: "yes" }
   return missingAfter
 `, expected: [{"code": "E_QUARRY_UNKNOWN", "message": "unknown name missingValue", "site": "2:10"}, {"code": "E_QUARRY_UNKNOWN", "message": "unknown name missingAfter", "site": "5:10"}], },
-  { name: "lexical failed-match-key", source: `mutation complete(todoId: todos):
+  { name: "lexical failed-if-condition", source: `mutation complete(todoId: todos):
   todoId = missingValue
-  match todos[todoId]:
-    some todoId:
-      update todos[todoId.id] { done: "yes" }
-    none:
-      return missingInside
+  if exists todos[todoId]:
+    todoId = todos[todoId] ! else NOT_FOUND
+    update todos[todoId.id] { done: "yes" }
+  else:
+    return missingInside
   return missingAfter
 `, expected: [{"code": "E_QUARRY_UNKNOWN", "message": "unknown name missingValue", "site": "2:12"}, {"code": "E_QUARRY_UNKNOWN", "message": "unknown name missingAfter", "site": "8:10"}], },
   { name: "lexical failed-tuple-initializer", source: `mutation complete(todoId: todos):
@@ -348,7 +348,7 @@ table todos:
 `, expected: [], irCounts: { '"Merge":': 1, '"Input":"NewId"': 2, '"table":"todos"': 2 } },
   { name: "merge domain lawful-nullable-prefix", schema: mergeDiagnosticSchema, source: `query probe():
   page = merge todos first 3 by byOwner:
-    [todos[item.id]!.ownerId] for item in todos[viewer] first 2 by byOwner
+    [todos[item.id]! else NOT_FOUND.ownerId] for item in todos[viewer] first 2 by byOwner
   return page
 `, expected: [], irCounts: { '"Merge":': 1, '"Get":': 1, '"Require":': 1, '"table":"todos"': 3 } },
   { name: "merge domain lawful-two-discovered-lanes", schema: mergeDiagnosticSchema, source: `query probe(other: principal):
@@ -360,6 +360,7 @@ table todos:
 ];
 
 export function registerQuarryDiagnosticChecks(test: Test): void {
+  registerDiagnosticFixChecks(test);
   for (const c of quarryDiagnosticCases) test(`Quarry diagnostic recovery: ${c.name}`, async () => {
     await withProject({ "snapback/schema.q": c.schema ?? diagnosticSchema, "snapback/todos.q": c.source }, async root => {
       const result = await lowerProject(root);
@@ -407,4 +408,148 @@ function diagnosticMatches(item: FrontendDiagnostic, wanted: Expected): boolean 
   if (wanted.message.includes("number")) return item.message.includes("got int");
   if (wanted.message.includes("null")) return item.message.includes("got null");
   return item.message.includes("expects");
+}
+
+// @ref LLP 1002#diagnostics-say-the-fix — fixes use the declared catalog and never hide a missing bound.
+export function registerDiagnosticFixChecks(test: Test): void {
+  const schema = `use identity
+table conversations:
+  title: text <=80
+  public
+table memberships:
+  conversationId: conversations
+  principal: principal
+  unique byConversationPrincipal: conversationId, principal
+  by byPrincipalConversation: principal, conversationId
+  public
+table posts:
+  authorId: principal
+  body: text <=100
+  at: time
+  status: enum('open', 'closed')
+  by byTime: at, id
+  by byAuthorTime: authorId, at, id
+  public
+`;
+  const cases = [
+    { name: "walk rejects a wrong self-reference type", source: "query one(id: posts):\n  return walk posts[id] up .body depth 3", message: "requires a self-reference column", fixes: ["declare body: posts ?"], code: "E_QUARRY_TYPE" },
+    { name: "walk misspelled column", source: "query one(id: posts):\n  return walk posts[id] up .bodu depth 3", message: "unknown posts field", fixes: ["did you mean `body`?"], code: "E_QUARRY_UNKNOWN" },
+    { name: "unknown call preserves fallback", source: "fn identity from access\nquery one():\n  return idnetity(1)", message: "unknown fn", fixes: ["did you mean `identity`?", "use a direct Quarry pure builtin"], code: "E_QUARRY_UNKNOWN" },
+    { name: "empty range needs a bound", source: "query all():\n  return posts[]", message: "`posts[]` reads a range; name its bound", fixes: ["posts[] first 50 by byTime", "posts[] first 50 by byAuthorTime"], code: "E_UNBOUND_SCAN" },
+    { name: "principal prefix needs a bound", source: "query any(p: principal):\n  return memberships[p]", message: "`memberships[p]` reads a range; name its bound", fixes: ["memberships[p] first 50 by byPrincipalConversation", "principal: principal"], code: "E_UNBOUND_SCAN" },
+    { name: "explicit nonunique prefix needs a bound", source: "query any(p: principal):\n  return memberships[p] by byPrincipalConversation", message: "reads a range; name its bound", fixes: ["first 50 by byPrincipalConversation"], code: "E_UNBOUND_SCAN" },
+    { name: "unknown keys keep declared types", source: "query any(p: principal, flag: bool):\n  return memberships[p, flag]", message: "matches [principal, bool]", fixes: ["conversationId: conversations", "principal: principal"], code: "E_QUARRY_UNKNOWN" },
+    { name: "column case typo", source: "mutation add():\n  insert posts { authorid: viewer }", message: "unknown posts field `authorid`", fixes: ["did you mean `authorId`?"], code: "E_QUARRY_TYPE" },
+    { name: "index transposition", source: "query all():\n  return posts[] first 50 by byTmie", message: "has no index", fixes: ["did you mean `byTime`?"], code: "E_QUARRY_UNKNOWN" },
+    { name: "merge index transposition", source: "query all():\n  return merge posts first 50 by byAuthorTmie:\n    [viewer]", message: "has no index", fixes: ["did you mean `byAuthorTime`?"], code: "E_QUARRY_UNKNOWN" },
+    { name: "enum transposition", source: "mutation add():\n  insert posts { authorId: viewer, body: 'Hi', at: now, status: 'opne' }", message: "enum literal", fixes: ["did you mean `open`?"], code: "E_QUARRY_TYPE" },
+    { name: "named key column spelling", source: "query all(p: principal):\n  return posts[authorid = p] first 5 by byAuthorTime", message: "unknown posts field", fixes: ["did you mean `authorId`?"], code: "E_QUARRY_UNKNOWN" },
+    { name: "table transposition", source: "query all():\n  return psots[] first 5 by byTime", message: "unknown table", fixes: ["did you mean `posts`?"], code: "E_QUARRY_UNKNOWN" },
+    { name: "row column spelling", source: "query one(p: posts):\n  return posts[p].authorid", message: "unknown posts field", fixes: ["did you mean `authorId`?"], code: "E_QUARRY_TYPE" },
+    { name: "fn spelling", source: "fn idnetity from access\nquery one():\n  return idnetity(1)", message: "unknown fn", fixes: ["did you mean `identity`?"], code: "E_QUARRY_UNKNOWN" },
+    { name: "proc spelling", source: "proc stroe from access\nmutation one():\n  stroe()", message: "unknown proc", fixes: ["did you mean `store`?"], code: "E_QUARRY_UNKNOWN" },
+    { name: "shape spelling", source: "shape crad from access\nquery one(p: posts):\n  return posts[p] crad", message: "unknown shape", fixes: ["did you mean `card`?"], code: "E_QUARRY_UNKNOWN" },
+    { name: "module spelling", source: "fn identity from acceess\nquery one():\n  return identity(1)", message: "unknown fn module", fixes: ["did you mean `access`?"], code: "E_QUARRY_UNKNOWN" },
+    { name: "op spelling", source: "mutation store():\n  return null\nschedule sweep every 1m:\n  stroe", message: "schedule target", fixes: ["did you mean `store`?"], code: "E_SCHEDULE_TARGET" },
+    { name: "intrinsic-only range needs a bound", source: "query all():\n  return conversations[]", message: "reads a range; name its bound", fixes: ["conversations[] first 50 by byId"], code: "E_UNBOUND_SCAN" },
+    { name: "distant column lists names", source: "mutation add():\n  insert posts { unrelated: viewer }", message: "unknown posts field", fixes: ["authorId", "body", "status"], code: "E_QUARRY_TYPE" },
+  ];
+  test("diagnostic fix: implicit walk id prescribes a legal self-reference repair", async () => {
+    let rewrite = "";
+    await withProject({ "snapback/schema.q": schema,
+      "snapback/ops.q": "query one(id: posts):\n  return walk posts[id] up .id depth 3\n" }, async root => {
+      const result = await lowerProject(root);
+      assert(!result.ok, "implicit id must not be a walk edge");
+      const diagnostic = result.diagnostics[0]!;
+      rewrite = diagnostic.rewrite;
+      assert(diagnostic.code === "E_QUARRY_TYPE" && diagnostic.guide === "quarry", JSON.stringify(diagnostic));
+      assert(!rewrite.includes("declare id:") && rewrite.includes("declare parent: posts ?")
+        && rewrite.includes("walk posts[id] up .parent depth 3"), rewrite);
+    });
+    const declaration = rewrite.match(/declare (parent: posts \?)/)![1]!;
+    const walk = rewrite.match(/walk posts\[id\] up \.parent depth 3/)![0];
+    await withProject({ "snapback/schema.q": schema.replace("table posts:", `table posts:\n  ${declaration}`),
+      "snapback/ops.q": `query one(id: posts):\n  return ${walk}\n` }, async root => {
+      const repaired = await lowerProject(root);
+      assert(repaired.ok, JSON.stringify(repaired));
+    });
+  });
+  for (const item of cases) test(`diagnostic fix: ${item.name}`, async () => {
+    await withProject({ "snapback/schema.q": schema, "snapback/posts.q": item.source + "\n",
+      "snapback/access.q": "fn identity(v: int) = v\nshape card = { * }\nproc store():\n  insert posts { authorId: viewer, body: 'Hi', at: now, status: 'open' }\n",
+    }, async root => {
+      const result = await lowerProject(root);
+      assert(!result.ok, "invalid source escaped");
+      const diagnostic = result.diagnostics.find(d => d.code === item.code && d.message.includes(item.message));
+      assert(diagnostic && item.fixes.every(fix => diagnostic.rewrite.includes(fix)), JSON.stringify(result));
+      if (item.code === "E_UNBOUND_SCAN" || item.code === "E_QUARRY_TYPE") assert(diagnostic.guide === "quarry", JSON.stringify(diagnostic));
+      assert(!diagnostic.message.includes("[?]"), JSON.stringify(diagnostic));
+      if (item.name === "walk rejects a wrong self-reference type") assert(!diagnostic.rewrite.includes("did you mean `body`"), JSON.stringify(diagnostic));
+      if (item.name.startsWith("distant")) assert(!diagnostic.rewrite.includes("did you mean"), JSON.stringify(diagnostic));
+    });
+  });
+
+  test("diagnostic fix: cap suggestions retain a compiling repair", async () => {
+    await withProject({ "snapback/schema.q": schema.replace("  by byTime:", "  cap 50 by authorid\n  by byTime:"),
+      "snapback/ops.q": "query one():\n  return null\n" }, async root => {
+      const result = await lowerProject(root);
+      assert(!result.ok, "misspelled cap compiled");
+      const rewrite = result.diagnostics[0]!.rewrite;
+      assert(rewrite.includes("did you mean `authorId`?") && rewrite.includes("cap 50 by authorId"), rewrite);
+    });
+    await withProject({ "snapback/schema.q": schema.replace("  by byTime:", "  cap 50 by authorId\n  by byTime:"),
+      "snapback/ops.q": "query one():\n  return null\n" }, async root => assert((await lowerProject(root)).ok, "cap repair failed"));
+  });
+  for (const [kind, use, repair] of [["fn", "missing(1)", "fn missing(value: int) = value"], ["shape", "posts[id] missing", "shape missing = { * }"], ["proc", "missing(1)", "proc missing(value: int):"]]) {
+    for (const module of ["access", "unavailable"]) test(`diagnostic fix: ${kind} empty catalog ${module}`, async () => {
+      const source = `${kind} missing from ${module}\n${kind === "proc" ? "mutation" : "query"} one(id: posts):\n  ${kind === "proc" ? use + "\n  return null" : "return " + use}\n`;
+      await withProject({ "snapback/schema.q": schema, "snapback/ops.q": source,
+        "snapback/access.q": "query ping():\n  return null\n" }, async root => {
+        const result = await lowerProject(root);
+        assert(!result.ok, "unknown declaration compiled");
+        const rewrite = result.diagnostics[0]!.rewrite;
+        assert(rewrite.includes(module === "access" ? repair : "create snapback/unavailable.q"), rewrite);
+      });
+    });
+  }
+
+  test("diagnostic fix: every emitted Require has source attribution", async () => {
+    await withProject({ "snapback/schema.q": schema,
+      "snapback/ops.q": `query one(id: posts):
+  require true else MISSING
+  return posts[id] ! else MISSING
+mutation remove(c: conversations, p: principal):
+  delete memberships[c, p]
+  return null
+` }, async root => {
+      const result = await lowerProject(root);
+      assert(result.ok, JSON.stringify(result));
+      for (const program of result.project.programs) {
+        const emitted = JSON.stringify(program.body).match(/"Require":/g)?.length ?? 0;
+        const recorded = Object.entries(result.sources).filter(([site, source]) => site.startsWith(program.name + "/require/") && source.requirement).length;
+        assert(emitted === recorded, `${program.name}: ${emitted} Require, ${recorded} source associations`);
+      }
+    });
+  });
+
+  test("diagnostic fix: named range lists matching ranges before exact unique choices", async () => {
+    await withProject({ "snapback/schema.q": schema.replace("  by byPrincipalConversation:", "  unique byPrincipal: principal\n  by byPrincipalConversation:"),
+      "snapback/posts.q": "query one(p: principal):\n  return memberships[p] by byPrincipalConversation\n" }, async root => {
+      const result = await lowerProject(root);
+      assert(!result.ok, "nonunique point escaped");
+      const rewrite = result.diagnostics[0]!.rewrite;
+      assert(rewrite.includes("memberships[p] first 50 by byPrincipalConversation; memberships[p] by byPrincipal"), rewrite);
+      assert(!rewrite.includes("byConversationPrincipal"), rewrite);
+    });
+  });
+  for (const clause of ["by byOwner: authorid", "immutable authorid", "read <- .authorid = viewer"]) {
+    test(`diagnostic fix: schema column in ${clause}`, async () => {
+      await withProject({ "snapback/schema.q": schema.replace("  by byTime:", `  ${clause}\n  by byTime:`).replace(/  public\n$/, ""),
+        "snapback/posts.q": "query one():\n  return null\n" }, async root => {
+        const result = await lowerProject(root);
+        assert(!result.ok && result.diagnostics.some(d => d.rewrite.includes("did you mean `authorId`?")), JSON.stringify(result));
+      });
+    });
+  }
+
 }

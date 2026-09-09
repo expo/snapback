@@ -227,6 +227,7 @@ impl<'a> Runner<'a> {
             Ok(())
         } else {
             Err(RuntimeError::Require {
+                site: None,
                 code: "NOT_FOUND".to_owned(),
             })
         }

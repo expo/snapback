@@ -172,10 +172,6 @@ function walkStatements(statements: Stmt[], visit: (expr: Expr) => void): void {
     } else if (statement.kind === "for") {
       walk(statement.domain, visit);
       walkStatements(statement.body, visit);
-    } else {
-      walk(statement.read, visit);
-      walkStatements(statement.someBody, visit);
-      walkStatements(statement.noneBody, visit);
     }
   }
 }
@@ -198,7 +194,6 @@ function walk(expr: Expr, visit: (expr: Expr) => void): void {
       if (lane.loop) walk(lane.loop.domain, visit);
     });
   } else if (expr.kind === "exists" || expr.kind === "created") walk(expr.read, visit);
-  else if (expr.kind === "aggregate") expr.keys.forEach((key) => walk(key.value, visit));
   else if (expr.kind === "shape") {
     walk(expr.base, visit);
     expr.fields.forEach((field) => field.kind === "field" && walk(field.value, visit));

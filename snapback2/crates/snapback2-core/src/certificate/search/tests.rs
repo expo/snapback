@@ -117,6 +117,7 @@ fn held_assertions_and_derived_shape_are_independently_checked() {
                 })
             }
             _ => m.lanes[0].setup.push(Stmt::Require {
+                site: None,
                 condition: Expr::Literal(Value::Bool(true)),
                 code: "extra".into(),
             }),

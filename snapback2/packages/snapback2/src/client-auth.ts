@@ -1,8 +1,8 @@
-import { isSnapbackRefusal, SnapbackRefusal, wireAuthSession, wireLogout, wireShape, throwIfAborted } from "./client-wire.js";
-import type { AuthMe, AuthSession, AuthSnapshot, AuthTokenStore, ConnectionState, Principal, RefusalEnvelope } from "./types.js";
+import { isRefusalError, RefusalError, wireAuthSession, wireLogout, wireShape, throwIfAborted } from "./client-wire.js";
+import type { AuthMe, AuthSession, AuthSnapshot, AuthTokenStore, ConnectionState, Principal, Refusal } from "./types.js";
 
 export function anonymousAuth(error: unknown): boolean {
-  return isSnapbackRefusal(error)
+  return isRefusalError(error)
     && ["E_AUTH", "E_AUTH_REQUIRED", "E_AUTH_SESSION"].includes(error.code);
 }
 
@@ -78,10 +78,10 @@ export class ClientAuth {
 
   restore(value: AuthSnapshot): void {
     if (value.state === "hydrating" && this.custody().token) {
-      this.failed(new SnapbackRefusal({ code: "E_NETWORK", family: "owner",
+      this.failed(new RefusalError({ code: "E_TRANSPORT", family: "transport",
         message: "resume interrupted authentication restoration", guide: "auth/session" }, true));
     } else if (value.state === "refused" && value.refusal) {
-      this.failed(new SnapbackRefusal(value.refusal));
+      this.failed(new RefusalError(value.refusal));
     } else this.set(value);
   }
 
@@ -160,7 +160,7 @@ export class ClientAuth {
       if (options.signal.aborted || !options.hasPrincipal()) return;
       try { await options.metadata(); await options.resume(); }
       catch (error) {
-        if (!options.cut() && !(isSnapbackRefusal(error)
+        if (!options.cut() && !(isRefusalError(error)
           && (error.retryable || error.code === "E_OFFLINE_RESUME" || error.code === "E_OFFLINE_RESET"))) throw error;
       }
     };
@@ -177,8 +177,8 @@ export class ClientAuth {
 
   failed(error: unknown, restoringViewer = this.restoringViewer()): void {
     this.clearTimer();
-    const refusal = isSnapbackRefusal(error) ? error : wireShape(error instanceof Error ? error.message : String(error));
-    const transport = refusal.retryable && ["E_NETWORK", "E_TRANSPORT"].includes(refusal.code);
+    const refusal = isRefusalError(error) ? error : wireShape(error instanceof Error ? error.message : String(error));
+    const transport = refusal.retryable && refusal.code === "E_TRANSPORT";
     this.reconnect = !anonymousAuth(refusal)
       && !["E_AUTH_TOKEN_STORE", "E_WIRE_SHAPE", "E_AUTH_SUPERSEDED", "E_CLIENT_CLOSED"].includes(refusal.code)
       && refusal.envelope.family !== "offline";
@@ -216,12 +216,12 @@ export class ClientAuth {
     const restoringViewer = this.restoringViewer();
     let abort!: () => void;
     const cancelled = new Promise<never>((_, reject) => {
-      abort = () => reject(new SnapbackRefusal({ code: "E_AUTH_SUPERSEDED", family: "auth",
+      abort = () => reject(new RefusalError({ code: "E_AUTH_SUPERSEDED", family: "auth",
         message: "authentication restoration was superseded", guide: "auth/session" }));
       controller.signal.addEventListener("abort", abort, { once: true });
     });
     const run = Promise.race([Promise.resolve().then(() => read(controller.signal)), cancelled]).then(value => {
-      if (epoch !== this.epoch) throw new SnapbackRefusal({ code: "E_AUTH_SUPERSEDED", family: "auth",
+      if (epoch !== this.epoch) throw new RefusalError({ code: "E_AUTH_SUPERSEDED", family: "auth",
         message: "authentication restoration was superseded", guide: "auth/session" });
       if (epoch === this.epoch) {
         this.backoff = 1_000;
@@ -287,8 +287,8 @@ export async function saveAuthToken(store: AuthTokenStore | undefined, token: st
   } catch (error) { throw failure("save", error); }
 }
 
-export function storageRefusal(host: { recordRefusal(envelope: RefusalEnvelope): void }, action: string, error: unknown): SnapbackRefusal {
-  const refusal = new SnapbackRefusal({
+export function storageRefusal(host: { recordRefusal(envelope: Refusal): void }, action: string, error: unknown): RefusalError {
+  const refusal = new RefusalError({
     code: "E_AUTH_TOKEN_STORE",
     family: "auth",
     message: `token store ${action} failed: ${error instanceof Error ? error.message : String(error)}`,
@@ -298,9 +298,9 @@ export function storageRefusal(host: { recordRefusal(envelope: RefusalEnvelope):
   return refusal;
 }
 
-export function ensureBearerTransition(host: { persona?: string; recordRefusal(envelope: RefusalEnvelope): void }, action: string): void {
+export function ensureBearerTransition(host: { persona?: string; recordRefusal(envelope: Refusal): void }, action: string): void {
   if (host.persona === undefined) return;
-  const refusal = new SnapbackRefusal({
+  const refusal = new RefusalError({
     code: "E_AUTH_PERSONA_TRANSITION",
     family: "auth",
     message: `dev persona clients cannot ${action} a bearer session`,

@@ -417,6 +417,7 @@ mod tests {
                 api_dts: String::new(),
                 compiler_ms: 0.0,
                 quarry: Vec::new(),
+                sources: Default::default(),
             },
             seed: SeedData::default(),
             root: asset_root.clone(),

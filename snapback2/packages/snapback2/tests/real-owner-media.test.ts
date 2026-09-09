@@ -1,12 +1,10 @@
 import assert from "node:assert/strict";
 import { after, test } from "node:test";
-import {
-  SnapbackRefusal,
-  api,
+import { api,
   createClient,
   initialQueryState,
-  reduceQueryState,
-} from "../dist/client.mjs";
+  reduceQueryState } from "../dist/client.mjs";
+import { RefusalError } from "../dist/client-observed-test.mjs";
 import { configureRealOwner, RealOwnerHarness } from "./owner-harness.ts";
 
 const owner = await configureRealOwner();
@@ -18,9 +16,9 @@ test("chat once photo uses one message and upload, each member gets one server d
   const { join } = await import("node:path");
   const { fileRangeStore } = await import("../dist/test.mjs");
   const directory = await mkdtemp(join(tmpdir(), "snapback-once-owner-"));
-  const sender = createClient({ url: owner.url, as: "alice" });
-  const alice = createClient({ url: owner.url, as: "alice", offline: { store: fileRangeStore(join(directory, "alice")) } });
-  const bob = createClient({ url: owner.url, as: "bob", offline: { store: fileRangeStore(join(directory, "bob")) } });
+  const sender = createClient({ url: owner.url, persona: "alice" });
+  const alice = createClient({ url: owner.url, persona: "alice", offline: { store: fileRangeStore(join(directory, "alice")) } });
+  const bob = createClient({ url: owner.url, persona: "bob", offline: { store: fileRangeStore(join(directory, "bob")) } });
   try {
     const png = await readFile(new URL("../../../scripts/witness-expo/view-once.png", import.meta.url));
     const photo = await sender.upload(new Blob([png], { type: "image/png" }), { kind: "image" });
@@ -33,7 +31,7 @@ test("chat once photo uses one message and upload, each member gets one server d
     const manifest: any = await alice.manifest();
     assert.equal(manifest.tables.messages.columns.oncePhoto.Optional.Image.once, true);
     for (const client of [alice, bob]) {
-      const thread: any = await client.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
+      const thread: any = await client.query(api.messages.thread, { conversationId: "conversation-1", c: null });
       assert.ok(thread.data.some((row: any) => row?.message?.oncePhoto?.id === photo.id));
       assert.equal(thread.data.filter((row: any) => row?.message?.id === normal.data.id).length, 1,
         "sendPhoto delivers exactly one message event per recipient");
@@ -42,7 +40,7 @@ test("chat once photo uses one message and upload, each member gets one server d
       assert.equal(await client.assetCache!.viewOnce(photo.id), true);
       // Even unviewed once media disappears offline, including after a cold store open.
       await client.offline();
-      const local: any = await client.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
+      const local: any = await client.query(api.messages.thread, { conversationId: "conversation-1", c: null });
       assert.ok(local.data.some((row: any) => row?.message?.id === posted.data.id && row.message.oncePhoto === null));
       assert.ok(local.data.some((row: any) => row?.message?.photo?.id === ordinary.id));
       assert.ok((await client.assetBlob(ordinaryUrl)).size > 0, "ordinary photo in the same page renders from held bytes");
@@ -69,7 +67,7 @@ test("offline sendOncePhoto prediction under the message alias has null media an
   const { engineId } = await import("./fake-owner.ts");
   const directory = await mkdtemp(join(tmpdir(), "snapback-once-predict-"));
   let assetFetches = 0;
-  const client: any = createClient({ url: owner.url, as: "alice", offline: { store: fileRangeStore(directory) }, fetch: (input, init) => {
+  const client: any = createClient({ url: owner.url, persona: "alice", offline: { store: fileRangeStore(directory) }, fetch: (input, init) => {
     if (new URL(String(input)).pathname.startsWith("/api/asset/")) assetFetches++;
     return fetch(input, init);
   } });
@@ -77,7 +75,7 @@ test("offline sendOncePhoto prediction under the message alias has null media an
     const png = await readFile(new URL("../../../scripts/witness-expo/view-once.png", import.meta.url));
     const photo = await client.upload(new Blob([png], { type: "image/png" }), { kind: "image" });
     const args = { conversationId: "conversation-1", photo };
-    await client.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
+    await client.query(api.messages.thread, { conversationId: "conversation-1", c: null });
     await client.offline();
     const runtime = client.offlineRuntime;
     const ids = Array.from({ length: 120 }, (_, i) => engineId(50_000 + i));
@@ -90,9 +88,9 @@ test("offline sendOncePhoto prediction under the message alias has null media an
     const entry = { intent: "once-prediction:0", grant: "once-prediction", offset: 0, count: ids.length, ids,
       op: "messages.sendOncePhoto", args, issuedSeq: 0, createdAt: 1, updatedAt: 1, state: "queued", predicted: true, trace: prediction.trace };
     await runtime.store.commit({ outbox: { put: [entry] }, overlay: { put: { [entry.intent]: prediction.overlay } } });
-    const local = await runtime.twin.evaluate("deliveries.thread", { conversationId: "conversation-1", c: null });
+    const local = await runtime.twin.evaluate("messages.thread", { conversationId: "conversation-1", c: null });
     assert.ok(local?.data?.some((row: any) => row?.message?.id === message.id && row.message.oncePhoto === null), JSON.stringify(local));
-    const rendered = await client.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
+    const rendered = await client.query(api.messages.thread, { conversationId: "conversation-1", c: null });
     assert.ok(rendered.data?.some((row: any) => row?.message?.id === message.id && row.message.oncePhoto === null), JSON.stringify(rendered));
     assert.equal(assetFetches, 0);
   } finally { await client.close(); await rm(directory, { recursive: true, force: true }); }

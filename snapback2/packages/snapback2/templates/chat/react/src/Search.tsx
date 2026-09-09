@@ -15,10 +15,10 @@ function Results({ term, onOpen }: { term: string; onOpen(conversationId: string
     : result.reason?.code === "stale" ? "Showing stale indexed results"
     : result.freshness.live ? "Live indexed results" : "Indexed results";
   const status = [primary, predicted ? reasonMessages.predicted : undefined,
-    result.receipt?.outcome === "capped" ? limit : undefined].filter(Boolean).join(" · ");
+    result.receipt?.state === "capped" ? limit : undefined].filter(Boolean).join(" · ");
   return <>
-    <p className="scope" data-state={result.receipt?.outcome ?? result.status} data-status={result.status}
-      data-receipt={result.receipt?.outcome ?? "none"} data-reason={result.reason?.code}
+    <p className="scope" data-state={result.receipt?.state ?? result.status} data-status={result.status}
+      data-receipt={result.receipt?.state ?? "none"} data-reason={result.reason?.code}
       data-predicted={String(predicted)} data-next={next ? "available" : "none"}>{status}</p>
     <ul className="hits">
       {hits.map((row) => (
@@ -30,8 +30,6 @@ function Results({ term, onOpen }: { term: string; onOpen(conversationId: string
   </>;
 }
 
-// @ref LLP 1012#6-reads-offline — search is the same named Unicode index
-// online and over held rows; provenance and completeness stay visible.
 export function Search({ onOpen }: { onOpen(conversationId: string): void }) {
   const [term, setTerm] = useState("");
   const normalized = term.trim();

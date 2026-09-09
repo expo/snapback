@@ -46,10 +46,10 @@ maintain rates = sum rateEntries of rate by owner:
   return { product, reverse, leftScaled, rightScaled, split, quotient: parts.quotient, remainder: parts.remainder, negative, fromZero }
 
 query balance(owner: principal):
-  return #balances[owner]
+  return balances[owner]
 
 query rate(owner: principal):
-  return #rates[owner]
+  return rates[owner]
 `;
     await withProject({ "snapback/schema.q": schema, "snapback/money.q": operations }, async (root) => {
       const lowered = await lowerProject(root);
@@ -320,7 +320,7 @@ maintain convSpend = sum expenses of grand by conv:
   read <- public
 `;
     const operations = `query aggregateOperands(owner: principal, c: text <=20, recipients: [principal] <=5, rate: decimal 4):
-  return { shared: share(#balances[owner], recipients, viewer), divided: divmod(#balances[owner], 3).quotient, product: #convSpend[c] * rate }
+  return { shared: share(balances[owner], recipients, viewer), divided: divmod(balances[owner], 3).quotient, product: convSpend[c] * rate }
 `;
     await withProject({ "snapback/schema.q": schema, "snapback/aggregates.q": operations }, async (root) => {
       const lowered = await lowerProject(root);

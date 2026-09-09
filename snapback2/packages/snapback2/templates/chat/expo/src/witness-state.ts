@@ -1,6 +1,7 @@
 import { Directory, File, Paths } from "expo-file-system";
 import { expoSqliteDriver } from "snapback2/expo";
-import type { AssetRecord, OutboxEntry, RangeStore, StoreSwap } from "snapback2/client";
+import type { AssetRecord, OutboxEntry, RangeStore } from "snapback2/client";
+import type { StoreSwap } from "snapback2/internal";
 
 export const DATABASE = "snapback2-witness.db";
 export interface Configuration { offline: boolean; fault: "carrier" | "none"; name: string; assets: AssetRecord[] }
@@ -57,11 +58,11 @@ export async function markerSwap(store: RangeStore, phase: "pre" | "post", entri
     // through the schema and treats a row of an unknown table as corruption (`hydrating`),
     // which is the fail-closed answer the spec wants — so a witness marker must look like
     // the app's own data. A messages row in a conversation no member ever opens.
-    deliveries: [{ op: "deliveries.thread", args: { conversationId: "witness-marker", c: null }, seq: phase === "pre" ? 1 : 2, state: "complete", next: null,
+    deliveries: [{ op: "messages.thread", args: { conversationId: "witness-marker", c: null }, seq: phase === "pre" ? 1 : 2, state: "complete", next: null,
       data: { $row: { table: "messages", id: "witness-marker" } },
       rows: [{ table: "messages", id: "witness-marker", row: { id: "witness-marker", conversationId: "witness-marker", authorId: "witness", body: phase, photo: { id: markerId, width: 1, height: 1 }, at: 1 } }],
       receipt: { ranges: [], absences: [], verdicts: [] } }],
-    outbox: { put: [{ ...entries[0], intent: "__witness", state: "committed", op: "deliveries.post", args: { conversationId: "witness-marker", body: phase }, predicted: false }] },
+    outbox: { put: [{ ...entries[0], intent: "__witness", state: "committed", op: "messages.send", args: { conversationId: "witness-marker", body: phase }, predicted: false }] },
     bytes: { put: [{ assetId: markerId, width: null, type: `witness/${phase}`, bytes: new Uint8Array([byte]) }] },
   };
   await store.commit(swap);

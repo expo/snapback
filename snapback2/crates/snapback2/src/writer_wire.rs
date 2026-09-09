@@ -1,6 +1,6 @@
 //! Typed execution and live-delivery shapes for the HTTP/SSE wire.
 
-use crate::protocol::{Refusal, refusal_json, value_to_json};
+use crate::protocol::{Refusal, refusal_json, refusal_message, value_to_json};
 use crate::writer_util::rejection_family;
 use serde_json::{Value as Json, json};
 use snapback2_core::{Execution, ExecutionState};
@@ -22,16 +22,19 @@ pub fn execution_json(execution: &Execution) -> Json {
         ExecutionState::Committed { seq } => {
             json!({ "state": "committed", "seq": seq, "data": value_to_json(&execution.result) })
         }
-        ExecutionState::Rejected { code, message } => {
-            let family = rejection_family(code);
-            json!({
+        ExecutionState::Rejected { code, message, rule, site } => {
+            let family = if rule.is_some() { "rule" } else { rejection_family(code) };
+            let mut response = json!({
                 "state": "rejected",
                 "code": code,
                 "family": family,
-                "message": message,
+                "message": refusal_message(code, message),
                 "rewrite": "fix the rejected mutation input and retry",
                 "guide": format!("{family}/runtime"),
-            })
+            });
+            if let Some(rule) = rule { response["rule"] = json!(rule); }
+            if let Some(site) = site { response["site"] = json!(site); }
+            response
         }
     }
 }
@@ -130,6 +133,8 @@ mod tests {
     #[test]
     fn rejected_mutations_and_channel_refusals_carry_complete_envelopes() {
         let rejected = execution_json(&execution(ExecutionState::Rejected {
+            site: None,
+            rule: None,
             code: "E_RULE".to_owned(),
             message: "denied".to_owned(),
         }));
@@ -168,10 +173,60 @@ mod tests {
     }
 
     #[test]
+    fn rejected_mutation_messages_keep_codes_in_the_code_field() {
+        for (code, before, after) in [
+            ("E_INPUT", "E_INPUT: invalid cursor", "invalid cursor"),
+            (
+                "MEMBERSHIP_REQUIRED",
+                "E_REQUIRE:MEMBERSHIP_REQUIRED: program requirement failed",
+                "program requirement failed",
+            ),
+        ] {
+            let result = execution_json(&execution(ExecutionState::Rejected {
+                code: code.to_owned(),
+                message: before.to_owned(),
+            }));
+            assert_eq!(result["code"], code);
+            assert_eq!(result["message"], after);
+        }
+    }
+
+    #[test]
     fn capped_state_is_opaque() {
         let opaque = execution_json(&execution(ExecutionState::Capped));
         assert!(opaque.get("site").is_none());
         assert!(opaque.get("take").is_none());
         assert!(opaque.get("reason").is_none());
     }
+
+    #[test]
+    fn require_meaning_is_structured_in_live_and_replayed_writes() {
+        for code in ["NOT_MEMBER", "E_INPUT", "conflict"] {
+            let value = execution(ExecutionState::Rejected {
+                code: code.into(), message: "program requirement failed".into(), rule: Some(code.into()),
+                site: Some("snapback/rules.q:8:3".into()),
+            });
+            let replayed = snapback2_core::offline::replay_mutation_response(&value, "intent", None);
+            for result in [execution_json(&value), replayed] {
+                assert_eq!(result["family"], "rule");
+                assert_eq!(result["code"], code);
+                assert_eq!(result["rule"], code);
+                assert_eq!(result["message"], "program requirement failed");
+                assert_eq!(result["site"], "snapback/rules.q:8:3");
+            }
+        }
+        let occ = snapback2_core::offline::replay_mutation_response(&execution(ExecutionState::Rejected {
+            code: "conflict".into(), message: "messages.byId".into(), rule: None, site: None,
+        }), "occ-intent", None);
+        assert_eq!(occ["reason"], "conflict");
+        assert_eq!(occ["site"], "messages.byId");
+        assert!(occ.get("rule").is_none());
+        assert!(occ.get("code").is_none());
+        let input = execution_json(&execution(ExecutionState::Rejected {
+            code: "E_INPUT".into(), message: "invalid input".into(), rule: None, site: None,
+        }));
+        assert_eq!(input["family"], "input");
+        assert!(input.get("rule").is_none());
+    }
+
 }

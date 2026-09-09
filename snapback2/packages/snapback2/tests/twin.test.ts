@@ -1,3 +1,6 @@
+import { assertRefused } from "./live-fixture.ts";
+import { isRefusalError } from "../dist/client-observed-test.mjs";
+import { subscribe } from "../src/internal.js";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
@@ -5,7 +8,8 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
-import { SnapbackRefusal, api, createClient } from "../dist/client.mjs";
+import { api, createClient } from "../dist/client.mjs";
+import { RefusalError } from "../dist/client-observed-test.mjs";
 import { decodeDeliveryEnvelope, schemaDigest, toClosureReceipt } from "../dist/index.mjs";
 import { indexedDbRangeStore } from "../dist/react.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
@@ -15,10 +19,8 @@ import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
 import { engineId } from "./fake-owner.ts";
 import { fixtureClient } from "./live-fixture.ts";
 
-// @ref LLP 1012#6-reads-offline — the twin is the client: hydration from
-// atomic snapshots retain each issuing receipt and same-pool row references, local evaluation with
-// `partial` reasons, the stored answer as the covered case, program custody
-// under the successor and auth-epoch fences.
+// @ref LLP 1012#6-reads-offline — atomic snapshots retain issuing receipts, pooled rows,
+// partial reasons, covered answers and program custody under successor/auth-epoch fences.
 // @ref LLP 1012#7-writes-offline — prediction: the overlay keyed by the intent,
 // the trace of point digests and verdicts, discarded when the rows arrive.
 
@@ -82,34 +84,29 @@ function typedProgram(testCase: any): any {
 
 /** The corpus receipt as the wire delivers it: pooled rows, camelCase ranges, primary absences, public verdicts. */
 function wireReceipt(receipt: any): { rows: any[]; receipt: any } {
-  const rows: any[] = receipt.rows.map((row: any) => ({ table: row.table, id: row.id, row: wire(row.row) }));
-  return {
-    rows,
-    receipt: {
-      ranges: receipt.ranges.map((range: any) => ({
-        site: range.site, table: range.table, index: range.index,
-        prefix: range.prefix.map((atom: any) => 'Scalar' in atom ? { Scalar: wire(atom.Scalar) } : atom), order: range.order, take: range.take,
-        after: range.after === null ? null : wire(range.after), before: range.before === null ? null : wire(range.before),
-        gt: range.gt === null ? null : wire(range.gt), gte: range.gte === null ? null : wire(range.gte),
-        lt: range.lt === null ? null : wire(range.lt), lte: range.lte === null ? null : wire(range.lte),
-        ruleHash: range.rule_hash, rowIds: [...range.row_ids], stop: range.stop, absence: range.absence,
-        ...(range.halo === null ? {} : { haloId: range.halo.id }),
-      })),
-      absences: receipt.absences.map(([table, index, key]: any) => [table, index, key.map(wire)]),
-      verdicts: receipt.verdicts.map((verdict: any) => ({
-        ruleHash: verdict.rule_hash, pinnedInputsDigest: verdict.pinned_inputs_digest,
-        principal: verdict.principal, authEpoch: verdict.auth_epoch, result: verdict.result,
-      })),
-    },
-  };
+  return { rows: receipt.rows.map((row: any) => ({ table: row.table, id: row.id, row: wire(row.row) })), receipt: {
+    ranges: receipt.ranges.map((range: any) => ({
+      site: range.site, table: range.table, index: range.index,
+      prefix: range.prefix.map((atom: any) => 'Scalar' in atom ? { Scalar: wire(atom.Scalar) } : atom), order: range.order, take: range.take,
+      after: range.after === null ? null : wire(range.after), before: range.before === null ? null : wire(range.before),
+      gt: range.gt === null ? null : wire(range.gt), gte: range.gte === null ? null : wire(range.gte),
+      lt: range.lt === null ? null : wire(range.lt), lte: range.lte === null ? null : wire(range.lte),
+      ruleHash: range.rule_hash, rowIds: [...range.row_ids], stop: range.stop, absence: range.absence,
+      ...(range.halo === null ? {} : { haloId: range.halo.id }),
+    })),
+    absences: receipt.absences.map(([table, index, key]: any) => [table, index, key.map(wire)]),
+    verdicts: receipt.verdicts.map((verdict: any) => ({
+      ruleHash: verdict.rule_hash, pinnedInputsDigest: verdict.pinned_inputs_digest,
+      principal: verdict.principal, authEpoch: verdict.auth_epoch, result: verdict.result,
+    })),
+  } };
 }
 
 /** The corpus receipt as the store can hold it: `n2_suffix` never crosses the wire, an absence a held row disproves is dropped. */
 function holdableReceipt(receipt: any, schemaHash: string): unknown {
   const held = new Set(receipt.rows.map((row: any) => `${row.table}\u0000${row.id}`));
   return {
-    schema_hash: schemaHash,
-    rows: receipt.rows,
+    schema_hash: schemaHash, rows: receipt.rows,
     ranges: receipt.ranges.map((range: any) => ({ ...range, n2_suffix: null })),
     absences: receipt.absences.filter(([table, index, key]: any) =>
       !(index === "byId" && key.length === 1 && key[0] !== "Null" && "Id" in key[0] && held.has(`${table}\u0000${key[0].Id}`))),
@@ -186,14 +183,12 @@ function corpusOwner(options: CorpusOwnerOptions) {
     const url = new URL(String(input));
     requests.push(url.pathname + url.search);
     if (options.dead?.()) throw new TypeError("fetch failed");
-    if (url.pathname === "/api/manifest") {
-      return json({
-        generation: "schema-generation", programGeneration: current.generation, channels: {}, auth: {}, tables: {},
-        ops: Object.fromEntries(Object.entries(current.programs).map(([name, entry]) => [name, {
-          kind: entry.kind, cursor: entry.cursor, args: (entry.ir as { args?: unknown }).args ?? {}, planHash: entry.certificate.plan_hash,
-        }])),
-      });
-    }
+    if (url.pathname === "/api/manifest") return json({
+      generation: "schema-generation", programGeneration: current.generation, channels: {}, auth: {}, tables: {},
+      ops: Object.fromEntries(Object.entries(current.programs).map(([name, entry]) => [name, {
+        kind: entry.kind, cursor: entry.cursor, args: (entry.ir as { args?: unknown }).args ?? {}, planHash: entry.certificate.plan_hash,
+      }])),
+    });
     if (url.pathname === "/api/program") {
       const generation = url.searchParams.get("generation");
       if (generation !== current.generation) return json({ code: "E_OP_UNKNOWN", family: "op", message: "not active", guide: "op/manifest" }, 404);
@@ -235,12 +230,9 @@ function corpusOwner(options: CorpusOwnerOptions) {
 
 /** Seeds a partition with a corpus receipt as coverage (op `coverage`), its facts, and optionally a held answer. */
 async function seedCoverage(
-  factory: ReturnType<typeof fileRangeStore>,
-  viewer: string,
-  testCase: any,
+  factory: ReturnType<typeof fileRangeStore>, viewer: string, testCase: any,
   facts: { generation: string; schemaHash: string; authEpoch: number },
-  held?: { op: string; args: unknown; data: unknown; next: string | null },
-  extra: Record<string, unknown> = {},
+  held?: { op: string; args: unknown; data: unknown; next: string | null }, extra: Record<string, unknown> = {},
 ): Promise<void> {
   const store = factory();
   await store.open(viewer);
@@ -248,7 +240,7 @@ async function seedCoverage(
   const derived = receipt.ranges.some((r: any) => r.prefix.some((p: any) => "WordPrefix" in p));
   // Synthetic public filing of this native execution retains its actual pinned input, never reception time.
   const clock = testCase.context?.read_time != null ? { readTime: testCase.context.read_time, clockPlanHash: testCase.certificate.plan_hash } : {};
-  await store.commit({
+  try { await store.commit({
     deliveries: derived ? [{ op: testCase.name, args: held?.args ?? {}, state: "complete", data: held?.data ?? null,
       next: held?.next ?? null, seq: 1, validator: hex("1"), rows, receipt, ...clock }] : [
       { op: "coverage", args: {}, state: "complete", data: null, next: null, seq: 1, validator: hex("1"), rows, receipt },
@@ -259,8 +251,7 @@ async function seedCoverage(
       programs: { [testCase.name]: { kind: "query", cursor: corpusPageCursors[testCase.name], ir: testCase.program, planHash: testCase.certificate.plan_hash, certificate: testCase.certificate } } } } } : {}),
     facts, schema: testCase.schema,
     ...extra,
-  });
-  await store.close?.();
+  }); } finally { await store.close?.(); }
 }
 
 test("atomic carrier snapshots retain every envelope golden's issuing ClosureReceipt byte-identically", async () => {
@@ -312,92 +303,97 @@ test("a json column shaped like the byte variant rebuilds as application data, n
   }
 });
 
-test("every corpus query round-trips through atomic carrier snapshots and replays with its pinned execution inputs", async () => {
-  const cases = (await corpus()).filter((item: any) =>
-    item.certificate !== null && item.program.kind === "Query" && item.prelude.length === 0 && item.replacementReceipt === null);
-  assert.ok(cases.length >= 80, `corpus queries: ${cases.length}`);
+const roundTripCases = (await corpus()).filter((item: any) =>
+  item.certificate !== null && item.program.kind === "Query" && item.prelude.length === 0 && item.replacementReceipt === null);
+test("corpus round-trip inventory includes at least 80 queries and 60 byte-identical fresh answers", () => {
+  assert.ok(roundTripCases.length >= 80, `corpus queries: ${roundTripCases.length}`);
+  assert.ok(roundTripCases.filter((item: any) => item.expected.localState === "fresh"
+    && item.category !== "connected" && item.context.read_time === null
+    && item.receipt.absences.every(([, index]: any) => index === "byId")).length >= 60);
+});
+for (const testCase of roundTripCases) test(`atomic carrier round-trip with pinned inputs: ${testCase.name}`, async () => {
   const generation = hex("3");
-  let checked = 0;
-  let byteIdentical = 0;
-  for (const testCase of cases) {
-    const schemaHash = testCase.certificate.schema_hash as string;
-    const args = Object.fromEntries(Object.entries(testCase.context.args as Record<string, Tagged>).map(([name, value]) => [name, wire(value)]));
-    const fresh = testCase.expected.localState === "fresh";
-    const root = await tempRoot();
-    try {
-      const facts = { generation, schemaHash, authEpoch: testCase.context.auth_epoch as number };
-      await seedCoverage(fileRangeStore(root), testCase.context.viewer, testCase, facts,
-        fresh ? { op: testCase.name, args, data: wire(testCase.expected.localResult), next: testCase.expected.next ?? null } : undefined);
-      // Hydration: the coverage the store holds is the corpus receipt, byte for byte.
-      const store = fileRangeStore(root)();
-      await store.open(testCase.context.viewer);
-      const rebuilt = receiptFromSnapshot((await store.changes()).snapshot, testCase.schema, schemaHash, testCase.program);
-      assert.equal(canonical(rebuilt), canonical(holdableReceipt(testCase.receipt, schemaHash)), `${testCase.name}: hydration bytes`);
-      const heldAnswer = fresh ? await store.answer(testCase.name, args) : undefined;
-      await store.close?.();
-      // Local evaluation through the client, offline, against the corpus expectation.
-      const owner = corpusOwner({
-        viewer: testCase.context.viewer, generation, schemaHash, schema: testCase.schema,
-        programs: { [testCase.name]: { kind: "query", cursor: corpusPageCursors[testCase.name], ir: typedProgram(testCase), certificate: testCase.certificate } },
-      });
-      const client = createClient({ url: "http://corpus.test", token: "bearer", fetch: owner.fetch, offline: { store: fileRangeStore(root) } });
-      await client.ready;
-      await client.offline();
-      // The public query clock samples local time; native corpus values pin a different clock.
-      if (testCase.category === "connected") {
-        const answer: any = await client.query((api as any)[testCase.name], args);
-        assert.deepEqual(answer, { state: "hydrating", live: false, connection: "offline" });
-        checked += 1;
-        await client.close();
-        continue;
-      }
-      if (testCase.context.read_time !== null) {
-        const clockStore = fileRangeStore(root)(); await clockStore.open(testCase.context.viewer);
-        const held = (await clockStore.outbox.programs())[generation];
-        const pinned = new Twin({ program: () => held, changes: (since: any) => clockStore.changes(since), principal: () => testCase.context.viewer,
-          now: () => testCase.context.read_time, seq: () => 1 });
-        const answer = await pinned.evaluate(testCase.name, args);
-        assert.equal(canonical(answer?.data), canonical(wire(testCase.expected.localResult)), `${testCase.name}: explicit local clock parity`);
-        await clockStore.close?.(); checked += 1; await client.close(); continue;
-      }
-      const local: any = await client.query((api as any)[testCase.name], args).catch((error: unknown) => {
-        assert.equal(testCase.expected.localState, "refused", `${testCase.name}: unexpected refusal`);
-        assert.ok(error instanceof SnapbackRefusal && error.message.includes(testCase.expected.errorCode), `${testCase.name}: ${error}`);
-        return { state: "refused" };
-      });
-      const expected = testCase.expected;
-      if (expected.localState === "fresh") {
-        assert.ok(local.state === "complete" || local.state === "capped", `${testCase.name}: ${local.state} ${local.reason ?? ""}`);
-        assert.equal(canonical(local.data), canonical(wire(expected.localResult)), `${testCase.name}: data`);
-        if (Object.hasOwn(expected, "next")) {
-          // The public search cursor adds local fences around the engine's exact ordinary suffix token.
-          const next = typeof local.next === "string" && local.next.startsWith("h1.") ? JSON.parse(local.next.slice(3))[4] : local.next;
-          assert.equal(next, expected.next, `${testCase.name}: next`);
-        }
-        assert.equal(canonical(local.data), canonical(heldAnswer!.data), `${testCase.name}: the twin's replay is the held answer's bytes`);
-        assert.equal(local.seq, heldAnswer!.seq, `${testCase.name}: the held answer's facts stay with the twin's data`);
-        byteIdentical += 1;
-      } else if (expected.localState === "partial") {
-        assert.equal(local.state, "partial", `${testCase.name}: ${local.state}`);
-        assert.deepEqual(local.sites.map((site: { site: string }) => site.site).sort(), [...expected.partialSites].sort(), `${testCase.name}: partial sites`);
-        assert.ok(["never-held", "evicted", "computed-key"].includes(local.reason), `${testCase.name}: reason ${local.reason}`);
-      } else if (expected.localState === "denied") {
-        assert.equal(local.state, "denied", `${testCase.name}: ${local.state}`);
-        assert.equal(local.rule, expected.errorCode, `${testCase.name}: rule`);
-      } else if (!testCase.name.startsWith("asset-") && Object.values(testCase.context.args as Record<string, Tagged>).every((value) =>
-        value === "Null" || "Bool" in value || "Int" in value || "String" in value || "Id" in value)) {
-        // A refusal the corpus pins on its untyped `Scalar` arguments is not reproducible under typed descriptors;
-        // tagging can still be unavailable, but a covered execution refusal is reported.
-        assert.ok(local.state === "hydrating" || local.state === "refused", `${testCase.name}: ${local.state}`);
-      }
-      checked += 1;
-      await client.close();
-    } finally {
-      await rm(root, { recursive: true, force: true });
+  const schemaHash = testCase.certificate.schema_hash as string;
+  const args = Object.fromEntries(Object.entries(testCase.context.args as Record<string, Tagged>).map(([name, value]) => [name, wire(value)]));
+  const fresh = testCase.expected.localState === "fresh";
+  const root = await tempRoot();
+  try {
+    const facts = { generation, schemaHash, authEpoch: testCase.context.auth_epoch as number };
+    // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — primary-index absence projection.
+    // Native grouping-index absences must refuse on the public byId-only wire.
+    if (testCase.receipt.absences.some(([, index]: any) => index !== "byId")) {
+      await assert.rejects(() => seedCoverage(fileRangeStore(root), testCase.context.viewer, testCase, facts,
+        { op: testCase.name, args, data: wire(testCase.expected.localResult), next: null }),
+      /store receipts may evict only a primary byId absence/, testCase.name);
+      return;
     }
+    await seedCoverage(fileRangeStore(root), testCase.context.viewer, testCase, facts,
+      fresh ? { op: testCase.name, args, data: wire(testCase.expected.localResult), next: testCase.expected.next ?? null } : undefined);
+    // Hydration: the coverage the store holds is the corpus receipt, byte for byte.
+    const store = fileRangeStore(root)();
+    await store.open(testCase.context.viewer);
+    const rebuilt = receiptFromSnapshot((await store.changes()).snapshot, testCase.schema, schemaHash, testCase.program);
+    assert.equal(canonical(rebuilt), canonical(holdableReceipt(testCase.receipt, schemaHash)), `${testCase.name}: hydration bytes`);
+    const heldAnswer = fresh ? await store.answer(testCase.name, args) : undefined;
+    await store.close?.();
+    // Local evaluation through the client, offline, against the corpus expectation.
+    const owner = corpusOwner({
+      viewer: testCase.context.viewer, generation, schemaHash, schema: testCase.schema,
+      programs: { [testCase.name]: { kind: "query", cursor: corpusPageCursors[testCase.name], ir: typedProgram(testCase), certificate: testCase.certificate } },
+    });
+    const client = createClient({ url: "http://corpus.test", token: "bearer", fetch: owner.fetch, offline: { store: fileRangeStore(root) } });
+    await client.ready;
+    await client.offline();
+    // The public query clock samples local time; native corpus values pin a different clock.
+    if (testCase.category === "connected") {
+      const answer: any = await client.query((api as any)[testCase.name], args);
+      assert.deepEqual(answer, { state: "hydrating", live: false, connection: "offline" });
+      await client.close();
+      return;
+    }
+    if (testCase.context.read_time !== null) {
+      const clockStore = fileRangeStore(root)(); await clockStore.open(testCase.context.viewer);
+      const held = (await clockStore.outbox.programs())[generation];
+      const pinned = new Twin({ program: () => held, changes: (since: any) => clockStore.changes(since), principal: () => testCase.context.viewer,
+        now: () => testCase.context.read_time, seq: () => 1 });
+      const answer = await pinned.evaluate(testCase.name, args);
+      assert.equal(canonical(answer?.data), canonical(wire(testCase.expected.localResult)), `${testCase.name}: explicit local clock parity`);
+      await clockStore.close?.(); await client.close(); return;
+    }
+    const local: any = await client.query((api as any)[testCase.name], args).catch((error: unknown) => {
+      assert.equal(testCase.expected.localState, "refused", `${testCase.name}: unexpected refusal`);
+      assert.ok(isRefusalError(error) && error.message.includes(testCase.expected.errorCode), `${testCase.name}: ${error}`);
+      return { state: "refused" };
+    });
+    const expected = testCase.expected;
+    if (expected.localState === "fresh") {
+      assert.ok(local.state === "complete" || local.state === "capped", `${testCase.name}: ${local.state} ${local.reason ?? ""}`);
+      assert.equal(canonical(local.data), canonical(wire(expected.localResult)), `${testCase.name}: data`);
+      if (Object.hasOwn(expected, "next")) {
+        // The public search cursor adds local fences around the engine's exact ordinary suffix token.
+        const next = typeof local.next === "string" && local.next.startsWith("h1.") ? JSON.parse(local.next.slice(3))[4] : local.next;
+        assert.equal(next, expected.next, `${testCase.name}: next`);
+      }
+      assert.equal(canonical(local.data), canonical(heldAnswer!.data), `${testCase.name}: the twin's replay is the held answer's bytes`);
+      assert.equal(local.seq, heldAnswer!.seq, `${testCase.name}: the held answer's facts stay with the twin's data`);
+    } else if (expected.localState === "partial") {
+      assert.equal(local.state, "partial", `${testCase.name}: ${local.state}`);
+      assert.deepEqual(local.sites.map((site: { site: string }) => site.site).sort(), [...expected.partialSites].sort(), `${testCase.name}: partial sites`);
+      assert.ok(["never-held", "evicted", "computed-key"].includes(local.reason), `${testCase.name}: reason ${local.reason}`);
+    } else if (expected.localState === "denied") {
+      assert.equal(local.state, "denied", `${testCase.name}: ${local.state}`);
+      assert.equal(local.rule, expected.errorCode, `${testCase.name}: rule`);
+    } else if (!testCase.name.startsWith("asset-") && Object.values(testCase.context.args as Record<string, Tagged>).every((value) =>
+      value === "Null" || "Bool" in value || "Int" in value || "String" in value || "Id" in value)) {
+      // A refusal the corpus pins on its untyped `Scalar` arguments is not reproducible under typed descriptors;
+      // tagging can still be unavailable, but a covered execution refusal is reported.
+      assert.ok(local.state === "hydrating" || local.state === "refused", `${testCase.name}: ${local.state}`);
+    }
+
+    await client.close();
+  } finally {
+    await rm(root, { recursive: true, force: true });
   }
-  assert.equal(checked, cases.length);
-  assert.ok(byteIdentical >= 60, `covered replays proven byte-identical: ${byteIdentical}`);
 });
 
 /** The messenger corpus: `named-thread` (query), `named-send` and `named-delete-message` (mutations) share one schema. */
@@ -613,7 +609,7 @@ test("an offline send is predicted into the thread in order with its trace, a de
 // @ref LLP 1012#7-writes-offline — exact ordinary-row arrival retires its
 // atomic write group; maintained siblings retain independent authority.
 test("a committed intent's ordinary overlay retires as one group and two resumes retire a stranded prediction", async () => {
-  const base = { grant: "g", offset: 0, count: 3, ids: ["m", "d", "x"], op: "deliveries.post", args: { conversationId: "c1" }, issuedSeq: 0, createdAt: 1, updatedAt: 1 };
+  const base = { grant: "g", offset: 0, count: 3, ids: ["m", "d", "x"], op: "messages.send", args: { conversationId: "c1" }, issuedSeq: 0, createdAt: 1, updatedAt: 1 };
   const overlay = [{ table: "messages", id: "m", row: { id: "m", body: "predicted" } }, { table: "deliveries", id: "d", row: { id: "d", messageId: "m" } }];
   const committed = { ...base, intent: "g:0", state: "committed" as const, predicted: true, response: { state: "committed", seq: 30, data: { id: "m" } } };
   const page = (op: string, args: unknown, seq: number, rows: Array<{ table: string; id: string; row: Record<string, unknown> }>) => ({
@@ -621,17 +617,17 @@ test("a committed intent's ordinary overlay retires as one group and two resumes
     receipt: { ranges: [], absences: [], verdicts: [] },
   });
   const cases: Array<[string, ReturnType<typeof page>, boolean]> = [
-    ["another conversation's thread page", page("deliveries.thread", { conversationId: "c2" }, 32, [
+    ["another conversation's thread page", page("messages.thread", { conversationId: "c2" }, 32, [
       { table: "deliveries", id: "d-c2", row: { id: "d-c2", messageId: "m-c2" } }, { table: "messages", id: "m-c2", row: { id: "m-c2", body: "elsewhere" } },
     ]), false],
-    ["an unrelated row of the predicted table", page("deliveries.thread", { conversationId: "c1" }, 32, [
+    ["an unrelated row of the predicted table", page("messages.thread", { conversationId: "c1" }, 32, [
       { table: "deliveries", id: "d-other", row: { id: "d-other", messageId: "m-other" } },
     ]), false],
-    ["an empty page at the held tail position", page("deliveries.inbox", { c: "cursor-9" }, 32, []), false],
-    ["a delivery holding only the predicted message row", page("deliveries.thread", { conversationId: "c1" }, 32, [
+    ["an empty page at the held tail position", page("messages.inbox", { c: "cursor-9" }, 32, []), false],
+    ["a delivery holding only the predicted message row", page("messages.thread", { conversationId: "c1" }, 32, [
       { table: "messages", id: "m", row: { id: "m", body: "predicted" } },
     ]), true],
-    ["a delivery holding both predicted rows", page("deliveries.thread", { conversationId: "c1" }, 32, [
+    ["a delivery holding both predicted rows", page("messages.thread", { conversationId: "c1" }, 32, [
       { table: "messages", id: "m", row: { id: "m", body: "predicted" } },
       { table: "deliveries", id: "d", row: { id: "d", messageId: "m" } },
     ]), true],
@@ -642,7 +638,7 @@ test("a committed intent's ordinary overlay retires as one group and two resumes
       const store = fileRangeStore(root)();
       await store.open("viewer");
       await store.commit({
-        watermark: { op: "deliveries.inbox", args: { c: null }, watermark: "cursor-9", updatedAt: 1 },
+        watermark: { op: "messages.inbox", args: { c: null }, watermark: "cursor-9", updatedAt: 1 },
         outbox: { put: [{ ...base, intent: "g:0", state: "queued", predicted: true }] }, overlay: { put: { "g:0": overlay } },
       });
       await store.commit({ outbox: { put: [committed] } });
@@ -662,7 +658,7 @@ test("a committed intent's ordinary overlay retires as one group and two resumes
     const store = fileRangeStore(root)();
     await store.open("viewer");
     await store.commit({
-      watermark: { op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark: "cursor-9", updatedAt: 1 },
+      watermark: { op: "messages.inbox", args: { c: null }, cursorArg: "c", watermark: "cursor-9", updatedAt: 1 },
       outbox: { put: [{ ...base, intent: "g:0", state: "queued", predicted: true }] }, overlay: { put: { "g:0": overlay } },
     });
     await store.commit({ outbox: { put: [committed] } });
@@ -679,7 +675,7 @@ test("a committed intent's ordinary overlay retires as one group and two resumes
   }
 });
 
-// `hydrating` and an empty trace are typed outcomes, never catch-alls: a bug in
+// `hydrating` and an empty trace are typed verdicts, never catch-alls: a bug in
 // `tagArguments` surfaces from both query evaluation and mutation prediction.
 test("a ReferenceError from tagArguments surfaces on query and mutation, never as hydrating or an empty trace", async () => {
   const messengerCorpus = await messenger();
@@ -698,10 +694,10 @@ test("a ReferenceError from tagArguments surfaces on query and mutation, never a
     // Inject after custody admission, at the actual query/mutation argument boundary.
     const runtime = (client as any).offlineRuntime;
     for (const entry of Object.values<any>(runtime.held.programs)) entry.ir.args = throwingArgs;
-    await assert.rejects(client.query((api as any)["named-thread"], threadArgs), (error: unknown) =>
-      error instanceof SnapbackRefusal && /tagArguments bug/.test(error.message), "the ReferenceError was swallowed as hydrating");
-    await assert.rejects(client.mutation((api as any)["named-send"], { conversationId: "c1", body: "bug", at: 30 }), (error: unknown) =>
-      error instanceof SnapbackRefusal && /tagArguments bug/.test(error.message), "the ReferenceError was swallowed as an unpredicted empty trace");
+    await assertRefused(client.query((api as any)["named-thread"], threadArgs), (error: unknown) =>
+      (error.state === "rejected" || error.state === "refused") && /tagArguments bug/.test(error.message), "the ReferenceError was swallowed as hydrating");
+    await assertRefused(client.mutation((api as any)["named-send"], { conversationId: "c1", body: "bug", at: 30 }), (error: unknown) =>
+      (error.state === "rejected" || error.state === "refused") && /tagArguments bug/.test(error.message), "the ReferenceError was swallowed as an unpredicted empty trace");
     assert.deepEqual(await client.outbox.entries(), [], "a tagger bug did not enqueue an intent with an empty trace");
     await client.close();
   } finally {
@@ -1016,7 +1012,7 @@ test("evicting a middle row of a drained page makes the never-opened thread part
 test("a connected subscription without a local store becomes hydrating on transport loss", async () => {
   let stream: ReadableStreamDefaultController<Uint8Array> | undefined;
   let dead = false;
-  const client = fixtureClient({ url: "http://connected-live.test", as: "alice", fetch: async input => {
+  const client = fixtureClient({ url: "http://connected-live.test", persona: "alice", fetch: async input => {
     if (dead) throw new TypeError("offline");
     const path = new URL(String(input)).pathname;
     if (path === "/api/manifest") return new Response(JSON.stringify({ ops: { online: { kind: "query", args: {} } }, auth: {}, channels: {} }));
@@ -1026,7 +1022,7 @@ test("a connected subscription without a local store becomes hydrating on transp
     } }), { headers: { "content-type": "text/event-stream" } });
   } });
   const events: any[] = [];
-  const subscription = client.subscribe((api as any).online, {}, event => events.push(event));
+  const subscription = subscribe(client, (api as any).online, {}, event => events.push(event));
   try {
     await subscription.until(event => event.state === "complete", 2_000);
     const offline = subscription.until(event => event.state === "hydrating", 2_000);
@@ -1040,7 +1036,7 @@ test("a no-store subscription clears connected on its next ordinary frame before
   let stream: ReadableStreamDefaultController<Uint8Array> | undefined;
   let dead = false;
   const frame = (value: object) => new TextEncoder().encode(`data: ${JSON.stringify(value)}\n\n`);
-  const client = fixtureClient({ url: "http://connected-frame.test", as: "alice", fetch: async input => {
+  const client = fixtureClient({ url: "http://connected-frame.test", persona: "alice", fetch: async input => {
     if (dead) throw new TypeError("offline");
     if (new URL(String(input)).pathname === "/api/manifest") return new Response(JSON.stringify({ ops: { online: { kind: "query", args: {} } }, auth: {}, channels: {} }));
     return new Response(new ReadableStream({ start(controller) {
@@ -1048,7 +1044,7 @@ test("a no-store subscription clears connected on its next ordinary frame before
       controller.enqueue(frame({ state: "complete", data: 1, seq: 1, next: null, connected: true }));
     } }), { headers: { "content-type": "text/event-stream" } });
   } });
-  const subscription = client.subscribe((api as any).online, {}, () => {});
+  const subscription = subscribe(client, (api as any).online, {}, () => {});
   try {
     await subscription.until(event => event.state === "complete", 2_000);
     const ordinary = subscription.until((event: any) => event.state === "complete" && event.seq === 2, 2_000);
@@ -1215,7 +1211,7 @@ test("covered evaluation errors surface; typed local mutation refusals omit pred
     const EvalError = sample.constructor; assert.equal(EvalError,SharedError);
     twin.hydrate = async () => hydrated;
     hydrated.store.reexecute = () => { throw new EvalError("E_OVERFLOW", "covered overflow"); };
-    await assert.rejects(client.query((api as any)["named-thread"], threadArgs), /E_OVERFLOW/);
+    await assertRefused(client.query((api as any)["named-thread"], threadArgs), /E_OVERFLOW/);
     for (const code of ["E_REQUIRE", "E_RULE", "E_CONSTRAINT", "E_INPUT", "E_TYPE", "E_FIELD", "E_DIV_ZERO", "E_OVERFLOW", "E_SCHEMA", "E_OPAQUE"]) {
       hydrated.store.applyMutation = () => { throw new EvalError(code, "modeled refusal"); };
       const result = await twin.predict("named-send", { conversationId: "c1", body: "test", at: 30 }, [engineId(1)]);
@@ -1334,7 +1330,7 @@ test('h1 stays local across query transport, subscription reconnect and cold reo
   assert.equal(first.state, 'capped'); assert(first.next.startsWith('h1.'));
   const second: any = await client.query((api as any)[op], { term: 'CAFE\u0301', c: first.next });
   assert.equal(second.state, 'held'); assert.equal(second.data.length, 5);
-  const sub = client.subscribe((api as any)[op], { term: 'Café', c: first.next }, () => {}); context.after(() => sub.close());
+  const sub = subscribe(client, (api as any)[op], { term: 'Café', c: first.next }, () => {}); context.after(() => sub.close());
   await client.online(); await sub.until(value => value.state === 'complete', 1000);
   await client.query((api as any)[op], { term: 'Café', c: first.next });
   assert(requests.some(r => r.path === '/api/subscribe')); assert(requests.some(r => r.path === '/api/query'));
@@ -1384,11 +1380,11 @@ test('enrolled ordinary conditionals fetch one authenticated full reply without 
     try {
       await client.ready;
       if (mode === 'subscription') {
-        const sub = client.subscribe((api as any).ordinary, ordinary.args, () => {});
+        const sub = subscribe(client, (api as any).ordinary, ordinary.args, () => {});
         try { const next: any = await sub.until(value => value.state === 'complete' && value.data?.[0]?.at === 2, 1000); assert.equal(next.data[0].at, 2); }
         finally { sub.close(); }
       } else if (mode === 'failed-full') {
-        await assert.rejects(client.query((api as any).ordinary, ordinary.args), (error: any) => error.code === 'E_OFFLINE_DELIVERY');
+        await assertRefused(client.query((api as any).ordinary, ordinary.args), (error: any) => error.code === 'E_OFFLINE_DELIVERY');
         await client.offline(); const held: any = await client.query((api as any).ordinary, ordinary.args); assert.equal(held.data[0].at, 1);
       } else assert.equal((await client.query((api as any).ordinary, ordinary.args)).data[0].at, 2);
       assert.equal(requests.length, 2, 'one conditional followed by exactly one full revalidation');
@@ -1426,7 +1422,7 @@ test('native-certified derived page keeps its public local cursor after halo rep
     assert(page.next?.startsWith('h1.'),'the last returned p20 remains a local page anchor');
     const tail = await runtime.twin.evaluate(op,{ term: 'e\u0301',c: page.next });
     assert.equal(tail.state,'held','held iterator exhaustion never proves the unheld server tail'); assert.deepEqual(tail.data,[]);
-    assert.equal(saved.answers[op+'\0'+canonical(args)].next,null,'local cursor never becomes stored server progress');
+    assert.equal(saved.answers[op+'\0'+canonical({ term: args.term })].next,null,'local cursor never becomes stored server progress');
   }
   await runtime.close();
 });
@@ -1462,14 +1458,14 @@ test('public offline movement propagates detected partial coverage and the known
       if (path === '/api/resume') return Response.json({ seq: moved.seq,generation: moved.generation,schemaHash: moved.schemaHash,authority: moved.authority,log: { unchanged: true },mounted: [] });
       requests++; throw new TypeError('synthetic offline transport');
     };
-    const client = createClient({ url: 'http://movement.test',as: halo.first.authority.principal,startOffline: mode === 'forced',offline: { store: factory },fetch });
+    const client = createClient({ url: 'http://movement.test',persona: halo.first.authority.principal,startOffline: mode === 'forced',offline: { store: factory },fetch });
     try {
       await client.ready;
       const check = (answer: any) => { assert.equal(answer.state,'partial'); assert(!Object.hasOwn(answer,'next'));
         assert.equal(answer.connection,'offline'); assert.deepEqual(answer.data.rows.map((r: any) => r.at),[0,1,2,3,4,5,6,7,10,100]); };
       check(await client.query(api.clock.fixed as any,{})); assert.equal(requests,mode === 'forced' ? 0 : 3);
       if (mode === 'forced') {
-        const sub = client.subscribe(api.clock.fixed as any,{},() => {});
+        const sub = subscribe(client, api.clock.fixed as any,{},() => {});
         try { check(await sub.until((r: any) => r.state === 'partial',2000)); } finally { sub.close(); }
         check(await client.query(api.clock.fixed as any,{}));
       }

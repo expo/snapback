@@ -1,3 +1,4 @@
+import { nameRewrite } from "./diagnostics";
 import { basename } from "node:path";
 import type { Document, Expr, ProgramDecl, ScalarType, ScheduleDecl, TableCatalog } from "./ast";
 import { validateScheduleExpressions } from "./bound-schedule";
@@ -20,13 +21,17 @@ export function prepareSchedules(documents: Document[], catalog: TableCatalog) {
     names.add(schedule.name);
     const row = "row" in schedule.trigger ? schedule.trigger.row : undefined;
     const table = row && catalog.get(row.table);
+    if (row && !table) fail(`unknown table ${row.table}`, "E_SCHEDULE_COLUMN", nameRewrite(row.table, catalog.keys()));
+    if (row && table && !table.columns.has(row.column)) fail(`unknown ${row.table} column ${row.column}`,
+      "E_SCHEDULE_COLUMN", nameRewrite(row.column, table.columns.keys()));
     if (row && (!table || table.columns.get(row.column)?.kind !== "time" || !table.columns.get(row.column)?.optional)) {
       fail(`schedule ${schedule.name} requires ${row.table}.${row.column} to be time ?`, "E_SCHEDULE_COLUMN");
     }
     const localName = `${basename(document.file, ".q")}.${schedule.target}`;
     const candidates = operations.filter(op => op.name === schedule.target || op.name === localName);
     const matches = candidates.length ? candidates : operations.filter(op => op.program.name === schedule.target);
-    const target = matches.length === 1 ? matches[0]! : fail(`schedule target ${schedule.target} is not an unambiguous mutation or job`);
+    const target = matches.length === 1 ? matches[0]! : fail(`schedule target ${schedule.target} is not an unambiguous mutation or job`,
+      "E_SCHEDULE_TARGET", nameRewrite(schedule.target, operations.flatMap(op => [op.name, op.program.name])));
     if (target.program.kind === "query") fail(`schedule target ${schedule.target} is a query`);
     if ((!row && (schedule.args.length || target.program.args.length)) || schedule.args.length !== target.program.args.length) fail(`schedule target ${schedule.target} has incompatible arguments`);
     // The binding is pure row computation; no reads, writes, ambient identities, or allocation.
@@ -50,7 +55,7 @@ export function prepareSchedules(documents: Document[], catalog: TableCatalog) {
     const columns = table
       ? [...referenced].map((name) => {
         if (name === "id") return { name, type: { kind: "ref", table: row!.table, optional: false } as ScalarType, site };
-        const type = table.columns.get(name) ?? fail(`schedule ${schedule.name} names unknown column ${row!.table}.${name}`);
+        const type = table.columns.get(name) ?? fail(`schedule ${schedule.name} names unknown column ${row!.table}.${name}`, "E_SCHEDULE_COLUMN", nameRewrite(name, table.columns.keys()));
         if (type.kind === "image" || type.kind === "video") fail(`schedule ${schedule.name} cannot pass asset column ${row!.table}.${name}`);
         return { name, type, site };
       })

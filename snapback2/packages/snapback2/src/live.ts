@@ -1,6 +1,6 @@
 // @ref LLP 1002#4-the-wire — one physical SSE stream, independently fenced logical streams.
 import { parseSse, type SseResponse } from "./sse-parser.js";
-import { responseRefusal, wireShape, wireRefusalEnvelope, isTerminalSession, SnapbackRefusal } from "./client-wire.js";
+import { responseRefusal, wireShape, wireRefusal, isTerminalSession, RefusalError } from "./client-wire.js";
 
 interface Entry {
   id: string;
@@ -21,7 +21,7 @@ interface Connection {
   sent: Set<string>;
   session?: string;
   flushing: boolean;
-  terminal(error: SnapbackRefusal): Promise<void>;
+  terminal(error: RefusalError): Promise<void>;
 }
 const encoder = new TextEncoder();
 const aborted = () => { const error = new Error("subscription closed"); error.name = "AbortError"; return error; };
@@ -135,7 +135,7 @@ export class SharedSse {
       if (!frame || typeof frame !== "object" || Array.isArray(frame)) throw wireShape("invalid live frame");
       if (frame.data?.state === "refused" && isTerminalSession(frame.data)
         && (this.connection !== connection || !connection.entries.has(frame.id))) {
-        await connection.terminal(new SnapbackRefusal(wireRefusalEnvelope(frame.data, "live session refusal")));
+        await connection.terminal(new RefusalError(wireRefusal(frame.data, "live session refusal")));
       }
       if (this.connection !== connection) continue;
       if (typeof frame.session === "string") {

@@ -237,10 +237,10 @@ export function registerQuarryChecks(test: Test, frontend: string): void {
   avatar: image <=5000000 ?
   gallery: [image <=5000000] <=4
   clip: video <=50000000
-  unique photo
-  by avatar
-  by gallery
-  by clip
+  unique byPhoto: photo
+  by byAvatar: avatar
+  by byGallery: gallery
+  by byClip: clip
   public
 `,
       "snapback/media.q": "query one():\n  return null\n",
@@ -535,7 +535,7 @@ mutation empty_last(photo: image <=5000000, images: [image <=5000000] <=4, video
   });
 
   test("Quarry addressed key columns refuse disagreement and paste drop-field rewrites", async () => {
-    const schema = "table keyedRows:\n  owner: principal\n  label: text <=40\n  value: int\n  unique owner, label\n  public\n";
+    const schema = "table keyedRows:\n  owner: principal\n  label: text <=40\n  value: int\n  unique byOwnerLabel: owner, label\n  public\n";
     const badUpsert = "upsert keyedRows[owner, label] { owner: viewer, label, value }";
     const badUpdate = "update keyedRows[owner, label] { owner, label: 'other', value }";
     const operations = `mutation upsertMismatch(owner: principal, label: text <=40, value: int):
@@ -554,10 +554,10 @@ mutation updateMismatch(owner: principal, label: text <=40, value: int):
     const upsert = diagnostics.find((item) => item.message.startsWith("upsert may not"));
     const update = diagnostics.find((item) => item.message.startsWith("update may not"));
     assert(upsert?.family === "quarry" && upsert.site === "snapback/ops.q:2:36"
-      && upsert.rewrite === "upsert keyedRows[owner, label] { label, value }" && upsert.guide === "quarry/types",
+      && upsert.rewrite === "upsert keyedRows[owner, label] { label, value }" && upsert.guide === "quarry",
     `upsert mismatch lost its code/family/field site/drop-field rewrite/guide: ${JSON.stringify(upsert)}`);
     assert(update?.family === "quarry" && update.site === "snapback/ops.q:5:43"
-      && update.rewrite === "update keyedRows[owner, label] { owner, value }" && update.guide === "quarry/types",
+      && update.rewrite === "update keyedRows[owner, label] { owner, value }" && update.guide === "quarry",
     `update mismatch lost its code/family/field site/drop-field rewrite/guide: ${JSON.stringify(update)}`);
 
     const repaired = operations
@@ -572,7 +572,7 @@ mutation updateMismatch(owner: principal, label: text <=40, value: int):
   });
 
   test("Quarry upsert rows refuse every authored id with a drop-field rewrite", async () => {
-    const schema = "table keyedRows:\n  owner: principal\n  label: text <=40\n  value: int\n  unique owner, label\n  read <- allow\n  insert <- allow\n  update <- allow\n  delete <- allow\n";
+    const schema = "table keyedRows:\n  owner: principal\n  label: text <=40\n  value: int\n  unique byOwnerLabel: owner, label\n  read <- allow\n  insert <- allow\n  update <- allow\n  delete <- allow\n";
     const module = "mutation bump(owner: principal, label: text <=40, value: int):\n  upsert keyedRows[owner, label] { id: new, value }\n  return true\n";
     const compiled = compileInline([
       { fileName: "snapback/schema.q", source: schema },

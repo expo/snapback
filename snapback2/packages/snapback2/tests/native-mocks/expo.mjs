@@ -2,3 +2,4 @@ export function requireOptionalNativeModule() { return globalThis.__snapbackNati
 export function requireNativeView() {
   return props => globalThis.__snapbackNative.React.createElement("NativeMemoryVideo", props);
 }
+export default { expoConfig: { extra: {} } };

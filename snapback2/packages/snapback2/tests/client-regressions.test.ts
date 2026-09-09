@@ -1,13 +1,79 @@
+import { assertRefused } from "./live-fixture.ts";
+import { isRefusalError } from "../dist/client-observed-test.mjs";
+import { subscribe } from "../src/internal.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createRequire } from "node:module";
 import { channelFrame } from "./live-fixture.ts";
 import React from "react";
 import TestRenderer, { act } from "react-test-renderer";
-import { SnapbackRefusal, api, createClient } from "../dist/client.mjs";
+import { api, createClient } from "../dist/client.mjs";
+import { RefusalError } from "../dist/client-observed-test.mjs";
 import { SnapbackProvider, useAuth, useMutation } from "../dist/react.mjs";
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+
+test("public read and write failures distinguish abort, closed client, integrity and transport", async () => {
+  for (const kind of ["abort", "integrity", "transport", "closed"]) {
+    let requests = 0;
+    const value = createClient({ url: "http://taxonomy.test", fetch: async () => {
+      requests++;
+      if (kind === "abort") throw new DOMException("cancelled", "AbortError");
+      if (kind === "integrity") return new Response('{"state":"complete"');
+      throw new TypeError("network lost");
+    } });
+    try {
+      if (kind === "closed") await value.close();
+      for (const run of [() => value.query(api.messages.thread, {}), () => value.mutation(api.messages.send, {})]) {
+        const result: any = await run();
+        assert.ok(result.state === "refused" || result.state === "rejected");
+        assert.equal(result.code, { abort: "E_ABORTED", integrity: "E_WIRE_SHAPE", transport: "E_TRANSPORT", closed: "E_CLIENT_CLOSED" }[kind]);
+        assert.equal(result.retryable, kind === "transport");
+        assert.ok(result.site && result.rewrite && result.guide);
+      }
+      if (kind === "abort" || kind === "integrity") assert.equal(requests, 2, "non-retryable errors are not retried");
+      if (kind === "closed") assert.equal(requests, 0);
+    } finally { await value.close(); }
+  }
+});
+
+for (const status of [200, 409]) for (const [kind, code, family, retryable] of [
+  ["abort", "E_ABORTED", "client", false],
+  ["transport", "E_TRANSPORT", "transport", true],
+  ["json", "E_WIRE_SHAPE", "op", false],
+] as const) test(`HTTP ${status} response body ${kind} preserves query and mutation cause without resubmission`, async () => {
+  const requests: string[] = [];
+  const client = createClient({ url: "http://body.test", fetch: async input => {
+    requests.push(new URL(String(input)).pathname);
+    return new Response(kind === "json" ? '{"state":' : new ReadableStream({ start(controller) {
+      controller.enqueue(new TextEncoder().encode('{"state":'));
+      controller.error(kind === "abort" ? new DOMException("body cancelled", "AbortError") : new TypeError("body connection lost"));
+    } }), { status });
+  } });
+  try {
+    for (const [state, run] of [
+      ["refused", () => client.query(api.messages.thread, {})],
+      ["rejected", () => client.mutation(api.messages.send, {})],
+    ] as const) {
+      const result: any = await run();
+      assert.deepEqual([result.state, result.code, result.family, result.retryable], [state, code, family, retryable]);
+      assert.ok(result.site && result.rewrite && result.guide);
+    }
+    await new Promise(resolve => setTimeout(resolve, 300));
+    assert.equal(requests.filter(path => path === "/api/mutation").length, 1, "a response-body failure never resubmits a write");
+  } finally { await client.close(); }
+});
+
+test("rule meaning survives plain messages and application codes colliding with platform codes", async () => {
+  for (const code of ["NOT_MEMBER", "E_INPUT"]) {
+    const value = createClient({ url: "http://rules.test", fetch: async () => fetchJson({ state: "rejected",
+      code, family: "rule", rule: code, message: "program requirement failed", guide: "rule/runtime" }) });
+    try {
+      assert.deepEqual(await value.mutation(api.messages.send, {}), { state: "rejected", code, family: "rule",
+        rule: code, message: "program requirement failed", guide: "rule/runtime" });
+    } finally { await value.close(); }
+  }
+});
 
 test("owner harness releases lifecycle timers and listeners", async (context) => {
   const { default: processes } = await import("node:child_process");
@@ -243,9 +309,9 @@ async function waitForNative(predicate: () => boolean): Promise<void> {
 
 test("native Response preserves shared query/channel delivery and independent terminal refusals", async context => {
   const wire = nativeLive(context);
-  const value = createClient({ url: "http://native.test", as: "alice", fetch: wire.fetch });
+  const value = createClient({ url: "http://native.test", persona: "alice", fetch: wire.fetch });
   const queries: unknown[] = [], channels: unknown[] = [];
-  const query = value.subscribe(api.messages.thread, {}, event => queries.push(event));
+  const query = subscribe(value, api.messages.thread, {}, event => queries.push(event));
   const channel = value.channel(api.typing, {}).subscribe(event => channels.push(event));
   try {
     await waitForNative(() => wire.controls.flatMap(command => command.add ?? []).length === 2);
@@ -264,7 +330,7 @@ test("native Response preserves shared query/channel delivery and independent te
 
     const denied = { state: "refused", code: "E_RULE", family: "rule", guide: "rule/runtime", message: "membership removed" };
     wire.send({ id: queryId, seq: null, data: denied, terminal: true });
-    await assert.rejects(query.until(() => false, 1_000), error => error instanceof SnapbackRefusal && error.code === "E_RULE");
+    await assert.rejects(query.until(() => false, 1_000), error => isRefusalError(error) && error.code === "E_RULE");
     wire.send({ id: queryId, seq: 2, data: { ...row, seq: 2 }, terminal: false });
     const updated = { ...typing, entries: [{ ...typing.entries[0], expiresAt: 11 }] };
     wire.send({ id: channelId, seq: null, data: updated, terminal: false });
@@ -272,7 +338,7 @@ test("native Response preserves shared query/channel delivery and independent te
     assert.deepEqual(queries, [{ ...row, live: true }, { ...denied, live: false }]);
     assert.deepEqual(channels, [{ status: "loading", entries: [] }, ready, { ...ready, entries: updated.entries }]);
     wire.send({ id: channelId, seq: null, data: denied, terminal: true });
-    await assert.rejects(channel.until(() => false, 1_000), error => error instanceof SnapbackRefusal && error.code === "E_RULE");
+    await assert.rejects(channel.until(() => false, 1_000), error => isRefusalError(error) && error.code === "E_RULE");
     const { state: _state, ...refusal } = denied;
     assert.deepEqual(channels.at(-1), { status: "unavailable", reason: "refused", entries: [], refusal });
     await waitForNative(() => [queryId, channelId].every(id => wire.controls.some(command => command.remove?.includes(id))));
@@ -292,7 +358,7 @@ test("native Response cancellation keeps peers live and preserves removed-child 
   const queries: unknown[] = [], channels: unknown[] = [];
   try {
     await value.ready;
-    const query = value.subscribe(api.messages.thread, {}, event => queries.push(event));
+    const query = subscribe(value, api.messages.thread, {}, event => queries.push(event));
     const room = value.channel(api.typing, {});
     const channel = room.subscribe(event => channels.push(event));
     await waitForNative(() => wire.controls.flatMap(command => command.add ?? []).length === 2);
@@ -366,7 +432,7 @@ test("status listener exceptions cannot leak registration or break peers", async
   value.close();
 });
 
-test("useMutation treats malformed successful bodies as ambiguous transport", async () => {
+test("useMutation refuses malformed successful bodies without offering retry", async () => {
   let current: any;
   let attempts = 0;
   const fetch = async (input: string | URL | Request) => {
@@ -403,19 +469,18 @@ test("useMutation treats malformed successful bodies as ambiguous transport", as
   for (const expectedAttempt of [2, 3]) {
     let ambiguous: unknown;
     await act(async () => {
-      await assert.rejects(
+      await assertRefused(
         () => current.run({}),
         (error: unknown) => {
           ambiguous = error;
-          return error instanceof SnapbackRefusal
+          return (error.state === "rejected" || error.state === "refused")
             && error.code === "E_WIRE_SHAPE"
-            && error.retryable === true;
+            && error.retryable === false;
         },
       );
     });
     assert.equal(attempts, expectedAttempt, "mutation response decoding retried the write");
-    assert.strictEqual(current.last, committed);
-    assert.strictEqual(current.detail.transport, ambiguous);
+    assert.strictEqual(current.last, ambiguous);
   }
   await act(async () => { renderer!.unmount(); });
 });
@@ -503,4 +568,26 @@ test("useAuth ignores stale me responses after logout and client replacement", a
   });
   assert.equal(auth.viewer, "new-viewer");
   await act(async () => { renderer!.unmount(); });
+});
+
+
+test("useMutation keeps a current catch and ignores a predecessor's late catch", async () => {
+  const client = createClient({ url: "http://hook.test", fetch: async () => fetchJson({ generation: "g", programGeneration: "p", ops: {}, channels: {}, auth: {} }) });
+  let hook: any, renderer: any, rejectOld!: (error: Error) => void;
+  function Probe({ op }: any) { hook = useMutation(op); return null; }
+  const render = (op: any) => React.createElement(SnapbackProvider, { client }, React.createElement(Probe, { op }));
+  try {
+    await act(async () => { renderer = TestRenderer.create(render(api.messages.send)); });
+    client.mutation = () => new Promise((_, reject) => { rejectOld = reject; });
+    let old: Promise<any>;
+    await act(async () => { old = hook.run({}); });
+    assert.equal(hook.inFlight, true);
+    await act(async () => { renderer.update(render(api.messages.edit)); });
+    client.mutation = async () => { throw new Error("local integrity failure"); };
+    await act(async () => { await hook.run({}); });
+    assert.equal(hook.last.code, "E_CLIENT"); assert.equal(hook.last.retryable, false);
+    const current = hook.last;
+    await act(async () => { rejectOld(new Error("obsolete catch")); await old; });
+    assert.strictEqual(hook.last, current); assert.equal(hook.inFlight, false);
+  } finally { if (renderer) await act(async () => renderer.unmount()); await client.close(); }
 });

@@ -8,13 +8,13 @@ table subs:
   user: users
   show: shows
   lastListenedAt: time
-  by user, lastListenedAt
+  by byUserLastListenedAt: user, lastListenedAt
 
 table episodes:
   show: shows
   publishedAt: time
   title: text <=200
-  by show, publishedAt
+  by byShowPublishedAt: show, publishedAt
 
 query inboxBadges():
   subs[viewer] last 50 {

@@ -1,3 +1,6 @@
+import { assertRefused } from "./live-fixture.ts";
+import { isRefusalError } from "../dist/client-observed-test.mjs";
+import { subscribe } from "../src/internal.js";
 import { createClient as realClient } from "../dist/client.mjs";
 import { fixtureClient as createClient, multiplexFetch, channelFrame } from "./live-fixture.ts";
 import assert from "node:assert/strict";
@@ -5,12 +8,10 @@ import { MockOwner } from "./mock-owner.ts";
 import { test, before, after } from "node:test";
 import React from "react";
 import TestRenderer, { act } from "react-test-renderer";
-import {
-  SnapbackRefusal,
-  api,
+import { api,
   stableSerialize,
-  type SnapbackClient,
-} from "../dist/client.mjs";
+  type SnapbackClient } from "../dist/client.mjs";
+import { RefusalError } from "../dist/client-observed-test.mjs";
 import {
   SnapbackProvider,
   initialQueryState,
@@ -79,11 +80,10 @@ function heartbeatSse(): Response {
   }), { status: 200, headers: { "Content-Type": "text/event-stream" } });
 }
 
-function isWireShape(error: unknown, missing: string): boolean {
-  return error instanceof SnapbackRefusal
-    && error.code === "E_WIRE_SHAPE"
-    && error.envelope.family === "op"
-    && error.message.includes(missing);
+function isWireShape(error: any, missing: string): boolean {
+  const refusal = isRefusalError(error) ? error.envelope : error;
+  return refusal?.code === "E_WIRE_SHAPE" && refusal.family === "op" && refusal.message.includes(missing);
+
 }
 
 const externalUrl = process.env.SNAPBACK_URL;
@@ -128,7 +128,7 @@ test("default fetch preserves the browser receiver for JSON and SSE", async (con
   context.after(() => value.close());
   assert.equal((await value.auth.me()).viewer, "alice");
   assert.equal((await value.query(api.messages.thread, {})).state, "complete");
-  const sub = value.subscribe(api.messages.thread, {}, () => undefined);
+  const sub = subscribe(value, api.messages.thread, {}, () => undefined);
   context.after(() => sub.close());
   await sub.until(delivery => delivery.state === "complete", 500);
   assert.deepEqual(paths, ["/api/auth/me", "/api/query", "/api/subscribe"]);
@@ -173,7 +173,7 @@ test("guest, signup, login, logout, me, token memory, and persistence", async ()
   assert.equal(guestClient.snapshot.token, undefined);
   assert.deepEqual(persisted, [guest.token, null]);
   await assert.rejects(() => guestClient.auth.me(), (error: unknown) =>
-    error instanceof SnapbackRefusal && error.envelope.code === "E_AUTH_REQUIRED");
+    isRefusalError(error) && error.envelope.code === "E_AUTH_REQUIRED");
 
   const signupClient = client();
   const email = `lane-d-${Date.now()}@example.com`;
@@ -184,7 +184,7 @@ test("guest, signup, login, logout, me, token memory, and persistence", async ()
   assert.equal(login.viewer, signup.viewer);
 });
 test("query returns every typed read state and refuses 4xx/network as envelopes", async () => {
-  const value = client(externalUrl ? { as: "alice" } : {});
+  const value = client(externalUrl ? { persona: "alice" } : {});
   if (!externalUrl) await value.auth.guest();
   const manifest = await value.manifest();
   assert.ok(manifest.generation.length > 0);
@@ -198,14 +198,14 @@ test("query returns every typed read state and refuses 4xx/network as envelopes"
       assert.equal(result.state, state);
     }
   }
-  await assert.rejects(() => value.query(api.states.missing, {}), (error: unknown) =>
-    error instanceof SnapbackRefusal && error.envelope.code === "E_OP_UNKNOWN");
+  await assertRefused(() => value.query(api.states.missing, {}), (error: unknown) =>
+    (error.state === "rejected" || error.state === "refused") && error.code === "E_OP_UNKNOWN");
   const offline = createClient({
     url,
     fetch: async () => { throw new Error("offline on purpose"); },
   });
-  await assert.rejects(() => offline.query(api.states.complete, {}), (error: unknown) =>
-    error instanceof SnapbackRefusal && error.envelope.code === "E_NETWORK");
+  await assertRefused(() => offline.query(api.states.complete, {}), (error: unknown) =>
+    (error.state === "rejected" || error.state === "refused") && error.code === "E_TRANSPORT");
   offline.close();
 });
 test("an empty capped page is the terminal drain state", async () => {
@@ -270,13 +270,13 @@ test("every HTTP wire state validates its state-specific required fields", async
   ] as const;
   for (const [wire, missing] of queryCases) {
     const value = createClient({ url: "http://wire.test", fetch: async () => fetchJson(wire) });
-    await assert.rejects(() => value.query(api.states.complete, {}), (error: unknown) => isWireShape(error, missing));
+    await assertRefused(() => value.query(api.states.complete, {}), (error: unknown) => isWireShape(error, missing));
     value.close();
   }
   for (const forbidden of ["site", "take", "reason"] as const) {
     const wire = { state: "capped", data: [], seq: 1, next: null, [forbidden]: forbidden === "take" ? 20 : "hidden" };
     const value = createClient({ url: "http://wire.test", fetch: async () => fetchJson(wire) });
-    await assert.rejects(() => value.query(api.states.complete, {}), (error: unknown) => isWireShape(error, forbidden));
+    await assertRefused(() => value.query(api.states.complete, {}), (error: unknown) => isWireShape(error, forbidden));
     value.close();
   }
 
@@ -296,11 +296,11 @@ test("every HTTP wire state validates its state-specific required fields", async
     [{ state: "committed", seq: 1 }, "data"],
     [{ state: "committed", seq: 1, data: true, next: null }, "next"],
     [{ state: "rejected", family: "op", message: "no" }, "code"],
-    [{ state: "rejected", code: "E_NO", family: "op", message: "no" }, "guide"],
+    [{ state: "rejected", code: "E_NO", message: "no" }, "family"],
   ] as const;
   for (const [wire, missing] of mutationCases) {
     const value = createClient({ url: "http://wire.test", fetch: async () => fetchJson(wire) });
-    await assert.rejects(() => value.mutation(api.messages.send, {}), (error: unknown) => isWireShape(error, missing));
+    await assertRefused(() => value.mutation(api.messages.send, {}), (error: unknown) => isWireShape(error, missing));
     value.close();
   }
 
@@ -308,7 +308,7 @@ test("every HTTP wire state validates its state-specific required fields", async
     url: "http://wire.test",
     fetch: async () => fetchJson({ family: "op", message: "missing code" }, 400),
   });
-  await assert.rejects(
+  await assertRefused(
     () => malformed4xx.query(api.states.complete, {}),
     (error: unknown) => isWireShape(error, "code"),
   );
@@ -318,7 +318,7 @@ test("every HTTP wire state validates its state-specific required fields", async
     url: "http://wire.test",
     fetch: async () => fetchJson({ code: "E_NO", message: "missing family", guide: "op/no" }, 400),
   });
-  await assert.rejects(
+  await assertRefused(
     () => missingFamily.query(api.states.complete, {}),
     (error: unknown) => isWireShape(error, "family"),
   );
@@ -328,9 +328,9 @@ test("every HTTP wire state validates its state-specific required fields", async
     url: "http://wire.test",
     fetch: async () => fetchJson({ code: "E_NO", family: "op", message: "missing guide" }, 400),
   });
-  await assert.rejects(
+  await assertRefused(
     () => missingGuide.query(api.states.complete, {}),
-    (error: unknown) => isWireShape(error, "guide"),
+    (value: any) => value.code === "E_NO" && value.guide === undefined,
   );
   missingGuide.close();
 
@@ -358,7 +358,7 @@ test("every HTTP wire state validates its state-specific required fields", async
       ? hangingSse(`data: ${JSON.stringify(channelFrame())}\n\n`)
       : fetchJson({ state: "refused" }),
   });
-  await assert.rejects(
+  await assertRefused(
     () => publishing.channel(api.typing, {}).set({ typing: true }),
     (error: unknown) => isWireShape(error, "code"),
   );
@@ -396,7 +396,7 @@ test("bodyless GETs omit Content-Type", async () => {
   });
   await value.auth.me();
   await value.manifest();
-  const sub = value.subscribe(api.messages.thread, {}, () => undefined);
+  const sub = subscribe(value, api.messages.thread, {}, () => undefined);
   await sub.until((delivery) => delivery.state === "complete", 500);
   assert.equal(seen.get("/api/auth/me"), null);
   assert.equal(seen.get("/api/manifest"), null);
@@ -415,10 +415,10 @@ test("a successful subscription delivery clears lastRefusal", async () => {
       throw new Error(`unexpected route ${path}`);
     },
   });
-  await assert.rejects(() => value.query(api.states.missing, {}), (error: unknown) =>
-    error instanceof SnapbackRefusal && error.code === "E_OP_UNKNOWN");
+  await assertRefused(() => value.query(api.states.missing, {}), (error: unknown) =>
+    (error.state === "rejected" || error.state === "refused") && error.code === "E_OP_UNKNOWN");
   assert.equal(value.snapshot.lastRefusal?.code, "E_OP_UNKNOWN");
-  const sub = value.subscribe(api.messages.thread, {}, () => undefined);
+  const sub = subscribe(value, api.messages.thread, {}, () => undefined);
   await sub.until((delivery) => delivery.state === "complete", 500);
   assert.equal(value.snapshot.lastRefusal, undefined);
   sub.close();
@@ -445,7 +445,7 @@ test("malformed subscription and channel frames deliver E_WIRE_SHAPE", async (co
       url: "http://wire.test",
       fetch: async () => fetchSse(wire),
     });
-    const querySub = queryClient.subscribe(api.messages.thread, {}, (delivery) => { queryDelivery = delivery; });
+    const querySub = subscribe(queryClient, api.messages.thread, {}, (delivery) => { queryDelivery = delivery; });
     context.after(() => { querySub.close(); queryClient.close(); });
     await assert.rejects(() => querySub.until(() => false, 500), (error: unknown) => isWireShape(error, missing));
     assert.equal(queryDelivery.code, "E_WIRE_SHAPE");
@@ -484,7 +484,7 @@ test("a refused frame without code becomes terminal E_WIRE_SHAPE", async () => {
       return fetchSse({ state: "refused", family: "auth", message: "missing code" });
     },
   });
-  const sub = value.subscribe(api.messages.thread, {}, (delivery) => { delivered = delivery; });
+  const sub = subscribe(value, api.messages.thread, {}, (delivery) => { delivered = delivery; });
   await assert.rejects(() => sub.until(() => false, 500), (error: unknown) => isWireShape(error, "code"));
   assert.equal(delivered.code, "E_WIRE_SHAPE");
   assert.equal(delivered.family, "op");
@@ -510,9 +510,9 @@ test("a valid refusal frame preserves code and family and is terminal", async ()
       });
     },
   });
-  const sub = value.subscribe(api.messages.thread, {}, (delivery) => { delivered = delivery; });
+  const sub = subscribe(value, api.messages.thread, {}, (delivery) => { delivered = delivery; });
   await assert.rejects(sub.until((item) => item.state === "refused", 500),
-    (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_AUTH_REQUIRED" && error.envelope.family === "auth");
+    (error: unknown) => isRefusalError(error) && error.code === "E_AUTH_REQUIRED" && error.envelope.family === "auth");
   assert.equal(delivered.code, "E_AUTH_REQUIRED");
   assert.equal(delivered.family, "auth");
   await new Promise((resolve) => setTimeout(resolve, 300));
@@ -535,7 +535,7 @@ test("an in-band channel refusal records the complete lastRefusal", async () => 
   const sub = value.channel(api.typing, {}).subscribe(() => undefined);
   await assert.rejects(
     () => sub.until(() => false, 500),
-    (error: unknown) => error instanceof SnapbackRefusal
+    (error: unknown) => isRefusalError(error)
       && error.code === "E_RULE_CHANNEL_SUBSCRIBE",
   );
   assert.deepEqual(value.snapshot.lastRefusal, {
@@ -549,32 +549,30 @@ test("an in-band channel refusal records the complete lastRefusal", async () => 
 });
 
 test("mutation returns committed and rejected without throwing rejected", async () => {
-  const value = client(externalUrl ? { as: "alice" } : {});
+  const value = client(externalUrl ? { persona: "alice" } : {});
   if (!externalUrl) await value.auth.guest();
   const committed = await value.mutation(api.messages.send, {
     conversationId: externalUrl ? "conversation-1" : "general",
-    recipientId: externalUrl ? "profile-bob" : undefined,
     body: `first-${Date.now()}`,
   });
   assert.equal(committed.state, "committed");
   const rejected = externalUrl
     ? await value.mutation(api.messages.send, {
-        conversationId: "conversation-1",
-        recipientId: "profile-missing",
+        conversationId: "conversation-missing",
         body: "reject",
       })
     : await value.mutation(api.messages.reject, { body: "reject" });
   assert.equal(rejected.state, "rejected");
-  if (rejected.state === "rejected") assert.equal(rejected.code, "RECIPIENT_UNKNOWN");
+  if (rejected.state === "rejected") assert.equal(rejected.code, externalUrl ? "NOT_MEMBER" : "RECIPIENT_UNKNOWN");
 });
 
 test("subscription observes another client's mutation and until resolves", async () => {
-  const reader = client(externalUrl ? { as: "alice" } : {});
-  const writer = client(externalUrl ? { as: "bob" } : {});
+  const reader = client(externalUrl ? { persona: "alice" } : {});
+  const writer = client(externalUrl ? { persona: "bob" } : {});
   if (!externalUrl) await Promise.all([reader.auth.guest(), writer.auth.guest()]);
   const conversationId = externalUrl ? "conversation-1" : "general";
   const seen: string[] = [];
-  const sub = reader.subscribe(api.messages.thread, { conversationId }, (delivery) => seen.push(delivery.state));
+  const sub = subscribe(reader, api.messages.thread, { conversationId }, (delivery) => seen.push(delivery.state));
   const initial = await sub.until((delivery) => delivery.state === "complete" && delivery.live, 2_000);
   assert.equal(initial.state, "complete");
   assert.equal(initial.live, true);
@@ -582,13 +580,12 @@ test("subscription observes another client's mutation and until resolves", async
   const body = `from-writer-${Date.now()}`;
   const committed = await writer.mutation(api.messages.send, {
     conversationId,
-    recipientId: externalUrl ? "profile-alice" : undefined,
     body,
   });
   assert.equal(committed.state, "committed");
   const updated = await sub.until((delivery) =>
     delivery.state === "complete" && delivery.live && delivery.seq > initialSeq
-      && delivery.data.some((row: any) => row.body === body), 2_000);
+      && delivery.data.some((row: any) => (externalUrl ? row.message?.body : row.body) === body), 2_000);
   assert.equal(updated.state, "complete");
   assert.ok(seen.filter((state) => state === "complete").length >= 2);
   sub.close();
@@ -602,10 +599,10 @@ test("live queries expose capped and denied receipt states with live true", asyn
     ["capped", {}],
     ["denied", { rule: externalUrl ? "MEMBERSHIP_REQUIRED" : "members only" }],
   ] as const) {
-    const value = client(externalUrl ? { as: state === "denied" ? "charlie" : "alice" } : {});
+    const value = client(externalUrl ? { persona: state === "denied" ? "charlie" : "alice" } : {});
     const ref = externalUrl ? api.integration[state] : api.states[state];
     const args = externalUrl && state === "denied" ? { conversationId: "conversation-1" } : {};
-    const sub = value.subscribe(ref, args, () => undefined);
+    const sub = subscribe(value, ref, args, () => undefined);
     const delivery = await sub.until((item) => item.state === state, 2_000);
     assert.equal(delivery.state, state);
     assert.equal(delivery.live, true);
@@ -636,7 +633,7 @@ test("5xx and non-envelope subscribe failures are stale transport and reconnect"
       },
     });
     const unsubscribe = value.subscribeStatus((snapshot) => connections.push(snapshot.connection));
-    const sub = value.subscribe(api.messages.thread, {}, (delivery) => deliveries.push(delivery));
+    const sub = subscribe(value, api.messages.thread, {}, (delivery) => deliveries.push(delivery));
     const recovered = await sub.until((delivery) => delivery.state === "complete", 1_000);
     assert.equal(recovered.state, "complete");
     assert.equal(recovered.live, true);
@@ -662,7 +659,7 @@ test("an idle stream becomes stale and reconnects after twice the heartbeat wind
       return hangingSse(`data: ${JSON.stringify({ state: "complete", data: [], seq: opens, next: null })}\n\n`);
     },
   });
-  const sub = value.subscribe(api.messages.thread, {}, (event) => events.push(event));
+  const sub = subscribe(value, api.messages.thread, {}, (event) => events.push(event));
   context.after(() => {
     globalThis.setTimeout = realSetTimeout;
     sub.close();
@@ -693,7 +690,7 @@ test("heartbeat comments reset the stream idle deadline", async (context) => {
       return heartbeatSse();
     },
   });
-  const sub = value.subscribe(api.messages.thread, {}, (event) => events.push(event));
+  const sub = subscribe(value, api.messages.thread, {}, (event) => events.push(event));
   context.after(() => {
     globalThis.setTimeout = realSetTimeout;
     sub.close();
@@ -712,7 +709,7 @@ test("subscription reconnect reports stale, resumes with Last-Event-ID, then rep
   if (externalUrl) return context.skip("owner process control is supplied in the second integration round");
   const value = client();
   await value.auth.guest();
-  const sub = value.subscribe(api.messages.thread, { conversationId: "general" }, () => undefined);
+  const sub = subscribe(value, api.messages.thread, { conversationId: "general" }, () => undefined);
   const initial = await sub.until((delivery) => delivery.state === "complete" && delivery.live, 2_000);
   assert.equal(initial.state, "complete");
   const initialSeq = initial.state === "complete" ? initial.seq : -1;
@@ -734,7 +731,7 @@ test("subscription loss preserves data and seq from the same receipt", async (co
     fetch: async () => fetchSse({ state: "complete", seq: 3, data: rows, next: null }),
   });
   const deliveries: any[] = [];
-  const sub = value.subscribe(api.messages.thread, {}, (delivery) => deliveries.push(delivery));
+  const sub = subscribe(value, api.messages.thread, {}, (delivery) => deliveries.push(delivery));
   context.after(() => { sub.close(); value.close(); });
   const stale = await sub.until((delivery) => delivery.state === "stale", 500);
   assert.equal(stale.seq, 3);
@@ -749,8 +746,8 @@ test("subscription loss preserves data and seq from the same receipt", async (co
 
 // @ref LLP 1001.000#observable-client-surface — channel observations expose latest entries without the private lease.
 test("channel set and subscribe carry typed ephemeral snapshots", async () => {
-  const reader = client(externalUrl ? { as: "alice" } : {});
-  const writer = client(externalUrl ? { as: "bob" } : {});
+  const reader = client(externalUrl ? { persona: "alice" } : {});
+  const writer = client(externalUrl ? { persona: "bob" } : {});
   if (!externalUrl) await Promise.all([reader.auth.guest(), writer.auth.guest()]);
   const args = { conversationId: externalUrl ? "conversation-1" : "general" };
   const receiving = reader.channel<typeof args, { typing: boolean }>(api.typing, args);
@@ -780,7 +777,7 @@ test("terminal channel refusals reach callbacks and reject until immediately", a
   const started = Date.now();
   await assert.rejects(
     () => sub.until(() => false, 2_000),
-    (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_AUTH_REQUIRED",
+    (error: unknown) => isRefusalError(error) && error.code === "E_AUTH_REQUIRED",
   );
   assert.ok(Date.now() - started < 500, "until waited for its timeout instead of rejecting the refusal");
   assert.equal(delivered.status, "unavailable");
@@ -798,11 +795,11 @@ test("terminal query refusals on subscribe open reach callbacks and reject until
     fetch: async () => fetchJson(refusal("E_AUTH_REQUIRED", "a session is required"), 401),
   });
   let delivered: any;
-  const sub = value.subscribe(api.messages.thread, {}, (event) => { delivered = event; });
+  const sub = subscribe(value, api.messages.thread, {}, (event) => { delivered = event; });
   const started = Date.now();
   await assert.rejects(
     () => sub.until(() => false, 2_000),
-    (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_AUTH_REQUIRED",
+    (error: unknown) => isRefusalError(error) && error.code === "E_AUTH_REQUIRED",
   );
   assert.ok(Date.now() - started < 500, "until waited for its timeout instead of rejecting the refusal");
   assert.equal(delivered.state, "refused");
@@ -822,9 +819,9 @@ test("lastRefusal clears only after state-specific validation succeeds", async (
         : fetchJson({ state: "complete", seq: 1 });
     },
   });
-  await assert.rejects(() => value.query(api.missing, {}), (error: unknown) =>
-    error instanceof SnapbackRefusal && error.code === "E_OP_UNKNOWN");
-  await assert.rejects(() => value.query(api.messages.thread, {}), (error: unknown) =>
+  await assertRefused(() => value.query(api.missing, {}), (error: unknown) =>
+    (error.state === "rejected" || error.state === "refused") && error.code === "E_OP_UNKNOWN");
+  await assertRefused(() => value.query(api.messages.thread, {}), (error: unknown) =>
     isWireShape(error, "data"));
   assert.equal(value.snapshot.lastRefusal?.code, "E_OP_UNKNOWN");
   value.close();
@@ -834,7 +831,7 @@ test("query retries HTTP and network transport failures while mutation retries n
   for (const [response, expectedCode] of [
     [() => fetchJson({ message: "busy" }, 503), "E_TRANSPORT"],
     [() => new Response("not a refusal envelope", { status: 400 }), "E_TRANSPORT"],
-    [() => { throw new Error("offline"); }, "E_NETWORK"],
+    [() => { throw new Error("offline"); }, "E_TRANSPORT"],
   ] as const) {
     let queryAttempts = 0;
     const querying = createClient({
@@ -844,9 +841,9 @@ test("query retries HTTP and network transport failures while mutation retries n
         return response();
       },
     });
-    await assert.rejects(
+    await assertRefused(
       () => querying.query(api.messages.thread, {}),
-      (error: unknown) => error instanceof SnapbackRefusal
+      (error: unknown) => (error.state === "rejected" || error.state === "refused")
         && error.code === expectedCode
         && error.retryable,
     );
@@ -857,7 +854,7 @@ test("query retries HTTP and network transport failures while mutation retries n
 
   for (const [response, expectedCode] of [
     [() => fetchJson(refusal("E_OWNER_BUSY", "busy"), 503), "E_TRANSPORT"],
-    [() => { throw new Error("offline"); }, "E_NETWORK"],
+    [() => { throw new Error("offline"); }, "E_TRANSPORT"],
   ] as const) {
     let mutationAttempts = 0;
     const mutating = createClient({
@@ -867,9 +864,9 @@ test("query retries HTTP and network transport failures while mutation retries n
         return response();
       },
     });
-    await assert.rejects(
+    await assertRefused(
       () => mutating.mutation(api.messages.send, {}),
-      (error: unknown) => error instanceof SnapbackRefusal
+      (error: unknown) => (error.state === "rejected" || error.state === "refused")
         && error.code === expectedCode
         && error.retryable,
     );
@@ -879,23 +876,23 @@ test("query retries HTTP and network transport failures while mutation retries n
   }
 });
 
-test("query and mutation throw every 4xx refusal while subscriptions deliver refused", async () => {
+test("query and mutation return every 4xx refusal while subscriptions deliver refused", async () => {
   const serve = new MockOwner("serve");
   await serve.start();
-  const value = createClient({ url: serve.url, as: "alice" });
-  await assert.rejects(
+  const value = createClient({ url: serve.url, persona: "alice" });
+  await assertRefused(
     () => value.query(api.messages.thread, { conversationId: "general" }),
-    (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_AUTH_PERSONA_NOT_DEV",
+    (error: unknown) => (error.state === "rejected" || error.state === "refused") && error.code === "E_AUTH_PERSONA_NOT_DEV",
   );
-  await assert.rejects(
+  await assertRefused(
     () => value.mutation(api.messages.send, { conversationId: "general", body: "hello" }),
-    (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_AUTH_PERSONA_NOT_DEV",
+    (error: unknown) => (error.state === "rejected" || error.state === "refused") && error.code === "E_AUTH_PERSONA_NOT_DEV",
   );
   let delivered: any;
-  const sub = value.subscribe(api.messages.thread, { conversationId: "general" }, (delivery) => { delivered = delivery; });
+  const sub = subscribe(value, api.messages.thread, { conversationId: "general" }, (delivery) => { delivered = delivery; });
   await assert.rejects(
     () => sub.until(() => false, 500),
-    (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_AUTH_PERSONA_NOT_DEV",
+    (error: unknown) => isRefusalError(error) && error.code === "E_AUTH_PERSONA_NOT_DEV",
   );
   assert.equal(delivered.code, "E_AUTH_PERSONA_NOT_DEV");
   assert.equal(delivered.family, "auth");
@@ -920,8 +917,8 @@ test("React query reducer preserves every discriminant field and only reuses a d
   assert.strictEqual(stale.data, data);
   assert.equal(stale.since, 99);
   assert.equal(stale.live, false);
-  // @ref LLP 1018.003#2-derive-never-add — a stale event keeps the last receipt's outcome and never scrubs delivered data.
-  assert.equal(stale.state === "stale" && stale.outcome, "complete");
+  // @ref LLP 1018.003#2-derive-never-add — a stale event keeps the last receipt's verdict and never scrubs delivered data.
+  assert.equal(stale.state === "stale" && stale.verdict, "complete");
   assert.equal(stale.state === "stale" && stale.source, "server");
   const staleWithoutData = reduceQueryState(live, { state: "stale", live: false, since: 100 });
   assert.strictEqual(staleWithoutData.data, data, "a stale event without data keeps the delivered data");
@@ -930,15 +927,15 @@ test("React query reducer preserves every discriminant field and only reuses a d
   assert.equal(twin.source, "twin", "an offline answer records the twin as its evaluator");
   const nothingHeld = reduceQueryState(hydrating, { state: "hydrating", live: false, connection: "offline" } as any);
   assert.deepEqual(nothingHeld, { state: "hydrating", live: false, offline: true });
-  // A stale event that names another sequence carries data the last receipt does not describe: no outcome survives.
+  // A stale event that names another sequence carries data the last receipt does not describe: no verdict survives.
   const otherSeq = reduceQueryState(live, { state: "stale", live: false, since: 101, data: [{ id: "two" }], seq: 9 });
-  assert.equal(otherSeq.state === "stale" && otherSeq.outcome, undefined, "a different seq drops the receipt");
+  assert.equal(otherSeq.state === "stale" && otherSeq.verdict, undefined, "a different seq drops the receipt");
   assert.deepEqual(otherSeq.data, [{ id: "two" }]);
   assert.equal(otherSeq.seq, 9);
   // A kept denial keeps no data, whatever the stale event carried.
   const deniedFirst = reduceQueryState(hydrating, { state: "denied", live: true, seq: 4, rule: "members only" });
   const staleDenied = reduceQueryState(deniedFirst, { state: "stale", live: false, since: 102, data, seq: 4 });
-  assert.equal(staleDenied.state === "stale" && staleDenied.outcome, "denied");
+  assert.equal(staleDenied.state === "stale" && staleDenied.verdict, "denied");
   assert.equal("data" in staleDenied ? staleDenied.data : undefined, undefined, "a denial scrubs data through a stale event");
 
   const partial = reduceQueryState(stale, { state: "partial", live: true, seq: 2, reason: "coverage" });
@@ -978,7 +975,7 @@ test("React query reducer preserves every discriminant field and only reuses a d
   assert.equal(stableSerialize({ b: 2, a: [1] }), stableSerialize({ a: [1], b: 2 }));
 });
 
-test("useMutation exposes pending for exactly the in-flight interval", async () => {
+test("useMutation exposes inFlight for exactly the request interval", async () => {
   let release: ((response: Response) => void) | undefined;
   let current: any;
   const fetch = async (input: string | URL | Request) => {
@@ -1001,7 +998,6 @@ test("useMutation exposes pending for exactly the in-flight interval", async () 
     ));
   });
   assert.equal(current.inFlight, false);
-  assert.deepEqual(current.pending, []);
   assert.equal(current.last, undefined);
   let running!: Promise<unknown>;
   await act(async () => {
@@ -1019,7 +1015,7 @@ test("useMutation exposes pending for exactly the in-flight interval", async () 
   await act(async () => { renderer!.unmount(); });
 });
 
-test("useMutation keeps the last server receipt separate from transport failure", async () => {
+test("useMutation publishes a transport rejection in last", async () => {
   let current: any;
   let mutationAttempts = 0;
   const fetch = async (input: string | URL | Request) => {
@@ -1055,28 +1051,27 @@ test("useMutation keeps the last server receipt separate from transport failure"
   await act(async () => { await current.run({}); });
   const committed = current.last;
   assert.equal(committed.state, "committed");
-  assert.equal(current.detail.transport, undefined);
 
   let transport: unknown;
   await act(async () => {
-    await assert.rejects(
+    await assertRefused(
       () => current.run({}),
       (error: any) => {
         transport = error;
-        return error instanceof SnapbackRefusal
+        return (error.state === "rejected" || error.state === "refused")
           && error.code === "E_TRANSPORT"
           && error.retryable === true;
       },
     );
   });
   assert.equal(mutationAttempts, 2);
-  assert.strictEqual(current.last, committed, "a post-commit 503 invented a rejected receipt");
-  assert.strictEqual(current.detail.transport, transport);
+  assert.strictEqual(current.last, transport);
+  assert.equal(current.last.family, "transport");
 
   await act(async () => { await current.run({}); });
   assert.equal(current.last.state, "rejected");
   assert.equal(current.last.code, "RECIPIENT_UNKNOWN");
-  assert.equal(current.detail.transport, undefined, "a successful server run did not clear transport status");
+  assert.equal(current.last.retryable, undefined);
   await act(async () => { renderer!.unmount(); });
 });
 
@@ -1154,10 +1149,10 @@ test("non-live useQuery keeps hydrating across a network failure, reports connec
   assert.equal(queryAttempts, 2);
   assert.ok(views.some((view) => view.status === "loading" && view.freshness.connection === "reconnecting"));
   const final = views.at(-1);
-  assert.equal(final.receipt?.outcome, "complete");
+  assert.equal(final.receipt?.state, "complete");
   assert.equal(final.status, "ready");
   assert.equal(final.freshness.connection, "connected");
-  assert.ok(!views.some((view) => view.status === "unavailable" && view.refusal?.code === "E_NETWORK"));
+  assert.ok(!views.some((view) => view.status === "unavailable" && view.refusal?.code === "E_TRANSPORT"));
   await act(async () => { renderer!.unmount(); });
   await client.close();
 });
@@ -1189,7 +1184,7 @@ test("separately bundled client and React entry points share generated API refer
   await act(async () => { renderer!.unmount(); });
 });
 
-test("React transport refusals use the client entry point class", async () => {
+test("React transport refusals have the same plain shape as headless mutations", async () => {
   const bundledClient: any = await import("../dist/client.mjs");
   const bundledReact: any = await import("../dist/react.mjs");
   let hook: any;
@@ -1211,29 +1206,29 @@ test("React transport refusals use the client entry point class", async () => {
     ));
   });
   await act(async () => {
-    await assert.rejects(
+    await assertRefused(
       () => hook.run({}),
-      (error: unknown) => error instanceof bundledClient.SnapbackRefusal,
+      (error: any) => error.state === "rejected" && error.family === "transport" && error.retryable === true,
     );
   });
   await act(async () => { renderer!.unmount(); });
 });
 
-test("isSnapbackRefusal recognizes the name-plus-symbol brand across realms", async () => {
-  const bundledClient: any = await import("../dist/client.mjs");
-  assert.equal(typeof bundledClient.isSnapbackRefusal, "function");
-  const local = new bundledClient.SnapbackRefusal(refusal("E_OP_UNKNOWN", "unknown"));
+test("isRefusalError recognizes the name-plus-symbol brand across realms", async () => {
+  const bundledClient: any = await import("../dist/client-observed-test.mjs");
+  assert.equal(typeof bundledClient.isRefusalError, "function");
+  const local = new bundledClient.RefusalError(refusal("E_OP_UNKNOWN", "unknown"));
   const brand = Object.getOwnPropertySymbols(local)
     .find((symbol) => (local as Record<symbol, unknown>)[symbol] === true);
-  assert.ok(brand, "SnapbackRefusal did not carry its symbol brand");
+  assert.ok(brand, "RefusalError did not carry its symbol brand");
   const { runInNewContext } = await import("node:vm");
   const crossRealm = runInNewContext(
-    "({ name: 'SnapbackRefusal', [brand]: true })",
+    "({ name: 'RefusalError', [brand]: true })",
     { brand },
   );
-  assert.equal(bundledClient.isSnapbackRefusal(crossRealm), true);
-  assert.equal(bundledClient.isSnapbackRefusal({ name: "SnapbackRefusal" }), false);
-  assert.equal(bundledClient.isSnapbackRefusal({ [brand]: true }), false);
+  assert.equal(bundledClient.isRefusalError(crossRealm), true);
+  assert.equal(bundledClient.isRefusalError({ name: "RefusalError" }), false);
+  assert.equal(bundledClient.isRefusalError({ [brand]: true }), false);
 });
 
 
@@ -1249,7 +1244,7 @@ test("plain online query and subscription preserve h1-prefixed noncursor text wi
   context.after(() => value.close());
   const args = { term: "h1.a valid search term", c: "h1.a normal text argument" };
   await value.query(api.messages.thread, args);
-  const sub = value.subscribe(api.messages.thread, args, () => {}); context.after(() => sub.close());
+  const sub = subscribe(value, api.messages.thread, args, () => {}); context.after(() => sub.close());
   await sub.until(delivery => delivery.state === "complete", 500);
   assert.deepEqual(seen, [args, args]);
 });

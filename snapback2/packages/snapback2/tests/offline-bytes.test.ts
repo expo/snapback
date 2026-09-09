@@ -1,3 +1,4 @@
+import { isRefusalError } from "../dist/client-observed-test.mjs";
 // Lane O4-web: asset bytes under the row's lease, view-once at view time (LLP 1012 §9, LLP 1006 §9b).
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, readdir, rm, stat } from "node:fs/promises";
@@ -6,7 +7,8 @@ import { join } from "node:path";
 import { test } from "node:test";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { SnapbackRefusal, api, createClient } from "../dist/client.mjs";
+import { api, createClient } from "../dist/client.mjs";
+import { RefusalError } from "../dist/client-observed-test.mjs";
 import { AssetImage, AssetVideo, SnapbackProvider, indexedDbRangeStore } from "../dist/react.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
 import { sqliteFactory, sqliteKeys } from "./sqlite-fixture.ts";
@@ -238,7 +240,7 @@ test("assetBlob reads the byte cache before the network, fills it after a fetch,
   try {
     let assetFetches = 0;
     const client = createClient({
-      url: "http://bytes.test", as: "alice", offline: { store: fileRangeStore(root), maxAssetBytes: 64 },
+      url: "http://bytes.test", persona: "alice", offline: { store: fileRangeStore(root), maxAssetBytes: 64 },
       fetch: async (input, init) => {
         const url = new URL(String(input));
         if (url.pathname === "/api/manifest") return new Response(JSON.stringify({ generation: "test", programGeneration: generation, ops: {}, channels: {}, auth: {},
@@ -271,7 +273,7 @@ test("assetBlob reads the byte cache before the network, fills it after a fetch,
     await client.offline();
     assert.equal((await client.assetBlob(url)).size, 4, "a held rendition renders offline");
     await assert.rejects(client.assetBlob((await client.assetUrl(photo(A) as any, { width: 16 }))!), (error: unknown) =>
-      error instanceof SnapbackRefusal && error.code === "E_NETWORK");
+      isRefusalError(error) && error.code === "E_TRANSPORT");
     assert.equal(assetFetches, 2);
     client.close();
   } finally { await rm(root, { recursive: true, force: true }); }
@@ -283,7 +285,7 @@ test("a view-once row renders once: its bytes are never cached, a restart refuse
   try {
     let assetFetches = 0;
     const make = () => createClient({
-      url: "http://once.test", as: "alice",
+      url: "http://once.test", persona: "alice",
       offline: { store: fileRangeStore(root) },
       fetch: async (input) => {
         const url = new URL(String(input));
@@ -320,7 +322,7 @@ test("a view-once row renders once: its bytes are never cached, a restart refuse
     assert.equal(assetFetches, 2);
     await client.offline();
     const cold = await client.restart();
-    await assert.rejects(cold.assetBlob(urlB), (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_ASSET_VIEWED");
+    await assert.rejects(cold.assetBlob(urlB), (error: unknown) => isRefusalError(error) && error.code === "E_ASSET_VIEWED");
     assert.equal(cold.snapshot.lastRefusal?.code, "E_ASSET_VIEWED");
     assert.equal(assetFetches, 2, "a viewed view-once row fetches nothing");
     assert.equal(await cold.assetCache!.viewed(B), true);
@@ -332,7 +334,7 @@ test("a view-once row renders once: its bytes are never cached, a restart refuse
     await cold.online().catch(() => undefined);
     const online = make();
     await online.ready;
-    await assert.rejects(online.assetBlob(urlB), (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_ASSET_VIEWED");
+    await assert.rejects(online.assetBlob(urlB), (error: unknown) => isRefusalError(error) && error.code === "E_ASSET_VIEWED");
     assert.equal(assetFetches, 2, "viewed is consulted before any byte is fetched, online too");
     online.close();
   } finally { await rm(root, { recursive: true, force: true }); }
@@ -397,7 +399,7 @@ test("a cache read stamps the LRU in memory without rewriting the carrier; the n
     // The client's read path: cache hits touch in memory only.
     let assetFetches = 0;
     const client = createClient({
-      url: "http://touch.test", as: "alice", offline: { store: fileRangeStore(root) },
+      url: "http://touch.test", persona: "alice", offline: { store: fileRangeStore(root) },
       fetch: async (input) => {
         const url = new URL(String(input));
         if (url.pathname === "/api/manifest") return new Response(JSON.stringify({ generation: "test", programGeneration: generation, ops: {}, channels: {}, auth: {},
@@ -464,7 +466,7 @@ test("AssetImage, AssetVideo, and useAssetUrl render held renditions from the by
     }
     throw new Error(`unexpected path ${url.pathname}`);
   };
-  const seed = createClient({ url: "http://assets.test", as: "alice", offline: { store: fileRangeStore(root) }, fetch });
+  const seed = createClient({ url: "http://assets.test", persona: "alice", offline: { store: fileRangeStore(root) }, fetch });
   await seed.ready;
   await seed.query(api.messages.thread, { conversationId: "c1", c: null });
   await seed.close();
@@ -481,7 +483,7 @@ test("AssetImage, AssetVideo, and useAssetUrl render held renditions from the by
     await act(async () => {
       reactRoot!.render(React.createElement(
         SnapbackProvider,
-        { url: "http://assets.test", as: "alice", fetch, offline: { store: onlineStore } } as any,
+        { url: "http://assets.test", persona: "alice", fetch, offline: { store: onlineStore } } as any,
         React.createElement(Harness),
       ));
     });
@@ -503,7 +505,7 @@ test("AssetImage, AssetVideo, and useAssetUrl render held renditions from the by
     await act(async () => {
       reactRoot!.render(React.createElement(
         SnapbackProvider,
-        { url: "http://assets.test", as: "alice", fetch, offline: { store: fileRangeStore(root) } } as any,
+        { url: "http://assets.test", persona: "alice", fetch, offline: { store: fileRangeStore(root) } } as any,
         React.createElement(Harness),
       ));
     });

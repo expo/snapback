@@ -42,6 +42,6 @@ export function createExpoClient(options: CreateExpoClientOptions): SnapbackClie
     ...options,
     fetch: options.fetch ?? expoFetch,
     offline: { ...options.offline, store: options.offline?.store ?? expoSqliteStore() },
-    ...(options.as !== undefined ? {} : { tokenStore: options.tokenStore ?? expoSecureTokenStore() }),
+    ...(options.persona !== undefined ? {} : { tokenStore: options.tokenStore ?? expoSecureTokenStore() }),
   } as CreateClientOptions);
 }

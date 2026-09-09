@@ -1,3 +1,4 @@
+import { subscribe } from "../src/internal.js";
 import { fixtureClient as createClient } from "./live-fixture.ts";
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
@@ -111,7 +112,7 @@ async function fixture(carrier: "file" | "IndexedDB" = "file", bearer = false) {
     }), { headers: { "content-type": "text/event-stream" } });
     throw new Error(`unexpected ${url.pathname}`);
   };
-  const create = (startOffline = false) => createClient({ url: "http://reset.test", ...(bearer ? { token: "alice-token" } : { as: "alice" }), fetch,
+  const create = (startOffline = false) => createClient({ url: "http://reset.test", ...(bearer ? { token: "alice-token" } : { persona: "alice" }), fetch,
     startOffline, offlinePrincipal: bearer ? "alice" : undefined,
     offline: { store: () => (store = factory()) } } as any);
   let client = create();
@@ -225,7 +226,7 @@ for (const kind of ["transport", "refusal"] as const) {
       assert.equal(concurrent.seq, 7, "even online() joining the reset cannot block a live query");
       gate.resolve();
       await assert.rejects(online);
-      assert.equal(f.client.snapshot.lastRefusal?.code, kind === "transport" ? "E_NETWORK" : "E_RESET_TEST");
+      assert.equal(f.client.snapshot.lastRefusal?.code, kind === "transport" ? "E_TRANSPORT" : "E_RESET_TEST");
       assert.ok((await f.store.coverage()).superseded);
       f.hooks.resume = undefined;
       await f.client.query(api.messages.second, {});
@@ -262,7 +263,7 @@ test("a mounted subscription cold-opens after supersession without Last-Event-ID
   let sub: any;
   try {
     await f.store.commit({ watermark: { op: "messages.log", args: { c: null }, watermark: "old-tail", validator: hex(6), updatedAt: 1 } });
-    sub = f.client.subscribe(api.messages.first, {}, () => undefined);
+    sub = subscribe(f.client, api.messages.first, {}, () => undefined);
     await eventually(() => f.streams.length === 1);
     const send = (stream: any, id: string, seq = f.state.seq) =>
       stream.controller.enqueue(new TextEncoder().encode(`id: ${id}\ndata: ${JSON.stringify({ ...f.envelope({}), seq })}\n\n`));
@@ -316,7 +317,7 @@ for (const page of ["initial", "subsequent"]) {
         }
         return json(f.envelope(request));
       };
-      sub = f.client.subscribe(api.messages.log, { c: null }, () => undefined, { drain: true });
+      sub = subscribe(f.client, api.messages.log, { c: null }, () => undefined, { drain: true });
       await eventually(() => requests === (page === "initial" ? 1 : 2));
       f.state.generation = hex(2);
       await f.client.query(api.messages.second, {});
@@ -341,7 +342,7 @@ test("failed program reload keeps the durable reset marker and online retries th
     f.state.generation = hex(2);
     f.hooks.program = async () => { throw new TypeError("program transport cut"); };
     await f.client.query(api.messages.second, {});
-    await eventually(() => f.client.snapshot.lastRefusal?.code === "E_NETWORK");
+    await eventually(() => f.client.snapshot.lastRefusal?.code === "E_TRANSPORT");
     assert.ok((await f.store.coverage()).superseded);
     f.hooks.program = undefined;
     await f.client.online();
@@ -464,7 +465,7 @@ test("a mounted cold reopen discovering G3 during the fresh G2 query feeds the a
   const gate = defer();
   let sub: any;
   try {
-    sub = f.client.subscribe(api.messages.first, {}, () => undefined);
+    sub = subscribe(f.client, api.messages.first, {}, () => undefined);
     await eventually(() => f.streams.length === 1);
     let reads = 0;
     f.hooks.query = async q => {
@@ -517,7 +518,7 @@ for (const carrier of ["file", "IndexedDB"] as const) {
       let reads = 0;
       f.hooks.query = async () => { f.state.generation = hex(3 + reads++); };
       const client = await f.reopen(false, client => {
-        sub = client.subscribe(api.messages.first, {}, () => undefined);
+        sub = subscribe(client, api.messages.first, {}, () => undefined);
       });
       assert.equal(reads, 3, "the subscription mounted before ready participates in all three rebuild attempts");
       assert.equal(client.snapshot.lastRefusal?.code, "E_OFFLINE_RESET");
@@ -708,7 +709,7 @@ for (const carrier of ["file", "IndexedDB"] as const) {
       assert.equal((await f.client.query(api.messages.second, {})).state, "hydrating");
       f.hooks.query = undefined;
       gate.resolve();
-      sub = f.client.subscribe(api.messages.second, {}, () => undefined);
+      sub = subscribe(f.client, api.messages.second, {}, () => undefined);
       await f.client.online();
       await f.rebuilt();
       assert.equal(f.resumes.at(-1).generation, hex(2), "the cold pending marker rebuilds even after a 200 resume");
@@ -782,7 +783,7 @@ test("reset clears a terminal subscription latch and cold-opens it again", async
   const f = await fixture();
   let sub: any;
   try {
-    sub = f.client.subscribe(api.messages.first, {}, () => undefined);
+    sub = subscribe(f.client, api.messages.first, {}, () => undefined);
     await eventually(() => f.streams.length === 1);
     emit(f.streams[0], { ...f.envelope({}), seq: 8 }, "before-refusal");
     await sub.until((e: any) => e.seq === 8, 1000);
@@ -812,7 +813,7 @@ test("a frame decoding across reopen cannot commit or restore the predecessor ev
       if (raw.validator === hex(8)) { decoding = true; await gate.promise; }
       return accept(op, args, raw);
     };
-    sub = f.client.subscribe(api.messages.first, {}, () => undefined);
+    sub = subscribe(f.client, api.messages.first, {}, () => undefined);
     await eventually(() => f.streams.length === 1);
     emit(f.streams[0], { ...f.envelope({}), seq: 8, validator: hex(8) }, "predecessor-id");
     await eventually(() => decoding);
@@ -843,7 +844,7 @@ test("a terminal session frame already decoding across reset still retires the b
       if (raw.code === "E_AUTH_SESSION") { decoding = true; await gate.promise; }
       return accept(op, args, raw);
     };
-    sub = f.client.subscribe(api.messages.first, {}, () => undefined);
+    sub = subscribe(f.client, api.messages.first, {}, () => undefined);
     await eventually(() => f.streams.length === 1);
     emit(f.streams[0], { state: "refused", code: "E_AUTH_SESSION", family: "auth", message: "expired", guide: "auth" });
     await eventually(() => decoding);

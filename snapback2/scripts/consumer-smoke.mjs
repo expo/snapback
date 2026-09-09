@@ -199,11 +199,11 @@ async function until(predicate) {
   assert.ok(predicate(), 'installed React query did not receive the expected live state');
 }
 const url = process.argv[1];
-const client = createClient({ url, as: 'alice' });
+const client = createClient({ url, persona: 'alice' });
 try {
   await client.ready;
-  await act(async () => { renderer = create(React.createElement(SnapbackProvider, { url, as: 'alice' }, React.createElement(Probe))); });
-  await until(() => state?.status === 'ready' && state.receipt?.outcome === 'complete' && state.freshness.live);
+  await act(async () => { renderer = create(React.createElement(SnapbackProvider, { url, persona: 'alice' }, React.createElement(Probe))); });
+  await until(() => state?.status === 'ready' && state.receipt?.state === 'complete' && state.freshness.live);
   await act(async () => {
     const result = await client.mutation(api.todos.add, { title: 'installed React proof' });
     assert.equal(result.state, 'committed');

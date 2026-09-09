@@ -115,6 +115,18 @@
         "max_rows": 1
       }
     ],
+    "mutation_targets": {
+      "targets": [
+        {
+          "table": "members",
+          "kind": "create",
+          "source": {
+            "newId": 0
+          }
+        }
+      ],
+      "complete": true
+    },
     "maintained_amplification": 0,
     "constraint_checks": [
       "members:Cap([\"group\"],1)",

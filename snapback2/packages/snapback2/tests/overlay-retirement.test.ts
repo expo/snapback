@@ -28,7 +28,7 @@ function prediction(suffix: string) {
   const intent = `grant:${suffix}`;
   const id = `message-${suffix}`;
   const common = {
-    intent, grant: "grant", offset: 0, count: 1, ids: [id], op: "deliveries.post",
+    intent, grant: "grant", offset: 0, count: 1, ids: [id], op: "messages.send",
     args: { conversationId: "conversation-1" }, issuedSeq: 0, createdAt: 1, updatedAt: 1,
   };
   return {
@@ -71,7 +71,7 @@ const coherenceProgram = { generation: {
 const message = (id: string) => ({ table: "messages", id, row: { id, conversationId, body: id } });
 const count = (value: number) => ({ table: "messageCounts", id: countId, row: { id: countId, conversationId, value } });
 const view = (seq: number, messages: ReturnType<typeof message>[], value: number) => ({
-  op: "deliveries.conversationView", args: { conversationId }, state: "complete" as const,
+  op: "messages.conversationView", args: { conversationId }, state: "complete" as const,
   data: { messages: messages.map((item) => ref(item.table, item.id)), count: ref("messageCounts", countId), preview: [] },
   next: null, seq, rows: [...messages, count(value)], receipt: receipt(),
 });
@@ -86,7 +86,7 @@ test("maintained source and target arrival orders leave an older named record pa
         await store.commit({ schema: coherenceSchema, deliveries: [view(7, [message("m1"), message("m2")], 2)] });
         if (order === "source-first") {
           await store.commit({ schema: coherenceSchema, tombstones: [{ table: "messages", id: "m2", seq: 8 }] });
-          assert.equal((await store.answer("deliveries.conversationView", { conversationId }))?.reason, "missing-authority",
+          assert.equal((await store.answer("messages.conversationView", { conversationId }))?.reason, "missing-authority",
             `${name}: source-first cannot retain the old maintained target`);
           assert.equal((await store.coverage()).rows.some((item) => item.table === "messageCounts"), false);
         } else {
@@ -94,14 +94,14 @@ test("maintained source and target arrival orders leave an older named record pa
             op: "messageCounts.byId", args: { id: countId }, state: "complete", data: ref("messageCounts", countId),
             next: null, seq: 8, rows: [count(1)], receipt: receipt(),
           }] });
-          assert.equal((await store.answer("deliveries.conversationView", { conversationId }))?.reason, "maintained-coherence",
+          assert.equal((await store.answer("messages.conversationView", { conversationId }))?.reason, "maintained-coherence",
             `${name}: target-first cannot splice a new count into old messages`);
         }
-        assert.equal((await store.answer("deliveries.conversationView", { conversationId }))?.state, "partial");
+        assert.equal((await store.answer("messages.conversationView", { conversationId }))?.state, "partial");
         await store.close?.();
         store = create();
         await store.open(partition);
-        assert.equal((await store.answer("deliveries.conversationView", { conversationId }))?.state, "partial",
+        assert.equal((await store.answer("messages.conversationView", { conversationId }))?.state, "partial",
           `${name}: the partial coherence fence survives cold/offline reopen`);
 
         if (order === "source-first") await store.commit({ schema: coherenceSchema, deliveries: [{
@@ -109,10 +109,10 @@ test("maintained source and target arrival orders leave an older named record pa
           next: null, seq: 8, rows: [count(1)], receipt: receipt(),
         }] });
         else await store.commit({ schema: coherenceSchema, tombstones: [{ table: "messages", id: "m2", seq: 8 }] });
-        assert.equal((await store.answer("deliveries.conversationView", { conversationId }))?.state, "partial",
+        assert.equal((await store.answer("messages.conversationView", { conversationId }))?.state, "partial",
           `${name}: sibling facts do not promote the named record before its own delivery`);
         await store.commit({ schema: coherenceSchema, deliveries: [view(8, [message("m1")], 1)] });
-        const current = await store.answer<any>("deliveries.conversationView", { conversationId });
+        const current = await store.answer<any>("messages.conversationView", { conversationId });
         assert.equal(current?.state, "complete");
         assert.equal(current?.data.count.value, 1);
         assert.deepEqual(current?.data.messages.map((item: any) => item.id), ["m1"]);
@@ -138,13 +138,13 @@ test("target-first zero-to-one invalidates named point and range absence owners"
         await store.open(`${name}:target-first-zero-${proof}`);
         await store.commit({ schema: coherenceSchema, deliveries: [
           {
-            op: "deliveries.conversationView", args: { conversationId }, state: "complete", data: { messages: [], count: 0, preview: [] },
+            op: "messages.conversationView", args: { conversationId }, state: "complete", data: { messages: [], count: 0, preview: [] },
             next: null, seq: 7, rows: [], receipt: proof === "point"
               ? { ...receipt(), absences: [["messageCounts", "byId", [countId]]] }
               : { ...receipt(), ranges: [targetRange] },
           },
           {
-            op: "deliveries.conversationView", args: { conversationId: otherConversation }, state: "complete",
+            op: "messages.conversationView", args: { conversationId: otherConversation }, state: "complete",
             data: { messages: [], count: 0, preview: [] }, next: null, seq: 7, rows: [],
             receipt: proof === "point"
               ? { ...receipt(), absences: [["messageCounts", "byId", [otherCountId]]] }
@@ -155,10 +155,10 @@ test("target-first zero-to-one invalidates named point and range absence owners"
           op: "messageCounts.byId", args: { id: countId }, state: "complete", data: ref("messageCounts", countId),
           next: null, seq: 8, rows: [count(1)], receipt: receipt(),
         }] });
-        const held = await store.answer("deliveries.conversationView", { conversationId });
+        const held = await store.answer("messages.conversationView", { conversationId });
         assert.equal(held?.state, "partial", `${name} ${proof}: sparse zero cannot survive a newer target`);
         assert.equal(held?.reason, "maintained-coherence");
-        assert.equal((await store.answer("deliveries.conversationView", { conversationId: otherConversation }))?.state, "complete",
+        assert.equal((await store.answer("messages.conversationView", { conversationId: otherConversation }))?.state, "complete",
           `${name} ${proof}: an exact target change does not fence another group on the same table`);
       } finally { await store.close?.(); }
     }
@@ -203,7 +203,7 @@ test("bounded prediction retirement reveals missing maintained authority, never 
         next: null, seq: 20, rows: [count(1)], receipt: receipt(),
       }] });
       await store.commit({
-        watermark: { op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark: "cursor-9", updatedAt: 1 },
+        watermark: { op: "messages.inbox", args: { c: null }, cursorArg: "c", watermark: "cursor-9", updatedAt: 1 },
         outbox: { put: [item.queued] }, overlay: { put: { [item.intent]: item.overlay } },
       });
       await store.commit({ outbox: { put: [item.committed] } });
@@ -239,7 +239,7 @@ test("maintained invalidation follows the aggregate contribution, not every sour
         op: "messages.byId", args: { id: "m1" }, state: "complete", data: ref("messages", "m1"), next: null, seq: 8,
         rows: [{ ...message("m1"), row: { ...message("m1").row, body: "edited" } }], receipt: receipt(),
       }] });
-      assert.equal((await store.answer("deliveries.conversationView", { conversationId }))?.state, "complete",
+      assert.equal((await store.answer("messages.conversationView", { conversationId }))?.state, "complete",
         `${name}: a Count source body edit leaves target authority valid`);
       assert.equal((await store.coverage()).rows.some((held) => held.table === "messageCounts"), true);
 
@@ -305,13 +305,13 @@ test("an unpredicted committed intent is marked arrived by the tail rows of its 
     await store.commit({ outbox: { put: [queued] } });
     assert.equal((await store.outbox.get(item.intent))?.arrived, undefined, `${name}: nothing has arrived`);
     await store.commit({
-      deliveries: [page("deliveries.thread", { conversationId: "conversation-1" }, 31, [row("messages", item.id)])],
+      deliveries: [page("messages.thread", { conversationId: "conversation-1" }, 31, [row("messages", item.id)])],
       outbox: { put: [committed] },
     });
     const entry = await store.outbox.get(item.intent);
     assert.equal(entry?.state, "committed", `${name}: settled`);
     assert.equal(entry?.arrived, true, `${name}: the tail row carrying the pinned id is the arrival, even inside the settlement swap`);
-    await store.commit({ deliveries: [page("deliveries.thread", { conversationId: "conversation-1" }, 32, [row("messages", "other")])] });
+    await store.commit({ deliveries: [page("messages.thread", { conversationId: "conversation-1" }, 32, [row("messages", "other")])] });
     assert.equal((await store.outbox.get(item.intent))?.arrived, true, `${name}: arrival is durable`);
     await store.close?.();
   });
@@ -324,21 +324,21 @@ test("tail-page retirement requires a non-empty page at a manifest-named positio
     const partition = `${name}:tail`;
     try {
       await seed(store, partition, item, {
-        op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark: "cursor-9", updatedAt: 1,
+        op: "messages.inbox", args: { c: null }, cursorArg: "c", watermark: "cursor-9", updatedAt: 1,
       });
       await store.close?.();
       store = create();
       await store.open(partition);
-      await store.commit({ deliveries: [page("deliveries.inbox", { c: "cursor-9" }, 31, [row("deliveries", `${name}-other-conversation`)], "cursor-10")] });
+      await store.commit({ deliveries: [page("messages.inbox", { c: "cursor-9" }, 31, [row("deliveries", `${name}-other-conversation`)], "cursor-10")] });
       assert.ok((await store.outbox.overlay())[item.intent], `${name}: another conversation at the held position is not past the commit watermark`);
       await store.commit({
-        watermark: { op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark: "cursor-10", updatedAt: 2 },
+        watermark: { op: "messages.inbox", args: { c: null }, cursorArg: "c", watermark: "cursor-10", updatedAt: 2 },
       });
-      await store.commit({ deliveries: [page("deliveries.inbox", { c: "cursor-10" }, 32, [])] });
+      await store.commit({ deliveries: [page("messages.inbox", { c: "cursor-10" }, 32, [])] });
       assert.ok((await store.outbox.overlay())[item.intent], `${name}: an empty later page is not arrival evidence`);
-      await store.commit({ deliveries: [page("deliveries.inbox", { c: null }, 33, [row("deliveries", `${name}-base`)])] });
+      await store.commit({ deliveries: [page("messages.inbox", { c: null }, 33, [row("deliveries", `${name}-base`)])] });
       assert.ok((await store.outbox.overlay())[item.intent], `${name}: a re-delivered base page is not past the commit watermark`);
-      await store.commit({ deliveries: [page("deliveries.inbox", { c: "cursor-10" }, 34, [row("deliveries", `${name}-tail`)])] });
+      await store.commit({ deliveries: [page("messages.inbox", { c: "cursor-10" }, 34, [row("deliveries", `${name}-tail`)])] });
       assert.equal((await store.outbox.overlay())[item.intent], undefined, `${name}: the advanced non-empty tail page retires the overlay`);
     } finally {
       await store.close?.();
@@ -353,16 +353,16 @@ test("only proven forward marks of the tail chooser consume patience; duplicate 
     const partition = `${name}:misses`;
     try {
       await seed(store, partition, item, {
-        op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark: "inbox-1", updatedAt: 1,
+        op: "messages.inbox", args: { c: null }, cursorArg: "c", watermark: "inbox-1", updatedAt: 1,
       });
       await store.commit({ watermark: { op: "profiles.me", args: { c: null }, cursorArg: "c", watermark: "profile-1", updatedAt: 2 } });
       await store.commit({ watermark: { op: "profiles.me", args: { c: null }, cursorArg: "c", watermark: "profile-2", updatedAt: 3 } });
       assert.ok((await store.outbox.overlay())[item.intent], `${name}: two unrelated re-marks leave the overlay`);
       assert.equal((await store.outbox.get(item.intent))?.predicted, true, `${name}: unrelated re-marks keep prediction custody`);
-      await store.commit({ deliveries: [page("deliveries.inbox", { c: "inbox-1" }, 30, [row("deliveries", "link")], "inbox-2")] });
-      await store.commit({ watermark: { op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark: "inbox-2", updatedAt: 4 } });
+      await store.commit({ deliveries: [page("messages.inbox", { c: "inbox-1" }, 30, [row("deliveries", "link")], "inbox-2")] });
+      await store.commit({ watermark: { op: "messages.inbox", args: { c: null }, cursorArg: "c", watermark: "inbox-2", updatedAt: 4 } });
       for (const watermark of ["inbox-2", "inbox-1", "inbox-2", "unproven"]) {
-        await store.commit({ watermark: { op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark, updatedAt: 5 } });
+        await store.commit({ watermark: { op: "messages.inbox", args: { c: null }, cursorArg: "c", watermark, updatedAt: 5 } });
         assert.ok((await store.outbox.overlay())[item.intent], `${name}: ${watermark} is not another advance`);
       }
       assert.ok((await store.outbox.overlay())[item.intent], `${name}: one selected-tail advance is one miss`);
@@ -384,9 +384,9 @@ test("authoritative predicted-row arrival clears predicted while retaining the c
     const item = prediction(`${name}-arrival`);
     try {
       await seed(store, `${name}:arrival`, item, {
-        op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark: "cursor-9", updatedAt: 1,
+        op: "messages.inbox", args: { c: null }, cursorArg: "c", watermark: "cursor-9", updatedAt: 1,
       });
-      await store.commit({ deliveries: [page("deliveries.thread", { conversationId: "conversation-1" }, 30, [
+      await store.commit({ deliveries: [page("messages.thread", { conversationId: "conversation-1" }, 30, [
         { table: "messages", id: item.id, row: { id: item.id, body: "authoritative" } },
       ])] });
       const entry = await store.outbox.get(item.intent);
@@ -420,10 +420,10 @@ test("authoritative evidence retires an ordinary group while its maintained targ
         await store.commit({ deliveries: [page("counts.byId", {}, 30, [{ ...count, row: { ...count.row, value: 1 } }])] });
         await store.close?.();
         await seed(store, `${name}:${effect}-atomic`, item, {
-          op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark: "cursor-9", updatedAt: 1,
+          op: "messages.inbox", args: { c: null }, cursorArg: "c", watermark: "cursor-9", updatedAt: 1,
         });
         const messageEvidence = effect === "insert"
-          ? page("deliveries.thread", { conversationId: "conversation-1" }, 30, [
+          ? page("messages.thread", { conversationId: "conversation-1" }, 30, [
             { table: "messages", id: item.id, row: { id: item.id, body: "authoritative" } },
           ])
           : { ...page("messages.byId", { id: item.id }, 30, []), data: null,
@@ -469,10 +469,10 @@ test("ordinary prediction groups require exact evidence and retire generated fan
       item.overlay.push(...fanout);
       try {
         await seed(store, `${name}:ordinary-${exact}`, item, {
-          op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark: "cursor-9", updatedAt: 1,
+          op: "messages.inbox", args: { c: null }, cursorArg: "c", watermark: "cursor-9", updatedAt: 1,
         });
         const messageId = exact ? item.id : "same-content-different-id";
-        await store.commit({ deliveries: [page("deliveries.thread", { conversationId: "conversation-1" }, 30, [
+        await store.commit({ deliveries: [page("messages.thread", { conversationId: "conversation-1" }, 30, [
           { table: "messages", id: messageId, row: { id: messageId, body: "predicted" } },
           ...fanout.map((row, index) => ({ ...row, id: `server-${index}`, row: { ...row.row, id: `server-${index}` } })),
         ])] });
@@ -497,13 +497,13 @@ test("a proven tail page keeps a predicted maintained sibling until that row arr
       await store.commit({ programs: maintainedProgram });
       await store.close?.();
       await seed(store, `${name}:maintained-tail`, item, {
-        op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark: "cursor-9", updatedAt: 1,
+        op: "messages.inbox", args: { c: null }, cursorArg: "c", watermark: "cursor-9", updatedAt: 1,
       });
       await store.commit({ deliveries: [
-        page("deliveries.inbox", { c: "cursor-9" }, 30, [row("deliveries", "authoritative-link")], "cursor-10"),
-        page("deliveries.inbox", { c: "cursor-10" }, 30, [row("deliveries", "authoritative-tail")]),
+        page("messages.inbox", { c: "cursor-9" }, 30, [row("deliveries", "authoritative-link")], "cursor-10"),
+        page("messages.inbox", { c: "cursor-10" }, 30, [row("deliveries", "authoritative-tail")]),
       ],
-        watermark: { op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark: "cursor-10", updatedAt: 2 } });
+        watermark: { op: "messages.inbox", args: { c: null }, cursorArg: "c", watermark: "cursor-10", updatedAt: 2 } });
       assert.deepEqual((await store.outbox.overlay())[item.intent], [count],
         `${name}: log progress retires ordinary fan-out rows but preserves the maintained value`);
       assert.equal((await store.outbox.get(item.intent))?.predicted, true);
@@ -522,21 +522,21 @@ test("a second nullable string argument cannot impersonate the manifest cursor o
     const item = prediction(`${name}-two-nullable`);
     try {
       await seed(store, `${name}:two-nullable`, item, {
-        op: "deliveries.inbox", args: { after: null, before: null }, cursorArg: "after", watermark: "cursor-9", updatedAt: 1,
+        op: "messages.inbox", args: { after: null, before: null }, cursorArg: "after", watermark: "cursor-9", updatedAt: 1,
       });
       await store.commit({
-        deliveries: [page("deliveries.inbox", { after: "cursor-9", before: null }, 30, [row("deliveries", "link")], "cursor-10")],
-        watermark: { op: "deliveries.inbox", args: { after: null, before: null }, cursorArg: "after", watermark: "cursor-10", updatedAt: 2 },
+        deliveries: [page("messages.inbox", { after: "cursor-9", before: null }, 30, [row("deliveries", "link")], "cursor-10")],
+        watermark: { op: "messages.inbox", args: { after: null, before: null }, cursorArg: "after", watermark: "cursor-10", updatedAt: 2 },
       });
       await store.commit({ deliveries: [page(
-        "deliveries.inbox",
+        "messages.inbox",
         { after: "cursor-10", before: "not-the-cursor" },
         31,
         [row("deliveries", `${name}-wrong-key`)],
       )] });
       assert.ok((await store.outbox.overlay())[item.intent], `${name}: changing the other nullable argument is not a tail page`);
       await store.commit({ deliveries: [page(
-        "deliveries.inbox",
+        "messages.inbox",
         { after: "cursor-10", before: null },
         32,
         [row("deliveries", `${name}-right-key`)],
@@ -670,12 +670,12 @@ test("object and array arguments, including object-entry arrays, cannot supply a
     for (const [selected, foreign] of [[{}, []], [{ a: 1 }, [["a", 1]]], [{ a: "1" }, [["a", "1"]]]]) {
       const store = create();
       const item = prediction(`${name}-${JSON.stringify(selected)}`);
-      const mark = (watermark: string) => ({ op: "deliveries.inbox", args: { c: null, filter: selected }, cursorArg: "c", watermark, updatedAt: 1 });
+      const mark = (watermark: string) => ({ op: "messages.inbox", args: { c: null, filter: selected }, cursorArg: "c", watermark, updatedAt: 1 });
       try {
         await seed(store, `${name}:${JSON.stringify(selected)}`, item, mark("a"));
         await store.commit({ deliveries: [
-          page("deliveries.inbox", { c: "a", filter: foreign }, 30, [row("deliveries", "foreign-link")], "b"),
-          page("deliveries.inbox", { c: "b", filter: foreign }, 30, [row("deliveries", "foreign-page")], "c"),
+          page("messages.inbox", { c: "a", filter: foreign }, 30, [row("deliveries", "foreign-link")], "b"),
+          page("messages.inbox", { c: "b", filter: foreign }, 30, [row("deliveries", "foreign-page")], "c"),
         ], watermark: mark("b") });
         await store.commit({ watermark: mark("c") });
         assert.ok((await store.outbox.overlay())[item.intent], `${name}: foreign arguments prove neither arrival nor progress`);
@@ -691,13 +691,13 @@ test("an ambiguous link preserves the proven prefix but cannot advance beyond it
     const store = create();
     const item = prediction(`${name}-ambiguous`);
     Object.assign(item.overlay[0]!, { removed: true }); // Only negatives or misses can retire.
-    const mark = (watermark: string) => ({ op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark, updatedAt: 1 });
+    const mark = (watermark: string) => ({ op: "messages.inbox", args: { c: null }, cursorArg: "c", watermark, updatedAt: 1 });
     try {
       await seed(store, `${name}:ambiguous`, item, mark("a"));
       await store.commit({ deliveries: [
-        { ...page("deliveries.inbox", { c: "a" }, 30, [row("deliveries", "a")], "b"), cursorArg: "c" },
-        { ...page("deliveries.inbox", { c: "b" }, 30, [row("deliveries", "b")], "c"), cursorArg: "c" },
-        { ...page("deliveries.inbox", { after: "b" }, 30, [row("deliveries", "alias")], "d"), cursorArg: "after" },
+        { ...page("messages.inbox", { c: "a" }, 30, [row("deliveries", "a")], "b"), cursorArg: "c" },
+        { ...page("messages.inbox", { c: "b" }, 30, [row("deliveries", "b")], "c"), cursorArg: "c" },
+        { ...page("messages.inbox", { after: "b" }, 30, [row("deliveries", "alias")], "d"), cursorArg: "after" },
       ] });
       for (const position of ["c", "d", "c"]) await store.commit({ watermark: mark(position) });
       assert.ok((await store.outbox.overlay())[item.intent], "an ambiguous continuation supplies no progress");
@@ -715,16 +715,16 @@ test("evicting the progress page re-anchors at surviving consumed positions on b
     const partition = `${name}:evicted-progress`;
     const item = prediction(`${name}-evicted-progress`);
     Object.assign(item.overlay[0]!, { removed: true });
-    const mark = (watermark: string) => ({ op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark, updatedAt: 1 });
+    const mark = (watermark: string) => ({ op: "messages.inbox", args: { c: null }, cursorArg: "c", watermark, updatedAt: 1 });
     try {
       await seed(store, partition, item, mark("a"));
       await store.commit({ deliveries: [
-        page("deliveries.inbox", { c: "a" }, 30, [row("deliveries", "a")], "b"),
-        page("deliveries.inbox", { c: "b" }, 30, [row("deliveries", "b")], "c"),
+        page("messages.inbox", { c: "a" }, 30, [row("deliveries", "a")], "b"),
+        page("messages.inbox", { c: "b" }, 30, [row("deliveries", "b")], "c"),
       ], watermark: mark("c") });
-      await store.commit({ dropAnswers: ['deliveries.inbox\u0000{"c":"b"}'] });
+      await store.commit({ dropAnswers: ['messages.inbox\u0000{"c":"b"}'] });
       store = await reopen(store, create, partition);
-      await store.commit({ deliveries: [page("deliveries.inbox", { c: "b" }, 31, [row("deliveries", "new-b")], "d")] });
+      await store.commit({ deliveries: [page("messages.inbox", { c: "b" }, 31, [row("deliveries", "new-b")], "d")] });
       await store.commit({ watermark: mark("b") });
       assert.ok((await store.outbox.overlay())[item.intent], "the surviving consumed prefix cannot count again");
       await store.commit({ watermark: mark("d") });
@@ -738,10 +738,10 @@ test("consumed progress survives cold reopen and a repeated position never doubl
     let store = create();
     const partition = `${name}:consumed`;
     const item = prediction(`${name}-consumed`);
-    const mark = (watermark: string) => ({ op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark, updatedAt: 1 });
+    const mark = (watermark: string) => ({ op: "messages.inbox", args: { c: null }, cursorArg: "c", watermark, updatedAt: 1 });
     try {
       await seed(store, partition, item, mark("a"));
-      const link = page("deliveries.inbox", { c: "a" }, 30, [row("deliveries", "link")], "b");
+      const link = page("messages.inbox", { c: "a" }, 30, [row("deliveries", "link")], "b");
       await store.commit({ deliveries: [link], watermark: mark("b") });
       store = await reopen(store, create, partition);
       for (const watermark of ["b", "a", "b"]) await store.commit({ deliveries: [link], watermark: mark(watermark) });
@@ -757,21 +757,21 @@ test("a re-served page replaces its next link and conditional refresh cannot ren
     let store = create();
     const partition = `${name}:link-seq`;
     const item = prediction(`${name}-link-seq`);
-    const mark = (watermark: string) => ({ op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark, updatedAt: 1 });
+    const mark = (watermark: string) => ({ op: "messages.inbox", args: { c: null }, cursorArg: "c", watermark, updatedAt: 1 });
     try {
       await seed(store, partition, item, mark("a"));
-      await store.commit({ deliveries: [{ ...page("deliveries.inbox", { c: "a" }, 29, [row("deliveries", "link")], "b"), validator: "old" }] });
-      await store.commit({ refreshes: [{ op: "deliveries.inbox", args: { c: "a" }, seq: 31, validator: "old" }] });
+      await store.commit({ deliveries: [{ ...page("messages.inbox", { c: "a" }, 29, [row("deliveries", "link")], "b"), validator: "old" }] });
+      await store.commit({ refreshes: [{ op: "messages.inbox", args: { c: "a" }, seq: 31, validator: "old" }] });
       store = await reopen(store, create, partition);
-      await store.commit({ deliveries: [page("deliveries.inbox", { c: "b" }, 31, [row("deliveries", "not-proven")])], watermark: mark("b") });
+      await store.commit({ deliveries: [page("messages.inbox", { c: "b" }, 31, [row("deliveries", "not-proven")])], watermark: mark("b") });
       assert.ok((await store.outbox.overlay())[item.intent], "a refreshed answer seq cannot promote an old next link");
-      await store.commit({ dropAnswers: ['deliveries.inbox\u0000{"c":"b"}'] });
-      await store.commit({ deliveries: [page("deliveries.inbox", { c: "a" }, 32, [row("deliveries", "link")], "b")] });
+      await store.commit({ dropAnswers: ['messages.inbox\u0000{"c":"b"}'] });
+      await store.commit({ deliveries: [page("messages.inbox", { c: "a" }, 32, [row("deliveries", "link")], "b")] });
       // The page grew: a -> c replaces an eligible post-commit a -> b link.
-      await store.commit({ deliveries: [page("deliveries.inbox", { c: "a" }, 33, [row("deliveries", "link")], "c")] });
-      await store.commit({ deliveries: [page("deliveries.inbox", { c: "b" }, 33, [row("deliveries", "old-page")])], watermark: mark("b") });
+      await store.commit({ deliveries: [page("messages.inbox", { c: "a" }, 33, [row("deliveries", "link")], "c")] });
+      await store.commit({ deliveries: [page("messages.inbox", { c: "b" }, 33, [row("deliveries", "old-page")])], watermark: mark("b") });
       assert.ok((await store.outbox.overlay())[item.intent], "the old continuation no longer supplies a link or arrival");
-      await store.commit({ deliveries: [page("deliveries.inbox", { c: "c" }, 33, [row("deliveries", "current-page")])] });
+      await store.commit({ deliveries: [page("messages.inbox", { c: "c" }, 33, [row("deliveries", "current-page")])] });
       await assertRetired(store, item.intent, name);
     } finally { await store.close?.(); }
   });
@@ -783,12 +783,12 @@ test("a full delivery at a refreshed seq renews continuation evidence only after
     const partition = `${name}:full-after-refresh`;
     const item = prediction(partition);
     try {
-      await seed(store, partition, item, { op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark: "a", updatedAt: 1 });
-      const link = { ...page("deliveries.inbox", { c: "a" }, 29, [row("deliveries", "link")], "b"), validator: "old" };
+      await seed(store, partition, item, { op: "messages.inbox", args: { c: null }, cursorArg: "c", watermark: "a", updatedAt: 1 });
+      const link = { ...page("messages.inbox", { c: "a" }, 29, [row("deliveries", "link")], "b"), validator: "old" };
       await store.commit({ deliveries: [link] });
       await store.commit({ refreshes: [{ op: link.op, args: link.args, seq: 31, validator: link.validator }] });
       store = await reopen(store, create, partition);
-      await store.commit({ deliveries: [page("deliveries.inbox", { c: "b" }, 31, [row("deliveries", "beyond")])] });
+      await store.commit({ deliveries: [page("messages.inbox", { c: "b" }, 31, [row("deliveries", "beyond")])] });
       assert.ok((await store.outbox.overlay())[item.intent], "unchanged cannot renew a pre-commit link");
       await assert.rejects(store.commit({ deliveries: [{ ...link, seq: 31, next: "forged" }] }), /conflicting deliveries/);
       assert.ok((await store.outbox.overlay())[item.intent], "conflicting full content proves no progress");
@@ -803,10 +803,10 @@ test("nonempty scalar projections use held closure rows to prove tail progress o
     const store = create();
     const item = prediction(`${name}-projected`);
     const projected = (position: string, next: string | null) => ({
-      ...page("deliveries.inbox", { c: position }, 31, [row("deliveries", position)], next), data: [position],
+      ...page("messages.inbox", { c: position }, 31, [row("deliveries", position)], next), data: [position],
     });
     try {
-      await seed(store, `${name}:projected`, item, { op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark: "a", updatedAt: 1 });
+      await seed(store, `${name}:projected`, item, { op: "messages.inbox", args: { c: null }, cursorArg: "c", watermark: "a", updatedAt: 1 });
       await store.commit({ deliveries: [projected("a", "b")] });
       assert.ok((await store.outbox.overlay())[item.intent], "the snapshot's own projected page is not past it");
       await store.commit({ deliveries: [projected("b", null)] });
@@ -821,16 +821,16 @@ test("a retained denied tail cannot prove authoritative page arrival", async () 
     const item = prediction(`${name}-retained-tail`);
     const partition = `${name}:retained-tail`;
     try {
-      await seed(store, partition, item, { op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark: "a", updatedAt: 1 });
-      await store.commit({ deliveries: [page("deliveries.inbox", { c: "b" }, 29, [row("deliveries", "old")])] });
+      await seed(store, partition, item, { op: "messages.inbox", args: { c: null }, cursorArg: "c", watermark: "a", updatedAt: 1 });
+      await store.commit({ deliveries: [page("messages.inbox", { c: "b" }, 29, [row("deliveries", "old")])] });
       await store.commit({ retention: { deliveries: "delivered-history" }, deliveries: [{
-        ...page("deliveries.inbox", { c: "b" }, 31, []), state: "denied", data: undefined,
+        ...page("messages.inbox", { c: "b" }, 31, []), state: "denied", data: undefined,
       }] });
       store = await reopen(store, create, partition);
-      assert.equal((await store.answer("deliveries.inbox", { c: "b" }))?.retained, true);
-      await store.commit({ deliveries: [page("deliveries.inbox", { c: "a" }, 31, [row("deliveries", "link")], "b")] });
+      assert.equal((await store.answer("messages.inbox", { c: "b" }))?.retained, true);
+      await store.commit({ deliveries: [page("messages.inbox", { c: "a" }, 31, [row("deliveries", "link")], "b")] });
       assert.ok((await store.outbox.overlay())[item.intent], "retained history past a fresh link is not arrival");
-      await store.commit({ deliveries: [page("deliveries.inbox", { c: "b" }, 32, [row("deliveries", "fresh")])] });
+      await store.commit({ deliveries: [page("messages.inbox", { c: "b" }, 32, [row("deliveries", "fresh")])] });
       await assertRetired(store, item.intent, name);
     } finally { await store.close?.(); }
   });
@@ -841,7 +841,7 @@ test("a denied delivered-history answer cannot confirm arrival of a committed ed
     const store = create();
     const item = prediction(`${name}-retained`);
     try {
-      await seed(store, `${name}:retained`, item, { op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark: "a", updatedAt: 1 });
+      await seed(store, `${name}:retained`, item, { op: "messages.inbox", args: { c: null }, cursorArg: "c", watermark: "a", updatedAt: 1 });
       await store.commit({ deliveries: [page("messages.byId", { id: item.id }, 29, [row("messages", item.id)])] });
       await store.commit({ retention: { messages: "delivered-history" }, deliveries: [{
         ...page("messages.byId", { id: item.id }, 31, []), state: "denied", data: undefined,
@@ -859,12 +859,12 @@ test("a 60-row resume followed by a 50-row-page remount cannot count the backwar
     const partition = `${name}:remount`;
     const item = prediction(`${name}-remount`);
     const rows = Array.from({ length: 60 }, (_, i) => row("deliveries", `row-${i + 1}`));
-    const mark = (watermark: string) => ({ op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark, updatedAt: 1 });
+    const mark = (watermark: string) => ({ op: "messages.inbox", args: { c: null }, cursorArg: "c", watermark, updatedAt: 1 });
     try {
       // Resume's last-returned-row cursor, then a commit at that snapshot.
       await seed(store, partition, item, mark("row-60"));
-      const base = page("deliveries.inbox", { c: null }, 31, rows.slice(0, 50), "row-50");
-      const last = page("deliveries.inbox", { c: "row-50" }, 31, rows.slice(50));
+      const base = page("messages.inbox", { c: null }, 31, rows.slice(0, 50), "row-50");
+      const last = page("messages.inbox", { c: "row-50" }, 31, rows.slice(50));
       await store.commit({ deliveries: [base, last], watermark: mark("row-50") });
       assert.ok((await store.outbox.overlay())[item.intent], `${name}: remount's exhausted-page cursor is a regression`);
       await store.commit({ deliveries: [base, last], watermark: mark("row-50") });
@@ -885,17 +885,17 @@ test("missing and pre-commit links prove nothing; a cycle keeps only its proven 
     const partition = `${name}:chain`;
     const item = prediction(`${name}-chain`);
     Object.assign(item.overlay[0]!, { removed: true }); // Isolate progress from positive arrival.
-    const mark = (watermark: string) => ({ op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark, updatedAt: 1 });
+    const mark = (watermark: string) => ({ op: "messages.inbox", args: { c: null }, cursorArg: "c", watermark, updatedAt: 1 });
     try {
       await seed(store, partition, item, mark("a"));
-      await store.commit({ deliveries: [page("deliveries.inbox", { c: "b" }, 30, [row("deliveries", "second")])], watermark: mark("b") });
+      await store.commit({ deliveries: [page("messages.inbox", { c: "b" }, 30, [row("deliveries", "second")])], watermark: mark("b") });
       assert.ok((await store.outbox.overlay())[item.intent], `${name}: inequality and seq cannot replace a link`);
-      await store.commit({ deliveries: [page("deliveries.inbox", { c: "a" }, 29, [row("deliveries", "first")], "b")] });
+      await store.commit({ deliveries: [page("messages.inbox", { c: "a" }, 29, [row("deliveries", "first")], "b")] });
       assert.ok((await store.outbox.overlay())[item.intent], `${name}: every link must be at or after commit seq`);
       // The same opaque cursor cannot mean two successive positions.
       await store.commit({ deliveries: [
-        page("deliveries.inbox", { c: "a" }, 31, [row("deliveries", "first")], "b"),
-        page("deliveries.inbox", { c: "b" }, 31, [row("deliveries", "second")], "a"),
+        page("messages.inbox", { c: "a" }, 31, [row("deliveries", "first")], "b"),
+        page("messages.inbox", { c: "b" }, 31, [row("deliveries", "second")], "a"),
       ], watermark: mark("a") });
       store = await reopen(store, create, partition);
       await store.commit({ watermark: mark("b") });
@@ -916,14 +916,14 @@ test("the commit snapshot round-trips after the tail moved and retires against t
     const item = prediction(`${name}-snapshot`);
     try {
       await seed(store, partition, item, {
-        op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark: "commit-position", updatedAt: 1,
+        op: "messages.inbox", args: { c: null }, cursorArg: "c", watermark: "commit-position", updatedAt: 1,
       });
       // No chain yet, so this mark does not consume patience. Hold the link
       // afterwards without re-marking, then reopen with a moved current tail.
-      await store.commit({ watermark: { op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark: "new-position", updatedAt: 2 } });
-      await store.commit({ deliveries: [page("deliveries.inbox", { c: "commit-position" }, 30, [row("deliveries", "link")], "new-position")] });
+      await store.commit({ watermark: { op: "messages.inbox", args: { c: null }, cursorArg: "c", watermark: "new-position", updatedAt: 2 } });
+      await store.commit({ deliveries: [page("messages.inbox", { c: "commit-position" }, 30, [row("deliveries", "link")], "new-position")] });
       store = await reopen(store, create, partition);
-      await store.commit({ deliveries: [page("deliveries.inbox", { c: "new-position" }, 30, [row("deliveries", "arrived-page")])] });
+      await store.commit({ deliveries: [page("messages.inbox", { c: "new-position" }, 30, [row("deliveries", "arrived-page")])] });
       await assertRetired(store, item.intent, name);
       store = await reopen(store, create, partition);
       await assertRetired(store, item.intent, `${name}: durable retirement`);
@@ -943,7 +943,7 @@ for (const kind of ["primary absence", "tombstone", "predicted deletion"] as con
         receipt: { ...receipt(), absences: [["messages", "byId", [item.id]]] as Array<[string, string, unknown[]]> },
       });
       try {
-        await seed(store, partition, item, { op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark: "quiet", updatedAt: 1 });
+        await seed(store, partition, item, { op: "messages.inbox", args: { c: null }, cursorArg: "c", watermark: "quiet", updatedAt: 1 });
         await store.commit({ deliveries: [absent(29)] });
         assert.ok((await store.outbox.overlay())[item.intent], `${name}: pre-commit absence is not enough`);
         if (kind === "predicted deletion") {
@@ -970,7 +970,7 @@ test("empty answers and hidden alternate-key lookups are not authoritative absen
     const partition = `${name}:hidden`;
     const item = prediction(`${name}-hidden`);
     try {
-      await seed(store, partition, item, { op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark: "quiet", updatedAt: 1 });
+      await seed(store, partition, item, { op: "messages.inbox", args: { c: null }, cursorArg: "c", watermark: "quiet", updatedAt: 1 });
       await store.commit({ deliveries: [page("messages.list", {}, 30, [])] });
       await store.commit({ deliveries: [{ ...page("messages.bySlug", { slug: "hidden" }, 31, []), data: null }] });
       assert.ok((await store.outbox.overlay())[item.intent]);
@@ -999,7 +999,7 @@ test("resetCoverage rebases the snapshot and patience for a new tail op and curs
     const partition = `${name}:reset`;
     const item = prediction(`${name}-reset`);
     try {
-      await seed(store, partition, item, { op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark: "old", updatedAt: 1 });
+      await seed(store, partition, item, { op: "messages.inbox", args: { c: null }, cursorArg: "c", watermark: "old", updatedAt: 1 });
       await store.commit({ resumeSeq: 31 });
       await store.commit({ resetCoverage: true });
       store = await reopen(store, create, partition);
@@ -1033,7 +1033,7 @@ function resumeFetch(cursor: string, log: unknown, observed?: (request: any) => 
     const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status });
     if (path === "/api/manifest") return json({
       generation: "schema-generation", programGeneration: generation, channels: {}, auth: {},
-      ops: { "deliveries.inbox": { kind: "query", planHash, cursor, args: { [cursor]: { Optional: "Cursor" } } } },
+      ops: { "messages.inbox": { kind: "query", planHash, cursor, args: { [cursor]: { Optional: "Cursor" } } } },
     });
     if (path === "/api/program") return json({ code: "E_ROUTE", family: "op", message: "not found", guide: "op/reference" }, 404);
     if (path === "/api/resume") {
@@ -1050,11 +1050,11 @@ test("unchanged quiet-tail resumes strictly past commit consume one miss across 
     const item = prediction(`${name}-quiet`);
     let resumes = 0;
     try {
-      await seed(store, "dev:alice", item, { op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark: "quiet", updatedAt: 1 });
+      await seed(store, "dev:alice", item, { op: "messages.inbox", args: { c: null }, cursorArg: "c", watermark: "quiet", updatedAt: 1 });
       await store.commit({ facts: { generation, schemaHash, authEpoch: 7 } });
       await store.close?.();
       for (let count = 1; count <= 2; count++) {
-        const client = createClient({ url: "http://quiet.test", as: "alice", offline: { store: create },
+        const client = createClient({ url: "http://quiet.test", persona: "alice", offline: { store: create },
           fetch: resumeFetch("c", { unchanged: true }, () => resumes++),
         });
         try { await client.ready; } finally { await client.close(); }
@@ -1080,10 +1080,10 @@ test("repeated online resumes at the commit seq do not consume misses in one ses
     const item = prediction(`${name}-same-seq`);
     let seq = 30;
     let resumes = 0;
-    await seed(store, "dev:alice", item, { op: "deliveries.inbox", args: { c: null }, cursorArg: "c", watermark: "quiet", updatedAt: 1 });
+    await seed(store, "dev:alice", item, { op: "messages.inbox", args: { c: null }, cursorArg: "c", watermark: "quiet", updatedAt: 1 });
     await store.commit({ facts: { generation, schemaHash, authEpoch: 7 } });
     await store.close?.();
-    const client = createClient({ url: "http://same-seq.test", as: "alice", offline: { store: () => (store = create()) },
+    const client = createClient({ url: "http://same-seq.test", persona: "alice", offline: { store: () => (store = create()) },
       fetch: (input, init) => resumeFetch("c", { unchanged: true }, () => resumes++, seq)(input, init),
     });
     try {
@@ -1108,17 +1108,17 @@ test("a pre-manifest c snapshot needs fresh correctly named links after reopenin
     try {
       // The args are already the app's args; the runtime has not learned the
       // cursor type yet. Snapshot c, advance the tail without consuming a miss.
-      await seed(store, "dev:alice", item, { op: "deliveries.inbox", args: { after: null }, watermark: "start", updatedAt: 1 });
+      await seed(store, "dev:alice", item, { op: "messages.inbox", args: { after: null }, watermark: "start", updatedAt: 1 });
       await store.commit({ facts: { generation, schemaHash, authEpoch: 7 }, watermark: {
-        op: "deliveries.inbox", args: { after: null }, watermark: "middle", updatedAt: 2,
+        op: "messages.inbox", args: { after: null }, watermark: "middle", updatedAt: 2,
       } });
       await store.commit({ deliveries: [{
-        ...page("deliveries.inbox", { after: "start" }, 30, [row("deliveries", "link")], "middle"), cursorArg: "c",
+        ...page("messages.inbox", { after: "start" }, 30, [row("deliveries", "link")], "middle"), cursorArg: "c",
       }] });
       await store.close?.();
       let request: any;
       const held = row("deliveries", "authoritative-tail");
-      const client = createClient({ url: "http://fallback.test", as: "alice", offline: { store: create },
+      const client = createClient({ url: "http://fallback.test", persona: "alice", offline: { store: create },
         fetch: resumeFetch("after", {
           protocol: 1, generation, schemaHash, planHash, authority: { principal: "dev:alice", authEpoch: 7 },
           state: "complete", data: [ref(held.table, held.id)], rows: [held], receipt: receipt(),
@@ -1129,17 +1129,17 @@ test("a pre-manifest c snapshot needs fresh correctly named links after reopenin
       assert.deepEqual(request.log.args, { after: null });
       store = create();
       await store.open("dev:alice");
-      assert.ok(await store.answer("deliveries.inbox", { after: "middle" }), `${name}: live name files the tail`);
-      assert.equal(await store.answer("deliveries.inbox", { after: null, c: "middle" }), undefined);
+      assert.ok(await store.answer("messages.inbox", { after: "middle" }), `${name}: live name files the tail`);
+      assert.equal(await store.answer("messages.inbox", { after: null, c: "middle" }), undefined);
       // Exactly one resume and no proven re-mark: the two-miss bound cannot
       // conceal a lost cursor name or a snapshot rebuilt at the current tail.
       assert.ok((await store.outbox.overlay())[item.intent], `${name}: an unknown cursor name is not an ordered link`);
       await store.commit({ deliveries: [{
-        ...page("deliveries.inbox", { after: "start" }, 31, [row("deliveries", "link")], "middle"), cursorArg: "after",
+        ...page("messages.inbox", { after: "start" }, 31, [row("deliveries", "link")], "middle"), cursorArg: "after",
       }] });
       assert.ok((await store.outbox.overlay())[item.intent], `${name}: naming the persisted root does not prove progress past it`);
       await store.commit({ deliveries: [{
-        ...page("deliveries.inbox", { after: "middle" }, 32, [row("deliveries", "past-link")], "tail"), cursorArg: "after",
+        ...page("messages.inbox", { after: "middle" }, 32, [row("deliveries", "past-link")], "tail"), cursorArg: "after",
       }] });
       await assertRetired(store, item.intent, `${name}: a fresh engine-valid link uses the persisted snapshot`);
     } finally { await store.close?.(); }

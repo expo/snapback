@@ -40,7 +40,7 @@ query noteIsSet(counter: counters):
   return row.note = 'set'
 
 query counterTotal(owner: principal):
-  return #counterTotals[owner]
+  return counterTotals[owner]
 
 query firstPositive(values: [int] <=5):
   for value in values:
@@ -49,11 +49,11 @@ query firstPositive(values: [int] <=5):
   return 0
 
 mutation ensureUser(name: text <=40, nickname: text <=40 ?, role: enum('member', 'admin')):
-  match users[name = name]:
-    some found:
-      return found { * }
-    none:
-      return insert users { principal: viewer, name, nickname, score: 0, active: true, role, joinedAt: now, metadata: {}, externalId: new }
+  found = users[name = name]
+  if found != null:
+    return found { * }
+  else:
+    return insert users { principal: viewer, name, nickname, score: 0, active: true, role, joinedAt: now, metadata: {}, externalId: new }
 
 mutation createPost(group: groups, body: text <=500, at: time, visible: bool, peers: [principal] <=5):
   require commit >= at else FUTURE_POST

@@ -2,12 +2,12 @@ import { mayNeedAssetPlanning } from "./assets.js";
 import { submitMutation, type DrainResult } from "./client-outbox.js";
 import type { ClientInbox } from "./client-inbox.js";
 import type { JsonRequestOptions } from "./client-wire.js";
-import { copyRefusal, followerRefusal, isSnapbackRefusal, isTerminalSession, SnapbackRefusal } from "./client-wire.js";
+import { copyRefusal, followerRefusal, isRefusalError, isTerminalSession, RefusalError } from "./client-wire.js";
 import { withMutationUploads, type Authority, type UploadHost } from "./client-upload.js";
 import { referenceName, type Op } from "./api.js";
 import { mutationPresentation } from "./mutation-targets.js";
 import type { OfflineRuntime } from "./offline.js";
-import type { AssetInput, ClientSnapshot, Manifest, MutationResult, RefusalEnvelope } from "./types.js";
+import type { AssetInput, ClientSnapshot, Manifest, MutationResult, Refusal } from "./types.js";
 
 /** The narrow client seam used by the mutation arm; Client owns every lifecycle transition. */
 export interface MutationClient extends UploadHost {
@@ -19,12 +19,12 @@ export interface MutationClient extends UploadHost {
   manifestFor(authority: Authority): Promise<Manifest>;
   validated(authority: Authority): void;
   json(path: string, init: RequestInit, authority: Authority, options?: JsonRequestOptions): Promise<unknown>;
-  offlineRefusal(error: unknown): SnapbackRefusal;
+  offlineRefusal(error: unknown): RefusalError;
   drainNow(authority?: Authority): Promise<DrainResult>;
   transportFailureState(): ClientSnapshot["connection"];
   patchSnapshot(patch: Partial<ClientSnapshot>): void;
   expireSession(authority: Authority): Promise<unknown>;
-  terminalRefusal(authority: Authority, refusal: RefusalEnvelope, options?: { preserveOutcome?: boolean }): Promise<void>;
+  terminalRefusal(authority: Authority, refusal: Refusal, options?: { preserveVerdict?: boolean }): Promise<void>;
 }
 
 export async function performMutation<Args, Result>(
@@ -33,7 +33,7 @@ export async function performMutation<Args, Result>(
   const op = referenceName(ref), presentation = mutationPresentation(ref);
   const authority = await host.operationAuthority();
   // @ref LLP 1018.004#2-the-inbox — a follower's write is a durable inbox row
-  // before this resolves; there is no forwarded command and no unknown outcome.
+  // before this resolves; there is no forwarded command and no unknown verdict.
   if (host.offlineRuntime?.following) {
     if (mayNeedAssetPlanning(args)) throw followerRefusal("client.mutation.upload");
     return host.trackWrite(() => host.inbox.mutation(op, args, presentation), true);
@@ -58,17 +58,12 @@ export async function performMutation<Args, Result>(
           return result;
         });
       if (result.state === "rejected" && isTerminalSession(result)) {
-        await host.terminalRefusal(authority, result, { preserveOutcome: true });
+        await host.terminalRefusal(authority, result, { preserveVerdict: true });
       }
       return result;
     } catch (error) {
-      if (isSnapbackRefusal(error) && isTerminalSession(error.envelope)) {
-        await host.terminalRefusal(authority, error.envelope, { preserveOutcome: true });
-      }
-      if (isSnapbackRefusal(error) && error.code === "E_WIRE_SHAPE") {
-        const ambiguous = new SnapbackRefusal(copyRefusal(error.envelope), true);
-        host.patchSnapshot({ connection: host.transportFailureState(), lastRefusal: ambiguous.envelope });
-        throw ambiguous;
+      if (isRefusalError(error) && isTerminalSession(error.envelope)) {
+        await host.terminalRefusal(authority, error.envelope, { preserveVerdict: true });
       }
       throw error;
     }

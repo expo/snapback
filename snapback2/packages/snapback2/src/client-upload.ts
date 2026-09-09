@@ -16,14 +16,14 @@ import {
 } from "./assets.js";
 import { assetBlobTarget, cachedAssetBlob, cachedAssetBytes, viewedAssetIds, type AssetBlobTarget } from "./client-assets.js";
 import { offlineNetworkRefusal } from "./client-offline.js";
-import { SnapbackRefusal, isSnapbackRefusal, isTerminalSession, throwIfAborted, responseRefusal, wireAssetSession, wireObject, wireShape, withAbort } from "./client-wire.js";
+import { RefusalError, isRefusalError, isTerminalSession, throwIfAborted, responseRefusal, wireAssetSession, wireObject, wireShape, withAbort } from "./client-wire.js";
 import type { AssetBytes, AssetFetchOptions, ByteCache } from "./store/byte-cache.js";
 import type {
   AssetRecord, Manifest, MutationResult, UploadListing,
   AssetUploadOptions,
   AssetUploadSource,
   AssetUrlOptions,
-  RefusalEnvelope,
+  Refusal,
 } from "./types.js";
 
 /** The authority snapshot every request is fenced by (LLP 1002 §9). */
@@ -53,11 +53,11 @@ export interface UploadHost {
   headers(authority: Authority, stream?: boolean, hasBody?: boolean): Headers;
   json(path: string, init: RequestInit, authority: Authority): Promise<unknown>;
   ensureAuthority(authority: Authority | undefined): asserts authority is Authority;
-  recordRefusal(envelope: RefusalEnvelope): void;
-  terminalRefusal(authority: Authority, envelope: RefusalEnvelope, options?: { preserveOutcome?: boolean }): Promise<void>;
+  recordRefusal(envelope: Refusal): void;
+  terminalRefusal(authority: Authority, envelope: Refusal, options?: { preserveVerdict?: boolean }): Promise<void>;
   validated(authority: Authority | undefined): void;
-  networkRefusal(message: string): SnapbackRefusal;
-  transportRefusal(message: string): SnapbackRefusal;
+  networkRefusal(message: string): RefusalError;
+  transportRefusal(message: string): RefusalError;
 }
 
 /** Recovery uses normal principal authentication, never a media session carrier. */
@@ -134,10 +134,10 @@ export async function withMutationUploads<Result>(
   } catch (error) {
     // Admission/prediction failures precede custody. Once persistence or the
     // network is attempted, ambiguous failures retain bytes for possible replay.
-    if (custody === undefined || (custody === "wire" && isSnapbackRefusal(error) && !error.retryable
+    if (custody === undefined || (custody === "wire" && isRefusalError(error) && !error.retryable
       && error.code !== "E_WIRE_SHAPE" && error.status !== undefined && error.status >= 400 && error.status < 500)) {
       await discardAutomaticUploads(host, records, authority);
-      if (isSnapbackRefusal(error)) host.recordRefusal(error.envelope);
+      if (isRefusalError(error)) host.recordRefusal(error.envelope);
     }
     throw error;
   }
@@ -373,7 +373,7 @@ async function checkedAssetResponse(host: UploadHost, response: Response, path: 
   options: { afterCleanup?: boolean; signal?: AbortSignal | null }): Promise<Response> {
   throwIfAborted(options.signal);
   if (response.status >= 400 && response.status < 500) {
-    let refusal: SnapbackRefusal;
+    let refusal: RefusalError;
     try { refusal = await responseRefusal(response); }
     catch (error) { throwIfAborted(options.signal); host.ensureAuthority(authority); throw error; }
     throwIfAborted(options.signal);
@@ -411,12 +411,12 @@ async function assetCarrier(host: UploadHost, authority: Authority): Promise<str
   return carrier.token;
 }
 
-export function assetInput(host: UploadHost, error: unknown): SnapbackRefusal {
-  if (isSnapbackRefusal(error)) return error;
+export function assetInput(host: UploadHost, error: unknown): RefusalError {
+  if (isRefusalError(error)) return error;
   const input = error instanceof AssetInputError
     ? error
     : new AssetInputError("E_ASSET_TYPE", error instanceof Error ? error.message : String(error));
-  const refusal = new SnapbackRefusal({
+  const refusal = new RefusalError({
     code: input.code,
     family: "input",
     message: input.message,

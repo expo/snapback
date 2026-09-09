@@ -1,10 +1,14 @@
-import { mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { createRequire } from "node:module";
+import { realpathSync } from "node:fs";
 import type { ProjectJson } from "./ir";
 import { lowerProject } from "./project";
 import ts from "typescript";
+import { withProject } from "./quarry-check-helpers";
+import { diagnostic } from "./diagnostics";
 
 const frontend = decodeURIComponent(new URL("../", import.meta.url).pathname);
 const crate = decodeURIComponent(new URL("../../../", import.meta.url).pathname);
@@ -15,7 +19,88 @@ function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
 
+function intendedFailure(errors: Array<{ code: string }>, code: string): boolean {
+  // Invalid schemas also prevent dependent operations from being certified.
+  // That trailing refusal is allowed; an unrelated first error never passes.
+  return errors[0]?.code === code && errors.every(error => error.code === code || error.code === "E_CHECK_IR_UNSUPPORTED");
+}
+
 export function registerFinalGateChecks(test: RegisterTest): void {
+  test("missing-bound guides resolve for shared frontend and native certification", async () => {
+    const sourceFile = ts.createSourceFile("probe.ts", "value", ts.ScriptTarget.ESNext);
+    for (const code of ["E_QUARRY_TYPE", "E_QUARRY_AMBIGUOUS"] as const) {
+      assert(diagnostic({ sourceFile, fileName: "probe.ts" }, code, sourceFile,
+        "invalid Quarry", "repair the declaration").guide === "quarry", code);
+    }
+    const frontend = diagnostic({ sourceFile, fileName: "probe.ts" }, "E_UNBOUND_SCAN", sourceFile,
+      "read needs a bound", "name the bound");
+    await withProject({
+      "snapback/schema.q": "table rows:\n  value: int\n  public\n",
+      "snapback/ops.q": "query one(id: rows):\n  return rows[id]\n",
+    }, async root => {
+      const lowered = await lowerProject(root);
+      assert(lowered.ok, JSON.stringify(lowered));
+      const input = JSON.parse(JSON.stringify(lowered.project).replaceAll('"index":"byId"', '"index":"missing"'));
+      const checked = runBinaryCheck(["--json", "--ir"], input);
+      const native = checked.results.find(result => result.error?.code === "E_UNBOUND_SCAN")?.error;
+      assert(checked.exitCode === 1 && native, JSON.stringify(checked));
+      assert(frontend.guide === "quarry" && native.guide === "quarry", JSON.stringify({ frontend, native }));
+    });
+  });
+
+  test("diagnostic family published projects and core inputs emit their claimed code first and repairs compile", async () => {
+    const families = JSON.parse(await readFile(resolve(crate, "packages/snapback2/guide/families.source.json"), "utf8"));
+    const codes = ["E_ARGS_TYPE", "E_EFFECT_UNKNOWN", "E_EFFECT_THEN_ARGS", "E_EMIT_IN_QUERY", "E_UNBOUND_SCAN", "E_UNBOUND_LOOP", "E_STRUCTURAL_COUNT", "E_AMBIENT_TIME", "E_OPAQUE", "E_OP_INVALID", "E_OP_NONE", "E_OP_RESERVED", "E_SCHEMA_RESERVED", "E_SCHEMA_ID_RESERVED", "E_SCHEMA_INDEX_COLUMN", "E_SCHEMA_CONSTRAINT", "E_SCHEMA_MAINTAIN", "E_SCHEMA_ASSET_MAINTAIN", "E_RULE_INVALID", "E_DECIMAL_SCALE", "E_QUARRY_SYNTAX", "E_QUARRY_UNKNOWN", "E_QUARRY_AMBIGUOUS", "E_QUARRY_UNSUPPORTED", "E_QUARRY_PLACEMENT", "E_QUARRY_TYPE", "E_QUARRY_RETAIN", "E_QUARRY_TOMBSTONE", "E_ARGS_CURSOR_INDEX", "E_ARGS_ID_SCALAR", "E_ARGS_ID_TEXT", "E_SCHEDULE_COLUMN", "E_SCHEDULE_TARGET", "E_SCHEDULE_DURATION"];
+    const failures: string[] = [];
+    for (const code of codes) for (const side of ["wrong", "right"]) {
+      const row = families.find((row: any) => row.code === code);
+      const raw = row[side].match(/```json\n([\s\S]*?)\n```/)?.[1];
+      if (raw) {
+        const checked = runBinaryCheck(["--json", "--ir"], JSON.parse(raw));
+        const errors = checked.results.flatMap((result: any) => result.error ? [result.error] : []);
+        if (side === "wrong" ? (checked.exitCode !== 1 || !intendedFailure(errors, code)) : checked.exitCode !== 0) failures.push(`${code}.${side}: ${JSON.stringify(errors)}`);
+        continue;
+      }
+      // File markers and all schema/effect context are published inside the example.
+      // Compile those bytes; never infer a per-code cause or rewrite the snippet.
+      const files: Record<string, string> = {};
+      for (const block of row[side].matchAll(/^```(?:q|ts)\n([\s\S]*?)\n```/gm)) {
+        let path: string | undefined;
+        for (const line of block[1].split("\n")) {
+          const marker = /^(?:--|\/\/) (snapback\/[A-Za-z0-9_./-]+\.(?:q|ts))$/.exec(line);
+          if (marker) { path = marker[1]!; assert(!(path in files), `duplicate ${path}`); files[path] = ""; }
+          else if (path) files[path] += line + "\n";
+          else assert(!line.trim() || line.startsWith("-- "), `${code}.${side}: source without a file marker`);
+        }
+      }
+      if (!Object.keys(files).length) { failures.push(`${code}.${side}: missing published project files`); continue; }
+      await withProject(files, async root => {
+        const lowered = await lowerProject(root);
+        const checked = lowered.ok ? runBinaryCheck(["--json", "--ir"], lowered.project) : undefined;
+        const diagnostics = lowered.ok ? checked!.results.flatMap((r: any) => r.error ? [r.error] : []) : lowered.diagnostics;
+        if (side === "wrong" ? (!intendedFailure(diagnostics, code) || (checked && checked.exitCode !== 1))
+          : (diagnostics.length !== 0 || checked?.exitCode !== 0)) failures.push(`${code}.${side}: ${JSON.stringify(diagnostics)}`);
+        if (code === "E_QUARRY_AMBIGUOUS" && side === "wrong") assert(diagnostics[0]?.guide === "quarry", JSON.stringify(diagnostics));
+      });
+    }
+    assert(failures.length === 0, failures.join("\n"));
+  });
+
+  test("diagnostic family examples use current surfaces and every guide resolves", async () => {
+    const guide = resolve(crate, "packages/snapback2/guide");
+    const families = JSON.parse(await readFile(resolve(guide, "families.source.json"), "utf8"));
+    const failures: string[] = [];
+    for (const row of families) {
+      for (const side of ["wrong", "right"]) for (const deleted of ["db.", "rule.", "ctx.", "t.text(", "withIndex", ".take("]) {
+        if (row[side].includes(deleted)) failures.push(`${row.code}.${side} contains ${deleted}`);
+      }
+      if (typeof row.guide !== "string" || !(await Bun.file(resolve(guide, `${row.guide}.md`)).exists())) {
+        failures.push(`${row.code} has no resolving guide page: ${row.guide}`);
+      }
+    }
+    assert(failures.length === 0, failures.join("\n"));
+  });
+
   test("the React template typechecks against the built snapback2/react package", () => {
     const packageRoot = resolve(crate, "packages/snapback2");
     const app = resolve(packageRoot, "templates/react/src/App.tsx");
@@ -55,14 +140,14 @@ export function registerFinalGateChecks(test: RegisterTest): void {
     await Bun.write(apiDts, lowered.apiDts);
     const targets = resolve(buildDir, "mutation-target-consumer.ts");
     await Bun.write(targets, `import { api, mutationTarget } from "snapback2/client";
-const create = mutationTarget(api.deliveries.post, "messages");
-const update = mutationTarget(api.deliveries.edit, "messages");
-const remove = mutationTarget(api.deliveries.unsend, "messages");
+const create = mutationTarget(api.messages.send, "messages");
+const update = mutationTarget(api.messages.edit, "messages");
+const remove = mutationTarget(api.messages.unsend, "messages");
 const created: "create" | undefined = create.__kind;
 const updated: "update" | undefined = update.__kind;
 const removed: "remove" | undefined = remove.__kind;
 // @ts-expect-error a table absent from this mutation cannot be selected
-mutationTarget(api.deliveries.post, "nonexistent");
+mutationTarget(api.messages.send, "nonexistent");
 // @ts-expect-error a query has no mutation targets
 mutationTarget(api.messages.thread, "messages");
 // @ts-expect-error update targets cannot stand in for create targets
@@ -73,7 +158,8 @@ void [created, updated, removed, wrong];`);
       return (await Promise.all(entries.map((entry) => entry.isDirectory() ? files(resolve(path, entry.name))
         : entry.isFile() && /\.tsx?$/.test(entry.name) ? [resolve(path, entry.name)] : []))).flat();
     };
-    const screens = (await Promise.all(["react", "expo", "shared"].map((arm) => files(resolve(template, arm))))).flat();
+    const screens = (await Promise.all(["react", "expo", "shared"].map((arm) => files(resolve(template, arm))))).flat().filter(file => !file.endsWith("vite.config.ts"));
+    const expoRequire = createRequire(realpathSync(resolve(packageRoot, "node_modules/expo/package.json")));
     const program = ts.createProgram({
       rootNames: [...screens, apiDts, targets],
       options: {
@@ -84,6 +170,7 @@ void [created, updated, removed, wrong];`);
         moduleResolution: ts.ModuleResolutionKind.Bundler,
         noEmit: true,
         paths: {
+          "expo-constants": [resolve(dirname(expoRequire.resolve("expo-constants/package.json")), "build/Constants.d.ts")],
           snapback2: [resolve(packageRoot, "dist/index.d.ts")],
           "snapback2/client": [resolve(packageRoot, "dist/client.d.ts")],
           "snapback2/react": [resolve(packageRoot, "dist/react.d.ts")],
@@ -227,11 +314,6 @@ void [created, updated, removed, wrong];`);
     assert(checked.results.length === quarryChat.project.programs.length, "project check omitted programs");
     assert(checked.results.every((item: any) => (item.certificate === null) !== (item.error === null)), "project check omitted a certificate/refusal outcome");
     assert(checkedRefusals.every((item: any) => fullCheckEnvelope(item.error)), "checker refusal envelope is incomplete");
-    for (const page of ["feeds.q", "messages.q"]) {
-      const fixture = await Bun.file(`${frontend}fixtures/quarry-chat/snapback/${page}`).text();
-      const template = await Bun.file(`${crate}packages/snapback2/templates/chat/snapback/${page}`).text();
-      assert(fixture === template, `Quarry chat ${page} diverged from the shipped template`);
-    }
     const quarryChecked = runBinaryCheck(["--json", "--ir"], quarryChat.project);
     const pagePins: Record<string, [number, number]> = {
       "feeds.followingFeed": [55_572, 626_336],

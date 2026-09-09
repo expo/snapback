@@ -26,3 +26,5 @@ await import("./twin.test.ts");
 await import("./supersession.test.ts");
 await import("./readiness.test.ts");
 await import("./chat-screens.test.ts");
+
+await import("./plain-tier.test.ts");

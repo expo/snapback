@@ -499,7 +499,7 @@ query before(boundary: time):
     let deliveries = root.join("snapback/deliveries.q");
     let delivery_source = fs::read_to_string(&deliveries).unwrap();
     let without_count =
-        delivery_source.replace("count: #messageCounts[conversationId]", "count: 0");
+        delivery_source.replace("count: messageCounts[conversationId]", "count: 0");
     assert_ne!(
         delivery_source, without_count,
         "the chat composite query no longer reads the maintained count"

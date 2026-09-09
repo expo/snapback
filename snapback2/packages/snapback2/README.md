@@ -15,14 +15,10 @@ facts.
 ```ts
 import { api, createClient } from "snapback2/client";
 
-const client = createClient({ url: process.env.SNAPBACK_URL!, as: "alice" });
+const client = createClient({ url: process.env.SNAPBACK_URL!, persona: "alice" });
 const page = await client.query(api.messages.thread, { conversationId: "conversation-1", c: null });
 
-const sub = client.subscribe(api.messages.thread, { conversationId: "conversation-1", c: null }, console.log);
-await sub.until((delivery) => delivery.state === "complete" && delivery.live);
-sub.close();
-
-const observed = client.observe(api.messages.thread, { conversationId: "conversation-1", c: null });
+const observed = client.observe(api.messages.thread, { conversationId: "conversation-1" });
 const stop = observed.subscribe(() => console.log(observed.getSnapshot()));
 stop();
 ```
@@ -44,15 +40,17 @@ function Messages() {
   </button>;
 }
 
-export const App = () => <SnapbackProvider url="http://127.0.0.1:3210" as="alice">
+export const App = () => <SnapbackProvider url="http://127.0.0.1:3210" persona="alice">
   <Messages />
 </SnapbackProvider>;
 ```
 
-`useQuery` returns one immutable `Snapshot`: `data`, the certified `receipt`
-(`outcome`, `source`, `seq`, `next`), `freshness`, `local` facts, and any `refusal`.
+`useQuery` returns one immutable `Snapshot`: `data | undefined`, `status`,
+`reason`, `next` (cursor or null), and `partial` (declared history supplies items).
+The opt-in facts are the certified `receipt` (`state`, `source`, `seq`, `next`),
+`freshness`, `local`, `refusal`, `history`, and `itemsFrom`.
 Its derived `status` is `loading`, `ready`, or `unavailable`; `ready` means
-readable data, not completeness. `receipt.outcome` preserves `complete`,
+readable data, not completeness. `receipt.state` preserves `complete`,
 `capped`, `partial`, or `denied`, independently of `freshness.live` and
 `freshness.connection` (`connected`, `reconnecting`, or `offline`). Prediction
 and retention are under `local`. `useQuery` subscribes by default; pass
@@ -67,15 +65,15 @@ successor and account resets publish `loading` before new-authority data.
 Committed predictions, settlements, and coverage changes reevaluate mounted
 views once from the atomic store revision; bookkeeping-only commits stay silent.
 
-`useMutation` returns `{ run, inFlight, can, pending, last, detail }`.
-`inFlight` marks an active call; `pending` lists this operation's durable queued
-intents. `can.send`, `can.reason`, and `can.action` describe readiness and recovery;
-`detail.status` retains the underlying queue/grant/fence facts. `last` is
-`queued`, `committed`, or `rejected`; every outcome is terminal or durable, and
+`useMutation` returns `{ run, inFlight, can, last }`.
+`inFlight` marks an active call. `can.send`, `can.reason`, and `can.action`
+describe readiness and recovery. `last` is
+`queued`, `committed`, or `rejected`; every state is terminal or durable, and
 queued means saved on the device for FIFO replay after resume. `useOutbox()` exposes entries,
 `dismiss`, `can`, and `detail`. The client's `outbox.drain()` and `settled()`
 report `{ stopped, remaining }`. Transport failures preserve queued writes;
-a thrown retryable refusal leaves `last` untouched and sets `detail.transport`.
+`run` and `client.mutation` resolve a `rejected` refusal on transport failure;
+neither throws. `last` clears on account or operation changes.
 Run `snapback2 guide offline` for recovery.
 
 A second browser tab for the same account writes its mutation as a durable row
@@ -84,7 +82,7 @@ in the partition's own IndexedDB `inbox` store and resolves
 the partition lock admits rows in key order, in the same transaction as the
 entry each becomes, and that entry records `inbox` so the alias names it on
 either tab. Rows survive reloads and writer takeover; there is no forwarded
-command and no unknown outcome (LLP 1018.004). Uploads and channel writes
+command and no unknown state (LLP 1018.004). Uploads and channel writes
 still refuse from a follower before sending bytes.
 
 ## Channels
@@ -114,7 +112,7 @@ readers receive the newest replacement snapshot. Transport loss clears displayed
 state, and reconnect gets a fresh room without replaying your value. State
 expires or disappears on disconnect, revocation and restart. Writes are online,
 without prediction, retries or a durable queue; success means the owner applied
-the command. An ambiguous network outcome settles through snapshots and TTL.
+the command. An ambiguous network state settles through snapshots and TTL.
 Channels have no history, durable queries, joins or transactions.
 
 ## Assets

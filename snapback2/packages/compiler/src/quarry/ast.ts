@@ -50,7 +50,6 @@ export type Expr =
   | MergeExpr
   | { kind: "exists"; read: Extract<Expr, { kind: "read" }>; site: Site }
   | { kind: "created"; read: Extract<Expr, { kind: "read" }>; site: Site }
-  | { kind: "aggregate"; table: string; keys: KeyPart[]; site: Site }
   | { kind: "assert"; value: Expr; code: string; site: Site }
   | { kind: "shapeUse"; base: Expr; name: string; site: Site }
   | { kind: "shape"; base: Expr; fields: ShapeField[]; authoredName?: string; authoredFields?: ShapeField[]; site: Site }
@@ -94,8 +93,7 @@ export type Stmt =
   | { kind: "return"; value: Expr; site: Site }
   | { kind: "emit"; effect: string; payload: Expr; site: Site }
   | { kind: "if"; condition: Expr; thenBody: Stmt[]; elseBody: Stmt[]; site: Site }
-  | { kind: "for"; name: string; domain: Expr; body: Stmt[]; site: Site }
-  | { kind: "match"; read: Extract<Expr, { kind: "read" }>; someName: string; someBody: Stmt[]; noneBody: Stmt[]; site: Site };
+  | { kind: "for"; name: string; domain: Expr; body: Stmt[]; site: Site };
 
 export type IndexDecl = { name: string; components: IndexComponent[]; unique: boolean; site: Site };
 export type RuleDecl = { effect: "read" | "insert" | "update" | "delete"; bindings: string[]; value: Expr; site: Site };
@@ -104,6 +102,8 @@ export type FinalExistsDecl = { value: Extract<Expr, { kind: "exists" }>; site: 
 /** `tombstones <table>[.<column>] if <predicate>`: a delivered row of this table names a row of `table` the client evicts. */
 export type TombstoneDecl = { table: string; column: string; predicate: Expr; site: Site };
 export type TableDecl = {
+  /** Materialized maintain: program point reads yield its value; rules still inspect rows. */
+  maintained?: true;
   name: string;
   columns: ColumnDecl[];
   indexes: IndexDecl[];
@@ -152,7 +152,7 @@ export type Document = {
 
 export type QuarryCode = "E_SCHEMA_ASSET_MAINTAIN" | "E_SCHEMA_CONSTRAINT" | "E_SCHEMA_INDEX_COLUMN"
   | "E_SCHEDULE_COLUMN" | "E_SCHEDULE_TARGET" | "E_SCHEDULE_DURATION"
-  | "E_DECIMAL_SCALE" | "E_EMIT_IN_QUERY" | "E_OPAQUE" | "E_OP_RESERVED" | "E_UNBOUND_LOOP"
+  | "E_DECIMAL_SCALE" | "E_EMIT_IN_QUERY" | "E_OPAQUE" | "E_OP_RESERVED" | "E_UNBOUND_LOOP" | "E_UNBOUND_SCAN"
   | "E_QUARRY_SYNTAX" | "E_QUARRY_UNKNOWN" | "E_QUARRY_AMBIGUOUS" | "E_QUARRY_UNSUPPORTED" | "E_QUARRY_PLACEMENT"
   | "E_QUARRY_TYPE" | "E_QUARRY_RETAIN" | "E_QUARRY_TOMBSTONE";
 export type QuarryDiagnostic = Site & { code: QuarryCode; message: string; rewrite: string; guide: string; executableRewrite?: boolean };

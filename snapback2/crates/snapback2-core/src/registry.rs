@@ -864,6 +864,8 @@ impl Runtime {
             trace: AuthoritativeTrace::default(),
             receipt: ClosureReceipt::default(),
             state: ExecutionState::Rejected {
+                site: None,
+                rule: None,
                 code: code.to_owned(),
                 message: code.to_owned(),
             },
@@ -898,6 +900,8 @@ impl Runtime {
                         trace: AuthoritativeTrace::default(),
                         receipt: ClosureReceipt::default(),
                         state: ExecutionState::Rejected {
+                            site: error.require_site(),
+                            rule: error.require_code(),
                             code: code.to_owned(),
                             message: error.to_string(),
                         },

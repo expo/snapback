@@ -1,3 +1,4 @@
+import { subscribe } from "snapback2/internal";
 import { api } from "snapback2/client";
 import { journey } from "snapback2/test";
 
@@ -32,7 +33,7 @@ journey("alice sends bob a message", async ({ as }) => {
 journey("bob replies and alice's live thread updates", async ({ as }) => {
   const alice = as("alice");
   const bob = as("bob");
-  const thread = alice.subscribe(
+  const thread = subscribe(alice,
     api.messages.thread,
     { conversationId: "conversation-1", c: null },
     () => {},
@@ -59,7 +60,7 @@ journey("profile ownership, uniqueness, and live public reads", async ({ as }) =
   const alice = as("alice");
   const bob = as("bob");
   const charlie = as("charlie");
-  const profile = bob.subscribe(api.profiles.byHandle, { handle: "alice" }, () => {});
+  const profile = subscribe(bob, api.profiles.byHandle, { handle: "alice" }, () => {});
   try {
     await profile.until((delivery) =>
       delivery.state === "complete"
@@ -99,7 +100,7 @@ journey("unfollow changes Following selection but not Global authorization", asy
   const alice = as("alice");
   const bob = as("bob");
   const alicePrincipal = (await alice.auth.me()).viewer;
-  const following = bob.subscribe(api.feeds.followingFeed, { c: null }, () => {});
+  const following = subscribe(bob, api.feeds.followingFeed, { c: null }, () => {});
   try {
     const before = await following.until((delivery) =>
       delivery.state === "complete"
@@ -196,7 +197,7 @@ journey("conversation metadata stays inside membership", async ({ as }) => {
     if (!("data" in member) || member.data?.conversation?.title !== "General") {
       throw new Error("member could not read the conversation shell");
     }
-    if (typeof member.data.messageCount?.value !== "number") {
+    if (typeof member.data.messageCount !== "number") {
       throw new Error("member could not read the maintained message count");
     }
 

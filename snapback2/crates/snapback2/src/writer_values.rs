@@ -14,13 +14,7 @@ pub(super) fn operation_args(
         .programs()
         .get(op)
         .ok_or_else(|| {
-            Refusal::new(
-                "E_OP_UNKNOWN",
-                "op",
-                format!("unknown operation {op}"),
-                "use /api/manifest",
-                "op/manifest",
-            )
+            Refusal::unknown_operation(op.as_ref(), generation.programs().keys().map(String::as_str))
         })?
         .0;
     program_args(program, args)

@@ -1,4 +1,4 @@
-import { SnapbackRefusal } from "./client-wire.js";
+import { RefusalError } from "./client-wire.js";
 import { carryItemInputs } from "./query-frame.js";
 import type { Cursor, QueryResult, Subscription, SubscriptionDelivery } from "./types.js";
 
@@ -18,6 +18,7 @@ export interface DrainOptions<Args, Result> {
   onEvent(event: SubscriptionDelivery<Result>): void;
   /** The cursor argument's name, resolved when a page is built (the manifest may still be loading); `c` by default. */
   cursor?(): Promise<string> | string;
+  offline?(): boolean;
 }
 
 /** Follows a cursor to exhaustion, records its watermark, then watches the tail. */
@@ -30,6 +31,7 @@ export class DrainSubscription<Args, Result> implements Subscription<Subscriptio
   private closed = false;
   private failure?: Error;
   private generation = 0;
+  private flight?: boolean;
 
   constructor(private readonly options: DrainOptions<Args, Result>) {
     this.start(null);
@@ -68,6 +70,8 @@ export class DrainSubscription<Args, Result> implements Subscription<Subscriptio
     // drain owns only the no-tail case: a cut while paging or marking invalidates
     // the old generation and restarts from its last proven page position.
     if (this.tail) return;
+    // A reset already pages on the restored transport; online() must not start it twice.
+    if (this.flight !== undefined && this.flight === this.options.offline?.()) return;
     this.start(this.watermark);
   }
 
@@ -92,12 +96,12 @@ export class DrainSubscription<Args, Result> implements Subscription<Subscriptio
     });
   }
 
-  refuse(envelope: import("./types.js").RefusalEnvelope): void {
+  refuse(envelope: import("./types.js").Refusal): void {
     if (this.closed) return;
     this.generation++;
     this.tail?.close();
     this.tail = undefined;
-    const error = new SnapbackRefusal(envelope);
+    const error = new RefusalError(envelope);
     this.failure = error;
     this.deliver({ state: "refused", live: false, ...envelope });
     this.fail(error);
@@ -105,12 +109,13 @@ export class DrainSubscription<Args, Result> implements Subscription<Subscriptio
 
   private start(cursor: Cursor | null): void {
     const generation = ++this.generation;
+    this.flight = this.options.offline?.();
     void this.drain(cursor, generation).catch((error) => {
       if (this.current(generation)) {
-        if (error instanceof SnapbackRefusal) this.refuse(error.envelope);
+        if (error instanceof RefusalError) this.refuse(error.envelope);
         else this.fail(error);
       }
-    });
+    }).finally(() => { if (this.current(generation)) this.flight = undefined; });
   }
 
   private current(generation: number): boolean { return !this.closed && generation === this.generation; }
@@ -166,8 +171,8 @@ export class DrainSubscription<Args, Result> implements Subscription<Subscriptio
     }
   }
 
-  private repeatedCursor(): SnapbackRefusal {
-    const refusal = new SnapbackRefusal({
+  private repeatedCursor(): RefusalError {
+    const refusal = new RefusalError({
       code: "E_OFFLINE_RESUME", family: "offline", guide: "offline",
       message: "query drain returned a cursor it already followed",
       site: "client.subscribe.drain",

@@ -196,7 +196,15 @@ pub enum ExecutionState {
     Partial { reason: String },
     Denied { rule: String },
     Committed { seq: u64 },
-    Rejected { code: String, message: String },
+    Rejected {
+        code: String,
+        message: String,
+        /// An authored require, preserved independently of its diagnostic wording.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        rule: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        site: Option<String>,
+    },
 }
 
 impl ClosureReceipt {

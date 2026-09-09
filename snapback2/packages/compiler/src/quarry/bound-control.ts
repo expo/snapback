@@ -23,14 +23,6 @@ export function completionFacts(statements: BoundStatement[]): BoundValueFacts[]
       const bodyCompletion = completionFacts(statement.body);
       const bodyFalls = statementsFallThrough(statement.body);
       returns.push(...bodyCompletion.slice(0, bodyFalls ? -1 : undefined));
-    } else if (statement.kind === "match") {
-      const someCompletion = completionFacts(statement.someBody);
-      const noneCompletion = completionFacts(statement.noneBody);
-      const someFalls = statementsFallThrough(statement.someBody);
-      const noneFalls = statementsFallThrough(statement.noneBody);
-      returns.push(...someCompletion.slice(0, someFalls ? -1 : undefined));
-      returns.push(...noneCompletion.slice(0, noneFalls ? -1 : undefined));
-      fallsThrough = someFalls || noneFalls;
     }
   }
   if (fallsThrough) returns.push({ type: { kind: "null" }, presence: "optional", origin: "Const" });
@@ -43,8 +35,6 @@ export function statementsFallThrough(statements: BoundStatement[]): boolean {
     if (statement.kind === "expr" && statement.completion) return false;
     if (statement.kind === "if"
       && !statementsFallThrough(statement.thenBody) && !statementsFallThrough(statement.elseBody)) return false;
-    if (statement.kind === "match"
-      && !statementsFallThrough(statement.someBody) && !statementsFallThrough(statement.noneBody)) return false;
   }
   return true;
 }

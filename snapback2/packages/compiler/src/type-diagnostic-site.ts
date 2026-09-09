@@ -4,15 +4,12 @@ import { callLeaf } from "./lower/static";
 import { propertyName, unwrapCall } from "./syntax";
 
 export type TypeDiagnosticSite = {
-  code: "E_SCHEMA_INVALID" | "E_EFFECT_TYPE" | "E_EFFECT_THEN_ARGS" | "E_ARGS_TYPE" | "E_OPAQUE";
+  code: "E_EFFECT_TYPE" | "E_EFFECT_THEN_ARGS" | "E_ARGS_TYPE" | "E_OPAQUE";
   family: FrontendDiagnostic["family"];
   guide: string;
 };
 
 export function typeDiagnosticSite(node: ts.Node, file: string): TypeDiagnosticSite {
-  if (file === "schema.ts" || file.endsWith("/schema.ts")) {
-    return { code: "E_SCHEMA_INVALID", family: "schema", guide: "schema/project" };
-  }
   // A local declaration inside run is still an effect site.
   let effect: ts.Node | undefined = node;
   while (effect) {

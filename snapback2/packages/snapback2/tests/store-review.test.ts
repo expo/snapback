@@ -589,7 +589,7 @@ test('first timed facts constrain ordinary conditionals in the same atomic swap 
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
-test('checked extent membership follows immutable assertion sequences across row movement', async context => {
+for (const carrierIndex of [0, 1, 2]) test(`checked extent membership follows immutable assertion sequences across row movement: carrier ${carrierIndex}`, async context => {
   const fixtures = JSON.parse(await readFile(new URL('../../evaluator/src/test-search-v5-fixtures.json', import.meta.url), 'utf8'));
   // Native-certified v5 programs; contradictory transport frames are synthetic.
   const clock = structuredClone(fixtures.clock), bounded = fixtures.boundedClockCertificate;
@@ -604,7 +604,8 @@ test('checked extent membership follows immutable assertion sequences across row
     programs: { [timed.name]: { kind: 'query', ir: timed, certificate: cert, planHash: cert.plan_hash },
       'search.findPeople': { kind: 'query', ir: fixtures.operations['search.findPeople'].program,
         certificate: fixtures.operations['search.findPeople'].certificate, planHash: fixtures.operations['search.findPeople'].certificate.plan_hash } } };
-  const { root, factories } = await carriers();
+  const { root, factories: allFactories } = await carriers();
+  const factories = [allFactories[carrierIndex]];
   try {
     for (const factory of factories) for (const derived of [false, true]) for (const cold of [false, true])
       for (const arrival of ['batch', 'separate', 'reopen-between'])

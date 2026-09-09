@@ -215,6 +215,7 @@ fn generation() -> Generation {
                 ])),
             },
             Stmt::Require {
+                site: None,
                 condition: Expr::Literal(Value::Bool(false)),
                 code: "ROLLBACK".to_owned(),
             },

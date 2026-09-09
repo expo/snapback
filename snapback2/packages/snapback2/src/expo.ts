@@ -3,6 +3,6 @@
 // Re-export every native component (and hook, such as useAssetFile) by name here
 // AND in react-native.tsx; the built-entry parity test protects this list.
 export * from "./react-core.js";
-export { AssetImage, AssetVideo, useAssetFile } from "./react-native.js";
-export type { AssetImageProps, AssetVideoProps } from "./react-native.js";
+export { AssetImage, AssetVideo, useAssetFile, SnapbackProvider } from "./react-native.js";
+export type { AssetImageProps, AssetVideoProps, SnapbackProviderProps } from "./react-native.js";
 export * from "./expo/index.js";

@@ -182,6 +182,7 @@ fn argument_formats_admit_before_query_mutation_and_channel_and_fence_v4() {
         let mut mutation = query.clone();
         mutation.kind = ProgramKind::Mutation;
         mutation.body = vec![Stmt::Require {
+            site: None,
             condition: Expr::Literal(Value::Bool(false)),
             code: "BODY_EXECUTED".into(),
         }];

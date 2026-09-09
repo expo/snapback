@@ -1,3 +1,4 @@
+import { cursorArgument } from "../local-cursor.js";
 import { RangeReceipt, preparedDeliveryRanges } from '../../../evaluator/src/range-preparation.js';
 import { RowImage, ImageKeys, imageWire, imageRecord, imageRecords, imageState, preparedChanges, preparedProjection } from '../../../evaluator/src/row-image.js';
 import { CarrierIndex } from "./carrier-index.js";
@@ -19,7 +20,7 @@ import {
 } from "./byte-cache.js";
 import { admitOverlayAuthority, markDeliveredArrivals, pagePosition, recordOverlayAuthorityEvidence, retireOverlays,
   type OverlayAuthorityEvidence, type OverlayWatermark } from "./overlay-retirement.js";
-import { canonical, canonicalAnswerKey, jsonState } from "./canonical.js";
+import { canonical, canonicalAnswerKey, jsonState, queryArgs, storedAnswerKey, storedProgram } from "./canonical.js";
 export { canonicalAnswerKey, jsonState } from "./canonical.js";
 import { ItemCapture, freshItemSelection } from "../query-items.js";
 import { withItemInputs } from "../query-frame.js";
@@ -472,29 +473,15 @@ function normalizeState(value: PersistedRangeState | undefined): PersistedRangeS
   const { factGuards: legacyGuards, ...current } = value as PersistedRangeState & { factGuards?: object };
   const factFormat = value.factFormat ?? (Object.keys(legacyGuards ?? {}).length || Object.keys(value.rowFacts ?? {}).length
     || Object.keys(value.verdictFacts ?? {}).length || Object.values(value.answers).some(a => a.readTime !== undefined) ? 0 : FACT_FORMAT);
+  for (const key of ["watermarks", "outbox", "grants", "overlay", "overlayMisses", "overlayWatermarks",
+    "overlayNegatives", "bounds", "programs", "onceColumns", "negative", "rowSeq", "rowFacts", "verdictFacts",
+    "factImages", "factExtents", "extentGuards", "extentNegative", "assets", "viewed"] as const) current[key] ??= {};
   return {
-    ...current,
-    watermarks: value.watermarks ?? {},
-    outbox: value.outbox ?? {},
-    grants: value.grants ?? {},
-    overlay: value.overlay ?? {},
-    overlayMisses: value.overlayMisses ?? {},
-    overlayWatermarks: value.overlayWatermarks ?? {},
-    overlayNegatives: value.overlayNegatives ?? {},
-    bounds: value.bounds ?? {},
-    programs: value.programs ?? {},
-    onceColumns: value.onceColumns ?? {},
-    negative: value.negative ?? {},
-    rowSeq: value.rowSeq ?? {},
-    rowFacts: value.rowFacts ?? {}, verdictFacts: value.verdictFacts ?? {},
-    factFormat,
-    factImages: value.factImages ?? {}, factExtents: value.factExtents ?? {}, extentGuards: value.extentGuards ?? {}, extentNegative: value.extentNegative ?? {},
+    ...current, factFormat,
     factSlots: factFormat !== FACT_FORMAT ? 0 : Object.keys(value.rowFacts ?? {}).length + Object.keys(value.verdictFacts ?? {}).length
       + Object.values(value.factImages ?? {}).reduce((sum,image) => sum + imageSlots(image.keys),0)
       + Object.values(value.factExtents ?? {}).reduce((sum, extent) => sum + extentSlots(extent.condition), 0) + Object.keys(value.extentGuards ?? {}).length
       + Object.keys(value.extentNegative ?? {}).length + Object.values(value.answers).reduce((sum, a) => sum + proofSlots(a), 0),
-    assets: value.assets ?? {},
-    viewed: value.viewed ?? {},
   };
 }
 
@@ -509,7 +496,7 @@ export function tailWatermark(watermarks: WatermarkRecord[]): WatermarkRecord | 
   return [...watermarks].sort((a, b) =>
     (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER)
     || a.updatedAt - b.updatedAt
-    || canonicalAnswerKey(a.op, a.args).localeCompare(canonicalAnswerKey(b.op, b.args)))[0];
+    || canonicalAnswerKey(a.op, a.args, a.cursorArg).localeCompare(canonicalAnswerKey(b.op, b.args, b.cursorArg)))[0];
 }
 
 function changesCoverage(swap: StoreSwap): boolean {
@@ -649,7 +636,7 @@ export class PersistentRangeStore implements RangeStore {
   async answer<Result = unknown>(op: string, args: unknown): Promise<HeldAnswer<Result> | undefined> {
     return this.read(() => {
       if (this.state.sealed) return undefined;
-      const key = canonicalAnswerKey(op, args);
+      const key = storedAnswerKey(this.state, op, args);
       const stored = this.state.answers[key];
       if (!stored) return undefined;
       const watermark = this.state.watermarks[key];
@@ -724,7 +711,7 @@ export class PersistentRangeStore implements RangeStore {
   async [preparedChanges](since?: StoreRevision): Promise<StoreChange<PersistedRangeState>> {
     return this.read(() => {
       this.ensureUnsealed();
-      const program = this.state.programs[this.state.facts?.generation ?? ''];
+      const program = storedProgram(this.state);
       const change = this.updates.read(this.state,since);
       // Cold preparation only, or the bounded changed-row set; raw pre-schema custody remains opaque until requested.
       const rows = change.snapshot?.rows ?? change.records?.rows as Record<string, StoredRow> | undefined;
@@ -772,8 +759,6 @@ export class PersistentRangeStore implements RangeStore {
             throw new TypeError('prepared delivery does not match its wire pool');
           normalized.deliveries![i].rows = images.map(r => ({ ...r }));
         }
-      }
-      for (let i = 0; i < (swap.deliveries?.length ?? 0); i++) {
         const ranges = swap.deliveries![i][preparedDeliveryRanges], receipt = normalized.deliveries![i].receipt;
         if (ranges) {
           if (!receipt || !ranges.every(r => RangeReceipt.get(r,true)) || canonical(ranges) !== canonical(receipt.ranges))
@@ -898,6 +883,8 @@ export class PersistentRangeStore implements RangeStore {
     }
     const generation = swap.facts?.generation ?? state.facts?.generation;
     const custody = swap.programs && (generation ? swap.programs[generation] : Object.values(swap.programs)[0]);
+    const program = storedProgram(state, swap);
+    const answerKey = (op: string, args: unknown, cursor = cursorArgument(program?.programs[op])) => canonicalAnswerKey(op, args, cursor);
     if (custody && !swap.resetCoverage) for (const answer of Object.values(state.answers)) {
       const op = custody.programs[answer.op]; if (!op) continue;
       if (queryClock(op) && answer.readTime === undefined) throw new ClockCoverageReset();
@@ -912,11 +899,11 @@ export class PersistentRangeStore implements RangeStore {
     if (swap.superseded === null) delete state.superseded;
     else if (swap.superseded) state.superseded = clone(swap.superseded);
     const previousTail = tailWatermark(Object.values(state.watermarks));
-    const clockMark = swap.watermark && (swap.deliveries ?? []).some(d => clockOnly.has(canonicalAnswerKey(d.op, d.args))
-      && (canonicalAnswerKey(d.op, d.args) === canonicalAnswerKey(swap.watermark!.op, swap.watermark!.args)
+    const clockMark = swap.watermark && (swap.deliveries ?? []).some(d => clockOnly.has(answerKey(d.op, d.args))
+      && (answerKey(d.op, d.args) === answerKey(swap.watermark!.op, swap.watermark!.args)
         || pagePosition(d, { ...swap.watermark!, cursorArg: swap.watermark!.cursorArg ?? 'c' }) !== undefined));
     if (swap.watermark && !clockMark) {
-      const key = canonicalAnswerKey(swap.watermark.op, swap.watermark.args);
+      const key = answerKey(swap.watermark.op, swap.watermark.args, swap.watermark.cursorArg);
       // The order is the store's: first recorded, kept across re-marks (LLP 1012 §7's tail chooser).
       const order = state.watermarks[key]?.order ?? ++state.clock;
       state.watermarks[key] = { ...clone(swap.watermark), order };
@@ -967,7 +954,7 @@ export class PersistentRangeStore implements RangeStore {
         return index.absences.get(key) ?? [];
       });
     }
-    retireOverlays(state, swap, authoritativeEvidence, clockOnly, previousTail, tail, committedNow, canonicalAnswerKey, clone);
+    retireOverlays(state, swap, authoritativeEvidence, clockOnly, previousTail, tail, committedNow, answerKey, clone);
     return state;
   }
 
@@ -995,9 +982,8 @@ export class PersistentRangeStore implements RangeStore {
     const base = raw(state);
     const index = this.referenceIndex ??= new CarrierIndex({ ...base,
       programs: swap.programs ?? base.programs, facts: swap.facts ?? base.facts }, this.referenceSchema, (key,answer) => { state.answers[key] = answer; });
-    const programGeneration = swap.facts?.generation ?? state.facts?.generation;
-    const program = (programGeneration ? (swap.programs?.[programGeneration] ?? state.programs[programGeneration]) : undefined)
-      ?? Object.values(swap.programs ?? {})[0] ?? Object.values(state.programs)[0];
+    const program = storedProgram(state, swap);
+    const answerKey = (op: string, args: unknown, cursor = cursorArgument(program?.programs[op])) => canonicalAnswerKey(op, args, cursor);
     const maintained = new MaintainedTransitions(swap.schema ?? program?.schema ?? this.referenceSchema);
     const authorityEvictions = new Map<string, StoreTombstone>();
     for (const eviction of maintained.committed(swap.outbox?.put ?? [], state.overlay, swap.overlay?.put)) {
@@ -1071,7 +1057,7 @@ export class PersistentRangeStore implements RangeStore {
     const frameFacts = (frame: Frame) => frame.facts ??= deliveryFacts(frame.delivery!,frameImages(frame));
     const frontier = new Map<string, StoreDelivery | StoredAnswer>();
     for (const delivery of swap.deliveries ?? []) {
-      const frame: Frame = { delivery,owner: canonicalAnswerKey(delivery.op,delivery.args),seq: delivery.seq };
+      const frame: Frame = { delivery,owner: answerKey(delivery.op, delivery.args, delivery.cursorArg),seq: delivery.seq };
       frames.push(frame);
       const key = frame.owner, old = frontier.get(key) ?? state.answers[key];
       frame.preflight = !(old && (delivery.seq < old.seq || (delivery.seq === old.seq && old.readTime !== undefined
@@ -1085,7 +1071,7 @@ export class PersistentRangeStore implements RangeStore {
     // and exact replays may skip full application without dropping incoming facts.
     const applied: Frame[] = [];
     for (const refresh of swap.refreshes ?? []) {
-      const key = canonicalAnswerKey(refresh.op, refresh.args); remember(key);
+      const key = answerKey(refresh.op, refresh.args); remember(key);
       const answer = state.answers[key];
       if (!answer || refresh.seq < answer.seq) continue;
       if (answer.validator !== undefined && answer.validator !== refresh.validator) {
@@ -1132,7 +1118,7 @@ export class PersistentRangeStore implements RangeStore {
       remember(key);
       const old = raw(state.answers[key]);
       const fingerprintPayload = {
-        op: delivery.op, args: delivery.args, state: delivery.state, data: delivery.data,
+        op: delivery.op, args: queryArgs(delivery.args, delivery.cursorArg ?? cursorArgument(program?.programs[delivery.op])), state: delivery.state, data: delivery.data,
         next: delivery.next, seq: delivery.seq, validator: delivery.validator,
         receipt: delivery.receiptEvidence ?? delivery.receipt, rows: delivery.rows, reason: delivery.reason, rule: delivery.rule,
         ...(delivery.readTime === undefined ? {} : { readTime: delivery.readTime, clockPlanHash: delivery.clockPlanHash }),
@@ -1140,7 +1126,7 @@ export class PersistentRangeStore implements RangeStore {
       const fingerprint = sha256(canonical(fingerprintPayload));
       if (old && delivery.seq < old.seq) continue;
       const timedChange = sameClockPlan(old, delivery) && old.seq === delivery.seq && delivery.readTime !== old.readTime;
-      if (timedChange && old.seq === delivery.seq) {
+      if (timedChange) {
         clockOnly.add(key);
         if (delivery.readTime! < old.readTime!) continue;
       }
@@ -1244,7 +1230,6 @@ export class PersistentRangeStore implements RangeStore {
         ...(retained ? { retained: true } : {}),
         ...(retained ? { reason: "retained" } : delivery.reason === undefined ? {} : { reason: delivery.reason }),
         ...(delivery.rule === undefined ? {} : { rule: delivery.rule }),
-        ...(delivery.readTime === undefined ? {} : { readTime: delivery.readTime }),
         refs,
         order: ++state.clock,
         fingerprint,
@@ -1302,7 +1287,7 @@ export class PersistentRangeStore implements RangeStore {
     // Hole enrollment can discover an ordinary conditional's missing custody
     // after its provisional update above. Refuse the whole journaled swap.
     for (const refresh of swap.refreshes ?? []) {
-      const answer = state.answers[canonicalAnswerKey(refresh.op, refresh.args)];
+      const answer = state.answers[answerKey(refresh.op, refresh.args)];
       if (answer?.needsFactProofs) throw new FullRevalidationRequired(answer.op, answer.args);
     }
     // A primary deletion is a source transition too. Extent holes are not: a

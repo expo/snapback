@@ -244,9 +244,9 @@ const actions = [
     assert.deepEqual(sends[0], sends[1], "lost response retries byte-identically");
     assert.equal(sends.at(-1).replay.intent, queued[1].intent);
     const { createClient, api } = await import(resolve(dist, "client.mjs"));
-    const server = createClient({ url: owner.directUrl, as: "alice" });
+    const server = createClient({ url: owner.directUrl, persona: "alice" });
     try {
-      const answer = await server.query(api.deliveries.thread, { conversationId: seed.rooms[3], c: null });
+      const answer = await server.query(api.messages.thread, { conversationId: seed.rooms[3], c: null });
       for (let i = 0; i < queued.length; i++) assert.equal(answer.data.filter((row) => row.messageId === entries[i].ids[0]).length, 1, "one server row and the same bubble key");
     } finally { await server.close(); }
     const state = await command("state", { conversationId: seed.rooms[3] });
@@ -263,7 +263,7 @@ const actions = [
     assert.equal(held.search.state, "held");
     assert.ok(held.search.data.some((row) => row.id === seed.doomed));
     const { createClient, api } = await import(resolve(dist, "client.mjs"));
-    const server = createClient({ url: owner.directUrl, as: "alice" });
+    const server = createClient({ url: owner.directUrl, persona: "alice" });
     try { assert.equal((await server.mutation(api.witness.expire, { messageId: seed.doomed })).state, "committed"); }
     finally { await server.close(); }
     await command("online");

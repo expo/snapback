@@ -940,6 +940,7 @@ fn nonuniform_share_rule_emptiness_still_refuses() {
 fn nonuniform_share_rule_require_still_refuses() {
     let mut program = page_program(50, false);
     program.body = vec![Stmt::Require {
+        site: None,
         condition: binary(BinaryOp::Gt, count_page(), lit(Value::Int(0))),
         code: "EMPTY".to_owned(),
     }];
@@ -1093,6 +1094,7 @@ fn enriched_post_shape_require_refuses() {
     program.body.insert(
         2,
         Stmt::Require {
+            site: None,
             condition: binary(BinaryOp::Gt, count_collected(), lit(Value::Int(0))),
             code: "EMPTY".to_owned(),
         },

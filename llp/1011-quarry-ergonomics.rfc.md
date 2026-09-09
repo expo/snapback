@@ -21,7 +21,7 @@ ultra, grok-4.6 at xhigh), `llp/reviews/1011-quarry-ergonomics.*`
 **Implementer:** codex gpt-5.6-sol (xhigh), lane `s2/quarry-ergo`
 (`~/projects/snapback-s2`), orchestrated and landed by Claude Fable 5.1
 **Date:** 2026-09-03
-**Revised:** 2026-09-08 (one cursor-bearing page through composite records); 2026-09-08 (statement helpers, LLP 1018.005); 2026-09-07 (expression helpers refuse authorization assertions throughout nested shapes); 2026-09-07 (typed bound shape/function elaboration and one decimal representation); 2026-09-06 (session-delegated Unicode key/cursor integration contract, foundation only); 2026-09-06 (nested named-shape collection snapshots implemented by GPT-6 Astra; conditional page returns implemented by GPT-6 Astra; certification-derived provenance); 2026-09-05 (null keys and non-empty Id literals implemented by GPT-6 Astra, Clique L2); 2026-09-05 (d — Codex implements imported shapes, read-authorized
+**Revised:** 2026-09-08 (one spelling third repair: scope the write-refusal oracle to shared owner denial; preserve independent write authority and absent upsert insertion); 2026-09-08 (one spelling second repair: exact compiler receipt sites, point-read guide scope, carrier test headroom, historical lowering/budget references); 2026-09-08 (one spelling review fixes: maintained reference repairs, source word dispatch coverage, engine/twin numeric and visibility evidence); 2026-09-08 (one spelling: commissioned B1–B6, implemented by GPT-6 Astra in lane B); 2026-09-08 (one cursor-bearing page through composite records); 2026-09-08 (statement helpers, LLP 1018.005); 2026-09-07 (expression helpers refuse authorization assertions throughout nested shapes); 2026-09-07 (typed bound shape/function elaboration and one decimal representation); 2026-09-06 (session-delegated Unicode key/cursor integration contract, foundation only); 2026-09-06 (nested named-shape collection snapshots implemented by GPT-6 Astra; conditional page returns implemented by GPT-6 Astra; certification-derived provenance); 2026-09-05 (null keys and non-empty Id literals implemented by GPT-6 Astra, Clique L2); 2026-09-05 (d — Codex implements imported shapes, read-authorized
 write results, and order-preserving filter repairs under the author's request
 to advance Quarry); 2026-09-03 (c — implemented: §8 records the two lane commits
 and the one re-pinned expectation); 2026-09-03 (b — after the panel: `fn` deferred and `shape` kept;
@@ -79,26 +79,25 @@ unbounded program. B1 changes the normative typed-state and wire contracts
   2026-09-07:** real chat migration found reusable membership predicates and
   bounded membership reads while callers retained their own refusal codes.
   The implemented form below is expression-only and read-pure.
-- **Narrowing inside `x != null and R`.** Right operands lower with their
-  preludes before the runtime `&&` (`program.ts:319–325`), so a point read in
-  `R` would execute unconditionally on an absent `x`. Deferred until
-  right-hand preludes are conditionally lowered; `if` narrowing covers every
-  site in the corpus.
+- **Historical, superseded 2026-09-08 by §One spelling:** the deleted TS lowering's
+  unconditional right-hand preludes once prevented `and` narrowing; `bound.ts`
+  now narrows the right operand and `direct.ts`'s `lowerBinary` runs its preludes conditionally.
 - Ad-hoc filters, in programs or in the dev tool. `data --filter` was a
   post-filter on a bounded dump — `where` returning through the CLI — and
   is struck. Exploration is `data --index --prefix`, and after B1 `--after`.
 - The 50-followee cap on the merged feed, the money and decimal model,
-  `#agg` reading zero for an absent or unreadable group, and
+  `agg[key]` reading zero for an absent or unreadable group (the old `#agg`
+  spelling is superseded 2026-09-08 by §One spelling), and
   `insertIfAbsent` (ticketed): unchanged, as revision (a) argued.
 - A concatenating React `loadMore`. `useQuery` fixes one argument set and
   replaces data (`react.tsx:87–157`); the caller passes `next` back as `c`.
 
 ## B1. Opaque cursors
 
-**Today.** A cursor is the suffix tuple of the index after the prefix,
+**Historical baseline (2026-09-03, superseded below).** A cursor was the suffix tuple of the index after the prefix,
 assembled by the client from the previous page's rows: `after (cursorAt,
 cursorId) first 20`. `before c last N` is sugar the lowering already turns
-into descending `after` (`program.ts:537, 594–598`). Since LLP 1010 A6, a
+into descending `after` (deleted `program.ts:537, 594–598`). Since LLP 1010 A6, a
 tuple of optional arguments is an optional group whose mixed presence
 refuses. Three refusal families teach the tuple's shape
 (`program.ts:539–593`). Every shipped feed then shapes its page, and
@@ -208,9 +207,11 @@ rule; the client's suffix plucking; first-page-only CLI exploration.
 the merge anchor; the wire field; client and React types; the twin's
 identical mint; the compiler's provenance and grammar; the seven paging
 expressions and both chat `thread` copies; the journeys that page; LLP
-1001/1002 text. `program.ts` is 1,293 of 1,500 lines and `quarry.md` is
-13,455 of 14,336 bytes: the provenance pass goes in a new file and the
-reference is compressed before anything grows.
+1001/1002 text. The 2026-09-03 budget estimate was 1,293/1,500 lines
+for the now-deleted `program.ts` and 13,455/14,336 bytes for `quarry.md`.
+That implementation split is historical. Current cursor/range lowering lives
+in `quarry/direct.ts`; `quarry/bound.ts` binds its types, and native
+certification supplies page provenance. Current caps and guide budgets apply.
 
 ### Unicode search cursor integration (2026-09-06 session decision)
 
@@ -230,7 +231,7 @@ only after that coherent integration; the current repair behavior stays active.
 
 ## B2. `shape`
 
-**Historical baseline.** User functions and shape reuse refused as `E_QUARRY_UNSUPPORTED`
+**Historical baseline (2026-09-03; `program.ts` is now deleted).** User functions and shape reuse refused as `E_QUARRY_UNSUPPORTED`
 (`program.ts:453–454`). The same profile projection occurs fourteen times
 across the Clique fixture's `social.q`, `chat.q`, and `pay.q`; the chat
 template repeats a two-line author card. LLP 0329.014.010 open question 4
@@ -320,7 +321,7 @@ message cards in history, inbox recent-message pages, and repeated point uses.
 
 ## B3. One missing-row rule; no `id` in an upsert row
 
-**Today.** Four stories. A by-id `delete` of a missing row is a no-op with a
+**Historical baseline (2026-09-03; `program.ts` is now deleted).** Four stories. A by-id `delete` of a missing row is a no-op with a
 `missing_preimages` note (`program.ts:806–808`; `runner_ops.rs:118–126`); a
 by-id `update` of a missing row leaks the platform's `E_INPUT`
 (`runner_ops.rs:49–56`); a focal by-id update lowers to a real `Get` and
@@ -351,11 +352,15 @@ outcome. Upsert rows may spell `id: new` (the minted form) or an authored
   drop-field rewrite): by-id upsert derives identity from its key,
   alternate-key upsert keeps the present row's id or mints. Pre-minting an
   id to reference from a second row stays an `insert`.
-- **Named, not fixed:** a by-id write to an *unreadable* row is `E_RULE`
-  while an alternate-key write to one is `NOT_FOUND`. That is the
-  existence-oracle family of LLP 0329.014.004 dimension L, pre-existing,
-  and out of scope here. An idempotent double `delete` becomes `NOT_FOUND`;
-  that is the point.
+- **Existence oracle (scope corrected 2026-09-08):** when the same owner
+  predicate denies read and update/delete, by-id yields `E_RULE` while
+  alternate-key yields `NOT_FOUND`. This supersedes the categorical
+  unreadable-write claim: read and write authority are independent. An ignored
+  by-id update with `read <- deny` and `update <- allow` writes without a
+  `Get`; alternate-key upsert retains its insertion path when lookup returns
+  absence. The existing owner-predicate update refusal test in
+  `quarry-direct-contract-checks.ts` establishes the narrower oracle, in
+  LLP 0329.014.004 dimension L. An idempotent double `delete` becomes `NOT_FOUND`.
 
 **Deletes.** The no-op, the platform-code leak, `UPDATE_ROW_MISSING`, the
 two `UPSERT_ID_*` refusals, the minted form, `missing_preimages`, the
@@ -387,15 +392,15 @@ the Clique fixture carries `if m.lastDeliveredAt != null:` followed by
 
 **Amendment.** `if x != null:` narrows `x` to non-optional in its `then`
 branch, where `x` is a bound name or **one** field of a bound row. Soundness
-rests on binding identity, not spelling: the lowering already clones the
-environment per branch (`Environment.clone`, `program.ts:56–62`), the
-narrowing attaches to the binding object in the clone, and a shadowing
-rebind replaces the object and drops the narrowing (`bindings.set`,
-`:118–119`). A one-hop field of a bound row is a property access on a
-snapshot value, not a dereference (`emitMember`, `:409–433`), and a later
-`update` does not mutate the bound value. Conjunct narrowing is deferred
-(§0). No assertion is emitted, so the `!`-before-`&&` hazard LLP 1010 A2
-recorded does not arise.
+rests on binding identity: `quarry/bound.ts`'s `narrowedScope` clones the
+bound-symbol scope, preserving each symbol ID and refining its type or
+`narrowedMembers`; a shadowing declaration binds a fresh symbol.
+`quarry/direct.ts` maps symbol IDs to IR values. Its `lowerExpression`
+member arm reads a bound row snapshot; a later `update` does not mutate
+that snapshot. The original deferral of conjunct
+narrowing is **superseded 2026-09-08 by §One spelling**: the direct lowering
+conditionally executes right-hand preludes. The else branch of `if x = null`
+and the remainder after a successful `require x != null` narrow too.
 
 **Deletes.** The nested-`!` idiom, its paragraph in A2's migration note,
 and the `!` at the three sites.
@@ -524,12 +529,13 @@ The orchestrator's one hand edit after lane 2: the chat template receipt test
 pins the interpreter step count of `messages.thread`; the thread now pages, so
 an admitted execution costs one more step (7 → 8).
 
-**Budgets after landing.** `quarry/program.ts` 1,247 of 1,500 lines;
+**Historical budgets at the 2026-09-03 landing.** The now-deleted
+`quarry/program.ts` was 1,247 of 1,500 lines;
 `guide/quarry.md` 13,509 of 14,336 bytes; `guide/grammar.md` 2,032 of 2,048 —
 both guide pages shrank when tuples, `before`, the optional group, and three
 refusal families left. No budget was raised.
 
-**What binds now.** The reference (`snapback2 guide quarry`) states the
+**At that landing (2026-09-03).** The reference (`snapback2 guide quarry`) states the
 implemented language; the corpus carries 130 cases including eight
 opaque-cursor and five missing-row cases; LLP 1001 §3 and LLP 1002 §4/§6
 carry `next` and `data --after`; LLP 1010's A6 is marked superseded. This
@@ -575,3 +581,57 @@ This does not change `rules/NOT-DOING.md`, does not build the fan-out feed
 table, does not add `fn` or `insertIfAbsent`, does not publish anything, and
 does not change Snapback 1. Per `rules/RULES.md` it binds when the code in
 §8 runs; the implementer and lane are in the header.
+
+## One spelling
+
+**2026-09-08, commissioned rulings.** The following text is plan.md §B of
+the Snapback 2 elegance program, delegated by the author to the orchestrator.
+It supersedes older spellings and narrowing deferrals in this document and LLP 1010.
+
+B1. Absence. `x ! else CODE` is the one must-exist spelling; a bare `!` is refused with the rewrite. `match … some/none` is deleted (parser, binder, lowering, printer, guide, `guide.rs` pin, the two fixtures rewritten to `if`). `if x != null:` / `if x = null:` is the one branching spelling, and it narrows: the else branch of `if x = null:` (x non-null), the right operand of `and` (`x != null and x.body = body`), and the rest of the block after `require x != null else CODE`. `??` stays (defaulting is not absence branching). Ordered comparison on an optional still refuses until narrowed.
+B2. Maintained reads. A point read of a maintain, `messageCounts[conversationId]`, yields the typed value with typed zero when absent; that is the only form in a program. `#` is deleted for maintains and for `connected` (`connected[p]` yields the int count; `exists connected[p]` stays). `api.d.ts` types the read as the value (`number`), never as a row. The `data` verb and rules still see maintain rows.
+B3. Index naming. Every index is declared with its name: `by name: columns`, `unique name: columns`. The `by column` shorthand and unnamed `unique a, b` are refused, the rewrite spelling the inferred name (`by byOwnerId: ownerId`). Resolution at a read is unchanged: implicit by key types/arity when exactly one index matches, `by name` otherwise.
+B4. `walk table[seed] up .column depth N` stays, with its grammar bullet, its `guide.rs` pinned definition, and one sentence on `quarry.md`.
+B5. Freeze. A compiler test pins the complete inventory of significant words (declaration, table-body, rule, statement, range, builtin, type, modifier words — everything the lexer or binder gives meaning to) as one sorted literal; the grammar page's construct count stays pinned (23: minus `match`, plus `walk`). Adding a word means editing the literal and writing the one-line why in `rules/NOT-DOING.md` § Moves.
+B6. Every `.q` in the repository (templates, corpus, fixtures, guide snippets, benchmarks) follows B1–B3; corpus regenerated; diagnostics families that mention `#`, `match`, or the shorthand updated; byte budgets respected (deletions free bytes; raise none).
+
+**Implementation.** The AST, parser, binder and lowering have no `match` form;
+`#` is no longer a token. A materialized maintain marks its catalog table so
+only its point reads bind as a numeric aggregate; ordinary tables with a
+`value` column remain row reads. The existing engine/twin row get, null
+check and typed zero implement the value read, preserving authority and
+same-mutation writes. Implicit typed-reference row projections and member
+access, including aliases and named shapes, refuse in `bound.ts`'s `shapeBase`
+with a canonical bracket-read repair, including `counts[c ! else CODE]`
+for optional references. Count, money and decimal API regressions compile the repairs.
+The shared corpus covers grouping-index and by-id absence, existing and
+new-group same-mutation counts and branded sums, and unreadable groups.
+Hidden rows contribute no payload or absence to the receipt. The server
+returns typed zero; receipt-only replay computes the same value but remains
+partial at each uncovered point, never a falsely established zero. Compiler
+lowering replays those native typed results and custody states. The second
+repair pass pins count/money/decimal grouping Gets at `probe.valuesFor.0`,
+`.1`, and `.2`: all three partial for unreadable custody, none partial for
+the fresh absent-group receipt. Bounded maintained ranges retain rows/pages;
+only program point reads and their API types yield values. Carrier tests
+retain the public-wire refusal of alternate-index absence proofs.
+Names and one-hop fields narrow by binding identity on the proven path.
+
+**Third repair (2026-09-08).** The guide and B3's oracle warning now cover
+only update/delete denied by the same owner predicate as read. Independent
+write authority and upsert's absent insertion path remain explicit. This is
+a prose correction within the unchanged guide budget; runtime, tests, corpus,
+point/range semantics, and optional-reference repairs remain unchanged.
+
+**Source word freeze (review revision, 2026-09-08).** One sorted literal pins
+121 words. The extractor scans `src/quarry/*.ts` for literal equality/inequality
+comparisons and switch labels on `value`, `name`, `table`, or `column` properties
+(dot/bracket access), contextual `name`/`unit`/`policy` variables and their
+initializer aliases; parser `this.at/take/maybe` calls; literal array/Set/Map
+lookups; lexer word arrays; and intrinsic `name` declarations in catalog/index.
+It includes refused words and reserved API module names (`channels`, `op`,
+`then`, `toJSON`), not just accepted grammar keywords. Regression probes exercise
+switches, aliases, equality and lookups. This is a source-AST freeze, not a runtime
+census: computed strings, regex dispatch, cross-file aliases and dispatch outside
+that directory are not inferred. New dispatch mechanisms must extend this same
+extractor; adding a significant word still requires the B5 literal and Moves edit.

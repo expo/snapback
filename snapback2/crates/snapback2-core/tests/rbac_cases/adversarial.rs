@@ -594,6 +594,7 @@ fn required_get_program(name: &str, table: &str) -> Program {
                 }),
             },
             Stmt::Require {
+                site: None,
                 condition: Expr::Binary {
                     op: BinaryOp::Ne,
                     left: Box::new(var("document")),

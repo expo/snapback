@@ -596,6 +596,7 @@ fn first_require_cannot_observe_forged_asset_facts_or_run_later_effects() {
         read_time_granularity_ms: None,
         body: vec![
             Stmt::Require {
+                site: None,
                 condition: Expr::Binary {
                     op: BinaryOp::Lte,
                     left: Box::new(duration),

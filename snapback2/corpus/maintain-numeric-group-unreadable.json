@@ -1,0 +1,569 @@
+{
+  "corpusVersion": 1,
+  "name": "maintain-numeric-group-unreadable",
+  "category": "maintain",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "balances": {
+        "columns": {
+          "id": "Id",
+          "owner": "Principal",
+          "value": {
+            "Money": {
+              "currency": "USD",
+              "scale": 2
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          },
+          "byOwner": {
+            "components": [
+              {
+                "Column": "owner"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Eq": [
+              {
+                "Field": "owner"
+              },
+              "Viewer"
+            ]
+          },
+          "insert": "Deny",
+          "update": "Deny",
+          "delete": "Deny"
+        },
+        "constraints": [
+          {
+            "Unique": {
+              "index": "byOwner"
+            }
+          }
+        ],
+        "retain": "until-revoked"
+      },
+      "counts": {
+        "columns": {
+          "id": "Id",
+          "owner": "Principal",
+          "value": "Int"
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          },
+          "byOwner": {
+            "components": [
+              {
+                "Column": "owner"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Eq": [
+              {
+                "Field": "owner"
+              },
+              "Viewer"
+            ]
+          },
+          "insert": "Deny",
+          "update": "Deny",
+          "delete": "Deny"
+        },
+        "constraints": [
+          {
+            "Unique": {
+              "index": "byOwner"
+            }
+          }
+        ],
+        "retain": "until-revoked"
+      },
+      "decimals": {
+        "columns": {
+          "id": "Id",
+          "owner": "Principal",
+          "value": {
+            "Decimal": {
+              "scale": 3
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          },
+          "byOwner": {
+            "components": [
+              {
+                "Column": "owner"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Eq": [
+              {
+                "Field": "owner"
+              },
+              "Viewer"
+            ]
+          },
+          "insert": "Deny",
+          "update": "Deny",
+          "delete": "Deny"
+        },
+        "constraints": [
+          {
+            "Unique": {
+              "index": "byOwner"
+            }
+          }
+        ],
+        "retain": "until-revoked"
+      },
+      "ledger": {
+        "columns": {
+          "amount": {
+            "Money": {
+              "currency": "USD",
+              "scale": 2
+            }
+          },
+          "decimal": {
+            "Decimal": {
+              "scale": 3
+            }
+          },
+          "id": "Id",
+          "owner": "Principal",
+          "value": "Int"
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "ledger is public in Quarry"
+            }
+          },
+          "insert": "Allow",
+          "update": "Deny",
+          "delete": "Deny"
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": [
+      {
+        "kind": "Count",
+        "source": "ledger",
+        "by": [
+          "owner"
+        ],
+        "target": "counts",
+        "readable": null
+      },
+      {
+        "kind": {
+          "Sum": {
+            "of": "amount"
+          }
+        },
+        "source": "ledger",
+        "by": [
+          "owner"
+        ],
+        "target": "balances",
+        "readable": null
+      },
+      {
+        "kind": {
+          "Sum": {
+            "of": "decimal"
+          }
+        },
+        "source": "ledger",
+        "by": [
+          "owner"
+        ],
+        "target": "decimals",
+        "readable": null
+      }
+    ]
+  },
+  "program": {
+    "name": "valuesFor",
+    "kind": "Query",
+    "args": {
+      "owner": "Principal"
+    },
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Let": {
+          "name": "countRow",
+          "value": {
+            "Get": {
+              "site": "counts.byOwner",
+              "table": "counts",
+              "index": "byOwner",
+              "key": [
+                {
+                  "Variable": "owner"
+                }
+              ],
+              "provenance": "Arg"
+            }
+          }
+        }
+      },
+      {
+        "Let": {
+          "name": "count",
+          "value": {
+            "Literal": {
+              "Int": 0
+            }
+          }
+        }
+      },
+      {
+        "If": {
+          "condition": {
+            "Binary": {
+              "op": "Ne",
+              "left": {
+                "Variable": "countRow"
+              },
+              "right": {
+                "Literal": "Null"
+              }
+            }
+          },
+          "then_body": [
+            {
+              "Assign": {
+                "name": "count",
+                "value": {
+                  "Field": {
+                    "base": {
+                      "Variable": "countRow"
+                    },
+                    "name": "value"
+                  }
+                }
+              }
+            }
+          ],
+          "else_body": []
+        }
+      },
+      {
+        "Let": {
+          "name": "moneyRow",
+          "value": {
+            "Get": {
+              "site": "balances.byOwner",
+              "table": "balances",
+              "index": "byOwner",
+              "key": [
+                {
+                  "Variable": "owner"
+                }
+              ],
+              "provenance": "Arg"
+            }
+          }
+        }
+      },
+      {
+        "Let": {
+          "name": "money",
+          "value": {
+            "Literal": {
+              "Int": 0
+            }
+          }
+        }
+      },
+      {
+        "If": {
+          "condition": {
+            "Binary": {
+              "op": "Ne",
+              "left": {
+                "Variable": "moneyRow"
+              },
+              "right": {
+                "Literal": "Null"
+              }
+            }
+          },
+          "then_body": [
+            {
+              "Assign": {
+                "name": "money",
+                "value": {
+                  "Field": {
+                    "base": {
+                      "Variable": "moneyRow"
+                    },
+                    "name": "value"
+                  }
+                }
+              }
+            }
+          ],
+          "else_body": []
+        }
+      },
+      {
+        "Let": {
+          "name": "decimalRow",
+          "value": {
+            "Get": {
+              "site": "decimals.byOwner",
+              "table": "decimals",
+              "index": "byOwner",
+              "key": [
+                {
+                  "Variable": "owner"
+                }
+              ],
+              "provenance": "Arg"
+            }
+          }
+        }
+      },
+      {
+        "Let": {
+          "name": "decimal",
+          "value": {
+            "Literal": {
+              "Int": 0
+            }
+          }
+        }
+      },
+      {
+        "If": {
+          "condition": {
+            "Binary": {
+              "op": "Ne",
+              "left": {
+                "Variable": "decimalRow"
+              },
+              "right": {
+                "Literal": "Null"
+              }
+            }
+          },
+          "then_body": [
+            {
+              "Assign": {
+                "name": "decimal",
+                "value": {
+                  "Field": {
+                    "base": {
+                      "Variable": "decimalRow"
+                    },
+                    "name": "value"
+                  }
+                }
+              }
+            }
+          ],
+          "else_body": []
+        }
+      },
+      {
+        "Return": {
+          "Object": {
+            "count": {
+              "Variable": "count"
+            },
+            "decimal": {
+              "Variable": "decimal"
+            },
+            "money": {
+              "Variable": "money"
+            }
+          }
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "valuesFor",
+    "plan_hash": "38f5cbd38499adeaa2bb6faa00311a8b82dc3cd3088894ef0cafbc64126cc679",
+    "schema_hash": "9356bc0256a2d76ddffc5267d77854e75e967982f08eb86778619b6336fdefe8",
+    "tables": {
+      "balances": {
+        "retain": "until-revoked"
+      },
+      "counts": {
+        "retain": "until-revoked"
+      },
+      "decimals": {
+        "retain": "until-revoked"
+      },
+      "ledger": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "balances.read": "5d34c0093a4b06631e23ef23de7fb5a2eb1459543b7e43c13bc93bd8f81e863a",
+      "counts.read": "5d34c0093a4b06631e23ef23de7fb5a2eb1459543b7e43c13bc93bd8f81e863a",
+      "decimals.read": "5d34c0093a4b06631e23ef23de7fb5a2eb1459543b7e43c13bc93bd8f81e863a"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [
+      {
+        "site": "balances.byOwner",
+        "table": "balances",
+        "index": "byOwner",
+        "prefix_template": "Arg",
+        "take": 1,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": false,
+        "complete": false
+      },
+      {
+        "site": "counts.byOwner",
+        "table": "counts",
+        "index": "byOwner",
+        "prefix_template": "Arg",
+        "take": 1,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": false,
+        "complete": false
+      },
+      {
+        "site": "decimals.byOwner",
+        "table": "decimals",
+        "index": "byOwner",
+        "prefix_template": "Arg",
+        "take": 1,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": false,
+        "complete": false
+      }
+    ],
+    "write_sites": [],
+    "maintained_amplification": 0,
+    "constraint_checks": [],
+    "max_examined": 3,
+    "max_index_entries": 3,
+    "max_rule_probes": 0,
+    "max_steps": 53,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 5795,
+    "max_heap_bytes": 7491,
+    "max_output_bytes": 162,
+    "max_closure_bytes": 5795,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "balances.byOwner",
+      "counts.byOwner",
+      "decimals.byOwner"
+    ],
+    "disclosures": [],
+    "bound_product": "balances.byOwner point read on balances × 1 calls = 1 + counts.byOwner point read on counts × 1 calls = 1 + decimals.byOwner point read on decimals × 1 calls = 1"
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {
+      "owner": {
+        "Id": "u2"
+      }
+    },
+    "now": null,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "9356bc0256a2d76ddffc5267d77854e75e967982f08eb86778619b6336fdefe8",
+    "rows": [],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": {
+      "Row": {
+        "count": {
+          "Int": 0
+        },
+        "decimal": {
+          "Int": 0
+        },
+        "money": {
+          "Int": 0
+        }
+      }
+    },
+    "errorCode": null,
+    "localState": "partial",
+    "partialSites": [
+      "balances.byOwner",
+      "counts.byOwner",
+      "decimals.byOwner"
+    ],
+    "canonicalResult": "{\"Row\":{\"count\":{\"Int\":0},\"decimal\":{\"Int\":0},\"money\":{\"Int\":0}}}",
+    "digest": "4958c54b91249317bb7006d37b8682edc0fa89ed621691e5f8e98d59a5c56761",
+    "rangeStops": {},
+    "evictedRows": null,
+    "next": null
+  }
+}

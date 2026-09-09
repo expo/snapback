@@ -1,9 +1,9 @@
 // @ref LLP 1012#9-asset-bytes-on-the-device — the byte cache is read before the
 // network and filled after it; a viewed view-once row is refused before any byte moves.
 import { AssetInputError } from "./assets.js";
-import { SnapbackRefusal } from "./client-wire.js";
+import { RefusalError } from "./client-wire.js";
 import { ASSET_ID, type AssetCache, type AssetBytes, type ByteCache } from "./store/byte-cache.js";
-import type { RefusalEnvelope } from "./types.js";
+import type { Refusal } from "./types.js";
 
 export interface AssetBlobTarget { url: string; assetId: string; width: number | null }
 
@@ -29,8 +29,8 @@ export function assetBlobTarget(baseUrl: string, url: string): AssetBlobTarget {
   return { url, assetId: ASSET_ID.test(assetId) ? assetId : "", width };
 }
 
-export function viewedRefusal(assetId: string): SnapbackRefusal {
-  return new SnapbackRefusal({
+export function viewedRefusal(assetId: string): RefusalError {
+  return new RefusalError({
     code: "E_ASSET_VIEWED",
     family: "assets",
     message: `asset ${assetId} belongs to a view-once row that was already viewed by this principal`,
@@ -64,7 +64,7 @@ export async function cachedAssetBlob(
   cache: ByteCache | undefined,
   target: AssetBlobTarget,
   network: () => Promise<Blob>,
-  record: (refusal: RefusalEnvelope) => void, current: () => void, viewing?: object,
+  record: (refusal: Refusal) => void, current: () => void, viewing?: object,
 ): Promise<Blob> {
   const value = await cachedAssetBytes(cache, target, async () => {
     const blob = await network();
@@ -78,7 +78,7 @@ export async function cachedAssetBlob(
 /** Native byte ingress; the caller fences custody after each awaited read. */
 export async function cachedAssetBytes(
   cache: ByteCache | undefined, target: AssetBlobTarget, network: () => Promise<AssetBytes>,
-  record: (refusal: RefusalEnvelope) => void, current: () => void, viewing?: object,
+  record: (refusal: Refusal) => void, current: () => void, viewing?: object,
 ): Promise<AssetBytes> {
   current();
   if (!cache || target.assetId === "") {
@@ -99,7 +99,7 @@ export async function cachedAssetBytes(
   const initiallyOnce = await cache.viewOnce(target.assetId);
   current();
   if (initiallyOnce && !viewing) {
-    const refusal = new SnapbackRefusal({ code: "E_ASSET_TYPE", family: "input", site: "assetBlob",
+    const refusal = new RefusalError({ code: "E_ASSET_TYPE", family: "input", site: "assetBlob",
       message: "view-once bytes require a mounted viewing instance",
       rewrite: "pass the same viewing token for the lifetime of the mounted consumer", guide: "assets/client" });
     record(refusal.envelope);
@@ -124,7 +124,7 @@ export async function cachedAssetBytes(
       record(refusal.envelope);
       throw refusal;
     }
-    const refusal = new SnapbackRefusal({ code: "E_OFFLINE_CARRIER", family: "offline",
+    const refusal = new RefusalError({ code: "E_OFFLINE_CARRIER", family: "offline",
       site: "assetBytes", message: "asset viewing allowance was not durably admitted or its row lease changed",
       rewrite: "restore the carrier and fetch a currently held, unviewed row", guide: "offline" });
     record(refusal.envelope);

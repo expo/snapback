@@ -139,6 +139,8 @@ pub enum Stmt {
     Require {
         condition: Expr,
         code: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        site: Option<String>,
     },
     Insert {
         table: String,

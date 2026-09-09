@@ -84,10 +84,10 @@ export interface EnqueueInput {
 
 /** Why an inbox row could not be admitted now; temporary refusals leave it queued and stop the loop behind it. */
 export type InboxAdmission =
-  | { outcome: "admitted"; entry: OutboxEntry }
-  | { outcome: "already"; intent: string }
-  | { outcome: "rejected" }
-  | { outcome: "gone" };
+  | { state: "admitted"; entry: OutboxEntry }
+  | { state: "already"; intent: string }
+  | { state: "rejected" }
+  | { state: "gone" };
 
 /** The twin's run over held rows for the slice it was handed: the overlay and the trace land with the entry. */
 export interface EnqueuePrediction {
@@ -219,11 +219,11 @@ export class OutboxLedger {
     const fence = await this.fence();
     const state = (reason: OutboxStatus["reason"], action: OutboxStatus["action"]): OutboxStatus =>
       ({ ready: reason === "ready", reason, action, remaining, fence });
-    if (!grant) return state("grant-missing", "resume");
-    if (this.expired(grant)) return state("grant-expired", "resume");
+    if (!grant) return state("grant-missing", "connect");
+    if (this.expired(grant)) return state("grant-expired", "connect");
     const bound = op === undefined ? 0 : (await this.store.outbox.bounds())[op];
-    if (bound === undefined) return state("program-missing", "load-program");
-    if (grant.used + 1 + bound > grant.count) return state("ids-exhausted", "resume");
+    if (bound === undefined) return state("program-missing", "connect");
+    if (grant.used + 1 + bound > grant.count) return state("ids-exhausted", "connect");
     return state("ready", "none");
   }
 
@@ -409,14 +409,14 @@ export class OutboxLedger {
   ): Promise<InboxAdmission> {
     return this.serial(async () => {
       const fresh = (await this.store.inboxRows?.())?.find((candidate) => candidate.key === row.key);
-      if (!fresh) return { outcome: "gone" };
-      if (fresh.state === "rejected") return { outcome: "rejected" };
-      if (fresh.admitted !== undefined) return { outcome: "already", intent: fresh.admitted };
-      if (fresh.kind !== "mutation" || fresh.op === undefined) return { outcome: "gone" };
+      if (!fresh) return { state: "gone" };
+      if (fresh.state === "rejected") return { state: "rejected" };
+      if (fresh.admitted !== undefined) return { state: "already", intent: fresh.admitted };
+      if (fresh.kind !== "mutation" || fresh.op === undefined) return { state: "gone" };
       custody();
       const entry = await this.enqueueNow({ op: fresh.op, args: fresh.args, issuedSeq, inbox: fresh.key, presentation: fresh.presentation }, predict, beforeCommit,
         (admitted) => ({ inbox: { put: [{ ...fresh, admitted: admitted.intent, ids: [...admitted.ids], updatedAt: this.options.now() }] } }));
-      return { outcome: "admitted", entry };
+      return { state: "admitted", entry };
     });
   }
 

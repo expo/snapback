@@ -179,6 +179,7 @@ export async function compileJourneys(
     paths: {
       "snapback2/client": [clientDts],
       "snapback2/test": [testDts],
+      "snapback2/internal": [join(packageDist, "internal-access.d.ts")],
     },
     skipLibCheck: true,
     strict: true,
@@ -224,6 +225,7 @@ export async function compileJourneys(
     const rewritten = rewriteModuleSpecifiers(transpiled, new Map([
       ["snapback2/client", clientModule],
       ["snapback2/test", testModule],
+      ["snapback2/internal", pathToFileURL(join(packageDist, "image-runtime.mjs")).href],
     ]));
     const sourceName = basename(sourcePath);
     const outputName = `${sourceName.slice(0, -".test.ts".length)}.mjs`;

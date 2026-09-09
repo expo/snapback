@@ -3,12 +3,12 @@
 // lands in the same swap as the rows the commit produced.
 import { followerRefusal, throwIfAborted } from "./client-wire.js";
 import {
-  SnapbackRefusal,
-  isSnapbackRefusal, isTerminalSession,
+  RefusalError,
+  isRefusalError, isTerminalSession,
   wireMutation,
   wireObject,
   wireQuery,
-  wireRefusalEnvelope,
+  wireRefusal,
   wireShape,
 } from "./client-wire.js";
 import { DeliveryEnvelopeDecodeError } from "./offline-protocol.js";
@@ -129,7 +129,7 @@ export async function submitMutation<Result>(options: SubmitMutationOptions): Pr
     try {
       ({ stopped } = await options.drain());
     } catch (error) {
-      if (isSnapbackRefusal(error) && isTerminalSession(error.envelope)) throw error;
+      if (isRefusalError(error) && isTerminalSession(error.envelope)) throw error;
       stopped = true;
     }
     if (stopped) return queued(await enqueue());
@@ -144,7 +144,7 @@ export async function submitMutation<Result>(options: SubmitMutationOptions): Pr
       // A refusal that stopped the replay belongs to the intent that drew it;
       // this one is durable and reports through its entry.
       // Session expiry sealed the store; preserve its refusal instead of reading through that seal.
-      if (isSnapbackRefusal(error) && isTerminalSession(error.envelope)) throw error;
+      if (isRefusalError(error) && isTerminalSession(error.envelope)) throw error;
       const own = (await runtime.store.outbox.get(entry.intent)) ?? slot.entry;
       if (own && own.state !== "queued") return settledResult<Result>(own);
       throw error;
@@ -162,7 +162,7 @@ export async function submitMutation<Result>(options: SubmitMutationOptions): Pr
 // @ref LLP 1018.003.000#4-observation-and-retention —
 // explicit dismissal may precede the issuing call reading its entry back;
 // the drain records each terminal
-// outcome so that call answers from it rather than mistaking absence for "still queued".
+// verdict so that call answers from it rather than mistaking absence for "still queued".
 // Only a call that is waiting on its own intent holds a slot, and it closes the
 // slot on every exit, so the record is bounded by in-flight calls and cannot
 // outlive a partition, reset, or principal change.
@@ -187,7 +187,7 @@ function recordTerminal(runtime: OfflineRuntime, entry: OutboxEntry): void {
 // initially queued writes keep the same durable terminal until explicit dismissal.
 function settledResult<Result>(entry: OutboxEntry): MutationResult<Result> {
   if (entry.state === "expired") {
-    throw new SnapbackRefusal({
+    throw new RefusalError({
       code: "E_OFFLINE_INTENT_EXPIRED",
       family: "offline",
       message: "the owner refused this intent because its replay grant is unknown, foreign, or older than thirty days",
@@ -225,11 +225,11 @@ export function drainOutbox(options: DrainOptions): Promise<DrainResult> {
     finally { runtime.draining = false; runtime.outbox.notify(); }
   });
   runtime.drainTail = run.then(() => undefined, () => undefined);
-  // The outcome keeps the rejection for `settled()`; the handler here only
+  // The verdict keeps the rejection for `settled()`; the handler here only
   // stops an unobserved refusal from surfacing as an unhandled rejection.
-  const outcome = run.then(settlement);
-  void outcome.catch(() => undefined);
-  runtime.drainOutcome = outcome;
+  const verdict = run.then(settlement);
+  void verdict.catch(() => undefined);
+  runtime.drainVerdict = verdict;
   return run;
 }
 
@@ -253,13 +253,13 @@ async function drainQueued(options: DrainOptions): Promise<DrainResult> {
     try {
       raw = await options.json("/api/mutation", { method: "POST", body: JSON.stringify(replayEnvelope(entry)) });
     } catch (error) {
-      if (isSnapbackRefusal(error) && error.retryable) return finish("transport");
-      if (isSnapbackRefusal(error) && error.envelope.family === "offline") {
+      if (isRefusalError(error) && error.retryable) return finish("transport");
+      if (isRefusalError(error) && error.envelope.family === "offline") {
         await settle(
           options,
           entry,
           error.code === "E_OFFLINE_INTENT_EXPIRED" ? "expired" : "rejected",
-          { state: "rejected", ...wireRefusalEnvelope(error.envelope, "offline refusal"), intent: entry.intent },
+          { state: "rejected", ...wireRefusal(error.envelope, "offline refusal"), intent: entry.intent },
         );
         continue;
       }
@@ -278,7 +278,7 @@ async function drainQueued(options: DrainOptions): Promise<DrainResult> {
       try {
         tail = await logTail(options, revision);
       } catch (error) {
-        if (isSnapbackRefusal(error) && error.retryable) return finish("transport");
+        if (isRefusalError(error) && error.retryable) return finish("transport");
         throw error;
       }
       throwIfAborted(options.signal);
@@ -392,14 +392,14 @@ export function createOutboxApi(
   const status = async (op?: import("./api.js").Op<any, any>): Promise<OutboxStatus> => {
     await ready().catch(() => undefined);
     if (runtime?.following) return inbox?.status()
-      ?? { ready: false, reason: "follower", action: "none", remaining: 0, fence: "inside" };
+      ?? { ready: false, reason: "follower", action: "other-tab", remaining: 0, fence: "inside" };
     if (!runtime || runtime.principal === undefined) return { ready: true, reason: "ready", action: "none", remaining: 0, fence: "inside" };
     try {
       const value = await runtime.outbox.status(op === undefined ? undefined : referenceName(op));
       return { ...value, ...(runtime.draining ? { draining: true as const } : {}) };
     }
     catch (error) {
-      if (error instanceof Error && /sealed/.test(error.message)) return { ready: false, reason: "sealed", action: "login", remaining: 0, fence: "past" };
+      if (error instanceof Error && /sealed/.test(error.message)) return { ready: false, reason: "sealed", action: "sign-in", remaining: 0, fence: "past" };
       throw error;
     }
   };
@@ -461,11 +461,11 @@ export function createOutboxApi(
       if (runtime?.following) { await inbox?.refresh(); return followerSettlement(runtime, inbox, offline()); }
       await runtime?.drainTail;
       if (!runtime || runtime.principal === undefined) return { stopped: false, remaining: 0 };
-      const result = await runtime.drainOutcome;
+      const result = await runtime.drainVerdict;
       let remaining: number;
       try { remaining = (await runtime.outbox.queued()).length; }
       catch (error) {
-        if (error instanceof Error && /sealed|not open|closed/.test(error.message)) throw new SnapbackRefusal({
+        if (error instanceof Error && /sealed|not open|closed/.test(error.message)) throw new RefusalError({
           code: "E_OFFLINE_LIFECYCLE", family: "offline", guide: "offline", site: "client.outbox.settled",
           message: "outbox settlement is unavailable while this partition is sealed or closed",
           rewrite: "authenticate the same account or reopen the client; queued writes are kept",

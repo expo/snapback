@@ -9,7 +9,10 @@ pub(super) fn add_tombstone_case(cases: &mut Vec<CorpusCase>) {
     schema.tables.insert(
         "messages".to_owned(),
         public_table(
-            columns([("id", ColumnType::Id), ("body", ColumnType::Text { max: 256 })]),
+            columns([
+                ("id", ColumnType::Id),
+                ("body", ColumnType::Text { max: 256 }),
+            ]),
             indexes([("byId", &["id"], true)]),
         ),
     );

@@ -33,7 +33,7 @@ export async function nativeFixture(options: { mediaType?: string; once?: boolea
   const read = backend.readBytes.bind(backend);
   backend.readBytes = async (key) => { const bytes = await read(key); await hooks.read?.(); return bytes; };
   const store = new PersistentRangeStore(fileBackend(backend, files)); attachAssetFiles(store, files);
-  const client = createClient({ url: "http://assets.test", as: "alice",
+  const client = createClient({ url: "http://assets.test", persona: "alice",
     offline: { store: () => store, maxAssetBytes: options.maxAssetBytes },
     fetch: async (input, init) => {
       const path = new URL(String(input)).pathname;

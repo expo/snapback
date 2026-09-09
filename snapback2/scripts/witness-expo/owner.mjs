@@ -52,14 +52,14 @@ export async function ownerHarness(port) {
 
 export async function seedWitness(url) {
   const { createClient, api } = await import(resolve(dist, "client.mjs"));
-  const alice = createClient({ url, as: "alice" });
-  const bob = createClient({ url, as: "bob" });
+  const alice = createClient({ url, persona: "alice" });
+  const bob = createClient({ url, persona: "bob" });
   const committed = (result) => { if (result.state !== "committed") throw new Error(JSON.stringify(result)); return result.data; };
   try {
     const rooms = ["conversation-1", "conversation-2"];
     for (const title of ["Third opened room", "Never opened room"]) rooms.push(committed(await alice.mutation(api.groups.groupCreate, { title, members: ["dev:bob"] })).id);
-    for (const conversationId of rooms) committed(await alice.mutation(api.deliveries.post, { conversationId, body: `witness seed ${conversationId}` }));
-    const doomed = committed(await alice.mutation(api.deliveries.post, { conversationId: rooms[0], body: "Café expires while offline" })).id;
+    for (const conversationId of rooms) committed(await alice.mutation(api.messages.send, { conversationId, body: `witness seed ${conversationId}` }));
+    const doomed = committed(await alice.mutation(api.messages.send, { conversationId: rooms[0], body: "Café expires while offline" })).id;
     // The fixture is a real PNG; upload is byte-backed on the host, as on the web witness.
     const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=", "base64");
     const assets = [], forbidden = [];

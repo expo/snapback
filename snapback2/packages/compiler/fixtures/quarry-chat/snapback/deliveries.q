@@ -19,7 +19,7 @@ query conversationView(conversationId: conversations, c: cursor ?):
   latest = conversationPreview(conversationId, viewer)
   return {
     messages: page { *, message: messages[.messageId] },
-    count: #messageCounts[conversationId],
+    count: messageCounts[conversationId],
     preview: latest { *, message: messages[.messageId] },
   }
 

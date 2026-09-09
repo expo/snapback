@@ -1,5 +1,4 @@
 import { deepStrictEqual } from "node:assert";
-import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
   ClientStore,
@@ -16,15 +15,6 @@ import { assert, operation, type Test } from "./quarry-check-helpers";
 export function registerQuarryChatCompositionChecks(test: Test, frontend: string): void {
   test("shipped chat functions compose one certified conversation view with honest tombstones", async () => {
     const productionRoot = resolve(frontend, "../snapback2/templates/chat");
-    const fixtureRoot = resolve(frontend, "fixtures/quarry-chat");
-    for (const file of ["access.q", "deliveries.q", "groups.q", "messages.q"]) {
-      deepStrictEqual(
-        readFileSync(resolve(productionRoot, "snapback", file), "utf8"),
-        readFileSync(resolve(fixtureRoot, "snapback", file), "utf8"),
-        `${file} drifted between the shipped chat and its compiler fixture`,
-      );
-    }
-
     const lowered = await lowerProject(productionRoot);
     assert(lowered.ok, `shipped chat composition refused: ${JSON.stringify(lowered)}`);
     const checked = rustCheck(
@@ -37,14 +27,14 @@ export function registerQuarryChatCompositionChecks(test: Test, frontend: string
     const failures = checked.filter((item) => item.error);
     assert(failures.length === 0, `shipped chat composition did not certify: ${JSON.stringify(failures)}`);
     const certificate = (name: string) => checked.find((item) => item.program === name)!.certificate!;
-    const view = operation(lowered.project.programs, "deliveries.conversationView");
-    const post = operation(lowered.project.programs, "deliveries.post");
+    const view = operation(lowered.project.programs, "messages.conversationView");
+    const post = operation(lowered.project.programs, "messages.send");
     const targets = (name: string) => (certificate(name).mutation_targets as { targets: any[]; complete: boolean });
     deepStrictEqual(targets(post.name).targets.find(target => target.table === "messages"),
       { table: "messages", kind: "create", source: { newId: 0 } });
-    deepStrictEqual(targets("deliveries.edit").targets.find(target => target.table === "messages"),
+    deepStrictEqual(targets("messages.edit").targets.find(target => target.table === "messages"),
       { table: "messages", kind: "update", source: { argument: "messageId" } });
-    deepStrictEqual(targets("deliveries.unsend").targets.find(target => target.table === "messages"),
+    deepStrictEqual(targets("messages.unsend").targets.find(target => target.table === "messages"),
       { table: "messages", kind: "remove", source: { argument: "messageId" } });
     assert(!targets(post.name).complete, "the named message target hid repeated delivery fan-out");
     const reordered = structuredClone(post);
@@ -57,7 +47,7 @@ export function registerQuarryChatCompositionChecks(test: Test, frontend: string
     assert(!reorderedCheck.error, `reordered mutation refused: ${JSON.stringify(reorderedCheck.error)}`);
     deepStrictEqual((reorderedCheck.certificate!.mutation_targets as any).targets.find((target: any) => target.table === "messages"),
       { table: "messages", kind: "create", source: { newId: 1 } });
-    const unsend = operation(lowered.project.programs, "deliveries.unsend");
+    const unsend = operation(lowered.project.programs, "messages.unsend");
     assert(Object.keys(certificate(view.name).result_pages ?? {}).length === 1,
       `the composite lost its one cursor-bearing message page: ${JSON.stringify(certificate(view.name).result_pages)}`);
 
@@ -148,8 +138,8 @@ export function registerQuarryChatCompositionChecks(test: Test, frontend: string
       preview: Array<{ kind: string; message: unknown }>;
     };
     assert(afterUnsend.state === "partial"
-      && afterUnsend.partialSites.includes("deliveries.conversationView.3")
-      && afterUnsend.partialSites.includes("deliveries.conversationView.5")
+      && afterUnsend.partialSites.includes("messages.conversationView.3")
+      && afterUnsend.partialSites.includes("messages.conversationView.5")
       && removedResult.count === 1 && removedResult.messages.length === 2
       && removedResult.messages[0]?.kind === "message" && removedResult.messages[0]?.message === null
       && removedResult.preview.length === 1 && removedResult.preview[0]?.kind === "message"
@@ -179,7 +169,7 @@ export function registerQuarryChatCompositionChecks(test: Test, frontend: string
     const missingCount = new ClientStore(schema, missingCountReceipt)
       .reexecute(view, context({ conversationId: conversation, c: "Null" }), certificate(view.name));
     assert(missingCount.state === "partial"
-      && missingCount.partialSites.includes("deliveries.conversationView.4")
+      && missingCount.partialSites.includes("messages.conversationView.4")
       && (wireJson(missingCount.execution.result) as { count: number }).count === 0,
     `missing maintained-count authority implied a complete zero: ${JSON.stringify(missingCount)}`);
   });
