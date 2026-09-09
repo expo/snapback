@@ -64,3 +64,6 @@ so send `as: system` with `dryRun: true` there. A body names its run once:
 (`dryRun: true` with `mode: "run"`, `dryRun: false` with `mode: "dry-run"`,
 `plan: true` with `mode: "dry-run"`) or `dryRun` with `plan`; `dryRun: true`
 alone rehearses and `plan: true` alone plans. Nothing a body says is ignored.
+
+See `guide fanout` for when bulk work belongs in a `chunk` job rather than a
+mutation loop.

@@ -2,7 +2,7 @@
 use super::*;
 use crate::schema::{RuleExpr, RuleTerm};
 
-pub(super) const NO_UNION: &str = "loop one scan, not a merge; per-recipient rows past one group are LLP 1016's continuation, not yet available";
+pub(super) const NO_UNION: &str = "loop one scan, not a merge";
 
 pub(super) fn scan_text(scan: &Scan, index: Option<&str>) -> String {
     let take = match &scan.take {

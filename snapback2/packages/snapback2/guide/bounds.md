@@ -15,7 +15,7 @@ List-column maxima survive aliases/shapes; JSON supplies no list bound. Ceiling
 repairs use smaller pages, maintained aggregates, narrower fields or uniform
 prefixes. Mutation page loops must cover a capped prefix with a uniform rule and
 literal bound at least the cap; cursors/ranges refuse as `E_STRUCTURAL_FANOUT`.
-Fan-out past a cap uses LLP 1016's continuation.
+Fan-out past a cap belongs in a job's `chunk` loop, or read-side (`guide fanout`).
 
 Refused (`E_QUARRY_UNSUPPORTED`): `where`, `device`, `oblivious`, `while`, and
 recursion — pass bounded arguments; loop with bounded `for`/`walk`.

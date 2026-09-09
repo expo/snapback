@@ -17,4 +17,5 @@ maintain messageCounts: count messages by conversationId
   read <- exists memberships[.conversationId, viewer]
 ```
 
-See `guide quarry` for related topics.
+See `guide quarry` for related topics, and `guide fanout` for folding a
+maintained count across an uncapped population with a `chunk` job.

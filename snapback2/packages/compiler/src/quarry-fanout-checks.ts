@@ -135,7 +135,7 @@ table deliveries:
       assert(lowered.ok, `fanout front end failed: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
       const checked = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema);
       const error = checked.find((r) => r.error?.code === "E_STRUCTURAL_FANOUT")?.error;
-      assert(error && error.message.includes(item.reason) && error.family === "bound" && error.guide === "bound/loop"
+      assert(error && error.message.includes(item.reason) && error.family === "bound" && error.guide === "fanout"
         && error.site.startsWith("ops.send/for/"), `fanout reason/envelope: ${JSON.stringify(checked)}`);
       const sourceSite = lowered.sources[error.site];
       assert(sourceSite?.file === "snapback/ops.q" && item.source.split("\n")[sourceSite.line - 1]?.trim().startsWith("for m"), `fanout source map did not identify for line: ${JSON.stringify(sourceSite)}`);
@@ -222,7 +222,69 @@ table deliveries:
     await withProject({ "snapback/schema.q": schema, "snapback/ops.q": merge }, async (root) => {
       const result = await lowerProject(root); assert(result.ok, `merge failed to lower: ${result.ok ? "" : diagnosticsText(result.diagnostics)}`);
       const errors = rustCheck(result.project.programs, "synthetic", result.project.schema).flatMap((r) => r.error ? [r.error] : []);
-      assert(errors.some((e) => e.code === "E_STRUCTURAL_FANOUT" && e.message.includes("a merge page has no union proof") && e.rewrite.includes("not yet available")), "merge suggested unavailable work");
+      assert(errors.some((e) => e.code === "E_STRUCTURAL_FANOUT" && e.message.includes("a merge page has no union proof; loop one scan, or move the pass to a job (guide fanout)") && e.rewrite === "loop one scan, not a merge"), "merge lost its instructional direction");
     });
+  });
+
+  // @ref LLP 1017.000#31-d1 — every echoed number states its origin, and the
+  // pasted cap certifies at the author's own bound, small or large.
+  test("fanout no-cap reasons state numeric provenance and paste-certify at 1, 50, and 500", async () => {
+    const uncapped = schema.replace("  cap 50 by conversationId\n", "");
+    for (const [n, ordinal] of [[1, "2nd"], [50, "51st"], [500, "501st"]] as const) {
+      const source = direct.replace("first 50", `first ${n}`);
+      await withProject({ "snapback/schema.q": uncapped, "snapback/ops.q": source }, async (root) => {
+        const lowered = await lowerProject(root); assert(lowered.ok, `n=${n} fixture failed to lower`);
+        const error = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema).find((r) => r.error?.code === "E_STRUCTURAL_FANOUT")?.error;
+        const expected = `memberships has no cap over conversationId; ${n} is this loop's bound, not a platform maximum. A cap refuses the ${ordinal} row per group and prices writes by ${n} (guide fanout)`;
+        assert(error?.message.includes(expected), `n=${n} provenance reason lost: ${JSON.stringify(error)}`);
+        assert(error?.rewrite === `cap ${n} by conversationId`, `n=${n} rewrite changed: ${JSON.stringify(error)}`);
+      });
+      await withProject({ "snapback/schema.q": uncapped.replace("  public", `  cap ${n} by conversationId\n  public`), "snapback/ops.q": source }, async (root) => {
+        const fixed = await lowerProject(root); assert(fixed.ok, `n=${n} pasted repair failed to lower`);
+        assert(rustCheck(fixed.project.programs, "synthetic", fixed.project.schema).every((r) => !r.error), `n=${n} pasted repair did not certify`);
+      });
+    }
+  });
+
+  test("fanout argument bounds name the argument's maximum without a cap and the schema cap with one", async () => {
+    await withProject({ "snapback/schema.q": schema, "snapback/ops.q": bound }, async (root) => {
+      const result = await lowerProject(root); assert(result.ok, "argument origin fixture failed");
+      const capped: any = structuredClone(result.project.programs[0]);
+      const cappedScan = capped.body.find((s: any) => s.Let?.value.Scan || s.Const?.value.Scan);
+      (cappedScan.Let ?? cappedScan.Const).value.Scan.take = { Arg: { name: "n", max: 50 } };
+      capped.args.n = "Int";
+      const withCap = rustCheck([capped], "synthetic", result.project.schema)[0]!.error;
+      assert(withCap?.message.includes("the bound is an argument; 50 is memberships's schema cap"), `capped argument provenance lost: ${JSON.stringify(withCap)}`);
+      const uncappedSchema: any = structuredClone(result.project.schema);
+      uncappedSchema.tables.memberships.constraints = uncappedSchema.tables.memberships.constraints.filter((c: any) => !c.Cap);
+      const noCap = rustCheck([capped], "synthetic", uncappedSchema)[0]!.error;
+      assert(noCap?.message.includes("50 is the argument's declared maximum, not a platform maximum"), `argument provenance lost: ${JSON.stringify(noCap)}`);
+      assert(noCap?.rewrite === "cap 50 by conversationId", `argument no-cap rewrite changed: ${JSON.stringify(noCap)}`);
+    });
+  });
+
+  test("whole-table fanout directs to a chunk job as instruction, not a paste", async () => {
+    const source = "mutation sweep():\n  for m in memberships[] first 50 by byConversationPrincipal:\n    insert deliveries { principal: m.principal }\n";
+    await withProject({ "snapback/schema.q": schema, "snapback/ops.q": source }, async (root) => {
+      const result = await lowerProject(root); assert(result.ok, "whole-table fixture failed to lower");
+      const error = rustCheck(result.project.programs, "synthetic", result.project.schema).find((r) => r.error?.code === "E_STRUCTURAL_FANOUT")?.error;
+      assert(error?.message.includes("has no cap over its unpinned range; a whole-table pass belongs in a job (guide job)"), `whole-table reason lost: ${JSON.stringify(error)}`);
+      assert(error?.rewrite.includes("author a job with a chunk loop over memberships") && error.rewrite.includes("run <job> --as system"), `whole-table direction lost: ${JSON.stringify(error)}`);
+    });
+  });
+
+  // @ref LLP 1017.000#32-d2 — the guide's worked shapes are compiled fixtures:
+  // the 500-lane merge and the digest chunk job certify on the real checker.
+  test("the fanout guide's 500-lane merge and digest chunk job are the compiled fixture and certify", async () => {
+    const page = readFileSync(resolve(frontend, "../snapback2/guide/fanout.md"), "utf8");
+    const fixtureFeeds = readFileSync(resolve(frontend, "fixtures/quarry-fanout-guide/snapback/feeds.q"), "utf8");
+    const fixtureDigest = readFileSync(resolve(frontend, "fixtures/quarry-fanout-guide/snapback/digest.q"), "utf8");
+    const snippets = [...page.matchAll(/```q\n([\s\S]*?)\n```/g)].map((match) => match[1]!);
+    assert(snippets.some((snippet) => fixtureFeeds.includes(snippet)), "guide feed recipe diverged from its fixture");
+    assert(snippets.some((snippet) => fixtureDigest.includes(snippet)), "guide digest recipe diverged from its fixture");
+    const lowered = await lowerProject(resolve(frontend, "fixtures/quarry-fanout-guide"));
+    assert(lowered.ok, `guide fanout fixture did not lower: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
+    const checked = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema);
+    assert(checked.every((r) => !r.error), `guide fanout fixture refused: ${JSON.stringify(checked.flatMap((r) => r.error ? [r.error] : []))}`);
   });
 }

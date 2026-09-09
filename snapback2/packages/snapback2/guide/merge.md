@@ -18,7 +18,10 @@ query followingFeed(c: cursor ?):
   return page { post: ., author: profiles[.author] authorCard }
 ```
 
-The recipe admits 50 follows; more is `capped`. `complete` requires exhausted
-lanes and at most N rows in their deduplicated union.
+The lane bound is the author's declared envelope; 50 here is a choice, not a
+limit. Follows beyond the bound are omitted from this query's lanes — nothing
+is refused at insert — and a larger `first` certifies until the read budget
+refuses (`guide fanout`). `complete` requires exhausted lanes and at most N
+rows in their deduplicated union.
 
 See `guide quarry` for related topics.

@@ -10,7 +10,10 @@ pub(crate) fn certification_family_guide(code: &str) -> (&'static str, &'static 
         code if code.starts_with("E_SCHEDULE") => ("schedule", "schedule"),
         code if code.starts_with("E_JOB") => ("job", "job"),
         "E_UNBOUND_SCAN" => ("bound", "quarry"),
-        "E_UNBOUND_LOOP" | "E_STRUCTURAL_FANOUT" => ("bound", "bound/loop"),
+        "E_UNBOUND_LOOP" => ("bound", "bound/loop"),
+        // @ref LLP 1017.000#31-d1 — the fan-out refusal's guide page is the
+        // which-shape decision, not the loop-bound mechanics.
+        "E_STRUCTURAL_FANOUT" => ("bound", "fanout"),
         "E_STRUCTURAL_COUNT" => ("bound", "bound/count"),
         "E_AMBIENT_TIME" => ("opaque", "opaque/time"),
         code if code.starts_with("E_BOUND") || code.starts_with("E_UNBOUND") => {

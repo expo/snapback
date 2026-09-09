@@ -40,7 +40,9 @@ pub fn run(args: &[String]) -> ExitCode {
         && root.join(format!("{page}.md")).is_file() {
         read_page(&root.join(format!("{page}.md")))
     } else if page == "bound/loop" {
-        refusal_page(&root, "E_STRUCTURAL_FANOUT")
+        // @ref LLP 1017.000#31-d1 — E_STRUCTURAL_FANOUT moved to the fanout topic;
+        // bound/loop keeps the loop-bound mechanics.
+        refusal_page(&root, "E_UNBOUND_LOOP")
     } else if page == "bound/count" {
         refusal_page(&root, "E_STRUCTURAL_COUNT")
     } else if page.starts_with("E_") {

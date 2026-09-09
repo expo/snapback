@@ -285,7 +285,7 @@ impl Flow<'_> {
             .unwrap_or_else(|| binding.to_owned());
         let (reason, rewrite) = match origin {
             Origin::Merge(_) => (
-                "a merge page has no union proof".to_owned(),
+                "a merge page has no union proof; loop one scan, or move the pass to a job (guide fanout)".to_owned(),
                 repair::NO_UNION.to_owned(),
             ),
             Origin::Unknown(_) => {
@@ -303,7 +303,8 @@ impl Flow<'_> {
                 {
                     format!("for {binding} in {}:", repair::scan_text(&scans[0], None))
                 } else {
-                    "bind exactly one page; per-recipient rows past one group are LLP 1016's continuation, not yet available".to_owned()
+                    "bind exactly one page; fan-out past one group belongs in a job (guide fanout)"
+                        .to_owned()
                 };
                 (format!("`{name}` is not a single page scan"), rewrite)
             }
@@ -359,18 +360,32 @@ impl Flow<'_> {
         let Some(cap) = cap else {
             if pinned.is_empty() {
                 return Some((
-                    format!("{} has no cap over its unpinned range", scan.table),
-                    "pin a declared group in the loop's index prefix; a whole-table fan-out needs LLP 1016's continuation, not yet available".to_owned(),
+                    format!(
+                        "{} has no cap over its unpinned range; a whole-table pass belongs in a job (guide job)",
+                        scan.table
+                    ),
+                    format!(
+                        "pin a declared group in the loop's index prefix, or author a job with a chunk loop over {} by {} and run it with run <job> --as system",
+                        scan.table, scan.index
+                    ),
                 ));
             }
             let columns = pinned;
+            // @ref LLP 1017.000#31-d1 — every echoed number states its origin;
+            // a bare pasted constant reads as a platform maximum.
+            let n = scan.take.maximum().max(1);
+            let origin = match scan.take {
+                Bound::Arg { .. } => "the argument's declared maximum",
+                Bound::Literal(_) => "this loop's bound",
+            };
             return Some((
-                format!("{} has no cap over {}", scan.table, columns.join(", ")),
                 format!(
-                    "cap {} by {}",
-                    scan.take.maximum().max(1),
-                    columns.join(", ")
+                    "{} has no cap over {}; {n} is {origin}, not a platform maximum. A cap refuses the {} row per group and prices writes by {n} (guide fanout)",
+                    scan.table,
+                    columns.join(", "),
+                    ordinal(n + 1),
                 ),
+                format!("cap {n} by {}", columns.join(", ")),
             ));
         };
         if !uniform_visibility(self.schema, scan) {
@@ -382,13 +397,19 @@ impl Flow<'_> {
         match scan.take {
             Bound::Arg { .. } => {
                 return Some((
-                    "the bound is an argument".to_owned(),
+                    format!(
+                        "the bound is an argument; {cap} is {}'s schema cap",
+                        scan.table
+                    ),
                     format!("first {cap}"),
                 ));
             }
             Bound::Literal(n) if n < cap => {
                 return Some((
-                    format!("bound {n} is below cap {cap}"),
+                    format!(
+                        "bound {n} is below cap {cap} ({cap} is {}'s schema cap)",
+                        scan.table
+                    ),
                     format!("first {cap}"),
                 ));
             }
@@ -396,11 +417,11 @@ impl Flow<'_> {
         }
         if scan.after.is_some() || scan.before.is_some() || scan.range.is_some() {
             let reason = if scan.after.is_some() {
-                "the loop reads after a cursor"
+                "the loop reads after a cursor; a resumable pass belongs in a job (guide job)"
             } else if scan.before.is_some() {
-                "the loop reads before a cursor"
+                "the loop reads before a cursor; a resumable pass belongs in a job (guide job)"
             } else {
-                "the loop reads a key range"
+                "the loop reads a key range; a resumable pass belongs in a job (guide job)"
             };
             let mut whole = scan.clone();
             whole.after = None;
@@ -411,7 +432,7 @@ impl Flow<'_> {
                 if repair::executable(self.program, &whole) {
                     format!("for {binding} in {}:", repair::scan_text(&whole, None))
                 } else {
-                    "remove the cursor or key range and pin the prefix from arguments or `viewer`"
+                    "remove the cursor or key range and pin the prefix from arguments or `viewer`, or move the resumable pass to a job's chunk loop (guide job)"
                         .to_owned()
                 },
             ));
@@ -427,6 +448,17 @@ impl Flow<'_> {
         }
         None
     }
+}
+
+fn ordinal(n: u64) -> String {
+    let suffix = match (n % 10, n % 100) {
+        (_, 11..=13) => "th",
+        (1, _) => "st",
+        (2, _) => "nd",
+        (3, _) => "rd",
+        _ => "th",
+    };
+    format!("{n}{suffix}")
 }
 
 fn join_env(env: &mut BTreeMap<String, Origin>, other: BTreeMap<String, Origin>) {

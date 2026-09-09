@@ -132,7 +132,9 @@ function diagnosticGuide(code: DiagnosticCode): string {
   if (code === "E_QUARRY_ONLY") return "quarry/projects";
   if (code === "E_QUARRY_UNKNOWN") return "quarry/names";
   if (code === "E_UNBOUND_SCAN") return "quarry";
-  if (code === "E_UNBOUND_LOOP" || code === "E_STRUCTURAL_FANOUT") return "bound/loop";
+  if (code === "E_UNBOUND_LOOP") return "bound/loop";
+  // @ref LLP 1017.000#31-d1 — the fan-out refusal anchors the which-shape decision.
+  if (code === "E_STRUCTURAL_FANOUT") return "fanout";
   if (code === "E_STRUCTURAL_COUNT") return "bound/count";
   if (code === "E_BOUND") return "bound/ceiling";
   if (code === "E_AMBIENT_TIME") return "opaque/time";
