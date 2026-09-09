@@ -1,7 +1,7 @@
 import { subscribe } from "../src/internal.js";
 import { sharedConsumers } from "../src/internal.js";
 import assert from "node:assert/strict";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -207,4 +207,116 @@ test("partial history becomes one coherent view without remounting its pending b
     await warm.close(); await client?.close(); await writer.close(); restore();
     await rm(root, { recursive: true, force: true });
   }
+});
+
+test("the cold chat keeps both intents queued after a committed replay loses its response", async (t) => {
+  const restore = installDom();
+  const root = await mkdtemp(join(tmpdir(), "snapback2-screens-503-"));
+  const store = fileRangeStore(root);
+  const warm = createClient({ url: screenOwner.url, persona: "alice", offline: { store } });
+  const writer = createClient({ url: screenOwner.url, persona: "alice" });
+  const replays: string[] = [];
+  let cut = true, fault = true;
+  let client: any;
+  const reactRoot = createRoot(document.getElementById("root")!);
+  try {
+    await warm.ready;
+    const group: any = await writer.mutation(api.groups.groupCreate, { title: "503 transition", members: ["dev:bob"] });
+    assert.equal(group.state, "committed");
+    const conversationId = group.data.id;
+    await writer.mutation(api.messages.send, { conversationId, body: "held message" });
+    await warm.query(api.messages.thread, { conversationId });
+    const drain = subscribe(warm, api.messages.inbox, {}, () => undefined, { drain: true });
+    await drain.until((event: any) => event.live === true && event.caughtUp === true, 5_000);
+    await warm.offline();
+    const first = await warm.mutation(api.messages.send, { conversationId, body: "first durable send" });
+    assert.equal(first.state, "queued");
+    drain.close();
+    await warm.close();
+    client = createClient({ url: screenOwner.url, persona: "alice", offline: { store },
+      fetch: async (input: any, init: any) => {
+        const path = new URL(String(input)).pathname;
+        if (cut) throw new TypeError("owner unreachable");
+        if (path === "/api/mutation") replays.push(init.body);
+        const response = await globalThis.fetch(input, init);
+        if (fault && path === "/api/mutation") {
+          fault = false;
+          assert.equal((await response.json()).state, "committed", "the 503 replaces a real commit receipt");
+          return json({ message: "injected 503" }, 503);
+        }
+        return response;
+      },
+    });
+    await act(async () => reactRoot.render(React.createElement(React.StrictMode, null,
+      React.createElement(SnapbackProvider, { client }, React.createElement(App)))));
+    await client.offline();
+    await waitFor(() => !!document.querySelector(`nav li[data-conversation="${conversationId}"] button`), "cold inbox");
+    await act(async () => { document.querySelector<HTMLButtonElement>(`nav li[data-conversation="${conversationId}"] button`)!.click(); });
+    await waitFor(() => document.querySelector("ol.bubbles")?.getAttribute("data-view-source") === "partial-history", "cold partial history");
+    await type(document.querySelector<HTMLInputElement>("form[aria-label=Composer] input")!, "second durable send");
+    await act(async () => { document.querySelector<HTMLFormElement>("form[aria-label=Composer]")!.requestSubmit(); });
+    await waitFor(() => document.querySelectorAll("li[data-state=queued]").length === 2, "two queued bubbles");
+    const pending = document.querySelector(`li[data-message="${first.ids[0]}"]`)!;
+    const queued = (await client.outbox.entries()).filter((e: any) => e.state === "queued");
+    assert.equal(client.snapshot.auth.viewer, undefined, "the cold persona is not confirmed yet");
+    cut = false;
+    let verdict: any;
+    await act(async () => { await client.online(); verdict = await client.outbox.settled(); });
+    assert.deepEqual(verdict, { stopped: "transport", remaining: 2 });
+    assert.equal(client.snapshot.auth.viewer, "dev:alice");
+    const custody = (entries: any[]) => entries.map(({ intent, state, ids, args }) => ({ intent, state, ids, args }));
+    assert.deepEqual(custody(await client.outbox.entries()), custody(queued), "neither intent settled or changed after the lost receipt");
+    await waitFor(() => document.querySelector("ol.bubbles")?.getAttribute("data-view-source") === "composite"
+      && document.querySelectorAll("li[data-state=queued]").length === 2, "composite with both queued bubbles after the lost response");
+    assert.equal(document.querySelector(`li[data-message="${first.ids[0]}"]`) === pending, true, "auth confirmation must not remount the pinned bubble");
+    assert.equal(replays.length, 1, "mounting and confirming auth must not start an additional replay");
+    const sync = [...document.querySelectorAll<HTMLButtonElement>("form button")].find(button => text(button) === "Sync now");
+    assert.ok(sync && !sync.disabled, "the stopped queue exposes usable recovery");
+    await act(async () => { sync.click(); });
+    await waitFor(async () => (await client.outbox.entries()).every((e: any) => e.state === "committed")
+      && queued.every((e: any) => document.querySelector(`li[data-message="${e.ids[0]}"]`)?.getAttribute("data-state") === "row"), "both sends settle through Sync");
+    assert.deepEqual(replays.map(body => JSON.parse(body).replay.intent), [queued[0].intent, queued[0].intent, queued[1].intent]);
+    assert.equal(replays[1], replays[0], "recovery retries byte-identical pinned intent bytes");
+    assert.equal(document.querySelector(`li[data-message="${first.ids[0]}"]`) === pending, true, "settlement retains the same bubble");
+    const thread = await writer.query(api.messages.thread, { conversationId });
+    const bodies = thread.data.map((row: any) => row.message?.body);
+    assert.equal(bodies.filter((body: string) => body === "first durable send").length, 1);
+    assert.equal(bodies.filter((body: string) => body === "second durable send").length, 1);
+    assert.ok(bodies.indexOf("second durable send") < bodies.indexOf("first durable send"), "the newest-first thread proves FIFO execution");
+    t.diagnostic("503: 2 durable queued intents, 2 queued bubbles, 1 request; Sync: 3 attempts [first, first, second], 1 owner row each, pinned node unchanged");
+  } finally {
+    await act(async () => reactRoot.unmount());
+    await warm.close(); await client?.close(); await writer.close(); restore();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("preserving the conversation does not carry a photo-opening choice to another viewer", async () => {
+  const restore = installDom();
+  let bobAssetRequests = 0;
+  const alice = createClient({ url: screenOwner.url, persona: "alice" });
+  const bob = createClient({ url: screenOwner.url, persona: "bob", fetch: async (input, init) => {
+    if (new URL(String(input)).pathname.startsWith("/api/assets/")) bobAssetRequests++;
+    return globalThis.fetch(input, init);
+  } });
+  const root = createRoot(document.getElementById("root")!);
+  const render = (client: any, viewer: string) => React.createElement(SnapbackProvider, { client },
+    React.createElement(Thread, { conversationId: "conversation-1", viewer }));
+  try {
+    await alice.ready; await alice.auth.me(); await bob.ready; await bob.auth.me();
+    const png = await readFile(new URL("../../../scripts/witness-expo/view-once.png", import.meta.url));
+    const photo = await alice.upload(new Blob([png], { type: "image/png" }), { kind: "image" });
+    const sent = await alice.mutation(api.messages.sendOncePhoto, { conversationId: "conversation-1", photo });
+    assert.equal(sent.state, "committed");
+    const selector = `li[data-message="${sent.data.id}"]`;
+    const button = () => [...document.querySelectorAll<HTMLButtonElement>(`${selector} button`)]
+      .find(node => text(node) === "View photo once");
+    await act(async () => root.render(render(alice, "dev:alice")));
+    await waitFor(() => !!button(), "Alice's unopened photo");
+    await act(async () => { button()!.click(); });
+    await waitFor(() => !!document.querySelector(`${selector} img`), "Alice's opened photo");
+    await act(async () => root.render(render(bob, "dev:bob")));
+    await waitFor(() => !!button(), "Bob's separate photo-opening choice");
+    assert.equal(bobAssetRequests, 0, "changing viewers cannot spend the new viewer's once delivery");
+  } finally { await act(async () => root.unmount()); await alice.close(); await bob.close(); restore(); }
 });

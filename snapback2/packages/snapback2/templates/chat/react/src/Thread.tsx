@@ -7,7 +7,7 @@ import { conversationItems, messageWrites } from "../shared/thread";
 
 type Props = { conversationId: string; viewer: string | undefined };
 export function Thread(props: Props) {
-  return <Conversation key={JSON.stringify([props.viewer, props.conversationId])} {...props} />;
+  return <Conversation key={props.conversationId} {...props} />;
 }
 function Conversation({ conversationId, viewer }: Props) {
   const snapshot = useQuery(api.messages.conversationView, { conversationId }, { items: conversationItems });
@@ -34,10 +34,11 @@ function Conversation({ conversationId, viewer }: Props) {
       {snapshot.items.map((item) => {
         const message = item.data, messageId = item.key;
         const post = item.pending.find(action => action.kind === "create"), own = message?.authorId === viewer;
+        const photoKey = JSON.stringify([viewer, messageId]);
         return <li key={messageId} data-message={messageId} data-state={post?.state ?? "row"} className={!message ? "bubble pending" : own ? "bubble own" : "bubble"}>
           <p>{message?.body || item.draft?.body || (message?.photo ? "[photo]" : message?.clip ? "[clip]" : "")}</p>
-          {message?.oncePhoto ? opened.includes(messageId) ? <AssetImage asset={message.oncePhoto} width={240} />
-            : <button type="button" onClick={() => setOpened((ids) => [...ids, messageId])}>View photo once</button> : null}
+          {message?.oncePhoto ? opened.includes(photoKey) ? <AssetImage asset={message.oncePhoto} width={240} />
+            : <button type="button" onClick={() => setOpened((ids) => [...ids, photoKey])}>View photo once</button> : null}
           {message && !post && !item.predicted ? <time dateTime={new Date(message.at).toISOString()}>{new Date(message.at).toLocaleTimeString()}</time> : null}
           {item.pending.map(action => <small key={action.intent}
             data-edit={action.kind === "update" ? action.state : undefined} data-unsend={action.kind === "remove" ? action.state : undefined}>

@@ -109,15 +109,18 @@ const transport: typeof fetch = async (input, init) => {
   try { response = await fetch(input, init); }
   catch (error) { requests.push({ path: new URL(String(input)).pathname, method: init?.method ?? "GET", error: String(error), ms: Date.now() - started }); throw error; }
   const path = new URL(String(input)).pathname;
-  requests.push({ path, method: init?.method ?? "GET", status: response.status, ms: Date.now() - started });
+  const request = { path, method: init?.method ?? "GET", status: response.status, ms: Date.now() - started,
+    ...(path === "/api/mutation" ? { body: init?.body } : {}), injectedStatus: undefined as number | undefined };
+  requests.push(request);
   const index = faults.findIndex((fault) => fault.path === path);
   if (index < 0) return response;
   const [fault] = faults.splice(index, 1);
+  request.injectedStatus = fault!.status;
   await response.arrayBuffer().catch(() => undefined);
   return new Response(JSON.stringify({ message: "injected " + fault!.status }), { status: fault!.status, headers: { "content-type": "application/json" } });
 };
 const offline = {
-  store: indexedDbRangeStore({ beforeReplace: () => (window as any).__witnessBarrier?.() }),
+  store: indexedDbRangeStore({ beforeReplace: state => (window as any).__witnessBarrier?.(state) }),
 };
 function Expose() {
   const client = useSnapbackClient();
@@ -727,22 +730,49 @@ async function main() {
     await page.fill("form[aria-label=Composer] input", "second queued message");
     await page.click("form[aria-label=Composer] button[type=submit]");
     await page.waitForFunction(() => document.querySelectorAll("li[data-state=queued]").length === 2, null, { timeout: 5_000 });
+    const queuedBeforeFault = await page.evaluate(async () => (await window.__snapback.outbox.entries())
+      .filter(entry => entry.state === "queued").map(({ intent, ids, args }) => ({ intent, ids, args })));
+    assert.equal(queuedBeforeFault.length, 2, "both intents are durable before reconnect");
+    assert.equal(queuedBeforeFault[0].ids[0], queued.id, "the first cold intent keeps its pinned message id");
     await page.evaluate((id) => { window.__witnessPinnedBubble = document.querySelector(`li[data-message="${id}"]`); }, queued.id);
     await context.unroute(cutOwner);
     await page.evaluate(() => { window.__witnessFaults.push({ path: "/api/mutation", status: 503 }); });
     await page.evaluate(() => window.__snapback.online());
-    await page.evaluate(() => window.__snapback.outbox.settled());
-    const afterFault = await page.$$eval("li[data-state=queued]", (nodes) => nodes.length);
-    if (afterFault !== 2) throw new Error(`a 503 after the commit settled an intent (${afterFault} queued)`);
-    await page.waitForSelector("ol.bubbles[data-view-source=composite]", { timeout: 10_000 });
+    const afterFault = await page.evaluate(async () => ({
+      settlement: await window.__snapback.outbox.settled(),
+      queued: (await window.__snapback.outbox.entries()).filter(entry => entry.state === "queued")
+        .map(({ intent, ids, args }) => ({ intent, ids, args })),
+      requests: window.__witnessRequests.filter(request => request.path === "/api/mutation"),
+    }));
+    assert.deepEqual(afterFault.settlement, { stopped: "transport", remaining: 2 }, "the lost receipt stops replay");
+    assert.deepEqual(afterFault.queued, queuedBeforeFault, "the 503 preserves both intents and their pinned bytes");
+    assert.equal(afterFault.requests.length, 1, "screen/auth lifetimes cause no additional replay");
+    assert.equal(afterFault.requests[0].status, 200, "the injected 503 follows a real owner response");
+    assert.equal(afterFault.requests[0].injectedStatus, 503, "the intended mutation response was lost");
+    // Settlement is durable custody; React publication has its own boundary.
+    // Check both, and keep the original DOM identity assertion across them.
+    await page.waitForFunction(() => document.querySelector("ol.bubbles")?.getAttribute("data-view-source") === "composite"
+      && document.querySelectorAll("li[data-state=queued]").length === 2, null, { timeout: 10_000 });
     const retainedThroughComposite = await page.evaluate((id) =>
       window.__witnessPinnedBubble === document.querySelector(`li[data-message="${id}"]`), queued.id);
     if (!retainedThroughComposite) throw new Error("partial history to coherent composite remounted the pinned bubble");
-    step("partial history becomes a coherent composite without remounting its pinned bubble");
-    // Kill the profile inside the settlement swap: the barrier holds the IndexedDB transaction open.
-    await page.evaluate(() => { window.__witnessBarrier = () => new Promise(() => undefined); });
+    assert.deepEqual(await page.evaluate(async () => window.__witnessRequests.filter(request => request.path === "/api/mutation")
+      .map(request => request.body)), afterFault.requests.map(request => request.body), "composite publication starts no replay");
+    step("partial history becomes a coherent composite without remounting its pinned bubble", { stopped: "transport", queued: 2, mutationRequests: 1 });
+    // beforeReplace runs before opening the IndexedDB transaction. Kill only
+    // after the first intent's committed image reaches that persistence boundary.
+    await page.evaluate(([first, second]) => {
+      window.__witnessBarrier = state => {
+        if (state.outbox[first]?.state !== "committed") return;
+        window.__witnessSettlement = { first: state.outbox[first].state, second: state.outbox[second]?.state };
+        return new Promise(() => undefined);
+      };
+    }, queuedBeforeFault.map(entry => entry.intent));
     const draining = page.evaluate(() => window.__snapback.outbox.drain()).catch(() => undefined);
-    await page.waitForTimeout(500);
+    await page.waitForFunction(() => window.__witnessSettlement !== undefined, null, { timeout: 10_000 });
+    assert.deepEqual(await page.evaluate(() => window.__witnessSettlement), { first: "committed", second: "queued" });
+    const beforeKill = await page.evaluate(() => window.__witnessRequests.filter(request => request.path === "/api/mutation").map(request => request.body));
+    assert.deepEqual(beforeKill, [afterFault.requests[0].body, afterFault.requests[0].body], "the first retry is byte-identical; the second intent has not replayed");
     await close();
     await draining;
     page = await launch();
@@ -751,6 +781,13 @@ async function main() {
     await openChat(page, neverOpened);
     await page.waitForFunction(() => document.querySelectorAll("li[data-state=queued]").length === 0, null, { timeout: 10_000 });
     await page.waitForSelector(`li[data-message="${queued.id}"][data-state=row]`, { timeout: 10_000 });
+    const afterKill = await page.evaluate(() => window.__witnessRequests.filter(request => request.path === "/api/mutation").map(request => request.body));
+    assert.deepEqual(afterKill.map(body => JSON.parse(body).replay.intent), queuedBeforeFault.map(entry => entry.intent), "cold recovery replays the two durable intents in exact FIFO order");
+    assert.equal(afterKill[0], beforeKill[0], "the interrupted settlement retains the identical first envelope");
+    const durableAfterKill = await page.evaluate(async () => (await window.__snapback.outbox.entries())
+      .map(({ intent, ids, args, state }) => ({ intent, ids, args, state })));
+    assert.deepEqual(durableAfterKill.filter(entry => queuedBeforeFault.some(queued => queued.intent === entry.intent)),
+      queuedBeforeFault.map(entry => ({ ...entry, state: "committed" })), "both intent records survive as committed history");
     const { createClient, api } = await import(resolve(dist, "client.mjs"));
     const verifier = createClient({ url: owner.url, persona: "alice" });
     const thread = await verifier.query(api.messages.thread, { conversationId: neverOpened, c: null });
@@ -759,7 +796,7 @@ async function main() {
     const count = (body) => bodies.filter((item) => item === body).length;
     if (count("Café queued in the browser") !== 1 || count("second queued message") !== 1) throw new Error(`rows: ${JSON.stringify(bodies)}`);
     if (bodies.indexOf("second queued message") > bodies.indexOf("Café queued in the browser")) throw new Error("replay order was not preserved");
-    step("503 after the commit and a kill inside the settlement swap: exactly one row each, in order; the partial-history bubble survived the coherent transition");
+    step("503 after the commit and a kill before settlement persistence: identical retries, exactly one row each, in order; the partial-history bubble survived the coherent transition");
 
     // Revocation received on resume invalidates the same persistent index trace.
     await page.fill("section[aria-label=Search] input", indexedSearchTerm);
