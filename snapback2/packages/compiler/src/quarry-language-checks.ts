@@ -166,6 +166,8 @@ mutation change(message: items, body: text <=40, expected: text <=40):
       const cold = new ClientStore(lowered.project.schema, empty, { program: ensure });
       assert(cold.applyMutation(ensure, { ...context, new_ids: ["new"] }, false, certificate(ensure.name)).state === "partial",
         "unheld unique-key existence became a local absence result");
+      assert(cold.applyMutation(change, { ...context, args }, false, certificate(change.name)).state === "partial",
+        "an unheld current row became a known local conflict");
     }, declarations);
   });
 

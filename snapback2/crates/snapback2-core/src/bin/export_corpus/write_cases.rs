@@ -467,6 +467,10 @@ fn add_guarded_write_cases(cases: &mut Vec<CorpusCase>) {
     let guarded = Program { name: "guarded.update".into(), body: vec![
         Stmt::Check { condition: Expr::Literal(Value::Bool(false)), current },
         Stmt::Delete { table: "items".into(), key: Expr::Literal(id("old")) }], ..program };
+    let cold = case_from_parts("write-update-condition-unheld", "write", schema.clone(), guarded.clone(),
+        mutation_context([], Vec::<String>::new()), ClosureReceipt::default(), Vec::new(), None, None);
+    assert_eq!(cold.expected.local_state, "partial");
+    cases.push(cold);
     let case = case_from_parts("write-update-condition-rejected", "write", schema, guarded,
         mutation_context([], Vec::<String>::new()), held, Vec::new(), None, None);
     assert_eq!(case.expected.local_state, "rejected");

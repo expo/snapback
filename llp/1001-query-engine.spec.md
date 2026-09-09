@@ -392,7 +392,8 @@ changes therefore cannot enter this result. Plain and replay responses use
 the same shape; replay records the entire terminal result. An explicit
 conditional conflict retains this more useful result when trace OCC also
 notices the moved row. The twin rejects a known false predicate and rolls
-back; it never invents an authoritative current-row payload.
+back; an unheld current row stays partial unless an authoritative absence is
+held. It never invents an authoritative current-row payload.
 
 `insert table { fields } if absent` is `InsertIfAbsent { table, row, result }`
 in IR. It validates the candidate and its insert rule, then checks every
@@ -406,7 +407,7 @@ Receipt-only execution needs authoritative point-absence coverage
 for unmatched unique keys; a held duplicate decides the no-op even when an
 earlier key lacked absence coverage. The primitive owns these proof checks;
 missing coverage is partial and rolls back,
-not evidence of absence. The four write corpus cases exercise creation,
+not evidence of absence. The guarded-write corpus cases exercise creation,
 collision, missing authority, and conditional rejection in Rust and the twin.
 
 ## 4. Generation and runtime (`registry.rs`, `successor.rs`)

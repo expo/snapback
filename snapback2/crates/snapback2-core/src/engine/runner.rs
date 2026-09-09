@@ -346,8 +346,14 @@ impl<'a> Runner<'a> {
                 }
                 Stmt::Check { condition, current } => {
                     if !self.expr(condition)?.as_bool()? {
+                        let key = current.key.iter().map(|value| self.expr(value)).collect::<Result<Vec<_>, _>>()?;
+                        if self.rule_authority == RuleAuthority::ReceiptOnly
+                            && self.lookup_raw(&current.table, &current.index, &key)?.is_none()
+                            && !self.authority_absences.iter().any(|(t, i, k)| t == &current.table && i == &current.index && k == &key) {
+                            self.missing_authority = true;
+                        }
                         let mut read = current.clone();
-                        read.key = current.key.iter().map(|value| self.expr(value).map(Expr::Literal)).collect::<Result<_, _>>()?;
+                        read.key = key.into_iter().map(Expr::Literal).collect();
                         return Err(RuntimeError::Conflict { current: read });
                     }
                     Flow::Next

@@ -180,7 +180,11 @@ export class Runner {
             throw new EvalError("E_REQUIRE", "program requirement failed", data.code);
           break;
         case "Check":
-          if (!asBool(this.expr(data.condition))) throw new EvalError("E_REQUIRE", "the row no longer matches the update condition", "E_CONFLICT");
+          if (!asBool(this.expr(data.condition))) {
+            const { table, index } = data.current, key = data.current.key.map((value: any) => this.expr(value));
+            if (this.store.lookup(table, index, key) === null && !this.store.hasAbsence(table, index, key)) this.partial.add("missing-authority");
+            throw new EvalError("E_REQUIRE", "the row no longer matches the update condition", "E_CONFLICT");
+          }
           break;
         case "InsertIfAbsent": {
           const row = this.expr(data.row);
