@@ -510,6 +510,17 @@ Cold rows, indexes and receipt custody are built privately and published in
 one synchronous turn; failed reads remain retryable. Immutable prepared leaves
 can be shared, while generic mutable source values remain isolated.
 
+**Owner page continuation (2026-09-09, LLP 1018.007.003).** An ordinary
+observed page keeps a receipt-backed capped owner answer whole when its local
+rerun has that same owner's selection proof but cannot reconstruct the
+computed projection or owner continuation. It does not attach an old cursor
+to a different local result. Newer local sequence, visible queued/predicted
+work, denied or invalidated custody, and maintained-sibling incoherence must
+still win over that fallback. Drain observations retain their independent
+page/tail lifecycle. The 45-row real owner/carrier/React witness exercises
+Global, Following and author pages across refresh, moving boundaries and
+cold reopen; local cursor tokens remain forbidden on the transport.
+
 **Retained projections and page boundaries (2026-09-08).** Retention keeps
 authorized row bodies; restoring older bodies into a newer answer or purging
 projection literals does not preserve the exact whole-query result. Such
