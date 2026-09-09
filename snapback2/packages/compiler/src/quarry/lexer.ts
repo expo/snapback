@@ -94,17 +94,9 @@ export function lex(file: string, source: string): { tokens: Token[]; diagnostic
         continue;
       }
       if (/[A-Za-z_]/.test(char)) {
-        // @ref LLP 1012#5-retention-revocation-and-the-fence — the two
-        // retention policies are single Quarry tokens only after `retain`,
-        // without changing ordinary subtraction or declaration names.
-        const prior = tokens.at(-1);
-        const afterRetain = prior?.line === line && prior.value === "retain";
-        const policyWord = HYPHENATED_WORDS.find((word) => raw.startsWith(word, offset)
+        // Retention words are reserved tokens everywhere; the parser owns their context.
+        const hyphenated = HYPHENATED_WORDS.find((word) => raw.startsWith(word, offset)
           && !/[A-Za-z0-9_-]/.test(raw[offset + word.length] ?? ""));
-        if (policyWord && !afterRetain) {
-          report(site, `${policyWord} is a retention policy and is valid only after retain`);
-        }
-        const hyphenated = afterRetain ? policyWord : undefined;
         const match = hyphenated ?? raw.slice(offset).match(/^[A-Za-z_][A-Za-z0-9_]*/)![0];
         tokens.push({ ...site, kind: "word", value: match });
         offset += match.length;

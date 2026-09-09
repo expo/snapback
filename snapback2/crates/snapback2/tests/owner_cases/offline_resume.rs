@@ -408,7 +408,7 @@ fn offline_manifest_and_certificate_carry_retain() {
             r#"
 proc cursorPreview(conversationId: conversations, position: cursor ?):
   preview = messages[conversationId] after position first 1
-fn cursorPage(conversationId: conversations, position: cursor ?) = messages[conversationId] after position first 2
+fn cursorPage(conversationId: conversations, position: cursor ?): messages[conversationId] after position first 2
 query cursorRecord(a: cursor ?, c: cursor ?, conversationId: conversations, flag: bool):
   cursorPreview(conversationId, a)
   selected = c

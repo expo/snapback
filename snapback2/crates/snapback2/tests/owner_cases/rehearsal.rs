@@ -14,11 +14,11 @@ fn boot_with(
     fs::write(root.join("snapback/schema.q"), "table items:\n  n: int\n  read <- deny\n  insert <- deny\n  update <- deny\n  delete <- deny\n").unwrap();
     fs::write(
         root.join("snapback/admin.q"),
-        r#"job fill:
+        r#"job fill():
   chunk p in items first 100 by byId:
     update items[p.id] { n: 42 }
 
-job guarded:
+job guarded():
   chunk p in items first 100 by byId:
     update items[p.id] { n: 42 }
     require p.n = 0 else FIX_ROW
@@ -261,7 +261,7 @@ fn control_run_source_modes_and_declared_job_route_share_operator_admission() {
         .as_millis() as i64;
     assert!(clock["data"].as_i64().unwrap() > wall_now + 86000000);
     let source =
-        "job repair:\n  chunk p in items first 100 by byId:\n    update items[p.id] { n: 9 }\n";
+        "job repair():\n  chunk p in items first 100 by byId:\n    update items[p.id] { n: 9 }\n";
     let before = status(port, &secret)["seq"].clone();
     let plan = control(
         port,
@@ -514,7 +514,7 @@ fn control_run_compiles_with_the_owners_worker_and_spawns_no_second_compiler() {
     let spawns = || fs::read_to_string(&log).unwrap().lines().count();
     assert_eq!(spawns(), 1, "the owner boots exactly one compiler worker");
     let source =
-        "job repair:\n  chunk p in items first 100 by byId:\n    update items[p.id] { n: 9 }\n";
+        "job repair():\n  chunk p in items first 100 by byId:\n    update items[p.id] { n: 9 }\n";
     // Each request compiles for real with the owner's worker; the slowest round trip is
     // printed and must fit the CLI client's bound for ad hoc plan/run (the compiler's
     // 30 s request timeout plus a 5 s margin, `client::read_timeout`).

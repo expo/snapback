@@ -160,7 +160,7 @@ mutation direct(id: secrets, label: text <=40):
     const schema = "table nodes:\n  parent: nodes ?\n  public\n";
     const accepted = compileInline([
       { fileName: "snapback/schema.q", source: schema },
-      { fileName: "snapback/ops.q", source: `fn present(value: nodes) = exists nodes[value]
+      { fileName: "snapback/ops.q", source: `fn present(value: nodes): exists nodes[value]
 query good(id: nodes):
   row = nodes[id]! else MISSING
   if row.parent != null:
@@ -176,7 +176,7 @@ query good(id: nodes):
       const args = name === "shadow" ? "id: nodes, other: nodes" : "id: nodes";
       const refused = compileInline([
         { fileName: "snapback/schema.q", source: schema },
-        { fileName: `snapback/${name}.q`, source: `fn present(value: nodes) = exists nodes[value]\nquery bad(${args}):\n  row = nodes[id]! else MISSING\n${body}` },
+        { fileName: `snapback/${name}.q`, source: `fn present(value: nodes): exists nodes[value]\nquery bad(${args}):\n  row = nodes[id]! else MISSING\n${body}` },
       ]);
       assert(!refused.ok && refused.diagnostics.some((entry) => entry.code === "E_QUARRY_TYPE"),
         `${name} incorrectly inherited ref narrowing: ${JSON.stringify(refused)}`);

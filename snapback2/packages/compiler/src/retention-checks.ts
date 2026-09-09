@@ -54,7 +54,7 @@ table historyRows:
     }
   });
 
-  test("Quarry retention words are contextual and subtraction keeps its token shape", () => {
+  test("Quarry retention words lex consistently and subtraction keeps its token shape", () => {
     for (const [name, source] of [
       ["table-policy-name", "table until-revoked:\n  value: int\n  public\n"],
       ["binding-policy-name", "query invalid(a: int, history: int):\n  delivered-history = a-history\n  return delivered-history\n"],
@@ -62,6 +62,12 @@ table historyRows:
       const parsed = parseDocument(`snapback/${name}.q`, source);
       assert(parsed.diagnostics.some((item) => item.code === "E_QUARRY_SYNTAX"),
         `${name} did not refuse cleanly: ${JSON.stringify(parsed.diagnostics)}`);
+    }
+
+    for (const policy of IR_CONTRACT.retentionPolicies) {
+      const lexical = lex("snapback/policy.q", `${policy}\nretain ${policy}\n`);
+      assert(lexical.diagnostics.length === 0 && lexical.tokens.filter(token => token.value === policy).length === 2,
+        `policy token depended on its position: ${JSON.stringify(lexical)}`);
     }
 
     const subtraction = "query subtract(a: int, b: int):\n  return a-b\n";

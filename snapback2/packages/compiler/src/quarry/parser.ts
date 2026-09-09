@@ -122,7 +122,7 @@ class Parser {
       trigger = { row: { table, column } };
       if (this.at("if")) { this.take("if"); predicate = this.expression(0, new Set([":"])); }
     } else {
-      const durationError = () => { throw new QuarryError(site, "schedule periods are whole Nm, Nh, or Nd, at least one minute", "E_SCHEDULE_DURATION", "schedule dailyDigest every 24h: digestSweep", "schedule"); };
+      const durationError = () => { throw new QuarryError(site, "schedule periods are whole Nm, Nh, or Nd, at least one minute", "E_SCHEDULE_DURATION", "schedule dailyDigest every 24h: digestSweep()", "schedule"); };
       if (!this.at("every")) durationError();
       this.take("every");
       if (!this.atKind("number")) durationError();
@@ -135,22 +135,17 @@ class Parser {
       trigger = { every: { durationMs } };
     }
     this.take(":");
-    const block = this.atKind("newline");
-    if (block) { this.newline(); this.takeKind("indent"); }
     let target = this.word().value;
     if (this.at(".")) { this.take("."); target += "." + this.word().value; }
     const args: Expr[] = [];
-    if (this.at("(")) {
-      this.take("(");
-      while (!this.at(")")) {
-        args.push(this.expression(0, new Set([",", ")"])));
-        if (!this.at(",")) break;
-        this.take(",");
-      }
-      this.take(")");
+    this.take("(");
+    while (!this.at(")")) {
+      args.push(this.expression(0, new Set([",", ")"])));
+      if (!this.at(",")) break;
+      this.take(",");
     }
+    this.take(")");
     this.newline();
-    if (block) this.takeKind("dedent");
     return { name, trigger, target, args, predicate, site };
   }
 
@@ -319,11 +314,11 @@ class Parser {
 
   private parseMaintain(): MaintainDecl {
     const site = this.take("maintain");
-    const name = this.word().value;
-    this.take("=");
+    const name = this.bindingName();
+    this.take(":");
     const aggregateToken = this.word();
     if (aggregateToken.value !== "count" && aggregateToken.value !== "sum") {
-      unsupported(aggregateToken, `maintain ${aggregateToken.value}`, "use maintain name = count table by columns or maintain name = sum table of intColumn by columns");
+      unsupported(aggregateToken, `maintain ${aggregateToken.value}`, "use maintain name: count table by columns or maintain name: sum table of intColumn by columns");
     }
     const source = this.word().value;
     let column: string | undefined;
@@ -334,7 +329,6 @@ class Parser {
     this.take("by");
     const by = [this.word().value];
     while (this.maybe(",")) by.push(this.word().value);
-    this.take(":");
     this.newline();
     this.takeKind("indent");
     let read: RuleDecl | undefined;
@@ -475,7 +469,7 @@ class Parser {
     const kindToken = this.word();
     const kind = kindToken.value as ProgramDecl["kind"];
     const name = this.bindingName();
-    const args = kind === "job" && this.at(":") ? [] : this.parseArgs();
+    const args = this.parseArgs();
     if (this.at("->")) unsupported(this.peek(), "result annotations", "results are inferred; remove the annotation");
     this.take(":");
     this.newline();
@@ -536,7 +530,7 @@ class Parser {
       return;
     }
     const args = this.parseArgs();
-    this.take("=");
+    this.take(":");
     const body = this.expression(0, new Set(["<newline>"]));
     this.newline();
     this.functions.push({ name, args, body, site });
@@ -558,7 +552,11 @@ class Parser {
     this.procs.push({ name, args, body: this.parseBlock(), site });
   }
 
-  private bindingName(): string { return this.word().value; }
+  private bindingName(): string {
+    const token = this.word();
+    if (["until-revoked", "delivered-history"].includes(token.value)) syntax(token, "retention policy words cannot name bindings", "use an identifier without a hyphen");
+    return token.value;
+  }
 
   private parseArgs(): ArgDecl[] {
     this.take("(");

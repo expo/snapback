@@ -86,8 +86,8 @@
   {
     "family": "bound",
     "code": "E_STRUCTURAL_COUNT",
-    "wrong": "```q\n-- The viewer-dependent read rule makes page length non-structural.\n-- snapback/schema.q\nuse identity\ntable posts:\n  ownerId: principal\n  author: principal\n  at: time\n  visible: bool\n  photo: image <=10000000 ?\n  by byTime: at, id\n  by byOwnerAt: ownerId, at, id\n  by byAuthorAt: author, at, id\n  read <- .ownerId = viewer\nmaintain postCounts = count posts by ownerId:\n  read <- allow\n\n-- snapback/ops.q\nquery total():\n  return (posts[] first 50 by byTime).length\n```",
-    "right": "```q\n-- The viewer-dependent read rule makes page length non-structural.\n-- snapback/schema.q\nuse identity\ntable posts:\n  ownerId: principal\n  author: principal\n  at: time\n  visible: bool\n  photo: image <=10000000 ?\n  by byTime: at, id\n  by byOwnerAt: ownerId, at, id\n  by byAuthorAt: author, at, id\n  read <- .ownerId = viewer\nmaintain postCounts = count posts by ownerId:\n  read <- allow\n\n-- snapback/ops.q\nquery total():\n  return postCounts[viewer]\n```",
+    "wrong": "```q\n-- The viewer-dependent read rule makes page length non-structural.\n-- snapback/schema.q\nuse identity\ntable posts:\n  ownerId: principal\n  author: principal\n  at: time\n  visible: bool\n  photo: image <=10000000 ?\n  by byTime: at, id\n  by byOwnerAt: ownerId, at, id\n  by byAuthorAt: author, at, id\n  read <- .ownerId = viewer\nmaintain postCounts: count posts by ownerId\n  read <- allow\n\n-- snapback/ops.q\nquery total():\n  return (posts[] first 50 by byTime).length\n```",
+    "right": "```q\n-- The viewer-dependent read rule makes page length non-structural.\n-- snapback/schema.q\nuse identity\ntable posts:\n  ownerId: principal\n  author: principal\n  at: time\n  visible: bool\n  photo: image <=10000000 ?\n  by byTime: at, id\n  by byOwnerAt: ownerId, at, id\n  by byAuthorAt: author, at, id\n  read <- .ownerId = viewer\nmaintain postCounts: count posts by ownerId\n  read <- allow\n\n-- snapback/ops.q\nquery total():\n  return postCounts[viewer]\n```",
     "guide": "quarry"
   },
   {
@@ -107,7 +107,7 @@
   {
     "family": "bound",
     "code": "E_BOUND",
-    "wrong": "500 merge lanes \u00d7 (20 + 2), 50 writes \u00d7 cap 1000, or a wide nested result exceeds a named ceiling",
+    "wrong": "500 merge lanes × (20 + 2), 50 writes × cap 1000, or a wide nested result exceeds a named ceiling",
     "right": "Follow the largest sourced term: structurally reduce merge lanes/page, use two reads (two snapshots), or maintain a feed; for a cap use the named fitting chunk; for nested scans use maintain.count/sum; for bytes narrow the named collection and fields",
     "guide": "quarry"
   },
@@ -177,15 +177,15 @@
   {
     "family": "schema",
     "code": "E_SCHEMA_MAINTAIN",
-    "wrong": "```q\n-- snapback/schema.q\nuse identity\ntable posts:\n  ownerId: principal\n  author: principal\n  at: time\n  visible: bool\n  photo: image <=10000000 ?\n  by byTime: at, id\n  by byOwnerAt: ownerId, at, id\n  by byAuthorAt: author, at, id\n  public\nmaintain postCounts = count posts by ownerId:\n  read <- allow\nmaintain counts = count postCounts by ownerId:\n  read <- allow\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",
-    "right": "```q\n-- snapback/schema.q\nuse identity\ntable posts:\n  ownerId: principal\n  author: principal\n  at: time\n  visible: bool\n  photo: image <=10000000 ?\n  by byTime: at, id\n  by byOwnerAt: ownerId, at, id\n  by byAuthorAt: author, at, id\n  public\nmaintain postCounts = count posts by ownerId:\n  read <- allow\nmaintain counts = count posts by ownerId:\n  read <- allow\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",
+    "wrong": "```q\n-- snapback/schema.q\nuse identity\ntable posts:\n  ownerId: principal\n  author: principal\n  at: time\n  visible: bool\n  photo: image <=10000000 ?\n  by byTime: at, id\n  by byOwnerAt: ownerId, at, id\n  by byAuthorAt: author, at, id\n  public\nmaintain postCounts: count posts by ownerId\n  read <- allow\nmaintain counts: count postCounts by ownerId\n  read <- allow\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",
+    "right": "```q\n-- snapback/schema.q\nuse identity\ntable posts:\n  ownerId: principal\n  author: principal\n  at: time\n  visible: bool\n  photo: image <=10000000 ?\n  by byTime: at, id\n  by byOwnerAt: ownerId, at, id\n  by byAuthorAt: author, at, id\n  public\nmaintain postCounts: count posts by ownerId\n  read <- allow\nmaintain counts: count posts by ownerId\n  read <- allow\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",
     "guide": "quarry"
   },
   {
     "family": "schema",
     "code": "E_SCHEMA_ASSET_MAINTAIN",
-    "wrong": "```q\n-- snapback/schema.q\nuse identity\ntable posts:\n  ownerId: principal\n  author: principal\n  at: time\n  visible: bool\n  photo: image <=10000000 ?\n  by byTime: at, id\n  by byOwnerAt: ownerId, at, id\n  by byAuthorAt: author, at, id\n  public\nmaintain postCounts = count posts by ownerId:\n  read <- allow\nmaintain counts = count posts by photo:\n  read <- deny\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",
-    "right": "```q\n-- snapback/schema.q\nuse identity\ntable posts:\n  ownerId: principal\n  author: principal\n  at: time\n  visible: bool\n  photo: image <=10000000 ?\n  by byTime: at, id\n  by byOwnerAt: ownerId, at, id\n  by byAuthorAt: author, at, id\n  public\nmaintain postCounts = count posts by ownerId:\n  read <- allow\nmaintain counts = count posts by ownerId:\n  read <- .ownerId = viewer\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",
+    "wrong": "```q\n-- snapback/schema.q\nuse identity\ntable posts:\n  ownerId: principal\n  author: principal\n  at: time\n  visible: bool\n  photo: image <=10000000 ?\n  by byTime: at, id\n  by byOwnerAt: ownerId, at, id\n  by byAuthorAt: author, at, id\n  public\nmaintain postCounts: count posts by ownerId\n  read <- allow\nmaintain counts: count posts by photo\n  read <- deny\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",
+    "right": "```q\n-- snapback/schema.q\nuse identity\ntable posts:\n  ownerId: principal\n  author: principal\n  at: time\n  visible: bool\n  photo: image <=10000000 ?\n  by byTime: at, id\n  by byOwnerAt: ownerId, at, id\n  by byAuthorAt: author, at, id\n  public\nmaintain postCounts: count posts by ownerId\n  read <- allow\nmaintain counts: count posts by ownerId\n  read <- .ownerId = viewer\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",
     "guide": "quarry"
   },
   {
@@ -511,7 +511,7 @@
     "site": "by",
     "guide": "operator",
     "wrong": "send a control request with by: \"alice.smith\"",
-    "right": "set by to 1\u201380 ASCII letters, numbers, dashes, or underscores, such as operator-alice; system is reserved"
+    "right": "set by to 1–80 ASCII letters, numbers, dashes, or underscores, such as operator-alice; system is reserved"
   },
   {
     "family": "successor",
@@ -540,9 +540,9 @@
   {
     "family": "job",
     "code": "E_JOB_SHAPE",
-    "site": "job name:statement:N",
+    "site": "job name():statement:N",
     "guide": "job",
-    "wrong": "job fill:\n  count = 0\n  chunk p in profiles first 100 by byId:\n    update profiles[p.id] { avatarUrl: 'x' }",
+    "wrong": "job fill():\n  count = 0\n  chunk p in profiles first 100 by byId:\n    update profiles[p.id] { avatarUrl: 'x' }",
     "right": "a job is one or more chunk blocks and nothing else; move the statement inside a chunk or into a mutation; a chunk reads what it needs itself, since a name bound in one chunk is not visible in the next"
   },
   {
@@ -590,24 +590,24 @@
     "code": "E_SCHEDULE_COLUMN",
     "site": "schedule <name> on <table> at .<column>",
     "guide": "schedule",
-    "wrong": "```q\n-- snapback/schema.q\ntable messages:\n  body: text <=100\n  at: time\n  expiresAt: time ?\n  public\n\n-- snapback/ops.q\nmutation purgeMessage(id: messages):\n  delete messages[id]\n  return null\nquery thread(id: messages):\n  return messages[id]\nmutation digestSweep():\n  return null\nschedule expireMessage on messages at .body:\n  purgeMessage(.id)\n```",
-    "right": "```q\n-- snapback/schema.q\ntable messages:\n  body: text <=100\n  at: time\n  expiresAt: time ?\n  public\n\n-- snapback/ops.q\nmutation purgeMessage(id: messages):\n  delete messages[id]\n  return null\nquery thread(id: messages):\n  return messages[id]\nmutation digestSweep():\n  return null\nschedule expireMessage on messages at .expiresAt:\n  purgeMessage(.id)\n```"
+    "wrong": "```q\n-- snapback/schema.q\ntable messages:\n  body: text <=100\n  at: time\n  expiresAt: time ?\n  public\n\n-- snapback/ops.q\nmutation purgeMessage(id: messages):\n  delete messages[id]\n  return null\nquery thread(id: messages):\n  return messages[id]\nmutation digestSweep():\n  return null\nschedule expireMessage on messages at .body: purgeMessage(.id)\n```",
+    "right": "```q\n-- snapback/schema.q\ntable messages:\n  body: text <=100\n  at: time\n  expiresAt: time ?\n  public\n\n-- snapback/ops.q\nmutation purgeMessage(id: messages):\n  delete messages[id]\n  return null\nquery thread(id: messages):\n  return messages[id]\nmutation digestSweep():\n  return null\nschedule expireMessage on messages at .expiresAt: purgeMessage(.id)\n```"
   },
   {
     "family": "schedule",
     "code": "E_SCHEDULE_TARGET",
     "site": "schedule <name> ...: <target>",
     "guide": "schedule",
-    "wrong": "```q\n-- snapback/schema.q\ntable messages:\n  body: text <=100\n  at: time\n  expiresAt: time ?\n  public\n\n-- snapback/ops.q\nmutation purgeMessage(id: messages):\n  delete messages[id]\n  return null\nquery thread(id: messages):\n  return messages[id]\nmutation digestSweep():\n  return null\nschedule expireMessage on messages at .expiresAt:\n  thread(.id)\n```",
-    "right": "```q\n-- snapback/schema.q\ntable messages:\n  body: text <=100\n  at: time\n  expiresAt: time ?\n  public\n\n-- snapback/ops.q\nmutation purgeMessage(id: messages):\n  delete messages[id]\n  return null\nquery thread(id: messages):\n  return messages[id]\nmutation digestSweep():\n  return null\nschedule expireMessage on messages at .expiresAt:\n  purgeMessage(.id)\n```"
+    "wrong": "```q\n-- snapback/schema.q\ntable messages:\n  body: text <=100\n  at: time\n  expiresAt: time ?\n  public\n\n-- snapback/ops.q\nmutation purgeMessage(id: messages):\n  delete messages[id]\n  return null\nquery thread(id: messages):\n  return messages[id]\nmutation digestSweep():\n  return null\nschedule expireMessage on messages at .expiresAt: thread(.id)\n```",
+    "right": "```q\n-- snapback/schema.q\ntable messages:\n  body: text <=100\n  at: time\n  expiresAt: time ?\n  public\n\n-- snapback/ops.q\nmutation purgeMessage(id: messages):\n  delete messages[id]\n  return null\nquery thread(id: messages):\n  return messages[id]\nmutation digestSweep():\n  return null\nschedule expireMessage on messages at .expiresAt: purgeMessage(.id)\n```"
   },
   {
     "family": "schedule",
     "code": "E_SCHEDULE_DURATION",
     "site": "schedule <name> every <duration>",
     "guide": "schedule",
-    "wrong": "```q\n-- snapback/schema.q\ntable messages:\n  body: text <=100\n  at: time\n  expiresAt: time ?\n  public\n\n-- snapback/ops.q\nmutation purgeMessage(id: messages):\n  delete messages[id]\n  return null\nquery thread(id: messages):\n  return messages[id]\nmutation digestSweep():\n  return null\nschedule dailyDigest every 30s:\n  digestSweep\n```",
-    "right": "```q\n-- snapback/schema.q\ntable messages:\n  body: text <=100\n  at: time\n  expiresAt: time ?\n  public\n\n-- snapback/ops.q\nmutation purgeMessage(id: messages):\n  delete messages[id]\n  return null\nquery thread(id: messages):\n  return messages[id]\nmutation digestSweep():\n  return null\nschedule dailyDigest every 24h:\n  digestSweep\n```"
+    "wrong": "```q\n-- snapback/schema.q\ntable messages:\n  body: text <=100\n  at: time\n  expiresAt: time ?\n  public\n\n-- snapback/ops.q\nmutation purgeMessage(id: messages):\n  delete messages[id]\n  return null\nquery thread(id: messages):\n  return messages[id]\nmutation digestSweep():\n  return null\nschedule dailyDigest every 30s: digestSweep()\n```",
+    "right": "```q\n-- snapback/schema.q\ntable messages:\n  body: text <=100\n  at: time\n  expiresAt: time ?\n  public\n\n-- snapback/ops.q\nmutation purgeMessage(id: messages):\n  delete messages[id]\n  return null\nquery thread(id: messages):\n  return messages[id]\nmutation digestSweep():\n  return null\nschedule dailyDigest every 24h: digestSweep()\n```"
   },
   {
     "family": "successor",

@@ -167,6 +167,11 @@ import { AssetImage, AssetVideo, useAssetUrl } from "snapback2/react";
 const download = useAssetUrl(message.clip, { download: true });
 ```
 
+For view-once images, mount only after Open is tapped:
+`{opened && message.photo && <AssetImage asset={message.photo} alt="attachment" />}`.
+Mounting starts the byte fetch and consumes the view. See `snapback2 guide assets`
+for normalized bytes, single-cell ownership, nullable live joins and viewing leases.
+
 `AssetImage` measures its rendered box and header-fetches an appropriate image
 rung before creating a blob URL. `AssetVideo` mints one short-lived session
 carrier for its stream URL. React Native resolves the same import through the
@@ -189,6 +194,10 @@ and exports its URL to the suite. To use an already-running compatible owner, se
 `SNAPBACK_URL=http://127.0.0.1:<port>` instead.
 
 ### Native view-once video
+
+The native memory player below exists, but public Quarry only permits `once`
+on image columns. `video ... once` is refused; this is not a ship-ready video
+authoring recipe. Ordinary videos use `AssetVideo` through `expo-video`.
 
 `AssetVideo` from `snapback2/expo` or `snapback2/react-native` shows Play for
 view-once clips. A tap (or explicit `autoPlay`) fetches and durably admits the

@@ -372,7 +372,7 @@ impl CompletenessFlow<'_, '_> {
                     site.site
                 ),
                 rewrite: format!(
-                    "denormalize the authorization scope onto {} and include it in the {} prefix so the rule is uniform, or declare maintain totals = count {} by <scope> and read the maintained aggregate",
+                    "denormalize the authorization scope onto {} and include it in the {} prefix so the rule is uniform, or declare maintain totals: count {} by <scope> and read the maintained aggregate",
                     site.table, site.index, site.table
                 ),
             });

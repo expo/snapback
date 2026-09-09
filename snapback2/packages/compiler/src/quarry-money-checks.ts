@@ -21,7 +21,7 @@ table ledger:
   amount: money USD
   public
 
-maintain balances = sum ledger of amount by owner:
+maintain balances: sum ledger of amount by owner
   read <- public
 
 table rateEntries:
@@ -29,7 +29,7 @@ table rateEntries:
   rate: decimal 4
   public
 
-maintain rates = sum rateEntries of rate by owner:
+maintain rates: sum rateEntries of rate by owner
   read <- public
 `;
     const operations = `mutation exercise(amount: money USD, rate: decimal 4, other: decimal 3, recipients: [users] <=10, recipient: users, divisor: int):
@@ -118,7 +118,7 @@ query remainder(left: money USD, divisor: int):
     `money builtin refusal detail changed: ${JSON.stringify(failures)}`);
   });
 
-  test("Quarry negation and fractional-rate refusals name the exact numeric forms", () => {
+  test("Quarry negation refuses nonnumeric values and fractional literals carry decimal rates", () => {
     const schema = `table values:
   label: text <=20
   amount: money USD
@@ -139,12 +139,10 @@ query bareRate(total: money USD):
     ]);
     assert(!result.ok, "invalid negation and bare fractional rate compiled");
     const failures = result.diagnostics.filter((item) => item.code === "E_QUARRY_TYPE");
-    assert(failures.length === 2
+    assert(failures.length === 1
       && failures.every((item) => item.site.startsWith("snapback/negation.q:"))
       && failures.some((item) => item.message === "unary - requires a present numeric value, got text"
-        && item.rewrite.includes("negate an int, decimal, or money value"))
-      && failures.some((item) => item.message.includes("an int operand or decimal-typed rate")
-        && item.rewrite.includes("declared decimal rate")),
+        && item.rewrite.includes("negate an int, decimal, or money value")),
     `numeric refusal guidance changed: ${JSON.stringify(result)}`);
 
     const accepted = compileInline([
@@ -308,7 +306,7 @@ query order(amount: money USD, r1: decimal 4, r2: decimal 3):
   amount: money USD
   public
 
-maintain balances = sum ledger of amount by owner:
+maintain balances: sum ledger of amount by owner
   read <- public
 
 table expenses:
@@ -316,7 +314,7 @@ table expenses:
   grand: money USD
   public
 
-maintain convSpend = sum expenses of grand by conv:
+maintain convSpend: sum expenses of grand by conv
   read <- public
 `;
     const operations = `query aggregateOperands(owner: principal, c: text <=20, recipients: [principal] <=5, rate: decimal 4):

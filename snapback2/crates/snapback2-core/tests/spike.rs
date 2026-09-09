@@ -807,7 +807,7 @@ fn bound_products_helpers_and_structural_counts_are_checked() {
     assert!(
         structural
             .rewrite
-            .contains("maintain totals = count waitlist by")
+            .contains("maintain totals: count waitlist by")
     );
 
     let maintained = checker(&schema)

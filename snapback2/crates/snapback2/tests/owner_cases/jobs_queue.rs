@@ -337,7 +337,7 @@ fn narrowing_paste_runs_as_a_file_then_the_narrowing_applies_and_adhoc_rows_ledg
 fn executable_mismatch_at_chunk_time_parks_the_job_and_the_owner_keeps_serving() {
     let (root, compiler, mut owner, port, secret) = boot_jobs_rows(350);
     let path = root.join("slow.q");
-    fs::write(&path, "job slow:\n  chunk p in jobRows first 1 by byId:\n    update jobRows[p.id] { value: 'slow' }\n").unwrap();
+    fs::write(&path, "job slow():\n  chunk p in jobRows first 1 by byId:\n    update jobRows[p.id] { value: 'slow' }\n").unwrap();
     let (code, lines) = cli_jobs(
         &root,
         &compiler,

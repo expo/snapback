@@ -17,13 +17,12 @@ fn boot_schedules() -> (PathBuf, PathBuf, ChildGuard, u16, String) {
         root.join("snapback/admin.q"),
         r#"effect digest from push
 
-job digestSweep:
+job digestSweep():
   chunk p in profiles first 100 by byId:
     if p.displayName != '':
       emit digest { to: p.principal, newFollowers: 1, unreadMessages: 0 }
 
-schedule dailyDigest every 24h:
-  digestSweep
+schedule dailyDigest every 24h: digestSweep()
 
 mutation sendExpiring(conversationId: conversations, body: text <=4000, expiresAt: time ?):
   require exists memberships[conversationId, viewer] else NOT_MEMBER
@@ -449,7 +448,7 @@ fn schedules_fire_on_the_dev_clock_with_clients_closed_and_the_digest_fires_once
     let admin = fs::read_to_string(root.join("snapback/admin.q")).unwrap();
     fs::write(
         root.join("snapback/admin.q"),
-        format!("{admin}\nschedule weeklyDigest every 48h:\n  digestSweep\n"),
+        format!("{admin}\nschedule weeklyDigest every 48h: digestSweep()\n"),
     )
     .unwrap();
     let checked = Command::new(env!("CARGO_BIN_EXE_snapback2"))

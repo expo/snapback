@@ -6,7 +6,7 @@ mutation add(amount: money USD, rate: decimal 3):
   discounted = packed.amount - amount
   repacked = discounted * 2
   rerated = packed.rate + 1.000
-  return insert prices { price: 2.50, whole: 10, computed: repacked, rate: rerated }
+  return insert prices { price: 2.50, whole: 10.0, computed: repacked, rate: rerated }
 
 query get(price: prices):
   row = prices[price]! else PRICE_NOT_FOUND

@@ -1,7 +1,7 @@
 # snapback2 guide gaps the Clique builders hit (guide-gap)
 
 **Filed:** 2026-09-06 by Claude Fable 5.1 from the Clique full run (benchmarks/runs/2026-09-05-clique-full-3x3), builder evidence as cited; raw lanes at /Users/ccheever/clique-full-20260905/lanes/.
-**Status:** open · **Severity:** documentation, each one cost a correction loop
+**Status:** closed · **Severity:** documentation, each one cost a correction loop
 
 1. The package README still says the offline outbox is deferred; `dist/guide/offline.md` and the client types say it shipped. (`/Users/ccheever/clique-full-20260905/lanes/astra-snapback2/run-log.md` 1788626083)
 2. `snapback2 guide maintain` answers `E_GUIDE_UNKNOWN`; the index lists the schema page instead. (`/Users/ccheever/clique-full-20260905/lanes/astra-snapback2/run-log.md` 1788631133, `/Users/ccheever/clique-full-20260905/lanes/astra-snapback2/evidence/maintain-guide.txt`)
@@ -144,8 +144,34 @@ Relevant paths below are under `snapback2/packages/snapback2/` unless stated.
     The Quarry guide also says image-only. Reconcile the supported authoring
     path with the playback claim. This does not reopen or disprove the native
     player qualification in
-    [the closed playback ruling](closed/20260905-snapback2-native-view-once-video-ruling.md);
+    [the closed playback ruling](20260905-snapback2-native-view-once-video-ruling.md);
     that evidence and reachable public schema authoring are separate scopes.
 
 The parser rejection and missing route persist at observed main `a9acb134a`.
 No package, compiler, guide, or frozen benchmark was changed by this audit.
+
+
+## Resolution — 2026-09-09
+
+The fixed recipe list and nearly full page ceilings are replaced by dynamically
+served topic cards. `guide types` includes the concrete bounded-list example;
+`guide effects` explains provider-free development with a non-fetching body and
+the still-required placeholder grant; `guide personas` explains seeded handles
+and separate account/profile onboarding. `guide assets` and `assets/client`
+cover normalized image bytes, video distinction, single-cell custody, click
+mounting, null live joins and the client-owned viewing token/admission path.
+The README now distinguishes the existing native memory player from the
+public grammar's image-only `once` authoring restriction.
+
+`guide expiry` connects the row timer, current-member log fan-out, tombstones
+and ascending reconnect drain, with the historical-recipient limitation kept
+explicit. `guide migrations`/`successor` explains validation versus installed
+state, destructive maintain/index/enum changes and additive bounded backfills.
+The earlier recorded resolutions remain intact. The 30 authored cards use
+about 62 KiB of a 96 KiB package allocation; each has an 8 KiB ceiling and a
+headroom warning, all in the existing build validation.
+
+Validation: compiler/package guide checks, all 14 native guide tests (including
+actual keyword lookup), compiler typecheck, caps and ref-check. This is source
+and package validation; it does not requalify any historical frozen application
+or claim a new published package or reconnect-after-expiry app journey.

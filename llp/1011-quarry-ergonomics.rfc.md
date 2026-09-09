@@ -21,7 +21,7 @@ ultra, grok-4.6 at xhigh), `llp/reviews/1011-quarry-ergonomics.*`
 **Implementer:** codex gpt-5.6-sol (xhigh), lane `s2/quarry-ergo`
 (`~/projects/snapback-s2`), orchestrated and landed by Claude Fable 5.1
 **Date:** 2026-09-03
-**Revised:** 2026-09-08 (one spelling third repair: scope the write-refusal oracle to shared owner denial; preserve independent write authority and absent upsert insertion); 2026-09-08 (one spelling second repair: exact compiler receipt sites, point-read guide scope, carrier test headroom, historical lowering/budget references); 2026-09-08 (one spelling review fixes: maintained reference repairs, source word dispatch coverage, engine/twin numeric and visibility evidence); 2026-09-08 (one spelling: commissioned B1–B6, implemented by GPT-6 Astra in lane B); 2026-09-08 (one cursor-bearing page through composite records); 2026-09-08 (statement helpers, LLP 1018.005); 2026-09-07 (expression helpers refuse authorization assertions throughout nested shapes); 2026-09-07 (typed bound shape/function elaboration and one decimal representation); 2026-09-06 (session-delegated Unicode key/cursor integration contract, foundation only); 2026-09-06 (nested named-shape collection snapshots implemented by GPT-6 Astra; conditional page returns implemented by GPT-6 Astra; certification-derived provenance); 2026-09-05 (null keys and non-empty Id literals implemented by GPT-6 Astra, Clique L2); 2026-09-05 (d — Codex implements imported shapes, read-authorized
+**Revised:** 2026-09-09 (final header normalization and explicit decimal values, implemented by GPT-6 Astra); 2026-09-08 (one spelling third repair: scope the write-refusal oracle to shared owner denial; preserve independent write authority and absent upsert insertion); 2026-09-08 (one spelling second repair: exact compiler receipt sites, point-read guide scope, carrier test headroom, historical lowering/budget references); 2026-09-08 (one spelling review fixes: maintained reference repairs, source word dispatch coverage, engine/twin numeric and visibility evidence); 2026-09-08 (one spelling: commissioned B1–B6, implemented by GPT-6 Astra in lane B); 2026-09-08 (one cursor-bearing page through composite records); 2026-09-08 (statement helpers, LLP 1018.005); 2026-09-07 (expression helpers refuse authorization assertions throughout nested shapes); 2026-09-07 (typed bound shape/function elaboration and one decimal representation); 2026-09-06 (session-delegated Unicode key/cursor integration contract, foundation only); 2026-09-06 (nested named-shape collection snapshots implemented by GPT-6 Astra; conditional page returns implemented by GPT-6 Astra; certification-derived provenance); 2026-09-05 (null keys and non-empty Id literals implemented by GPT-6 Astra, Clique L2); 2026-09-05 (d — Codex implements imported shapes, read-authorized
 write results, and order-preserving filter repairs under the author's request
 to advance Quarry); 2026-09-03 (c — implemented: §8 records the two lane commits
 and the one re-pinned expectation); 2026-09-03 (b — after the panel: `fn` deferred and `shape` kept;
@@ -283,7 +283,7 @@ LLP 1018.005.
 
 ### Expression-only functions (2026-09-07)
 
-`fn name(arg: type, …) = expression` declares a module-local typed helper;
+`fn name(arg: type, …): expression` declares a module-local typed helper;
 `fn name from module` imports the same declaration from `module.q`. Calls are
 acyclic and expand to one bound expression. Actual arguments evaluate once,
 left to right, before the body; parameters and all generated temporaries have
@@ -635,3 +635,34 @@ switches, aliases, equality and lookups. This is a source-AST freeze, not a runt
 census: computed strings, regex dispatch, cross-file aliases and dispatch outside
 that directory are not inferred. New dispatch mechanisms must extend this same
 extractor; adding a significant word still requires the B5 literal and Moves edit.
+
+
+## Final grammar pass (2026-09-09)
+
+The user commissioned the remaining header, numeric and retention-token warts
+as the last small grammar pass. `:` now separates declarations from their body:
+`fn twice(n: int): n * 2`, `proc deliver(...):` with its block, and
+`maintain counts: count messages by conversationId` with indented read rules.
+The maintain aggregate line has no second trailing colon. Queries, mutations,
+procs and jobs always declare arguments in parentheses, including `job sweep():`.
+Schedules have one inline target call, `schedule daily every 24h: sweep()`;
+the bare target and indented target alternatives are deleted. Imports retain
+`fn name from module` and `proc name from module` because they declare no body.
+Named shapes retain their value-definition spelling `shape name = { fields }`.
+The existing significant-word test and explicit accepted/refused header cases
+freeze these spellings; no second grammar gate is added.
+
+Retention policy words are single reserved lexer tokens in every context.
+The parser controls where they are accepted; they cannot name bindings.
+Ordinary `a-b` subtraction is unchanged.
+
+A fractional literal infers its exact scale (`2.50` is `decimal 2`) even in a
+standalone return or binding. It still uses safe integer minor units in IR and
+on the wire; generated result types retain the scale. A contextual money or
+decimal destination may type a literal, but a bound value keeps its descriptor.
+Nonzero integer literals with a positive-scale destination refuse with `2.0`
+as the explicit whole-decimal-unit repair. Zero and scale-zero destinations
+are unambiguous. Integer aliases and defaulted integer lists never rescale:
+`values ?? [2,3]` refuses for decimal lists; `[2.000,3.000]` explicitly names
+decimal-3 values. The unused late scale/list-scale bound nodes and their lowering
+are deleted. Whole-unit seed JSON normalization remains the B5 contract above.

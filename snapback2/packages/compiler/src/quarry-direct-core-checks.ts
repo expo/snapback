@@ -727,8 +727,8 @@ table memberships:
   unique byConversationPrincipal: conversation, principal
   public
 `;
-    const access = `fn isMember(c: conversations, p: principal) = exists memberships[c, p]
-fn choose(p: principal, ignored: id) = p
+    const access = `fn isMember(c: conversations, p: principal): exists memberships[c, p]
+fn choose(p: principal, ignored: id): p
 `;
     const operations = `fn isMember from access
 fn choose from access
@@ -812,10 +812,10 @@ mutation consumeOnce(p: principal):
   test("direct Quarry fn scopes are hygienic, module-local, pure, and row-ref typed", async () => {
     const ambientNamedParameters = compileInline([
       { fileName: "snapback/schema.q", source: "table rows:\n  value: int\n  public\n" },
-      { fileName: "snapback/ops.q", source: `fn echoNow(now: int) = now
-fn echoCommit(commit: int) = commit
-fn echoNew(new: int) = new
-fn echoViewer(viewer: int) = viewer
+      { fileName: "snapback/ops.q", source: `fn echoNow(now: int): now
+fn echoCommit(commit: int): commit
+fn echoNew(new: int): new
+fn echoViewer(viewer: int): viewer
 mutation explicitAmbientNames():
   return { now: echoNow(1), commit: echoCommit(2), new: echoNew(3), viewer: echoViewer(4) }
 ` },
@@ -831,8 +831,8 @@ mutation explicitAmbientNames():
     const nestedContext = compileInline([
       { fileName: "snapback/schema.q", source: "table nodes:\n  value: int\n  public\n" },
       { fileName: "snapback/ops.q", source: `shape card = { who: viewer }
-fn direct(viewer: principal) = viewer
-fn shaped(node: nodes, viewer: principal) = node card
+fn direct(viewer: principal): viewer
+fn shaped(node: nodes, viewer: principal): node card
 query context(id: nodes, supplied: principal):
   return { direct: direct(supplied), nested: shaped(id, supplied) }
 ` },
@@ -859,7 +859,7 @@ query context(id: nodes, supplied: principal):
   label: text <=40
   public
 `;
-    const cards = `fn isKnown(node: nodes) = exists nodes[node]
+    const cards = `fn isKnown(node: nodes): exists nodes[node]
 shape card = { id, label, known: isKnown(.) }
 `;
     const operations = `shape card from cards
@@ -867,7 +867,7 @@ shape card = { id, label, known: isKnown(.) }
 query node(id: nodes):
   return nodes[id] card
 
-fn add(left: int, right: int) = left + right
+fn add(left: int, right: int): left + right
 query hygienic(__operand0: int, __bound_fnArgument_0: int):
   return { sum: add(__operand0, __bound_fnArgument_0) }
 `;
@@ -980,40 +980,40 @@ query node(id: nodes):
       return undefined;
     };
     const focalCapture = refusal(
-      "fn leak() = .id\nshape card = { leaked: leak() }\n",
+      "fn leak(): .id\nshape card = { leaked: leak() }\n",
       "shape card from cards\nquery node(id: nodes):\n  return nodes[id] card\n",
     );
     assert(focalCapture?.code === "E_QUARRY_UNKNOWN" && focalCapture.message.includes("focal ."),
       `fn captured its caller shape focal: ${JSON.stringify(focalCapture)}`);
     const callerNew = refusal(
-      "shape leaking = { generated: new }\nfn leak(node: nodes) = node leaking\n",
+      "shape leaking = { generated: new }\nfn leak(node: nodes): node leaking\n",
       "fn leak from cards\nmutation node(id: nodes):\n  return leak(id)\n",
     );
     assert(callerNew?.code === "E_QUARRY_UNSUPPORTED" && callerNew.message.includes("new is mutation-only caller state"),
       `fn acquired caller new through a named shape: ${JSON.stringify(callerNew)}`);
     for (const clock of ["now", "commit"] as const) {
       const mutationTime = refusal(
-        `fn clock() = ${clock}\n`,
+        `fn clock(): ${clock}\n`,
         "fn clock from cards\nmutation node(id: nodes):\n  return clock()\n",
       );
       assert(mutationTime?.code === "E_QUARRY_UNSUPPORTED" && mutationTime.message.includes("read-pure"),
         `fn acquired caller ${clock} time through a mutation: ${JSON.stringify(mutationTime)}`);
     }
     const jobTime = refusal(
-      "fn clock() = now\n",
-      "fn clock from cards\njob node:\n  chunk row in nodes first 1 by byId:\n    update nodes[row.id] { label: clock() }\n",
+      "fn clock(): now\n",
+      "fn clock from cards\njob node():\n  chunk row in nodes first 1 by byId:\n    update nodes[row.id] { label: clock() }\n",
     );
     assert(jobTime?.code === "E_QUARRY_UNSUPPORTED" && jobTime.message.includes("read-pure"),
       `fn acquired job commit time: ${JSON.stringify(jobTime)}`);
     const queryTime = refusal(
-      "fn clock() = now\n",
+      "fn clock(): now\n",
       "fn clock from cards\nquery node(id: nodes):\n  return clock()\n",
     );
     assert(queryTime === undefined, `fn could not use query read time: ${JSON.stringify(queryTime)}`);
 
     const callerAssertion = compileInline([
       { fileName: "snapback/schema.q", source: schema },
-      { fileName: "snapback/ops.q", source: `fn find(node: nodes) = nodes[node]
+      { fileName: "snapback/ops.q", source: `fn find(node: nodes): nodes[node]
 query required(id: nodes):
   return find(id)! else NOT_FOUND
 ` },
@@ -1029,7 +1029,7 @@ query required(id: nodes):
         `caller-side helper assertion did not certify: ${JSON.stringify(requiredCheck)}`);
     }
     const helperAssertion = refusal(
-      "fn find(node: nodes) = nodes[node]! else NOT_FOUND\n",
+      "fn find(node: nodes): nodes[node]! else NOT_FOUND\n",
       "fn find from cards\nquery node(id: nodes):\n  return find(id)\n",
     );
     assert(helperAssertion?.code === "E_QUARRY_UNSUPPORTED" && helperAssertion.message.includes("cannot assert authorization")
@@ -1081,7 +1081,7 @@ query node(seed: nodes):
     assert(depth?.code === "E_QUARRY_UNSUPPORTED" && depth.message.includes("exceeds depth 8"),
       `nested field shape depth escaped the shared expansion guard: ${JSON.stringify(depth)}`);
     const crossCycle = refusal(`shape recursive = { parent: bounce(.) }
-fn bounce(node: nodes) = node recursive
+fn bounce(node: nodes): node recursive
 query node(seed: nodes):
   return seed recursive
 `);
@@ -1089,7 +1089,7 @@ query node(seed: nodes):
       `cross fn/shape cycle escaped the shared expansion guard: ${JSON.stringify(crossCycle)}`);
     const functions = Array.from({ length: 9 }, (_, index) => {
       const number = index + 1;
-      return number === 9 ? `fn f${number}(n: int) = n` : `fn f${number}(n: int) = f${number + 1}(n)`;
+      return number === 9 ? `fn f${number}(n: int): n` : `fn f${number}(n: int): f${number + 1}(n)`;
     }).join("\n");
     const functionDepth = refusal(`${functions}
 query node(n: int):

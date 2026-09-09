@@ -5,13 +5,11 @@ is reached; a period timer fires once per whole-minute period. The target is a
 mutation or a declared job of this project, run as the owner.
 
 ```q
-schedule expireMessage on messages at .expiresAt:
-  purgeMessage(.id)
+schedule expireMessage on messages at .expiresAt: purgeMessage(.id)
 ```
 
 ```q
-schedule dailyDigest every 24h:
-  digestSweep
+schedule dailyDigest every 24h: digestSweep()
 ```
 
 The engine keeps `_timers` as it keeps an index: writing a present `expiresAt`
@@ -48,3 +46,6 @@ satisfy; `every` targets take none), `E_SCHEDULE_DURATION` (`Nm`, `Nh`, or
 Customers: the `chat` template's disappearing messages (`purgeMessage` writes
 the `expired` log rows and deletes the body) and the `digestSweep` job fixture
 (one effect per profile with a non-zero count, restart-idempotent by occurrence).
+
+See `guide expiry` for the complete timer → recipient log → tombstone →
+reconnect drain recipe and its current-member delivery limit.

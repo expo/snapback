@@ -232,7 +232,7 @@ once. One model, no grants, one deleted word. The author may veto (§9.1).
 ### D2 — A job is a sequence of sweeps
 
 ```q
-job fillAvatars:
+job fillAvatars():
   chunk p in profiles first 100 by byId:
     update profiles[p.id] { avatarUrl: p.avatarUrl ?? 'https://cdn.example.com/default.png' }
 ```
@@ -350,7 +350,7 @@ and erasure actually are.
    nullRows, sample: [≤ 10 ids] }` with a rewrite that is the fill job:
 
    ```q
-   job fill_profiles_avatarUrl:
+   job fill_profiles_avatarUrl():
      chunk p in profiles first 100 by byId:
        update profiles[p.id] { avatarUrl: p.avatarUrl ?? <value> }
    ```
@@ -381,16 +381,14 @@ add, fill, drop; there is no rename operation (§9.5).
 ### D5 — Schedules: row timers and periods, on the owner's clock
 
 ```q
-schedule expireMessage on messages at .expiresAt:
-  purgeMessage(.id)
+schedule expireMessage on messages at .expiresAt: purgeMessage(.id)
 
-schedule dailyDigest every 24h:
-  digestSweep
+schedule dailyDigest every 24h: digestSweep()
 ```
 
 - **Two triggers, one kind.** `schedule name on table at .column [if
   predicate]: target(args from the row)` fires once per row when `column`
-  (a `time ?` column) is reached; `schedule name every <duration>: target`
+  (a `time ?` column) is reached; `schedule name every <duration>: target()`
   fires once per period. A target is a mutation or a declared job of this
   project; a job target takes the row's or period's values as its
   arguments. Durations are `Nm | Nh | Nd`, at least one minute; there is no
@@ -443,7 +441,7 @@ schedule dailyDigest every 24h:
 - **The two customers.** The `chat` template's disappearing messages become
   a `schedule … at .expiresAt` whose target writes the `expired` log rows
   LLP 1012 §3 describes; the client-side trigger is deleted. The
-  benchmark's M8 digest is `schedule dailyDigest every 24h: digestSweep`
+  benchmark's M8 digest is `schedule dailyDigest every 24h: digestSweep()`
   where `digestSweep` is a job with one sweep over `profiles by byId` that
   emits one effect per user with a non-zero count — "driven by the schedule
   alone", restart-idempotent by occurrence, authorized because the sweep
@@ -605,14 +603,14 @@ $ snapback2 dev
 SNAPBACK_URL=http://127.0.0.1:41823
 refused E_SUCCESSOR_NARROWING: profiles.avatarUrl is declared `text` but 312 stored rows are null (p_01J…, p_01J…, …)
   rewrite: declare `avatarUrl: text <=2048 format url ?`, apply, then fill it:
-    job fill_profiles_avatarUrl:
+    job fill_profiles_avatarUrl():
       chunk p in profiles first 100 by byId:
         update profiles[p.id] { avatarUrl: p.avatarUrl ?? <value> }
   then declare it required and apply again
 (serving the previous generation; see `dev --status`)
 
 $ snapback2 run fill_profiles_avatarUrl --as system --plan
-job fill_profiles_avatarUrl: 1 sweep · profiles by byId · 100/chunk · 4,118 entries → 42 chunks
+job fill_profiles_avatarUrl(): 1 sweep · profiles by byId · 100/chunk · 4,118 entries → 42 chunks
 engine writes: _jobs · ceilings: examined 200 / written 101 per chunk
 
 $ snapback2 run fill_profiles_avatarUrl --as system --dry-run

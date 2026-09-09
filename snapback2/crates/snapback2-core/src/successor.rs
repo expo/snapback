@@ -101,7 +101,7 @@ impl SuccessorRefusal {
                 "successor leaves required column {table}.{column} absent on stored rows"
             ),
             rewrite: format!(
-                "declare {table}.{column} as T?, apply; fill it with an operator mutation (`run fill_{table}_{column} --as system`; a job once J1b lands); then declare T and apply again"
+                "declare {table}.{column} as T?, apply; fill it with a bounded job (`run fill_{table}_{column} --as system --wait`; see guide job); then declare T and apply again"
             ),
             site: None,
             plan: MigrationPlan::default(),

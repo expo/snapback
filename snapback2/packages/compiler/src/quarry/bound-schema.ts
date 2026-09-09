@@ -425,7 +425,10 @@ function bindLiteral(expr: Extract<Expr, { kind: "literal" }>, expected?: Scalar
   if (typeof expr.value === "string") return { String: expr.value };
   const target = required(expected);
   if (target?.kind === "decimal" || target?.kind === "money") {
-    const expanded = expandedNumericLiteral(expr.numericText ?? String(expr.value));
+    const text = expr.numericText ?? String(expr.value);
+    if (target.scale > 0 && !text.includes(".") && expr.value !== 0)
+      typeError(expr.site, "integer rule literals do not implicitly become decimal whole units", `write ${text}.0 for decimal whole units`);
+    const expanded = expandedNumericLiteral(text);
     if (!expanded || expanded.fraction.length > target.scale) {
       typeError(expr.site, `numeric rule literal must fit Decimal scale ${target.scale} and the safe integer range`, "use a literal that fits the declared scale");
     }

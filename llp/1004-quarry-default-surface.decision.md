@@ -6,7 +6,7 @@
 templates, guide, diagnostics
 **Author:** Charlie Cheever (ruling); Claude Fable 5 (orchestrator, record)
 **Date:** 2026-08-31
-**Revised:** 2026-09-07 (final helper-purity/canonical-pair review costs and package declaration boundary); 2026-09-07 (typed direct compiler and expression functions; generated table-binding hygiene); 2026-09-03
+**Revised:** 2026-09-09 (LLP 1011 final header and exact-literal pass); 2026-09-07 (final helper-purity/canonical-pair review costs and package declaration boundary); 2026-09-07 (typed direct compiler and expression functions; generated table-binding hygiene); 2026-09-03
 **Related:** LLP 1000 (decision 10), LLP 1002, LLP 1007 (§2, §5), LLP 0329.014.004,
 .009, .010, .011, `spikes/clique-diagnostic-runs/`,
 `snapback2/packages/compiler/src/quarry/`, `snapback2/packages/snapback2/guide/quarry.md`
@@ -132,6 +132,15 @@ is LLP 1007 §5 item 7 and is still open.
 shape instance, and function parameter its own bound identity. Legal table and
 operation names may coincide without generated TypeScript aliases or emitter
 name restrictions.
+
+## Final spelling (2026-09-09)
+
+LLP 1011's final grammar pass supersedes historical header examples below:
+`fn name(args): expression`, `maintain name: count|sum ...` with indented
+rules, and parentheses on every callable declaration and schedule target.
+Fractional literals infer their exact decimal scale, while nonzero integer
+literals/aliases and integer lists do not silently scale into decimal/money
+values. The published guide is now focused cards reached by topic or keyword.
 
 ## Money and decimal worked out (2026-09-03)
 

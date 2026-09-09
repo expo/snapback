@@ -1,4 +1,4 @@
-job fillAvatars:
+job fillAvatars():
   chunk p in profiles first 100 by byId:
     update profiles[p.id] { avatarUrl: p.avatarUrl ?? 'https://cdn.example.com/default.png' }
 

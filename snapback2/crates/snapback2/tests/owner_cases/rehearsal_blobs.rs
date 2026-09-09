@@ -69,7 +69,7 @@ fn rehearsal_releases_never_reach_the_owners_blob_store_or_its_reclamation_sweep
     .unwrap();
     fs::write(
         root.join("snapback/admin.q"),
-        "mutation attach(id: items, photo: image <=5000000):\n  update items[id] { photo }\n  return true\n\njob release:\n  chunk p in items first 100 by byId:\n    delete items[p.id]\n",
+        "mutation attach(id: items, photo: image <=5000000):\n  update items[id] { photo }\n  return true\n\njob release():\n  chunk p in items first 100 by byId:\n    delete items[p.id]\n",
     )
     .unwrap();
     let rows = (0..3)

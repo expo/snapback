@@ -113,7 +113,7 @@ impl Cost {
                 // own read rule, and `deny` keeps the count private until relaxed.
                 maintain_line: (maintained_target.is_none() && max > 1).then(|| {
                     format!(
-                        "maintain {table}Counts = count {table} by {}:\n  read <- deny",
+                        "maintain {table}Counts: count {table} by {}\n  read <- deny",
                         by.join(", ")
                     )
                 }),

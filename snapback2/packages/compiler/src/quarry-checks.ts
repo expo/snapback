@@ -257,7 +257,7 @@ export function registerQuarryChecks(test: Test, frontend: string): void {
   photo: image <=5000000
   public
 
-maintain totals = count events by photo:
+maintain totals: count events by photo
   read <- public
 `,
       "snapback/events.q": "query one():\n  return null\n",
@@ -276,13 +276,13 @@ maintain totals = count events by photo:
   clip: video <=50000000
   public
 
-maintain avatarTotals = count events by avatar:
+maintain avatarTotals: count events by avatar
   read <- public
 
-maintain galleryTotals = count events by gallery:
+maintain galleryTotals: count events by gallery
   read <- public
 
-maintain clipTotals = count events by clip:
+maintain clipTotals: count events by clip
   read <- public
 `,
       "snapback/events.q": "query one():\n  return null\n",
@@ -500,7 +500,7 @@ mutation empty_last(photo: image <=5000000, images: [image <=5000000] <=4, video
 
     const fractionalInt = compileInline([
       { fileName: "snapback/schema.q", source: schema },
-      { fileName: "snapback/int.q", source: "mutation bad():\n  return insert values { cents: 1.00, mills: 1.000, amount: 2, count: 2.50 }\n" },
+      { fileName: "snapback/int.q", source: "mutation bad():\n  return insert values { cents: 1.00, mills: 1.000, amount: 2.0, count: 2.50 }\n" },
     ]);
     assert(!fractionalInt.ok && fractionalInt.diagnostics.some((item) => item.code === "E_QUARRY_TYPE"
       && item.message.includes("fractional digits do not fit int")),

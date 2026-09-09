@@ -7,7 +7,7 @@
 Schema: `snapback/schema.q`. Programs/shapes: `snapback/<module>.q`.
 Seeds, tests and effect bodies use TypeScript.
 `shape`, `fn`, `proc`, and `cursor` are reserved bindings.
-Use `snapback2 guide <keyword>` for grammar and a defining paragraph.
+Use `snapback2 guide <keyword>` for a focused card or defining paragraph.
 Symbols work without an index; misses list help.
 
 ```q
@@ -27,15 +27,21 @@ Types: `principal`, `id`, table references, `int`, `time`, `bool`,
 optional. `once` is image-column-only; `cursor` is operation-only. Text may add a format.
 Indexes name their ordering: `by name: columns` or `unique name: columns`.
 
+All callable declarations and calls include parentheses. A declaration uses
+`:` before its body: `fn double(n: int): n * 2`, `proc store(n: int):` with
+a block, or `maintain counts: count rows by owner` with indented read rules.
+Schedules use one inline call: `schedule hourly every 1h: cleanup()`.
+Fractional literals infer their exact decimal scale; `guide money` explains units.
+
 ## Constructs
 
 - `proc`: `proc name(args):` and a block; a statement helper elaborated at each call.
-- `maintain`: `maintain name = count table by fields:`; sum uses `sum table of column`.
+- `maintain`: `maintain name: count table by fields`; sum uses `sum table of column`.
 - `cap`: `cap N by columns` bounds each group; reserve is N/N/5N per write, or 1/1/5 with an exact same-`by` count maintain.
 - `unique`: `unique name: columns` declares a unique index.
 - `immutable`: `immutable columns` forbids changes.
 - `public`: `public ['reason']` declares public reads.
-- `retain`: `retain until-revoked|delivered-history` controls hidden-row custody.
+- `retain`: `retain until-revoked|delivered-history` controls hidden-row custody; both policy words lex consistently everywhere.
 - `channel`: `channel name(args):` declares value, publish, subscribe and ttl.
 - `connected`: `exists connected[p]` tests live connections; `connected[p]` counts them (`p: principal`).
 - `schedule`: `schedule name on table at .column:` or `every Nm|Nh|Nd:`.

@@ -539,7 +539,7 @@ fn operation_typos_offer_declared_names_in_run_and_why() {
 fn why_prose_includes_real_capped_reads_absences_and_constraint_dependencies() {
     let project = Project::new();
     assert!(project.init("todos", "none").status.success());
-    fs::write(project.path.join("snapback/schema.q"), "use identity\ntable items:\n  ownerId: principal\n  group: principal\n  label: text <=20\n  read <- .ownerId = viewer\nmaintain itemCounts = count items by group:\n  read <- allow\n").unwrap();
+    fs::write(project.path.join("snapback/schema.q"), "use identity\ntable items:\n  ownerId: principal\n  group: principal\n  label: text <=20\n  read <- .ownerId = viewer\nmaintain itemCounts: count items by group\n  read <- allow\n").unwrap();
     fs::write(project.path.join("snapback/todos.q"), "query list():\n  return { page: items[] first 2 by byId, total: itemCounts[viewer] }\n").unwrap();
     fs::write(project.path.join("snapback/seed.ts"), r#"import { seed } from "snapback2";
 export default seed({ personas: ["alice"], rows: { items: [

@@ -65,3 +65,16 @@ requires its declared grant. Invalid redirect modes reject before I/O.
 The default development binary has no engine. `snapback2 test` records the
 derived effects check as `blocked: no engine in this build`; it never claims
 the queued row was sent. Use `snapback2 trace <seq>` to see the outbox row.
+
+## Development without a provider
+
+Use the template's declared effect and inspect the queued outbox row with
+`trace`; an engine-less development build reports delivery as blocked.
+The example `https://api.example.com` grant is a placeholder, not a working
+notification service. Do not interpret successful message insertion as delivery.
+When testing an engine-enabled build without a provider, replace the effect's
+`run` with an async function returning `{ providerId: meta.id }`; `then` can
+record that deterministic local result. Keep the example URL grant: current
+effect declarations require at least one grant, even when the body never calls
+`fetch`. A grant alone sends no network request. Restore your provider origin and idempotent fetch before
+claiming external delivery; `guide testing` explains effect verification.

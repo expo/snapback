@@ -36,7 +36,6 @@ export type BoundValueFacts = {
   presence: BoundPresence;
   max?: number;
   /** This int, or every int item in this list, still represents authored whole units. */
-  wholeUnits?: true;
   origin: Provenance;
   fieldProjection?: "inherited-row" | "constructed";
   tableOrigin?: BoundTableSymbol;
@@ -50,8 +49,6 @@ export type BoundExpression = BoundExpressionBase & (
   | { kind: "focal"; id: string }
   | { kind: "input"; input: "Viewer" | "Now" | "NewId" | "ReadTime" }
   | { kind: "array"; items: BoundExpression[] }
-  | { kind: "scale"; value: BoundExpression; multiplier: number; preserveNull: boolean }
-  | { kind: "scale-list"; value: BoundExpression; multiplier: number; max: number; preserveNull: boolean }
   | { kind: "object"; fields: Array<{ name: string; value: BoundExpression; source: BoundSourceStack }> }
   | { kind: "unary"; op: "Not" | "Neg"; value: BoundExpression }
   | { kind: "binary"; op: string; left: BoundExpression; right: BoundExpression; scaleDivisor?: number }

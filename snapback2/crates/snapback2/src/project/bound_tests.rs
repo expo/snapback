@@ -152,7 +152,7 @@ table posts:
   update <- allow
   delete <- allow
 "#,
-            r#"job fillPeriods:
+            r#"job fillPeriods():
   chunk f in follows first 50 by byId:
     update follows[f] { follower: viewer }
 "#,
@@ -243,7 +243,7 @@ fn quarry_fill_periods_certifies_and_executes_all_fifty_updates() {
     .unwrap();
     fs::write(
         root.join("snapback/fill.q"),
-        r#"job fillPeriods:
+        r#"job fillPeriods():
   chunk f in follows first 50 by byId:
     update follows[f] { period: 7 }
 "#,
@@ -438,11 +438,11 @@ table likes:
   unique byPair: author, post
   public
 
-maintain likeCounts = count likes by post:
+maintain likeCounts: count likes by post
   read <- allow
-maintain entryCounts = count entries by post:
+maintain entryCounts: count entries by post
   read <- allow
-maintain replyCounts = count posts by parent:
+maintain replyCounts: count posts by parent
   read <- allow
 "#,
     )

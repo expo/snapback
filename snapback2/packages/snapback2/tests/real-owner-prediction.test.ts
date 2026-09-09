@@ -40,7 +40,7 @@ table capEntries:
   update <- deny
   delete <- deny
 
-maintain principalCounts = count capEntries by principal:
+maintain principalCounts: count capEntries by principal
   read <- allow
 
 table realmMemberships:
@@ -52,7 +52,7 @@ table realmMemberships:
   update <- deny
   delete <- deny
 
-maintain realmCounts = count realmMemberships by principal, realm:
+maintain realmCounts: count realmMemberships by principal, realm
   read <- allow
 
 table refCapEntries:
@@ -65,7 +65,7 @@ table refCapEntries:
   update <- deny
   delete <- deny
 
-maintain refCounts = count refCapEntries by realm:
+maintain refCounts: count refCapEntries by realm
   read <- allow
 `);
     await writeFile(join(fixture, "caps.q"), `query countFor(principal: principal):

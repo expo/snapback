@@ -5,6 +5,7 @@ import ts from "typescript";
 import { canonicalValue, ClientStore, type Context, type Value } from "../../evaluator/src/evaluator";
 import { canonicalSchemaJson } from "../../evaluator/src/certificate-identity";
 import { lowerProject } from "./project";
+import { parseDocument } from "./quarry/parser";
 import { rustCheck } from "./rust-check";
 import { assert, compileInline, diagnosticsText, operation, withProject, type Test } from "./quarry-check-helpers";
 
@@ -30,7 +31,7 @@ table posts:
   update <- .author = viewer
   delete <- deny
 
-maintain replyCounts = count posts by parent:
+maintain replyCounts: count posts by parent
   read <- allow
 `;
 const context: Context = { viewer: "alice", principal_kind: "user", auth_epoch: 1,
@@ -58,6 +59,60 @@ function refusal(source: string, text: string, declarations = schema) {
 }
 
 export function registerQuarryLanguageChecks(test: Test, frontend: string): void {
+  test("one spelling: declaration headers, calls and schedule targets have one form", () => {
+    const accepted = `fn twice(n: int): n * 2
+proc store(n: int):
+  require n > 0 else POSITIVE
+maintain counts: count posts by author
+  read <- allow
+job cleanup():
+  chunk p in posts[] first 1 by byId:
+    delete posts[p.id]
+schedule hourly every 1h: cleanup()
+`;
+    assert(parseDocument("snapback/forms.q", accepted).diagnostics.length === 0, "canonical headers refused");
+    for (const source of [
+      "fn twice(n: int) = n * 2\n",
+      "maintain counts = count posts by author:\n  read <- allow\n",
+      "maintain counts: count posts by author:\n  read <- allow\n",
+      "job cleanup:\n  chunk p in posts[] first 1 by byId:\n    delete posts[p.id]\n",
+      "schedule hourly every 1h: cleanup\n",
+      "schedule hourly every 1h:\n  cleanup()\n",
+    ]) assert(parseDocument("snapback/old.q", source).diagnostics.length > 0, `alternate form admitted: ${source}`);
+  });
+
+  test("decimal literals infer exact descriptors; integer aliases and list defaults never rescale", async () => {
+    const declarations = "table amounts:\n  amount: decimal 3\n  values: [decimal 3] <=4\n  public\n  insert <- allow\n";
+    await project(`query exact():
+  amount = 2.50
+  return { amount, values: [2.000, 3.000], multiplied: amount * 2 }
+query fallback(values: [decimal 3] <=4 ?):
+  defaults = [2.000, 3.000]
+  return values ?? defaults
+`, (lowered, checked) => {
+      assert(lowered.apiDts.includes("amount: Decimal<2>") && lowered.apiDts.includes("values: Decimal<3>[]"), lowered.apiDts);
+      const exact = operation(lowered.project.programs, "probe.exact");
+      const cert = checked.find(item => item.program === exact.name)!.certificate!;
+      equal(new ClientStore(lowered.project.schema).reexecute(exact, context, cert as any).execution.result,
+        row({amount: {Int: 250}, values: {Array: [{Int: 2000}, {Int: 3000}]}, multiplied: {Int: 500}}));
+      const fallback = operation(lowered.project.programs, "probe.fallback");
+      const fallbackCert = checked.find(item => item.program === fallback.name)!.certificate!;
+      for (const [input, output] of [["Null", {Array: [{Int: 2000}, {Int: 3000}]}],
+        [{Array: [{Int: 1250}]}, {Array: [{Int: 1250}]}]] as Array<[Value, Value]>)
+        equal(new ClientStore(lowered.project.schema).reexecute(fallback, {...context, args: {values: input}}, fallbackCert as any).execution.result, output);
+    }, declarations);
+    for (const source of [
+      "query bad():\n  return 0.0000000000001\n",
+      "query bad(values: [decimal 3] <=4 ?):\n  return values ?? [2, 3]\n",
+      "mutation bad():\n  amount = 2\n  return insert amounts { amount, values: [] }\n",
+      "mutation bad():\n  values = [2, 3]\n  return insert amounts { amount: 2.000, values }\n",
+      "mutation bad():\n  amount = 2.50\n  return insert amounts { amount, values: [] }\n",
+    ]) {
+      const result = compile(source, declarations);
+      assert(!result.ok && result.diagnostics.some(item => ["E_QUARRY_TYPE", "E_DECIMAL_SCALE"].includes(item.code)), JSON.stringify(result));
+    }
+  });
+
   test("one spelling: significant Quarry words are frozen", () => {
     // One pin, derived on the other side from the actual lexer/parser/binder decisions.
     const expected = `
@@ -196,11 +251,11 @@ query field(p: posts):
   value: int
   public
   insert <- allow
-maintain counts = count ledger by owner:
+maintain counts: count ledger by owner
   read <- .owner = viewer
-maintain balances = sum ledger of amount by owner:
+maintain balances: sum ledger of amount by owner
   read <- .owner = viewer
-maintain decimals = sum ledger of decimal by owner:
+maintain decimals: sum ledger of decimal by owner
   read <- .owner = viewer
 `;
     await project(`query values():
@@ -260,11 +315,11 @@ mutation afterWrite():
   amount: money USD 2
   decimal: decimal 3
   public
-maintain counts = count ledger by owner:
+maintain counts: count ledger by owner
   read <- allow
-maintain balances = sum ledger of amount by owner:
+maintain balances: sum ledger of amount by owner
   read <- allow
-maintain decimals = sum ledger of decimal by owner:
+maintain decimals: sum ledger of decimal by owner
   read <- allow
 `;
     for (const [table, expected] of [["counts", "number"], ["balances", 'Money<"USD", 2>'], ["decimals", "Decimal<3>"]]) {
@@ -294,7 +349,7 @@ maintain decimals = sum ledger of decimal by owner:
   owner: principal
   public 'maintain value corpus'
   insert <- allow
-maintain counts = count ledger by owner:
+maintain counts: count ledger by owner
   read <- allow
 `;
     await project(`query values(other: counts):
@@ -317,7 +372,7 @@ mutation afterWrite(other: counts):
   });
   test("connected refuses Quarry maintains and table rules with a site and rewrite", () => {
     for (const declarations of [
-      schema + "\nmaintain counts = count connected by principal:\n  read <- allow\n",
+      schema + "\nmaintain counts: count connected by principal\n  read <- allow\n",
       "use identity\ntable notes:\n  body: text <=100\n  read <- exists connected[viewer]\n",
     ]) {
       const result = compile("query ok():\n  return true\n", declarations);

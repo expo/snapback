@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2` (the binary: owner, server, verbs), `snapback2/packages/compiler` (project lowering, worker), `snapback2/packages/snapback2` (authoring runtime, client, React, test runner, shim), `snapback2/scripts/measure.mjs`
 **Author:** Claude Fable 5 (orchestrator) — implementers: codex gpt-5.6-sol, lanes B0 (compiler + authoring surface), B1 (owner + server + verbs), B2 (`init`, `test`, `why`, `trace`, `guide`), D (client + React + evaluator)
 **Date:** 2026-08-29
-**Revised:** 2026-09-09 (atomic expectedGeneration mutation admission, real template auth and nested hook session/actions, implementer GPT-6 Astra); 2026-09-08 (lane D final focused repair: conditional stale-cache recovery and multi-fence effect guide coverage); 2026-09-08 (lane D second repair pass: valid guide fences, legal walk repairs, published family context, successor recovery and unique-source regression pins); 2026-09-08 (lane D review fixes: complete requirement metadata, conservative lookup explanations, executable families, CLI spelling repairs and complete subscriptions); 2026-09-08 (diagnostics say the fix: missing bounds, spelling repairs, current families, wrapping check, source-mapped why prose; implementer GPT-6 Astra, lane D); 2026-09-08 (Lane C final repair: reject statement-bearing expressions throughout policy probes; admit usable inbox arrays before comparison); 2026-09-08 (Lane C round 2: protected-independent guard proof, candidate rejection reasons, isolated count journey); 2026-09-08 (Lane C review: proved carrier projections, derived policy counts, executable Vite precedence and seeded maintain assertions); 2026-09-08 (templates are products, elegance program Lane C, implementer GPT-6 Astra); 2026-09-08 (LLP 1001.000 typed latest-state channels, leases and snapshot clients); 2026-09-08 (resource-aware blocking Rust test scheduling and paired timing); 2026-09-07 (generated insert/merge consumer type bindings; implementer GPT-6 Astra); 2026-09-07 (independent Quarry diagnostics, checked-type repair advice, lexical failure isolation and merge discovery ordering; implementer GPT-6 Astra); 2026-09-07 (preserve unrelated prefixed optional packages; staged platform dependency selection and exact-lock packaging regression; durable browser-follower admission and unknown-outcome recovery; client-owned observed query snapshots; explicit named-journey verification and executable React startup; startup cleanup fixture custody); 2026-09-06 (app guide operation/certificate custody; native logical SSE body; CLI help and executable migration recovery; auth startup recovery and held transition reads; queued transitions, interrupted sync, live held reads); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
+**Revised:** 2026-09-09 (keyword guide cards and final Quarry headers, atomic expectedGeneration mutation admission, real template auth and nested hook session/actions, implementer GPT-6 Astra); 2026-09-08 (lane D final focused repair: conditional stale-cache recovery and multi-fence effect guide coverage); 2026-09-08 (lane D second repair pass: valid guide fences, legal walk repairs, published family context, successor recovery and unique-source regression pins); 2026-09-08 (lane D review fixes: complete requirement metadata, conservative lookup explanations, executable families, CLI spelling repairs and complete subscriptions); 2026-09-08 (diagnostics say the fix: missing bounds, spelling repairs, current families, wrapping check, source-mapped why prose; implementer GPT-6 Astra, lane D); 2026-09-08 (Lane C final repair: reject statement-bearing expressions throughout policy probes; admit usable inbox arrays before comparison); 2026-09-08 (Lane C round 2: protected-independent guard proof, candidate rejection reasons, isolated count journey); 2026-09-08 (Lane C review: proved carrier projections, derived policy counts, executable Vite precedence and seeded maintain assertions); 2026-09-08 (templates are products, elegance program Lane C, implementer GPT-6 Astra); 2026-09-08 (LLP 1001.000 typed latest-state channels, leases and snapshot clients); 2026-09-08 (resource-aware blocking Rust test scheduling and paired timing); 2026-09-07 (generated insert/merge consumer type bindings; implementer GPT-6 Astra); 2026-09-07 (independent Quarry diagnostics, checked-type repair advice, lexical failure isolation and merge discovery ordering; implementer GPT-6 Astra); 2026-09-07 (preserve unrelated prefixed optional packages; staged platform dependency selection and exact-lock packaging regression; durable browser-follower admission and unknown-outcome recovery; client-owned observed query snapshots; explicit named-journey verification and executable React startup; startup cleanup fixture custody); 2026-09-06 (app guide operation/certificate custody; native logical SSE body; CLI help and executable migration recovery; auth startup recovery and held transition reads; queued transitions, interrupted sync, live held reads); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
 **Related:** LLP 1000, LLP 1001 (the engine this serves), LLP 1003 (effects),
 LLP 0329.016 §5 (the design this implements verbatim where it can), LLP
 0329.016 §5.11 (the verb table — no verb exists without its row), LLP
@@ -847,22 +847,26 @@ verdict: "pass" | "fail" | "blocked", ms, detail }], arms: ["headless"], verdict
 - `guide`: `grammar` (one screen, hand-written, in the package), `app`
   (tables, rules, ops with bounds, channels, personas — from the generation),
   `<symbol>` (the JSDoc on the `snapback2` module's declaration), `<E_CODE>`
-  (the family's wrong/right pair), `<recipe>` (`auth`, `live-query`,
-  `effects`, `offline`, `personas`, `operator`, `job`, `schedule`, `quarry`,
-  `testing` — budgeted Markdown files shipped in the package). After page, refusal,
-  and symbol lookup, `<keyword>` serves its grammar line and defining paragraph
-  from an index generated at package build time from
-  the existing guide pages; a matching symbol keeps its declaration and gains that
-  excerpt under one header. The same build adds package README H2 topics, keyed by
-  lowercase headings with non-letter/digit runs replaced by hyphens (trimmed at the
-  ends), with the first prose paragraph before any subheading and a pointer to the
-  full packaged README section. README remains authoritative; H3 headings are not
-  topics, and existing constructs or earlier topics win key collisions.
+  (the family's wrong/right pair), and `<topic>` (all Markdown cards shipped in
+  the package, discovered from their filenames without a fixed recipe list).
+  The build splits the Quarry reference into focused cards, including types,
+  exact numbers, assets, rules, writes, pagination, helpers and migrations.
+  Each card has an 8 KiB ceiling and an advisory warning below 20% headroom;
+  the whole Markdown set has a 96 KiB allocation, reported with free headroom.
+  This replaces the nearly full per-recipe ceilings inside the existing package
+  build check; it adds no gate, script, registry or runtime generator.
+  `<keyword>` serves an authored card when one exists, otherwise its grammar
+  line and defining paragraph. The build derives aliases from code names in a
+  card's H1, so `assets/client`, `successor` and `migration` resolve to useful
+  complete cards. A matching symbol retains its declaration. README H2 topics
+  remain fallbacks with the first paragraph and packaged source pointer;
+  authored cards and constructs take precedence. CLI file lookup admits only
+  simple topic slugs; slash aliases are resolved from the generated index.
   Missing, unreadable, or invalid keyword indexes never
   suppress a symbol hit. A keyword-only lookup with a missing index is unknown;
   unreadable or invalid indexes return `E_OWNER_GUIDE` only when keyword help is
   needed. Unknown-name guidance includes index keys when readable. `--json` keeps
-  `{ page, content }`; no pages are scanned at lookup time.
+  `{ page, content }`; ordinary lookup reads only the requested card or generated index, while unknown-name guidance lists shipped card filenames.
   `guide init`, `guide dev`, and `guide check` serve the corresponding built-in
   command help before symbol lookup, keeping the same `{ page, content }` envelope.
   The remaining guide bytes are served from the package, not embedded in the binary.

@@ -86,7 +86,7 @@ table nodes:
   by byParentName: parent, name
   public
 
-maintain counterTotals = sum counters of value by owner:
+maintain counterTotals: sum counters of value by owner
   read <- .owner = viewer
   readable <- allow
 

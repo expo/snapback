@@ -12,18 +12,6 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-const RECIPES: &[&str] = &[
-    "auth",
-    "live-query",
-    "effects",
-    "offline",
-    "personas",
-    "operator",
-    "job",
-    "schedule",
-    "quarry",
-    "testing",
-];
 
 pub fn run(args: &[String]) -> ExitCode {
     let options = match verbs::parse_options(args, &["--project"], &["--json"]) {
@@ -48,7 +36,8 @@ pub fn run(args: &[String]) -> ExitCode {
         read_page(&root.join("grammar.md"))
     } else if page == "app" {
         app_page(&options)
-    } else if RECIPES.contains(&page) {
+    } else if page.bytes().all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
+        && root.join(format!("{page}.md")).is_file() {
         read_page(&root.join(format!("{page}.md")))
     } else if page == "bound/loop" {
         refusal_page(&root, "E_STRUCTURAL_FANOUT")
@@ -60,9 +49,9 @@ pub fn run(args: &[String]) -> ExitCode {
         match symbol_page(&root, page) {
             Ok(symbol) => match keyword_page(&root, page) {
                 Ok(keyword) => {
-                    let excerpt = keyword
-                        .strip_prefix(&format!("# `{page}`\n\n"))
-                        .unwrap_or(&keyword);
+                    let excerpt = if keyword.starts_with("# ") {
+                        keyword.split_once('\n').map(|(_, body)| body.trim_start()).unwrap_or(&keyword)
+                    } else { &keyword };
                     Ok(format!("{symbol}\n{excerpt}"))
                 }
                 Err(_) => Ok(symbol),
@@ -443,7 +432,11 @@ fn families(root: &Path) -> Result<Json, Refusal> {
 
 fn available(root: &Path) -> String {
     let mut pages = BTreeSet::from(["app", "grammar", "init", "dev", "check"].map(str::to_owned));
-    pages.extend(RECIPES.iter().map(|page| (*page).to_owned()));
+    if let Ok(entries) = fs::read_dir(root) {
+        pages.extend(entries.flatten().filter_map(|entry| {
+            entry.file_name().to_str()?.strip_suffix(".md").map(str::to_owned)
+        }));
+    }
     if let Ok(keywords) = keyword_index(root) {
         pages.extend(keywords.into_keys());
     }
@@ -486,19 +479,11 @@ fn available(root: &Path) -> String {
 }
 
 fn unknown(page: &str) -> Refusal {
-    let pages = RECIPES
-        .iter()
-        .copied()
-        .chain(["app", "grammar", "init", "dev", "check"])
-        .collect::<BTreeSet<_>>()
-        .into_iter()
-        .collect::<Vec<_>>()
-        .join(", ");
     Refusal::new(
         "E_GUIDE_UNKNOWN",
         "input",
         format!("unknown guide page {page}"),
-        format!("run snapback2 guide <page|keyword|symbol|E_CODE>; pages: {pages}"),
+        "run snapback2 guide grammar, or use a topic, keyword, symbol, or E_CODE",
         "input/guide",
     )
 }

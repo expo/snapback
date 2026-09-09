@@ -222,7 +222,7 @@ table messages:
   delete <- .authorId = viewer
   after insert <- exists memberships[.id, .creatorId, 'admin']
 
-maintain messageCounts = count messages by conversationId:
+maintain messageCounts: count messages by conversationId
   read <- exists memberships[.conversationId, viewer]
 ```
 

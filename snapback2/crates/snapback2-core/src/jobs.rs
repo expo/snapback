@@ -468,7 +468,7 @@ fn shape_error(site: &str, detail: &str) -> CheckError {
         site: None,
         code: "E_JOB_SHAPE".into(),
         message: format!("{site} is not a chunk: {detail}"),
-        rewrite: "a job is one or more `chunk` blocks and nothing else:\njob fill:\n  chunk row in table first 100 by byId:\n    update table[row.id] { column: value }".into(),
+        rewrite: "a job is one or more `chunk` blocks and nothing else:\njob fill():\n  chunk row in table first 100 by byId:\n    update table[row.id] { column: value }".into(),
     }
 }
 /// The site an `E_JOB_SHAPE` names — `job:statement:N`, or the job for an empty body —

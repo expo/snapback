@@ -18,7 +18,6 @@ export function joinFacts(values: BoundValueFacts[], site: Site): BoundValueFact
     ...(tableOrigin && originated.every((value) => value.tableOrigin?.id === tableOrigin.id) ? { tableOrigin } : {}),
     ...(readOrigin && originated.every((value) => value.readOrigin === readOrigin) ? { readOrigin } : {}),
     ...(fieldProjection ? { fieldProjection } : {}),
-    ...(originated.length > 0 && originated.every((value) => value.wholeUnits) ? { wholeUnits: true } : {}),
   }), presence: values.some((value) => value.presence === "optional") ? "optional" : "required" };
 }
 
@@ -132,27 +131,9 @@ export function contextualValue(expression: BoundExpression, target: ScalarType,
     }
     return { ...expression, items, facts: facts({
       kind: "list", item: structuredClone(itemTarget), max: items.length, optional: false,
-    }, combineOrigins(items), { max: items.length,
-      ...(items.every((item) => item.facts.wholeUnits) ? { wholeUnits: true } : {}) }) };
+    }, combineOrigins(items), { max: items.length }) };
   }
   if (numericLiteralExpression(expression) && numericTarget(target)) return contextualLiteral(expression, target, site);
-  if (expression.facts.wholeUnits && expression.facts.type.kind === "int"
-    && (target.kind === "decimal" || target.kind === "money")) {
-    if (expression.facts.presence === "optional" && !target.optional) return expression;
-    const preserveNull = expression.facts.presence === "optional";
-    return { kind: "scale", value: expression, multiplier: 10 ** target.scale, preserveNull,
-      facts: facts({ ...target, optional: preserveNull }, expression.facts.origin), source: expression.source };
-  }
-  if (expression.facts.wholeUnits && expression.facts.type.kind === "list" && target.kind === "list"
-    && expression.facts.type.item.kind === "int"
-    && (target.item.kind === "decimal" || target.item.kind === "money")) {
-    if (expression.facts.presence === "optional" && !target.optional) return expression;
-    const preserveNull = expression.facts.presence === "optional";
-    return { kind: "scale-list", value: expression, multiplier: 10 ** target.item.scale,
-      max: expression.facts.type.max, preserveNull, facts: facts({
-        ...target, item: { ...target.item, optional: false }, max: expression.facts.type.max, optional: preserveNull,
-      }, expression.facts.origin, { max: expression.facts.type.max }), source: expression.source };
-  }
   if (stringLiteralExpression(expression) && (target.kind === "id" || target.kind === "ref" || target.kind === "enum")) {
     return contextualLiteral(expression, target, site);
   }
@@ -175,9 +156,7 @@ export function contextualTarget(type: BoundType): ScalarType | undefined {
 function contextualLiteral(expression: BoundExpression, target: ScalarType, site: Site): BoundExpression {
   if (expression.kind === "unary" && expression.op === "Neg") {
     const value = contextualLiteral(expression.value, target, site);
-    return { ...expression, value, facts: facts({ ...target, optional: false } as ScalarType, expression.facts.origin, {
-      ...(target.kind === "int" ? { wholeUnits: true } : {}),
-    }) };
+    return { ...expression, value, facts: facts({ ...target, optional: false } as ScalarType, expression.facts.origin) };
   }
   if (expression.kind !== "literal") return expression;
   if (typeof expression.value === "string" && target.kind === "enum") {
@@ -193,6 +172,10 @@ function contextualLiteral(expression: BoundExpression, target: ScalarType, site
   if (typeof expression.value !== "number" || !numericTarget(target)) return expression;
   const text = expression.numericText ?? String(expression.value);
   const scale = target.kind === "decimal" || target.kind === "money" ? target.scale : 0;
+  if ((target.kind === "decimal" || target.kind === "money") && scale > 0 && !text.includes(".") && expression.value !== 0) {
+    typeError(site, `integer ${text} does not implicitly become ${typeName(target)} whole units`,
+      `write ${text}.0 for whole decimal units, or pass an already typed ${typeName(target)} value`);
+  }
   const wireValue = scaledInteger(text, scale);
   if (wireValue === undefined) {
     const message = `${decimalPlaces(text)} fractional digits do not fit ${typeName(target)}`;
@@ -200,9 +183,7 @@ function contextualLiteral(expression: BoundExpression, target: ScalarType, site
     if (target.kind === "decimal" || target.kind === "money") decimalScale(site, message, rewrite);
     typeError(site, message, rewrite);
   }
-  return { ...expression, wireValue, facts: facts({ ...target, optional: false } as ScalarType, expression.facts.origin, {
-    ...(target.kind === "int" ? { wholeUnits: true } : {}),
-  }) };
+  return { ...expression, wireValue, facts: facts({ ...target, optional: false } as ScalarType, expression.facts.origin) };
 }
 
 function numericLiteralExpression(expression: BoundExpression): boolean {

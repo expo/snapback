@@ -240,13 +240,20 @@ const quarryFixtureText = (await Promise.all([...fixturePaths, ...templateQuarry
   .filter((path) => path.endsWith(".q")).map((path) => readFile(path, "utf8")))).join("\n");
 const parseDocument = await loadQuarryParser();
 const guidePages = await Promise.all(
-  ["grammar", "quarry", "auth", "live-query", "effects", "personas", "testing", "offline", "job", "schedule"].map(async (name) => ({
-    name,
-    markdown: await readFile(resolve(guideSource, `${name}.md`), "utf8"),
-    // LLP 1017 adds cap invariants and complete mutation loops to the reference.
-    limit: name === "grammar" ? 3584 : name === "quarry" ? 15872 : name === "live-query" ? 5632 : name === "offline" ? 4864 : 4096,
+  (await readdir(guideSource)).filter(name => name.endsWith(".md")).sort().map(async filename => ({
+    name: filename.slice(0, -3),
+    markdown: await readFile(resolve(guideSource, filename), "utf8"),
+    limit: 8192,
   })),
 );
+const guideBytes = guidePages.reduce((total, page) => total + Buffer.byteLength(page.markdown), 0);
+// One package allocation, not a fixed recipe count; each card leaves room to improve.
+if (guideBytes > 98304) familyErrors.push(`guide exceeds 98304 total Markdown bytes: ${guideBytes}`);
+for (const page of guidePages) {
+  if (Buffer.byteLength(page.markdown) > page.limit * 0.8)
+    console.warn(`guide/${page.name}.md: below 20% headroom; split this topic before expanding it`);
+}
+console.error(`guide: ${guidePages.length} cards, ${guideBytes}/98304 bytes (${Math.floor(100 * (1 - guideBytes / 98304))}% headroom)`);
 const guideErrors = [...familyErrors, ...quarryFamilyFailures(families, parseDocument), ...guideFailures(guidePages, tsFixtureText, quarryFixtureText, parseDocument)];
 if (guideErrors.length > 0) {
   throw new Error(`guide validation failed:\n${guideErrors.join("\n")}`);
@@ -505,7 +512,7 @@ async function runGuideValidationSelfTest() {
     "Actual definition after the example.", "", "## !!!", "", "No usable key.",
   ].join("\n"));
   if (topics.spark !== guideKeywords(topicPages).spark
-    || Object.keys(topics).join(",") !== "spark,upload-storage,after-example"
+    || Object.keys(topics).join(",") !== "spark,quarry,upload-storage,after-example"
     || topics["upload-storage"] !== '# `upload-storage`\n\nFirst defining paragraph\nkeeps its line break.\n\nSee the packaged [README.md](../../README.md), section "Upload & Storage!", for the full documentation.\n'
     || !topics["after-example"].includes("Actual definition after the example.")) {
     throw new Error("README topics lost normalization, first-paragraph boundaries, or collision priority");
@@ -730,7 +737,7 @@ function guideKeywords(pages, readme = "") {
   const grammar = pages.find((page) => page.name === "grammar")?.markdown ?? "";
   const definitions = [];
   for (const { name, markdown } of pages) {
-    if (!["quarry", "schedule", "job", "effects", "live-query"].includes(name)) continue;
+    if (name === "grammar") continue;
     let heading = name;
     for (const block of markdown.replace(/```[^\n]*\n[\s\S]*?\n```/g, "").split(/\n\s*\n/)) {
       const paragraph = block.trim();
@@ -746,6 +753,8 @@ function guideKeywords(pages, readme = "") {
     const keyword = entry[1];
     const starts = new RegExp("^`" + keyword + "(?=[`(\\s])");
     const sentence = new RegExp("(?:^|[.!?;]\\s+)`" + keyword + "(?=[`(\\s])");
+    const card = pages.find(page => page.name === keyword);
+    if (card) { keywords[keyword] = card.markdown; continue; }
     const definition = definitions.map((definition) => {
       const words = definition.heading.toLowerCase().match(/[a-z][a-z0-9-]*/g) ?? [];
       const headingMatch = words.some((word) => word === keyword || word === `${keyword}s` || `${word}s` === keyword);
@@ -756,6 +765,15 @@ function guideKeywords(pages, readme = "") {
     keywords[keyword] = `# \`${keyword}\`\n\n${line.slice(2)}\n\n## ${definition.name}: ${definition.heading}\n\n${definition.paragraph}\n`;
   }
   if (Object.keys(keywords).length === 0) throw new Error("guide/grammar.md: no construct lines");
+  // Every authored card is discoverable without editing a page registry. H1 code
+  // names supply topic aliases, including the slugs carried by client refusals.
+  for (const page of pages) {
+    if (page.name !== "grammar") keywords[page.name] = page.markdown;
+    const heading = /^# .+$/m.exec(page.markdown)?.[0] ?? "";
+    for (const alias of heading.matchAll(/`([a-z][a-z0-9/-]*)`/g)) {
+      if (!pages.some(card => card.name === alias[1])) keywords[alias[1]] = page.markdown;
+    }
+  }
   // README H2 topics are fallback entries; constructs and earlier topics win collisions.
   let heading, key, fence, skipBlock = false;
   let paragraph = [];

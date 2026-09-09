@@ -74,7 +74,8 @@ the third on 2026-09-04, LLP 1012 §12):
   1009, shelved 2026-09-04). Slid off the doing-list to pay for local-first v1
   (LLP 1012 §13); returns when the offline bar is met.
 - **A guide.** `snapback2 guide` serves the compiler's facts, a one-screen grammar, and
-  about twelve recipes with CI-executed snippets. No million-word corpus, no embedded
+  focused topic/keyword cards with CI-executed snippets inside one package byte
+  allocation; no fixed page count. No million-word corpus, no embedded
   20 MB guide in the binary, no calendar freshness dates.
 - **WASM anywhere.** The client evaluator is the TypeScript twin. The complete
   local runtime has an **84,000-byte gzip ceiling**, **80,000 the target**,

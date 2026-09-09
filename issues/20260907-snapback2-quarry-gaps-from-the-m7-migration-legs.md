@@ -99,3 +99,13 @@ Provide and document a supported history-page path, then prove more than
 replace one with the other without preserving the intended retained-history
 policy. This follow-up is separate from the repaired conditional root-page
 cursor issue and from native/twin partial-replay parity.
+
+
+2026-09-09 guide resolution: `guide migrations`, `guide successor`, and
+`guide migration` now serve the same focused card. It explicitly warns about
+maintain regrouping and destructive enum evolution, and gives the additive
+optional-column/backfill/narrowing path with immutable total job keys, planning,
+resumption and stored-value verification. The stale “job once J1b lands”
+rewrite now names the implemented bounded job and `--wait`. This addresses
+items 4–5's documentation; the separate list/shape/completeness and app-level
+pagination work is not closed by this change.

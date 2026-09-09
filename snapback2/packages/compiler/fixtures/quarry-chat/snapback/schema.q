@@ -131,7 +131,7 @@ table notifications:
   update <- deny
   delete <- deny
 
-maintain messageCounts = count messages by conversationId:
+maintain messageCounts: count messages by conversationId
   read <- exists memberships[.conversationId, viewer]
 
 channel typing(conversationId: conversations):
@@ -140,5 +140,5 @@ channel typing(conversationId: conversations):
   subscribe <- exists memberships[conversationId, viewer]
   ttl 4s
 
-maintain memberCounts = count memberships by conversationId:
+maintain memberCounts: count memberships by conversationId
   read <- exists memberships[.conversationId, viewer]

@@ -624,7 +624,7 @@ fn adhoc_restart_preserves_source_changed_generation_parks_and_reset_clears_jobs
             BTreeMap::new(),
             OperatorId("tester".into()),
             || 1,
-            "job fill: source retained".into(),
+            "job fill(): source retained".into(),
         )
         .unwrap();
     rt.run_chunk(&id).unwrap();
@@ -722,7 +722,7 @@ fn executable_mismatch_at_chunk_time_parks_with_the_generation_envelope_and_keep
             BTreeMap::new(),
             OperatorId("tester".into()),
             || 1,
-            "job fill: ad hoc".into(),
+            "job fill(): ad hoc".into(),
         )
         .unwrap();
     rt.run_chunk(&id).unwrap();
@@ -766,7 +766,7 @@ fn executable_mismatch_at_chunk_time_parks_with_the_generation_envelope_and_keep
             BTreeMap::new(),
             OperatorId("tester".into()),
             || 2,
-            "job fill: ad hoc again".into(),
+            "job fill(): ad hoc again".into(),
         )
         .unwrap();
     let (mut rt, path2) = reopen_with_plan(rt, &hash, "not a plan", "garbage");
@@ -922,7 +922,7 @@ fn ceiling_fault_at_chunk_time_parks_in_the_bound_family_and_rolls_back() {
             BTreeMap::new(),
             OperatorId("tester".into()),
             || 1,
-            "job fill: ad hoc".into(),
+            "job fill(): ad hoc".into(),
         )
         .unwrap();
     rt.run_chunk(&id).unwrap();

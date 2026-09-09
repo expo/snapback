@@ -52,5 +52,4 @@ mutation purgeMessage(messageId: messages):
   delete messages[msg]
   return null
 
-schedule expireMessage on messages at .expiresAt:
-  purgeMessage(.id)
+schedule expireMessage on messages at .expiresAt: purgeMessage(.id)

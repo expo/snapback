@@ -20,12 +20,12 @@ export function registerJobChecks(test: Test, frontend: string): void {
   });
   test("Quarry jobs refuse statements between chunks and cross-chunk bindings", async () => {
     for (const source of [
-      "job bad:\n  return true\n",
-      "job bad:\n  chunk p in profiles first 100 by byId:\n    update profiles[p.id] { avatarUrl: 'x' }\n  return true\n",
-      "job bad:\n  chunk p in profiles last 100 by byId:\n    return true\n",
+      "job bad():\n  return true\n",
+      "job bad():\n  chunk p in profiles first 100 by byId:\n    update profiles[p.id] { avatarUrl: 'x' }\n  return true\n",
+      "job bad():\n  chunk p in profiles last 100 by byId:\n    return true\n",
     ]) assert(parseDocument("bad.q", source).diagnostics.length > 0, source);
     const schema = readFileSync(resolve(frontend, "fixtures/quarry-jobs/snapback/schema.q"), "utf8");
-    await withProject({ "snapback/schema.q": schema, "snapback/jobs.q": "job bad:\n  chunk p in profiles first 100 by byId:\n    saved = p.id\n  chunk q in profiles first 100 by byId:\n    update profiles[saved] { avatarUrl: 'x' }\n" }, async (root) => {
+    await withProject({ "snapback/schema.q": schema, "snapback/jobs.q": "job bad():\n  chunk p in profiles first 100 by byId:\n    saved = p.id\n  chunk q in profiles first 100 by byId:\n    update profiles[saved] { avatarUrl: 'x' }\n" }, async (root) => {
       assert(!(await lowerProject(root)).ok, "a chunk binding escaped its block");
     });
   });

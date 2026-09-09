@@ -148,7 +148,7 @@ table ledger:
   read <- .owner = viewer
   insert <- .owner = viewer or .counterparty = viewer
 
-maintain balances = sum ledger of amount by owner:
+maintain balances: sum ledger of amount by owner
   read <- .owner = viewer
 
 table expenses:
@@ -182,7 +182,7 @@ table shares:
   insert <- exists members[.conv, viewer]
   update <- .debtor = viewer
 
-maintain convSpend = sum expenses of grand by conv:
+maintain convSpend: sum expenses of grand by conv
   read <- exists members[.conv, viewer]
 
 channel typing(conv: conversations):

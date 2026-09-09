@@ -315,7 +315,7 @@ mutation branch(owner: principal, flag: bool):
         ));
         assert(direct.kind === "job" && direct.body.length > 0
           && direct.body.every((statement) => typeof statement === "object" && "For" in statement),
-          `${direct.name} gained a non-chunk job statement: ${JSON.stringify(direct.body)}`);
+          `${direct.name} gained a non-chunk job statement(): ${JSON.stringify(direct.body)}`);
         const legacy = operation(oracle.project.programs, direct.name);
         const directCheck: RustCheckResult = rustCheck([direct], "synthetic", oracle.project.schema)[0]!;
         const legacyCheck: RustCheckResult = rustCheck([legacy], "synthetic", oracle.project.schema)[0]!;
@@ -333,19 +333,17 @@ mutation branch(owner: principal, flag: bool):
 
   test("direct Quarry schedule bindings retain focal row arguments and pure results", async () => {
     const schema = readFileSync(join(frontend, "fixtures/quarry-schedules/snapback/schema.q"), "utf8");
-    const admin = `job digestSweep:
+    const admin = `job digestSweep():
   chunk p in profiles first 100 by byId:
     update profiles[p.id] { newFollowers: p.newFollowers }
 
-schedule dailyDigest every 24h:
-  digestSweep
+schedule dailyDigest every 24h: digestSweep()
 
 mutation purgeMessage(id: messages):
   update messages[id] { body: null, expiresAt: null }
   return null
 
-schedule expireMessage on messages at .expiresAt:
-  purgeMessage(.id)
+schedule expireMessage on messages at .expiresAt: purgeMessage(.id)
 `;
     await withProject({ "snapback/schema.q": schema, "snapback/admin.q": admin }, async (root) => {
       const inputs: QuarryInput[] = ["schema", "admin"].map((stem) => {
@@ -410,14 +408,14 @@ schedule expireMessage on messages at .expiresAt:
       }
       return undefined;
     };
-    const direct = refusal(`fn add(owner: principal) = insert rows { owner, label: 'x', count: 0 }
+    const direct = refusal(`fn add(owner: principal): insert rows { owner, label: 'x', count: 0 }
 mutation invoke(owner: principal):
   return add(owner)
 `);
     assert(direct?.code === "E_QUARRY_UNSUPPORTED" && direct.message.includes("read-pure"),
       `fn body write escaped through a mutation caller: ${JSON.stringify(direct)}`);
     const shaped = refusal(`shape illicit = { made: insert rows { owner: viewer, label: 'x', count: 0 } }
-fn project(row: rows) = row illicit
+fn project(row: rows): row illicit
 mutation invoke(id: rows):
   return project(id)
 `);

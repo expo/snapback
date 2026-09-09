@@ -1,4 +1,4 @@
-import { mkdir, readFile, symlink } from "node:fs/promises";
+import { mkdir, readFile, readdir, symlink } from "node:fs/promises";
 import { resolve } from "node:path";
 import ts from "typescript";
 import type { PackageBuildProof } from "./package-regression-checks";
@@ -63,38 +63,25 @@ export function registerPackageGuideChecks(
     assert(readme.includes("snapback2 guide offline"), "README recovery pointer must work in a source checkout");
   });
 
-  test("the built keyword guide resolves grammar constructs and the README Assets and Channels topics", async () => {
+  test("guide cards and aliases are discoverable without a fixed page list", async () => {
     const guide = `${crate}packages/snapback2/dist/guide`;
-    const grammar = await readFile(`${guide}/grammar.md`, "utf8");
     const keywords = JSON.parse(await readFile(`${guide}/keywords.json`, "utf8"));
-    const entries = [...grammar.matchAll(/^- `([a-z][a-z0-9-]*)`: .+$/gm)];
-    assert(entries.length === 23, "grammar must keep its 23 constructs");
-    assert(Object.keys(keywords).length === entries.length + 2, "keyword index differs from grammar plus Assets and Channels");
-    for (const [line, keyword] of entries) {
-      const content = keywords[keyword!];
-      assert(typeof content === "string" && content.includes(line.slice(2)), `${keyword}: missing grammar line`);
-      assert(/\n\n## [\w-]+: [^\n]+\n\n\S/.test(content), `${keyword}: missing defining paragraph`);
+    const pages = (await readdir(guide)).filter(name => name.endsWith(".md") && name !== "grammar.md");
+    for (const filename of pages) {
+      assert(keywords[filename.slice(0, -3)] === await readFile(`${guide}/${filename}`, "utf8"),
+        `${filename}: full card missing from keyword lookup`);
     }
-    const readme = await readFile(`${crate}packages/snapback2/README.md`, "utf8");
-    for (const topic of ["Assets", "Channels"]) {
-      const paragraph = new RegExp(`^## ${topic}\\n\\n([\\s\\S]*?)\\n\\n`, "m").exec(readme)?.[1];
-      assert(paragraph, `README lost its ${topic} defining paragraph`);
-      const keyword = topic.toLowerCase();
-      assert(keywords[keyword] === `# \`${keyword}\`\n\n${paragraph}\n\nSee the packaged [README.md](../../README.md), section "${topic}", for the full documentation.\n`,
-        `${topic} help must contain the exact README paragraph and packaged source pointer`);
+    for (const [alias, page] of [["assets/client", "assets"], ["successor", "migrations"], ["migration", "migrations"]])
+      assert(keywords[alias!] === keywords[page!], `${alias}: topic alias lost`);
+    const grammar = await readFile(`${guide}/grammar.md`, "utf8");
+    for (const [, keyword] of grammar.matchAll(/^- `([a-z][a-z0-9-]*)`: .+$/gm))
+      assert(typeof keywords[keyword!] === "string" && keywords[keyword!].length > 80, `${keyword}: missing useful help`);
+    for (const name of ["assets/client", "successor", "money", "maintain", "expiry", "bounds"]) {
+      const result = Bun.spawnSync({ cmd: [`${crate}target/debug/snapback2`, "guide", name, "--json"],
+        env: { ...process.env, SNAPBACK2_GUIDE: guide }, stdout: "pipe", stderr: "pipe" });
+      assert(result.exitCode === 0, `${name}: CLI lookup failed: ${new TextDecoder().decode(result.stderr)}`);
+      assert(JSON.parse(new TextDecoder().decode(result.stdout)).content === keywords[name], `${name}: CLI card diverged`);
     }
-  });
-
-  test("the guide spec lists the CLI's current recipes", async () => {
-    const source = await readFile(resolve(crate, "crates/snapback2/src/guide.rs"), "utf8");
-    const recipes = /const RECIPES:[\s\S]*?= &\[([\s\S]*?)\];/.exec(source)?.[1];
-    assert(recipes, "missing recipe declaration");
-    const spec = await readFile(resolve(crate, "../llp/1002-dev-loop.spec.md"), "utf8");
-    const list = /<recipe>` \(([\s\S]*?) — budgeted Markdown/.exec(spec)?.[1];
-    assert(list, "missing guide recipe list");
-    const names = [...recipes.matchAll(/"([\w-]+)"/g)].map((match) => match[1]).sort();
-    const documented = [...list.matchAll(/`([\w-]+)`/g)].map((match) => match[1]).sort();
-    assert(JSON.stringify(names) === JSON.stringify(documented), `guide recipes differ: ${names} vs ${documented}`);
   });
 
   test("npm pack from a clean dist builds every exported module and declaration", () => {

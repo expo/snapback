@@ -40,21 +40,21 @@ export function registerScheduleChecks(test: Test, frontend: string): void {
     const base = admin.split("\nschedule dailyDigest")[0]! + "\n\nmutation purgeMessage(id: messages):\n  update messages[id] { body: null, expiresAt: null }\n  return null\n\nquery peek(id: messages):\n  return messages[id]\n\n";
     const withPhoto = schema.replace("expiresAt: time ?", "expiresAt: time ?\n  photo: image <=5000000 ?");
     const cases: Array<[string, string, { rewrite?: string; message?: string; schema?: string }?]> = [
-      ["schedule expire on messages at .body:\n  purgeMessage(.id)\n", "E_SCHEDULE_COLUMN"],
-      ["schedule expire on profiles at .expiresAt:\n  purgeMessage(.id)\n", "E_SCHEDULE_COLUMN"],
-      ["schedule expire on messages at .expiresAt:\n  missing(.id)\n", "E_SCHEDULE_TARGET"],
-      ["schedule expire on messages at .expiresAt:\n  peek(.id)\n", "E_SCHEDULE_TARGET"],
-      ["schedule expire on messages at .expiresAt:\n  purgeMessage(.body)\n", "E_SCHEDULE_TARGET"],
-      ["schedule expire on messages at .expiresAt:\n  purgeMessage\n", "E_SCHEDULE_TARGET"],
-      ["schedule expire on messages at .expiresAt if .body:\n  purgeMessage(.id)\n", "E_SCHEDULE_TARGET"],
-      ["schedule daily every 24h:\n  purgeMessage\n", "E_SCHEDULE_TARGET"],
-      ["schedule daily every 24h:\n  digestSweep\n\nschedule daily every 1h:\n  digestSweep\n", "E_SCHEDULE_TARGET", { rewrite: "-- give each schedule a unique name" }],
-      ["schedule expire on messages at .expiresAt if .photo:\n  purgeMessage(.id)\n", "E_SCHEDULE_TARGET", { message: "asset column", schema: withPhoto }],
-      ["schedule daily every 30s:\n  digestSweep\n", "E_SCHEDULE_DURATION"],
-      ["schedule daily every 0m:\n  digestSweep\n", "E_SCHEDULE_DURATION"],
-      ["schedule daily every 1.5h:\n  digestSweep\n", "E_SCHEDULE_DURATION"],
-      ["schedule daily at 09:00:\n  digestSweep\n", "E_SCHEDULE_DURATION"],
-      ["schedule daily every 24h:\n  digestSweep\n\nschedule expire on messages at .expiresAt:\n  purgeMessage(.id)\n", "ok"],
+      ["schedule expire on messages at .body: purgeMessage(.id)\n", "E_SCHEDULE_COLUMN"],
+      ["schedule expire on profiles at .expiresAt: purgeMessage(.id)\n", "E_SCHEDULE_COLUMN"],
+      ["schedule expire on messages at .expiresAt: missing(.id)\n", "E_SCHEDULE_TARGET"],
+      ["schedule expire on messages at .expiresAt: peek(.id)\n", "E_SCHEDULE_TARGET"],
+      ["schedule expire on messages at .expiresAt: purgeMessage(.body)\n", "E_SCHEDULE_TARGET"],
+      ["schedule expire on messages at .expiresAt: purgeMessage()\n", "E_SCHEDULE_TARGET"],
+      ["schedule expire on messages at .expiresAt if .body: purgeMessage(.id)\n", "E_SCHEDULE_TARGET"],
+      ["schedule daily every 24h: purgeMessage()\n", "E_SCHEDULE_TARGET"],
+      ["schedule daily every 24h: digestSweep()\n\nschedule daily every 1h: digestSweep()\n", "E_SCHEDULE_TARGET", { rewrite: "-- give each schedule a unique name" }],
+      ["schedule expire on messages at .expiresAt if .photo: purgeMessage(.id)\n", "E_SCHEDULE_TARGET", { message: "asset column", schema: withPhoto }],
+      ["schedule daily every 30s: digestSweep()\n", "E_SCHEDULE_DURATION"],
+      ["schedule daily every 0m: digestSweep()\n", "E_SCHEDULE_DURATION"],
+      ["schedule daily every 1.5h: digestSweep()\n", "E_SCHEDULE_DURATION"],
+      ["schedule daily at 09:00: digestSweep()\n", "E_SCHEDULE_DURATION"],
+      ["schedule daily every 24h: digestSweep()\n\nschedule expire on messages at .expiresAt: purgeMessage(.id)\n", "ok"],
     ];
     for (const [source, code, expect] of cases) {
       await withProject({ "snapback/schema.q": expect?.schema ?? schema, "snapback/push.ts": push, "snapback/admin.q": base + source }, async (root) => {

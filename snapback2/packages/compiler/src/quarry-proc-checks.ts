@@ -35,7 +35,7 @@ table deliveries:
   insert <- allow
 `;
 
-const access = `fn conversationMembers(c: conversations) = memberships[c] first 50 by byConversationPrincipal
+const access = `fn conversationMembers(c: conversations): memberships[c] first 50 by byConversationPrincipal
 proc deliver(c: conversations, messageId: messages, kind: enum('message', 'removed')):
   require exists conversations[c] else NO_CONVERSATION
   for m in conversationMembers(c):
@@ -161,7 +161,7 @@ mutation post(c: conversations, body: text <=100):
     const chain = (procs: number, fns: number) => {
       const lines: string[] = [];
       for (let i = 0; i < procs; i += 1) lines.push(`proc p${i}(c: conversations):\n  ${i + 1 < procs ? `p${i + 1}(c)` : "require f0(c) else TOO_DEEP"}\n`);
-      for (let i = 0; i < fns; i += 1) lines.push(`fn f${i}(c: conversations) = ${i + 1 < fns ? `f${i + 1}(c)` : "exists conversations[c]"}\n`);
+      for (let i = 0; i < fns; i += 1) lines.push(`fn f${i}(c: conversations): ${i + 1 < fns ? `f${i + 1}(c)` : "exists conversations[c]"}\n`);
       lines.push("mutation post(c: conversations):\n  p0(c)\n  return null\n");
       return lines.join("\n");
     };

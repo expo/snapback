@@ -450,7 +450,7 @@ table posts:
     { name: "proc spelling", source: "proc stroe from access\nmutation one():\n  stroe()", message: "unknown proc", fixes: ["did you mean `store`?"], code: "E_QUARRY_UNKNOWN" },
     { name: "shape spelling", source: "shape crad from access\nquery one(p: posts):\n  return posts[p] crad", message: "unknown shape", fixes: ["did you mean `card`?"], code: "E_QUARRY_UNKNOWN" },
     { name: "module spelling", source: "fn identity from acceess\nquery one():\n  return identity(1)", message: "unknown fn module", fixes: ["did you mean `access`?"], code: "E_QUARRY_UNKNOWN" },
-    { name: "op spelling", source: "mutation store():\n  return null\nschedule sweep every 1m:\n  stroe", message: "schedule target", fixes: ["did you mean `store`?"], code: "E_SCHEDULE_TARGET" },
+    { name: "op spelling", source: "mutation store():\n  return null\nschedule sweep every 1m: stroe()", message: "schedule target", fixes: ["did you mean `store`?"], code: "E_SCHEDULE_TARGET" },
     { name: "intrinsic-only range needs a bound", source: "query all():\n  return conversations[]", message: "reads a range; name its bound", fixes: ["conversations[] first 50 by byId"], code: "E_UNBOUND_SCAN" },
     { name: "distant column lists names", source: "mutation add():\n  insert posts { unrelated: viewer }", message: "unknown posts field", fixes: ["authorId", "body", "status"], code: "E_QUARRY_TYPE" },
   ];
@@ -476,7 +476,7 @@ table posts:
   });
   for (const item of cases) test(`diagnostic fix: ${item.name}`, async () => {
     await withProject({ "snapback/schema.q": schema, "snapback/posts.q": item.source + "\n",
-      "snapback/access.q": "fn identity(v: int) = v\nshape card = { * }\nproc store():\n  insert posts { authorId: viewer, body: 'Hi', at: now, status: 'open' }\n",
+      "snapback/access.q": "fn identity(v: int): v\nshape card = { * }\nproc store():\n  insert posts { authorId: viewer, body: 'Hi', at: now, status: 'open' }\n",
     }, async root => {
       const result = await lowerProject(root);
       assert(!result.ok, "invalid source escaped");
@@ -500,7 +500,7 @@ table posts:
     await withProject({ "snapback/schema.q": schema.replace("  by byTime:", "  cap 50 by authorId\n  by byTime:"),
       "snapback/ops.q": "query one():\n  return null\n" }, async root => assert((await lowerProject(root)).ok, "cap repair failed"));
   });
-  for (const [kind, use, repair] of [["fn", "missing(1)", "fn missing(value: int) = value"], ["shape", "posts[id] missing", "shape missing = { * }"], ["proc", "missing(1)", "proc missing(value: int):"]]) {
+  for (const [kind, use, repair] of [["fn", "missing(1)", "fn missing(value: int): value"], ["shape", "posts[id] missing", "shape missing = { * }"], ["proc", "missing(1)", "proc missing(value: int):"]]) {
     for (const module of ["access", "unavailable"]) test(`diagnostic fix: ${kind} empty catalog ${module}`, async () => {
       const source = `${kind} missing from ${module}\n${kind === "proc" ? "mutation" : "query"} one(id: posts):\n  ${kind === "proc" ? use + "\n  return null" : "return " + use}\n`;
       await withProject({ "snapback/schema.q": schema, "snapback/ops.q": source,

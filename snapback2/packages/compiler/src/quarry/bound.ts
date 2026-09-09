@@ -286,9 +286,7 @@ class ExpressionBinder {
         items[0]?.facts.type ?? ({ kind: "null" } as const),
       );
       const type: ScalarType = { kind: "list", item: scalarType(itemType, expression.site), max: items.length, optional: false };
-      return { kind: "array", items, facts: facts(type, combineOrigins(items), {
-        max: items.length, ...(items.every((item) => item.facts.wholeUnits) ? { wholeUnits: true } : {}),
-      }), source };
+      return { kind: "array", items, facts: facts(type, combineOrigins(items), { max: items.length }), source };
     }
     if (expression.kind === "object") {
       const fields = expression.fields.map((field) => ({
@@ -306,9 +304,7 @@ class ExpressionBinder {
         `unary - requires a present numeric value, got ${typeName(value.facts.type)}`,
         "negate an int, decimal, or money value");
       const type = expression.op === "not" ? boolType() : value.facts.type;
-      return { kind: "unary", op: expression.op === "not" ? "Not" : "Neg", value, facts: facts(type, "Computed", {
-        ...(expression.op !== "not" && value.facts.wholeUnits ? { wholeUnits: true } : {}),
-      }), source };
+      return { kind: "unary", op: expression.op === "not" ? "Not" : "Neg", value, facts: facts(type, "Computed"), source };
     }
     if (expression.kind === "binary") return this.binary(expression);
     if (expression.kind === "assert") {
@@ -348,8 +344,7 @@ class ExpressionBinder {
       `use ${typeName(expected.item)} values in this list`);
     return { kind: "array", items, facts: facts({
       kind: "list", item: structuredClone(expected.item), max: items.length, optional: false,
-    }, combineOrigins(items), { max: items.length,
-      ...(items.every((item) => item.facts.wholeUnits) ? { wholeUnits: true } : {}) }),
+    }, combineOrigins(items), { max: items.length }),
     source: this.source(expression.site) };
   }
 
@@ -462,12 +457,14 @@ class ExpressionBinder {
     else if (typeof expression.value === "boolean") type = boolType();
     else {
       const fractionalDigits = decimalPlaces(expression.numericText);
+      if (fractionalDigits > 12) decimalScale(expression.site, "decimal literal scale exceeds 12", "use at most 12 fractional digits");
       type = fractionalDigits === 0 ? { kind: "int", optional: false } : { kind: "numeric-literal", fractionalDigits };
     }
-    return { kind: "literal", value: expression.value, numericText: expression.numericText,
-      facts: facts(type, "Const", {
-        ...(typeof expression.value === "number" && Number.isInteger(expression.value) ? { wholeUnits: true } : {}),
-      }), source: this.source(expression.site) };
+    const value: BoundExpression = { kind: "literal", value: expression.value, numericText: expression.numericText,
+      facts: facts(type, "Const"), source: this.source(expression.site) };
+    return type.kind === "numeric-literal"
+      ? contextualValue(value, { kind: "decimal", scale: type.fractionalDigits, optional: false }, expression.site)
+      : value;
   }
 
   private name(name: string, site: Site): BoundExpression {
@@ -619,9 +616,7 @@ class ExpressionBinder {
       || left.facts.presence === "optional" || right.facts.presence === "optional") typeError(expression.site,
         `${expression.op} requires present numeric operands; got ${typeName(leftType)} and ${typeName(rightType)}`,
         "use present int, decimal, or money values");
-    return { kind: "binary", op, left, right, facts: facts(requiredType(leftType), "Computed", {
-      ...(left.facts.wholeUnits && right.facts.wholeUnits ? { wholeUnits: true } : {}),
-    }), source: this.source(expression.site) };
+    return { kind: "binary", op, left, right, facts: facts(requiredType(leftType), "Computed"), source: this.source(expression.site) };
   }
 
   private member(expression: Extract<Expr, { kind: "member" }>): BoundExpression {
@@ -641,7 +636,6 @@ class ExpressionBinder {
     }
     let type: BoundType | undefined;
     let origin: Provenance = "Computed";
-    let wholeUnits: true | undefined;
     if (baseType.kind === "row") {
       const column = expression.name === "id"
         ? { kind: "ref", table: baseType.table.name, optional: false } as ScalarType
@@ -654,7 +648,6 @@ class ExpressionBinder {
       if (field) type = baseType.nullable ? optionalType(field.type) : field.type;
       if (type && base.kind === "variable" && base.symbol.narrowedMembers?.has(expression.name)) type = requiredType(type);
       origin = field?.origin ?? "Computed";
-      wholeUnits = field?.wholeUnits;
     } else if (baseType.kind === "json" || baseType.kind === "unknown") {
       type = { kind: "unknown" };
     } else if (baseType.kind === "image" || baseType.kind === "video") {
@@ -667,9 +660,7 @@ class ExpressionBinder {
       baseType.kind === "row" ? `unknown ${baseType.table.name} field \`${expression.name}\`` : `cannot select .${expression.name} from ${baseType.kind}`,
       nameRewrite(expression.name, baseType.kind === "row" ? ["id", ...(this.catalog.get(baseType.table.name)?.columns.keys() ?? [])]
         : baseType.kind === "object" ? baseType.fields.keys() : []));
-    return { kind: "member", base, name: expression.name, facts: facts(type, origin, {
-      ...(wholeUnits ? { wholeUnits } : {}),
-    }), source };
+    return { kind: "member", base, name: expression.name, facts: facts(type, origin), source };
   }
 
   private shape(expression: Extract<Expr, { kind: "shape" | "shapeUse" }>): BoundExpression {

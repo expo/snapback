@@ -48,3 +48,10 @@ Related: `20260906-snapback2-guide-gaps-from-the-clique-run.md`, `20260906-snapb
 Current `guide/offline.md` and `guide/live-query.md` cover grants, explicit outbox/drain completion, opaque history cursors, forwarding, uncertain admission recovery, and preserving queue/grant custody. `guide/grammar.md` covers accepted/refused time arithmetic. The historical null-cursor, lock-starvation and invented-quiescence observations above are superseded by these contracts. Keep open only the insufficiently explained entry-field/sequence semantics, view-once echo with its nulled join, and viewing-lease acquisition/fetch/commit recipe. Require concrete public examples; source/package guide equality alone does not prove explanation completeness.
 
 Read-only source and recorded-execution audit against main `2ac15dc2c`; no new test execution or publication is claimed by this update.
+
+
+2026-09-09: `guide assets`/`assets/client` now explains the nullable live echo,
+retaining a selected image across that echo, conditional mount and stable
+viewing token, fetch, durable admission and the refusal paths. The client
+owns admission before resolving bytes; applications do not perform a separate
+view commit. Entry-field and `issuedSeq` semantics remain this ticket's scope.

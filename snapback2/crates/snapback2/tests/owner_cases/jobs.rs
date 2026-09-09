@@ -24,20 +24,20 @@ table jobRows:
     .unwrap();
     fs::write(
         root.join("snapback/jobs.q"),
-        r#"job fill:
+        r#"job fill():
   chunk p in jobRows first 100 by byId:
     update jobRows[p.id] { value: p.value ?? 'filled' }
 
-job guarded:
+job guarded():
   chunk p in jobRows first 100 by byId:
     require p.ok else FIX_ROW
     update jobRows[p.id] { value: 'guarded' }
 
-job one:
+job one():
   chunk p in jobRows first 1 by byId:
     update jobRows[p.id] { value: 'one' }
 
-job tens:
+job tens():
   chunk p in jobRows first 10 by byId:
     update jobRows[p.id] { value: 'tens' }
 
@@ -183,7 +183,7 @@ fn jobs_350_rows_finish_under_client_load_and_park_resume_through_owner() {
     let receipt = lines.last().unwrap();
     assert!(
         receipt.get("commit").is_none() && receipt["state"] == "done",
-        "the last line is the job receipt: {receipt}"
+        "the last line is the job receipt(): {receipt}"
     );
     assert_eq!(receipt["chunks"], 4);
     assert_eq!(receipt["rowsWritten"]["jobRows"], 350);
@@ -265,7 +265,7 @@ fn jobs_350_rows_finish_under_client_load_and_park_resume_through_owner() {
         json!({"name":"jobs.fill","args":{"bad":1},"as":"system"}),
     );
     assert_eq!(malformed.body["code"], "E_JOB_ARGS");
-    assert_eq!(malformed.body["rewrite"], "job fill:", "{}", malformed.body);
+    assert_eq!(malformed.body["rewrite"], "job fill():", "{}", malformed.body);
     assert_eq!(malformed.body["family"], "job");
     control_job(
         port,
