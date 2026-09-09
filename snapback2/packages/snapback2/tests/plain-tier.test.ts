@@ -198,7 +198,7 @@ test('plain tier: a persistent projected feed keeps its owner continuation throu
   const { tmpdir } = await import('node:os');
   const { join } = await import('node:path');
   const { fileRangeStore } = await import('../dist/test.mjs');
-  const owner = await RealOwnerHarness.create({ fullChat: true, prepare: async root => {
+  const owner = await RealOwnerHarness.create({ forceOwned: true, fullChat: true, prepare: async root => {
     const schema = join(root, 'snapback/schema.q');
     await writeFile(schema, `${await readFile(schema, 'utf8')}
 table likes:

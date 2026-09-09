@@ -86,9 +86,9 @@ export class RealOwnerHarness {
     this.mode = options.mode;
   }
 
-  static async create(options: { fullChat?: boolean; withDeliveries?: boolean; fixture?: string; prepare?(root: string): Promise<void> } = {}): Promise<RealOwnerHarness> {
+  static async create(options: { forceOwned?: boolean; fullChat?: boolean; withDeliveries?: boolean; fixture?: string; prepare?(root: string): Promise<void> } = {}): Promise<RealOwnerHarness> {
     const external = process.env.SNAPBACK_URL;
-    if (external) return new RealOwnerHarness({ owned: false, url: external, mode: "external" });
+    if (external && !options.forceOwned) return new RealOwnerHarness({ owned: false, url: external, mode: "external" });
 
     const built = command(["cargo", "build", "-p", "snapback2"]);
     assert.equal(built.status, 0, `cargo build failed\n${built.stdout}\n${built.stderr}`);
