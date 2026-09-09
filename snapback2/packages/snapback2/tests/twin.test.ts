@@ -691,9 +691,13 @@ test("a ReferenceError from tagArguments surfaces on query and mutation, never a
     const client = createClient({ url: "http://bug.test", token: "bearer", fetch: owner.fetch, offline: { store: fileRangeStore(root) } });
     await client.ready;
     await client.offline();
-    // Inject after custody admission, at the actual query/mutation argument boundary.
+    // Replace the twin's private program source after custody admission: the
+    // admitted image stays frozen while both paths still reach tagArguments.
     const runtime = (client as any).offlineRuntime;
-    for (const entry of Object.values<any>(runtime.held.programs)) entry.ir.args = throwingArgs;
+    const admitted = runtime.held;
+    const injected = { ...admitted,programs: Object.fromEntries(Object.entries<any>(admitted.programs)
+      .map(([name,entry]) => [name,{ ...entry,ir: { ...entry.ir,args: throwingArgs } }])) };
+    runtime.twin.sources.program = () => injected;
     await assertRefused(client.query((api as any)["named-thread"], threadArgs), (error: unknown) =>
       (error.state === "rejected" || error.state === "refused") && /tagArguments bug/.test(error.message), "the ReferenceError was swallowed as hydrating");
     await assertRefused(client.mutation((api as any)["named-send"], { conversationId: "c1", body: "bug", at: 30 }), (error: unknown) =>
