@@ -204,13 +204,12 @@ evaluation.
 Writes: `insert table { fields }`, `update table[key] { patch }`,
 `upsert table[key] { row }`, `delete table[key]`. Non-insert keys must be complete
 unique keys, including composite alternatives. Alternate-key update/delete
-read once, require the row (`NOT_FOUND`), then write by `id`;
-alternate-key upsert preserves its id or mints one.
+read once, require the row (`NOT_FOUND`), then write by `id`.
 
-Key expressions evaluate once and supply omitted upsert key columns. A row or
-patch may repeat a key column only with that key expression; otherwise
-`E_QUARRY_TYPE` names the field and its removal. Upsert cannot spell `id`:
-by-id uses the key; alternate-key preserves a hit's id or mints one on insertion.
+Keys evaluate once and supply omitted upsert key columns. A row/patch may repeat
+a key column only with its key expression; otherwise `E_QUARRY_TYPE` names the
+field to remove. Upsert cannot spell `id`: by-id uses the key; alternate-key
+keeps a hit's id or mints one.
 Insert yields its row. A bound or returned update/upsert reads its result once
 right after writing: a snapshot, or absence when its read rule denies the
 caller (including self-revocation). `! else CODE` requires that view and
@@ -270,11 +269,13 @@ point absence on held-page revalidation, not tombstones (LLP 1012 §5).
 
 ## Absence and bounds
 
-Ordinary table point reads return a row or absence; absent shapes and optional members stay
-absent, including in objects, updates, and calls; bases evaluate once in their
-branch. `! else CODE` names a refusal and `??` handles absence. Every missing update or
-delete is `NOT_FOUND`; upsert keeps its absent insert branch. Unreadable writes
-retain the existence oracle: by-id → `E_RULE`, alternate-key → `NOT_FOUND`.
+Ordinary table point reads yield a row or absence; absent shapes and optional
+members stay absent in objects, updates, and calls. Bases evaluate once per
+branch. `! else CODE` names a refusal; `??` handles absence. Missing update/delete
+is `NOT_FOUND`. Upsert retains insertion on absence, including alternate-key lookup.
+Read and write authority are independent. When the same owner predicate denies
+read and update/delete, the existence oracle remains: by-id → `E_RULE`,
+alternate-key → `NOT_FOUND`.
 Maintained point reads yield typed zero if missing/unreadable.
 
 Scans, lists, text, JSON, and bytes are bounded. `for` needs a bounded

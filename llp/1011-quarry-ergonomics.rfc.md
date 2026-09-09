@@ -21,7 +21,7 @@ ultra, grok-4.6 at xhigh), `llp/reviews/1011-quarry-ergonomics.*`
 **Implementer:** codex gpt-5.6-sol (xhigh), lane `s2/quarry-ergo`
 (`~/projects/snapback-s2`), orchestrated and landed by Claude Fable 5.1
 **Date:** 2026-09-03
-**Revised:** 2026-09-08 (one spelling second repair: exact compiler receipt sites, point-read guide scope, carrier test headroom, historical lowering/budget references); 2026-09-08 (one spelling review fixes: maintained reference repairs, source word dispatch coverage, engine/twin numeric and visibility evidence); 2026-09-08 (one spelling: commissioned B1–B6, implemented by GPT-6 Astra in lane B); 2026-09-08 (one cursor-bearing page through composite records); 2026-09-08 (statement helpers, LLP 1018.005); 2026-09-07 (expression helpers refuse authorization assertions throughout nested shapes); 2026-09-07 (typed bound shape/function elaboration and one decimal representation); 2026-09-06 (session-delegated Unicode key/cursor integration contract, foundation only); 2026-09-06 (nested named-shape collection snapshots implemented by GPT-6 Astra; conditional page returns implemented by GPT-6 Astra; certification-derived provenance); 2026-09-05 (null keys and non-empty Id literals implemented by GPT-6 Astra, Clique L2); 2026-09-05 (d — Codex implements imported shapes, read-authorized
+**Revised:** 2026-09-08 (one spelling third repair: scope the write-refusal oracle to shared owner denial; preserve independent write authority and absent upsert insertion); 2026-09-08 (one spelling second repair: exact compiler receipt sites, point-read guide scope, carrier test headroom, historical lowering/budget references); 2026-09-08 (one spelling review fixes: maintained reference repairs, source word dispatch coverage, engine/twin numeric and visibility evidence); 2026-09-08 (one spelling: commissioned B1–B6, implemented by GPT-6 Astra in lane B); 2026-09-08 (one cursor-bearing page through composite records); 2026-09-08 (statement helpers, LLP 1018.005); 2026-09-07 (expression helpers refuse authorization assertions throughout nested shapes); 2026-09-07 (typed bound shape/function elaboration and one decimal representation); 2026-09-06 (session-delegated Unicode key/cursor integration contract, foundation only); 2026-09-06 (nested named-shape collection snapshots implemented by GPT-6 Astra; conditional page returns implemented by GPT-6 Astra; certification-derived provenance); 2026-09-05 (null keys and non-empty Id literals implemented by GPT-6 Astra, Clique L2); 2026-09-05 (d — Codex implements imported shapes, read-authorized
 write results, and order-preserving filter repairs under the author's request
 to advance Quarry); 2026-09-03 (c — implemented: §8 records the two lane commits
 and the one re-pinned expectation); 2026-09-03 (b — after the panel: `fn` deferred and `shape` kept;
@@ -352,11 +352,15 @@ outcome. Upsert rows may spell `id: new` (the minted form) or an authored
   drop-field rewrite): by-id upsert derives identity from its key,
   alternate-key upsert keeps the present row's id or mints. Pre-minting an
   id to reference from a second row stays an `insert`.
-- **Named, not fixed:** a by-id write to an *unreadable* row is `E_RULE`
-  while an alternate-key write to one is `NOT_FOUND`. That is the
-  existence-oracle family of LLP 0329.014.004 dimension L, pre-existing,
-  and out of scope here. An idempotent double `delete` becomes `NOT_FOUND`;
-  that is the point.
+- **Existence oracle (scope corrected 2026-09-08):** when the same owner
+  predicate denies read and update/delete, by-id yields `E_RULE` while
+  alternate-key yields `NOT_FOUND`. This supersedes the categorical
+  unreadable-write claim: read and write authority are independent. An ignored
+  by-id update with `read <- deny` and `update <- allow` writes without a
+  `Get`; alternate-key upsert retains its insertion path when lookup returns
+  absence. The existing owner-predicate update refusal test in
+  `quarry-direct-contract-checks.ts` establishes the narrower oracle, in
+  LLP 0329.014.004 dimension L. An idempotent double `delete` becomes `NOT_FOUND`.
 
 **Deletes.** The no-op, the platform-code leak, `UPDATE_ROW_MISSING`, the
 two `UPSERT_ID_*` refusals, the minted form, `missing_preimages`, the
@@ -612,6 +616,12 @@ the fresh absent-group receipt. Bounded maintained ranges retain rows/pages;
 only program point reads and their API types yield values. Carrier tests
 retain the public-wire refusal of alternate-index absence proofs.
 Names and one-hop fields narrow by binding identity on the proven path.
+
+**Third repair (2026-09-08).** The guide and B3's oracle warning now cover
+only update/delete denied by the same owner predicate as read. Independent
+write authority and upsert's absent insertion path remain explicit. This is
+a prose correction within the unchanged guide budget; runtime, tests, corpus,
+point/range semantics, and optional-reference repairs remain unchanged.
 
 **Source word freeze (review revision, 2026-09-08).** One sorted literal pins
 121 words. The extractor scans `src/quarry/*.ts` for literal equality/inequality
