@@ -84,12 +84,12 @@ pub fn replay_mutation_response(
             "seq": seq,
             "data": value_to_wire_json(&execution.result),
         }),
-        ExecutionState::Rejected { code, message, .. } if code == "conflict" => json!({
+        ExecutionState::Rejected { code, message, rule: None, .. } if code == "conflict" => json!({
             "state": "rejected",
             "reason": "conflict",
             "site": message,
         }),
-        ExecutionState::Rejected { code, message, rule } => {
+        ExecutionState::Rejected { code, message, rule, site } => {
             let family = if rule.is_some() { "rule" } else { rejection_family(code) };
             let mut response = json!({
                 "state": "rejected",
@@ -100,6 +100,7 @@ pub fn replay_mutation_response(
                 "guide": format!("{family}/runtime"),
             });
             if let Some(rule) = rule { response["rule"] = json!(rule); }
+            if let Some(site) = site { response["site"] = json!(site); }
             response
         }
         // A replayed mutation that rolled back for want of authority settles

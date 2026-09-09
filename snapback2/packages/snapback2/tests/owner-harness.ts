@@ -48,6 +48,11 @@ query inboxProjected(after: cursor ?, label: text <=40 ?):
 mutation requireInput():
   require false else E_INPUT
   return true
+
+mutation requireConflict():
+  require true else conflict
+  require false else conflict
+  return true
 `);
 }
 

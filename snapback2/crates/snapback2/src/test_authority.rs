@@ -718,6 +718,7 @@ fn successor_policy_attempt(
         .insert(
             0,
             Stmt::Require {
+                site: None,
                 condition: Expr::Literal(Value::Bool(false)),
                 code: program_denial.clone(),
             },

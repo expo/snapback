@@ -94,7 +94,7 @@ function lowerExpression(expression: BoundExpression, lowering: Lowering): Lower
     return {
       setup: [...value.setup, { Require: { condition: {
         Binary: { op: "Ne", left: value.value, right: { Literal: "Null" } },
-      }, code: expression.code } }],
+      }, code: expression.code, site: requireSite(expression.source) } }],
       value: value.value,
     };
   }
@@ -172,7 +172,7 @@ function lowerStatements(statements: BoundStatement[], lowering: Lowering): Stmt
     }
     if (statement.kind === "require") {
       const condition = captureObservable(lowerExpression(statement.condition, lowering), lowering);
-      body.push(...condition.setup, { Require: { condition: condition.value, code: statement.code } });
+      body.push(...condition.setup, { Require: { condition: condition.value, code: statement.code, site: requireSite(statement.source) } });
       continue;
     }
     if (statement.kind === "emit") {
@@ -407,7 +407,7 @@ function lowerWrite(
     row = { Variable: rowName };
     if (!directId) {
       if (expression.op === "delete" || expression.op === "update") setup.push({ Require: {
-        condition: { Binary: { op: "Ne", left: row, right: { Literal: "Null" } } }, code: "NOT_FOUND",
+        condition: { Binary: { op: "Ne", left: row, right: { Literal: "Null" } } }, code: "NOT_FOUND", site: requireSite(expression.source),
       } });
       identity = { Field: { base: row, name: "id" } };
     }
@@ -806,6 +806,11 @@ function literalValue(expression: Extract<BoundExpression, { kind: "literal" }>)
     unsupported(expression.source.definition, "an uncontextualized decimal literal in direct Quarry", "use a typed decimal or money position");
   }
   return { Int: expression.value };
+}
+
+function requireSite(source: BoundSourceStack): string {
+  const { file, line, col } = source.definition;
+  return `${file}:${line}:${col}`;
 }
 
 function accessSite(lowering: Lowering, source?: BoundSourceStack): string {

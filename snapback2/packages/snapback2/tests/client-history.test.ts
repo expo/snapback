@@ -106,6 +106,43 @@ function host() {
   const publish = (op: string, event: any) => { publishers.get(op)!(event); };
   return { queries, publish, reset: () => { identity = [2, 2]; queries.clear(); }, clear: () => { queries.clear(); } };
 }
+test("delayed manifest normalizes declared after before identity, items and history selection", async () => {
+  let known = false, release!: () => void;
+  const metadata = new Promise<void>(resolve => { release = () => { known = true; resolve(); }; });
+  const opened: Array<{ op: string; args: any; publish: (event: any) => void }> = [];
+  const historyArgs: any[] = [];
+  const queries = new ClientQueries({
+    cursor: () => known ? "after" : undefined,
+    prepare: async () => { await metadata; return "after"; },
+    identity: () => [1, 1], active: () => true, connection: () => "offline",
+    open: (ref: any, args: any, publish: (event: any) => void) => {
+      opened.push({ op: ref.op, args, publish });
+      return { close() {}, until: async () => { throw new Error("unused"); } };
+    },
+    query: async () => { throw new Error("unused"); }, local: async () => { throw new Error("unused"); },
+  } as any);
+  const items = defineItems(api.deliveries.inbox as any, { table: "messages", select: (r: any) => r });
+  const declared = withHistory(items, { items: defineItems(api.deliveries.thread as any, { table: "messages", select: (r: any) => r }),
+    args: (args: any) => { historyArgs.push(args); return { c: args.c, after: null, selected: args.after === null ? "right" : "wrong" }; } });
+  const observed = [{ c: null }, { c: null, after: null }].map(args => queries.observe(api.deliveries.inbox, args, { items: declared }));
+  const stops = observed.map(value => value.subscribe(() => {}));
+  try {
+    assert.deepEqual(historyArgs, []); assert.deepEqual(opened, []);
+    release();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(opened.length, 1, "only one primary subscription");
+    assert.deepEqual(opened[0].args, { c: null, after: null });
+    assert.deepEqual(historyArgs, [{ c: null, after: null }, { c: null, after: null }]);
+    opened[0].publish({ state: "partial", seq: 1, reason: "count", live: false });
+    assert.equal(opened.length, 2, "only one selected history subscription");
+    assert.deepEqual(opened[1].args, { c: null, after: null, selected: "right" });
+    opened[1].publish({ state: "complete", seq: 1, data: [row("history")], live: false, next: null });
+    assert.strictEqual(observed[0].getSnapshot(), observed[1].getSnapshot());
+    assert.equal(observed[0].getSnapshot().itemsFrom, "history");
+    assert.deepEqual(observed[0].getSnapshot().items.map((item: any) => item.data.id), ["history"]);
+  } finally { release(); stops.forEach(stop => stop()); queries.clear(); }
+});
+
 const message = { messageId: "m", message: row("m") };
 
 test("retained projections stay partial while their certified page boundary and readable rows survive", async () => {

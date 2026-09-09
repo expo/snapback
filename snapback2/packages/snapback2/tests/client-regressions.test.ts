@@ -37,6 +37,33 @@ test("public read and write failures distinguish abort, closed client, integrity
   }
 });
 
+for (const status of [200, 409]) for (const [kind, code, family, retryable] of [
+  ["abort", "E_ABORTED", "client", false],
+  ["transport", "E_TRANSPORT", "transport", true],
+  ["json", "E_WIRE_SHAPE", "op", false],
+] as const) test(`HTTP ${status} response body ${kind} preserves query and mutation cause without resubmission`, async () => {
+  const requests: string[] = [];
+  const client = createClient({ url: "http://body.test", fetch: async input => {
+    requests.push(new URL(String(input)).pathname);
+    return new Response(kind === "json" ? '{"state":' : new ReadableStream({ start(controller) {
+      controller.enqueue(new TextEncoder().encode('{"state":'));
+      controller.error(kind === "abort" ? new DOMException("body cancelled", "AbortError") : new TypeError("body connection lost"));
+    } }), { status });
+  } });
+  try {
+    for (const [state, run] of [
+      ["refused", () => client.query(api.messages.thread, {})],
+      ["rejected", () => client.mutation(api.messages.send, {})],
+    ] as const) {
+      const result: any = await run();
+      assert.deepEqual([result.state, result.code, result.family, result.retryable], [state, code, family, retryable]);
+      assert.ok(result.site && result.rewrite && result.guide);
+    }
+    await new Promise(resolve => setTimeout(resolve, 300));
+    assert.equal(requests.filter(path => path === "/api/mutation").length, 1, "a response-body failure never resubmits a write");
+  } finally { await client.close(); }
+});
+
 test("rule meaning survives plain messages and application codes colliding with platform codes", async () => {
   for (const code of ["NOT_MEMBER", "E_INPUT"]) {
     const value = createClient({ url: "http://rules.test", fetch: async () => fetchJson({ state: "rejected",

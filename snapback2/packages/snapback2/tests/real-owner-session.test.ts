@@ -265,27 +265,30 @@ test("serve mode refuses a persona-bound real client", async (context) => {
 });
 
 
-test("an application require can use a platform-looking code without losing its rule meaning", async (context) => {
+for (const [op, code, site] of [["integration.requireInput", "E_INPUT", "snapback/integration.q:24:3"],
+  ["integration.requireConflict", "conflict", "snapback/integration.q:29:3"]]) test(`an application require ${code} preserves its authored cause and exact site live and on replay`, async (context) => {
   if (!owner.owned) return context.skip("the require fixture belongs to the self-started harness");
   const guest = await fetch(`${owner.url}/api/auth/guest`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
   assert.equal(guest.status, 200);
   const session = await guest.json();
   const client = createClient({ url: owner.url, token: session.token });
   try {
-    const result: any = await client.mutation(api.integration.requireInput, {});
+    const result: any = await client.mutation(api.integration[op.split(".")[1]!] as any, {});
     assert.equal(result.state, "rejected"); assert.equal(result.family, "rule");
-    assert.equal(result.rule, "E_INPUT"); assert.equal(result.code, "E_INPUT");
+    assert.equal(result.rule, code); assert.equal(result.code, code);
+    assert.equal(result.site, site);
     const replay = { grant: session.grant.id, offset: 0, count: 1, intent: `${session.grant.id}:0`, trace: { points: [], verdicts: [] } };
     const send = async () => {
       const response = await fetch(`${owner.url}/api/mutation`, { method: "POST",
         headers: { "content-type": "application/json", authorization: `Bearer ${session.token}` },
-        body: JSON.stringify({ op: "integration.requireInput", args: {}, replay }) });
+        body: JSON.stringify({ op, args: {}, replay }) });
       assert.equal(response.status, 200);
       return response.json();
     };
     const replayed = await send();
-    assert.equal(replayed.family, "rule"); assert.equal(replayed.code, "E_INPUT");
-    assert.equal(replayed.rule, "E_INPUT"); assert.equal(replayed.state, "rejected");
+    assert.equal(replayed.family, "rule"); assert.equal(replayed.code, code);
+    assert.equal(replayed.rule, code); assert.equal(replayed.state, "rejected");
+    assert.equal(replayed.site, site);
     assert.deepEqual(await send(), replayed, "the durable replay terminal preserves the structured application cause");
   } finally { await client.close(); }
 });

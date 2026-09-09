@@ -69,7 +69,7 @@ function immutablePublication<Value>(value: Value, current?: QueryView<unknown>)
 }
 
 /** Isolate a deferred query from caller mutation after observe/subscribe returns. */
-export function bindQueryRequest<Args, Result>(ref: Op<Args, Result>, args: Args, cursor?: string) {
+export function bindQueryRequest<Args, Result>(ref: Op<Args, Result>, args: Args, cursor?: string | null) {
   const op = referenceName(ref);
   return {
     op,
@@ -78,7 +78,7 @@ export function bindQueryRequest<Args, Result>(ref: Op<Args, Result>, args: Args
   };
 }
 
-export function queryIdentity(authGeneration: number, fence: number, mode: "live" | "drain" | "once", op: string, args: unknown, cursor = "c"): string {
+export function queryIdentity(authGeneration: number, fence: number, mode: "live" | "drain" | "once", op: string, args: unknown, cursor?: string | null): string {
   return `${authGeneration}\u0000${fence}\u0000${mode}\u0000${op}\u0000${stableSerialize(queryArgs(args, cursor))}`;
 }
 
@@ -196,7 +196,7 @@ type QueryMode = "live" | "drain" | "once";
 type QueryFence = readonly [authGeneration: number, operationFence: number];
 
 interface QueryHost {
-  cursor?(op: string): string | undefined;
+  cursor?(op: string): string | null | undefined;
   prepare?(op: string): Promise<string | undefined>;
   identity(): QueryFence;
   active(fence: QueryFence): boolean;
@@ -280,7 +280,7 @@ export class ClientQueries {
   observe<Args, Result, Row extends ItemRow, Draft>(
     ref: Op<Args, Result>, args: Args, options: { live?: false; drain?: boolean; items?: Items<Args, Result, Row, Draft> } = {},
   ): ObservedQuery<Result> {
-    return this.observeReady(ref, args, options);
+    return this.observeReady(ref, args, { ...options });
   }
   private observeReady<Args, Result, Row extends ItemRow, Draft>(
     ref: Op<Args, Result>, args: Args, options: { live?: false; drain?: boolean; items?: Items<Args, Result, Row, Draft> }, prepared = false,
@@ -289,6 +289,15 @@ export class ClientQueries {
     if (once && drain) throw new TypeError("query observation drain requires a live subscription");
     const cursor = this.host.cursor?.(referenceName(ref));
     const request = bindQueryRequest(ref, args, cursor), fence = this.host.identity();
+    if (!prepared && this.host.prepare && cursor === undefined) {
+      const initial = freezeTree({ ...summarize(initialQueryState<Result>(), this.host.connection()),
+        ...(options.items ? { items: [], ...("history" in options.items ? { itemsFrom: "drafts" } : {}) } : {}) });
+      const fallback = { getSnapshot: () => initial, subscribe: () => () => undefined };
+      return preparedObservation(fallback, async () => {
+        await this.host.prepare!(request.op).catch(() => undefined);
+        return this.host.active(fence) ? this.observeReady(request.ref, request.args, options, true) : fallback;
+      });
+    }
     const active = () => this.host.active(fence);
     const mode: QueryMode = once ? "once" : drain ? "drain" : "live";
     const key = queryIdentity(fence[0], fence[1], mode, request.op, request.args, cursor);
@@ -322,13 +331,6 @@ export class ClientQueries {
       (current, authoritative, inputs) => this.local(request, drain, current, fence, authoritative, inputs),
       this.host.connection,
     ), active, projection);
-    if (!prepared && this.host.prepare && cursor === undefined && args && typeof args === "object"
-      && Object.entries(args).some(([name, value]) => name !== "c" && value == null)) {
-      return preparedObservation(observed, async () => {
-        await this.host.prepare!(request.op).catch(() => undefined);
-        return active() ? this.observeReady(request.ref, request.args, options, true) : observed;
-      });
-    }
     if (!items || !("history" in items)) return observed;
     const declared = items as ItemsWithHistory<Args, Result, Row, Draft>;
     const shareKey = `${key}\u0000${declarationId(declared)}`;
@@ -375,7 +377,9 @@ export class ClientQueries {
 
   consumers(ref: Op<any, any>, args: unknown, drain = false): number {
     const [generation, fence] = this.host.identity();
-    return this.shared.consumers(queryIdentity(generation, fence, drain ? "drain" : "live", referenceName(ref), args, this.host.cursor?.(referenceName(ref))));
+    const key = queryIdentity(generation, fence, drain ? "drain" : "live", referenceName(ref), args, this.host.cursor?.(referenceName(ref)));
+    const raw = queryIdentity(generation, fence, drain ? "drain" : "live", referenceName(ref), args);
+    return this.shared.consumers(key) + (raw === key ? 0 : this.shared.consumers(raw));
   }
   refresh(): void { this.shared.refresh(); }
   reproject(): void { this.shared.reproject(); }
@@ -476,7 +480,7 @@ export function oneShotQuery<Result>(
   };
 }
 
-/** Resolve cursor metadata before registering an ambiguous null argument as a second query. */
+/** Resolve cursor metadata before fixing identity or invoking declaration callbacks. */
 function preparedObservation<Result>(fallback: ObservedQuery<Result>, prepare: () => Promise<ObservedQuery<Result>>): ObservedQuery<Result> {
   let observed: ObservedQuery<Result> | undefined;
   let pending: Promise<void> | undefined;

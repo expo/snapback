@@ -170,6 +170,7 @@ fn alternate_missing_program() -> Program {
                 }),
             },
             Stmt::Require {
+                site: None,
                 condition: Expr::Binary {
                     op: BinaryOp::Ne,
                     left: Box::new(var("current")),

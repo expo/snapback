@@ -804,7 +804,7 @@ export class OfflineRuntime {
         }
         deliveries.push({
           ...(prepared ? { [preparedDeliveryRows]: prepared.rows as unknown as StoreDelivery['rows'], [preparedDeliveryRanges]: prepared[preparedDeliveryRanges] } : {}),
-          cursorArg: this.cursorArg(op),
+          cursorArg: this.declaredCursorArg(op),
           op,
           args,
           state: source.state,
@@ -829,7 +829,7 @@ export class OfflineRuntime {
       const settlement = sawSupersession ? undefined : outbox;
       const watermarkRecord = !sawSupersession && watermark ? {
         ...watermark,
-        cursorArg: this.cursorArg(watermark.op),
+        cursorArg: this.declaredCursorArg(watermark.op),
         ...(nextFacts ? { generation: nextFacts.generation, schemaHash: nextFacts.schemaHash, authEpoch: nextFacts.authEpoch } : {}),
         updatedAt: Date.now(),
       } : undefined;
@@ -866,7 +866,7 @@ export class OfflineRuntime {
       if (!(FullRevalidationRequired.is(error))) throw error;
       // No I/O inside a carrier transaction or runtime queue. The same request
       // acquires proofs once per affected answer, including a multi-query resume.
-      const item = items.find(i => canonicalAnswerKey(i.op, i.args, this.cursorArg(i.op)) === canonicalAnswerKey(error.op, error.args, this.cursorArg(error.op)));
+      const item = items.find(i => canonicalAnswerKey(i.op, i.args, this.declaredCursorArg(i.op)) === canonicalAnswerKey(error.op, error.args, this.declaredCursorArg(error.op)));
       if (!item?.accepted.revalidate) throw error;
       const revalidate = item.accepted.revalidate; delete item.accepted.revalidate;
       const full = await revalidate(); delete item.accepted.refresh;
@@ -880,7 +880,7 @@ export class OfflineRuntime {
     // are never sent, so a conditional `unchanged` cannot carry a stale answer forward.
     if (!this.coverageCurrent()) return undefined;
     const revision = this.coverageRevision;
-    const answer = await this.store.answer<Result>(op, queryArgs(args, this.cursorArg(op)));
+    const answer = await this.store.answer<Result>(op, queryArgs(args, this.declaredCursorArg(op)));
     return revision === this.coverageRevision && this.coverageCurrent() ? answer : undefined;
   }
 

@@ -1096,7 +1096,7 @@ fn evaluate_local(
                 next: execution.next.clone(),
             }
         }
-        Err(RuntimeError::Require { code }) => {
+        Err(RuntimeError::Require { code, .. }) => {
             let canonical_result = canonical_json(&Value::Null);
             Expected {
                 error_reason: None,

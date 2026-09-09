@@ -540,6 +540,7 @@ fn reset_seed_clears_native_indexes_atomically_when_row_ids_are_reused() {
                 row: Expr::Literal(message("a", "c1", Some("dog"), None, 2)),
             },
             Stmt::Require {
+                site: None,
                 condition: Expr::Literal(Value::Bool(false)),
                 code: "ROLLBACK".into(),
             },

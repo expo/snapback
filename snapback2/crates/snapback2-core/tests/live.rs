@@ -551,6 +551,7 @@ fn denied_subscription_keeps_rule_trace_and_is_readmitted() {
         read_time_granularity_ms: None,
         body: vec![
             Stmt::Require {
+                site: None,
                 condition: Expr::Exists(Read {
                     site: "groups.requireMembership".to_owned(),
                     table: "memberships".to_owned(),
@@ -633,6 +634,7 @@ fn complete_to_denied_with_the_same_result_is_a_changed_delivery() {
         read_time_granularity_ms: None,
         body: vec![
             Stmt::Require {
+                site: None,
                 condition: Expr::Exists(Read {
                     site: "groups.requireMembership".to_owned(),
                     table: "memberships".to_owned(),

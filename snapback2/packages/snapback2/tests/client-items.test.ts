@@ -4,7 +4,7 @@ import { build } from "esbuild";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createClient, api, defineItems as publicItems, mutationTarget } from "../dist/client.mjs";
+import { createClient, api, defineItems as publicItems, mutationTarget, withHistory } from "../dist/client.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
 import { indexedDbRangeStore } from "../dist/react.mjs";
 import { itemInputs as capturedInputs } from "../dist/image-runtime.mjs";
@@ -296,32 +296,66 @@ async function until(predicate: () => boolean, label: string): Promise<void> {
 for (const cursor of ["c", "after"]) test(`${cursor}: simultaneous missing/null observations share durable delivery and item membership`, async () => {
   const root = await mkdtemp(join(tmpdir(), "s2-cursor-identity-"));
   const factory = fileRangeStore(root), store = factory(), owner = fakeOwner({ seed: true, cursorArg: cursor });
-  const client = createClient({ url: "http://cursor.test", persona: "alice", fetch: owner.fetch, offline: { store: () => store } });
-  await client.ready;
-  const missing = {}, explicit = { ...missing, [cursor]: null };
+  let release!: () => void, reached!: () => void;
+  const delayed = new Promise<void>(resolve => { release = resolve; });
+  const requested = new Promise<void>(resolve => { reached = resolve; });
+  const client = createClient({ url: "http://cursor.test", persona: "alice", fetch: async (input, init) => {
+    if (new URL(String(input)).pathname === "/api/manifest") { reached(); await delayed; }
+    return owner.fetch(input, init);
+  }, offline: { store: () => store } });
+  await requested;
+  const callbackArgs: unknown[] = [], membershipArgs: any[] = [];
+  const missing = cursor === "after" ? { c: null } : {}, explicit = { ...missing, [cursor]: null };
   const spec = publicItems(api.deliveries.inbox, { table: "messages", select: (row: any) => row.message,
     create: { target: mutationTarget(api.deliveries.post, "messages"),
-      belongs: (_write: any, query: any) => query[cursor] === null, draft: (write: any) => write } });
-  const observations = [missing, explicit].map(args => client.observe(api.deliveries.inbox, args, { items: spec }));
+      belongs: (_write: any, query: any) => { membershipArgs.push(query); return query[cursor] === null; }, draft: (write: any) => write } });
+  const declaration = withHistory(spec, { items: publicItems(api.deliveries.thread, { table: "messages", select: (row: any) => row.message }),
+    args: (query: any) => {
+      callbackArgs.push(query);
+      return { conversationId: query[cursor] === null ? "conversation-1" : "wrong", c: null };
+    } });
+  const observations = [missing, explicit].map(args => client.observe(api.deliveries.inbox, args, { items: declaration }));
   const stops = observations.map(observed => observed.subscribe(() => undefined));
   try {
+    assert.deepEqual(callbackArgs, [], "declaration callbacks await delayed cursor metadata");
+    release();
     await client.ready;
     await until(() => observations.every(o => o.getSnapshot().items.length === 2), "both page deliveries");
     assert.strictEqual(observations[0].getSnapshot(), observations[1].getSnapshot(), "one shared observation");
+    assert.deepEqual(callbackArgs, [explicit, explicit], "history selection sees the normalized declared cursor and unrelated null data");
     await Promise.all([client.query(api.deliveries.inbox, missing), client.query(api.deliveries.inbox, explicit)]).then(results => {
       for (const result of results) assert.equal(result.state, "complete");
     });
     const held = await store.answer("deliveries.inbox", missing);
     assert.deepEqual(await store.answer("deliveries.inbox", explicit), held);
+    if (cursor === "after") assert.equal(await store.answer("deliveries.inbox", {}), undefined, "unrelated c: null remains data");
     await client.offline();
     await store.commit({ outbox: { put: [entry({ intent: "cursor-draft", args: { conversationId: "conversation-1", body: "draft" } })] } });
     await until(() => observations.every(o => o.getSnapshot().items.some(item => item.draft)), "canonical membership callbacks");
+    assert.ok(membershipArgs.length > 0);
+    for (const query of membershipArgs) assert.deepEqual(query, explicit);
     assert.strictEqual(observations[0].getSnapshot(), observations[1].getSnapshot());
-  } finally { stops.forEach(stop => stop()); await client.close(); }
+  } finally { release(); stops.forEach(stop => stop()); await client.close(); }
   const reopened = factory();
   try {
     await reopened.open("dev:alice");
     assert.deepEqual(await reopened.answer("deliveries.inbox", missing), await reopened.answer("deliveries.inbox", explicit));
+    await reopened.close();
+    let releaseCold!: () => void;
+    const coldMetadata = new Promise<void>(resolve => { releaseCold = resolve; });
+    let ready = false;
+    const cold = createClient({ url: "http://cursor.test", persona: "alice", offline: { store: factory }, fetch: async (input, init) => {
+      if (new URL(String(input)).pathname === "/api/manifest") await coldMetadata;
+      return owner.fetch(input, init);
+    } });
+    void cold.ready.then(() => { ready = true; }).catch(() => {});
+    const held = [missing, explicit].map(args => cold.observe(api.deliveries.inbox, args, { items: declaration }));
+    const off = held.map(observation => observation.subscribe(() => {}));
+    try {
+      await until(() => held.every(observation => observation.getSnapshot().items.some(item => item.draft)), "held observations before network readiness");
+      assert.equal(ready, false);
+      assert.strictEqual(held[0].getSnapshot(), held[1].getSnapshot());
+    } finally { releaseCold(); off.forEach(stop => stop()); await cold.close(); }
   } finally { await reopened.close(); await rm(root, { recursive: true, force: true }); }
 });
 for (const carrier of ["file", "indexeddb"]) test(`${carrier}: four shared observers resolve a no-ID edit only from the displayed target's new image`, async () => {

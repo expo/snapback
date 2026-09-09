@@ -1144,11 +1144,11 @@ async function seededResumeStore(root: string, exact = false): Promise<void> {
   await store.open("dev:alice");
   await store.commit({
     deliveries: [{
-      op: identity.op, args: { c: null }, state: "complete", data: [], next: null, seq: 3,
+      op: identity.op, args: { c: null }, cursorArg: exact ? "c" : undefined, state: "complete", data: [], next: null, seq: 3,
       validator: "1".repeat(64), receipt: emptyReceipt(),
     }],
     watermark: {
-      op: identity.op, args: { c: null }, watermark: "cursor-9", validator: "1".repeat(64),
+      op: identity.op, args: { c: null }, cursorArg: exact ? "c" : undefined, watermark: "cursor-9", validator: "1".repeat(64),
       generation: identity.generation, schemaHash: identity.schemaHash, authEpoch: 7, updatedAt: 10,
     },
   });

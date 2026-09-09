@@ -383,6 +383,7 @@ fn then_generation_with_cap(
         read_time_granularity_ms: None,
         body: if reject {
             vec![Stmt::Require {
+                site: None,
                 condition: Expr::Literal(Value::Bool(false)),
                 code: "THEN_REFUSED".to_owned(),
             }]

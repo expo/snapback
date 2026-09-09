@@ -665,6 +665,7 @@ fn sparse_aggregate_lifecycle_matches_rebuild_timers_and_rollback() {
         vec![
             update("b", object([("amount", Value::Int(0))])),
             Stmt::Require {
+                site: None,
                 condition: Expr::Literal(Value::Bool(false)),
                 code: "ROLLBACK".into(),
             },

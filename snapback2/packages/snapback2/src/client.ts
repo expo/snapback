@@ -37,7 +37,7 @@ import {
   fallbackRefusal,
   isRefusalError,
   isTerminalSession,
-  responseRefusal, type JsonRequestOptions,
+  responseRefusal, responseJson, type JsonRequestOptions,
   sseObject,
   terminalSessionEnvelope,
   wireAuthMe,
@@ -192,11 +192,13 @@ class Client implements SnapbackClient {
       failed: (error) => { this.patchSnapshot({ lastRefusal: this.offlineRefusal(error, "RangeStore.open").envelope }); },
     });
     this.queries = new ClientQueries({
-      cursor: op => this.offlineRuntime?.declaredCursorArg(op) ?? cursorArgument(this.queryCursors?.[op]),
+      cursor: op => this.offlineRuntime?.declaredCursorArg(op) ?? cursorArgument(this.queryCursors?.[op])
+        ?? (this.offlineRuntime?.programGeneration || this.queryCursors ? null : undefined),
       prepare: async op => {
-        await this.ready;
+        await this.localReady;
         const cursor = this.offlineRuntime?.declaredCursorArg(op);
-        return cursor ?? cursorArgument((await this.manifest()).ops[op]);
+        if (cursor || this.offlineRuntime?.programGeneration || this.queryCursors) return cursor ?? cursorArgument(this.queryCursors?.[op]);
+        return cursorArgument((await this.manifest()).ops[op]);
       },
       identity: () => [this.authGeneration, this.operationFence],
       active: ([generation, fence]) => !this.closed && this.authGeneration === generation && this.operationFence === fence,
@@ -476,11 +478,11 @@ class Client implements SnapbackClient {
     let closed = false;
     void this.localReady.then(async () => {
       const heldAuthority = await this.transitionAuthority();
-      if (!closed && this.offlineRuntime && this.currentToken && this.authState.value.state === "hydrating") {
+      if (!closed && this.offlineRuntime && (!this.startupComplete || (this.currentToken && this.authState.value.state === "hydrating"))) {
         this.ensureAuthority(heldAuthority);
         const held = await answerOffline<Result>(this.offlineRuntime, op, args, error => this.offlineRefusal(error), drain);
         this.ensureAuthority(heldAuthority);
-        if (!closed && this.authState.value.state === "hydrating") callback(held as SubscriptionDelivery<Result>);
+        if (!closed && (!this.startupComplete || this.authState.value.state === "hydrating")) callback(held as SubscriptionDelivery<Result>);
       }
     }).catch(() => undefined);
     const close = tracked.close.bind(tracked);
@@ -718,12 +720,12 @@ class Client implements SnapbackClient {
     });
   }
   private async hydrate(explicitToken: string | undefined): Promise<void> {
+    this.authGeneration += 1;
     const { token, principal } = await restoreAuthToken(explicitToken, this.tokenStore,
       token => saveAuthToken(this.tokenStore, token, (action, error) => storageRefusal(this, action, error)), (action, error) => storageRefusal(this, action, error));
     if (this.closed) return;
     this.currentToken = token;
     if (token !== undefined && principal) this.currentPrincipal = principal as Principal;
-    this.authGeneration += 1;
     this.authState.reset({ state: "hydrating", restoringViewer: this.currentPrincipal });
   }
 
@@ -852,12 +854,12 @@ class Client implements SnapbackClient {
     }
     let value: unknown;
     try {
-      value = await response.json();
-    } catch {
+      value = await responseJson(response, path);
+    } catch (error) {
       throwIfAborted(init.signal);
       if (enforceAuthority) this.ensureAuthority(authority);
       else this.ensureOpen();
-      const refusal = wireShape(`${path} must contain valid JSON`);
+      const refusal = requestRefusal(error);
       this.recordRefusal(refusal.envelope);
       throw refusal;
     }
@@ -880,7 +882,6 @@ class Client implements SnapbackClient {
     this.patchSnapshot({ connection: "connected" });
     return value;
   }
-
   // @ref LLP 1012#7-writes-offline — typed session terminals and HTTP refusals stop before settlement; cancellation preserves the exact queued envelope.
   private async refuseJson(refusal: RefusalError, authority: Authority, signal: AbortSignal | null | undefined, options: JsonRequestOptions): Promise<never> {
     const { enforceAuthority = true, terminalSession = "expire", authRestoration = false } = options;

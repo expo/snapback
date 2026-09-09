@@ -105,10 +105,12 @@ impl Refusal {
     }
 
     pub fn from_runtime(error: &RuntimeError) -> Self {
-        if let RuntimeError::Require { code } = error {
-            return Self::new(code, "rule", error.to_string(),
-                "satisfy the program requirement before retrying", "rule/runtime")
-                .with_detail("rule", json!(code));
+        if let RuntimeError::Require { code, site } = error {
+            let mut refusal = Self::new(code, "rule", error.to_string(),
+                "satisfy the program requirement before retrying", "rule/runtime");
+            refusal.rule = Some(code.clone());
+            refusal.site = site.clone();
+            return refusal;
         }
         if let RuntimeError::Successor(refusal) = error {
             return Self::from_successor(refusal);
@@ -372,6 +374,16 @@ pub fn refusal_json(refusal: &Refusal) -> Json {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn authored_require_uses_the_first_class_rule_field() {
+        let refusal = Refusal::from_runtime(&RuntimeError::Require { code: "conflict".into(), site: Some("snapback/rules.q:8:3".into()) });
+        assert_eq!(refusal.rule.as_deref(), Some("conflict"));
+        assert!(!refusal.detail.contains_key("rule"));
+        let wire = serde_json::to_value(&refusal).unwrap();
+        assert_eq!(wire["rule"], "conflict");
+        assert_eq!(wire["site"], "snapback/rules.q:8:3");
+    }
 
     #[test]
     fn operator_argument_name_has_a_registered_site_rewrite_and_guide_page() {

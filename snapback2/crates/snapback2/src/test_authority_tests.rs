@@ -69,6 +69,7 @@ fn revocation_candidate_prefers_a_membership_guard_dependency() {
     program.body.insert(
         1,
         Stmt::Require {
+            site: None,
             condition: Expr::Variable("expandedHelper".to_owned()),
             code: "MEMBERSHIP_REQUIRED".to_owned(),
         },

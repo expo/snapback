@@ -20,7 +20,7 @@ import {
 } from "./byte-cache.js";
 import { admitOverlayAuthority, markDeliveredArrivals, pagePosition, recordOverlayAuthorityEvidence, retireOverlays,
   type OverlayAuthorityEvidence, type OverlayWatermark } from "./overlay-retirement.js";
-import { canonical, canonicalAnswerKey, jsonState, queryArgs, storedAnswerKey } from "./canonical.js";
+import { canonical, canonicalAnswerKey, jsonState, queryArgs, storedAnswerKey, storedProgram } from "./canonical.js";
 export { canonicalAnswerKey, jsonState } from "./canonical.js";
 import { ItemCapture, freshItemSelection } from "../query-items.js";
 import { withItemInputs } from "../query-frame.js";
@@ -711,7 +711,7 @@ export class PersistentRangeStore implements RangeStore {
   async [preparedChanges](since?: StoreRevision): Promise<StoreChange<PersistedRangeState>> {
     return this.read(() => {
       this.ensureUnsealed();
-      const program = this.state.programs[this.state.facts?.generation ?? ''];
+      const program = storedProgram(this.state);
       const change = this.updates.read(this.state,since);
       // Cold preparation only, or the bounded changed-row set; raw pre-schema custody remains opaque until requested.
       const rows = change.snapshot?.rows ?? change.records?.rows as Record<string, StoredRow> | undefined;
@@ -883,8 +883,8 @@ export class PersistentRangeStore implements RangeStore {
     }
     const generation = swap.facts?.generation ?? state.facts?.generation;
     const custody = swap.programs && (generation ? swap.programs[generation] : Object.values(swap.programs)[0]);
-    const answerKey = (op: string, args: unknown) => canonicalAnswerKey(op, args,
-      cursorArgument((custody ?? state.programs[generation ?? ""])?.programs[op]));
+    const program = storedProgram(state, swap);
+    const answerKey = (op: string, args: unknown, cursor = cursorArgument(program?.programs[op])) => canonicalAnswerKey(op, args, cursor);
     if (custody && !swap.resetCoverage) for (const answer of Object.values(state.answers)) {
       const op = custody.programs[answer.op]; if (!op) continue;
       if (queryClock(op) && answer.readTime === undefined) throw new ClockCoverageReset();
@@ -903,7 +903,7 @@ export class PersistentRangeStore implements RangeStore {
       && (answerKey(d.op, d.args) === answerKey(swap.watermark!.op, swap.watermark!.args)
         || pagePosition(d, { ...swap.watermark!, cursorArg: swap.watermark!.cursorArg ?? 'c' }) !== undefined));
     if (swap.watermark && !clockMark) {
-      const key = answerKey(swap.watermark.op, swap.watermark.args);
+      const key = answerKey(swap.watermark.op, swap.watermark.args, swap.watermark.cursorArg);
       // The order is the store's: first recorded, kept across re-marks (LLP 1012 §7's tail chooser).
       const order = state.watermarks[key]?.order ?? ++state.clock;
       state.watermarks[key] = { ...clone(swap.watermark), order };
@@ -982,9 +982,7 @@ export class PersistentRangeStore implements RangeStore {
     const base = raw(state);
     const index = this.referenceIndex ??= new CarrierIndex({ ...base,
       programs: swap.programs ?? base.programs, facts: swap.facts ?? base.facts }, this.referenceSchema, (key,answer) => { state.answers[key] = answer; });
-    const programGeneration = swap.facts?.generation ?? state.facts?.generation;
-    const program = (programGeneration ? (swap.programs?.[programGeneration] ?? state.programs[programGeneration]) : undefined)
-      ?? Object.values(swap.programs ?? {})[0] ?? Object.values(state.programs)[0];
+    const program = storedProgram(state, swap);
     const answerKey = (op: string, args: unknown, cursor = cursorArgument(program?.programs[op])) => canonicalAnswerKey(op, args, cursor);
     const maintained = new MaintainedTransitions(swap.schema ?? program?.schema ?? this.referenceSchema);
     const authorityEvictions = new Map<string, StoreTombstone>();

@@ -100,13 +100,16 @@ test('plain tier: a wire rejection exposes only the single refusal shape', async
 });
 
 test('plain tier: missing/null cursors share an observation and normalize item membership', async () => {
-  const client = createClient({ url: 'http://127.0.0.1:1' });
-  const a = client.observe(api.messages.inbox, {}), b = client.observe(api.messages.inbox, { c: null });
+  const { fakeOwner } = await import('./fake-owner.ts');
+  const owner = fakeOwner({ cursorArg: 'c' });
+  const client = createClient({ url: 'http://cursor.test', fetch: owner.fetch });
+  await client.manifest();
+  const a = client.observe(api.deliveries.inbox, {}), b = client.observe(api.deliveries.inbox, { c: null });
   const off = [a.subscribe(() => {}), b.subscribe(() => {})];
   try {
-    assert.equal(sharedConsumers(client, api.messages.inbox, {}), 2);
-    assert.equal(sharedConsumers(client, api.messages.inbox, { c: null }), 2);
-    const items = clientEntry.defineItems(api.messages.inbox, { table: 'messages', select: row => row,
+    assert.equal(sharedConsumers(client, api.deliveries.inbox, {}), 2);
+    assert.equal(sharedConsumers(client, api.deliveries.inbox, { c: null }), 2);
+    const items = clientEntry.defineItems(api.deliveries.inbox, { table: 'messages', select: row => row,
       create: { target: clientEntry.mutationTarget(api.messages.send, 'messages'), belongs: (_args, q) => q.c == null,
         draft: args => ({ body: args.body }) } });
     const inputs = { entries: [{ intent: 'i', op: 'messages.send', args: { body: 'draft' }, ids: [], state: 'queued' }], observations: new Map(), predicted: new Map() };

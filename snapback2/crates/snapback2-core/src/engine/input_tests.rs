@@ -205,6 +205,7 @@ fn text_minimum_certification_execution_channel_and_semantic_fence() {
     let mut mutation = p.clone();
     mutation.kind = ProgramKind::Mutation;
     mutation.body = vec![crate::Stmt::Require {
+        site: None,
         condition: crate::Expr::Literal(Value::Bool(false)),
         code: "BODY_EXECUTED".into(),
     }];

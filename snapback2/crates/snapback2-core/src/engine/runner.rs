@@ -331,9 +331,9 @@ impl<'a> Runner<'a> {
                     }
                     result
                 }
-                Stmt::Require { condition, code } => {
+                Stmt::Require { condition, code, site } => {
                     if !self.expr(condition)?.as_bool()? {
-                        return Err(RuntimeError::Require { code: code.clone() });
+                        return Err(RuntimeError::Require { code: code.clone(), site: site.clone() });
                     }
                     Flow::Next
                 }

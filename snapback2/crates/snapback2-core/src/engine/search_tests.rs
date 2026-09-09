@@ -268,6 +268,7 @@ fn max_width_writes_fit_the_unchanged_ledgers_and_rollback_together() {
                     patch: Expr::Literal(object([("body", Value::String("z".repeat(n)))])),
                 },
                 Stmt::Require {
+                    site: None,
                     condition: Expr::Literal(Value::Bool(false)),
                     code: "rollback".into(),
                 },

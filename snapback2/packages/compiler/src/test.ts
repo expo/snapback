@@ -73,6 +73,22 @@ test("TypeScript data declarations refuse while effect-only modules remain on th
   });
 });
 
+test("authored require sites survive lowering without inferring a site from the rejection code", async () => {
+  await withProject({ "snapback/schema.q": "table rows:\n  value: int\n  public\n", "snapback/rules.q": "mutation fail():\n  require true else conflict\n  require false else conflict\n" }, async root => {
+    const result = await lowerProject(root);
+    assert(result.ok, JSON.stringify(result));
+    const requirements = result.project.programs[0]!.body.filter(stmt => typeof stmt === "object" && "Require" in stmt);
+    assert(JSON.stringify(requirements.map(stmt => "Require" in stmt && stmt.Require.site))
+      === JSON.stringify(["snapback/rules.q:2:3", "snapback/rules.q:3:3"]), JSON.stringify(requirements));
+    const { canonicalProgramJson } = await import("../../evaluator/src/certificate-identity");
+    const program = result.project.programs[0]!;
+    assert(canonicalProgramJson(program) === JSON.stringify(program), "require sites follow Rust field order");
+    const without = { ...program, body: [{ Require: { condition: { Literal: { Bool: false } }, code: "conflict" } }] };
+    const nullSite = { ...program, body: [{ Require: { ...without.body[0]!.Require, site: null } }] };
+    assert(canonicalProgramJson(without) === canonicalProgramJson(nullSite), "optional require site follows Rust omission");
+  });
+});
+
 const failures: Array<{ name: string; error: unknown }> = [];
 const passes: string[] = [];
 for (const check of checks) {

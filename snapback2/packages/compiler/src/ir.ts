@@ -100,7 +100,7 @@ export type Stmt =
   | { Push: { target: string; value: Expr } }
   | { If: { condition: Expr; then_body: Stmt[]; else_body: Stmt[] } }
   | { For: { binding: string; domain: LoopDomain; body: Stmt[] } }
-  | { Require: { condition: Expr; code: string } }
+  | { Require: { condition: Expr; code: string; site?: string } }
   | { Insert: { table: string; row: Expr } }
   | { Update: { table: string; key: Expr; patch: Expr } }
   | { Upsert: { table: string; key: Expr; row: Expr } }

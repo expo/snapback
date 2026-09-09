@@ -103,6 +103,7 @@ fn job(take: u32) -> Program {
             }),
             body: vec![
                 Stmt::Require {
+                    site: None,
                     condition: field("ok"),
                     code: "FIX_ROW".into(),
                 },
@@ -428,6 +429,7 @@ fn successor_binds_body_and_index_unchanged_job_continues() {
     let mut changed = job(1);
     if let Stmt::For { body, .. } = &mut changed.body[0] {
         body.push(Stmt::Require {
+            site: None,
             condition: Expr::Literal(Value::Bool(true)),
             code: "NEW".into(),
         });

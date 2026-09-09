@@ -306,17 +306,16 @@ export function wireAssetSession(value: unknown): { token: string; expiresAt: nu
   return { token: stringField(record, "token", surface), expiresAt: numberField(record, "expiresAt", surface) };
 }
 
-export async function responseRefusal(response: Response): Promise<RefusalError> {
-  let value: unknown;
-  try {
-    value = await response.json();
-  } catch {
-    throw new RefusalError(
-      fallbackRefusal("E_TRANSPORT", `HTTP ${response.status} did not contain a refusal envelope`),
-      true,
-      response.status,
-    );
+/** Body acquisition retains cancellation/transport causes; only parsing is wire integrity. */
+export async function responseJson(response: Response, surface: string): Promise<unknown> {
+  try { return await response.json(); } catch (error) {
+    if (error instanceof SyntaxError) throw wireShape(`${surface} must contain valid JSON`);
+    throw requestRefusal(error);
   }
+}
+
+export async function responseRefusal(response: Response): Promise<RefusalError> {
+  const value = await responseJson(response, `HTTP ${response.status} refusal`);
   if (!value || typeof value !== "object" || Array.isArray(value)
     || !["code", "family", "guide"].some((field) => has(value as Record<string, unknown>, field))) {
     throw new RefusalError(

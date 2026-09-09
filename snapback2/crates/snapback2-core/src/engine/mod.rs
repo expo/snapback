@@ -154,7 +154,7 @@ pub enum RuntimeError {
     #[error("E_SERIALIZATION: {0}")]
     Serialization(String),
     #[error("E_REQUIRE:{code}: program requirement failed")]
-    Require { code: String },
+    Require { code: String, site: Option<String> },
     #[error("E_RULE: {effect:?} denied on {table}")]
     Rule { table: String, effect: Effect },
     #[error("E_CONSTRAINT: {0}")]
@@ -194,7 +194,14 @@ pub enum RuntimeError {
 impl RuntimeError {
     pub fn require_code(&self) -> Option<String> {
         match self {
-            Self::Require { code } => Some(code.clone()),
+            Self::Require { code, .. } => Some(code.clone()),
+            _ => None,
+        }
+    }
+
+    pub fn require_site(&self) -> Option<String> {
+        match self {
+            Self::Require { site, .. } => site.clone(),
             _ => None,
         }
     }
@@ -216,7 +223,7 @@ impl RuntimeError {
             Self::SchemaMaintain(_) => "E_SCHEMA_MAINTAIN",
             Self::SchemaConstraint { .. } => "E_SCHEMA_CONSTRAINT",
             Self::Serialization(_) => "E_SERIALIZATION",
-            Self::Require { code } => code,
+            Self::Require { code, .. } => code,
             Self::Rule { .. } => "E_RULE",
             Self::Constraint(_) => "E_CONSTRAINT",
             Self::Fanout => "E_FANOUT",
@@ -478,6 +485,7 @@ impl Engine {
             Ok(execution) => Ok(execution),
             Err(error) if program.kind == ProgramKind::Mutation && is_sqlite_constraint(&error) => {
                 Ok(self.empty_execution(ExecutionState::Rejected {
+                    site: error.require_site(),
                     rule: error.require_code(),
                     code: "E_CONSTRAINT".to_owned(),
                     message: error.to_string(),
@@ -567,6 +575,7 @@ impl Engine {
             trace: AuthoritativeTrace::default(),
             receipt: ClosureReceipt::default(),
             state: ExecutionState::Rejected {
+                site: None,
                 rule: None,
                 code: code.to_owned(),
                 message: message.to_owned(),
@@ -726,7 +735,7 @@ impl Engine {
             Err(error) if program.kind == ProgramKind::Query => {
                 let rule = match error {
                     RuntimeError::Rule { table, effect } => format!("{table}.{effect:?}"),
-                    RuntimeError::Require { code } => code,
+                    RuntimeError::Require { code, .. } => code,
                     error => return Err(error),
                 };
                 runner.assert_bounds()?;
@@ -774,6 +783,7 @@ impl Engine {
                     trace: AuthoritativeTrace::default(),
                     receipt: ClosureReceipt::default(),
                     state: ExecutionState::Rejected {
+                        site: error.require_site(),
                         rule: error.require_code(),
                         code: code.to_owned(),
                         message: error.to_string(),
@@ -796,6 +806,7 @@ impl Engine {
                     trace,
                     receipt: ClosureReceipt::default(),
                     state: ExecutionState::Rejected {
+                        site: error.require_site(),
                         rule: error.require_code(),
                         code: code.to_owned(),
                         message: error.to_string(),
@@ -1269,7 +1280,7 @@ pub(crate) fn is_sqlite_constraint(error: &RuntimeError) -> bool {
 
 pub(crate) fn mutation_rejection_code(error: &RuntimeError) -> Option<&str> {
     match error {
-        RuntimeError::Require { code } => Some(code),
+        RuntimeError::Require { code, .. } => Some(code),
         // @ref LLP 1001#3-read-and-write-states-no-silent-states — a table-rule
         // rejection keeps the same stable code in engine state and on the wire.
         RuntimeError::Rule { .. } => Some("E_RULE"),

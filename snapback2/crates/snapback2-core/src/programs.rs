@@ -335,6 +335,7 @@ pub fn send_program(with_unread: bool) -> Program {
     };
     let mut body = vec![
         Stmt::Require {
+            site: None,
             condition: Expr::Exists(Read {
                 site: format!("programs.{name}.0"),
                 table: "memberships".to_owned(),
