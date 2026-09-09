@@ -383,20 +383,15 @@ journey("digest revalidates follow membership read and expiry before emission", 
     });
     if (profile.state !== "committed") throw new Error(`barrier profile was ${profile.state}`);
 
-    const unfollowedPeriod = period();
+    const beforePeriod = Date.now() + offset;
+    const remainder = ((beforePeriod % 120_000) + 120_000) % 120_000;
+    offset = Number((await tick(120_000 - remainder + 1_000)).offsetMs ?? offset);
+    const excludedPeriod = period();
     const dropped = await alice.mutation(api.posts.createPost, { body: "unfollowed before emission" });
     if (dropped.state !== "committed") throw new Error(`unfollowed post was ${dropped.state}`);
     const unfollow = await bob.mutation(api.follows.setFollow, { target: "dev:alice", following: false });
     if (unfollow.state !== "committed") throw new Error(`unfollow was ${unfollow.state}`);
-    await finishPeriod(unfollowedPeriod);
 
-    const readPeriod = period();
-    const refollow = await bob.mutation(api.follows.setFollow, {
-      target: "dev:alice",
-      following: true,
-      mutationId: "digest-revalidate-refollow",
-    });
-    if (refollow.state !== "committed") throw new Error(`refollow was ${refollow.state}`);
     const readMessage = await alice.mutation(api.messages.send, {
       conversationId: "conversation-1",
       body: "read before digest",
@@ -404,9 +399,7 @@ journey("digest revalidates follow membership read and expiry before emission", 
     if (readMessage.state !== "committed") throw new Error(`read message was ${readMessage.state}`);
     const read = await bob.mutation(api.messages.markRead, { conversationId: "conversation-1" });
     if (read.state !== "committed") throw new Error(`mark read was ${read.state}`);
-    await finishPeriod(readPeriod);
 
-    const unsentPeriod = period();
     const unsentMessage = await alice.mutation(api.messages.send, {
       conversationId: "conversation-1",
       body: "unsent before digest",
@@ -414,9 +407,12 @@ journey("digest revalidates follow membership read and expiry before emission", 
     if (unsentMessage.state !== "committed") throw new Error(`unsent message was ${unsentMessage.state}`);
     const unsent = await alice.mutation(api.messages.unsend, { messageId: unsentMessage.data.id });
     if (unsent.state !== "committed") throw new Error(`unsend was ${unsent.state}`);
-    await finishPeriod(unsentPeriod);
-
-    const leavePeriod = period();
+    const currentFollow = await bob.mutation(api.follows.setFollow, {
+      target: "dev:charlie",
+      following: true,
+      mutationId: "digest-revalidate-current-follow",
+    });
+    if (currentFollow.state !== "committed") throw new Error(`current follow was ${currentFollow.state}`);
     const expiresAway = await alice.mutation(api.messages.send, {
       conversationId: "conversation-1",
       body: "expires while member is away",
@@ -434,9 +430,7 @@ journey("digest revalidates follow membership read and expiry before emission", 
       principal: "dev:bob",
     });
     if (afterLeave.state !== "committed") throw new Error(`member restore after leave was ${afterLeave.state}`);
-    await finishPeriod(leavePeriod);
 
-    const removedPeriod = period();
     const removedMessage = await alice.mutation(api.messages.send, {
       conversationId: "conversation-1",
       body: "member removed before digest",
@@ -452,9 +446,7 @@ journey("digest revalidates follow membership read and expiry before emission", 
       principal: "dev:bob",
     });
     if (restored.state !== "committed") throw new Error(`member restore was ${restored.state}`);
-    await finishPeriod(removedPeriod);
 
-    const expiryPeriod = period();
     const expires = await alice.mutation(api.messages.send, {
       conversationId: "conversation-1",
       body: "expires before digest",
@@ -462,12 +454,10 @@ journey("digest revalidates follow membership read and expiry before emission", 
     });
     if (expires.state !== "committed") throw new Error(`expiring message was ${expires.state}`);
     offset = Number((await tick(1_001)).offsetMs ?? offset);
-    await finishPeriod(expiryPeriod);
 
-    const admittedPeriod = period();
-    const admitted = await alice.mutation(api.posts.createPost, { body: "admitted after exclusions" });
+    const admitted = await charlie.mutation(api.posts.createPost, { body: "admitted after exclusions" });
     if (admitted.state !== "committed") throw new Error(`admitted post was ${admitted.state}`);
-    await finishPeriod(admittedPeriod, 1);
+    await finishPeriod(excludedPeriod, 1);
   } finally {
     alice.close();
     bob.close();

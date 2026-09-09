@@ -37,7 +37,7 @@ one of them requires. Its SHA-256 is
 The owner cases use it to exercise the private row rule directly; do not ship
 it as part of the application correction. The retained `owner-cases.test.ts`
 has SHA-256
-`ac0014b5c7cdb1cd26bb1d2570d451c840a6518273dc5a9ce9e4b930e7a89663`.
+`61909786b276675d0eb9b1f03f6d494a28dc878eddd3b76e1d19791bcfabffbc`.
 
 The first faithful atomic digest at 500 follows and 100 current memberships
 needed 4,516,191 closure bytes, 321,887 above the 4 MiB ceiling. Persisting
@@ -104,8 +104,11 @@ active/quiet/active suppression (654 ms, three firings). The compiled fixture se
 through storage and emit; the focused owner preview case does not inspect the
 effect payload yet. A separate journey committed 99 groups on top of Bob's
 seeded membership and passed the real 100-membership digest path in 969 ms. On
-the final owner-only count rule, the emission-time exclusion matrix passed in
-1,022 ms with 16 schedule firings. The test-only direct privacy/prune journey
+the final logical-cutoff build, one completed period simultaneously excluded
+an unfollowed post and read, unsent, expired, removed/rejoined, and
+leave/expire/rejoined message custody while admitting one current followed
+post; the emission-time matrix passed in 2,784 ms with four schedule firings.
+The test-only direct privacy/prune journey
 passed in 337 ms with four firings: recipient and current author saw the same
 custody row, an ordinary peer and the author after leaving saw null, a
 removed/rejoined membership contributed zero, the last completed bucket was
