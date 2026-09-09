@@ -179,6 +179,14 @@ export class Runner {
           if (!asBool(this.expr(data.condition)))
             throw new EvalError("E_REQUIRE", "program requirement failed", data.code);
           break;
+        case "Check":
+          if (!asBool(this.expr(data.condition))) throw new EvalError("E_REQUIRE", "the row no longer matches the update condition", "E_CONFLICT");
+          break;
+        case "InsertIfAbsent": {
+          const row = this.expr(data.row);
+          this.env.set(data.result, this.insert(data.table, row, true) ? row : "Null");
+          break;
+        }
         case "Insert":
           this.insert(data.table, this.expr(data.row));
           break;
@@ -720,11 +728,23 @@ export class Runner {
     };
   }
 
-  private insert(table: string, row: Value): void {
+  private insert(table: string, row: Value, ifAbsent = false): boolean {
     row = materializeOptionalFields(this.schema, table, row);
     validateWriteRow(this.schema, table, row);
     if (!this.checkRule(table, "insert", null, row))
       throw new EvalError("E_RULE", `${table} insert`);
+    if (ifAbsent) {
+      const definition = this.schema.tables[table];
+      const indexes = new Set<string>(Object.entries(definition.indexes).filter(([, value]: any) => value.unique).map(([name]) => name));
+      for (const constraint of definition.constraints ?? []) if (constraint.Unique) indexes.add(constraint.Unique.index);
+      let missing = false;
+      for (const index of indexes) {
+        const key = ordinaryColumns(definition.indexes[index]).map((name: string) => fieldOrNull(row, name));
+        if (this.store.lookup(table, index, key) !== null) return false;
+        if (!this.store.hasAbsence(table, index, key)) missing = true;
+      }
+      if (missing) { this.partial.add("missing-authority"); return false; }
+    }
     this.checkConstraints(table, null, row, "insert");
     if (this.store.byId(table, asString(field(row, "id"))) !== null)
       throw new EvalError("E_CONSTRAINT", `duplicate id on ${table}`);
@@ -734,6 +754,7 @@ export class Runner {
     this.insertedRows.push({ table, row: clone(row) });
     this.ruleMemo.clear();
     this.maintain(table, null, row);
+    return true;
   }
 
   private update(table: string, key: Value, patch: Value): void {

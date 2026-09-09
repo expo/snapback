@@ -101,6 +101,8 @@ export type Stmt =
   | { If: { condition: Expr; then_body: Stmt[]; else_body: Stmt[] } }
   | { For: { binding: string; domain: LoopDomain; body: Stmt[] } }
   | { Require: { condition: Expr; code: string; site?: string } }
+  | { Check: { condition: Expr; current: Read } }
+  | { InsertIfAbsent: { table: string; row: Expr; result: string } }
   | { Insert: { table: string; row: Expr } }
   | { Update: { table: string; key: Expr; patch: Expr } }
   | { Upsert: { table: string; key: Expr; row: Expr } }

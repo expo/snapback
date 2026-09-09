@@ -56,6 +56,7 @@ pub(super) struct ReplayRun {
     /// derived on a row this run disclosed (read, probed, or written), with
     /// those minted while a candidate turned out hidden left out.
     rule_inputs: Vec<RuleInputTrace>,
+    conflict_current: Value,
 }
 
 /// Take the run out of its runner. A program that stopped early — a rejection,
@@ -82,10 +83,17 @@ pub(super) fn finish_run(
     if !missing_authority && attempted.is_ok() {
         runner.trace.observable_effects = observable_effects(&runner)?;
     }
+    // Re-authorize after rollback: tentative grants or self-revocation cannot
+    // disclose a row through a rejected mutation's conflict payload.
+    let conflict_current = if let Err(RuntimeError::Conflict { current }) = &attempted {
+        Runner::probe(runner.tx, runner.schema, runner.hashes, runner.context.clone(), runner.verdicts,
+            runner.authority_absences, runner.rule_authority, runner.seq, None).expr(&Expr::Get(current.clone()))?
+    } else { Value::Null };
     let rule_inputs = disclosed_rule_inputs(&runner);
     Ok(ReplayRun {
         attempted,
         missing_authority,
+        conflict_current,
         trace: std::mem::take(&mut runner.trace),
         receipt: std::mem::take(&mut runner.receipt),
         rule_inputs,
@@ -225,6 +233,7 @@ pub(super) fn settle(
         trace,
         receipt,
         rule_inputs,
+        conflict_current,
     } = run;
     if missing_authority {
         // @ref LLP 1012#7-writes-offline — a rollback for missing authority
@@ -240,6 +249,7 @@ pub(super) fn settle(
             receipt,
             state,
             current_seq,
+            Value::Null,
         );
     }
     let flow = match attempted {
@@ -254,13 +264,13 @@ pub(super) fn settle(
             // probed the ones the run did not reach, and every verdict those
             // reads and probes derived through a rule.
             let state = match conflict_site(&replay.trace, &trace.points, &rule_inputs, false) {
-                Some(site) => ExecutionState::Rejected {
+                Some(site) if code != "E_CONFLICT" => ExecutionState::Rejected {
                     site: None,
                     rule: None,
                     code: CONFLICT_CODE.to_owned(),
                     message: site,
                 },
-                None => ExecutionState::Rejected {
+                _ => ExecutionState::Rejected {
                     site: error.require_site(),
                     rule: error.require_code(),
                     code,
@@ -275,6 +285,7 @@ pub(super) fn settle(
                 receipt,
                 state,
                 current_seq,
+                conflict_current,
             );
         }
     };
@@ -425,9 +436,10 @@ fn settle_early(
     receipt: ClosureReceipt,
     state: ExecutionState,
     current_seq: u64,
+    result: Value,
 ) -> Result<Execution, RuntimeError> {
     let execution = Execution {
-        result: Value::Null,
+        result,
         result_provenance: ResultProvenance::None,
         trace,
         receipt,

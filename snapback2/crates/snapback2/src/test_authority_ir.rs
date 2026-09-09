@@ -510,9 +510,14 @@ fn visit_statements(statements: &mut [Stmt], table: &str, retired: &mut usize) {
             | Stmt::Require {
                 condition: value, ..
             }
+            | Stmt::InsertIfAbsent { row: value, .. }
             | Stmt::Insert { row: value, .. }
             | Stmt::Delete { key: value, .. }
             | Stmt::Emit { payload: value, .. } => visit_expr(value, table, retired),
+            Stmt::Check { condition, current } => {
+                visit_expr(condition, table, retired);
+                for key in &mut current.key { visit_expr(key, table, retired); }
+            }
             Stmt::Update { key, patch, .. } => {
                 visit_expr(key, table, retired);
                 visit_expr(patch, table, retired);

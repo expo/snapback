@@ -2,7 +2,7 @@ import { deepStrictEqual, throws } from "node:assert";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import ts from "typescript";
-import { canonicalValue, ClientStore, type Context, type Value } from "../../evaluator/src/evaluator";
+import { canonicalValue, ClientStore, sha256, type Context, type Value } from "../../evaluator/src/evaluator";
 import { canonicalSchemaJson } from "../../evaluator/src/certificate-identity";
 import { lowerProject } from "./project";
 import { parseDocument } from "./quarry/parser";
@@ -116,7 +116,7 @@ query fallback(values: [decimal 3] <=4 ?):
   test("one spelling: significant Quarry words are frozen", () => {
     // One pin, derived on the other side from the actual lexer/parser/binder decisions.
     const expected = `
-after allow and at before bool by byId byPrincipal bytes cap channel channels chunk commit connected
+absent after allow and at before bool by byId byPrincipal bytes cap channel channels chunk commit connected
 count created cursor d decimal delete delivered-history deny depth device divmod duration effect
 else emit enum every exists false first fn for format from guests h handle height id identity if
 image immutable in index insert int job json last length m maintain max merge min money mutation new
@@ -127,6 +127,48 @@ value video viewer walk where while width wordPrefixes words
 `.split(/\s+/).filter(Boolean);
     deepStrictEqual(recognizedQuarryWords(frontend), expected);
   });
+  test("guarded writes bind optional inserts and conditional updates to native certificates and the twin", async () => {
+    const declarations = `use identity
+
+table items:
+  label: text <=40
+  body: text <=40
+  unique byLabel: label
+  public
+  insert <- allow
+  update <- allow
+`;
+    await project(`mutation ensure():
+  return insert items { label: 'one', body: 'initial' } if absent
+
+mutation change(message: items, body: text <=40, expected: text <=40):
+  return update items[message] { body } if .body = expected
+`, (lowered, checked) => {
+      const ensure = lowered.project.programs.find(p => p.name === "probe.ensure")!;
+      const change = lowered.project.programs.find(p => p.name === "probe.change")!;
+      assert(JSON.stringify(ensure).includes("InsertIfAbsent"), "absence insert was lowered through a disclosing read");
+      assert(JSON.stringify(change).includes('"Check"'), "conditional update lost first-class conflict");
+      const certificate = (name: string) => checked.find(c => c.program === name)!.certificate;
+      const store = new ClientStore(lowered.project.schema, { ...empty, schema_hash: sha256(canonicalSchemaJson(lowered.project.schema)), absences: [
+        ["items", "byId", [id("new")]], ["items", "byLabel", [{ String: "one" }]],
+      ] }, { program: ensure });
+      const created = store.applyMutation(ensure, { ...context, new_ids: ["new"] }, false, certificate(ensure.name));
+      assert(created.state === "predicted", `insert absence prediction failed: ${JSON.stringify(created)}`);
+      equal(created.execution.result, row({ id: id("new"), label: { String: "one" }, body: { String: "initial" } }));
+      const duplicate = store.applyMutation(ensure, { ...context, new_ids: ["unused"] }, false, certificate(ensure.name));
+      equal(duplicate.execution.result, "Null");
+      const args = { message: id("new"), body: { String: "edited" } as Value, expected: { String: "initial" } as Value };
+      const changed = store.applyMutation(change, { ...context, args }, false, certificate(change.name));
+      equal((changed.execution.result as any).Row.body, { String: "edited" });
+      throws(() => store.applyMutation(change, { ...context, args }, false, certificate(change.name)),
+        (error: any) => error.authoredCode === "E_CONFLICT");
+      equal((store.byId("items", "new") as any).Row.body, { String: "edited" });
+      const cold = new ClientStore(lowered.project.schema, empty, { program: ensure });
+      assert(cold.applyMutation(ensure, { ...context, new_ids: ["new"] }, false, certificate(ensure.name)).state === "partial",
+        "unheld unique-key existence became a local absence result");
+    }, declarations);
+  });
+
   test("one spelling: word freeze detects ordinary dispatch forms and aliases", async () => {
     for (const decision of [
       'switch (token.value) { case "unfrozenword": break; }',

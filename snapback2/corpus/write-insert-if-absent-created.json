@@ -1,0 +1,207 @@
+{
+  "corpusVersion": 1,
+  "name": "write-insert-if-absent-created",
+  "category": "write",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "items": {
+        "columns": {
+          "id": "Id",
+          "label": {
+            "Text": {
+              "max": 40
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          },
+          "byLabel": {
+            "components": [
+              {
+                "Column": "label"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "write corpus fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "write corpus fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "write corpus fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "write corpus fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "guarded.insert",
+    "kind": "Mutation",
+    "args": {},
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "InsertIfAbsent": {
+          "table": "items",
+          "row": {
+            "Object": {
+              "id": {
+                "Literal": {
+                  "Id": "new"
+                }
+              },
+              "label": {
+                "Literal": {
+                  "String": "same"
+                }
+              }
+            }
+          },
+          "result": "created"
+        }
+      },
+      {
+        "Return": {
+          "Variable": "created"
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "guarded.insert",
+    "plan_hash": "e808da7f54683e6d9f1779af72f1eb933829d93323281e7070c369e7a6686d5a",
+    "schema_hash": "3c599a9d6ec003263bd8a97d398f7056c38d71a6b49025cd0743d17555aecd96",
+    "tables": {
+      "items": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "items.insert": "e1f80eea22131af041ac1d4aabac4278bb0c1708f36abdc6966a212d14269614"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [],
+    "write_sites": [
+      {
+        "table": "items",
+        "kind": "Insert",
+        "max_rows": 1
+      }
+    ],
+    "mutation_targets": {
+      "targets": [
+        {
+          "table": "items",
+          "kind": "create",
+          "unresolved": "conditional"
+        }
+      ],
+      "complete": false
+    },
+    "maintained_amplification": 0,
+    "constraint_checks": [
+      "items:Unique(byId)",
+      "items:Unique(byLabel)"
+    ],
+    "max_examined": 0,
+    "max_index_entries": 0,
+    "max_rule_probes": 0,
+    "max_steps": 11,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
+    "max_heap_bytes": 352,
+    "max_output_bytes": 54,
+    "max_closure_bytes": 0,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [],
+    "disclosures": [],
+    "bound_product": null
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": 0,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "3c599a9d6ec003263bd8a97d398f7056c38d71a6b49025cd0743d17555aecd96",
+    "rows": [],
+    "ranges": [],
+    "absences": [
+      [
+        "items",
+        "byId",
+        [
+          {
+            "Id": "new"
+          }
+        ]
+      ],
+      [
+        "items",
+        "byLabel",
+        [
+          {
+            "String": "same"
+          }
+        ]
+      ]
+    ],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": {
+      "Row": {
+        "id": {
+          "Id": "new"
+        },
+        "label": {
+          "String": "same"
+        }
+      }
+    },
+    "errorCode": null,
+    "localState": "predicted",
+    "partialSites": [],
+    "canonicalResult": "{\"Row\":{\"id\":{\"Id\":\"new\"},\"label\":{\"String\":\"same\"}}}",
+    "digest": "189e1324361586e1ef068f92d08bbf179889d58817038c3ca2c4e4e65f370f5e",
+    "rangeStops": {},
+    "evictedRows": null,
+    "next": null
+  }
+}

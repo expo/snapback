@@ -459,3 +459,33 @@ fn mutation_generation_fence_is_atomic_and_replay_terminals_survive_successors()
     assert_eq!(state.handle(fresh).unwrap_err().code, "E_OPERATOR_REQUIRED");
     std::fs::remove_dir_all(&state.root).unwrap();
 }
+
+#[test]
+fn guarded_mutation_conflicts_keep_the_current_row_on_plain_and_replay_wire() {
+    let mut state = state("guarded-wire");
+    let mut project = state.compiled.project.clone();
+    project.programs.push(Program { name: "items.guarded".into(), kind: ProgramKind::Mutation,
+        args: BTreeMap::new(), read_time_granularity_ms: None, body: vec![Stmt::Check {
+            condition: Expr::Literal(Value::Bool(false)), current: snapback2_core::Read {
+                site: "items.current".into(), table: "items".into(), index: "byId".into(),
+                key: vec![Expr::Literal(Value::Id("target".into()))], provenance: KeyProvenance::Const,
+            } }] });
+    let generation = Generation::certify(&project, Ceilings::default()).unwrap();
+    state.apply(compiled(&project, generation), None, None, None).unwrap();
+    let actor = state.resolve_authority(Identity::Persona("alice".into())).unwrap();
+    let grant = state.mint_replay_grant(actor.principal.id.as_str()).unwrap();
+    let replay = json!({"grant":grant.id,"offset":0,"count":1,"intent":format!("{}:0",grant.id),
+        "trace":{"points":[],"verdicts":[]}});
+    let request = |replay| Action::Execute { op:"items.guarded".into(), args:json!({}),
+        identity:Identity::Persona("alice".into()), expected:Some(ProgramKind::Mutation),
+        expected_generation:None, offline:OfflineOptions::default(), replay };
+    let seq = state.runtime().store().commit_seq().unwrap();
+    for result in [state.handle(request(None)).unwrap(), state.handle(request(Some(replay.clone()))).unwrap()] {
+        assert_eq!(result["state"], "rejected"); assert_eq!(result["reason"], "conflict");
+        assert_eq!(result["code"], "E_CONFLICT"); assert_eq!(result["current"], json!({"id":"target","value":0}));
+    }
+    assert_eq!(state.runtime().store().commit_seq().unwrap(), seq);
+    let result = state.handle(request(Some(replay))).unwrap();
+    assert_eq!(result["current"]["value"], 0);
+    std::fs::remove_dir_all(&state.root).unwrap();
+}

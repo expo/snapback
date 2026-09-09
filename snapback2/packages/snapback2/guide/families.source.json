@@ -615,5 +615,12 @@
     "wrong": "A mutation sends expectedGeneration from an older manifest.",
     "right": "Read /api/manifest again, inspect the operation and arguments, then submit a new write using programGeneration as expectedGeneration. The refused request made no application writes; do not blindly retry with a replacement expectation.",
     "guide": "operator"
+  },
+  {
+    "family": "input",
+    "code": "E_CONFLICT",
+    "wrong": "An update uses a value read before another writer changed the row.",
+    "right": "Inspect rejected.current, which is the readable committed row or null, then submit a new update with an explicit condition on that current value. The refused mutation made no writes.",
+    "guide": "quarry"
   }
 ]

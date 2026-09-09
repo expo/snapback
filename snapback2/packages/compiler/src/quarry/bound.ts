@@ -385,8 +385,14 @@ class ExpressionBinder {
     } : undefined;
     const prior = this.focal;
     if (focal) this.focal = focal;
+    let condition: BoundExpression | undefined;
     let fields: Extract<BoundExpression, { kind: "write" }>["fields"];
     try {
+      if (expression.condition) {
+        condition = this.expression(expression.condition);
+        if (condition.facts.type.kind !== "bool") typeError(expression.condition.site,
+          "update if expects a boolean condition", "compare a current row field with an argument");
+      }
       const seen = new Set<string>();
       fields = expression.fields.map((field) => {
         if (seen.has(field.name)) typeError(this.diagnosticSite(field.site), `duplicate write field ${field.name}`, `remove the repeated ${field.name} field`);
@@ -415,7 +421,7 @@ class ExpressionBinder {
     } finally {
       this.focal = prior;
     }
-    const usesFocal = !!focal && fields.some((field) => boundMentionsFocal(field.value, focal.id));
+    const usesFocal = !!condition || (!!focal && fields.some((field) => boundMentionsFocal(field.value, focal.id)));
     if (expression.op === "insert" || expression.op === "upsert") {
       const names = new Set(fields.map((field) => field.name));
       for (const [name, column] of info.columns) if (!column.optional && !names.has(name) && !addressedColumns.includes(name)) {
@@ -424,10 +430,10 @@ class ExpressionBinder {
       }
     }
     const resultType: BoundType = expression.op === "insert"
-      ? { kind: "row", table, nullable: false }
+      ? { kind: "row", table, nullable: !!expression.ifAbsent }
       : expression.op === "delete" ? { kind: "null" }
         : { kind: "row", table, nullable: true };
-    return { kind: "write", op: expression.op, table, ...(index ? { index } : {}), key, fields,
+    return { kind: "write", op: expression.op, ifAbsent: expression.ifAbsent, condition, table, ...(index ? { index } : {}), key, fields,
       ...(focal ? { focal } : {}), usesFocal, addressedColumns, provenance: combineOrigins(key),
       facts: facts(resultType, "Computed", { tableOrigin: table }), source: this.source(expression.site) };
   }

@@ -59,12 +59,13 @@ pub(super) fn collect(body: &[Stmt], top: bool, out: &mut BTreeMap<String, Bindi
 pub(super) fn capped_writes(schema: &Schema, body: &[Stmt], out: &mut BTreeSet<String>) {
     for stmt in body {
         match stmt {
-            Stmt::Insert { table, .. }
+            Stmt::InsertIfAbsent { table, .. }
+            | Stmt::Insert { table, .. }
             | Stmt::Upsert { table, .. }
             | Stmt::Update { table, .. } => {
                 use crate::certificate::WriteKind;
                 let (kind, patch) = match stmt {
-                    Stmt::Insert { .. } => (WriteKind::Insert, None),
+                    Stmt::Insert { .. } | Stmt::InsertIfAbsent { .. } => (WriteKind::Insert, None),
                     Stmt::Upsert { .. } => (WriteKind::Upsert, None),
                     Stmt::Update { patch, .. } => (WriteKind::Update, Some(patch)),
                     _ => unreachable!(),

@@ -17,7 +17,7 @@ grok-4.6 at xhigh), `llp/reviews/1010-quarry-language-amendments.*`
 **Implementer:** codex gpt-5.6-sol (xhigh), lane `s2/quarry-amend`
 (`~/projects/snapback-s2`), orchestrated and landed by Claude Fable 5.1
 **Date:** 2026-09-03
-**Revised:** 2026-09-08 (one spelling, LLP 1011: explicit presence codes, full commissioned narrowing, maintain value reads); 2026-09-07 (`sorted` canonical pair order and once-only operand evaluation); 2026-09-07 (typed direct compiler supersedes the two-hop non-proposal); 2026-09-06 (pooled logical merge streams and bounded shared seek template); 2026-09-05 (Clique L10 — lazy merge implemented by GPT-6 Astra); 2026-09-05 (time arithmetic and divmod tuple rules implemented by GPT-6 Astra, Clique L2); 2026-09-03 (d — A6's optional cursor group was replaced by LLP
+**Revised:** 2026-09-09 (if-absent and conditional update implementation amendment); 2026-09-08 (one spelling, LLP 1011: explicit presence codes, full commissioned narrowing, maintain value reads); 2026-09-07 (`sorted` canonical pair order and once-only operand evaluation); 2026-09-07 (typed direct compiler supersedes the two-hop non-proposal); 2026-09-06 (pooled logical merge streams and bounded shared seek template); 2026-09-05 (Clique L10 — lazy merge implemented by GPT-6 Astra); 2026-09-05 (time arithmetic and divmod tuple rules implemented by GPT-6 Astra, Clique L2); 2026-09-03 (d — A6's optional cursor group was replaced by LLP
 1011 B1's opaque, forward-only cursor); 2026-09-03 (c — implemented: §8 records the two landing commits
 and the one departure from the brief, the guide budget); 2026-09-03 (b — after the panel: bounds-first withdrawn; A2
 restated as program-only because rules and the IR already compare totally;
@@ -63,10 +63,10 @@ the viewer-syntax starvation heuristic (aliases evade it); a seventh
 `E_QUARRY_*` code; "`where` erases the `capped` state" (the inner scan's
 `Limit` already sets it); a persisted self-follow (the brief forbids it); a
 new IR primitive for merge (the initial A5 used existing collection ops;
-Clique L10 later replaces that lowering). Deferred:
-`insertIfAbsent` (a platform write; ticket
-`issues/20260903-snapback2-insert-if-absent.md`) and flow-sensitive narrowing
-(revisit on authored evidence).
+Clique L10 later replaces that lowering). The later 2026-09-09 platform
+amendment implements `insert ... if absent` and `update ... if predicate`;
+LLP 1001 §3 Guarded writes governs their engine, twin, and disclosure semantics.
+The deferral recorded below is historical.
 
 ## 0. Not proposed
 
@@ -127,6 +127,15 @@ the reference and the grammar page.
 
 **Cost.** One mechanical pass over 80 sites, the printer, and every
 `E_QUARRY_*` rewrite that spells a write.
+
+**Guarded-write amendment (2026-09-09).** `insert profiles { fields } if absent`
+yields the inserted row or absence, never a conflicting row. `update messages[id]
+{ body } if .body = expectedBody` yields the ordinary post-write readable row on
+success; a false condition rejects the entire mutation with `reason: "conflict"`
+and the readable committed `current` row (or null). The expression/statement
+result rules otherwise remain unchanged. These are engine primitives, not a
+read/branch/insert macro or an authored require-code convention. Templates use
+them for profile creation, following, and message edits.
 
 ## A2. Total equality — program-only
 

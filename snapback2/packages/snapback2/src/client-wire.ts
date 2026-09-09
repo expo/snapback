@@ -181,7 +181,9 @@ export function wireMutation<Result>(value: unknown): MutationResult<Result> {
     case "committed":
       return { state: "committed", data: present(record, "data", surface) as Result, seq: numberField(record, "seq", surface) };
     case "rejected":
+      if (record.current !== undefined && record.current !== null) wireObject(record.current, `${surface}.current`);
       return { state: "rejected", ...copyRefusal(wireRefusal(record, "mutation rejected response")),
+        ...(record.reason === "conflict" && record.current !== undefined ? { current: record.current as Record<string, unknown> | null } : {}),
         ...(typeof record.reason === "string" ? { reason: record.reason } : {}) };
     default:
       throw wireShape(`${surface}.state must be committed or rejected`);

@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2-core` (`store`, `registry`, `live`, `identity`, `successor`, the engine, the IR)
 **Author:** Claude Fable 5 (orchestrator) — implementer: codex gpt-5.6-sol, lane A
 **Date:** 2026-08-29
-**Revised:** 2026-09-08 (plain connected value read and consistent count-first repairs, LLP 1011 one spelling); 2026-09-07 (indexed prefix selection and direct owner subscription dispatch); 2026-09-07 (public Count paired absence proofs and admission reserve; implementer Codex); 2026-09-07 (canonical sparse aggregates and shared maintained-row lifecycle); 2026-09-07 (LLP 1018.000: persistent query IDs, context-aware batches and incremental dependency membership); 2026-09-07 (surviving-row uniqueness checked against each actual rebuild); 2026-09-07 (schema-owned maintained address widths/references and scoped successor reindex); 2026-09-07 (native v5 search/text integration preserving count-backed caps and ad hoc admission); 2026-09-07 (count-backed cap probes); 2026-09-06 (fixed complete local-runtime measurement roots: 66,000-byte ceiling, 64,000 target); 2026-09-06 (generation-owned policy hashes, pooled merge seeks and bounded shared templates); 2026-09-06 (measured full-entry search trade: 50,000-byte ceiling, 48,000 target); 2026-09-06 (session-delegated Unicode/search foundation and downstream contracts); 2026-09-06 (conditional result-page provenance and branch-scoped cursor validation); 2026-09-05 (Clique L12 — §3 receipt-only null invariant and §5.1 `connected`); 2026-09-05 (Clique L9 — bounded ASCII words builtin and constructed-text boundary); 2026-09-05 (Clique L10 — lazy merge, receipt retention and global local-pagination cursor rule); 2026-09-05 (Clique L8b — nested point-read shapes preserve page state; early exits preserve capped taint); 2026-09-05 (Clique L8a — prefix-local self-probe and decided-disjunction visibility proofs); 2026-09-05 (Clique L3 — honest bound refusals and patch-sensitive cap metering; LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
+**Revised:** 2026-09-09 (guarded update conflicts and non-disclosing if-absent inserts; implementer GPT-6 Astra); 2026-09-08 (plain connected value read and consistent count-first repairs, LLP 1011 one spelling); 2026-09-07 (indexed prefix selection and direct owner subscription dispatch); 2026-09-07 (public Count paired absence proofs and admission reserve; implementer Codex); 2026-09-07 (canonical sparse aggregates and shared maintained-row lifecycle); 2026-09-07 (LLP 1018.000: persistent query IDs, context-aware batches and incremental dependency membership); 2026-09-07 (surviving-row uniqueness checked against each actual rebuild); 2026-09-07 (schema-owned maintained address widths/references and scoped successor reindex); 2026-09-07 (native v5 search/text integration preserving count-backed caps and ad hoc admission); 2026-09-07 (count-backed cap probes); 2026-09-06 (fixed complete local-runtime measurement roots: 66,000-byte ceiling, 64,000 target); 2026-09-06 (generation-owned policy hashes, pooled merge seeks and bounded shared templates); 2026-09-06 (measured full-entry search trade: 50,000-byte ceiling, 48,000 target); 2026-09-06 (session-delegated Unicode/search foundation and downstream contracts); 2026-09-06 (conditional result-page provenance and branch-scoped cursor validation); 2026-09-05 (Clique L12 — §3 receipt-only null invariant and §5.1 `connected`); 2026-09-05 (Clique L9 — bounded ASCII words builtin and constructed-text boundary); 2026-09-05 (Clique L10 — lazy merge, receipt retention and global local-pagination cursor rule); 2026-09-05 (Clique L8b — nested point-read shapes preserve page state; early exits preserve capped taint); 2026-09-05 (Clique L8a — prefix-local self-probe and decided-disjunction visibility proofs); 2026-09-05 (Clique L3 — honest bound refusals and patch-sensitive cap metering; LLP 1016 J2 — §1's system tables gain `_jobs` and `_timers`; LLP 1017 §1, then §2 and §3)
 **Related:** LLP 1000, LLP 1002 (the loop that serves this), LLP 1003 (effects
 through the outbox this spec defines), LLP 0329.014.004 §7 (runtime), LLP
 0329.014.000 §6 (execution, trace, states), LLP 0329.016 §5.6 (no silent
@@ -375,6 +375,37 @@ a program execution never surfaces a raw SQL
 error except for I/O or corruption); bound overruns (`Steps`, `Fanout`,
 `TraceSubset`) are `Rejected` with the family `bound`. The state is a field on `Execution`, and the JSON the loop serves is
 the serde form of that field (LLP 1002 §4).
+
+### Guarded writes
+
+Implemented 2026-09-09 by GPT-6 Astra, on the author's smaller-items commission.
+`update table[key] { patch } if predicate` binds `.` to the readable current
+row. It evaluates the unique key once, requires a readable row and a true
+predicate before evaluating/writing the patch, and retains ordinary update
+rules and constraints. The typed IR `Check { condition, current: Read }`
+reserves the condition, a bounded conflict read, and that row's output size.
+A false check aborts all tentative writes and produces
+`{ state: "rejected", reason: "conflict", code: "E_CONFLICT", current }`.
+`current` is re-read **after rollback**, under the request actor's read rule:
+an absent or unreadable row is `null`. Temporary grants and tentative row
+changes therefore cannot enter this result. Plain and replay responses use
+the same shape; replay records the entire terminal result. An explicit
+conditional conflict retains this more useful result when trace OCC also
+notices the moved row. The twin rejects a known false predicate and rolls
+back; it never invents an authoritative current-row payload.
+
+`insert table { fields } if absent` is `InsertIfAbsent { table, row, result }`
+in IR. It validates the candidate and its insert rule, then checks every
+unique key without a visible application read. A conflict is a committed
+no-op yielding `null`; success yields the newly inserted row, with ordinary
+constraints, maintained writes, and insert postconditions. It never returns
+or grants custody of the conflicting row. The certificate keeps the insert
+write bound, prices its result binding, and marks the potential target
+conditional; covering-cap fanout and query-write refusals still apply.
+Receipt-only execution needs authoritative point-absence coverage
+for unmatched unique keys; missing coverage is partial and rolls back,
+not evidence of absence. The four write corpus cases exercise creation,
+collision, missing authority, and conditional rejection in Rust and the twin.
 
 ## 4. Generation and runtime (`registry.rs`, `successor.rs`)
 

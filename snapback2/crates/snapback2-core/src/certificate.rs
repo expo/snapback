@@ -289,9 +289,16 @@ impl<'a> Checker<'a> {
                 rewrite: "declare a positive safe-integer readTime granularity on a query".into(),
             });
         }
-        if !errors.is_empty() {
-            return Err(errors);
+        fn contains_check(body: &[Stmt]) -> bool { body.iter().any(|stmt| match stmt {
+            Stmt::Check { .. } => true,
+            Stmt::If { then_body, else_body, .. } => contains_check(then_body) || contains_check(else_body),
+            Stmt::For { body, .. } => contains_check(body), _ => false,
+        }) }
+        if program.kind == ProgramKind::Query && contains_check(&program.body) {
+            errors.push(CheckError { site: None, code: "E_OP_KIND".into(),
+                message: "conditional writes require a mutation".into(), rewrite: "use a mutation for update ... if".into() });
         }
+        if !errors.is_empty() { return Err(errors); }
 
         if program.kind == ProgramKind::Job {
             return crate::jobs::certify(self.schema, program, &self.ceilings);
@@ -866,6 +873,8 @@ impl<'a> Analyzer<'a> {
                     | Stmt::Push { value, .. }
                     | Stmt::Return(value) => self.expr(value, calls, factors)?,
                     Stmt::Require { condition, .. } => self.expr(condition, calls, factors)?,
+                    Stmt::Check { condition, current } => self.expr(condition, calls, factors)?
+                        .add(self.expr(&Expr::Get(current.clone()), calls, factors)?),
                     Stmt::If {
                         condition,
                         then_body,
@@ -885,7 +894,7 @@ impl<'a> Analyzer<'a> {
                             &nested,
                         )?)
                     }
-                    Stmt::Insert { table, row } => self.expr(row, calls, factors)?.add(self.write(
+                    Stmt::Insert { table, row } | Stmt::InsertIfAbsent { table, row, .. } => self.expr(row, calls, factors)?.add(self.write(
                         table,
                         WriteKind::Insert,
                         None,

@@ -1,6 +1,7 @@
 use super::*;
 
 pub(super) fn add_write_cases(cases: &mut Vec<CorpusCase>) {
+    add_guarded_write_cases(cases);
     add_maintain_value_cases(cases);
     add_numeric_maintain_value_cases(cases);
     let schema = write_schema();
@@ -437,4 +438,35 @@ fn upsert_program() -> Program {
             ])),
         }],
     }
+}
+
+fn add_guarded_write_cases(cases: &mut Vec<CorpusCase>) {
+    let schema = write_schema();
+    let program = Program { name: "guarded.insert".into(), kind: ProgramKind::Mutation,
+        args: BTreeMap::new(), read_time_granularity_ms: None, body: vec![
+            Stmt::InsertIfAbsent { table: "items".into(), result: "created".into(),
+                row: Expr::Object(BTreeMap::from([("id".into(), Expr::Literal(id("new"))),
+                    ("label".into(), Expr::Literal(text("same")))])) }, Stmt::Return(var("created"))] };
+    let absent = ClosureReceipt { absences: vec![("items".into(), "byId".into(), vec![id("new")]),
+        ("items".into(), "byLabel".into(), vec![text("same")])], ..ClosureReceipt::default() };
+    let held = ClosureReceipt { rows: vec![RowRecord { table: "items".into(), id: "old".into(),
+        row: row([("id", id("old")), ("label", text("same"))]) }], ..absent.clone() };
+    for (name, receipt, state) in [("write-insert-if-absent-created", absent, "predicted"),
+        ("write-insert-if-absent-conflicting-key", held.clone(), "predicted"),
+        ("write-insert-if-absent-unheld", ClosureReceipt::default(), "partial")] {
+        let case = case_from_parts(name, "write", schema.clone(), program.clone(), mutation_context([], Vec::<String>::new()),
+            receipt, Vec::new(), None, None);
+        assert_eq!(case.expected.local_state, state);
+        cases.push(case);
+    }
+    let current = Read { site: "current".into(), table: "items".into(), index: "byId".into(),
+        key: vec![Expr::Literal(id("old"))], provenance: KeyProvenance::Const };
+    let guarded = Program { name: "guarded.update".into(), body: vec![
+        Stmt::Check { condition: Expr::Literal(Value::Bool(false)), current },
+        Stmt::Delete { table: "items".into(), key: Expr::Literal(id("old")) }], ..program };
+    let case = case_from_parts("write-update-condition-rejected", "write", schema, guarded,
+        mutation_context([], Vec::<String>::new()), held, Vec::new(), None, None);
+    assert_eq!(case.expected.local_state, "rejected");
+    assert_eq!(case.expected.error_code.as_deref(), Some("E_CONFLICT"));
+    cases.push(case);
 }

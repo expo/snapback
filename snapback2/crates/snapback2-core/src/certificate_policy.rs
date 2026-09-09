@@ -236,9 +236,20 @@ impl CompletenessFlow<'_, '_> {
                     let fact = self.expr(value);
                     self.refuse_sink("returned result", &fact.structural, control, loop_pages);
                 }
+                Stmt::Check { condition, current } => {
+                    let mut fact = self.expr(condition).made_structural();
+                    fact.merge(self.expr(&Expr::Get(current.clone())).made_structural());
+                    self.refuse_sink("update condition", &fact.structural, control, loop_pages);
+                }
                 Stmt::Require { condition, .. } => {
                     let fact = self.expr(condition).made_structural();
                     self.refuse_sink("require branch", &fact.structural, control, loop_pages);
+                }
+                Stmt::InsertIfAbsent { row, result, .. } => {
+                    let fact = self.expr(row).made_structural();
+                    self.refuse_sink("inserted value", &fact.structural, control, loop_pages);
+                    self.env.insert(result.clone(), fact);
+                    iteration_locals.insert(result.clone()); bindings.insert(result.clone());
                 }
                 Stmt::Insert { row, .. } => {
                     // @ref LLP 1001#3-read-and-write-states-no-silent-states — durable/effect sinks cannot erase capped-page provenance.
@@ -405,8 +416,10 @@ fn assigned_targets(statements: &[Stmt], targets: &mut BTreeSet<String>) {
             }
             Stmt::For { body, .. } => assigned_targets(body, targets),
             Stmt::Return(_)
-            | Stmt::Require { .. }
-            | Stmt::Insert { .. }
+            | Stmt::Check { .. }
+                | Stmt::Require { .. }
+            | Stmt::InsertIfAbsent { .. }
+                | Stmt::Insert { .. }
             | Stmt::Update { .. }
             | Stmt::Upsert { .. }
             | Stmt::Delete { .. }
@@ -427,7 +440,7 @@ fn validate_statements(
 ) {
     for statement in statements {
         match statement {
-            Stmt::Insert { table, row } | Stmt::Upsert { table, row, .. } => {
+            Stmt::Insert { table, row } | Stmt::InsertIfAbsent { table, row, .. } | Stmt::Upsert { table, row, .. } => {
                 validate_write_expression(checker, program, table, row, false, bindings, errors);
             }
             Stmt::Update { table, patch, .. } => {
@@ -470,6 +483,7 @@ fn validate_statements(
                 });
             }
             Stmt::Insert { table, .. }
+            | Stmt::InsertIfAbsent { table, .. }
             | Stmt::Update { table, .. }
             | Stmt::Upsert { table, .. }
             | Stmt::Delete { table, .. } => {

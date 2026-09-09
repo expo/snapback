@@ -68,7 +68,7 @@ export type BoundExpression = BoundExpressionBase & (
   | { kind: "merge"; site: string; table: BoundTableSymbol; index: BoundIndexSymbol;
       lanes: BoundMergeLane[]; heldSearch?: BoundHeldSearch }
   | { kind: "write"; op: "insert" | "update" | "upsert" | "delete";
-      table: BoundTableSymbol; index?: BoundIndexSymbol; key: BoundExpression[];
+      table: BoundTableSymbol; index?: BoundIndexSymbol; key: BoundExpression[]; ifAbsent?: boolean; condition?: BoundExpression;
       fields: Array<{ name: string; value: BoundExpression; expected: ScalarType; coercion?: "row-id"; source: BoundSourceStack }>;
       focal?: Extract<BoundExpression, { kind: "focal" }>; usesFocal: boolean; addressedColumns: string[]; provenance: Provenance }
   | { kind: "get" | "exists" | "scan" | "aggregate"; read: BoundRead }

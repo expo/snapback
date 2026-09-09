@@ -391,9 +391,14 @@ fn resolve_result_page_site(
                 | Stmt::Require {
                     condition: value, ..
                 }
+                | Stmt::InsertIfAbsent { row: value, .. }
                 | Stmt::Insert { row: value, .. }
                 | Stmt::Delete { key: value, .. }
                 | Stmt::Emit { payload: value, .. } => visit_expr(value, scans),
+                Stmt::Check { condition, current } => {
+                    visit_expr(condition, scans);
+                    for key in &current.key { visit_expr(key, scans); }
+                }
                 Stmt::Update { key, patch, .. } => {
                     visit_expr(key, scans);
                     visit_expr(patch, scans);

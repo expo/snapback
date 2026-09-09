@@ -155,8 +155,12 @@ pub enum RuntimeError {
     Serialization(String),
     #[error("E_REQUIRE:{code}: program requirement failed")]
     Require { code: String, site: Option<String> },
+    #[error("E_CONFLICT: the row no longer matches the update condition")]
+    Conflict { current: Read },
     #[error("E_RULE: {effect:?} denied on {table}")]
     Rule { table: String, effect: Effect },
+    #[error("E_CONSTRAINT: sealed unique conflict on {table}.{index}")]
+    Unique { table: String, index: String },
     #[error("E_CONSTRAINT: {0}")]
     Constraint(String),
     #[error("E_FANOUT: runtime loop exceeded its admitted bound")]
@@ -202,6 +206,7 @@ impl RuntimeError {
     pub fn require_site(&self) -> Option<String> {
         match self {
             Self::Require { site, .. } => site.clone(),
+            Self::Conflict { current } => Some(current.site.clone()),
             _ => None,
         }
     }
@@ -224,8 +229,9 @@ impl RuntimeError {
             Self::SchemaConstraint { .. } => "E_SCHEMA_CONSTRAINT",
             Self::Serialization(_) => "E_SERIALIZATION",
             Self::Require { code, .. } => code,
+            Self::Conflict { .. } => "E_CONFLICT",
             Self::Rule { .. } => "E_RULE",
-            Self::Constraint(_) => "E_CONSTRAINT",
+            Self::Constraint(_) | Self::Unique { .. } => "E_CONSTRAINT",
             Self::Fanout => "E_FANOUT",
             Self::Steps(_) => "E_STEPS",
             Self::Input(_) => "E_INPUT",
@@ -481,8 +487,19 @@ impl Engine {
         context: Context,
     ) -> Result<Execution, RuntimeError> {
         validate_inputs(&self.schema, program, &context.args)?;
-        match self.execute_with_kind(program, certificate, context, None) {
+        match self.execute_with_kind(program, certificate, context.clone(), None) {
             Ok(execution) => Ok(execution),
+            Err(RuntimeError::Conflict { current }) if self.rule_authority == RuleAuthority::ReceiptOnly =>
+                Err(RuntimeError::Require { code: "E_CONFLICT".into(), site: Some(current.site) }),
+            Err(RuntimeError::Conflict { current }) => {
+                let mut execution = self.empty_execution(ExecutionState::Rejected { code: "E_CONFLICT".into(),
+                    message: "the row no longer matches the update condition".into(), rule: None, site: Some(current.site.clone()) })?;
+                let transaction = self.store.conn.unchecked_transaction()?;
+                execution.result = Runner::probe(&transaction, &self.schema, &self.hashes, context,
+                    &self.verdicts, &self.authority_absences, self.rule_authority, execution.seq, None)
+                    .expr(&Expr::Get(current))?;
+                Ok(execution)
+            }
             Err(error) if program.kind == ProgramKind::Mutation && is_sqlite_constraint(&error) => {
                 Ok(self.empty_execution(ExecutionState::Rejected {
                     site: error.require_site(),
@@ -1282,10 +1299,11 @@ pub(crate) fn is_sqlite_constraint(error: &RuntimeError) -> bool {
 pub(crate) fn mutation_rejection_code(error: &RuntimeError) -> Option<&str> {
     match error {
         RuntimeError::Require { code, .. } => Some(code),
+        RuntimeError::Conflict { .. } => Some("E_CONFLICT"),
         // @ref LLP 1001#3-read-and-write-states-no-silent-states — a table-rule
         // rejection keeps the same stable code in engine state and on the wire.
         RuntimeError::Rule { .. } => Some("E_RULE"),
-        RuntimeError::Constraint(_) => Some("E_CONSTRAINT"),
+        RuntimeError::Constraint(_) | RuntimeError::Unique { .. } => Some("E_CONSTRAINT"),
         error if is_sqlite_constraint(error) => Some("E_CONSTRAINT"),
         RuntimeError::Input(_) => Some("E_INPUT"),
         RuntimeError::AssetType(_)

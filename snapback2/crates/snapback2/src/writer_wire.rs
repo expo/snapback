@@ -22,6 +22,11 @@ pub fn execution_json(execution: &Execution) -> Json {
         ExecutionState::Committed { seq } => {
             json!({ "state": "committed", "seq": seq, "data": value_to_json(&execution.result) })
         }
+        ExecutionState::Rejected { code, site, .. } if code == "E_CONFLICT" => json!({
+            "state": "rejected", "reason": "conflict", "current": value_to_json(&execution.result),
+            "code": code, "family": "input", "message": "the row no longer matches the update condition",
+            "site": site, "rewrite": "review current, then submit a new conditional update", "guide": "quarry"
+        }),
         ExecutionState::Rejected { code, message, rule, site } => {
             let family = if rule.is_some() { "rule" } else { rejection_family(code) };
             let mut response = json!({

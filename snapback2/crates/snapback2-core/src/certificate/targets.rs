@@ -158,6 +158,7 @@ impl Analysis {
                     self.expr(value);
                     self.env.insert(target.clone(), Fact::Unknown);
                 }
+                Stmt::Check { condition, current } => { self.expr(condition); self.expr(&Expr::Get(current.clone())); }
                 Stmt::Require { condition, .. } => {
                     self.expr(condition);
                 }
@@ -166,6 +167,11 @@ impl Analysis {
                     break;
                 }
                 Stmt::Break | Stmt::Continue => break,
+                Stmt::InsertIfAbsent { table, row, result } => {
+                    let row = self.expr(row);
+                    self.add(table, TargetKind::Create, row.field("id"), Some(UnresolvedTarget::Conditional));
+                    self.env.insert(result.clone(), Fact::Unknown);
+                }
                 Stmt::Insert { table, row } => {
                     let row = self.expr(row);
                     self.add(table, TargetKind::Create, row.field("id"), guard);

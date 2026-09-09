@@ -1267,3 +1267,15 @@ test("plain mutations bind the observed program generation and preserve generati
   assert.equal(mutations, 1);
   value.close();
 });
+
+test("conditional conflict results preserve the readable current row", async () => {
+  for (const current of [{ id: "message", body: "theirs" }, null]) {
+    const client = createClient({ url: "http://conflict.test", fetch: async () => fetchJson({
+      state: "rejected", reason: "conflict", code: "E_CONFLICT", family: "input", message: "row changed", current,
+      site: "messages.edit.current", guide: "quarry",
+    }) });
+    const result = await client.mutation(api.messages.edit, {});
+    assert.equal(result.state, "rejected"); assert.equal(result.reason, "conflict"); assert.deepEqual(result.current, current);
+    client.close();
+  }
+});

@@ -321,6 +321,11 @@ function lowerWrite(
     }, ...expression.fields];
     const row = lowerWriteFields(fields, lowering, new Map());
     accessSite(lowering, expression.source);
+    if (expression.ifAbsent) {
+      const result = temporary(lowering, "inserted");
+      return { setup: [...row.setup, { InsertIfAbsent: { table: dataTableName(expression.table.name), row: row.value, result } }],
+        value: { Variable: result } };
+    }
     if (!resultUsed) return {
       setup: [...row.setup, { Insert: { table: dataTableName(expression.table.name), row: row.value } }],
       value: { Literal: "Null" },
@@ -347,7 +352,7 @@ function lowerWrite(
     } } } });
     row = { Variable: rowName };
     if (!directId) {
-      if (expression.op === "delete" || expression.op === "update") setup.push(requirement(lowering, expression.source, "NOT_FOUND",
+      if (expression.op === "delete" || (expression.op === "update" && !expression.condition)) setup.push(requirement(lowering, expression.source, "NOT_FOUND",
         { Binary: { op: "Ne", left: row, right: { Literal: "Null" } } }));
       identity = { Field: { base: row, name: "id" } };
     }
@@ -362,6 +367,13 @@ function lowerWrite(
     const replacements = new Map<string, Expr>();
     expression.addressedColumns.forEach((column, index) => replacements.set(column, keyValues[index]!));
     if (expression.op === "update") {
+      if (expression.condition) {
+        const current = { site: accessSite(lowering, expression.source), table: dataTableName(expression.table.name),
+          index: expression.index.name, key: keyValues, provenance: expression.provenance };
+        setup.push({ Check: { condition: { Binary: { op: "Ne", left: row!, right: { Literal: "Null" } } }, current } });
+        const condition = lowerExpression(expression.condition, lowering);
+        setup.push(...condition.setup, { Check: { condition: condition.value, current: { ...current, site: accessSite(lowering, expression.source) } } });
+      }
       const patch = lowerWriteFields(
         expression.fields.filter((field) => !replacements.has(field.name)), lowering, new Map(),
       );

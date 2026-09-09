@@ -86,7 +86,7 @@ table deliveries:
         const lowered = await lowerProject(root); assert(lowered.ok, "DM query did not lower");
         const [checked] = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema);
         assert(checked?.certificate && !checked.error, `DM count refused: ${JSON.stringify(checked)}`);
-        assert(checked.certificate.read_sites.every((site: any) => site.hoist && site.decided_true), "DM disjunct did not decide visibility");
+        assert((checked.certificate.read_sites as any[]).every((site: any) => site.hoist && site.decided_true), "DM disjunct did not decide visibility");
       });
     }
     for (const principal of ["viewer", "other"]) {

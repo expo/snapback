@@ -372,7 +372,8 @@ impl<'a> RetentionEstimator<'a> {
     ) {
         for statement in statements {
             match statement {
-                Stmt::Const { name, value } | Stmt::Let { name, value } => {
+                Stmt::Const { name, value } | Stmt::Let { name, value }
+                | Stmt::InsertIfAbsent { result: name, row: value, .. } => {
                     let provenance = provenance_expression_from(
                         value,
                         variables,
@@ -587,6 +588,10 @@ impl<'a> RetentionEstimator<'a> {
                         self.peak = flow.clone();
                     }
                     self.has_fixed_width_result |= held == 0 && flow.depends_on_scan;
+                }
+                Stmt::Check { condition, current } => {
+                    let _ = self.expression(condition, variables);
+                    let _ = self.expression(&Expr::Get(current.clone()), variables);
                 }
                 Stmt::Require { condition, .. } => {
                     let _ = self.expression(condition, variables);

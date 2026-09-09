@@ -140,7 +140,8 @@ impl Analyzer<'_> {
 
 fn read_only_setup(body: &[Stmt]) -> bool {
     body.iter().all(|stmt| match stmt {
-        Stmt::Const { .. } | Stmt::Let { .. } | Stmt::Assign { .. } | Stmt::Require { .. } => true,
+        Stmt::Const { .. } | Stmt::Let { .. } | Stmt::Assign { .. }
+                | Stmt::Require { .. } => true,
         Stmt::If {
             then_body,
             else_body,

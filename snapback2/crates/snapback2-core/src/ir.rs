@@ -142,6 +142,10 @@ pub enum Stmt {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         site: Option<String>,
     },
+    // @ref LLP 1001#guarded-writes — false predicates re-read current only after rollback.
+    Check { condition: Expr, current: Read },
+    // @ref LLP 1001#guarded-writes — a unique clash yields absence, never its row.
+    InsertIfAbsent { table: String, row: Expr, result: String },
     Insert {
         table: String,
         row: Expr,

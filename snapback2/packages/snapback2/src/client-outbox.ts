@@ -33,7 +33,7 @@ export function wireReplayResponse<Result>(value: unknown): MutationResult<Resul
   const surface = "replayed mutation response";
   const record = wireObject(value, surface);
   const intent = typeof record.intent === "string" ? { intent: record.intent } : {};
-  if (record.state === "rejected" && record.reason === "conflict") {
+  if (record.state === "rejected" && record.reason === "conflict" && record.code === undefined) {
     if (record.site !== undefined && typeof record.site !== "string") throw wireShape(`${surface}.site must be a string`);
     const site = record.site as string | undefined;
     return {

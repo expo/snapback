@@ -275,6 +275,7 @@ function normalizeStatement(statement: any): any {
   const data = shape ? pick(raw, shape[0], kind) : raw;
   for (const field of shape?.[1] ?? []) data[field] = normalizeExpression(data[field]);
   switch (kind) {
+    case "Check": data.current = normalizeRead(data.current); break;
     case "Require": if (data.site == null) delete data.site; break;
     case "If":
       data.then_body = data.then_body.map(normalizeStatement); data.else_body = data.else_body.map(normalizeStatement); break;
@@ -289,6 +290,7 @@ function normalizeStatement(statement: any): any {
 const STATEMENTS: Record<string, readonly [readonly string[], readonly string[]]> = {
   Const: [['name','value'], ['value']], Let: [['name','value'], ['value']], Assign: [['name','value'], ['value']], Push: [['target','value'], ['value']],
   If: [['condition','then_body','else_body'], ['condition']], For: [['binding','domain','body'], []], Require: [['condition','code','site'], ['condition']],
+  Check: [["condition", "current"], ["condition"]], InsertIfAbsent: [["table", "row", "result"], ["row"]],
   Insert: [['table','row'], ['row']], Update: [['table','key','patch'], ['key','patch']], Upsert: [['table','key','row'], ['key','row']],
   Delete: [['table','key'], ['key']], Emit: [['effect','payload'], ['payload']],
 };

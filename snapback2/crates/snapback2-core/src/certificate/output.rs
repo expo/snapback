@@ -67,7 +67,8 @@ impl<'a> OutputEstimator<'a> {
     ) {
         for statement in statements {
             match statement {
-                Stmt::Const { name, value } | Stmt::Let { name, value } => {
+                Stmt::Const { name, value } | Stmt::Let { name, value }
+                | Stmt::InsertIfAbsent { result: name, row: value, .. } => {
                     let provenance = provenance_expression_from(
                         value,
                         variables,
@@ -294,6 +295,11 @@ impl<'a> OutputEstimator<'a> {
                         self.max_result = bytes;
                         self.shape = self.expression_shape(value, variables);
                     }
+                }
+                Stmt::Check { current, .. } => {
+                    let value = Expr::Get(current.clone());
+                    let bytes = self.expression(&value, variables);
+                    if bytes > self.max_result { self.max_result = bytes; self.shape = self.expression_shape(&value, variables); }
                 }
                 Stmt::Require { .. }
                 | Stmt::Insert { .. }

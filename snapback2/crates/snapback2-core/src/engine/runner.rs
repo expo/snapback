@@ -215,7 +215,7 @@ impl<'a> Runner<'a> {
             if self.context.operator_by.is_some() {
                 use crate::certificate::WriteKind;
                 let site = match statement {
-                    Stmt::Insert { table, .. } => Some((table.as_str(), WriteKind::Insert)),
+                    Stmt::Insert { table, .. } | Stmt::InsertIfAbsent { table, .. } => Some((table.as_str(), WriteKind::Insert)),
                     Stmt::Update { table, .. } => Some((table.as_str(), WriteKind::Update)),
                     Stmt::Upsert { table, .. } => Some((table.as_str(), WriteKind::Upsert)),
                     Stmt::Delete { table, .. } => Some((table.as_str(), WriteKind::Delete)),
@@ -342,6 +342,21 @@ impl<'a> Runner<'a> {
                     if !self.expr(condition)?.as_bool()? {
                         return Err(RuntimeError::Require { code: code.clone(), site: site.clone() });
                     }
+                    Flow::Next
+                }
+                Stmt::Check { condition, current } => {
+                    if !self.expr(condition)?.as_bool()? {
+                        let mut read = current.clone();
+                        read.key = current.key.iter().map(|value| self.expr(value).map(Expr::Literal)).collect::<Result<_, _>>()?;
+                        return Err(RuntimeError::Conflict { current: read });
+                    }
+                    Flow::Next
+                }
+                Stmt::InsertIfAbsent { table, row, result } => {
+                    let row = self.expr(row)?;
+                    let value = if self.insert_if_absent(table, row.clone())? { row } else { Value::Null };
+                    self.env.insert(result.clone(), value);
+                    self.env_provenance.insert(result.clone(), ResultProvenance::None);
                     Flow::Next
                 }
                 Stmt::Insert { table, row } => {

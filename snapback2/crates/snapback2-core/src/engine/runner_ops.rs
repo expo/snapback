@@ -19,6 +19,14 @@ enum RowChangeOrigin {
 
 impl<'a> Runner<'a> {
     pub(super) fn insert(&mut self, table: &str, row: Value) -> Result<(), RuntimeError> {
+        self.insert_mode(table, row, false).map(|_| ())
+    }
+
+    pub(super) fn insert_if_absent(&mut self, table: &str, row: Value) -> Result<bool, RuntimeError> {
+        self.insert_mode(table, row, true)
+    }
+
+    fn insert_mode(&mut self, table: &str, row: Value, if_absent: bool) -> Result<bool, RuntimeError> {
         validate_row(&self.schema, table, &row)?;
         if !self.check_rule(table, Effect::Insert, None, &row)? {
             return Err(RuntimeError::Rule {
@@ -26,7 +34,26 @@ impl<'a> Runner<'a> {
                 effect: Effect::Insert,
             });
         }
-        self.check_constraints(table, None, &row, Effect::Insert)?;
+        if if_absent {
+            let definition = self.schema.table(table).expect("validated table").clone();
+            let indexes: BTreeSet<_> = definition.indexes.iter().filter(|(_, index)| index.unique)
+                .map(|(name, _)| name.clone()).chain(definition.constraints.iter().filter_map(|constraint|
+                    if let Constraint::Unique { index } = constraint { Some(index.clone()) } else { None })).collect();
+            let mut missing = false;
+            for index in indexes {
+                let key = index_values(&row, definition.index(&index).expect("unique index"));
+                match self.check_unique(table, &definition, &index, None, &row) {
+                    Err(RuntimeError::Unique { .. }) => return Ok(false),
+                    result => result?,
+                }
+                if self.rule_authority == RuleAuthority::ReceiptOnly
+                    && !self.authority_absences.iter().any(|(t, i, k)| t == table && i == &index && k == &key) {
+                    missing = true;
+                }
+            }
+            if missing { self.missing_authority = true; return Ok(false); }
+        }
+        self.check_constraints_inner(table, None, &row, Effect::Insert, if_absent)?;
         let id = row.field("id")?.as_str()?.to_owned();
         if self.rule_authority == RuleAuthority::StoreAuthoritative {
             crate::assets_ledger::reconcile_row_assets(
@@ -45,7 +72,8 @@ impl<'a> Runner<'a> {
             params![table, id, canonical_json(&row)],
         )?;
         let work = reindex_row(self.tx, self.schema, table, &row)?;
-        self.finish_row_change(table, None, Some(&row), work, RowChangeOrigin::Source)
+        self.finish_row_change(table, None, Some(&row), work, RowChangeOrigin::Source)?;
+        Ok(true)
     }
 
     pub(super) fn update(
@@ -519,6 +547,11 @@ impl<'a> Runner<'a> {
         new: &Value,
         effect: Effect,
     ) -> Result<(), RuntimeError> {
+        self.check_constraints_inner(table_name, old, new, effect, false)
+    }
+
+    fn check_constraints_inner(&mut self, table_name: &str, old: Option<&Value>, new: &Value,
+        effect: Effect, skip_unique: bool) -> Result<(), RuntimeError> {
         let table = self
             .schema
             .table(table_name)
@@ -542,7 +575,7 @@ impl<'a> Runner<'a> {
                         )));
                     }
                 }
-                Constraint::Unique { index } if effect != Effect::Delete => {
+                Constraint::Unique { index } if effect != Effect::Delete && !skip_unique => {
                     self.check_unique(table_name, &table, index, old, new)?
                 }
                 Constraint::Cap { by, max } => {
@@ -672,7 +705,7 @@ impl<'a> Runner<'a> {
             }
         }
         for (name, index) in &table.indexes {
-            if index.unique && effect != Effect::Delete {
+            if index.unique && effect != Effect::Delete && !skip_unique {
                 self.check_unique(table_name, &table, name, old, new)?;
             }
         }
@@ -771,9 +804,7 @@ impl<'a> Runner<'a> {
             id != old_id
         });
         if duplicate {
-            return Err(RuntimeError::Constraint(format!(
-                "sealed unique conflict on {table_name}.{index_name}"
-            )));
+            return Err(RuntimeError::Unique { table: table_name.into(), index: index_name.into() });
         }
         Ok(())
     }

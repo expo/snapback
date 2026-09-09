@@ -88,7 +88,8 @@ unbounded program. B1 changes the normative typed-state and wire contracts
 - The 50-followee cap on the merged feed, the money and decimal model,
   `agg[key]` reading zero for an absent or unreadable group (the old `#agg`
   spelling is superseded 2026-09-08 by §One spelling), and
-  `insertIfAbsent` (ticketed): unchanged, as revision (a) argued.
+  `insertIfAbsent`: deferred in this revision; the 2026-09-09 platform
+  amendment implements `insert ... if absent` under LLP 1001 §3.
 - A concatenating React `loadMore`. `useQuery` fixes one argument set and
   replaces data (`react.tsx:87–157`); the caller passes `next` back as `c`.
 

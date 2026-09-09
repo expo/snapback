@@ -3,7 +3,7 @@ import type { Expr, KeyPart, ObjectField, ShapeDecl } from "./ast";
 export function quarryWriteWithoutField(expr: Extract<Expr, { kind: "write" }>, removed: ObjectField): string {
   const key = expr.op === "insert" ? "" : `[${expr.keys.map(quarryKeyPart).join(", ")}]`;
   const fields = expr.op === "delete" ? "" : ` { ${expr.fields.filter((field) => field !== removed).map(quarryObjectField).join(", ")} }`;
-  return `${expr.op} ${expr.table}${key}${fields}`;
+  return `${expr.op} ${expr.table}${key}${fields}${expr.ifAbsent ? " if absent" : expr.condition ? ` if ${quarryExpression(expr.condition)}` : ""}`;
 }
 
 function quarryKeyPart(part: KeyPart): string {

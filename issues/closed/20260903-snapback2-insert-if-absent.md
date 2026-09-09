@@ -37,3 +37,12 @@ the three-line idiom is a recurring correction-loop cost.
 `row = insert profiles { … } if absent` (or a keyword form) yielding the
 inserted row or an absence marker, never the conflicting row; certificate
 `writeSites` unchanged; the outcome enters the corpus as a twin case.
+
+## Resolution — 2026-09-09
+
+Implemented `insert table { fields } if absent` as the certified InsertIfAbsent
+IR primitive in Rust and the TypeScript twin. Insert authority is checked before
+unique probes; a collision yields null without reading or exposing its row, and
+unheld local uniqueness is partial. Shared corpus plus native/compiler tests
+cover created rows, collisions, missing authority, and rollback. Profiles and
+follows now use the one-line primitive. LLP 1001 §3 and LLP 1010 record semantics.

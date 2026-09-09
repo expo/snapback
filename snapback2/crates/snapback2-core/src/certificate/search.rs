@@ -276,6 +276,11 @@ fn statements(
                     }
                 }
             }
+            Stmt::Check { condition, current } => {
+                expression(s, condition, env, errors, sites);
+                expression(s, &Expr::Get(current.clone()), env, errors, sites);
+                narrow(condition, env, true);
+            }
             Stmt::Require { condition, .. } => {
                 expression(s, condition, env, errors, sites);
                 narrow(condition, env, true);
@@ -358,6 +363,7 @@ fn statements(
                 env.values.remove(target);
             }
             Stmt::Return(e)
+            | Stmt::InsertIfAbsent { row: e, .. }
             | Stmt::Insert { row: e, .. }
             | Stmt::Delete { key: e, .. }
             | Stmt::Emit { payload: e, .. } => expression(s, e, env, errors, sites),

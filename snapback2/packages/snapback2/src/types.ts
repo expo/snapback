@@ -100,7 +100,7 @@ export type QueryResult<Result> = ServerQueryResult<Result> | OfflineQueryResult
 
 export type MutationCommitted<Result> = { effects?: import("./store/success-compaction.js").SuccessEffects; state: "committed"; seq: number; data: Result; intent?: string;
   program?: import("./mutation-targets.js").MutationProgramIdentity };
-export type MutationRejected = { state: "rejected"; intent?: string } & Refusal;
+export type MutationRejected = { state: "rejected"; intent?: string; current?: Readonly<Record<string, unknown>> | null } & Refusal;
 /**
  * The write is durable on this device and will replay after the next resume:
  * in this tab's outbox, or, from a browser tab that is not the account's

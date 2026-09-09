@@ -15,8 +15,9 @@ pub(crate) fn visit_statement_exprs(statement: &Stmt, visit: &mut impl FnMut(&Ex
             LoopDomain::Recurse(recurse) => walk_expr(&recurse.seed, visit),
             LoopDomain::LiteralRange { .. } | LoopDomain::ArgList { .. } => {}
         },
+        Stmt::Check { condition, current } => { walk_expr(condition, visit); walk_expr(&Expr::Get(current.clone()), visit); }
         Stmt::Require { condition, .. } => walk_expr(condition, visit),
-        Stmt::Insert { row, .. } => walk_expr(row, visit),
+        Stmt::Insert { row, .. } | Stmt::InsertIfAbsent { row, .. } => walk_expr(row, visit),
         Stmt::Update { key, patch, .. } => {
             walk_expr(key, visit);
             walk_expr(patch, visit);

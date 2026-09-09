@@ -426,3 +426,50 @@ fn incoming_certificate_hashes_cannot_mint_runtime_policy_authority() {
         Context::query(Actor::user("u1").unwrap(), BTreeMap::new())),
         Err(RuntimeError::TraceSubset(message)) if message == "schema hash mismatch"));
 }
+
+#[test]
+fn conditional_updates_rollback_before_disclosing_current_and_absent_insert_never_discloses_a_duplicate() {
+    use crate::schema::{ColumnType, Index, RuleExpr, RuleTerm};
+    let index = Index { components: vec![crate::search_key::IndexComponent::Column("label".into())], unique: true };
+    let mut table = crate::public_table(BTreeMap::from([
+        ("id".into(), ColumnType::Id), ("label".into(), ColumnType::Text { max: 40 }),
+        ("body".into(), ColumnType::Text { max: 40 }),
+    ]), BTreeMap::from([("byLabel".into(), index)]));
+    let by_id = Index { components: vec![crate::search_key::IndexComponent::Column("id".into())], unique: true };
+    table.indexes.insert("byId".into(), by_id.clone());
+    let mut grant = crate::public_table(BTreeMap::from([("id".into(), ColumnType::Id)]), BTreeMap::new());
+    grant.indexes.insert("byId".into(), by_id);
+    grant.rules.read = RuleExpr::Deny;
+    table.rules.read = RuleExpr::Exists { table: "grants".into(), index: "byId".into(),
+        key: vec![RuleTerm::Viewer], provenance: KeyProvenance::Viewer };
+    let schema = Schema { tables: BTreeMap::from([("items".into(), table), ("grants".into(), grant)]), ..Schema::default() };
+    let mut engine = Engine::memory(schema.clone()).unwrap();
+    let row = object([("id", Value::Id("old".into())), ("label", Value::String("taken".into())), ("body", Value::String("private".into()))]);
+    engine.seed("items", row.clone()).unwrap();
+    let current = Read { site: "current".into(), table: "items".into(), index: "byId".into(),
+        key: vec![Expr::Literal(Value::Id("old".into()))], provenance: KeyProvenance::Const };
+    let program = Program { name: "guarded".into(), kind: ProgramKind::Mutation, args: BTreeMap::new(), read_time_granularity_ms: None,
+        body: vec![Stmt::Insert { table: "grants".into(), row: Expr::Object(BTreeMap::from([("id".into(), Expr::Input(Input::Viewer))])) },
+            Stmt::Check { condition: Expr::Literal(Value::Bool(false)), current: current.clone() }] };
+    let certificate = Checker::new(&schema, Ceilings::default()).check(&program).unwrap();
+    let context = Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new());
+    let result = engine.execute(&program, &certificate, context.clone()).unwrap();
+    assert!(matches!(result.state, ExecutionState::Rejected { ref code, .. } if code == "E_CONFLICT"));
+    assert_eq!(result.result, Value::Null, "temporary grant survived rollback disclosure");
+    assert!(engine.rows("grants").unwrap().is_empty());
+    engine.seed("grants", object([("id", Value::Id("u1".into()))])).unwrap();
+    let mut conflict = program.clone(); conflict.body.remove(0);
+    let certificate = Checker::new(&schema, Ceilings::default()).check(&conflict).unwrap();
+    assert_eq!(engine.execute(&conflict, &certificate, context.clone()).unwrap().result, row);
+    let mut insert = conflict.clone(); insert.name = "create".into();
+    insert.body = vec![Stmt::InsertIfAbsent { table: "items".into(), result: "result".into(),
+        row: Expr::Object(BTreeMap::from([("id".into(), Expr::Literal(Value::Id("new".into()))),
+            ("label".into(), Expr::Literal(Value::String("taken".into()))), ("body".into(), Expr::Literal(Value::String("ours".into())))])) },
+        Stmt::Return(Expr::Variable("result".into()))];
+    let certificate = Checker::new(&schema, Ceilings::default()).check(&insert).unwrap();
+    let result = engine.execute(&insert, &certificate, Context::mutation(Actor::user("u2").unwrap(), BTreeMap::new())).unwrap();
+    assert!(matches!(result.state, ExecutionState::Committed { .. }));
+    assert_eq!(result.result, Value::Null);
+    assert_eq!(engine.rows("items").unwrap(), vec![row]);
+    assert!(result.receipt.rows.is_empty(), "duplicate row entered the receipt");
+}

@@ -54,7 +54,7 @@ export type Expr =
   | { kind: "shapeUse"; base: Expr; name: string; site: Site }
   | { kind: "shape"; base: Expr; fields: ShapeField[]; authoredName?: string; authoredFields?: ShapeField[]; site: Site }
   | { kind: "walk"; table: string; seed: Expr; column: string; depth: number; site: Site }
-  | { kind: "write"; op: "insert" | "update" | "upsert" | "delete"; table: string; keys: KeyPart[]; fields: ObjectField[]; site: Site };
+  | { kind: "write"; op: "insert" | "update" | "upsert" | "delete"; table: string; keys: KeyPart[]; fields: ObjectField[]; ifAbsent?: boolean; condition?: Expr; site: Site };
 
 export type ObjectField = { name: string; value?: Expr; site: Site };
 export type RangeSpec = {

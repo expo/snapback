@@ -1040,7 +1040,13 @@ class Parser {
     const op = opToken.value as "insert" | "update" | "upsert" | "delete";
     const keys = op === "insert" ? [] : this.parseRead(table, opToken).keys;
     const fields = op === "delete" ? [] : this.parseObjectFields();
-    return { kind: "write", op, table, keys, fields, site: opToken };
+    let ifAbsent: boolean | undefined, condition: Expr | undefined;
+    if (this.maybe("if")) {
+      if (op === "insert") { this.take("absent"); ifAbsent = true; }
+      else if (op === "update") condition = this.expression();
+      else syntax(opToken, "if follows insert or update", "use insert ... if absent or update ... if condition");
+    }
+    return { kind: "write", op, table, keys, fields, ifAbsent, condition, site: opToken };
   }
 
   private parseObjectFields(): ObjectField[] {
