@@ -12,7 +12,8 @@ import {
   wireShape,
 } from "./client-wire.js";
 import { DeliveryEnvelopeDecodeError } from "./offline-protocol.js";
-import { type AcceptedDelivery, type OfflineRuntime } from "./offline.js";
+import { OfflineAuthorityError, type AcceptedDelivery, type OfflineRuntime } from "./offline.js";
+import { FullRevalidationRequired } from "./store/fact-integrity.js";
 import { OutboxRefusal, replayEnvelope, type OutboxEntry } from "./store/outbox.js";
 import { referenceName } from "./api.js";
 import { inboxKeyOf } from "./store/inbox.js";
@@ -337,9 +338,11 @@ async function settle(
  */
 async function logTail(options: DrainOptions, revision: number) {
   const { runtime } = options;
+  const principal = runtime.principal;
+  const current = () => revision === runtime.coverageRevision && principal === runtime.principal;
   const watermark = await runtime.logWatermark();
   throwIfAborted(options.signal);
-  if (revision !== runtime.coverageRevision) return undefined;
+  if (!current()) return undefined;
   // No drained query, no tail: the intent settles `committed` with no rows in
   // its swap. That is the only way a queue held under a login grant with
   // nothing delivered can progress (LLP 1012 §7); the prediction overlay
@@ -352,19 +355,39 @@ async function logTail(options: DrainOptions, revision: number) {
     : { ...(watermark.args as Record<string, unknown>), [cursor]: watermark.watermark };
   const held = await runtime.answer(watermark.op, args);
   throwIfAborted(options.signal);
-  if (revision !== runtime.coverageRevision) return undefined;
+  if (!current()) return undefined;
   const raw = await options.json("/api/query?receipt=1", {
     method: "POST",
     body: JSON.stringify(held?.validator ? { op: watermark.op, args, validator: held.validator } : { op: watermark.op, args }),
   });
   throwIfAborted(options.signal);
-  if (revision !== runtime.coverageRevision) return undefined;
+  if (!current()) return undefined;
   let accepted: AcceptedDelivery<unknown>;
+  let fullFailure: unknown;
   try {
-    accepted = await runtime.accept(watermark.op, args, raw);
+    // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — a
+    // conditional tail whose held answer lost immutable fact proofs gets one
+    // same-authority full-envelope retry before settlement.
+    accepted = await runtime.accept(watermark.op, args, raw, async () => {
+      throwIfAborted(options.signal);
+      if (!current()) throw options.failure(new OfflineAuthorityError("delivery log authority changed during full revalidation"));
+      let full: unknown;
+      try {
+        full = await options.json("/api/query?receipt=1", {
+          method: "POST", body: JSON.stringify({ op: watermark.op, args }),
+        });
+      } catch (error) { fullFailure = error; throw error; }
+      throwIfAborted(options.signal);
+      if (!current()) throw options.failure(new OfflineAuthorityError("delivery log authority changed during full revalidation"));
+      return full;
+    });
   } catch (error) {
-    throw error instanceof DeliveryEnvelopeDecodeError ? options.shape(error.message) : error;
+    if (error instanceof DeliveryEnvelopeDecodeError) throw options.shape(error.message);
+    if (FullRevalidationRequired.is(error) && isRefusalError(fullFailure) && fullFailure.retryable) throw fullFailure;
+    throw FullRevalidationRequired.is(error) ? options.failure(error) : error;
   }
+  throwIfAborted(options.signal);
+  if (!current()) return undefined;
   wireQuery(accepted.result);
   return { op: watermark.op, args, accepted };
 }

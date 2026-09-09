@@ -847,6 +847,120 @@ test("a committed settlement lands in the same swap as the log tail rows, or not
   await rm(root, { recursive: true, force: true });
 });
 
+test("a conditional settlement tail gets one full revalidation without weakening atomicity or custody", async () => {
+  for (const mode of ["conditional", "full", "transport", "unchanged", "abort"] as const) {
+    const root = await tempRoot();
+    const owner = fakeOwner();
+    const base = fileRangeStore(root);
+    const settlementSwaps: any[] = [];
+    const queuedImages: any[] = [];
+    let prooflessAnswers = 0;
+    let heldFallback: any;
+    let inspectAnswer: ((op: string, args: unknown) => Promise<any>) | undefined;
+    const factory = () => {
+      const store = base();
+      const answer = store.answer.bind(store);
+      inspectAnswer = answer;
+      store.answer = async (op, args) => {
+        const held = await answer(op, args);
+        const candidate = held ?? heldFallback;
+        if (candidate && op === "messages.inbox" && (args as any).c === "cursor-9") {
+          prooflessAnswers += 1;
+          return { ...candidate, needsFactProofs: true as const };
+        }
+        return held;
+      };
+      const commit = store.commit.bind(store);
+      store.commit = async (swap) => {
+        if (swap.outbox?.put?.some(entry => entry.state === "committed")) settlementSwaps.push(structuredClone(swap));
+        await commit(swap);
+        for (const entry of swap.outbox?.put ?? []) {
+          if (entry.state === "queued") queuedImages.push(structuredClone(await store.outbox.get(entry.intent)));
+        }
+      };
+      return store;
+    };
+    await seededStore(factory);
+    const queries: any[] = [];
+    const fullStarted = Promise.withResolvers<void>();
+    const releaseFull = Promise.withResolvers<void>();
+    let conditionalValidator: string | undefined;
+    let armed = false;
+    const client = createClient({ url: `http://tail-${mode}.test`, persona: "alice", offline: { store: factory }, fetch: async (input, init) => {
+      const path = new URL(String(input)).pathname;
+      if (path !== "/api/query") return owner.fetch(input, init);
+      const body = JSON.parse(String(init?.body));
+      if (body.op !== "messages.inbox" || body.args?.c !== "cursor-9") return owner.fetch(input, init);
+      queries.push(body);
+      if (!armed) return owner.fetch(input, init);
+      if (body.validator) {
+        conditionalValidator = body.validator;
+        if (mode === "full") return owner.fetch(input, init);
+        return jsonResponse({ state: "unchanged", seq: 6, validator: body.validator });
+      }
+      if (mode === "transport") throw new TypeError("full tail is cut");
+      if (mode === "unchanged") return jsonResponse({ state: "unchanged", seq: 6, validator: conditionalValidator });
+      const response = await owner.fetch(input, init);
+      if (mode === "abort") { fullStarted.resolve(); await releaseFull.promise; }
+      return response;
+    } });
+    try {
+      await client.ready;
+      await client.query(api.messages.inbox as any, { c: "cursor-9" });
+      heldFallback = await inspectAnswer!("messages.inbox", { c: "cursor-9" });
+      assert(heldFallback?.validator, `${mode}: fixture holds a conditional tail validator`);
+      queries.length = 0;
+      prooflessAnswers = 0;
+      conditionalValidator = undefined;
+      armed = true;
+      let before: string;
+      if (mode === "transport") {
+        await client.offline();
+        await client.online();
+        queries.length = 0;
+        prooflessAnswers = 0;
+        conditionalValidator = undefined;
+        const result = await client.mutation(api.messages.send as any, post(mode));
+        assert.equal(result.state, "queued", "transport: an online mutation keeps its durable queued result");
+        before = JSON.stringify(queuedImages.at(-1));
+      } else {
+        await client.offline();
+        await client.mutation(api.messages.send as any, post(mode));
+        before = JSON.stringify((await client.outbox.entries())[0]);
+      }
+      if (mode === "transport") {
+        // submitMutation already ran the failed drain.
+      } else if (mode === "abort") {
+        const online = client.online();
+        await fullStarted.promise;
+        await client.offline();
+        await assert.rejects(online, (error: any) => error.name === "AbortError");
+      } else if (mode === "unchanged") {
+        await assert.rejects(client.online(), (error: any) => error.code === "E_OFFLINE_DELIVERY");
+      } else {
+        await client.online();
+      }
+      const entry = (await client.outbox.entries())[0]!;
+      if (mode === "conditional" || mode === "full") {
+        assert.equal(entry.state, "committed", `${mode}: replay settled`);
+        assert.equal(settlementSwaps.length, 1, `${mode}: one swap carried the terminal image`);
+        assert.equal(settlementSwaps[0].deliveries.length, 1, `${mode}: the same swap carried the tail`);
+      } else {
+        assert.equal(JSON.stringify(entry), before, `${mode}: the queued replay image stayed byte-identical`);
+        assert.equal(settlementSwaps.length, 0, `${mode}: no terminal image landed without its tail`);
+      }
+      assert(prooflessAnswers > 0, `${mode}: the conditional fixture removed immutable fact proofs`);
+      assert.equal(queries.length, mode === "full" ? 1 : 2, `${mode}: at most one unconditional retry`);
+      assert.equal(queries[0].validator, conditionalValidator);
+      if (queries.length === 2) assert.equal("validator" in queries[1], false, `${mode}: the retry requested a full envelope`);
+    } finally {
+      releaseFull.resolve();
+      await client.close();
+      await rm(root, { recursive: true, force: true });
+    }
+  }
+});
+
 test("online writes carry the replay envelope under custody; a transport failure enqueues; a queued outbox keeps FIFO", async () => {
   const root = await tempRoot();
   let dead = false;
