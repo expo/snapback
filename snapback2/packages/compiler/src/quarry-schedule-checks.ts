@@ -134,11 +134,14 @@ export function registerScheduleChecks(test: Test, frontend: string): void {
     assert(source.includes("if cfg.replayMode = false:")
       && source.includes("if newFollowers != 0 or summary.newPostsInFollowing != 0 or summary.unreadMessages != 0 or summary.unreadChats != 0:"),
     "replay or quiet-period guard moved");
+    assert(source.includes("digestEligible: cfg.replayMode = false")
+      && source.includes("newFollowerPeriodCounts[p.principal, true, periodStart]"),
+    "replay-created follows can leak into a later sweep in the same period");
     const follow = JSON.stringify(operation(lowered.project.programs, "digest-recipes.setRecipeFollow").body);
     assert(follow.includes("follows") && follow.includes("digestFollows") && follow.includes("Insert") && follow.includes("Delete"),
       "follow/mirror equality lost a transaction path");
     const post = JSON.stringify(operation(lowered.project.programs, "digest-recipes.createRecipePost").body);
-    assert(post.includes("posts") && post.includes("postPeriodCounters")
+    assert(post.includes("posts") && post.includes("postPeriodCounters") && post.includes("replayMode")
       && !post.includes("digestFollows") && !post.includes("For"), "post creation lost its follower-independent period counter");
     const prune = operation(lowered.project.programs, "digest-recipes.pruneRecipePeriodUnread");
     assert(prune.kind === "job" && JSON.stringify(prune.body).includes("periodUnread"), "period unread prune lost owner custody");

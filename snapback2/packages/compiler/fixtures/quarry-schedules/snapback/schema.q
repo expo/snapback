@@ -61,6 +61,7 @@ table pushLog:
 table follows:
   follower: principal
   followed: principal
+  digestEligible: bool
   periodStart: time
   unique byFollowerFollowed: follower, followed
   by byFollower: follower, followed
@@ -152,7 +153,7 @@ table digests:
   update <- deny
   delete <- deny
 
-maintain newFollowerPeriodCounts: count follows by followed, periodStart
+maintain newFollowerPeriodCounts: count follows by followed, digestEligible, periodStart
   read <- allow
 
 maintain periodUnreadByMembershipPeriod: count periodUnread by recipient, conversationId, membershipId, periodStart

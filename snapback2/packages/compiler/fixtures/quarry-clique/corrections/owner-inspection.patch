@@ -1,5 +1,14 @@
 --- a/snapback/schema.q
 +++ b/snapback/schema.q
+@@ -12,7 +12,7 @@ table appSettings:
+   immutable key
+   public 'window and digest configuration is product policy'
+   insert <- deny
+-  update <- deny
++  update <- exists profiles[viewer]
+   delete <- deny
+
+ table profiles:
 @@ -351,7 +351,7 @@ table periodUnread:
    membershipId: memberships
    periodStart: time

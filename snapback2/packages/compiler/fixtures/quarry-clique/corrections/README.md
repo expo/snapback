@@ -24,15 +24,16 @@ compiled as generation `2a750d42cc003a0f1cd51ab6ec2be911c34706f018180ecb86dd9864
 
 `grok-app.patch` applies only after that adapter and contains the behavioral
 repair. Its SHA-256 is
-`089d4b393b556eed1770be1408daed8c6a2770613d1ce610181af4ce7aa19013`.
+`2eab95a76728f18f3beab37de0bc6f6674af87190ddfe91f645e5a62989b50f8`.
 The production correction compiled and certified 66 operations as generation
-`4a09841b4adc348243c32b1fe7ac813eec210f3c4cdfe133a9c300f1930c8f13`.
+`9b27b0cf485067eb7db45b71040d4ac731fe40f6ed67567868dc80fba7c604d7`.
 Both patch stages pass `patch --dry-run -p1` against their respective inputs.
 
 `owner-inspection.patch` is test instrumentation, not application behavior.
-After the behavioral patch it adds two period-unread inspection queries and
-the total-order index suffix one of them requires. Its SHA-256 is
-`c1b78e65ecb8ae86cbc83f96aea77f5c722d4847bb94098f1e529afa40b242ab`.
+After the behavioral patch it grants profiles a test-only replay-mode toggle,
+adds two period-unread inspection queries, and adds the total-order index suffix
+one of them requires. Its SHA-256 is
+`933f2989fa7969d9c1aa3b40bc1a0fd22e898235e1aea961b7b5e6d35f11d7d9`.
 The owner cases use it to exercise the private row rule directly; do not ship
 it as part of the application correction.
 
@@ -48,8 +49,8 @@ constant work regardless of follower count.
 
 The final digest reads all 500 follows and 100 current membership incarnations
 atomically with one transaction-local scratch row containing explicit post,
-message, and chat fields. Its production certificate reports 3,080,266 closure
-bytes, 3,758,093 heap bytes, 1,814 examined/index entries, and 37,635 steps.
+message, and chat fields. Its production certificate reports 3,080,636 closure
+bytes, 3,758,277 heap bytes, 1,814 examined/index entries, and 37,636 steps.
 The distilled compiler fixture reports 3,031,891 closure bytes, 3,708,171 heap
 bytes, the same 1,814 examined/index entries, and 37,634 steps. That fixture's
 tables intentionally use mechanical `public`/`allow` policies; it proves
@@ -58,6 +59,12 @@ production privacy rule. The separate owner inspection proves that rule.
 The original 50-member per-conversation cap is unchanged. The recipe adds an
 explicit 100-membership per-principal bound: membership 101 refuses rather
 than being silently omitted from a digest.
+
+Replay suppression applies at source admission, not only at the later sweep.
+Post writers skip the compact period counter while replay mode is active, and
+new follows retain their current-relationship mirror while marking the period
+activity ineligible. Otherwise replay mode could turn off before the same
+period ends and leak replayed writes into an ordinary digest.
 
 Period unread custody is separate from the app's lifetime delivery/read
 receipts. Each row binds the recipient, chat, exact membership id, and source
@@ -103,3 +110,8 @@ body, pinned it, and a cold offline restart still had no body.
 
 The local effect returns a deterministic result without `fetch`; no provider
 request was made.
+
+The same-period replay journey passed in 1,712 ms with two schedule firings:
+one replayed post and follow remained silent after replay mode turned off,
+while one later ordinary post survived an injected 503, restart and outbox
+drain and appeared exactly once in that period's digest.

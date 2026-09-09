@@ -502,7 +502,7 @@ journey("period unread custody rejects peers and former authors and prunes old m
 
     const group = await alice.mutation(api.groups.groupCreate, {
       title: "Former author custody",
-      members: ["dev:bob"],
+      members: ["dev:bob", "dev:charlie"],
       conversationId: "former-author-custody",
     });
     if (group.state !== "committed") throw new Error(`group was ${group.state}`);
@@ -623,23 +623,42 @@ journey("period unread custody rejects peers and former authors and prunes old m
   }
 });
 
-journey("replay mode skips a period and a post retry stays exactly once", async ({ as, tick }) => {
-  const initial = await tick(0);
-  let offset = Number(initial.offsetMs ?? 0);
+journey("same-period replay activity stays silent and a post retry counts exactly once", async ({ as, tick }) => {
+  let clock = await tick(0);
+  let offset = Number(clock.offsetMs ?? 0);
+  const initialNow = Date.now() + offset;
+  const initialRemainder = ((initialNow % 120_000) + 120_000) % 120_000;
+  clock = await tick(120_000 - initialRemainder + 1_000);
+  offset = Number(clock.offsetMs ?? offset);
   const alice = as("alice", { store: "file" });
   const bob = as("bob", { store: "file" });
+  const charlie = as("charlie");
   try {
+    const grant = subscribe(alice, api.messages.inbox, { c: null }, () => undefined, { drain: true });
+    await grant.until((value) =>
+      (value.state === "complete" || value.state === "capped") && value.caughtUp === true);
+    grant.close();
     const replayPeriodNow = Date.now() + offset;
     const replayPeriod = replayPeriodNow - ((replayPeriodNow % 120_000) + 120_000) % 120_000;
+    const profile = await charlie.mutation(api.profiles.createMyProfile, {
+      displayName: "Charlie",
+      handle: "replay_charlie",
+      bio: "",
+      location: "",
+    });
+    if (profile.state !== "committed") throw new Error(`profile was ${profile.state}`);
     const replayOn = await alice.mutation(api.admin.setReplayMode, { enabled: true });
-    if (replayOn.state !== "committed") throw new Error(`replay enable was ${replayOn.state}`);
+    if (replayOn.state !== "committed") throw new Error(`replay enable was ${JSON.stringify(replayOn)}`);
     const skipped = await alice.mutation(api.posts.createPost, { body: "replay period" });
     if (skipped.state !== "committed") throw new Error(`replay post was ${skipped.state}`);
-    offset = Number((await tick(120_000)).offsetMs ?? offset);
+    const replayFollow = await charlie.mutation(api.follows.setFollow, {
+      target: "dev:bob",
+      following: true,
+      mutationId: "replay-follow-bob",
+    });
+    if (replayFollow.state !== "committed") throw new Error(`replay follow was ${replayFollow.state}`);
     const replayOff = await alice.mutation(api.admin.setReplayMode, { enabled: false });
     if (replayOff.state !== "committed") throw new Error(`replay disable was ${replayOff.state}`);
-    const acceptedNow = Date.now() + offset;
-    const acceptedPeriod = acceptedNow - ((acceptedNow % 120_000) + 120_000) % 120_000;
     await alice.offline();
     const queued = await alice.mutation(api.posts.createPost, {
       body: "idempotent period post",
@@ -651,26 +670,26 @@ journey("replay mode skips a period and a post retry stays exactly once", async 
     await retrying.online();
     await retrying.settled();
     const afterFault = await retrying.outbox.entries();
-    if (afterFault.length !== 1 || afterFault[0]?.state !== "queued") {
+    if (afterFault.find((entry) => entry.intent === queued.intent)?.state !== "queued") {
       throw new Error(`post retry lost custody: ${JSON.stringify(afterFault)}`);
     }
     await retrying.outbox.drain();
     const settled = await retrying.outbox.entries();
-    if (settled.length !== 1 || settled[0]?.state !== "committed") {
+    if (settled.find((entry) => entry.intent === queued.intent)?.state !== "committed") {
       throw new Error(`post retry settled as ${JSON.stringify(settled)}`);
     }
     await bob.offline();
     const cold = await bob.restart();
+    await cold.online();
     await tick(120_000);
     for (let attempt = 0; attempt < 100; attempt += 1) {
       const pushes = await cold.query(api.messages.pushRecent, { c: null });
       const digests = "data" in pushes && Array.isArray(pushes.data)
         ? pushes.data.filter((row) => row.kind === "digest")
         : [];
-      if (digests.some((row) => row.periodStart === acceptedPeriod)) {
-        if (digests.some((row) => row.periodStart === replayPeriod)) throw new Error("replay period emitted");
-        const final = digests.find((row) => row.periodStart === acceptedPeriod);
-        if (digests.length !== 1 || final?.newPostsInFollowing !== 1) {
+      const final = digests.find((row) => row.periodStart === replayPeriod);
+      if (final) {
+        if (digests.length !== 1 || final.newPostsInFollowing !== 1 || final.newFollowers !== 0) {
           throw new Error(`retry/restart payload was ${JSON.stringify(digests)}`);
         }
         return;
@@ -681,6 +700,7 @@ journey("replay mode skips a period and a post retry stays exactly once", async 
   } finally {
     alice.close();
     bob.close();
+    charlie.close();
   }
 });
 

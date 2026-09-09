@@ -63,7 +63,11 @@ transaction; deny any unpaired writer. This does not make arbitrary deletes
 auto-maintained. Write the unique principal/period digest, application log and
 effect in the same profile chunk; delete its transaction-local scratch before
 commit. An all-zero period writes and emits nothing. Keep the configured period
-equal to the `schedule` duration, and guard replay mode before work. A per-chat
+equal to the `schedule` duration. Guard replay activity when each source row is
+admitted as well as at the sweep: if replay mode can turn off inside a period,
+a sweep-only guard leaks earlier replay writes. Keep current relationship
+mirrors current during replay, but mark those follow events ineligible and skip
+manual post-period counters until replay ends. A per-chat
 pending-row cap is also the unread counting envelope: reading only the first
 page must not claim later rows read. The compiled recipe admits at most 500
 follows and 100 memberships per principal; row 101 refuses at write time

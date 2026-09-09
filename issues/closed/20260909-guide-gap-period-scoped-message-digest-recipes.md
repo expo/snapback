@@ -21,7 +21,10 @@ text/media sends. The effects card teaches a shared 80-scalar preview. The
 schedule card now routes period digests through current bounded selection,
 membership-incarnation period custody with scoped author/recipient access,
 owner-only maintained counts and pruning, atomic unique record/log/effect
-admission, replay mode, and an all-zero quiet-period skip. It also records the
+admission, replay mode, and an all-zero quiet-period skip. It records the need
+to suppress replay activity at source admission rather than relying on a later
+sweep guard when replay mode can change inside the same period, while keeping
+the current relationship mirror accurate. It also records the
 create/delete/update obligation when an explicit compact counter replaces an
 over-budget declarative maintain, and prevents a bounded read from claiming
 later unread rows cleared. Executable expiry/preview and digest fixtures retain

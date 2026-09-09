@@ -117,7 +117,7 @@
 -              newPostsInFollowing: bucket.newPostsInFollowing,
 -              unreadMessages: unreadM,
 -              unreadChats: unreadC,
-+        newFollowers = newFollowerPeriodCounts[p.principal, periodStart] ?? 0
++        newFollowers = newFollowerPeriodCounts[p.principal, true, periodStart] ?? 0
 +        candidate = insert digestCandidates {
 +          newPostsInFollowing: 0,
 +          unreadMessages: 0,
@@ -217,7 +217,7 @@
 
  query isFollowing(person: principal):
    return follows[viewer, person]
-@@ -11,22 +10,33 @@
+@@ -11,22 +10,34 @@
    existing = follows[viewer, target]
    if following:
      if existing != null:
@@ -241,6 +241,7 @@
        follower: viewer,
        followed: target,
        mutationId: mutationId ?? 'follow',
++      digestEligible: cfg.replayMode = false,
 +      periodStart,
        at: now,
      }
@@ -386,7 +387,7 @@
  mutation setPollVote(messageId: messages, optionId: text <=80, mutationId: text <=80):
 --- a/snapback/posts.q
 +++ b/snapback/posts.q
-@@ -1,49 +1,64 @@
+@@ -1,49 +1,70 @@
  fn settings from access
  proc bumpDailyPosts from access
 +proc bumpPostPeriod from access
@@ -404,14 +405,16 @@
 +    row = insert posts { id: postId, author: viewer, body, kind: 'text', isReply: false, periodStart, at: now }
      insert timelineEvents { actor: viewer, at: now, postId: row.id, kind: 'post' }
      insert trendingPosts { postId: row.id, likeCount: 0, at: now, expiresAt: 86400000 + now }
-+    bumpPostPeriod(viewer, periodStart)
++    if cfg.replayMode = false:
++      bumpPostPeriod(viewer, periodStart)
      bumpDailyPosts(viewer)
      return row
 -  row = insert posts { author: viewer, body, kind: 'text', isReply: false, at: now }
 +  row = insert posts { author: viewer, body, kind: 'text', isReply: false, periodStart, at: now }
    insert timelineEvents { actor: viewer, at: now, postId: row.id, kind: 'post' }
    insert trendingPosts { postId: row.id, likeCount: 0, at: now, expiresAt: 86400000 + now }
-+  bumpPostPeriod(viewer, periodStart)
++  if cfg.replayMode = false:
++    bumpPostPeriod(viewer, periodStart)
    bumpDailyPosts(viewer)
    return row
 
@@ -425,14 +428,16 @@
 +    row = insert posts { id: postId, author: viewer, body, kind: 'images', isReply: false, image1, image2, image3, image4, periodStart, at: now }
      insert timelineEvents { actor: viewer, at: now, postId: row.id, kind: 'post' }
      insert trendingPosts { postId: row.id, likeCount: 0, at: now, expiresAt: 86400000 + now }
-+    bumpPostPeriod(viewer, periodStart)
++    if cfg.replayMode = false:
++      bumpPostPeriod(viewer, periodStart)
      bumpDailyPosts(viewer)
      return row
 -  row = insert posts { author: viewer, body, kind: 'images', isReply: false, image1, image2, image3, image4, at: now }
 +  row = insert posts { author: viewer, body, kind: 'images', isReply: false, image1, image2, image3, image4, periodStart, at: now }
    insert timelineEvents { actor: viewer, at: now, postId: row.id, kind: 'post' }
    insert trendingPosts { postId: row.id, likeCount: 0, at: now, expiresAt: 86400000 + now }
-+  bumpPostPeriod(viewer, periodStart)
++  if cfg.replayMode = false:
++    bumpPostPeriod(viewer, periodStart)
    bumpDailyPosts(viewer)
    return row
 
@@ -447,23 +452,26 @@
 +    row = insert posts { id: postId, author: viewer, body, kind: 'video', isReply: false, clip, periodStart, at: now }
      insert timelineEvents { actor: viewer, at: now, postId: row.id, kind: 'post' }
      insert trendingPosts { postId: row.id, likeCount: 0, at: now, expiresAt: 86400000 + now }
-+    bumpPostPeriod(viewer, periodStart)
++    if cfg.replayMode = false:
++      bumpPostPeriod(viewer, periodStart)
      bumpDailyPosts(viewer)
      return row
 -  row = insert posts { author: viewer, body, kind: 'video', isReply: false, clip, at: now }
 +  row = insert posts { author: viewer, body, kind: 'video', isReply: false, clip, periodStart, at: now }
    insert timelineEvents { actor: viewer, at: now, postId: row.id, kind: 'post' }
    insert trendingPosts { postId: row.id, likeCount: 0, at: now, expiresAt: 86400000 + now }
-+  bumpPostPeriod(viewer, periodStart)
++  if cfg.replayMode = false:
++    bumpPostPeriod(viewer, periodStart)
    bumpDailyPosts(viewer)
    return row
 
 --- a/snapback/schema.q
 +++ b/snapback/schema.q
-@@ -37,18 +37,32 @@
+@@ -37,18 +37,33 @@
    follower: principal
    followed: principal
    mutationId: text <=80
++  digestEligible: bool
 +  periodStart: time ?
    at: time
    unique byFollowerFollowed: follower, followed
@@ -473,7 +481,7 @@
    by byFollowedAt: followed, at, id
 -  immutable follower, followed, mutationId
 +  cap 500 by follower
-+  immutable follower, followed, mutationId, periodStart
++  immutable follower, followed, mutationId, digestEligible, periodStart
    public 'follows are public product-selection relationships'
    insert <- .follower = viewer
    update <- deny
@@ -494,7 +502,7 @@
  table posts:
    author: principal
    body: text <=500
-@@ -61,13 +75,14 @@
+@@ -61,13 +76,14 @@
    image3: image <=10485760 ?
    image4: image <=10485760 ?
    clip: video <=52428800 ?
@@ -510,18 +518,17 @@
    public 'posts are globally readable product content'
    insert <- .author = viewer
    update <- .author = viewer
-@@ -143,16 +158,26 @@
+@@ -143,16 +159,26 @@
    update <- exists profiles[viewer]
    delete <- deny
 
 -table digestBuckets:
 -  principal: principal
--  periodStart: time
--  newFollowers: int
 +table postPeriodCounters:
 +  author: principal
 +  isReply: bool
-+  periodStart: time
+   periodStart: time
+-  newFollowers: int
 +  total: int
 +  unique byAuthorReplyPeriod: author, isReply, periodStart
 +  immutable author, isReply, periodStart
@@ -543,7 +550,7 @@
 
  table digests:
    principal: principal
-@@ -213,6 +238,7 @@
+@@ -213,6 +239,7 @@
    by byConversationPrincipalRole: conversationId, principal, role
    by byPrincipalConversation: principal, conversationId, id
    cap 50 by conversationId
@@ -551,7 +558,7 @@
    immutable conversationId, principal, joinedAt
    read <- exists memberships[.conversationId, viewer]
    insert <- (
-@@ -249,6 +275,7 @@
+@@ -249,6 +276,7 @@
    edited: bool ?
    status: enum('ok', 'removed', 'expired')
    at: time
@@ -559,7 +566,7 @@
    by byConvTime: conversationId, at, id
    by bySearch: conversationId, wordPrefixes(body), at, id
    immutable conversationId, authorId
-@@ -286,26 +313,58 @@
+@@ -286,26 +314,58 @@
    by byRecipient: recipient, messageId
    by byRecipientConversation: recipient, conversationId, messageId
    cap 50 by recipient, conversationId
@@ -623,7 +630,7 @@
  table unreadCounts:
    conversationId: conversations
    principal: principal
-@@ -390,7 +449,7 @@
+@@ -390,7 +450,7 @@
    kind: enum('message', 'digest')
    chatId: conversations ?
    senderDisplayName: text <=50 ?
@@ -632,31 +639,34 @@
    periodStart: time ?
    periodEnd: time ?
    newFollowers: int ?
-@@ -451,6 +510,9 @@
+@@ -451,6 +511,9 @@
  maintain followingCounts: count follows by follower
    read <- exists profiles[viewer]
 
-+maintain newFollowerPeriodCounts: count follows by followed, periodStart
++maintain newFollowerPeriodCounts: count follows by followed, digestEligible, periodStart
 +  read <- exists profiles[viewer]
 +
  maintain pendingDeliveredCounts: count pendingDelivered by messageId
    read <- exists messages[.messageId]
 
-@@ -463,6 +525,9 @@
- maintain pendingReadByChat: count pendingRead by recipient, conversationId
+@@ -461,6 +524,9 @@
    read <- deny
 
-+maintain periodUnreadByMembershipPeriod: count periodUnread by recipient, conversationId, membershipId, periodStart
+ maintain pendingReadByChat: count pendingRead by recipient, conversationId
 +  read <- deny
 +
- maintain unreadMessageTotals: sum unreadCounts of count by principal
-   read <- .principal = viewer
++maintain periodUnreadByMembershipPeriod: count periodUnread by recipient, conversationId, membershipId, periodStart
+   read <- deny
 
+ maintain unreadMessageTotals: sum unreadCounts of count by principal
 --- a/snapback/seed.ts
 +++ b/snapback/seed.ts
-@@ -50,6 +50,9 @@
+@@ -48,8 +48,11 @@
+       { id: "te-post-bob", actor: "dev:bob", at: 2, postId: "post-bob", kind: "post" },
+     ],
      follows: [
-       { id: "follow-bob-alice", follower: "dev:bob", followed: "dev:alice", mutationId: "seed-follow-bob-alice", at: 1 },
+-      { id: "follow-bob-alice", follower: "dev:bob", followed: "dev:alice", mutationId: "seed-follow-bob-alice", at: 1 },
++      { id: "follow-bob-alice", follower: "dev:bob", followed: "dev:alice", mutationId: "seed-follow-bob-alice", digestEligible: true, at: 1 },
      ],
 +    digestFollows: [
 +      { id: "digest-follow-bob-alice", follower: "dev:bob", followed: "dev:alice" },

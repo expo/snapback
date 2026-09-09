@@ -9,7 +9,7 @@ mutation setRecipeFollow(target: principal, following: bool):
     if existing = null:
       cfg = settings() ! else CONFIG
       (_period, rem) = divmod(now, cfg.digestPeriodMs)
-      insert follows { follower: viewer, followed: target, periodStart: now - rem }
+      insert follows { follower: viewer, followed: target, digestEligible: cfg.replayMode = false, periodStart: now - rem }
     if edge = null:
       insert digestFollows { follower: viewer, followed: target }
   else:
@@ -24,11 +24,12 @@ mutation createRecipePost(postId: id ?):
   (_period, rem) = divmod(now, cfg.digestPeriodMs)
   periodStart = now - rem
   row = insert posts { id: postId ?? new, author: viewer, isReply: false, periodStart }
-  prior = postPeriodCounters[viewer, false, periodStart]
-  if prior = null:
-    insert postPeriodCounters { author: viewer, isReply: false, periodStart, total: 1 }
-  else:
-    update postPeriodCounters[prior] { total: prior.total + 1 }
+  if cfg.replayMode = false:
+    prior = postPeriodCounters[viewer, false, periodStart]
+    if prior = null:
+      insert postPeriodCounters { author: viewer, isReply: false, periodStart, total: 1 }
+    else:
+      update postPeriodCounters[prior] { total: prior.total + 1 }
   return row
 
 mutation queueRecipeUnread(messageId: messages, conversationId: conversations, recipient: principal):
@@ -53,7 +54,7 @@ job periodDigestSweep():
       periodStart = periodEnd - cfg.digestPeriodMs
       prior = digests[p.principal, periodStart]
       if prior = null:
-        newFollowers = newFollowerPeriodCounts[p.principal, periodStart] ?? 0
+        newFollowers = newFollowerPeriodCounts[p.principal, true, periodStart] ?? 0
         scratch = insert digestScratch { newPostsInFollowing: 0, unreadMessages: 0, unreadChats: 0 }
         following = digestFollows[p.principal] first 500 by byFollower { followed }
         for followed in following:

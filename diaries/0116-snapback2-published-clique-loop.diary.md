@@ -1858,3 +1858,11 @@ incarnations only after the last completed bucket. The counter requires paired
 maintenance before any future post delete or key-changing update; this app
 currently exposes neither. Exact and Contract were not used, and this
 correction makes no new competitor claim.
+
+A final same-period replay check caught one more lifecycle edge: skipping only
+the digest sweep is insufficient when replay mode turns off before the bucket
+ends. The corrected copy admits replay eligibility with each follow and skips
+the post-period counter during replay while still keeping the current follow
+mirror accurate. It certifies at 3,080,636 closure bytes and the owner witness
+kept replayed post/follow activity silent while a later ordinary post survived
+an injected response failure and restart exactly once.
