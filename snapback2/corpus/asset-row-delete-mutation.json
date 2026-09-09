@@ -92,6 +92,18 @@
         "max_rows": 1
       }
     ],
+    "mutation_targets": {
+      "targets": [
+        {
+          "table": "media",
+          "kind": "remove",
+          "source": {
+            "argument": "rowId"
+          }
+        }
+      ],
+      "complete": true
+    },
     "maintained_amplification": 0,
     "constraint_checks": [
       "media:Unique(byId)"

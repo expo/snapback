@@ -21,8 +21,6 @@ function Results({ term, onOpen }: { term: string; onOpen(conversationId: string
     <Pressable key={row.id} testID={`search-${row.id}`} onPress={() => onOpen(row.conversationId)}><Text>{row.body}</Text></Pressable>)}</View>;
 }
 
-// @ref LLP 1012#6-reads-offline — the native screen uses the same named
-// Unicode index and retains held/partial/capped provenance.
 export function Search({ onOpen }: { onOpen(conversationId: string): void }) {
   const [term, setTerm] = useState("");
   const normalized = term.trim();

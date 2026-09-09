@@ -287,7 +287,7 @@ test("new local prediction and revocation remain visible under an older held ans
     query: async () => { throw new Error("unused"); },
     local: async () => local,
   } as any);
-  const observed = queries.observe(api.deliveries.conversationView, { conversationId: "conversation-1" });
+  const observed = queries.observe(api.messages.conversationView, { conversationId: "conversation-1" });
   const stop = observed.subscribe(() => undefined);
   publish({ state: "capped", live: true, seq: 8, next: null,
     data: { messages: [{ id: "server", message: { id: "server" } }], count: 2, preview: [] } });
@@ -332,7 +332,7 @@ test("a drain local refresh cannot claim caught-up before its mark finishes", as
     local: async () => ({ state: "held", live: false, connection: "offline", data: localData,
       next: null, seq: 2, caughtUp: true, watermark: "persisted" }),
   } as any);
-  const subscription = queries.subscribe(api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
+  const subscription = queries.subscribe(api.messages.inbox, { c: null }, () => undefined, { drain: true });
   let settled = false;
   const caught = subscription.until((event: any) => event.caughtUp === true, 2_000).then(value => {
     settled = true; return value;
@@ -399,45 +399,45 @@ test("identical live subscriptions share one stream, one delivery, and one mount
   const client = createClient({ url: "http://shared.test", persona: "alice", fetch });
   await client.ready;
   const args = { conversationId: "conversation-1", c: null };
-  const first = subscribe(client, api.deliveries.thread, args, () => undefined);
-  const second = subscribe(client, api.deliveries.thread, args, () => undefined);
+  const first = subscribe(client, api.messages.thread, args, () => undefined);
+  const second = subscribe(client, api.messages.thread, args, () => undefined);
   const [a, b] = await Promise.all([
     first.until((event) => event.state === "complete", 2_000),
     second.until((event) => event.state === "complete", 2_000),
   ]);
   assert.equal(a.seq, b.seq);
   assert.equal(counts.subscribes, 1, "the second consumer attaches to the first consumer's stream");
-  assert.equal(sharedConsumers(client, api.deliveries.thread, args), 2);
+  assert.equal(sharedConsumers(client, api.messages.thread, args), 2);
 
   // A late consumer sees the current delivery without asking the owner again.
   const seen: string[] = [];
-  const third = subscribe(client, api.deliveries.thread, args, (event) => { seen.push(event.state); });
+  const third = subscribe(client, api.messages.thread, args, (event) => { seen.push(event.state); });
   await new Promise<void>((resolve) => setTimeout(resolve, 20));
   assert.deepEqual(seen, ["complete"]);
   assert.equal(counts.subscribes, 1);
-  assert.equal(sharedConsumers(client, api.deliveries.thread, args), 3);
+  assert.equal(sharedConsumers(client, api.messages.thread, args), 3);
 
   // Closing duplicates leaves the survivor on the same stream.
   first.close();
   third.close();
-  assert.equal(sharedConsumers(client, api.deliveries.thread, args), 1);
+  assert.equal(sharedConsumers(client, api.messages.thread, args), 1);
   assert.equal(counts.subscribes, 1);
   const again = await second.until((event) => event.state === "complete", 2_000);
   assert.equal(again.seq, a.seq);
 
   // The last close releases the entry; the next consumer opens a fresh stream.
   second.close();
-  assert.equal(sharedConsumers(client, api.deliveries.thread, args), 0);
-  const fresh = subscribe(client, api.deliveries.thread, args, () => undefined);
+  assert.equal(sharedConsumers(client, api.messages.thread, args), 0);
+  const fresh = subscribe(client, api.messages.thread, args, () => undefined);
   await fresh.until((event) => event.state === "complete", 2_000);
   assert.equal(counts.subscribes, 2);
   fresh.close();
 
   // Different arguments never share.
-  const other = subscribe(client, api.deliveries.thread, { conversationId: "conversation-2", c: null }, () => undefined);
+  const other = subscribe(client, api.messages.thread, { conversationId: "conversation-2", c: null }, () => undefined);
   await other.until((event) => event.state === "complete", 2_000);
   assert.equal(counts.subscribes, 3);
-  assert.equal(sharedConsumers(client, api.deliveries.thread, args), 0);
+  assert.equal(sharedConsumers(client, api.messages.thread, args), 0);
   other.close();
   await client.close();
 });
@@ -450,8 +450,8 @@ test("observed queries are lazy and share one snapshot and source with raw subsc
   const args = { conversationId: "conversation-1", c: null };
   const lateArgs = { ...args };
   const lateOptions: any = {};
-  const first = client.observe(api.deliveries.thread, lateArgs, lateOptions);
-  const second = client.observe(api.deliveries.thread, args);
+  const first = client.observe(api.messages.thread, lateArgs, lateOptions);
+  const second = client.observe(api.messages.thread, args);
   lateArgs.conversationId = "conversation-2";
   lateOptions.live = false;
   lateOptions.drain = true;
@@ -459,7 +459,7 @@ test("observed queries are lazy and share one snapshot and source with raw subsc
   assert.strictEqual(first.getSnapshot(), first.getSnapshot(), "an unused observer has one stable hydrating snapshot");
   assert.equal(first.getSnapshot().status, "loading");
   assert.equal(counts.subscribes, 0, "obtaining an observer opens no transport");
-  assert.equal(sharedConsumers(client, api.deliveries.thread, args), 0, "an unused observer retains no entry");
+  assert.equal(sharedConsumers(client, api.messages.thread, args), 0, "an unused observer retains no entry");
 
   const seen: string[] = [];
   const stopFirst = first.subscribe(() => { seen.push(`first:${observedVerdict(first.getSnapshot())}`); });
@@ -469,11 +469,11 @@ test("observed queries are lazy and share one snapshot and source with raw subsc
   assert.ok((first.getSnapshot() as any).data.every((row: any) => row.conversationId === "conversation-1"),
     "late attach uses the arguments and mode captured when observe returned");
   assert.equal(counts.subscribes, 1);
-  assert.equal(sharedConsumers(client, api.deliveries.thread, args), 2);
+  assert.equal(sharedConsumers(client, api.messages.thread, args), 2);
 
   const notifications = seen.length;
   let raw: any, mutationBlocked = false;
-  const subscription = subscribe(client, api.deliveries.thread, args, (event) => {
+  const subscription = subscribe(client, api.messages.thread, args, (event) => {
     raw = event;
     try { (event as any).data[0].conversationId = "consumer mutation"; }
     catch (error) { mutationBlocked = error instanceof TypeError; }
@@ -486,7 +486,7 @@ test("observed queries are lazy and share one snapshot and source with raw subsc
     && Object.isFrozen((second.getSnapshot() as any).data[0]), "the whole public snapshot is frozen");
   assert.equal(seen.length, notifications, "blocked consumer mutation publishes no phantom notification");
   assert.equal(counts.subscribes, 1, "the raw subscriber reused the observed source");
-  assert.equal(sharedConsumers(client, api.deliveries.thread, args), 3);
+  assert.equal(sharedConsumers(client, api.messages.thread, args), 3);
 
   (subscription as typeof subscription & { reset(): void }).reset();
   assert.equal(first.getSnapshot().status, "loading", "program reset synchronously forgets predecessor data");
@@ -497,9 +497,9 @@ test("observed queries are lazy and share one snapshot and source with raw subsc
 
   stopFirst();
   subscription.close();
-  assert.equal(sharedConsumers(client, api.deliveries.thread, args), 1);
+  assert.equal(sharedConsumers(client, api.messages.thread, args), 1);
   stopSecond();
-  assert.equal(sharedConsumers(client, api.deliveries.thread, args), 0);
+  assert.equal(sharedConsumers(client, api.messages.thread, args), 0);
   assert.ok(seen.includes("first:complete") && seen.includes("second:complete"));
   await client.close();
 });
@@ -509,8 +509,8 @@ test("closing a client retires an observed authority snapshot before later deliv
   const { counts, fetch } = counting(owner);
   const client = createClient({ url: "http://observed-reset.test", persona: "alice", fetch });
   await client.ready;
-  const observed = client.observe(api.deliveries.thread, { conversationId: "conversation-1", c: null });
-  const unused = client.observe(api.deliveries.thread, { conversationId: "conversation-unused", c: null });
+  const observed = client.observe(api.messages.thread, { conversationId: "conversation-1", c: null });
+  const unused = client.observe(api.messages.thread, { conversationId: "conversation-unused", c: null });
   const states: string[] = [];
   const stop = observed.subscribe(() => { states.push(observedVerdict(observed.getSnapshot())); });
   await until(() => observed.getSnapshot().receipt?.state === "complete", "the predecessor snapshot");
@@ -542,7 +542,7 @@ test("account open and wipe retire the old headless query snapshot through the a
   });
   await client.ready;
   await client.auth.login({ email: "alice@example.test", password: "correct horse" });
-  const observed = client.observe(api.deliveries.thread, { conversationId: "conversation-1", c: null });
+  const observed = client.observe(api.messages.thread, { conversationId: "conversation-1", c: null });
   const states: string[] = [];
   const stop = observed.subscribe(() => { states.push(observedVerdict(observed.getSnapshot())); });
   await until(() => observed.getSnapshot().receipt?.state === "complete", "the authenticated account query");
@@ -566,8 +566,8 @@ test("mounted query snapshots follow committed prediction and settlement revisio
     offline: { store: () => physical } });
   await client.ready;
   const args = { conversationId: "conversation-1", c: null };
-  const first = client.observe(api.deliveries.thread, args);
-  const second = client.observe(api.deliveries.thread, args);
+  const first = client.observe(api.messages.thread, args);
+  const second = client.observe(api.messages.thread, args);
   let firstNotifies = 0, secondNotifies = 0;
   const stopFirst = first.subscribe(() => { firstNotifies += 1; });
   const stopSecond = second.subscribe(() => { secondNotifies += 1; });
@@ -587,10 +587,10 @@ test("mounted query snapshots follow committed prediction and settlement revisio
   const intent = "local-prediction";
   const entry = {
     intent, grant: "test-grant", offset: 0, count: 1, ids: ["predicted-id"],
-    op: "deliveries.edit", args: { messageId: initial.id, body: "Predicted edit" }, issuedSeq: 5,
+    op: "messages.edit", args: { messageId: initial.id, body: "Predicted edit" }, issuedSeq: 5,
     state: "queued" as const, predicted: true, trace: { points: [], verdicts: [] }, createdAt: 10, updatedAt: 10,
   };
-  const raw = subscribe(client, api.deliveries.thread, args, () => undefined);
+  const raw = subscribe(client, api.messages.thread, args, () => undefined);
   const rawPrediction = raw.until((event) => (event as any).predicted?.some((row: { intent: string }) => row.intent === intent), 2_000);
   const beforePrediction = firstNotifies;
   await physical.commit({ outbox: { put: [entry] }, overlay: { put: { [intent]: [{
@@ -625,8 +625,8 @@ test("identical drains share one page walk and one tail", async () => {
   const { counts, fetch } = counting(owner);
   const client = createClient({ url: "http://shared-drain.test", persona: "alice", fetch });
   await client.ready;
-  const first = subscribe(client, api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
-  const second = subscribe(client, api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
+  const first = subscribe(client, api.messages.inbox, { c: null }, () => undefined, { drain: true });
+  const second = subscribe(client, api.messages.inbox, { c: null }, () => undefined, { drain: true });
   const [a, b] = await Promise.all([
     first.until((event) => event.state === "complete" && event.caughtUp === true, 2_000),
     second.until((event) => event.state === "complete" && event.caughtUp === true, 2_000),
@@ -635,13 +635,13 @@ test("identical drains share one page walk and one tail", async () => {
   assert.equal(counts.queries, 1, "one page walk serves both drains");
   await until(() => counts.subscribes >= 1, "the shared tail");
   assert.equal(counts.subscribes, 1, "one tail serves both drains");
-  assert.equal(sharedConsumers(client, api.deliveries.inbox, { c: null }, true), 2);
+  assert.equal(sharedConsumers(client, api.messages.inbox, { c: null }, true), 2);
   await client.offline(); await client.online();
   await until(() => counts.subscribes >= 2, "the drain tail after reconnect");
   assert.equal(counts.subscribes, 2, "the shared drain reopens exactly one tail after a transport cut");
   first.close();
   second.close();
-  assert.equal(sharedConsumers(client, api.deliveries.inbox, { c: null }, true), 0);
+  assert.equal(sharedConsumers(client, api.messages.inbox, { c: null }, true), 0);
   await client.close();
 });
 
@@ -656,16 +656,16 @@ test("a second web tab follows the writer and inherits its queue when the writer
   const writer = createClient({ url: "http://tabs.test", persona: "alice", fetch: owner.fetch, offline: { store } });
   await writer.ready;
   // The writer earns its replay grant through the recipe's drain.
-  const inbox = subscribe(writer, api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
+  const inbox = subscribe(writer, api.messages.inbox, { c: null }, () => undefined, { drain: true });
   await inbox.until((event) => event.state === "complete" && event.caughtUp === true, 2_000);
   await until(async () => (await writer.outbox.status()).ready, "the writer's grant");
 
   const follower = createClient({ url: "http://tabs.test", persona: "alice", fetch: owner.fetch, offline: { store } });
   await follower.ready;
-  await until(async () => (await follower.outbox.status(api.deliveries.post)).ready, "the follower's writer admission");
-  const read = await follower.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
+  await until(async () => (await follower.outbox.status(api.messages.send)).ready, "the follower's writer admission");
+  const read = await follower.query(api.messages.thread, { conversationId: "conversation-1", c: null });
   assert.equal(read.state, "complete", "a follower reads live");
-  const forwarded = await follower.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "from the follower" });
+  const forwarded = await follower.mutation(api.messages.send, { conversationId: "conversation-1", body: "from the follower" });
   assert.equal(forwarded.state, "queued", "the follower's row is durable before its result");
   assert.match(forwarded.intent, /^inbox:\d+$/, "a follower's result names its inbox row (LLP 1018.004 §1)");
   const fromFollower = (execution: { args: unknown }) => (execution.args as any).body === "from the follower";
@@ -673,7 +673,7 @@ test("a second web tab follows the writer and inherits its queue when the writer
   assert.equal(owner.executions.filter(fromFollower).length, 1);
 
   await writer.offline();
-  const queued = await writer.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "queued in the writer tab" });
+  const queued = await writer.mutation(api.messages.send, { conversationId: "conversation-1", body: "queued in the writer tab" });
   assert.equal(queued.state, "queued");
   inbox.close();
   await writer.close();
@@ -682,7 +682,7 @@ test("a second web tab follows the writer and inherits its queue when the writer
   await until(() => !(follower as any).offlineRuntime.following, "the follower marker clearing after takeover");
   await until(() => owner.executions.some((execution) => execution.intent === queued.intent), "the inherited replay");
   assert.equal(owner.executions.filter((execution) => execution.intent === queued.intent).length, 1);
-  const after = await follower.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "from the new writer" });
+  const after = await follower.mutation(api.messages.send, { conversationId: "conversation-1", body: "from the new writer" });
   assert.equal(after.state, "committed");
   await follower.close();
 });
@@ -713,18 +713,18 @@ test("two attachments sharing one callback function are two consumers", async ()
   const args = { conversationId: "conversation-1", c: null };
   let calls = 0;
   const listener = () => { calls += 1; };
-  const first = subscribe(client, api.deliveries.thread, args, listener);
-  const second = subscribe(client, api.deliveries.thread, args, listener);
+  const first = subscribe(client, api.messages.thread, args, listener);
+  const second = subscribe(client, api.messages.thread, args, listener);
   await second.until((event) => event.state === "complete", 2_000);
-  assert.equal(sharedConsumers(client, api.deliveries.thread, args), 2);
+  assert.equal(sharedConsumers(client, api.messages.thread, args), 2);
   first.close();
-  assert.equal(sharedConsumers(client, api.deliveries.thread, args), 1, "closing one attachment keeps the other");
+  assert.equal(sharedConsumers(client, api.messages.thread, args), 1, "closing one attachment keeps the other");
   assert.ok(calls >= 1, "the shared callback heard the delivery");
   const again = await second.until((event) => event.state === "complete", 2_000);
   assert.equal(again.state, "complete", "the surviving attachment still reads the shared stream");
   assert.equal(counts.subscribes, 1);
   second.close();
-  assert.equal(sharedConsumers(client, api.deliveries.thread, args), 0);
+  assert.equal(sharedConsumers(client, api.messages.thread, args), 0);
   await client.close();
 });
 
@@ -738,7 +738,7 @@ test("a follower's drain pages and tails live and earns no grant of its own", as
   const follower = createClient({ url: "http://tabs-drain.test", persona: "alice", fetch: owner.fetch, offline: { store } });
   await follower.ready;
   assert.notEqual((await follower.outbox.status()).reason, "follower", "forwarding availability replaces the hard follower refusal");
-  const inbox = subscribe(follower, api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
+  const inbox = subscribe(follower, api.messages.inbox, { c: null }, () => undefined, { drain: true });
   const caughtUp = await inbox.until((event) => event.state === "complete" && event.caughtUp === true, 3_000);
   assert.equal(caughtUp.live, false);
   assert.equal(owner.grantsMinted(), 0, "a follower earns no grant of its own");
@@ -795,8 +795,8 @@ test("a terminal refusal reaches every consumer of the shared entry it originate
   });
   await client.ready;
   const heard: string[] = [];
-  const first = subscribe(client, api.deliveries.thread, { conversationId: "c", c: null }, (event) => { heard.push(`first:${event.state}`); });
-  const second = subscribe(client, api.deliveries.thread, { conversationId: "c", c: null }, (event) => { heard.push(`second:${event.state}`); });
+  const first = subscribe(client, api.messages.thread, { conversationId: "c", c: null }, (event) => { heard.push(`first:${event.state}`); });
+  const second = subscribe(client, api.messages.thread, { conversationId: "c", c: null }, (event) => { heard.push(`second:${event.state}`); });
   await assert.rejects(first.until(() => true, 3_000), (error: unknown) => isRefusalError(error) && error.code === "E_AUTH_SESSION");
   await until(() => heard.includes("first:refused") && heard.includes("second:refused"), "both consumers hearing the refusal");
   assert.equal(opens, 1, "one stream served both consumers");
@@ -824,8 +824,8 @@ test("a terminal refusal from a drain's tail reaches the drain's consumers", asy
   });
   await client.ready;
   const heard: string[] = [];
-  const first = subscribe(client, api.deliveries.inbox, { c: null }, (event) => { heard.push(`first:${event.state}`); }, { drain: true });
-  const second = subscribe(client, api.deliveries.inbox, { c: null }, (event) => { heard.push(`second:${event.state}`); }, { drain: true });
+  const first = subscribe(client, api.messages.inbox, { c: null }, (event) => { heard.push(`first:${event.state}`); }, { drain: true });
+  const second = subscribe(client, api.messages.inbox, { c: null }, (event) => { heard.push(`second:${event.state}`); }, { drain: true });
   await until(() => heard.includes("first:refused") && heard.includes("second:refused"), "both drain consumers hearing the tail's refusal");
   assert.equal(tails, 1, "one tail served both drains");
   first.close();

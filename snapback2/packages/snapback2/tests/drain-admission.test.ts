@@ -12,7 +12,7 @@ import { fakeOwner, seededStore } from "./fake-owner.ts";
 
 const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status });
 const unsupported = { code: "E_OFFLINE_RESUME", family: "offline", guide: "offline", which: "log",
-  reason: "unsupported-log", op: "deliveries.inbox", shape: "descending", site: "/api/resume.log",
+  reason: "unsupported-log", op: "messages.inbox", shape: "descending", site: "/api/resume.log",
   message: "backward log", rewrite: "use after c first 50; keep queued writes" };
 
 test("unsupported drain reaches callback and matching waiter; current and later success waiters reject, ordinary query remains valid", async () => {
@@ -20,14 +20,14 @@ test("unsupported drain reaches callback and matching waiter; current and later 
   const client = createClient({ url: "http://drain-admission.test", persona: "alice", fetch: async input => {
     const path = new URL(String(input)).pathname;
     if (path === "/api/manifest") return json({ generation: "g", programGeneration: "p", channels: {}, auth: {},
-      ops: { "deliveries.inbox": { kind: "query", args: { c: { Optional: "Cursor" } }, planHash: "p", drain: { reason: "descending" } } } });
+      ops: { "messages.inbox": { kind: "query", args: { c: { Optional: "Cursor" } }, planHash: "p", drain: { reason: "descending" } } } });
     if (path === "/api/query") { queries++; return json({ state: "capped", data: ["newest"], next: "opaque", seq: 3 }); }
     throw Error(`unexpected ${path}`);
   } });
   const events: any[] = [];
   try {
     await client.ready;
-    const sub = subscribe(client, api.deliveries.inbox as any, { c: null }, event => events.push(event), { drain: true });
+    const sub = subscribe(client, api.messages.inbox as any, { c: null }, event => events.push(event), { drain: true });
     const waiting = assert.rejects(sub.until(event => event.caughtUp === true, 500), (error: any) => error.code === unsupported.code);
     const refused = await sub.until(event => event.state === "refused", 500);
     assert.equal(refused.state, "refused");
@@ -36,7 +36,7 @@ test("unsupported drain reaches callback and matching waiter; current and later 
     await assert.rejects(sub.until(event => event.caughtUp === true, 500), isRefusalError);
     assert.equal(queries, 0, "refusal precedes pages and a watermark");
     assert.equal(events.length, 1);
-    assert.equal((await client.query(api.deliveries.inbox as any, { c: null })).state, "capped");
+    assert.equal((await client.query(api.messages.inbox as any, { c: null })).state, "capped");
     sub.close();
   } finally { await client.close(); }
 });
@@ -56,7 +56,7 @@ test("legacy backward resume stays refused across offline reopen; coverage, queu
       if (path === "/api/resume") { requests.push(JSON.parse(String(init?.body))); return refuseResume ? json(unsupported, 413) : owner.fetch(input, init); }
       const response = await owner.fetch(input, init);
       if (path === "/api/program") {
-        const value = await response.json(); value.programs["deliveries.inbox"].drain = { reason: "descending" };
+        const value = await response.json(); value.programs["messages.inbox"].drain = { reason: "descending" };
         return json(value);
       }
       return response;
@@ -66,13 +66,13 @@ test("legacy backward resume stays refused across offline reopen; coverage, queu
     await client.ready;
     refuseResume = true;
     await client.offline();
-    const queued = await client.mutation(api.deliveries.post as any, { conversationId: "conversation-1", body: "keep me" });
+    const queued = await client.mutation(api.messages.send as any, { conversationId: "conversation-1", body: "keep me" });
     assert.equal(queued.state, "queued");
     const coverage = await physical!.coverage();
     const entries = await client.outbox.entries();
     const grant = await physical!.outbox.grant();
     const events: any[] = [];
-    const sub = subscribe(client, api.deliveries.inbox as any, { c: null }, event => events.push(event), { drain: true });
+    const sub = subscribe(client, api.messages.inbox as any, { c: null }, event => events.push(event), { drain: true });
     await sub.until(event => event.state === "refused", 500);
     for (let i = 0; i < 2; i++) {
       const count = requests.length;
@@ -85,7 +85,7 @@ test("legacy backward resume stays refused across offline reopen; coverage, queu
     }
     assert.equal(events.at(-1).state, "refused");
     assert.equal(client.snapshot.lastRefusal?.reason, "unsupported-log");
-    assert.equal((await client.query(api.deliveries.inbox as any, { c: null })).state, "complete", "ordinary reads remain legal");
+    assert.equal((await client.query(api.messages.inbox as any, { c: null })).state, "complete", "ordinary reads remain legal");
     assert.equal(client.snapshot.lastRefusal?.reason, "unsupported-log", "an ordinary query cannot clear failed synchronization");
     assert.deepEqual(await client.outbox.drain(), { stopped: false, remaining: 0 });
     const committed = await client.outbox.entries();
@@ -100,7 +100,7 @@ test("legacy backward resume stays refused across offline reopen; coverage, queu
     await client.ready;
     await client.offline();
     assert.deepEqual((await client.outbox.entries()).map(e => [e.intent, e.ids, e.state]), committed.map(e => [e.intent, e.ids, e.state]));
-    const reopened = subscribe(client, api.deliveries.inbox as any, { c: null }, () => {}, { drain: true });
+    const reopened = subscribe(client, api.messages.inbox as any, { c: null }, () => {}, { drain: true });
     assert.equal((await reopened.until(event => event.state === "refused", 500)).state, "refused");
     await assert.rejects(client.online(), isRefusalError);
     reopened.close();

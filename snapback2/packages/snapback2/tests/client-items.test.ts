@@ -25,22 +25,22 @@ type Message = { id: string; body: string; at: number };
 type Query = { conversationId: string; c: string | null };
 const path: typeof import("../src/api.ts").referencePath = Symbol.for("snapback.referencePath") as never;
 const ref = <Args, Result, Kind extends "create" | "update" | "remove" = "create">(op: string): Op<Args, Result, { messages: Kind }> => ({ op, [path]: op });
-const spec = defineItems(ref<Query, { message: Message | null }[]>("deliveries.thread"), {
+const spec = defineItems(ref<Query, { message: Message | null }[]>("messages.thread"), {
   table: "messages", select: delivery => delivery.message, order: "reverse",
   create: {
-    target: mutationTarget(ref<{ conversationId: string; body: string }, { id: string }>("deliveries.post"), "messages"),
+    target: mutationTarget(ref<{ conversationId: string; body: string }, { id: string }>("messages.send"), "messages"),
     belongs: (args, query) => query.c == null && args.conversationId === query.conversationId,
     draft: args => ({ body: args.body }),
   },
-  update: { target: mutationTarget(ref<{ messageId: string; body: string }, null, "update">("deliveries.edit"), "messages") },
-  remove: { target: mutationTarget(ref<{ messageId: string }, null, "remove">("deliveries.unsend"), "messages") },
+  update: { target: mutationTarget(ref<{ messageId: string; body: string }, null, "update">("messages.edit"), "messages") },
+  remove: { target: mutationTarget(ref<{ messageId: string }, null, "remove">("messages.unsend"), "messages") },
 });
 const args: Query = { conversationId: "chat", c: null };
 const mutationProgram = { planHash: "e".repeat(64), schemaHash };
 const entry = (delta: Partial<OutboxEntry> = {}): OutboxEntry => {
   const value: OutboxEntry = {
     intent: "grant:0", grant: "grant", offset: 0, count: 2, ids: ["m", "fanout"],
-    op: "deliveries.post", args: { conversationId: "chat", body: "submitted" },
+    op: "messages.send", args: { conversationId: "chat", body: "submitted" },
     issuedSeq: 40, state: "queued", order: 3, createdAt: 1, updatedAt: 1, ...delta,
   };
   const kind = value.op.endsWith("edit") ? "update" : value.op.endsWith("unsend") ? "remove" : "create";
@@ -96,7 +96,7 @@ test("program replacement and unsupported targets retain intent-only drafts with
 
 test("declared semantic targets never borrow a contributing prediction when their proof is unavailable", () => {
   for (const kind of ["create", "update", "remove"] as const) {
-    const bound = entry({ op: kind === "create" ? "deliveries.post" : kind === "update" ? "deliveries.edit" : "deliveries.unsend",
+    const bound = entry({ op: kind === "create" ? "messages.send" : kind === "update" ? "messages.edit" : "messages.unsend",
       args: { conversationId: "chat", messageId: "m", body: "submitted" } });
     const unavailable: Partial<OutboxEntry>[] = [
       { targets: undefined },
@@ -126,7 +126,7 @@ test("declared semantic targets never borrow a contributing prediction when thei
 });
 
 test("an edit with no created IDs waits for its exact row; a later value can confirm it beneath another prediction", () => {
-  const edit = entry({ op: "deliveries.edit", ids: [], args: { messageId: "m", body: "submitted" },
+  const edit = entry({ op: "messages.edit", ids: [], args: { messageId: "m", body: "submitted" },
     state: "committed", response: { seq: 41 } });
   const observations = new Map([[itemAddress("messages", "m"), { through: 40 }],
     [itemAddress("messages", "unrelated"), { through: 80 }]]);
@@ -160,7 +160,7 @@ test("a fresh answer decides page membership without borrowing proof for a displ
 test("retained history is indexed once and old creates are not visited on warm page publications", () => {
   let belongs = 0;
   const indexed = defineItems(ref<Query, Message[]>("messages.page"), { table: "messages", select: row => row,
-    create: { target: mutationTarget(ref<{ conversationId: string; body: string }, unknown>("deliveries.post"), "messages"),
+    create: { target: mutationTarget(ref<{ conversationId: string; body: string }, unknown>("messages.send"), "messages"),
       belongs: () => { belongs++; return true; }, draft: args => ({ body: args.body }) } });
   const entries = Array.from({ length: 10_000 }, (_, i) => entry({ intent: `old:${i}`, ids: [`old:${i}`],
     state: "committed", issuedSeq: i, response: { seq: i + 1 }, order: i }));
@@ -175,15 +175,15 @@ test("held membership survives a local hole; clock-only and unvalidated held abs
   const store = fileRangeStore(root)();
   try {
     await store.open("dev:alice");
-    await store.commit({ deliveries: [{ op: "deliveries.thread", args, seq: 42, state: "complete", data: [], rows: [],
+    await store.commit({ deliveries: [{ op: "messages.thread", args, seq: 42, state: "complete", data: [], rows: [],
       next: null, receipt: { ranges: [], absences: [["messages", "byId", ["m"]]], verdicts: [] } }] });
     const state = (await store.changes()).snapshot!;
     const held = Object.values(state.answers)[0]!;
     const committed = entry({ state: "committed", response: { seq: 41 } });
-    const captured = new ItemCapture(state, "deliveries.thread", args, new Map(), [committed]).inputs();
+    const captured = new ItemCapture(state, "messages.thread", args, new Map(), [committed]).inputs();
     assert.deepEqual(attachItems(spec, args, undefined, captured), [], "a temporary local hole does not recreate an excluded success");
     let baseline = entry({ state: "committed", issuedSeq: 42, response: { seq: 42 }, order: held.order - 1 });
-    const read = () => new ItemCapture(state, "deliveries.thread", args, new Map(), [baseline]).inputs();
+    const read = () => new ItemCapture(state, "messages.thread", args, new Map(), [baseline]).inputs();
     assert.deepEqual(attachItems(spec, args, undefined, read()), [], "a freshly ordered checked absence resolves the create");
     const selection = { ...held.selection! };
     baseline = { ...baseline, order: held.order + 1 };
@@ -200,7 +200,7 @@ test("held membership survives a local hole; clock-only and unvalidated held abs
 });
 
 test("a baseline at the commit sequence cannot confirm a write; a newly ordered unchanged observation can", () => {
-  const edit = entry({ op: "deliveries.edit", args: { messageId: "m" }, issuedSeq: 41,
+  const edit = entry({ op: "messages.edit", args: { messageId: "m" }, issuedSeq: 41,
     state: "committed", response: { seq: 41 } });
   const observations = new Map([[itemAddress("messages", "m"), { through: 41, order: 2 }]]);
   assert.equal(attachItems(spec, args, page, inputs([edit], { observations }))[0]?.pending.length, 1);
@@ -221,7 +221,7 @@ test("a fresh base does not certify an image still masked by that intent's own p
 });
 
 test("only explicit absence resolves a deleted target; a failed create remains recoverable even after absence", () => {
-  const remove = entry({ op: "deliveries.unsend", args: { messageId: "m" }, state: "committed", response: { seq: 41 } });
+  const remove = entry({ op: "messages.unsend", args: { messageId: "m" }, state: "committed", response: { seq: 41 } });
   const observations = new Map([[itemAddress("messages", "m"), { through: 42 }]]);
   assert.equal(attachItems(spec, args, page, inputs([remove], { observations }))[0]?.pending.length, 1);
   const absent = new Map([[itemAddress("messages", "m"), { through: 42, absent: true as const }]]);
@@ -241,9 +241,9 @@ test("head-page creates stay scoped, null rows are omitted, and reversal does no
 });
 
 test("failed edits and queued changes remain ordered; missing-target changes stay in the outbox without fabricated rows", () => {
-  const edits = [entry({ op: "deliveries.edit", args: { messageId: "m" }, state: "rejected" }),
-    entry({ intent: "later", op: "deliveries.edit", args: { messageId: "m" } }),
-    entry({ intent: "missing", op: "deliveries.unsend", args: { messageId: "absent" } })];
+  const edits = [entry({ op: "messages.edit", args: { messageId: "m" }, state: "rejected" }),
+    entry({ intent: "later", op: "messages.edit", args: { messageId: "m" } }),
+    entry({ intent: "missing", op: "messages.unsend", args: { messageId: "absent" } })];
   const result = attachItems(spec, args, page, inputs(edits));
   assert.equal(result.length, 1);
   assert.deepEqual(result[0]?.pending.map(action => action.state), ["rejected", "queued"]);
@@ -306,15 +306,15 @@ for (const cursor of ["c", "after"]) test(`${cursor}: simultaneous missing/null 
   await requested;
   const callbackArgs: unknown[] = [], membershipArgs: any[] = [];
   const missing = cursor === "after" ? { c: null } : {}, explicit = { ...missing, [cursor]: null };
-  const spec = publicItems(api.deliveries.inbox, { table: "messages", select: (row: any) => row.message,
-    create: { target: mutationTarget(api.deliveries.post, "messages"),
+  const spec = publicItems(api.messages.inbox, { table: "messages", select: (row: any) => row.message,
+    create: { target: mutationTarget(api.messages.send, "messages"),
       belongs: (_write: any, query: any) => { membershipArgs.push(query); return query[cursor] === null; }, draft: (write: any) => write } });
-  const declaration = withHistory(spec, { items: publicItems(api.deliveries.thread, { table: "messages", select: (row: any) => row.message }),
+  const declaration = withHistory(spec, { items: publicItems(api.messages.thread, { table: "messages", select: (row: any) => row.message }),
     args: (query: any) => {
       callbackArgs.push(query);
       return { conversationId: query[cursor] === null ? "conversation-1" : "wrong", c: null };
     } });
-  const observations = [missing, explicit].map(args => client.observe(api.deliveries.inbox, args, { items: declaration }));
+  const observations = [missing, explicit].map(args => client.observe(api.messages.inbox, args, { items: declaration }));
   const stops = observations.map(observed => observed.subscribe(() => undefined));
   try {
     assert.deepEqual(callbackArgs, [], "declaration callbacks await delayed cursor metadata");
@@ -323,12 +323,12 @@ for (const cursor of ["c", "after"]) test(`${cursor}: simultaneous missing/null 
     await until(() => observations.every(o => o.getSnapshot().items.length === 2), "both page deliveries");
     assert.strictEqual(observations[0].getSnapshot(), observations[1].getSnapshot(), "one shared observation");
     assert.deepEqual(callbackArgs, [explicit, explicit], "history selection sees the normalized declared cursor and unrelated null data");
-    await Promise.all([client.query(api.deliveries.inbox, missing), client.query(api.deliveries.inbox, explicit)]).then(results => {
+    await Promise.all([client.query(api.messages.inbox, missing), client.query(api.messages.inbox, explicit)]).then(results => {
       for (const result of results) assert.equal(result.state, "complete");
     });
-    const held = await store.answer("deliveries.inbox", missing);
-    assert.deepEqual(await store.answer("deliveries.inbox", explicit), held);
-    if (cursor === "after") assert.equal(await store.answer("deliveries.inbox", {}), undefined, "unrelated c: null remains data");
+    const held = await store.answer("messages.inbox", missing);
+    assert.deepEqual(await store.answer("messages.inbox", explicit), held);
+    if (cursor === "after") assert.equal(await store.answer("messages.inbox", {}), undefined, "unrelated c: null remains data");
     await client.offline();
     await store.commit({ outbox: { put: [entry({ intent: "cursor-draft", args: { conversationId: "conversation-1", body: "draft" } })] } });
     await until(() => observations.every(o => o.getSnapshot().items.some(item => item.draft)), "canonical membership callbacks");
@@ -339,7 +339,7 @@ for (const cursor of ["c", "after"]) test(`${cursor}: simultaneous missing/null 
   const reopened = factory();
   try {
     await reopened.open("dev:alice");
-    assert.deepEqual(await reopened.answer("deliveries.inbox", missing), await reopened.answer("deliveries.inbox", explicit));
+    assert.deepEqual(await reopened.answer("messages.inbox", missing), await reopened.answer("messages.inbox", explicit));
     await reopened.close();
     let releaseCold!: () => void;
     const coldMetadata = new Promise<void>(resolve => { releaseCold = resolve; });
@@ -349,7 +349,7 @@ for (const cursor of ["c", "after"]) test(`${cursor}: simultaneous missing/null 
       return owner.fetch(input, init);
     } });
     void cold.ready.then(() => { ready = true; }).catch(() => {});
-    const held = [missing, explicit].map(args => cold.observe(api.deliveries.inbox, args, { items: declaration }));
+    const held = [missing, explicit].map(args => cold.observe(api.messages.inbox, args, { items: declaration }));
     const off = held.map(observation => observation.subscribe(() => {}));
     try {
       await until(() => held.every(observation => observation.getSnapshot().items.some(item => item.draft)), "held observations before network readiness");
@@ -365,11 +365,11 @@ for (const carrier of ["file", "indexeddb"]) test(`${carrier}: four shared obser
   const owner = fakeOwner({ seed: true, cursorArg: "c" });
   const client = createClient({ url: "http://items.test", persona: "alice", fetch: owner.fetch, offline: { store: () => store } });
   await client.ready;
-  const spec = publicItems(api.deliveries.thread, { table: "messages", select: (value: any) => value.message,
-    update: { target: mutationTarget(api.deliveries.edit, "messages") } });
+  const spec = publicItems(api.messages.thread, { table: "messages", select: (value: any) => value.message,
+    update: { target: mutationTarget(api.messages.edit, "messages") } });
   const args = { conversationId: "conversation-1", c: null };
-  const observed = Array.from({ length: 4 }, () => client.observe(api.deliveries.thread, args, { items: spec }));
-  const once = client.observe(api.deliveries.thread, args, { live: false, items: spec });
+  const observed = Array.from({ length: 4 }, () => client.observe(api.messages.thread, args, { items: spec }));
+  const once = client.observe(api.messages.thread, args, { live: false, items: spec });
   const stops = [...observed, once].map(value => value.subscribe(() => undefined));
   try {
     await client.ready;
@@ -379,7 +379,7 @@ for (const carrier of ["file", "indexeddb"]) test(`${carrier}: four shared obser
     const initial = observed[0]!.getSnapshot(), message = initial.items[0]!.data;
     const seq = initial.receipt!.seq;
     await client.offline();
-    const edit = entry({ intent: "edit-without-new-ids", ids: [], op: "deliveries.edit", args: { messageId: message.id, body: "edited" },
+    const edit = entry({ intent: "edit-without-new-ids", ids: [], op: "messages.edit", args: { messageId: message.id, body: "edited" },
       issuedSeq: seq, state: "committed", response: { seq: seq + 1 } });
     await store.commit({ outbox: { put: [edit] } });
     await until(() => observed[0]!.getSnapshot().items[0]?.pending.length === 1, "the unresolved committed edit");
@@ -404,7 +404,7 @@ for (const carrier of ["file", "indexeddb"]) test(`${carrier}: four shared obser
 });
 
 test("a computed lookalike cannot borrow another row's observation or prediction", () => {
-  const edit = entry({ op: "deliveries.edit", args: { messageId: "m" }, state: "committed", response: { seq: 41 } });
+  const edit = entry({ op: "messages.edit", args: { messageId: "m" }, state: "committed", response: { seq: 41 } });
   const state = inputs([edit], { values: new Map([[row, itemAddress("messages", "m")]]),
     observations: new Map([[itemAddress("messages", "m"), { through: 42 }]]),
     predicted: new Map([[itemAddress("messages", "m"), [{ intent: "other", kind: "update" }]]]) });
@@ -418,10 +418,10 @@ for (const carrier of ["file", "indexeddb"]) test(`${carrier}: query membership 
   const factory = carrier === "file" ? fileRangeStore(root)
     : indexedDbRangeStore({ indexedDB: new FakeIndexedDb() as never, locks: new FakeLocks() as never });
   let store = factory();
-  const emptyPage = (seq: number) => ({ op: "deliveries.thread", args, seq, state: "complete" as const,
+  const emptyPage = (seq: number) => ({ op: "messages.thread", args, seq, state: "complete" as const,
     data: [], rows: [], receipt: { ranges: [], absences: [], verdicts: [] }, next: null });
   const items = async () => {
-    const answer = await store.answer("deliveries.thread", args);
+    const answer = await store.answer("messages.thread", args);
     assert.equal(Object.hasOwn(answer!, "selection"), false, "membership metadata stays private to the frame");
     return attachItems(spec, args, answer!.data, capturedInputs(answer)!);
   };
@@ -436,7 +436,7 @@ for (const carrier of ["file", "indexeddb"]) test(`${carrier}: query membership 
       rows: [{ table: "messages", id: "anchor", row: { ...row, id: "anchor" } }] }] });
     assert.deepEqual(await items(), [], "the query itself now chooses a page without the committed create");
     await store.commit({ tombstones: [{ table: "messages", id: "anchor", seq: 44 }] });
-    assert.equal((await store.answer("deliveries.thread", args))!.state, "partial", "coverage loss invalidates the held answer");
+    assert.equal((await store.answer("messages.thread", args))!.state, "partial", "coverage loss invalidates the held answer");
     assert.deepEqual(await items(), [], "coverage loss does not revoke the earlier membership observation");
     await store.close?.(); store = factory(); await store.open("dev:alice");
     assert.deepEqual(await items(), [], "cold reopen cannot resurrect an old success");

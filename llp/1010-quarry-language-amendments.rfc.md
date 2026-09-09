@@ -17,7 +17,7 @@ grok-4.6 at xhigh), `llp/reviews/1010-quarry-language-amendments.*`
 **Implementer:** codex gpt-5.6-sol (xhigh), lane `s2/quarry-amend`
 (`~/projects/snapback-s2`), orchestrated and landed by Claude Fable 5.1
 **Date:** 2026-09-03
-**Revised:** 2026-09-07 (`sorted` canonical pair order and once-only operand evaluation); 2026-09-07 (typed direct compiler supersedes the two-hop non-proposal); 2026-09-06 (pooled logical merge streams and bounded shared seek template); 2026-09-05 (Clique L10 — lazy merge implemented by GPT-6 Astra); 2026-09-05 (time arithmetic and divmod tuple rules implemented by GPT-6 Astra, Clique L2); 2026-09-03 (d — A6's optional cursor group was replaced by LLP
+**Revised:** 2026-09-08 (one spelling, LLP 1011: explicit presence codes, full commissioned narrowing, maintain value reads); 2026-09-07 (`sorted` canonical pair order and once-only operand evaluation); 2026-09-07 (typed direct compiler supersedes the two-hop non-proposal); 2026-09-06 (pooled logical merge streams and bounded shared seek template); 2026-09-05 (Clique L10 — lazy merge implemented by GPT-6 Astra); 2026-09-05 (time arithmetic and divmod tuple rules implemented by GPT-6 Astra, Clique L2); 2026-09-03 (d — A6's optional cursor group was replaced by LLP
 1011 B1's opaque, forward-only cursor); 2026-09-03 (c — implemented: §8 records the two landing commits
 and the one departure from the brief, the guide budget); 2026-09-03 (b — after the panel: bounds-first withdrawn; A2
 restated as program-only because rules and the IR already compare totally;
@@ -156,22 +156,20 @@ guard as an absence test —
   consequence of the rule instead of an exception to it. The engine's `Eq`
   does not change.
 - Ordered comparison (`<`, `<=`, `>`, `>=`) on an operand whose type is
-  optional is refused at certify time, `E_QUARRY_TYPE`, rewrite `x! < y` or
+  optional is refused at certify time, `E_QUARRY_TYPE`, rewrite `(x ! else MISSING) < y` or
   `(x ?? default) < y`. Rules already refuse ordered comparison
   (`schema.ts:161`); this is program-only.
-- Quarry has no flow-sensitive narrowing, and this amendment does not add
-  it. The migration shape is an outer presence branch and then `!`:
+- **Superseded by LLP 1011 B4 and §One spelling (2026-09-08).** The
+  original no-narrowing migration and its `!`-before-`and` warning no longer
+  apply. `if x != null` narrows its then branch, `if x = null` its else,
+  `x != null and R` narrows R with conditional read preludes, and
+  `require x != null else CODE` narrows the rest of the block. A bare `!`
+  refuses; `! else CODE` is the one assertion form. For example:
 
   ```q
-  if m.lastDeliveredAt != null:
-    if m.lastDeliveredAt! >= upTo:
-      return false
+  if m.lastDeliveredAt != null and m.lastDeliveredAt >= upTo:
+    return false
   ```
-
-  Not `x != null and x! >= y`: the `!` assertion prelude is emitted before
-  the `&&`, so it may run before the short circuit. If the nested form
-  proves noisy in authored code, narrowing on a `!= null` conjunct is a
-  later, separate change.
 
 **Migrations.** `social.q:55–57` becomes
 `require post.parent = null else CANNOT_REPOST_REPLY` (the repost guard
@@ -512,3 +510,12 @@ unimplemented dimension of LLP 0329.014.004 beyond the one read form A5
 names, does not publish anything, and does not change Snapback 1. Per
 `rules/RULES.md` it binds when the code in §8 runs; the implementer and date
 are in the header.
+
+## One spelling
+
+**2026-09-08 amendment:** LLP 1011 §One spelling supersedes any earlier
+`match some/none`, `#maintain[key]`, or bare-`!` guidance. Branch with
+`if`/`else`, assert with `! else CODE`, read maintained values with
+`maintain[key]` (typed zero when absent), and count connections with
+`connected[p]`. Every authored index declaration has an explicit name.
+Defaulting remains `??`; read-index resolution and row rules are unchanged.

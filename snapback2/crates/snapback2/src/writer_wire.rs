@@ -1,6 +1,6 @@
 //! Typed execution and live-delivery shapes for the HTTP/SSE wire.
 
-use crate::protocol::{Refusal, refusal_json, value_to_json};
+use crate::protocol::{Refusal, refusal_json, refusal_message, value_to_json};
 use crate::writer_util::rejection_family;
 use serde_json::{Value as Json, json};
 use snapback2_core::{Execution, ExecutionState};
@@ -28,7 +28,7 @@ pub fn execution_json(execution: &Execution) -> Json {
                 "state": "rejected",
                 "code": code,
                 "family": family,
-                "message": message,
+                "message": refusal_message(code, message),
                 "rewrite": "fix the rejected mutation input and retry",
                 "guide": format!("{family}/runtime"),
             });
@@ -169,6 +169,25 @@ mod tests {
                     .as_str()
                     .is_some_and(|value| !value.is_empty())
             );
+        }
+    }
+
+    #[test]
+    fn rejected_mutation_messages_keep_codes_in_the_code_field() {
+        for (code, before, after) in [
+            ("E_INPUT", "E_INPUT: invalid cursor", "invalid cursor"),
+            (
+                "MEMBERSHIP_REQUIRED",
+                "E_REQUIRE:MEMBERSHIP_REQUIRED: program requirement failed",
+                "program requirement failed",
+            ),
+        ] {
+            let result = execution_json(&execution(ExecutionState::Rejected {
+                code: code.to_owned(),
+                message: before.to_owned(),
+            }));
+            assert_eq!(result["code"], code);
+            assert_eq!(result["message"], after);
         }
     }
 

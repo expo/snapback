@@ -5,13 +5,13 @@ table promos:
   code: text <=32
   discount: int
   expiresAt: time
-  unique code
+  unique byCode: code
 
 table redemptions:
   promo: promos
   user: users
   at: time
-  unique promo, user
+  unique byPromoUser: promo, user
 
 mutation redeemPromo(code: text <=32) -> redemptions:
   p = promos[code = code]! else PROMO_NOT_FOUND

@@ -45,45 +45,45 @@ mutation createReply(parent: posts, body: text <=500) -> posts:
 
 mutation toggleLike(p: posts) -> bool:
   post = posts[p]! else POST_NOT_FOUND
-  match likes[viewer, p]:
-    some l:
-      -likes[l.id]
-      ~posts[p] { likeCount: .likeCount - 1 }
-      false
-    none:
-      +likes { user: viewer, post: p, at: now }
-      ~posts[p] { likeCount: .likeCount + 1 }
-      true
+  l = likes[viewer, p]
+  if l != null:
+    -likes[l.id]
+    ~posts[p] { likeCount: .likeCount - 1 }
+    false
+  else:
+    +likes { user: viewer, post: p, at: now }
+    ~posts[p] { likeCount: .likeCount + 1 }
+    true
 
 mutation toggleRepost(p: posts, ord: int) -> bool:
   post = posts[p]! else POST_NOT_FOUND
   -- absence idiom: a predicate over an absent value is false, so
   -- `post.parent = post.parent` is true exactly when parent is present.
   require not (post.parent = post.parent) else CANNOT_REPOST_REPLY
-  match feedItems[actor = viewer, post = p, kind = 'repost']:
-    some f:
-      -feedItems[f.id]
-      ~posts[p] { repostCount: .repostCount - 1 }
-      false
-    none:
-      +feedItems { actor: viewer, post: p, kind: 'repost', origAuthor: post.author, at: now, ord }
-      ~posts[p] { repostCount: .repostCount + 1 }
-      true
+  f = feedItems[actor = viewer, post = p, kind = 'repost']
+  if f != null:
+    -feedItems[f.id]
+    ~posts[p] { repostCount: .repostCount - 1 }
+    false
+  else:
+    +feedItems { actor: viewer, post: p, kind: 'repost', origAuthor: post.author, at: now, ord }
+    ~posts[p] { repostCount: .repostCount + 1 }
+    true
 
 mutation toggleFollow(u: users) -> bool:
   require u != viewer else SELF_FOLLOW
   other = users[u]! else USER_NOT_FOUND
-  match follows[viewer, u]:
-    some f:
-      -follows[f.id]
-      ~users[u] { followerCount: .followerCount - 1 }
-      ~users[viewer] { followingCount: .followingCount - 1 }
-      false
-    none:
-      +follows { follower: viewer, followee: u, at: now }
-      ~users[u] { followerCount: .followerCount + 1 }
-      ~users[viewer] { followingCount: .followingCount + 1 }
-      true
+  f = follows[viewer, u]
+  if f != null:
+    -follows[f.id]
+    ~users[u] { followerCount: .followerCount - 1 }
+    ~users[viewer] { followingCount: .followingCount - 1 }
+    false
+  else:
+    +follows { follower: viewer, followee: u, at: now }
+    ~users[u] { followerCount: .followerCount + 1 }
+    ~users[viewer] { followingCount: .followingCount + 1 }
+    true
 
 query globalFeed():
   feedItems[] first 20 by byOrd {

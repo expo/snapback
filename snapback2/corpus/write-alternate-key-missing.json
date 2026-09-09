@@ -132,6 +132,10 @@
       }
     ],
     "write_sites": [],
+    "mutation_targets": {
+      "targets": [],
+      "complete": true
+    },
     "maintained_amplification": 0,
     "constraint_checks": [],
     "max_examined": 1,

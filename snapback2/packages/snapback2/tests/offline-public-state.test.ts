@@ -34,7 +34,7 @@ function envelope(data: unknown, validator = "1".repeat(64), seq = 3) {
   };
 }
 async function seededResumeStore(root: string, exact = false): Promise<void> {
-  const identity = exact ? certifiedDrain : { op: "deliveries.inbox", generation, schemaHash };
+  const identity = exact ? certifiedDrain : { op: "messages.inbox", generation, schemaHash };
   const store = fileRangeStore(root)();
   await store.open("dev:alice");
   await store.commit({
@@ -133,7 +133,7 @@ test('held public query states omit denied payload and nonpage cursors through o
         return Response.json(full);
       };
       let client = createClient({ url: 'http://held-state.test', persona: 'alice', offline: { store: factory }, fetch });
-      let sub: ReturnType<typeof client.subscribe> | undefined;
+      let sub: ReturnType<typeof subscribe> | undefined;
       try {
         await client.ready; await client.query(api.example.read as any, {});
         if (mode === 'forced') await client.offline();
@@ -225,6 +225,6 @@ test('aborting an in-flight resume preserves AbortError without publishing a del
     const resumed = client.online(); const rejection = assert.rejects(resumed,error => error.name === 'AbortError' && !(isRefusalError(error)));
     await waiting; await client.offline(); await rejection;
     assert.equal(client.snapshot.lastRefusal,undefined);
-    assert.equal((await client.query(api.deliveries.inbox as any,{ c: null })).state,'complete');
+    assert.equal((await client.query(api.messages.inbox as any,{ c: null })).state,'complete');
   } finally { await client.close(); await rm(root,{ recursive: true,force: true }); }
 });

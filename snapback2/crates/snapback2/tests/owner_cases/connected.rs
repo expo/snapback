@@ -25,12 +25,12 @@ fn connected_tracks_transports_coalesces_keys_and_fences_revoked_sessions() {
         root.join("snapback/presence.q"),
         r#"
 query count(p: principal):
-  return #connected[p]
+  return connected[p]
 query ping():
   return true
 mutation gate(p: principal):
   require exists connected[p] else OFFLINE
-  return { count: #connected[p], again: #connected[p], online: exists connected[p] }
+  return { count: connected[p], again: connected[p], online: exists connected[p] }
 "#,
     )
     .unwrap();
@@ -168,7 +168,7 @@ fn with_connected_owner(run: impl FnOnce(&Path, u16, &str, &str, &str, &Path)) {
     fs::write(root.join("snapback/schema.q"), "use identity password\ntable notes:\n  body: text <=100\n  public\nchannel activity():\n  value: { ready: bool }\n  publish <- allow\n  subscribe <- allow\n  ttl 5s\n").unwrap();
     fs::write(
         root.join("snapback/presence.q"),
-        "query count(p: principal):\n  return #connected[p]\nquery ping():\n  return true\n",
+        "query count(p: principal):\n  return connected[p]\nquery ping():\n  return true\n",
     )
     .unwrap();
     let compiler = compiler(&root);
@@ -408,8 +408,8 @@ fn connected_survives_generation_succession_and_the_live_query_reruns() {
         assert_eq!(observer.event()["data"], 1);
         let source = root.join("snapback/presence.q");
         let text = fs::read_to_string(&source).unwrap().replace(
-            "return #connected[p]",
-            "return { count: #connected[p], generation: 2 }",
+            "return connected[p]",
+            "return { count: connected[p], generation: 2 }",
         );
         fs::write(source, text).unwrap();
         let checked = Command::new(env!("CARGO_BIN_EXE_snapback2"))

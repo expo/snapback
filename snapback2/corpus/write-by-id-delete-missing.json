@@ -100,6 +100,16 @@
         "max_rows": 1
       }
     ],
+    "mutation_targets": {
+      "targets": [
+        {
+          "table": "items",
+          "kind": "remove",
+          "unresolved": "computed"
+        }
+      ],
+      "complete": false
+    },
     "maintained_amplification": 0,
     "constraint_checks": [
       "items:Unique(byId)",

@@ -12,7 +12,7 @@ use std::process::ExitCode;
 #[cfg(unix)]
 use std::os::unix::fs::OpenOptionsExt;
 
-pub(crate) const REACT_START: &str = r#"snapback_url=$(npx snapback2 dev) && VITE_SNAPBACK_URL="${snapback_url#SNAPBACK_URL=}" npm run dev"#;
+pub(crate) const REACT_START: &str = "npx snapback2 dev && npm run dev";
 
 const BLOCK_START: &str = "<!-- snapback2:start -->";
 const BLOCK_END: &str = "<!-- snapback2:end -->";
@@ -22,7 +22,8 @@ fn agent_block() -> &'static str {
 
 - `snapback2 check` compiles, certifies, and refreshes `.snapback/build/api.d.ts`.
 - `snapback2 dev` starts or attaches to the one local owner and prints `SNAPBACK_URL`.
-- For React startup, run `snapback2 guide init`; pass the printed URL as `VITE_SNAPBACK_URL` to Vite.
+- Start React or Expo: `npm install && npx snapback2 dev && npm run dev`.
+- The client config reads `.snapback/dev-url`; an explicit client URL environment variable overrides it.
 - `snapback2 test` proves derived checks and authored journeys with a receipt.
 - `snapback2 why <query> --as <persona>` explains rows, rules, and bounds.
 - `snapback2 trace latest` follows commit → invalidation → delivery.
@@ -74,7 +75,7 @@ pub fn run(args: &[String]) -> ExitCode {
         return checked;
     }
     let quoted_root = format!("'{}'", root.to_string_lossy().replace('\'', "'\\''"));
-    let start = if client == Client::React {
+    let start = if client != Client::None {
         REACT_START
     } else {
         "npx snapback2 dev"
@@ -349,6 +350,7 @@ fn update_package(path: &Path, client: Client) -> Result<(), Refusal> {
             .unwrap();
         for (name, version) in [
             ("expo", "~54.0.37"),
+            ("expo-constants", "~18.0.14"),
             ("react", "19.1.0"),
             ("react-native", "0.81.5"),
             ("expo-sqlite", "~16.0.10"),

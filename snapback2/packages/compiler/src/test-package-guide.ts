@@ -68,7 +68,7 @@ export function registerPackageGuideChecks(
     const grammar = await readFile(`${guide}/grammar.md`, "utf8");
     const keywords = JSON.parse(await readFile(`${guide}/keywords.json`, "utf8"));
     const entries = [...grammar.matchAll(/^- `([a-z][a-z0-9-]*)`: .+$/gm)];
-    assert(entries.length > 0, "grammar lost its construct list");
+    assert(entries.length === 23, "grammar must keep its 23 constructs");
     assert(Object.keys(keywords).length === entries.length + 2, "keyword index differs from grammar plus Assets and Channels");
     for (const [line, keyword] of entries) {
       const content = keywords[keyword!];

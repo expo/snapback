@@ -9,13 +9,13 @@ table classes:
   title: text <=200
   startsAt: time
   instructor: users
-  by studio, startsAt
+  by byStudioStartsAt: studio, startsAt
 
 table bookings:
   class: classes
   user: users
   at: time
-  by class, at
+  by byClassAt: class, at
 
 query classDetail(classId: classes):
   classes[classId] {

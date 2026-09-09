@@ -4,13 +4,6 @@ import { useMutation, useOutbox, useSnapbackClient, useSnapbackSnapshot } from "
 
 const describe = (error: unknown) => error instanceof Error ? error.message : String(error);
 
-// @ref LLP 1012#7-writes-offline — `run()` resolves only once the write is
-// durable on this device (this tab's outbox, or from a follower tab an inbox
-// row), so the authored draft clears only when custody is known.
-// @ref LLP 1018.004#5-hooks-and-templates — no recovery custody: what stays is
-// the capture of the conversation and account the draft was sent from, the
-// in-flight guard, clearing only the text that was sent, and a thrown refusal
-// shown as a note, since `useMutation.last` holds results and not exceptions.
 export function Composer({ conversationId, onNote }: { conversationId: string; onNote(note: string): void }) {
   const post = useMutation(messageWrites.create);
   const outbox = useOutbox();

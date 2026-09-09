@@ -115,6 +115,21 @@
         "max_rows": 1
       }
     ],
+    "mutation_targets": {
+      "targets": [
+        {
+          "table": "items",
+          "kind": "create",
+          "unresolved": "conditional"
+        },
+        {
+          "table": "items",
+          "kind": "update",
+          "unresolved": "conditional"
+        }
+      ],
+      "complete": false
+    },
     "maintained_amplification": 0,
     "constraint_checks": [
       "items:Unique(byId)",

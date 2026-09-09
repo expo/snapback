@@ -15,7 +15,7 @@ mutation groupCreate(title: text <=120, members: [principal] <=49):
 mutation memberAdd(conversationId: conversations, principal: principal):
   require isAdmin(conversationId, viewer) else ADMIN_REQUIRED
   require principal != viewer else ADMIN_SELF_RESEAT
-  require #memberCounts[conversationId] < 50 else GROUP_FULL
+  require memberCounts[conversationId] < 50 else GROUP_FULL
   row = insert memberships { conversationId, principal, role: 'member', joinedAt: now }
   return { id: row.id }
 

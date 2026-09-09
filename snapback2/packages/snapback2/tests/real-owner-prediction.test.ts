@@ -69,7 +69,7 @@ maintain refCounts = count refCapEntries by realm:
   read <- allow
 `);
     await writeFile(join(fixture, "caps.q"), `query countFor(principal: principal):
-  return #principalCounts[principal]
+  return principalCounts[principal]
 
 query entriesFor(principal: principal):
   return capEntries[principal] first 50 by byPrincipal
@@ -80,7 +80,7 @@ mutation allocate(principals: [principal] <=49):
   return null
 
 query refCountFor(realm: realmCounts):
-  return #refCounts[realm]
+  return refCounts[realm]
 
 mutation allocateRef(realms: [realmCounts] <=3):
   for realm in realms:

@@ -11,8 +11,8 @@ table users:
   metadata: json <=2048
   avatar: bytes <=1024 ?
   externalId: id
-  unique principal
-  unique name
+  unique byPrincipal: principal
+  unique byName: name
   immutable principal, joinedAt
   public 'directory profiles are public'
   insert <- .principal = viewer
@@ -31,7 +31,7 @@ table memberships:
   group: groups
   principal: principal
   active: bool
-  unique group, principal
+  unique byGroupPrincipal: group, principal
   by byPrincipalActive: principal, active
   read <- .principal = viewer or .active = true
   insert <- .principal = viewer and not (.active = false)
@@ -66,7 +66,7 @@ table counters:
 table pairs:
   lo: principal
   hi: principal
-  unique lo, hi
+  unique byLoHi: lo, hi
   read <- .lo = viewer or .hi = viewer
   insert <- .lo = viewer or .hi = viewer
 
@@ -74,7 +74,7 @@ table keyedRows:
   owner: principal
   label: text <=40
   value: int
-  unique owner, label
+  unique byOwnerLabel: owner, label
   read <- allow
   insert <- allow
   update <- allow
@@ -83,7 +83,7 @@ table keyedRows:
 table nodes:
   name: text <=80
   parent: nodes ?
-  by parent, name
+  by byParentName: parent, name
   public
 
 maintain counterTotals = sum counters of value by owner:

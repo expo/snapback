@@ -104,12 +104,12 @@ test('plain tier: missing/null cursors share an observation and normalize item m
   const owner = fakeOwner({ cursorArg: 'c' });
   const client = createClient({ url: 'http://cursor.test', fetch: owner.fetch });
   await client.manifest();
-  const a = client.observe(api.deliveries.inbox, {}), b = client.observe(api.deliveries.inbox, { c: null });
+  const a = client.observe(api.messages.inbox, {}), b = client.observe(api.messages.inbox, { c: null });
   const off = [a.subscribe(() => {}), b.subscribe(() => {})];
   try {
-    assert.equal(sharedConsumers(client, api.deliveries.inbox, {}), 2);
-    assert.equal(sharedConsumers(client, api.deliveries.inbox, { c: null }), 2);
-    const items = clientEntry.defineItems(api.deliveries.inbox, { table: 'messages', select: row => row,
+    assert.equal(sharedConsumers(client, api.messages.inbox, {}), 2);
+    assert.equal(sharedConsumers(client, api.messages.inbox, { c: null }), 2);
+    const items = clientEntry.defineItems(api.messages.inbox, { table: 'messages', select: row => row,
       create: { target: clientEntry.mutationTarget(api.messages.send, 'messages'), belongs: (_args, q) => q.c == null,
         draft: args => ({ body: args.body }) } });
     const inputs = { entries: [{ intent: 'i', op: 'messages.send', args: { body: 'draft' }, ids: [], state: 'queued' }], observations: new Map(), predicted: new Map() };
@@ -127,20 +127,20 @@ test('plain tier: run resolves rule rejections and clears last on auth or operat
   function Probe({ op }: { op: any }) { mutation = reactEntry.useMutation(op); return null; }
   const render = (op: any) => React.createElement(reactEntry.SnapbackProvider, { client, children: React.createElement(Probe, { op }) });
   try {
-    await act(async () => { renderer = TestRenderer.create(render(api.deliveries.post)); });
+    await act(async () => { renderer = TestRenderer.create(render(api.messages.send)); });
     await act(async () => {
       const result = await mutation.run({ conversationId: 'conversation-1', body: 'refused' });
       assert.equal(result.state, 'rejected'); assert.equal(result.family, 'rule', JSON.stringify(result)); assert.equal(result.code, 'NOT_MEMBER');
     });
     assert.equal(mutation.last.code, 'NOT_MEMBER');
     assert.deepEqual(Object.keys(mutation).sort(), ['can', 'inFlight', 'last', 'run']);
-    await act(async () => { renderer!.update(render(api.deliveries.edit)); });
+    await act(async () => { renderer!.update(render(api.messages.edit)); });
     assert.equal(mutation.last, undefined);
     await act(async () => { await mutation.run({ messageId: 'missing', body: 'edit', baseBody: '' }); });
     assert.equal(mutation.last.state, 'rejected');
     // Persona providers change client identity; bearer login changes a client's auth generation.
     const bearer = createClient({ url: owner.url });
-    await act(async () => { renderer!.update(React.createElement(reactEntry.SnapbackProvider, { client: bearer, children: React.createElement(Probe, { op: api.deliveries.post }) })); });
+    await act(async () => { renderer!.update(React.createElement(reactEntry.SnapbackProvider, { client: bearer, children: React.createElement(Probe, { op: api.messages.send }) })); });
     await act(async () => { await mutation.run({ conversationId: 'conversation-1', body: 'refused' }); });
     assert.equal(mutation.last.state, 'rejected');
     await act(async () => { await bearer.auth.guest(); });
@@ -160,7 +160,7 @@ test('plain tier: usePage keeps three search pages live, rebinds boundaries and 
   try {
     const rows = [];
     for (let i = 0; i < 43; i++) {
-      const result = await client.mutation(api.deliveries.post, { conversationId: 'conversation-1', body: `needle ${i}` });
+      const result = await client.mutation(api.messages.send, { conversationId: 'conversation-1', body: `needle ${i}` });
       assert.equal(result.state, 'committed'); rows.push(result.data.id);
     }
     await act(async () => { renderer = TestRenderer.create(render('needle')); });
@@ -173,9 +173,9 @@ test('plain tier: usePage keeps three search pages live, rebinds boundaries and 
     await waitFor(() => paged.status === 'ready' && paged.pages.length === 3);
     assert.equal(paged.items.length, 43); assert.equal(paged.hasMore, false);
     const first = paged.pages[0].data[0];
-    await act(async () => { assert.equal((await client.mutation(api.deliveries.edit, { messageId: first.id, body: 'needle edited', baseBody: first.body })).state, 'committed'); });
+    await act(async () => { assert.equal((await client.mutation(api.messages.edit, { messageId: first.id, body: 'needle edited', baseBody: first.body })).state, 'committed'); });
     await waitFor(() => paged.pages[0].data.some(row => row.body === 'needle edited'));
-    await act(async () => { assert.equal((await client.mutation(api.deliveries.post, { conversationId: 'conversation-1', body: 'needle newest' })).state, 'committed'); });
+    await act(async () => { assert.equal((await client.mutation(api.messages.send, { conversationId: 'conversation-1', body: 'needle newest' })).state, 'committed'); });
     await waitFor(() => paged.items.length === 44 && paged.status === 'ready');
     assert.equal(new Set(paged.items.map(row => row.id)).size, 44, 'moving live boundaries neither duplicate nor lose rows');
     await act(async () => { renderer!.update(render('absent')); });

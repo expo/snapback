@@ -114,35 +114,34 @@ function diagnosticFamily(code: DiagnosticCode): FrontendDiagnostic["family"] {
   if (code.startsWith("E_RULE_")) return "rule";
   if (code.startsWith("E_SEED_")) return "input";
   if (code.startsWith("E_EFFECT_") || code === "E_EMIT_IN_QUERY") return "effect";
-  if (code.startsWith("E_ARGS_") || code === "E_DECIMAL_SCALE" || code === "E_ENUM_VARIANT") return "args";
+  if (code.startsWith("E_ARGS_") || code === "E_DECIMAL_SCALE") return "args";
   if (code.startsWith("E_OP_")) return "op";
-  if (["E_UNBOUND_SCAN", "E_UNBOUND_LOOP", "E_UNBOUND_COUNT", "E_STRUCTURAL_COUNT", "E_STRUCTURAL_FANOUT", "E_BOUND"].includes(code)) {
+  if (["E_UNBOUND_SCAN", "E_UNBOUND_LOOP", "E_STRUCTURAL_COUNT", "E_STRUCTURAL_FANOUT", "E_BOUND"].includes(code)) {
     return "bound";
   }
   return "opaque";
 }
 
 function diagnosticGuide(code: DiagnosticCode): string {
-  if (code === "E_QUARRY_TYPE") return "quarry/types";
+  if (code === "E_QUARRY_TYPE") return "quarry";
   if (code === "E_QUARRY_SYNTAX") return "quarry/grammar";
-  if (code === "E_QUARRY_AMBIGUOUS") return "quarry/indexes";
+  if (code === "E_QUARRY_AMBIGUOUS") return "quarry";
   if (code === "E_QUARRY_UNSUPPORTED") return "quarry/refusals";
   if (code === "E_QUARRY_PLACEMENT") return "quarry/projects";
   if (code === "E_QUARRY_RETAIN" || code === "E_QUARRY_TOMBSTONE") return "quarry/grammar";
   if (code === "E_QUARRY_ONLY") return "quarry/projects";
   if (code === "E_QUARRY_UNKNOWN") return "quarry/names";
-  if (code === "E_UNBOUND_SCAN") return "bound/scan";
+  if (code === "E_UNBOUND_SCAN") return "quarry";
   if (code === "E_UNBOUND_LOOP" || code === "E_STRUCTURAL_FANOUT") return "bound/loop";
-  if (code === "E_UNBOUND_COUNT" || code === "E_STRUCTURAL_COUNT") return "bound/count";
+  if (code === "E_STRUCTURAL_COUNT") return "bound/count";
   if (code === "E_BOUND") return "bound/ceiling";
   if (code === "E_AMBIENT_TIME") return "opaque/time";
-  if (code === "E_PROVENANCE_AMBIGUOUS") return "opaque/provenance";
   if (code === "E_OP_MODULE_BASENAME") return "programs/module-basename";
   if (code.startsWith("E_SCHEMA_")) return "schema/project";
   if (code.startsWith("E_RULE_")) return "schema/rules";
   if (code.startsWith("E_SEED_")) return "schema/seed";
   if (code.startsWith("E_EFFECT_") || code === "E_EMIT_IN_QUERY") return "effects/authoring";
-  if (code.startsWith("E_ARGS_") || code === "E_DECIMAL_SCALE" || code === "E_ENUM_VARIANT") return "programs/types";
+  if (code.startsWith("E_ARGS_") || code === "E_DECIMAL_SCALE") return "programs/types";
   if (code.startsWith("E_OP_")) return "programs/operations";
   return "opaque/subset";
 }
@@ -151,11 +150,9 @@ function diagnosticRule(code: DiagnosticCode): string | undefined {
   const rules: Partial<Record<DiagnosticCode, string>> = {
     E_UNBOUND_SCAN: "every scan names take",
     E_UNBOUND_LOOP: "every loop has a static maximum",
-    E_UNBOUND_COUNT: "growing populations do not expose exact counts",
     E_STRUCTURAL_FANOUT: "a mutation population loop covers its selected range",
     E_STRUCTURAL_COUNT: "rules do not leak hidden population structure",
-    E_AMBIENT_TIME: "programs use ctx.now()",
-    E_PROVENANCE_AMBIGUOUS: "read keys have one unambiguous origin",
+    E_AMBIENT_TIME: "programs use now",
     E_OP_MODULE_BASENAME: "module basenames are unique",
     E_BOUND: "the certified ceiling is finite",
     E_EMIT_IN_QUERY: "only mutations emit effects",

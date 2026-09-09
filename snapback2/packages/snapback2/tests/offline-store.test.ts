@@ -482,7 +482,7 @@ test("retained reconstruction keeps independent pages and falls back when the re
 
 test("a maintained-coherence partial waits for its named owner through later overlays", () => {
   const held = {
-    op: "deliveries.conversationView", args: { conversationId: "c1" }, state: "partial" as const,
+    op: "messages.conversationView", args: { conversationId: "c1" }, state: "partial" as const,
     reason: "maintained-coherence", data: { messages: [{ id: "old" }], count: 2, preview: [] },
     seq: 7, deliveredAt: 100,
   };
@@ -1027,7 +1027,7 @@ test("the schema's tombstones declaration evicts the named body in the same deli
   });
   await client.ready;
   await client.query(api.messages.body as any, {});
-  await client.query(api.deliveries.inbox as any, {});
+  await client.query(api.messages.inbox as any, {});
   await client.offline();
   const body = await client.query<any, any>(api.messages.body as any, {});
   assert.equal(body.state, "partial");
@@ -1139,7 +1139,7 @@ function envelope(data: unknown, validator = "1".repeat(64), seq = 3) {
   };
 }
 async function seededResumeStore(root: string, exact = false): Promise<void> {
-  const identity = exact ? certifiedDrain : { op: "deliveries.inbox", generation, schemaHash };
+  const identity = exact ? certifiedDrain : { op: "messages.inbox", generation, schemaHash };
   const store = fileRangeStore(root)();
   await store.open("dev:alice");
   await store.commit({
@@ -1177,12 +1177,12 @@ test("cold resume sends the bounded shape before subscribe and a 404 falls back 
     },
   });
   await client.ready;
-  const sub = subscribe(client, api.deliveries.inbox as any, { c: null }, () => undefined);
+  const sub = subscribe(client, api.messages.inbox as any, { c: null }, () => undefined);
   await new Promise((resolve) => setTimeout(resolve, 20));
   assert.deepEqual(order.slice(0, 2), ["resume", "subscribe"]);
   assert.deepEqual(request, {
     protocol: 1, generation, schemaHash, authEpoch: 7,
-    log: { op: "deliveries.inbox", args: { c: null }, watermark: "cursor-9", validator: "1".repeat(64) },
+    log: { op: "messages.inbox", args: { c: null }, watermark: "cursor-9", validator: "1".repeat(64) },
     mounted: [],
   });
   sub.close();
@@ -1252,7 +1252,7 @@ test("E_OFFLINE_RESET drops coverage but preserves the durable outbox slot", asy
   });
   await client.ready;
   await client.offline();
-  assert.equal((await client.query(api.deliveries.inbox as any, { c: null })).state, "hydrating");
+  assert.equal((await client.query(api.messages.inbox as any, { c: null })).state, "hydrating");
   client.close();
   const inspect = fileRangeStore(root)();
   await inspect.open("dev:alice");
@@ -1393,7 +1393,7 @@ test("an unstructured legacy E_OFFLINE_RESUME refuses once and leaves the client
     isRefusalError(error) && error.code === "E_OFFLINE_RESUME");
   assert.equal(resumes, 2, "unstructured refusal is never retried without its log");
   await client.offline();
-  assert.equal((await client.query(api.deliveries.inbox as any, { c: null })).state, "complete");
+  assert.equal((await client.query(api.messages.inbox as any, { c: null })).state, "complete");
   await client.close();
   await rm(root, { recursive: true, force: true });
 });

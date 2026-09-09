@@ -256,6 +256,21 @@
         "max_rows": 1
       }
     ],
+    "mutation_targets": {
+      "targets": [
+        {
+          "table": "groups",
+          "kind": "create",
+          "unresolved": "computed"
+        },
+        {
+          "table": "memberships",
+          "kind": "create",
+          "unresolved": "computed"
+        }
+      ],
+      "complete": false
+    },
     "maintained_amplification": 0,
     "constraint_checks": [
       "groups:Unique(byId)",

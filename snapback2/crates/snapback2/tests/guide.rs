@@ -37,7 +37,8 @@ fn help_is_successful_without_a_project_or_compiler_and_has_no_side_effects() {
                 .args(["test", value_flag, help])
                 .current_dir(&project.path)
                 .env("SNAPBACK2_COMPILER", project.path.join("missing-compiler"))
-                .output().unwrap();
+                .output()
+                .unwrap();
             assert!(output.status.success(), "{value_flag} {help}");
             assert!(output.stderr.is_empty());
             assert!(String::from_utf8_lossy(&output.stdout).starts_with("usage: snapback2 test"));
@@ -60,7 +61,8 @@ fn command_guides_explain_initialization_and_successor_recovery() {
             "init",
             "snapback2 init my-app --template chat --client react",
         ),
-        ("init", "VITE_SNAPBACK_URL=\"${snapback_url#SNAPBACK_URL=}\" npm run dev"),
+        ("init", "npm install && npx snapback2 dev && npm run dev"),
+        ("init", "The engine seeds maintained counts from source rows."),
         ("dev", "--apply-migration file"),
         ("check", "does not install"),
     ] {
@@ -157,12 +159,41 @@ fn package_consumers_and_isolated_compiler_use_complete_private_snapshots() {
 #[test]
 fn refusal_code_guide_prints_the_wrong_and_right_pair() {
     let project = Project::new();
-    let output = project.run(&["guide", "E_BOUND_TAKE_REQUIRED", "--json"]);
+    let output = project.run(&["guide", "E_UNBOUND_SCAN", "--json"]);
     assert!(output.status.success());
     let page = json_stdout(&output);
     let content = page["content"].as_str().unwrap();
-    assert!(content.contains("db.scan(todos.byOwner, [ctx.viewer])"));
-    assert!(content.contains("{ take: 50 }"));
+    assert!(content.contains("return posts[]"));
+    assert!(content.contains("return posts[] first 50 by byTime"));
+}
+
+#[test]
+fn refusal_examples_preserve_markdown_preambles_and_paired_fences() {
+    let project = Project::new();
+    let families: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../packages/snapback2/guide/families.source.json"
+    )).unwrap();
+    let mut count = 0;
+    for entry in families.as_array().unwrap() {
+        let code = entry["code"].as_str().unwrap();
+        let expected_fences: &[&str] = if entry["wrong"].as_str().unwrap().contains("`snapback2 check --ir`") {
+            &["```json", "```", "```json", "```"]
+        } else if code == "E_EFFECT_THEN_ARGS" {
+            &["```q", "```", "```ts", "```", "```q", "```", "```ts", "```"]
+        } else {
+            continue;
+        };
+        count += 1;
+        let output = project.run(&["guide", code]);
+        assert!(output.status.success());
+        let expected = format!("# {code}\n\nFamily: `{}`\n\nWrong:\n\n{}\n\nRight:\n\n{}\n",
+            entry["family"].as_str().unwrap(), entry["wrong"].as_str().unwrap(), entry["right"].as_str().unwrap());
+        let content = String::from_utf8(output.stdout).unwrap();
+        assert_eq!(content, expected, "{code}");
+        let fences: Vec<_> = content.lines().filter(|line| line.starts_with("```")).collect();
+        assert_eq!(fences, expected_fences, "{code}");
+    }
+    assert_eq!(count, 7);
 }
 
 #[test]
@@ -202,7 +233,7 @@ fn quarry_keywords_print_grammar_and_definitions_beside_symbol_help() {
         ("first", "`first` is ascending"),
         ("last", "`last` is descending"),
         ("require", "aborts when false"),
-        ("match", "branches on presence"),
+        ("walk", "follows at most N parent links"),
         (
             "for",
             "`for` needs a bounded list/page/range/tokens result",
@@ -388,7 +419,7 @@ fn live_query_guide_explains_connected_and_the_activity_workaround() {
         "heartbeat interval plus the expiry",
         "seen late",
         "read-only virtual table",
-        "`#connected[p]`",
+        "`connected[p]`",
         "`hydrating` and never predicted",
         "live reruns wait up to 1 s",
         "durable receipts",
@@ -546,7 +577,7 @@ fn app_guide_uses_chat_expo_operations_without_internal_timer_bindings() {
             .find(|schedule| schedule["name"] == "expireMessage")
             .unwrap();
         let binding = schedule["binding"].as_str().unwrap();
-        assert_eq!(binding, "deliveries._timerBinding_expireMessage");
+        assert_eq!(binding, "messages._timerBinding_expireMessage");
         assert!(
             cached["programs"]
                 .as_array()
@@ -565,8 +596,8 @@ fn app_guide_uses_chat_expo_operations_without_internal_timer_bindings() {
             serde_json::from_str(page["content"].as_str().unwrap()).unwrap();
         let operations = app["operations"].as_object().unwrap();
         assert!(!operations.contains_key(binding));
-        assert!(operations.contains_key("deliveries.purgeMessage"));
-        assert!(operations.contains_key("deliveries.post"));
+        assert!(operations.contains_key("messages.purgeMessage"));
+        assert!(operations.contains_key("messages.send"));
         assert_eq!(
             operations.keys().collect::<Vec<_>>(),
             certificates.as_object().unwrap().keys().collect::<Vec<_>>()
@@ -603,7 +634,7 @@ fn app_guide_uses_chat_expo_operations_without_internal_timer_bindings() {
         }
         assert_eq!(
             app["generation"],
-            certificates["deliveries.post"]["schema_hash"]
+            certificates["messages.send"]["schema_hash"]
         );
         assert_eq!(app["channels"], cached["schema"]["channels"]);
         assert!(
@@ -635,7 +666,7 @@ fn app_guide_requires_exposed_operations_even_with_timer_binding_names() {
     assert!(app["operations"].get(exposed).is_some());
     let certificate_path = project.path.join(".snapback/build/certificates.json");
     let valid = fs::read(&certificate_path).unwrap();
-    for missing in [exposed, "deliveries.post", "deliveries.purgeMessage"] {
+    for missing in [exposed, "messages.send", "messages.purgeMessage"] {
         let mut certificates: serde_json::Value = serde_json::from_slice(&valid).unwrap();
         assert!(
             certificates

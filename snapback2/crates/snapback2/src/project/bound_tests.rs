@@ -2,10 +2,8 @@ use super::*;
 
 #[test]
 fn fanout_rewrite_uses_only_the_authored_loop_binding() {
-    let root = std::env::temp_dir().join(format!(
-        "snapback2-fanout-binding-{}",
-        std::process::id()
-    ));
+    let root =
+        std::env::temp_dir().join(format!("snapback2-fanout-binding-{}", std::process::id()));
     fs::create_dir_all(root.join("snapback")).unwrap();
     let generated = "__bound_loopItem_0";
     let repair = format!(
@@ -23,6 +21,7 @@ fn fanout_rewrite_uses_only_the_authored_loop_binding() {
                 file: "snapback/ops.q".to_owned(),
                 line: 2,
                 col: 3,
+                ..Default::default()
             },
             &format!("ops.send/for/{generated}/0"),
             &repair,
@@ -43,6 +42,7 @@ fn fanout_rewrite_uses_only_the_authored_loop_binding() {
                 file: "snapback/ops.q".to_owned(),
                 line: 2,
                 col: 3,
+                ..Default::default()
             },
             "ops.send/for/a_different_binding/0",
             &repair,
@@ -447,7 +447,7 @@ maintain replyCounts = count posts by parent:
 "#,
     )
     .unwrap();
-    fs::write(root.join("snapback/posts.q"), r#"shape postCard = { *, authorProfile: profiles[.author], likes: #likeCounts[.id], entries: #entryCounts[.id], replies: #replyCounts[.id], liked: exists likes[viewer, .id], reposted: exists entries[viewer, .id] }
+    fs::write(root.join("snapback/posts.q"), r#"shape postCard = { *, authorProfile: profiles[.author], likes: likeCounts[.id], entries: entryCounts[.id], replies: replyCounts[.id], liked: exists likes[viewer, .id], reposted: exists entries[viewer, .id] }
 shape entryCard = { id, author, post, repost, at, actor: profiles[.author], content: posts[.post] postCard }
 query following(c: cursor ?):
   page = merge entries after c last 20 by byAuthorTime:

@@ -4,11 +4,11 @@ mutation sendMoney(to: users, amount: money USD, note: text <=140 ?):
   require amount > 0 else NOT_POSITIVE
   recipient = users[to]! else USER_NOT_FOUND
   require recipient.principal != viewer else SELF_PAY
-  require #balances[viewer] >= amount else INSUFFICIENT_FUNDS
+  require balances[viewer] >= amount else INSUFFICIENT_FUNDS
   t = now
   insert ledger { owner: viewer, counterparty: recipient.principal, amount: -amount, kind: 'send', note, expense: null, at: t }
   insert ledger { owner: recipient.principal, counterparty: viewer, amount, kind: 'receive', note, expense: null, at: t }
-  return #balances[viewer]
+  return balances[viewer]
 
 mutation addExpense(c: conversations, description: text <=100, total: money USD, tipRate: decimal 4, participants: [users] <=50):
   require exists members[c, viewer] else NOT_MEMBER
@@ -31,7 +31,7 @@ mutation settleShare(s: shares):
   require row.debtor = viewer else NOT_YOUR_SHARE
   require not row.settled else ALREADY_SETTLED
   expense = expenses[row.expense]! else EXPENSE_NOT_FOUND
-  require #balances[viewer] >= row.amount else INSUFFICIENT_FUNDS
+  require balances[viewer] >= row.amount else INSUFFICIENT_FUNDS
   t = now
   insert ledger { owner: viewer, counterparty: expense.payer, amount: -row.amount, kind: 'settle', note: expense.description, expense: expense.id, at: t }
   insert ledger { owner: expense.payer, counterparty: viewer, amount: row.amount, kind: 'collect', note: expense.description, expense: expense.id, at: t }
@@ -39,7 +39,7 @@ mutation settleShare(s: shares):
   return true
 
 query myBalance():
-  return #balances[viewer]
+  return balances[viewer]
 
 query myLedger():
   return ledger[viewer] last 50 by byOwnerAt { *, counterpartyProfile: users[principal = .counterparty] authorCard }
@@ -47,7 +47,7 @@ query myLedger():
 query convExpenses(c: conversations):
   require exists members[c, viewer] else NOT_MEMBER
   return {
-    total: #convSpend[c],
+    total: convSpend[c],
     expenses: expenses[c] last 20 by byConv { *, payerProfile: users[principal = .payer] authorCard },
   }
 

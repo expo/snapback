@@ -197,7 +197,7 @@ journey("conversation metadata stays inside membership", async ({ as }) => {
     if (!("data" in member) || member.data?.conversation?.title !== "General") {
       throw new Error("member could not read the conversation shell");
     }
-    if (typeof member.data.messageCount?.value !== "number") {
+    if (typeof member.data.messageCount !== "number") {
       throw new Error("member could not read the maintained message count");
     }
 

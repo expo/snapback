@@ -156,7 +156,7 @@ mutation direct(id: secrets, label: text <=40):
     });
   });
 
-  test("direct Quarry one-hop ref narrowing is branch-only and symbol-scoped", () => {
+  test("direct Quarry one-hop ref narrowing stays on proven paths and binding identities", () => {
     const schema = "table nodes:\n  parent: nodes ?\n  public\n";
     const accepted = compileInline([
       { fileName: "snapback/schema.q", source: schema },
@@ -171,7 +171,6 @@ query good(id: nodes):
     assert(accepted.ok, `one-hop ref did not narrow in its then branch: ${JSON.stringify(accepted)}`);
     for (const [name, body] of [
       ["else", "  if row.parent != null:\n    return true\n  else:\n    return present(row.parent)\n"],
-      ["and", "  return row.parent != null and present(row.parent)\n"],
       ["shadow", "  if row.parent != null:\n    row = nodes[other]! else OTHER\n    return present(row.parent)\n  return false\n"],
     ] as const) {
       const args = name === "shadow" ? "id: nodes, other: nodes" : "id: nodes";

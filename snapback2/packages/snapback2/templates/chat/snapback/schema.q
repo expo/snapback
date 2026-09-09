@@ -77,7 +77,6 @@ table messages:
   update <- .authorId = viewer
   delete <- .authorId = viewer
 
--- @ref LLP 1012#3-the-model-on-one-page-and-the-program-shape — delivery metadata stays visible only to its recipient.
 table deliveries:
   recipient: principal
   conversationId: conversations
@@ -86,7 +85,6 @@ table deliveries:
   at: time
   by byRecipientAt: recipient, at, id
   by byRecipientConversationAt: recipient, conversationId, at, id
-  -- @ref LLP 1018.003#5-the-certified-thread-projection — a thread reads only live message events; edits change the message row in place.
   by byRecipientConversationKindAt: recipient, conversationId, kind, at, id
   immutable recipient, conversationId, messageId, kind, at
   tombstones messages[.messageId] if .kind = 'removed' or .kind = 'expired'

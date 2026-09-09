@@ -170,10 +170,10 @@ test("partial history becomes one coherent view without remounting its pending b
     const group: any = await writer.mutation(api.groups.groupCreate, { title: "Partial transition", members: ["dev:bob"] });
     assert.equal(group.state, "committed");
     const conversationId = group.data.id;
-    const heldThread: any = await warm.query(api.deliveries.thread, { conversationId, c: null });
+    const heldThread: any = await warm.query(api.messages.thread, { conversationId, c: null });
     assert.ok(heldThread.state === "complete" || heldThread.state === "capped",
       "the fallback's kind-scoped range is independently held before the owner is cut");
-    const drain = subscribe(warm, api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
+    const drain = subscribe(warm, api.messages.inbox, { c: null }, () => undefined, { drain: true });
     await drain.until((event: any) => event.live === true && event.caughtUp === true, 5_000);
     drain.close();
     await warm.close();
@@ -183,13 +183,13 @@ test("partial history becomes one coherent view without remounting its pending b
       React.createElement(Thread, { conversationId, viewer: "dev:alice", onNote: () => undefined }))));
     await waitFor(() => document.querySelector("ol.bubbles")?.getAttribute("data-view-source") === "partial-history",
       "the independently covered history fallback");
-    assert.equal(sharedConsumers(client, api.deliveries.thread, { conversationId, c: null }), 1,
+    assert.equal(sharedConsumers(client, api.messages.thread, { conversationId, c: null }), 1,
       "the partial composite opens one independently authorized history observer");
     assert.match(text(document.querySelector(".thread-history-note")), /Count and preview unavailable/);
     assert.match(text(document.querySelector(".thread-summary")), /Message count unavailable/);
     assert.equal(document.querySelector(".thread-summary")?.hasAttribute("data-count"), false,
       "the partial composite cannot publish its count while history supplies rows");
-    const result = await client.mutation(api.deliveries.post, { conversationId, body: "kept through transition" });
+    const result = await client.mutation(api.messages.send, { conversationId, body: "kept through transition" });
     assert.equal(result.state, "queued");
     await waitFor(() => document.querySelector(`li[data-message="${result.ids[0]}"][data-state=queued]`) !== null,
       "the fallback pending bubble");
@@ -201,9 +201,9 @@ test("partial history becomes one coherent view without remounting its pending b
     assert.equal(document.querySelector(`li[data-message="${result.ids[0]}"]`) === pending, true,
       "the BubbleList ancestor and keyed row survive partial history to composite publication");
     assert.equal(document.querySelector(".thread-history-note"), null, "the fallback unmounts once the composite is usable");
-    assert.equal(sharedConsumers(client, api.deliveries.thread, { conversationId, c: null }), 0,
+    assert.equal(sharedConsumers(client, api.messages.thread, { conversationId, c: null }), 0,
       "the history observer detaches once the composite is complete or capped");
-    assert.equal(sharedConsumers(client, api.deliveries.conversationView, { conversationId }), 1,
+    assert.equal(sharedConsumers(client, api.messages.conversationView, { conversationId }), 1,
       "the composite alone remains subscribed after the fallback retires");
   } finally {
     await act(async () => reactRoot.unmount());

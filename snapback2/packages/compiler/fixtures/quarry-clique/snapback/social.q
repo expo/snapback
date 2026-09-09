@@ -43,43 +43,43 @@ mutation createReply(parent: posts, body: text <=500):
 
 mutation toggleLike(p: posts):
   post = posts[p]! else POST_NOT_FOUND
-  match likes[viewer, p]:
-    some l:
-      delete likes[l.id]
-      update posts[p] { likeCount: .likeCount - 1 }
-      return false
-    none:
-      insert likes { user: viewer, post: p, at: now }
-      update posts[p] { likeCount: .likeCount + 1 }
-      return true
+  l = likes[viewer, p]
+  if l != null:
+    delete likes[l.id]
+    update posts[p] { likeCount: .likeCount - 1 }
+    return false
+  else:
+    insert likes { user: viewer, post: p, at: now }
+    update posts[p] { likeCount: .likeCount + 1 }
+    return true
 
 mutation toggleRepost(p: posts, ord: int):
   post = posts[p]! else POST_NOT_FOUND
   require post.parent = null else CANNOT_REPOST_REPLY
-  match feedItems[actor = viewer, post = p, kind = 'repost']:
-    some f:
-      delete feedItems[f.id]
-      update posts[p] { repostCount: .repostCount - 1 }
-      return false
-    none:
-      insert feedItems { actor: viewer, post: p, kind: 'repost', origAuthor: post.author, at: now, ord }
-      update posts[p] { repostCount: .repostCount + 1 }
-      return true
+  f = feedItems[actor = viewer, post = p, kind = 'repost']
+  if f != null:
+    delete feedItems[f.id]
+    update posts[p] { repostCount: .repostCount - 1 }
+    return false
+  else:
+    insert feedItems { actor: viewer, post: p, kind: 'repost', origAuthor: post.author, at: now, ord }
+    update posts[p] { repostCount: .repostCount + 1 }
+    return true
 
 mutation toggleFollow(u: users):
   other = users[u]! else USER_NOT_FOUND
   require other.principal != viewer else SELF_FOLLOW
-  match follows[viewer, u]:
-    some f:
-      delete follows[f.id]
-      update users[u] { followerCount: .followerCount - 1 }
-      update users[principal = viewer] { followingCount: .followingCount - 1 }
-      return false
-    none:
-      insert follows { follower: viewer, followee: u, followed: other.principal, at: now }
-      update users[u] { followerCount: .followerCount + 1 }
-      update users[principal = viewer] { followingCount: .followingCount + 1 }
-      return true
+  f = follows[viewer, u]
+  if f != null:
+    delete follows[f.id]
+    update users[u] { followerCount: .followerCount - 1 }
+    update users[principal = viewer] { followingCount: .followingCount - 1 }
+    return false
+  else:
+    insert follows { follower: viewer, followee: u, followed: other.principal, at: now }
+    update users[u] { followerCount: .followerCount + 1 }
+    update users[principal = viewer] { followingCount: .followingCount + 1 }
+    return true
 
 query globalFeed(c: cursor ?):
   return feedItems[] after c first 20 by byOrd feedCard

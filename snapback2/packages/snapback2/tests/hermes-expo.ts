@@ -58,10 +58,10 @@ let logins = 0, photos = 0;
 const store = fileRangeStore(root)();
 const client = createExpoClient({ url: "http://hermes.test", tokenStore: { load: () => null, save() {} }, offline: { store: () => store } });
 let renderer: ReturnType<typeof TestRenderer.create> | undefined;
-let drain: ReturnType<typeof client.subscribe> | undefined;
+let drain: ReturnType<typeof subscribe> | undefined;
 try {
   await client.ready; await client.auth.login({ email: "alice@example.test", password: "password" });
-  drain = subscribe(client, api.deliveries.inbox, { c: null }, () => {}, { drain: true });
+  drain = subscribe(client, api.messages.inbox, { c: null }, () => {}, { drain: true });
   await drain.until((value: any) => value.caughtUp === true);
   await store.commit({ deliveries: [{ op: "photo", args: {}, state: "complete", seq: 5, next: null,
     rows: [{ table: "messages", id: "photo", row: { id: "photo", photo } }], data: [{ $row: { table: "messages", id: "photo" } }],

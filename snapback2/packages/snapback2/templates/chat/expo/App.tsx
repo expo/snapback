@@ -1,11 +1,11 @@
 import React, { lazy, Suspense } from "react";
 import { SnapbackProvider } from "snapback2/react-native";
 import { Text } from "react-native";
+import Constants from "expo-constants";
 import { Chat } from "./src/Chat";
-// @ref LLP 1018.003#3-tombstones-are-declared-certified-and-shared — eviction follows the schema's `tombstones` line.
 const chatOffline = {};
 
-const url = process.env.EXPO_PUBLIC_SNAPBACK_URL ?? "http://127.0.0.1:3210";
+const url = process.env.EXPO_PUBLIC_SNAPBACK_URL ?? Constants.expoConfig?.extra?.snapbackUrl ?? "http://127.0.0.1:3210";
 // Metro inlines this in app source, never at simctl launch or inside node_modules.
 const witnessUrl = process.env.EXPO_PUBLIC_SNAPBACK_WITNESS;
 

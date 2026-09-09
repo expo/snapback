@@ -2,10 +2,9 @@ import React from "react";
 import { Pressable, Text, View } from "react-native";
 import type { Api, ResultOf } from "snapback2/client";
 
-/** One row of the drained delivery log; the inbox, search, and every thread read the same held rows (LLP 1012 §3). */
-export type LogRow = ResultOf<Api["deliveries"]["inbox"]>[number];
+/** One row of the drained delivery log; the inbox, search, and every thread read the same held rows. */
+export type LogRow = ResultOf<Api["messages"]["inbox"]>[number];
 
-// @ref LLP 1018.003#5-the-certified-thread-projection — grouping by conversation is presentation and stays in the inbox screen.
 function conversations(rows: readonly LogRow[]) {
   const byConversation = new Map<string, { conversationId: string; latestAt: number; latestBody?: string; messages: number }>();
   for (const row of rows) {

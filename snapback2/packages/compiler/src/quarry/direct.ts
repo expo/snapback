@@ -92,9 +92,9 @@ function lowerExpression(expression: BoundExpression, lowering: Lowering): Lower
   if (expression.kind === "assert") {
     const value = captureObservable(lowerExpression(expression.value, lowering), lowering);
     return {
-      setup: [...value.setup, { Require: { condition: {
+      setup: [...value.setup, requirement(lowering, expression.source, expression.code, {
         Binary: { op: "Ne", left: value.value, right: { Literal: "Null" } },
-      }, code: expression.code, site: requireSite(expression.source) } }],
+      })],
       value: value.value,
     };
   }
@@ -136,6 +136,13 @@ function lowerExpression(expression: BoundExpression, lowering: Lowering): Lower
   return lowerPointRead(expression.read, expression.kind, lowering);
 }
 
+// @ref LLP 1002#diagnostics-say-the-fix — count all executable requirements before attributing a code.
+function requirement(lowering: Lowering, source: BoundSourceStack, code: string, condition: Expr): Stmt {
+  lowering.sources.push([`${lowering.program}/require/${lowering.sources.length}`,
+    { ...(source.use ?? source.definition), requirement: code }]);
+  return { Require: { condition, code, site: requireSite(source) } };
+}
+
 function lowerStatements(statements: BoundStatement[], lowering: Lowering): Stmt[] {
   const body: Stmt[] = [];
   for (const statement of statements) {
@@ -172,7 +179,7 @@ function lowerStatements(statements: BoundStatement[], lowering: Lowering): Stmt
     }
     if (statement.kind === "require") {
       const condition = captureObservable(lowerExpression(statement.condition, lowering), lowering);
-      body.push(...condition.setup, { Require: { condition: condition.value, code: statement.code, site: requireSite(statement.source) } });
+      body.push(...condition.setup, requirement(lowering, statement.source, statement.code, condition.value));
       continue;
     }
     if (statement.kind === "emit") {
@@ -246,21 +253,6 @@ function lowerStatements(statements: BoundStatement[], lowering: Lowering): Stmt
       body.push(...domain.setup, { For: { binding, domain: loopDomain, body: loopBody } });
       continue;
     }
-    const matched = lowerExpression(statement.value, lowering);
-    const matchName = temporary(lowering, "matchValue");
-    const rowName = temporary(lowering, "matchRow");
-    const outerBindings = new Map(lowering.bindings);
-    lowering.bindings = new Map(outerBindings);
-    lowering.bindings.set(statement.symbol.id, { Variable: rowName });
-    const someBody = [{ Const: { name: rowName, value: { Variable: matchName } } } satisfies Stmt,
-      ...lowerStatements(statement.someBody, lowering)];
-    lowering.bindings = new Map(outerBindings);
-    const noneBody = lowerStatements(statement.noneBody, lowering);
-    lowering.bindings = outerBindings;
-    body.push(...matched.setup, { Const: { name: matchName, value: matched.value } }, { If: {
-      condition: { Binary: { op: "Ne", left: { Variable: matchName }, right: { Literal: "Null" } } },
-      then_body: someBody, else_body: noneBody,
-    } });
   }
   return body;
 }
@@ -270,9 +262,6 @@ function boundLocalNames(statements: BoundStatement[]): string[] {
     if (statement.kind === "bind") return statement.symbols.map((symbol) => symbol.name);
     if (statement.kind === "if") return [...boundLocalNames(statement.thenBody), ...boundLocalNames(statement.elseBody)];
     if (statement.kind === "for") return [statement.symbol.name, ...boundLocalNames(statement.body)];
-    if (statement.kind === "match") return [
-      statement.symbol.name, ...boundLocalNames(statement.someBody), ...boundLocalNames(statement.noneBody),
-    ];
     return [];
   });
 }
@@ -283,8 +272,6 @@ function statementsFallThrough(statements: BoundStatement[]): boolean {
     if (statement.kind === "expr" && statement.completion) return false;
     if (statement.kind === "if"
       && !statementsFallThrough(statement.thenBody) && !statementsFallThrough(statement.elseBody)) return false;
-    if (statement.kind === "match"
-      && !statementsFallThrough(statement.someBody) && !statementsFallThrough(statement.noneBody)) return false;
   }
   return true;
 }
@@ -406,9 +393,8 @@ function lowerWrite(
     } } } });
     row = { Variable: rowName };
     if (!directId) {
-      if (expression.op === "delete" || expression.op === "update") setup.push({ Require: {
-        condition: { Binary: { op: "Ne", left: row, right: { Literal: "Null" } } }, code: "NOT_FOUND", site: requireSite(expression.source),
-      } });
+      if (expression.op === "delete" || expression.op === "update") setup.push(requirement(lowering, expression.source, "NOT_FOUND",
+        { Binary: { op: "Ne", left: row, right: { Literal: "Null" } } }));
       identity = { Field: { base: row, name: "id" } };
     }
   }
@@ -816,7 +802,7 @@ function requireSite(source: BoundSourceStack): string {
 function accessSite(lowering: Lowering, source?: BoundSourceStack): string {
   const site = `${lowering.program}.${lowering.accessOrdinal}`;
   lowering.accessOrdinal += 1;
-  if (source) lowering.sources.push([site, source.definition]);
+  if (source) lowering.sources.push([site, { ...source.definition, ...(source.use ? { use: source.use } : {}) }]);
   return site;
 }
 

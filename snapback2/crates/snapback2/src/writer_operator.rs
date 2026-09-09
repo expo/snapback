@@ -93,6 +93,7 @@ impl State {
         Ok(json!({
             "op": op, "principal": "system", "by": by,
             "certificatePlanHash": certificate.plan_hash,
+            "certificateSchemaHash": certificate.schema_hash,
             "result": operator_json(&execution), "trace": execution.trace,
             "subscriptions": [],
         }))

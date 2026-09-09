@@ -3,7 +3,7 @@ import { fixtureClient as createClient } from "./live-fixture.ts";
 // The resume log is the page after the watermark (writer_resume log_args) and is
 // held under that cursor's args; the drained first page under `c: null` survives.
 // Found by lane O4's journey run: O2a's offline-drain journey failed on the
-// integration commit with "conflicting deliveries for deliveries.inbox at seq N"
+// integration commit with "conflicting deliveries for messages.inbox at seq N"
 // once O1b's real /api/resume answered a restart's resume with an empty tail.
 import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -48,11 +48,11 @@ test("a resume answered with the tail after the watermark is held under the curs
     await store.open("dev:alice");
     await store.commit({
       deliveries: [{
-        op: "deliveries.inbox", args: { c: null }, state: "complete", data: ["first page"], next: null, seq: 3,
+        op: "messages.inbox", args: { c: null }, state: "complete", data: ["first page"], next: null, seq: 3,
         validator: "1".repeat(64), receipt: emptyReceipt(),
       }],
       watermark: {
-        op: "deliveries.inbox", args: { c: null }, watermark: "cursor-9", validator: "1".repeat(64),
+        op: "messages.inbox", args: { c: null }, watermark: "cursor-9", validator: "1".repeat(64),
         generation, schemaHash, authEpoch: 7, updatedAt: 10,
       },
     });
@@ -76,16 +76,16 @@ test("a resume answered with the tail after the watermark is held under the curs
       },
     });
     await client.ready;
-    assert.deepEqual(request.log, { op: "deliveries.inbox", args: { c: null }, watermark: "cursor-9", validator: "1".repeat(64) });
+    assert.deepEqual(request.log, { op: "messages.inbox", args: { c: null }, watermark: "cursor-9", validator: "1".repeat(64) });
     await client.offline();
-    const first = await client.query<any, any>(api.deliveries.inbox as any, { c: null });
+    const first = await client.query<any, any>(api.messages.inbox as any, { c: null });
     assert.deepEqual("data" in first ? first.data : undefined, ["first page"], "the drained first page is still held");
-    const tail = await client.query<any, any>(api.deliveries.inbox as any, { c: "cursor-9" });
+    const tail = await client.query<any, any>(api.messages.inbox as any, { c: "cursor-9" });
     assert.deepEqual("data" in tail ? tail.data : undefined, [], "the tail is held under its cursor");
     client.close();
     const inspect = fileRangeStore(root)();
     await inspect.open("dev:alice");
-    const watermark = (await inspect.coverage()).watermarks.find((item) => item.op === "deliveries.inbox");
+    const watermark = (await inspect.coverage()).watermarks.find((item) => item.op === "messages.inbox");
     assert.equal(watermark?.watermark, "cursor-9");
     assert.equal(watermark?.validator, "2".repeat(64), "the watermark carries the tail's validator");
     await inspect.close?.();
@@ -107,7 +107,7 @@ function afterManifest(url: URL): Response | undefined {
   if (url.pathname === "/api/manifest") {
     return new Response(JSON.stringify({
       generation: "schema-generation", programGeneration: generation, channels: {}, auth: {},
-      ops: { "deliveries.inbox": { kind: "query", planHash, drain: { cursor: "after" }, args: { aAux: { Optional: "Cursor" }, after: { Optional: "Cursor" } } } },
+      ops: { "messages.inbox": { kind: "query", planHash, drain: { cursor: "after" }, args: { aAux: { Optional: "Cursor" }, after: { Optional: "Cursor" } } } },
     }), { status: 200 });
   }
   return metadataResponse(url);
@@ -171,12 +171,12 @@ test("the returned-page cursor drives drain and resume, ahead of an auxiliary Cu
       },
     });
     open.push(early);
-    const earlyDrain = subscribe(early, api.deliveries.inbox as any, { after: null }, () => undefined, { drain: true });
+    const earlyDrain = subscribe(early, api.messages.inbox as any, { after: null }, () => undefined, { drain: true });
     await earlyDrain.until((value) => value.caughtUp === true, 2_000);
     earlyDrain.close();
     early.close();
 
-    const drain = subscribe(client, api.deliveries.inbox as any, { after: null }, () => undefined, { drain: true });
+    const drain = subscribe(client, api.messages.inbox as any, { after: null }, () => undefined, { drain: true });
     await drain.until((value) => value.state === "complete" && value.caughtUp === true && value.watermark === "k1", 2_000);
     // The tail subscription opens a tick after the caught-up delivery.
     for (let attempt = 0; attempt < 100 && tails.length === 0; attempt += 1) await new Promise((resolve) => setTimeout(resolve, 10));
@@ -186,7 +186,7 @@ test("the returned-page cursor drives drain and resume, ahead of an auxiliary Cu
     client.close();
     const inspect = fileRangeStore(root)();
     await inspect.open("dev:alice");
-    const watermark = (await inspect.coverage()).watermarks.find((item) => item.op === "deliveries.inbox");
+    const watermark = (await inspect.coverage()).watermarks.find((item) => item.op === "messages.inbox");
     assert.deepEqual(watermark?.args, { after: null });
     assert.equal(watermark?.cursorArg, "after", "the watermark keeps the manifest-named cursor for store-side tail matching");
     assert.equal(watermark?.watermark, "k1");
@@ -213,13 +213,13 @@ test("the returned-page cursor drives drain and resume, ahead of an auxiliary Cu
     });
     open.push(cold);
     await cold.ready;
-    assert.deepEqual(request.log, { op: "deliveries.inbox", args: { after: null }, watermark: "k1", validator: "2".repeat(64) });
+    assert.deepEqual(request.log, { op: "messages.inbox", args: { after: null }, watermark: "k1", validator: "2".repeat(64) });
     await cold.offline();
-    const first = await cold.query<any, any>(api.deliveries.inbox as any, { after: null });
+    const first = await cold.query<any, any>(api.messages.inbox as any, { after: null });
     assert.deepEqual("data" in first ? first.data : undefined, [null], "the drained first page is still held");
-    const tail = await cold.query<any, any>(api.deliveries.inbox as any, { after: "k1" });
+    const tail = await cold.query<any, any>(api.messages.inbox as any, { after: "k1" });
     assert.deepEqual("data" in tail ? tail.data : undefined, ["tail"], "the tail is held under the manifest's cursor argument");
-    const wrong = await cold.query<any, any>(api.deliveries.inbox as any, { after: null, c: "k1" });
+    const wrong = await cold.query<any, any>(api.messages.inbox as any, { after: null, c: "k1" });
     assert.equal(wrong.state, "hydrating", "nothing was ever filed under c");
   } finally {
     for (const client of open) client.close();
@@ -308,9 +308,9 @@ test("a conditional unchanged reply on a held denied answer is a typed denied, n
   });
   try {
     await client.ready;
-    const first = await client.query<any, any>(api.deliveries.thread as any, { conversationId: "conversation-2", c: null });
+    const first = await client.query<any, any>(api.messages.thread as any, { conversationId: "conversation-2", c: null });
     assert.equal(first.state, "denied");
-    const second = await client.query<any, any>(api.deliveries.thread as any, { conversationId: "conversation-2", c: null });
+    const second = await client.query<any, any>(api.messages.thread as any, { conversationId: "conversation-2", c: null });
     assert.equal(second.state, "denied", "the replayed held answer is the typed denied the first ask returned");
     assert.equal("next" in second, false, "a denied answer never carries next");
     assert.deepEqual(asks, [null, "3".repeat(64)], "the second ask was conditional on the held validator");

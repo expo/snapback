@@ -63,10 +63,14 @@ handle; writes never replay.
 ## Connected
 
 `connected` is a read-only virtual table: `exists connected[p]` tests connection;
-`#connected[p]` counts SSE transports (including `--as`). Pass a required
-principal. Reads share one immutable snapshot per program run. Connect/close
-affects the next execute; live reruns wait up to 1 s. Rules use durable facts.
-Offline: `hydrating` and never predicted.
+`connected[p]` counts authenticated SSE transports once each (including `--as`).
+Pass a nonoptional principal (`viewer` for self).
+Programs may read it; rules/maintains use durable facts. A read costs one probe,
+touches `_connected` at that principal, and shares one immutable snapshot per program run.
+Connect/close affects the next execute; live reruns wait up to 1 s to coalesce.
+Revocation closes session streams; silent partitions surface on failed writes
+with no latency guarantee. Offline reads are `hydrating` and never predicted.
+Connection promises no foreground/idle or delivery guarantee or channel/subscriber broadcast.
 
 ## Unicode word-prefix search
 

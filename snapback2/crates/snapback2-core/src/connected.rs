@@ -165,7 +165,11 @@ mod tests {
         ] {
             let mut read = read();
             read.key = key;
-            assert!(checker.check(&program(Expr::Exists(read))).is_err());
+            let errors = checker.check_all(&program(Expr::Exists(read))).unwrap_err();
+            let diagnostic = errors.iter().find(|error| error.code == "E_ARGS_TYPE").unwrap();
+            assert_eq!(diagnostic.message, "connected requires one nonoptional principal");
+            assert_eq!(diagnostic.rewrite,
+                "use connected[viewer] or exists connected[p] with p: principal");
         }
         let mut read = read();
         read.index = "byId".into();

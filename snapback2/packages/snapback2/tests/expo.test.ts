@@ -98,7 +98,7 @@ test("Expo renders declared history for a partial composite and the composite on
   try {
     await act(async () => { renderer = TestRenderer.create(React.createElement(SnapbackProvider, { client },
       React.createElement(Thread, { conversationId: "conversation-1" }))); });
-    assert.deepEqual(observed, ["deliveries.conversationView+history"], "one observation, carrying the declared history");
+    assert.deepEqual(observed, ["messages.conversationView+history"], "one observation, carrying the declared history");
     const partialTree = JSON.stringify(renderer!.toJSON());
     assert.match(partialTree, /independently held/);
     assert.match(partialTree, /Message count unavailable/);
@@ -430,7 +430,7 @@ test("native provider preserves a cold transport cut through rerenders and ident
     if (String(input).includes("/api/resume")) resumes++;
     return owner.fetch(input, init);
   };
-  function Probe() { current = useSnapbackClient(); nativeEntry.useQuery(api.deliveries.inbox, {}); return null; }
+  function Probe() { current = useSnapbackClient(); nativeEntry.useQuery(api.messages.inbox, {}); return null; }
   const tree = (persona = "alice", startOffline = true) => React.createElement(React.StrictMode, {},
     React.createElement(SnapbackProvider, { url: "http://provider-cut.test", persona, startOffline, fetch, offline: { store } }, React.createElement(Probe)));
   try {

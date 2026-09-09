@@ -55,7 +55,7 @@ query mergedMessages(a: conversations, b: conversations):
     [b]
 
 query countMessages(conversationId: conversations):
-  return #messageCounts[conversationId]
+  return messageCounts[conversationId]
 
 mutation fill(id: adminNotes):
   update adminNotes[id] { note: 'filled' }

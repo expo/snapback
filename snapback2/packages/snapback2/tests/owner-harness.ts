@@ -21,8 +21,7 @@ function command(args: string[], options: { env?: NodeJS.ProcessEnv; timeout?: n
   });
 }
 
-async function addIntegrationOperations(root: string, withDeliveries: boolean): Promise<void> {
-  if (withDeliveries) await cp(join(packageRoot, "templates/chat/snapback/deliveries.q"), join(root, "snapback/deliveries.q"));
+async function addIntegrationOperations(root: string): Promise<void> {
   await writeFile(join(root, "snapback/integration.q"), `query capped():
   return profiles[] first 1 by byId
 
@@ -95,8 +94,8 @@ export class RealOwnerHarness {
     assert.equal(built.status, 0, `cargo build failed\n${built.stdout}\n${built.stderr}`);
     const root = await mkdtemp(join(tmpdir(), "snapback2-client-owner-"));
     try {
-      await cp(options.fixture ?? (options.fullChat ? join(packageRoot, "templates/chat/snapback") : join(fixture, "snapback")), join(root, "snapback"), { recursive: true });
-      if (!options.fixture) await addIntegrationOperations(root, options.withDeliveries ?? false);
+      await cp(options.fixture ?? ((options.fullChat || options.withDeliveries) ? join(packageRoot, "templates/chat/snapback") : join(fixture, "snapback")), join(root, "snapback"), { recursive: true });
+      if (!options.fixture) await addIntegrationOperations(root);
       await options.prepare?.(root);
       // `dev --foreground` compiles and certifies the project, loads its seed,
       // and opens the runtime before it publishes SNAPBACK_URL. A separate

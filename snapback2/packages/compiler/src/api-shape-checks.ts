@@ -180,14 +180,14 @@ query scalarOverride():
   return posts[viewer] first 5 by byAuthor { *, id: 'replacement', likeCount: 'many' }
 
 query convSummary(c: conversations):
-  return { total: #convSpend[c], creatorProfile: users[principal = viewer] { displayName, handle } }
+  return { total: convSpend[c], creatorProfile: users[principal = viewer] { displayName, handle } }
 
 query maybeProfile(u: users):
-  match users[u]:
-    some found:
-      return found { displayName, handle }
-    none:
-      return null
+  found = users[u]
+  if found != null:
+    return found { displayName, handle }
+  else:
+    return null
 `;
     await withCliqueProbe(fixtures, source, async (root) => {
       const lowered = await lowerProject(root);
@@ -243,11 +243,11 @@ query maxResult(left: money USD, right: money USD):
   });
 
   test("single-path inference deliberately types chat insert branches", async () => {
-    const lowered = await lowerProject(resolve(fixtures, "quarry-chat"));
+    const lowered = await lowerProject(resolve(frontend, "../snapback2/templates/chat"));
     assert(lowered.ok, `Quarry chat fixture refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
     const expected: Record<string, string> = {
-      "follows.setFollow": `{ id: string; follower: Principal; followed: Principal; at: number } | null`,
-      "profiles.createMyProfile": `{ id: string; principal: Principal; displayName: string; handle: string; avatarUrl: string | null; bio: string; location: string; link: string | null }`,
+      "follows.setFollow": `FollowsRow | null`,
+      "profiles.createMyProfile": `ProfilesRow`,
     };
     for (const [operation, result] of Object.entries(expected)) {
       assert(operationResult(lowered.apiDts, operation) === result,
