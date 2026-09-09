@@ -1221,12 +1221,13 @@ is bound to client, authentication, and operation identity, and the fence bounda
 expiry notify subscribers on a timer. Residuals are filed in the supersession follow-ups
 ticket of 2026-09-04.
 
-**Presentation note (LLP 1018.003 §§7–11, 2026-09-07).** Online `run()` returns
-its terminal without deleting the durable entry. Online and initially queued
-writes share the same explicit-dismissal lifetime; hooks and screens never
-automatically dismiss. `outbox.observe()` supplies the shared history/readiness
-snapshot used by both hooks. Retained terminal history is not bounded or
-automatically compacted.
+**Presentation note (LLP 1018.003.001 §4, amended 2026-09-09).** Online `run()`
+returns its own terminal even if the durable entry has already compacted.
+Online and initially queued writes share automatic compaction after observable
+effects discharge; hooks and screens never schedule deletion. Unresolved
+terminals retain explicit dismissal. `outbox.observe()` supplies the shared
+history/readiness snapshot used by both hooks. Discharged successful history
+is bounded; unresolved history and total store size are not.
 
 Optional `items` on `observe`/`useQuery` attach declared creates, updates,
 removals, and effective prediction provenance to each row. An action's marker

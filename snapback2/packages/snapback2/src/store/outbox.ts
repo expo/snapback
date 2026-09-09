@@ -1,7 +1,7 @@
 // @ref LLP 1012#7-writes-offline — the outbox is durable custody of unsent
 // intents: each one owns a contiguous slice of a principal-bound replay grant,
 // so its ids are known before the server has seen it and a retry is the same
-// envelope. Settlement never deletes; `dismiss` is the app's choice.
+// envelope. Delivered successes compact atomically; unresolved terminals remain dismissible.
 import type { OutboxStatus } from "../types.js";
 import { inboxKeyOf, type InboxRow } from "./inbox.js";
 import { admittedMutationTargets } from "../mutation-targets.js";

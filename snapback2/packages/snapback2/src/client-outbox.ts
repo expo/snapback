@@ -164,7 +164,7 @@ export async function submitMutation<Result>(options: SubmitMutationOptions): Pr
 }
 
 // @ref LLP 1018.003.000#4-observation-and-retention —
-// explicit dismissal may precede the issuing call reading its entry back;
+// dismissal or successful compaction may precede the call reading its entry back;
 // the drain records each terminal
 // verdict so that call answers from it rather than mistaking absence for "still queued".
 // Only a call that is waiting on its own intent holds a slot, and it closes the
@@ -188,7 +188,7 @@ function recordTerminal(runtime: OfflineRuntime, entry: OutboxEntry): void {
 
 // @ref LLP 1018.003.000#4-observation-and-retention —
 // settlement does not prove that a query can display the target. Online and
-// initially queued writes keep the same durable terminal until explicit dismissal.
+// initially queued writes share the same terminal handoff and compaction rule.
 function settledResult<Result>(entry: OutboxEntry): MutationResult<Result> {
   if (entry.state === "expired") {
     throw new RefusalError({

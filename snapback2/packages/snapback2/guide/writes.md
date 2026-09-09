@@ -17,3 +17,26 @@ rolls back on refusal. Ignored update/upsert adds no result read. Delete yields
 no value. A body's final write is an implicit return; never in a proc.
 
 See `guide quarry` for related topics.
+
+## Insert if absent
+
+`insert memberships { group, principal: viewer } if absent` returns the inserted
+row, or `null` when any unique key already exists. It never returns the conflicting
+row, even when that row is readable. Insert authorization runs before uniqueness
+probes; an insertion still checks constraints and updates maintained values.
+Offline, an unheld unique range remains `partial`.
+
+## Conditional update
+
+```q
+mutation edit(id: messages, body: text <=2000, expectedBody: text <=2000):
+  return update messages[id] { body } if .body = expectedBody
+```
+
+The key evaluates once; the patch evaluates only after the condition passes.
+A false condition or absent/unreadable target returns a rejected mutation with
+`reason: "conflict"`, `code: "E_CONFLICT"`, and `current` (the readable current row
+or `null`). The owner rolls back the whole mutation before freshly authorizing
+that row. Review the current value before submitting a new edit.
+`expectedGeneration` on the mutation wire separately fences the operation and
+schema generation; it is not a row version. See `guide api`.
