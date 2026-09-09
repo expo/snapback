@@ -5,7 +5,7 @@ fn settings(): appSettings['windows']
 proc storeAtExpiry(conversationId: conversations, messageId: id, author: principal, target: principal, body: text <=2000 ?, photo: image <=10485760 ?, clip: video <=52428800 ?, oncePhoto: image <=10485760 ?, expiry: time ?, preview: text <=2000):
   insert messages { id: messageId, conversationId, author, body, photo, clip, oncePhoto, expiresAt: expiry }
   boundedPreview = slice(preview, 0, 80)
-  insert pushLog { target, chatId: conversationId, sender: author, preview: boundedPreview, messageId }
+  insert pushLog { target, kind: 'message', chatId: conversationId, sender: author, preview: boundedPreview, messageId }
   emit notify { to: target, body: boundedPreview }
 
 proc storeWithExpiryPolicy(conversationId: conversations, messageId: id, author: principal, target: principal, body: text <=2000 ?, photo: image <=10485760 ?, clip: video <=52428800 ?, oncePhoto: image <=10485760 ?, explicitExpiry: time ?, disappearing: enum('off', '24h', '7d'), disappear24hMs: int, disappear7dMs: int, preview: text <=2000):

@@ -45,6 +45,7 @@ export function registerScheduleChecks(test: Test, frontend: string): void {
       { table: "appSettings", id: "settings", row: { Row: {
         id: { Id: "settings" }, key: { String: "windows" },
         disappear24hMs: { Int: 86_401_234 }, disappear7dMs: { Int: 604_812_345 },
+        digestPeriodMs: { Int: 120_000 }, replayMode: { Bool: false },
       } } },
     ];
     const context = (conversation: string, message: string, expiresAt: Value): Context => ({
@@ -73,7 +74,6 @@ export function registerScheduleChecks(test: Test, frontend: string): void {
         absences: [
           ["messages", "byId", [{ Id: message }]],
           ["pushLog", "byId", [{ Id: `push-${message}` }]],
-          ["pushLog", "byMessage", [{ Id: message }]],
         ],
       };
       const store = new ClientStore(lowered.project.schema, receipt);
@@ -105,6 +105,32 @@ export function registerScheduleChecks(test: Test, frontend: string): void {
       const emittedPreview = emits[index]!.Emit.payload.Object.body.Variable;
       assert(storedPreview === emittedPreview, `stored and emitted previews diverged in branch ${index}`);
     }
+  });
+  test("period digest reads current bounded selections and period-maintained activity atomically", async () => {
+    const lowered = await lowerProject(fixture);
+    assert(lowered.ok, JSON.stringify(lowered));
+    const checked = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema, undefined, lowered.project.effects);
+    const job = operation(lowered.project.programs, "digest-recipes.periodDigestSweep");
+    const certificate = checked.find((item) => item.program === job.name)!.certificate!;
+    assert(certificate.kind === "job" && (certificate.perChunk as any[]).length === 1, JSON.stringify(certificate));
+    const body = JSON.stringify(job.body);
+    for (const required of ["digestFollows", "originalPostPeriodCounts", "memberships", "pendingReadPeriodByChat", "digests", "pushLog", "push.notify"]) {
+      assert(body.includes(required), `digest job lost ${required}`);
+    }
+    assert(!body.includes("unreadMessageTotals") && !body.includes("unreadChatCounts"), "digest job used standing unread totals");
+    const source = readFileSync(resolve(fixture, "snapback/digest-recipes.q"), "utf8");
+    const schema = readFileSync(resolve(fixture, "snapback/schema.q"), "utf8");
+    assert(source.includes("digestFollows[p.principal] first 500 by byFollower")
+      && source.includes("memberships[p.principal] first 50 by byPrincipalConversation"), "digest selection lost its 500/50 envelope");
+    assert(schema.includes("cap 500 by follower") && schema.includes("cap 50 by principal"), "digest pages are not storage-bounded");
+    assert(source.includes("if cfg.replayMode = false:")
+      && source.includes("if newFollowers != 0 or summary.newPostsInFollowing != 0 or summary.unreadMessages != 0 or summary.unreadChats != 0:"),
+    "replay or quiet-period guard moved");
+    const follow = JSON.stringify(operation(lowered.project.programs, "digest-recipes.setRecipeFollow").body);
+    assert(follow.includes("follows") && follow.includes("digestFollows") && follow.includes("Insert") && follow.includes("Delete"),
+      "follow/mirror equality lost a transaction path");
+    const post = JSON.stringify(operation(lowered.project.programs, "digest-recipes.createRecipePost").body);
+    assert(post.includes("posts") && !post.includes("digestFollows") && !post.includes("For"), "post creation gained follower-scaled work");
   });
   test("Quarry schedules refuse non-time columns, bad targets, and sub-minute or calendar durations with the schedule family", async () => {
     const schema = readFileSync(resolve(fixture, "snapback/schema.q"), "utf8");

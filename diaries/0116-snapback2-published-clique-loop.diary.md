@@ -1830,3 +1830,24 @@ Its raw failed metric remains append-only. The second doctor sample and the
 release, incremental-build and init-to-dev checks pass; they do not cancel
 the failed samples. These measurements reinforce that loop speed needs
 separate work alongside the improved authoring surface.
+
+## 2026-09-09 — post-run message and digest recipe correction
+
+I repaired a copy after the benchmark had ended; the original app, owner and
+grades stayed read-only. The message expiry bug was ordinary lexical scope:
+inner `ttl` bindings never replaced the outer null. Passing the selected
+deadline into one insert helper made off/24h/7d and media behavior explicit.
+The new bounded `slice` spelling then let one Unicode-scalar preview feed both
+the stored push row and emitted payload instead of trusting provider-only
+truncation.
+
+The digest was less local. Lifetime unread totals repeated quiet periods, and
+calling the unused post helper per follower would have moved read work onto a
+celebrity's write. Digest-time maintained per-author counts kept post writes
+constant, but a direct 500-follow/50-membership atomic recipe certified at
+4,464,679 bytes, above the 4 MiB closure ceiling. Splitting it into persisted
+passes introduced stale authorization. A compact follow mirror, updated in
+the same follow/unfollow transaction, brought the atomic per-profile recipe
+under the ceiling; current memberships plus period pending-read counts avoid a
+second unread lifecycle. Exact and Contract were not used, and this correction
+makes no new competitor claim.

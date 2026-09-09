@@ -44,8 +44,14 @@ satisfy; `every` targets take none), `E_SCHEDULE_DURATION` (`Nm`, `Nh`, or
 `Nd`, at least one minute; no time-of-day or calendar syntax).
 
 Customers: the `chat` template's disappearing messages (`purgeMessage` writes
-the `expired` log rows and deletes the body) and the `digestSweep` job fixture
-(one effect per profile with a non-zero count, restart-idempotent by occurrence).
+the `expired` log rows and deletes the body) and the `periodDigestSweep` fixture.
+For a digest, stamp source rows with `[periodStart, periodEnd)`, read current
+bounded follows and memberships at emission, and combine them with maintained
+per-author and per-chat period counts. Do not make lifetime unread totals a
+period's eligibility. Write the unique principal/period digest, application
+log and effect in the same profile chunk; delete its transaction-local scratch
+before commit. An all-zero period writes and emits nothing. Keep the configured
+period equal to the `schedule` duration, and guard replay mode before work.
 
 See `guide expiry` for the complete timer → recipient log → tombstone →
 reconnect drain recipe and its current-member delivery limit.
