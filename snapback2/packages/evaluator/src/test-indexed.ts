@@ -629,9 +629,9 @@ validateInputs(formats.schema, nestedFormats, { nested: { Array: ['Null', { Stri
 for (const value of ['', 'BAD']) assert.throws(() => validateInputs(formats.schema, nestedFormats,
   { nested: { Array: ['Null', { String: value }] } }), { code: 'E_INPUT' });
 assert.throws(() => validateInputs(formats.schema, replacedFormat(null), formatArgs), { code: 'E_INPUT' });
-const formatState = emptyState(), formatChanges = new StoreChanges<typeof formatState>(); formatChanges.reset();
+const formatState = emptyState(), formatChanges = new StoreChanges<typeof formatState>(), formatHeld = decodeHeldProgram(formatPacket); formatChanges.reset();
 formatState.facts = { generation: formatPacket.generation, schemaHash: formatPacket.schemaHash, authEpoch: 0 };
-const formatTwin = new Twin({ program: () => decodeHeldProgram(formatPacket), changes: async since => formatChanges.read(formatState, since),
+const formatTwin = new Twin({ program: () => formatHeld, changes: async since => formatChanges.read(formatState, since),
   principal: () => 'viewer', now: () => 1, seq: () => 1 });
 assert.equal((await formatTwin.evaluate('formats', { handle: '', items: ['a'], link: 'https://\ufeff' }))?.data, 'https://\ufeff');
 for (const args of [{ handle: 'UPPER', items: [], link: null }, { handle: 'a', items: ['BAD'], link: null },
@@ -771,9 +771,9 @@ await assert.rejects(pinnedTwin.evaluate('search', { ...args, c: `h1.${JSON.stri
 console.log('timed local h1 continuation pins one signed execution clock and preserves malformed refusal');
 
 // R1 review: exact native-certified ownership search through public Twin, plus scope-dependent adverse rules.
-const { Runner } = await import('./runner');
 const { ReadableDirectory } = await import('./held-directory');
 const { canonicalJson } = await import('./value-runtime');
+const { Runner } = await import('./runner');
 const ownershipSchema: any = { tables: { notes: { columns: { id: 'Id', owner: 'Principal', text: { Text: { max: 32 } } },
   indexes: { byId: { components: [col('id')], unique: true }, search: { components: [col('owner'),
     { WordPrefixes: { fields: ['text'], contract: SEARCH_CONTRACT } }, col('id')], unique: false } },

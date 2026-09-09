@@ -8,6 +8,7 @@ import { generateUnicodeTables } from '../unicode-build.mjs';
 generateUnicodeTables();
 await import('./test-search-foundation');
 await import('./test-indexed');
+await import('./test-rule-hash-memo');
 await import('./test-maintained-address');
 await import('./test-merge');
 import {

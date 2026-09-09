@@ -59,6 +59,9 @@ export class Runner {
   private readonly context: Context;
   readonly trace: Trace = { ranges: [], absences: [], points: [], merges: [], verdicts: [] };
   private readonly ruleMemo = new Map<string, boolean>();
+  // @ref LLP 1012#6-reads-offline — schema/rule identity is immutable for one
+  // synchronous execution; never carry this canonical-hash memo across Runners.
+  private readonly ruleHashes = new Map<unknown, string>();
   /** Verdicts the rule check in progress derived; committed to the trace only when the check discloses the row. */
   private pendingVerdicts: TraceVerdict[] = [];
   private readonly tracedVerdicts = new Set<string>();
@@ -73,6 +76,11 @@ export class Runner {
     if (this.trace.derived_steps > (this.certificate?.derived_steps ?? Infinity)) throw new EvalError('E_STEPS', 'certified derived step budget exceeded');
     if (scratchBytes > Math.min(this.certificate?.derived_scratch_bytes ?? Infinity, this.certificate?.max_heap_bytes ?? 8388608, 8388608))
       throw new EvalError('E_HEAP', 'derived scratch budget exceeded');
+  }
+  private ruleHash(rule: unknown): string {
+    let hash = this.ruleHashes.get(rule);
+    if (hash === undefined) { hash = scopedRuleHash(this.schema, rule); this.ruleHashes.set(rule, hash); }
+    return hash;
   }
   private readonly pooled = new Set<string>();
   private readonly writes = new Map<string, TraceWrite>();
@@ -714,7 +722,7 @@ export class Runner {
       gte: evaluatedRange?.gte ?? null,
       lt: evaluatedRange?.lt ?? null,
       lte: evaluatedRange?.lte ?? null,
-      rule_hash: scopedRuleHash(this.schema, this.schema.tables[scan.table].rules.read),
+      rule_hash: this.ruleHash(this.schema.tables[scan.table].rules.read),
       stop,
       lastReturnedSuffix: returned.length === 0 ? null
         : suffix.map((column) => clone(field(returned[returned.length - 1]!, column.name))),
@@ -1105,7 +1113,7 @@ export class Runner {
     this.pendingVerdicts = [];
     const allowed = this.evaluateRule(
       rule,
-      scopedRuleHash(this.schema, rule),
+      this.ruleHash(rule),
       old,
       next,
       effect === "insert",
