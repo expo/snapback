@@ -210,7 +210,9 @@ not suffice; the existing all-rule-fields-pinned proof remains sufficient
 for uniformity with a runtime verdict. The certificate records `decided_true`
 on the read site and reserves zero rule probes there; the engine and twin
 skip that site's rule evaluation without rewriting the table policy. Point
-reads still check visibility, including after membership revocation. Write
+reads still check visibility, including after membership revocation. Private DM rules `.recipient = viewer or .sender = viewer` therefore admit
+counts under either viewer-pinned index and sender-pinned fanout. An arbitrary
+principal argument is not a viewer-equality witness (regression 2026-09-09). Write
 fan-out still requires the unchanged covering-cap proof (LLP 1017 §3).
 
 A non-uniform site is capped-only regardless of what its runtime candidates

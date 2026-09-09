@@ -66,6 +66,40 @@ export function registerQuarryFanoutChecks(test: Test, frontend: string): void {
     }
   });
 
+  test("prefix-pinned OR admits private DM counts and fanout without disclosing the other arm", async () => {
+    const dmSchema = `use identity
+
+table deliveries:
+  sender: principal
+  recipient: principal
+  cap 50 by sender
+  by bySender: sender, id
+  by byRecipient: recipient, id
+  read <- .recipient = viewer or .sender = viewer
+  insert <- .sender = viewer
+  update <- deny
+  delete <- .sender = viewer
+`;
+    for (const column of ["Sender", "Recipient"]) {
+      await withProject({ "snapback/schema.q": dmSchema, "snapback/ops.q":
+        `query mine():\n  return count(deliveries[viewer] first 50 by by${column})\n` }, async root => {
+        const lowered = await lowerProject(root); assert(lowered.ok, "DM query did not lower");
+        const [checked] = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema);
+        assert(checked?.certificate && !checked.error, `DM count refused: ${JSON.stringify(checked)}`);
+        assert(checked.certificate.read_sites.every((site: any) => site.hoist && site.decided_true), "DM disjunct did not decide visibility");
+      });
+    }
+    for (const principal of ["viewer", "other"]) {
+      await withProject({ "snapback/schema.q": dmSchema, "snapback/ops.q":
+        `mutation remove(other: principal):\n  for row in deliveries[${principal}] first 50 by bySender:\n    delete deliveries[row.id]\n` }, async root => {
+        const lowered = await lowerProject(root); assert(lowered.ok, "DM fanout did not lower");
+        const [checked] = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema);
+        assert(principal === "viewer" ? !checked?.error : checked?.error?.code === "E_STRUCTURAL_FANOUT",
+          `pinning an arbitrary argument must not prove equality to viewer: ${JSON.stringify(checked)}`);
+      });
+    }
+  });
+
   test("chat groupCreate prices its same-key count-backed cap once per write", async () => {
     const chat = await lowerProject(resolve(frontend, "../snapback2/templates/chat"));
     assert(chat.ok, "chat template did not lower");

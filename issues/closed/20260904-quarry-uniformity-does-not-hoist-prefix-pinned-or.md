@@ -1,6 +1,6 @@
 # Quarry/certificate: the uniformity analysis does not hoist an `or` whose one arm is pinned by the index prefix
 
-**Status:** Open
+**Status:** Resolved
 **Systems:** snapback2 compiler (`packages/compiler`), `snapback2-core` certificate (`uniform_visibility`)
 **Date:** 2026-09-04
 **Related:** LLP 1012 §3 implementation record; LLP 1001 §"Failure and disclosure semantics"
@@ -36,3 +36,11 @@ every original recipient without making the log public.
 
 LLP 1012 §3's recipe fans out over current members and departed members learn by point
 absence (§5 rule 1).
+
+## Resolution — 2026-09-09
+
+The 2026-09-05 prefix-local truth implementation already decides each OR arm
+independently; this ticket predated that implementation. Added private DM
+regression coverage proving sender- and recipient-pinned counts, sender-pinned
+covering-cap deletion, and rejection when an arbitrary principal argument is
+merely pinned rather than proven equal to viewer. No table rule is weakened.
