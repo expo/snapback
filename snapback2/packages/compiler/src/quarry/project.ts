@@ -91,10 +91,15 @@ export async function lowerDirectQuarryProject(input: DirectQuarryProjectInput):
   project.schema.effects = loweredEffects.effects.map((effect) => effect.name);
   const inspection = project.inspection.map((item) => item.generated === "schema.ir.json"
     ? { ...item, source: JSON.stringify(project.schema, null, 2) } : item);
+  const sourceLines = new Map(quarryInputs.map(input => [input.fileName, input.source.split(/\r?\n/)]));
+  const withText = (source: import("../ir").SourceSite): import("../ir").SourceSite => ({
+    ...source, text: source.text ?? sourceLines.get(source.file)?.[source.line - 1]?.trim(),
+    ...(source.use ? { use: withText(source.use) } : {}),
+  });
   return {
     ok: true,
     project: { schema: project.schema, programs: project.programs, effects: loweredEffects.effects },
-    sources: project.sources,
+    sources: Object.fromEntries(Object.entries(project.sources).map(([site, source]) => [site, withText(source)])),
     apiDts: generateBoundApiDts(project.clientPrograms, prepared.prepared.documents, prepared.prepared.catalog),
     quarry: inspection,
     ms: elapsed(input.started),

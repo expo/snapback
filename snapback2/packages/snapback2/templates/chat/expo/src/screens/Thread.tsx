@@ -5,16 +5,9 @@ import { AssetImage, AssetVideo, useOutbox, useQuery } from "snapback2/react-nat
 import { Composer } from "../Composer";
 import { conversationItems } from "../../shared/thread";
 
-// @ref LLP 1018.000#4-one-observed-query-one-coherent-snapshot — list, count,
-// and preview render from one named composite when its receipt is complete;
-// the paginated query contributes history only when that composite is partial.
-// @ref LLP 1018.006#4-the-screens — the SDK runs that fallback from the shared
-// declaration; the screen reads `itemsFrom` and `history`.
-// @ref LLP 1018.003.000#2-correspondence —
-// the same item declaration supplies row attribution in both platform arms.
 export function Thread({ conversationId }: { conversationId: string }) {
   const [opened, setOpened] = useState<string[]>([]);
-  const snapshot = useQuery(api.deliveries.conversationView, { conversationId }, { items: conversationItems });
+  const snapshot = useQuery(api.messages.conversationView, { conversationId }, { items: conversationItems });
   const composite = snapshot.itemsFrom === "query" ? snapshot.data : undefined;
   const { dismiss } = useOutbox();
   const preview = composite?.preview[0]?.message?.body;

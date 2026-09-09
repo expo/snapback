@@ -104,6 +104,7 @@ fn compiled(project: &ProjectJson, generation: Generation) -> CompiledProject {
         api_dts: String::new(),
         compiler_ms: 0.0,
         quarry: Vec::new(),
+        sources: Default::default(),
     }
 }
 

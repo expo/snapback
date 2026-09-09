@@ -201,10 +201,10 @@ async function seed(url) {
   if (group.state !== "committed") throw new Error(`group creation was ${group.state}`);
   const conversations = ["conversation-1", "conversation-2", group.data.id];
   for (const conversationId of conversations) {
-    const posted = await alice.mutation(api.deliveries.post, { conversationId, body: `seeded in ${conversationId}` });
+    const posted = await alice.mutation(api.messages.send, { conversationId, body: `seeded in ${conversationId}` });
     if (posted.state !== "committed") throw new Error(`seed post was ${posted.state}`);
   }
-  const doomed = await alice.mutation(api.deliveries.post, { conversationId: "conversation-1", body: indexedSearchBody });
+  const doomed = await alice.mutation(api.messages.send, { conversationId: "conversation-1", body: indexedSearchBody });
   alice.close();
   bob.close();
   return { conversations, doomedMessageId: doomed.state === "committed" ? doomed.data.id : undefined };
@@ -228,7 +228,7 @@ async function openChat(page, conversationId) {
     const summary = document.querySelector("section[aria-label=Thread] .thread-summary");
     const messages = document.querySelector("section[aria-label=Thread] ol.bubbles");
     const source = messages?.getAttribute("data-view-source");
-    return window.__snapback.sharedConsumers(window.__api.deliveries.conversationView, { conversationId: id }) === 1
+    return window.__snapback.sharedConsumers(window.__api.messages.conversationView, { conversationId: id }) === 1
       && (source === "composite"
         ? summary?.getAttribute("data-view-state") === messages?.getAttribute("data-view-state")
           && summary?.getAttribute("data-view-seq") === messages?.getAttribute("data-view-seq")
@@ -239,7 +239,7 @@ async function openChat(page, conversationId) {
     const summary = document.querySelector("section[aria-label=Thread] .thread-summary");
     const messages = document.querySelector("section[aria-label=Thread] ol.bubbles");
     return { conversationId: id,
-      consumers: window.__snapback.sharedConsumers(window.__api.deliveries.conversationView, { conversationId: id }),
+      consumers: window.__snapback.sharedConsumers(window.__api.messages.conversationView, { conversationId: id }),
       state: summary?.getAttribute("data-view-state"), seq: summary?.getAttribute("data-view-seq"),
       count: summary?.getAttribute("data-count"), previewMessage: summary?.getAttribute("data-preview-message"),
       source: messages?.getAttribute("data-view-source"),
@@ -269,7 +269,7 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
   const sharedArgs = { conversationId: "conversation-2" };
   const shared = await writer.evaluate(async (args) => {
     const client = window.__snapback;
-    const op = window.__api.deliveries.conversationView;
+    const op = window.__api.messages.conversationView;
     const first = client.subscribe(op, args, () => undefined);
     const second = client.subscribe(op, args, () => undefined);
     let firstOpen = true, secondOpen = true;
@@ -299,7 +299,7 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
   assert.ok(Array.isArray(shared.data[0].preview) && shared.data[0].preview.length <= 1);
   assert.equal(typeof shared.data[0].count, "number");
   if (shared.data[0].preview.length) assert.equal(shared.data[0].preview[0].id, shared.data[0].messages[0].id);
-  const children = added.filter(child => child.path.includes("deliveries.conversationView"));
+  const children = added.filter(child => child.path.includes("messages.conversationView"));
   const described = children.map(child => {
     const path = new URL(child.path, ownerUrl);
     let args;
@@ -308,7 +308,7 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
     } catch { args = { malformed: path.searchParams.get("args") }; }
     return { id: child.id, op: path.searchParams.get("op"), args, lastEventId: child.lastEventId };
   });
-  const targetChildren = described.filter(child => child.op === "deliveries.conversationView"
+  const targetChildren = described.filter(child => child.op === "messages.conversationView"
     && child.args.conversationId === sharedArgs.conversationId);
   const targetIds = [...new Set(targetChildren.map(child => child.id))];
   assert.equal(targetIds.length, 1,
@@ -335,7 +335,7 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
   const follower = await context.newPage();
   await follower.goto(appUrl);
   await pollUntil(follower, async () => window.__snapback
-    && (await window.__snapback.outbox.status(window.__api.deliveries.post)).ready, null, { timeout: 15_000 });
+    && (await window.__snapback.outbox.status(window.__api.messages.send)).ready, null, { timeout: 15_000 });
   await openChat(follower, "conversation-1");
 
   // @ref LLP 1018.004#6-the-test-fake-and-the-witness — a follower's sends are
@@ -401,7 +401,7 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
   const inboxVerification = await import(resolve(dist, "client.mjs"));
   const inboxVerifier = inboxVerification.createClient({ url: ownerUrl, as: "alice" });
   try {
-    const thread = await inboxVerifier.query(inboxVerification.api.deliveries.thread, { conversationId: "conversation-1", c: null });
+    const thread = await inboxVerifier.query(inboxVerification.api.messages.thread, { conversationId: "conversation-1", c: null });
     assert.equal(thread.state, "complete");
     for (const body of inboxBodies) assert.equal(thread.data.filter(row => row.message?.body === body).length, 1, `the server stores ${body} once`);
   } finally { await inboxVerifier.close(); }
@@ -423,17 +423,17 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
   // Cut only the writer's owner transport: the follower remains live. An actual
   // page close releases the browser-owned lock without calling client.close().
   await writer.bringToFront();
-  await pollUntil(writer, async () => (await window.__snapback.outbox.status(window.__api.deliveries.post)).ready, null, { timeout: 15_000 });
+  await pollUntil(writer, async () => (await window.__snapback.outbox.status(window.__api.messages.send)).ready, null, { timeout: 15_000 });
   const ownerOrigin = new URL(ownerUrl).origin;
   await writer.route(url => url.origin === ownerOrigin, route => route.abort("connectionrefused"));
-  step("writer readiness before going offline", await writer.evaluate(async () => ({ status: await window.__snapback.outbox.status(), post: await window.__snapback.outbox.status(window.__api.deliveries.post), entries: await window.__snapback.outbox.entries() })));
+  step("writer readiness before going offline", await writer.evaluate(async () => ({ status: await window.__snapback.outbox.status(), post: await window.__snapback.outbox.status(window.__api.messages.send), entries: await window.__snapback.outbox.entries() })));
   await writer.evaluate(() => window.__snapback.offline());
-  step("writer readiness after going offline", await writer.evaluate(async () => ({ status: await window.__snapback.outbox.status(), post: await window.__snapback.outbox.status(window.__api.deliveries.post) })));
-  const writerFirst = await writer.evaluate(() => window.__snapback.mutation(window.__api.deliveries.post,
+  step("writer readiness after going offline", await writer.evaluate(async () => ({ status: await window.__snapback.outbox.status(), post: await window.__snapback.outbox.status(window.__api.messages.send) })));
+  const writerFirst = await writer.evaluate(() => window.__snapback.mutation(window.__api.messages.send,
     { conversationId: "conversation-1", body: "1018 writer first" }));
-  const followerMiddle = await follower.evaluate(() => window.__snapback.mutation(window.__api.deliveries.post,
+  const followerMiddle = await follower.evaluate(() => window.__snapback.mutation(window.__api.messages.send,
     { conversationId: "conversation-1", body: "1018 follower middle" }));
-  const writerSecond = await writer.evaluate(() => window.__snapback.mutation(window.__api.deliveries.post,
+  const writerSecond = await writer.evaluate(() => window.__snapback.mutation(window.__api.messages.send,
     { conversationId: "conversation-1", body: "1018 writer second" }));
   const queued = [writerFirst, followerMiddle, writerSecond];
   assert.deepEqual(queued.map(row => row.state), ["queued", "queued", "queued"]);
@@ -450,7 +450,7 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
   });
   // One more follower row, its nudge withheld, is left for the next writer to admit on takeover.
   await follower.evaluate(() => { window.__witnessBroadcast.dropTypes = ["inbox"]; });
-  const leftBehind = await follower.evaluate(() => window.__snapback.mutation(window.__api.deliveries.post,
+  const leftBehind = await follower.evaluate(() => window.__snapback.mutation(window.__api.messages.send,
     { conversationId: "conversation-1", body: "1018.004 admitted on takeover" }));
   assert.equal(leftBehind.state, "queued");
   await follower.evaluate(() => { window.__witnessBroadcast.dropTypes = []; });
@@ -482,7 +482,7 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
   const { createClient, api } = await import(resolve(dist, "client.mjs"));
   const verifier = createClient({ url: ownerUrl, as: "alice" });
   try {
-    const thread = await verifier.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
+    const thread = await verifier.query(api.messages.thread, { conversationId: "conversation-1", c: null });
     assert.equal(thread.state, "complete");
     const bodies = thread.data.map(row => row.message?.body);
     for (const body of ["1018 writer first", "1018 follower middle", "1018 writer second", "1018.004 admitted on takeover"]) {
@@ -492,7 +492,7 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
       && bodies.indexOf("1018 follower middle") < bodies.indexOf("1018 writer first"),
     "newest-first owner rows preserve the durable cross-tab admission order");
   } finally { await verifier.close(); }
-  const after = await follower.evaluate(() => window.__snapback.mutation(window.__api.deliveries.post,
+  const after = await follower.evaluate(() => window.__snapback.mutation(window.__api.messages.send,
     { conversationId: "conversation-1", body: "1018 new writer" }));
   assert.equal(after.state, "committed");
   step("closing the writer transfers its Web Lock and one cross-tab FIFO queue; the new writer admits the row left behind and commits", {
@@ -594,7 +594,7 @@ async function main() {
     const beforeComposite = await openChat(page, coherentConversation);
     await context.setOffline(true); await page.evaluate(() => window.__snapback.offline());
     const predictedComposite = await page.evaluate(async ({ conversationId, body }) =>
-      window.__snapback.mutation(window.__api.deliveries.post, { conversationId, body }),
+      window.__snapback.mutation(window.__api.messages.send, { conversationId, body }),
     { conversationId: coherentConversation, body: "coherent offline prediction" });
     if (predictedComposite.state !== "queued") throw new Error(`composite prediction was ${JSON.stringify(predictedComposite)}`);
     await page.waitForFunction(({ id }) => {
@@ -610,7 +610,7 @@ async function main() {
     await page.waitForSelector(`li[data-message="${predictedComposite.ids[0]}"][data-state="row"]`, { timeout: 10_000 });
     const settledView = await openChat(page, coherentConversation);
     const removed = await page.evaluate((messageId) =>
-      window.__snapback.mutation(window.__api.deliveries.unsend, { messageId }), predictedComposite.ids[0]);
+      window.__snapback.mutation(window.__api.messages.unsend, { messageId }), predictedComposite.ids[0]);
     if (removed.state !== "committed") throw new Error(`composite revocation was ${JSON.stringify(removed)}`);
     await page.waitForFunction(({ id, count }) => {
       const summary = document.querySelector("section[aria-label=Thread] .thread-summary");
@@ -677,7 +677,7 @@ async function main() {
     if (!coldQueued || coldInbox < 3) {
       const diagnosis = await page.evaluate(async () => {
         const client = window.__snapback;
-        const inbox = await client.query(window.__api.deliveries.inbox, { c: null }).catch((e) => ({ threw: e?.envelope?.code ?? String(e) }));
+        const inbox = await client.query(window.__api.messages.inbox, { c: null }).catch((e) => ({ threw: e?.envelope?.code ?? String(e) }));
         const rows = Array.isArray(inbox?.data) ? inbox.data : [];
         return { header: document.querySelector("[role=status][data-connection]")?.textContent, inbox: { state: inbox.state, connection: inbox.connection, threw: inbox.threw, rows: rows.length, conversations: [...new Set(rows.map((r) => r.conversationId))], caughtUp: inbox.caughtUp },
           snapshot: { connection: client.snapshot.connection, auth: client.snapshot.auth?.state }, outbox: (await client.outbox.entries()).map((e) => e.state), requests: window.__witnessRequests };
@@ -746,7 +746,7 @@ async function main() {
     await page.waitForSelector(`li[data-message="${queued.id}"][data-state=row]`, { timeout: 10_000 });
     const { createClient, api } = await import(resolve(dist, "client.mjs"));
     const verifier = createClient({ url: owner.url, as: "alice" });
-    const thread = await verifier.query(api.deliveries.thread, { conversationId: neverOpened, c: null });
+    const thread = await verifier.query(api.messages.thread, { conversationId: neverOpened, c: null });
     verifier.close();
     const bodies = thread.data.map((row) => row.message?.body);
     const count = (body) => bodies.filter((item) => item === body).length;
@@ -763,7 +763,7 @@ async function main() {
     }, null, { timeout: 10_000 });
     await page.evaluate(() => window.__snapback.offline());
     const revoker = createClient({ url: owner.url, as: "alice" });
-    const unsent = await revoker.mutation(api.deliveries.unsend, { messageId: seeded.doomedMessageId });
+    const unsent = await revoker.mutation(api.messages.unsend, { messageId: seeded.doomedMessageId });
     revoker.close();
     if (unsent.state !== "committed") throw new Error(`unsend was ${unsent.state}`);
     await page.evaluate(() => window.__snapback.online());

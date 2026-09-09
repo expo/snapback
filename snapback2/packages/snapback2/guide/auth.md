@@ -27,7 +27,7 @@ and clear custody. `offline()` pauses timers; `online()` resumes the shared flig
 Offline restart stays paused. Logout/replacement/close cancel retries and ignore late replies.
 Closed `auth` is its last view, without `retryAt`.
 
-Failed sessions retain custody or resume restoration. Confirmation recovers sync. Replay grants: `guide offline`.
+Confirmation recovers sync. Replay grants: `guide offline`.
 Metadata errors set `lastRefusal`; initial errors reject
 `ready`, but installed sessions succeed. `online()` retries sync. Held reads wait
 for account transitions. Same-principal login revalidates coverage and keeps queued
@@ -93,6 +93,7 @@ remove/re-add races. No last-admin invariant.
 
 ## Diagnose absence
 
-`snapback2 why <query> '<args-json>' --as alice --json` explains denied reads
-via owner-only `rowVerdicts`/`diagnostics`. Missing rows get no denial hint;
-ordinary responses expose none. Mutations refuse `E_OP_KIND`.
+Start with `snapback2 why <query> '<args-json>' --as alice`: prose shows
+requirements and executed lookups. Add `--json` for the authoritative trace
+and owner-only `rowVerdicts`/`diagnostics`. Ordinary responses expose no
+hidden-row hints. Mutations refuse `E_OP_KIND`.

@@ -1,490 +1,500 @@
 [
   {
-    "family": "bound",
-    "code": "E_BOUND_TAKE_REQUIRED",
-    "wrong": "db.scan(todos.byOwner, [ctx.viewer])",
-    "right": "db.scan(todos.byOwner, [ctx.viewer], { take: 50 })"
-  },
-  {
-    "family": "opaque",
-    "code": "E_PROVENANCE_AMBIGUOUS",
-    "wrong": "let key = args.id; key = args.otherId; db.scan(items.byKey, [key], { take: 50 })",
-    "right": "db.scan(items.byKey, [args.id], { take: 50 })"
-  },
-  {
     "family": "schema",
     "code": "E_SCHEMA_TABLE_UNKNOWN",
-    "wrong": "db.get(missing, args.id)",
-    "right": "db.get(todos, args.id)"
+    "wrong": "snapback2 data missing --as alice",
+    "right": "snapback2 data todos --as alice",
+    "guide": "quarry"
   },
   {
     "family": "rule",
     "code": "E_RULE",
-    "wrong": "insert: rule.deny()",
-    "right": "insert: rule.viewerIs(\"ownerId\")"
+    "wrong": "```q\ntable todos:\n  ownerId: principal\n  insert <- deny\n```",
+    "right": "```q\ntable todos:\n  ownerId: principal\n  insert <- .ownerId = viewer\n```",
+    "guide": "auth"
   },
   {
     "family": "auth",
     "code": "E_AUTH_REQUIRED",
-    "wrong": "client.query(api.todos.list, {})",
-    "right": "createClient({ url, as: \"alice\" }).query(api.todos.list, {})"
+    "wrong": "snapback2 run todos.list",
+    "right": "snapback2 run todos.list --as alice",
+    "guide": "auth"
   },
   {
     "family": "args",
     "code": "E_ARGS_TYPE",
-    "wrong": "client.query(api.messages.thread, { conversationId: 1 })",
-    "right": "client.query(api.messages.thread, { conversationId: \"conversation-1\", c: null })"
+    "wrong": "`snapback2 check --ir` input (Quarry rejects malformed forms before this boundary):\n```json\n{\"schema\":{\"tables\":{\"todos\":{\"columns\":{\"id\":\"Id\",\"title\":{\"Text\":{\"max\":100}},\"ownerId\":\"Principal\"},\"indexes\":{\"byId\":{\"components\":[{\"Column\":\"id\"}],\"unique\":true},\"byTitle\":{\"components\":[{\"Column\":\"title\"},{\"Column\":\"id\"}],\"unique\":false}},\"rules\":{\"read\":{\"Eq\":[{\"Field\":\"ownerId\"},\"Viewer\"]},\"insert\":\"Allow\",\"update\":\"Allow\",\"delete\":\"Deny\"},\"constraints\":[],\"retain\":\"until-revoked\"}},\"maintains\":[],\"channels\":{},\"auth\":{\"password\":true,\"guests\":true},\"effects\":[]},\"programs\":[{\"name\":\"ops.add\",\"kind\":\"Mutation\",\"args\":{\"title\":{\"Text\":{\"max\":100}}},\"read_time_granularity_ms\":null,\"body\":[{\"Const\":{\"name\":\"__operand0\",\"value\":{\"Input\":\"NewId\"}}},{\"Insert\":{\"table\":\"todos\",\"row\":{\"Object\":{\"id\":{\"Variable\":\"__operand0\"},\"ownerId\":{\"Input\":\"Viewer\"},\"title\":{\"Literal\":{\"Int\":1}}}}}},{\"Return\":{\"Literal\":\"Null\"}}]}],\"effects\":[]}\n```",
+    "right": "`snapback2 check --ir` input (Quarry rejects malformed forms before this boundary):\n```json\n{\"schema\":{\"tables\":{\"todos\":{\"columns\":{\"id\":\"Id\",\"title\":{\"Text\":{\"max\":100}},\"ownerId\":\"Principal\"},\"indexes\":{\"byId\":{\"components\":[{\"Column\":\"id\"}],\"unique\":true},\"byTitle\":{\"components\":[{\"Column\":\"title\"},{\"Column\":\"id\"}],\"unique\":false}},\"rules\":{\"read\":{\"Eq\":[{\"Field\":\"ownerId\"},\"Viewer\"]},\"insert\":\"Allow\",\"update\":\"Allow\",\"delete\":\"Deny\"},\"constraints\":[],\"retain\":\"until-revoked\"}},\"maintains\":[],\"channels\":{},\"auth\":{\"password\":true,\"guests\":true},\"effects\":[]},\"programs\":[{\"name\":\"ops.add\",\"kind\":\"Mutation\",\"args\":{\"title\":{\"Text\":{\"max\":100}}},\"read_time_granularity_ms\":null,\"body\":[{\"Const\":{\"name\":\"__operand0\",\"value\":{\"Input\":\"NewId\"}}},{\"Insert\":{\"table\":\"todos\",\"row\":{\"Object\":{\"id\":{\"Variable\":\"__operand0\"},\"ownerId\":{\"Input\":\"Viewer\"},\"title\":{\"Variable\":\"title\"}}}}},{\"Return\":{\"Literal\":\"Null\"}}]}],\"effects\":[]}\n```",
+    "guide": "quarry"
   },
   {
     "family": "op",
     "code": "E_OP_UNKNOWN",
-    "wrong": "client.query(api.messages.threads, {})",
-    "right": "client.query(api.messages.thread, { conversationId: \"conversation-1\", c: null })"
+    "wrong": "snapback2 run messages.threads --as alice",
+    "right": "snapback2 run messages.thread '{\"conversationId\":\"conversation-1\"}' --as alice",
+    "guide": "quarry"
   },
   {
     "family": "successor",
     "code": "E_SUCCESSOR_DESTRUCTIVE",
     "wrong": "```text\nRemove a column or replace an index, then assume a passing check installed the change.\n```",
-    "right": "```sh\nsnapback2 dev --status --json\n# Keep the owner running. Under status.refused, inspect migrationFile and\n# review that file's plan and project. Only apply the drops you intend.\n# Replace GENERATION below with the exact generation from migrationFile.\nsnapback2 dev --apply-migration .snapback/migration-GENERATION.json\nsnapback2 dev --status --json\n```\n\nRun these from the project root, or use the refusal's applyCommand, which includes the project and plan's absolute paths. Relative --apply-migration paths resolve from the working directory even with --project. check compiles, certifies, and refreshes the build cache; it does not install a successor. Until migration succeeds, the owner keeps serving its previous generation. The final status must be ready with the plan's generation."
+    "right": "```sh\nsnapback2 dev --status --json\n# Keep the owner running. Under status.refused, inspect migrationFile and\n# review that file's plan and project. Only apply the drops you intend.\n# Replace GENERATION below with the exact generation from migrationFile.\nsnapback2 dev --apply-migration .snapback/migration-GENERATION.json\nsnapback2 dev --status --json\n```\n\nRun these from the project root, or use the refusal's applyCommand, which includes the project and plan's absolute paths. Relative --apply-migration paths resolve from the working directory even with --project. check compiles, certifies, and refreshes the build cache; it does not install a successor. Until migration succeeds, the owner keeps serving its previous generation. The final status must be ready with the plan's generation. E_WHY_STALE also covers missing, malformed or stale certificate caches: inspect status; if a successor is refused, use the reviewed migration recovery above or revert the refused edit first; otherwise go directly to snapback2 check. Run snapback2 check to refresh the cache, then retry why.",
+    "guide": "operator"
   },
   {
     "family": "effect",
     "code": "E_EFFECT_GRANT",
     "wrong": "grants: [] // then fetch an external origin",
-    "right": "grants: [\"https://api.example.com\"]"
+    "right": "grants: [\"https://api.example.com\"]",
+    "guide": "effects"
   },
   {
     "family": "input",
     "code": "E_INPUT_TRACE_UNKNOWN",
     "wrong": "snapback2 trace 999999",
-    "right": "snapback2 trace latest"
+    "right": "snapback2 trace latest",
+    "guide": "testing"
   },
   {
     "family": "owner",
     "code": "E_OWNER_NOT_RUNNING",
     "wrong": "snapback2 why todos.list --as alice",
-    "right": "snapback2 dev && snapback2 why todos.list --as alice"
+    "right": "snapback2 dev && snapback2 why todos.list --as alice",
+    "guide": "operator"
   },
   {
     "family": "bound",
     "code": "E_UNBOUND_SCAN",
-    "wrong": "db.scan(todos.byOwner, [ctx.viewer])",
-    "right": "db.scan(todos.byOwner, [ctx.viewer], { take: 50 })"
+    "wrong": "```q\n-- snapback/schema.q\nuse identity\ntable posts:\n  ownerId: principal\n  author: principal\n  at: time\n  visible: bool\n  photo: image <=10000000 ?\n  by byTime: at, id\n  by byOwnerAt: ownerId, at, id\n  by byAuthorAt: author, at, id\n  public\n\n-- snapback/ops.q\nquery all():\n  return posts[]\n```",
+    "right": "```q\n-- snapback/schema.q\nuse identity\ntable posts:\n  ownerId: principal\n  author: principal\n  at: time\n  visible: bool\n  photo: image <=10000000 ?\n  by byTime: at, id\n  by byOwnerAt: ownerId, at, id\n  by byAuthorAt: author, at, id\n  public\n\n-- snapback/ops.q\nquery all():\n  return posts[] first 50 by byTime\n```",
+    "guide": "quarry"
   },
   {
     "family": "bound",
     "code": "E_UNBOUND_LOOP",
-    "wrong": "for (const item of unboundedItems) visit(item)",
-    "right": "for (const item of args.items) visit(item) // args.items declares max"
-  },
-  {
-    "family": "bound",
-    "code": "E_UNBOUND_COUNT",
-    "wrong": "db.scan(todos.byOwner, [ctx.viewer], { take: 50 }).count()",
-    "right": "db.scan(todos.byOwner, [ctx.viewer], { take: 50 }).countCapped()"
+    "wrong": "```q\n-- snapback/schema.q\nuse identity\ntable todos:\n  title: text <=100\n  ownerId: principal\n  by byOwner: ownerId, id\n  public\n  insert <- allow\n  update <- allow\n\n-- snapback/ops.q\nmutation visit(items: json <=4096):\n  for item in items.values:\n    value = item\n  return null\n```",
+    "right": "```q\n-- snapback/schema.q\nuse identity\ntable todos:\n  title: text <=100\n  ownerId: principal\n  by byOwner: ownerId, id\n  public\n  insert <- allow\n  update <- allow\n\n-- snapback/ops.q\nmutation visit(items: [text <=100] <=20):\n  for title in items:\n    insert todos { title, ownerId: viewer }\n  return null\n```",
+    "guide": "quarry"
   },
   {
     "family": "bound",
     "code": "E_STRUCTURAL_COUNT",
-    "wrong": "return hiddenRows.countCapped()",
-    "right": "return maintainedVisibleCount"
+    "wrong": "```q\n-- The viewer-dependent read rule makes page length non-structural.\n-- snapback/schema.q\nuse identity\ntable posts:\n  ownerId: principal\n  author: principal\n  at: time\n  visible: bool\n  photo: image <=10000000 ?\n  by byTime: at, id\n  by byOwnerAt: ownerId, at, id\n  by byAuthorAt: author, at, id\n  read <- .ownerId = viewer\nmaintain postCounts = count posts by ownerId:\n  read <- allow\n\n-- snapback/ops.q\nquery total():\n  return (posts[] first 50 by byTime).length\n```",
+    "right": "```q\n-- The viewer-dependent read rule makes page length non-structural.\n-- snapback/schema.q\nuse identity\ntable posts:\n  ownerId: principal\n  author: principal\n  at: time\n  visible: bool\n  photo: image <=10000000 ?\n  by byTime: at, id\n  by byOwnerAt: ownerId, at, id\n  by byAuthorAt: author, at, id\n  read <- .ownerId = viewer\nmaintain postCounts = count posts by ownerId:\n  read <- allow\n\n-- snapback/ops.q\nquery total():\n  return postCounts[viewer]\n```",
+    "guide": "quarry"
   },
   {
     "family": "opaque",
     "code": "E_AMBIENT_TIME",
-    "wrong": "const now = Date.now()",
-    "right": "const now = ctx.now()"
+    "wrong": "```q\n-- snapback/schema.q\ntable todos:\n  title: text <=100\n  public\n\n-- snapback/ops.q\nquery current():\n  return commit\n```",
+    "right": "```q\n-- snapback/schema.q\ntable todos:\n  title: text <=100\n  public\n\n-- snapback/ops.q\nquery current():\n  return now\n```",
+    "guide": "quarry"
   },
   {
     "family": "opaque",
     "code": "E_OPAQUE",
-    "wrong": "return unknownLibraryCall(args.id)",
-    "right": "return db.get(todos, args.id)"
+    "wrong": "```q\n-- snapback/schema.q\ntable todos:\n  title: text <=100\n  public\n\n-- snapback/ops.q\nquery size(value: json <=1000):\n  return value.length\n```",
+    "right": "```q\n-- snapback/schema.q\ntable todos:\n  title: text <=100\n  public\n\n-- snapback/ops.q\nquery size(value: [int] <=20):\n  return value.length\n```",
+    "guide": "quarry"
   },
   {
     "family": "bound",
     "code": "E_BOUND",
     "wrong": "500 merge lanes × (20 + 2), 50 writes × cap 1000, or a wide nested result exceeds a named ceiling",
-    "right": "Follow the largest sourced term: structurally reduce merge lanes/page, use two reads (two snapshots), or maintain a feed; for a cap use the named fitting chunk; for nested scans use maintain.count/sum; for bytes narrow the named collection and fields"
-  },
-  {
-    "family": "args",
-    "code": "E_ARGS_SPREAD",
-    "wrong": "query({ ...makeArgs() }, handler)",
-    "right": "query({ id: t.id() }, handler)"
-  },
-  {
-    "family": "args",
-    "code": "E_ARGS_DESCRIPTOR",
-    "wrong": "query({ id: String }, handler)",
-    "right": "query({ id: t.id() }, handler)"
+    "right": "Follow the largest sourced term: structurally reduce merge lanes/page, use two reads (two snapshots), or maintain a feed; for a cap use the named fitting chunk; for nested scans use maintain.count/sum; for bytes narrow the named collection and fields",
+    "guide": "quarry"
   },
   {
     "family": "op",
     "code": "E_OP_INVALID",
-    "wrong": "export const broken = query({}, () => missingName)",
-    "right": "export const valid = query({}, () => null)"
+    "wrong": "```q\n-- snapback/schema.q\ntable todos:\n  title: text <=100\n  public\n\n-- snapback/nested/example.q\nquery valid():\n  return null\n```",
+    "right": "```q\n-- snapback/schema.q\ntable todos:\n  title: text <=100\n  public\n\n-- snapback/example.q\nquery valid():\n  return null\n```",
+    "guide": "quarry"
   },
   {
     "family": "op",
     "code": "E_OP_NONE",
-    "wrong": "const helper = () => null",
-    "right": "export const operation = query({}, () => null)"
+    "wrong": "```q\n-- snapback/schema.q\ntable todos:\n  title: text <=100\n  public\n```",
+    "right": "```q\n-- snapback/schema.q\ntable todos:\n  title: text <=100\n  public\n\n-- snapback/ops.q\nquery operation():\n  return null\n```",
+    "guide": "quarry"
   },
   {
     "family": "op",
     "code": "E_OP_RESERVED",
-    "wrong": "export const then = query({}, () => null)",
-    "right": "export const next = query({}, () => null)"
+    "wrong": "```q\n-- snapback/schema.q\ntable todos:\n  title: text <=100\n  public\n\n-- snapback/ops.q\nquery check():\n  require false else E_AUTH_CUSTOM\n  return null\n```",
+    "right": "```q\n-- snapback/schema.q\ntable todos:\n  title: text <=100\n  public\n\n-- snapback/ops.q\nquery check():\n  require false else ACCESS_DENIED\n  return null\n```",
+    "guide": "quarry"
   },
   {
     "family": "op",
     "code": "E_OP_MODULE_BASENAME",
-    "wrong": "snapback/activity.ts and snapback/admin/activity.ts",
-    "right": "snapback/activity.ts and snapback/admin-activity.ts"
+    "wrong": "snapback/activity.q and snapback/admin/activity.q",
+    "right": "snapback/activity.q and snapback/admin-activity.q",
+    "guide": "quarry"
   },
   {
     "family": "opaque",
     "code": "E_DIAG_TRUNCATED",
     "wrong": "leave more refusals than one check can report",
-    "right": "fix the reported refusals and run snapback2 check again"
+    "right": "fix the reported refusals and run snapback2 check again",
+    "guide": "quarry"
   },
   {
     "family": "schema",
     "code": "E_SCHEMA_RESERVED",
-    "wrong": "export const _meta = table({ columns: {} })",
-    "right": "export const metadata = table({ columns: {} })"
+    "wrong": "```q\n-- snapback/schema.q\ntable _meta:\n  title: text <=100\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",
+    "right": "```q\n-- snapback/schema.q\ntable metadata:\n  title: text <=100\n  public\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",
+    "guide": "quarry"
   },
   {
     "family": "schema",
     "code": "E_SCHEMA_ID_RESERVED",
-    "wrong": "table({ columns: { id: t.id() } })",
-    "right": "table({ columns: {} }) // id is implicit"
-  },
-  {
-    "family": "schema",
-    "code": "E_SCHEMA_UNKNOWN_TABLE",
-    "wrong": "schema({ tables: { missing } })",
-    "right": "schema({ tables: { todos } })"
+    "wrong": "`snapback2 check --ir` input (Quarry rejects malformed forms before this boundary):\n```json\n{\"schema\":{\"tables\":{\"todos\":{\"columns\":{\"id\":\"Id\",\"title\":{\"Text\":{\"max\":100}},\"ownerId\":\"Principal\"},\"indexes\":{\"byId\":{\"components\":[{\"Column\":\"id\"}],\"unique\":true},\"byTitle\":{\"components\":[{\"Column\":\"title\"},{\"Column\":\"id\"}],\"unique\":false}},\"rules\":{\"read\":{\"Eq\":[{\"Field\":\"ownerId\"},\"Viewer\"]},\"insert\":\"Allow\",\"update\":\"Allow\",\"delete\":\"Deny\"},\"constraints\":[],\"retain\":\"until-revoked\"}},\"maintains\":[],\"channels\":{},\"auth\":{\"password\":true,\"guests\":true},\"effects\":[]},\"programs\":[{\"name\":\"ops.add\",\"kind\":\"Mutation\",\"args\":{\"title\":{\"Text\":{\"max\":100}}},\"read_time_granularity_ms\":null,\"body\":[{\"Update\":{\"table\":\"todos\",\"key\":{\"Input\":\"NewId\"},\"patch\":{\"Object\":{\"id\":{\"Input\":\"NewId\"}}}}},{\"Return\":{\"Literal\":\"Null\"}}]}],\"effects\":[]}\n```",
+    "right": "`snapback2 check --ir` input (Quarry rejects malformed forms before this boundary):\n```json\n{\"schema\":{\"tables\":{\"todos\":{\"columns\":{\"id\":\"Id\",\"title\":{\"Text\":{\"max\":100}},\"ownerId\":\"Principal\"},\"indexes\":{\"byId\":{\"components\":[{\"Column\":\"id\"}],\"unique\":true},\"byTitle\":{\"components\":[{\"Column\":\"title\"},{\"Column\":\"id\"}],\"unique\":false}},\"rules\":{\"read\":{\"Eq\":[{\"Field\":\"ownerId\"},\"Viewer\"]},\"insert\":\"Allow\",\"update\":\"Allow\",\"delete\":\"Deny\"},\"constraints\":[],\"retain\":\"until-revoked\"}},\"maintains\":[],\"channels\":{},\"auth\":{\"password\":true,\"guests\":true},\"effects\":[]},\"programs\":[{\"name\":\"ops.add\",\"kind\":\"Mutation\",\"args\":{\"title\":{\"Text\":{\"max\":100}}},\"read_time_granularity_ms\":null,\"body\":[{\"Const\":{\"name\":\"__operand0\",\"value\":{\"Input\":\"NewId\"}}},{\"Insert\":{\"table\":\"todos\",\"row\":{\"Object\":{\"id\":{\"Variable\":\"__operand0\"},\"ownerId\":{\"Input\":\"Viewer\"},\"title\":{\"Variable\":\"title\"}}}}},{\"Return\":{\"Literal\":\"Null\"}}]}],\"effects\":[]}\n```",
+    "guide": "quarry"
   },
   {
     "family": "schema",
     "code": "E_SCHEMA_INDEX_COLUMN",
-    "wrong": "indexes: { byMissing: { columns: [\"missing\"] } }",
-    "right": "indexes: { byTitle: { columns: [\"title\"] } }"
-  },
-  {
-    "family": "schema",
-    "code": "E_SCHEMA_INDEX_OPTION",
-    "wrong": "indexes: { byTitle: { columns: [\"title\"], unknown: true } }",
-    "right": "indexes: { byTitle: { columns: [\"title\"], unique: true } }"
+    "wrong": "```q\n-- snapback/schema.q\ntable posts:\n  photo: image <=10000000 ?\n  at: time\n  by byPhoto: photo\n  public\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",
+    "right": "```q\n-- snapback/schema.q\ntable posts:\n  photo: image <=10000000 ?\n  at: time\n  by byTime: at, id\n  public\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",
+    "guide": "quarry"
   },
   {
     "family": "schema",
     "code": "E_SCHEMA_CONSTRAINT",
-    "wrong": "constraints: [{ unique: \"missing\" }]",
-    "right": "constraints: [{ unique: \"byTitle\" }]"
+    "wrong": "```q\n-- snapback/schema.q\nuse identity\ntable todos:\n  title: text <=100\n  ownerId: principal\n  cap 50 by ownerId, ownerId\n  by byOwner: ownerId, id\n  public\n  insert <- allow\n  update <- allow\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",
+    "right": "```q\n-- snapback/schema.q\nuse identity\ntable todos:\n  title: text <=100\n  ownerId: principal\n  cap 50 by ownerId\n  by byOwner: ownerId, id\n  public\n  insert <- allow\n  update <- allow\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",
+    "guide": "quarry"
   },
   {
     "family": "schema",
     "code": "E_SCHEMA_MAINTAIN",
-    "wrong": "maintains: [{ count: \"missing\", by: [\"ownerId\"], into: \"counts\" }]",
-    "right": "maintains: [{ count: \"todos\", by: [\"ownerId\"], into: \"counts\" }]"
+    "wrong": "```q\n-- snapback/schema.q\nuse identity\ntable posts:\n  ownerId: principal\n  author: principal\n  at: time\n  visible: bool\n  photo: image <=10000000 ?\n  by byTime: at, id\n  by byOwnerAt: ownerId, at, id\n  by byAuthorAt: author, at, id\n  public\nmaintain postCounts = count posts by ownerId:\n  read <- allow\nmaintain counts = count postCounts by ownerId:\n  read <- allow\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",
+    "right": "```q\n-- snapback/schema.q\nuse identity\ntable posts:\n  ownerId: principal\n  author: principal\n  at: time\n  visible: bool\n  photo: image <=10000000 ?\n  by byTime: at, id\n  by byOwnerAt: ownerId, at, id\n  by byAuthorAt: author, at, id\n  public\nmaintain postCounts = count posts by ownerId:\n  read <- allow\nmaintain counts = count posts by ownerId:\n  read <- allow\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",
+    "guide": "quarry"
   },
   {
     "family": "schema",
     "code": "E_SCHEMA_ASSET_MAINTAIN",
-    "wrong": "maintains: [{ count: \"posts\", by: [\"photo\"], into: \"counts\" }]",
-    "right": "maintains: [{ count: \"posts\", by: [\"ownerId\"], into: \"counts\" }]"
+    "wrong": "```q\n-- snapback/schema.q\nuse identity\ntable posts:\n  ownerId: principal\n  author: principal\n  at: time\n  visible: bool\n  photo: image <=10000000 ?\n  by byTime: at, id\n  by byOwnerAt: ownerId, at, id\n  by byAuthorAt: author, at, id\n  public\nmaintain postCounts = count posts by ownerId:\n  read <- allow\nmaintain counts = count posts by photo:\n  read <- deny\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",
+    "right": "```q\n-- snapback/schema.q\nuse identity\ntable posts:\n  ownerId: principal\n  author: principal\n  at: time\n  visible: bool\n  photo: image <=10000000 ?\n  by byTime: at, id\n  by byOwnerAt: ownerId, at, id\n  by byAuthorAt: author, at, id\n  public\nmaintain postCounts = count posts by ownerId:\n  read <- allow\nmaintain counts = count posts by ownerId:\n  read <- .ownerId = viewer\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",
+    "guide": "quarry"
   },
   {
     "family": "schema",
     "code": "E_SCHEMA_ASSET_SEED",
     "wrong": "rows: { profiles: [{ id: \"profile-alice\", avatar: { id: \"asset-1\", width: 100, height: 100 } }] }",
-    "right": "rows: { profiles: [{ id: \"profile-alice\", avatar: null }] }"
+    "right": "rows: { profiles: [{ id: \"profile-alice\", avatar: null }] }",
+    "guide": "quarry"
   },
   {
     "family": "schema",
     "code": "E_SCHEMA_DEFAULT_EXPORT",
-    "wrong": "export const app = schema({ tables: {} })",
-    "right": "export default schema({ tables: {} })"
-  },
-  {
-    "family": "schema",
-    "code": "E_SCHEMA_COLUMN",
-    "wrong": "columns: { title: t.text() }",
-    "right": "columns: { title: t.text(100) }"
-  },
-  {
-    "family": "schema",
-    "code": "E_SCHEMA_INVALID",
-    "wrong": "export default schema(makeSchema())",
-    "right": "export default schema({ tables: { todos } })"
+    "wrong": "snapback2 check --project ./no-schema",
+    "right": "```q\n-- snapback/schema.q\ntable todos:\n  title: text <=100\n  public\n```",
+    "guide": "quarry"
   },
   {
     "family": "rule",
     "code": "E_RULE_INVALID",
-    "wrong": "read: customRule()",
-    "right": "read: rule.viewerIs(\"ownerId\")"
+    "wrong": "`snapback2 check --ir` input (Quarry rejects malformed forms before this boundary):\n```json\n{\"schema\":{\"tables\":{\"todos\":{\"columns\":{\"id\":\"Id\",\"title\":{\"Text\":{\"max\":100}},\"ownerId\":\"Principal\"},\"indexes\":{\"byId\":{\"components\":[{\"Column\":\"id\"}],\"unique\":true},\"byTitle\":{\"components\":[{\"Column\":\"title\"},{\"Column\":\"id\"}],\"unique\":false}},\"rules\":{\"read\":{\"Eq\":[{\"Field\":\"ownerId\"},{\"Literal\":{\"Int\":1}}]},\"insert\":\"Allow\",\"update\":\"Allow\",\"delete\":\"Deny\"},\"constraints\":[],\"retain\":\"until-revoked\"}},\"maintains\":[],\"channels\":{},\"auth\":{\"password\":true,\"guests\":true},\"effects\":[]},\"programs\":[{\"name\":\"ops.add\",\"kind\":\"Mutation\",\"args\":{\"title\":{\"Text\":{\"max\":100}}},\"read_time_granularity_ms\":null,\"body\":[{\"Const\":{\"name\":\"__operand0\",\"value\":{\"Input\":\"NewId\"}}},{\"Insert\":{\"table\":\"todos\",\"row\":{\"Object\":{\"id\":{\"Variable\":\"__operand0\"},\"ownerId\":{\"Input\":\"Viewer\"},\"title\":{\"Variable\":\"title\"}}}}},{\"Return\":{\"Literal\":\"Null\"}}]}],\"effects\":[]}\n```",
+    "right": "`snapback2 check --ir` input (Quarry rejects malformed forms before this boundary):\n```json\n{\"schema\":{\"tables\":{\"todos\":{\"columns\":{\"id\":\"Id\",\"title\":{\"Text\":{\"max\":100}},\"ownerId\":\"Principal\"},\"indexes\":{\"byId\":{\"components\":[{\"Column\":\"id\"}],\"unique\":true},\"byTitle\":{\"components\":[{\"Column\":\"title\"},{\"Column\":\"id\"}],\"unique\":false}},\"rules\":{\"read\":{\"Eq\":[{\"Field\":\"ownerId\"},\"Viewer\"]},\"insert\":\"Allow\",\"update\":\"Allow\",\"delete\":\"Deny\"},\"constraints\":[],\"retain\":\"until-revoked\"}},\"maintains\":[],\"channels\":{},\"auth\":{\"password\":true,\"guests\":true},\"effects\":[]},\"programs\":[{\"name\":\"ops.add\",\"kind\":\"Mutation\",\"args\":{\"title\":{\"Text\":{\"max\":100}}},\"read_time_granularity_ms\":null,\"body\":[{\"Const\":{\"name\":\"__operand0\",\"value\":{\"Input\":\"NewId\"}}},{\"Insert\":{\"table\":\"todos\",\"row\":{\"Object\":{\"id\":{\"Variable\":\"__operand0\"},\"ownerId\":{\"Input\":\"Viewer\"},\"title\":{\"Variable\":\"title\"}}}}},{\"Return\":{\"Literal\":\"Null\"}}]}],\"effects\":[]}\n```",
+    "guide": "auth"
   },
   {
     "family": "args",
     "code": "E_DECIMAL_SCALE",
-    "wrong": "```q\nmutation add():\n  insert prices { amount: 1.234 }\n```",
-    "right": "```q\nmutation add():\n  insert prices { amount: 1.23 }\n```"
-  },
-  {
-    "family": "args",
-    "code": "E_ENUM_VARIANT",
-    "wrong": "status: \"unknown\"",
-    "right": "status: \"open\""
+    "wrong": "```q\n-- snapback/schema.q\ntable prices:\n  amount: decimal 2\n  public\n  insert <- allow\n\n-- snapback/ops.q\nmutation add():\n  insert prices { amount: 1.234 }\n```",
+    "right": "```q\n-- snapback/schema.q\ntable prices:\n  amount: decimal 2\n  public\n  insert <- allow\n\n-- snapback/ops.q\nmutation add():\n  insert prices { amount: 1.23 }\n```",
+    "guide": "quarry"
   },
   {
     "family": "input",
     "code": "E_SEED_INVALID",
     "wrong": "export default makeSeed()",
-    "right": "export default seed({ personas: [], rows: {} })"
+    "right": "export default seed({ personas: [], rows: {} })",
+    "guide": "testing"
   },
   {
     "family": "input",
     "code": "E_SEED_PERSONA",
     "wrong": "personas: [1]",
-    "right": "personas: [\"alice\"]"
+    "right": "personas: [\"alice\"]",
+    "guide": "testing"
   },
   {
     "family": "input",
     "code": "E_SEED_TABLE",
     "wrong": "rows: { missing: [] }",
-    "right": "rows: { todos: [] }"
+    "right": "rows: { todos: [] }",
+    "guide": "testing"
   },
   {
     "family": "input",
     "code": "E_SEED_ROW",
     "wrong": "rows: { todos: [null] }",
-    "right": "rows: { todos: [{ id: \"todo-1\", title: \"Ship\" }] }"
+    "right": "rows: { todos: [{ id: \"todo-1\", title: \"Ship\" }] }",
+    "guide": "testing"
   },
   {
     "family": "input",
     "code": "E_SEED_SHAPE",
     "wrong": "rows: { todos: [{ id: \"todo-1\" }] }",
-    "right": "rows: { todos: [{ id: \"todo-1\", title: \"Ship\" }] }"
+    "right": "rows: { todos: [{ id: \"todo-1\", title: \"Ship\" }] }",
+    "guide": "testing"
   },
   {
     "family": "input",
     "code": "E_SEED_VALUE",
     "wrong": "rows: { todos: [{ id: \"todo-1\", title: 7 }] }",
-    "right": "rows: { todos: [{ id: \"todo-1\", title: \"Ship\" }] }"
+    "right": "rows: { todos: [{ id: \"todo-1\", title: \"Ship\" }] }",
+    "guide": "testing"
   },
   {
     "family": "effect",
     "code": "E_EFFECT_CLOSURE",
     "wrong": "const token = secret; effect({ run: () => token })",
-    "right": "effect({ run: (payload) => payload })"
+    "right": "effect({ run: (payload) => payload })",
+    "guide": "effects"
   },
   {
     "family": "effect",
     "code": "E_EFFECT_TYPE",
     "wrong": "effect({ grants: [], run: 1 })",
-    "right": "effect({ grants: [], run: async () => null })"
+    "right": "effect({ grants: [], run: async () => null })",
+    "guide": "effects"
   },
   {
     "family": "effect",
     "code": "E_EFFECT_IMPORT",
     "wrong": "import helper from \"unapproved-runtime\"",
-    "right": "use the payload and granted effect tools"
+    "right": "use the payload and granted effect tools",
+    "guide": "effects"
   },
   {
     "family": "effect",
     "code": "E_EFFECT_THEN_ARGS",
-    "wrong": "then: mutation({ id: t.id() }, handler)",
-    "right": "then: mutation({ outboxId: t.id(), effect: t.text(100), result: t.json(4096) }, handler)"
+    "wrong": "In a project with these files:\n\n```q\n-- snapback/schema.q\ntable notifications:\n  body: text <=100\n  public\n\n-- snapback/ops.q\nmutation recordNotified(id: notifications):\n  return null\n```\n\n```ts\n// snapback/delivery.ts\nimport { effect } from \"snapback2\";\nimport { recordNotified } from \"./ops\";\nexport const notify = effect({\n  grants: [\"https://example.com\"],\n  run: async (_payload: null) => null,\n  then: recordNotified,\n});\n```",
+    "right": "In a project with these files:\n\n```q\n-- snapback/schema.q\ntable notifications:\n  body: text <=100\n  public\n\n-- snapback/ops.q\nmutation recordNotified(outboxId: id, effect: text <=100, result: json <=4096):\n  return null\n```\n\n```ts\n// snapback/delivery.ts\nimport { effect } from \"snapback2\";\nimport { recordNotified } from \"./ops\";\nexport const notify = effect({\n  grants: [\"https://example.com\"],\n  run: async (_payload: null) => null,\n  then: recordNotified,\n});\n```",
+    "guide": "effects"
   },
   {
     "family": "effect",
     "code": "E_EFFECT_UNKNOWN",
-    "wrong": "emit(missingEffect, payload)",
-    "right": "emit(declaredEffect, payload)"
+    "wrong": "In a project with these files:\n\n```q\n-- snapback/schema.q\ntable notifications:\n  body: text <=100\n  public\n\n-- snapback/ops.q\nquery ping():\n  return null\neffect missing from unavailable\n```\n\n```ts\n// snapback/delivery.ts\nimport { effect } from \"snapback2\";\nexport const notify = effect({\n  grants: [\"https://example.com\"],\n  run: async (_payload: null) => null,\n});\n```",
+    "right": "In a project with these files:\n\n```q\n-- snapback/schema.q\ntable notifications:\n  body: text <=100\n  public\n\n-- snapback/ops.q\nquery ping():\n  return null\neffect notify from delivery\n```\n\n```ts\n// snapback/delivery.ts\nimport { effect } from \"snapback2\";\nexport const notify = effect({\n  grants: [\"https://example.com\"],\n  run: async (_payload: null) => null,\n});\n```",
+    "guide": "effects"
   },
   {
     "family": "effect",
     "code": "E_EMIT_IN_QUERY",
-    "wrong": "query({}, () => { emit(notify, null); return null })",
-    "right": "mutation({}, () => { emit(notify, null); return null })"
+    "wrong": "In a project with these files:\n\n```q\n-- snapback/schema.q\ntable notifications:\n  body: text <=100\n  public\n\n-- snapback/ops.q\nquery notifyNow():\n  emit notify null\n  return null\neffect notify from delivery\n```\n\n```ts\n// snapback/delivery.ts\nimport { effect } from \"snapback2\";\nexport const notify = effect({\n  grants: [\"https://example.com\"],\n  run: async (_payload: null) => null,\n});\n```",
+    "right": "In a project with these files:\n\n```q\n-- snapback/schema.q\ntable notifications:\n  body: text <=100\n  public\n\n-- snapback/ops.q\nmutation notifyNow():\n  emit notify null\n  return null\neffect notify from delivery\n```\n\n```ts\n// snapback/delivery.ts\nimport { effect } from \"snapback2\";\nexport const notify = effect({\n  grants: [\"https://example.com\"],\n  run: async (_payload: null) => null,\n});\n```",
+    "guide": "effects"
   },
   {
     "family": "quarry",
     "code": "E_QUARRY_SYNTAX",
-    "wrong": "```q\ntable items\n  name text <=100\n```",
-    "right": "```q\ntable items:\n  name: text <=100\n  public\n```"
+    "wrong": "```q\n-- snapback/schema.q\ntable todos:\n  title: text <=100\n  public\n\ntable items\n  name text <=100\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",
+    "right": "```q\n-- snapback/schema.q\ntable items:\n  name: text <=100\n  public\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",
+    "guide": "quarry"
   },
   {
     "family": "quarry",
     "code": "E_QUARRY_UNKNOWN",
-    "wrong": "```q\nquery one(key: text <=20):\n  return settings[id = key]\n```",
-    "right": "```q\nquery one(key: text <=20):\n  return settings[key = key]\n```"
+    "wrong": "```q\n-- snapback/schema.q\ntable settings:\n  key: text <=20\n  value: text <=100\n  unique byKey: key\n  public\n\n-- snapback/ops.q\nquery one(key: text <=20):\n  return settings[id = key]\n```",
+    "right": "```q\n-- snapback/schema.q\ntable settings:\n  key: text <=20\n  value: text <=100\n  unique byKey: key\n  public\n\n-- snapback/ops.q\nquery one(key: text <=20):\n  return settings[key = key]\n```",
+    "guide": "quarry"
   },
   {
     "family": "quarry",
     "code": "E_QUARRY_AMBIGUOUS",
-    "wrong": "```q\nquery recent(owner: principal):\n  return posts[owner] first 20\n```",
-    "right": "```q\nquery recent(owner: principal):\n  return posts[owner] first 20 by byAuthorTime\n```"
+    "wrong": "```q\n-- snapback/schema.q\nuse identity\ntable posts:\n  ownerId: principal\n  author: principal\n  at: time\n  visible: bool\n  photo: image <=10000000 ?\n  by byTime: at, id\n  by byAuthorTime: ownerId, at, id\n  by byAuthorAt: author, at, id\n  public\n\n-- snapback/ops.q\nquery recent(owner: principal):\n  return posts[owner] first 20\n```",
+    "right": "```q\n-- snapback/schema.q\nuse identity\ntable posts:\n  ownerId: principal\n  author: principal\n  at: time\n  visible: bool\n  photo: image <=10000000 ?\n  by byTime: at, id\n  by byAuthorTime: ownerId, at, id\n  by byAuthorAt: author, at, id\n  public\n\n-- snapback/ops.q\nquery recent(owner: principal):\n  return posts[owner] first 20 by byAuthorTime\n```",
+    "guide": "quarry"
   },
   {
     "family": "quarry",
     "code": "E_QUARRY_UNSUPPORTED",
-    "wrong": "```q\nquery visible(author: principal):\n  return posts[author] first 20 by byAuthorAt where .visible = true\n```",
-    "right": "```q\n-- schema.q: by byAuthorVisibleAt: author, visible, at, id\nquery visible(author: principal):\n  return posts[author, true] first 20 by byAuthorVisibleAt\n```"
+    "wrong": "```q\n-- snapback/schema.q\nuse identity\ntable posts:\n  ownerId: principal\n  author: principal\n  at: time\n  visible: bool\n  photo: image <=10000000 ?\n  by byTime: at, id\n  by byOwnerAt: ownerId, at, id\n  by byAuthorVisibleAt: author, visible, at, id\n  by byAuthorAt: author, at, id\n  public\n\n-- snapback/ops.q\nquery visible(author: principal):\n  return posts[author] first 20 by byAuthorAt where .visible = true\n```",
+    "right": "```q\n-- snapback/schema.q\nuse identity\ntable posts:\n  ownerId: principal\n  author: principal\n  at: time\n  visible: bool\n  photo: image <=10000000 ?\n  by byTime: at, id\n  by byOwnerAt: ownerId, at, id\n  by byAuthorVisibleAt: author, visible, at, id\n  by byAuthorAt: author, at, id\n  public\n\n-- snapback/ops.q\nquery visible(author: principal):\n  return posts[author, true] first 20 by byAuthorVisibleAt\n```",
+    "guide": "quarry"
   },
   {
     "family": "quarry",
     "code": "E_QUARRY_PLACEMENT",
-    "wrong": "```q\n-- snapback/items.q\ntable items:\n  name: text <=100\n```",
-    "right": "```q\n-- snapback/schema.q\ntable items:\n  name: text <=100\n  public\n```"
+    "wrong": "```q\n-- snapback/schema.q\ntable todos:\n  title: text <=100\n  public\n\n-- snapback/items.q\ntable items:\n  name: text <=100\n```",
+    "right": "```q\n-- snapback/schema.q\ntable items:\n  name: text <=100\n  public\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",
+    "guide": "quarry"
   },
   {
     "family": "quarry",
     "code": "E_QUARRY_TYPE",
-    "wrong": "```q\nquery present(x: time ?):\n  if x:\n    return true\n  return false\n```",
-    "right": "```q\nquery present(x: time ?):\n  return x != null\n```"
+    "wrong": "```q\n-- snapback/schema.q\ntable todos:\n  title: text <=100\n  public\n\n-- snapback/ops.q\nquery present(x: time ?):\n  if x:\n    return true\n  return false\n```",
+    "right": "```q\n-- snapback/schema.q\ntable todos:\n  title: text <=100\n  public\n\n-- snapback/ops.q\nquery present(x: time ?):\n  return x != null\n```",
+    "guide": "quarry"
   },
   {
     "family": "quarry",
     "code": "E_QUARRY_RETAIN",
-    "wrong": "```q\ntable messages:\n  body: text <=4000\n  retain forever\n```",
-    "right": "```q\ntable messages:\n  body: text <=4000\n  retain delivered-history\n```"
+    "wrong": "```q\n-- snapback/schema.q\ntable messages:\n  body: text <=4000\n  retain forever\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",
+    "right": "```q\n-- snapback/schema.q\ntable messages:\n  body: text <=4000\n  retain delivered-history\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",
+    "guide": "quarry"
   },
   {
     "family": "quarry",
     "code": "E_QUARRY_TOMBSTONE",
-    "wrong": "```q\ntable deliveries:\n  recipient: principal\n  messageId: messages\n  kind: enum('message', 'removed')\n  tombstones messages[.recipient] if .kind = 'removed'\n```",
-    "right": "```q\ntable deliveries:\n  recipient: principal\n  messageId: messages\n  kind: enum('message', 'removed')\n  tombstones messages[.messageId] if .kind = 'removed'\n```"
+    "wrong": "```q\n-- snapback/schema.q\nuse identity\ntable messages:\n  body: text <=100\n  at: time\n  expiresAt: time ?\n  public\ntable deliveries:\n  recipient: principal\n  messageId: messages\n  kind: enum('message', 'removed')\n  tombstones messages[.recipient] if .kind = 'removed'\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",
+    "right": "```q\n-- snapback/schema.q\nuse identity\ntable messages:\n  body: text <=100\n  at: time\n  expiresAt: time ?\n  public\ntable deliveries:\n  recipient: principal\n  messageId: messages\n  kind: enum('message', 'removed')\n  tombstones messages[.messageId] if .kind = 'removed'\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",
+    "guide": "quarry"
   },
   {
     "family": "quarry",
     "code": "E_QUARRY_ONLY",
-    "wrong": "```ts\nexport const list = query({}, () => null);\n```",
-    "right": "```q\nquery list():\n  return null\n```"
+    "wrong": "snapback2 check --project ./typescript-backend",
+    "right": "```q\nquery list():\n  return null\n```",
+    "guide": "quarry"
   },
   {
     "family": "args",
     "code": "E_ARGS_CURSOR_INDEX",
-    "wrong": "indexes: { byConvTime: { columns: [\"conversationId\", \"at\"] } }",
-    "right": "indexes: { byConvTime: { columns: [\"conversationId\", \"at\", \"id\"] } }"
+    "wrong": "`snapback2 check --ir` input (Quarry rejects malformed forms before this boundary):\n```json\n{\"schema\":{\"tables\":{\"todos\":{\"columns\":{\"id\":\"Id\",\"title\":{\"Text\":{\"max\":100}},\"ownerId\":\"Principal\"},\"indexes\":{\"byId\":{\"components\":[{\"Column\":\"id\"}],\"unique\":true},\"byTitle\":{\"components\":[{\"Column\":\"title\"}],\"unique\":false}},\"rules\":{\"read\":{\"Eq\":[{\"Field\":\"ownerId\"},\"Viewer\"]},\"insert\":\"Allow\",\"update\":\"Allow\",\"delete\":\"Deny\"},\"constraints\":[],\"retain\":\"until-revoked\"}},\"maintains\":[],\"channels\":{},\"auth\":{\"password\":true,\"guests\":true},\"effects\":[]},\"programs\":[{\"name\":\"ops.page\",\"kind\":\"Query\",\"args\":{\"c\":{\"Optional\":\"Cursor\"}},\"read_time_granularity_ms\":null,\"body\":[{\"Return\":{\"Scan\":{\"site\":\"ops.page.0\",\"table\":\"todos\",\"index\":\"byTitle\",\"prefix\":[],\"order\":\"Asc\",\"take\":{\"Literal\":5},\"after\":{\"Variable\":\"c\"},\"before\":null,\"range\":null,\"opaque_cursor\":true,\"merge_site\":null,\"provenance\":\"Const\"}}}]}],\"effects\":[]}\n```",
+    "right": "`snapback2 check --ir` input (Quarry rejects malformed forms before this boundary):\n```json\n{\"schema\":{\"tables\":{\"todos\":{\"columns\":{\"id\":\"Id\",\"title\":{\"Text\":{\"max\":100}},\"ownerId\":\"Principal\"},\"indexes\":{\"byId\":{\"components\":[{\"Column\":\"id\"}],\"unique\":true},\"byTitle\":{\"components\":[{\"Column\":\"title\"},{\"Column\":\"id\"}],\"unique\":false}},\"rules\":{\"read\":{\"Eq\":[{\"Field\":\"ownerId\"},\"Viewer\"]},\"insert\":\"Allow\",\"update\":\"Allow\",\"delete\":\"Deny\"},\"constraints\":[],\"retain\":\"until-revoked\"}},\"maintains\":[],\"channels\":{},\"auth\":{\"password\":true,\"guests\":true},\"effects\":[]},\"programs\":[{\"name\":\"ops.page\",\"kind\":\"Query\",\"args\":{\"c\":{\"Optional\":\"Cursor\"}},\"read_time_granularity_ms\":null,\"body\":[{\"Return\":{\"Scan\":{\"site\":\"ops.page.0\",\"table\":\"todos\",\"index\":\"byTitle\",\"prefix\":[],\"order\":\"Asc\",\"take\":{\"Literal\":5},\"after\":{\"Variable\":\"c\"},\"before\":null,\"range\":null,\"opaque_cursor\":true,\"merge_site\":null,\"provenance\":\"Const\"}}}]}],\"effects\":[]}\n```",
+    "guide": "quarry"
   },
   {
     "family": "input",
     "code": "E_INPUT",
     "wrong": "pass a cursor minted for another index or order",
-    "right": "pass the previous page's next token back as the cursor argument"
+    "right": "pass the previous page's next token back as the cursor argument",
+    "guide": "testing"
   },
   {
     "family": "offline",
     "code": "E_OFFLINE_CARRIER",
     "wrong": "createClient({ offline: { store: unavailableCarrier } })",
-    "right": "configure the IndexedDB web carrier, Expo SQLite carrier, or Node file test carrier"
+    "right": "configure the IndexedDB web carrier, Expo SQLite carrier, or Node file test carrier",
+    "guide": "offline"
   },
   {
     "family": "offline",
     "code": "E_OFFLINE_STATE",
     "wrong": "discard a partition after a persisted-state decoding failure",
-    "right": "preserve queued writes and inspect the state named by the refusal before resetting it"
+    "right": "preserve queued writes and inspect the state named by the refusal before resetting it",
+    "guide": "offline"
   },
   {
     "family": "offline",
     "code": "E_OFFLINE_DELIVERY",
     "wrong": "install a conflicting delivery or treat it as a missing carrier",
-    "right": "keep the current coverage and retry an authenticated query; inspect a repeated consistency failure"
+    "right": "keep the current coverage and retry an authenticated query; inspect a repeated consistency failure",
+    "guide": "offline"
   },
   {
     "family": "offline",
     "code": "E_OFFLINE_LIFECYCLE",
     "wrong": "read or write a sealed, closed, or unopened partition",
-    "right": "authenticate the same account to unseal its data, or reopen the client; keep queued writes"
+    "right": "authenticate the same account to unseal its data, or reopen the client; keep queued writes",
+    "guide": "offline"
   },
   {
     "family": "offline",
     "code": "E_OFFLINE_LOCK",
     "wrong": "open the same account in two writing browser tabs",
-    "right": "close the other tab before opening this account"
+    "right": "close the other tab before opening this account",
+    "guide": "offline"
   },
   {
     "family": "offline",
     "code": "E_OFFLINE_FOLLOWER",
     "wrong": "send from a browser tab while another tab holds the account's writer lock",
-    "right": "send from the writer tab or close it; this tab reads live and inherits the queue when the writer closes"
+    "right": "send from the writer tab or close it; this tab reads live and inherits the queue when the writer closes",
+    "guide": "offline"
   },
   {
     "family": "args",
     "code": "E_ARGS_ID_SCALAR",
-    "wrong": "db.insert(todos, { id: \"\", title })",
-    "right": "db.insert(todos, { id: ctx.newId(), title })"
+    "wrong": "`snapback2 check --ir` input (Quarry rejects malformed forms before this boundary):\n```json\n{\"schema\":{\"tables\":{\"todos\":{\"columns\":{\"id\":\"Id\",\"title\":{\"Text\":{\"max\":100}},\"ownerId\":\"Principal\"},\"indexes\":{\"byId\":{\"components\":[{\"Column\":\"id\"}],\"unique\":true},\"byTitle\":{\"components\":[{\"Column\":\"title\"},{\"Column\":\"id\"}],\"unique\":false}},\"rules\":{\"read\":{\"Eq\":[{\"Field\":\"ownerId\"},\"Viewer\"]},\"insert\":\"Allow\",\"update\":\"Allow\",\"delete\":\"Deny\"},\"constraints\":[],\"retain\":\"until-revoked\"}},\"maintains\":[],\"channels\":{},\"auth\":{\"password\":true,\"guests\":true},\"effects\":[]},\"programs\":[{\"name\":\"ops.add\",\"kind\":\"Mutation\",\"args\":{\"title\":{\"Text\":{\"max\":100}}},\"read_time_granularity_ms\":null,\"body\":[{\"Const\":{\"name\":\"__operand0\",\"value\":{\"Input\":\"NewId\"}}},{\"Insert\":{\"table\":\"todos\",\"row\":{\"Object\":{\"id\":{\"Variable\":\"__operand0\"},\"ownerId\":{\"Literal\":{\"Int\":1}},\"title\":{\"Variable\":\"title\"}}}}},{\"Return\":{\"Literal\":\"Null\"}}]}],\"effects\":[]}\n```",
+    "right": "`snapback2 check --ir` input (Quarry rejects malformed forms before this boundary):\n```json\n{\"schema\":{\"tables\":{\"todos\":{\"columns\":{\"id\":\"Id\",\"title\":{\"Text\":{\"max\":100}},\"ownerId\":\"Principal\"},\"indexes\":{\"byId\":{\"components\":[{\"Column\":\"id\"}],\"unique\":true},\"byTitle\":{\"components\":[{\"Column\":\"title\"},{\"Column\":\"id\"}],\"unique\":false}},\"rules\":{\"read\":{\"Eq\":[{\"Field\":\"ownerId\"},\"Viewer\"]},\"insert\":\"Allow\",\"update\":\"Allow\",\"delete\":\"Deny\"},\"constraints\":[],\"retain\":\"until-revoked\"}},\"maintains\":[],\"channels\":{},\"auth\":{\"password\":true,\"guests\":true},\"effects\":[]},\"programs\":[{\"name\":\"ops.add\",\"kind\":\"Mutation\",\"args\":{\"title\":{\"Text\":{\"max\":100}}},\"read_time_granularity_ms\":null,\"body\":[{\"Const\":{\"name\":\"__operand0\",\"value\":{\"Input\":\"NewId\"}}},{\"Insert\":{\"table\":\"todos\",\"row\":{\"Object\":{\"id\":{\"Variable\":\"__operand0\"},\"ownerId\":{\"Input\":\"Viewer\"},\"title\":{\"Variable\":\"title\"}}}}},{\"Return\":{\"Literal\":\"Null\"}}]}],\"effects\":[]}\n```",
+    "guide": "quarry"
   },
   {
     "family": "args",
     "code": "E_ARGS_ID_TEXT",
-    "wrong": "const pair = leftId + \":\" + rightId",
-    "right": "db.get(dmPairs.byPair, [leftId, rightId])"
+    "wrong": "`snapback2 check --ir` input (Quarry rejects malformed forms before this boundary):\n```json\n{\"schema\":{\"tables\":{\"todos\":{\"columns\":{\"id\":\"Id\",\"title\":{\"Text\":{\"max\":100}},\"ownerId\":\"Principal\"},\"indexes\":{\"byId\":{\"components\":[{\"Column\":\"id\"}],\"unique\":true},\"byTitle\":{\"components\":[{\"Column\":\"title\"},{\"Column\":\"id\"}],\"unique\":false}},\"rules\":{\"read\":{\"Eq\":[{\"Field\":\"ownerId\"},\"Viewer\"]},\"insert\":\"Allow\",\"update\":\"Allow\",\"delete\":\"Deny\"},\"constraints\":[],\"retain\":\"until-revoked\"}},\"maintains\":[],\"channels\":{},\"auth\":{\"password\":true,\"guests\":true},\"effects\":[]},\"programs\":[{\"name\":\"ops.add\",\"kind\":\"Mutation\",\"args\":{\"title\":{\"Text\":{\"max\":100}}},\"read_time_granularity_ms\":null,\"body\":[{\"Const\":{\"name\":\"__operand0\",\"value\":{\"Input\":\"NewId\"}}},{\"Insert\":{\"table\":\"todos\",\"row\":{\"Object\":{\"id\":{\"Variable\":\"__operand0\"},\"ownerId\":{\"Binary\":{\"op\":\"Add\",\"left\":{\"Input\":\"Viewer\"},\"right\":{\"Literal\":{\"Int\":1}}}},\"title\":{\"Variable\":\"title\"}}}}},{\"Return\":{\"Literal\":\"Null\"}}]}],\"effects\":[]}\n```",
+    "right": "`snapback2 check --ir` input (Quarry rejects malformed forms before this boundary):\n```json\n{\"schema\":{\"tables\":{\"todos\":{\"columns\":{\"id\":\"Id\",\"title\":{\"Text\":{\"max\":100}},\"ownerId\":\"Principal\"},\"indexes\":{\"byId\":{\"components\":[{\"Column\":\"id\"}],\"unique\":true},\"byTitle\":{\"components\":[{\"Column\":\"title\"},{\"Column\":\"id\"}],\"unique\":false}},\"rules\":{\"read\":{\"Eq\":[{\"Field\":\"ownerId\"},\"Viewer\"]},\"insert\":\"Allow\",\"update\":\"Allow\",\"delete\":\"Deny\"},\"constraints\":[],\"retain\":\"until-revoked\"}},\"maintains\":[],\"channels\":{},\"auth\":{\"password\":true,\"guests\":true},\"effects\":[]},\"programs\":[{\"name\":\"ops.add\",\"kind\":\"Mutation\",\"args\":{\"title\":{\"Text\":{\"max\":100}}},\"read_time_granularity_ms\":null,\"body\":[{\"Const\":{\"name\":\"__operand0\",\"value\":{\"Input\":\"NewId\"}}},{\"Insert\":{\"table\":\"todos\",\"row\":{\"Object\":{\"id\":{\"Variable\":\"__operand0\"},\"ownerId\":{\"Input\":\"Viewer\"},\"title\":{\"Variable\":\"title\"}}}}},{\"Return\":{\"Literal\":\"Null\"}}]}],\"effects\":[]}\n```",
+    "guide": "quarry"
   },
   {
     "family": "offline",
     "code": "E_OFFLINE_RESET",
     "wrong": "client.resume({ generation: heldGeneration }) // after the program changed",
-    "right": "on 409 drop held coverage, keep the outbox, fetch /api/program?generation=<returned>, cold-drain"
+    "right": "on 409 drop held coverage, keep the outbox, fetch /api/program?generation=<returned>, cold-drain",
+    "guide": "offline"
   },
   {
     "family": "offline",
     "code": "E_OFFLINE_RESUME",
     "wrong": "client.resume({ mounted: fortyQueries })",
-    "right": "client.resume({ mounted: first32 }) // re-subscribe the rest as ordinary reads"
+    "right": "client.resume({ mounted: first32 }) // re-subscribe the rest as ordinary reads",
+    "guide": "offline"
   },
   {
     "family": "offline",
     "code": "E_OFFLINE_INTENT_EXPIRED",
     "wrong": "replay: { grant: thirtyOneDayOldGrant, offset: 0, count: 2, intent }",
-    "right": "keep queued replay bytes unchanged; after the server settles an expired intent, resume and create a new intent"
+    "right": "keep queued replay bytes unchanged; after the server settles an expired intent, resume and create a new intent",
+    "guide": "offline"
   },
   {
     "family": "offline",
     "code": "E_OFFLINE_INTENT_REUSE",
     "wrong": "replay: { intent: settledIntent, ... } // with different args",
-    "right": "new bytes take a new slice and a new intent; retry only the original bytes"
+    "right": "new bytes take a new slice and a new intent; retry only the original bytes",
+    "guide": "offline"
   },
   {
     "family": "assets",
     "code": "E_ASSET_VIEWED",
     "wrong": "GET /api/asset/id // this principal already consumed the image once",
-    "right": "render this image once; request a new image for another delivery (HTTP 410); offline media is null"
+    "right": "render this image once; request a new image for another delivery (HTTP 410); offline media is null",
+    "guide": "quarry"
   },
   {
     "family": "offline",
     "code": "E_OFFLINE_ID_BLOCK",
     "wrong": "replay: { grant, offset: 8191, count: 2, intent: `${grant}:8191` }",
-    "right": "replay: { grant, offset: unusedOffset, count: 1 + maxNewIds, intent: `${grant}:${unusedOffset}` }"
+    "right": "replay: { grant, offset: unusedOffset, count: 1 + maxNewIds, intent: `${grant}:${unusedOffset}` }",
+    "guide": "offline"
   },
   {
     "family": "offline",
     "code": "E_OFFLINE_AUTHORITY",
     "wrong": "client.query(api.messages.thread, args) // a delivery for dev:bob while dev:alice's partition is open",
-    "right": "keep the held coverage: open the store as the delivery's principal (sign in as it) before committing it; never a reset"
+    "right": "keep the held coverage: open the store as the delivery's principal (sign in as it) before committing it; never a reset",
+    "guide": "offline"
   },
   {
     "family": "offline",
     "code": "E_OFFLINE_CONFLICT",
     "wrong": "replay a queued edit whose traced row moved and read the refusal as a session error",
-    "right": "the intent settles rejected with reason: \"conflict\" and site; read the current row and send a new intent"
+    "right": "the intent settles rejected with reason: \"conflict\" and site; read the current row and send a new intent",
+    "guide": "offline"
   },
   {
     "family": "bound",
     "code": "E_STRUCTURAL_FANOUT",
     "wrong": "for m in memberships[conversationId] first 50 by byConversationPrincipal:",
     "right": "cap 50 by conversationId",
-    "language": "q"
+    "language": "q",
+    "guide": "quarry"
   },
   {
     "family": "operator",
     "code": "E_OPERATOR_REQUIRED",
     "site": "--as system",
-    "guide": "operator/seat",
+    "guide": "operator",
     "wrong": "run repair --as system against serve or /api/*",
     "right": "run it locally against `dev`, or with an `admin` token once `serve`-mode tokens exist"
   },
@@ -500,7 +510,7 @@
     "family": "successor",
     "code": "E_SUCCESSOR_NARROWING",
     "site": "table.column",
-    "guide": "successor/migrations",
+    "guide": "operator",
     "wrong": "apply a required column while stored rows are null",
     "right": "keep T?, apply, run the pasted job (`run --file fill.q '{\"value\": ...}' --as system --wait`), then declare T and apply again"
   },
@@ -548,7 +558,7 @@
     "family": "operator",
     "code": "E_ADHOC_SIZE",
     "site": "run --file",
-    "guide": "job",
+    "guide": "operator",
     "wrong": "run --file a-file-over-64-KiB.q --as system",
     "right": "declare the program as a job and run its name"
   },
@@ -556,7 +566,7 @@
     "family": "op",
     "code": "E_OP_KIND",
     "site": "mode",
-    "guide": "job",
+    "guide": "quarry",
     "wrong": "run --file inspect.q --as system --plan, where inspect.q declares a query",
     "right": "only a job has sweeps to plan or chunks to wait for: run --file inspect.q --as system, or declare a job"
   },
@@ -564,7 +574,7 @@
     "family": "operator",
     "code": "E_REHEARSAL",
     "site": "run --dry-run",
-    "guide": "job",
+    "guide": "operator",
     "wrong": "rehearse when the snapshot cannot be created, opened, run (an engine or store fault inside the copy), or discarded",
     "right": "check free disk space and the owner's store, then retry --dry-run"
   },
@@ -573,23 +583,23 @@
     "code": "E_SCHEDULE_COLUMN",
     "site": "schedule <name> on <table> at .<column>",
     "guide": "schedule",
-    "wrong": "```q\nschedule expireMessage on messages at .body:\n  purgeMessage(.id)\n```",
-    "right": "```q\n-- schema.q: expiresAt: time ?\nschedule expireMessage on messages at .expiresAt:\n  purgeMessage(.id)\n```"
+    "wrong": "```q\n-- snapback/schema.q\ntable messages:\n  body: text <=100\n  at: time\n  expiresAt: time ?\n  public\n\n-- snapback/ops.q\nmutation purgeMessage(id: messages):\n  delete messages[id]\n  return null\nquery thread(id: messages):\n  return messages[id]\nmutation digestSweep():\n  return null\nschedule expireMessage on messages at .body:\n  purgeMessage(.id)\n```",
+    "right": "```q\n-- snapback/schema.q\ntable messages:\n  body: text <=100\n  at: time\n  expiresAt: time ?\n  public\n\n-- snapback/ops.q\nmutation purgeMessage(id: messages):\n  delete messages[id]\n  return null\nquery thread(id: messages):\n  return messages[id]\nmutation digestSweep():\n  return null\nschedule expireMessage on messages at .expiresAt:\n  purgeMessage(.id)\n```"
   },
   {
     "family": "schedule",
     "code": "E_SCHEDULE_TARGET",
     "site": "schedule <name> ...: <target>",
     "guide": "schedule",
-    "wrong": "```q\nschedule expireMessage on messages at .expiresAt:\n  thread(.id)\n```",
-    "right": "```q\nschedule expireMessage on messages at .expiresAt:\n  purgeMessage(.id)\n```"
+    "wrong": "```q\n-- snapback/schema.q\ntable messages:\n  body: text <=100\n  at: time\n  expiresAt: time ?\n  public\n\n-- snapback/ops.q\nmutation purgeMessage(id: messages):\n  delete messages[id]\n  return null\nquery thread(id: messages):\n  return messages[id]\nmutation digestSweep():\n  return null\nschedule expireMessage on messages at .expiresAt:\n  thread(.id)\n```",
+    "right": "```q\n-- snapback/schema.q\ntable messages:\n  body: text <=100\n  at: time\n  expiresAt: time ?\n  public\n\n-- snapback/ops.q\nmutation purgeMessage(id: messages):\n  delete messages[id]\n  return null\nquery thread(id: messages):\n  return messages[id]\nmutation digestSweep():\n  return null\nschedule expireMessage on messages at .expiresAt:\n  purgeMessage(.id)\n```"
   },
   {
     "family": "schedule",
     "code": "E_SCHEDULE_DURATION",
     "site": "schedule <name> every <duration>",
     "guide": "schedule",
-    "wrong": "```q\nschedule dailyDigest every 30s:\n  digestSweep\n```",
-    "right": "```q\nschedule dailyDigest every 24h:\n  digestSweep\n```"
+    "wrong": "```q\n-- snapback/schema.q\ntable messages:\n  body: text <=100\n  at: time\n  expiresAt: time ?\n  public\n\n-- snapback/ops.q\nmutation purgeMessage(id: messages):\n  delete messages[id]\n  return null\nquery thread(id: messages):\n  return messages[id]\nmutation digestSweep():\n  return null\nschedule dailyDigest every 30s:\n  digestSweep\n```",
+    "right": "```q\n-- snapback/schema.q\ntable messages:\n  body: text <=100\n  at: time\n  expiresAt: time ?\n  public\n\n-- snapback/ops.q\nmutation purgeMessage(id: messages):\n  delete messages[id]\n  return null\nquery thread(id: messages):\n  return messages[id]\nmutation digestSweep():\n  return null\nschedule dailyDigest every 24h:\n  digestSweep\n```"
   }
 ]

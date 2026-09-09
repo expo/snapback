@@ -152,7 +152,7 @@ export type Document = {
 
 export type QuarryCode = "E_SCHEMA_ASSET_MAINTAIN" | "E_SCHEMA_CONSTRAINT" | "E_SCHEMA_INDEX_COLUMN"
   | "E_SCHEDULE_COLUMN" | "E_SCHEDULE_TARGET" | "E_SCHEDULE_DURATION"
-  | "E_DECIMAL_SCALE" | "E_EMIT_IN_QUERY" | "E_OPAQUE" | "E_OP_RESERVED" | "E_UNBOUND_LOOP"
+  | "E_DECIMAL_SCALE" | "E_EMIT_IN_QUERY" | "E_OPAQUE" | "E_OP_RESERVED" | "E_UNBOUND_LOOP" | "E_UNBOUND_SCAN"
   | "E_QUARRY_SYNTAX" | "E_QUARRY_UNKNOWN" | "E_QUARRY_AMBIGUOUS" | "E_QUARRY_UNSUPPORTED" | "E_QUARRY_PLACEMENT"
   | "E_QUARRY_TYPE" | "E_QUARRY_RETAIN" | "E_QUARRY_TOMBSTONE";
 export type QuarryDiagnostic = Site & { code: QuarryCode; message: string; rewrite: string; guide: string; executableRewrite?: boolean };

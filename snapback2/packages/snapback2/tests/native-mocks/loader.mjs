@@ -1,4 +1,5 @@
 const modules = new Map([
+  ["expo-constants", new URL("./expo.mjs", import.meta.url).href],
   ["expo", new URL("./expo.mjs", import.meta.url).href],
   ["react-native", new URL("./react-native.mjs", import.meta.url).href],
   ["expo-video", new URL("./expo-video.mjs", import.meta.url).href],

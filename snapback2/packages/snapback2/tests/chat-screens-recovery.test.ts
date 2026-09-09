@@ -163,7 +163,7 @@ test("a follower Composer's send is durable before it resolves, survives a reloa
   const serverPosts: any[] = [];
   const transport = async (input: string | URL | Request, init?: RequestInit) => {
     const body = requestBody(init);
-    if (new URL(String(input)).pathname === "/api/mutation" && body?.op === "deliveries.post") serverPosts.push(body);
+    if (new URL(String(input)).pathname === "/api/mutation" && body?.op === "messages.send") serverPosts.push(body);
     return globalThis.fetch(input, init);
   };
   // The writer holds no grant until its drain runs, so rows it cannot admit yet stay durable and visible.
@@ -230,7 +230,7 @@ test("a follower Composer's send is durable before it resolves, survives a reloa
     assert.match(text(document.querySelector("li[data-state=queued]")), /one durable send/);
 
     // The writer earns its grant; the row is admitted, replayed once, and becomes the server row under the same body.
-    drain = writer.subscribe(api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
+    drain = writer.subscribe(api.messages.inbox, { c: null }, () => undefined, { drain: true });
     await drain.until((event: any) => event.caughtUp === true, 4_000);
     await waitForUi(() => serverPosts.filter((post) => post.args?.body === "one durable send").length === 1, "the writer's single replay");
     await waitForUi(() => document.querySelector("li[data-state=queued]") === null

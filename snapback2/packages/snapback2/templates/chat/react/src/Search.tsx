@@ -30,8 +30,6 @@ function Results({ term, onOpen }: { term: string; onOpen(conversationId: string
   </>;
 }
 
-// @ref LLP 1012#6-reads-offline — search is the same named Unicode index
-// online and over held rows; provenance and completeness stay visible.
 export function Search({ onOpen }: { onOpen(conversationId: string): void }) {
   const [term, setTerm] = useState("");
   const normalized = term.trim();

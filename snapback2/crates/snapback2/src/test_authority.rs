@@ -1,7 +1,10 @@
 //! Served-loop authorization proofs for projects that declare scoped membership.
 // @ref LLP 1002#7-test-and-the-receipt — revocation and successor fences are named receipt proofs.
 
-use super::test_authority_ir::{prepare_policy_successor, program_has_membership_guard_dependency};
+use super::test_authority_ir::{
+    policy_control_flow, policy_projection, prepare_policy_successor,
+    program_has_membership_guard_dependency, projected_policy_data, require_policy_filtered,
+};
 use super::test_sse::SseProbe;
 use super::{elapsed_ms, generated_args};
 use crate::client;
@@ -789,6 +792,28 @@ fn successor_attempt(
         .event(Duration::from_secs(2))
         .map_err(|error| format!("generation G delivery missing: {error}"))?;
     require_visible_complete(&initial)?;
+    let (program, certificate) = &compiled.generation.programs()[&plan.query];
+    let projected = certificate.read_sites.iter().any(|site| {
+        site.table != plan.protected_table
+            && compiled.generation.schema().tables[&site.table]
+                .tombstones
+                .iter()
+                .any(|t| t.table == plan.protected_table)
+    });
+    let projection = if projected {
+        policy_projection(program, compiled.generation.schema(), &plan.protected_table)?
+    } else {
+        BTreeMap::new()
+    };
+    let expected_data = if projected {
+        projected_policy_data(
+            &initial["data"],
+            &projection,
+            &compiled.generation.schema().tables[&plan.protected_table],
+        )?
+    } else {
+        json!([])
+    };
 
     let policy_applied = apply_project(owner, policy_successor)?;
     let generation_g1 = policy_applied["to"]
@@ -803,9 +828,19 @@ fn successor_attempt(
     let policy_retained = retained.event(Duration::from_secs(2)).map_err(|error| {
         format!("retained G handle was not redelivered under policy generation G+1: {error}")
     })?;
-    require_policy_filtered(&policy_retained, "retained G handle under G+1 policy")?;
+    let retained_counts = require_policy_filtered(
+        &policy_retained,
+        "retained G handle under G+1 policy",
+        &expected_data,
+        &projection,
+    )?;
     let policy_fresh = fresh_query(owner, plan, "G+1 policy")?;
-    require_policy_filtered(&policy_fresh, "fresh invocation under G+1 policy")?;
+    let fresh_counts = require_policy_filtered(
+        &policy_fresh,
+        "fresh invocation under G+1 policy",
+        &expected_data,
+        &projection,
+    )?;
 
     let program_applied = apply_project(owner, program_successor)?;
     let generation_g2 = program_applied["to"]
@@ -854,9 +889,13 @@ fn successor_attempt(
         "policyRetiredHeldSearchDescriptors": retired_held_search,
         "staleHeldSearchDescriptorRefused": stale_held_search_refused,
         "policyRetainedHandleState": policy_retained["state"],
-        "policyRetainedHandleRows": 0,
+        "policyRetainedHandleRows": retained_counts.rows,
+        "policyRetainedHandleProtectedImages": retained_counts.protected_images,
+        "policyRetainedHandleNulledImages": retained_counts.nulled_images,
         "policyFreshInvocationState": policy_fresh["state"],
-        "policyFreshInvocationRows": 0,
+        "policyFreshInvocationRows": fresh_counts.rows,
+        "policyFreshInvocationProtectedImages": fresh_counts.protected_images,
+        "policyFreshInvocationNulledImages": fresh_counts.nulled_images,
         "successorDenialRule": program_denial,
         "initialState": initial["state"],
         "retainedHandleState": program_retained["state"],
@@ -1036,25 +1075,25 @@ fn query_plan(
             ));
             continue;
         }
-        let queries =
-            compiled
-                .generation
-                .programs()
-                .iter()
-                .filter(|(_, (program, certificate))| {
-                    program.kind == ProgramKind::Query
-                        && query_isolates_protected_table(
-                            program,
-                            &certificate.read_sites,
-                            recipe,
-                            &protected.table,
-                        )
-                        && certificate
-                            .read_sites
-                            .iter()
-                            .any(|site| site.table == protected.table)
-                });
-        for (query, (program, _)) in queries {
+        for (query, (program, certificate)) in compiled.generation.programs() {
+            if program.kind != ProgramKind::Query
+                || !certificate
+                    .read_sites
+                    .iter()
+                    .any(|site| site.table == protected.table)
+            {
+                continue;
+            }
+            if let Err(reason) = query_isolates_protected_table(
+                program,
+                &certificate.read_sites,
+                recipe,
+                &protected.table,
+                compiled.generation.schema(),
+            ) {
+                reasons.insert(format!("{query}: {reason}"));
+                continue;
+            }
             for (persona, principal, membership_id, scope) in membership_candidates(seed, recipe) {
                 if !seed.rows.get(&protected.table).is_some_and(|rows| {
                     rows.iter()
@@ -1099,21 +1138,40 @@ fn query_isolates_protected_table(
     read_sites: &[ReadSite],
     recipe: &Recipe,
     protected_table: &str,
-) -> bool {
+    schema: &Schema,
+) -> Result<(), String> {
     // A discovery scan can legitimately become an empty global-search lane
     // after membership removal. The terminal-revocation witness therefore
     // needs an explicit membership Require, not mere table overlap or take 1.
-    read_sites
+    let projected = read_sites
         .iter()
-        .all(|site| site.table == recipe.membership_table || site.table == protected_table)
-        // This is only a bounded candidate preference. A dependency can be
-        // semantically weakened (for example, `member || true`); the served
-        // post-revocation terminal delivery below is the authority witness.
-        && program_has_membership_guard_dependency(
-            program,
-            &recipe.membership_table,
-            &recipe.membership_index,
-        )
+        .any(|site| site.table != recipe.membership_table && site.table != protected_table);
+    if projected {
+        policy_projection(program, schema, protected_table)?;
+    } else {
+        policy_control_flow(program, schema, protected_table)?;
+    }
+    if !read_sites.iter().all(|site| {
+        site.table == recipe.membership_table
+            || site.table == protected_table
+            || schema
+                .tables
+                .get(&site.table)
+                .is_some_and(|table| table.tombstones.iter().any(|t| t.table == protected_table))
+    }) {
+        return Err(
+            "policy probe reads a table outside the protected scope and its carrier".into(),
+        );
+    }
+    // The served post-revocation terminal delivery remains the authority witness.
+    if !program_has_membership_guard_dependency(
+        program,
+        &recipe.membership_table,
+        &recipe.membership_index,
+    ) {
+        return Err("policy probe needs an explicit membership guard dependency".into());
+    }
+    Ok(())
 }
 
 fn protected_write_eligible(
@@ -1350,23 +1408,6 @@ fn require_no_rows(delivery: &Json) -> Result<(), String> {
         Some(Json::Array(rows)) if rows.is_empty() => Ok(()),
         Some(data) => Err(format!(
             "denied delivery exposed post-revocation data: {data}"
-        )),
-    }
-}
-
-fn require_policy_filtered(delivery: &Json, subject: &str) -> Result<(), String> {
-    if delivery["state"] != "complete" {
-        return Err(format!(
-            "{subject} did not resolve through the replacement table policy: {delivery}"
-        ));
-    }
-    match delivery.get("data") {
-        Some(Json::Array(rows)) if rows.is_empty() => Ok(()),
-        Some(data) => Err(format!(
-            "{subject} exposed rows despite the replacement deny policy: {data}"
-        )),
-        None => Err(format!(
-            "{subject} omitted data under the replacement deny policy: {delivery}"
         )),
     }
 }

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
-import { rm } from "node:fs/promises";
-import { basename, join, resolve } from "node:path";
+import { AsyncLocalStorage } from "node:async_hooks";
+import { readFile, rm } from "node:fs/promises";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   createClient,
@@ -11,6 +12,24 @@ import {
 import { fileRangeStore } from "./store/file.js";
 
 export { fileRangeStore };
+
+const fixtureKey = Symbol.for("snapback2.journey.fixtureDirectory");
+const fixtureDirectory = ((globalThis as Record<PropertyKey, unknown>)[fixtureKey]
+  ??= new AsyncLocalStorage<string>()) as AsyncLocalStorage<string>;
+
+/** Read bytes relative to the authored journey file, including from its compiled copy. */
+export async function fixture(name: string): Promise<Uint8Array<ArrayBuffer>> {
+  const directory = fixtureDirectory.getStore();
+  if (!directory) throw new Error("fixture(name) must be called from a journey file");
+  return new Uint8Array(await readFile(resolve(directory, name)));
+}
+
+function authoredDirectory(file: string): string {
+  const directory = dirname(resolve(file));
+  return directory.endsWith(join(".snapback", "build", "tests"))
+    ? resolve(directory, "../../../snapback/tests")
+    : directory;
+}
 
 type TransportFault = { path: string; status: number };
 type JourneyDevice = SnapbackClient & {
@@ -58,7 +77,7 @@ function runnerFiles(): string[] {
 async function loadJourneyFile(path: string): Promise<RegisteredJourney[]> {
   registered.length = 0;
   const moduleUrl = `${pathToFileURL(path).href}?run=${Date.now()}-${Math.random()}`;
-  await import(moduleUrl);
+  await fixtureDirectory.run(authoredDirectory(path), () => import(moduleUrl));
   if (registered.length === 0) throw new Error("journey file registered zero checks; call journey(name, fn)");
   return [...registered];
 }
@@ -247,7 +266,7 @@ async function runCheck(
   process.stdout.write(`${JSON.stringify({ runner: "start", name: check.name })}\n`);
   try {
     if (storeRoot) await rm(storeRoot, { recursive: true, force: true });
-    await within(5_000, async () => check.body({
+    await within(5_000, () => fixtureDirectory.run(authoredDirectory(file), async () => check.body({
       as: (name, options = {}) => {
         if (options.store !== undefined && options.store !== "file") {
           throw new TypeError("journey as(...).store must be 'file'");
@@ -279,7 +298,7 @@ async function runCheck(
       },
       tick: (ms) => control(url, secret, "/control/clock", { advanceMs: ms }),
       url,
-    }));
+    })));
     await within(5_000, () => runOfflineDerived(devices));
     process.stdout.write(`${JSON.stringify({ name: check.name, kind: "journey", verdict: "pass", ms: Math.round(performance.now() - started), detail: { file } })}\n`);
     return true;

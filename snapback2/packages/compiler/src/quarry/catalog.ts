@@ -2,7 +2,7 @@ import { columnAt, columnComponents, componentLabel, componentProblem, derivedPo
 import type { IndexComponent } from "../ir";
 import type { Document, Expr, IndexDecl, KeyPart, ScalarType, Site, TableCatalog, TableDecl } from "./ast";
 import { quarryExpression } from "./print";
-import { QuarryError, ambiguous, refuse, typeError } from "./diagnostics";
+import { QuarryError, ambiguous, nameRewrite, refuse, typeError } from "./diagnostics";
 
 export function buildCatalog(documents: Document[]): TableCatalog {
   const catalog: TableCatalog = new Map();
@@ -32,6 +32,11 @@ export function buildCatalog(documents: Document[]): TableCatalog {
       for (const index of indexes) {
         if (indexNames.has(index.name)) refuse(index.site, `duplicate index ${table.name}.${index.name}; name one ordering explicitly`);
         indexNames.add(index.name);
+        for (const component of index.components) {
+          const names = "Column" in component ? [component.Column] : component.WordPrefixes.fields;
+          for (const name of names) if (name !== "id" && !columns.has(name)) typeError(index.site,
+            `index ${table.name}.${index.name} names unknown column ${name}`, nameRewrite(name, ["id", ...columns.keys()]));
+        }
         const problem = componentProblem(index.components, index.unique, name => {
           const type = name === "id" ? { kind: "id" } : columns.get(name);
           // Ordinary column-domain refusals are aggregated before catalog construction.
@@ -48,9 +53,8 @@ export function buildCatalog(documents: Document[]): TableCatalog {
           if (name === "id") continue;
           const column = columns.get(name);
           if (!column) {
-            const nearest = [...columns.keys()].sort((a, b) => distance(name, a) - distance(name, b))[0];
-            refuse(cap.site, `${table.name} cap names unknown column ${name}${nearest ? `; did you mean ${nearest}?` : ""}`,
-              `cap ${cap.max} by ${cap.by.map((c) => c === name ? nearest ?? c : c).join(", ")}`);
+            refuse(cap.site, `${table.name} cap names unknown column ${name}`,
+              nameRewrite(name, columns.keys(), suggestion => `cap ${cap.max} by ${cap.by.map(column => column === name ? suggestion ?? "<scalar column>" : column).join(", ")}`));
           }
           if (["list", "image", "video"].includes(column.kind)) {
             throw new QuarryError(cap.site, `cap on ${table.name} needs indexable grouping column ${name}`, "E_SCHEMA_CONSTRAINT", "cap 50 by <scalar columns>", "schema/project");
@@ -59,6 +63,10 @@ export function buildCatalog(documents: Document[]): TableCatalog {
         if (new Set(cap.by).size !== cap.by.length) throw new QuarryError(cap.site, `cap on ${table.name} repeats a grouping column`, "E_SCHEMA_CONSTRAINT", repair, "schema/project");
         if (capped.has(tuple)) throw new QuarryError(cap.site, `${table.name} already caps ${cap.by.join(", ")}`, "E_SCHEMA_CONSTRAINT", "remove the duplicate cap line", "schema/project");
         capped.add(tuple);
+      }
+      for (const immutable of table.immutable) for (const name of immutable.columns) {
+        if (name !== "id" && !columns.has(name)) refuse(immutable.site,
+          `immutable names unknown ${table.name} column ${name}`, nameRewrite(name, ["id", ...columns.keys()]));
       }
       const ruleEffects = new Set<string>();
       for (const rule of table.rules) {
@@ -123,7 +131,7 @@ function validateType(type: ScalarType, catalog: TableCatalog, site: Site): void
     refuse(site, `${type.kind} byte bounds must be positive integers no larger than 4294967295`);
   }
   if (type.kind === "enum" && (type.variants.length === 0 || new Set(type.variants).size !== type.variants.length)) refuse(site, "enum variants must be non-empty and unique");
-  if (type.kind === "ref" && !catalog.has(type.table)) refuse(site, `reference names unknown table ${type.table}`);
+  if (type.kind === "ref" && !catalog.has(type.table)) refuse(site, `reference names unknown table ${type.table}`, nameRewrite(type.table, catalog.keys()));
   if (type.kind === "list") {
     if (type.max < 1) refuse(site, "list bounds must be positive");
     validateType(type.item, catalog, site);
@@ -199,14 +207,34 @@ export function selectIndex(
   explicit: string | undefined,
   infer: (expr: Expr) => ScalarType | undefined,
   site: Site,
+  valueRead = false,
 ): IndexDecl {
   const info = catalog.get(table);
-  if (!info) refuse(site, `unknown table ${table}`, `available tables: ${[...catalog.keys()].join(", ")}`);
+  if (!info) refuse(site, `unknown table ${table}`, nameRewrite(table, catalog.keys()));
+  for (const key of keys) if (key.column && key.column !== "id" && !info.columns.has(key.column)) refuse(key.site,
+    `unknown ${table} field \`${key.column}\``, nameRewrite(key.column, ["id", ...info.columns.keys()]));
   const named = keys.some((key) => key.column !== undefined);
   if (named && keys.some((key) => key.column === undefined)) refuse(site, "an index key cannot mix named and positional parts");
+  const prefixMatches = (index: IndexDecl) => keys.length <= index.components.length
+    && (derivedPosition(index.components) < 0 || keys.length > derivedPosition(index.components))
+    && keys.every((key, offset) => (!key.column || key.column === columnAt(index.components, offset))
+      && componentKeyCompatible(key.value, infer(key.value), info.declaration, index.components[offset]!));
+  const ranges = info.indexes.filter(index => !index.unique && prefixMatches(index));
+  const prefixes = info.indexes.filter(prefixMatches);
+  const unique = info.indexes.filter(index => index.unique && index.components.length === keys.length && prefixMatches(index));
+  const explicitIndex = explicit && info.indexes.find(index => index.name === explicit);
+  if (valueRead && mode === "point" && ((!explicit && unique.length === 0)
+    || explicitIndex && !unique.includes(explicitIndex)) && (!explicit && prefixes.length > 0 || explicitIndex && prefixMatches(explicitIndex))) {
+    const read = `${table}[${keys.map(key => `${key.column ? `${key.column} = ` : ""}${quarryExpression(key.value)}`).join(", ")}]`;
+    const choices = [...ranges, ...unique];
+    if (choices.length === 0) choices.push(...(explicitIndex ? [explicitIndex] : prefixes));
+    const fixes = choices.map(index => `${read}${index.unique && index.components.length === keys.length ? "" : " first 50"} by ${index.name}`);
+    throw new QuarryError(site, `\`${read}\` reads a range; name its bound`, "E_UNBOUND_SCAN",
+      `${fixes.join("; ")}; ${indexGuidance(info.declaration, choices)}`, "quarry");
+  }
   if (explicit) {
     const selected = info.indexes.find((index) => index.name === explicit);
-    if (!selected) refuse(site, `table ${table} has no index ${explicit}`, indexGuidance(info.declaration, info.indexes));
+    if (!selected) refuse(site, `table ${table} has no index ${explicit}`, nameRewrite(explicit, info.indexes.map(index => index.name), indexGuidance(info.declaration, info.indexes)));
     validateIndexKeys(info.declaration, selected, keys, mode, infer, site);
     return selected;
   }
@@ -230,7 +258,7 @@ export function selectIndex(
     if (exact.length > 0) candidates = exact;
   }
   if (candidates.length === 0) {
-    const spelling = keys.map((key) => key.column ?? "?").join(", ");
+    const spelling = keys.map((key) => key.column ?? (infer(key.value) ? typeName(infer(key.value)!) : key.value.kind === "literal" && key.value.value === null ? "null" : "unknown")).join(", ");
     const eligible = info.indexes.filter((index) => mode !== "point" || index.unique);
     const requiredNull = eligible.flatMap((index) => keys.flatMap((key, offset) => {
       const column = columnAt(index.components, offset);
@@ -344,20 +372,12 @@ function compatible(actual: ScalarType | undefined, expected: ScalarType): boole
 
 function typeName(type: ScalarType): string {
   if (type.optional) return `${typeName({ ...type, optional: false })} ?`;
-  if (type.kind === "ref") return `reference to ${type.table}`;
+  if (type.kind === "ref") return type.table;
   if (type.kind === "list") return `[${typeName(type.item)}] <=${type.max}`;
   if (type.kind === "text") return `${type.min === undefined ? `text <=${type.max}` : `text ${type.min}..${type.max}`}${type.format ? ` format ${type.format}` : ""}`;
   if (type.kind === "decimal") return `decimal ${type.scale}`;
   if (type.kind === "money") return `money ${type.currency} ${type.scale}`;
+  if (type.kind === "enum") return `enum(${type.variants.map(value => JSON.stringify(value)).join(", ")})`;
+  if (["bytes", "json", "image", "video"].includes(type.kind)) return `${type.kind} <=${(type as { max: number }).max}`;
   return type.kind;
-}
-
-function distance(a: string, b: string): number {
-  let row = Array.from({ length: b.length + 1 }, (_, i) => i);
-  for (let i = 0; i < a.length; i++) {
-    const next = [i + 1];
-    for (let j = 0; j < b.length; j++) next.push(Math.min(next[j]! + 1, row[j + 1]! + 1, row[j]! + Number(a[i] !== b[j])));
-    row = next;
-  }
-  return row[b.length]!;
 }

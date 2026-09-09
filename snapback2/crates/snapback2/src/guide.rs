@@ -180,7 +180,12 @@ fn app_page(options: &verbs::ParsedOptions<'_>) -> Result<String, Refusal> {
         )));
     }
     for (name, (_, certificate)) in generation.programs() {
-        if certificates.get(name) != Some(&json!(certificate)) {
+        let mut cached = certificates.get(name).cloned().unwrap_or(Json::Null);
+        // @ref LLP 1002#diagnostics-say-the-fix — source metadata accompanies, but does not alter, the certificate.
+        if let Some(cached) = cached.as_object_mut() {
+            cached.remove("sources");
+        }
+        if cached != json!(certificate) {
             return Err(guide_stale(format!(
                 "certificates.json does not match the cached generation for operation {name}"
             )));
@@ -305,13 +310,13 @@ fn refusal_page(root: &Path, code: &str) -> Result<String, Refusal> {
         language,
     );
     Ok(format!(
-        "# {code}\n\nFamily: `{family}`\n\nWrong:\n{wrong}\n\nRight:\n{right}\n"
+        "# {code}\n\nFamily: `{family}`\n\nWrong:\n\n{wrong}\n\nRight:\n\n{right}\n"
     ))
 }
 
 fn refusal_example(value: &str, language: &str) -> String {
     let value = value.trim();
-    if value.starts_with("```") {
+    if value.lines().any(|line| line.starts_with("```")) {
         value.to_owned()
     } else {
         format!("```{language}\n{value}\n```")

@@ -56,7 +56,6 @@ test("a real rejected mutation carries the complete refusal envelope", async (co
       op: "messages.send",
       args: {
         conversationId: "conversation-1",
-        recipientId: "profile-alice",
         body: "not a member",
       },
     }),
@@ -75,7 +74,7 @@ test("a real rejected mutation carries the complete refusal envelope", async (co
       state: "rejected",
       code: "NOT_MEMBER",
       family: "input",
-      message: "E_REQUIRE:NOT_MEMBER: program requirement failed",
+      message: "program requirement failed",
       guide: "input/runtime",
     },
   );
@@ -103,7 +102,7 @@ test("real owner stop and restart yields stale then a full first re-delivery", a
   assert.deepEqual(deliveries.slice(0, 3).map((delivery) => delivery.state), ["complete", "stale", "complete"]);
   context.diagnostic("owner performs a full query re-delivery after reconnect; Last-Event-ID is not a delta-resume contract");
   sub.close();
-  value.close();
+  await value.close();
 });
 
 test("React-free hook driver reduces eight real-owner transitions including live capped and denied", async (context) => {
@@ -120,7 +119,6 @@ test("React-free hook driver reduces eight real-owner transitions including live
   const first = await live.until((delivery) => delivery.state === "complete", 2_000);
   const committed = await writer.mutation(api.messages.send, {
     conversationId: "conversation-1",
-    recipientId: "profile-alice",
     body: `hook-driver-${Date.now()}`,
   });
   assert.equal(committed.state, "committed");
@@ -159,9 +157,7 @@ test("React-free hook driver reduces eight real-owner transitions including live
   assert.deepEqual(transitions, ["hydrating", "complete", "complete", "stale", "complete", "capped", "denied", "refused"]);
   context.diagnostic(`hook-driver transitions=${transitions.join(" -> ")}`);
   refused.close();
-  reader.close();
-  writer.close();
-  outsider.close();
+  await Promise.all([reader.close(), writer.close(), outsider.close()]);
 });
 
 test("real channel membership revocation ends the subscriber with a refusal", async (context) => {
@@ -169,11 +165,16 @@ test("real channel membership revocation ends the subscriber with a refusal", as
   const alice = createClient({ url: owner.url, as: "alice" });
   const bob = createClient({ url: owner.url, as: "bob" });
   context.after(async () => { await alice.close(); await bob.close(); });
+  await Promise.all([alice.ready, bob.ready]);
   const channel = bob.channel(api.typing, { conversationId: "conversation-1" });
   const snapshots: any[] = [];
   const sub = channel.subscribe(snapshot => snapshots.push(snapshot));
-  await sub.until(snapshot => snapshot.status === "ready", 2_000);
-  const typing = sub.until(snapshot => snapshot.entries.some((entry: any) => entry.value.typing), 2_000);
+  await sub.until(snapshot => snapshot.status === "ready", 2_000).catch(error => {
+    throw new Error(`channel readiness: ${JSON.stringify(snapshots)}`, { cause: error });
+  });
+  const typing = sub.until(snapshot => snapshot.entries.some((entry: any) => entry.value.typing), 2_000).catch(error => {
+    throw new Error(`channel typing: ${JSON.stringify(snapshots)}`, { cause: error });
+  });
   assert.deepEqual(
     await alice.channel(api.typing, { conversationId: "conversation-1" }).set({ typing: true }),
     { ok: true },

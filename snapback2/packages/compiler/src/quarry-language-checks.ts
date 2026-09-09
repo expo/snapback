@@ -522,13 +522,13 @@ query probe():
     assert(!noMatch.ok, "missing index accepted");
     const guidance = noMatch.diagnostics[0]!.rewrite;
     assert(guidance.startsWith("-- "), guidance);
-    assert(guidance.includes("settings.byId (id: reference to settings)") && guidance.includes("settings.byKey (key: text <=20)"), guidance);
+    assert(guidance.includes("settings.byId (id: settings)") && guidance.includes("settings.byKey (key: text <=20)"), guidance);
     const wrong = compile("query probe(p: posts):\n  return settings[id = p]\n");
-    assert(!wrong.ok && wrong.diagnostics[0]!.rewrite.includes("reference to settings; received reference to posts"), JSON.stringify(wrong));
+    assert(!wrong.ok && wrong.diagnostics[0]!.rewrite.includes("settings; received posts"), JSON.stringify(wrong));
     assert(wrong.diagnostics[0]!.rewrite.startsWith("-- "), JSON.stringify(wrong));
     const repair = compile("query probe(key: text <=20):\n  return settings[id = key]\n");
     assert(!repair.ok && repair.diagnostics[0]!.rewrite === "settings[key = key]", JSON.stringify(repair));
-    assert(JSON.stringify(repair.diagnostics[0]) === '{"code":"E_QUARRY_UNKNOWN","family":"quarry","message":"settings.byId expects reference to settings for id, got text <=20","site":"snapback/probe.q:2:24","rewrite":"settings[key = key]","guide":"quarry/names"}', JSON.stringify(repair));
+    assert(JSON.stringify(repair.diagnostics[0]) === '{"code":"E_QUARRY_UNKNOWN","family":"quarry","message":"settings.byId expects settings for id, got text <=20","site":"snapback/probe.q:2:24","rewrite":"settings[key = key]","guide":"quarry/names"}', JSON.stringify(repair));
     await project(`query probe(key: text <=20):\n  return ${repair.diagnostics[0]!.rewrite}\n`, () => {});
     // Non-empty strings are legal Id literals (F6-C); this spelling cannot truthfully refuse.
     await project("query probe():\n  return settings[id = 'windows']\n", () => {});

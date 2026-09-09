@@ -568,7 +568,8 @@ fn add_count_backed_cases(cases: &mut Vec<CorpusCase>) {
             error.code == "E_BOUND" && error.message.starts_with("examined entries 49000")
         })
         .unwrap();
-    let maintain_line = "maintain membershipsCounts = count memberships by principal:\n  read <- deny";
+    let maintain_line =
+        "maintain membershipsCounts = count memberships by principal:\n  read <- deny";
     assert!(error.rewrite.contains(maintain_line), "{error}");
     assert!(
         error.rewrite.contains("prices at one row per write"),

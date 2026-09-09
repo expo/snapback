@@ -163,13 +163,7 @@ impl State {
             .get(&op)
             .map(|(program, _)| program.kind)
             .ok_or_else(|| {
-                Refusal::new(
-                    "E_OP_UNKNOWN",
-                    "op",
-                    format!("unknown operation {op}"),
-                    "use an operation listed by /api/manifest",
-                    "op/manifest",
-                )
+                Refusal::unknown_operation(op.as_ref(), self.runtime().generation().programs().keys().map(String::as_str))
             })?;
         // The CLI is read-only even across a hot successor; the protected
         // harness still executes mutations to harvest authoritative replay traces.
@@ -193,20 +187,19 @@ impl State {
             .runtime_mut()
             .execute(&op, context)
             .map_err(|error| Refusal::from_runtime(&error))?;
-        let plan_hash = self
+        let (plan_hash, schema_hash) = self
             .runtime()
             .generation()
             .programs()
             .get(&op)
-            .map(|(_, certificate)| certificate.plan_hash.clone())
-            .ok_or_else(|| {
-                Refusal::new(
-                    "E_OP_UNKNOWN",
-                    "op",
-                    format!("unknown operation {op}"),
-                    "use an operation listed by /api/manifest",
-                    "op/unknown",
+            .map(|(_, certificate)| {
+                (
+                    certificate.plan_hash.clone(),
+                    certificate.schema_hash.clone(),
                 )
+            })
+            .ok_or_else(|| {
+                Refusal::unknown_operation(op.as_ref(), self.runtime().generation().programs().keys().map(String::as_str))
             })?;
         let runtime_subscriptions = self
             .runtime()
@@ -239,6 +232,7 @@ impl State {
         Ok(json!({
             "op": op,
             "certificatePlanHash": plan_hash,
+            "certificateSchemaHash": schema_hash,
             "result": execution_json(&execution),
             "trace": execution.trace,
             "subscriptions": subscriptions,

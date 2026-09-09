@@ -7,22 +7,12 @@ import { conversationItems, messageWrites } from "../shared/thread";
 const when = (at: number) => new Date(at).toLocaleTimeString();
 const describe = (error: unknown) => (isSnapbackRefusal(error) ? error.envelope.rewrite ?? error.message : String(error));
 
-// @ref LLP 1018.000#4-one-observed-query-one-coherent-snapshot — the list,
-// count, and preview come from one named composite; partial custody falls back
-// to the independently authorized paginated thread without inventing a count.
-// @ref LLP 1018.006#4-the-screens — that fallback is declared on the items and
-// run by the SDK: `itemsFrom` says what the items are, `history` whether the
-// fallback is in force; count and preview are read only from a usable composite.
-// @ref LLP 1018.003.000#2-correspondence —
-// items already carry their own work and prediction provenance.
-// @ref LLP 1018.004#5-hooks-and-templates — edit and unsend are short handlers:
-// every `run()` outcome is terminal or durable, so there is nothing to recover.
 export function Thread({ conversationId, viewer, onNote }: {
   conversationId: string;
   viewer: string | undefined;
   onNote(note: string): void;
 }) {
-  const snapshot = useQuery(api.deliveries.conversationView, { conversationId }, { items: conversationItems });
+  const snapshot = useQuery(api.messages.conversationView, { conversationId }, { items: conversationItems });
   const [opened, setOpened] = useState<string[]>([]);
   const composite = snapshot.itemsFrom === "query" ? snapshot.data : undefined;
   const history = snapshot.history;

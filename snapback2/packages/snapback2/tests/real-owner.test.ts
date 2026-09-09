@@ -57,7 +57,7 @@ test("reconnect after a conditional refresh replays a queued send for joined and
       assert.equal(refreshed.validator, first.validator);
       await client.offline();
       const body = `reconnect-${name}-${crypto.randomUUID()}`;
-      const queued = await client.mutation(api.messages.send, { conversationId: "conversation-1", recipientId: "profile-bob", body });
+      const queued = await client.mutation(api.messages.send, { conversationId: "conversation-1", body });
       assert.equal(queued.state, "queued");
       let recoveryError: unknown;
       try { await client.online(); } catch (error) { recoveryError = error; }
@@ -71,7 +71,7 @@ test("reconnect after a conditional refresh replays a queued send for joined and
       assert.equal(recoveryError, undefined, "equivalent re-delivery must release outbox replay");
       assert.equal((await client.outbox.entries()).find((entry: any) => entry.intent === queued.intent)?.state, "committed");
       const thread: any = await other.query(api.messages.thread, { conversationId: "conversation-1", c: null });
-      assert.equal(thread.data.filter((row: any) => row.body === body).length, 1);
+      assert.equal(thread.data.filter((row: any) => row.message?.body === body).length, 1);
       const held = await (client as any).offlineRuntime.store.answer(op, args);
       assert.ok(held.data.length >= first.data.length, "the resume tail cannot replace the base page");
     } finally {
@@ -144,21 +144,21 @@ test("cold global search includes a queued Unicode row after an unrelated persis
   try {
     warm = createClient({ url: owner.url, as: "alice", offline: { store: factory } });
     await warm.ready;
-    drain = warm.subscribe(api.deliveries.inbox, { c: null }, () => {}, { drain: true });
+    drain = warm.subscribe(api.messages.inbox, { c: null }, () => {}, { drain: true });
     await drain.until((event: any) => event.live === true && event.caughtUp === true, 5_000);
     await warm.offline();
-    const queued = await warm.mutation(api.deliveries.post, {
+    const queued = await warm.mutation(api.messages.send, {
       conversationId: "conversation-2", body: "Café offline predicted",
     });
     assert.equal(queued.state, "queued");
-    assert.equal((await warm.mutation(api.deliveries.post, {
+    assert.equal((await warm.mutation(api.messages.send, {
       conversationId: "conversation-2", body: "offline second",
     })).state, "queued");
     const before: any = await warm.query(api.messages.search, { term: "CAFE\u0301", c: null });
     assert.ok(before.data.some((row: any) => row.id === queued.ids[0]), JSON.stringify(before));
     const entries = await warm.outbox.entries();
     await warm.offlineRuntime.store.commit({
-      deliveries: [{ op: "deliveries.thread", args: { conversationId: "witness-marker", c: null }, seq: 1,
+      deliveries: [{ op: "messages.thread", args: { conversationId: "witness-marker", c: null }, seq: 1,
         state: "complete", next: null, data: { $row: { table: "messages", id: "witness-marker" } },
         rows: [{ table: "messages", id: "witness-marker", row: { id: "witness-marker", conversationId: "witness-marker",
           authorId: "witness", body: "pre", photo: { id: "s2id-eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee-0000000000000001", width: 1, height: 1 }, at: 1 } }],
@@ -201,7 +201,7 @@ test("real scalar-projected log pages retire predictions using engine-minted cur
   };
   try {
     for (let index = 0; index < 3; index++) {
-      const result = await writer.mutation(api.deliveries.post, { conversationId: "conversation-1", body: `object-page-${index}` });
+      const result = await writer.mutation(api.messages.send, { conversationId: "conversation-1", body: `object-page-${index}` });
       assert.equal(result.state, "committed");
     }
     const first = await query(null);
@@ -210,7 +210,7 @@ test("real scalar-projected log pages retire predictions using engine-minted cur
     assert.ok(first.receipt.ranges.some((range: any) => range.rowIds.length > 0));
     const intent = "projected-retirement:0";
     const id = "predicted-message";
-    const committed = { intent, grant: "projected-retirement", offset: 0, count: 1, ids: [id], op: "deliveries.post",
+    const committed = { intent, grant: "projected-retirement", offset: 0, count: 1, ids: [id], op: "messages.send",
       args: {}, issuedSeq: 0, state: "committed", predicted: true, response: { state: "committed", seq: first.seq }, createdAt: 1, updatedAt: 1 };
     await store.open("dev:alice");
     await store.commit({ watermark: { op, args, cursorArg: "after", watermark: first.next, updatedAt: 1 },
@@ -274,7 +274,7 @@ test("settlement uses the persisted cursor name when live metadata disagrees, wi
       headers: { "Content-Type": "application/json", "X-Snapback-As": "alice" },
       body: JSON.stringify({ op, args: { ...args, c: held.watermark }, receipt: true }) });
     assert.equal(invalid.status, 400, "the owner refuses an extra argument instead of accepting both spellings");
-    const committed = await cold.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "recorded cursor proof" });
+    const committed = await cold.mutation(api.messages.send, { conversationId: "conversation-1", body: "recorded cursor proof" });
     assert.equal(committed.state, "committed");
     assert.deepEqual(tails, [{ ...args, after: held.watermark }]);
     const history = await cold.outbox.entries();
@@ -345,7 +345,7 @@ test("sixty live queries and a channel share one connection through add, remove 
     const channel = room.subscribe(remember("channel"));
     subscriptions.push(channel);
     // A query registered in the same control batch exercises mixed child admission.
-    const witness = client.subscribe(api.messages.summary, { conversationId: "conversation-1" }, remember("summary"));
+    const witness = client.subscribe(api.messages.conversationView, { conversationId: "conversation-1" }, remember("summary"));
     subscriptions.push(witness);
     await witness.until((event: any) => event.live === true, 2_000);
     await channel.until(snapshot => snapshot.status === "ready", 2_000);
@@ -360,8 +360,8 @@ test("sixty live queries and a channel share one connection through add, remove 
     for (const sub of removed) sub.close();
     phase = "receiving post-mutation query updates";
     const message = `multiplex-${Date.now()}`;
-    await client.mutation(api.messages.send, { conversationId: "conversation-1", recipientId: "profile-bob", body: message });
-    await Promise.all(subscriptions.slice(0, 30).map(sub => sub.until((event: any) => event.data?.some((row: any) => row.body === message), 3_000)));
+    await client.mutation(api.messages.send, { conversationId: "conversation-1", body: message });
+    await Promise.all(subscriptions.slice(0, 30).map(sub => sub.until((event: any) => event.data?.some((row: any) => row.message?.body === message), 3_000)));
     assert.equal(streams, 1, "changing the subscription set does not restart the connection");
     const denied = await fetch(`${owner.url}/api/live/control`, { method: "POST", headers: { "Content-Type": "application/json", "X-Snapback-As": "bob" }, body: JSON.stringify({ session, close: true }) });
     assert.equal(denied.status, 400, "another principal cannot control this stream");
@@ -400,7 +400,7 @@ test("the shipped composite pages online and after a cold offline reopen", async
     // Cross the production page bound; a two-row toy cannot establish that the
     // shipped query exposes every row on a second nonempty page.
     for (let i = 0; i < 51; i++) {
-      const result = await writer.mutation(api.deliveries.post, {
+      const result = await writer.mutation(api.messages.send, {
         conversationId: "conversation-1", body: `composite-page-${i}`,
       });
       assert.equal(result.state, "committed");
@@ -408,11 +408,11 @@ test("the shipped composite pages online and after a cold offline reopen", async
     warm = createClient({ url: owner.url, as: "alice", offline: { store: factory } });
     await warm.ready;
     const args = { conversationId: "conversation-1", c: null };
-    const first = await warm.query(api.deliveries.conversationView, args);
+    const first = await warm.query(api.messages.conversationView, args);
     assert.equal(first.data.messages.length, 50);
     assert.equal(typeof first.next, "string");
     const olderArgs = { ...args, c: first.next };
-    const second = await warm.query(api.deliveries.conversationView, olderArgs);
+    const second = await warm.query(api.messages.conversationView, olderArgs);
     assert.ok(second.data.messages.length > 0 && second.data.messages.length < 50);
     const firstIds = new Set(first.data.messages.map((row: any) => row.id));
     assert.equal(second.data.messages.some((row: any) => firstIds.has(row.id)), false);
@@ -420,15 +420,15 @@ test("the shipped composite pages online and after a cold offline reopen", async
     assert.deepEqual(first.data.preview, second.data.preview, "the fixed preview stays at the live head");
     assert.equal(first.seq, second.seq, "no write occurred between the two atomic snapshots");
     if (second.next) {
-      const end = await warm.query(api.deliveries.conversationView, { ...args, c: second.next });
+      const end = await warm.query(api.messages.conversationView, { ...args, c: second.next });
       assert.deepEqual(end.data.messages, []);
       assert.equal(end.next, null, "an auxiliary capped preview cannot repeat the last message page");
     }
     await warm.close(); warm = undefined;
     cold = createClient({ url: owner.url, as: "alice", startOffline: true, offline: { store: factory } });
     await cold.ready;
-    const reopenedFirst = await cold.query(api.deliveries.conversationView, args);
-    const reopenedSecond = await cold.query(api.deliveries.conversationView, olderArgs);
+    const reopenedFirst = await cold.query(api.messages.conversationView, args);
+    const reopenedSecond = await cold.query(api.messages.conversationView, olderArgs);
     assert.deepEqual(reopenedFirst.data, first.data, "cold evaluation reconstructs the coherent first page");
     assert.deepEqual(reopenedSecond.data, second.data, "the saved continuation selects the same older page offline");
     assert.equal(reopenedFirst.next, first.next);

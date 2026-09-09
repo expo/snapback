@@ -32,7 +32,7 @@ function tabs(options: { grant?: boolean } = {}) {
 
 /** The writer earns its replay grant through the recipe's drain. */
 async function earnGrant(writer: any): Promise<() => void> {
-  const inbox = writer.subscribe(api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
+  const inbox = writer.subscribe(api.messages.inbox, { c: null }, () => undefined, { drain: true });
   await inbox.until((event: any) => event.state === "complete" && event.caughtUp === true, 2_000);
   await until(async () => (await writer.outbox.status()).ready, "the writer's grant");
   return () => inbox.close();
@@ -46,7 +46,7 @@ test("a follower's write is a durable inbox row before run() resolves; the write
   const follower = open();
   await follower.ready;
   await until(async () => (await follower.outbox.status()).reason === "forwarding", "the follower's inbox route");
-  const target = mutationTarget(api.deliveries.post, "messages");
+  const target = mutationTarget(api.messages.send, "messages");
   const sent = await follower.mutation(target, { conversationId: "conversation-1", body: "from the follower" });
   assert.equal(sent.state, "queued");
   assert.equal(sent.intent, inboxAlias(1), "the public intent is the row's alias");
@@ -83,9 +83,9 @@ test("the writer admits durable follower rows before its own write, so the devic
   await follower.ready;
   await until(async () => (await follower.outbox.status()).reason === "forwarding", "the follower's inbox route");
   await writer.offline();
-  const first = await writer.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "writer first" });
-  const middle = await follower.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "follower middle" });
-  const second = await writer.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "writer second" });
+  const first = await writer.mutation(api.messages.send, { conversationId: "conversation-1", body: "writer first" });
+  const middle = await follower.mutation(api.messages.send, { conversationId: "conversation-1", body: "follower middle" });
+  const second = await writer.mutation(api.messages.send, { conversationId: "conversation-1", body: "writer second" });
   assert.deepEqual([first.state, middle.state, second.state], ["queued", "queued", "queued"]);
   const entries = await writer.outbox.entries();
   assert.deepEqual(entries.map((entry) => (entry.args as any).body), ["writer first", "follower middle", "writer second"],
@@ -107,8 +107,8 @@ test("a reloaded follower shows its device's queued rows from durable state, and
   const follower = open();
   await follower.ready;
   await until(async () => (await follower.outbox.status()).reason === "forwarding", "the follower's inbox route");
-  const a = await follower.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "saved a" });
-  const b = await follower.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "saved b" });
+  const a = await follower.mutation(api.messages.send, { conversationId: "conversation-1", body: "saved a" });
+  const b = await follower.mutation(api.messages.send, { conversationId: "conversation-1", body: "saved b" });
   assert.deepEqual([a.intent, b.intent], [inboxAlias(1), inboxAlias(2)]);
   await follower.close();
   const reloaded = open();
@@ -136,14 +136,14 @@ test("the inbox refuses at its bound with no row written, and a row from another
   await follower.ready;
   await until(async () => (await follower.outbox.status()).reason === "forwarding", "the follower's inbox route");
   for (let index = 0; index < INBOX_LIMIT; index += 1) {
-    await follower.mutation(api.deliveries.post, { conversationId: "conversation-1", body: `bulk ${index}` });
+    await follower.mutation(api.messages.send, { conversationId: "conversation-1", body: `bulk ${index}` });
   }
-  await assert.rejects(follower.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "one too many" }),
+  await assert.rejects(follower.mutation(api.messages.send, { conversationId: "conversation-1", body: "one too many" }),
     (error: unknown) => isSnapbackRefusal(error) && error.code === "E_OFFLINE_INBOX_FULL");
   assert.equal((await follower.outbox.status()).reason, "inbox-full");
   assert.equal((await follower.outbox.entries()).length, INBOX_LIMIT, "no row for the refused write");
   // Arguments the ledger cannot persist are refused before any row exists.
-  await assert.rejects(follower.mutation(api.deliveries.post, { conversationId: "conversation-1", body: 10n as any }),
+  await assert.rejects(follower.mutation(api.messages.send, { conversationId: "conversation-1", body: 10n as any }),
     (error: unknown) => isSnapbackRefusal(error) && error.code === "E_OFFLINE_ARGUMENTS");
   await follower.close();
   await writer.close();
@@ -158,7 +158,7 @@ test("the inbox refuses at its bound with no row written, and a row from another
   const runtime = (follower2 as any).offlineRuntime;
   const now = Date.now();
   const key = await runtime.insertInbox({ kind: "mutation", scope: "another backend", principal: "dev:alice", followerId: "test",
-    op: "deliveries.post", args: { conversationId: "conversation-1", body: "foreign" }, state: "queued", ids: [], createdAt: now, updatedAt: now });
+    op: "messages.send", args: { conversationId: "conversation-1", body: "foreign" }, state: "queued", ids: [], createdAt: now, updatedAt: now });
   await (writer2 as any).inbox.admit();
   await until(async () => (await follower2.outbox.entries()).some((entry) => entry.inbox === key && entry.state === "rejected"), "the identity rejection");
   const rejected = (await follower2.outbox.entries()).find((entry) => entry.inbox === key)!;
@@ -178,8 +178,8 @@ test("takeover admits the rows the closed writer left, before its first resume, 
   const follower = open();
   await follower.ready;
   await until(async () => (await follower.outbox.status()).reason === "forwarding", "the follower's inbox route");
-  await follower.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "left behind a" });
-  await follower.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "left behind b" });
+  await follower.mutation(api.messages.send, { conversationId: "conversation-1", body: "left behind a" });
+  await follower.mutation(api.messages.send, { conversationId: "conversation-1", body: "left behind b" });
   assert.equal(owner.executions.length, 0, "the grantless writer admitted nothing");
   await writer.close();
   await until(() => !(follower as any).offlineRuntime.following, "the follower marker clearing after takeover");
@@ -201,14 +201,14 @@ test("the carrier: a follower connection closes on versionchange, and a wipe und
   await store.open("dev:alice");
   const connection = await store.inbox("dev:alice");
   const now = Date.now();
-  const key = await connection.insert({ kind: "mutation", scope: "s", principal: "dev:alice", followerId: "f", op: "deliveries.post",
+  const key = await connection.insert({ kind: "mutation", scope: "s", principal: "dev:alice", followerId: "f", op: "messages.send",
     args: { body: "x" }, state: "queued", ids: [], createdAt: now, updatedAt: now });
   assert.equal(key, 1, "the database assigns the first key");
   assert.deepEqual((await store.inboxRows()).map((row: any) => [row.key, row.state]), [[1, "queued"]], "the writer reads the follower's row");
   // A writer swap and a follower insertion overlap on the inbox store; neither is lost.
   await Promise.all([
     store.commit({ inbox: { put: [{ ...(await store.inboxRows())[0], admitted: "grant:0", ids: ["id-1"], updatedAt: now }] } }),
-    connection.insert({ kind: "mutation", scope: "s", principal: "dev:alice", followerId: "f", op: "deliveries.post",
+    connection.insert({ kind: "mutation", scope: "s", principal: "dev:alice", followerId: "f", op: "messages.send",
       args: { body: "y" }, state: "queued", ids: [], createdAt: now, updatedAt: now }),
   ]);
   assert.deepEqual((await connection.rows()).map((row: any) => [row.key, row.admitted]), [[1, "grant:0"], [2, undefined]]);
@@ -217,7 +217,7 @@ test("the carrier: a follower connection closes on versionchange, and a wipe und
   assert.equal(connection.ended, true, "the follower connection closed on versionchange");
   assert.equal(database.has("snapback2:dev:alice"), false, "the deletion completed beneath the open follower connection");
   assert.ok(database.events.some((event) => event.event === "versionchange" && event.reason === "delete"));
-  await assert.rejects(connection.insert({ kind: "mutation", scope: "s", principal: "dev:alice", followerId: "f", op: "deliveries.post",
+  await assert.rejects(connection.insert({ kind: "mutation", scope: "s", principal: "dev:alice", followerId: "f", op: "messages.send",
     args: { body: "z" }, state: "queued", ids: [], createdAt: now, updatedAt: now }), /inbox connection has ended/);
   await store.close();
 });

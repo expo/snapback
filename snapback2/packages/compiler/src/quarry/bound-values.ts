@@ -1,3 +1,4 @@
+import { nameRewrite } from "./diagnostics";
 import type { Provenance } from "../ir";
 import type { Expr, ScalarType, Site } from "./ast";
 import { decimalScale, typeError } from "./diagnostics";
@@ -182,7 +183,7 @@ function contextualLiteral(expression: BoundExpression, target: ScalarType, site
   if (typeof expression.value === "string" && target.kind === "enum") {
     if (!target.variants.includes(expression.value)) typeError(site,
       `enum literal ${JSON.stringify(expression.value)} is not one of ${target.variants.join(", ")}`,
-      `use one of ${target.variants.map((variant) => JSON.stringify(variant)).join(", ")}`);
+      nameRewrite(expression.value, target.variants));
     return { ...expression, facts: facts({ ...target, optional: false }, expression.facts.origin) };
   }
   if (typeof expression.value === "string" && (target.kind === "id" || target.kind === "ref")) {

@@ -1,68 +1,6 @@
 import { api, mutationTarget, type ImageAsset } from "snapback2/client";
-import { journey } from "snapback2/test";
-const postedMessage = mutationTarget(api.deliveries.post, "messages");
-
-function bytes(...parts: Uint8Array[]): Uint8Array {
-  const output = new Uint8Array(parts.reduce((total, part) => total + part.length, 0));
-  let offset = 0;
-  for (const part of parts) { output.set(part, offset); offset += part.length; }
-  return output;
-}
-
-function ascii(value: string): Uint8Array {
-  return new TextEncoder().encode(value);
-}
-
-function uint32(value: number): Uint8Array {
-  const output = new Uint8Array(4);
-  new DataView(output.buffer).setUint32(0, value);
-  return output;
-}
-
-function int32At(output: Uint8Array, offset: number, value: number): void {
-  new DataView(output.buffer).setInt32(offset, value);
-}
-
-function base64(value: Uint8Array): string {
-  let binary = "";
-  for (const byte of value) binary += String.fromCharCode(byte);
-  return btoa(binary);
-}
-
-function atom(kind: string, ...payload: Uint8Array[]): Uint8Array {
-  const content = bytes(...payload);
-  return bytes(uint32(content.length + 8), ascii(kind), content);
-}
-
-// A structural MP4 synthesized in-process keeps the acceptance journey tiny
-// while exercising the same bounded ISO-BMFF walker as an uploaded camera clip.
-function synthesizedMp4(): Uint8Array {
-  const ftyp = atom("ftyp", ascii("isom"), uint32(0), ascii("isom"), ascii("mp42"));
-  const mvhdPayload = new Uint8Array(100);
-  new DataView(mvhdPayload.buffer).setUint32(12, 1_000);
-  new DataView(mvhdPayload.buffer).setUint32(16, 2_000);
-  const tkhdPayload = new Uint8Array(84);
-  int32At(tkhdPayload, 40, 0x0001_0000);
-  int32At(tkhdPayload, 56, 0x0001_0000);
-  int32At(tkhdPayload, 72, 0x4000_0000);
-  new DataView(tkhdPayload.buffer).setUint32(76, 2 << 16);
-  new DataView(tkhdPayload.buffer).setUint32(80, 2 << 16);
-  const hdlrPayload = new Uint8Array(24);
-  hdlrPayload.set(ascii("vide"), 8);
-  const track = atom("trak", atom("tkhd", tkhdPayload), atom("mdia", atom("hdlr", hdlrPayload)));
-  return bytes(ftyp, atom("moov", atom("mvhd", mvhdPayload), track));
-}
-
-// The template's smallest valid JPEG: one baseline MCU, advertised as 8×8.
-function fixtureJpeg(): Uint8Array {
-  const jpeg = Uint8Array.from(atob("/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAACAAIDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDzSiiiv18+FP/Z"), (value) => value.charCodeAt(0));
-  const validJpeg = bytes(jpeg.slice(0, 155), new Uint8Array([40, 40, 40]), jpeg.slice(155));
-  // The encoded fixture is one baseline MCU; advertise its padded 8×8 display extent.
-  validJpeg[164] = 8;
-  validJpeg[166] = 8;
-  return validJpeg;
-}
-
+import { fixture, journey } from "snapback2/test";
+const postedMessage = mutationTarget(api.messages.send, "messages");
 
 type LogRow = { kind?: string; messageId?: string; message?: { id?: string; body?: string | null } | null };
 
@@ -72,21 +10,71 @@ function bodies(rows: unknown): string[] {
     : [];
 }
 
+// Run the seed-count proof before journeys that write to the shared owner.
+journey("conversation metadata stays inside membership", async ({ as }) => {
+  const bob = as("bob");
+  const charlie = as("charlie");
+  const counter = as("count-probe");
+  const peer = as("count-peer");
+  try {
+    const inboxBefore = await bob.query(api.messages.inbox, { c: null });
+    if ((inboxBefore.state !== "complete" && inboxBefore.state !== "capped") || !Array.isArray(inboxBefore.data)) {
+      throw new Error("initial inbox was not a usable array");
+    }
+    const member = await bob.query(api.messages.conversationView, { conversationId: "conversation-1" });
+    if ((member.state !== "complete" && member.state !== "capped") || member.data?.count !== 1) {
+      throw new Error(`seeded maintained message count was not 1: ${JSON.stringify(member)}`);
+    }
+    // Keep this journey's delivery history out of the shared members' inboxes.
+    const group = await counter.mutation(api.groups.groupCreate, {
+      title: "Count probe", members: [(await peer.auth.me()).viewer],
+    });
+    if (group.state !== "committed") throw new Error("count probe group did not commit");
+    const conversationId = group.data.id;
+    const first = await counter.mutation(api.messages.send, { conversationId, body: "first" });
+    if (first.state !== "committed") throw new Error("count probe opener did not commit");
+    const baseline = await counter.query(api.messages.conversationView, { conversationId });
+    if (!("data" in baseline) || baseline.data?.count !== 1) throw new Error("count probe baseline was not 1");
+    const sent = await counter.mutation(api.messages.send, { conversationId, body: "count me" });
+    if (sent.state !== "committed") throw new Error("member send did not commit");
+    const updated = await counter.query(api.messages.conversationView, { conversationId });
+    if ((updated.state !== "complete" && updated.state !== "capped") || updated.data?.count !== 2) {
+      throw new Error(`maintained message count did not increment to 2: ${JSON.stringify(updated)}`);
+    }
+
+    const removed = await counter.mutation(api.messages.unsend, { messageId: sent.data.id });
+    if (removed.state !== "committed") throw new Error("count probe cleanup did not commit");
+    const restored = await counter.query(api.messages.conversationView, { conversationId });
+    if (!("data" in restored) || restored.data?.count !== 1) throw new Error("count did not decrement to 1");
+    const outsider = await charlie.query(api.messages.conversationView, { conversationId: "conversation-1" });
+    if (outsider.state !== "denied") throw new Error("conversation metadata query admitted an outsider");
+    const inboxAfter = await bob.query(api.messages.inbox, { c: null });
+    if ((inboxAfter.state !== "complete" && inboxAfter.state !== "capped") || !Array.isArray(inboxAfter.data)) {
+      throw new Error("final inbox was not a usable array");
+    }
+    if (JSON.stringify(inboxAfter.data) !== JSON.stringify(inboxBefore.data)) {
+      throw new Error("count probe changed the shared member inbox for later journeys");
+    }
+  } finally {
+    await Promise.all([bob.close(), charlie.close(), counter.close(), peer.close()]);
+  }
+});
+
 journey("alice posts to the room and a non-member cannot", async ({ as }) => {
   const alice = as("alice");
   const charlie = as("charlie");
-  const before = await alice.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
+  const before = await alice.query(api.messages.thread, { conversationId: "conversation-1", c: null });
   if ((before.state !== "complete" && before.state !== "capped") || !Array.isArray(before.data)) throw new Error("thread did not return rows");
-  const sent = await alice.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "hello bob" });
+  const sent = await alice.mutation(api.messages.send, { conversationId: "conversation-1", body: "hello bob" });
   if (sent.state !== "committed") throw new Error(`post was ${sent.state}`);
-  const after = await alice.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
+  const after = await alice.query(api.messages.thread, { conversationId: "conversation-1", c: null });
   if (!("data" in after) || !after.data?.some((row: LogRow) => row.message?.body === "hello bob")) throw new Error("posted message was not readable through the log");
-  const rejected = await charlie.mutation(api.deliveries.post, {
+  const rejected = await charlie.mutation(api.messages.send, {
     conversationId: "conversation-1",
     body: "must not cross the membership boundary",
   });
   if (rejected.state !== "rejected") throw new Error("a non-member posted into a private room");
-  const sideAfter = await alice.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
+  const sideAfter = await alice.query(api.messages.thread, { conversationId: "conversation-1", c: null });
   if (sideAfter.state !== "complete") throw new Error(`thread became ${sideAfter.state}`);
   if (sideAfter.seq !== after.seq) throw new Error("rejected post committed message or delivery work");
   if (bodies(sideAfter.data).includes("must not cross the membership boundary")) {
@@ -99,13 +87,13 @@ journey("bob replies and alice's live log thread updates", async ({ as }) => {
   const alice = as("alice");
   const bob = as("bob");
   const thread = alice.subscribe(
-    api.deliveries.thread,
+    api.messages.thread,
     { conversationId: "conversation-1", c: null },
     () => {},
   );
   try {
     await thread.until((delivery) => delivery.state === "complete");
-    const sent = await bob.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "hello alice" });
+    const sent = await bob.mutation(api.messages.send, { conversationId: "conversation-1", body: "hello alice" });
     if (sent.state !== "committed") throw new Error(`reply was ${sent.state}`);
     await thread.until((delivery) => "data" in delivery && bodies(delivery.data).includes("hello alice"));
   } finally {
@@ -113,15 +101,15 @@ journey("bob replies and alice's live log thread updates", async ({ as }) => {
   }
 });
 
-journey("alice sends and reads back a JPEG photo and synthesized MP4 clip", async ({ as }) => {
+journey("alice sends and reads back a JPEG photo and MP4 clip", async ({ as }) => {
   const alice = as("alice");
   const charlie = as("charlie");
   try {
-    const validJpeg = fixtureJpeg();
+    const validJpeg = await fixture("fixtures/photo.jpg");
     const photoSent = await alice.mutation(api.messages.sendPhoto, {
       conversationId: "conversation-1",
       photo: {
-        uri: `data:image/jpeg;base64,${base64(validJpeg)}`,
+        uri: `data:image/jpeg;base64,${btoa(String.fromCharCode(...validJpeg))}`,
         fileSize: validJpeg.byteLength,
         mimeType: "image/jpeg",
       },
@@ -129,7 +117,7 @@ journey("alice sends and reads back a JPEG photo and synthesized MP4 clip", asyn
     if (photoSent.state !== "committed") throw new Error(`photo send was ${photoSent.state}`);
     const clipSent = await alice.mutation(api.messages.sendClip, {
       conversationId: "conversation-1",
-      clip: new File([synthesizedMp4().buffer as ArrayBuffer], "clip.mp4", { type: "video/mp4" }),
+      clip: new File([await fixture("fixtures/clip.mp4")], "clip.mp4", { type: "video/mp4" }),
     });
     if (clipSent.state !== "committed") throw new Error(`clip send was ${clipSent.state}`);
     if (clipSent.data.duration !== 2_000) throw new Error(`clip duration was ${clipSent.data.duration}`);
@@ -145,12 +133,12 @@ journey("alice sends and reads back a JPEG photo and synthesized MP4 clip", asyn
     });
     if (rejected.state !== "rejected") throw new Error("asset mutation unexpectedly accepted an outsider");
     // The successful upload remains unclaimed, so the server's locator-null
-    // reclamation pass can collect this orphan (LLP 1006 §9).
+    // reclamation pass can collect this orphan.
 
     const thread = await alice.query(api.messages.thread, { conversationId: "conversation-1" });
     if (!("data" in thread) || !Array.isArray(thread.data)) throw new Error("asset thread did not return rows");
-    const photo = thread.data.find((row) => row.id === photoSent.data.id)?.photo;
-    const clip = thread.data.find((row) => row.id === clipSent.data.id)?.clip;
+    const photo = thread.data.find((row) => row.messageId === photoSent.data.id)?.message?.photo;
+    const clip = thread.data.find((row) => row.messageId === clipSent.data.id)?.message?.clip;
     if (!photo || photo.width !== 8 || photo.height !== 8) throw new Error("JPEG record was not readable");
     if (!clip || clip.width !== 2 || clip.height !== 2 || clip.duration !== 2_000) {
       throw new Error("MP4 record was not readable");
@@ -302,26 +290,6 @@ journey("group creation bootstraps one creator admin atomically", async ({ as })
   }
 });
 
-journey("conversation metadata stays inside membership", async ({ as }) => {
-  const bob = as("bob");
-  const charlie = as("charlie");
-  try {
-    const member = await bob.query(api.messages.summary, { conversationId: "conversation-1" });
-    if (!("data" in member) || member.data?.conversation?.title !== "General") {
-      throw new Error("member could not read the conversation shell");
-    }
-    if (typeof member.data.messageCount !== "number") {
-      throw new Error("member could not read the maintained message count");
-    }
-
-    const outsider = await charlie.query(api.messages.summary, { conversationId: "conversation-1" });
-    if (outsider.state !== "denied") throw new Error("conversation metadata query admitted an outsider");
-  } finally {
-    bob.close();
-    charlie.close();
-  }
-});
-
 journey("scoped roles reject non-admin and stale membership authority", async ({ as }) => {
   const alice = as("alice");
   const bob = as("bob");
@@ -408,7 +376,7 @@ journey("scoped roles reject non-admin and stale membership authority", async ({
 journey("offline drain removes an unsent body and survives a cold restart", async ({ as }) => {
   const alice = as("alice", { store: "file" });
   const drain = alice.subscribe(
-    api.deliveries.inbox,
+    api.messages.inbox,
     { c: null },
     () => undefined,
     { drain: true },
@@ -417,7 +385,7 @@ journey("offline drain removes an unsent body and survives a cold restart", asyn
     (value.state === "complete" || value.state === "capped") && value.caughtUp === true);
   await alice.offline();
   const owner = as("alice");
-  const unsent = await owner.mutation(api.deliveries.unsend, { messageId: "message-1" });
+  const unsent = await owner.mutation(api.messages.unsend, { messageId: "message-1" });
   if (unsent.state !== "committed") throw new Error(`unsend was ${unsent.state}`);
   owner.close();
   await alice.online();
@@ -427,11 +395,11 @@ journey("offline drain removes an unsent body and survives a cold restart", asyn
       row.kind === "removed" && row.messageId === "message-1"));
   // Pin the current head for the derived cold-replay comparison. A local
   // notification may show the tombstone before the tail's decode completes.
-  await alice.query(api.deliveries.inbox, { c: null });
+  await alice.query(api.messages.inbox, { c: null });
   drain.close();
   await alice.offline();
   const cold = await alice.restart();
-  const held = await cold.query(api.deliveries.inbox, { c: null });
+  const held = await cold.query(api.messages.inbox, { c: null });
   if ((held.state !== "complete" && held.state !== "capped" && held.state !== "partial")
     || !("connection" in held) || held.connection !== "offline" || !Array.isArray(held.data)) {
     throw new Error("cold offline inbox did not render its held answer");
@@ -441,21 +409,18 @@ journey("offline drain removes an unsent body and survives a cold restart", asyn
   }
 });
 
-// @ref LLP 1012#9-asset-bytes-on-the-device — bytes render offline under the row's
-// lease, a viewed view-once photo never renders again, and an unsent row's bytes
-// leave with the row on resume (lane O4, the web half of §10's witness).
 journey("viewed photos render from the byte cache offline; a view-once photo and an unsent row do not", async ({ as }) => {
   let viewOnceId: string | undefined;
   const alice = as("alice", { store: "file" });
   const owner = as("alice");
   try {
-    const validJpeg = fixtureJpeg();
+    const validJpeg = await fixture("fixtures/photo.jpg");
     const sent: Array<{ id: string; photo: ImageAsset }> = [];
     for (let index = 0; index < 3; index += 1) {
       const result = await owner.mutation(index === 2 ? api.messages.sendOncePhoto : api.messages.sendPhoto, {
         conversationId: "conversation-1",
         photo: {
-          uri: `data:image/jpeg;base64,${base64(validJpeg)}`,
+          uri: `data:image/jpeg;base64,${btoa(String.fromCharCode(...validJpeg))}`,
           fileSize: validJpeg.byteLength,
           mimeType: "image/jpeg",
         },
@@ -470,7 +435,7 @@ journey("viewed photos render from the byte cache offline; a view-once photo and
     await thread.until((delivery) => (delivery.state === "complete" || delivery.state === "capped")
       && "data" in delivery
       && Array.isArray(delivery.data)
-      && sent.every((message) => delivery.data.some((row: { id?: string }) => row?.id === message.id)));
+      && sent.every((message) => delivery.data.some((row: { messageId?: string; message?: { id?: string } | null }) => row.message?.id === message.id)));
     thread.close();
     const urls: string[] = [];
     for (const message of sent) {
@@ -494,18 +459,18 @@ journey("viewed photos render from the byte cache offline; a view-once photo and
     }
     if (!viewedRefused) throw new Error("a viewed view-once photo rendered again after the restart");
     const held = await cold.query(api.messages.thread, { conversationId: "conversation-1", c: null });
-    if (!("data" in held) || !Array.isArray(held.data) || held.data.some((row: { id?: string } | null) => row?.id === viewOnceId)) {
+    if (!("data" in held) || !Array.isArray(held.data) || held.data.some((row: { messageId?: string; message?: { id?: string } | null } | null) => row?.message?.id === viewOnceId)) {
       throw new Error("a viewed view-once row survived in the held thread");
     }
     const mounted = cold.subscribe(api.messages.thread, { conversationId: "conversation-1", c: null }, () => undefined);
     await mounted.until((delivery) => "data" in delivery && Array.isArray(delivery.data));
-    const unsent = await owner.mutation(api.deliveries.unsend, { messageId: sent[0]!.id });
+    const unsent = await owner.mutation(api.messages.unsend, { messageId: sent[0]!.id });
     if (unsent.state !== "committed") throw new Error(`unsend was ${unsent.state}`);
     await cold.online();
     await mounted.until((delivery) => delivery.live === true
       && "data" in delivery
       && Array.isArray(delivery.data)
-      && !delivery.data.some((row: { id?: string } | null) => row?.id === sent[0]!.id));
+      && !delivery.data.some((row: { messageId?: string; message?: { id?: string } | null } | null) => row?.message?.id === sent[0]!.id));
     mounted.close();
     await cold.offline();
     let gone = false;
@@ -521,18 +486,14 @@ journey("viewed photos render from the byte cache offline; a view-once photo and
   }
 });
 
-// @ref LLP 1018.003#3-tombstones-are-declared-certified-and-shared — eviction follows the schema's `tombstones` line; devices pass no callback.
-// @ref LLP 1012#10-carriers-the-fast-loop-and-the-witness — the send step:
-// queued offline, on screen across a cold start, replayed in order, and a 503
-// after the commit is never a double send.
 journey("offline sends queue, survive a restart, replay in order, and a 503 after a commit is exactly once", async ({ as }) => {
   const alice = as("alice", { store: "file" });
-  const drain = alice.subscribe(api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
+  const drain = alice.subscribe(api.messages.inbox, { c: null }, () => undefined, { drain: true });
   await drain.until((value) => (value.state === "complete" || value.state === "capped") && value.caughtUp === true);
   drain.close();
   await alice.offline();
-  const first = await alice.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "queued one" });
-  const second = await alice.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "queued two" });
+  const first = await alice.mutation(api.messages.send, { conversationId: "conversation-1", body: "queued one" });
+  const second = await alice.mutation(api.messages.send, { conversationId: "conversation-1", body: "queued two" });
   if (first.state !== "queued" || second.state !== "queued") throw new Error(`offline sends were ${first.state} and ${second.state}`);
   const cold = await alice.restart();
   const queued = await cold.outbox.entries();
@@ -549,9 +510,9 @@ journey("offline sends queue, survive a restart, replay in order, and a 503 afte
   if (settled.map((entry) => entry.state).join() !== "committed,committed") {
     throw new Error(`replay settled as ${settled.map((entry) => entry.state).join()}`);
   }
-  const tail = cold.subscribe(api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
+  const tail = cold.subscribe(api.messages.inbox, { c: null }, () => undefined, { drain: true });
   await tail.until((value) => (value.state === "complete" || value.state === "capped") && value.caughtUp === true);
-  const thread = await cold.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
+  const thread = await cold.query(api.messages.thread, { conversationId: "conversation-1", c: null });
   if (!("data" in thread) || !Array.isArray(thread.data)) throw new Error("thread did not return rows");
   const rows = thread.data.filter((row: LogRow) => row.message?.body === "queued one" || row.message?.body === "queued two");
   if (rows.length !== 2) throw new Error(`expected exactly one row per send, saw ${rows.length}`);
@@ -565,31 +526,30 @@ journey("offline sends queue, survive a restart, replay in order, and a 503 afte
 
 journey("offline edits reject stale reads by trace, and past-fence edits by the program CONFLICT", async ({ as }) => {
   const alice = as("alice", { store: "file" });
-  const drain = alice.subscribe(api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
+  const drain = alice.subscribe(api.messages.inbox, { c: null }, () => undefined, { drain: true });
   await drain.until((value) => (value.state === "complete" || value.state === "capped") && value.caughtUp === true);
-  const posted = await alice.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "original" });
+  const posted = await alice.mutation(api.messages.send, { conversationId: "conversation-1", body: "original" });
   if (posted.state !== "committed") throw new Error(`post was ${posted.state}`);
-  const second = await alice.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "left alone" });
+  const second = await alice.mutation(api.messages.send, { conversationId: "conversation-1", body: "left alone" });
   if (second.state !== "committed") throw new Error(`second post was ${second.state}`);
   await drain.until((value) => "data" in value && bodies(value.data).includes("original") && bodies(value.data).includes("left alone"));
   await alice.offline();
-  const edit = await alice.mutation(api.deliveries.edit, { messageId: posted.data.id, body: "mine", baseBody: "original" });
+  const edit = await alice.mutation(api.messages.edit, { messageId: posted.data.id, body: "mine", baseBody: "original" });
   if (edit.state !== "queued") throw new Error(`offline edit was ${edit.state}`);
   // A second message nobody else touches: the same edit with a trace that still holds commits.
-  const untouched = await alice.mutation(api.deliveries.edit, { messageId: second.data.id, body: "left alone, edited", baseBody: "left alone" });
+  const untouched = await alice.mutation(api.messages.edit, { messageId: second.data.id, body: "left alone, edited", baseBody: "left alone" });
   if (untouched.state !== "queued") throw new Error(`the second offline edit was ${untouched.state}`);
   const queued = await alice.outbox.entries();
   for (const intent of [edit.intent, untouched.intent]) {
     const item = queued.find(item => item.intent === intent);
     if (item?.state !== "queued") throw new Error(`offline edit ${intent} was not retained as queued`);
-    // @ref LLP 1012#7-writes-offline — the twin traced the row it read: the point with the wire digest.
     const point = item.trace?.points.find((candidate) => candidate.table === "messages" && candidate.index === "byId");
     if (item.predicted !== true || !point || !/^[0-9a-f]{64}$/.test(point.digest ?? "")) {
       throw new Error(`the offline edit was queued without its trace: ${JSON.stringify(item.trace)}`);
     }
   }
   const owner = as("alice");
-  const theirs = await owner.mutation(api.deliveries.edit, { messageId: posted.data.id, body: "theirs", baseBody: "original" });
+  const theirs = await owner.mutation(api.messages.edit, { messageId: posted.data.id, body: "theirs", baseBody: "original" });
   if (theirs.state !== "committed") throw new Error(`the owner's edit was ${theirs.state}`);
   owner.close();
   await alice.online();
@@ -597,14 +557,14 @@ journey("offline edits reject stale reads by trace, and past-fence edits by the 
   const entry = (await alice.outbox.entries()).find((item) => item.intent === edit.intent);
   if (entry?.state !== "rejected") throw new Error(`the stale edit settled as ${entry?.state}`);
   const response = entry.response as { code?: string; reason?: string; site?: string };
-  // Trace validation names the moved read before the program's own `CONFLICT` can (LLP 1012 §7).
+  // Trace validation names the moved read before the program's own `CONFLICT` can.
   if (response.reason !== "conflict" || response.code !== "E_OFFLINE_CONFLICT" || typeof response.site !== "string") {
     throw new Error(`the stale edit was refused for another reason: ${JSON.stringify(response)}`);
   }
   const matching = (await alice.outbox.entries()).find((item) => item.intent === untouched.intent);
   if (matching?.state !== "committed") throw new Error(`the matching edit settled as ${matching?.state}: ${JSON.stringify(matching?.response)}`);
   await drain.until((value) => "data" in value && bodies(value.data).includes("theirs"));
-  const thread = await alice.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
+  const thread = await alice.query(api.messages.thread, { conversationId: "conversation-1", c: null });
   if (!("data" in thread) || !bodies(thread.data).includes("theirs") || bodies(thread.data).includes("mine")) {
     throw new Error("the conflict did not leave the owner's edit in place");
   }
@@ -615,7 +575,7 @@ journey("offline edits reject stale reads by trace, and past-fence edits by the 
   try {
     await alice.offline();
     Date.now = () => pastFenceNow;
-    const late = await alice.mutation(api.deliveries.edit, { messageId: posted.data.id, body: "late edit", baseBody: "original" });
+    const late = await alice.mutation(api.messages.edit, { messageId: posted.data.id, body: "late edit", baseBody: "original" });
     if (late.state !== "queued") throw new Error(`past-fence edit was ${late.state}`);
     const pending = (await alice.outbox.entries()).find((item) => item.intent === late.intent);
     if (pending?.predicted !== false || pending.reason !== "fence"
@@ -635,32 +595,27 @@ journey("offline edits reject stale reads by trace, and past-fence edits by the 
   drain.close();
 });
 
-// @ref LLP 1012#6-reads-offline — the acceptance only the twin can pass: a
-// conversation the viewer never opened online renders from the drained log
-// through `thread`, and a send queued offline appears inside that thread's
-// result as predicted, in order, then settles under the same pinned id.
 journey("a never-opened chat renders offline from the drained log and an offline send is predicted into it in order", async ({ as }) => {
   const bob = as("bob", { store: "file" });
-  const drain = bob.subscribe(api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
+  const drain = bob.subscribe(api.messages.inbox, { c: null }, () => undefined, { drain: true });
   await drain.until((value) => (value.state === "complete" || value.state === "capped") && value.caughtUp === true);
   drain.close();
   await bob.offline();
-  const local = await bob.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
+  const local = await bob.query(api.messages.thread, { conversationId: "conversation-1", c: null });
   if (local.state !== "complete" || !("connection" in local) || local.connection !== "offline" || !Array.isArray(local.data)) {
     throw new Error(`the never-opened thread was ${local.state} offline${"reason" in local ? ` (${String(local.reason)})` : ""}`);
   }
-  const sent = await bob.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "from the train" });
+  const sent = await bob.mutation(api.messages.send, { conversationId: "conversation-1", body: "from the train" });
   if (sent.state !== "queued") throw new Error(`offline send was ${sent.state}`);
   const [entry] = await bob.outbox.entries();
   if (entry?.predicted !== true) throw new Error("the send was queued without a prediction");
   if (!entry.trace?.points.some((point) => point.table === "memberships" && typeof point.digest === "string")) {
     throw new Error(`the trace lacks the membership read: ${JSON.stringify(entry.trace)}`);
   }
-  // @ref LLP 1012#7-writes-offline — `maintain messageCounts` is the server's write: the prediction names what it omits.
   if (JSON.stringify(entry.omitted) !== JSON.stringify(["messageCounts"])) {
     throw new Error(`the prediction did not name the omitted aggregate: ${JSON.stringify(entry.omitted)}`);
   }
-  const predicted = await bob.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
+  const predicted = await bob.query(api.messages.thread, { conversationId: "conversation-1", c: null });
   if (!("data" in predicted) || !Array.isArray(predicted.data)) throw new Error("the predicted thread did not return rows");
   // `last 50` pages newest-first: the queued send leads.
   if (predicted.data[0]?.message?.id !== postedMessage.id(entry) || predicted.data[0]?.message?.body !== "from the train") {
@@ -671,7 +626,7 @@ journey("a never-opened chat renders offline from the drained log and an offline
   await bob.settled();
   const settled = (await bob.outbox.entries()).find((item) => item.intent === sent.intent);
   if (settled?.state !== "committed") throw new Error(`the predicted send settled as ${settled?.state}: ${JSON.stringify(settled?.response)}`);
-  const online = await bob.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
+  const online = await bob.query(api.messages.thread, { conversationId: "conversation-1", c: null });
   if (!("data" in online) || !Array.isArray(online.data)) throw new Error("the online thread did not return rows");
   if (online.data[0]?.message?.id !== postedMessage.id(entry)) throw new Error("the server row does not carry the pinned id the prediction used");
   // The offline replay before the send was the server's answer: same rows in the same order, the send aside.
@@ -680,11 +635,6 @@ journey("a never-opened chat renders offline from the drained log and an offline
   if (replayed !== served) throw new Error(`the offline thread differed from the server's: ${replayed} vs ${served}`);
 });
 
-// @ref LLP 1012#7-writes-offline — fan-out beyond 1:1: the twin mints the
-// viewer's own delivery row under a pinned id the server does not use (the
-// server iterates every member), so the overlay is superseded by seq and
-// table, never by id: one bubble while queued, the message id stable, no
-// duplicate delivery row after settle, and every other member delivered once.
 journey("a send queued offline into a three-member group shows one bubble, keeps its message id, leaves no duplicate delivery, and reaches both other members once", async ({ as }) => {
   const alice = as("alice");
   const charlie = as("charlie");
@@ -696,19 +646,19 @@ journey("a send queued offline into a three-member group shows one bubble, keeps
     if (trio.state !== "committed") throw new Error(`group creation was ${trio.state}`);
     const conversationId = trio.data.id;
     // A first message lands a delivery in bob's log, whose read rule pools his membership: the send below is predictable.
-    const opener = await alice.mutation(api.deliveries.post, { conversationId, body: "welcome to the trio" });
+    const opener = await alice.mutation(api.messages.send, { conversationId, body: "welcome to the trio" });
     if (opener.state !== "committed") throw new Error(`the opener was ${opener.state}`);
-    const drain = bob.subscribe(api.deliveries.inbox, { c: null }, () => undefined, { drain: true });
+    const drain = bob.subscribe(api.messages.inbox, { c: null }, () => undefined, { drain: true });
     await drain.until((value) => (value.state === "complete" || value.state === "capped") && value.caughtUp === true
       && "data" in value && bodies(value.data).includes("welcome to the trio"));
     drain.close();
     await bob.offline();
-    const sent = await bob.mutation(api.deliveries.post, { conversationId, body: "to the trio" });
+    const sent = await bob.mutation(api.messages.send, { conversationId, body: "to the trio" });
     if (sent.state !== "queued") throw new Error(`the offline send was ${sent.state}`);
     const entry = (await bob.outbox.entries()).find((item) => item.intent === sent.intent);
     if (entry?.predicted !== true) throw new Error("the group send was queued without a prediction");
     if (JSON.stringify(entry.omitted) !== JSON.stringify(["messageCounts"])) throw new Error(`omitted was ${JSON.stringify(entry.omitted)}`);
-    const queued = await bob.query(api.deliveries.thread, { conversationId, c: null });
+    const queued = await bob.query(api.messages.thread, { conversationId, c: null });
     if (!("data" in queued) || !Array.isArray(queued.data)) throw new Error("the predicted thread did not return rows");
     const bubbles = queued.data.filter((row: LogRow) => row.message?.id === postedMessage.id(entry));
     if (bubbles.length !== 1 || bubbles[0]?.message?.body !== "to the trio") throw new Error(`expected one bubble while queued, saw ${bubbles.length}`);
@@ -718,20 +668,20 @@ journey("a send queued offline into a three-member group shows one bubble, keeps
     if (settled?.state !== "committed") throw new Error(`the group send settled as ${settled?.state}: ${JSON.stringify(settled?.response)}`);
     const response = settled.response as { data?: { id?: string } };
     if (response.data?.id !== postedMessage.id(entry)) throw new Error("the server minted the message under another id than the prediction");
-    const served = await bob.query(api.deliveries.thread, { conversationId, c: null });
+    const served = await bob.query(api.messages.thread, { conversationId, c: null });
     if (!("data" in served) || !Array.isArray(served.data)) throw new Error("the online thread did not return rows");
     const rows = served.data.filter((row: LogRow) => row.messageId === postedMessage.id(entry));
     if (rows.length !== 1 || rows[0]?.message?.id !== postedMessage.id(entry)) throw new Error(`expected exactly one delivery row for the send online, saw ${rows.length}`);
     // Offline again: the twin's overlay left with the settlement's tail, so the server's row is the only one.
     await bob.offline();
-    const replayed = await bob.query(api.deliveries.thread, { conversationId, c: null });
+    const replayed = await bob.query(api.messages.thread, { conversationId, c: null });
     if (!("data" in replayed) || !Array.isArray(replayed.data)) throw new Error("the offline thread did not return rows");
     const duplicates = replayed.data.filter((row: LogRow) => row.messageId === postedMessage.id(entry));
     if (duplicates.length !== 1) throw new Error(`the prediction's delivery row survived beside the server's: ${duplicates.length} rows`);
     if ("predicted" in replayed && replayed.predicted?.some((row) => row.intent === sent.intent)) throw new Error("a settled send is still marked predicted");
     await bob.online();
     for (const [name, member] of [["alice", alice], ["charlie", charlie]] as const) {
-      const inbox = await member.query(api.deliveries.inbox, { c: null });
+      const inbox = await member.query(api.messages.inbox, { c: null });
       if (!("data" in inbox) || !Array.isArray(inbox.data)) throw new Error(`${name}'s inbox did not return rows`);
       const delivered = inbox.data.filter((row: LogRow) => row.messageId === postedMessage.id(entry));
       if (delivered.length !== 1 || delivered[0]?.message?.body !== "to the trio") {
@@ -744,20 +694,18 @@ journey("a send queued offline into a three-member group shows one bubble, keeps
   }
 });
 
-// @ref LLP 1016#d5--schedules-row-timers-and-periods-on-the-owners-clock — the purge is driven by the schedule alone: every client is closed between the write and the firing.
-// Last on purpose: it advances the owner's clock, and an offline journey's predictions carry the client's clock.
 journey("an expiring message is purged by the owner's schedule with every client closed", async ({ as, tick }) => {
   const clock = await tick(0);
   const alice = as("alice");
   const expiresAt = Date.now() + Number(clock.offsetMs ?? 0) + 3_600_000;
-  const sent = await alice.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "gone in an hour", expiresAt });
+  const sent = await alice.mutation(api.messages.send, { conversationId: "conversation-1", body: "gone in an hour", expiresAt });
   if (sent.state !== "committed") throw new Error(`expiring post was ${sent.state}`);
-  const before = await alice.query(api.deliveries.thread, { conversationId: "conversation-1", c: null });
+  const before = await alice.query(api.messages.thread, { conversationId: "conversation-1", c: null });
   if (!("data" in before) || !bodies(before.data).includes("gone in an hour")) throw new Error("expiring message was not delivered before its deadline");
   alice.close();
   await tick(3_600_001);
   const bob = as("bob");
-  const thread = bob.subscribe(api.deliveries.inbox, { c: null }, () => {});
+  const thread = bob.subscribe(api.messages.inbox, { c: null }, () => {});
   try {
     const purged = await thread.until((delivery) => "data" in delivery && Array.isArray(delivery.data)
       && delivery.data.some((row: LogRow) => row.kind === "expired" && row.messageId === sent.data.id));

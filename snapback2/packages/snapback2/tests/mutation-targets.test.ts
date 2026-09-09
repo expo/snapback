@@ -66,7 +66,7 @@ test("a mounted mutation hook captures a changed semantic target of the same ope
   const show = (reference: any) => React.createElement(SnapbackProvider, { client }, React.createElement(Harness, { reference }));
   try {
     await client.ready; await client.offline();
-    const refs = [api.deliveries.post, mutationTarget(api.deliveries.post, "messages"), mutationTarget(api.deliveries.post, "deliveries"), api.deliveries.post];
+    const refs = [api.messages.send, mutationTarget(api.messages.send, "messages"), mutationTarget(api.messages.send, "deliveries"), api.messages.send];
     for (const [index, reference] of refs.entries()) {
       await act(async () => { if (rendered) rendered.update(show(reference)); else rendered = TestRenderer.create(show(reference)); });
       await act(async () => { await hook!.run({ conversationId: "conversation-1", body: `send ${index}` }); });

@@ -82,8 +82,8 @@ test("withHistory refuses a different table and a second level of custody", () =
   assert.equal(declared.history.items, thread);
 });
 
-const threadItems = defineItems(api.deliveries.thread as any, { table: "messages", select: (d: any) => d.message, order: "reverse" });
-const conversationItems = withHistory(defineItems(api.deliveries.conversationView as any, {
+const threadItems = defineItems(api.messages.thread as any, { table: "messages", select: (d: any) => d.message, order: "reverse" });
+const conversationItems = withHistory(defineItems(api.messages.conversationView as any, {
   table: "messages", rows: (v: any) => v.messages, select: (d: any) => d.message, order: "reverse",
 }), { items: threadItems, args: ({ conversationId }: any) => ({ conversationId, c: null }) });
 const viewArgs = { conversationId: "c" }, threadArgs = { conversationId: "c", c: null };
@@ -118,29 +118,29 @@ test("retained projections stay partial while their certified page boundary and 
   ];
   const receipt = { ranges: [], absences: [], verdicts: [] };
   const { queries, publish } = host();
-  const observed = queries.observe(api.deliveries.conversationView, viewArgs, { items: conversationItems });
+  const observed = queries.observe(api.messages.conversationView, viewArgs, { items: conversationItems });
   const stop = observed.subscribe(() => undefined);
   try {
     await store.open("alice");
     for (const hidden of [false, true]) await store.commit({ retention: { messages: "delivered-history" }, deliveries: [{
-      op: "deliveries.conversationView", args: viewArgs, state: "capped", seq: hidden ? 11 : 10,
+      op: "messages.conversationView", args: viewArgs, state: "capped", seq: hidden ? 11 : 10,
       data: { messages: data(hidden), count: hidden ? 1 : 2, preview: [data(hidden)[1]] },
       next: "composite-page-2", rows: hidden ? [image("m1")] : [image("m1"), image("m2")], receipt,
     }, {
-      op: "deliveries.thread", args: threadArgs, state: "capped", seq: hidden ? 11 : 10,
+      op: "messages.thread", args: threadArgs, state: "capped", seq: hidden ? 11 : 10,
       data: data(hidden), next: "history-page-2", rows: hidden ? [image("m1")] : [image("m1"), image("m2")], receipt,
     }] });
     const show = async (count: number | null) => {
-      const held = await store.answer<any>("deliveries.conversationView", viewArgs);
-      const history = await store.answer<any>("deliveries.thread", threadArgs);
+      const held = await store.answer<any>("messages.conversationView", viewArgs);
+      const history = await store.answer<any>("messages.thread", threadArgs);
       assert.equal(held?.state, "partial", "retained old bodies beside a current scalar do not form a certified composite");
       assert.equal(held?.data.count, count);
       assert.equal(offlineView({ ...held!, state: "capped" }, { state: "partial", reason: "never-held", seq: 12 }).state,
         "partial", "an older retained receipt cannot certify its locally altered projection");
       assert.equal(history?.state, "partial", "an altered array projection also loses whole-result completeness");
       assert.equal(history?.next, "history-page-2", "the old certified boundary does not depend on restored scalar fields");
-      publish("deliveries.conversationView", offlineView(held, { state: "partial", reason: "never-held", seq: 12 }));
-      publish("deliveries.thread", offlineView(history, { state: "denied", rule: "MEMBERSHIP_REQUIRED", seq: 12 }));
+      publish("messages.conversationView", offlineView(held, { state: "partial", reason: "never-held", seq: 12 }));
+      publish("messages.thread", offlineView(history, { state: "denied", rule: "MEMBERSHIP_REQUIRED", seq: 12 }));
       const snapshot = observed.getSnapshot();
       assert.equal(snapshot.itemsFrom, "history", "partial custody never lends a retained count to the composite");
       assert.equal(snapshot.receipt?.outcome, "partial");
@@ -150,7 +150,7 @@ test("retained projections stay partial while their certified page boundary and 
       assert.equal(snapshot.history?.receipt?.next, "history-page-2");
       assert.equal(snapshot.history?.local.retained, true);
       assert.equal(snapshot.items.find(item => item.key === "m1")?.data?.body, "m1");
-      publish("deliveries.thread", { state: "partial", data: [], reason: "never-held", seq: 12, live: false, next: "unproved" });
+      publish("messages.thread", { state: "partial", data: [], reason: "never-held", seq: 12, live: false, next: "unproved" });
       assert.equal(observed.getSnapshot().history?.receipt?.next, null, "an ordinary local partial cannot introduce a cursor");
     };
     await show(1);
@@ -160,7 +160,7 @@ test("retained projections stay partial while their certified page boundary and 
     await show(null);
     const repairedRow = { position: "first", message: row("m1") };
     const repaired = { state: "capped" as const, data: { messages: [repairedRow], count: 1, preview: [repairedRow] }, next: null, seq: 13 };
-    publish("deliveries.conversationView", offlineView(await store.answer("deliveries.conversationView", viewArgs), repaired));
+    publish("messages.conversationView", offlineView(await store.answer("messages.conversationView", viewArgs), repaired));
     assert.equal(observed.getSnapshot().itemsFrom, "query", "an exact local reconstruction restores usable composite data");
     assert.equal(observed.getSnapshot().data?.count, 1);
     assert.equal(observed.getSnapshot().history, undefined);
@@ -169,7 +169,7 @@ test("retained projections stay partial while their certified page boundary and 
 
 test("the composition acquires history at subscribe time, releases it on a usable composite, and shares one object", () => {
   const { queries, publish } = host();
-  const view = api.deliveries.conversationView, thread = api.deliveries.thread;
+  const view = api.messages.conversationView, thread = api.messages.thread;
   const composed = queries.observe(view, viewArgs, { items: conversationItems });
   assert.equal(queries.consumers(view, viewArgs), 0, "obtaining a composition opens nothing");
   assert.equal(composed.getSnapshot().itemsFrom, "drafts");
@@ -177,24 +177,24 @@ test("the composition acquires history at subscribe time, releases it on a usabl
   const stop = composed.subscribe(() => { seen.push(composed.getSnapshot().itemsFrom); });
   assert.equal(queries.consumers(view, viewArgs), 1);
   assert.equal(queries.consumers(thread, threadArgs), 0, "a loading composite is not eligible");
-  publish("deliveries.conversationView", { state: "partial", live: true, seq: 1, reason: "count" });
+  publish("messages.conversationView", { state: "partial", live: true, seq: 1, reason: "count" });
   assert.equal(queries.consumers(thread, threadArgs), 1, "a partial receipt acquires history in the same notification");
   assert.equal(composed.getSnapshot().history?.status, "loading");
   assert.equal(composed.getSnapshot().itemsFrom, "drafts");
-  publish("deliveries.thread", { state: "complete", live: true, seq: 1, next: null, data: [message] });
+  publish("messages.thread", { state: "complete", live: true, seq: 1, next: null, data: [message] });
   assert.equal(composed.getSnapshot().itemsFrom, "history");
   assert.equal(composed.getSnapshot().items[0]?.key, "m");
   const before = composed.getSnapshot();
   assert.equal(composed.getSnapshot(), before, "identity is stable between input changes");
   const notified = seen.length;
-  publish("deliveries.thread", { state: "complete", live: true, seq: 1, next: null, data: [message] });
+  publish("messages.thread", { state: "complete", live: true, seq: 1, next: null, data: [message] });
   assert.equal(composed.getSnapshot(), before, "an identical history republication changes nothing");
   assert.equal(seen.length, notified, "and notifies nobody");
-  publish("deliveries.conversationView", { state: "complete", live: true, seq: 2, next: null, data: { messages: [message], count: 1, preview: [message] } });
+  publish("messages.conversationView", { state: "complete", live: true, seq: 2, next: null, data: { messages: [message], count: 1, preview: [message] } });
   assert.equal(queries.consumers(thread, threadArgs), 0, "a usable composite releases history and retires its entry");
   assert.equal(composed.getSnapshot().itemsFrom, "query");
   assert.equal(composed.getSnapshot().history, undefined);
-  publish("deliveries.conversationView", { state: "partial", live: true, seq: 3, reason: "count" });
+  publish("messages.conversationView", { state: "partial", live: true, seq: 3, reason: "count" });
   assert.equal(queries.consumers(thread, threadArgs), 1, "a later partial reacquires history");
   assert.deepEqual(seen, ["drafts", "history", "query", "drafts"]);
 
@@ -203,7 +203,7 @@ test("the composition acquires history at subscribe time, releases it on a usabl
   const second = other.subscribe(() => undefined);
   assert.equal(queries.consumers(view, viewArgs), 1, "two consumers share one composite subscription");
   const unrelated = queries.observe(thread, threadArgs, { items: threadItems }).subscribe(() => undefined);
-  publish("deliveries.conversationView", { state: "complete", live: true, seq: 4, next: null, data: { messages: [], count: 0, preview: [] } });
+  publish("messages.conversationView", { state: "complete", live: true, seq: 4, next: null, data: { messages: [], count: 0, preview: [] } });
   assert.equal(queries.consumers(thread, threadArgs), 1, "the composition releases only its own history subscription");
   unrelated();
   second(); stop(); stop();
@@ -215,13 +215,13 @@ test("the composition acquires history at subscribe time, releases it on a usabl
 test("handles created before any subscribe join one composition, in either cleanup order", () => {
   for (const order of ["first-then-second", "second-then-first"] as const) {
     const { queries, publish } = host();
-    const view = api.deliveries.conversationView, thread = api.deliveries.thread;
+    const view = api.messages.conversationView, thread = api.messages.thread;
     const first = queries.observe(view, viewArgs, { items: conversationItems });
     const second = queries.observe(view, viewArgs, { items: conversationItems });
     const stopFirst = first.subscribe(() => undefined);
     const stopSecond = second.subscribe(() => undefined);
     assert.equal(queries.consumers(view, viewArgs), 1, `${order}: two handles share one composite subscription`);
-    publish("deliveries.conversationView", { state: "partial", live: true, seq: 1, reason: "count" });
+    publish("messages.conversationView", { state: "partial", live: true, seq: 1, reason: "count" });
     assert.equal(queries.consumers(thread, threadArgs), 1, `${order}: and one history subscription`);
     assert.equal(first.getSnapshot(), second.getSnapshot(), `${order}: both handles read one record`);
     (order === "first-then-second" ? stopFirst : stopSecond)();
@@ -235,7 +235,7 @@ test("handles created before any subscribe join one composition, in either clean
 
 test("each subscription is its own attachment, listeners are isolated, and a listener removed mid-broadcast does not run", () => {
   const { queries, publish } = host();
-  const view = api.deliveries.conversationView;
+  const view = api.messages.conversationView;
   const composed = queries.observe(view, viewArgs, { items: conversationItems });
   const calls: string[] = [];
   const shared = () => { calls.push("shared"); };
@@ -243,13 +243,13 @@ test("each subscription is its own attachment, listeners are isolated, and a lis
   const stopB = composed.subscribe(shared);
   stopA();
   assert.equal(queries.consumers(view, viewArgs), 1, "the second subscription of the same callback survives the first's close");
-  publish("deliveries.conversationView", { state: "partial", live: true, seq: 1, reason: "count" });
+  publish("messages.conversationView", { state: "partial", live: true, seq: 1, reason: "count" });
   assert.deepEqual(calls, ["shared"]);
   let stopLate: () => void = () => undefined;
   const stopThrowing = composed.subscribe(() => { stopLate(); throw new Error("listener failure"); });
   stopLate = composed.subscribe(() => { calls.push("late"); });
   const stopAfter = composed.subscribe(() => { calls.push("after"); });
-  publish("deliveries.conversationView", { state: "partial", live: true, seq: 2, reason: "count" });
+  publish("messages.conversationView", { state: "partial", live: true, seq: 2, reason: "count" });
   assert.deepEqual(calls, ["shared", "shared", "after"], "a throwing listener silences nobody; a listener removed during the broadcast does not run");
   stopB(); stopThrowing(); stopAfter(); stopB();
   assert.equal(queries.consumers(view, viewArgs), 0);
@@ -258,11 +258,11 @@ test("each subscription is its own attachment, listeners are isolated, and a lis
 test("clear() retires registered compositions with and without an authority change, and a fresh handle opens again", () => {
   for (const change of [false, true]) {
     const { queries, publish, reset, clear } = host();
-    const view = api.deliveries.conversationView, thread = api.deliveries.thread;
+    const view = api.messages.conversationView, thread = api.messages.thread;
     const composed = queries.observe(view, viewArgs, { items: conversationItems });
     const states: string[] = [];
     composed.subscribe(() => { states.push(composed.getSnapshot().status); });
-    publish("deliveries.conversationView", { state: "partial", live: true, seq: 1, reason: "count" });
+    publish("messages.conversationView", { state: "partial", live: true, seq: 1, reason: "count" });
     assert.equal(queries.consumers(thread, threadArgs), 1);
     if (change) reset(); else clear();
     assert.equal(queries.consumers(view, viewArgs), 0, `clear(change=${change}) released the composition's subscriptions`);
@@ -280,9 +280,9 @@ test("clear() retires registered compositions with and without an authority chan
 
 test("a composition subscribed to an already-partial composite acquires history at once; remount and reset behave", () => {
   const { queries, publish, reset } = host();
-  const view = api.deliveries.conversationView, thread = api.deliveries.thread;
+  const view = api.messages.conversationView, thread = api.messages.thread;
   const raw = queries.observe(view, viewArgs).subscribe(() => undefined);
-  publish("deliveries.conversationView", { state: "partial", live: true, seq: 1, reason: "count" });
+  publish("messages.conversationView", { state: "partial", live: true, seq: 1, reason: "count" });
   const composed = queries.observe(view, viewArgs, { items: conversationItems });
   assert.equal(queries.consumers(thread, threadArgs), 0);
   const stop = composed.subscribe(() => undefined);

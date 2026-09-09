@@ -28,23 +28,23 @@ for (const observers of [0, 1, 4]) {
         if (new URL(String(input)).pathname === "/api/mutation") { attempts += 1; entered(); await held; }
         return owner.fetch(input, init);
       } });
-    const views = Array.from({ length: observers }, () => client.outbox.observe(api.deliveries.post));
+    const views = Array.from({ length: observers }, () => client.outbox.observe(api.messages.send));
     const detach = views.map(view => view.subscribe(() => undefined));
     try {
       await client.ready; await client.offline();
-      await client.mutation(api.deliveries.post, { conversationId: engineId(10), body: "one" });
+      await client.mutation(api.messages.send, { conversationId: engineId(10), body: "one" });
       const delivery = client.online();
       await sent; await pause();
-      const active = await client.outbox.status(api.deliveries.post);
+      const active = await client.outbox.status(api.messages.send);
       assert.equal(active.draining, true);
       assert.equal(readiness(active, client.snapshot.connection, 1).action, "wait");
       for (const view of views) assert.equal(view.getSnapshot().status.draining, true);
       assert.equal(attempts, 1, "observations never start replay");
       release(); await delivery;
       assert.equal((await client.outbox.settled()).stopped, "transport");
-      await client.query(api.deliveries.inbox, { c: null });
+      await client.query(api.messages.inbox, { c: null });
       assert.equal(client.snapshot.connection, "connected");
-      const paused = await client.outbox.status(api.deliveries.post);
+      const paused = await client.outbox.status(api.messages.send);
       assert.equal(paused.draining, undefined);
       assert.equal(readiness(paused, client.snapshot.connection, 1).action, "connect");
       assert.match(readiness(paused, "connected", 1).reason!.message, /Sync to resume/);
@@ -72,9 +72,9 @@ test("follower readiness keeps its inbox contract while detail.writer observes r
     } });
   await writer.ready;
   const follower = createClient({ url: "http://ready-writer.test", as: "alice", fetch: owner.fetch, offline: { store } });
-  const view = follower.outbox.observe(api.deliveries.post), close = view.subscribe(() => undefined);
+  const view = follower.outbox.observe(api.messages.send), close = view.subscribe(() => undefined);
   let mutation: any, outbox: any, renderer: TestRenderer.ReactTestRenderer | undefined, delivery: Promise<void>;
-  function Harness() { mutation = useMutation(api.deliveries.post); outbox = useOutbox(); return null; }
+  function Harness() { mutation = useMutation(api.messages.send); outbox = useOutbox(); return null; }
   const until = async (condition: () => boolean) => {
     for (let attempt = 0; attempt < 300; attempt++) { if (condition()) return; await pause(); }
     assert.fail("follower did not receive writer activity");
@@ -84,7 +84,7 @@ test("follower readiness keeps its inbox contract while detail.writer observes r
     await act(async () => {
       renderer = TestRenderer.create(React.createElement(SnapbackProvider, { client: follower, children: React.createElement(Harness) }));
       await writer.offline();
-      await writer.mutation(api.deliveries.post, { conversationId: engineId(10), body: "shared activity" });
+      await writer.mutation(api.messages.send, { conversationId: engineId(10), body: "shared activity" });
       delivery = writer.online();
       await sent; await until(() => view.getSnapshot().writer?.draining === true);
     });
@@ -120,10 +120,10 @@ for (const carrier of ["file", "IndexedDB"]) {
     const client = createClient({ url: "http://ready.test", as: "alice", fetch: fakeOwner().fetch, offline: { store: () => (store = factory()) } });
     try {
       await client.ready;
-      assert.equal(await client.outbox.ready(api.deliveries.post), true);
+      assert.equal(await client.outbox.ready(api.messages.send), true);
       await store.seal();
       assert.equal(await client.outbox.ready(), false);
-      assert.equal(await client.outbox.ready(api.deliveries.post), false);
+      assert.equal(await client.outbox.ready(api.messages.send), false);
     } finally { await client.close(); await rm(root, { recursive: true, force: true }); }
   });
 }
@@ -136,14 +136,14 @@ async function mounted() {
   const rendered: Array<{ op: string; ready: boolean }> = [];
   function Harness({ op }: { op: string }) {
     client = useSnapbackClient();
-    mutation = useMutation((api as any).deliveries[op]);
+    mutation = useMutation((api as any).messages[op]);
     outbox = useOutbox();
     rendered.push({ op, ready: mutation.can.send });
     return null;
   }
   const view = (op: string) => React.createElement(SnapbackProvider,
     { url: "http://react-ready.test", as: "alice", fetch: owner.fetch, offline: { store } }, React.createElement(Harness, { op }));
-  await act(async () => { renderer = TestRenderer.create(view("post")); });
+  await act(async () => { renderer = TestRenderer.create(view("send")); });
   await act(async () => { await client.ready; await pause(); });
   return { get client() { return client; }, get mutation() { return mutation; }, get outbox() { return outbox; }, rendered,
     async change(op: string) { await act(async () => { renderer.update(view(op)); }); },
@@ -158,10 +158,10 @@ test("bound adoption alone updates useMutation.ready without an entries change",
     await act(async () => { await ledger.recordBounds({}); await ledger.adopt(grant()); await pause(); });
     assert.equal(f.outbox.can.send, true);
     assert.equal(f.mutation.can.send, false);
-    await act(async () => { await ledger.recordBounds({ "deliveries.post": 51 }); await pause(); });
+    await act(async () => { await ledger.recordBounds({ "messages.send": 51 }); await pause(); });
     assert.equal(f.mutation.can.send, true);
     assert.deepEqual(f.outbox.entries, []);
-    await act(async () => { await ledger.recordBounds({ "deliveries.post": 100 }); await pause(); });
+    await act(async () => { await ledger.recordBounds({ "messages.send": 100 }); await pause(); });
     assert.equal(f.mutation.can.send, false, "a larger bound no longer fits the same grant");
   } finally { await f.close(); }
 });

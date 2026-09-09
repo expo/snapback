@@ -5,16 +5,11 @@ import { Inbox, type LogRow } from "./Inbox";
 import { Search } from "./Search";
 import { Thread } from "./Thread";
 
-// @ref LLP 1012#3-the-model-on-one-page-and-the-program-shape — one drained
-// delivery log is "everything on the phone"; the inbox and retained-history
-// fallback read the same held rows while named search stays indexed.
-// @ref LLP 1018.003#1-the-snapshot-record — screens read the snapshot axes;
-// status and reason are derived by the SDK.
 export function App() {
   const connection = useConnection();
   const auth = useAuth();
   const outbox = useOutbox();
-  const inbox = useQuery(api.deliveries.inbox, { c: null }, { drain: true });
+  const inbox = useQuery(api.messages.inbox, { c: null }, { drain: true });
   const rows = (inbox.data ?? []) as LogRow[];
   const [selected, setSelected] = useState<string>();
   const [note, setNote] = useState("");

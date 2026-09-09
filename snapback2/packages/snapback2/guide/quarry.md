@@ -6,17 +6,16 @@ Quarry is the backend language. `check` compiles in memory; inspection goes in
 ## Project
 
 `snapback/schema.q` holds `use identity`, tables, maintains and channels.
-Stems name API namespaces:
-`messages.q` exports `api.messages.thread`.
-
-TypeScript is only seeds, tests, and effect I/O. Effect/`.q` stems differ.
+`.q` stems name API/shape namespaces; `messages.q` exports
+`api.messages.thread`. TypeScript is only seeds, tests, and effect I/O;
+otherwise use Quarry. Effect/`.q` stems differ.
 
 ## Types and tables
 
 Virtual `connected[p]` yields the int connection count for `p: principal`;
 `exists connected[p]` tests presence; see `guide connected`.
 
-Columns and arguments use `principal`, `id`, table references, `int`, `time`,
+Column/argument types: `principal`, `id`, table references, `int`, `time`,
 `bool`, `decimal <scale>`, `money <CUR> [scale]`, `text <=N`, `text M..N`,
 `json <=N`, `bytes <=N`, `enum(...)`, and bounded lists `[type] <=N`. Decimal
 and money scales are integers 0–12 (money defaults to 2; its currency is three
@@ -59,9 +58,9 @@ A non-empty text literal in an Id position (key, merge prefix, equality,
 or `??` fallback) is an Id on the wire; text expressions and wrong-table refs
 refuse. A cursor position takes the token, never an Id literal.
 
-Tables get `id` and `byId` implicitly. `by name: a, b` declares a named
-ordering. `unique name: a, b` declares a named unique
-ordering and its uniqueness constraint. Declarations name their indexes;
+Tables get `id` and `byId` implicitly.
+`by name: a, b` declares a named ordering. `unique name: a, b` declares a named
+unique ordering and its uniqueness constraint. Declarations name their indexes;
 unnamed indexes refuse with an inferred-name repair. `id` may
 appear in an index. `immutable a, b` forbids changes to those columns.
 `cap N by a, b` holds every group at N rows (an omitted optional column is the
@@ -196,11 +195,11 @@ name or one-hop row field in its then branch; `if x = null:` narrows the else.
 `wordPrefixes(field)` index and an ordinary bounded prefix read; there is no
 public `words()` value function. See `guide live-query` for indexing and editing.
 
-`now` is the read clock in queries and the commit clock in mutations; `commit` is
-the commit clock, the same instant in mutations. `now` is pinned
-once per request rather than redrawn; `new` allocates a fresh ID on each
-evaluation.
+`now` is the read clock in queries, the commit clock in mutations; `commit`
+is the commit clock. `now` is pinned per request rather than redrawn;
+`new` allocates a fresh ID per evaluation.
 
+Inserts return rows; omit optional columns you do not use.
 Writes: `insert table { fields }`, `update table[key] { patch }`,
 `upsert table[key] { row }`, `delete table[key]`. Non-insert keys must be complete
 unique keys, including composite alternatives. Alternate-key update/delete
@@ -218,8 +217,7 @@ no value. A body's final write is an implicit return; never in a proc.
 
 ## Effects
 
-TypeScript exports the effect body and imports its `then` mutation from a
-Quarry file's virtual module, as in the chat template.
+TypeScript effects import their Quarry `then` mutation.
 
 `snapback/notifications.q`:
 
@@ -238,34 +236,32 @@ exports `notify = effect({ grants, run, then: recordNotified })`. The `run`
 body performs I/O using its granted `fetch`; `meta.id` is its idempotency key.
 See `snapback2 guide effects` for the executable TypeScript recipe.
 
+`messages.thread` reads the delivery log; `conversationView` adds count/preview.
+Use `withHistory` for declared partial history.
 `snapback/messages.q`:
 
 ```q
-effect notify from delivery
-fn isMember from access
-proc deliver from access
-
 query thread(conversationId: conversations, c: cursor ?):
   require isMember(conversationId, viewer) else MEMBERSHIP_REQUIRED
-  return messages[conversationId] after c last 50
-
+  page = deliveries[viewer, conversationId, 'message'] after c last 50 by byRecipientConversationKindAt
+  return page { *, message: messages[.messageId] }
 ```
 
 Send:
 
 ```q
-mutation send(conversationId: conversations, recipientId: profiles, body: text <=4000):
+mutation send(conversationId: conversations, body: text <=4000, expiresAt: time ?):
   require isMember(conversationId, viewer) else NOT_MEMBER
-  recipient = profiles[recipientId] ! else RECIPIENT_UNKNOWN
-  require isMember(conversationId, recipient.principal) else RECIPIENT_NOT_MEMBER
-  row = insert messages { conversationId, authorId: viewer, body, photo: null, clip: null, at: now }
+  row = insert messages { conversationId, authorId: viewer, body, expiresAt, at: now }
   deliver(conversationId, row.id, 'message')
-  emit notify { to: recipient.principal, body }
+  for member in conversationMembers(conversationId):
+    if member.principal != viewer:
+      emit notify { to: member.principal, body }
   return { id: row.id }
 ```
 
-Edit/unsend target current members. Departed recipients evict unsent bodies by
-point absence on held-page revalidation, not tombstones (LLP 1012 §5).
+Edit/unsend fan out to current members. Tombstones and held-page point
+absences evict removed bodies.
 
 ## Absence and bounds
 

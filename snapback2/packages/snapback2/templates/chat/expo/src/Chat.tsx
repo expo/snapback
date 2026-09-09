@@ -6,13 +6,11 @@ import { Inbox, type LogRow } from "./screens/Inbox";
 import { Thread } from "./screens/Thread";
 import { Search } from "./screens/Search";
 
-// @ref LLP 1018.003#1-the-snapshot-record — screens read data, status, and
-// reason from one truthful snapshot record.
 export function Chat() {
   const connection = useConnection();
   const outbox = useOutbox();
   const [showChanges, setShowChanges] = useState(false);
-  const inbox = useQuery(api.deliveries.inbox, { c: null }, { drain: true });
+  const inbox = useQuery(api.messages.inbox, { c: null }, { drain: true });
   const rows = (inbox.data ?? []) as LogRow[];
   const [selected, select] = useState<string>();
   return <SafeAreaView style={{ flex: 1, backgroundColor: "#f7f7fb" }}>

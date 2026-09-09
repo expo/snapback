@@ -30,7 +30,7 @@ function envelope(data: unknown, validator = "1".repeat(64), seq = 3) {
   };
 }
 async function seededResumeStore(root: string, exact = false): Promise<void> {
-  const identity = exact ? certifiedDrain : { op: "deliveries.inbox", generation, schemaHash };
+  const identity = exact ? certifiedDrain : { op: "messages.inbox", generation, schemaHash };
   const store = fileRangeStore(root)();
   await store.open("dev:alice");
   await store.commit({
@@ -221,6 +221,6 @@ test('aborting an in-flight resume preserves AbortError without publishing a del
     const resumed = client.online(); const rejection = assert.rejects(resumed,error => error.name === 'AbortError' && !(error instanceof SnapbackRefusal));
     await waiting; await client.offline(); await rejection;
     assert.equal(client.snapshot.lastRefusal,undefined);
-    assert.equal((await client.query(api.deliveries.inbox as any,{ c: null })).state,'complete');
+    assert.equal((await client.query(api.messages.inbox as any,{ c: null })).state,'complete');
   } finally { await client.close(); await rm(root,{ recursive: true,force: true }); }
 });
