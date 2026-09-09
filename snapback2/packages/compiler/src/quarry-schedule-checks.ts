@@ -12,11 +12,17 @@ export function registerScheduleChecks(test: Test, frontend: string): void {
     const lowered = await lowerProject(fixture);
     assert(lowered.ok, JSON.stringify(lowered));
     const schedules = lowered.project.schema.schedules ?? [];
-    assert(schedules.length === 2, JSON.stringify(schedules));
+    assert(schedules.length === 4, JSON.stringify(schedules));
     const daily = schedules.find((s) => s.name === "dailyDigest")!;
     const expire = schedules.find((s) => s.name === "expireMessage")!;
+    const recipeDigest = schedules.find((s) => s.name === "recipeDigest")!;
+    const recipePrune = schedules.find((s) => s.name === "recipePeriodUnreadPrune")!;
     assert(JSON.stringify(daily.trigger) === '{"every":{"durationMs":86400000}}' && daily.target === "admin.digestSweep", JSON.stringify(daily));
     assert(JSON.stringify(expire.trigger) === '{"row":{"table":"messages","column":"expiresAt"}}' && expire.target === "admin.purgeMessage", JSON.stringify(expire));
+    assert(JSON.stringify(recipeDigest.trigger) === '{"every":{"durationMs":120000}}'
+      && recipeDigest.target === "digest-recipes.periodDigestSweep", JSON.stringify(recipeDigest));
+    assert(JSON.stringify(recipePrune.trigger) === '{"every":{"durationMs":120000}}'
+      && recipePrune.target === "digest-recipes.pruneRecipePeriodUnread", JSON.stringify(recipePrune));
     const expireBinding = lowered.project.programs.find((p) => p.name === expire.binding)!;
     const dailyBinding = lowered.project.programs.find((p) => p.name === daily.binding)!;
     assert(expireBinding?.kind === "Query" && Object.keys(expireBinding.args).join() === "id", JSON.stringify(expireBinding));
@@ -114,14 +120,16 @@ export function registerScheduleChecks(test: Test, frontend: string): void {
     const certificate = checked.find((item) => item.program === job.name)!.certificate!;
     assert(certificate.kind === "job" && (certificate.perChunk as any[]).length === 1, JSON.stringify(certificate));
     const body = JSON.stringify(job.body);
-    for (const required of ["digestFollows", "postPeriodCounters", "memberships", "pendingReadPeriodByChat", "digests", "pushLog", "push.notify"]) {
+    for (const required of ["digestFollows", "postPeriodCounters", "memberships", "periodUnreadByMembershipPeriod", "digests", "pushLog", "push.notify"]) {
       assert(body.includes(required), `digest job lost ${required}`);
     }
     assert(!body.includes("unreadMessageTotals") && !body.includes("unreadChatCounts"), "digest job used standing unread totals");
     const source = readFileSync(resolve(fixture, "snapback/digest-recipes.q"), "utf8");
     const schema = readFileSync(resolve(fixture, "snapback/schema.q"), "utf8");
     assert(source.includes("digestFollows[p.principal] first 500 by byFollower")
-      && source.includes("memberships[p.principal] first 100 by byPrincipalConversation"), "digest selection lost its 500/100 envelope");
+      && source.includes("memberships[p.principal] first 100 by byPrincipalConversation { id, conversationId }")
+      && source.includes("periodUnreadByMembershipPeriod[p.principal, membership.conversationId, membership.id, periodStart]"),
+    "digest selection lost its 500/100 or membership-incarnation envelope");
     assert(schema.includes("cap 500 by follower") && schema.includes("cap 100 by principal"), "digest pages are not storage-bounded");
     assert(source.includes("if cfg.replayMode = false:")
       && source.includes("if newFollowers != 0 or summary.newPostsInFollowing != 0 or summary.unreadMessages != 0 or summary.unreadChats != 0:"),
@@ -132,6 +140,10 @@ export function registerScheduleChecks(test: Test, frontend: string): void {
     const post = JSON.stringify(operation(lowered.project.programs, "digest-recipes.createRecipePost").body);
     assert(post.includes("posts") && post.includes("postPeriodCounters")
       && !post.includes("digestFollows") && !post.includes("For"), "post creation lost its follower-independent period counter");
+    const prune = operation(lowered.project.programs, "digest-recipes.pruneRecipePeriodUnread");
+    assert(prune.kind === "job" && JSON.stringify(prune.body).includes("periodUnread"), "period unread prune lost owner custody");
+    assert(source.includes("row.periodStart < currentPeriodStart - cfg.digestPeriodMs"),
+      "period unread prune can race the last completed digest bucket");
   });
   test("Quarry schedules refuse non-time columns, bad targets, and sub-minute or calendar durations with the schedule family", async () => {
     const schema = readFileSync(resolve(fixture, "snapback/schema.q"), "utf8");

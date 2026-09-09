@@ -19,9 +19,11 @@ Clique app required learning those combinations from compiler experiments.
 The expiry card now teaches explicit deadline precedence and one helper across
 text/media sends. The effects card teaches a shared 80-scalar preview. The
 schedule card now routes period digests through current bounded selection,
-transactionally maintained period inputs, atomic unique record/log/effect
+membership-incarnation period custody with scoped author/recipient access,
+owner-only maintained counts and pruning, atomic unique record/log/effect
 admission, replay mode, and an all-zero quiet-period skip. It also records the
 create/delete/update obligation when an explicit compact counter replaces an
 over-budget declarative maintain, and prevents a bounded read from claiming
 later unread rows cleared. Executable expiry/preview and digest fixtures retain
-the recipes. No provider request is part of their proof.
+the recipes; test-only inspection separately proves the private row rule. No
+provider request is part of their proof.

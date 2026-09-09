@@ -1848,10 +1848,13 @@ follower-scaled post writes, but the first faithful 500-follow/100-membership
 atomic recipe still certified at 4,516,191 bytes, above the 4 MiB closure
 ceiling. Splitting it into persisted passes introduced stale authorization.
 Replacing the wide post `maintain` with one compact per-author/period counter,
-updated beside all six current original-post inserts, brought the copied app
-to 2,824,066 closure bytes with one readable three-field scratch row. Current
-memberships plus period pending-read counts stay in the same profile transaction
-as the unique digest, log and effect. The counter requires paired maintenance
-before any future post delete or key-changing update; this app currently
-exposes neither. Exact and Contract were not used, and this correction makes no
-new competitor claim.
+updated beside all six current original-post inserts, left room for a private
+period-unread row keyed by membership incarnation. The copied app's final
+digest certifies at 3,080,266 closure bytes with one readable three-field
+scratch row. The row-rule surprise was that message existence alone does not
+prove the author's current chat authority: the author arm needed both explicit
+membership and own-message probes. A separate owner prune safely removes old
+incarnations only after the last completed bucket. The counter requires paired
+maintenance before any future post delete or key-changing update; this app
+currently exposes neither. Exact and Contract were not used, and this
+correction makes no new competitor claim.

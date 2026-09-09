@@ -112,14 +112,18 @@ table memberships:
   update <- deny
   delete <- allow
 
-table pendingRead:
+table periodUnread:
   messageId: messages
   recipient: principal
   conversationId: conversations
+  membershipId: memberships
   periodStart: time
   unique byMessageRecipient: messageId, recipient
-  by byRecipientConversation: recipient, conversationId, messageId
-  cap 50 by recipient, conversationId
+  by byRecipientConversationMembership: recipient, conversationId, membershipId, messageId
+  by byPeriod: periodStart, id
+  cap 50 by recipient, conversationId, membershipId
+  cap 50 by messageId
+  immutable messageId, recipient, conversationId, membershipId, periodStart
   public
   insert <- allow
   update <- deny
@@ -151,5 +155,5 @@ table digests:
 maintain newFollowerPeriodCounts: count follows by followed, periodStart
   read <- allow
 
-maintain pendingReadPeriodByChat: count pendingRead by recipient, conversationId, periodStart
+maintain periodUnreadByMembershipPeriod: count periodUnread by recipient, conversationId, membershipId, periodStart
   read <- allow
