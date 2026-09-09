@@ -527,6 +527,7 @@ fn runtime_input_message_does_not_repeat_its_code() {
 fn runtime_requirement_message_does_not_embed_its_application_code() {
     let refusal = Refusal::from_runtime(&RuntimeError::Require {
         code: "MEMBERSHIP_REQUIRED".to_owned(),
+        site: None,
     });
     assert_eq!(refusal.code, "MEMBERSHIP_REQUIRED");
     assert_eq!(refusal.message, "program requirement failed");

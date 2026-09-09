@@ -129,7 +129,9 @@ test("witness configuration temp rename preserves the prior version on failure a
 });
 
 test("attribution regex matches actual esbuild input-map sources and excludes non-twin client modules", async () => {
-  const map = JSON.parse(await readFile(join(packageRoot, "dist/client.mjs.map"), "utf8"));
+  const maps = await Promise.all(["client", "client-runtime"].map(async entry =>
+    JSON.parse(await readFile(join(packageRoot, `dist/${entry}.mjs.map`), "utf8"))));
+  const map = { sources: [...new Set(maps.flatMap(map => map.sources as string[]))] };
   const matched = map.sources.filter((path: string) => twinSource.test(path));
   assert.ok(matched.some((path: string) => path.endsWith("/src/twin.ts")));
   assert.ok(matched.some((path: string) => path.endsWith("/src/twin-hydrate.ts")));

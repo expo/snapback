@@ -284,6 +284,7 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
       const survivor = await second.until(resolved, 5000);
       second.close(); secondOpen = false;
       return { two, one, zero: window.__diagnostics.sharedConsumers(client, op, args), seq: [a.seq, b.seq, survivor.seq],
+        authoritativeNext: (await client.query(op, args)).next ?? null,
         next: [a.next, b.next, survivor.next], sameIdentity: a.data === b.data && b.data === survivor.data,
         data: [a.data, b.data, survivor.data] };
     } finally {
@@ -293,7 +294,7 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
   }, sharedArgs);
   assert.deepEqual([shared.two, shared.one, shared.zero], [2, 1, 0]);
   assert.equal(new Set(shared.seq).size, 1);
-  assert.deepEqual(shared.next, [null, null, null], "the composite record has no continuation");
+  assert.deepEqual(shared.next, Array(3).fill(shared.authoritativeNext), "shared consumers preserve the authoritative continuation");
   assert.equal(shared.sameIdentity, true, "both consumers read the entry's one immutable value");
   assert.deepEqual(shared.data[0], shared.data[1]);
   assert.deepEqual(shared.data[0], shared.data[2]);
@@ -609,7 +610,11 @@ async function main() {
     const predictedView = await openChat(page, coherentConversation);
     await context.setOffline(false);
     await page.evaluate(async () => { await window.__snapback.online(); await window.__snapback.outbox.settled(); });
-    await page.waitForSelector(`li[data-message="${predictedComposite.ids[0]}"][data-state="row"]`, { timeout: 10_000 });
+    await page.waitForFunction(({ id, seq }) => {
+      const summary = document.querySelector("section[aria-label=Thread] .thread-summary");
+      return document.querySelector(`section[aria-label=Thread] li[data-message="${id}"][data-state="row"]`)
+        && Number(summary?.getAttribute("data-view-seq")) > Number(seq);
+    }, { id: predictedComposite.ids[0], seq: predictedView.seq }, { timeout: 10_000 });
     const settledView = await openChat(page, coherentConversation);
     const removed = await page.evaluate((messageId) =>
       window.__snapback.mutation(window.__api.messages.unsend, { messageId }), predictedComposite.ids[0]);

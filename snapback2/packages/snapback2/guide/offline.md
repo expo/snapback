@@ -1,6 +1,6 @@
 # Offline
 
-`offline.store` is a factory returning a store with `open()`. Call its builder:
+`offline.store` is a factory of stores with `open()`. Call its builder:
 
 ```js
 import { createClient } from "snapback2/client";
@@ -11,10 +11,11 @@ const client = createClient({
 });
 ```
 
-IndexedDB and Web Locks are required. Expo `<SnapbackProvider url persona
+Requires IndexedDB and Web Locks. Expo `<SnapbackProvider url persona
 offline>` from `snapback2/react-native` owns its client, with SQLite and secure
 token custody by default. `startOffline` on either provider/client preserves
-the transport cut through startup; only explicit `online()` reconnects.
+the startup transport cut; only `online()` reconnects.
+Clients share one packaged offline runtime.
 
 Expiry seals; session change wipes. One writer/account; web followers read live,
 submit inbox rows, and inherit the writer queue on closure. Uploads,
@@ -30,8 +31,7 @@ Cursor argument through aliases/shapes/branches. Auxiliary reads add no coverage
 Snapshots carry one page; edits/removals append events. Other shapes
 refuse E_OFFLINE_RESUME (`unsupported-log`). `next` pages older newest-first
 results. `caughtUp`: exhausted; `live`: tail active.
-Offline drains need held eligibility; repeated cursors refuse. Offline traversal
-retains its watermark. Covered reads are exact; others partial.
+Offline drains need held eligibility; repeated cursors refuse. Offline keeps its watermark. Covered reads are exact; others partial.
 
 ## Recovery
 

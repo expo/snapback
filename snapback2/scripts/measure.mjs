@@ -13,6 +13,7 @@ import { resolve, dirname } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
+import { createRequire } from "node:module";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const args = new Set(process.argv.slice(2));
@@ -87,8 +88,44 @@ function scoreChecks(checks, budget, failedSteps, report = console.log, refuse =
 const failedSummary = (failedSteps) => `failed steps: ${[...failedSteps].join(", ")}`;
 
 const byteFields = ["client_gzip_bytes", "react_gzip_bytes", "expo_gzip_bytes", "runtime_gzip_bytes"];
+const byteToolchain = { node: "v24.18.0", esbuild: "0.25.9", gzipLevel: 9 };
+const byteFormat = "packaged-esm-closure-gzip-v1";
+const comparableToolchain = toolchain => Object.entries(byteToolchain).every(([key, value]) => toolchain?.[key] === value);
+const validByteValues = record => byteFields.every(field => Number.isSafeInteger(record[field]) && record[field] > 0);
+const comparableBytes = record => comparableToolchain(record.byte_toolchain) && record.byte_format === byteFormat;
+
+function publishByteMeasurements(record, values, toolchain, ok) {
+  // Keep rejected evidence separate from the fields that comparisons may trust.
+  record.byte_measurement = { values, toolchain, format: byteFormat, ok };
+  if (!comparableToolchain(toolchain)) {
+    throw new Error(`byte measurements require Node 24.18.0 / esbuild 0.25.9 / gzip 9: ${JSON.stringify(toolchain)}`);
+  }
+  if (!ok) return;
+  assert(validByteValues(values), "all four byte measurements must be positive integers");
+  Object.assign(record, values, { byte_toolchain: toolchain, byte_format: byteFormat });
+}
+
+function packagedEntryBytes(directory, entry) {
+  const ts = createRequire(resolve(directory, "../package.json"))("typescript");
+  const seen = new Set();
+  function visit(path) {
+    if (seen.has(path)) return 0;
+    seen.add(path);
+    const source = readFileSync(path, "utf8");
+    let bytes = gzipSync(source, { level: 9 }).length;
+    for (const statement of ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS).statements) {
+      const specifier = statement.moduleSpecifier?.text;
+      if (specifier?.startsWith(".")) bytes += visit(resolve(dirname(path), specifier));
+      else if (specifier?.startsWith("snapback2/")) bytes += visit(resolve(directory, `${specifier.slice(10)}.mjs`));
+    }
+    return bytes;
+  }
+  return visit(resolve(directory, `${entry}.mjs`));
+}
 
 function scoreBytes(record, history, failedSteps, report = console.log, refuse = fail) {
+  const previous = history.findLast(row => row.byte_baseline_accepted === true && comparableBytes(row)
+    && row.steps?.package_build_s?.ok === true && row.steps?.package_bytes_s?.ok === true && validByteValues(row));
   for (const field of byteFields) {
     const value = record[field];
     if (!Number.isSafeInteger(value) || value <= 0) {
@@ -96,12 +133,16 @@ function scoreBytes(record, history, failedSteps, report = console.log, refuse =
       refuse(`${field}: missing measurement`);
       continue;
     }
-    const previous = history.findLast(row => Number.isSafeInteger(row[field]) && row[field] > 0)?.[field];
-    if (previous === undefined) report(`ok ${field}: ${value} bytes (first record)`);
-    else if (value > previous * 1.01) {
+    if (!comparableBytes(record) || record.steps?.package_bytes_s?.ok !== true || record.steps?.package_build_s?.ok !== true) {
       failedSteps.add(field);
-      refuse(`${field}: ${value} bytes exceeds ${previous} by more than 1%`);
-    } else report(`ok ${field}: ${value} bytes ≤ ${previous} + 1%`);
+      refuse(`${field}: measurement failed or is not comparable`);
+      continue;
+    }
+    if (previous === undefined) report(`ok ${field}: ${value} bytes (first accepted comparable record)`);
+    else if (value > previous[field] * 1.01) {
+      failedSteps.add(field);
+      refuse(`${field}: ${value} bytes exceeds ${previous[field]} by more than 1%`);
+    } else report(`ok ${field}: ${value} bytes ≤ ${previous[field]} + 1%`);
   }
 }
 
@@ -180,16 +221,14 @@ function main() {
     (result) => `package build failed\n${result.stdout ?? ""}\n${result.stderr ?? ""}`);
   const packageDist = resolve(root, "packages/snapback2/dist");
   recordStep(record, failedSteps, "package_bytes_s", () => {
+    const values = {};
     for (const entry of ["client", "react", "expo"]) {
-      record[`${entry}_gzip_bytes`] = gzipSync(readFileSync(resolve(packageDist, `${entry}.mjs`)), { level: 9 }).length;
+      values[`${entry}_gzip_bytes`] = packagedEntryBytes(packageDist, entry);
     }
     const measured = run(process.execPath, ["build.mjs", "--measure-twin"], { cwd: resolve(root, "packages/snapback2") });
     const runtime = JSON.parse(measured.stdout);
-    record.runtime_gzip_bytes = runtime.gzip;
-    record.byte_toolchain = runtime.toolchain;
-    if (runtime.toolchain.node !== "v24.18.0" || runtime.toolchain.esbuild !== "0.25.9" || runtime.toolchain.gzipLevel !== 9) {
-      throw new Error(`byte measurements require Node 24.18.0 / esbuild 0.25.9 / gzip 9: ${JSON.stringify(runtime.toolchain)}`);
-    }
+    values.runtime_gzip_bytes = runtime.gzip;
+    publishByteMeasurements(record, values, runtime.toolchain, measured.status === 0 && record.steps.package_build_s.ok);
     return measured;
   }, 3, result => `package byte measurement failed\n${result.stdout ?? ""}\n${result.stderr ?? ""}`);
   const compilerEnv = {
@@ -293,16 +332,6 @@ function main() {
 
   try { record.production_binary_bytes = statSync(resolve(root, "target/production/snapback2")).size; } catch {}
 
-  try {
-    appendFileSync(historyPath, JSON.stringify(record) + "\n");
-  } catch (error) {
-    const message = errorText(error);
-    record.steps.metrics_append = { ok: false, error: message };
-    failedSteps.add("metrics_append");
-    fail(message);
-  }
-  console.log(JSON.stringify(record));
-
   if (args.has("--check")) {
     scoreBytes(record, history, failedSteps);
     // Budgets live in rules/RULES.md (the repo root); this parses the time table there.
@@ -330,28 +359,70 @@ function main() {
     ], (label) => label === "init → dev" ? 10 : 30, failedSteps);
   }
 
+  // Score before appending: a rejected regression can never approve its own retry.
+  record.byte_baseline_accepted = args.has("--check") && failedSteps.size === 0;
+  try {
+    appendFileSync(historyPath, JSON.stringify(record) + "\n");
+  } catch (error) {
+    const message = errorText(error);
+    record.steps.metrics_append = { ok: false, error: message };
+    failedSteps.add("metrics_append");
+    fail(message);
+  }
+  console.log(JSON.stringify(record));
   if (failedSteps.size > 0) console.error(`measure: ${failedSummary(failedSteps)}`);
 }
 
 function selfTest() {
-  const byteFailures = new Set(), byteLines = [];
-  const byteRecord = Object.fromEntries(byteFields.map(field => [field, 101]));
-  const byteHistory = [{ client_gzip_bytes: 100 }, { react_gzip_bytes: 100, expo_gzip_bytes: 100, runtime_gzip_bytes: 100 }, {}];
-  const score = () => scoreBytes(byteRecord, byteHistory, byteFailures, line => byteLines.push(line), line => byteLines.push(line));
-  score();
-  assert.equal(byteFailures.size, 0, "exactly 1% growth passes across missing historical fields");
-  for (const field of byteFields) byteRecord[field] = 102;
-  score();
-  assert.deepEqual([...byteFailures], byteFields, "all four regressions report in one run");
-  byteHistory.push(Object.fromEntries(byteFields.map(field => [field, 102])));
-  byteFailures.clear();
-  score();
-  assert.equal(byteFailures.size, 0, "the last record with each field is the baseline");
-  byteRecord.client_gzip_bytes = null;
-  score();
-  assert(byteFailures.has("client_gzip_bytes"), "missing measurements cannot pass");
-  scoreBytes({ ...byteRecord, client_gzip_bytes: 102 }, [], new Set(), line => byteLines.push(line));
-  assert.equal(byteLines.filter(line => line.includes("first record")).length, 4);
+  const byteLines = [];
+  const values = n => Object.fromEntries(byteFields.map(field => [field, n]));
+  const candidate = n => ({ ...values(n), byte_toolchain: byteToolchain, byte_format: byteFormat,
+    steps: { package_build_s: { ok: true }, package_bytes_s: { ok: true } } });
+  const accepted = n => ({ ...candidate(n), byte_baseline_accepted: true });
+  const score = (record, history) => {
+    const failures = new Set();
+    scoreBytes(record, history, failures, line => byteLines.push(line), line => byteLines.push(line));
+    record.byte_baseline_accepted = failures.size === 0;
+    return [...failures];
+  };
+  const baseline = accepted(100);
+  assert.deepEqual(score(candidate(101), [baseline]), [], "exactly 1% growth passes");
+  const rejected = candidate(102);
+  assert.deepEqual(score(rejected, [baseline]), byteFields, "all four regressions report");
+  assert.deepEqual(score(candidate(102), [baseline, rejected]), byteFields, "an unchanged retry still fails");
+  assert.deepEqual(score(candidate(103), [baseline, accepted(102)]), [], "latest accepted comparable baseline wins");
+  for (const amount of [90, 110]) {
+    const incompatible = { steps: { package_build_s: { ok: true }, package_bytes_s: { ok: false } } };
+    const toolchain = { ...byteToolchain, node: "v26.7.0" };
+    assert.throws(() => publishByteMeasurements(incompatible, values(amount), toolchain, true), /require Node 24/);
+    assert(byteFields.every(field => incompatible[field] === undefined), "incompatible values are never published as trusted fields");
+    assert.deepEqual(incompatible.byte_measurement.values, values(amount), "rejected evidence is retained");
+    // Even a historical writer that published incompatible values and marked them accepted is excluded.
+    const poisoned = { ...accepted(amount), byte_toolchain: toolchain };
+    assert.deepEqual(score(candidate(102), [baseline, incompatible, poisoned]), byteFields, "incompatible high history cannot hide regression");
+    assert.deepEqual(score(candidate(100), [baseline, incompatible, poisoned]), [], "incompatible low history cannot invent regression");
+  }
+  for (const step of ["package_build_s", "package_bytes_s"]) {
+    const failed = accepted(110);
+    failed.steps[step].ok = false;
+    assert.deepEqual(score(candidate(102), [baseline, failed]), byteFields, "failed measurement/build is not a baseline");
+    assert.deepEqual(score(failed, [baseline]), byteFields, "failed current measurement cannot pass");
+  }
+  const ceilingFailure = {};
+  publishByteMeasurements(ceilingFailure, { ...values(100), runtime_gzip_bytes: 84080 }, byteToolchain, false);
+  assert.equal(ceilingFailure.runtime_gzip_bytes, undefined, "a ceiling refusal publishes no trusted values");
+  assert.equal(ceilingFailure.byte_measurement.values.runtime_gzip_bytes, 84080, "a ceiling refusal retains raw evidence");
+  assert.deepEqual(score(candidate(102), [baseline, ceilingFailure]), byteFields);
+  const legacy = { ...values(110), byte_toolchain: byteToolchain, steps: { package_bytes_s: { ok: false } } };
+  assert.deepEqual(score(candidate(102), [baseline, legacy, {}, { ...accepted(110), client_gzip_bytes: null },
+    { ...accepted(110), byte_format: "leaf-gzip" }]), byteFields, "legacy, incomplete and differently scoped records are not baselines");
+  assert.deepEqual(score({ ...candidate(100), client_gzip_bytes: null }, [baseline]), ["client_gzip_bytes"]);
+  assert.deepEqual(score(candidate(100), [legacy]), [], "first comparable run ignores failed parent-SHA evidence");
+  assert.equal(byteLines.filter(line => line.includes("first accepted comparable record")).length, 4);
+  const published = { steps: { package_build_s: { ok: true }, package_bytes_s: { ok: true } } };
+  publishByteMeasurements(published, values(100), byteToolchain, true);
+  assert.deepEqual(score(published, [baseline]), [], "valid measurement is published and scored");
+  console.log("byte baseline self-test ok: boundary, regression, retry, accepted, incompatible high/low, failed build/measurement, ceiling, legacy, missing, scope and publication");
   const artifactRoot = mkdtempSync(resolve(tmpdir(), "snapback2-measure-artifact-"));
   const artifact = resolve(artifactRoot, "snapback2");
   writeFileSync(artifact, "same bytes");

@@ -78,7 +78,8 @@ the third on 2026-09-04, LLP 1012 §12):
   20 MB guide in the binary, no calendar freshness dates.
 - **WASM anywhere.** The client evaluator is the TypeScript twin. The complete
   local runtime has an **84,000-byte gzip ceiling**, **80,000 the target**,
-  frozen **2026-09-08 by the author's word**. A feature that does not fit is
+  frozen **2026-09-08 by the author's word**, superseding every prior allocation
+  increase. A feature that does not fit is
   descoped or paid for by deletion. The five-root measurement uses Node 24.18.0,
   esbuild 0.25.9, gzip level 9; all normalization data, decoding, indexes,
   incremental state, prediction and local cursors participate. Relocating
@@ -143,7 +144,8 @@ PR. If nothing can come off, the answer is no.
   persistent indexed twin, including exact held-search reads and local cursors;
   unblocks the same named search on already-synced messages warm and cold offline
   (brief M5/M6). **off:** Exact 2 until this search qualifies on React web and
-  Expo. The 1M-step,
+  Expo. **Budget:** 34,000 bytes gzip total twin, 30,000 target (historical;
+  superseded by the freeze above); the 1M-step,
   4 MiB closure, 8 MiB heap and 1 MiB output ceilings stay. **Build exception:**
   one ordinary `snapback2-core/build.rs` for pinned Unicode inputs to ignored
   build artifacts, coordinated with existing `build.mjs`; no new Unicode crate,

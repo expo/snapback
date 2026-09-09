@@ -77,6 +77,7 @@ fn policy_control_flow_rejects_statement_bodies_in_every_expression_position() {
             Stmt::Require {
                 condition: value.clone(),
                 code: "GUARD".into(),
+                site: None,
             },
             Stmt::Return(value.clone()),
         ];
@@ -260,6 +261,7 @@ fn revocation_candidate_prefers_a_membership_guard_dependency() {
         Stmt::Require {
             condition: Expr::Exists(read.clone()),
             code: "HAS_MESSAGE".into(),
+            site: None,
         },
         Stmt::If {
             condition: Expr::Exists(read),
@@ -739,6 +741,7 @@ fn policy_projection_proves_carrier_fields_and_blocks_mixed_protected_values() {
             Stmt::Require {
                 condition,
                 code: "HAS_MESSAGE".into(),
+                site: None,
             },
         );
         assert!(

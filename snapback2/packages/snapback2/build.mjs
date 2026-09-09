@@ -35,11 +35,6 @@ if (process.argv.includes("--measure-twin")) {
   if (gzip > 84000) throw new Error(`twin exceeds 84000 gzip bytes: ${gzip}`);
   process.exit(0);
 }
-if (process.argv.includes("--self-test")) {
-  await runGuideValidationSelfTest();
-  await runClientBundleSelfTest();
-  process.exit(0);
-}
 const dist = resolve(here, "dist");
 const packageBuildLock = resolve(here, "../../target/b2-package-build.lock");
 const packageBuildLockHeld = process.env.SNAPBACK2_PACKAGE_BUILD_LOCK_HELD === "1";
@@ -78,6 +73,7 @@ await build({ entryPoints: [resolve(here,'src/image-runtime.ts')], outdir: dist,
 
 const armBuilds = [{
   entryPoints: {
+    index: resolve(here, "src/index.ts"),
     react: resolve(here, "src/react.tsx"),
     "react-core": resolve(here, "src/react-core.tsx"),
     expo: resolve(here, "src/expo.ts"),
@@ -119,9 +115,8 @@ const armBuilds = [{
   plugins: [externalClient, imageRuntime()],
 }];
 
-// @ref LLP 1012#indexed-held-search — carriers share the client's complete runtime;
-// a direct internal import must not instantiate another store or twin.
-await build({ ...armBuilds[0], entryPoints: { index: resolve(here, "src/index.ts") } });
+// @ref LLP 1012#bytes--frozen-allocation — client and carriers share one private
+// runtime; forwarding exports belong to snapback2/internal, never the public client.
 await buildClientArms(armBuilds, imageRuntime());
 
 await build({
@@ -281,6 +276,10 @@ if (snapshot) {
   }
 }
 
+if (process.argv.includes("--self-test")) {
+  await runGuideValidationSelfTest();
+  await runClientBundleSelfTest();
+}
 } finally {
   if (packageBuildToken) await releasePackageBuildLock(packageBuildToken);
 }
@@ -300,11 +299,11 @@ async function buildClientArms(arms, imagePlugin) {
     });
     builder.onLoad({ filter: /.*/, namespace: "client-shared" }, args => ({
       contents: [...imports.get(args.path)].map(([name, alias]) =>
-        `export { ${alias} as ${name} } from "snapback2/client";`).join("\n"), loader: "js",
+        `export { ${alias} as ${name} } from "snapback2/internal";`).join("\n"), loader: "js",
     }));
   } });
   for (const arm of arms) {
-    const probe = await build({ ...arm, write: false, sourcemap: false, minify: false, plugins: [...arm.plugins, redirect(true)] });
+    const probe = await build({ ...arm, external: [...arm.external, "snapback2/internal"], write: false, sourcemap: false, minify: false, plugins: [...arm.plugins, redirect(true)] });
     for (const output of probe.outputFiles) {
       const source = ts.createSourceFile(output.path, output.text, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
       for (const statement of source.statements) {
@@ -334,39 +333,105 @@ async function buildClientArms(arms, imagePlugin) {
       forwarding.push(`export { ${name} as ${alias} } from ${JSON.stringify(source.startsWith(".") ? source : `./${source}`)};`);
     }
   }
-  await build({ ...client, entryPoints: undefined,
-    stdin: { contents: [`export * from "./src/client.ts";`, ...forwarding].join("\n"), resolveDir: here, loader: "ts" },
-    outfile: resolve(here, "dist/client.mjs"), sourcemap: true });
-  for (const arm of arms) await build({ ...arm, external: [...arm.external, "snapback2/client"], plugins: [...arm.plugins, redirect(false)] });
+  const internalEntry = { name: "internal-client-exports", setup(builder) {
+    builder.onResolve({ filter: /^internal-client-exports$/ }, () => ({ path: "internal-client-exports", namespace: "internal-client-exports" }));
+    builder.onLoad({ filter: /.*/, namespace: "internal-client-exports" }, () => ({
+      contents: [
+        'export { subscribe, sharedConsumers, internalSubscribe, internalConsumers } from "./dist/image-runtime.mjs";',
+        ...forwarding,
+      ].join("\n"), resolveDir: here, loader: "ts",
+    }));
+  } };
+  await build({ ...client, entryPoints: { client: resolve(here, "src/client.ts"), internal: "internal-client-exports" },
+    splitting: true, chunkNames: "client-runtime", outdir: dist, outExtension: { ".js": ".mjs" }, sourcemap: true,
+    plugins: [...client.plugins, internalEntry, {
+      name: "internal-image-path", setup(builder) {
+        builder.onResolve({ filter: /^\.\/dist\/image-runtime\.mjs$/ }, () => ({ path: "./image-runtime.mjs", external: true }));
+      },
+    }] });
+  for (const arm of arms) await build({ ...arm, external: [...arm.external, "snapback2/client", "snapback2/internal"], plugins: [...arm.plugins, redirect(false)] });
 }
 
 async function runClientBundleSelfTest() {
   const directory = resolve(here, "dist");
-  const entries = ["react", "expo", "react-native", "react-core", "test", "test-runner", "sqlite-test", "client-observed-test", "expo/witness"];
-  for (const entry of entries) {
+  const entries = ["index", "react", "expo", "react-native", "react-core", "test", "test-runner", "sqlite-test", "client-observed-test", "witness-test", "expo/witness"];
+  const implementations = new Set();
+  for (const entry of ["client", "client-runtime"]) {
     const map = JSON.parse(await readFile(resolve(directory, `${entry}.mjs.map`), "utf8"));
-    assert(!map.sources.some(path => !path.startsWith("client-shared:") && /\/(?:range-store|twin|offline)\.ts$/.test(path)), `${entry} duplicates the client runtime`);
+    for (const source of map.sources) implementations.add(resolve(directory, source));
+  }
+  for (const entry of entries) {
+    const path = resolve(directory, `${entry}.mjs`);
+    const map = JSON.parse(await readFile(`${path}.map`, "utf8"));
+    assert(!map.sources.some(source => !source.startsWith("client-shared:") && implementations.has(resolve(dirname(path), source))), `${entry} duplicates the client runtime`);
+    assert(!/applySwap\([^)]*\)\{/.test(await readFile(path, "utf8")), `${entry} contains a second applySwap implementation`);
   }
   const sqlite = await import(resolve(directory, "sqlite-test.mjs"));
-  const canonical = await import(resolve(directory, "client.mjs"));
+  const internal = await import("snapback2/internal");
+  const canonical = await import("snapback2/client");
+  assert(!Object.keys(canonical).some(key => key.startsWith("__client")), "public client must not expose forwarding aliases");
   for (const name of ["PersistentRangeStore", "Twin", "OfflineRuntime"]) {
-    const key = Object.keys(canonical).find(key => key.endsWith(`_${name}`));
-    assert(key, `client must own ${name}`);
-    assert.equal(sqlite[name], canonical[key], `${name} must have one module identity`);
+    const key = Object.keys(internal).find(key => key.endsWith(`_${name}`));
+    assert(key, `internal must own ${name}`);
+    assert.equal(sqlite[name], internal[key], `${name} must have one module identity`);
   }
   for (const [entry, ceiling] of [["react", 12000], ["expo", 16000]]) {
     assert(gzipSync(await readFile(resolve(directory, `${entry}.mjs`)), { level: 9 }).length <= ceiling, `${entry} exceeds ${ceiling} gzip bytes`);
   }
   const exports = Object.keys(JSON.parse(await readFile(resolve(here, "package.json"), "utf8")).exports);
   for (const condition of ["browser", "react-native", "node"]) {
-    const resolved = JSON.parse(execFileSync(process.execPath, [`--conditions=${condition}`, "--input-type=module", "-e",
-      `console.log(JSON.stringify(${JSON.stringify(exports)}.map(path => import.meta.resolve(path === '.' ? 'snapback2' : 'snapback2' + path.slice(1)))))`],
-    { cwd: here, encoding: "utf8" }));
-    for (const path of resolved) assert(existsSync(fileURLToPath(path)), `${condition}: missing ${path}`);
-    assert.equal(resolved[exports.indexOf("./client")], new URL("./dist/client.mjs", import.meta.url).href);
-    assert.equal(resolved[exports.indexOf("./react")], new URL(`./dist/${condition === "react-native" ? "react-native" : "react"}.mjs`, import.meta.url).href);
+    const result = execFileSync(process.execPath, [`--conditions=${condition}`, "--input-type=module", "-e", `
+      import assert from 'node:assert/strict';
+      import { register } from 'node:module';
+      import { mkdtemp, rm } from 'node:fs/promises';
+      import { tmpdir } from 'node:os';
+      import { join } from 'node:path';
+      import React from 'react';
+      globalThis.__snapbackNative = { React, fileUris: [], fileBodies: new Map(), videoSources: [] };
+      register(new URL('./tests/native-mocks/loader.mjs', import.meta.url));
+      const paths = ${JSON.stringify(exports)}.map(path => path === '.' ? 'snapback2' : 'snapback2' + path.slice(1));
+      const modules = Object.fromEntries(await Promise.all(paths.map(async path => [path, await import(path)])));
+      const client = modules['snapback2/client'], internal = modules['snapback2/internal'];
+      const named = name => internal[Object.keys(internal).find(key => key.endsWith('_' + name))];
+      const react = modules['snapback2/react'], expo = modules['snapback2/expo'];
+      assert.equal(import.meta.resolve('snapback2/react'), new URL('./dist/${condition === "react-native" ? "react-native" : "react"}.mjs', import.meta.url).href);
+      assert.equal(react.useQuery, modules['snapback2/react-core'].useQuery);
+      const web = await import('./dist/react.mjs');
+      assert.equal(web.indexedDbRangeStore()().constructor, named('PersistentRangeStore'));
+      assert.equal(expo.expoSqliteStore()().constructor, named('PersistentRangeStore'));
+      assert.equal(modules.snapback2.decodeDeliveryEnvelope, named('decodeDeliveryEnvelope'));
+      const sqlite = await import('./dist/sqlite-test.mjs');
+      for (const name of ['PersistentRangeStore', 'Twin', 'OfflineRuntime']) assert.equal(sqlite[name], named(name));
+      await import('./dist/witness-test.mjs');
+      const directory = await mkdtemp(join(tmpdir(), 'snapback2-bundle-'));
+      const factories = [modules['snapback2/test'].fileRangeStore(directory), expo.sqliteRangeStore(() => sqlite.nodeSqliteDriver(join(directory, 'bundle.sqlite')))];
+      try {
+        for (const factory of factories) {
+          const store = factory();
+          assert.equal(store.constructor, named('PersistentRangeStore'));
+          await store.open('bundle');
+          await store.commit({ bounds: { bundle: 1 } });
+          assert.equal((await store.outbox.bounds()).bundle, 1);
+          await store.close();
+        }
+        const { fakeOwner } = await import('./tests/fake-owner.ts');
+        const clients = [client.createClient, expo.createExpoClient].map((create, i) => create({
+          url: 'http://bundle.test', persona: 'alice', fetch: fakeOwner().fetch, offline: { store: factories[i] },
+        }));
+        try {
+          await Promise.all(clients.map(client => client.ready));
+          assert.equal(clients[0].constructor, clients[1].constructor);
+          for (const current of clients) {
+            assert.equal(current.assetCache.constructor, named('ByteCache'));
+            assert.equal((await current.query(client.api.messages.inbox, { c: null })).state, 'complete');
+          }
+        } finally { await Promise.all(clients.map(client => client.close())); }
+      } finally { await rm(directory, { recursive: true, force: true }); }
+      console.log('${condition}: ' + paths.length + ' exports execute; web/native constructors, protocol, file/SQLite swaps and clients share identity');
+    `], { cwd: here, encoding: "utf8", timeout: 30_000 });
+    console.log(result.trim());
   }
-  console.log("client bundle self-test ok: 9 entries share one range store, twin and offline runtime; 3 export conditions resolve");
+  console.log("client bundle self-test ok: 11 entries share one range store, twin and offline runtime; 3 export conditions execute");
 }
 
 async function runGuideValidationSelfTest() {

@@ -185,6 +185,8 @@ mod tests {
             let result = execution_json(&execution(ExecutionState::Rejected {
                 code: code.to_owned(),
                 message: before.to_owned(),
+                site: None,
+                rule: None,
             }));
             assert_eq!(result["code"], code);
             assert_eq!(result["message"], after);
