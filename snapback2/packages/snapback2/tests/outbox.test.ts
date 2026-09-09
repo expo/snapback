@@ -848,7 +848,7 @@ test("a committed settlement lands in the same swap as the log tail rows, or not
 });
 
 test("a conditional settlement tail gets one full revalidation without weakening atomicity or custody", async () => {
-  for (const mode of ["conditional", "full", "transport", "unchanged", "abort"] as const) {
+  for (const mode of ["conditional", "full", "transport", "unchanged", "abort", "switch"] as const) {
     const root = await tempRoot();
     const owner = fakeOwner();
     const base = fileRangeStore(root);
@@ -886,8 +886,14 @@ test("a conditional settlement tail gets one full revalidation without weakening
     const releaseFull = Promise.withResolvers<void>();
     let conditionalValidator: string | undefined;
     let armed = false;
-    const client = createClient({ url: `http://tail-${mode}.test`, persona: "alice", offline: { store: factory }, fetch: async (input, init) => {
+    const client = createClient({ url: `http://tail-${mode}.test`,
+      ...(mode === "switch" ? { token: "alice-token" } : { persona: "alice" }),
+      offline: { store: factory }, fetch: async (input, init) => {
       const path = new URL(String(input)).pathname;
+      if (path === "/api/auth/login" && mode === "switch") {
+        const response = await owner.fetch(input, init);
+        return jsonResponse({ ...await response.json(), viewer: "dev:bob" }, response.status);
+      }
       if (path !== "/api/query") return owner.fetch(input, init);
       const body = JSON.parse(String(init?.body));
       if (body.op !== "messages.inbox" || body.args?.c !== "cursor-9") return owner.fetch(input, init);
@@ -901,7 +907,7 @@ test("a conditional settlement tail gets one full revalidation without weakening
       if (mode === "transport") throw new TypeError("full tail is cut");
       if (mode === "unchanged") return jsonResponse({ state: "unchanged", seq: 6, validator: conditionalValidator });
       const response = await owner.fetch(input, init);
-      if (mode === "abort") { fullStarted.resolve(); await releaseFull.promise; }
+      if (mode === "abort" || mode === "switch") { fullStarted.resolve(); await releaseFull.promise; }
       return response;
     } });
     try {
@@ -931,10 +937,17 @@ test("a conditional settlement tail gets one full revalidation without weakening
       if (mode === "transport") {
         // submitMutation already ran the failed drain.
       } else if (mode === "abort") {
-        const online = client.online();
+        const online = client.online().then(value => ({ value }), error => ({ error }));
         await fullStarted.promise;
         await client.offline();
-        await assert.rejects(online, (error: any) => error.name === "AbortError");
+        assert.equal((await online as any).error?.name, "AbortError");
+      } else if (mode === "switch") {
+        const online = client.online().then(value => ({ value }), error => ({ error }));
+        await fullStarted.promise;
+        const session = await client.auth.login({ email: "bob@example.com", password: "pw" });
+        assert.equal(session.viewer, "dev:bob");
+        const interrupted = (await online as any).error;
+        assert(interrupted?.name === "AbortError" || interrupted?.code === "E_AUTH_SUPERSEDED");
       } else if (mode === "unchanged") {
         await assert.rejects(client.online(), (error: any) => error.code === "E_OFFLINE_DELIVERY");
       } else {
@@ -945,6 +958,9 @@ test("a conditional settlement tail gets one full revalidation without weakening
         assert.equal(entry.state, "committed", `${mode}: replay settled`);
         assert.equal(settlementSwaps.length, 1, `${mode}: one swap carried the terminal image`);
         assert.equal(settlementSwaps[0].deliveries.length, 1, `${mode}: the same swap carried the tail`);
+      } else if (mode === "switch") {
+        assert.equal(entry, undefined, "switch: no stale Alice intent entered Bob's partition");
+        assert.equal(settlementSwaps.length, 0, "switch: no old-authority terminal image landed");
       } else {
         assert.equal(JSON.stringify(entry), before, `${mode}: the queued replay image stayed byte-identical`);
         assert.equal(settlementSwaps.length, 0, `${mode}: no terminal image landed without its tail`);
