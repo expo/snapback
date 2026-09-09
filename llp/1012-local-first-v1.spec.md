@@ -519,6 +519,19 @@ verdicts from another execution. A new Runner recomputes even if its caller
 reuses a schema object that has since changed. No process-global or cross-query
 hash cache can outlive the schema/program authority that justified it.
 
+LLP 1018.007.000's later sustained-send profile permits a narrowly owned
+extension: an explicitly isolated, deeply immutable admitted schema may own
+its canonical schema/rule hashes across fresh Runners. Eligibility must come
+from that ownership boundary, not a caller-supplied digest, object identity
+alone, or a shallow `Object.isFrozen` check. Mutable direct-evaluator inputs
+keep the execution-local fallback above. A changed schema/program gets new
+custody; changing rows, viewer or auth epoch still executes fresh permission
+checks. Only deterministic canonical bytes are reusable, never rule verdicts,
+row visibility or a previous query's trace. Tests must preserve public-hasher
+parity, caller isolation, nested immutability and successor rule changes even
+when an outer rule's shape is unchanged. No runtime byte-cap increase is
+authorized by this optimization.
+
 **Owner page continuation (2026-09-09, LLP 1018.007.003).** An ordinary
 observed page keeps a receipt-backed capped owner answer whole when its local
 rerun has that same owner's selection proof but cannot reconstruct the
