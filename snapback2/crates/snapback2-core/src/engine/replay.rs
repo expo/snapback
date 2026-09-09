@@ -102,7 +102,8 @@ pub(super) fn finish_run(
 
 /// Only final read-authorized row identities are echo obligations. A fresh rule
 /// runner has no verdicts or memos from temporary writes. Deletions use the
-/// first preimage, not a row made readable temporarily by the mutation.
+/// first preimage and unchanged rule dependencies: both its initial and final
+/// read authorization must hold, not access granted by the mutation itself.
 // @ref LLP 1012#7-writes-offline — private fanout is settled by the commit; the
 // complete observable subset, including maintained rows, is the client's echo work.
 fn observable_effects(
@@ -125,6 +126,7 @@ fn observable_effects(
     if preimages.len() as u64 > max_writes {
         return Ok(None);
     }
+    let changed_tables: BTreeSet<_> = preimages.keys().map(|(table, _)| table.as_str()).collect();
     let mut effects = Vec::new();
     let (mut steps, mut probes, mut output_bytes) = (0u64, 0u64, 2u64);
     for ((table, id), before) in preimages {
@@ -172,6 +174,20 @@ fn observable_effects(
             .saturating_add(probe.trace.derived_steps);
         probes = probes.saturating_add(probe.trace.rule_probes);
         if visible {
+            // Reconstructing a deleted row against newly granted access could
+            // reveal an identity that was never readable. Unchanged dependency
+            // tables prove this same witness held before the transaction too.
+            // Include negative and transitive probes; even an unrelated change
+            // in an authority table conservatively keeps the terminal explicit.
+            if removed
+                && probe
+                    .trace
+                    .rule_inputs
+                    .iter()
+                    .any(|input| changed_tables.contains(input.table.as_str()))
+            {
+                return Ok(None);
+            }
             let effect = crate::offline::MutationEffect {
                 table: table.clone(),
                 id: id.clone(),
@@ -966,6 +982,66 @@ mod tests {
                 .unwrap(),
             1
         );
+    }
+
+    #[test]
+    fn observable_effects_deleted_identity_needs_initial_and_final_rule_authority() {
+        let mut schema = spike_schema();
+        schema.maintains.clear();
+        let doc = object([
+            ("id", Value::Id("secret-deleted-id".to_owned())),
+            ("title", Value::String("secret".to_owned())),
+        ]);
+        let grant = object([
+            ("id", Value::Id("grant".to_owned())),
+            ("userId", Value::Id("u1".to_owned())),
+        ]);
+        for grant_first in [false, true] {
+            let mut engine = Engine::memory(schema.clone()).unwrap();
+            engine.seed("secretDocs", doc.clone()).unwrap();
+            let mut body = vec![
+                delete_row("secretDocs", "secret-deleted-id"),
+                insert_row("entitlements", grant.clone()),
+            ];
+            if grant_first {
+                body.reverse();
+            }
+            let response = effect_replay(&mut engine, body);
+            assert!(
+                response.get("effects").is_none(),
+                "new permanent access does not authorize a deleted preimage"
+            );
+            assert!(!response.to_string().contains("secret-deleted-id"));
+        }
+        let mut engine = Engine::memory(schema.clone()).unwrap();
+        engine.seed("secretDocs", doc.clone()).unwrap();
+        engine.seed("entitlements", grant.clone()).unwrap();
+        let response = effect_replay(
+            &mut engine,
+            vec![delete_row("secretDocs", "secret-deleted-id")],
+        );
+        assert_eq!(
+            response["effects"],
+            json!([{"table":"secretDocs", "id":"secret-deleted-id", "removed":true}]),
+            "an unchanged membership witness safely discloses the deletion"
+        );
+        let read = schema.tables["secretDocs"].rules.read.clone();
+        schema.tables.get_mut("secretDocs").unwrap().rules.read = RuleExpr::Not(Box::new(read));
+        let mut engine = Engine::memory(schema).unwrap();
+        engine.seed("secretDocs", doc).unwrap();
+        engine.seed("entitlements", grant).unwrap();
+        let response = effect_replay(
+            &mut engine,
+            vec![
+                delete_row("secretDocs", "secret-deleted-id"),
+                delete_row("entitlements", "grant"),
+            ],
+        );
+        assert!(
+            response.get("effects").is_none(),
+            "removing a blocker cannot authorize its newly readable deleted preimage"
+        );
+        assert!(!response.to_string().contains("secret-deleted-id"));
     }
 
     #[test]
