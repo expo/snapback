@@ -431,7 +431,7 @@ function selfTest() {
     const graph = new Map([
       ["entry", 'import { left } from "./left.mjs"; export * from "./right.mjs"; export const entry = left;'],
       ["left", 'import { shared } from "snapback2/shared"; export const left = () => shared;'],
-      ["right", 'export * from "./shared.mjs";'],
+      ["right", 'export * from "./left.mjs";'],
       ["shared", 'export { left } from "./left.mjs"; export const shared = 1;'],
     ]);
     const payload = `export const payload = ${JSON.stringify(Array.from({ length: 256 }, (_, i) => `${i}:${i * 7919}`).join("|"))};`;
@@ -450,18 +450,20 @@ function selfTest() {
 
   // Execute main itself with controlled I/O: production owns step recording,
   // publication, scoring, acceptance and serialization, not a test-side copy.
-  const recordLoop = (consumerStatus, consumerSeconds, checked) => {
+  const recordLoop = (consumerStatus, consumerSeconds, checked, bytes) => {
     const appended = [];
     const originalExitCode = process.exitCode;
+    let exitCode;
     try {
+      process.exitCode = 0;
       runInNewContext(`(${main.toString()})()`, {
         root, args: new Set(checked ? ["--check"] : []), byteFields, resolve, tmpdir,
         process: { execPath: process.execPath }, performance, recordStep, publishByteMeasurements,
         failedSummary, errorText, fail, console: { log() {}, error() {} },
         run: (_command, argv) => ({ seconds: 0.001, status: 0, stderr: "",
-          stdout: argv.includes("--measure-twin") ? JSON.stringify({ gzip: 101, toolchain: byteToolchain })
+          stdout: argv.includes("--measure-twin") ? JSON.stringify({ gzip: bytes, toolchain: byteToolchain })
             : argv[0] === "doctor" ? '{"elapsedMs":1}' : argv[0] === "dev" ? "SNAPBACK_URL=http://test" : "{}" }),
-        packagedEntryBytes: () => 101,
+        packagedEntryBytes: () => bytes,
         packDevelopmentConsumer: () => ({ status: consumerStatus, seconds: consumerSeconds, stderr: "simulated consumer failure" }),
         preserveUnchangedExecutable: (_path, operation) => operation(),
         existsSync: () => true,
@@ -469,23 +471,28 @@ function selfTest() {
         appendFileSync: (_path, line) => appended.push(JSON.parse(line)),
         mkdtempSync: () => "/unused-measure-self-test", cpSync() {}, rmSync() {}, utimesSync() {},
         statSync: () => ({ size: 1 }),
-        scoreBytes: (record, history, failures) => scoreBytes(record, history, failures, () => {}, () => {}),
-        scoreChecks: (checks, budget, failures) => scoreChecks(checks, budget, failures, () => {}, () => {}),
+        scoreBytes: (record, history, failures) => scoreBytes(record, history, failures, () => {}),
+        scoreChecks: (checks, budget, failures) => scoreChecks(checks, budget, failures, () => {}),
       });
+      exitCode = process.exitCode;
     } finally { process.exitCode = originalExitCode; }
     assert.equal(appended.length, 1, "the complete production loop serializes one evidence record");
-    return appended[0];
+    return { record: appended[0], exitCode };
   };
-  for (const [status, seconds, checked, eligible] of [[1, 0.1, true, false], [0, 31, true, false], [0, 0.1, false, false], [0, 0.1, true, true]]) {
-    const recorded = recordLoop(status, seconds, checked);
-    assert.deepEqual(recorded.byte_measurement.values, values(101), "raw measurement survives serialization even after unrelated failure");
-    assert(byteFields.every(field => recorded[field] === 101), "successful pinned bytes remain evidence");
+  for (const [status, seconds, checked, bytes, eligible, expectedExitCode] of [
+    [1, 0.1, true, 101, false, 1], [0, 31, true, 101, false, 1], [0, 0.1, true, 102, false, 1],
+    [0, 0.1, false, 101, false, 0], [0, 0.1, true, 101, true, 0],
+  ]) {
+    const { record: recorded, exitCode } = recordLoop(status, seconds, checked, bytes);
+    assert.equal(exitCode, expectedExitCode, "consumer, time-budget and byte failures refuse; successful runs do not");
+    assert.deepEqual(recorded.byte_measurement.values, values(bytes), "raw measurement survives serialization even after unrelated failure");
+    assert(byteFields.every(field => recorded[field] === bytes), "successful pinned bytes remain evidence");
     assert.equal(recorded.steps.consumer_smoke_s.ok, status === 0);
     assert.equal(recorded.byte_baseline_accepted, eligible, "only a fully successful checked loop becomes a baseline");
     assert.deepEqual(score(candidate(102), [baseline, recorded]), eligible ? [] : byteFields,
       "serialized rejected/unchecked evidence cannot approve a retry; a successful checked record can");
   }
-  console.log("byte recording self-test ok: 4 production loops; consumer failure, time-budget failure and unchecked evidence excluded; successful checked record accepted");
+  console.log("byte recording self-test ok: 5 production loops; consumer, time-budget and byte failures refuse; unchecked evidence excluded; successful checked record accepted without refusal");
   const artifactRoot = mkdtempSync(resolve(tmpdir(), "snapback2-measure-artifact-"));
   const artifact = resolve(artifactRoot, "snapback2");
   writeFileSync(artifact, "same bytes");
