@@ -1481,6 +1481,18 @@ The retained published 0.0.6 M6 observation lacks response bodies, so its
 exact historical field difference and the proposed query-shape diagnosis
 remain unconfirmed; the reduction proves this independently present defect.
 
+**Conditional settlement tails (2026-09-09).** A held tail that lacks
+immutable full-envelope fact proofs cannot settle from `unchanged` alone.
+Like ordinary query acceptance, log-tail acceptance supplies one unconditional
+`{op,args}` retry, with no validator, under the same captured principal and
+coverage revision. A second conditional response is a typed delivery refusal;
+a full first response needs no extra request. Cancellation or changed
+authority prevents installation. Retryable transport loss preserves both its
+transport classification and the byte-identical queued intent, so an online
+mutation can still return its durable queued result. Successful acceptance
+installs the tail and terminal outbox image together in the existing atomic
+swap; it never publishes a speculative committed state.
+
 **Resume.** One request, one owner action:
 
 ```
