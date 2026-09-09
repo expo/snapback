@@ -2,77 +2,93 @@
 
 **Type:** RFC
 **Status:** Draft — proposal, binds nothing (`rules/RULES.md`: only implemented specs bind; implementer and date unassigned, the author's call). Written on the author's request of 2026-09-09 ("write up 3 LLPs or sub-LLPs to address 1 and 2 and 3") after the elegance assessment of 2026-09-08.
-**Systems:** the effects runner and hosts (`snapback2/crates/snapback2-effects/src/{runner,host,ibex}.rs`, `prelude.js`), the owner's effects thread and control routes (`crates/snapback2/src/{effects,control,writer,writer_ledger,doctor,verbs}.rs`), the `test` verb and receipt (`crates/snapback2/src/test.rs`, `receipt.rs`), the journey runtime (`packages/snapback2/src/test.ts`), `.snapback/log.jsonl`, the assets ledger and staging (`snapback2-core/src/assets_ledger.rs`, `crates/snapback2/src/{writer_assets,blob_store}.rs`), `reset` and personas (`writer_assets.rs`, `identity.rs`), the chat template's seed, the guide (`effects.md`, `testing.md`, `operator.md`), `guide/families.source.json`, expo/ibex (a deadline API)
+**Systems:** the effects runner and hosts (`snapback2/crates/snapback2-effects/src/{runner,runner_settlement,host,ibex}.rs`, `prelude.js`, `prelude/fetch.js`), the owner's effects thread and control routes (`snapback2/crates/snapback2/src/{effects,control,owner,writer,writer_ledger,doctor,verbs,watch}.rs`), the `test` verb, supervisor, and receipt (`snapback2/crates/snapback2/src/{test,test_invalidation,receipt}.rs`), the journey runtime (`snapback2/packages/snapback2/src/test.ts`, `types/test.d.ts`), the compiler's effect identity (`snapback2/packages/compiler/src/test-effects.ts`), `.snapback/log.jsonl`, the assets ledger, transaction, and staging (`snapback2/crates/snapback2-core/src/{assets_ledger.rs,engine/mod.rs}`, `snapback2/crates/snapback2/src/{writer_assets,blob_store}.rs`), `reset` and personas (`writer_assets.rs`, `identity.rs`), the chat template's seed and effect, the guide (`effects.md`, `testing.md`, `operator.md`, `personas.md`), `guide/families.source.json`, expo/ibex (a deadline API)
 **Author:** Claude (Fable 5.1), for the author
 **Date:** 2026-09-09
-**Revised:** —
-**Related:** LLP 1003 (effects on Ibex 2: the host seam, the outbox lifecycle, §4 "default build = seam only", §5 "never blocking"), LLP 1002 §1 d.4 (seed and `reset`), §7 (the derived checks; "blocked is not pass"), §8 (`trace`), LLP 0329.016 §5.6 (no silent states), §5.7 ("never mock infra"), §5.11 (the verb table), LLP 1016 (personas on first use; `--dry-run` rehearsal), LLP 1000 decision 3, `issues/20260901-snapback2-effect-timeout-cannot-interrupt-synchronous.md`, `issues/20260906-snapback2-asset-staging-quota-unrecoverable-after-abandoned-uploads.md`, `issues/20260906-snapback2-owner-asset-staging-ceiling-refuses-reseeds.md`, `issues/20260907-snapback2-reset-keeps-template-seed-rows-and-dev-reset-have-no-help.md`
+**Revised:** 2026-09-09 (revision (a): a blind gpt-6-astra review at maximum reasoning, `llp/reviews/1021-effects-in-the-loop.r1-astra.md`, returned NOT READY with seven blocking findings; every finding is folded below — authored witnesses replace synthetic probes, `settle` covers `then_pending` and reports `then` outcomes, provider bindings are supervisor-owned with no external fallback anywhere in the test owner, timeouts keep LLP 1003's retry contract, staging uses discard semantics under LLP 1006, seed handles obey `format handle`, three evidence sentences are narrowed; both open questions are resolved by that review's rulings)
+**Related:** LLP 1003 (effects on Ibex 2: the host seam, the outbox lifecycle §2, `then` settlement §2, timeouts §3, §4 "default build = seam only", §5 "never blocking"), LLP 1002 §1 d.4 (seed and `reset`), §7 (the derived checks; "blocked is not pass"; asset arguments need an upload journey), §8 (`trace`), LLP 0329.016 §5.6 (no silent states), §5.7 ("never mock infra"), §5.11 (the verb table), LLP 1016 (personas on first use; background turns for schedules and jobs; `--dry-run`), LLP 1006 (assets: release, grace, the ledger's usage from rows), LLP 1012 (the twin replays a mutation without executing its effect), LLP 1000 decision 3, LLP 1019 and LLP 1020 (sibling RFCs of the same day), `rules/NOT-DOING.md` (the capability bar: "no external I/O"; no registries), `issues/20260901-snapback2-effect-timeout-cannot-interrupt-synchronous.md`, `issues/20260906-snapback2-asset-staging-quota-unrecoverable-after-abandoned-uploads.md`, `issues/20260906-snapback2-owner-asset-staging-ceiling-refuses-reseeds.md`, `issues/20260907-snapback2-reset-keeps-template-seed-rows-and-dev-reset-have-no-help.md`
 
 ## Summary
 
 Snapback 2's loop promises no silent states: every read is `complete`,
 `capped`, `partial`, or `denied`; every write is `committed`, `rejected`,
 or `queued`. The one thing a program does that leaves the machine — `emit`
-— is the exception. An emitted row cannot be seen by a journey, is never
-exercised by `snapback2 test` even when an engine is present, writes no log
-line when no engine can run it, cannot be stopped once it is running, and
-is documented by a guide sentence that says the default binary will never
-run it. Around it sit three smaller traps in the same family — an abandoned
-upload that leaks a staging slot at commit, a `reset` that re-seeds without
-saying so, and a seed handle that takes the name a builder's first signup
-wants — each a state the loop does not surface.
+— is the exception. A journey cannot see an emitted row or wait for it;
+`snapback2 test`'s `effects` check passes on the engine's name alone and
+never asks whether any effect ran; an engine-less runner writes no log
+line; a running effect cannot be stopped; and the guide's sentence about
+it says the default binary will never run one. Around it sit three smaller
+traps of the same family — an abandoned upload that keeps its staging
+charge at commit, a `reset` whose output omits that it re-seeded, and a
+seed handle that takes the name a builder's first signup wants.
 
 This RFC proposes:
 
-1. **Every outbox transition is a log line**, and `dev` says at boot what
-   its engine is and how many rows are waiting. `logs --effects` and
-   `trace` show the lifecycle; `doctor` already does.
+1. **Every outbox transition is a log line**, written at the site that
+   makes the transition, and `dev` says at boot what its engine is and how
+   many rows wait. `logs --effects` filters; `trace` shows a row's history.
 2. **Journeys can see and settle the outbox.** The journey context gains
-   `effects.settle()` (drain now, return when the queue is quiet or the
-   budget is spent) and `effects.rows()` (the rows with state, attempt,
-   error, result), over two dev-only control routes.
-3. **Journeys can stand in for a provider.** `effects.provider(origin,
-   handler)` starts a loopback server in the journey process and rebinds
-   that origin, for this owner and this run, so the effect's own code runs
-   unchanged in the real engine with the real grant check. This is not a
-   test double of Snapback; it is the third party the grant names.
-4. **`test`'s effects check runs the effects.** With an engine: every
-   declared effect is emitted once by a derived probe, settled, and its
-   `then` observed; the receipt says `pass`, `fail` (with the row's error),
-   or `blocked: no engine in this build`. Without an engine the check stays
-   `blocked`, exactly as today, and the receipt names the command that
-   builds one.
-5. **A running effect can be stopped.** expo/ibex gains a deadline around
-   its three execution entrances; the runner arms it from the declared
-   budget; `dev --stop` never joins an effects thread unboundedly.
-6. **The three adjacent traps close**: a staged object the committing
-   mutation did not attach is released at commit; `reset` prints what it
-   did and `reset --empty` skips the seed; template seed handles are
-   spelled so they cannot collide with a real signup.
+   `effects.settle({ upTo })` — run the due background turn, drain, and
+   return when every row emitted at or before `upTo` is terminal or
+   `then`-settled, or say why not — and `effects.rows()`, over two dev-only
+   control routes. `then_pending` counts as unsettled; a `sent` row reports
+   its `then` outcome.
+3. **Journeys stand in for a provider, and nothing else answers.** In the
+   test owner every effect fetch must match a binding a journey declared
+   with `effects.provider(origin, handler)`; the supervisor owns the
+   binding's lifetime; an unmatched fetch is an explicit `E_EFFECT_UNBOUND`
+   outcome and never reaches external transport. The grant admits the
+   logical origin on every request and redirect before transport
+   substitutes the loopback. The effect's code runs unchanged in the real
+   engine. This is not a double of Snapback; it is the third party the
+   grant names.
+4. **`test`'s effects check counts witnesses, not probes.** Every declared
+   effect needs one successful authored witness in the selected journeys —
+   a real emission, executed against a journey provider, with its declared
+   `then` committed. Missing evidence is `blocked`, naming the effect and
+   the journey needed. Without an engine the check stays `blocked` and
+   engine-dependent journeys are `blocked: effects:no-engine`, never
+   failed.
+5. **A running effect can be stopped.** expo/ibex gains one monotonic
+   deadline across its three execution entrances and cleanup; the runner
+   arms it from the declared budget before the first call; shutdown admits
+   no new claims; the owner's join is bounded and its detachment is logged
+   as what it is. Timeouts keep LLP 1003's `retry: true`.
+6. **The three adjacent traps close under their governing LLPs**: a
+   validated asset argument the committing mutation did not attach is
+   discarded in that commit (LLP 1006 amendment); `reset` reports its seed
+   accounting and `reset --empty` is specified, not implied; template seed
+   handles are `alice_dev`, `bob_dev`, freeing the example names.
 
 The default `cargo build` stays engine-less and the five blocking checks
 stay engine-free (LLP 1003 §5's ruling). The published binary already
-carries the engine (7.3 MB with, 4.1 MB without, `metrics/loop.jsonl`), so
-for the builder the gap is visibility and testability, not the build.
+carries the engine — 7,312,592 bytes with it, 4,078,496 without
+(`snapback2/metrics/loop.jsonl:241`) — so for the builder the gap is
+visibility and testability, not the build.
 
 ## Evidence
 
 - **No engine, no line.** `runner.rs:222-228`: when the host describes
   itself as `none`, `mark_queued_unavailable("no engine in this build")`
   updates `_outbox.last_error` and returns; `drained.unavailable` is never
-  forwarded to the log (`effects.rs:335-342` forwards only `drained.logs`).
-  `doctor.rs:109-110` prints the count; `dev` prints nothing; `trace <seq>`
-  shows `state: "queued", lastError: "no engine in this build"`
-  (`writer_ledger.rs:272-303`).
-- **`test` never runs an effect.** `test.rs:693-721` `check_effects` reads
-  `/control/status` → `effects.engine` and returns `blocked` without one;
-  with one it returns `CheckReceipt::pass` on the engine's name alone,
-  `{ engine, declarations }` (LLP 1002 §7 check 6: "every effect
-  declaration has a runner able to run it"). No probe is emitted; no
-  effect runs.
+  forwarded to the log (`effects.rs:335-342` forwards only `drained.logs`,
+  and only after a drain). `doctor.rs:109-110` prints the count; `dev`
+  prints nothing; `trace <seq>` shows a row snapshot with `state:
+  "queued", lastError: "no engine in this build"`
+  (`writer_ledger.rs:272-303`), not its transitions.
+- **The `effects` check asks nothing of the effects.** `test.rs:693-721`
+  `check_effects` reads `/control/status` → `effects.engine`; without an
+  engine it returns `blocked`; with one it returns `CheckReceipt::pass` on
+  the engine's name alone, `{ engine, declarations }`. The test owner does
+  start the real runner before the derived checks and journeys
+  (`owner.rs:216`, `test.rs:185`), and a journey's `send` does emit
+  `delivery.notify` (`templates/chat/snapback/messages.q:32`) — so effects
+  *run* in `test` when an engine is present; nothing observes whether they
+  succeeded, and the receipt cannot say.
 - **Journeys cannot see the outbox.** `test.ts:40-46` gives a journey
   `as(name)`, `tick(ms)`, `url` and nothing else; `tick` is a clock offset
-  (`writer.rs:817-836`), not a drain. `data _outbox` refuses
+  (`writer.rs:817-836`), not a drain, and due schedules and jobs fire on
+  later bounded background turns (LLP 1016 §D5). `data _outbox` refuses
   `E_SCHEMA_TABLE_UNKNOWN` (`writer_data.rs:20-35`). The control routes
   (`control.rs:94-266`) list no outbox; `POST /control/outbox/<id>/requeue`
   accepts only `sent_unknown` or `failed` rows. The chat template's
@@ -87,206 +103,328 @@ for the builder the gap is visibility and testability, not the build.
   dev --stop/SIGTERM hangs joining the effects thread"; the cause is that
   the timer starts only after `call_host` returns and none of
   `ibex2_hermes_eval` / `drain_microtasks` / `pump` "arms an async break or
-  accepts a deadline". `effects.rs:265-272`: `Drop` is an unbounded
-  `thread.join()`.
+  accepts a deadline"; the ticket also records that detachment is not
+  evidence the execution stopped. `effects.rs:265-272`: the owner's `Drop`
+  is an unbounded `thread.join()`; the CLI returns `E_OWNER_STOP_TIMEOUT`
+  after two seconds (`verbs.rs:297`) while the owner process stays alive.
+  The runner can claim up to sixteen jobs per drain before it checks its
+  stop flag (`runner.rs:15`, `:229`), and its default job budget is thirty
+  seconds — the whole `test` budget (`rules/RULES.md`).
 - **There are no mocks, by principle.** LLP 0329.016 §5.7 "never mock
   infra", "not a test double"; the only stub is `#[cfg(test)] StubHost`
   (`runner.rs:703-731`); `--dry-run` is "no effects, timers, sweeps, or
-  blob writes" (`AGENTS.md:27`).
-- **The staging leak.** The open part of the 2026-09-06 ticket: a retried
-  media send with the same client mutation id "fails on the seventh retry
-  with `E_ASSET_TOO_LARGE: the owner has reached the 536870912 byte or 40
-  object staging ceiling`" because the idempotent early return "never
+  blob writes" (`AGENTS.md:27`). The capability bar excludes external I/O
+  (`rules/NOT-DOING.md:20`); the brief's push item asks for a logged seam,
+  not real APNs/FCM (`benchmarks/briefs/social-messenger.md:625`).
+- **The staging charge survives commit.** The open ticket of 2026-09-06: a
+  retried media send with the same client mutation id eventually fails with
+  `E_ASSET_TOO_LARGE: the owner has reached the 536870912 byte or 40
+  object staging ceiling` because the idempotent early return "never
   attaches the staged object, and nothing releases an unattached staged
-  object at commit". `listUploads`/`discardUpload` landed for the
-  operator; the commit-time release did not.
+  object at commit". Ordinary release frees the pending object slot but
+  deliberately keeps the original-byte charge through LLP 1006's grace
+  period (`assets_ledger.rs:249`, LLP 1006 §"release"), and usage is
+  recomputed from ledger rows (`assets_ledger.rs:562`), so "release at
+  commit" would not repair the ceiling. `listUploads`/`discardUpload`
+  landed for the operator; nothing acts at commit.
 - **`reset` and the handle.** `reset` deletes rows and re-applies the seed
-  by design (LLP 1002 §1 d.4, `engine/mod.rs:908-922`) and says nothing;
-  the chat seed gives `dev:alice` the profile handle `"alice"` (`seed.ts:4,7`)
-  under `unique byHandle`, so a builder's first real signup as `alice` is
-  refused by their own fixture. The ticket asked for `--help` (since done)
-  and namespacing.
+  by design (LLP 1002 §1 d.4, `engine/mod.rs:908-922`); it prints a JSON
+  result and `--help` mentions re-seeding (`verbs.rs:25`), but the result
+  carries no seed accounting, so the ticket's builder could not tell what
+  came back. The chat seed gives `dev:alice` the profile handle `"alice"`
+  (`seed.ts:4,7`) under `unique byHandle` (`schema.q:12`), so a builder's
+  first real signup as `alice` is refused by their own fixture; `charlie`
+  deliberately has no profile (`guide/testing.md:18`). `format handle`
+  admits lowercase ASCII letters, digits, and underscores (`schema.rs:404`).
 
 ## Design
 
 ### 1. The lifecycle is in the log
 
-Every outbox transition writes one structured line to `.snapback/log.jsonl`:
+Every outbox transition writes one structured line to `.snapback/log.jsonl`
+**at the site that commits the transition** — the emitting commit, the
+runner's claim, a retry decision, restart recovery (`running` →
+`sent_unknown`), an operator requeue, and the `then` settlement in both its
+outcomes — not forwarded after a drain:
 
 ```json
-{"outbox":{"id":"…","seq":812,"effect":"notify","from":"queued","to":"running","attempt":1}}
-{"outbox":{"id":"…","seq":812,"effect":"notify","from":"running","to":"then_pending","ms":143}}
-{"outbox":{"id":"…","seq":812,"effect":"notify","from":"then_pending","to":"sent","then":"notifications.recordNotified"}}
-{"outbox":{"id":"…","seq":813,"effect":"notify","from":"queued","to":"queued","attempt":2,"nextAt":…,"error":"provider 503"}}
+{"outbox":{"id":"…","seq":812,"effect":"delivery.notify","from":null,"to":"queued","by":"messages.send"}}
+{"outbox":{"id":"…","seq":812,"effect":"delivery.notify","from":"queued","to":"running","attempt":1}}
+{"outbox":{"id":"…","seq":812,"effect":"delivery.notify","from":"running","to":"then_pending","ms":143}}
+{"outbox":{"id":"…","seq":812,"effect":"delivery.notify","from":"then_pending","to":"sent","then":{"op":"notifications.recordNotified","state":"committed","seq":815}}}
+{"outbox":{"id":"…","seq":813,"effect":"delivery.notify","from":"running","to":"queued","attempt":2,"nextAt":…,"error":"provider 503"}}
 {"outbox":{"engine":"none","queued":3}}
 ```
 
-`logs --effects` filters to these lines; `trace <seq>` is unchanged (it
-already shows the rows). `dev` prints one line at boot beside
-`SNAPBACK_URL`: `effects: ibex2 + vanilla hermes` or `effects: no engine in
-this build — 3 queued (build one: scripts/hermes build -p snapback2)`. The
-"unavailable" path (`runner.rs:222-228`) writes the last line above once
-per change in the queued count, never per pump.
+Effect names are the compiler's qualified identity (`delivery.notify`,
+`packages/compiler/src/test-effects.ts:51`). A `then` that was rejected
+still moves the row to `sent` (LLP 1003 §2) and the line says
+`"then":{"state":"rejected","code":…}`. If the log file cannot be written,
+the owner's status reports `log: unavailable(reason)` (LLP 0329.016 §5.6:
+no silent states) instead of dropping lines. `logs --effects` filters to
+these lines; `trace <seq>` adds the row's transition history from the log
+beneath the snapshot it already returns. `dev` prints one line at boot
+beside `SNAPBACK_URL`, inside the existing machine-readable startup
+envelope (`owner.rs:658`): `effects: ibex2 + vanilla hermes` or `effects:
+no engine in this build — 3 queued (build one: scripts/hermes build -p
+snapback2)`. The "unavailable" path writes the last line above once per
+change in the queued count, never per pump.
 
 ### 2. Journeys see and settle the outbox
 
 Two dev-only control routes, under the same admission as `/control/clock`:
 
-- `GET /control/outbox[?state=…]` — the rows `trace` already assembles
-  (`id, seq, effect, state, attempts, nextAt, lastError, result`), bounded
-  (`limit ≤ 200`, `after` cursor).
-- `POST /control/effects/settle {budgetMs}` — pump the runner now and
-  return when no row is `queued` with `nextAt ≤ now` or `running`, or when
-  the budget is spent; the response is `{ settled: bool, rows: [...] }`.
-  With no engine it returns at once with `{ settled: false, engine: "none" }`.
+- `GET /control/outbox[?state=…&after=…&limit=…]` — the rows `trace`
+  already assembles (`id, seq, effect, state, attempts, nextAt, lastError,
+  result`) plus `then: { op, state, seq?, code? }` when settled; stable
+  pagination by `(seq, id)`, `limit ≤ 200`, a byte cap on `result`.
+- `POST /control/effects/settle { upTo, budgetMs }` — first run one bounded
+  background turn so schedules and jobs due at the (possibly `tick`-advanced)
+  clock produce their emissions, then pump the runner until every row with
+  `seq ≤ upTo` is `sent` with its `then` settled, `failed`, or
+  `sent_unknown`, or the budget is spent. The wait happens off the writer.
+  The response is `{ settled: bool, rows: [...], remaining: [{ id, reason }] }`
+  with `reason ∈ backoff(nextAt) | then_pending | running | engine:none |
+  budget`. "Nothing runnable now" is reported as `remaining`, never as
+  `settled`.
 
 The journey context gains `effects.rows()` and `effects.settle()`
 (`test.ts`), typed in `types/test.d.ts`:
 
 ```ts
 journey("a sent message notifies the recipient", async ({ as, effects }) => {
+  const provider = await effects.provider("https://api.example.com",
+    async () => Response.json({ id: "prov-1" }));
   const alice = as("alice");
   const sent = await alice.mutation(api.messages.send, { conversationId: "conversation-1", body: "hi" });
-  const { settled, rows } = await effects.settle();
-  if (!settled) throw new Error("effects did not settle");
-  const row = rows.find((r) => r.seq === sent.seq && r.effect === "notify");
-  if (row?.state !== "sent") throw new Error(`notify was ${row?.state}: ${row?.lastError}`);
+  if (sent.state !== "committed") throw new Error(`send was ${sent.state}`);
+  const { settled, rows, remaining } = await effects.settle({ upTo: sent.seq });
+  if (!settled) throw new Error(`unsettled: ${JSON.stringify(remaining)}`);
+  const row = rows.find((r) => r.seq === sent.seq && r.effect === "delivery.notify");
+  if (row?.state !== "sent" || row.then?.state !== "committed") throw new Error(`notify: ${JSON.stringify(row)}`);
+  if (provider.requests.length !== 1) throw new Error("exactly one provider call");
 });
 ```
 
-Backoff is real time; `settle` honors `tick` (the dev clock offset) so a
-journey can advance past `nextAt` without sleeping.
+Backoff is real time; `settle` honors `tick` so a journey can advance past
+`nextAt` without sleeping. Without an engine `settle` returns at once with
+`remaining: [{ reason: "engine:none" }]`, and the journey is recorded
+`blocked: effects:no-engine` by the supervisor (§4), not failed.
 
-### 3. A provider stand-in, declared by the journey
+### 3. A provider stand-in, and nothing else answers
 
-```ts
-journey("…", async ({ as, effects }) => {
-  const provider = await effects.provider("https://api.example.com", async (request) => {
-    return Response.json({ id: "prov-1" });
-  });
-  …
-  provider.requests  // what the effect actually sent: method, path, headers, body
-});
-```
+`effects.provider(origin, handler)` starts a loopback HTTP server owned by
+the journey process and registers a **binding** with the test owner
+(`POST /control/effects/bind { origin, to, epoch }`):
 
-`effects.provider` starts a loopback HTTP server in the journey process
-and asks the owner (`POST /control/effects/bind { origin, to }`) to resolve
-that origin to the loopback address for this owner's lifetime; `unbind` on
-journey exit; the binding is dev-only and never persisted. The effect's
-source, grant check (`E_EFFECT_GRANT` still fires for an origin the grant
-does not name), timer permit, and `then` all run unchanged in the real
-engine. What is stood in for is the third party, which the loop cannot own
-and the brief forbids reaching (`social-messenger.md`: "no external I/O").
+- **Lifetime.** A binding belongs to one journey epoch, not the owner's
+  lifetime. The supervisor (`test.rs:996`) revokes every binding of a
+  journey on completion, failure, timeout, or process death; revocation
+  never depends on journey cleanup code.
+- **No fallback, anywhere in the test owner.** Every effect fetch in a
+  `test` owner — including rows emitted by the derived checks, rows left
+  over from an earlier journey, and rows retried after backoff — must match
+  a live binding for its logical origin. An unmatched fetch is a terminal
+  `failed` outcome with `E_EFFECT_UNBOUND` (family `effect`, site the
+  effect's `fetch` call, rewrite "declare `effects.provider('<origin>', …)`
+  in the journey that emits `<effect>`", page `guide effects`) and never
+  reaches external transport. A row from an earlier epoch cannot acquire a
+  later journey's binding.
+- **Grants first.** The existing grant check (`ibex.rs:308`,
+  `prelude/fetch.js:134,155`) admits the **logical** origin on every
+  request and on every redirect, and the credential-stripping rule keys on
+  logical origins as today; only after admission does transport resolve
+  the origin to the bound loopback address. `E_EFFECT_GRANT` fires exactly
+  as in production. The effect's source, timer permit, `meta.id`, and
+  `then` run unchanged in the real engine.
+- **Capture.** `provider.requests` records method, path, headers, and body
+  up to a cap; the cap is reported, not silently truncated.
+- **Journeys only.** Manual `dev` has no binding route (question 1). A
+  builder who wants a local provider in `dev` changes the effect's request
+  URL and its grant, which is one line and honest.
+
 This honors LLP 0329.016 §5.7 by its reason: nothing of Snapback is
-doubled. The chat template's `notify` journey uses it.
+doubled; what the journey supplies is the third party the loop cannot own
+and the capability bar forbids reaching.
 
-### 4. `test` runs the effects
+### 4. `test` counts witnesses
 
-The `effects` derived check becomes, with an engine present:
+The `effects` derived check no longer manufactures anything. It aggregates
+the execution evidence the framework recorded while the selected journeys
+ran:
 
-1. For every declared effect, the runner is asked for a **probe**: an
-   `emit` of that effect with a payload the compiler derives from the
-   effect's declared payload type (LLP 1002's derived checks already derive
-   arguments for `rules` and `bounds`), bound to a probe provider that
-   answers `200 {}` for every origin the effect's grants name.
-2. `settle` with the declared budget.
-3. Each row must reach `sent` (or `failed` with `retry: false` from a
-   refusal the probe expected); a `then` mutation must have run and
-   committed; the receipt lists `{ effect, state, ms, then }` per effect.
+1. For every declared effect, at least one **successful witness**: a real
+   mutation, job, or schedule committed an emission; the real engine
+   executed it against a journey-owned provider; its declared `then`
+   committed (an effect without `then` records that explicitly).
+2. The receipt lists, per effect: the journey, the outbox id, the emission
+   `seq`, attempts, terminal state, elapsed time, and the `then` outcome
+   with its commit `seq`.
+3. An expected-refusal journey (an ungranted origin, an unbound origin) is
+   negative evidence and does not substitute for a witness.
+4. Missing evidence is `blocked: effects:no-witness` naming the effect and
+   the journey it needs. A selected run (`test <journey>`) states its
+   coverage scope and cannot claim execution coverage it did not obtain.
 
-The verdict is `pass`, `fail` (with the rows), or — without an engine —
-`blocked: no engine in this build` with `detail.build = "scripts/hermes
-build -p snapback2"` (repo) or the package's engine-bearing binary path
-(published). `measure.mjs` continues to accept the blocked receipt on the
-engine-less loop (LLP 1002 §7 "blocked is not pass" is unchanged: the loop
-record shows it as blocked, never green). The probe writes go to the
-fresh `test` store, which is discarded.
+Without an engine the check stays `blocked: no engine in this build` with
+`detail.build` naming the command (repo: `scripts/hermes build -p
+snapback2`; package: the engine-bearing binary path), and engine-dependent
+journeys are `blocked: effects:no-engine`. `measure.mjs` accepts exactly
+these engine-absence blocks when every unrelated check passes (this amends
+LLP 1002 §7's acceptance sentence, which today admits only the single
+`effects` block); publication requires complete passing coverage. Journeys
+keep their five-second budget and `test` its thirty (`rules/RULES.md`);
+longer engine conformance stays on the schedule (LLP 1003 §5).
+
+This replaces revision 0's synthetic probe, which would have broken the
+template's own effect: `delivery.notify` returns `{ providerId:
+(await response.json()).id }` (`delivery.ts:16`), and a `200 {}` answer
+yields an undefined property the prelude rejects (`prelude.js:251,304`).
+An input type cannot know a provider's successful response or the
+database state a `then` needs; LLP 1002 §7 already makes the same
+concession for asset arguments, which need an upload journey.
 
 ### 5. A running effect can be stopped
 
-- **Upstream (expo/ibex):** a deadline API around the three execution
-  entrances (`ibex2_hermes_eval`, `drain_microtasks`, `pump`) using Hermes's
-  time-limit watcher, so a synchronous loop throws `E_EFFECT_TIMEOUT` at
-  the budget. This is the ticket's named prerequisite; the pin in
+- **Upstream (expo/ibex):** one **monotonic deadline** carried across the
+  three execution entrances (`ibex2_hermes_eval`, `drain_microtasks`,
+  `pump`) and cleanup, using Hermes's time-limit watcher, with the checked
+  interruption and `end_drive` requirements the ticket names. The remaining
+  time is not reset at an entrance or a drain iteration. The pin in
   `snapback2-effects/Cargo.toml` moves when it lands.
-- **Runner:** the deadline is armed before `call_host`, not after; a
-  timed-out job is `failed` with `retry: false` (a program that spins will
-  spin again) and its runtime is dropped, as today for a timeout that does
-  fire.
-- **Owner:** `Drop` of the effects thread joins for at most the budget plus
-  one second, then detaches and logs `{"outbox":{"engine":"detached","running":[…]}}`;
-  the rows stay `running` and become `sent_unknown` on the next boot, which
-  is the state LLP 1003 §2 already defines for "restart while running".
-  `dev --stop` returns.
+- **Runner:** the deadline is armed from the declared budget before the
+  first `call_host`; a timed-out job reports `E_EFFECT_TIMEOUT` with
+  **`retry: true`** exactly as LLP 1003 §3 and `ibex.rs:695` specify today
+  (a timeout can be transient; an effect that reached its provider before
+  timing out is retried under `meta.id` idempotency), so a program that
+  spins exhausts its five attempts across the backoff schedule and then
+  reads `failed` in the log. The drain loop checks the stop flag before
+  each claim, and shutdown admits no new claims.
+- **Owner:** `Drop` joins for at most the budget plus one second, then
+  detaches and logs `{"outbox":{"engine":"detached","running":[…]}}`; the
+  rows stay `running` and become `sent_unknown` on the next boot (LLP 1003
+  §2). Detachment is a reported state, not a claim that execution stopped;
+  the deadline is what stops it. `dev --stop` returns, and the acceptance
+  observes the **owner process exiting**, not the CLI's two-second
+  `E_OWNER_STOP_TIMEOUT`.
+
+"What this does not do" below no longer claims "no retry policy change"
+for timeouts; there is none.
 
 ### 6. The adjacent traps
 
-- **Staging release at commit.** A mutation that commits (including an
-  idempotent early return for a replayed client mutation id) releases every
-  staged object its arguments carried that the commit did not attach. The
-  ledger's per-principal and per-owner counters fall in the same
-  transaction. Journey: seven identical retries of a photo send leave the
-  owner at one staged object, not seven. The operator verbs stay.
-- **`reset` says what it did.** `reset` prints `reset: 0 rows kept, seed
-  re-applied (14 rows, 3 personas)`; `reset --empty` clears without
-  re-seeding and prints `seed skipped`. The semantics of LLP 1002 §1 d.4
-  are unchanged; the silence is what changes.
+- **Discard at commit (LLP 1006 amendment).** A validated typed asset
+  argument that the committing mutation — including the idempotent early
+  return for a replayed client mutation id, and offline-replay settlement —
+  did not attach is **discarded** in that commit: the staged object is
+  tombstoned, and both its object slot and its byte charge leave the
+  ledger in the same transaction. This is distinct from ordinary release
+  and its grace period, which stay as LLP 1006 specifies. Bounds: only
+  arguments of the committing call, only objects the caller owns, at most
+  the call's argument count; rollback restores nothing because nothing was
+  attached; fork-aware deletion and receiving-byte custody are untouched.
+  Correct end state for one attached original plus six discarded retries:
+  zero pending staging objects, one attached asset. The operator verbs stay.
+- **`reset` says what it did, and `--empty` is specified.** `reset`'s JSON
+  result gains `seed: { rows, personas }` and the human line prints it;
+  `reset --empty` clears rows, `_commits`, `_outbox`, `_jobs`, and
+  `_timers` without re-seeding, keeps `_principals` and `_sessions` as
+  ordinary `reset` does (`engine/mod.rs:908-922`), re-arms no schedule
+  until a row exists to arm one, and survives restart as an empty store
+  (the seed is applied only by `reset` or a fresh store). Both forms print
+  `seed: skipped` or the counts.
 - **Seed handles are fixtures.** The chat template's seeded profiles use
-  handles that read as fixtures — `alice-dev`, `bob-dev`, `charlie-dev` —
-  so a builder's first signup as `alice` is not refused by their own seed.
-  Personas stay `dev:alice`; the CLI `--as alice` is unchanged. The guide's
-  personas page says in one sentence that seed handles are the template's
-  and a real account picks its own.
+  `alice_dev` and `bob_dev` (`format handle`: lowercase, digits,
+  underscore); `charlie` keeps no profile, as the testing guide relies on.
+  This frees the example names for a real signup; it does not reserve a
+  namespace, and the personas page says so in one sentence.
 
 ## What this does not do
 
 - No engine in the default `cargo build`, no engine in the five blocking
   checks, no change to LLP 1003 §5. The engine proof stays on the schedule.
-- No general mock layer, no recorded/replayed HTTP, no fixture files of
-  provider responses. A provider stand-in is code in the journey that
-  answers a real request.
-- No retry policy change, no per-effect budgets beyond the declared one, no
-  parallel drains.
+- No general mock layer, no recorded or replayed HTTP, no fixture files of
+  provider responses, no synthetic payloads. A provider stand-in is code in
+  the journey that answers a real request.
+- No change to the retry policy, the backoff schedule, per-effect budgets,
+  or the number of parallel drains.
 - No new verb. `settle`, `rows`, `provider` are journey-context calls over
-  control routes; `logs --effects` is a filter on an existing verb (LLP
+  control routes; `logs --effects` is a flag on an existing verb (LLP
   0329.016 §5.11's table gains a flag, not a row).
+- No change to what the twin does on replay: it consumes the emission's id
+  and executes no effect (`packages/evaluator/src/runner.ts:199`).
 
 ## Acceptance
 
-1. `scripts/test.sh` on the engine-less build: unchanged verdicts, and the
-   loop record shows `effects: blocked` exactly as before.
-2. `scripts/hermes test -p snapback2` (scheduled): the chat template's
-   `notify` journey passes with a provider stand-in; `test` on the chat
-   template reports `effects: pass` with one probe row per effect; the
-   `while(true)` fixture reports `failed` at the budget and `dev --stop`
-   returns within budget + 1 s.
-3. `logs --effects` on a scaffolded chat app shows every transition for
-   one send, in order, with no other lines; `dev` prints the engine line at
-   boot.
-4. The staging journey (seven retries → one staged object) and the `reset`
-   output are asserted in package tests; the template's seed handles and
-   the personas sentence are in the guide within budget.
+1. `scripts/test.sh` on the engine-less build: unchanged verdicts; the loop
+   record shows the `effects` block and the engine-dependent journeys as
+   `blocked: effects:no-engine`, nothing red, nothing green that did not run.
+2. `scripts/hermes test -p snapback2` (scheduled), on a scaffolded chat app:
+   `test` reports `effects: pass` with one witness for `delivery.notify`;
+   the receipt's `then` is `committed` with a `seq`.
+3. Lifecycle journeys: a provider that answers after a restart of the owner
+   between provider completion and `then` (row → `sent_unknown` → requeue →
+   one committed `then`); a `then` that rejects (row `sent`, `then.state ===
+   "rejected"`); a `then` whose generation changed (`E_EFFECT_THEN_CHANGED`);
+   a provider 503 with `tick` past `nextAt` (attempt 2 in the log); more
+   than 200 rows paged by `after`.
+4. Isolation journeys: a journey is killed after its provider accepted a
+   request but before settlement, then a second journey binds the same
+   logical origin — the first row fails `E_EFFECT_UNBOUND`, the second
+   journey's provider receives exactly its own request, and no socket left
+   the loopback (asserted by a bound-only transport in the test owner). An
+   ungranted redirect refuses `E_EFFECT_GRANT`; an unbound granted origin
+   refuses `E_EFFECT_UNBOUND`.
+5. Stopping: the `while(true)` fixture reports `E_EFFECT_TIMEOUT` at the
+   budget with `retry: true`, then `failed` after five attempts; a
+   recursive-microtask fixture and a provider that never answers hit the
+   same deadline; `dev --stop` returns and the owner process is observed to
+   exit within budget + 1 s.
+6. Offline and schedules: a send queued offline whose authoritative
+   response is lost is replayed and yields exactly one server emission and
+   one provider request; a schedule advanced with every client disconnected
+   emits on the background turn and settles.
+7. Assets: seven identical retries of a photo send end with zero pending
+   staging objects and bytes and one attached asset, across rollback of the
+   seventh, a restart, and eventual physical cleanup; `reset` and
+   `reset --empty` are asserted across a restart with a schedule installed.
+8. A real account signs up as `alice` on the seeded chat template; `charlie`
+   still exercises profile creation.
+9. `logs --effects` on one send shows every transition in order with no
+   other lines; `dev` prints the engine line inside the startup envelope.
 
 ## Implementation (proposed lanes; sizes are the orchestrator's estimate)
 
 | lane | scope | size |
 |---|---|---|
-| F1 | log lines for every transition; `dev` boot line; `logs --effects` | small |
-| F2 | `/control/outbox`, `/control/effects/settle`, journey `effects.rows/settle`, types | medium |
-| F3 | provider stand-in: `/control/effects/bind`, loopback server in `test.ts`, the chat `notify` journey | medium |
-| F4 | `test` probes per effect; receipt shape; measure.mjs acceptance unchanged | medium |
-| F5 | expo/ibex deadline API (upstream) + runner arming + bounded `Drop` | medium, two repositories |
-| F6 | staging release at commit; `reset` output and `--empty`; seed handles; guide sentences | small |
+| F1 | transition log lines at their sites; `dev` boot line; `logs --effects`; `trace` history; log-unavailable status | small–medium |
+| F2 | `/control/outbox`, `/control/effects/settle` (background turn + drain off the writer), journey `effects.rows/settle`, types, `remaining` reasons | medium |
+| F3 | bindings: `/control/effects/bind`, supervisor-owned epochs, the bound-only transport in the test owner, logical-origin admission before substitution, `E_EFFECT_UNBOUND` family, loopback server and capture in `test.ts`, the chat `notify` journey | medium–large |
+| F4 | witness aggregation in `check_effects`, receipt shape, `blocked: effects:no-witness` / `effects:no-engine`, `measure.mjs` acceptance amendment, LLP 1002 §7 sentence | medium |
+| F5 | expo/ibex monotonic deadline (upstream) + runner arming + stop-flag per claim + bounded `Drop` | medium, two repositories |
+| F6a | discard-at-commit in the transaction and ledger, offline-replay parity, LLP 1006 amendment | medium |
+| F6b | `reset` accounting and `--empty` semantics; seed handles; guide sentences (`effects.md`, `testing.md`, `personas.md`, within budget) | small |
 
-F1, F2, F6 need no engine and land first; F3 and F4 are proven by the
-scheduled Hermes suite; F5 waits for the upstream pin.
+F1, F2, F6b need no engine and land first; F3 and F4 are proven by the
+scheduled Hermes suite; F5 waits for the upstream pin; F6a lands with its
+LLP 1006 amendment. Two blind reviews per lane under LLP 1002's loop.
 
-## Open questions (author)
+**Sequencing against the siblings and the bar** (from the r1 review's
+closing paragraph, adopted): publish the five-lane program, run the reduced
+loop bar and the Clique cold rerun, land F1/F2/F5 as focused visibility and
+stopping fixes, then LLP 1020's pricing repairs before broader effect
+automation; this RFC's F3/F4 and LLP 1019 are sequenced on the cold rerun's
+evidence, never as a prerequisite for obtaining it.
 
-1. Should the provider stand-in be allowed in `dev` (a builder running the
-   app by hand against a local stand-in), or only in journeys? Proposed:
-   journeys only; a builder in `dev` can point the grant at a local URL in
-   the effect source, which is one line and honest.
-2. Should `test` probes be opt-out per effect (an effect whose provider
-   has no idempotent no-op call)? Proposed: no opt-out; the probe provider
-   answers every request, so nothing reaches a real provider.
+## Open questions (author) — resolved
+
+1. *Should the provider stand-in be allowed in `dev`, or only in journeys?*
+   **Resolved 2026-09-09 (r1 review, confidence 96):** journeys only, with
+   supervisor-owned lifetime, per-journey isolation, and no external
+   fallback anywhere in the test owner. Owner-lifetime bindings had the
+   wrong lifetime (a killed journey cannot unbind), and a manual override
+   surface is not required by the loop bar or the brief.
+2. *Should `test` witnesses be opt-out per effect?* **Resolved 2026-09-09
+   (r1 review, confidence 98):** no silent opt-out; authored witnesses
+   replace synthetic probes, and missing evidence is `blocked`, naming what
+   is missing. An expected refusal is negative evidence only.
