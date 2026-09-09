@@ -1850,11 +1850,14 @@ ceiling. Splitting it into persisted passes introduced stale authorization.
 Replacing the wide post `maintain` with one compact per-author/period counter,
 updated beside all six current original-post inserts, left room for a private
 period-unread row keyed by membership incarnation. The copied app's final
-digest certifies at 3,080,266 closure bytes with one readable three-field
+digest certifies at 3,080,678 closure bytes with one readable three-field
 scratch row. The row-rule surprise was that message existence alone does not
 prove the author's current chat authority: the author arm needed both explicit
-membership and own-message probes. A separate owner prune safely removes old
-incarnations only after the last completed bucket. The counter requires paired
+membership and own-message probes. Another late discovery was that `sendPoll`
+had bypassed the shared expiry helper even though the other message kinds used
+it. Poll storage now takes the same deadline path before writing its companion
+row, and purge removes that question/options row instead of leaving the
+supposedly disappeared content readable. The counter requires paired
 maintenance before any future post delete or key-changing update; this app
 currently exposes neither. Exact and Contract were not used, and this
 correction makes no new competitor claim.
@@ -1866,3 +1869,13 @@ the post-period counter during replay while still keeping the current follow
 mirror accurate. It certifies at 3,080,636 closure bytes and the owner witness
 kept replayed post/follow activity silent while a later ordinary post survived
 an injected response failure and restart exactly once.
+
+The first prune recipe was still unsafe: a separately scheduled cleanup could
+overtake an older digest, and a long profile sweep recomputed `now` across
+chunks. Period schedules now bind typed `.periodStart`/`.periodEnd` values from
+the timer's logical occurrence, not its late fire clock. The digest derives
+its epoch bucket from that pinned cutoff after restart, then runs pruning as a
+later chunk of the same job. Testing also exposed the install-phase timer
+model: advancing a fake clock by a whole duration may coalesce an occurrence,
+so the retained app journeys advance in smaller steps when they must observe
+every logical cutoff.

@@ -48,8 +48,11 @@ deadline from the owner's `now` and configured durations. Branch into a helper
 that accepts the chosen `time ?`; a binding created inside `if` is lexical and
 does not update an outer binding. Give an explicit deadline first precedence,
 use `now + cfg.disappear24hMs` or `now + cfg.disappear7dMs` for those modes,
-and pass `null` for `off`. Apply the same helper to text, photo, video, and
-view-once sends so every message kind participates in the row schedule.
+and pass `null` for `off`. Apply the same helper to text, photo, video,
+view-once, and poll sends so every message kind participates in the row
+schedule; insert a poll's companion row only after its message has taken that
+shared path, and remove the companion question/options row when the message
+expires.
 
 Edit/unsend fan out to current members. Tombstones and held-page point
 absences evict removed bodies.

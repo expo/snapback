@@ -1,6 +1,8 @@
+diff --git a/snapback/access.q b/snapback/access.q
+index 7937ceba8..3f12f9ad9 100644
 --- a/snapback/access.q
 +++ b/snapback/access.q
-@@ -9,6 +9,16 @@
+@@ -9,6 +9,16 @@ fn settings(): appSettings['windows']
  proc deliver(c: conversations, messageId: messages, kind: enum('message', 'edit', 'removed', 'expired')):
    for m in conversationMembers(c):
      insert deliveries { recipient: m.principal, conversationId: c, messageId, kind, at: now }
@@ -17,7 +19,7 @@
 
  proc bumpUnread(c: conversations, recipient: principal):
    existing = unreadCounts[c, recipient]
-@@ -28,27 +38,20 @@
+@@ -28,27 +38,20 @@ proc clearUnread(c: conversations, recipient: principal):
    if flag != null:
      delete unreadFlags[flag]
 
@@ -54,7 +56,7 @@
  proc bumpDailyPosts(actor: principal):
    (day, _rem) = divmod(now, 86400000)
    existing = dailyStats[actor, day]
-@@ -57,6 +60,13 @@
+@@ -57,6 +60,13 @@ proc bumpDailyPosts(actor: principal):
    else:
      insert dailyStats { principal: actor, day, posts: 1, likes: 0 }
 
@@ -68,7 +70,7 @@
  proc bumpDailyLikes(author: principal):
    (day, _rem) = divmod(now, 86400000)
    existing = dailyStats[author, day]
-@@ -72,13 +82,14 @@
+@@ -72,13 +82,14 @@ proc dropDailyLikes(author: principal, at: time):
      if existing.likes > 0:
        update dailyStats[existing] { likes: existing.likes - 1 }
 
@@ -87,20 +89,25 @@
 -          emit notify { to: member.principal, body: preview }
 +          insert pushLog { target: member.principal, kind: 'message', chatId: c, senderDisplayName: me.displayName, preview: boundedPreview, at: now }
 +          emit notify { to: member.principal, body: boundedPreview }
+diff --git a/snapback/admin.q b/snapback/admin.q
+index 365475c5d..169d70788 100644
 --- a/snapback/admin.q
 +++ b/snapback/admin.q
-@@ -25,64 +25,68 @@
+@@ -24,65 +24,65 @@ mutation retractMessage(messageId: messages):
+   update messages[msg] { status: 'removed' }
    return null
 
- job digestSweep():
+-job digestSweep():
 -  chunk p in profiles first 100 by byId:
++job digestSweep(cutoff: time):
 +  chunk p in profiles first 1 by byId:
      cfg = settings() ! else CONFIG
      if cfg.replayMode = false:
 -      (_q, rem) = divmod(now, 120000)
-+      (_q, rem) = divmod(now, cfg.digestPeriodMs)
-       periodEnd = now - rem
+-      periodEnd = now - rem
 -      periodStart = periodEnd - 120000
++      (_q, rem) = divmod(cutoff, cfg.digestPeriodMs)
++      periodEnd = cutoff - rem
 +      periodStart = periodEnd - cfg.digestPeriodMs
        prior = digests[p.principal, periodStart]
        if prior = null:
@@ -195,20 +202,19 @@
 +          }
 +          emit notify { to: p.principal, body: 'digest' }
 +        delete digestCandidates[summary]
-
- schedule digestPulse every 2m: digestSweep()
-
-+job prunePeriodUnread():
 +  chunk row in periodUnread first 50 by byPeriod:
 +    cfg = settings() ! else CONFIG
-+    (_q, rem) = divmod(now, cfg.digestPeriodMs)
-+    currentPeriodStart = now - rem
++    (_q, rem) = divmod(cutoff, cfg.digestPeriodMs)
++    currentPeriodStart = cutoff - rem
 +    if row.periodStart < currentPeriodStart - cfg.digestPeriodMs:
 +      delete periodUnread[row]
-+
-+schedule periodUnreadPrune every 2m: prunePeriodUnread()
-+
+
+-schedule digestPulse every 2m: digestSweep()
++schedule digestPulse every 2m: digestSweep(.periodEnd)
+
  schedule expireTrending on trendingPosts at .expiresAt: dropTrending(.id)
+diff --git a/snapback/follows.q b/snapback/follows.q
+index 390ec5de1..92c7dc0dc 100644
 --- a/snapback/follows.q
 +++ b/snapback/follows.q
 @@ -1,5 +1,4 @@
@@ -217,7 +223,7 @@
 
  query isFollowing(person: principal):
    return follows[viewer, person]
-@@ -11,22 +10,34 @@
+@@ -11,22 +10,34 @@ mutation setFollow(target: principal, following: bool, mutationId: text <=80 ?):
    existing = follows[viewer, target]
    if following:
      if existing != null:
@@ -254,9 +260,11 @@
    if existing != null:
      delete follows[existing]
    return null
+diff --git a/snapback/groups.q b/snapback/groups.q
+index 2cf95c775..20a53f369 100644
 --- a/snapback/groups.q
 +++ b/snapback/groups.q
-@@ -78,6 +78,15 @@
+@@ -78,6 +78,15 @@ mutation memberRemove(conversationId: conversations, membershipId: memberships):
  mutation memberLeave(conversationId: conversations, membershipId: memberships):
    membership = memberships[conversationId, viewer] ! else MEMBERSHIP_REQUIRED
    require membership.id = membershipId else MEMBERSHIP_SELF_REQUIRED
@@ -272,9 +280,11 @@
    delete memberships[membership]
    return null
 
+diff --git a/snapback/messages.q b/snapback/messages.q
+index 67c8833fd..842c33821 100644
 --- a/snapback/messages.q
 +++ b/snapback/messages.q
-@@ -88,41 +88,56 @@
+@@ -88,41 +88,56 @@ query pushRecent(c: cursor ?):
 
  proc afterSend from access
 
@@ -349,7 +359,17 @@
 
  mutation unsend(messageId: messages):
    msg = messages[messageId] ! else NOT_FOUND
-@@ -159,13 +174,16 @@
+@@ -147,6 +162,9 @@ mutation edit(messageId: messages, body: text <=2000, baseBody: text <=2000):
+ mutation purgeMessage(messageId: messages):
+   msg = messages[messageId] ! else NOT_FOUND
+   deliver(msg.conversationId, messageId, 'expired')
++  poll = polls[messageId]
++  if poll != null:
++    delete polls[poll]
+   update messages[msg] { status: 'expired', body: null, photo: null, clip: null, oncePhoto: null }
+   return null
+
+@@ -159,13 +177,16 @@ mutation markDelivered(messageId: messages):
    return null
 
  mutation markRead(conversationId: conversations):
@@ -367,24 +387,38 @@
    clearUnread(conversationId, viewer)
    return null
 
-@@ -183,6 +201,8 @@
+@@ -183,16 +204,10 @@ mutation sendPoll(conversationId: conversations, question: text 1..200, option1:
      require optionId4 != optionId1 else POLL_IDS
      require optionId4 != optionId2 else POLL_IDS
    cfg = settings() ! else CONFIG
-+  (_period, rem) = divmod(now, cfg.digestPeriodMs)
-+  periodStart = now - rem
-   row = insert messages {
-     id: messageId ?? new,
+-  row = insert messages {
+-    id: messageId ?? new,
+-    conversationId,
+-    authorId: viewer,
+-    body: question,
+-    status: 'ok',
+-    at: now,
+-  }
++  chosenId = messageId ?? new
++  storeWithExpiryPolicy(conversationId, chosenId, viewer, question, null, null, null, null, null, conv.disappearing, cfg.disappear24hMs, cfg.disappear7dMs, question, cfg.replayMode, cfg.digestPeriodMs)
+   insert polls {
+-    messageId: row.id,
++    messageId: chosenId,
      conversationId,
-@@ -204,7 +224,7 @@
+     question,
+     option1,
+@@ -204,8 +219,7 @@ mutation sendPoll(conversationId: conversations, question: text 1..200, option1:
      optionId3,
      optionId4,
    }
 -  afterSend(conversationId, row.id, viewer, question, cfg.replayMode)
-+  afterSend(conversationId, row.id, viewer, question, cfg.replayMode, periodStart)
-   return { id: row.id }
+-  return { id: row.id }
++  return { id: chosenId }
 
  mutation setPollVote(messageId: messages, optionId: text <=80, mutationId: text <=80):
+   msg = messages[messageId] ! else NOT_FOUND
+diff --git a/snapback/posts.q b/snapback/posts.q
+index bf454c847..27b6f6c96 100644
 --- a/snapback/posts.q
 +++ b/snapback/posts.q
 @@ -1,49 +1,70 @@
@@ -465,9 +499,11 @@
    bumpDailyPosts(viewer)
    return row
 
+diff --git a/snapback/schema.q b/snapback/schema.q
+index cfe3d1746..f5e7e8a6e 100644
 --- a/snapback/schema.q
 +++ b/snapback/schema.q
-@@ -37,18 +37,33 @@
+@@ -37,18 +37,33 @@ table follows:
    follower: principal
    followed: principal
    mutationId: text <=80
@@ -502,7 +538,7 @@
  table posts:
    author: principal
    body: text <=500
-@@ -61,13 +76,14 @@
+@@ -61,13 +76,14 @@ table posts:
    image3: image <=10485760 ?
    image4: image <=10485760 ?
    clip: video <=52428800 ?
@@ -518,7 +554,7 @@
    public 'posts are globally readable product content'
    insert <- .author = viewer
    update <- .author = viewer
-@@ -143,16 +159,26 @@
+@@ -143,16 +159,26 @@ table dailyStats:
    update <- exists profiles[viewer]
    delete <- deny
 
@@ -550,7 +586,7 @@
 
  table digests:
    principal: principal
-@@ -213,6 +239,7 @@
+@@ -213,6 +239,7 @@ table memberships:
    by byConversationPrincipalRole: conversationId, principal, role
    by byPrincipalConversation: principal, conversationId, id
    cap 50 by conversationId
@@ -558,7 +594,7 @@
    immutable conversationId, principal, joinedAt
    read <- exists memberships[.conversationId, viewer]
    insert <- (
-@@ -249,6 +276,7 @@
+@@ -249,6 +276,7 @@ table messages:
    edited: bool ?
    status: enum('ok', 'removed', 'expired')
    at: time
@@ -566,7 +602,7 @@
    by byConvTime: conversationId, at, id
    by bySearch: conversationId, wordPrefixes(body), at, id
    immutable conversationId, authorId
-@@ -286,26 +314,58 @@
+@@ -286,25 +314,57 @@ table pendingDelivered:
    by byRecipient: recipient, messageId
    by byRecipientConversation: recipient, conversationId, messageId
    cap 50 by recipient, conversationId
@@ -603,7 +639,7 @@
    update <- deny
 -  delete <- .recipient = viewer or exists memberships[.conversationId, viewer]
 +  delete <- .recipient = viewer or exists memberships[.conversationId, viewer, 'admin']
-
++
 +table periodUnread:
 +  messageId: messages
 +  recipient: principal
@@ -626,11 +662,10 @@
 +    .recipient = viewer
 +    or (exists memberships[.conversationId, viewer] and exists messages[.messageId, viewer])
 +  )
-+
+
  table unreadCounts:
    conversationId: conversations
-   principal: principal
-@@ -390,7 +450,7 @@
+@@ -390,7 +450,7 @@ table pushLog:
    kind: enum('message', 'digest')
    chatId: conversations ?
    senderDisplayName: text <=50 ?
@@ -639,7 +674,7 @@
    periodStart: time ?
    periodEnd: time ?
    newFollowers: int ?
-@@ -451,6 +511,9 @@
+@@ -451,6 +511,9 @@ maintain followerCounts: count follows by followed
  maintain followingCounts: count follows by follower
    read <- exists profiles[viewer]
 
@@ -649,28 +684,29 @@
  maintain pendingDeliveredCounts: count pendingDelivered by messageId
    read <- exists messages[.messageId]
 
-@@ -461,6 +524,9 @@
+@@ -463,6 +526,9 @@ maintain pendingDeliveredByChat: count pendingDelivered by recipient, conversati
+ maintain pendingReadByChat: count pendingRead by recipient, conversationId
    read <- deny
 
- maintain pendingReadByChat: count pendingRead by recipient, conversationId
++maintain periodUnreadByMembershipPeriod: count periodUnread by recipient, conversationId, membershipId, periodStart
 +  read <- deny
 +
-+maintain periodUnreadByMembershipPeriod: count periodUnread by recipient, conversationId, membershipId, periodStart
-   read <- deny
-
  maintain unreadMessageTotals: sum unreadCounts of count by principal
+   read <- .principal = viewer
+
+diff --git a/snapback/seed.ts b/snapback/seed.ts
+index 365302f24..d55156fca 100644
 --- a/snapback/seed.ts
 +++ b/snapback/seed.ts
-@@ -48,8 +48,11 @@
+@@ -48,7 +48,10 @@ export default seed({
        { id: "te-post-bob", actor: "dev:bob", at: 2, postId: "post-bob", kind: "post" },
      ],
      follows: [
 -      { id: "follow-bob-alice", follower: "dev:bob", followed: "dev:alice", mutationId: "seed-follow-bob-alice", at: 1 },
 +      { id: "follow-bob-alice", follower: "dev:bob", followed: "dev:alice", mutationId: "seed-follow-bob-alice", digestEligible: true, at: 1 },
-     ],
++    ],
 +    digestFollows: [
 +      { id: "digest-follow-bob-alice", follower: "dev:bob", followed: "dev:alice" },
-+    ],
+     ],
      notifications: [
        { id: "notification-1", outboxId: "seed-outbox", effect: "notify", providerId: "seed-provider" },
-     ],

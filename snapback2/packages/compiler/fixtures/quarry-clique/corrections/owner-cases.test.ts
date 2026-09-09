@@ -2,6 +2,26 @@ import { api } from "snapback2/client";
 import { subscribe } from "snapback2/internal";
 import { fixture, journey } from "snapback2/test";
 
+type TestTick = (milliseconds: number) => Promise<{ offsetMs?: number }>;
+
+async function advanceUntil<T>(
+  tick: TestTick,
+  lookup: () => Promise<T | undefined>,
+  failure: string,
+): Promise<T> {
+  // Period timers keep their install phase. Advancing by less than one full
+  // period observes every logical occurrence instead of coalescing one away.
+  for (let step = 0; step < 4; step += 1) {
+    await tick(60_000);
+    for (let attempt = 0; attempt < 25; attempt += 1) {
+      const value = await lookup();
+      if (value !== undefined) return value;
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+  }
+  throw new Error(failure);
+}
+
 journey("configured expiry is stored from owner time", async ({ as, tick }) => {
   const clock = await tick(0);
   const alice = as("alice");
@@ -62,26 +82,20 @@ journey("digest counts current followed posts in the completed period", async ({
   } finally {
     alice.close();
   }
-  await tick(120_000);
   const bob = as("bob");
   try {
-    for (let attempt = 0; attempt < 100; attempt += 1) {
+    const digest = await advanceUntil(tick, async () => {
       const pushes = await bob.query(api.messages.pushRecent, { c: null });
-      const digest = "data" in pushes && Array.isArray(pushes.data)
+      return "data" in pushes && Array.isArray(pushes.data)
         ? pushes.data.find((row) => row.kind === "digest")
         : undefined;
-      if (digest) {
-        if (digest.periodStart !== sourcePeriodStart || digest.periodEnd !== sourcePeriodStart + 120_000) {
-          throw new Error(`digest period was ${String(digest.periodStart)}..${String(digest.periodEnd)}`);
-        }
-        if (digest.newPostsInFollowing !== 1) {
-          throw new Error(`following post count was ${String(digest.newPostsInFollowing)}`);
-        }
-        return;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 20));
+    }, "following activity produced no digest");
+    if (digest.periodStart !== sourcePeriodStart || digest.periodEnd !== sourcePeriodStart + 120_000) {
+      throw new Error(`digest period was ${String(digest.periodStart)}..${String(digest.periodEnd)}`);
     }
-    throw new Error("following activity produced no digest");
+    if (digest.newPostsInFollowing !== 1) {
+      throw new Error(`following post count was ${String(digest.newPostsInFollowing)}`);
+    }
   } finally {
     bob.close();
   }
@@ -126,23 +140,17 @@ journey("digest keeps the 100-membership account envelope", async ({ as, tick })
   } finally {
     alice.close();
   }
-  await tick(120_000);
   const reopened = as("bob");
   try {
-    for (let attempt = 0; attempt < 100; attempt += 1) {
+    const digest = await advanceUntil(tick, async () => {
       const pushes = await reopened.query(api.messages.pushRecent, { c: null });
-      const digest = "data" in pushes && Array.isArray(pushes.data)
+      return "data" in pushes && Array.isArray(pushes.data)
         ? pushes.data.find((row) => row.kind === "digest")
         : undefined;
-      if (digest) {
-        if (digest.newPostsInFollowing !== 1) {
-          throw new Error(`100-membership following count was ${String(digest.newPostsInFollowing)}`);
-        }
-        return;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 20));
+    }, "100-membership activity produced no digest");
+    if (digest.newPostsInFollowing !== 1) {
+      throw new Error(`100-membership following count was ${String(digest.newPostsInFollowing)}`);
     }
-    throw new Error("100-membership activity produced no digest");
   } finally {
     reopened.close();
   }
@@ -160,27 +168,23 @@ journey("quiet period does not repeat standing unread activity", async ({ as, ti
   } finally {
     alice.close();
   }
-  await tick(120_000);
   const bob = as("bob");
   try {
-    for (let attempt = 0; attempt < 100; attempt += 1) {
+    const first = await advanceUntil(tick, async () => {
       const pushes = await bob.query(api.messages.pushRecent, { c: null });
       const digests = "data" in pushes && Array.isArray(pushes.data)
         ? pushes.data.filter((row) => row.kind === "digest")
         : [];
-      if (digests.length === 1) {
-        if (digests[0]?.unreadMessages !== 1 || digests[0]?.unreadChats !== 1) {
-          throw new Error(`first digest payload was ${JSON.stringify(digests[0])}`);
-        }
-        break;
-      }
-      if (attempt === 99) throw new Error(`first period produced ${digests.length} digests`);
-      await new Promise((resolve) => setTimeout(resolve, 20));
+      return digests.length === 1 ? digests[0] : undefined;
+    }, "first active period produced no digest");
+    if (first?.unreadMessages !== 1 || first?.unreadChats !== 1) {
+      throw new Error(`first digest payload was ${JSON.stringify(first)}`);
     }
   } finally {
     bob.close();
   }
-  const thirdClock = await tick(120_000);
+  await tick(60_000);
+  const thirdClock = await tick(60_000);
   const thirdNow = Date.now() + Number(thirdClock.offsetMs ?? 0);
   const thirdPeriodStart = thirdNow - ((thirdNow % 120_000) + 120_000) % 120_000;
   const poster = as("alice");
@@ -190,21 +194,16 @@ journey("quiet period does not repeat standing unread activity", async ({ as, ti
   } finally {
     poster.close();
   }
-  await tick(120_000);
   const reopened = as("bob");
   try {
-    for (let attempt = 0; attempt < 100; attempt += 1) {
+    const digests = await advanceUntil(tick, async () => {
       const pushes = await reopened.query(api.messages.pushRecent, { c: null });
-      const digests = "data" in pushes && Array.isArray(pushes.data)
+      const rows = "data" in pushes && Array.isArray(pushes.data)
         ? pushes.data.filter((row) => row.kind === "digest")
         : [];
-      if (digests.some((row) => row.periodStart === thirdPeriodStart)) {
-        if (digests.length !== 2) throw new Error(`active/quiet/active left ${digests.length} digest rows`);
-        return;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 20));
-    }
-    throw new Error("third active period produced no digest");
+      return rows.some((row) => row.periodStart === thirdPeriodStart) ? rows : undefined;
+    }, "third active period produced no digest");
+    if (digests.length !== 2) throw new Error(`active/quiet/active left ${digests.length} digest rows`);
   } finally {
     reopened.close();
   }
@@ -252,7 +251,7 @@ journey("scheduled expiry drains a tombstone after offline reconnect", async ({ 
   }
 });
 
-journey("expiry policy covers off explicit photo video and view-once sends", async ({ as, tick }) => {
+journey("expiry policy covers off explicit photo video view-once and poll sends", async ({ as, tick }) => {
   const clock = await tick(0);
   const alice = as("alice");
   try {
@@ -299,17 +298,27 @@ journey("expiry policy covers off explicit photo video and view-once sends", asy
       clip: new File([await fixture("fixtures/clip.mp4")], "clip.mp4", { type: "video/mp4" }),
       messageId: "clip-expiry-proof",
     });
+    const pollSent = await alice.mutation(api.messages.sendPoll, {
+      conversationId: "conversation-1",
+      question: "Which expiry policy?",
+      option1: "Configured",
+      option2: "None",
+      optionId1: "configured",
+      optionId2: "none",
+      messageId: "poll-expiry-proof",
+    });
     if (noExpiry.state !== "committed") throw new Error(`off-policy send was ${noExpiry.state}`);
     if (explicit.state !== "committed") throw new Error(`explicit-policy send was ${explicit.state}`);
     if (photoSent.state !== "committed") throw new Error(`photo send was ${photoSent.state}`);
     if (onceSent.state !== "committed") throw new Error(`view-once send was ${onceSent.state}`);
     if (clipSent.state !== "committed") throw new Error(`clip send was ${clipSent.state}`);
+    if (pollSent.state !== "committed") throw new Error(`poll send was ${pollSent.state}`);
     const thread = await alice.query(api.messages.thread, { conversationId: "conversation-1", c: null });
     if (!("data" in thread) || !Array.isArray(thread.data)) throw new Error("policy thread was not a page");
     const rows = new Map(thread.data.flatMap((row) => row.message ? [[row.message.id, row.message] as const] : []));
     if (rows.get(noExpiry.data.id)?.expiresAt !== null) throw new Error("off policy stored a deadline");
     if (rows.get(explicit.data.id)?.expiresAt !== explicitAt) throw new Error("explicit deadline lost precedence");
-    for (const id of [photoSent.data.id, onceSent.data.id, clipSent.data.id]) {
+    for (const id of [photoSent.data.id, onceSent.data.id, clipSent.data.id, pollSent.data.id]) {
       const row = rows.get(id);
       if (typeof row?.expiresAt !== "number" || typeof row.at !== "number") {
         throw new Error(`media ${id} stored ${JSON.stringify(row)}`);
@@ -317,6 +326,12 @@ journey("expiry policy covers off explicit photo video and view-once sends", asy
       if (row.expiresAt - row.at !== 300_000) {
         throw new Error(`media ${id} expiry delta was ${row.expiresAt - row.at}`);
       }
+    }
+    await tick(300_001);
+    const remainingPolls = await alice.query(api.messages.pollsInChat, { conversationId: "conversation-1" });
+    if (!("data" in remainingPolls) || !Array.isArray(remainingPolls.data)
+      || remainingPolls.data.some((poll) => poll.messageId === pollSent.data.id)) {
+      throw new Error(`expired poll content remained readable: ${JSON.stringify(remainingPolls)}`);
     }
   } finally {
     alice.close();
@@ -346,23 +361,18 @@ journey("digest revalidates follow membership read and expiry before emission", 
       mutationId: `digest-barrier-${signal}`,
     });
     if (follow.state !== "committed") throw new Error(`barrier follow was ${follow.state}`);
-    offset = Number((await tick(120_000)).offsetMs ?? offset);
-    for (let attempt = 0; attempt < 100; attempt += 1) {
+    const digest = await advanceUntil(tick, async () => {
       const pushes = await bob.query(api.messages.pushRecent, { c: null });
-      const digest = "data" in pushes && Array.isArray(pushes.data)
+      return "data" in pushes && Array.isArray(pushes.data)
         ? pushes.data.find((row) => row.kind === "digest" && row.periodStart === periodStart)
         : undefined;
-      if (digest) {
-        const unreadChats = unreadMessages > 0 ? 1 : 0;
-        if (digest.newFollowers !== 1 || digest.newPostsInFollowing !== posts
-          || digest.unreadMessages !== unreadMessages || digest.unreadChats !== unreadChats) {
-          throw new Error(`period ${periodStart} payload was ${JSON.stringify(digest)}`);
-        }
-        return;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 20));
+    }, `period ${periodStart} did not finish its digest job`);
+    offset = Number((await tick(0)).offsetMs ?? offset);
+    const unreadChats = unreadMessages > 0 ? 1 : 0;
+    if (digest.newFollowers !== 1 || digest.newPostsInFollowing !== posts
+      || digest.unreadMessages !== unreadMessages || digest.unreadChats !== unreadChats) {
+      throw new Error(`period ${periodStart} payload was ${JSON.stringify(digest)}`);
     }
-    throw new Error(`period ${periodStart} did not finish its digest job`);
   };
   try {
     const profile = await charlie.mutation(api.profiles.createMyProfile, {
@@ -476,20 +486,16 @@ journey("period unread custody rejects peers and former authors and prunes old m
   const bob = as("bob");
   const charlie = as("charlie");
   const waitForDigest = async (expectedPeriod: number) => {
-    for (let attempt = 0; attempt < 100; attempt += 1) {
+    const digest = await advanceUntil(tick, async () => {
       const pushes = await bob.query(api.messages.pushRecent, { c: null });
-      const digest = "data" in pushes && Array.isArray(pushes.data)
+      return "data" in pushes && Array.isArray(pushes.data)
         ? pushes.data.find((row) => row.kind === "digest" && row.periodStart === expectedPeriod)
         : undefined;
-      if (digest) {
-        if (digest.unreadMessages !== 0 || digest.unreadChats !== 0) {
-          throw new Error(`stale incarnation entered digest ${JSON.stringify(digest)}`);
-        }
-        return;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 20));
+    }, `period ${expectedPeriod} did not finish its digest job`);
+    offset = Number((await tick(0)).offsetMs ?? offset);
+    if (digest.unreadMessages !== 0 || digest.unreadChats !== 0) {
+      throw new Error(`stale incarnation entered digest ${JSON.stringify(digest)}`);
     }
-    throw new Error(`period ${expectedPeriod} did not finish its digest job`);
   };
   try {
     const profile = await charlie.mutation(api.profiles.createMyProfile, {
@@ -590,7 +596,6 @@ journey("period unread custody rejects peers and former authors and prunes old m
       mutationId: "period-prune-barrier-1",
     });
     if (firstBarrier.state !== "committed") throw new Error(`first barrier was ${firstBarrier.state}`);
-    offset = Number((await tick(120_000)).offsetMs ?? offset);
     await waitForDigest(stalePeriod);
     const held = await bob.query(api["owner-inspection"].myPeriodUnread, { conversationId: "conversation-1", c: null });
     if (!("data" in held) || !Array.isArray(held.data)
@@ -607,7 +612,6 @@ journey("period unread custody rejects peers and former authors and prunes old m
       mutationId: "period-prune-barrier-2",
     });
     if (secondBarrier.state !== "committed") throw new Error(`second barrier was ${secondBarrier.state}`);
-    offset = Number((await tick(120_000)).offsetMs ?? offset);
     await waitForDigest(nextPeriod);
     for (let attempt = 0; attempt < 100; attempt += 1) {
       const pruned = await bob.query(api["owner-inspection"].myPeriodUnread, { conversationId: "conversation-1", c: null });
@@ -681,22 +685,91 @@ journey("same-period replay activity stays silent and a post retry counts exactl
     await bob.offline();
     const cold = await bob.restart();
     await cold.online();
-    await tick(120_000);
-    for (let attempt = 0; attempt < 100; attempt += 1) {
+    const digests = await advanceUntil(tick, async () => {
       const pushes = await cold.query(api.messages.pushRecent, { c: null });
-      const digests = "data" in pushes && Array.isArray(pushes.data)
+      const rows = "data" in pushes && Array.isArray(pushes.data)
         ? pushes.data.filter((row) => row.kind === "digest")
         : [];
-      const final = digests.find((row) => row.periodStart === replayPeriod);
-      if (final) {
-        if (digests.length !== 1 || final.newPostsInFollowing !== 1 || final.newFollowers !== 0) {
-          throw new Error(`retry/restart payload was ${JSON.stringify(digests)}`);
-        }
-        return;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 20));
+      return rows.some((row) => row.periodStart === replayPeriod) ? rows : undefined;
+    }, "post-replay period produced no digest");
+    const final = digests.find((row) => row.periodStart === replayPeriod);
+    if (digests.length !== 1 || final?.newPostsInFollowing !== 1 || final?.newFollowers !== 0) {
+      throw new Error(`retry/restart payload was ${JSON.stringify(digests)}`);
     }
-    throw new Error("post-replay period produced no digest");
+  } finally {
+    alice.close();
+    bob.close();
+    charlie.close();
+  }
+});
+
+journey("an ordinary member author unsends period custody without receipt access", async ({ as, tick }) => {
+  let clock = await tick(0);
+  let offset = Number(clock.offsetMs ?? 0);
+  const initialNow = Date.now() + offset;
+  const initialRemainder = ((initialNow % 120_000) + 120_000) % 120_000;
+  clock = await tick(120_000 - initialRemainder + 1_000);
+  offset = Number(clock.offsetMs ?? offset);
+  const periodNow = Date.now() + offset;
+  const periodStart = periodNow - ((periodNow % 120_000) + 120_000) % 120_000;
+  const alice = as("alice");
+  const bob = as("bob");
+  const charlie = as("charlie");
+  try {
+    const profile = await charlie.mutation(api.profiles.createMyProfile, {
+      displayName: "Charlie",
+      handle: "unsend_charlie",
+      bio: "",
+      location: "",
+    });
+    if (profile.state !== "committed") throw new Error(`profile was ${profile.state}`);
+    const group = await alice.mutation(api.groups.groupCreate, {
+      title: "Ordinary author unsend",
+      members: ["dev:bob", "dev:charlie"],
+      conversationId: "ordinary-author-unsend",
+    });
+    if (group.state !== "committed") throw new Error(`group was ${group.state}`);
+    const sent = await bob.mutation(api.messages.send, {
+      conversationId: "ordinary-author-unsend",
+      body: "remove my ordinary-member message",
+      messageId: "ordinary-author-message",
+    });
+    if (sent.state !== "committed") throw new Error(`send was ${sent.state}`);
+    const before = await bob.query(api["owner-inspection"].periodUnreadRow, {
+      messageId: sent.data.id,
+      recipient: "dev:alice",
+    });
+    if (!("data" in before) || before.data?.messageId !== sent.data.id) {
+      throw new Error(`ordinary author could not inspect period custody: ${JSON.stringify(before)}`);
+    }
+    const unsent = await bob.mutation(api.messages.unsend, { messageId: sent.data.id });
+    if (unsent.state !== "committed") throw new Error(`ordinary author unsend was ${JSON.stringify(unsent)}`);
+    const message = await alice.query(api["owner-inspection"].messageRow, { messageId: sent.data.id });
+    if (!("data" in message) || message.data?.status !== "removed" || message.data?.body != null) {
+      throw new Error(`unsent message remained visible: ${JSON.stringify(message)}`);
+    }
+    const after = await alice.query(api["owner-inspection"].periodUnreadRow, {
+      messageId: sent.data.id,
+      recipient: "dev:alice",
+    });
+    if ("data" in after && after.data != null) {
+      throw new Error(`period custody survived ordinary-author unsend: ${JSON.stringify(after)}`);
+    }
+    const barrier = await charlie.mutation(api.follows.setFollow, {
+      target: "dev:alice",
+      following: true,
+      mutationId: "ordinary-author-unsend-barrier",
+    });
+    if (barrier.state !== "committed") throw new Error(`barrier follow was ${barrier.state}`);
+    const digest = await advanceUntil(tick, async () => {
+      const pushes = await alice.query(api.messages.pushRecent, { c: null });
+      return "data" in pushes && Array.isArray(pushes.data)
+        ? pushes.data.find((row) => row.kind === "digest" && row.periodStart === periodStart)
+        : undefined;
+    }, "ordinary-author unsend period produced no digest");
+    if (digest.newFollowers !== 1 || digest.unreadMessages !== 0 || digest.unreadChats !== 0) {
+      throw new Error(`ordinary-author unsend entered digest: ${JSON.stringify(digest)}`);
+    }
   } finally {
     alice.close();
     bob.close();
@@ -735,23 +808,17 @@ journey("all six original-post branches feed one follower-independent counter", 
   } finally {
     alice.close();
   }
-  await tick(120_000);
   const bob = as("bob");
   try {
-    for (let attempt = 0; attempt < 100; attempt += 1) {
+    const digest = await advanceUntil(tick, async () => {
       const pushes = await bob.query(api.messages.pushRecent, { c: null });
-      const digest = "data" in pushes && Array.isArray(pushes.data)
+      return "data" in pushes && Array.isArray(pushes.data)
         ? pushes.data.find((row) => row.kind === "digest")
         : undefined;
-      if (digest) {
-        if (digest.newPostsInFollowing !== 6) {
-          throw new Error(`six post branches counted ${String(digest.newPostsInFollowing)}`);
-        }
-        return;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 20));
+    }, "six post branches produced no digest");
+    if (digest.newPostsInFollowing !== 6) {
+      throw new Error(`six post branches counted ${String(digest.newPostsInFollowing)}`);
     }
-    throw new Error("six post branches produced no digest");
   } finally {
     bob.close();
   }
