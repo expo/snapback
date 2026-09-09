@@ -25,10 +25,10 @@ import { canonical, canonicalAnswerKey, jsonState, queryArgs, storedAnswerKey, s
 export { canonicalAnswerKey, jsonState } from "./canonical.js";
 import { ItemCapture, freshItemSelection } from "../query-items.js";
 import { withItemInputs } from "../query-frame.js";
-import { sha256 } from "../../../evaluator/src/hash.js";
+import { isSha256, sha256 } from "../../../evaluator/src/hash.js";
 import { compareArrays, totalCompare } from "../../../evaluator/src/value-runtime.js";
 import { prepareWireRow, preparedDeliveryRows, tagWireValue, type TaggedValue } from "../offline-protocol.js";
-import { asRowRef, collectRefs, mapRowValues, purgeAnswerData, restoreRetained, rowKey, hiddenRefs } from "./row-values.js";
+import { asRowRef, collectRefs, mapRowValues, object, purgeAnswerData, restoreRetained, rowKey, hiddenRefs } from "./row-values.js";
 import type { InboxConnection, InboxDelta, InboxRow } from "./inbox.js";
 import { MaintainedTransitions } from "./maintained-coherence.js";
 export type PrincipalPartition = string;
@@ -453,11 +453,6 @@ function clone<T>(value: T): T {
   return value === undefined ? value : jsonState(raw(value));
 }
 
-function viewedRef(key: string): RowRef {
-  const at = key.indexOf(String.fromCharCode(0));
-  return { table: key.slice(0, at), id: key.slice(at + 1) };
-}
-
 function recordEviction(evictions: Map<string, StoreTombstone>, eviction: StoreTombstone): void {
   const key = rowKey(eviction);
   if ((evictions.get(key)?.seq ?? -1) <= eviction.seq) evictions.set(key, eviction);
@@ -475,13 +470,13 @@ function normalizeState(value: PersistedRangeState | undefined): PersistedRangeS
   if (!value) return emptyState();
   for (const answer of Object.values(value.answers ?? {})) validateClock(answer);
   value = jsonState(value);
-  if (value.version !== 1 || typeof value.rows !== "object" || typeof value.answers !== "object") {
+  if (value.version !== 1 || !object(value.rows) || !object(value.answers)) {
     throw new OfflineStoreFailure("E_OFFLINE_CARRIER", "range store contains an unsupported format");
   }
   // Older snapshots used the canonical delivery itself as the fingerprint.
   // Hash that value before any subsequent persistence can retain its row bodies.
   for (const answer of Object.values(value.answers)) {
-    if (answer.fingerprint && !/^[0-9a-f]{64}$/.test(answer.fingerprint)) answer.fingerprint = sha256(answer.fingerprint);
+    if (answer.fingerprint && !isSha256(answer.fingerprint)) answer.fingerprint = sha256(answer.fingerprint);
   }
   const { factGuards: legacyGuards, ...current } = value as PersistedRangeState & { factGuards?: object };
   const factFormat = value.factFormat ?? (Object.keys(legacyGuards ?? {}).length || Object.keys(value.rowFacts ?? {}).length
@@ -489,7 +484,7 @@ function normalizeState(value: PersistedRangeState | undefined): PersistedRangeS
   // Empty-state custody defines the collection defaults for every carrier.
   // Rows/answers were required above; never repair their absence implicitly.
   for (const [key, initial] of Object.entries(emptyState())) {
-    if (key !== "rows" && key !== "answers" && typeof initial === "object")
+    if (key !== "rows" && key !== "answers" && object(initial))
       (current as unknown as Record<string, unknown>)[key] ??= initial;
   }
   return {
@@ -576,7 +571,7 @@ export class PersistentRangeStore implements RangeStore {
       const loaded = await this.backend.open(partition);
       this.partition = partition;
       const rawFingerprints = loaded && Object.values(loaded.answers).some((answer) =>
-        answer.fingerprint && !/^[0-9a-f]{64}$/.test(answer.fingerprint));
+        answer.fingerprint && !isSha256(answer.fingerprint));
       this.state = normalizeState(loaded);
       if (this.state.factFormat !== FACT_FORMAT) {
         // Experimental predecessor holes used indistinguishable global guards.
@@ -665,7 +660,7 @@ export class PersistentRangeStore implements RangeStore {
       }
       // A viewed view-once row is absent to the twin: not a row, and a byId absence (LLP 1012 §9).
       const exhausted = fullyViewed(this.state);
-      const viewed = Object.keys(exhausted).map(viewedRef);
+      const viewed = Object.keys(exhausted).map(key => factRow(key)!);
       for (const ref of viewed) {
         const absence: Receipt["absences"][number] = [ref.table, "byId", [ref.id]];
         absences.set(canonical(absence), absence);
@@ -682,7 +677,7 @@ export class PersistentRangeStore implements RangeStore {
         watermarks: clone(Object.values(this.state.watermarks)),
         viewed,
         evicted: [...new Set([...Object.keys(this.state.negative), ...Object.keys(this.state.extentNegative)
-          .filter(key => this.state.extentNegative[key].active)])].map(viewedRef),
+          .filter(key => this.state.extentNegative[key].active)])].map(key => factRow(key)!),
         ...(this.state.facts === undefined ? {} : { facts: clone(this.state.facts) }),
         ...(this.state.superseded === undefined ? {} : { superseded: clone(this.state.superseded) }),
         ...(deliveredAt === undefined ? {} : { deliveredAt }),
@@ -691,11 +686,9 @@ export class PersistentRangeStore implements RangeStore {
   }
 
   async metadata(): Promise<CoverageMetadata> {
-    return this.read(() => this.state.sealed ? { watermarks: [] } : {
-      watermarks: clone(Object.values(this.state.watermarks)),
-      ...(this.state.facts === undefined ? {} : { facts: clone(this.state.facts) }),
-      ...(this.state.superseded === undefined ? {} : { superseded: clone(this.state.superseded) }),
-    });
+    return this.read(() => clone(this.state.sealed ? { watermarks: [] } : {
+      watermarks: Object.values(this.state.watermarks), facts: this.state.facts, superseded: this.state.superseded,
+    }));
   }
 
   async changes(since?: StoreRevision): Promise<StoreChange<PersistedRangeState>> {
@@ -807,7 +800,7 @@ export class PersistentRangeStore implements RangeStore {
       return {
         entries,
         totalBytes: entries.reduce((sum, entry) => sum + entry.size, 0),
-        viewed: Object.keys(fullyViewed(this.state)).map(viewedRef),
+        viewed: Object.keys(fullyViewed(this.state)).map(key => factRow(key)!),
       };
     });
   }
@@ -832,7 +825,7 @@ export class PersistentRangeStore implements RangeStore {
 
   /** The viewed view-once rows; a live frame nulls them exactly as a held answer does. */
   async viewedRows(): Promise<RowRef[]> {
-    return this.read(() => this.state.sealed ? [] : Object.keys(fullyViewed(this.state)).map(viewedRef));
+    return this.read(() => this.state.sealed ? [] : Object.keys(fullyViewed(this.state)).map(key => factRow(key)!));
   }
 
   /**
@@ -1152,7 +1145,7 @@ export class PersistentRangeStore implements RangeStore {
       const proofs = integrity.check(frameFacts(frame), delivery.seq, delivery.readTime !== undefined);
       for (const [offset,row] of (delivery.rows ?? []).entries()) {
         const image = frameImages(frame)[offset];
-        if (!row.table || !row.id || !row.row || typeof row.row !== "object") {
+        if (!row.table || !row.id || !object(row.row)) {
           throw new TypeError("store delivery row is malformed");
         }
         const storageKey = rowKey(row);
@@ -1266,7 +1259,7 @@ export class PersistentRangeStore implements RangeStore {
       // Only this bounded transaction's incoming versions supplement maintained seeks.
       for (const [key,versions] of images) if (versions[0]?.image.row.table === condition.table) candidates.add(key);
       for (const key of candidates) {
-        const ref = viewedRef(key); if (present.has(ref.id)) continue;
+        const ref = factRow(key)!; if (present.has(ref.id)) continue;
         const image = imageAt(key,seq);
         if ((image && extentContains(image.keys!,condition)) || (!image && masked.has(key))) recordHole({ ...ref,seq },condition);
       }
@@ -1311,7 +1304,7 @@ export class PersistentRangeStore implements RangeStore {
     // remains held for authorized-history fallback; the partial marker keeps a
     // cold/offline reevaluation from assembling fields from different commits.
     for (const [key, seq] of maintained.targetChanges) {
-      const table = key.slice(0, key.indexOf("\0"));
+      const table = factRow(key)!.table;
       const owners = new Set([...(index.references.get(key) ?? []), ...(index.absences.get(key) ?? [])]);
       for (const owner of changedAnswers) if (state.answers[owner]?.refs.some((ref) => rowKey(ref) === key)) owners.add(owner);
       const targetImage = imageAt(key, seq)?.keys;

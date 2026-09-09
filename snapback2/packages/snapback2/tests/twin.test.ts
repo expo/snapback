@@ -1424,6 +1424,21 @@ test('native-certified derived page keeps its public local cursor after halo rep
     assert.equal(tail.state,'held','held iterator exhaustion never proves the unheld server tail'); assert.deepEqual(tail.data,[]);
     assert.equal(saved.answers[op+'\0'+canonical({ term: args.term })].next,null,'local cursor never becomes stored server progress');
   }
+  const pending = (intent: string, id: string) => ({ intent,grant: 'synthetic',offset: 0,count: 0,ids: [id],op: 'synthetic',args: {},issuedSeq: 1,
+    state: 'queued' as const,predicted: true,order: 2,createdAt: 2,updatedAt: 2 });
+  const alpha = pending('same-a','local-a'), beta = pending('same-b','local-b');
+  await runtime.store.commit({ outbox: { put: [beta,alpha] },overlay: { put: {
+    [alpha.intent]: [{ table: 'people',id: alpha.ids[0],row: { id: alpha.ids[0],name: 'alpha',handle: null } }],
+    [beta.intent]: [{ table: 'people',id: beta.ids[0],row: { id: beta.ids[0],name: 'beta',handle: null } }],
+  } } });
+  await runtime.twin.hydrate();
+  const predictions = async () => (await runtime.twin.evaluate(op,args))!.predicted!.map(row => row.intent);
+  assert.deepEqual(await predictions(),['same-a','same-b'],
+    'equal legacy FIFO positions retain their intent tie-break');
+  await runtime.store.commit({ outbox: { put: [{ ...alpha,updatedAt: 3 }] } });
+  await runtime.twin.hydrate();
+  assert.deepEqual(await predictions(),['same-a','same-b'],
+    'replacing an equal-position intent deletes its previous ordered key');
   await runtime.close();
 });
 

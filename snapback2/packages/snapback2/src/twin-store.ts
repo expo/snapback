@@ -1,5 +1,5 @@
 import { RangeReceipt } from '../../evaluator/src/range-preparation.js';
-import { RowImage, ImageKeys, imageWire } from '../../evaluator/src/row-image.js';
+import { RowImage, imageWire } from '../../evaluator/src/row-image.js';
 // @ref LLP 1012#indexed-held-search — durable deltas maintain one immutable effective row pool and its indexes.
 import { ClientStore } from '../../evaluator/src/store.js';
 import { Ordered } from '../../evaluator/src/ordered.js';
@@ -9,20 +9,15 @@ import { prepareWireRow, prepareReceipt, type DeliveryReceipt } from './offline-
 import { onceAssetIds, onceColumns, RowAssets } from './store/asset-policy.js';
 import type { Context } from '../../evaluator/src/types.js';
 import type { HeldProgram, PersistedRangeState, StoredAnswer, StoredRow, OutboxEntry, OverlayRow } from './store/range-store.js';
-import type { StoreChange, StoreRevision } from './store/swap-journal.js';
+import { isolate, type StoreChange, type StoreRevision } from './store/swap-journal.js';
 import { ItemCapture } from './query-items.js';
 import type { ItemActionKind } from './client-items.js';
 import type { PredictedRow } from './types.js';
 import { rowKey } from './store/row-values.js';
+import { outboxFifo as fifo } from './store/query-inputs.js';
+import { factRow } from './store/fact-integrity.js';
 
-// Generic sources retain no mutable aliases; owned image leaves are already deeply isolated.
-function isolate<T>(value: T): T {
-  if (!value || typeof value !== 'object' || RowImage.is(value) || ImageKeys.is(value) || RangeReceipt.is(value)) return value;
-  return (Array.isArray(value) ? value.map(isolate) : Object.fromEntries(Object.entries(value).map(([k,v]) => [k,isolate(v)]))) as T;
-}
-const ref = (key: string) => { const i = key.indexOf('\0'); return { table: key.slice(0, i), id: key.slice(i + 1) }; };
 type Contribution = { entry: OutboxEntry; row: OverlayRow };
-const fifo = (a: OutboxEntry, b: OutboxEntry) => (a.order ?? a.createdAt) - (b.order ?? b.createdAt) || a.intent.localeCompare(b.intent);
 
 export interface TwinStoreSources {
   program(): HeldProgram | undefined;
@@ -213,7 +208,7 @@ export class TwinStore {
     return entry.predicted === true && evidence?.admitted === true ? evidence : undefined;
   }
   private row(key: string): boolean {
-    const { table, id } = ref(key), negative = this.state.negative[key];
+    const { table, id } = factRow(key)!, negative = this.state.negative[key];
     let base = this.state.rows[key];
     if (base && !RowImage.is(base.row)) {
       base = { ...base,row: prepareWireRow(this.program.schema,table,base.row,this.program.schemaHash) as unknown as Record<string,unknown> };

@@ -1,6 +1,7 @@
 // @ref LLP 1018.003.001#3-semantic-mutation-targets — allocation correspondence is certified, captured at admission, and fenced by actual execution identity.
 import { referenceName, referencePath, type Op } from "./api.js";
 import type { HeldProgram, OutboxEntry } from "./store/range-store.js";
+import { object } from "./store/row-values.js";
 
 export type MutationTargetKind = "create" | "update" | "remove";
 export type UnresolvedMutationTarget = "conditional" | "repeated" | "ambiguous" | "computed";
@@ -48,7 +49,6 @@ export function matchingMutationProgram(entry: Readonly<OutboxEntry>): boolean {
   return program?.planHash === entry.targets.planHash && program?.schemaHash === entry.targets.schemaHash;
 }
 
-const object = (value: unknown): value is Record<string, any> => value !== null && typeof value === "object" && !Array.isArray(value);
 /** Validate and materialize the certified relation in the ledger's admission turn. */
 export function admittedMutationTargets(program: HeldProgram | undefined, op: string, args: unknown, ids: readonly string[]): AdmittedMutationTargets | undefined {
   const operation = program?.programs[op];

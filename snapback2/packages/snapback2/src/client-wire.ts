@@ -14,6 +14,7 @@ import type {
   RefusedDelivery,
   ServerQueryResult,
 } from "./types.js";
+import { plainObject } from "../../evaluator/src/value-runtime.js";
 
 export function fallbackRefusal(code: string, message: string): Refusal {
   return { code, family: code === "E_TRANSPORT" ? "transport" : "owner", message,
@@ -47,8 +48,8 @@ export function wireShape(message: string): RefusalError {
 }
 
 export function wireObject(value: unknown, surface: string): Record<string, unknown> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) throw wireShape(`${surface} must be an object`);
-  return value as Record<string, unknown>;
+  if (!plainObject(value)) throw wireShape(`${surface} must be an object`);
+  return value;
 }
 
 function has(record: Record<string, unknown>, field: string): boolean {
@@ -243,8 +244,8 @@ export function wireChannelWrite(value: unknown): ChannelWriteResult {
 }
 
 export function terminalSessionEnvelope(value: unknown): Refusal | undefined {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
-  const record = value as Record<string, unknown>;
+  if (!plainObject(value)) return undefined;
+  const record = value;
   if (record.state !== "rejected" && record.state !== "refused") return undefined;
   // A replayed write's trace conflict carries no code (LLP 1012 §7); it is never a session terminal.
   if (record.state === "rejected" && record.reason === "conflict") return undefined;
@@ -294,10 +295,10 @@ export function wireManifest(value: unknown): Manifest {
     auth: wireObject(present(record, "auth", surface), `${surface}.auth`),
   };
   if (typeof record.schemaHash === "string") manifest.schemaHash = record.schemaHash;
-  if (record.tables && typeof record.tables === "object" && !Array.isArray(record.tables)) {
+  if (plainObject(record.tables)) {
     manifest.tables = record.tables as Manifest["tables"];
   }
-  if (record.schema && typeof record.schema === "object" && !Array.isArray(record.schema)) {
+  if (plainObject(record.schema)) {
     manifest.schema = record.schema as Manifest["schema"];
   }
   return manifest;
@@ -319,8 +320,7 @@ export async function responseJson(response: Response, surface: string): Promise
 
 export async function responseRefusal(response: Response): Promise<RefusalError> {
   const value = await responseJson(response, `HTTP ${response.status} refusal`);
-  if (!value || typeof value !== "object" || Array.isArray(value)
-    || !["code", "family", "guide"].some((field) => has(value as Record<string, unknown>, field))) {
+  if (!plainObject(value) || !["code", "family", "guide"].some((field) => has(value, field))) {
     throw new RefusalError(
       fallbackRefusal("E_TRANSPORT", `HTTP ${response.status} did not contain a refusal envelope`),
       true,

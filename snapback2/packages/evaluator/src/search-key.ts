@@ -3,7 +3,7 @@
 // @ref LLP 1001#unicode-search-foundation — source descriptors compare by normalized meaning, with independent Q.
 import type { Value } from './types';
 import type { Expr } from '../../compiler/src/ir';
-import { totalCompare } from './value-runtime';
+import { plainObject, totalCompare } from './value-runtime';
 import { utf8Length } from './hash';
 import { SEARCH_CONTRACT, type SearchContract, SearchInputError, SearchNormalizer, scalarLength, searchQueryToken } from './unicode';
 export { SEARCH_CONTRACT, type SearchContract } from './unicode';
@@ -26,13 +26,13 @@ export class NormalizedWordPrefix {
 export type LogicalIndexAtom = { Scalar: Value } | { WordPrefix: NormalizedWordPrefix };
 
 function exact(value: unknown, keys: string[]): value is Record<string, any> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  if (!plainObject(value)) return false;
   const actual = Object.keys(value);
   return actual.length === keys.length && keys.every(k => Object.hasOwn(value, k));
 }
 function scalar(value: unknown): value is Value {
   if (value === 'Null') return true;
-  if (!value || typeof value !== 'object') return false;
+  if (!plainObject(value)) return false;
   for (const tag of ['Bool', 'Int', 'String', 'Id', 'Bytes']) {
     if (!exact(value, [tag])) continue;
     const data = value[tag];

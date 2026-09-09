@@ -1,9 +1,9 @@
 import { imageField } from '../../../evaluator/src/row-image.js';
 // @ref LLP 1006#2a1-one-use-image-delivery-clique-f3-2026-09-05 — once is column custody, never an application predicate.
 import type { OfflineSchema, StoredRow } from "./range-store.js";
+import { object } from "./row-values.js";
 
 export type OnceColumns = Record<string, string[]>;
-function object(value: unknown): value is Record<string, any> { return value !== null && typeof value === "object" && !Array.isArray(value); }
 export function onceType(type: unknown): boolean {
   return object(type) && (type.Image?.once === true || onceType(type.Optional) || onceType(type.List?.of));
 }

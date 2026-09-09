@@ -3,6 +3,7 @@
 // so its ids are known before the server has seen it and a retry is the same
 // envelope. Delivered successes compact atomically; unresolved terminals remain dismissible.
 import type { OutboxStatus } from "../types.js";
+import { plainObject } from "../../../evaluator/src/value-runtime.js";
 import { inboxKeyOf, type InboxRow } from "./inbox.js";
 import { admittedMutationTargets } from "../mutation-targets.js";
 import type {
@@ -33,10 +34,8 @@ export function emptyTrace(): OutboxTrace {
 
 /** Reads `grant` off a signup, login, guest, or resume response; anything malformed is ignored. */
 export function decodeGrant(value: unknown): OutboxGrant | undefined {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
-  const grant = (value as { grant?: unknown }).grant;
-  if (!grant || typeof grant !== "object" || Array.isArray(grant)) return undefined;
-  const record = grant as Record<string, unknown>;
+  if (!plainObject(value) || !plainObject(value.grant)) return undefined;
+  const record = value.grant;
   if (typeof record.id !== "string" || typeof record.from !== "string" || !ENGINE_ID.test(record.from)
     || !Number.isSafeInteger(record.count) || Number(record.count) <= 0
     || !Number.isSafeInteger(record.mintedAt) || !Number.isSafeInteger(record.expiresAt)) return undefined;

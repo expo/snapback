@@ -6,6 +6,7 @@ import type {
   NativeAssetSource,
   VideoAsset,
 } from "./types.js";
+import { plainObject as isRecord } from "../../evaluator/src/value-runtime.js";
 
 export class AssetInputError extends Error {
   constructor(
@@ -43,10 +44,6 @@ type PlacementCandidate = {
   readonly max: number;
   readonly source: RuntimeAssetUploadSource;
 };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 export function isBrowserFile(value: unknown): value is File | Blob {
   return isBlobLike(value)

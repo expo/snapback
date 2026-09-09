@@ -54,6 +54,9 @@ export function sha256(text: string): string {
   return state.map((value) => value.toString(16).padStart(8, "0")).join("");
 }
 
+export const isSha256 = (value: unknown): value is string =>
+  typeof value === "string" && /^[0-9a-f]{64}$/.test(value);
+
 export function utf8Length(text: string): number {
   let bytes = 0;
   for (const character of text) { const p = character.codePointAt(0)!; bytes += p <= 0x7f ? 1 : p <= 0x7ff ? 2 : p <= 0xffff ? 3 : 4; }

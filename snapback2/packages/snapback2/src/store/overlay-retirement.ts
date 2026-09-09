@@ -1,6 +1,6 @@
 // @ref LLP 1012#7-writes-offline — cursor identity is not order. Only held,
 // post-commit next links prove progress; explicit negatives settle deletions.
-import { collectRefs, rowKey } from "./row-values.js";
+import { collectRefs, object, rowKey } from "./row-values.js";
 import type { OverlayRow, PersistedRangeState, StoreSwap, StoredAnswer, WatermarkRecord } from "./range-store.js";
 import { canonical } from "./canonical.js";
 
@@ -16,10 +16,6 @@ export interface OverlayWatermark extends Pick<WatermarkRecord, "op" | "args" | 
   /** Last proven progress, and positions already consumed, survive a remount/reopen. */
   progress?: string;
   consumed?: string[];
-}
-
-function object(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 /** Each page keeps the name used when it was filed, including a pre-manifest c. */

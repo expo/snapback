@@ -1,11 +1,12 @@
 // @ref LLP 1012#indexed-held-search — receipt admission uses the issuing operation's trusted query bound.
 import { tagWireValue,
   type TaggedValue, type WireValue } from "./offline-protocol.js";
+import { plainObject } from "../../evaluator/src/value-runtime.js";
 
 /** Tag one operation argument by the IR's descriptor (`Cursor`, `Optional`, or a column type). */
 export function tagArgument(descriptor: unknown, value: unknown, path: string, schema?: any): TaggedValue {
-  if (descriptor !== null && typeof descriptor === "object" && !Array.isArray(descriptor) && "Optional" in descriptor) {
-    return value === null || value === undefined ? "Null" : tagArgument((descriptor as { Optional: unknown }).Optional, value, path, schema);
+  if (plainObject(descriptor) && "Optional" in descriptor) {
+    return value === null || value === undefined ? "Null" : tagArgument(descriptor.Optional, value, path, schema);
   }
   if (descriptor === "Cursor") {
     if (value === null || value === undefined) return "Null";
@@ -18,9 +19,9 @@ export function tagArgument(descriptor: unknown, value: unknown, path: string, s
 
 export function tagArguments(descriptors: unknown, args: unknown, schema?: any): Record<string, TaggedValue> {
   const tagged: Record<string, TaggedValue> = Object.create(null);
-  if (descriptors === null || typeof descriptors !== "object") return tagged;
-  const record = args !== null && typeof args === "object" && !Array.isArray(args) ? args as Record<string, unknown> : {};
-  for (const [name, descriptor] of Object.entries(descriptors as Record<string, unknown>)) {
+  if (!plainObject(descriptors)) return tagged;
+  const record = plainObject(args) ? args : {};
+  for (const [name, descriptor] of Object.entries(descriptors)) {
     tagged[name] = tagArgument(descriptor, record[name], `args.${name}`, schema);
   }
   return tagged;

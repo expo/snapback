@@ -5,7 +5,7 @@ import { CURRENT_EVALUATOR, CURRENT_VALUE_MODEL_VERSION } from "../../evaluator/
 import { schemaDigest } from "./offline-schema.js";
 import type { DrainContract } from "./types.js";
 import type { HeldProgram, HeldOperation } from "./store/range-store.js";
-const object = (v: unknown): v is Record<string, any> => v !== null && typeof v === 'object' && !Array.isArray(v);
+import { object } from "./store/row-values.js";
 /** Both trusted descriptions must name the same exact query clock; there is no client quantization. */
 export function queryClock(operation: HeldOperation): boolean {
   const ir = (operation.ir as any).read_time_granularity_ms ?? null;

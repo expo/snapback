@@ -3,6 +3,7 @@
 // in key order, in the same transaction as the entry each becomes. Rows are
 // insert-only from followers; only the writer marks admission or rejection.
 import { canonical } from "./canonical.js";
+import { plainObject } from "../../../evaluator/src/value-runtime.js";
 import type { OutboxEntry } from "./range-store.js";
 
 /** Rows of `queued` state per partition; a guard against a runaway follower, not the ledger's capacity. */
@@ -72,7 +73,7 @@ export function jsonArguments(args: unknown): unknown {
 }
 
 export function isInboxRow(value: unknown): value is InboxRow {
-  if (!value || typeof value !== "object") return false;
+  if (!plainObject(value)) return false;
   const row = value as Partial<InboxRow>;
   return typeof row.key === "number" && Number.isSafeInteger(row.key)
     && (row.kind === "mutation" || row.kind === "dismiss")

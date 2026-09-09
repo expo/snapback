@@ -1,6 +1,6 @@
 import { RowImage } from '../../../evaluator/src/row-image.js';
 // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — execution clocks never change durable fact identity.
-import { sha256 } from '../../../evaluator/src/hash.js';
+import { isSha256, sha256 } from '../../../evaluator/src/hash.js';
 import { canonical } from './canonical.js';
 import type { PersistedRangeState, StoreDelivery, StoredAnswer, StoredRow } from './range-store.js';
 import type { CarrierIndex } from './carrier-index.js';
@@ -241,7 +241,7 @@ export function answerFactKeys(answer: StoredAnswer): Set<string> {
 export function checkFactSlots(state: PersistedRangeState): void { if (state.factSlots > FACT_SLOT_LIMIT) throw new ClockCoverageReset(true); }
 export function validateClock(value: { readTime?: number; clockPlanHash?: string }): void {
   if (value.readTime === undefined && value.clockPlanHash === undefined) return;
-  if (!Number.isSafeInteger(value.readTime) || Object.is(value.readTime, -0) || !/^[0-9a-f]{64}$/.test(value.clockPlanHash ?? ''))
+  if (!Number.isSafeInteger(value.readTime) || Object.is(value.readTime, -0) || !isSha256(value.clockPlanHash))
     throw new TypeError('invalid execution clock identity');
 }
 export const sameClockPlan = (old: StoredAnswer | undefined, next: StoreDelivery): old is StoredAnswer =>

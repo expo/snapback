@@ -147,7 +147,7 @@ export function compareArrays(left: Value[], right: Value[]): number {
   return comparePrimitive(left.length, right.length);
 }
 
-export function comparePrimitive(left: number | boolean, right: number | boolean): number {
+export function comparePrimitive(left: number | boolean | string, right: number | boolean | string): number {
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
@@ -249,7 +249,7 @@ export function validHttpUrl(value: string): boolean {
 
 export function canonicalJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
-  if (value !== null && typeof value === "object") {
+  if (plainObject(value)) {
     return `{${Object.keys(value)
       .sort(compareCodepoints)
       .map((key) => `${JSON.stringify(key)}:${canonicalJson((value as any)[key])}`)
@@ -455,7 +455,7 @@ export function assertValue(value: Value, label: string, descriptor?: any, schem
 function inspectValue(value: Value, label: string, descriptor?: any, schema?: any): boolean {
   while (descriptor?.Optional !== undefined) descriptor = descriptor.Optional;
   if (value === "Null") return false;
-  if (!value || typeof value !== "object" || Object.keys(value).length !== 1) throw new EvalError("E_INPUT", `${label} is not a tagged value`);
+  if (!plainObject(value) || Object.keys(value).length !== 1) throw new EvalError("E_INPUT", `${label} is not a tagged value`);
   const kind = kindOf(value);
   const data = (value as any)[kind];
   if (kind === "Bool" && typeof data === "boolean" || kind === "Int" && Number.isSafeInteger(data)) return false;
@@ -472,7 +472,7 @@ function inspectValue(value: Value, label: string, descriptor?: any, schema?: an
     for (const item of data) reserved = inspectValue(item, label, descriptor?.List?.of, schema) || reserved;
     return reserved;
   }
-  if ((kind === "Row" || kind === "Map") && data !== null && typeof data === "object" && !Array.isArray(data)) {
+  if ((kind === "Row" || kind === "Map") && plainObject(data)) {
     for (const [key, item] of Object.entries(data)) { scalarText(key); reserved = inspectValue(item as Value, label) || reserved; }
     return reserved;
   }
@@ -485,6 +485,10 @@ export function canonicalBytes(value: unknown): value is string {
 
 export function hasOwn(value: object, key: PropertyKey): boolean {
   return Object.hasOwn(value, key);
+}
+
+export function plainObject(value: unknown): value is Record<string, any> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 export function clone<T>(value: T): T {
@@ -556,7 +560,7 @@ export function validateAddress(schema: any, table: string, id: string): void {
 /** Wire construction preserves input-field refusal order; row admission follows in schema order. */
 export type WireRefusal = (path: string, detail: string) => never;
 export function wireObject(value: any): value is Record<string, any> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
+  return plainObject(value)
     && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
 }
 export function rowFromWire(schema: any, table: string, row: Record<string, unknown>, fail: WireRefusal): Value {

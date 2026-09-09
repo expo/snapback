@@ -4,6 +4,7 @@ import { RowImage } from "../../../evaluator/src/row-image.js";
 import { asInt, canonicalValues, field, materializeOptionalFields } from "../../../evaluator/src/value-runtime.js";
 import { tagWireRow, type TaggedValue, type WireValue } from "../offline-protocol.js";
 import { canonical } from "./canonical.js";
+import { factRow } from "./fact-integrity.js";
 import { rowKey } from "./row-values.js";
 import type { OutboxEntry, OverlayRow, StoredRow, StoreTombstone } from "./range-store.js";
 
@@ -54,7 +55,7 @@ export class MaintainedTransitions {
   }
 
   invalidations(): StoreTombstone[] {
-    return [...this.deltas].flatMap(([key, change]) => change.delta === 0n ? [] : [{ ...splitKey(key), seq: change.seq }]);
+    return [...this.deltas].flatMap(([key, change]) => change.delta === 0n ? [] : [{ ...factRow(key)!, seq: change.seq }]);
   }
 
   private contribution(row: StoredRow, direction: 1 | -1, seq: number): void {
@@ -73,9 +74,4 @@ export class MaintainedTransitions {
         seq: Math.max(previous?.seq ?? -1, seq) });
     }
   }
-}
-
-function splitKey(key: string): { table: string; id: string } {
-  const at = key.indexOf("\0");
-  return { table: key.slice(0, at), id: key.slice(at + 1) };
 }

@@ -14,6 +14,7 @@ await import("./expo-harness.test.ts");
 await import("./expo-witness.test.ts");
 await import("./offline-protocol.test.ts");
 await import("./offline-store.test.ts");
+await import("./offline-owner-custody.test.ts");
 await import("./sqlite.test.ts");
 await import("./expo.test.ts");
 await import("./offline-bytes.test.ts");

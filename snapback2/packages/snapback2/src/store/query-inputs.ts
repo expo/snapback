@@ -2,6 +2,8 @@ import type { ChangedRecords } from "./swap-journal.js";
 import type { OutboxEntry } from "./range-store.js";
 
 /** The carrier's durable FIFO order, including its legacy timestamp tie-break. */
+export const outboxFifo = (a: OutboxEntry, b: OutboxEntry): number =>
+  (a.order ?? a.createdAt) - (b.order ?? b.createdAt) || a.intent.localeCompare(b.intent);
 export function outboxOrder(entries: Record<string, OutboxEntry>): OutboxEntry[] {
   return Object.values(entries).sort((a, b) =>
     (a.order ?? a.createdAt) - (b.order ?? b.createdAt) || a.createdAt - b.createdAt || (a.intent < b.intent ? -1 : 1));

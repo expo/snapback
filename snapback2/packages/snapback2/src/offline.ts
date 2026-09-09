@@ -1,4 +1,5 @@
 import { operationArgs, queryArgs } from "./store/canonical.js";
+import { isSha256 } from "../../evaluator/src/hash.js";
 import { decodeHeldProgram, queryClock } from "./held-program.js";
 import { cursorArgument, serverArguments } from "./local-cursor.js";
 export { decodeHeldProgram } from "./held-program.js";
@@ -38,7 +39,7 @@ import {
   tailWatermark,
 } from "./store/range-store.js";
 import { ByteCache } from "./store/byte-cache.js";
-import { rowKey, mapExpandedRows } from "./store/row-values.js";
+import { object, rowKey, mapExpandedRows } from "./store/row-values.js";
 import { Twin, readsConnected, type LocalAnswer, type Prediction } from "./twin.js";
 import { carryItemInputs, emptyItemInputs, itemInputs, withItemInputs } from "./query-frame.js";
 import { deliveredItemInputs } from "./query-items.js";
@@ -133,12 +134,6 @@ export class OfflineAuthorityError extends Error {
   }
 }
 
-function object(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-
-
 // @ref LLP 1012#6-reads-offline — owner-derived returned-page metadata, never a scan/name/cursor heuristic.
 export function admitDrain(op: string, contract: DrainContract | undefined): string {
   if (contract && "cursor" in contract && typeof contract.cursor === "string" && contract.cursor.length > 0) return contract.cursor;
@@ -192,7 +187,7 @@ export class OfflineRuntime {
   private superseded?: CoverageFacts;
   private latestSeq = 0;
   private sessionEpoch?: number;
-  private pendingGrant?: { principal: string; grant: OutboxGrant };
+  private pendingGrant?: [string, OutboxGrant];
   private pendingBounds?: Record<string, number>;
   private pendingProgram?: HeldProgram;
   private held?: HeldProgram;
@@ -261,7 +256,7 @@ export class OfflineRuntime {
   async itemEntries(): Promise<OutboxEntry[]> {
     const rows = unadmittedRows(this.inboxRowsCache).map(inboxEntry);
     if (this.inboxConnection) {
-      const ledger = Object.values(this.inboxLedgerCache).filter((entry) => entry && typeof entry === "object" && typeof entry.intent === "string")
+      const ledger = Object.values(this.inboxLedgerCache).filter((entry) => object(entry) && typeof entry.intent === "string")
         .sort((left, right) => (left.order ?? Number.MAX_SAFE_INTEGER) - (right.order ?? Number.MAX_SAFE_INTEGER) || left.createdAt - right.createdAt);
       return [...ledger, ...rows];
     }
@@ -570,7 +565,7 @@ export class OfflineRuntime {
    */
   noteGrant(value: unknown, principal: string): void {
     const grant = decodeGrant(value);
-    if (grant) this.pendingGrant = { principal, grant };
+    if (grant) this.pendingGrant = [principal, grant];
   }
 
   async adoptPendingGrant(): Promise<void> {
@@ -626,7 +621,7 @@ export class OfflineRuntime {
     const tables = value.tables ?? value.schema?.tables ?? {};
     const retention: Record<string, RetentionPolicy> = {};
     for (const [name, table] of Object.entries(tables)) {
-      if (!table || typeof table !== "object") continue;
+      if (!object(table)) continue;
       const word = (table as { retain?: unknown }).retain;
       if (word === "until-revoked" || word === "delivered-history") retention[name] = word;
     }
@@ -705,7 +700,7 @@ export class OfflineRuntime {
     if (object(raw) && raw.state === "unchanged") {
       if (Object.keys(raw).sort().join(",") !== "seq,state,validator"
         || !Number.isSafeInteger(raw.seq) || Number(raw.seq) < 0
-        || typeof raw.validator !== "string" || !/^[0-9a-f]{64}$/.test(raw.validator)) {
+        || !isSha256(raw.validator)) {
         throw new DeliveryEnvelopeDecodeError("$", "conditional delivery must be { state, seq, validator }");
       }
       const held = await this.answer<Result>(op, args);
@@ -1018,9 +1013,9 @@ export class OfflineRuntime {
     this.pendingGrant = undefined;
     // @ref LLP 1012#7-writes-offline — session and resume grants remain in
     // their validated principal's custody even when opening that partition fails.
-    if (pending.principal !== this.partition) return;
+    if (pending[0] !== this.partition) return;
     try {
-      await this.outbox.adopt(pending.grant);
+      await this.outbox.adopt(pending[1]);
     } catch (error) {
       this.pendingGrant ??= pending;
       throw error;
@@ -1099,10 +1094,7 @@ export class OfflineRuntime {
   }
 
   private async storeMetadata(): Promise<CoverageMetadata> {
-    if (this.store.metadata) return this.store.metadata();
-    const coverage = await this.store.coverage();
-    return { watermarks: coverage.watermarks, ...(coverage.facts ? { facts: coverage.facts } : {}),
-      ...(coverage.superseded ? { superseded: coverage.superseded } : {}) };
+    return this.store.metadata?.() ?? this.store.coverage();
   }
 
   private serial<T>(action: () => Promise<T>): Promise<T> {
@@ -1153,18 +1145,17 @@ export function offlineView<Result>(held: HeldAnswer<Result> | undefined, local?
   // computed projection. Never graft that boundary onto the partial rerun:
   // queued work, revocation and maintained-coherence still select local or
   // invalidated custody instead.
-  const computedProjectionOnly = local?.state === "partial"
-    && (local.sites?.length
-      ? local.sites.every((site) => site.reason === "computed-key")
-      : local.reason === "computed-key");
   const localInputs = itemInputs(local);
-  const sameOwnerRerun = held !== undefined && (local?.seq === 0 || local?.seq === held.seq)
-    && localInputs?.selection?.through === held.seq
-    && (computedProjectionOnly || local.state === "complete" || local.state === "capped");
   const exactOwnerAnswer = preserveOwner && held?.receipt !== undefined
     && held.state === "capped" && typeof held.next === "string"
-    && sameOwnerRerun && !(local.predicted?.length)
-    && !localInputs?.overlay;
+    && (local?.seq === 0 || local?.seq === held.seq) && localInputs?.selection?.through === held.seq
+    && local.state !== "held" && local.state !== "denied"
+    && (local.state !== "partial" || (local.sites?.length
+      ? local.sites.every((site) => site.reason === "computed-key")
+      : local.reason === "computed-key"))
+    // `predicted` lives exactly as long as its overlay, including an empty or
+    // removal-only overlay after commit; retirement clears both atomically.
+    && !localInputs?.entries.some((entry) => entry.predicted);
   const useLocal = local !== undefined && !waitingForCoherentOwner && !cachedAnswerOnly && !exactOwnerAnswer
     && (!held?.retained || reconstructed);
   if (!useLocal) {

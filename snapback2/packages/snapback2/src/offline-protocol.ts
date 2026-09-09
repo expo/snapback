@@ -1,10 +1,10 @@
 import { RowImage, type ImageKeys } from '../../evaluator/src/row-image.js';
-import { utf8Length } from "../../evaluator/src/hash.js";
+import { isSha256, utf8Length } from "../../evaluator/src/hash.js";
 // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — this is the strict public mirror of the frozen server envelope.
 
 import { components } from "../../evaluator/src/index-store.js";
 import { RangeReceipt, prepareWireRanges, wireRangePrefix, wireIndexValues, wireBoundary, preparedDeliveryRanges } from '../../evaluator/src/range-preparation.js';
-import { scalarText, validateIdentity, validateWriteRow, rowFromWire, valueFromWire, wireObject as plain } from "../../evaluator/src/value-runtime.js";
+import { comparePrimitive, scalarText, validateIdentity, validateWriteRow, rowFromWire, valueFromWire, wireObject as plain } from "../../evaluator/src/value-runtime.js";
 import type { ClosureReceipt, IndexAtom } from "../../evaluator/src/types.js";
 import { schemaDigest } from "./offline-schema.js";
 import { asRowRef, escapedFields, mapRowValues } from "./store/row-values.js";
@@ -207,7 +207,7 @@ export function encodeDeliveryEnvelope(envelope: DeliveryEnvelopeV1): string {
   ordered.next = decoded.next;
   ordered.seq = decoded.seq;
   ordered.rows = [...decoded.rows]
-    .sort((left, right) => compareText(left.table, right.table) || compareText(left.id, right.id))
+    .sort((left, right) => comparePrimitive(left.table, right.table) || comparePrimitive(left.id, right.id))
     .map((row) => ({ table: row.table, id: row.id, row: canonicalWire(row.row) }));
   ordered.receipt = {
     ranges: decoded.receipt.ranges.map((range) => {
@@ -470,9 +470,8 @@ function string(value: unknown, path: string): asserts value is string { if (typ
 function boolean(value: unknown, path: string): asserts value is boolean { if (typeof value !== "boolean") fail(path, "expected boolean"); }
 function uint(value: unknown, path: string): asserts value is number { if (!Number.isSafeInteger(value) || Number(value) < 0) fail(path, "expected non-negative safe integer"); }
 function uintOrSigned(value: unknown, path: string): asserts value is number { if (!Number.isSafeInteger(value)) fail(path, "expected safe integer"); }
-function digest(value: unknown, path: string): asserts value is string { if (typeof value !== "string" || !/^[0-9a-f]{64}$/.test(value)) fail(path, "expected lowercase SHA-256 digest"); }
+function digest(value: unknown, path: string): asserts value is string { if (!isSha256(value)) fail(path, "expected lowercase SHA-256 digest"); }
 function poolKey(table: string, id: string): string { return `${table.length}:${table}${id}`; }
-function compareText(left: string, right: string): number { return left < right ? -1 : left > right ? 1 : 0; }
 function clone<T>(value: T): T { return structuredClone(value); }
 function fail(path: string, detail: string): never { throw new DeliveryEnvelopeDecodeError(path, detail); }
 

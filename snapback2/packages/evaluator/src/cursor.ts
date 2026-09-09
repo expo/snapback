@@ -2,7 +2,7 @@
 // canonical tagged position format, including nominal Id/String values.
 import { utf8 } from "./hash";
 import { EvalError } from "./errors";
-import { scalarText, validateColumnValue, validateTypedValue } from "./value-runtime";
+import { plainObject, scalarText, validateColumnValue, validateTypedValue } from "./value-runtime";
 import type { Value } from "./types";
 
 const VERSION = 1;
@@ -200,6 +200,5 @@ function decodeUtf8(bytes: number[]): string {
 }
 
 function variant(value: Value, name: string): boolean { return value !== "Null" && name in value; }
-function plainObject(value: any): value is Record<string, any> { return value !== null && typeof value === "object" && !Array.isArray(value); }
 function nonnegativeInteger(value: any): boolean { return Number.isInteger(value) && value >= 0; }
 function fail(message: string): never { throw new EvalError("E_INPUT", message); }

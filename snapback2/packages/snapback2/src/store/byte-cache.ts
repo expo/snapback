@@ -1,4 +1,4 @@
-import { wireJson } from '../../../evaluator/src/value-runtime.js';
+import { plainObject, wireJson } from '../../../evaluator/src/value-runtime.js';
 import type { Value } from '../../../evaluator/src/types.js';
 import { RowImage } from '../../../evaluator/src/row-image.js';
 import { onceAssetIds, type OnceColumns } from "./asset-policy.js";
@@ -78,8 +78,8 @@ function positive(value: unknown): boolean {
 
 /** The closed asset record shape (LLP 1006 §1): exactly id, width, height, and duration for video. */
 export function assetRecordId(value: unknown): string | undefined {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
-  const record = value as Record<string, unknown>;
+  if (!plainObject(value)) return undefined;
+  const record = value;
   const keys = Object.keys(record).sort().join(",");
   if (keys !== "height,id,width" && keys !== "duration,height,id,width") return undefined;
   if (typeof record.id !== "string" || !ASSET_ID.test(record.id)) return undefined;

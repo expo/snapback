@@ -9,6 +9,7 @@ import type { ItemInputs, ItemObservation } from "./client-items.js";
 import { itemAddress } from "./query-frame.js";
 import type { DeliveryEnvelopeV1 } from "./offline-protocol.js";
 import { factAssertion } from "./store/fact-integrity.js";
+import { outboxFifo } from "./store/query-inputs.js";
 
 /** Only a checked, complete owner answer can advance this query's membership evidence. */
 export function freshItemSelection(held: StoredAnswer | undefined): StoredAnswer["selection"] {
@@ -93,13 +94,8 @@ export class ItemCapture {
   }
   inputs(): ItemInputs {
     const selection = this.held?.selection ?? freshItemSelection(this.held);
-    const overlay = Object.keys(this.state.overlay).some((intent) => {
-      const state = this.state.outbox[intent]?.state;
-      return state !== undefined && state !== "rejected" && state !== "expired";
-    });
-    return { compactedThrough: this.state.compactedThrough, entries: this.entries ?? Object.values(this.state.outbox).sort((a, b) => (a.order ?? a.createdAt) - (b.order ?? b.createdAt)
-      || a.intent.localeCompare(b.intent)), observations: this.observations, values: this.values, predicted: new Map(this.predicted),
-      ...(overlay ? { overlay: true } : {}),
+    return { compactedThrough: this.state.compactedThrough, entries: this.entries ?? Object.values(this.state.outbox).sort(outboxFifo),
+      observations: this.observations, values: this.values, predicted: new Map(this.predicted),
       ...(this.state.facts ? { program: { generation: this.state.facts.generation, schemaHash: this.state.facts.schemaHash } } : {}),
       ...(selection ? { selection } : {}) };
   }

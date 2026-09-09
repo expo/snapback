@@ -1,12 +1,13 @@
 // @ref LLP 1012#5-retention-revocation-and-the-fence — a declaration on the
 // delivered row's table names the body evicted before an absence proves it.
+import { plainObject } from "../../evaluator/src/value-runtime.js";
 
 export type TombstoneTarget = { table: string; id: string };
 export type WireRow = { table: string; row: Record<string, unknown> };
 
 type ObjectValue = Record<string, any>;
 const object = (value: unknown): ObjectValue | undefined =>
-  typeof value === "object" && value !== null && !Array.isArray(value) ? value as ObjectValue : undefined;
+  plainObject(value) ? value : undefined;
 const field = (row: Record<string, unknown>, name: string): unknown =>
   Object.hasOwn(row, name) ? row[name] : undefined;
 const scalar = (value: unknown): string | boolean | undefined =>

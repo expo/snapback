@@ -3,8 +3,10 @@ import { RowImage, ImageKeys } from '../../../evaluator/src/row-image.js';
 // @ref LLP 1012#indexed-held-search — mutate a bounded record journal under the carrier's serial transaction.
 // Root dictionaries are not cloned. Nested records copy on write, so published rows/receipts stay immutable.
 const proxies = new WeakMap<object, () => any>();
+const traversable = (value: unknown): value is any[] | Record<string, any> =>
+  !!value && typeof value === 'object' && !RowImage.is(value) && !ImageKeys.is(value) && !RangeReceipt.is(value);
 export function raw<T>(value: T): T {
-  if (!value || typeof value !== 'object' || RowImage.is(value) || ImageKeys.is(value) || RangeReceipt.is(value)) return value;
+  if (!traversable(value)) return value;
   const unwrap = proxies.get(value); if (unwrap) return unwrap();
   let result: any = value;
   for (const [key, child] of Object.entries(value)) {
@@ -12,6 +14,11 @@ export function raw<T>(value: T): T {
     if (next !== child) { if (result === value) result = Array.isArray(value) ? value.slice() : { ...value }; result[key] = next; }
   }
   return result;
+}
+/** Generic sources retain no mutable aliases; nominal immutable leaves keep their ownership. */
+export function isolate<T>(value: T): T {
+  if (!traversable(value)) return value;
+  return (Array.isArray(value) ? value.map(isolate) : Object.fromEntries(Object.entries(value).map(([key, child]) => [key,isolate(child)]))) as T;
 }
 export type ChangedRecords = Map<string, Set<string>>;
 export class SwapJournal<T extends object> {
@@ -21,8 +28,8 @@ export class SwapJournal<T extends object> {
   private saved = new WeakMap<object, Set<PropertyKey>>();
   constructor(readonly state: T) { this.draft = this.wrap(state, [], undefined); }
   private wrap(value: any, path: string[], parent?: (next: any) => void): any {
-    if (!value || typeof value !== 'object' || RowImage.is(value) || ImageKeys.is(value) || RangeReceipt.is(value)) return value;
-    let current = value, copied = false;
+    if (!traversable(value)) return value;
+    let current: any = value, copied = false;
     const children = new Map<PropertyKey, { value: any; proxy: any }>();
     const write = (key: PropertyKey, next: any, remove = false): void => {
       if (path.length >= 2 && !copied) {

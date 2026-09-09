@@ -1,10 +1,9 @@
 // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — an escaped
 // application object is traversed through its fields, never re-read as a marker.
+import { plainObject as object } from "../../../evaluator/src/value-runtime.js";
 import type { RowRef } from "./range-store.js";
 
-function object(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
+export { object };
 
 export function asRowRef(value: unknown): RowRef | undefined {
   if (!object(value) || Object.keys(value).length !== 1 || !object(value.$row)) return;
