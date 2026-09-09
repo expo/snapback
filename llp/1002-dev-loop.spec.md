@@ -1126,7 +1126,11 @@ a tokenless client needs its lazy first `me()`.
 While a bearer is hydrating, mounted reads wait for confirmation or answer
 from existing offline coverage after pending account transitions settle, on both one-shot
 and live reads; each held read checks authority after the carrier returns. The token-bound display field supplies no
-network authority. Explicit `me()` replaces its backoff timer. `offline()`
+network authority. Confirming the same bearer preserves live React query observers and
+their held item identity; the client resumes those reads in place. A one-shot read
+retries on confirmation if it could not answer while hydrating. Actual account
+transitions still replace observations through `authGeneration`.
+Explicit `me()` replaces its backoff timer. `offline()`
 pauses retry clocks without splitting a pending `me()` flight; an offline
 restart remains paused until `online()`. An online restart starts the new
 client's normal restoration. A closed client's `auth` is only its last view, without `retryAt` or any

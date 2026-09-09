@@ -4,11 +4,8 @@ import { AssetImage, useAuth, useMutation, useOutbox, useQuery, useViewer } from
 import { Composer } from "./Composer";
 import { threadWitness } from "./witness";
 import { conversationItems, messageWrites } from "../shared/thread";
-
 type Props = { conversationId: string };
-export function Thread(props: Props) {
-  return <Conversation key={props.conversationId} {...props} />;
-}
+export function Thread(props: Props) { return <Conversation key={props.conversationId} {...props} />; }
 function Conversation({ conversationId }: Props) {
   const { session: auth } = useAuth();
   const viewer = useViewer();

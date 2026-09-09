@@ -213,14 +213,23 @@ test("the cold chat keeps both intents queued after a committed replay loses its
   const restore = installDom();
   const root = await mkdtemp(join(tmpdir(), "snapback2-screens-503-"));
   const store = fileRangeStore(root);
-  const warm = createClient({ url: screenOwner.url, persona: "alice", offline: { store } });
-  const writer = createClient({ url: screenOwner.url, persona: "alice" });
+  let token: string | null = null, binding: { token: string; principal: string } | null = null;
+  const tokenStore = { load: () => token, save: (value: string | null) => { token = value; },
+    loadPrincipalBinding: () => binding,
+    savePrincipal: (principal: string | null, bearer?: string) => { binding = principal && bearer ? { token: bearer, principal } : null; } };
+  const warm = createClient({ url: screenOwner.url, tokenStore, offline: { store } });
+  let writer: any;
   const replays: string[] = [];
   let cut = true, fault = true;
   let client: any;
   const reactRoot = createRoot(document.getElementById("root")!);
   try {
     await warm.ready;
+    await warm.auth.guest();
+    const principal = warm.snapshot.auth.viewer;
+    assert.ok(principal, "the persisted session binds a real guest principal");
+    writer = createClient({ url: screenOwner.url, tokenStore });
+    await writer.ready;
     const group: any = await writer.mutation(api.groups.groupCreate, { title: "503 transition", members: ["dev:bob"] });
     assert.equal(group.state, "committed");
     const conversationId = group.data.id;
@@ -233,7 +242,7 @@ test("the cold chat keeps both intents queued after a committed replay loses its
     assert.equal(first.state, "queued");
     drain.close();
     await warm.close();
-    client = createClient({ url: screenOwner.url, persona: "alice", offline: { store },
+    client = createClient({ url: screenOwner.url, tokenStore, offline: { store },
       fetch: async (input: any, init: any) => {
         const path = new URL(String(input)).pathname;
         if (cut) throw new TypeError("owner unreachable");
@@ -258,12 +267,13 @@ test("the cold chat keeps both intents queued after a committed replay loses its
     await waitFor(() => document.querySelectorAll("li[data-state=queued]").length === 2, "two queued bubbles");
     const pending = document.querySelector(`li[data-message="${first.ids[0]}"]`)!;
     const queued = (await client.outbox.entries()).filter((e: any) => e.state === "queued");
-    assert.equal(client.snapshot.auth.viewer, undefined, "the cold persona is not confirmed yet");
+    assert.equal(client.snapshot.auth.viewer, undefined, "the cold bearer is not confirmed yet");
+    assert.equal(client.snapshot.auth.restoringViewer, principal, "the token-bound principal preserves the held app");
     cut = false;
     let verdict: any;
     await act(async () => { await client.online(); verdict = await client.outbox.settled(); });
     assert.deepEqual(verdict, { stopped: "transport", remaining: 2 });
-    assert.equal(client.snapshot.auth.viewer, "dev:alice");
+    assert.equal(client.snapshot.auth.viewer, principal);
     const custody = (entries: any[]) => entries.map(({ intent, state, ids, args }) => ({ intent, state, ids, args }));
     assert.deepEqual(custody(await client.outbox.entries()), custody(queued), "neither intent settled or changed after the lost receipt");
     await waitFor(() => document.querySelector("ol.bubbles")?.getAttribute("data-view-source") === "composite"
@@ -286,7 +296,7 @@ test("the cold chat keeps both intents queued after a committed replay loses its
     t.diagnostic("503: 2 durable queued intents, 2 queued bubbles, 1 request; Sync: 3 attempts [first, first, second], 1 owner row each, pinned node unchanged");
   } finally {
     await act(async () => reactRoot.unmount());
-    await warm.close(); await client?.close(); await writer.close(); restore();
+    await warm.close(); await client?.close(); await writer?.close(); restore();
     await rm(root, { recursive: true, force: true });
   }
 });

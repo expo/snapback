@@ -175,7 +175,8 @@ export function useQuery<Args, Result, Row extends ItemRow, Draft>(
   const live = options.live !== false;
   if (!live && options.drain) throw new TypeError("useQuery drain requires a live subscription");
   const operation = referenceName(ref);
-  const restoring = !!snapshot.token && snapshot.auth.state === "hydrating";
+  // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test — live observations resume in place; only a one-shot held read retries after confirmation.
+  const restoring = !live && !!snapshot.token && snapshot.auth.state === "hydrating";
   const observed = useMemo(
     () => client.observe(ref, stableArgs, { ...options } as { live?: false; drain?: boolean; items: Items<Args, Result, Row, Draft> }),
     [client, snapshot.authGeneration, operation, argsKey, live, options.drain, options.items, restoring],
