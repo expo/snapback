@@ -10,6 +10,7 @@
 //   node scripts/witness-web.mjs            # Google Chrome via playwright-core's "chrome" channel
 //   SNAPBACK2_WITNESS_BROWSER=/path/to/chromium node scripts/witness-web.mjs
 //   node scripts/witness-web.mjs --sessions # LLP 1018 shared subscriptions and tab takeover only
+//   node scripts/witness-web.mjs --signup   # signup grant + first IndexedDB-backed profile write only
 //   node scripts/witness-web.mjs --keep     # leave the scratch project and profile behind
 //
 // playwright-core is an optional devDependency of packages/snapback2; when it
@@ -33,6 +34,7 @@ const keep = process.argv.includes("--keep");
 const indexedSearchBody = "Café expires while offline";
 const indexedSearchTerm = "CAFE\u0301";
 const sessionsOnly = process.argv.includes("--sessions");
+const signupOnly = process.argv.includes("--signup");
 const steps = [];
 
 function step(name, detail) {
@@ -76,7 +78,7 @@ async function bundleApp(url) {
 import { StrictMode, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { indexedDbRangeStore, SnapbackProvider, useSnapbackClient } from "snapback2/react";
-import { api } from "snapback2/client";
+import { api, createClient } from "snapback2/client";
 import * as diagnostics from "snapback2/internal";
 (window as any).__diagnostics = diagnostics;
 (window as any).__api = api;
@@ -122,11 +124,35 @@ const transport: typeof fetch = async (input, init) => {
 const offline = {
   store: indexedDbRangeStore({ beforeReplace: state => (window as any).__witnessBarrier?.(state) }),
 };
+(window as any).__startSignupWitness = () => {
+  const requests: Array<{ path: string; body?: unknown }> = [];
+  const signupFetch: typeof fetch = async (input, init) => {
+    const path = new URL(String(input)).pathname;
+    requests.push({ path, ...(init?.body === undefined ? {} : { body: init.body }) });
+    if (path === "/api/auth/me") return new Promise((_resolve, reject) =>
+      init?.signal?.addEventListener("abort", () => reject(new DOMException("startup superseded", "AbortError")), { once: true }));
+    return fetch(input, init);
+  };
+  let ready = false;
+  const startupToken = "superseded-startup-token";
+  const client = createClient({ url: ${JSON.stringify(url)}, fetch: signupFetch,
+    offline: { store: indexedDbRangeStore({ databasePrefix: "snapback2-signup:" }) },
+    tokenStore: {
+      load: () => startupToken,
+      save: () => undefined,
+      loadPrincipalBinding: () => ({ token: startupToken, principal: "dev:superseded-startup" }),
+      savePrincipal: () => undefined,
+    },
+  });
+  client.ready.then(() => { ready = true; }, () => { ready = true; });
+  return ((window as any).__signupWitness = { client, requests, ready: () => ready });
+};
 function Expose() {
   const client = useSnapbackClient();
   useEffect(() => { (window as any).__snapback = client; }, [client]);
   return null;
 }
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode><SnapbackProvider url=${JSON.stringify(url)} persona="alice" fetch={transport} offline={offline}><Expose /><App /></SnapbackProvider></StrictMode>,
 );
@@ -159,6 +185,72 @@ createRoot(document.getElementById("root")!).render(
   }
   await writeFile(resolve(out, "index.html"), `<!doctype html><html><head><meta charset="utf-8"><title>witness</title></head><body><div id="root"></div><script type="module" src="/app.js"></script></body></html>`);
   return out;
+}
+
+async function signupWitness(page) {
+  const nonce = `${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
+  const account = { email: `signup-${nonce}@example.test`, password: "browser-signup-password-12345" };
+  const profile = { displayName: "Browser Signup", handle: `browser${nonce.replace(/\D/g, "").slice(-10)}`,
+    avatarUrl: null, bio: "first durable write", location: "Web", link: null };
+  await page.evaluate(() => {
+    const witness = window.__startSignupWitness();
+    window.__signupRun = {};
+  });
+  await pollUntil(page, () => window.__signupWitness.requests.some(request => request.path === "/api/auth/me"), undefined,
+    { label: "pending startup identity check" });
+  await page.evaluate(({ account }) => {
+    const witness = window.__signupWitness;
+    window.__signupRun.readyAtCall = witness.ready();
+    witness.client.auth.signup(account).then(
+      session => { window.__signupRun.session = session; },
+      error => { window.__signupRun.error = error?.stack ?? String(error); },
+    );
+  }, { account });
+  await pollUntil(page, () => window.__signupWitness.requests.some(request => request.path === "/api/auth/signup"), undefined,
+    { label: "signup request while startup is pending" });
+  const pending = await page.evaluate(() => ({ readyAtCall: window.__signupRun.readyAtCall, readyAtDispatch: window.__signupWitness.ready() }));
+  await pollUntil(page, () => window.__signupRun.session !== undefined || window.__signupRun.error !== undefined, undefined,
+    { label: "signup session" });
+  const result = await page.evaluate(async (profile) => {
+    const witness = window.__signupWitness;
+    if (window.__signupRun.error) throw new Error(window.__signupRun.error);
+    const session = window.__signupRun.session;
+    const readiness = await witness.client.outbox.status(window.__api.profiles.createMyProfile);
+    const mutation = await witness.client.mutation(window.__api.profiles.createMyProfile, profile);
+    const entries = await witness.client.outbox.entries();
+    const entry = entries.find(item => item.op === "profiles.createMyProfile");
+    const grant = entry && await new Promise((resolve, reject) => {
+      const open = indexedDB.open(`snapback2-signup:${session.viewer}`);
+      open.onerror = () => reject(open.error);
+      open.onsuccess = () => {
+        const database = open.result;
+        const transaction = database.transaction("meta", "readonly");
+        const request = transaction.objectStore("meta").get(JSON.stringify(["grants", entry.grant]));
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => { database.close(); resolve(request.result?.value); };
+      };
+    });
+    const mine = await witness.client.query(window.__api.profiles.mine, {});
+    await witness.client.close();
+    return { session, readiness, mutation, mine, entry, grant, requests: witness.requests };
+  }, profile);
+  assert.equal(pending.readyAtCall, false, "signup begins before client.ready settles");
+  assert.equal(pending.readyAtDispatch, true, "the session transition supersedes startup before installing new custody");
+  assert.equal(result.readiness.ready, true, "signup installed its principal-bound replay grant");
+  assert.equal(result.mutation.state, "committed", `first profile write was ${JSON.stringify(result.mutation)}`);
+  assert.equal(result.mine.state, "complete");
+  assert.equal(result.mine.data?.handle, profile.handle);
+  assert.equal(result.entry?.state, "committed", "the profile intent is durable committed history");
+  assert.equal(result.grant?.id, result.entry?.grant, "the replay grant is present in the real IndexedDB partition");
+  const paths = result.requests.map(request => request.path);
+  assert.equal(paths.includes("/api/auth/login"), false);
+  assert.equal(paths.includes("/api/resume"), false);
+  const replay = result.requests.filter(request => request.path === "/api/mutation")
+    .map(request => JSON.parse(String(request.body)).replay)[0];
+  assert.equal(replay?.grant, result.entry?.grant, "the first write uses the IndexedDB-admitted signup grant");
+  step("signup during pending startup commits the first profile through IndexedDB without login, reload, or resume", {
+    viewer: result.session.viewer, intent: result.entry.intent, grant: result.entry.grant,
+  });
 }
 
 function serveStatic(root) {
@@ -544,7 +636,7 @@ async function main() {
   const project = await mkdtemp(join(tmpdir(), "snapback2-witness-project-"));
   const profile = await mkdtemp(join(tmpdir(), "snapback2-witness-profile-"));
   const owner = await startOwner(project);
-  const seeded = await seed(owner.url);
+  const seeded = signupOnly ? undefined : await seed(owner.url);
   const appRoot = await bundleApp(owner.url);
   const server = await serveStatic(appRoot);
   const appUrl = `http://127.0.0.1:${server.address().port}/`;
@@ -565,7 +657,9 @@ async function main() {
   try {
     // Seed, drain, open three chats.
     let page = await launch();
-    if (sessionsOnly) {
+    if (signupOnly) {
+      await signupWitness(page);
+    } else if (sessionsOnly) {
       await sharedSessions(context, page, appUrl, owner.url);
     } else {
     await page.waitForFunction(() => /log downloaded/.test(document.querySelector("[role=status][data-connection]")?.textContent ?? ""), null, { timeout: 15_000 });

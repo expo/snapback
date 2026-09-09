@@ -64,3 +64,10 @@ authoritative committed `response.seq`, IDs/semantic targets, device timestamps
 and inbox alias custody. It includes the settled-versus-visible distinction and
 an executable public `outbox.entries()` read. Combined with the assets/card
 changes above, every remaining item is documented on the shipped guide path.
+
+Follow-up 2026-09-09: the item 1 login-after-signup ritual records a real defect,
+not the lasting contract. Signup now returns and installs the new principal's
+first replay grant; the real-owner file test and `witness-web --signup` prove the
+first profile write without reload, login, or resume. `guide auth` and `guide
+offline` describe the repaired lifecycle. The historical observation above is
+retained as the evidence that led to the repair.
