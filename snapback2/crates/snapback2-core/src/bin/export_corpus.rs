@@ -21,12 +21,12 @@ mod enriched_pages;
 mod export_corpus_constraints;
 #[path = "export_corpus/merge_cases.rs"]
 mod merge_cases;
+#[path = "export_corpus/tombstone_cases.rs"]
+mod tombstone_cases;
 #[path = "export_corpus/twin_cases.rs"]
 mod twin_cases;
 #[path = "export_corpus/visibility_cases.rs"]
 mod visibility_cases;
-#[path = "export_corpus/tombstone_cases.rs"]
-mod tombstone_cases;
 #[path = "export_corpus/write_cases.rs"]
 mod write_cases;
 

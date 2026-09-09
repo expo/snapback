@@ -199,6 +199,7 @@ public `words()` value function. See `guide live-query` for indexing and editing
 is the commit clock. `now` is pinned per request rather than redrawn;
 `new` allocates a fresh ID per evaluation.
 
+Inserts return rows; omit optional columns you do not use.
 Writes: `insert table { fields }`, `update table[key] { patch }`,
 `upsert table[key] { row }`, `delete table[key]`. Non-insert keys must be complete
 unique keys, including composite alternatives. Alternate-key update/delete
@@ -209,7 +210,7 @@ Key expressions evaluate once and supply omitted upsert key columns. A row or
 patch may repeat a key column only with that key expression; otherwise
 `E_QUARRY_TYPE` names the field and its removal. Upsert cannot spell `id`:
 by-id uses the key; alternate-key preserves a hit's id or mints one on insertion.
-Insert yields its row. A bound or returned update/upsert reads its result once
+A bound or returned update/upsert reads its result once
 right after writing: a snapshot, or absence when its read rule denies the
 caller (including self-revocation). `! else CODE` requires that view and
 rolls back on refusal. Ignored update/upsert adds no result read. Delete yields
@@ -217,8 +218,7 @@ no value. A body's final write is an implicit return; never in a proc.
 
 ## Effects
 
-TypeScript exports the effect body and imports its `then` mutation from a
-Quarry file's virtual module, as in the chat template.
+TypeScript effects import their Quarry `then` mutation.
 
 `snapback/notifications.q`:
 
@@ -237,34 +237,32 @@ exports `notify = effect({ grants, run, then: recordNotified })`. The `run`
 body performs I/O using its granted `fetch`; `meta.id` is its idempotency key.
 See `snapback2 guide effects` for the executable TypeScript recipe.
 
+`messages.thread` reads the delivery log; `conversationView` adds count/preview.
+Use `withHistory` for declared partial history.
 `snapback/messages.q`:
 
 ```q
-effect notify from delivery
-fn isMember from access
-proc deliver from access
-
 query thread(conversationId: conversations, c: cursor ?):
   require isMember(conversationId, viewer) else MEMBERSHIP_REQUIRED
-  return messages[conversationId] after c last 50
-
+  page = deliveries[viewer, conversationId, 'message'] after c last 50 by byRecipientConversationKindAt
+  return page { *, message: messages[.messageId] }
 ```
 
 Send:
 
 ```q
-mutation send(conversationId: conversations, recipientId: profiles, body: text <=4000):
+mutation send(conversationId: conversations, body: text <=4000, expiresAt: time ?):
   require isMember(conversationId, viewer) else NOT_MEMBER
-  recipient = profiles[recipientId] ! else RECIPIENT_UNKNOWN
-  require isMember(conversationId, recipient.principal) else RECIPIENT_NOT_MEMBER
-  row = insert messages { conversationId, authorId: viewer, body, photo: null, clip: null, at: now }
+  row = insert messages { conversationId, authorId: viewer, body, expiresAt, at: now }
   deliver(conversationId, row.id, 'message')
-  emit notify { to: recipient.principal, body }
+  for member in conversationMembers(conversationId):
+    if member.principal != viewer:
+      emit notify { to: member.principal, body }
   return { id: row.id }
 ```
 
-Edit/unsend target current members. Departed recipients evict unsent bodies by
-point absence on held-page revalidation, not tombstones (LLP 1012 §5).
+Edit/unsend fan out to current members. Tombstones and held-page point
+absences evict removed bodies.
 
 ## Absence and bounds
 

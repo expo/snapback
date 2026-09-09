@@ -24,7 +24,7 @@ fn built_template_precondition(rendering: &str, schema: &str) {
 fn assert_rendering(template: &str, chat: bool) {
     built_template_precondition(template, "schema.q");
     if chat {
-        built_template_precondition(template, "deliveries.q");
+        built_template_precondition(template, "messages.q");
     }
     let project = Project::new();
     let initialized = project.init(template, "none");
@@ -74,26 +74,44 @@ fn assert_rendering(template: &str, chat: bool) {
                 .is_none()
         );
         assert!(compiled["schema"]["tables"]["memberCounts"].is_object());
+        let seed = std::fs::read_to_string(authored.join("seed.ts")).unwrap();
+        assert!(!seed.contains("messageCounts:") && !seed.contains("memberCounts:"));
         let operations = compiled["programs"]
             .as_array()
             .unwrap()
             .iter()
             .filter_map(|program| program["name"].as_str())
             .collect::<BTreeSet<_>>();
-        // 28 operations plus the expiry schedule's binding program (never an API operation).
+        // 25 operations plus the expiry schedule's binding program (never an API operation).
         assert_eq!(
             operations.len(),
-            29,
+            26,
             "unexpected chat operation set: {operations:?}"
         );
+        let api = std::fs::read_to_string(project.path.join(".snapback/build/api.d.ts")).unwrap();
+        for (op, row) in [
+            ("createMyProfile", "ProfilesRow"),
+            ("updateMyProfile", "ProfilesRow"),
+            ("setFollow", "FollowsRow"),
+            ("createPost", "PostsRow"),
+        ] {
+            let signature = api
+                .lines()
+                .find(|line| line.contains(&format!("readonly {op}:")))
+                .unwrap();
+            assert!(signature.contains(&format!("}}, {row}")), "{signature}");
+        }
+        assert!(!api.contains("recipientId"));
+        assert!(!authored.join("deliveries.q").exists());
+        assert!(!operations.contains("messages.summary"));
         for operation in [
-            "deliveries.inbox",
-            "deliveries.thread",
-            "deliveries.conversationView",
-            "deliveries.post",
-            "deliveries.unsend",
-            "deliveries.edit",
-            "deliveries.purgeMessage",
+            "messages.inbox",
+            "messages.thread",
+            "messages.conversationView",
+            "messages.send",
+            "messages.unsend",
+            "messages.edit",
+            "messages.purgeMessage",
             "messages.search",
         ] {
             assert!(
@@ -113,12 +131,18 @@ fn assert_rendering(template: &str, chat: bool) {
                 project.path.join(".snapback/build/quarry").join(generated),
             )
             .unwrap_or_else(|error| panic!("missing Quarry inspection copy {generated}: {error}"));
-            let value: serde_json::Value = serde_json::from_str(&source)
-                .unwrap_or_else(|error| panic!("invalid Quarry IR inspection {generated}: {error}: {source}"));
+            let value: serde_json::Value = serde_json::from_str(&source).unwrap_or_else(|error| {
+                panic!("invalid Quarry IR inspection {generated}: {error}: {source}")
+            });
             if generated == "schema.ir.json" {
                 assert!(value["tables"].is_object(), "{generated}: {value}");
             } else {
-                assert!(value.as_array().is_some_and(|programs| !programs.is_empty()), "{generated}: {value}");
+                assert!(
+                    value
+                        .as_array()
+                        .is_some_and(|programs| !programs.is_empty()),
+                    "{generated}: {value}"
+                );
             }
         }
     }
@@ -716,7 +740,6 @@ fn chat_template_ships_exactly_its_complete_owned_tree() {
         shipped,
         [
             "access.q",
-            "deliveries.q",
             "delivery.ts",
             "feeds.q",
             "follows.q",
@@ -728,6 +751,8 @@ fn chat_template_ships_exactly_its_complete_owned_tree() {
             "schema.q",
             "seed.ts",
             "tests/chat.test.ts",
+            "tests/fixtures/clip.mp4",
+            "tests/fixtures/photo.jpg",
         ]
     );
 }
@@ -800,6 +825,7 @@ fn chat_expo_scaffolds_without_recovery_custody_or_the_retired_log_reducer() {
     for path in [
         "App.tsx",
         "app.json",
+        "app.config.js",
         "index.js",
         "src/Composer.tsx",
         "src/screens/Inbox.tsx",
@@ -829,15 +855,18 @@ fn chat_expo_scaffolds_without_recovery_custody_or_the_retired_log_reducer() {
             .contains(&serde_json::json!(".snapback/build/api.d.ts"))
     );
     let composer = std::fs::read_to_string(project.path.join("src/Composer.tsx")).unwrap();
-    assert!(composer.contains("useMutation(messageWrites.create)"), "{composer}");
-    assert!(!composer.contains("shared/send") && !composer.contains("shared/recovery"), "{composer}");
+    assert!(
+        composer.contains("useMutation(messageWrites.create)"),
+        "{composer}"
+    );
+    assert!(
+        !composer.contains("shared/send") && !composer.contains("shared/recovery"),
+        "{composer}"
+    );
     assert!(!project.path.join("shared/log.ts").exists());
     assert!(!project.path.join("shared/offline.ts").exists());
     let thread = std::fs::read_to_string(project.path.join("src/screens/Thread.tsx")).unwrap();
-    assert!(
-        thread.contains("api.deliveries.conversationView"),
-        "{thread}"
-    );
+    assert!(thread.contains("api.messages.conversationView"), "{thread}");
     assert!(!thread.contains("shared/log"), "{thread}");
 }
 
@@ -857,13 +886,166 @@ fn chat_react_scaffolds_without_recovery_custody_or_the_retired_log_reducer() {
     assert!(!project.path.join("shared/log.ts").exists());
     assert!(!project.path.join("shared/offline.ts").exists());
     let thread = std::fs::read_to_string(project.path.join("src/Thread.tsx")).unwrap();
+    assert!(thread.contains("api.messages.conversationView"), "{thread}");
+    assert!(thread.contains("../shared/thread"), "{thread}");
     assert!(
-        thread.contains("api.deliveries.conversationView"),
+        !thread.contains("shared/recovery") && !thread.contains("shared/log"),
         "{thread}"
     );
-    assert!(thread.contains("../shared/thread"), "{thread}");
-    assert!(!thread.contains("shared/recovery") && !thread.contains("shared/log"), "{thread}");
     let composer = std::fs::read_to_string(project.path.join("src/Composer.tsx")).unwrap();
-    assert!(composer.contains("useMutation(messageWrites.create)"), "{composer}");
+    assert!(
+        composer.contains("useMutation(messageWrites.create)"),
+        "{composer}"
+    );
     assert!(!composer.contains("shared/send"), "{composer}");
+}
+
+#[test]
+fn chat_send_delivers_to_every_member_and_notifies_only_other_members() {
+    let project = Project::new();
+    assert!(project.init("chat", "none").status.success());
+    let _owner = OwnerGuard::start(&project);
+    let group = json_stdout(&project.run(&[
+        "run",
+        "groups.groupCreate",
+        r#"{"title":"Trio","members":["dev:bob","dev:charlie"]}"#,
+        "--as",
+        "alice",
+        "--json",
+    ]));
+    let conversation = group["data"]["id"].as_str().unwrap();
+    let args = serde_json::json!({"conversationId": conversation, "body": "for both", "expiresAt": 4102444800000_i64}).to_string();
+    let sent =
+        json_stdout(&project.run(&["run", "messages.send", &args, "--as", "alice", "--json"]));
+    assert_eq!(sent["state"], "committed", "{sent}");
+    let trace = json_stdout(&project.run(&["trace", "latest", "--json"]));
+    let outbox = trace["outboxRows"].as_array().unwrap();
+    assert_eq!(outbox.len(), 2, "{trace}");
+    let recipients = outbox
+        .iter()
+        .map(|row| {
+            assert_eq!(row["effect"], "delivery.notify");
+            assert_eq!(row["payload"]["body"], "for both");
+            assert_eq!(row["payload"].as_object().unwrap().len(), 2);
+            row["payload"]["to"].as_str().unwrap()
+        })
+        .collect::<BTreeSet<_>>();
+    assert_eq!(recipients, BTreeSet::from(["dev:bob", "dev:charlie"]));
+    for persona in ["alice", "bob", "charlie"] {
+        let read_args = serde_json::json!({"conversationId": conversation}).to_string();
+        let thread = json_stdout(&project.run(&[
+            "run",
+            "messages.thread",
+            &read_args,
+            "--as",
+            persona,
+            "--json",
+        ]));
+        let rows = thread["data"].as_array().unwrap();
+        assert_eq!(rows.len(), 1, "{thread}");
+        assert_eq!(rows[0]["message"]["id"], sent["data"]["id"]);
+        assert_eq!(rows[0]["message"]["expiresAt"], 4102444800000_i64);
+    }
+    let rejected =
+        json_stdout(&project.run(&["run", "messages.send", &args, "--as", "outsider", "--json"]));
+    assert_eq!(rejected["state"], "rejected", "{rejected}");
+    let unchanged = json_stdout(&project.run(&["trace", "latest", "--json"]));
+    assert_eq!(unchanged["commit"], trace["commit"]);
+    assert_eq!(unchanged["outboxRows"], trace["outboxRows"]);
+}
+
+#[test]
+fn client_startup_uses_the_owner_url_file_and_attach_repairs_it() {
+    for arm in ["react", "expo"] {
+        let project = Project::new();
+        let initialized = project.init("chat", arm);
+        let next: Json = serde_json::from_str(
+            String::from_utf8_lossy(&initialized.stdout)
+                .lines()
+                .last()
+                .unwrap(),
+        )
+        .unwrap();
+        assert!(
+            next["next"]
+                .as_str()
+                .unwrap()
+                .ends_with("npm install && npx snapback2 dev && npm run dev"),
+            "{next}"
+        );
+        let agents = std::fs::read_to_string(project.path.join("AGENTS.md")).unwrap();
+        assert!(agents.contains("npm install && npx snapback2 dev && npm run dev"));
+        assert!(
+            std::fs::read_to_string(project.path.join(".gitignore"))
+                .unwrap()
+                .lines()
+                .any(|line| line == ".snapback/")
+        );
+        let _owner = OwnerGuard::start(&project);
+        let file = project.path.join(".snapback/dev-url");
+        let first = std::fs::read_to_string(&file).unwrap();
+        assert!(first.starts_with("http://127.0.0.1:"));
+        assert_eq!(first.lines().count(), 1);
+        assert!(first.ends_with('\n'));
+        std::fs::remove_file(&file).unwrap();
+        let attached = json_stdout(&project.run(&["dev", "--json"]));
+        assert_eq!(
+            std::fs::read_to_string(&file).unwrap(),
+            format!("{}\n", attached["url"].as_str().unwrap())
+        );
+        assert_eq!(std::fs::read_to_string(file).unwrap(), first);
+        #[cfg(unix)]
+        if arm == "react" {
+            let vite = Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../../packages/snapback2/node_modules/vite").canonicalize().unwrap();
+            std::fs::create_dir_all(project.path.join("node_modules")).unwrap();
+            symlink(&vite, project.path.join("node_modules/vite")).unwrap();
+            for (dotenv, explicit) in [
+                (None, None),
+                (Some("https://dotenv.example.com"), None),
+                (Some("https://dotenv.example.com"), Some("https://explicit.example.com")),
+            ] {
+                std::fs::write(project.path.join(".env"), dotenv.map(|url|
+                    format!("VITE_SNAPBACK_URL={url}\n")).unwrap_or_default()).unwrap();
+                let mut node = std::process::Command::new("node");
+                node.args(["--input-type=module", "-e", r#"
+import { pathToFileURL } from 'node:url';
+const { resolveConfig } = await import(pathToFileURL(process.argv[1]).href);
+const config = await resolveConfig({ root: process.cwd(), logLevel: 'silent' }, 'serve', 'development');
+console.log(JSON.stringify(config.define['import.meta.env.VITE_SNAPBACK_URL']));
+"#]).arg(vite.join("dist/node/index.js"))
+                    .current_dir(&project.path).env_remove("VITE_SNAPBACK_URL");
+                if let Some(url) = explicit { node.env("VITE_SNAPBACK_URL", url); }
+                let output = node.output().unwrap();
+                assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+                let defined: String = serde_json::from_slice(&output.stdout).unwrap();
+                let url: String = serde_json::from_str(&defined).unwrap();
+                assert_eq!(url, explicit.or(dotenv).unwrap_or(first.trim()));
+            }
+        }
+        if arm == "expo" {
+            for override_url in [None, Some("https://backend.example.com")] {
+                let mut node = std::process::Command::new("node");
+                node.args(["-e", "const {evalConfig} = require(require.resolve('@expo/config/build/evalConfig', {paths: [require('node:fs').realpathSync(process.argv[2])]})); console.log(JSON.stringify(evalConfig(process.argv[1], {config: {extra: {kept: true}}}).config));"])
+                    .arg(project.path.join("app.config.js"))
+                    .arg(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../packages/snapback2/node_modules/expo"))
+                    .env_remove("EXPO_PUBLIC_SNAPBACK_URL");
+                if let Some(url) = override_url {
+                    node.env("EXPO_PUBLIC_SNAPBACK_URL", url);
+                }
+                let output = node.output().unwrap();
+                assert!(
+                    output.status.success(),
+                    "{}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
+                let config: Json = serde_json::from_slice(&output.stdout).unwrap();
+                assert_eq!(
+                    config["extra"]["snapbackUrl"],
+                    override_url.unwrap_or(first.trim())
+                );
+                assert_eq!(config["extra"]["kept"], true);
+            }
+        }
+    }
 }

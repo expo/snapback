@@ -553,19 +553,17 @@ test("mutation returns committed and rejected without throwing rejected", async 
   if (!externalUrl) await value.auth.guest();
   const committed = await value.mutation(api.messages.send, {
     conversationId: externalUrl ? "conversation-1" : "general",
-    recipientId: externalUrl ? "profile-bob" : undefined,
     body: `first-${Date.now()}`,
   });
   assert.equal(committed.state, "committed");
   const rejected = externalUrl
     ? await value.mutation(api.messages.send, {
-        conversationId: "conversation-1",
-        recipientId: "profile-missing",
+        conversationId: "conversation-missing",
         body: "reject",
       })
     : await value.mutation(api.messages.reject, { body: "reject" });
   assert.equal(rejected.state, "rejected");
-  if (rejected.state === "rejected") assert.equal(rejected.code, "RECIPIENT_UNKNOWN");
+  if (rejected.state === "rejected") assert.equal(rejected.code, externalUrl ? "NOT_MEMBER" : "RECIPIENT_UNKNOWN");
 });
 
 test("subscription observes another client's mutation and until resolves", async () => {
@@ -582,13 +580,12 @@ test("subscription observes another client's mutation and until resolves", async
   const body = `from-writer-${Date.now()}`;
   const committed = await writer.mutation(api.messages.send, {
     conversationId,
-    recipientId: externalUrl ? "profile-alice" : undefined,
     body,
   });
   assert.equal(committed.state, "committed");
   const updated = await sub.until((delivery) =>
     delivery.state === "complete" && delivery.live && delivery.seq > initialSeq
-      && delivery.data.some((row: any) => row.body === body), 2_000);
+      && delivery.data.some((row: any) => (externalUrl ? row.message?.body : row.body) === body), 2_000);
   assert.equal(updated.state, "complete");
   assert.ok(seen.filter((state) => state === "complete").length >= 2);
   sub.close();

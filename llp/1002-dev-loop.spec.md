@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2` (the binary: owner, server, verbs), `snapback2/packages/compiler` (project lowering, worker), `snapback2/packages/snapback2` (authoring runtime, client, React, test runner, shim), `snapback2/scripts/measure.mjs`
 **Author:** Claude Fable 5 (orchestrator) — implementers: codex gpt-5.6-sol, lanes B0 (compiler + authoring surface), B1 (owner + server + verbs), B2 (`init`, `test`, `why`, `trace`, `guide`), D (client + React + evaluator)
 **Date:** 2026-08-29
-**Revised:** 2026-09-08 (lane D final focused repair: conditional stale-cache recovery and multi-fence effect guide coverage); 2026-09-08 (lane D second repair pass: valid guide fences, legal walk repairs, published family context, successor recovery and unique-source regression pins); 2026-09-08 (lane D review fixes: complete requirement metadata, conservative lookup explanations, executable families, CLI spelling repairs and complete subscriptions); 2026-09-08 (diagnostics say the fix: missing bounds, spelling repairs, current families, wrapping check, source-mapped why prose; implementer GPT-6 Astra, lane D); 2026-09-08 (LLP 1001.000 typed latest-state channels, leases and snapshot clients); 2026-09-08 (resource-aware blocking Rust test scheduling and paired timing); 2026-09-07 (generated insert/merge consumer type bindings; implementer GPT-6 Astra); 2026-09-07 (independent Quarry diagnostics, checked-type repair advice, lexical failure isolation and merge discovery ordering; implementer GPT-6 Astra); 2026-09-07 (preserve unrelated prefixed optional packages; staged platform dependency selection and exact-lock packaging regression; durable browser-follower admission and unknown-outcome recovery; client-owned observed query snapshots; explicit named-journey verification and executable React startup; startup cleanup fixture custody); 2026-09-06 (app guide operation/certificate custody; native logical SSE body; CLI help and executable migration recovery; auth startup recovery and held transition reads; queued transitions, interrupted sync, live held reads); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
+**Revised:** 2026-09-08 (lane D final focused repair: conditional stale-cache recovery and multi-fence effect guide coverage); 2026-09-08 (lane D second repair pass: valid guide fences, legal walk repairs, published family context, successor recovery and unique-source regression pins); 2026-09-08 (lane D review fixes: complete requirement metadata, conservative lookup explanations, executable families, CLI spelling repairs and complete subscriptions); 2026-09-08 (diagnostics say the fix: missing bounds, spelling repairs, current families, wrapping check, source-mapped why prose; implementer GPT-6 Astra, lane D); 2026-09-08 (Lane C final repair: reject statement-bearing expressions throughout policy probes; admit usable inbox arrays before comparison); 2026-09-08 (Lane C round 2: protected-independent guard proof, candidate rejection reasons, isolated count journey); 2026-09-08 (Lane C review: proved carrier projections, derived policy counts, executable Vite precedence and seeded maintain assertions); 2026-09-08 (templates are products, elegance program Lane C, implementer GPT-6 Astra); 2026-09-08 (LLP 1001.000 typed latest-state channels, leases and snapshot clients); 2026-09-08 (resource-aware blocking Rust test scheduling and paired timing); 2026-09-07 (generated insert/merge consumer type bindings; implementer GPT-6 Astra); 2026-09-07 (independent Quarry diagnostics, checked-type repair advice, lexical failure isolation and merge discovery ordering; implementer GPT-6 Astra); 2026-09-07 (preserve unrelated prefixed optional packages; staged platform dependency selection and exact-lock packaging regression; durable browser-follower admission and unknown-outcome recovery; client-owned observed query snapshots; explicit named-journey verification and executable React startup; startup cleanup fixture custody); 2026-09-06 (app guide operation/certificate custody; native logical SSE body; CLI help and executable migration recovery; auth startup recovery and held transition reads; queued transitions, interrupted sync, live held reads); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
 **Related:** LLP 1000, LLP 1001 (the engine this serves), LLP 1003 (effects),
 LLP 0329.016 §5 (the design this implements verbatim where it can), LLP
 0329.016 §5.11 (the verb table — no verb exists without its row), LLP
@@ -177,10 +177,10 @@ whose remaining members cannot mint authority. Remove/re-add creates a new row
 identity; a captured operation against the removed id cannot retarget it.
 Promote/remove bind the loaded target row to the authored conversation argument,
 and the admin remove path refuses the viewer's own seat so self-departure stays
-on the named leave path. A private message send admits both the sender and the
-recipient through current memberships in that same conversation before it
-inserts the message or emits its outbox row; a public profile is not delivery
-authority, and a rejected send commits neither artifact.
+on the named leave path. **Superseded 2026-09-08:** the single-recipient send described here is deleted.
+`messages.send` admits the sender, delivers to every current member, and
+notifies every other member; a rejected send commits neither message nor outbox work.
+See [templates are products](#templates-are-products).
 
 `t`: `id()`, `principal()`, `text(max)`, `int()`, `bool()`, `time()`, `ref(table)`,
 `json(maxBytes)`, `optional(x)`, `list(x, { max })`, and (folded 2026-08-30
@@ -1144,11 +1144,14 @@ no-op that consumes one id (LLP 1001 §8) and one corpus case proving it.
 
 ## 10. `init`
 
-**React startup (2026-09-07).** The next command installs dependencies, starts
-or attaches to the owner, and passes its actual printed URL to Vite through
-`VITE_SNAPBACK_URL`. Both `init` output and `guide init` provide the executable
-shell sequence; project paths are quoted. The generic React starter displays
-`useConnection()` state rather than asserting that it is connected.
+**Client startup (2026-09-08; supersedes the 2026-09-07 shell URL capture).**
+The next command is `npm install && npx snapback2 dev && npm run dev` for
+React and Expo, with the project path quoted. `dev` writes its actual URL plus
+one newline to `.snapback/dev-url` on startup and attach. The Vite config reads
+it when `VITE_SNAPBACK_URL` is unset; Expo's app config publishes it in
+`extra.snapbackUrl` when `EXPO_PUBLIC_SNAPBACK_URL` is unset. The owner never
+starts or watches the bundler. The generic React starter displays
+`useConnection()` state.
 
 Idempotent: writes only files that do not exist, updates the managed block
 in `AGENTS.md` (≤ 40 lines: the five verbs an agent needs, the grammar
@@ -1160,6 +1163,99 @@ typing channel, a `notify` effect, seed, and account/relationship/RBAC journeys)
 carries the account-, relationship-, and scoped-role-relevant Clique M1–M3 shape.
 `--client react` adds a Vite React app under `src/` that reads
 `VITE_SNAPBACK_URL`. `init` then runs `check` and prints the next command.
+
+## Templates are products
+
+2026-09-08 — commissioned by Charlie Cheever; delegated rulings from the
+Snapback 2 elegance program, implemented by GPT-6 Astra (Lane C). These
+supersede the duplicate threads, `summary`, single-recipient `send`, and
+`deliveries.post` inventory above. The offline schema and effects contract
+remain LLP 1012 and LLP 1003 respectively.
+
+C1. One module per concern: `schema.q` (tables), `access.q` (fns + `proc deliver`), `messages.q` (`thread`, `conversationView`, `inbox`, `search`, `send`, `sendPhoto`, `sendClip`, `sendOncePhoto`, `edit`, `unsend`, `purgeMessage` + `schedule expireMessage`), `groups.q`, `profiles.q`, `feeds.q`, `posts.q`, `follows.q`, `notifications.q`. `deliveries.q` is deleted. `thread` reads the delivery log (one event per live message, `withHistory` fallback for declared partial custody); `conversationView` is the composite (page + count + preview). `send(conversationId, body, expiresAt?)` is the one text send: insert, `deliver`, then `emit notify` to every other member. The old `messages.thread` over messages, `summary`, and `send(recipientId)` are deleted.
+C2. Rows are returned, not rebuilt: `insert` yields its row, so `createMyProfile`, `updateMyProfile`, `setFollow`, `createPost` return the row. Optional columns are omitted, never spelled `null`.
+C3. `delivery.ts` is a plain effect: build the request, `fetch` it with the idempotency key, return `{ providerId }`; `then: recordNotified`. A two-line comment at the top says the grant names your provider. No unused imports, no rethrowing `catch`, no identity helpers.
+C4. Tests read fixtures from files: `snapback/tests/fixtures/photo.jpg` and `clip.mp4` (real tiny files, committed), loaded in the journey. If the journey runtime forbids `fs`, `snapback2/test` gains `fixture(name)` (relative to the test file). No byte literals in the template test.
+C5. Zero `@ref` comments in any template file. A gloss a builder needs becomes a plain one-line comment; the rest is dropped (the LLP already holds it).
+C6. Screens: mechanical op renames only (`api.deliveries.conversationView/thread/inbox/edit/unsend` → `api.messages.*`; `api.deliveries.post` → `api.messages.send`); nothing else in `react/src`, `expo/src`, `shared/` (lane A2 owns the rewrite).
+C7. `snapback2 dev` also writes the URL to `.snapback/dev-url` (one line, gitignored). The React template's `vite.config.ts` defines `import.meta.env.VITE_SNAPBACK_URL` from that file when the variable is unset, so `init`'s next-step line becomes `npm install && npx snapback2 dev && npm run dev`. The Expo template reads the same file through its `app.config`. The client contract is still `SNAPBACK_URL`; the server spawns and watches nothing.
+C8. Seeds: if the engine requires `messageCounts: [], memberCounts: []` in `seed.ts`, keep them and note it in the report; do not change the engine.
+
+The shipped backend has 24 client API operations, the system-only
+`messages.purgeMessage`, and one internal expiry binding.
+Its TypeScript files are `delivery.ts`, `seed.ts`, and the acceptance journey;
+media fixtures are committed under `snapback/tests/fixtures/`. `fixture(name)`
+loads bytes relative to the authored test file even when executing its compiled
+copy, during registration and asynchronous execution, including named-journey
+selection. The engine seeds maintained counts without empty target arrays, so
+`messageCounts: []` and `memberCounts: []` are omitted. Package witnesses use
+the shipped operation names. The compiler's independent Quarry chat regression
+project retains its own scenarios; template certification and composition tests
+lower the shipped template directly, without requiring byte identity.
+
+The CLI's derived authorization probe admits a delivery-log carrier that declares
+tombstones for the protected table. A denied-table successor must retain the
+readable log metadata and replace each projected complete protected row with
+`null`; revoking membership still requires terminal denial with no rows.
+
+**Review revision 2026-09-08:** the earlier shape-only projection oracle is
+superseded. Candidate IR must prove a straight-line carrier page whose output
+fields are direct carrier-column reads or complete protected-row point reads.
+Scalar projections from protected rows, constructed arrays/nested values,
+unknown expressions, control flow and aliased accumulators are ineligible;
+unsupported candidates block rather than treating unexamined values as metadata.
+The served retained and fresh responses must match that independently derived
+projection. Their receipt counts derive from the checked response: carrier rows,
+remaining protected images and nulled images are separate. The seeded chat
+witness pins one carrier row and one nulled message in each response.
+Vite configuration precedence is explicit environment, Vite dotenv, then the
+owner URL file; the existing init regression executes Vite's `resolveConfig`.
+The conversation metadata journey pins count 1 from the source seed; its
+original shared-conversation send/unsend probe is superseded by the isolated
+round-2 journey below. Provider honoring of `meta.id`, rather than the header alone,
+is the condition that makes effect retries safe.
+
+**Round-2 review revision 2026-09-08 (implementer GPT-6 Astra):** policy-probe
+eligibility rejects terminal control flow whose truth can depend on the
+protected table under the denying successor. Ignoring top-level `Require` is
+superseded: each must resolve to stable literals/arguments/viewer or an existence
+check on a self-readable membership table with stable keys. The latter's read
+rule must probe only that same table/index; a protected-table read in the key
+or read policy invalidates the proof. Aliases preserve this classification;
+unknown expressions and other terminal control flow block. This is a bounded
+dependency rule, not a general IR interpreter, and applies to direct and carrier
+queries. The served `require exists messages['message-1']` and aliased variant
+block before applying a successor; the shipped membership guard stays eligible.
+Candidate selection retains the specific projection/control-flow rejection in
+the existing blocked receipt's `detail.candidates`, including the query name.
+
+The count journey still proves seeded count 1 before other journeys. Its writes
+use a disposable conversation and separate personas, assert 1 → 2 → 1 around
+send/unsend, and assert that the seeded member's inbox is unchanged. Removed
+message history therefore cannot reorder later shared-member journeys. Every
+client close in this journey is awaited. Round-1 projection, receipt-count,
+Vite-precedence, fixture and template-surface fixes remain in force.
+
+**Final review revision 2026-09-08 (implementer GPT-6 Astra):** the round-2
+assumption that classifying an unused expression's result also covered its
+execution is superseded. `Merge.lanes[].setup` holds executable statements;
+an unused merge can require a protected row before returning a separate carrier
+projection. Policy-probe eligibility rejects every merge expression, including
+unused `Const`/`Let` bindings and expressions nested in fields, arrays, objects,
+operators, builtins, point-read keys, scan prefixes/cursors/ranges, loop domains
+and loop-body values. The exhaustive expression match treats `Merge` as the
+only statement-bearing variant; rejecting it as a whole also covers its source,
+setup, scan and held-search expressions. This is a bounded structural exclusion,
+with the unchanged query-specific control-flow reason, not an interpreter or a
+change to compiler/runtime permission. The shipped membership guard remains
+eligible. The real compiler/certifier and served regression preserve and reject
+`unused = merge messages last 1 by byConvTime:` with lane key
+`[(messages['message-1'] ! else HAS_MESSAGE).conversationId]` respectively.
+
+Both inbox observations in the disposable 1 → 2 → 1 count journey must be
+`complete` or `capped` arrays before comparing their data. Matching null,
+denied, refused or partial results cannot prove inbox isolation. Awaited client
+closes, startup/configuration evidence and the browser-witness boundary remain.
 
 ## 11. Measured
 

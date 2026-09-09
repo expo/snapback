@@ -641,7 +641,7 @@ test("an offline query hook leaves hydration when the stored bearer is confirmed
       return owner.fetch(input, init);
     } });
   let view: any;
-  function Probe() { view = useQuery(api.deliveries.inbox, { c: null }, { live: false }); return null; }
+  function Probe() { view = useQuery(api.messages.inbox, { c: null }, { live: false }); return null; }
   let renderer!: TestRenderer.ReactTestRenderer;
   try {
     await restored(client);
@@ -724,7 +724,7 @@ for (const outcome of ["failed", "successful"] as const) for (const timing of ["
     const seed = createClient({ url: "http://auth.test", as: "alice", offline: { store: factory }, fetch: owner.fetch });
     await seed.ready;
     await seed.offline();
-    const queued = await seed.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "before restart" });
+    const queued = await seed.mutation(api.messages.send, { conversationId: "conversation-1", body: "before restart" });
     assert.equal(queued.state, "queued");
     await seed.close();
     context.mock.timers.enable({ apis: ["setTimeout", "Date"], now: Date.now() });
@@ -802,7 +802,7 @@ for (const outcome of ["failed", "successful"] as const) test(`held queries duri
   let read: Promise<unknown> | undefined;
   try {
     await started.promise;
-    read = client.query(api.deliveries.inbox, { c: null }).then(value => { settled = true; return value; });
+    read = client.query(api.messages.inbox, { c: null }).then(value => { settled = true; return value; });
     await flush(); await flush();
     assert.equal(settled, false, "the predecessor's held answer cannot bypass an active login");
     loginResponse.resolve(outcome === "failed" ? refusal("E_AUTH_INVALID")
@@ -841,7 +841,7 @@ async function queuedStartup(context: TestContext, bodies = ["held before startu
   const seed = createClient({ url: "http://auth.test", as: "alice", offline: { store: factory }, fetch: owner.fetch });
   try {
     await seed.ready; await seed.offline();
-    for (const body of bodies) await seed.mutation(api.deliveries.post, { conversationId: "conversation-1", body });
+    for (const body of bodies) await seed.mutation(api.messages.send, { conversationId: "conversation-1", body });
   } finally { await seed.close(); }
   return { factory, owner };
 }
@@ -851,7 +851,7 @@ async function seededPrivateStore(factory: ReturnType<typeof offlineStore>) {
   const store = factory();
   await store.open("dev:alice");
   try {
-    await store.commit({ deliveries: [{ op: "deliveries.inbox", args: { c: null }, state: "complete",
+    await store.commit({ deliveries: [{ op: "messages.inbox", args: { c: null }, state: "complete",
       data: [{ body: "Alice's private held message" }], next: null, seq: 4, validator: "2".repeat(64),
       receipt: { ranges: [], absences: [], verdicts: [] } }] });
   } finally { await store.close?.(); }
@@ -889,7 +889,7 @@ for (const outcome of ["failed", "successful"] as const) test(`live held reads w
   let subscription: ReturnType<SnapbackClient["subscribe"]> | undefined;
   try {
     await started.promise;
-    subscription = client.subscribe(api.deliveries.inbox, { c: null }, event => events.push(event));
+    subscription = client.subscribe(api.messages.inbox, { c: null }, event => events.push(event));
     await flush(); await flush();
     assert.equal(events.some(event => event.data?.length), false, "live reads cannot flash predecessor rows during login");
     loginResponse.resolve(outcome === "failed" ? refusal("E_AUTH_INVALID")
@@ -1002,7 +1002,7 @@ test("completed startup recovery leaves ordinary past-fence relogin waiting for 
     assert.equal(owner.executions.length, 1);
     await client.outbox.settled();
     context.mock.timers.tick(2 * DAY);
-    await client.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "past the fence" });
+    await client.mutation(api.messages.send, { conversationId: "conversation-1", body: "past the fence" });
     const resumes = owner.requests.filter(path => path === "/api/resume").length;
     await client.auth.login({ email: "alice@example.com", password: "password" });
     assert.equal(owner.requests.filter(path => path === "/api/resume").length, resumes);
@@ -1037,7 +1037,7 @@ for (const state of ["hydrating", "confirmed"] as const) test(`${state} held rea
   let read: Promise<void> | undefined;
   try {
     if (state === "hydrating") await restored(client); else await metadataStarted.promise;
-    read = assert.rejects(client.query(api.deliveries.inbox, { c: null }), (error: any) => error.code === "E_AUTH_SUPERSEDED");
+    read = assert.rejects(client.query(api.messages.inbox, { c: null }), (error: any) => error.code === "E_AUTH_SUPERSEDED");
     await readStarted.promise;
     await assert.rejects(client.auth.login({ email: "alice@example.com", password: "wrong" }), (error: any) => error.code === "E_AUTH_INVALID");
     releaseRead.resolve();
@@ -1067,7 +1067,7 @@ for (const interruption of ["offline", "failed-login"] as const) test(`${interru
     await client.auth.login({ email: "alice@example.com", password: "password" });
     await oldStarted.promise;
     if (interruption === "failed-login") {
-      const waiter = client.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "waiting through cancellation" })
+      const waiter = client.mutation(api.messages.send, { conversationId: "conversation-1", body: "waiting through cancellation" })
         .then(value => { waiterDone = true; return value; });
       void waiter.catch(() => undefined); pending.push(waiter);
       await flush();
@@ -1139,7 +1139,7 @@ for (const stage of ["replay-fetch", "replay-body", "tail-fetch"] as const) {
           await client.offline();
           completion = client.online().then(() => { done = true; });
         } else {
-          completion = client.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "waiting behind recovery" })
+          completion = client.mutation(api.messages.send, { conversationId: "conversation-1", body: "waiting behind recovery" })
             .then(value => { done = true; return value; });
           void completion.catch(() => undefined);
           await flush();
@@ -1252,7 +1252,7 @@ for (const stage of ["replay-fetch", "replay-body", "tail-fetch"] as const) {
       try {
         await client.ready; await client.auth.me(); await client.outbox.settled();
         armed = true;
-        mutation = client.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "direct online send" })
+        mutation = client.mutation(api.messages.send, { conversationId: "conversation-1", body: "direct online send" })
           .then(value => { mutationDone = true; return value; }, error => { mutationDone = true; return error; });
         await started.promise;
         assert.equal(owner.executions.length, 1, "the request committed before its response or tail was withheld");
@@ -1314,7 +1314,7 @@ for (const automatic of [false, true]) for (const stage of ["fetch", "body"] as 
           const response = await owner.fetch(input, init);
           if (path === "/api/manifest") {
             const value = await response.json();
-            value.ops["deliveries.post"] = { kind: "mutation", planHash: "f".repeat(64), args: { photo: { Image: { max: 16 } } } };
+            value.ops["messages.send"] = { kind: "mutation", planHash: "f".repeat(64), args: { photo: { Image: { max: 16 } } } };
             return json(value);
           }
           return response;
@@ -1323,7 +1323,7 @@ for (const automatic of [false, true]) for (const stage of ["fetch", "body"] as 
       try {
         await client.ready; await client.auth.me(); await client.outbox.settled();
         const source = new File(["a"], "photo.png");
-        upload = (automatic ? client.mutation(api.deliveries.post, { photo: source }) : client.upload(source))
+        upload = (automatic ? client.mutation(api.messages.send, { photo: source }) : client.upload(source))
           .then(value => value, error => error);
         await started.promise;
         login = client.auth.login({ email: "alice@example.com", password: "password" }).then(value => value, error => error);
@@ -1363,7 +1363,7 @@ for (const format of ["HTTP 401", "typed HTTP 200"] as const) for (const stage o
     let mutation: Promise<any> | undefined, sibling: Promise<any> | undefined;
     try {
       await client.ready; await client.auth.me(); await client.outbox.settled(); armed = true;
-      mutation = client.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "terminal" }).catch(error => error);
+      mutation = client.mutation(api.messages.send, { conversationId: "conversation-1", body: "terminal" }).catch(error => error);
       await started.promise;
       sibling = client.outbox.drain().catch(error => error);
       await flush(); release.resolve();
@@ -1397,12 +1397,12 @@ for (const format of ["HTTP 401", "typed HTTP 200"] as const) for (const stage o
       } });
     try {
       await client.ready; await client.auth.me(); await client.outbox.settled();
-      const older = await client.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "older durable intent" });
+      const older = await client.mutation(api.messages.send, { conversationId: "conversation-1", body: "older durable intent" });
       assert.equal(older.state, "queued");
       const queued = await client.outbox.entries();
       assert.equal(queued.length, 1); assert.equal(queued[0].state, "queued");
       mode = "expiry";
-      await assert.rejects(client.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "new unaccepted intent" }),
+      await assert.rejects(client.mutation(api.messages.send, { conversationId: "conversation-1", body: "new unaccepted intent" }),
         (error: any) => error.code === "E_AUTH_SESSION", "FIFO session death is not an older intent's ordinary refusal");
       await assert.rejects(client.outbox.settled(), (error: any) => error.code === "E_AUTH_SESSION");
       assert.equal(client.snapshot.lastRefusal?.code, "E_AUTH_SESSION");
@@ -1437,7 +1437,7 @@ test("typed HTTP 200 resume expiry seals queued custody and retries the exact en
     } });
   try {
     await client.ready; await client.auth.me(); await client.outbox.settled(); await client.offline();
-    assert.equal((await client.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "resume survivor" })).state, "queued");
+    assert.equal((await client.mutation(api.messages.send, { conversationId: "conversation-1", body: "resume survivor" })).state, "queued");
     const before = await client.outbox.entries();
     expire = true;
     await assert.rejects(client.online(), (error: any) => error.code === "E_AUTH_SESSION");

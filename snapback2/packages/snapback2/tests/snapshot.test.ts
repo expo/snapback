@@ -111,7 +111,7 @@ test("readiness maps every outbox status, the fence, and the op-scoped queue to 
 });
 
 test("intentLabel never shows a client clock and reads a conflict the same way from a trace or a recipe", () => {
-  const base = { intent: "i:0", grant: "g", offset: 0, count: 1, ids: ["m"], op: "deliveries.post", args: {}, issuedSeq: 0, createdAt: 0, updatedAt: 0 };
+  const base = { intent: "i:0", grant: "g", offset: 0, count: 1, ids: ["m"], op: "messages.send", args: {}, issuedSeq: 0, createdAt: 0, updatedAt: 0 };
   assert.equal(intentLabel({ ...base, state: "queued", predicted: true } as any), "Sending… · Preview");
   assert.equal(intentLabel({ ...base, state: "queued", predicted: false } as any), "Sending… · Awaiting confirmation");
   assert.equal(intentLabel({ ...base, state: "queued", predicted: false, reason: "fence" } as any), "Will be checked by the server");

@@ -45,10 +45,10 @@ test("durable client intents survive a schema successor and a lost acknowledgeme
     };
     const warm = async (client: ReturnType<typeof createClient>) => {
       await client.ready;
-      const sub = client.subscribe(api.deliveries.inbox, { c: null }, () => {}, { drain: true });
+      const sub = client.subscribe(api.messages.inbox, { c: null }, () => {}, { drain: true });
       subscriptions.push(sub);
       await sub.until(event => event.live === true, 5_000);
-      assert.equal((await client.outbox.status(api.deliveries.post)).ready, true);
+      assert.equal((await client.outbox.status(api.messages.send)).ready, true);
       return sub;
     };
     const first = makeClient();
@@ -56,11 +56,11 @@ test("durable client intents survive a schema successor and a lost acknowledgeme
     const before: any = await first.query(api.messages.thread, { conversationId: "conversation-1", c: null });
     assert.equal(before.state, "complete");
     assert.equal(before.next, null);
-    const baselineCount: any = await first.query(api.messages.summary, { conversationId: "conversation-1" });
+    const baselineCount: any = await first.query(api.messages.conversationView, { conversationId: "conversation-1" });
     await first.offline();
     const queued = [];
     for (const body of ["successor first", "successor second"]) {
-      const result = await first.mutation(api.deliveries.post, { conversationId: "conversation-1", body });
+      const result = await first.mutation(api.messages.send, { conversationId: "conversation-1", body });
       assert.equal(result.state, "queued");
       queued.push(result);
     }
@@ -100,7 +100,7 @@ test("durable client intents survive a schema successor and a lost acknowledgeme
     const conflicted: any = await reopened.query(api.messages.thread, { conversationId: "conversation-1", c: null });
     assert.equal(conflicted.data.length, before.data.length, "the conflicted sends wrote no messages");
     for (const body of ["successor first", "successor second"]) {
-      const result = await reopened.mutation(api.deliveries.post, { conversationId: "conversation-1", body });
+      const result = await reopened.mutation(api.messages.send, { conversationId: "conversation-1", body });
       assert.equal(result.state, "committed");
       assert.ok(!admitted.some(entry => entry.intent === JSON.parse(requests.at(-1)!.body).replay.intent));
     }
@@ -110,30 +110,30 @@ test("durable client intents survive a schema successor and a lost acknowledgeme
     for (const row of before.data) {
       const actual = after.data.find((value: any) => value.id === row.id);
       assert.ok(actual, `preserved message ${row.id}`);
-      assert.equal(actual.category, null);
-      const { category, ...originalFields } = actual;
-      assert.deepEqual(originalFields, row);
+      assert.equal(actual.message.category, null);
+      const { category, ...originalFields } = actual.message;
+      assert.deepEqual(originalFields, row.message);
     }
-    for (const body of ["successor first", "successor second"]) assert.equal(after.data.filter((row: any) => row.body === body).length, 1);
-    const afterCount: any = await reopened.query(api.messages.summary, { conversationId: "conversation-1" });
-    assert.equal(afterCount.data.messageCount.value, baselineCount.data.messageCount.value + 2);
+    for (const body of ["successor first", "successor second"]) assert.equal(after.data.filter((row: any) => row.message?.body === body).length, 1);
+    const afterCount: any = await reopened.query(api.messages.conversationView, { conversationId: "conversation-1" });
+    assert.equal(afterCount.data.count, baselineCount.data.count + 2);
     t.diagnostic(`schema reset preserved ${before.data.length} original messages; two predicted intents settled E_OFFLINE_CONFLICT, and two explicit new intents advanced the first room count by two`);
 
     // A committed-but-unacknowledged intent must still settle if its operation
     // disappears before a cold client retries. New calls cannot use that op.
     const reopenedDrain = await warm(reopened);
     loseAcknowledgement = true;
-    const uncertain = await reopened.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "ack lost before removal" });
+    const uncertain = await reopened.mutation(api.messages.send, { conversationId: "conversation-1", body: "ack lost before removal" });
     assert.equal(uncertain.state, "queued");
     const originalRequest = requests.at(-1)!;
     assert.equal(originalRequest.response.state, "committed");
     reopenedDrain.close();
     await reopened.close();
     await local.stop();
-    const operationPath = join(local.root!, "snapback/deliveries.q");
+    const operationPath = join(local.root!, "snapback/messages.q");
     const operations = await readFile(operationPath, "utf8");
-    assert.ok(operations.includes("mutation post("));
-    await writeFile(operationPath, operations.replace("mutation post(", "mutation postAfterEvolution("));
+    assert.ok(operations.includes("mutation send("));
+    await writeFile(operationPath, operations.replace("mutation send(", "mutation sendAfterEvolution("));
     await local.start(false);
     const retry = makeClient();
     await retry.ready;
@@ -151,10 +151,10 @@ test("durable client intents survive a schema successor and a lost acknowledgeme
     assert.equal((await retry.outbox.entries()).find(entry => entry.intent === uncertain.intent)?.state, "committed");
     const final: any = await retry.query(api.messages.thread, { conversationId: "conversation-1", c: null });
     assert.equal(final.state, "complete");
-    assert.equal(final.data.filter((row: any) => row.body === "ack lost before removal").length, 1);
+    assert.equal(final.data.filter((row: any) => row.message?.body === "ack lost before removal").length, 1);
     const rejected = await fetch(`${local.url}/api/mutation`, { method: "POST",
       headers: { "Content-Type": "application/json", "X-Snapback-As": "alice" },
-      body: JSON.stringify({ op: "deliveries.post", args: { conversationId: "conversation-1", body: "new forbidden call" } }) });
+      body: JSON.stringify({ op: "messages.send", args: { conversationId: "conversation-1", body: "new forbidden call" } }) });
     assert.equal((await rejected.json()).code, "E_OP_UNKNOWN");
     t.diagnostic("lost acknowledgement retried byte-identically after operation removal; stored terminal settled with one message; new call refused E_OP_UNKNOWN");
   } finally {

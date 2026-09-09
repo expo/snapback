@@ -33,6 +33,68 @@ fn without_operation(source: &str, name: &str) -> String {
 }
 
 #[test]
+fn successor_policy_blocks_unproved_mixed_projections_in_the_shipped_thread() {
+    let project = Project::new();
+    assert!(project.init("chat", "none").status.success());
+    let path = project.path.join("snapback/messages.q");
+    let original = fs::read_to_string(&path).unwrap();
+    for leaked in [
+        "messages[.messageId].body",
+        "[messages[.messageId].body]",
+        "{ body: messages[.messageId].body }",
+    ] {
+        fs::write(&path, original.replace(
+            "return page { *, message: messages[.messageId] }",
+            &format!("return page {{ *, message: messages[.messageId], leakedBody: {leaked} }}"),
+        ).replace("after c first 50 by byRecipientAt", "after c first 1 by byRecipientAt")
+            .replace("after c last 50 by byRecipientConversationKindAt", "after c last 1 by byRecipientConversationKindAt")).unwrap();
+        let compiled = project.run(&["check", "--json"]);
+        assert!(compiled.status.success(), "{}", String::from_utf8_lossy(&compiled.stdout));
+        let receipt = json_stdout(&project.run(&["test", "--derived-only", "--json"]));
+        let fence = check(&receipt, "successor-policy-fence");
+        assert_eq!(fence["verdict"], "blocked", "unproved {leaked} candidate: {fence}");
+        assert!(fence["detail"]["candidates"].as_array().unwrap().iter().any(|reason|
+            reason.as_str().is_some_and(|reason| reason.contains("messages.thread")
+                && reason.contains("page of proved carrier fields and complete protected rows"))),
+            "projection rejection reason was lost: {fence}");
+    }
+}
+
+#[test]
+fn successor_policy_blocks_protected_dependent_require_in_the_shipped_thread() {
+    let project = Project::new();
+    assert!(project.init("chat", "none").status.success());
+    let path = project.path.join("snapback/messages.q");
+    let original = fs::read_to_string(&path).unwrap();
+    for guard in [
+        "unused = merge messages last 1 by byConvTime:\n    [(messages['message-1'] ! else HAS_MESSAGE).conversationId]",
+        "require exists messages['message-1'] else HAS_MESSAGE",
+        "hasMessage = exists messages['message-1']\n  require hasMessage else HAS_MESSAGE",
+    ] {
+        fs::write(&path, original.replacen(
+            "  require isMember(conversationId, viewer) else MEMBERSHIP_REQUIRED\n",
+            &format!("  require isMember(conversationId, viewer) else MEMBERSHIP_REQUIRED\n  {guard}\n"),
+            1,
+        )).unwrap();
+        assert!(project.run(&["check", "--json"]).status.success());
+        let receipt = json_stdout(&project.run(&["test", "--derived-only", "--json"]));
+        let fence = check(&receipt, "successor-policy-fence");
+        assert_eq!(fence["verdict"], "blocked", "protected-dependent guard: {fence}");
+        assert!(fence["detail"]["candidates"].as_array().unwrap().iter().any(|reason|
+            reason.as_str() == Some("messages.thread: policy probe control flow must be independent of the protected table; only stable values and self-readable membership guards are proved")), "guard rejection reason was lost: {fence}");
+    }
+    fs::write(&path, original.replacen(
+        "  require isMember(conversationId, viewer) else MEMBERSHIP_REQUIRED\n",
+        "  member = isMember(conversationId, viewer)\n  require member else MEMBERSHIP_REQUIRED\n  require isMember(conversationId, viewer) else MEMBERSHIP_REQUIRED\n",
+        1,
+    )).unwrap();
+    let receipt = json_stdout(&project.run(&["test", "--derived-only", "--json"]));
+    let fence = check(&receipt, "successor-policy-fence");
+    assert_eq!(fence["verdict"], "pass", "stable membership guards: {fence}");
+    assert_eq!(fence["detail"]["query"], "messages.thread", "{fence}");
+}
+
+#[test]
 fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
     let project = Project::new();
     let initialized = project.init("chat", "none");
@@ -119,7 +181,7 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
     );
     assert_eq!(revocation["detail"]["postDenialRows"], 0);
     assert_eq!(
-        revocation["detail"]["protectedWrite"], "deliveries.post",
+        revocation["detail"]["protectedWrite"], "messages.send",
         "{revocation}"
     );
     assert_eq!(revocation["detail"]["protectedWriteAs"], "alice");
@@ -160,9 +222,13 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
     assert_eq!(fence["detail"]["policyRetiredHeldSearchDescriptors"], 1);
     assert_eq!(fence["detail"]["staleHeldSearchDescriptorRefused"], true);
     assert_eq!(fence["detail"]["policyRetainedHandleState"], "complete");
-    assert_eq!(fence["detail"]["policyRetainedHandleRows"], 0);
+    assert_eq!(fence["detail"]["policyRetainedHandleRows"], 1);
+    assert_eq!(fence["detail"]["policyRetainedHandleProtectedImages"], 0);
+    assert_eq!(fence["detail"]["policyRetainedHandleNulledImages"], 1);
     assert_eq!(fence["detail"]["policyFreshInvocationState"], "complete");
-    assert_eq!(fence["detail"]["policyFreshInvocationRows"], 0);
+    assert_eq!(fence["detail"]["policyFreshInvocationRows"], 1);
+    assert_eq!(fence["detail"]["policyFreshInvocationProtectedImages"], 0);
+    assert_eq!(fence["detail"]["policyFreshInvocationNulledImages"], 1);
     let successor_rule = format!(
         "SNAPBACK2_TEST_SUCCESSOR_POLICY_FENCE:{}",
         fence["detail"]["generationG"].as_str().unwrap()
@@ -259,16 +325,14 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
     }));
     let bounds = check(&receipt, "bounds");
     let executions = bounds["detail"]["executions"].as_array().unwrap();
-    assert_eq!(executions.len(), 30, "{bounds}");
+    assert_eq!(executions.len(), 24, "{bounds}");
     for operation in [
-        "deliveries.conversationView",
-        "deliveries.inbox",
-        "deliveries.thread",
+        "messages.conversationView",
+        "messages.inbox",
+        "messages.thread",
         "feeds.followingFeed",
         "feeds.globalFeed",
         "messages.search",
-        "messages.summary",
-        "messages.thread",
         "profiles.byHandle",
         "profiles.mine",
     ] {
@@ -288,17 +352,17 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
         let admitted = execution["as"] != "charlie";
         assert_eq!(
             execution["examined"],
-            serde_json::json!({ "actual": if admitted { 2 } else { 0 }, "ceiling": 53 })
+            serde_json::json!({ "actual": if admitted { 3 } else { 0 }, "ceiling": 103 })
         );
         assert_eq!(
             execution["ruleProbes"],
-            serde_json::json!({ "actual": if admitted { 2 } else { 0 }, "ceiling": 4 })
+            serde_json::json!({ "actual": if admitted { 2 } else { 0 }, "ceiling": 102 })
         );
         assert_eq!(
             execution["steps"],
-            serde_json::json!({ "actual": if admitted { 14 } else { 10 }, "ceiling": 278 })
+            serde_json::json!({ "actual": if admitted { 57 } else { 10 }, "ceiling": 2138 })
         );
-        assert_eq!(execution["readSites"].as_array().unwrap().len(), 2);
+        assert_eq!(execution["readSites"].as_array().unwrap().len(), 3);
         assert_eq!(
             execution["readSites"][0]["calls"],
             serde_json::json!({
@@ -315,6 +379,13 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
             })
         );
         assert_eq!(execution["readSites"][1]["take"], 50);
+        assert_eq!(
+            execution["readSites"][2]["calls"],
+            serde_json::json!({
+                "actual": if admitted { 1 } else { 0 }, "ceiling": 50,
+            })
+        );
+        assert_eq!(execution["readSites"][2]["take"], 1);
     }
     assert_eq!(
         checks
@@ -331,7 +402,7 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
         "group creation bootstraps one creator admin atomically",
         "conversation metadata stays inside membership",
         "scoped roles reject non-admin and stale membership authority",
-        "alice sends and reads back a JPEG photo and synthesized MP4 clip",
+        "alice sends and reads back a JPEG photo and MP4 clip",
         "offline drain removes an unsent body and survives a cold restart",
         "viewed photos render from the byte cache offline; a view-once photo and an unsent row do not",
         "offline sends queue, survive a restart, replay in order, and a 503 after a commit is exactly once",
@@ -414,7 +485,7 @@ fn chat_delivery_log_caps_members_and_evicts_unsent_departed_body() {
     assert_eq!(fifty_first["code"], "GROUP_FULL", "{fifty_first}");
     let capacity_post = run(
         "alice",
-        "deliveries.post",
+        "messages.send",
         serde_json::json!({ "conversationId": capacity_id, "body": "all fifty" }),
     );
     assert_eq!(capacity_post["state"], "committed", "{capacity_post}");
@@ -441,7 +512,7 @@ fn chat_delivery_log_caps_members_and_evicts_unsent_departed_body() {
     let bob_membership_id = bob_membership["data"]["id"].as_str().unwrap();
     let edited_post = run(
         "alice",
-        "deliveries.post",
+        "messages.send",
         serde_json::json!({ "conversationId": recipient_group_id, "body": "before edit" }),
     );
     assert_eq!(edited_post["state"], "committed", "{edited_post}");
@@ -451,7 +522,7 @@ fn chat_delivery_log_caps_members_and_evicts_unsent_departed_body() {
         "messages.send",
         serde_json::json!({
             "conversationId": recipient_group_id,
-            "recipientId": "profile-bob",
+
             "body": "before unsend"
         }),
     );
@@ -465,13 +536,13 @@ fn chat_delivery_log_caps_members_and_evicts_unsent_departed_body() {
     assert_eq!(left["state"], "committed", "{left}");
     let edited = run(
         "alice",
-        "deliveries.edit",
+        "messages.edit",
         serde_json::json!({ "messageId": edited_message, "body": "after edit", "baseBody": "before edit" }),
     );
     assert_eq!(edited["state"], "committed", "{edited}");
     let unsent = run(
         "alice",
-        "deliveries.unsend",
+        "messages.unsend",
         serde_json::json!({ "messageId": unsent_message }),
     );
     assert_eq!(unsent["state"], "committed", "{unsent}");
@@ -531,11 +602,7 @@ fn chat_delivery_log_caps_members_and_evicts_unsent_departed_body() {
     );
 
     for persona in ["alice", "recipient-charlie"] {
-        let inbox = run(
-            persona,
-            "deliveries.inbox",
-            serde_json::json!({ "c": null }),
-        );
+        let inbox = run(persona, "messages.inbox", serde_json::json!({ "c": null }));
         let inbox_rows = inbox["data"].as_array().unwrap();
         assert!(
             inbox_rows
@@ -551,7 +618,7 @@ fn chat_delivery_log_caps_members_and_evicts_unsent_departed_body() {
         );
     }
 
-    let bob_inbox = run("bob", "deliveries.inbox", serde_json::json!({ "c": null }));
+    let bob_inbox = run("bob", "messages.inbox", serde_json::json!({ "c": null }));
     let bob_rows = bob_inbox["data"].as_array().unwrap();
     assert!(
         bob_rows
@@ -569,7 +636,7 @@ fn chat_delivery_log_caps_members_and_evicts_unsent_departed_body() {
 
     let why = json_stdout(&project.run(&[
         "why",
-        "deliveries.inbox",
+        "messages.inbox",
         r#"{"c":null}"#,
         "--as",
         "bob",
@@ -772,8 +839,8 @@ fn ref_based_pseudo_membership_is_refused_before_authority_proofs() {
     assert!(
         refusals.iter().any(|refusal| {
             refusal["code"] == "E_QUARRY_TYPE"
-                && refusal["message"] == "recipient expects principal, got profiles (from a shape, fn, or proc used at snapback/deliveries.q:29:10)"
-                && refusal["site"] == "snapback/access.q:10:25"
+                && refusal["message"].as_str().is_some_and(|message| message.starts_with("recipient expects principal, got profiles (from a shape, fn, or proc used at snapback/messages.q:"))
+                && refusal["site"] == "snapback/access.q:9:25"
                 && refusal["rewrite"]
                     .as_str()
                     .is_some_and(|value| !value.is_empty())
@@ -784,8 +851,8 @@ fn ref_based_pseudo_membership_is_refused_before_authority_proofs() {
         refusals.iter().any(|refusal| {
             refusal["code"] == "E_QUARRY_UNKNOWN"
                 && refusal["message"]
-                    == "memberships.byPrincipalConversation expects profiles for principal, got principal"
-                && refusal["site"] == "snapback/messages.q:11:51"
+                    == "memberships.byPrincipalConversation expects reference to profiles for principal, got principal"
+                && refusal["site"] == "snapback/messages.q:29:51"
                 && refusal["rewrite"]
                     .as_str()
                     .is_some_and(|value| !value.is_empty())
@@ -1147,13 +1214,13 @@ fn clique_sized_seed_and_71_operations_have_bounded_honest_derived_coverage() {
     let source = fs::read_to_string(&messages)
         .unwrap()
         .replace("effect notify from delivery\n", "")
-        .replace("  emit notify { to: recipient.principal, body }\n", "");
+        .replace("  for member in conversationMembers(conversationId):\n    if member.principal != viewer:\n      emit notify { to: member.principal, body }\n", "");
     fs::write(messages, source).unwrap();
     fs::remove_file(project.path.join("snapback/delivery.ts")).unwrap();
     fs::remove_file(project.path.join("snapback/notifications.q")).unwrap();
     fs::remove_dir_all(project.path.join("snapback/tests")).unwrap();
     let mut operations = String::new();
-    for index in 0..44 {
+    for index in 0..47 {
         operations.push_str(&format!("\nmutation send{index}(conversationId: conversations, body: text <=4000):\n  require exists memberships[conversationId, viewer] else NOT_MEMBER\n  row = insert messages {{ conversationId, authorId: viewer, body, at: now }}\n  return {{ id: row.id }}\n"));
     }
     fs::write(project.path.join("snapback/scale.q"), operations).unwrap();
@@ -1186,7 +1253,7 @@ fn clique_sized_seed_and_71_operations_have_bounded_honest_derived_coverage() {
     let elapsed = started.elapsed();
     let receipt = json_stdout(&output);
     assert!(output.status.success(), "{receipt}");
-    // 27 template operations after removing notifications, plus 44 sends.
+    // 24 template operations after removing notifications, plus 47 sends.
     assert_eq!(check(&receipt, "certify")["detail"]["operations"], 71);
     let rules = check(&receipt, "rules");
     assert_eq!(rules["detail"]["tables"]["messages"]["probes"], 32 * 4);

@@ -50,7 +50,10 @@ fn log_schema(tombstones: Vec<Tombstone>) -> Schema {
     schema.tables.insert(
         "messages".to_owned(),
         public_table(
-            columns([("id", ColumnType::Id), ("body", ColumnType::Text { max: 10 })]),
+            columns([
+                ("id", ColumnType::Id),
+                ("body", ColumnType::Text { max: 10 }),
+            ]),
             by_id(),
         ),
     );
@@ -79,7 +82,10 @@ fn log_schema(tombstones: Vec<Tombstone>) -> Schema {
                 },
             ),
             ("final", ColumnType::Bool),
-            ("note", ColumnType::Optional(Box::new(ColumnType::Text { max: 20 }))),
+            (
+                "note",
+                ColumnType::Optional(Box::new(ColumnType::Text { max: 20 })),
+            ),
             ("at", ColumnType::Time),
         ]),
         by_id(),
@@ -121,7 +127,11 @@ fn a_table_without_the_word_serializes_and_hashes_exactly_as_before() {
     let bare = log_schema(Vec::new());
     assert!(!serde_json::to_string(&bare).unwrap().contains("tombstones"));
     let declared = log_schema(vec![tombstone(removed_or_expired())]);
-    assert_ne!(bare.hash(), declared.hash(), "the declaration is part of schema identity");
+    assert_ne!(
+        bare.hash(),
+        declared.hash(),
+        "the declaration is part of schema identity"
+    );
 }
 
 #[test]
@@ -188,9 +198,18 @@ fn unknown_target_table_is_refused() {
         when: kind_is("removed"),
     }]);
     let text = refusal(&schema);
-    assert!(text.contains("schema.tables.deliveries.tombstones[0]"), "{text}");
-    assert!(text.contains("tombstones bodies[.messageId] names unknown table bodies"), "{text}");
-    assert!(text.contains("is Ref(messages), not a reference to bodies"), "{text}");
+    assert!(
+        text.contains("schema.tables.deliveries.tombstones[0]"),
+        "{text}"
+    );
+    assert!(
+        text.contains("tombstones bodies[.messageId] names unknown table bodies"),
+        "{text}"
+    );
+    assert!(
+        text.contains("is Ref(messages), not a reference to bodies"),
+        "{text}"
+    );
 }
 
 #[test]
@@ -206,7 +225,10 @@ fn unknown_or_non_reference_column_is_refused() {
         column: "recipient".to_owned(),
         when: kind_is("removed"),
     }]);
-    assert!(refusal(&principal).contains("column deliveries.recipient is Principal, not a reference to messages"));
+    assert!(
+        refusal(&principal)
+            .contains("column deliveries.recipient is Principal, not a reference to messages")
+    );
 }
 
 #[test]
@@ -225,10 +247,15 @@ fn predicates_outside_the_row_local_vocabulary_are_refused() {
         key: vec![RuleTerm::Field("messageId".to_owned())],
         provenance: snapback2_core::KeyProvenance::Shape,
     });
-    assert!(refusal(&log_schema(vec![exists])).contains("cannot probe other tables with exists or created"));
+    assert!(
+        refusal(&log_schema(vec![exists]))
+            .contains("cannot probe other tables with exists or created")
+    );
 
     let allow = tombstone(RuleExpr::Allow);
-    assert!(refusal(&log_schema(vec![allow])).contains("allow, deny, and public are not predicates"));
+    assert!(
+        refusal(&log_schema(vec![allow])).contains("allow, deny, and public are not predicates")
+    );
 
     let old_image = tombstone(RuleExpr::Eq(
         RuleTerm::OldField("kind".to_owned()),
@@ -249,7 +276,10 @@ fn predicate_columns_and_literals_must_be_enum_bool_or_text() {
         RuleTerm::Field("at".to_owned()),
         RuleTerm::Literal(Value::String("never".to_owned())),
     ));
-    assert!(refusal(&log_schema(vec![time])).contains("column at is Time; only enum, bool, and text columns decide a tombstone"));
+    assert!(
+        refusal(&log_schema(vec![time]))
+            .contains("column at is Time; only enum, bool, and text columns decide a tombstone")
+    );
 
     let int_literal = tombstone(RuleExpr::Eq(
         RuleTerm::Field("kind".to_owned()),
@@ -265,7 +295,12 @@ fn predicate_columns_and_literals_must_be_enum_bool_or_text() {
 
     let variant = tombstone(kind_is("gone"));
     let text = refusal(&log_schema(vec![variant]));
-    assert!(text.contains("compares kind with 'gone', which is not one of message|edit|removed|expired"), "{text}");
+    assert!(
+        text.contains(
+            "compares kind with 'gone', which is not one of message|edit|removed|expired"
+        ),
+        "{text}"
+    );
 }
 
 #[test]

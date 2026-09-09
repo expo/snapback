@@ -1,25 +1,12 @@
 # Testing
 
 The static seed is one system commit before derived checks and journeys:
+maintained targets need no empty seed arrays.
 
 ```ts
     profiles: [
-      { id: "profile-alice", principal: "dev:alice", displayName: "Alice", handle: "alice", avatarUrl: "https://example.com/alice.png", bio: "", location: "", link: null },
-      { id: "profile-bob", principal: "dev:bob", displayName: "Bob", handle: "bob", avatarUrl: "https://example.com/bob.png", bio: "", location: "", link: null },
-    ],
-    conversations: [
-      { id: "conversation-1", title: "General", creatorId: "dev:alice" },
-      { id: "conversation-2", title: "Side room", creatorId: "dev:alice" },
-    ],
-    memberships: [
-      { id: "membership-1", conversationId: "conversation-1", principal: "dev:alice", role: "admin", joinedAt: 0 },
-      { id: "membership-2", conversationId: "conversation-1", principal: "dev:bob", role: "member", joinedAt: 0 },
-      { id: "membership-3", conversationId: "conversation-2", principal: "dev:alice", role: "admin", joinedAt: 0 },
-      { id: "membership-4", conversationId: "conversation-2", principal: "dev:charlie", role: "member", joinedAt: 0 },
-    ],
-    messages: [
-      { id: "message-1", conversationId: "conversation-1", authorId: "dev:alice", body: "Welcome", at: 1 },
-      { id: "message-2", conversationId: "conversation-2", authorId: "dev:alice", body: "Side note", at: 1 },
+      { id: "profile-alice", principal: "dev:alice", displayName: "Alice", handle: "alice", avatarUrl: "https://example.com/alice.png", bio: "", location: "" },
+      { id: "profile-bob", principal: "dev:bob", displayName: "Bob", handle: "bob", avatarUrl: "https://example.com/bob.png", bio: "", location: "" },
     ],
 ```
 
@@ -30,6 +17,9 @@ password hashes are deliberately absent from application seed rows. These
 absent because seeds cannot mint asset ledger rows (LLP 1006 §2a). The chat
 fixture also keeps `charlie` as an account/persona without a profile so the
 idempotent post-auth profile-creation path has a real absent-row proof.
+
+`fixture("fixtures/photo.jpg")` from `snapback2/test` reads bytes relative to
+the authored test file, even after compilation; commit media under `tests/fixtures/`.
 
 Write journeys with `journey(name, async ({ as, tick, url }) => …)`. The test
 verb starts a fresh isolated owner, runs all six derived check families, runs
@@ -52,7 +42,15 @@ Projects with scoped memberships also run the canonical `live-revocation`,
 `successor-policy-fence`, and `grant-incarnation-aba` authorization proofs.
 They bind revocation delivery, active-generation policy, and immutable grant
 incarnation to the served loop rather than treating lower-level unit coverage
-as the acceptance result.
+as the acceptance result. Projected policy probes require IR-proved carrier
+fields plus complete protected rows; mixed scalar/array/nested projections block.
+Guards must be independent of the denied table: only literals, arguments, viewer and
+self-readable membership existence with stable keys are proved. Unproved terminal control
+flow blocks, including merges anywhere in expressions; `detail.candidates` names
+each rejected query and its reason.
+Receipts count retained carrier rows separately from protected and nulled images.
+Journeys share the owner; isolate disposable writes from later inboxes and await
+client closes. The chat count probe compares usable inbox arrays and uses its own conversation and personas.
 
 Derived checks use a small representative seed, not a load-test dataset.
 Rules compare every stored row for every seed persona, within a 16,384-probe

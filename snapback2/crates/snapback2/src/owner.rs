@@ -90,8 +90,7 @@ pub fn run(options: DevOptions) -> ExitCode {
     }
     match probe_owner(&root) {
         OwnerProbe::Active(info) => {
-            print_url(&info, options.json);
-            return ExitCode::SUCCESS;
+            return ready_exit(&info, options.json);
         }
         OwnerProbe::Running(_) => {}
         OwnerProbe::Missing => {}
@@ -101,8 +100,7 @@ pub fn run(options: DevOptions) -> ExitCode {
             Ok(()) => ExitCode::SUCCESS,
             Err(error) if error.code == "E_STORE_OWNED" => {
                 if let Some(info) = wait_for_active_owner(&root, Duration::from_secs(2)) {
-                    print_url(&info, options.json);
-                    ExitCode::SUCCESS
+                    ready_exit(&info, options.json)
                 } else {
                     print_refusal(error, options.json, 1)
                 }
@@ -217,7 +215,11 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
     )?;
     let _effects = crate::effects::spawn(handle.clone());
     handle.call(Action::PublishOwner)?;
-    print_url(&info, options.json);
+    if let Err(error) = print_url(&info, options.json) {
+        stop.store(true, Ordering::SeqCst);
+        let _ = remove_owner_if_matches(&root, &info);
+        return Err(error);
+    }
     if let Err(error) = std::io::stdout().flush() {
         stop.store(true, Ordering::SeqCst);
         let _ = remove_owner_if_matches(&root, &info);
@@ -361,8 +363,7 @@ fn detach(root: PathBuf, options: DevOptions) -> ExitCode {
                     let _ = child.kill();
                     let _ = child.wait();
                 }
-                print_url(&info, options.json);
-                return ExitCode::SUCCESS;
+                return ready_exit(&info, options.json);
             }
             OwnerProbe::Running(info) => {
                 let _ = info;
@@ -377,8 +378,7 @@ fn detach(root: PathBuf, options: DevOptions) -> ExitCode {
                 if error.code == "E_STORE_OWNED"
                     && let Some(info) = wait_for_active_owner(&root, Duration::from_secs(2))
                 {
-                    print_url(&info, options.json);
-                    return ExitCode::SUCCESS;
+                    return ready_exit(&info, options.json);
                 }
                 return print_refusal(error, options.json, 1);
             }
@@ -492,16 +492,20 @@ fn control_command(
 }
 
 pub(crate) fn write_owner(root: &Path, info: &OwnerInfo) -> Result<(), Refusal> {
+    let bytes = serde_json::to_vec_pretty(info).map_err(|error| {
+        Refusal::owner("E_OWNER_STATE", error.to_string(), "restart snapback2 dev")
+    })?;
+    write_owner_file(root, "owner.json", &bytes)
+}
+
+fn write_owner_file(root: &Path, name: &str, bytes: &[u8]) -> Result<(), Refusal> {
     let directory = secure_owner_directory(root)?;
-    let path = owner_path(root);
+    let path = directory.join(name);
     let temporary = directory.join(format!(
         ".owner-{}-{}.tmp",
         std::process::id(),
         random_secret()?
     ));
-    let bytes = serde_json::to_vec_pretty(info).map_err(|error| {
-        Refusal::owner("E_OWNER_STATE", error.to_string(), "restart snapback2 dev")
-    })?;
     let result = (|| {
         let mut options = OpenOptions::new();
         options.write(true).create_new(true);
@@ -520,7 +524,7 @@ pub(crate) fn write_owner(root: &Path, info: &OwnerInfo) -> Result<(), Refusal> 
                 "owner temporary does not have owner-only custody",
             ));
         }
-        file.write_all(&bytes)?;
+        file.write_all(bytes)?;
         file.sync_all()?;
         fs::rename(&temporary, &path)?;
         fs::File::open(&directory)?.sync_all()
@@ -635,7 +639,22 @@ fn owner_path(root: &Path) -> PathBuf {
     root.join(".snapback/owner.json")
 }
 
-fn print_url(info: &OwnerInfo, json_output: bool) {
+fn ready_exit(info: &OwnerInfo, json_output: bool) -> ExitCode {
+    match print_url(info, json_output) {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(error) => print_refusal(error, json_output, 1),
+    }
+}
+
+fn print_url(info: &OwnerInfo, json_output: bool) -> Result<(), Refusal> {
+    // @ref LLP 1002#templates-are-products — bundlers read the owner's URL; the owner never supervises them.
+    if info.mode == "dev" {
+        write_owner_file(
+            &info.project,
+            "dev-url",
+            format!("{}\n", info.url).as_bytes(),
+        )?;
+    }
     if json_output {
         println!(
             "{}",
@@ -644,6 +663,7 @@ fn print_url(info: &OwnerInfo, json_output: bool) {
     } else {
         println!("SNAPBACK_URL={}", info.url);
     }
+    Ok(())
 }
 
 fn owner_running(info: &OwnerInfo) -> Refusal {

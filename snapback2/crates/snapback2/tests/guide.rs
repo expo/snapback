@@ -61,10 +61,8 @@ fn command_guides_explain_initialization_and_successor_recovery() {
             "init",
             "snapback2 init my-app --template chat --client react",
         ),
-        (
-            "init",
-            "VITE_SNAPBACK_URL=\"${snapback_url#SNAPBACK_URL=}\" npm run dev",
-        ),
+        ("init", "npm install && npx snapback2 dev && npm run dev"),
+        ("init", "The engine seeds maintained counts from source rows."),
         ("dev", "--apply-migration file"),
         ("check", "does not install"),
     ] {
@@ -576,7 +574,7 @@ fn app_guide_uses_chat_expo_operations_without_internal_timer_bindings() {
             .find(|schedule| schedule["name"] == "expireMessage")
             .unwrap();
         let binding = schedule["binding"].as_str().unwrap();
-        assert_eq!(binding, "deliveries._timerBinding_expireMessage");
+        assert_eq!(binding, "messages._timerBinding_expireMessage");
         assert!(
             cached["programs"]
                 .as_array()
@@ -595,8 +593,8 @@ fn app_guide_uses_chat_expo_operations_without_internal_timer_bindings() {
             serde_json::from_str(page["content"].as_str().unwrap()).unwrap();
         let operations = app["operations"].as_object().unwrap();
         assert!(!operations.contains_key(binding));
-        assert!(operations.contains_key("deliveries.purgeMessage"));
-        assert!(operations.contains_key("deliveries.post"));
+        assert!(operations.contains_key("messages.purgeMessage"));
+        assert!(operations.contains_key("messages.send"));
         assert_eq!(
             operations.keys().collect::<Vec<_>>(),
             certificates.as_object().unwrap().keys().collect::<Vec<_>>()
@@ -633,7 +631,7 @@ fn app_guide_uses_chat_expo_operations_without_internal_timer_bindings() {
         }
         assert_eq!(
             app["generation"],
-            certificates["deliveries.post"]["schema_hash"]
+            certificates["messages.send"]["schema_hash"]
         );
         assert_eq!(app["channels"], cached["schema"]["channels"]);
         assert!(
@@ -665,7 +663,7 @@ fn app_guide_requires_exposed_operations_even_with_timer_binding_names() {
     assert!(app["operations"].get(exposed).is_some());
     let certificate_path = project.path.join(".snapback/build/certificates.json");
     let valid = fs::read(&certificate_path).unwrap();
-    for missing in [exposed, "deliveries.post", "deliveries.purgeMessage"] {
+    for missing in [exposed, "messages.send", "messages.purgeMessage"] {
         let mut certificates: serde_json::Value = serde_json::from_slice(&valid).unwrap();
         assert!(
             certificates

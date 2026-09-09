@@ -18,11 +18,11 @@ mod page;
 pub(crate) mod search;
 mod summary;
 mod targets;
-pub use targets::{MutationTarget, MutationTargets, TargetKind, TargetSource, UnresolvedTarget};
 use diagnostic::Cost;
 use page::result_pages;
 pub use page::{result_cursor, resumable_log_cursor};
 use summary::Summary;
+pub use targets::{MutationTarget, MutationTargets, TargetKind, TargetSource, UnresolvedTarget};
 
 // Heap is calibrated; output/closure use declared maxima. These are admission bounds, not allocator/serializer proofs.
 const HEAP_BYTES_PER_STEP: u64 = 32;
