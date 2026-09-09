@@ -37,4 +37,8 @@ A false condition or absent/unreadable target returns a rejected mutation with
 or `null`). The owner rolls back the whole mutation before freshly authorizing
 that row. Review the current value before submitting a new edit.
 `expectedGeneration` on the mutation wire separately fences the operation and
-schema generation; it is not a row version. See `guide api`.
+schema using the manifest's `programGeneration`; it is not a row version.
+SDK calls pin it automatically, including uploaded arguments. A stale call
+returns `E_GENERATION_CHANGED` without automatic retry: inspect the current
+operation before a fresh call. Identical durable retries return their original
+terminal result first. Never rewrite an already queued envelope.
