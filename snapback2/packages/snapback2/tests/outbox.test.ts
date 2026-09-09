@@ -1048,7 +1048,7 @@ test("useMutation resolves last queued offline with pending filtered by op, and 
       React.createElement(Harness),
     ));
   });
-  await act(async () => { await new Promise((resolve) => setTimeout(resolve, 30)); });
+  await act(async () => { await client.ready; await client.outbox.entries(); });
   assert.deepEqual(outbox.entries.map((entry: any) => entry.state), ["queued", "queued"], "durable across a cold start");
   assert.equal(posting.pending.length, 1);
   await act(async () => { renderer!.unmount(); });

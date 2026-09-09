@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import type { Api } from "snapback2/client";
 
 type ResultOf<T> = T extends { readonly __result?: infer Result } ? NonNullable<Result> : never;
-/** One row of the drained delivery log; the inbox, search, and every thread read the same held rows (LLP 1012 §3). */
+/** One row of the drained delivery log; the inbox, search, and every thread read the same held rows. */
 export type LogRow = ResultOf<Api["messages"]["inbox"]>[number];
 
 function conversations(rows: readonly LogRow[]) {

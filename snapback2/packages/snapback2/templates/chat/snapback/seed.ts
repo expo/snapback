@@ -36,8 +36,6 @@ export default seed({
     follows: [
       { id: "follow-bob-alice", follower: "dev:bob", followed: "dev:alice", at: 1 },
     ],
-    messageCounts: [],
-    memberCounts: [],
     notifications: [
       { id: "notification-1", outboxId: "seed-outbox", effect: "notify", providerId: "seed-provider" },
     ],

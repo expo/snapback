@@ -74,6 +74,8 @@ fn assert_rendering(template: &str, chat: bool) {
                 .is_none()
         );
         assert!(compiled["schema"]["tables"]["memberCounts"].is_object());
+        let seed = std::fs::read_to_string(authored.join("seed.ts")).unwrap();
+        assert!(!seed.contains("messageCounts:") && !seed.contains("memberCounts:"));
         let operations = compiled["programs"]
             .as_array()
             .unwrap()
@@ -992,5 +994,29 @@ fn client_startup_uses_the_owner_url_file_and_attach_repairs_it() {
             format!("{}\n", attached["url"].as_str().unwrap())
         );
         assert_eq!(std::fs::read_to_string(file).unwrap(), first);
+        if arm == "expo" {
+            for override_url in [None, Some("https://backend.example.com")] {
+                let mut node = std::process::Command::new("node");
+                node.args(["-e", "const {evalConfig} = require(require.resolve('@expo/config/build/evalConfig', {paths: [require('node:fs').realpathSync(process.argv[2])]})); console.log(JSON.stringify(evalConfig(process.argv[1], {config: {extra: {kept: true}}}).config));"])
+                    .arg(project.path.join("app.config.js"))
+                    .arg(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../packages/snapback2/node_modules/expo"))
+                    .env_remove("EXPO_PUBLIC_SNAPBACK_URL");
+                if let Some(url) = override_url {
+                    node.env("EXPO_PUBLIC_SNAPBACK_URL", url);
+                }
+                let output = node.output().unwrap();
+                assert!(
+                    output.status.success(),
+                    "{}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
+                let config: Json = serde_json::from_slice(&output.stdout).unwrap();
+                assert_eq!(
+                    config["extra"]["snapbackUrl"],
+                    override_url.unwrap_or(first.trim())
+                );
+                assert_eq!(config["extra"]["kept"], true);
+            }
+        }
     }
 }

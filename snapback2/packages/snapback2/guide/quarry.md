@@ -209,7 +209,7 @@ Key expressions evaluate once and supply omitted upsert key columns. A row or
 patch may repeat a key column only with that key expression; otherwise
 `E_QUARRY_TYPE` names the field and its removal. Upsert cannot spell `id`:
 by-id uses the key; alternate-key preserves a hit's id or mints one on insertion.
-Insert yields its row. A bound or returned update/upsert reads its result once
+A bound or returned update/upsert reads its result once
 right after writing: a snapshot, or absence when its read rule denies the
 caller (including self-revocation). `! else CODE` requires that view and
 rolls back on refusal. Ignored update/upsert adds no result read. Delete yields
@@ -217,8 +217,7 @@ no value. A body's final write is an implicit return; never in a proc.
 
 ## Effects
 
-TypeScript exports the effect body and imports its `then` mutation from a
-Quarry file's virtual module, as in the chat template.
+TypeScript effects import their Quarry `then` mutation.
 
 `snapback/notifications.q`:
 
@@ -237,6 +236,8 @@ exports `notify = effect({ grants, run, then: recordNotified })`. The `run`
 body performs I/O using its granted `fetch`; `meta.id` is its idempotency key.
 See `snapback2 guide effects` for the executable TypeScript recipe.
 
+`messages.thread` reads the delivery log; `conversationView` adds count/preview.
+Use `withHistory` for declared partial history.
 `snapback/messages.q`:
 
 ```q

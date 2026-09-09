@@ -15,6 +15,42 @@ fn check<'a>(receipt: &'a serde_json::Value, name: &str) -> &'a serde_json::Valu
         .unwrap_or_else(|| panic!("missing {name} check in {receipt}"))
 }
 
+#[test]
+fn journey_fixtures_resolve_from_authored_tests_in_full_and_selected_runs() {
+    let project = Project::new();
+    assert!(project.init("todos", "none").status.success());
+    let tests = project.path.join("snapback/tests");
+    fs::create_dir(tests.join("fixtures")).unwrap();
+    fs::write(tests.join("fixtures/message.txt"), "authored fixture").unwrap();
+    // The same name at the project root must not win over the authored directory.
+    fs::create_dir(project.path.join("fixtures")).unwrap();
+    fs::write(project.path.join("fixtures/message.txt"), "wrong directory").unwrap();
+    fs::write(
+        tests.join("todos.test.ts"),
+        r#"
+import { fixture, journey } from "snapback2/test";
+const registered = await fixture("fixtures/message.txt");
+journey("fixture custody", async () => {
+  await Promise.resolve();
+  const loaded = await fixture("fixtures/message.txt");
+  for (const bytes of [registered, loaded]) {
+    if (new TextDecoder().decode(bytes) !== "authored fixture") throw new Error("wrong fixture");
+  }
+});
+"#,
+    )
+    .unwrap();
+    for args in [
+        vec!["test", "--journeys-only", "--json"],
+        vec!["test", "--journey", "fixture custody", "--json"],
+    ] {
+        let output = project.run(&args);
+        let receipt = json_stdout(&output);
+        assert!(output.status.success(), "{receipt}");
+        assert_eq!(check(&receipt, "fixture custody")["verdict"], "pass");
+    }
+}
+
 fn without_operation(source: &str, name: &str) -> String {
     let marker = format!("mutation {name}(");
     let start = source
@@ -286,17 +322,17 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
         let admitted = execution["as"] != "charlie";
         assert_eq!(
             execution["examined"],
-            serde_json::json!({ "actual": if admitted { 2 } else { 0 }, "ceiling": 53 })
+            serde_json::json!({ "actual": if admitted { 3 } else { 0 }, "ceiling": 103 })
         );
         assert_eq!(
             execution["ruleProbes"],
-            serde_json::json!({ "actual": if admitted { 2 } else { 0 }, "ceiling": 4 })
+            serde_json::json!({ "actual": if admitted { 2 } else { 0 }, "ceiling": 102 })
         );
         assert_eq!(
             execution["steps"],
-            serde_json::json!({ "actual": if admitted { 14 } else { 10 }, "ceiling": 278 })
+            serde_json::json!({ "actual": if admitted { 57 } else { 10 }, "ceiling": 2138 })
         );
-        assert_eq!(execution["readSites"].as_array().unwrap().len(), 2);
+        assert_eq!(execution["readSites"].as_array().unwrap().len(), 3);
         assert_eq!(
             execution["readSites"][0]["calls"],
             serde_json::json!({
@@ -313,6 +349,13 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
             })
         );
         assert_eq!(execution["readSites"][1]["take"], 50);
+        assert_eq!(
+            execution["readSites"][2]["calls"],
+            serde_json::json!({
+                "actual": if admitted { 1 } else { 0 }, "ceiling": 50,
+            })
+        );
+        assert_eq!(execution["readSites"][2]["take"], 1);
     }
     assert_eq!(
         checks
@@ -779,7 +822,7 @@ fn ref_based_pseudo_membership_is_refused_before_authority_proofs() {
             refusal["code"] == "E_QUARRY_UNKNOWN"
                 && refusal["message"]
                     == "memberships.byPrincipalConversation expects reference to profiles for principal, got principal"
-                && refusal["site"] == "snapback/messages.q:11:51"
+                && refusal["site"] == "snapback/messages.q:29:51"
                 && refusal["rewrite"]
                     .as_str()
                     .is_some_and(|value| !value.is_empty())
@@ -1180,7 +1223,7 @@ fn clique_sized_seed_and_71_operations_have_bounded_honest_derived_coverage() {
     let elapsed = started.elapsed();
     let receipt = json_stdout(&output);
     assert!(output.status.success(), "{receipt}");
-    // 27 template operations after removing notifications, plus 44 sends.
+    // 24 template operations after removing notifications, plus 47 sends.
     assert_eq!(check(&receipt, "certify")["detail"]["operations"], 71);
     let rules = check(&receipt, "rules");
     assert_eq!(rules["detail"]["tables"]["messages"]["probes"], 32 * 4);

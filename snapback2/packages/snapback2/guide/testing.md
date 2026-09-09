@@ -1,6 +1,7 @@
 # Testing
 
 The static seed is one system commit before derived checks and journeys:
+maintained targets need no empty seed arrays.
 
 ```ts
     profiles: [

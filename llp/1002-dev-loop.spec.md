@@ -1094,11 +1094,14 @@ C6. Screens: mechanical op renames only (`api.deliveries.conversationView/thread
 C7. `snapback2 dev` also writes the URL to `.snapback/dev-url` (one line, gitignored). The React template's `vite.config.ts` defines `import.meta.env.VITE_SNAPBACK_URL` from that file when the variable is unset, so `init`'s next-step line becomes `npm install && npx snapback2 dev && npm run dev`. The Expo template reads the same file through its `app.config`. The client contract is still `SNAPBACK_URL`; the server spawns and watches nothing.
 C8. Seeds: if the engine requires `messageCounts: [], memberCounts: []` in `seed.ts`, keep them and note it in the report; do not change the engine.
 
-The shipped backend has 25 public operations and one internal expiry binding.
+The shipped backend has 24 client API operations, the system-only
+`messages.purgeMessage`, and one internal expiry binding.
 Its TypeScript files are `delivery.ts`, `seed.ts`, and the acceptance journey;
 media fixtures are committed under `snapback/tests/fixtures/`. `fixture(name)`
 loads bytes relative to the authored test file even when executing its compiled
-copy. The two empty maintain arrays remain in the seed. Package witnesses use
+copy, during registration and asynchronous execution, including named-journey
+selection. The engine seeds maintained counts without empty target arrays, so
+`messageCounts: []` and `memberCounts: []` are omitted. Package witnesses use
 the shipped operation names. The compiler's independent Quarry chat regression
 project retains its own scenarios; template certification and composition tests
 lower the shipped template directly, without requiring byte identity.

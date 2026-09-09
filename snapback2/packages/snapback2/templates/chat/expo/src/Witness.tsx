@@ -124,7 +124,7 @@ export default function Witness({ url, controlUrl }: { url: string; controlUrl: 
         if (verb === "conformance") return runSqliteDriverConformance(() => expoSqliteDriver("snapback2-conformance.db"));
         if (verb === "settled") {
           // A retryable refusal stops the replay and keeps the intent queued; the supported
-          // retry is an explicit drain of the same envelope, then settled again (LLP 1012 §7).
+          // retry is an explicit drain of the same envelope, then settled again.
           await client.outbox.settled();
           if ((await client.outbox.entries()).some((entry) => entry.state === "queued")) {
             await client.outbox.drain();

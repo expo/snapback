@@ -167,11 +167,16 @@ test("real channel membership revocation ends the subscriber with a refusal", as
   const alice = createClient({ url: owner.url, as: "alice" });
   const bob = createClient({ url: owner.url, as: "bob" });
   context.after(async () => { await alice.close(); await bob.close(); });
+  await Promise.all([alice.ready, bob.ready]);
   const channel = bob.channel(api.typing, { conversationId: "conversation-1" });
   const snapshots: any[] = [];
   const sub = channel.subscribe(snapshot => snapshots.push(snapshot));
-  await sub.until(snapshot => snapshot.status === "ready", 2_000);
-  const typing = sub.until(snapshot => snapshot.entries.some((entry: any) => entry.value.typing), 2_000);
+  await sub.until(snapshot => snapshot.status === "ready", 2_000).catch(error => {
+    throw new Error(`channel readiness: ${JSON.stringify(snapshots)}`, { cause: error });
+  });
+  const typing = sub.until(snapshot => snapshot.entries.some((entry: any) => entry.value.typing), 2_000).catch(error => {
+    throw new Error(`channel typing: ${JSON.stringify(snapshots)}`, { cause: error });
+  });
   assert.deepEqual(
     await alice.channel(api.typing, { conversationId: "conversation-1" }).set({ typing: true }),
     { ok: true },

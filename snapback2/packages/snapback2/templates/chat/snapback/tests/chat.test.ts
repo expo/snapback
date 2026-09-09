@@ -83,7 +83,7 @@ journey("alice sends and reads back a JPEG photo and MP4 clip", async ({ as }) =
     });
     if (rejected.state !== "rejected") throw new Error("asset mutation unexpectedly accepted an outsider");
     // The successful upload remains unclaimed, so the server's locator-null
-    // reclamation pass can collect this orphan (LLP 1006 §9).
+    // reclamation pass can collect this orphan.
 
     const thread = await alice.query(api.messages.thread, { conversationId: "conversation-1" });
     if (!("data" in thread) || !Array.isArray(thread.data)) throw new Error("asset thread did not return rows");
@@ -524,7 +524,7 @@ journey("offline edits reject stale reads by trace, and past-fence edits by the 
   const entry = (await alice.outbox.entries()).find((item) => item.intent === edit.intent);
   if (entry?.state !== "rejected") throw new Error(`the stale edit settled as ${entry?.state}`);
   const response = entry.response as { code?: string; reason?: string; site?: string };
-  // Trace validation names the moved read before the program's own `CONFLICT` can (LLP 1012 §7).
+  // Trace validation names the moved read before the program's own `CONFLICT` can.
   if (response.reason !== "conflict" || response.code !== "E_OFFLINE_CONFLICT" || typeof response.site !== "string") {
     throw new Error(`the stale edit was refused for another reason: ${JSON.stringify(response)}`);
   }
