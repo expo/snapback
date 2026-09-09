@@ -7,7 +7,8 @@ Quarry is the backend language. `check` compiles in memory; inspection goes in
 
 `snapback/schema.q` holds `use identity`, tables, maintains and channels.
 `.q` stems name API/shape namespaces; `messages.q` exports
-`api.messages.thread`. TypeScript is only seeds, tests, and effect I/O.
+`api.messages.thread`. TypeScript is only seeds, tests, and effect I/O;
+otherwise use Quarry.
 Effect/`.q` stems differ.
 
 ## Types and tables
@@ -234,7 +235,7 @@ mutation recordNotified(outboxId: id, effect: text <=100, result: json <=1000):
 `snapback/delivery.ts` imports `recordNotified` from `./notifications` and
 exports `notify = effect({ grants, run, then: recordNotified })`. The `run`
 body performs I/O using its granted `fetch`; `meta.id` is its idempotency key.
-See `snapback2 guide effects` for the executable TypeScript recipe.
+See `snapback2 guide effects`.
 
 `messages.thread` reads the delivery log; `conversationView` adds count/preview.
 Use `withHistory` for declared partial history.

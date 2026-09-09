@@ -18,7 +18,9 @@ Cancellation, including during body reads: `client/E_ABORTED`. Malformed JSON an
 wire data: `op/E_WIRE_SHAPE`. Closed: `owner/E_CLIENT_CLOSED`; unexpected local
 failure: `client/E_CLIENT`. These are non-retryable. Mutation calls without durable admission
 never resubmit automatically; a lost/invalid response may follow a commit.
-Queries retry retryable transport failures with backoff, up to three attempts.
+`client.query()` retries retryable transport failures with backoff, up to three attempts.
+One-shot `observe`/`useQuery` can keep retrying retryable refusals; live observes
+reconnect through SSE.
 Queued writes replay after `online()` (`guide offline`). `last` clears on
 account/op change. `ResultOf<Op>`/`ArgsOf<Op>`: `snapback2/client`.
 

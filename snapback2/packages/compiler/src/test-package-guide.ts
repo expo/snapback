@@ -79,10 +79,15 @@ export function registerPackageGuideChecks(
       "guide lost the certified composite-page continuation used by chat conversationView");
     assert(!quarry.includes("without root continuation"), "guide still denies composite-page continuation");
     assert(quarry.includes("Objects/nested pages cannot drain"), "root next does not make a composite resumable");
-    const liveQuery = await readFile(`${guide}/live-query.md`, "utf8");
-    assert(liveQuery.includes("Mutation calls without durable admission\nnever resubmit automatically"),
+    const liveQuery = (await readFile(`${guide}/live-query.md`, "utf8")).replace(/\s+/g, " ");
+    assert(liveQuery.includes("Mutation calls without durable admission never resubmit automatically"),
       "the no-resubmission guarantee applies to mutations");
-    assert(liveQuery.includes("up to three attempts"), "the guide must disclose retryable query recovery");
+    assert(liveQuery.includes("`client.query()` retries retryable transport failures with backoff, up to three attempts."),
+      "the three-attempt retry limit applies to imperative client.query(), not observe/useQuery");
+    assert(liveQuery.includes("One-shot `observe`/`useQuery` can keep retrying retryable refusals; live observes reconnect through SSE."),
+      "the guide must distinguish observed retry lifecycles from imperative query attempts");
+    assert(quarry.replace(/\s+/g, " ").includes("TypeScript is only seeds, tests, and effect I/O; otherwise use Quarry."),
+      "the guide must direct backend authors to Quarry outside TypeScript's harness role");
     assert(liveQuery.includes("Queued writes replay after `online()`"), "live query must name the public recovery method");
     const keywords = JSON.parse(await readFile(`${guide}/keywords.json`, "utf8"));
     const entries = [...grammar.matchAll(/^- `([a-z][a-z0-9-]*)`: .+$/gm)];
