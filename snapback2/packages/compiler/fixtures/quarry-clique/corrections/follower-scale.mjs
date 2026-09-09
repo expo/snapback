@@ -162,7 +162,7 @@ journey("post write follower scale", async ({ as }) => {
   const alice = as("alice");
   try {
     const count = await alice.query(api.profiles.counts, { person: "dev:alice" });
-    if (!("data" in count) || count.data?.followers?.value !== followers) {
+    if (!("data" in count) || count.data?.followers !== followers) {
       throw new Error(\`seeded follower count was \${JSON.stringify(count)}\`);
     }
     const all: number[] = [];
@@ -180,7 +180,7 @@ journey("post write follower scale", async ({ as }) => {
     await writeFile(output, \`\${JSON.stringify({
       format: "clique-follower-scale-arm-v1",
       followers,
-      observedFollowerCount: count.data.followers.value,
+      observedFollowerCount: count.data.followers,
       warmups: all.slice(0, ${warmups}),
       samples,
       p95Ms: percentile95(samples),
@@ -199,7 +199,7 @@ journey("digest reads the full 500-follow envelope", async ({ as, tick }) => {
   const writer = as("zzzz-activity");
   try {
     const count = await reader.query(api.profiles.counts, { person: "dev:digest-reader" });
-    if (!("data" in count) || count.data?.following?.value !== 500) {
+    if (!("data" in count) || count.data?.following !== 500) {
       throw new Error(\`seeded following count was \${JSON.stringify(count)}\`);
     }
     const post = await writer.mutation(api.posts.createPost, {
@@ -218,7 +218,7 @@ journey("digest reads the full 500-follow envelope", async ({ as, tick }) => {
         if (digest.newPostsInFollowing !== 1) throw new Error(\`500-follow digest was \${JSON.stringify(digest)}\`);
         await writeFile(output, \`\${JSON.stringify({
           format: "clique-digest-500-v1",
-          following: count.data.following.value,
+          following: count.data.following,
           activityAuthor: "dev:zzzz-activity",
           orderingWitness: "activity author is the lexicographically last of 500 followed principals",
           digest,
