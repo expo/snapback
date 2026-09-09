@@ -264,7 +264,7 @@ class Client implements SnapbackClient {
     const authority = await this.operationAuthority(false);
     if (this.forcedOffline) {
       this.patchSnapshot({ connection: "offline" });
-      return answerOffline(this.offlineRuntime, op, args, (error) => this.offlineRefusal(error));
+      return answerOffline(this.offlineRuntime, op, args, (error) => this.offlineRefusal(error), drain);
     }
     if (this.currentToken) await this.authState.settled(this.lifetimeController.signal);
     this.ensureAuthority(authority);

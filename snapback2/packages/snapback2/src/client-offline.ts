@@ -200,7 +200,9 @@ export async function answerOffline<Result>(
     if (drain && runtime && !runtime.following) runtime.drainCursor(op);
     const held = await runtime?.answer<Result>(op, args);
     const local = await runtime?.evaluate(op, args);
-    const value = offlineView(held, local) as QueryResult<Result>;
+    // Drains own their page/tail continuation lifecycle; ordinary observed
+    // pages may preserve one exact receipt-backed owner answer.
+    const value = offlineView(held, local, !drain) as QueryResult<Result>;
     if (!itemInputs(value) && runtime?.principal !== undefined) {
       return withItemInputs(value, { ...emptyItemInputs, entries: await runtime.itemEntries() });
     }

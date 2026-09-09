@@ -1110,8 +1110,10 @@ export class OfflineRuntime {
 }
 
 /**
- * The offline view uses the twin's current local answer. For retained history,
- * a complete/capped/held rerun can reconstruct conservatively purged literals;
+ * The offline view uses a twin answer for newer local work or invalidated
+ * custody. An exact receipt-backed capped owner page remains whole when the
+ * twin is partial only because it cannot reconstruct computed fields. For retained history, a
+ * complete/capped/held rerun can reconstruct conservatively purged literals;
  * a denied, partial, or unavailable rerun falls back to the readable retained
  * answer, whose altered projection is partial even when its rows remain readable.
  * Its old certified cursor is a page boundary, not full-result completeness.
@@ -1120,7 +1122,7 @@ export class OfflineRuntime {
  * `caughtUp`) stay with reconstructed data: the stored answer is the covered
  * case, not a second mechanism (LLP 1012 §6).
  */
-export function offlineView<Result>(held: HeldAnswer<Result> | undefined, local?: LocalAnswer): any {
+export function offlineView<Result>(held: HeldAnswer<Result> | undefined, local?: LocalAnswer, preserveOwner = true): any {
   const heldContinuation = held !== undefined && (held.state === "complete" || held.state === "capped"
     || (held.state === "partial" && held.retained === true));
   // A retained projection may have had all unproven literal fields purged when
@@ -1143,7 +1145,24 @@ export function offlineView<Result>(held: HeldAnswer<Result> | undefined, local?
   const cachedScalar = held?.state === "complete" && held.data !== undefined
     && (held.data === null || typeof held.data !== "object");
   const cachedAnswerOnly = cachedScalar && local?.state === "partial" && !(local.predicted?.length);
-  const useLocal = local !== undefined && !waitingForCoherentOwner && !cachedAnswerOnly
+  // @ref LLP 1012#6-reads-offline — an exact held capped owner page keeps its
+  // whole receipt-time page boundary when the twin cannot reconstruct a
+  // computed projection. Never graft that boundary onto the partial rerun:
+  // queued work, revocation and maintained-coherence still select local or
+  // invalidated custody instead.
+  const computedProjectionOnly = local?.state === "partial"
+    && (local.sites?.length
+      ? local.sites.every((site) => site.reason === "computed-key")
+      : local.reason === "computed-key");
+  const localInputs = itemInputs(local);
+  const sameOwnerRerun = held !== undefined && (local?.seq === 0 || local?.seq === held.seq)
+    && localInputs?.selection?.through === held.seq
+    && (computedProjectionOnly || local.state === "complete" || local.state === "capped");
+  const exactOwnerAnswer = preserveOwner && held?.receipt !== undefined
+    && held.state === "capped" && typeof held.next === "string"
+    && sameOwnerRerun && !(local.predicted?.length)
+    && !localInputs?.entries.some((entry) => entry.state === "queued");
+  const useLocal = local !== undefined && !waitingForCoherentOwner && !cachedAnswerOnly && !exactOwnerAnswer
     && (!held?.retained || reconstructed);
   if (!useLocal) {
     if (!held) return { state: "hydrating", live: false, connection: "offline" };

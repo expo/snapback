@@ -14,6 +14,7 @@ import { indexedDbRangeStore } from "../dist/react.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
 import { sqliteFactory } from "./sqlite-fixture.ts";
 import { offlineView } from "../dist/sqlite-test.mjs";
+import { emptyItemInputs, withItemInputs } from "../dist/image-runtime.mjs";
 import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
 import { certifiedDrain, certifiedDrainEnvelope, certifiedDrainMetadataResponse, generation, schemaHash, planHash, metadataResponse } from "./offline-metadata-fixture.ts";
 
@@ -514,6 +515,66 @@ test("an exact cached scalar survives an uncovered cold rerun but not a newer lo
   });
   assert.equal(predicted.state, "partial");
   assert.equal(predicted.data, 1, "new local work is not hidden behind an older cached scalar");
+});
+
+test("an exact receipt-backed owner page keeps its whole continuation across an uncovered projection", () => {
+  const held = {
+    op: "social.feed", args: { c: null }, state: "capped" as const,
+    data: [{ id: "post-1", likes: 0, liked: false }], next: "server-page-2", seq: 7, deliveredAt: 100,
+    receipt: { ranges: [], absences: [], verdicts: [] },
+  };
+  const ownerRerun = (value: any, through = 7, entries: any[] = []) => withItemInputs(value,
+    { ...emptyItemInputs, entries, selection: { through } });
+  const view = offlineView(held, ownerRerun({
+    state: "partial", reason: "computed-key", site: "social.feed.likes", seq: 7,
+    data: [{ id: "post-1", likes: 0, liked: false }],
+  }));
+  assert.equal(view.state, "capped");
+  assert.deepEqual(view.data, held.data);
+  assert.equal(view.next, "server-page-2", "the owner answer keeps its own certified boundary");
+
+  const completeRerun = offlineView(held, ownerRerun({
+    state: "complete", seq: 7, next: null,
+    data: [{ id: "post-1", likes: 0, liked: false }],
+  }));
+  assert.equal(completeRerun.state, "capped");
+  assert.equal(completeRerun.next, "server-page-2",
+    "the same owner selection cannot erase its opaque continuation");
+
+  const newerComplete = offlineView(held, ownerRerun({
+    state: "complete", seq: 8, next: null,
+    data: [{ id: "post-new", likes: 1, liked: true }],
+  }, 8));
+  assert.equal(newerComplete.state, "complete");
+  assert.deepEqual(newerComplete.data, [{ id: "post-new", likes: 1, liked: true }],
+    "a newer exact local result is not concealed by the older owner page");
+  assert.equal(newerComplete.next, null);
+
+  const queuedRemoval = offlineView(held, ownerRerun({
+    state: "partial", reason: "computed-key", site: "social.feed.likes", seq: 7,
+    data: [], predicted: [],
+  }, 7, [{ state: "queued" }]));
+  assert.equal(queuedRemoval.state, "partial");
+  assert.deepEqual(queuedRemoval.data, [], "a queued removal with no surviving predicted row stays visible");
+  assert.equal(queuedRemoval.next, undefined);
+
+  const predicted = offlineView(held, {
+    state: "partial", reason: "computed-key", site: "social.feed.likes", seq: 8,
+    data: [{ id: "post-new", likes: 0, liked: false }, ...held.data],
+    predicted: [{ table: "posts", id: "post-new", intent: "intent" }],
+  });
+  assert.equal(predicted.state, "partial");
+  assert.equal(predicted.data[0].id, "post-new", "newer local work is not hidden behind the owner page");
+  assert.equal(predicted.next, undefined, "a partial prediction never inherits the owner cursor");
+
+  const invalidated = offlineView({ ...held, state: "partial" as const, reason: "evicted", next: undefined }, {
+    state: "partial", reason: "evicted", site: "social.feed.page", seq: 8,
+    data: [{ id: "post-remaining", likes: 0, liked: false }],
+  });
+  assert.equal(invalidated.state, "partial");
+  assert.equal(invalidated.data[0].id, "post-remaining",
+    "invalidated custody does not conceal a newer revocation behind the old answer");
+  assert.equal(invalidated.next, undefined);
 });
 
 test("sequence fences make absence, hidden, and tombstone evidence monotonic and deliveries idempotent", async () => {
