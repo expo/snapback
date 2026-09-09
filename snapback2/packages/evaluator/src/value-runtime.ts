@@ -7,7 +7,20 @@ import { sha256, utf8Length } from "./hash";
 import { cursorSuffix, decodeCursor, decodeCursorFor } from "./cursor";
 import { scalarLength } from "./unicode";
 import type { TraceRange, Value } from "./types";
-import { RowImage } from "./row-image";
+import { immutable, RowImage } from "./row-image";
+
+const preparedSchemas = new WeakMap<object,Map<unknown,string>>();
+
+// @ref LLP 1012#6-reads-offline — only this isolated, deeply immutable schema
+// custody may reuse canonical schema/rule bytes across fresh Runner executions.
+export function prepareSchema(schema: any, expected: string): any {
+  const hash = sha256(canonicalSchemaJson(schema));
+  if (hash !== expected) return;
+  const owned = immutable(clone(schema)), rules = new Map<unknown,string>();
+  for (const table of Object.values<any>(owned.tables)) for (const rule of Object.values(table.rules ?? {}))
+    rules.set(rule,sha256(`[${JSON.stringify(hash)},${canonicalRuleJson(rule)}]`));
+  preparedSchemas.set(owned,rules); return owned;
+}
 
 const I53_MAX = 9_007_199_254_740_991;
 const I53_MIN = -I53_MAX;
@@ -195,7 +208,7 @@ export function rowDigest(row: Value): string {
 
 /** `Schema::rule_hash`: the schema hash beside the rule in serde's field order. */
 export function scopedRuleHash(schema: any, rule: any): string {
-  return sha256(`[${JSON.stringify(sha256(canonicalSchemaJson(schema)))},${canonicalRuleJson(rule)}]`);
+  return preparedSchemas.get(schema)?.get(rule) ?? sha256(`[${JSON.stringify(sha256(canonicalSchemaJson(schema)))},${canonicalRuleJson(rule)}]`);
 }
 
 export function kindOf(value: Value): string {

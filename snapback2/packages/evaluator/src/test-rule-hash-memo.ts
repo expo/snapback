@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
-import { Runner } from './runner';
+import { canonicalProgramJson, canonicalSchemaJson } from './certificate-identity';
+import { sha256 } from './hash';
+import { CURRENT_EVALUATOR, CURRENT_VALUE_MODEL_VERSION, Runner } from './runner';
 import { ClientStore } from './store';
 import { scopedRuleHash } from './value-runtime';
+import { decodeHeldProgram } from '../../snapback2/src/held-program';
 
 const col = (Column: string) => ({ Column });
 const allow = { Eq: [{ Field: 'allowed' }, { Literal: { Bool: true } }] };
@@ -49,3 +52,45 @@ assert.equal(canonicalReads, 1, 'a new execution recomputes after its rule chang
 const successorHash = ((successor as any).ruleHashes as Map<unknown, string>).get(changed);
 assert.notEqual(successorHash, firstAllow);
 assert.equal(successorHash, scopedRuleHash(schema, changed));
+
+const ir: any = { name: 'read', kind: 'Query', args: {}, read_time_granularity_ms: null, body: [] };
+const planHash = sha256(canonicalProgramJson(ir)), schemaHash = sha256(canonicalSchemaJson(schema));
+const certificate: any = { plan_hash: planHash, schema_hash: schemaHash,
+  value_model_version: CURRENT_VALUE_MODEL_VERSION, evaluator_version: CURRENT_EVALUATOR };
+const packet: any = { generation: 'one', schemaHash, schema, programs: { read: { kind: 'query', planHash, ir, certificate } } };
+assert.throws(() => decodeHeldProgram({ ...packet,schema: { ...schema,futureFeature: undefined } }),{ code: 'E_SCHEMA' });
+assert.throws(() => decodeHeldProgram({ ...packet,programs: { read: { ...packet.programs.read,ir: { ...ir,futureFeature: undefined } } } }),{ code: 'E_SCHEMA' });
+const objectKeys = Object.keys; let preparedReads = 0, admitted: NonNullable<ReturnType<typeof decodeHeldProgram>>;
+Object.keys = ((value: object) => { if (value === schema.tables) preparedReads++; return objectKeys(value); }) as typeof Object.keys;
+try { admitted = decodeHeldProgram(packet)!; } finally { Object.keys = objectKeys; }
+assert.equal(preparedReads,1,'admission hashes the caller schema once');
+const admittedSchema: any = admitted.schema, admittedRule: any = admittedSchema.tables.allowed.rules.read;
+const admittedHash = scopedRuleHash(admitted.schema,admittedRule);
+assert.notEqual(admittedHash,scopedRuleHash(admittedSchema,admittedSchema.tables.denied.rules.read));
+const admittedStore = new ClientStore(admitted.schema); preparedReads = 0;
+Object.keys = ((value: object) => { if (value === admittedSchema.tables) preparedReads++; return objectKeys(value); }) as typeof Object.keys;
+try { for (let index = 0; index < 3; index++) {
+  const fresh = new Runner(admittedStore,admitted.schema,context,null);
+  assert.equal(fresh.readAuthority('allowed',row),false);
+  assert.equal((fresh as any).ruleHashes.get(admittedRule),admittedHash);
+} } finally { Object.keys = objectKeys; }
+assert.equal(preparedReads,0,'admitted custody reuses canonical hashes across fresh executions');
+assert.equal(admittedHash,scopedRuleHash(schema,changed),'prepared and public hashers retain byte parity');
+
+const nested = (value: unknown): boolean => !value || typeof value !== 'object'
+  || Object.isFrozen(value) && Object.values(value).every(nested);
+assert(nested(admitted) && nested(admittedSchema) && nested(admitted.programs.read.ir)
+  && nested(admitted.programs.read.certificate),'held program custody is deeply immutable');
+schema.tables.allowed.rules.read = 'Allow'; ir.body.push('changed'); certificate.plan_hash = 'changed';
+assert.deepEqual(admittedRule,changed); assert.equal((admitted.programs.read.ir as any).body.length,0);
+assert.equal((admitted.programs.read.certificate as any).plan_hash,planHash);
+
+const nextSchema: any = structuredClone(admitted.schema);
+nextSchema.tables.denied.rules.read = 'Allow';
+const nextSchemaHash = sha256(canonicalSchemaJson(nextSchema));
+const nextCertificate = { ...certificate,plan_hash: planHash,schema_hash: nextSchemaHash };
+const next = decodeHeldProgram({ generation: 'two',schemaHash: nextSchemaHash,schema: nextSchema,
+  programs: { read: { kind: 'query',planHash,ir: admitted.programs.read.ir,certificate: nextCertificate } } })!;
+assert.notEqual(next.schema,admitted.schema,'a successor gets new prepared custody');
+assert.notEqual(scopedRuleHash(next.schema,(next.schema as any).tables.allowed.rules.read),admittedHash,
+  'a nested successor rule change invalidates an unchanged outer rule shape');
