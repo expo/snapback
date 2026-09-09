@@ -14,6 +14,7 @@ import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 import { createRequire } from "node:module";
+import { runInNewContext } from "node:vm";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const args = new Set(process.argv.slice(2));
@@ -423,6 +424,68 @@ function selfTest() {
   publishByteMeasurements(published, values(100), byteToolchain, true);
   assert.deepEqual(score(published, [baseline]), [], "valid measurement is published and scored");
   console.log("byte baseline self-test ok: boundary, regression, retry, accepted, incompatible high/low, failed build/measurement, ceiling, legacy, missing, scope and publication");
+  // Keep the fixture beside the package so the production collector resolves the
+  // already-installed TypeScript parser without a fixture manifest or dependency.
+  const graphRoot = mkdtempSync(resolve(root, "packages/snapback2/.measure-self-test-"));
+  try {
+    const graph = new Map([
+      ["entry", 'import { left } from "./left.mjs"; export * from "./right.mjs"; export const entry = left;'],
+      ["left", 'import { shared } from "snapback2/shared"; export const left = () => shared;'],
+      ["right", 'export * from "./shared.mjs";'],
+      ["shared", 'export { left } from "./left.mjs"; export const shared = 1;'],
+    ]);
+    const payload = `export const payload = ${JSON.stringify(Array.from({ length: 256 }, (_, i) => `${i}:${i * 7919}`).join("|"))};`;
+    for (const location of ["entry", "shared"]) {
+      const files = [...graph].map(([name, source]) => [name, source + (name === location ? payload : "")]);
+      for (const [name, source] of files) writeFileSync(resolve(graphRoot, `${name}.mjs`), source);
+      const expected = files.reduce((bytes, [, source]) => bytes + gzipSync(source, { level: 9 }).length, 0);
+      const measured = packagedEntryBytes(graphRoot, "entry");
+      assert.equal(measured, expected, "shared imports, re-exports and cycles count every file exactly once");
+      assert.equal(measured - gzipSync(files[0][1], { level: 9 }).length,
+        files.slice(1).reduce((bytes, [, source]) => bytes + gzipSync(source, { level: 9 }).length, 0),
+        "moving payload into the shared chunk retains its complete contribution");
+    }
+  } finally { rmSync(graphRoot, { recursive: true, force: true }); }
+  console.log("byte closure self-test ok: 2 payload locations; 4 files counted once through shared imports, re-exports and a cycle");
+
+  // Execute main itself with controlled I/O: production owns step recording,
+  // publication, scoring, acceptance and serialization, not a test-side copy.
+  const recordLoop = (consumerStatus, consumerSeconds, checked) => {
+    const appended = [];
+    const originalExitCode = process.exitCode;
+    try {
+      runInNewContext(`(${main.toString()})()`, {
+        root, args: new Set(checked ? ["--check"] : []), byteFields, resolve, tmpdir,
+        process: { execPath: process.execPath }, performance, recordStep, publishByteMeasurements,
+        failedSummary, errorText, fail, console: { log() {}, error() {} },
+        run: (_command, argv) => ({ seconds: 0.001, status: 0, stderr: "",
+          stdout: argv.includes("--measure-twin") ? JSON.stringify({ gzip: 101, toolchain: byteToolchain })
+            : argv[0] === "doctor" ? '{"elapsedMs":1}' : argv[0] === "dev" ? "SNAPBACK_URL=http://test" : "{}" }),
+        packagedEntryBytes: () => 101,
+        packDevelopmentConsumer: () => ({ status: consumerStatus, seconds: consumerSeconds, stderr: "simulated consumer failure" }),
+        preserveUnchangedExecutable: (_path, operation) => operation(),
+        existsSync: () => true,
+        readFileSync: path => path.endsWith("loop.jsonl") ? JSON.stringify(baseline) : readFileSync(path, "utf8"),
+        appendFileSync: (_path, line) => appended.push(JSON.parse(line)),
+        mkdtempSync: () => "/unused-measure-self-test", cpSync() {}, rmSync() {}, utimesSync() {},
+        statSync: () => ({ size: 1 }),
+        scoreBytes: (record, history, failures) => scoreBytes(record, history, failures, () => {}, () => {}),
+        scoreChecks: (checks, budget, failures) => scoreChecks(checks, budget, failures, () => {}, () => {}),
+      });
+    } finally { process.exitCode = originalExitCode; }
+    assert.equal(appended.length, 1, "the complete production loop serializes one evidence record");
+    return appended[0];
+  };
+  for (const [status, seconds, checked, eligible] of [[1, 0.1, true, false], [0, 31, true, false], [0, 0.1, false, false], [0, 0.1, true, true]]) {
+    const recorded = recordLoop(status, seconds, checked);
+    assert.deepEqual(recorded.byte_measurement.values, values(101), "raw measurement survives serialization even after unrelated failure");
+    assert(byteFields.every(field => recorded[field] === 101), "successful pinned bytes remain evidence");
+    assert.equal(recorded.steps.consumer_smoke_s.ok, status === 0);
+    assert.equal(recorded.byte_baseline_accepted, eligible, "only a fully successful checked loop becomes a baseline");
+    assert.deepEqual(score(candidate(102), [baseline, recorded]), eligible ? [] : byteFields,
+      "serialized rejected/unchecked evidence cannot approve a retry; a successful checked record can");
+  }
+  console.log("byte recording self-test ok: 4 production loops; consumer failure, time-budget failure and unchecked evidence excluded; successful checked record accepted");
   const artifactRoot = mkdtempSync(resolve(tmpdir(), "snapback2-measure-artifact-"));
   const artifact = resolve(artifactRoot, "snapback2");
   writeFileSync(artifact, "same bytes");

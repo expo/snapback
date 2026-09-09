@@ -355,17 +355,57 @@ async function buildClientArms(arms, imagePlugin) {
 async function runClientBundleSelfTest() {
   const directory = resolve(here, "dist");
   const entries = ["index", "react", "expo", "react-native", "react-core", "test", "test-runner", "sqlite-test", "client-observed-test", "witness-test", "expo/witness"];
-  const implementations = new Set();
-  for (const entry of ["client", "client-runtime"]) {
-    const map = JSON.parse(await readFile(resolve(directory, `${entry}.mjs.map`), "utf8"));
-    for (const source of map.sources) implementations.add(resolve(directory, source));
+  const graphEntries = new Set(["client", "client-runtime", "internal", ...entries]);
+  const bundles = await Promise.all((await readdir(directory, { recursive: true }))
+    .filter(file => file.endsWith(".mjs")).sort().map(async file => {
+      const path = resolve(directory, file);
+      const map = JSON.parse(await readFile(`${path}.map`, "utf8"));
+      return { entry: file.slice(0, -4).split(sep).join("/"),
+        sources: map.sources.map(source => source.startsWith("client-shared:") ? source : resolve(dirname(path), source)),
+        mappings: [...ts.decodeMappings(map.mappings)] };
+    }));
+  assert.deepEqual(bundles.filter(bundle => graphEntries.has(bundle.entry)).map(bundle => bundle.entry).sort(), [...graphEntries].sort());
+  const implementations = new Set(bundles.filter(bundle => ["client", "client-runtime"].includes(bundle.entry)).flatMap(bundle => bundle.sources));
+  const declarations = [];
+  for (const [file, names] of [["store/range-store.ts", ["PersistentRangeStore", "applySwap"]], ["twin.ts", ["Twin"]], ["offline.ts", ["OfflineRuntime"]]]) {
+    const path = resolve(here, "src", file);
+    const source = ts.createSourceFile(path, await readFile(path, "utf8"), ts.ScriptTarget.Latest, true);
+    const visit = node => {
+      if ((ts.isClassDeclaration(node) || ts.isMethodDeclaration(node)) && names.includes(node.name?.text)) {
+        declarations.push({ name: node.name.text, path, ...source.getLineAndCharacterOfPosition(node.name.getStart(source)) });
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(source);
   }
-  for (const entry of entries) {
-    const path = resolve(directory, `${entry}.mjs`);
-    const map = JSON.parse(await readFile(`${path}.map`, "utf8"));
-    assert(!map.sources.some(source => !source.startsWith("client-shared:") && implementations.has(resolve(dirname(path), source))), `${entry} duplicates the client runtime`);
-    assert(!/applySwap\([^)]*\)\{/.test(await readFile(path, "utf8")), `${entry} contains a second applySwap implementation`);
+  assert.equal(declarations.length, 4, "all four runtime declarations must be audited");
+  const audit = observed => {
+    // Count source occurrences, including both implementation entries. The existing
+    // image/compiler bundles have their own primitive graphs; audit their declarations below too.
+    for (const source of implementations) {
+      const owners = observed.filter(bundle => graphEntries.has(bundle.entry))
+        .flatMap(bundle => bundle.sources.filter(path => path === source).map(() => bundle.entry));
+      assert.equal(owners.length, 1, `${source} occurs ${owners.length} times in the client graph: ${owners}`);
+    }
+    for (const declaration of declarations) {
+      // Original declaration coordinates survive identifier mangling. Count emitted
+      // locations, so two bodies in the same output cannot pass a source-set check.
+      const owners = observed.flatMap(bundle => bundle.mappings.filter(mapping =>
+        bundle.sources[mapping.sourceIndex] === declaration.path && mapping.sourceLine === declaration.line
+        && mapping.sourceCharacter === declaration.character).map(() => bundle.entry));
+      assert.deepEqual(owners, ["client-runtime"], `${declaration.name} must be emitted exactly once, in client-runtime`);
+    }
+  };
+  audit(bundles);
+  const runtime = bundles.find(bundle => bundle.entry === "client-runtime");
+  assert.throws(() => audit([...bundles, { ...runtime, entry: "client" }]), /occurs .* times in the client graph/);
+  for (const declaration of declarations) {
+    const mapping = runtime.mappings.find(mapping => runtime.sources[mapping.sourceIndex] === declaration.path
+      && mapping.sourceLine === declaration.line && mapping.sourceCharacter === declaration.character);
+    const duplicate = { ...runtime, mappings: [...runtime.mappings, { ...mapping, generatedLine: mapping.generatedLine + 1000 }] };
+    assert.throws(() => audit(bundles.map(bundle => bundle === runtime ? duplicate : bundle)), new RegExp(`${declaration.name} must be emitted exactly once`));
   }
+  console.log(`client graph self-test ok: ${implementations.size} sources occur once across ${graphEntries.size} entries; 4 declarations occur once across all ${bundles.length} packaged modules; 5 duplicate mutations refused`);
   const sqlite = await import(resolve(directory, "sqlite-test.mjs"));
   const internal = await import("snapback2/internal");
   const canonical = await import("snapback2/client");
@@ -431,7 +471,7 @@ async function runClientBundleSelfTest() {
     `], { cwd: here, encoding: "utf8", timeout: 30_000 });
     console.log(result.trim());
   }
-  console.log("client bundle self-test ok: 11 entries share one range store, twin and offline runtime; 3 export conditions execute");
+  console.log("client bundle self-test ok: client, client-runtime, internal and 11 arms share one range store, twin and offline runtime; 3 export conditions execute");
 }
 
 async function runGuideValidationSelfTest() {

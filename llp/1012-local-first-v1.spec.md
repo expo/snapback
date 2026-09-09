@@ -762,7 +762,7 @@ joins and automatic cleanup with private image evidence and shared read models;
 no wire field, compiler pass, second queue, automatic compactor, dependency or
 new gate enters scope. Existing deferred work remains deferred.
 
-**Merged-schema allocation amendment, 2026-09-07.** Root adopts an
+**Merged-schema allocation amendment, 2026-09-07 (historical; superseded by the 2026-09-08 freeze).** Root adopts an
 **82,500-byte gzip ceiling**, with the **80,000-byte target unchanged**, under
 the existing LLP 1018.000 review/implementation delegation. The upstream
 LLP 1018.003 reconciliation brings schema-declared tombstones into the measured
