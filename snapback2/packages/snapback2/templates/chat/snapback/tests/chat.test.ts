@@ -10,6 +10,32 @@ function bodies(rows: unknown): string[] {
     : [];
 }
 
+// Run the seed-count proof before journeys that write to the shared owner.
+journey("conversation metadata stays inside membership", async ({ as }) => {
+  const bob = as("bob");
+  const charlie = as("charlie");
+  try {
+    const member = await bob.query(api.messages.conversationView, { conversationId: "conversation-1" });
+    if ((member.state !== "complete" && member.state !== "capped") || member.data?.count !== 1) {
+      throw new Error(`seeded maintained message count was not 1: ${JSON.stringify(member)}`);
+    }
+    const sent = await bob.mutation(api.messages.send, { conversationId: "conversation-1", body: "count me" });
+    if (sent.state !== "committed") throw new Error("member send did not commit");
+    const updated = await bob.query(api.messages.conversationView, { conversationId: "conversation-1" });
+    if ((updated.state !== "complete" && updated.state !== "capped") || updated.data?.count !== 2) {
+      throw new Error(`maintained message count did not increment to 2: ${JSON.stringify(updated)}`);
+    }
+
+    const removed = await bob.mutation(api.messages.unsend, { messageId: sent.data.id });
+    if (removed.state !== "committed") throw new Error("count probe cleanup did not commit");
+    const outsider = await charlie.query(api.messages.conversationView, { conversationId: "conversation-1" });
+    if (outsider.state !== "denied") throw new Error("conversation metadata query admitted an outsider");
+  } finally {
+    bob.close();
+    charlie.close();
+  }
+});
+
 journey("alice posts to the room and a non-member cannot", async ({ as }) => {
   const alice = as("alice");
   const charlie = as("charlie");
@@ -240,22 +266,6 @@ journey("group creation bootstraps one creator admin atomically", async ({ as })
   }
 });
 
-journey("conversation metadata stays inside membership", async ({ as }) => {
-  const bob = as("bob");
-  const charlie = as("charlie");
-  try {
-    const member = await bob.query(api.messages.conversationView, { conversationId: "conversation-1" });
-    if (!("data" in member) || typeof member.data?.count !== "number") {
-      throw new Error("member could not read the maintained message count");
-    }
-
-    const outsider = await charlie.query(api.messages.conversationView, { conversationId: "conversation-1" });
-    if (outsider.state !== "denied") throw new Error("conversation metadata query admitted an outsider");
-  } finally {
-    bob.close();
-    charlie.close();
-  }
-});
 
 journey("scoped roles reject non-admin and stale membership authority", async ({ as }) => {
   const alice = as("alice");

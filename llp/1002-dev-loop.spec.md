@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2` (the binary: owner, server, verbs), `snapback2/packages/compiler` (project lowering, worker), `snapback2/packages/snapback2` (authoring runtime, client, React, test runner, shim), `snapback2/scripts/measure.mjs`
 **Author:** Claude Fable 5 (orchestrator) — implementers: codex gpt-5.6-sol, lanes B0 (compiler + authoring surface), B1 (owner + server + verbs), B2 (`init`, `test`, `why`, `trace`, `guide`), D (client + React + evaluator)
 **Date:** 2026-08-29
-**Revised:** 2026-09-08 (templates are products, elegance program Lane C, implementer GPT-6 Astra); 2026-09-08 (LLP 1001.000 typed latest-state channels, leases and snapshot clients); 2026-09-08 (resource-aware blocking Rust test scheduling and paired timing); 2026-09-07 (generated insert/merge consumer type bindings; implementer GPT-6 Astra); 2026-09-07 (independent Quarry diagnostics, checked-type repair advice, lexical failure isolation and merge discovery ordering; implementer GPT-6 Astra); 2026-09-07 (preserve unrelated prefixed optional packages; staged platform dependency selection and exact-lock packaging regression; durable browser-follower admission and unknown-outcome recovery; client-owned observed query snapshots; explicit named-journey verification and executable React startup; startup cleanup fixture custody); 2026-09-06 (app guide operation/certificate custody; native logical SSE body; CLI help and executable migration recovery; auth startup recovery and held transition reads; queued transitions, interrupted sync, live held reads); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
+**Revised:** 2026-09-08 (Lane C review: proved carrier projections, derived policy counts, executable Vite precedence and seeded maintain assertions); 2026-09-08 (templates are products, elegance program Lane C, implementer GPT-6 Astra); 2026-09-08 (LLP 1001.000 typed latest-state channels, leases and snapshot clients); 2026-09-08 (resource-aware blocking Rust test scheduling and paired timing); 2026-09-07 (generated insert/merge consumer type bindings; implementer GPT-6 Astra); 2026-09-07 (independent Quarry diagnostics, checked-type repair advice, lexical failure isolation and merge discovery ordering; implementer GPT-6 Astra); 2026-09-07 (preserve unrelated prefixed optional packages; staged platform dependency selection and exact-lock packaging regression; durable browser-follower admission and unknown-outcome recovery; client-owned observed query snapshots; explicit named-journey verification and executable React startup; startup cleanup fixture custody); 2026-09-06 (app guide operation/certificate custody; native logical SSE body; CLI help and executable migration recovery; auth startup recovery and held transition reads; queued transitions, interrupted sync, live held reads); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
 **Related:** LLP 1000, LLP 1001 (the engine this serves), LLP 1003 (effects),
 LLP 0329.016 §5 (the design this implements verbatim where it can), LLP
 0329.016 §5.11 (the verb table — no verb exists without its row), LLP
@@ -1109,8 +1109,23 @@ lower the shipped template directly, without requiring byte identity.
 The CLI's derived authorization probe admits a delivery-log carrier that declares
 tombstones for the protected table. A denied-table successor must retain the
 readable log metadata and replace each projected complete protected row with
-`null`; revoking membership still requires terminal denial with no rows. This
-keeps all three scoped-authorization checks executable on the single log thread.
+`null`; revoking membership still requires terminal denial with no rows.
+
+**Review revision 2026-09-08:** the earlier shape-only projection oracle is
+superseded. Candidate IR must prove a straight-line carrier page whose output
+fields are direct carrier-column reads or complete protected-row point reads.
+Scalar projections from protected rows, constructed arrays/nested values,
+unknown expressions, control flow and aliased accumulators are ineligible;
+unsupported candidates block rather than treating unexamined values as metadata.
+The served retained and fresh responses must match that independently derived
+projection. Their receipt counts derive from the checked response: carrier rows,
+remaining protected images and nulled images are separate. The seeded chat
+witness pins one carrier row and one nulled message in each response.
+Vite configuration precedence is explicit environment, Vite dotenv, then the
+owner URL file; the existing init regression executes Vite's `resolveConfig`.
+The conversation metadata journey pins count 1 from the source seed and count 2
+after a send. Provider honoring of `meta.id`, rather than the header alone,
+is the condition that makes effect retries safe.
 
 ## 11. Measured
 

@@ -42,7 +42,9 @@ Projects with scoped memberships also run the canonical `live-revocation`,
 `successor-policy-fence`, and `grant-incarnation-aba` authorization proofs.
 They bind revocation delivery, active-generation policy, and immutable grant
 incarnation to the served loop rather than treating lower-level unit coverage
-as the acceptance result.
+as the acceptance result. Projected policy probes require IR-proved carrier
+fields plus complete protected rows; mixed scalar/array/nested projections block.
+Receipts count retained carrier rows separately from protected and nulled images.
 
 Derived checks use a small representative seed, not a load-test dataset.
 Rules compare every stored row for every seed persona, within a 16,384-probe

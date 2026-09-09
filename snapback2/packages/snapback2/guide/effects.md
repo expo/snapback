@@ -6,7 +6,7 @@ row; the optional Ibex 2 runner performs I/O and may invoke a named Quarry
 
 ```ts
 // The grant names your notification provider; replace this example origin.
-// Send its idempotency key so retries cannot notify a member twice.
+// The provider must honor meta.id as the idempotency key to make retries safe.
 import { effect } from "snapback2";
 import { recordNotified } from "./notifications";
 

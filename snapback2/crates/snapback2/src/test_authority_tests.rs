@@ -376,20 +376,27 @@ fn projected_policy_probe_requires_body_redaction_and_preserves_log_metadata() {
     for key in table.columns.keys() {
         body.insert(key.clone(), json!("protected"));
     }
+    let projection = BTreeMap::from([("id".to_owned(), false), ("message".to_owned(), true)]);
     let initial = json!([{ "id": "delivery", "message": body }]);
-    let expected = projected_policy_data(&initial, table).unwrap();
+    for leaked in [json!("secret"), json!(["secret"]), json!({"nested": "secret"})] {
+        let mixed = json!([{ "id": "delivery", "message": body, "leakedBody": leaked }]);
+        assert!(projected_policy_data(&mixed, &projection, table).is_err(),
+            "unproved mixed projection accepted: {mixed}");
+    }
+    let expected = projected_policy_data(&initial, &projection, table).unwrap();
     assert_eq!(expected, json!([{ "id": "delivery", "message": null }]));
     require_policy_filtered(
         &json!({"state":"complete", "data":expected}),
         "projection",
         &expected,
+        &projection,
     )
     .unwrap();
     assert!(
         require_policy_filtered(
             &json!({"state":"complete", "data":initial}),
             "projection",
-            &expected
+            &expected, &projection
         )
         .is_err()
     );
@@ -397,10 +404,61 @@ fn projected_policy_probe_requires_body_redaction_and_preserves_log_metadata() {
         require_policy_filtered(
             &json!({"state":"complete", "data":[]}),
             "projection",
-            &expected
+            &expected, &projection
         )
         .is_err()
     );
-    assert!(projected_policy_data(&json!([{ "id": "delivery", "message": null }]), table).is_err());
-    assert!(projected_policy_data(&json!([{ "message": {"unknown":"shape"} }]), table).is_err());
+    assert!(projected_policy_data(&json!([{ "id": "delivery", "message": null }]), &projection, table).is_err());
+    assert!(projected_policy_data(&json!([{ "message": {"unknown":"shape"} }]), &projection, table).is_err());
+}
+
+#[test]
+fn policy_projection_proves_carrier_fields_and_blocks_mixed_protected_values() {
+    let mut schema = authority_schema(ColumnType::Principal);
+    let mut carrier = schema.tables["documents"].clone();
+    carrier.tombstones = vec![snapback2_core::Tombstone {
+        table: "documents".into(), column: "scopeId".into(), when: RuleExpr::Allow,
+    }];
+    schema.tables.insert("log".into(), carrier);
+    let mut program: Program = serde_json::from_value(json!({
+        "name": "thread", "kind": "Query", "args": {}, "body": [
+            {"Const": {"name": "page", "value": {"Scan": {
+                "site": "page", "table": "log", "index": "byId", "prefix": [],
+                "order": "Asc", "take": {"Literal": 1}, "provenance": "Shape"
+            }}}},
+            {"Const": {"name": "rows", "value": {"Array": []}}},
+            {"For": {"binding": "row", "domain": {"DerivedArray": {
+                "value": {"Variable": "page"}, "max": 1, "bound_source": "page"
+            }}, "body": [
+                {"Const": {"name": "message", "value": {"Get": {
+                    "site": "get", "table": "documents", "index": "byId", "key": [], "provenance": "Shape"
+                }}}},
+                {"Push": {"target": "rows", "value": {"Object": {
+                    "metadata": {"Field": {"base": {"Variable": "row"}, "name": "scopeId"}},
+                    "message": {"Variable": "message"}
+                }}}}
+            ]}},
+            {"Return": {"Variable": "rows"}}
+        ]
+    })).unwrap();
+    let projection = policy_projection(&program, &schema, "documents").unwrap();
+    assert_eq!(projection, BTreeMap::from([("metadata".into(), false), ("message".into(), true)]));
+    let initial = json!([{"metadata": "scope", "message": {"scopeId": "secret"}}]);
+    let expected = projected_policy_data(&initial, &projection, &schema.tables["documents"]).unwrap();
+    for subject in ["retained G handle", "fresh invocation"] {
+        let counts = require_policy_filtered(&json!({"state": "complete", "data": expected}), subject, &expected, &projection).unwrap();
+        assert_eq!((counts.rows, counts.protected_images, counts.nulled_images), (1, 0, 1));
+        assert!(require_policy_filtered(&json!({"state": "complete", "data": initial}), subject, &expected, &projection).is_err());
+    }
+    let protected_field = Expr::Field { base: Box::new(Expr::Variable("message".into())), name: "scopeId".into() };
+    for value in [
+        protected_field.clone(), Expr::Array(vec![protected_field.clone()]),
+        Expr::Object(BTreeMap::from([("nested".into(), protected_field)])),
+        Expr::Literal(Value::String("unproved constant".into())),
+    ] {
+        let Stmt::For { body, .. } = &mut program.body[2] else { panic!() };
+        let Stmt::Push { value: Expr::Object(fields), .. } = &mut body[1] else { panic!() };
+        fields.insert("leakedBody".into(), value);
+        assert!(policy_projection(&program, &schema, "documents").is_err(), "mixed scalar/array/nested candidates must be ineligible");
+    }
 }

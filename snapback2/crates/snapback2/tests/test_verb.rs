@@ -69,6 +69,30 @@ fn without_operation(source: &str, name: &str) -> String {
 }
 
 #[test]
+fn successor_policy_blocks_unproved_mixed_projections_in_the_shipped_thread() {
+    let project = Project::new();
+    assert!(project.init("chat", "none").status.success());
+    let path = project.path.join("snapback/messages.q");
+    let original = fs::read_to_string(&path).unwrap();
+    for leaked in [
+        "messages[.messageId].body",
+        "[messages[.messageId].body]",
+        "{ body: messages[.messageId].body }",
+    ] {
+        fs::write(&path, original.replace(
+            "return page { *, message: messages[.messageId] }",
+            &format!("return page {{ *, message: messages[.messageId], leakedBody: {leaked} }}"),
+        ).replace("after c first 50 by byRecipientAt", "after c first 1 by byRecipientAt")
+            .replace("after c last 50 by byRecipientConversationKindAt", "after c last 1 by byRecipientConversationKindAt")).unwrap();
+        let compiled = project.run(&["check", "--json"]);
+        assert!(compiled.status.success(), "{}", String::from_utf8_lossy(&compiled.stdout));
+        let receipt = json_stdout(&project.run(&["test", "--derived-only", "--json"]));
+        let fence = check(&receipt, "successor-policy-fence");
+        assert_eq!(fence["verdict"], "blocked", "unproved {leaked} candidate: {fence}");
+    }
+}
+
+#[test]
 fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
     let project = Project::new();
     let initialized = project.init("chat", "none");
@@ -196,9 +220,13 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
     assert_eq!(fence["detail"]["policyRetiredHeldSearchDescriptors"], 1);
     assert_eq!(fence["detail"]["staleHeldSearchDescriptorRefused"], true);
     assert_eq!(fence["detail"]["policyRetainedHandleState"], "complete");
-    assert_eq!(fence["detail"]["policyRetainedHandleRows"], 0);
+    assert_eq!(fence["detail"]["policyRetainedHandleRows"], 1);
+    assert_eq!(fence["detail"]["policyRetainedHandleProtectedImages"], 0);
+    assert_eq!(fence["detail"]["policyRetainedHandleNulledImages"], 1);
     assert_eq!(fence["detail"]["policyFreshInvocationState"], "complete");
-    assert_eq!(fence["detail"]["policyFreshInvocationRows"], 0);
+    assert_eq!(fence["detail"]["policyFreshInvocationRows"], 1);
+    assert_eq!(fence["detail"]["policyFreshInvocationProtectedImages"], 0);
+    assert_eq!(fence["detail"]["policyFreshInvocationNulledImages"], 1);
     let successor_rule = format!(
         "SNAPBACK2_TEST_SUCCESSOR_POLICY_FENCE:{}",
         fence["detail"]["generationG"].as_str().unwrap()

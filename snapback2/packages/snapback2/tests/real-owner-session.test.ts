@@ -102,7 +102,7 @@ test("real owner stop and restart yields stale then a full first re-delivery", a
   assert.deepEqual(deliveries.slice(0, 3).map((delivery) => delivery.state), ["complete", "stale", "complete"]);
   context.diagnostic("owner performs a full query re-delivery after reconnect; Last-Event-ID is not a delta-resume contract");
   sub.close();
-  value.close();
+  await value.close();
 });
 
 test("React-free hook driver reduces eight real-owner transitions including live capped and denied", async (context) => {
@@ -157,9 +157,7 @@ test("React-free hook driver reduces eight real-owner transitions including live
   assert.deepEqual(transitions, ["hydrating", "complete", "complete", "stale", "complete", "capped", "denied", "refused"]);
   context.diagnostic(`hook-driver transitions=${transitions.join(" -> ")}`);
   refused.close();
-  reader.close();
-  writer.close();
-  outsider.close();
+  await Promise.all([reader.close(), writer.close(), outsider.close()]);
 });
 
 test("real channel membership revocation ends the subscriber with a refusal", async (context) => {

@@ -80,9 +80,6 @@ export default function Witness({ url, controlUrl }: { url: string; controlUrl: 
           subscriptions.push(second);
           // Retain the paginated read's independent receipt for partial-history fallback.
           await client.query(api.messages.thread, { conversationId: selected, c: null });
-          // Media mutations predate the delivery recipe; drain this named read to
-          // hold their row leases too (messages.sendPhoto has no delivery fanout).
-          await client.query(api.messages.thread, { conversationId: selected, c: null });
           return { state: left.state, sameValue: left.data === right.data, consumers: [two, one],
             next: [left.next, right.next], data: left.data };
         }

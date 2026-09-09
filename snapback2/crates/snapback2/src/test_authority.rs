@@ -3,6 +3,7 @@
 
 use super::test_authority_ir::{
     prepare_policy_successor, program_has_membership_guard_dependency, projected_policy_data,
+    policy_projection, require_policy_filtered,
 };
 use super::test_sse::SseProbe;
 use super::{elapsed_ms, generated_args};
@@ -791,7 +792,7 @@ fn successor_attempt(
         .event(Duration::from_secs(2))
         .map_err(|error| format!("generation G delivery missing: {error}"))?;
     require_visible_complete(&initial)?;
-    let (_, certificate) = &compiled.generation.programs()[&plan.query];
+    let (program, certificate) = &compiled.generation.programs()[&plan.query];
     let projected = certificate.read_sites.iter().any(|site| {
         site.table != plan.protected_table
             && compiled.generation.schema().tables[&site.table]
@@ -799,9 +800,14 @@ fn successor_attempt(
                 .iter()
                 .any(|t| t.table == plan.protected_table)
     });
+    let projection = if projected {
+        policy_projection(program, compiled.generation.schema(), &plan.protected_table)?
+    } else {
+        BTreeMap::new()
+    };
     let expected_data = if projected {
         projected_policy_data(
-            &initial["data"],
+            &initial["data"], &projection,
             &compiled.generation.schema().tables[&plan.protected_table],
         )?
     } else {
@@ -821,16 +827,18 @@ fn successor_attempt(
     let policy_retained = retained.event(Duration::from_secs(2)).map_err(|error| {
         format!("retained G handle was not redelivered under policy generation G+1: {error}")
     })?;
-    require_policy_filtered(
+    let retained_counts = require_policy_filtered(
         &policy_retained,
         "retained G handle under G+1 policy",
         &expected_data,
+        &projection,
     )?;
     let policy_fresh = fresh_query(owner, plan, "G+1 policy")?;
-    require_policy_filtered(
+    let fresh_counts = require_policy_filtered(
         &policy_fresh,
         "fresh invocation under G+1 policy",
         &expected_data,
+        &projection,
     )?;
 
     let program_applied = apply_project(owner, program_successor)?;
@@ -880,9 +888,13 @@ fn successor_attempt(
         "policyRetiredHeldSearchDescriptors": retired_held_search,
         "staleHeldSearchDescriptorRefused": stale_held_search_refused,
         "policyRetainedHandleState": policy_retained["state"],
-        "policyRetainedHandleRows": 0,
+        "policyRetainedHandleRows": retained_counts.rows,
+        "policyRetainedHandleProtectedImages": retained_counts.protected_images,
+        "policyRetainedHandleNulledImages": retained_counts.nulled_images,
         "policyFreshInvocationState": policy_fresh["state"],
-        "policyFreshInvocationRows": 0,
+        "policyFreshInvocationRows": fresh_counts.rows,
+        "policyFreshInvocationProtectedImages": fresh_counts.protected_images,
+        "policyFreshInvocationNulledImages": fresh_counts.nulled_images,
         "successorDenialRule": program_denial,
         "initialState": initial["state"],
         "retainedHandleState": program_retained["state"],
@@ -1131,7 +1143,10 @@ fn query_isolates_protected_table(
     // A discovery scan can legitimately become an empty global-search lane
     // after membership removal. The terminal-revocation witness therefore
     // needs an explicit membership Require, not mere table overlap or take 1.
-    read_sites
+    let projected = read_sites.iter().any(|site|
+        site.table != recipe.membership_table && site.table != protected_table);
+    (!projected || policy_projection(program, schema, protected_table).is_ok())
+        && read_sites
         .iter()
         .all(|site| site.table == recipe.membership_table || site.table == protected_table
             || schema.tables.get(&site.table).is_some_and(|table| table.tombstones.iter().any(|t| t.table == protected_table)))
@@ -1379,23 +1394,6 @@ fn require_no_rows(delivery: &Json) -> Result<(), String> {
         Some(Json::Array(rows)) if rows.is_empty() => Ok(()),
         Some(data) => Err(format!(
             "denied delivery exposed post-revocation data: {data}"
-        )),
-    }
-}
-
-fn require_policy_filtered(delivery: &Json, subject: &str, expected: &Json) -> Result<(), String> {
-    if delivery["state"] != "complete" {
-        return Err(format!(
-            "{subject} did not resolve through the replacement table policy: {delivery}"
-        ));
-    }
-    match delivery.get("data") {
-        Some(data) if data == expected => Ok(()),
-        Some(data) => Err(format!(
-            "{subject} exposed rows despite the replacement deny policy: {data}"
-        )),
-        None => Err(format!(
-            "{subject} omitted data under the replacement deny policy: {delivery}"
         )),
     }
 }

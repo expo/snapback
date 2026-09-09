@@ -994,6 +994,35 @@ fn client_startup_uses_the_owner_url_file_and_attach_repairs_it() {
             format!("{}\n", attached["url"].as_str().unwrap())
         );
         assert_eq!(std::fs::read_to_string(file).unwrap(), first);
+        #[cfg(unix)]
+        if arm == "react" {
+            let vite = Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../../packages/snapback2/node_modules/vite").canonicalize().unwrap();
+            std::fs::create_dir_all(project.path.join("node_modules")).unwrap();
+            symlink(&vite, project.path.join("node_modules/vite")).unwrap();
+            for (dotenv, explicit) in [
+                (None, None),
+                (Some("https://dotenv.example.com"), None),
+                (Some("https://dotenv.example.com"), Some("https://explicit.example.com")),
+            ] {
+                std::fs::write(project.path.join(".env"), dotenv.map(|url|
+                    format!("VITE_SNAPBACK_URL={url}\n")).unwrap_or_default()).unwrap();
+                let mut node = std::process::Command::new("node");
+                node.args(["--input-type=module", "-e", r#"
+import { pathToFileURL } from 'node:url';
+const { resolveConfig } = await import(pathToFileURL(process.argv[1]).href);
+const config = await resolveConfig({ root: process.cwd(), logLevel: 'silent' }, 'serve', 'development');
+console.log(JSON.stringify(config.define['import.meta.env.VITE_SNAPBACK_URL']));
+"#]).arg(vite.join("dist/node/index.js"))
+                    .current_dir(&project.path).env_remove("VITE_SNAPBACK_URL");
+                if let Some(url) = explicit { node.env("VITE_SNAPBACK_URL", url); }
+                let output = node.output().unwrap();
+                assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+                let defined: String = serde_json::from_slice(&output.stdout).unwrap();
+                let url: String = serde_json::from_str(&defined).unwrap();
+                assert_eq!(url, explicit.or(dotenv).unwrap_or(first.trim()));
+            }
+        }
         if arm == "expo" {
             for override_url in [None, Some("https://backend.example.com")] {
                 let mut node = std::process::Command::new("node");

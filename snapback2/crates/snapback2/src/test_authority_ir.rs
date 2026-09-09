@@ -1,10 +1,255 @@
 //! Structural IR helpers for derived authorization successor probes.
 
+use serde_json::Value as Json;
 use snapback2_core::search_key::IndexKeyExpr;
 use snapback2_core::{
     Ceilings, Expr, Generation, LoopDomain, Program, ProjectJson, RuleExpr, Scan, Stmt,
 };
-use std::collections::BTreeSet;
+use snapback2_core::{Schema, Table};
+use std::collections::{BTreeMap, BTreeSet};
+
+// @ref LLP 1002#templates-are-products — retained metadata must have proved
+// carrier provenance; shape alone cannot distinguish a field from a disclosure.
+#[derive(Clone)]
+enum Origin {
+    Unknown,
+    CarrierPage(String),
+    CarrierRow(String),
+    CarrierField,
+    ProtectedRow,
+    Empty,
+    Projection(BTreeMap<String, bool>),
+    ProjectedPage(BTreeMap<String, bool>),
+}
+
+fn origin(
+    value: &Expr,
+    vars: &BTreeMap<String, Origin>,
+    schema: &Schema,
+    protected: &str,
+) -> Origin {
+    match value {
+        Expr::Variable(name) => vars.get(name).cloned().unwrap_or(Origin::Unknown),
+        Expr::Scan(scan)
+            if scan.table != protected
+                && schema
+                    .tables
+                    .get(&scan.table)
+                    .is_some_and(|table| table.tombstones.iter().any(|t| t.table == protected)) =>
+        {
+            Origin::CarrierPage(scan.table.clone())
+        }
+        Expr::Field { base, name } => match origin(base, vars, schema, protected) {
+            Origin::CarrierRow(table) if schema.tables[&table].columns.contains_key(name) => {
+                Origin::CarrierField
+            }
+            _ => Origin::Unknown,
+        },
+        Expr::Get(read) if read.table == protected => Origin::ProtectedRow,
+        Expr::Array(values) if values.is_empty() => Origin::Empty,
+        Expr::Object(fields) => {
+            let mut projection = BTreeMap::new();
+            for (key, value) in fields {
+                let protected = match origin(value, vars, schema, protected) {
+                    Origin::CarrierField => false,
+                    Origin::ProtectedRow => true,
+                    _ => return Origin::Unknown,
+                };
+                projection.insert(key.clone(), protected);
+            }
+            Origin::Projection(projection)
+        }
+        _ => Origin::Unknown,
+    }
+}
+
+// This intentionally recognizes only a straight-line carrier page projection.
+// Unknown scalars, arrays, nested objects, control flow and aliased accumulators
+// are ineligible, including values derived from a protected row's fields.
+pub(super) fn policy_projection(
+    program: &Program,
+    schema: &Schema,
+    protected: &str,
+) -> Result<BTreeMap<String, bool>, String> {
+    let unsupported = || {
+        "policy probe needs a page of proved carrier fields and complete protected rows".to_owned()
+    };
+    let mut vars = BTreeMap::new();
+    let mut accumulator = None;
+    for statement in &program.body {
+        match statement {
+            Stmt::Const { name, value } | Stmt::Let { name, value } => {
+                let value = origin(value, &vars, schema, protected);
+                // An empty-array alias shares identity at runtime. Restrict its
+                // creation to a literal so a later push cannot bypass the proof.
+                if matches!(value, Origin::Empty) {
+                    if !matches!(
+                        statement,
+                        Stmt::Const {
+                            value: Expr::Array(_),
+                            ..
+                        } | Stmt::Let {
+                            value: Expr::Array(_),
+                            ..
+                        }
+                    ) || accumulator.is_some()
+                    {
+                        return Err(unsupported());
+                    }
+                    accumulator = Some(name.clone());
+                }
+                if vars.insert(name.clone(), value).is_some() {
+                    return Err(unsupported());
+                }
+            }
+            Stmt::Require { .. } => {}
+            Stmt::For {
+                binding,
+                domain: LoopDomain::DerivedArray { value, .. },
+                body,
+            } => {
+                let Origin::CarrierPage(table) = origin(value, &vars, schema, protected) else {
+                    return Err(unsupported());
+                };
+                let mut local = vars.clone();
+                if local
+                    .insert(binding.clone(), Origin::CarrierRow(table))
+                    .is_some()
+                {
+                    return Err(unsupported());
+                }
+                let mut pushed = false;
+                for statement in body {
+                    match statement {
+                        Stmt::Const { name, value } => {
+                            let value = origin(value, &local, schema, protected);
+                            if local.insert(name.clone(), value).is_some() {
+                                return Err(unsupported());
+                            }
+                        }
+                        Stmt::Push { target, value }
+                            if !pushed
+                                && accumulator.as_ref() == Some(target)
+                                && matches!(vars.get(target), Some(Origin::Empty)) =>
+                        {
+                            let Origin::Projection(fields) =
+                                origin(value, &local, schema, protected)
+                            else {
+                                return Err(unsupported());
+                            };
+                            if !fields.values().any(|protected| *protected) {
+                                return Err(unsupported());
+                            }
+                            vars.insert(target.clone(), Origin::ProjectedPage(fields));
+                            pushed = true;
+                        }
+                        _ => return Err(unsupported()),
+                    }
+                }
+                if !pushed {
+                    return Err(unsupported());
+                }
+            }
+            Stmt::Return(value) => {
+                return match origin(value, &vars, schema, protected) {
+                    Origin::ProjectedPage(fields) => Ok(fields),
+                    _ => Err(unsupported()),
+                };
+            }
+            _ => return Err(unsupported()),
+        }
+    }
+    Err(unsupported())
+}
+
+pub(super) fn projected_policy_data(
+    data: &Json,
+    projection: &BTreeMap<String, bool>,
+    table: &Table,
+) -> Result<Json, String> {
+    let Some(rows) = data.as_array() else {
+        return Err("protected projection is not a page".into());
+    };
+    let mut expected = rows.clone();
+    let mut found = false;
+    for row in &mut expected {
+        let Some(fields) = row.as_object_mut() else {
+            return Err("protected projection row is not an object".into());
+        };
+        if fields.len() != projection.len()
+            || !fields.keys().all(|key| projection.contains_key(key))
+        {
+            return Err("protected projection differs from its proved IR fields".into());
+        }
+        for (key, protected) in projection {
+            if !protected {
+                continue;
+            }
+            let value = fields.get_mut(key).unwrap();
+            if value.is_null() {
+                continue;
+            }
+            let Some(image) = value.as_object() else {
+                return Err("protected projection is not a complete row".into());
+            };
+            if image.len() != table.columns.len()
+                || !table.columns.keys().all(|key| image.contains_key(key))
+            {
+                return Err("protected projection contains an unrecognized row image".into());
+            }
+            *value = Json::Null;
+            found = true;
+        }
+    }
+    if !found {
+        return Err("protected projection has no visible complete row image".into());
+    }
+    Ok(Json::Array(expected))
+}
+
+pub(super) struct PolicyCounts {
+    pub rows: usize,
+    pub protected_images: usize,
+    pub nulled_images: usize,
+}
+
+pub(super) fn require_policy_filtered(
+    delivery: &Json,
+    subject: &str,
+    expected: &Json,
+    projection: &BTreeMap<String, bool>,
+) -> Result<PolicyCounts, String> {
+    if delivery["state"] != "complete" {
+        return Err(format!(
+            "{subject} did not resolve through the replacement table policy: {delivery}"
+        ));
+    }
+    if delivery.get("data") != Some(expected) {
+        return Err(format!(
+            "{subject} did not preserve proved carrier metadata and redact protected images: {delivery}"
+        ));
+    }
+    let rows = delivery["data"]
+        .as_array()
+        .ok_or_else(|| format!("{subject} omitted its policy page"))?;
+    let mut counts = PolicyCounts {
+        rows: rows.len(),
+        protected_images: 0,
+        nulled_images: 0,
+    };
+    for row in rows {
+        for (key, protected) in projection {
+            if *protected {
+                if row[key].is_null() {
+                    counts.nulled_images += 1;
+                } else {
+                    counts.protected_images += 1;
+                }
+            }
+        }
+    }
+    Ok(counts)
+}
 
 pub(super) struct PreparedPolicySuccessor {
     pub project: ProjectJson,
@@ -259,38 +504,4 @@ fn visit_scan(scan: &mut Scan, table: &str, retired: &mut usize) {
         .flatten()
         .for_each(|value| visit_expr(value, table, retired));
     }
-}
-
-// A delivery-log projection keeps its own readable metadata when the protected
-// table becomes denied. Only complete nested row images are eligible for this proof.
-pub(super) fn projected_policy_data(
-    data: &serde_json::Value,
-    table: &snapback2_core::Table,
-) -> Result<serde_json::Value, String> {
-    use serde_json::Value as Json;
-    let Some(rows) = data.as_array() else {
-        return Err("protected projection is not a page".into());
-    };
-    let mut expected = rows.clone();
-    let mut found = false;
-    for row in &mut expected {
-        let Some(fields) = row.as_object_mut() else {
-            return Err("protected projection row is not an object".into());
-        };
-        for value in fields.values_mut() {
-            if let Some(image) = value.as_object() {
-                if image.len() != table.columns.len()
-                    || !table.columns.keys().all(|key| image.contains_key(key))
-                {
-                    return Err("protected projection contains an unrecognized nested image".into());
-                }
-                *value = Json::Null;
-                found = true;
-            }
-        }
-    }
-    if !found {
-        return Err("protected projection has no visible complete row image".into());
-    }
-    Ok(Json::Array(expected))
 }

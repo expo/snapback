@@ -1,5 +1,5 @@
 // The grant names your notification provider; replace this example origin.
-// Send its idempotency key so retries cannot notify a member twice.
+// The provider must honor meta.id as the idempotency key to make retries safe.
 import { effect } from "snapback2";
 import { recordNotified } from "./notifications";
 

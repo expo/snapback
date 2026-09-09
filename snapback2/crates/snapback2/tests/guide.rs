@@ -62,6 +62,7 @@ fn command_guides_explain_initialization_and_successor_recovery() {
             "snapback2 init my-app --template chat --client react",
         ),
         ("init", "npm install && npx snapback2 dev && npm run dev"),
+        ("init", "The engine seeds maintained counts from source rows."),
         ("dev", "--apply-migration file"),
         ("check", "does not install"),
     ] {

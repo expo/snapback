@@ -49,7 +49,7 @@ Chat groups related operations in schema/access/messages/groups/profiles/feeds/p
 messages.thread reads the delivery log; conversationView adds count and preview.
 messages.send accepts conversationId, body, and optional expiresAt; it delivers
 first, then notifies every other current member. Inserts return rows; omit
-unused optional columns. Seeds keep empty maintain arrays for the engine.
+unused optional columns. The engine seeds maintained counts from source rows.
 Templates carry product comments, without design-corpus citations.
 Backends live in snapback/*.q; read snapback2 guide quarry next."
         }
