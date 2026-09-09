@@ -1663,8 +1663,8 @@ it, so every deferral in §11 carries a number:
   30 KB ceiling, recorded in `snapback2/metrics/twin.jsonl` with the
   method; NOT-DOING's 9.7 KB is re-baselined to the measurement.
 
-The 2026-09-08 freeze sets the complete local-runtime
-ceiling to 84,000 bytes, with 80,000 as the working target (§"Bytes — frozen allocation"). The historical
+The 2026-09-09 author amendment sets the complete local-runtime
+ceiling to 85,000 bytes, with 80,000 as the working target (§"Bytes — frozen allocation"). The historical
 measurements above do not measure the complete search implementation. Record
 its integrated whole-entry size, phone index/cold-build storage and full-engine
 search curve when those lanes execute; no additive-prototype headroom claim.
