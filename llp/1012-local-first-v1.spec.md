@@ -481,8 +481,9 @@ section.
 
 **The twin is the client.** `useQuery(op, args)` with the backend
 unreachable runs the certified program through the twin
-(`snapback2-evaluator`) hydrated from `coverage()`: rows, ranges, absences,
-and verdicts. A read inside coverage is exact; a read outside is `partial`
+(`snapback2-evaluator`) hydrated from the carrier's coherent snapshot and
+revision deltas: rows, ranges, absences, and verdicts. A read inside coverage
+is exact; a read outside is `partial`
 at that site with `reason: 'never-held' | 'evicted' | 'computed-key'`. The
 published Snapshot carries `freshness.live: false`,
 `freshness.connection: 'offline'`, `freshness.staleSince` when stale, and
@@ -497,6 +498,17 @@ ticket's "done when" list is lane O2's acceptance verbatim: the certified
 program and certificate on the wire (§8), receipt custody, successor and
 auth-epoch fences, canonical hashing, and the five outcome classes proven
 against the server.
+
+**Shared installation (2026-09-09, LLP 1018.007.002).** Concurrent readers
+share one source-synchronization flight, not one mutable query evaluation.
+The flight captures principal, program identity, generation, schema and the
+runtime auth epoch. Source results are revalidated before installation; a
+successor cannot join a predecessor's authority. A reader arriving after a
+captured revision requests another delta pass. Root replacement reloads cold
+inside the flight instead of recursively awaiting the public entry point.
+Cold rows, indexes and receipt custody are built privately and published in
+one synchronous turn; failed reads remain retryable. Immutable prepared leaves
+can be shared, while generic mutable source values remain isolated.
 
 **Retained projections and page boundaries (2026-09-08).** Retention keeps
 authorized row bodies; restoring older bodies into a newer answer or purging
@@ -918,12 +930,23 @@ from then on on either tab. There is no forwarded command, no acknowledgment
 to lose, and no fourth outcome (LLP 1018.004, superseding LLP 1018.000 §8's
 transport while keeping its ownership model).
 
-**The replay grant.** Every successful resume (§8), login, and guest call
+**The replay grant.** Every successful resume (§8), signup, login, and guest call
 returns a grant when the client's remaining ids are low:
 
 ```
 grant: { id, from, count: 8192, mintedAt, expiresAt }   // principal-bound; ids in the engine's own s2id space
 ```
+
+Signup has no prior remaining-ID count, so its owner response mints the same
+principal-bound grant as login. A fresh account need not reload or perform a
+second authentication transition to admit its first durable write.
+
+Reconnect/facts loading and committed-send tail selection read a small carrier
+metadata snapshot (watermarks, facts and supersession) rather than expanding
+every held row and receipt through `coverage()`. Custom carriers without that
+optional selector retain the coverage fallback. The returned metadata is
+isolated from mutable aliases and grants no new authority. This removes
+sender-settlement copying; recipient delivery is measured separately.
 
 A grant is bound to the **principal**, not the session, so a fresh session
 for the same principal finishes its outbox. Ids are the engine's own
