@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { tombstonesFor } from "../src/tombstones.ts";
+import { build } from "esbuild";
+
+// Exercise the private helper without asking raw Node to resolve the source
+// tree's emitted-JS specifiers before TypeScript has been bundled.
+const bundled = await build({ stdin: { contents: "export { tombstonesFor } from './src/tombstones.ts';",
+  resolveDir: new URL("..", import.meta.url).pathname, loader: "ts" },
+  bundle: true, write: false, format: "esm", platform: "node" });
+const { tombstonesFor }: typeof import("../src/tombstones.ts") =
+  await import(`data:text/javascript;base64,${Buffer.from(bundled.outputFiles[0]!.contents).toString("base64")}`);
 
 // @ref LLP 1012#5-retention-revocation-and-the-fence — rule 3 evaluated from the
 // delivered row alone, over the exact schema JSON the compiler emits.
