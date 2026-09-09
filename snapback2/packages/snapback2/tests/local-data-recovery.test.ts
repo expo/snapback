@@ -141,6 +141,7 @@ test("real sessions change epochs across re-login, seal and cold auth", async ()
   let client: ReturnType<typeof createClient> | undefined;
   const clients: Array<ReturnType<typeof createClient>> = [];
   const releaseQuery = Promise.withResolvers<void>();
+  const terminalResponses: any[] = [];
   try {
     let failWrites = true;
     let holdQuery = false;
@@ -148,6 +149,7 @@ test("real sessions change epochs across re-login, seal and cold auth", async ()
     const transport: typeof fetch = async (input, init) => {
       if (failWrites && new URL(String(input)).pathname === "/api/mutation") throw new TypeError("write transport cut");
       const response = await fetch(input, init);
+      if (new URL(String(input)).pathname === "/api/mutation") terminalResponses.push(await response.clone().json());
       if (holdQuery && new URL(String(input)).pathname === "/api/query") {
         holdQuery = false;
         queryStarted.resolve();
@@ -199,7 +201,9 @@ test("real sessions change epochs across re-login, seal and cold auth", async ()
     failWrites = false;
     await client.online();
     assert.deepEqual(await client.outbox.settled(), { stopped: false, remaining: 0 });
-    assert.equal((await client.outbox.entries())[0]?.state, "committed");
+    assert.deepEqual(terminalResponses.map(({ state, data, effects }) => ({ state, data, effects })),
+      [{ state: "committed", data: "kept across sessions", effects: [] }]);
+    assert.deepEqual(await client.outbox.entries(), [], "the successful no-op compacts after preserving replay custody across sessions");
     await client.close();
 
   } finally { releaseQuery.resolve(); await Promise.allSettled(clients.map(entry => entry.close())); await owner.close(); if (owner.owned) delete process.env.SNAPBACK_URL; await rm(root, { recursive: true, force: true }); }

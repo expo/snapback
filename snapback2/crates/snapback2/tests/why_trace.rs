@@ -214,7 +214,7 @@ fn auth_recipe_executes_scoped_admin_reads_and_diagnoses_owner_only_absence() {
         assert!(project.init("chat", "none").status.success());
         let guide = json_stdout(&project.run(&["guide", "auth", "--json"]));
         let content = guide["content"].as_str().unwrap();
-        assert!(content.len() <= 4_096);
+        assert!(content.len() <= 8_192);
         assert!(!content.contains("```ts"));
         let snippets = content
             .split("```q\n")

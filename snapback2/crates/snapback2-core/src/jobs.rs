@@ -164,7 +164,7 @@ pub fn rejection_family(code: &str) -> &'static str {
 pub fn quarry_signature(name: &str, args: &BTreeMap<String, ArgType>) -> String {
     let short = name.rsplit('.').next().unwrap_or(name);
     if args.is_empty() {
-        return format!("job {short}:");
+        return format!("job {short}():");
     }
     let args = args
         .iter()

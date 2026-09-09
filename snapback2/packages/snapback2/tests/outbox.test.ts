@@ -1187,6 +1187,7 @@ test("successful history compacts atomically only after the entire effect set on
       await store.commit({ deliveries: [{ ...delivery(13, [refs[0]!]), validator: "a".repeat(64), readTime: 0, clockPlanHash: "c".repeat(64) }],
         outbox: { put: [entry("unchanged", [refs[0]!], "committed", 14)] } });
       assert(await store.outbox.get("unchanged"), "an older identical image cannot discharge a later write");
+      await store.close?.(); store = factory(); await store.open("dev:alice");
       await store.commit({ refreshes: [{ op: "view", args: {}, seq: 14, validator: "a".repeat(64) }] });
       assert.equal(await store.outbox.get("unchanged"), undefined, "unchanged refresh proves the exact held image through commit");
       const removed = entry("recreated", [{ ...refs[0]!, removed: true } as any], "committed", 15);

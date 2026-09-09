@@ -8,6 +8,7 @@ import { storedAnswerKey } from "./store/canonical.js";
 import type { ItemInputs, ItemObservation } from "./client-items.js";
 import { itemAddress } from "./query-frame.js";
 import type { DeliveryEnvelopeV1 } from "./offline-protocol.js";
+import { factAssertion } from "./store/fact-integrity.js";
 
 /** Only a checked, complete owner answer can advance this query's membership evidence. */
 export function freshItemSelection(held: StoredAnswer | undefined): StoredAnswer["selection"] {
@@ -25,7 +26,7 @@ export function rowObservation(state: PersistedRangeState, key: string, held?: S
   let through = state.rowSeq[key];
   if (!row || through === undefined || through <= (state.negative[key] ?? -1)) return;
   if (held && !held.retained && !held.clockOnly && !held.needsFactProofs && held.state !== "denied" && held.seq >= through
-    && RowImage.is(row.row) && held.rowProofs?.[key] === RowImage.digest(row.row)) {
+    && held.rowProofs?.[key] === factAssertion(row)) {
     return { through: held.seq, order: held.order };
   }
   return { through };
