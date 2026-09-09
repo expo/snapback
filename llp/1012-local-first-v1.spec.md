@@ -544,6 +544,16 @@ page/tail lifecycle. The 45-row real owner/carrier/React witness exercises
 Global, Following and author pages across refresh, moving boundaries and
 cold reopen; local cursor tokens remain forbidden on the transport.
 
+The current overlay guard is deliberately partition-wide, not a row-key or
+operation-name dependency guess. An apparently unrelated prediction can
+therefore temporarily select a truthful partial without continuation. Once
+that overlay retires, still-valid owner selection can be used again. This is
+a conservative availability limit, not proof that the server has only one
+page. A narrower guard needs sound dependencies covering filters, maintained
+values, permission reads, absences and ranges; intersecting returned row ids
+alone cannot establish that. No such dependency mechanism is introduced by
+the Clique correction.
+
 **Retained projections and page boundaries (2026-09-08).** Retention keeps
 authorized row bodies; restoring older bodies into a newer answer or purging
 projection literals does not preserve the exact whole-query result. Such
