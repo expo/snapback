@@ -14,12 +14,12 @@ const preparedSchemas = new WeakMap<object,Map<unknown,string>>();
 // @ref LLP 1012#6-reads-offline — only this isolated, deeply immutable schema
 // custody may reuse canonical schema/rule bytes across fresh Runner executions.
 export function prepareSchema(schema: any, expected: string): any {
-  const hash = sha256(canonicalSchemaJson(schema));
-  if (hash !== expected) return;
-  const owned = immutable(clone(schema)), rules = new Map<unknown,string>();
+  const owned = immutable(structuredClone(schema));
+  if (sha256(canonicalSchemaJson(owned)) !== expected) return;
+  const rules = new Map<unknown,string>();
   for (const table of Object.values<any>(owned.tables)) for (const rule of Object.values(table.rules ?? {}))
-    rules.set(rule,sha256(`[${JSON.stringify(hash)},${canonicalRuleJson(rule)}]`));
-  preparedSchemas.set(owned,rules); return owned;
+    rules.set(rule,sha256(`[${JSON.stringify(expected)},${canonicalRuleJson(rule)}]`));
+  return preparedSchemas.set(owned,rules),owned;
 }
 
 const I53_MAX = 9_007_199_254_740_991;
@@ -141,12 +141,12 @@ export function totalCompare(left: Value, right: Value): number {
   const leftEntries = Object.keys(leftData).sort(compareCodepoints);
   const rightEntries = Object.keys(rightData).sort(compareCodepoints);
   const length = comparePrimitive(leftEntries.length, rightEntries.length);
-  if (length !== 0) return length;
+  if (length) return length;
   for (let index = 0; index < leftEntries.length; index += 1) {
     const key = compareCodepoints(leftEntries[index], rightEntries[index]);
-    if (key !== 0) return key;
+    if (key) return key;
     const value = totalCompare(leftData[leftEntries[index]], rightData[rightEntries[index]]);
-    if (value !== 0) return value;
+    if (value) return value;
   }
   return 0;
 }
@@ -155,7 +155,7 @@ export function compareArrays(left: Value[], right: Value[]): number {
   const length = Math.min(left.length, right.length);
   for (let index = 0; index < length; index += 1) {
     const compared = totalCompare(left[index], right[index]);
-    if (compared !== 0) return compared;
+    if (compared) return compared;
   }
   return comparePrimitive(left.length, right.length);
 }

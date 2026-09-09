@@ -60,14 +60,19 @@ const certificate: any = { plan_hash: planHash, schema_hash: schemaHash,
 const packet: any = { generation: 'one', schemaHash, schema, programs: { read: { kind: 'query', planHash, ir, certificate } } };
 assert.throws(() => decodeHeldProgram({ ...packet,schema: { ...schema,futureFeature: undefined } }),{ code: 'E_SCHEMA' });
 assert.throws(() => decodeHeldProgram({ ...packet,programs: { read: { ...packet.programs.read,ir: { ...ir,futureFeature: undefined } } } }),{ code: 'E_SCHEMA' });
-const objectKeys = Object.keys; let preparedReads = 0, admitted: NonNullable<ReturnType<typeof decodeHeldProgram>>;
-Object.keys = ((value: object) => { if (value === schema.tables) preparedReads++; return objectKeys(value); }) as typeof Object.keys;
-try { admitted = decodeHeldProgram(packet)!; } finally { Object.keys = objectKeys; }
-assert.equal(preparedReads,1,'admission hashes the caller schema once');
+const oldTables = structuredClone(schema.tables), newTables = structuredClone(schema.tables); newTables.denied.rules.read = 'Allow';
+let tableReads = 0;
+const changingSchema = { maintains: [], get tables() { return ++tableReads < 2 ? oldTables : newTables; } };
+assert.equal(decodeHeldProgram({ ...packet,schema: changingSchema }),undefined,'schema hash binds the exact isolated snapshot');
+const unstableIr: any = { name: 'read',kind: 'Query',args: {},read_time_granularity_ms: null,
+  get body() { return ['changed']; } };
+assert.equal(decodeHeldProgram({ ...packet,programs: { read: { ...packet.programs.read,ir: unstableIr } } })!.programs.read,
+  undefined,'plan hash binds the exact isolated IR snapshot');
+const admitted = decodeHeldProgram(packet)!;
 const admittedSchema: any = admitted.schema, admittedRule: any = admittedSchema.tables.allowed.rules.read;
 const admittedHash = scopedRuleHash(admitted.schema,admittedRule);
 assert.notEqual(admittedHash,scopedRuleHash(admittedSchema,admittedSchema.tables.denied.rules.read));
-const admittedStore = new ClientStore(admitted.schema); preparedReads = 0;
+const objectKeys = Object.keys, admittedStore = new ClientStore(admitted.schema); let preparedReads = 0;
 Object.keys = ((value: object) => { if (value === admittedSchema.tables) preparedReads++; return objectKeys(value); }) as typeof Object.keys;
 try { for (let index = 0; index < 3; index++) {
   const fresh = new Runner(admittedStore,admitted.schema,context,null);

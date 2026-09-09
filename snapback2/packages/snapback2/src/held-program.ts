@@ -3,7 +3,7 @@ import { canonicalProgramJson } from "../../evaluator/src/certificate-identity.j
 import { sha256 } from "../../evaluator/src/hash.js";
 import { immutable } from "../../evaluator/src/row-image.js";
 import { CURRENT_EVALUATOR, CURRENT_VALUE_MODEL_VERSION } from "../../evaluator/src/runner.js";
-import { clone, prepareSchema } from "../../evaluator/src/value-runtime.js";
+import { prepareSchema } from "../../evaluator/src/value-runtime.js";
 import type { DrainContract } from "./types.js";
 import type { HeldProgram, HeldOperation } from "./store/range-store.js";
 import { object } from "./store/row-values.js";
@@ -33,13 +33,14 @@ export function decodeHeldProgram(value: unknown): HeldProgram | undefined {
     if (!object(entry)) continue;
     const { kind,planHash,ir,certificate,cursor,drain } = entry;
     if ((kind !== "query" && kind !== "mutation") || typeof planHash !== "string" || !object(ir) || !object(certificate)) continue;
-    // The payload binds each op to one certificate: the plan hashes must agree.
-    if (certificate.plan_hash !== planHash || certificate.schema_hash !== schemaHash
-      || certificate.value_model_version !== CURRENT_VALUE_MODEL_VERSION || certificate.evaluator_version !== CURRENT_EVALUATOR
-      || sha256(canonicalProgramJson(ir)) !== planHash) continue;
-    held[name] = clone({ kind,planHash,ir,certificate,
+    const operation = structuredClone({ kind,planHash,ir,certificate,
       ...(typeof cursor === 'string' ? { cursor } : {}),
       ...(object(drain) ? { drain: drain as unknown as DrainContract } : {}) });
+    // The payload binds each op to one certificate: the plan hashes must agree.
+    if (operation.certificate.plan_hash !== planHash || operation.certificate.schema_hash !== schemaHash
+      || operation.certificate.value_model_version !== CURRENT_VALUE_MODEL_VERSION || operation.certificate.evaluator_version !== CURRENT_EVALUATOR
+      || sha256(canonicalProgramJson(operation.ir)) !== planHash) continue;
+    held[name] = operation;
   }
   return immutable({ generation, schemaHash, schema: ownedSchema as HeldProgram["schema"], programs: held });
 }
