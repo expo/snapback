@@ -121,11 +121,46 @@ count created cursor d decimal delete delivered-history deny depth device divmod
 else emit enum every exists false first fn for format from guests h handle height id identity if
 image immutable in index insert int job json last length m maintain max merge min money mutation new
 not now null oblivious of on once op or password principal proc public publish query quotient range
-read readable remainder require retain return s schedule shape share sorted subscribe sum system
+read readable remainder require retain return s schedule shape share slice sorted subscribe sum system
 table text then time toJSON tokens tombstones true ttl unique until-revoked up update upsert url use
 value video viewer walk where while width wordPrefixes words
 `.split(/\s+/).filter(Boolean);
     deepStrictEqual(recognizedQuarryWords(frontend), expected);
+  });
+  test("slice bounds stored previews by Unicode scalar positions", async () => {
+    const declarations = `table pushLog:
+  preview: text <=80
+  public
+  insert <- allow
+`;
+    await project(`query preview(body: text <=2000):
+  return slice(body, 0, 80)
+
+mutation record(body: text <=2000):
+  preview = slice(body, 0, 80)
+  return insert pushLog { preview }
+`, (lowered, checked) => {
+      const preview = operation(lowered.project.programs, "probe.preview");
+      const certificate = checked.find(item => item.program === preview.name)!.certificate!;
+      for (const input of ["", "a".repeat(79), "a".repeat(80), "a".repeat(81), "a".repeat(223),
+        `${"🙂".repeat(79)}界tail`]) {
+        const result = new ClientStore(lowered.project.schema).reexecute(preview,
+          { ...context, args: { body: { String: input } } }, certificate as any).execution.result;
+        equal(result, { String: Array.from(input).slice(0, 80).join("") });
+      }
+      const record = operation(lowered.project.programs, "probe.record");
+      const recordCertificate = checked.find(item => item.program === record.name)!.certificate!;
+      const stored = new ClientStore(lowered.project.schema, { ...empty,
+        schema_hash: recordCertificate.schema_hash as string, absences: [["pushLog", "byId", [id("preview-1")]]] }, { program: record })
+        .applyMutation(record, { ...context, args: { body: { String: "x".repeat(223) } }, new_ids: ["preview-1"] }, false,
+          recordCertificate as any);
+      equal((stored.execution.result as any).Row.preview, { String: "x".repeat(80) });
+    }, declarations);
+    for (const [source, message] of [
+      ["query bad(body: text <=20):\n  return slice(body, 0)\n", "requires exactly 3 arguments"],
+      ["query bad(body: text <=20 ?):\n  return slice(body, 0, 10)\n", "must be present text"],
+      ["query bad(body: text <=20):\n  return slice(body, true, 10)\n", "start must be an int"],
+    ]) refusal(source, message);
   });
   test("guarded writes bind optional inserts and conditional updates to native certificates and the twin", async () => {
     const declarations = `use identity

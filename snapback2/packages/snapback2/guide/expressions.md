@@ -5,6 +5,9 @@ bind expressions or `sorted` tuples, `return`, `if/else`, or bounded `for`;
 `return` works in all arms and a body's last expression is an implicit return.
 
 Objects allow shorthand: `{ id: conversationId, creatorMembershipId }`.
+`slice(text, start, end)` returns the half-open range of Unicode scalar
+positions. Literal endpoints narrow the result's text bound, so
+`slice(body, 0, 80)` fits a `text <=80` preview.
 `count(x)` is
 `x.length` for bounded lists and pages. Bindings and captured list fields keep their selected element count;
 a field named `length` stays that field. Other built-ins are `range`,

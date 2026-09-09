@@ -964,6 +964,155 @@ fn malformed_builtin_arities_are_refused_before_execution() {
 }
 
 #[test]
+fn slice_preserves_text_and_list_types_and_uses_unicode_scalar_positions() {
+    let text_args = BTreeMap::from([
+        (
+            "body".to_owned(),
+            ArgType::Text {
+                max: 2000,
+                min: 0,
+                format: None,
+            },
+        ),
+        ("start".to_owned(), ArgType::Int),
+        ("end".to_owned(), ArgType::Int),
+    ]);
+    let text_slice = Program {
+        name: "slice.text".to_owned(),
+        kind: ProgramKind::Query,
+        args: text_args.clone(),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Return(Expr::Builtin {
+            builtin: Builtin::Slice,
+            args: vec![var("body"), var("start"), var("end")],
+        })],
+    };
+    let empty_schema = Schema::default();
+    let certificate = Checker::new(&empty_schema, Ceilings::default())
+        .check(&text_slice)
+        .unwrap();
+    let mut engine = Engine::memory(empty_schema).unwrap();
+    for (body, start, end, expected) in [
+        ("🙂界abc", 1, 3, "界a"),
+        ("🙂界abc", -4, 2, "🙂界"),
+        ("🙂界abc", 3, 1, ""),
+    ] {
+        let execution = engine
+            .execute(
+                &text_slice,
+                &certificate,
+                Context::query(
+                    Actor::user("u1").unwrap(),
+                    BTreeMap::from([
+                        ("body".to_owned(), Value::String(body.to_owned())),
+                        ("start".to_owned(), Value::Int(start)),
+                        ("end".to_owned(), Value::Int(end)),
+                    ]),
+                ),
+            )
+            .unwrap();
+        assert_eq!(execution.result, Value::String(expected.to_owned()));
+    }
+
+    let list_slice = Program {
+        name: "slice.list".to_owned(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::from([
+            (
+                "values".to_owned(),
+                ArgType::List {
+                    of: Some(Box::new(ArgType::Int)),
+                    max: 4,
+                },
+            ),
+            ("start".to_owned(), ArgType::Int),
+            ("end".to_owned(), ArgType::Int),
+        ]),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Return(Expr::Builtin {
+            builtin: Builtin::Slice,
+            args: vec![var("values"), var("start"), var("end")],
+        })],
+    };
+    let empty_schema = Schema::default();
+    let certificate = Checker::new(&empty_schema, Ceilings::default())
+        .check(&list_slice)
+        .unwrap();
+    let execution = Engine::memory(empty_schema)
+        .unwrap()
+        .execute(
+            &list_slice,
+            &certificate,
+            Context::query(
+                Actor::user("u1").unwrap(),
+                BTreeMap::from([
+                    (
+                        "values".to_owned(),
+                        Value::Array(vec![Value::Int(1), Value::Int(2), Value::Int(3)]),
+                    ),
+                    ("start".to_owned(), Value::Int(1)),
+                    ("end".to_owned(), Value::Int(3)),
+                ]),
+            ),
+        )
+        .unwrap();
+    assert_eq!(
+        execution.result,
+        Value::Array(vec![Value::Int(2), Value::Int(3)])
+    );
+
+    let previews = public_table_with(
+        &[
+            ("id", ColumnType::Id),
+            ("preview", ColumnType::Text { max: 80 }),
+        ],
+        &[("byId", &["id"])],
+    );
+    let schema = schema([("previews", previews)]);
+    let store_preview = mutation(
+        "previews.store",
+        text_args,
+        vec![Stmt::Insert {
+            table: "previews".to_owned(),
+            row: Expr::Object(BTreeMap::from([
+                ("id".to_owned(), Expr::Literal(id("preview-1"))),
+                (
+                    "preview".to_owned(),
+                    Expr::Builtin {
+                        builtin: Builtin::Slice,
+                        args: vec![var("body"), var("start"), var("end")],
+                    },
+                ),
+            ])),
+        }],
+    );
+    let certificate = Checker::new(&schema, Ceilings::default())
+        .check(&store_preview)
+        .expect("a text slice remains writable to a bounded text column");
+    let body = format!("{}界tail", "🙂".repeat(79));
+    let mut engine = Engine::memory(schema).unwrap();
+    engine
+        .execute(
+            &store_preview,
+            &certificate,
+            user_mutation(BTreeMap::from([
+                ("body".to_owned(), Value::String(body)),
+                ("start".to_owned(), Value::Int(0)),
+                ("end".to_owned(), Value::Int(80)),
+            ])),
+        )
+        .unwrap();
+    let rows = engine.rows("previews").unwrap();
+    let preview = rows[0]
+        .field("preview")
+        .unwrap()
+        .as_str()
+        .unwrap();
+    assert_eq!(preview.chars().count(), 80);
+    assert!(preview.ends_with('界'));
+}
+
+#[test]
 fn nested_out_of_i53_literals_are_refused_by_certification() {
     let program = Program {
         name: "invalid.literal".to_owned(),

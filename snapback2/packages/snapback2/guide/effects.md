@@ -29,6 +29,9 @@ export const notify = effect({
 `emit name { payload }` durably queues an effect in the mutation's transaction.
 Chat sends first deliver the message, then notify every other current member.
 The effect returns `{ providerId }`; `then: recordNotified` records it.
+For a bounded push preview, compute `preview = slice(body, 0, 80)` before both
+the application log insert and `emit`; truncating only inside the provider
+effect leaves the durable application row inconsistent.
 
 ```q
 effect notify from delivery

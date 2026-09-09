@@ -33,6 +33,27 @@ export function bindBuiltinCall(
       "coalesce the possibly absent list with [] before calling count");
     return { kind: "builtin", builtin: "Len", args, facts: facts({ kind: "int", optional: false }, "Computed"), source };
   }
+  if (expression.name === "slice") {
+    if (args.length !== 3) typeError(expression.site,
+      `slice(text, start, end) requires exactly 3 arguments; received ${args.length}`,
+      "use slice(presentText, integerStart, integerEnd)");
+    const [value, start, end] = args as [BoundExpression, BoundExpression, BoundExpression];
+    if (value.facts.type.kind !== "text" || value.facts.presence !== "required") typeError(expression.args[0]!.site,
+      `slice's first argument must be present text; received ${typeName(value.facts.type)}`,
+      "use a present text value before slicing");
+    for (const [index, endpoint] of [[1, start], [2, end]] as const) {
+      if (endpoint.facts.type.kind !== "int" || endpoint.facts.presence !== "required") typeError(expression.args[index]!.site,
+        `slice's ${index === 1 ? "start" : "end"} must be an int; received ${typeName(endpoint.facts.type)}`,
+        "use integer start and end positions");
+    }
+    const literalStart = literalInteger(expression.args[1]);
+    const literalEnd = literalInteger(expression.args[2]);
+    const literalMax = literalStart === undefined || literalEnd === undefined
+      ? value.facts.type.max
+      : Math.max(0, Math.max(0, literalEnd) - Math.max(0, literalStart));
+    return { kind: "builtin", builtin: "Slice", args,
+      facts: facts({ kind: "text", max: Math.min(value.facts.type.max, literalMax), optional: false }, "Computed"), source };
+  }
   if (expression.name === "min" || expression.name === "max") {
     if (args.length < 2) typeError(expression.site, `${expression.name} requires at least two arguments`, `use ${expression.name}(a, b)`);
     const builtin = expression.name === "min" ? "Min" : "Max";

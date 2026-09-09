@@ -667,3 +667,12 @@ are unambiguous. Integer aliases and defaulted integer lists never rescale:
 `values ?? [2,3]` refuses for decimal lists; `[2.000,3.000]` explicitly names
 decimal-3 values. The unused late scale/list-scale bound nodes and their lowering
 are deleted. Whole-unit seed JSON normalization remains the B5 contract above.
+
+### Bounded text slices (2026-09-09)
+
+`slice(text, start, end)` exposes the existing IR `Slice` builtin for present
+text. Positions are Unicode scalar values, matching text-column bounds in LLP
+1001 §9; the end is exclusive and negative positions clamp to zero. Literal
+endpoints narrow the inferred output maximum, so an application can derive one
+`text <=80` value and use it unchanged for a stored preview and an emitted
+payload. Dynamic integer endpoints remain sound at the input text's maximum.
