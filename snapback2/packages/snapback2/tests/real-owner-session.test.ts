@@ -245,6 +245,51 @@ test("a real stored session restores after a cut with identical snapshot views a
   } finally { stopLeft(); stopRight(); await cold.close(); }
 });
 
+test("fresh durable clients create their profile immediately after signup", async (context) => {
+  if (!owner.owned) return context.skip("the fresh-account fixture belongs to the self-started harness");
+  const { mkdtemp, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { fileRangeStore } = await import("../dist/test.mjs");
+  const root = await mkdtemp(join(tmpdir(), "snapback-signup-write-"));
+  try {
+    for (let index = 0; index < 3; index++) {
+      const suffix = crypto.randomUUID().replaceAll("-", "").slice(0, 12);
+      const requests: Array<{ path: string; body?: any }> = [];
+      const client = createClient({
+        url: owner.url,
+        offline: { store: fileRangeStore(join(root, String(index))) },
+        fetch: async (input, init) => {
+          const path = new URL(String(input)).pathname;
+          requests.push({ path, ...(init?.body ? { body: JSON.parse(String(init.body)) } : {}) });
+          return fetch(input, init);
+        },
+      });
+      try {
+        await client.ready;
+        const session = await client.auth.signup({
+          email: `signup-${suffix}@example.test`,
+          password: "signup-regression-password",
+        });
+        const profile: any = await client.mutation(api.profiles.createMyProfile, {
+          displayName: `Signup ${index}`,
+          handle: `new_${suffix}`,
+          bio: "",
+          location: "",
+        });
+        assert.equal(profile.state, "committed", JSON.stringify(profile));
+        assert.equal(profile.data.principal, session.viewer);
+        assert.equal(profile.data.handle, `new_${suffix}`);
+        const sent = requests.find(request => request.path === "/api/mutation");
+        assert.equal(typeof sent?.body?.replay?.grant, "string", "the first durable write uses signup's replay grant");
+        assert.equal(requests.some(request => request.path === "/api/auth/login"), false);
+        assert.equal(requests.some(request => request.path === "/api/query"), false);
+        assert.equal(requests.some(request => request.path === "/api/resume"), false);
+      } finally { await client.close(); }
+    }
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
 test("serve mode refuses a persona-bound real client", async (context) => {
   if (!owner.owned) return context.skip("external SNAPBACK_URL does not grant mode control");
   await owner.stop();

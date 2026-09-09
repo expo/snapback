@@ -57,6 +57,8 @@ need `loadPrincipalBinding()` and `savePrincipal(principal, token)` for cold rea
 No login rate limit. Wrong passwords/unknown emails both yield `E_AUTH_INVALID`.
 
 Signup authenticates before profile creation; missing profiles need onboarding.
+Each successful signup response also installs the first replay grant, so a
+durable client can create that profile immediately without login or resume.
 The chat template's `createMyProfile` uses `if absent`: committed `null` can mean
 an existing profile or an occupied handle. Read `profiles.mine`; if absent, retry
 with another handle without repeating signup. Show other rejected results too.

@@ -19,7 +19,7 @@ import { inboxKeyOf } from "./store/inbox.js";
 import { observeOutbox } from "./client-outbox-observed.js";
 import type { MutationResult, OutboxApi, OutboxSettlement, OutboxStatus } from "./types.js";
 
-/** Records the grant a login/guest response carries; the value passes through untouched. */
+/** Records the grant an authenticated session response carries; the value passes through untouched. */
 export function captureGrant<T>(runtime: OfflineRuntime | undefined, value: T): T {
   return runtime ? runtime.noteGrant(value) : value;
 }

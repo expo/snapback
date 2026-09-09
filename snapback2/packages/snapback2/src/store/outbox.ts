@@ -31,7 +31,7 @@ export function emptyTrace(): OutboxTrace {
   return { points: [], verdicts: [] };
 }
 
-/** Reads `grant` off a login, guest, or resume response; anything malformed is ignored. */
+/** Reads `grant` off a signup, login, guest, or resume response; anything malformed is ignored. */
 export function decodeGrant(value: unknown): OutboxGrant | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
   const grant = (value as { grant?: unknown }).grant;

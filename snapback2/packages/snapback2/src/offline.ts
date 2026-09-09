@@ -564,7 +564,7 @@ export class OfflineRuntime {
   }
 
   /**
-   * Records the `grant` a login, guest, or resume response carries. The
+   * Records the `grant` a signup, login, guest, or resume response carries. The
    * partition may not be open yet (login opens it next), so the grant waits
    * until the store for this principal is writable. Returns its input.
    */

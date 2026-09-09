@@ -94,7 +94,7 @@ No migration/merge; preserve old stores for queued-work recovery.
 
 ## Grants and bytes
 
-Login/guest/resume grants 30-day principal IDs; replay needs that session.
+Signup/login/guest/resume grant 30-day principal IDs; replay needs a live session.
 Identical bytes reuse terminals; changed bytes refuse
 E_OFFLINE_INTENT_REUSE; bad slices E_OFFLINE_ID_BLOCK; expiry
 E_OFFLINE_INTENT_EXPIRED; trace conflicts E_OFFLINE_CONFLICT. Read current

@@ -161,11 +161,8 @@ test("real sessions change epochs across re-login, seal and cold auth", async ()
     const factory = fileRangeStore(join(root, "auth"));
     client = createClient({ url: owner.url, fetch: transport, offline: { store: factory } }); clients.push(client);
     const first = await client.auth.signup(account);
-    // Signup carries no grant; a completed drain earns it without using an
-    // extra password login while testing token restoration.
-    const initialDrain = subscribe(client, api.recovery.page as any, { nextPage: null }, () => {}, { drain: true });
-    await initialDrain.until(caughtUp, 2_000);
-    initialDrain.close();
+    assert.equal((await client.outbox.status(api.recovery.echo as any)).ready, true,
+      "signup supplies the first replay grant without a drain or extra login");
     await client.query(api.integration.capped as any, {});
     const queued = await client.mutation(api.recovery.echo as any, { value: "kept across sessions" });
     assert.equal(queued.state, "queued");
