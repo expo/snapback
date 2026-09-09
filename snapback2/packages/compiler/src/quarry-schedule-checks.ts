@@ -1,8 +1,9 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { ClientStore, type ClosureReceipt, type Context, type Value } from "../../evaluator/src/evaluator";
 import { lowerProject } from "./project";
 import { rustCheck } from "./rust-check";
-import { assert, withProject, type Test } from "./quarry-check-helpers";
+import { assert, operation, withProject, type Test } from "./quarry-check-helpers";
 
 // @ref LLP 1016#d5--schedules-row-timers-and-periods-on-the-owners-clock — the compiler proof for both triggers, the certified binding, and the schedule family.
 export function registerScheduleChecks(test: Test, frontend: string): void {
@@ -33,12 +34,84 @@ export function registerScheduleChecks(test: Test, frontend: string): void {
     const sweep = checked.find((c) => c.program === "admin.digestSweep")!.certificate!;
     assert(sweep.kind === "job" && JSON.stringify(sweep.engineWrites) === '["_jobs"]', JSON.stringify(sweep));
   });
+  test("message expiry policy uses configured windows and bounds one stored-and-emitted preview", async () => {
+    const lowered = await lowerProject(fixture);
+    assert(lowered.ok, JSON.stringify(lowered));
+    const checked = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema, undefined, lowered.project.effects);
+    assert(checked.every((item) => !item.error && item.certificate), JSON.stringify(checked));
+    const send = operation(lowered.project.programs, "message-recipes.send");
+    const certificate = checked.find((item) => item.program === send.name)!.certificate!;
+    const baseRows: ClosureReceipt["rows"] = [
+      { table: "appSettings", id: "settings", row: { Row: {
+        id: { Id: "settings" }, key: { String: "windows" },
+        disappear24hMs: { Int: 86_401_234 }, disappear7dMs: { Int: 604_812_345 },
+      } } },
+    ];
+    const context = (conversation: string, message: string, expiresAt: Value): Context => ({
+      viewer: "alice", principal_kind: "user", auth_epoch: 1, now: 10_000, read_time: 10_000,
+      args: {
+        conversationId: { Id: conversation }, target: { Id: "bob" },
+        body: { String: `${"🙂".repeat(79)}界tail` }, expiresAt, messageId: { Id: message },
+      },
+      new_ids: [`push-${message}`, `outbox-${message}`],
+    });
+    for (const [mode, expiresAt, expected] of [
+      ["off", "Null", "Null"],
+      ["24h", "Null", { Int: 86_411_234 }],
+      ["7d", "Null", { Int: 604_822_345 }],
+      ["24h", { Int: 44_444 }, { Int: 44_444 }],
+    ] as Array<[string, Value, Value]>) {
+      const conversation = `conversation-${mode}-${JSON.stringify(expiresAt)}`;
+      const message = `message-${mode}-${JSON.stringify(expiresAt)}`;
+      const rows = [...baseRows, { table: "conversations", id: conversation, row: { Row: {
+        id: { Id: conversation }, disappearing: { String: mode },
+      } } }] as ClosureReceipt["rows"];
+      const receipt: ClosureReceipt = {
+        schema_hash: certificate.schema_hash as string,
+        rows,
+        ranges: [], verdicts: [],
+        absences: [
+          ["messages", "byId", [{ Id: message }]],
+          ["pushLog", "byId", [{ Id: `push-${message}` }]],
+          ["pushLog", "byMessage", [{ Id: message }]],
+        ],
+      };
+      const store = new ClientStore(lowered.project.schema, receipt);
+      const applied = store.applyMutation(send, context(conversation, message, expiresAt), false, certificate);
+      assert(applied.state === "predicted", `${mode} send was ${applied.state}: ${JSON.stringify(applied)}`);
+      const stored = store.rows("messages")!.find((value) => value !== "Null" && "Row" in value
+        && JSON.stringify(value.Row.id) === JSON.stringify({ Id: message }));
+      assert(stored !== undefined && stored !== "Null" && "Row" in stored
+        && JSON.stringify(stored.Row.expiresAt) === JSON.stringify(expected),
+      `${mode} stored ${JSON.stringify(stored)}, expected ${JSON.stringify(expected)}`);
+      const pushed = store.rows("pushLog")![0]!;
+      const preview = pushed !== "Null" && "Row" in pushed && pushed.Row.preview !== "Null"
+        && "String" in pushed.Row.preview ? pushed.Row.preview.String : "";
+      assert(preview === `${"🙂".repeat(79)}界` && preview.length > 80 && [...preview].length === 80,
+        `preview was not 80 Unicode scalars: ${JSON.stringify(preview)}`);
+    }
+
+    const nested = (statements: any[]): any[] => statements.flatMap((statement) => {
+      if (statement.If) return [statement, ...nested(statement.If.then_body), ...nested(statement.If.else_body)];
+      if (statement.For) return [statement, ...nested(statement.For.body)];
+      return [statement];
+    });
+    const body = nested(send.body as any[]);
+    const logs = body.filter((statement) => statement.Insert?.table === "pushLog");
+    const emits = body.filter((statement) => statement.Emit?.effect === "push.notify");
+    assert(logs.length === 4 && emits.length === 4, `expected one log/effect lane per expiry branch: ${logs.length}/${emits.length}`);
+    for (let index = 0; index < logs.length; index += 1) {
+      const storedPreview = logs[index]!.Insert.row.Object.preview.Variable;
+      const emittedPreview = emits[index]!.Emit.payload.Object.body.Variable;
+      assert(storedPreview === emittedPreview, `stored and emitted previews diverged in branch ${index}`);
+    }
+  });
   test("Quarry schedules refuse non-time columns, bad targets, and sub-minute or calendar durations with the schedule family", async () => {
     const schema = readFileSync(resolve(fixture, "snapback/schema.q"), "utf8");
     const push = readFileSync(resolve(fixture, "snapback/push.ts"), "utf8");
     const admin = readFileSync(resolve(fixture, "snapback/admin.q"), "utf8");
     const base = admin.split("\nschedule dailyDigest")[0]! + "\n\nmutation purgeMessage(id: messages):\n  update messages[id] { body: null, expiresAt: null }\n  return null\n\nquery peek(id: messages):\n  return messages[id]\n\n";
-    const withPhoto = schema.replace("expiresAt: time ?", "expiresAt: time ?\n  photo: image <=5000000 ?");
+    const withPhoto = schema;
     const cases: Array<[string, string, { rewrite?: string; message?: string; schema?: string }?]> = [
       ["schedule expire on messages at .body: purgeMessage(.id)\n", "E_SCHEDULE_COLUMN"],
       ["schedule expire on profiles at .expiresAt: purgeMessage(.id)\n", "E_SCHEDULE_COLUMN"],

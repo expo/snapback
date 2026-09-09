@@ -43,6 +43,14 @@ mutation send(conversationId: conversations, body: text <=4000, expiresAt: time 
   return { id: row.id }
 ```
 
+When a conversation selects a disappearing-message policy, derive the stored
+deadline from the owner's `now` and configured durations. Branch into a helper
+that accepts the chosen `time ?`; a binding created inside `if` is lexical and
+does not update an outer binding. Give an explicit deadline first precedence,
+use `now + cfg.disappear24hMs` or `now + cfg.disappear7dMs` for those modes,
+and pass `null` for `off`. Apply the same helper to text, photo, video, and
+view-once sends so every message kind participates in the row schedule.
+
 Edit/unsend fan out to current members. Tombstones and held-page point
 absences evict removed bodies.
 

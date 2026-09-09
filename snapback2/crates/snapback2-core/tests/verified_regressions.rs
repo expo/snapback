@@ -1103,11 +1103,7 @@ fn slice_preserves_text_and_list_types_and_uses_unicode_scalar_positions() {
         )
         .unwrap();
     let rows = engine.rows("previews").unwrap();
-    let preview = rows[0]
-        .field("preview")
-        .unwrap()
-        .as_str()
-        .unwrap();
+    let preview = rows[0].field("preview").unwrap().as_str().unwrap();
     assert_eq!(preview.chars().count(), 80);
     assert!(preview.ends_with('界'));
 }
