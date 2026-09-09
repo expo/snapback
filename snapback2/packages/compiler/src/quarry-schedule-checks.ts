@@ -225,8 +225,11 @@ schedule digest every 2m: sweep(${argument})
     const page = readFileSync(resolve(frontend, "../snapback2/guide/schedule.md"), "utf8");
     const snippets = [...page.matchAll(/```q\n([\s\S]*?)\n```/g)].map((match) => match[1]!);
     const admin = readFileSync(resolve(fixture, "snapback/admin.q"), "utf8");
+    const digest = readFileSync(resolve(fixture, "snapback/digest-recipes.q"), "utf8");
     const messages = readFileSync(resolve(frontend, "../snapback2/templates/chat/snapback/messages.q"), "utf8");
-    assert(snippets.length === 2 && snippets.every((snippet) => admin.includes(snippet)), "guide recipe diverged from its fixture");
+    assert(snippets.length === 4
+      && snippets.slice(0, 2).every((snippet) => admin.includes(snippet))
+      && snippets.slice(2).every((snippet) => digest.includes(snippet)), "guide recipe diverged from its fixture");
     assert(messages.includes(snippets[0]!), "the template's expiry schedule diverged from the guide");
     const chat = await lowerProject(resolve(frontend, "../snapback2/templates/chat"));
     assert(chat.ok, JSON.stringify(chat));
