@@ -17,15 +17,19 @@ the target. These are the logical boundaries of the scheduled occurrence,
 even when the owner fires it late; they are not ambient `now`.
 
 ```q
-job digestSweep(cutoff: time):
-  chunk profile in profiles first 1 by byId:
-    // derive the completed bucket from the same cutoff in every chunk
-    return null
-  chunk row in periodUnread first 50 by byPeriod:
-    // cleanup starts only after the profile sweep finishes
-    return null
+job periodDigestSweep(cutoff: time):
+  chunk p in profiles first 1 by byId:
+    cfg = settings() ! else CONFIG
+    if cfg.replayMode = false:
+      (_period, rem) = divmod(cutoff, cfg.digestPeriodMs)
+      periodEnd = cutoff - rem
+      periodStart = periodEnd - cfg.digestPeriodMs
+```
 
-schedule digest every 2m: digestSweep(.periodEnd)
+Put cleanup in a later chunk of that same job, then bind the logical cutoff:
+
+```q
+schedule recipeDigest every 2m: periodDigestSweep(.periodEnd)
 ```
 
 The engine keeps `_timers` as it keeps an index: writing a present `expiresAt`
