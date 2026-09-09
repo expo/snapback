@@ -193,12 +193,17 @@ impl State {
             .runtime_mut()
             .execute(&op, context)
             .map_err(|error| Refusal::from_runtime(&error))?;
-        let plan_hash = self
+        let (plan_hash, schema_hash) = self
             .runtime()
             .generation()
             .programs()
             .get(&op)
-            .map(|(_, certificate)| certificate.plan_hash.clone())
+            .map(|(_, certificate)| {
+                (
+                    certificate.plan_hash.clone(),
+                    certificate.schema_hash.clone(),
+                )
+            })
             .ok_or_else(|| {
                 Refusal::new(
                     "E_OP_UNKNOWN",
@@ -239,6 +244,7 @@ impl State {
         Ok(json!({
             "op": op,
             "certificatePlanHash": plan_hash,
+            "certificateSchemaHash": schema_hash,
             "result": execution_json(&execution),
             "trace": execution.trace,
             "subscriptions": subscriptions,

@@ -438,6 +438,7 @@ table posts:
     { name: "unknown keys keep declared types", source: "query any(p: principal, flag: bool):\n  return memberships[p, flag]", message: "matches [principal, bool]", fixes: ["conversationId: conversations", "principal: principal"], code: "E_QUARRY_UNKNOWN" },
     { name: "column case typo", source: "mutation add():\n  insert posts { authorid: viewer }", message: "unknown posts field `authorid`", fixes: ["did you mean `authorId`?"], code: "E_QUARRY_TYPE" },
     { name: "index transposition", source: "query all():\n  return posts[] first 50 by byTmie", message: "has no index", fixes: ["did you mean `byTime`?"], code: "E_QUARRY_UNKNOWN" },
+    { name: "merge index transposition", source: "query all():\n  return merge posts first 50 by byAuthorTmie:\n    [viewer]", message: "has no index", fixes: ["did you mean `byAuthorTime`?"], code: "E_QUARRY_UNKNOWN" },
     { name: "enum transposition", source: "mutation add():\n  insert posts { authorId: viewer, body: 'Hi', at: now, status: 'opne' }", message: "enum literal", fixes: ["did you mean `open`?"], code: "E_QUARRY_TYPE" },
     { name: "named key column spelling", source: "query all(p: principal):\n  return posts[authorid = p] first 5 by byAuthorTime", message: "unknown posts field", fixes: ["did you mean `authorId`?"], code: "E_QUARRY_UNKNOWN" },
     { name: "table transposition", source: "query all():\n  return psots[] first 5 by byTime", message: "unknown table", fixes: ["did you mean `posts`?"], code: "E_QUARRY_UNKNOWN" },

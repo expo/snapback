@@ -68,19 +68,26 @@ pub fn run(args: &[String]) -> ExitCode {
         }
         Err(error) => return owner::print_refusal(error, json_output, 1),
     };
-    let Some(active_plan_hash) = response.get("certificatePlanHash").and_then(Json::as_str) else {
+    let (Some(active_plan_hash), Some(active_schema_hash)) = (
+        response.get("certificatePlanHash").and_then(Json::as_str),
+        response.get("certificateSchemaHash").and_then(Json::as_str),
+    ) else {
         return owner::print_refusal(
             why_stale("the owner did not identify the active operation certificate"),
             json_output,
             1,
         );
     };
-    if certificate.certificate.plan_hash != active_plan_hash {
+    if certificate.certificate.plan_hash != active_plan_hash
+        || certificate.certificate.schema_hash != active_schema_hash
+    {
         certificate = match read_certificate(&root, &positional[1]) {
             Ok(certificate) => certificate,
             Err(error) => return owner::print_refusal(error, json_output, 1),
         };
-        if certificate.certificate.plan_hash != active_plan_hash {
+        if certificate.certificate.plan_hash != active_plan_hash
+            || certificate.certificate.schema_hash != active_schema_hash
+        {
             return owner::print_refusal(
                 why_stale(format!(
                     "the cached certificate for {} does not match the active owner operation",
@@ -278,22 +285,10 @@ fn prose(op: &str, persona: &str, output: &Json, sources: &BTreeMap<String, Sour
                     .and_then(|source| source.guard.as_ref())
                     == Some(site)
             }) {
-                let status = if read.get("examined").is_some() {
-                    if read["visible"] == true {
-                        "present"
-                    } else if read["examined"] == true {
-                        "hidden"
-                    } else {
-                        "absent"
-                    }
-                } else if entries(&read["visible_ids"]).is_empty() {
-                    "no visible rows"
-                } else {
-                    "visible rows"
-                };
                 text.push_str(&format!(
-                    "    {}   {status}   ({})\n",
+                    "    {}   {}   ({})\n",
                     lookup(read),
+                    read_visibility(read),
                     read["index"].as_str().unwrap_or("?")
                 ));
             }
@@ -307,13 +302,7 @@ fn prose(op: &str, persona: &str, output: &Json, sources: &BTreeMap<String, Sour
                 text.push_str(&format!(
                     "    {}   {}   ({})\n",
                     lookup(read),
-                    if read["visible"] == true {
-                        "present"
-                    } else if read["examined"] == true {
-                        "hidden"
-                    } else {
-                        "absent"
-                    },
+                    read_visibility(read),
                     read["index"].as_str().unwrap_or("?")
                 ));
             }
@@ -421,6 +410,22 @@ fn entries(value: &Json) -> &[Json] {
     value.as_array().map(Vec::as_slice).unwrap_or(&[])
 }
 
+fn read_visibility(read: &Json) -> &'static str {
+    if read.get("examined").is_some() {
+        if read["visible"] == true {
+            "present"
+        } else if read["examined"] == true {
+            "hidden"
+        } else {
+            "absent"
+        }
+    } else if entries(&read["visible_ids"]).is_empty() {
+        "no visible rows"
+    } else {
+        "visible rows"
+    }
+}
+
 fn source_line(text: &mut String, id: &str, source: Option<&SourceSite>) {
     let source = source.map(|source| source.r#use.as_deref().unwrap_or(source));
     match source {
@@ -493,4 +498,28 @@ fn prose_keeps_capped_visible_counts_and_falls_back_to_the_site_id() {
             "    posts byTime []\n",
         )
     );
+}
+
+#[cfg(test)]
+#[test]
+fn denied_range_fallback_reports_visibility_without_claiming_absence() {
+    for (visible, status) in [
+        (json!(["1"]), "visible rows"),
+        (json!([]), "no visible rows"),
+    ] {
+        let output = json!({
+            "result": { "state": "denied", "rule": "FORBIDDEN" },
+            "authoritativeTrace": { "ranges": [{
+                "site": "posts.all.0", "table": "posts", "index": "byTime", "prefix": [],
+                "examined_ids": ["1"], "visible_ids": visible,
+                "order": "Asc", "take": 50, "stop": "Exhausted"
+            }] }
+        });
+        assert_eq!(
+            prose("posts.all", "alice", &output, &BTreeMap::new()),
+            format!(
+                "posts.all as alice — denied (FORBIDDEN)\n  posts.all.0\n    posts[]   {status}   (byTime)\n"
+            )
+        );
+    }
 }

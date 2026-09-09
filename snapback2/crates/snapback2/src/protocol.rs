@@ -55,10 +55,7 @@ impl Refusal {
     ) -> Self {
         let code = code.into();
         let message = message.into();
-        let message = message
-            .strip_prefix(&format!("{code}:"))
-            .map(|text| text.trim_start().to_owned())
-            .unwrap_or(message);
+        let message = refusal_message(&code, &message).to_owned();
         Self {
             code,
             family: family.into(),
@@ -288,6 +285,15 @@ impl Refusal {
     }
 }
 
+// The engine's Display text is also used in logs; envelopes carry its code separately.
+pub(crate) fn refusal_message<'a>(code: &str, message: &'a str) -> &'a str {
+    message
+        .strip_prefix(&format!("E_REQUIRE:{code}:"))
+        .or_else(|| message.strip_prefix(&format!("{code}:")))
+        .map(str::trim_start)
+        .unwrap_or(message)
+}
+
 #[cfg(test)]
 const OFFLINE_CODES: [&str; 6] = [
     "E_OFFLINE_RESET",
@@ -453,4 +459,14 @@ fn runtime_input_message_does_not_repeat_its_code() {
     ));
     assert_eq!(refusal.code, "E_INPUT");
     assert_eq!(refusal.message, "cursor belongs to another index");
+}
+
+#[cfg(test)]
+#[test]
+fn runtime_requirement_message_does_not_embed_its_application_code() {
+    let refusal = Refusal::from_runtime(&RuntimeError::Require {
+        code: "MEMBERSHIP_REQUIRED".to_owned(),
+    });
+    assert_eq!(refusal.code, "MEMBERSHIP_REQUIRED");
+    assert_eq!(refusal.message, "program requirement failed");
 }

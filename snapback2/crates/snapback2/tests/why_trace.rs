@@ -167,22 +167,29 @@ fn why_refuses_missing_corrupt_and_incomplete_certificates_as_stale() {
             stale["todos.list"]["plan_hash"] = serde_json::json!("predecessor-plan");
             serde_json::to_vec(&stale).unwrap()
         }),
+        Some({
+            let mut stale: serde_json::Value = serde_json::from_slice(&valid).unwrap();
+            stale["todos.list"]["schema_hash"] = serde_json::json!("unapplied-schema");
+            serde_json::to_vec(&stale).unwrap()
+        }),
     ];
     for bytes in corruptions {
         match bytes {
             Some(bytes) => fs::write(&certificate_path, bytes).unwrap(),
             None => fs::remove_file(&certificate_path).unwrap(),
         }
-        let why = project.run(&["why", "todos.list", "--as", "alice", "--json"]);
-        assert_eq!(
-            why.status.code(),
-            Some(1),
-            "{}",
-            String::from_utf8_lossy(&why.stdout)
-        );
-        let refusal = json_stdout(&why);
-        assert_eq!(refusal["code"], "E_WHY_STALE", "{refusal}");
-        assert_eq!(refusal["rewrite"], "run snapback2 check", "{refusal}");
+        for persona in ["alice", "system"] {
+            let why = project.run(&["why", "todos.list", "--as", persona, "--json"]);
+            assert_eq!(
+                why.status.code(),
+                Some(1),
+                "{}",
+                String::from_utf8_lossy(&why.stdout)
+            );
+            let refusal = json_stdout(&why);
+            assert_eq!(refusal["code"], "E_WHY_STALE", "{refusal}");
+            assert_eq!(refusal["rewrite"], "run snapback2 check", "{refusal}");
+        }
         fs::write(&certificate_path, &valid).unwrap();
     }
 }

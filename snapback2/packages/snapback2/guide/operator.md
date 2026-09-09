@@ -60,10 +60,9 @@ releases and replacements gain no capacity refusal.
 `why <query> [args-json] --as <persona|system>` explains an authoritative read:
 denials show the failed requirement and its lookups; admitted reads show each
 site's rows examined/visible, bound and complete/capped state, read rule, then
-subscription table/index prefixes. Compiled `file:line` locations show helper
-callers; unavailable locations use site IDs. `--json` keeps trace, bounds, digests and deliveries. Only queries run.
+subscription table/index prefixes. `file:line` shows compiled helper callers; missing locations use site IDs. `--json` keeps trace, bounds, digests and deliveries.
 
-`check` wraps full messages and rewrites; `--json` keeps JSON lines. Unbounded
-reads list matching range indexes and declared key types. Unknown names suggest
-a spelling within two edits or case differences, else declarations.
-`guide E_CODE` shows Quarry or CLI/harness repairs.
+`check` wraps full messages and rewrites; `--json` emits JSON lines.
+Refusal messages omit their codes. Unbounded reads list matching indexes and
+declared key types. Unknown names suggest a spelling within two edits or case
+differences, else declarations. `guide E_CODE` shows Quarry or CLI/harness repairs.

@@ -508,8 +508,8 @@ Typed states are 200. Protocol errors are 4xx with the **refusal envelope**,
 which is the only error shape on every surface (HTTP, CLI `--json`, worker):
 
 ```json
-{ "code": "E_BOUND_TAKE_REQUIRED", "family": "bound", "message": "…", "site": "snapback/todos.ts:14:9",
-  "rule": "every scan names take", "rewrite": "scan(todos.byOwner, [ctx.viewer], { take: 100 })", "guide": "bound/scan" }
+{ "code": "E_UNBOUND_SCAN", "family": "bound", "message": "`todos[viewer]` reads a range; name its bound", "site": "snapback/todos.q:14:9",
+  "rewrite": "todos[viewer] first 50 by byOwner", "guide": "quarry/indexes" }
 ```
 
 A mutation denied by a table rule is the stable envelope
@@ -794,7 +794,9 @@ verdict: "pass" | "fail" | "blocked", ms, detail }], arms: ["headless"], verdict
 
 ## 8. `why`, `trace`, `guide`
 
-- `why <query> --as p`: re-runs the read; prints, per examined row, the rule
+- `why <query> --as p`: re-runs the read. The original document default is
+  superseded by the 2026-09-08 prose format in §“Diagnostics say the fix”;
+  `--json` retains, per examined row, the rule
   verdict and the rule inputs it touched (from `rule_inputs`); the read sites
   examined against the certificate's (take, examined, hoisted); and, if a live
   subscription for that op+args exists, its last delivery `seq` and whether
@@ -872,12 +874,15 @@ Implementation: source positions, helper call sites, requirement associations,
 and compiled source lines travel in the compiler's existing `sources` map and
 are retained with each operation in `certificates.json`. They do not change
 executable IR, generation hashes, or served query envelopes. The prose uses
-the certificate matching the active owner plan, so an edit or refused successor
+the certificate matching the active owner plan and schema, so an edit or refused successor
 cannot make it quote a different program. Missing metadata falls back to site IDs.
 Unknown keys still report the catalog's nominal types. Name repairs share one
 Damerau–Levenshtein helper with a two-edit/case-only threshold. Dead families and
 their unused code declarations are deleted. `check --ir` now includes rewrites;
 project `check` honors text versus JSON output and neither path truncates text.
+Range visibility remains a range fact even without source metadata; fallback
+prose never calls a range's hidden rows an absent point. Runtime refusal messages
+omit their own platform or application code, which stays in the `code` field.
 
 ## 9. The client (`snapback2/client`, `snapback2/react`, `snapback2/test`)
 

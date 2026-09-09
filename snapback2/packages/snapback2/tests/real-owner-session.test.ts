@@ -75,7 +75,7 @@ test("a real rejected mutation carries the complete refusal envelope", async (co
       state: "rejected",
       code: "NOT_MEMBER",
       family: "input",
-      message: "E_REQUIRE:NOT_MEMBER: program requirement failed",
+      message: "program requirement failed",
       guide: "input/runtime",
     },
   );

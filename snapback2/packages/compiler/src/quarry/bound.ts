@@ -1073,7 +1073,8 @@ class ExpressionBinder {
     const tableInfo = this.catalog.get(expression.table);
     if (!tableInfo) refuse(expression.site, `unknown table ${expression.table}`, nameRewrite(expression.table, this.catalog.keys()));
     const declaration = tableInfo.indexes.find((candidate) => candidate.name === expression.index);
-    if (!declaration) refuse(expression.site, `table ${expression.table} has no index ${expression.index}`);
+    if (!declaration) refuse(expression.site, `table ${expression.table} has no index ${expression.index}`,
+      nameRewrite(expression.index, tableInfo.indexes.map(index => index.name)));
     validatePageableMergeIndex(expression.table, declaration);
     if (expression.lanes.length === 0) typeError(expression.site, "merge requires at least one lane", "add one bounded merge lane");
     const width = expression.lanes[0]!.prefix.length;
