@@ -510,6 +510,15 @@ Cold rows, indexes and receipt custody are built privately and published in
 one synchronous turn; failed reads remain retryable. Immutable prepared leaves
 can be shared, while generic mutable source values remain isolated.
 
+**Execution-local hashes (2026-09-09, LLP 1018.007.002).** A synchronous
+evaluator execution has one fixed schema and fixed rule objects. Compute the
+canonical schema-scoped hash once for each distinct rule identity in that
+Runner, retaining the existing canonical hash function and wire bytes. Repeated
+candidate checks and range receipts reuse that value, not authorization
+verdicts from another execution. A new Runner recomputes even if its caller
+reuses a schema object that has since changed. No process-global or cross-query
+hash cache can outlive the schema/program authority that justified it.
+
 **Owner page continuation (2026-09-09, LLP 1018.007.003).** An ordinary
 observed page keeps a receipt-backed capped owner answer whole when its local
 rerun has that same owner's selection proof but cannot reconstruct the
