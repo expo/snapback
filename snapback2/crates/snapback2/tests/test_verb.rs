@@ -325,7 +325,7 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
     }));
     let bounds = check(&receipt, "bounds");
     let executions = bounds["detail"]["executions"].as_array().unwrap();
-    assert_eq!(executions.len(), 24, "{bounds}");
+    assert_eq!(executions.len(), 27, "{bounds}");
     for operation in [
         "messages.conversationView",
         "messages.inbox",
@@ -335,6 +335,7 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
         "messages.search",
         "profiles.byHandle",
         "profiles.mine",
+        "groups.mine",
     ] {
         assert_eq!(
             executions
@@ -1253,8 +1254,8 @@ fn clique_sized_seed_and_71_operations_have_bounded_honest_derived_coverage() {
     let elapsed = started.elapsed();
     let receipt = json_stdout(&output);
     assert!(output.status.success(), "{receipt}");
-    // 24 template operations after removing notifications, plus 47 sends.
-    assert_eq!(check(&receipt, "certify")["detail"]["operations"], 71);
+    // 25 template operations after removing notifications, plus 47 sends.
+    assert_eq!(check(&receipt, "certify")["detail"]["operations"], 72);
     let rules = check(&receipt, "rules");
     assert_eq!(rules["detail"]["tables"]["messages"]["probes"], 32 * 4);
     let invalidation = check(&receipt, "invalidation");

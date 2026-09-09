@@ -175,7 +175,7 @@ query wrongScale(value: decimal 2):
     for (const [name, text] of [
       ["mixed", "conditional returns disagree"],
       ["wrongMoney", "matching money USD 2"],
-      ["fractional", "fractional digits"],
+      ["fractional", "requires matching decimal 1"],
       ["boolean", "condition requires bool"],
       ["optionalOrdered", "requires present operands"],
       ["optionalMember", "requires present operands"],
