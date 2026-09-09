@@ -46,10 +46,11 @@ as the acceptance result. Projected policy probes require IR-proved carrier
 fields plus complete protected rows; mixed scalar/array/nested projections block.
 Guards must be independent of the denied table: only literals, arguments, viewer and
 self-readable membership existence with stable keys are proved. Unproved terminal control
-flow blocks; `detail.candidates` names each rejected query and its reason.
+flow blocks, including merges anywhere in expressions; `detail.candidates` names
+each rejected query and its reason.
 Receipts count retained carrier rows separately from protected and nulled images.
 Journeys share the owner; isolate disposable writes from later inboxes and await
-client closes. The chat count probe uses its own conversation and personas.
+client closes. The chat count probe compares usable inbox arrays and uses its own conversation and personas.
 
 Derived checks use a small representative seed, not a load-test dataset.
 Rules compare every stored row for every seed persona, within a 16,384-probe

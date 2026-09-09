@@ -2,6 +2,24 @@
 use super::*;
 
 #[test]
+fn chat_count_journey_refuses_matching_unusable_inboxes() {
+    let project = Project::new();
+    assert!(project.init("chat", "none").status.success());
+    let path = project.path.join("snapback/messages.q");
+    let original = fs::read_to_string(&path).unwrap();
+    fs::write(&path, original.replace(
+        "query inbox(c: cursor ?):\n  page = deliveries[viewer] after c first 50 by byRecipientAt\n  return page { *, message: messages[.messageId] }",
+        "query inbox(c: cursor ?):\n  return null",
+    )).unwrap();
+    let receipt = json_stdout(&project.run(&[
+        "test", "--journey", "conversation metadata stays inside membership", "--json",
+    ]));
+    let journey = check(&receipt, "conversation metadata stays inside membership");
+    assert_eq!(journey["verdict"], "fail", "matching null inboxes were accepted: {journey}");
+    assert!(journey["detail"].as_str().unwrap().contains("inbox was not a usable array"), "{journey}");
+}
+
+#[test]
 fn focused_registration_drift_fails_before_any_body_runs() {
     let project = Project::new();
     assert!(project.init("todos", "none").status.success());
@@ -326,4 +344,40 @@ for (let i = 0; i < 2000; i++) journey("other", async () => { throw new Error("u
     assert_eq!(receipt["scope"]["journey"], "target");
     assert_eq!(receipt["checks"].as_array().unwrap().len(), 1);
     assert_eq!(check(&receipt, "target")["verdict"], "pass");
+}
+
+#[test]
+fn journey_fixtures_resolve_from_authored_tests_in_full_and_selected_runs() {
+    let project = Project::new();
+    assert!(project.init("todos", "none").status.success());
+    let tests = project.path.join("snapback/tests");
+    fs::create_dir(tests.join("fixtures")).unwrap();
+    fs::write(tests.join("fixtures/message.txt"), "authored fixture").unwrap();
+    // The same name at the project root must not win over the authored directory.
+    fs::create_dir(project.path.join("fixtures")).unwrap();
+    fs::write(project.path.join("fixtures/message.txt"), "wrong directory").unwrap();
+    fs::write(
+        tests.join("todos.test.ts"),
+        r#"
+import { fixture, journey } from "snapback2/test";
+const registered = await fixture("fixtures/message.txt");
+journey("fixture custody", async () => {
+  await Promise.resolve();
+  const loaded = await fixture("fixtures/message.txt");
+  for (const bytes of [registered, loaded]) {
+    if (new TextDecoder().decode(bytes) !== "authored fixture") throw new Error("wrong fixture");
+  }
+});
+"#,
+    )
+    .unwrap();
+    for args in [
+        vec!["test", "--journeys-only", "--json"],
+        vec!["test", "--journey", "fixture custody", "--json"],
+    ] {
+        let output = project.run(&args);
+        let receipt = json_stdout(&output);
+        assert!(output.status.success(), "{receipt}");
+        assert_eq!(check(&receipt, "fixture custody")["verdict"], "pass");
+    }
 }

@@ -75,6 +75,54 @@ fn origin(
     }
 }
 
+// Merge is the IR's only expression with executable statement bodies (lane
+// setup). Reject it structurally wherever it occurs, including unused values;
+// origin alone describes a result, not the statements run to obtain it.
+fn statement_free(value: &Expr) -> bool {
+    match value {
+        Expr::Merge(_) => false,
+        Expr::Literal(_) | Expr::Variable(_) | Expr::Input(_) => true,
+        Expr::Field { base, .. } | Expr::Unary { value: base, .. } => statement_free(base),
+        Expr::Binary { left, right, .. } => statement_free(left) && statement_free(right),
+        Expr::Array(values) | Expr::Builtin { args: values, .. } => {
+            values.iter().all(statement_free)
+        }
+        Expr::Object(fields) => fields.values().all(statement_free),
+        Expr::Get(read) | Expr::Exists(read) => read.key.iter().all(statement_free),
+        Expr::Scan(scan) => scan_statement_free(scan),
+    }
+}
+
+fn scan_statement_free(scan: &Scan) -> bool {
+    scan.prefix
+        .iter()
+        .all(|key| statement_free(key.expression()))
+        && [scan.after.as_deref(), scan.before.as_deref()]
+            .into_iter()
+            .flatten()
+            .all(statement_free)
+        && scan.range.as_ref().is_none_or(|range| {
+            [
+                range.gt.as_deref(),
+                range.gte.as_deref(),
+                range.lt.as_deref(),
+                range.lte.as_deref(),
+            ]
+            .into_iter()
+            .flatten()
+            .all(statement_free)
+        })
+}
+
+fn domain_statement_free(domain: &LoopDomain) -> bool {
+    match domain {
+        LoopDomain::Page(scan) => scan_statement_free(scan),
+        LoopDomain::DerivedArray { value, .. } => statement_free(value),
+        LoopDomain::Recurse(recurse) => statement_free(&recurse.seed),
+        LoopDomain::LiteralRange { .. } | LoopDomain::ArgList { .. } => true,
+    }
+}
+
 pub(super) fn policy_control_flow(
     program: &Program,
     schema: &Schema,
@@ -90,25 +138,27 @@ pub(super) fn policy_control_flow(
     };
     for (position, statement) in program.body.iter().enumerate() {
         match statement {
-            Stmt::Const { name, value } | Stmt::Let { name, value } => {
+            Stmt::Const { name, value } | Stmt::Let { name, value } if statement_free(value) => {
                 let value = origin(value, &vars, schema, protected);
                 if vars.insert(name.clone(), value).is_some() {
                     return Err(unsupported());
                 }
             }
             Stmt::Require { condition, .. }
-                if matches!(
-                    origin(condition, &vars, schema, protected),
-                    Origin::Stable | Origin::MembershipGuard
-                ) => {}
-            Stmt::For { body, .. }
-                if body.iter().all(|statement| {
-                    matches!(
-                        statement,
-                        Stmt::Const { .. } | Stmt::Let { .. } | Stmt::Push { .. }
-                    )
-                }) => {}
-            Stmt::Return(_) if position + 1 == program.body.len() => {}
+                if statement_free(condition)
+                    && matches!(
+                        origin(condition, &vars, schema, protected),
+                        Origin::Stable | Origin::MembershipGuard
+                    ) => {}
+            Stmt::For { domain, body, .. }
+                if domain_statement_free(domain)
+                    && body.iter().all(|statement| match statement {
+                        Stmt::Const { value, .. }
+                        | Stmt::Let { value, .. }
+                        | Stmt::Push { value, .. } => statement_free(value),
+                        _ => false,
+                    }) => {}
+            Stmt::Return(value) if position + 1 == program.body.len() && statement_free(value) => {}
             _ => return Err(unsupported()),
         }
     }

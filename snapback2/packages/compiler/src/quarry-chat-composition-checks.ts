@@ -1,4 +1,6 @@
 import { deepStrictEqual } from "node:assert";
+import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import {
   ClientStore,
@@ -13,6 +15,32 @@ import { rustCheck } from "./rust-check";
 import { assert, operation, type Test } from "./quarry-check-helpers";
 
 export function registerQuarryChatCompositionChecks(test: Test, frontend: string): void {
+  test("unused shipped chat merge retains its executable lane requirement and certifies", async () => {
+    const root = await mkdtemp(resolve(tmpdir(), "snapback2-chat-merge-"));
+    try {
+      await cp(resolve(frontend, "../snapback2/templates/chat/snapback"), resolve(root, "snapback"), { recursive: true });
+      const path = resolve(root, "snapback/messages.q");
+      const source = await readFile(path, "utf8");
+      const guard = "  require isMember(conversationId, viewer) else MEMBERSHIP_REQUIRED\n";
+      await writeFile(path, source.replace(guard, guard
+        + "  unused = merge messages last 1 by byConvTime:\n"
+        + "    [(messages['message-1'] ! else HAS_MESSAGE).conversationId]\n"));
+      const lowered = await lowerProject(root);
+      assert(lowered.ok, `merge counterexample refused: ${JSON.stringify(lowered)}`);
+      const thread = operation(lowered.project.programs, "messages.thread");
+      const binding = thread.body.find(statement => "Const" in statement && "Merge" in statement.Const.value);
+      assert(binding && "Const" in binding && "Merge" in binding.Const.value, "unused merge was not retained");
+      const setup = binding.Const.value.Merge.lanes[0]!.setup!;
+      assert(setup.some(statement => "Const" in statement && "Get" in statement.Const.value
+        && statement.Const.value.Get.table === "messages"), JSON.stringify(setup));
+      assert(setup.some(statement => "Require" in statement && statement.Require.code === "HAS_MESSAGE"), JSON.stringify(setup));
+      const checked = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema, undefined, lowered.project.effects);
+      assert(checked.every(item => !item.error), `merge counterexample did not certify: ${JSON.stringify(checked.filter(item => item.error))}`);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   test("shipped chat functions compose one certified conversation view with honest tombstones", async () => {
     const productionRoot = resolve(frontend, "../snapback2/templates/chat");
     const lowered = await lowerProject(productionRoot);

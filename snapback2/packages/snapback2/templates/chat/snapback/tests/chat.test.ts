@@ -18,6 +18,9 @@ journey("conversation metadata stays inside membership", async ({ as }) => {
   const peer = as("count-peer");
   try {
     const inboxBefore = await bob.query(api.messages.inbox, { c: null });
+    if ((inboxBefore.state !== "complete" && inboxBefore.state !== "capped") || !Array.isArray(inboxBefore.data)) {
+      throw new Error("initial inbox was not a usable array");
+    }
     const member = await bob.query(api.messages.conversationView, { conversationId: "conversation-1" });
     if ((member.state !== "complete" && member.state !== "capped") || member.data?.count !== 1) {
       throw new Error(`seeded maintained message count was not 1: ${JSON.stringify(member)}`);
@@ -46,8 +49,10 @@ journey("conversation metadata stays inside membership", async ({ as }) => {
     const outsider = await charlie.query(api.messages.conversationView, { conversationId: "conversation-1" });
     if (outsider.state !== "denied") throw new Error("conversation metadata query admitted an outsider");
     const inboxAfter = await bob.query(api.messages.inbox, { c: null });
-    if (!("data" in inboxBefore) || !("data" in inboxAfter)
-      || JSON.stringify(inboxAfter.data) !== JSON.stringify(inboxBefore.data)) {
+    if ((inboxAfter.state !== "complete" && inboxAfter.state !== "capped") || !Array.isArray(inboxAfter.data)) {
+      throw new Error("final inbox was not a usable array");
+    }
+    if (JSON.stringify(inboxAfter.data) !== JSON.stringify(inboxBefore.data)) {
       throw new Error("count probe changed the shared member inbox for later journeys");
     }
   } finally {

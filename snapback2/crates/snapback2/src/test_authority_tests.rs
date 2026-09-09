@@ -1,6 +1,164 @@
 use super::*;
-use snapback2_core::{Index, KeyProvenance, Maintain, MaintainKind, Rules, Table};
+use snapback2_core::{Index, KeyProvenance, LoopDomain, Maintain, MaintainKind, Rules, Table};
 use std::collections::BTreeMap;
+
+const CONTROL_FLOW_REASON: &str = "policy probe control flow must be independent of the protected table; only stable values and self-readable membership guards are proved";
+
+fn statement_bearing_expressions() -> Vec<Expr> {
+    let scan = json!({
+        "site": "merge", "table": "messages", "index": "byConvTime", "prefix": [],
+        "order": "Desc", "take": {"Literal": 1}, "provenance": "Const"
+    });
+    let merge = json!({"Merge": {"site": "merge", "lanes": [{
+        "binding": "lane", "scan": scan, "source": null, "setup": [
+            {"Const": {"name": "message", "value": {"Get": {
+                "site": "get", "table": "messages", "index": "byId",
+                "key": [{"Literal": {"Id": "message-1"}}], "provenance": "Const"
+            }}}},
+            {"Require": {"condition": {"Binary": {"op": "Ne",
+                "left": {"Variable": "message"}, "right": {"Literal": "Null"}
+            }}, "code": "HAS_MESSAGE"}}
+        ]
+    }]}});
+    let mut values = vec![
+        merge.clone(),
+        json!({"Field": {"base": merge, "name": "id"}}),
+        json!({"Array": [merge]}),
+        json!({"Object": {"nested": merge}}),
+        json!({"Unary": {"op": "Not", "value": merge}}),
+        json!({"Binary": {"op": "Eq", "left": merge, "right": {"Literal": "Null"}}}),
+        json!({"Binary": {"op": "Eq", "left": {"Literal": "Null"}, "right": merge}}),
+        json!({"Builtin": {"builtin": "Len", "args": [merge]}}),
+    ];
+    for kind in ["Get", "Exists"] {
+        values.push(
+            json!({kind: {"site": "outer", "table": "messages", "index": "byId",
+            "key": [merge], "provenance": "Const"}}),
+        );
+    }
+    for prefix in [
+        json!({"Scalar": merge}),
+        json!({"WordPrefix": {
+            "source": merge, "contract": "u17-nfc-scf-nfc-wsp-p", "source_max": 128
+        }}),
+    ] {
+        let mut outer = scan.clone();
+        outer["prefix"] = json!([prefix]);
+        values.push(json!({"Scan": outer}));
+    }
+    for slot in ["after", "before", "gt", "gte", "lt", "lte"] {
+        let mut outer = scan.clone();
+        if matches!(slot, "after" | "before") {
+            outer[slot] = merge.clone();
+        } else {
+            outer["range"] = json!({slot: merge});
+        }
+        values.push(json!({"Scan": outer}));
+    }
+    values
+        .into_iter()
+        .map(|value| serde_json::from_value(value).unwrap())
+        .collect()
+}
+
+#[test]
+fn policy_control_flow_rejects_statement_bodies_in_every_expression_position() {
+    let schema = authority_schema(ColumnType::Principal);
+    for value in statement_bearing_expressions() {
+        let statements = [
+            Stmt::Const {
+                name: "unused".into(),
+                value: value.clone(),
+            },
+            Stmt::Let {
+                name: "unused".into(),
+                value: value.clone(),
+            },
+            Stmt::Require {
+                condition: value.clone(),
+                code: "GUARD".into(),
+            },
+            Stmt::Return(value.clone()),
+        ];
+        for statement in statements {
+            let program = Program {
+                body: vec![statement],
+                ..probe_mutation(false)
+            };
+            assert_eq!(
+                policy_control_flow(&program, &schema, "messages"),
+                Err(CONTROL_FLOW_REASON.into()),
+                "{program:?}"
+            );
+        }
+        for statement in [
+            Stmt::Const {
+                name: "unused".into(),
+                value: value.clone(),
+            },
+            Stmt::Let {
+                name: "unused".into(),
+                value: value.clone(),
+            },
+            Stmt::Push {
+                target: "rows".into(),
+                value: value.clone(),
+            },
+        ] {
+            let program = Program {
+                body: vec![Stmt::For {
+                    binding: "item".into(),
+                    domain: LoopDomain::LiteralRange {
+                        start: 0,
+                        end_exclusive: 1,
+                    },
+                    body: vec![statement],
+                }],
+                ..probe_mutation(false)
+            };
+            assert_eq!(
+                policy_control_flow(&program, &schema, "messages"),
+                Err(CONTROL_FLOW_REASON.into()),
+                "{program:?}"
+            );
+        }
+        let mut domains = vec![
+            LoopDomain::DerivedArray {
+                value: value.clone(),
+                max: 1,
+                bound_source: "page".into(),
+            },
+            LoopDomain::Recurse(snapback2_core::Recurse {
+                site: "walk".into(),
+                table: "messages".into(),
+                index: "byId".into(),
+                seed: Box::new(value.clone()),
+                next_field: "parentId".into(),
+                depth: 1,
+                fanout: 1,
+                provenance: KeyProvenance::Const,
+            }),
+        ];
+        if let Expr::Scan(scan) = value {
+            domains.push(LoopDomain::Page(scan));
+        }
+        for domain in domains {
+            let program = Program {
+                body: vec![Stmt::For {
+                    binding: "item".into(),
+                    domain,
+                    body: vec![],
+                }],
+                ..probe_mutation(false)
+            };
+            assert_eq!(
+                policy_control_flow(&program, &schema, "messages"),
+                Err(CONTROL_FLOW_REASON.into()),
+                "{program:?}"
+            );
+        }
+    }
+}
 
 fn protected_write_recipe() -> Recipe {
     Recipe {
@@ -76,6 +234,20 @@ fn revocation_candidate_prefers_a_membership_guard_dependency() {
     );
     assert!(query_isolates_protected_table(&program, &reads, &recipe, "messages", &schema).is_ok());
     let safe = program.clone();
+    for value in statement_bearing_expressions() {
+        let mut guarded = safe.clone();
+        guarded.body.insert(
+            2,
+            Stmt::Const {
+                name: "unused".into(),
+                value,
+            },
+        );
+        assert_eq!(
+            query_isolates_protected_table(&guarded, &reads, &recipe, "messages", &schema),
+            Err(CONTROL_FLOW_REASON.into())
+        );
+    }
     let read = snapback2_core::Read {
         site: "guard".into(),
         table: "messages".into(),
@@ -95,11 +267,13 @@ fn revocation_candidate_prefers_a_membership_guard_dependency() {
         },
         Stmt::Break,
         Stmt::Continue,
+        Stmt::Return(Expr::Literal(Value::Null)),
     ] {
         let mut guarded = safe.clone();
         guarded.body.insert(2, terminal);
-        assert!(
-            query_isolates_protected_table(&guarded, &reads, &recipe, "messages", &schema).is_err()
+        assert_eq!(
+            query_isolates_protected_table(&guarded, &reads, &recipe, "messages", &schema),
+            Err(CONTROL_FLOW_REASON.into())
         );
     }
     let mut dependent_schema = schema.clone();
@@ -519,6 +693,25 @@ fn policy_projection_proves_carrier_fields_and_blocks_mixed_protected_values() {
         ]
     })).unwrap();
     let projection = policy_projection(&program, &schema, "documents").unwrap();
+    for value in statement_bearing_expressions() {
+        for statement in [
+            Stmt::Const {
+                name: "unused".into(),
+                value: value.clone(),
+            },
+            Stmt::Let {
+                name: "unused".into(),
+                value,
+            },
+        ] {
+            let mut guarded = program.clone();
+            guarded.body.insert(0, statement);
+            assert_eq!(
+                policy_projection(&guarded, &schema, "documents"),
+                Err(CONTROL_FLOW_REASON.into())
+            );
+        }
+    }
     let exists = Expr::Exists(snapback2_core::Read {
         site: "guard".into(),
         table: "documents".into(),

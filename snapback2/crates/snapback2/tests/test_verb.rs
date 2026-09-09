@@ -15,42 +15,6 @@ fn check<'a>(receipt: &'a serde_json::Value, name: &str) -> &'a serde_json::Valu
         .unwrap_or_else(|| panic!("missing {name} check in {receipt}"))
 }
 
-#[test]
-fn journey_fixtures_resolve_from_authored_tests_in_full_and_selected_runs() {
-    let project = Project::new();
-    assert!(project.init("todos", "none").status.success());
-    let tests = project.path.join("snapback/tests");
-    fs::create_dir(tests.join("fixtures")).unwrap();
-    fs::write(tests.join("fixtures/message.txt"), "authored fixture").unwrap();
-    // The same name at the project root must not win over the authored directory.
-    fs::create_dir(project.path.join("fixtures")).unwrap();
-    fs::write(project.path.join("fixtures/message.txt"), "wrong directory").unwrap();
-    fs::write(
-        tests.join("todos.test.ts"),
-        r#"
-import { fixture, journey } from "snapback2/test";
-const registered = await fixture("fixtures/message.txt");
-journey("fixture custody", async () => {
-  await Promise.resolve();
-  const loaded = await fixture("fixtures/message.txt");
-  for (const bytes of [registered, loaded]) {
-    if (new TextDecoder().decode(bytes) !== "authored fixture") throw new Error("wrong fixture");
-  }
-});
-"#,
-    )
-    .unwrap();
-    for args in [
-        vec!["test", "--journeys-only", "--json"],
-        vec!["test", "--journey", "fixture custody", "--json"],
-    ] {
-        let output = project.run(&args);
-        let receipt = json_stdout(&output);
-        assert!(output.status.success(), "{receipt}");
-        assert_eq!(check(&receipt, "fixture custody")["verdict"], "pass");
-    }
-}
-
 fn without_operation(source: &str, name: &str) -> String {
     let marker = format!("mutation {name}(");
     let start = source
@@ -103,21 +67,31 @@ fn successor_policy_blocks_protected_dependent_require_in_the_shipped_thread() {
     let path = project.path.join("snapback/messages.q");
     let original = fs::read_to_string(&path).unwrap();
     for guard in [
+        "unused = merge messages last 1 by byConvTime:\n    [(messages['message-1'] ! else HAS_MESSAGE).conversationId]",
         "require exists messages['message-1'] else HAS_MESSAGE",
         "hasMessage = exists messages['message-1']\n  require hasMessage else HAS_MESSAGE",
     ] {
-        fs::write(&path, original.replace(
-            "query thread(conversationId: conversations, c: cursor ?):",
-            &format!("query thread(conversationId: conversations, c: cursor ?):\n  {guard}"),
+        fs::write(&path, original.replacen(
+            "  require isMember(conversationId, viewer) else MEMBERSHIP_REQUIRED\n",
+            &format!("  require isMember(conversationId, viewer) else MEMBERSHIP_REQUIRED\n  {guard}\n"),
+            1,
         )).unwrap();
         assert!(project.run(&["check", "--json"]).status.success());
         let receipt = json_stdout(&project.run(&["test", "--derived-only", "--json"]));
         let fence = check(&receipt, "successor-policy-fence");
         assert_eq!(fence["verdict"], "blocked", "protected-dependent guard: {fence}");
         assert!(fence["detail"]["candidates"].as_array().unwrap().iter().any(|reason|
-            reason.as_str().is_some_and(|reason| reason.contains("messages.thread")
-                && reason.contains("control flow"))), "guard rejection reason was lost: {fence}");
+            reason.as_str() == Some("messages.thread: policy probe control flow must be independent of the protected table; only stable values and self-readable membership guards are proved")), "guard rejection reason was lost: {fence}");
     }
+    fs::write(&path, original.replacen(
+        "  require isMember(conversationId, viewer) else MEMBERSHIP_REQUIRED\n",
+        "  member = isMember(conversationId, viewer)\n  require member else MEMBERSHIP_REQUIRED\n  require isMember(conversationId, viewer) else MEMBERSHIP_REQUIRED\n",
+        1,
+    )).unwrap();
+    let receipt = json_stdout(&project.run(&["test", "--derived-only", "--json"]));
+    let fence = check(&receipt, "successor-policy-fence");
+    assert_eq!(fence["verdict"], "pass", "stable membership guards: {fence}");
+    assert_eq!(fence["detail"]["query"], "messages.thread", "{fence}");
 }
 
 #[test]
