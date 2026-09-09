@@ -562,12 +562,13 @@ journey("conditional edits return the readable current row online and past the o
     throw new Error(`the stale edit was refused for another reason: ${JSON.stringify(response)}`);
   }
   const matching = (await alice.outbox.entries()).find((item) => item.intent === untouched.intent);
-  if (matching?.state !== "committed") throw new Error(`the matching edit settled as ${matching?.state}: ${JSON.stringify(matching?.response)}`);
+  if (matching && matching.state !== "committed") throw new Error(`the matching edit settled as ${matching.state}: ${JSON.stringify(matching.response)}`);
   await drain.until((value) => "data" in value && bodies(value.data).includes("theirs"));
   const thread = await alice.query(api.messages.thread, { conversationId: "conversation-1", c: null });
   if (!("data" in thread) || !bodies(thread.data).includes("theirs") || bodies(thread.data).includes("mine")) {
     throw new Error("the conflict did not leave the owner's edit in place");
   }
+  if (!bodies(thread.data).includes("left alone, edited")) throw new Error("the matching edit never reached its authoritative row");
   // Past the default seven-day fence the twin does not run and there is no
   // trace OCC. The certified edit's compare-and-set must reject the stale base.
   const originalNow = Date.now;

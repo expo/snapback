@@ -203,3 +203,29 @@ test("real owner no-op successes compact with zero readers and preserve each iss
     if (previousUrl === undefined) delete process.env.SNAPBACK_URL; else process.env.SNAPBACK_URL = previousUrl;
   }
 });
+
+test("real chat sends compact after own fanout and maintained count arrive", async (t) => {
+  if (process.env.SNAPBACK_URL) return t.skip("requires isolated owner");
+  const { mkdtemp, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os"), { join } = await import("node:path");
+  const { fileRangeStore } = await import("../dist/test.mjs");
+  const root = await mkdtemp(join(tmpdir(), "snapback-compacted-chat-"));
+  let local: RealOwnerHarness | undefined, client: ReturnType<typeof createClient> | undefined;
+  let drain: { close(): void } | undefined;
+  try {
+    local = await RealOwnerHarness.create({ fullChat: true });
+    client = createClient({ url: local.url, persona: "alice", offline: { store: fileRangeStore(root) } });
+    await client.ready;
+    const tail = subscribe(client, api.messages.inbox, { c: null }, () => undefined, { drain: true });
+    drain = tail;
+    await tail.until(value => "caughtUp" in value && value.caughtUp === true);
+    for (let n = 0; n < 10; n++) {
+      const result = await client.mutation(api.messages.send, { conversationId: "conversation-1", body: `compact ${n}` });
+      assert.equal(result.state, "committed", JSON.stringify(result));
+      if (result.state === "committed") assert.deepEqual(result.effects?.map(row => row.table).sort(), ["deliveries", "messageCounts", "messages"]);
+      const view = await client.query(api.messages.conversationView, { conversationId: "conversation-1", c: null });
+      assert("data" in view && view.data.messages.some((row: any) => row.message?.body === `compact ${n}`));
+      assert.deepEqual(await client.outbox.entries(), [], "all readable fanout and count arrived; no success history remains");
+    }
+  } finally { drain?.close(); await client?.close(); await local?.close(); await rm(root, { recursive: true, force: true }); }
+});
