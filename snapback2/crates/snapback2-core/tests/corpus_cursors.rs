@@ -319,6 +319,35 @@ fn wrong_domain_cursor_is_rejected_at_certify_and_runtime() {
 }
 
 #[test]
+fn sliced_literal_tuple_does_not_retain_the_source_tuple_arity() {
+    let schema = cursor_schema();
+    let program = scan_program(
+        "slicedTupleCursor",
+        "byAt",
+        vec![],
+        Expr::Builtin {
+            builtin: Builtin::Slice,
+            args: vec![
+                Expr::Array(vec![literal_int(1), literal_id("row-1"), literal_int(99)]),
+                literal_int(0),
+                literal_int(2),
+            ],
+        },
+    );
+    let certificate = Checker::new(&schema, Ceilings::default())
+        .check(&program)
+        .expect("a sliced tuple has a bounded but not source-exact arity");
+    Engine::memory(schema)
+        .unwrap()
+        .execute(
+            &program,
+            &certificate,
+            Context::query(Actor::user("viewer-1").unwrap(), BTreeMap::new()),
+        )
+        .expect("the two-element sliced cursor executes");
+}
+
+#[test]
 fn optional_cursor_defers_its_non_null_arm_to_runtime() {
     let schema = cursor_schema();
     let mut program = scan_program(

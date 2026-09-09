@@ -1091,10 +1091,14 @@ fn static_expression_fact(
                     len: None,
                 },
                 Builtin::Divmod { .. } => StaticType::Object,
-                Builtin::Slice => facts
-                    .first()
-                    .map(|fact| fact.kind.clone())
-                    .unwrap_or(StaticType::Unknown),
+                Builtin::Slice => match facts.first().map(|fact| unwrap_static_type(&fact.kind)) {
+                    Some(StaticType::Text) => StaticType::Text,
+                    Some(StaticType::List { of, .. }) => StaticType::List {
+                        of: of.clone(),
+                        len: None,
+                    },
+                    _ => StaticType::Unknown,
+                },
                 Builtin::Sort { .. } => facts
                     .first()
                     .map(|fact| fact.kind.clone())
