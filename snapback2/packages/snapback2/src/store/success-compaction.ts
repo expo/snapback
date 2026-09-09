@@ -1,6 +1,7 @@
 // @ref LLP 1018.003.001#4-automatic-compaction-of-successful-history —
 // the owner names the actor-observable effects; its commit settles server-only fan-out.
 import { rowKey } from "./row-values.js";
+import { rowObservation } from "../query-items.js";
 import type { PersistedRangeState } from "./range-store.js";
 
 export type SuccessEffects = { table: string; id: string; removed?: true }[];
@@ -19,11 +20,16 @@ export function compactSuccesses(state: PersistedRangeState): number[] {
     const remaining = pending.filter(row => {
       // Empty effect sets require no row coverage; nonempty sets need this exact schema.
       if (!state.facts || state.facts.schemaHash !== identity.schemaHash || state.facts.generation !== held.generation) return true;
-      const key = rowKey(row), positive = state.rows[key] ? state.rowSeq[key] ?? -1 : -1;
+      const key = rowKey(row);
+      let positive = rowObservation(state, key)?.through ?? -1;
+      if (positive < seq!) for (const answer of Object.values(state.answers)) {
+        positive = Math.max(positive, rowObservation(state, key, answer)?.through ?? -1);
+        if (positive >= seq!) break;
+      }
       const negative = state.negative[key] ?? -1;
       // No global sequence, page exclusion, patience, or disappeared overlay is evidence.
       return !(negative >= seq! && negative >= positive)
-        && (row.removed || positive < seq! || positive <= negative);
+        && (positive < seq! || positive <= negative);
     });
     if (remaining.length) {
       if (remaining.length !== pending.length) entry.effects = remaining;

@@ -16,6 +16,7 @@ import { sqliteFactory } from "./sqlite-fixture.ts";
 import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
 import { DAY, engineId, fakeOwner, seededStore, generation, schemaHash } from "./fake-owner.ts";
 import { OutboxLedger } from "../dist/client-observed-test.mjs";
+import { RowImage, preparedDeliveryRows } from "../dist/image-runtime.mjs";
 
 // @ref LLP 1012#7-writes-offline — the outbox contract, proven against a
 // replay-aware owner double on all three carriers.
@@ -1156,20 +1157,26 @@ test("a cold start with the owner unreachable serves the held log and the outbox
 // the transaction, not a hook, discharges every address before removing success.
 test("successful history compacts atomically only after the entire effect set on every carrier", async () => {
   const identity = { planHash: "a".repeat(64), schemaHash };
+  const table = { columns: { id: "Id", body: { Text: { max: 50 } } },
+    indexes: { byId: { components: [{ Column: "id" }], unique: true } }, rules: {}, constraints: [] };
+  const schema = { tables: { messages: table, counts: table } };
   const refs = [{ table: "messages", id: "m" }, { table: "counts", id: "aggregate" }];
   const entry = (intent: string, rows = refs, state = "committed", seq = 10): any => ({
     intent, grant: "g", offset: 0, count: 1, ids: [], op: "edit", args: { body: "new" }, issuedSeq: seq - 1,
     createdAt: 1, updatedAt: 2, state, targets: { ...identity, generation, complete: true, unresolved: [], rows: [] },
     response: { state, seq, data: null, program: { ...identity }, effects: rows },
   });
-  const delivery = (seq: number, rows: typeof refs): any => ({ op: "view", args: {}, seq, state: "complete", next: null,
-    rows: rows.map(r => ({ ...r, row: { id: r.id, body: "new" } })), data: rows.map(r => ({ $row: r })),
-    receipt: { ranges: [], absences: [], verdicts: [] } });
+  const delivery = (seq: number, rows: typeof refs): any => {
+    const prepared = rows.map(r => ({ ...r, row: RowImage.prepare(schema, r.table, { Row: { id: { Id: r.id }, body: { String: "new" } } }) }));
+    return { op: "view", args: {}, seq, state: "complete", next: null,
+      rows: prepared.map(r => ({ ...r, row: RowImage.wire(r.row) })), [preparedDeliveryRows]: prepared,
+      data: rows.map(r => ({ $row: r })), receipt: { ranges: [], absences: [], verdicts: [] } };
+  };
   for (const carrier of await carriers()) {
     const factory = carrier.factory(); let store = factory();
     try {
       await store.open("dev:alice");
-      await store.commit({ facts: { generation, schemaHash, authEpoch: 7 }, programs: { [generation]: { generation, schemaHash, schema: { tables: {} }, programs: { edit: { kind: "mutation", planHash: identity.planHash, ir: {}, certificate: {} } } } }, outbox: { put: [entry("success")] } });
+      await store.commit({ facts: { generation, schemaHash, authEpoch: 7 }, programs: { [generation]: { generation, schemaHash, schema, programs: { edit: { kind: "mutation", planHash: identity.planHash, ir: {}, certificate: {} } } } }, outbox: { put: [entry("success")] } });
       await store.commit({ deliveries: [delivery(11, [refs[0]!])] });
       assert.equal((await store.outbox.get("success"))?.effects?.length, 1, carrier.name);
       await store.close?.(); store = factory(); await store.open("dev:alice");
@@ -1177,6 +1184,16 @@ test("successful history compacts atomically only after the entire effect set on
       await store.commit({ deliveries: [delivery(12, [refs[1]!])] });
       assert.equal(await store.outbox.get("success"), undefined, "maintained sibling authority completes the atomic set");
       assert.equal(await store.outbox.compactedThrough?.(), 10);
+      await store.commit({ deliveries: [{ ...delivery(13, [refs[0]!]), validator: "a".repeat(64), readTime: 0, clockPlanHash: "c".repeat(64) }],
+        outbox: { put: [entry("unchanged", [refs[0]!], "committed", 14)] } });
+      assert(await store.outbox.get("unchanged"), "an older identical image cannot discharge a later write");
+      await store.commit({ refreshes: [{ op: "view", args: {}, seq: 14, validator: "a".repeat(64) }] });
+      assert.equal(await store.outbox.get("unchanged"), undefined, "unchanged refresh proves the exact held image through commit");
+      const removed = entry("recreated", [{ ...refs[0]!, removed: true } as any], "committed", 15);
+      await store.commit({ outbox: { put: [removed] } });
+      assert(await store.outbox.get("recreated"), "the pre-removal positive image is insufficient");
+      await store.commit({ deliveries: [delivery(16, [refs[0]!])] });
+      assert.equal(await store.outbox.get("recreated"), undefined, "a newer authoritative recreation supersedes the removal");
       await store.commit({ outbox: { put: [entry("rejected", [], "rejected"), entry("expired", [], "expired"), entry("queued", [], "queued"), entry("empty", [])] } });
       assert.equal(await store.outbox.get("empty"), undefined, "actual empty write set needs no query observer");
       assert.deepEqual((await store.outbox.all()).map(e => e.intent).sort(), ["expired", "queued", "rejected"]);

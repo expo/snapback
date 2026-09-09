@@ -170,6 +170,7 @@
     "errorCode": null,
     "localState": "partial",
     "partialSites": [
+      "items.byLabel",
       "missing-authority"
     ],
     "canonicalResult": "\"Null\"",

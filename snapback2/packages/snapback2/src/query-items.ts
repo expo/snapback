@@ -19,6 +19,18 @@ function references(markers: unknown, data: unknown, row: (table: string, id: st
   mapExpandedRows(markers, data, (ref, value) => { row(ref.table, ref.id, value); return value; });
 }
 
+/** An unchanged answer certifies only its original, still-matching row image. */
+export function rowObservation(state: PersistedRangeState, key: string, held?: StoredAnswer): ItemObservation | undefined {
+  const row = state.rows[key];
+  let through = state.rowSeq[key];
+  if (!row || through === undefined || through <= (state.negative[key] ?? -1)) return;
+  if (held && !held.retained && !held.clockOnly && !held.needsFactProofs && held.state !== "denied" && held.seq >= through
+    && RowImage.is(row.row) && held.rowProofs?.[key] === RowImage.digest(row.row)) {
+    return { through: held.seq, order: held.order };
+  }
+  return { through };
+}
+
 /** A server delivery certifies its own returned images, not later pool versions or halo identities. */
 export function deliveredItemInputs(envelope: DeliveryEnvelopeV1, data: unknown, entries: ItemInputs["entries"]): ItemInputs {
   const values = new Map<object, string>(), observations = new Map<string, ItemObservation>();
@@ -58,18 +70,10 @@ export class ItemCapture {
   }
   private row(table: string, id: string, value: unknown): void {
     if (!value || typeof value !== "object") return;
-    const key = itemAddress(table, id), row = this.state.rows[key], held = this.held;
+    const key = itemAddress(table, id);
     this.values.set(value, key);
-    let through = this.state.rowSeq[key];
-    if (!row || through === undefined || through <= (this.state.negative[key] ?? -1)) return;
-    let order: number | undefined;
-    // An unchanged answer can advance observation without changing the row.
-    // Its original image proof must still match; retained/clock-only answers cannot.
-    if (held && !held.retained && !held.clockOnly && !held.needsFactProofs && held.state !== "denied" && held.seq >= through
-      && RowImage.is(row.row) && held.rowProofs?.[key] === RowImage.digest(row.row)) {
-      through = held.seq; order = held.order;
-    }
-    this.observations.set(key, { through, ...(order === undefined ? {} : { order }) });
+    const observation = rowObservation(this.state, key, this.held);
+    if (observation) this.observations.set(key, observation);
   }
   /** The wire's actual pooled-row markers, paired with the final expanded public value. */
   references(markers: unknown, data: unknown): void {

@@ -1,6 +1,6 @@
 {
   "serverOnly": true,
-  "certificationRewrite": "add this schema maintain with its read rule:\nmaintain membershipsCounts = count memberships by principal:\n  read <- deny\nthe cap probe then prices at one row per write; reduce the chunk from 49 to at most 10 writes for cap 1000 by principal on memberships; 10 fits this ceiling with the other reserves unchanged",
+  "certificationRewrite": "add this schema maintain with its read rule:\nmaintain membershipsCounts: count memberships by principal\n  read <- deny\nthe cap probe then prices at one row per write; reduce the chunk from 49 to at most 10 writes for cap 1000 by principal on memberships; 10 fits this ceiling with the other reserves unchanged",
   "corpusVersion": 1,
   "name": "cap-1000-49-inserts-unbacked-refused",
   "category": "fanout",
