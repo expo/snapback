@@ -198,6 +198,7 @@ test('plain tier: a persistent projected feed keeps its owner continuation throu
   const { tmpdir } = await import('node:os');
   const { join } = await import('node:path');
   const { fileRangeStore } = await import('../dist/test.mjs');
+  const priorOwnerUrl = process.env.SNAPBACK_URL;
   const owner = await RealOwnerHarness.create({ forceOwned: true, fullChat: true, prepare: async root => {
     const schema = join(root, 'snapback/schema.q');
     await writeFile(schema, `${await readFile(schema, 'utf8')}
@@ -406,6 +407,7 @@ mutation remove(post: posts):
     raw?.close(); for (const view of mounted) await view.close();
     await colder?.close(); await cold?.close(); await client?.close(); await bob.close(); await writer.close(); await bobWriter.close(); await owner.close();
     await rm(directory, { recursive: true, force: true });
-    if (owner.owned) delete process.env.SNAPBACK_URL;
+    if (priorOwnerUrl === undefined) delete process.env.SNAPBACK_URL;
+    else process.env.SNAPBACK_URL = priorOwnerUrl;
   }
 });
