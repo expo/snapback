@@ -62,12 +62,16 @@ assert.throws(() => decodeHeldProgram({ ...packet,schema: { ...schema,futureFeat
 assert.throws(() => decodeHeldProgram({ ...packet,programs: { read: { ...packet.programs.read,ir: { ...ir,futureFeature: undefined } } } }),{ code: 'E_SCHEMA' });
 const oldTables = structuredClone(schema.tables), newTables = structuredClone(schema.tables); newTables.denied.rules.read = 'Allow';
 let tableReads = 0;
-const changingSchema = { maintains: [], get tables() { return ++tableReads < 2 ? oldTables : newTables; } };
-assert.equal(decodeHeldProgram({ ...packet,schema: changingSchema }),undefined,'schema hash binds the exact isolated snapshot');
+const changingSchema = { maintains: [], get tables() { return ++tableReads <= 2 ? oldTables : newTables; } };
+const changingHeld = decodeHeldProgram({ ...packet,schema: changingSchema })!;
+assert.equal(sha256(canonicalSchemaJson(changingHeld.schema)),changingHeld.schemaHash,
+  'schema hash binds the exact isolated snapshot');
+let bodyReads = 0;
 const unstableIr: any = { name: 'read',kind: 'Query',args: {},read_time_granularity_ms: null,
-  get body() { return ['changed']; } };
-assert.equal(decodeHeldProgram({ ...packet,programs: { read: { ...packet.programs.read,ir: unstableIr } } })!.programs.read,
-  undefined,'plan hash binds the exact isolated IR snapshot');
+  get body() { return ++bodyReads === 1 ? [] : ['changed']; } };
+const unstableHeld = decodeHeldProgram({ ...packet,programs: { read: { ...packet.programs.read,ir: unstableIr } } })!;
+assert.equal(sha256(canonicalProgramJson(unstableHeld.programs.read.ir)),unstableHeld.programs.read.planHash,
+  'plan hash binds the exact isolated IR snapshot');
 const admitted = decodeHeldProgram(packet)!;
 const admittedSchema: any = admitted.schema, admittedRule: any = admittedSchema.tables.allowed.rules.read;
 const admittedHash = scopedRuleHash(admitted.schema,admittedRule);
