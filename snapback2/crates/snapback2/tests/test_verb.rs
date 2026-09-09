@@ -393,7 +393,7 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
             .iter()
             .filter(|check| check["kind"] == "journey")
             .count(),
-        15
+        16
     );
     for name in [
         "alice posts to the room and a non-member cannot",
@@ -407,10 +407,11 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
         "offline drain removes an unsent body and survives a cold restart",
         "viewed photos render from the byte cache offline; a view-once photo and an unsent row do not",
         "offline sends queue, survive a restart, replay in order, and a 503 after a commit is exactly once",
-        "offline edits reject stale reads by trace, and past-fence edits by the program CONFLICT",
+        "conditional edits return the readable current row online and past the offline fence",
         "a never-opened chat renders offline from the drained log and an offline send is predicted into it in order",
         "a send queued offline into a three-member group shows one bubble, keeps its message id, leaves no duplicate delivery, and reaches both other members once",
         "an expiring message is purged by the owner's schedule with every client closed",
+        "fresh accounts discover empty conversations and exchange a message",
     ] {
         let journey = check(&receipt, name);
         assert_eq!(journey["kind"], "journey", "{name}: {journey}");
