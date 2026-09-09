@@ -239,6 +239,127 @@ for (const arm of ["Expo", "React"]) test(`${arm} cached once-photo waits for ac
   }
 });
 
+for (const arm of ["Expo", "React"]) for (const boundary of ["logout/re-login", "A→B→A", "restoring confirmation"])
+test(`${arm} once-photo opening scope: ${boundary}`, async t => {
+  const bundlePath = fileURLToPath(new URL(`../dist/.${arm.toLowerCase()}-thread-scope.test-bundle.mjs`, import.meta.url));
+  const bundled = await build({
+    stdin: { contents: arm === "Expo" ? 'export { Thread } from "./screens/Thread";' : 'export { Thread } from "./Thread";',
+      resolveDir: fileURLToPath(new URL(`../templates/chat/${arm.toLowerCase()}/src`, import.meta.url)), sourcefile: "scope-entry.tsx", loader: "tsx" },
+    bundle: true, write: false, format: "esm", platform: "node", target: "es2022", jsx: "automatic",
+    external: ["react", "react/jsx-runtime", "react-native"],
+    plugins: [{ name: "package-dist", setup(plugin) {
+      plugin.onResolve({ filter: /^snapback2\/(react|react-native|client)$/ }, args => ({
+        path: `./${args.path.slice("snapback2/".length)}.mjs`, external: true,
+      }));
+    } }],
+  });
+  await writeFile(bundlePath, bundled.outputFiles[0]!.text);
+  const { Thread } = await import(`${pathToFileURL(bundlePath).href}?boundary=${encodeURIComponent(boundary)}`);
+  const owner = fakeOwner(), restoring = boundary === "restoring confirmation";
+  const png = await readFile(new URL("../../../scripts/witness-expo/view-once.png", import.meta.url));
+  let confirm!: () => void, principal = "dev:alice";
+  const confirmation = new Promise<void>(done => { confirm = done; });
+  const requests: string[] = [];
+  const client = createClient({ url: "http://once-scope.test",
+    ...(restoring ? { tokenStore: { load: () => "token-alice", save: () => undefined,
+      loadPrincipalBinding: () => ({ token: "token-alice", principal: "dev:alice" }), savePrincipal: () => undefined } } : {}),
+    fetch: async (input, init) => {
+      const path = new URL(String(input)).pathname;
+      if (path === "/api/auth/me") { await confirmation; return Response.json({ viewer: principal, kind: "user" }); }
+      if (path === "/api/auth/login") {
+        principal = JSON.parse(String(init?.body)).email === "bob@example.com" ? "dev:bob" : "dev:alice";
+        return Response.json({ token: `token-${principal}`, viewer: principal, kind: "user" });
+      }
+      if (path === "/api/auth/logout") return Response.json({ ok: true });
+      if (path.startsWith("/api/asset/")) {
+        requests.push(principal);
+        return new Response(png, { headers: { "content-type": "image/png" } });
+      }
+      return owner.fetch(input, init);
+    } });
+  const message = { id: "cached-once", at: 1, authorId: "dev:alice", oncePhoto: {
+    id: "s2id-00000000000000000000000000000008-0000000000000001", width: 8, height: 8,
+  } };
+  // Keep the row across every auth transition so query invalidation cannot hide an old opening.
+  const held = { status: "ready", data: undefined, partial: true, next: null,
+    items: [{ key: message.id, data: message, predicted: false, pending: [] }] };
+  client.observe = () => ({ getSnapshot: () => held, subscribe: () => () => undefined }) as any;
+  let renderer: TestRenderer.ReactTestRenderer | undefined;
+  const commits: { account: string | null | undefined; images: number }[] = [];
+  function Screen() {
+    const auth = useAuth();
+    React.useLayoutEffect(() => { if (renderer) commits.push({
+      account: auth.state === "anonymous" ? null : auth.viewer ?? auth.restoringViewer, images: images().length,
+    }); });
+    return React.createElement(Thread, { conversationId: "conversation-1", viewer: auth.viewer });
+  }
+  const bubble = () => arm === "Expo"
+    ? renderer!.root.findAllByType("NativeView").find(node => node.props.testID === "message-cached-once")!
+    : renderer!.root.findByProps({ "data-message": "cached-once" });
+  const list = () => renderer!.root.findByType(arm === "Expo" ? "NativeScrollView" : "ol");
+  const images = () => bubble().findAllByType(arm === "Expo" ? "NativeImage" : "img");
+  const button = () => bubble().findAllByType(arm === "Expo" ? "NativeButton" : "button")
+    .find(node => arm === "Expo" ? node.props.title === "View photo once" : node.props.children === "View photo once");
+  const press = async () => { await act(async () => {
+    const control = button()!;
+    (arm === "Expo" ? control.props.onPress : control.props.onClick)();
+    await new Promise(done => setImmediate(done));
+  }); };
+  const login = async (name: string) => { await act(async () => {
+    await client.auth.login({ email: `${name}@example.com`, password: "password" });
+    await new Promise(done => setImmediate(done));
+  }); };
+  try {
+    await client.ready;
+    if (!restoring) { confirm(); await client.auth.me(); }
+    await act(async () => { renderer = TestRenderer.create(React.createElement(SnapbackProvider, { client }, React.createElement(Screen)), {
+      createNodeMock: element => element.type === "img" ? { getBoundingClientRect: () => ({ width: 240 }) } : null,
+    }); });
+    const originalList = list(), originalBubble = bubble();
+    if (restoring) {
+      assert.equal(client.snapshot.auth.viewer, undefined);
+      assert.equal(client.snapshot.auth.restoringViewer, "dev:alice");
+    }
+    assert.equal(button()!.props.disabled, false);
+    await press();
+    assert.equal(images().length, 1);
+    const openedImage = images()[0];
+    commits.length = 0;
+    if (restoring) {
+      await act(async () => { confirm(); await client.auth.me(); await new Promise(done => setImmediate(done)); });
+      assert.equal(client.snapshot.auth.viewer, "dev:alice");
+      assert.strictEqual(images()[0], openedImage, "same-account confirmation preserves the opening and mounted image");
+      assert.ok(commits.length > 0 && commits.every(commit => commit.account === "dev:alice" && commit.images === 1));
+      assert.deepEqual(requests, ["dev:alice"], "confirmation completes the explicit opening exactly once");
+      assert.ok(arm === "Expo" ? images()[0].props.source?.uri : images()[0].props.src);
+      t.diagnostic("restoring dev:alice → confirmed dev:alice: same mounted image; exactly 1 Alice byte request; list and bubble unchanged");
+    } else {
+      assert.deepEqual(requests, ["dev:alice"]);
+      if (boundary === "logout/re-login") await act(async () => { await client.auth.logout(); });
+      else await login("bob");
+      assert.ok(commits.length > 0 && commits.every(commit => commit.images === 0), "the changed scope commits no old asset");
+      assert.equal(images().length, 0);
+      assert.deepEqual(requests, ["dev:alice"]);
+      if (boundary === "A→B→A") { await press(); assert.deepEqual(requests, ["dev:alice", "dev:bob"]); }
+      const spent = [...requests];
+      commits.length = 0;
+      await login("alice");
+      t.diagnostic(`${boundary}: return to Alice: images=${images().length}, additional requests=${requests.length - spent.length}, commits=${JSON.stringify(commits)}`);
+      assert.ok(commits.length > 0 && commits.every(commit => commit.account === "dev:alice" && commit.images === 0), "no return-to-Alice commit may auto-mount an old opening");
+      assert.equal(button()!.props.disabled, false, "returning Alice must choose to open again");
+      assert.deepEqual(requests, spent, "returning Alice cannot automatically re-request her photo");
+      await press();
+      assert.equal(images().length, 1);
+      assert.deepEqual(requests, [...spent, "dev:alice"], "only the new explicit click requests Alice bytes");
+    }
+    assert.strictEqual(list(), originalList, "account transitions keep the conversation/list mounted");
+    assert.strictEqual(bubble(), originalBubble, "the cached bubble never remounts");
+  } finally {
+    confirm(); await act(async () => renderer?.unmount()); await client.close();
+    await rm(bundlePath, { force: true });
+  }
+});
+
 test("the Expo witness samples the composed observation only once eligible history has loaded, and reports a timeout", async () => {
   const bundlePath = fileURLToPath(new URL("../dist/.expo-composed-facts.test-bundle.mjs", import.meta.url));
   const bundled = await build({

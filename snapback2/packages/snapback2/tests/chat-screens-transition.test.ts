@@ -291,12 +291,12 @@ test("the cold chat keeps both intents queued after a committed replay loses its
   }
 });
 
-test("preserving the conversation does not carry a photo-opening choice to another viewer", async () => {
+test("preserving the conversation does not carry a photo-opening choice to another viewer", async (t) => {
   const restore = installDom();
   let bobAssetRequests = 0;
   const alice = createClient({ url: screenOwner.url, persona: "alice" });
   const bob = createClient({ url: screenOwner.url, persona: "bob", fetch: async (input, init) => {
-    if (new URL(String(input)).pathname.startsWith("/api/assets/")) bobAssetRequests++;
+    if (new URL(String(input)).pathname.startsWith("/api/asset/")) bobAssetRequests++;
     return globalThis.fetch(input, init);
   } });
   const root = createRoot(document.getElementById("root")!);
@@ -314,12 +314,20 @@ test("preserving the conversation does not carry a photo-opening choice to anoth
     await act(async () => root.render(render(alice, "dev:alice")));
     await waitFor(() => !!button(), "Alice's unopened photo");
     await act(async () => { button()!.click(); });
-    await waitFor(() => !!document.querySelector(`${selector} img`), "Alice's opened photo");
+    await waitFor(() => !!document.querySelector(`${selector} img`)?.getAttribute("src"), "Alice's opened photo bytes");
     const list = document.querySelector("ol.bubbles");
     await act(async () => root.render(render(bob, "dev:bob")));
     await waitFor(() => !!button(), "Bob's separate photo-opening choice");
     assert.ok(document.querySelector("ol.bubbles") === list, "viewer changes preserve the conversation/list");
+    assert.equal(document.querySelector(`${selector} img`), null, "Bob's photo is unopened before his click");
     assert.equal(bobAssetRequests, 0, "changing viewers cannot spend the new viewer's once delivery");
+    const unopened = document.querySelector(selector);
+    await act(async () => { button()!.click(); });
+    await waitFor(() => !!document.querySelector(`${selector} img`)?.getAttribute("src"), "Bob's explicitly opened photo bytes");
+    assert.equal(bobAssetRequests, 1, "Bob's click requests his photo bytes exactly once");
+    assert.strictEqual(document.querySelector("ol.bubbles"), list);
+    assert.strictEqual(document.querySelector(selector), unopened, "opening preserves Bob's bubble");
+    t.diagnostic("Alice → Bob: 0 Bob byte requests before click; exactly 1 after explicit open; list and Bob bubble unchanged");
   } finally { await act(async () => root.unmount()); await alice.close(); await bob.close(); restore(); }
 });
 

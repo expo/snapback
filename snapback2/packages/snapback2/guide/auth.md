@@ -12,12 +12,13 @@ Restore: set `tokenStore`; await `client.ready`. Browser:
 `browserTokenStore(storage, backendSpecificKey)`. Personas refuse bearer
 transitions/tokens; production refuses personas. Logout/expiry fence one session.
 
-`snapshot.auth`/`useAuth()`: `hydrating`, `authenticated` (`viewer`, `kind`,
-`authEpoch`), `anonymous` (no refusal), `refused` (`refusal`). Restoration needs
-no hooks; callers share `me()`. `restoringViewer` is confirmed for its token, display-only;
-unbound stores omit it. Reads await confirmation or use held coverage.
-Chat once-photo keys: anonymous → null, else
-`viewer ?? restoringViewer`; null/unknown cannot open.
+`useAuth()`/`snapshot.auth`: `hydrating`, `authenticated` (`viewer`, `kind`,
+`authEpoch`), `anonymous`, `refused` (`refusal`). Shared `me()` needs no hooks.
+`restoringViewer`: token-bound, display-only; otherwise omitted.
+Reads need confirmation or held coverage.
+Chat once-photos: anonymous → null, else `viewer ?? restoringViewer`.
+Null/unknown cannot open. Logout/account changes clear openings synchronously;
+returning needs a click. Same-account confirmation keeps openings.
 
 Transport cuts keep custody. Retry when connected/reconnecting, then at
 1, 2, 4, … 30 s without queries; `retryAt` is Unix ms. `me()` replaces the timer.
@@ -35,8 +36,8 @@ writes. Built-in stores bind principal to token; custom stores
 need `loadPrincipalBinding()` and `savePrincipal(principal, token)` for cold reads.
 No login rate limit. Wrong passwords/unknown emails both yield `E_AUTH_INVALID`.
 
-Signup authenticates before profile creation; missing profiles need onboarding.
-Show `rejected` results; enter after profile creation commits.
+Signup authenticates before profiles exist; onboard missing profiles.
+Show `rejected`; enter after profile creation commits.
 Duplicate handles leave auth installed; retry profile creation with a new
 handle, without repeating signup.
 
@@ -93,7 +94,6 @@ remove/re-add races. No last-admin invariant.
 
 ## Diagnose absence
 
-Start with `snapback2 why <query> '<args-json>' --as alice`: prose shows
-requirements and executed lookups. Add `--json` for the authoritative trace
-and owner-only `rowVerdicts`/`diagnostics`. Ordinary responses expose no
-hidden-row hints. Mutations refuse `E_OP_KIND`.
+`snapback2 why <query> '<args-json>' --as alice` shows requirements and lookups.
+`--json`: authoritative trace and owner-only `rowVerdicts`/`diagnostics`.
+Ordinary responses expose no hidden-row hints. Mutations refuse `E_OP_KIND`.

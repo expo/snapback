@@ -13,7 +13,8 @@ function Conversation({ conversationId, viewer }: Props) {
   const auth = useAuth();
   const account = auth.state === "anonymous" ? null : auth.viewer ?? auth.restoringViewer;
   const snapshot = useQuery(api.messages.conversationView, { conversationId }, { items: conversationItems });
-  const [opened, setOpened] = useState<string[]>([]);
+  const [opened, setOpened] = useState({ account, ids: [] as string[] });
+  if (account !== undefined && account !== opened.account) setOpened({ account, ids: [] });
   const { dismiss } = useOutbox();
   const edit = useMutation(messageWrites.update), unsend = useMutation(messageWrites.remove);
   const composite = snapshot.data, preview = composite?.preview[0]?.message?.body;
@@ -39,8 +40,8 @@ function Conversation({ conversationId, viewer }: Props) {
         const photoKey = account == null ? undefined : JSON.stringify([account, messageId]);
         return <li key={messageId} data-message={messageId} data-state={post?.state ?? "row"} className={!message ? "bubble pending" : own ? "bubble own" : "bubble"}>
           <p>{message?.body || item.draft?.body || (message?.photo ? "[photo]" : message?.clip ? "[clip]" : "")}</p>
-          {message?.oncePhoto ? photoKey !== undefined && opened.includes(photoKey) ? <AssetImage asset={message.oncePhoto} width={240} />
-            : <button type="button" disabled={photoKey === undefined} onClick={() => photoKey !== undefined && setOpened((ids) => [...ids, photoKey])}>View photo once</button> : null}
+          {message?.oncePhoto ? photoKey !== undefined && opened.ids.includes(photoKey) ? <AssetImage asset={message.oncePhoto} width={240} />
+            : <button type="button" disabled={photoKey === undefined} onClick={() => photoKey !== undefined && setOpened((state) => ({ ...state, ids: [...state.ids, photoKey] }))}>View photo once</button> : null}
           {message && !post && !item.predicted ? <time dateTime={new Date(message.at).toISOString()}>{new Date(message.at).toLocaleTimeString()}</time> : null}
           {item.pending.map(action => <small key={action.intent}
             data-edit={action.kind === "update" ? action.state : undefined} data-unsend={action.kind === "remove" ? action.state : undefined}>

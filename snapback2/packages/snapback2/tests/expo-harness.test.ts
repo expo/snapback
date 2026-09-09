@@ -490,11 +490,11 @@ for (const boundary of ["navigation", "account", "anonymous"]) test(`Expo cold C
 });
 
 
-test("Expo keeps the conversation mounted without carrying a once-photo opening to the next viewer", async () => {
+test("Expo keeps the conversation mounted without carrying a once-photo opening to the next viewer", async (t) => {
   let bobAssetRequests = 0;
   const alice = createClient({ url: chatOwner.url, persona: "alice" });
   const bob = createClient({ url: chatOwner.url, persona: "bob", fetch: async (input, init) => {
-    if (new URL(String(input)).pathname.startsWith("/api/assets/")) bobAssetRequests++;
+    if (new URL(String(input)).pathname.startsWith("/api/asset/")) bobAssetRequests++;
     return globalThis.fetch(input, init);
   } });
   let renderer!: ReturnType<typeof TestRenderer.create>;
@@ -511,12 +511,19 @@ test("Expo keeps the conversation mounted without carrying a once-photo opening 
     await until(() => Boolean(button()));
     const list = renderer.root.findAllByType("NativeScrollView").find(node => node.findAllByProps({ testID: "thread-summary" }).length)!;
     await act(async () => button()!.props.onPress());
-    await until(() => !!bubble()?.findAllByType("NativeImage").length);
+    await until(() => !!bubble()?.findAllByType("NativeImage")[0]?.props.source?.uri);
     await act(async () => renderer.update(view(bob)));
     await until(() => Boolean(button()), () => `Bob unopened photo: ${JSON.stringify(bob.snapshot.auth)} ${nativeText(renderer)}`);
     assert.ok(renderer.root.findAllByType("NativeScrollView").find(node => node.findAllByProps({ testID: "thread-summary" }).length) === list, "viewer changes preserve the conversation/list");
     assert.equal(bubble()!.findAllByType("NativeImage").length, 0);
     assert.equal(bobAssetRequests, 0, "Bob has not chosen to spend his view-once delivery");
+    const unopened = bubble();
+    await act(async () => button()!.props.onPress());
+    await until(() => !!bubble()?.findAllByType("NativeImage")[0]?.props.source?.uri);
+    assert.equal(bobAssetRequests, 1, "Bob's click requests his photo bytes exactly once");
+    assert.strictEqual(bubble(), unopened, "opening preserves Bob's bubble");
+    assert.ok(renderer.root.findAllByType("NativeScrollView").includes(list));
+    t.diagnostic("Alice → Bob: 0 Bob byte requests before click; exactly 1 after explicit open; list and Bob bubble unchanged");
   } finally { if (renderer) await act(async () => renderer.unmount()); await alice.close(); await bob.close(); }
 });
 
