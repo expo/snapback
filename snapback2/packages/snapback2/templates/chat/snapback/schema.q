@@ -34,7 +34,7 @@ table memberships:
   joinedAt: time
   unique byConversationPrincipal: conversationId, principal
   by byConversationPrincipalRole: conversationId, principal, role
-  by byPrincipalConversation: principal, conversationId
+  by byPrincipalConversation: principal, conversationId, id
   cap 50 by conversationId
   immutable conversationId, principal, joinedAt
   read <- exists memberships[.conversationId, viewer]

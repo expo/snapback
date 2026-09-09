@@ -26,7 +26,7 @@ const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const bundlePath = resolve(packageRoot, "dist/.chat-screens-transition.test-bundle.mjs");
 let App: (props: Record<string, never>) => React.ReactElement;
 let Composer: (props: { conversationId: string; onNote(note: string): void }) => React.ReactElement;
-let Thread: (props: { conversationId: string; viewer: string | undefined; onNote(note: string): void }) => React.ReactElement;
+let Thread: (props: { conversationId: string; onNote(note: string): void }) => React.ReactElement;
 let usableConversationView: (result: any) => any;
 let authorizedHistoryRows: (result: any) => unknown[];
 let screenOwner: RealOwnerHarness;
@@ -180,7 +180,7 @@ test("partial history becomes one coherent view without remounting its pending b
     client = createClient({ url: screenOwner.url, persona: "alice", startOffline: true, offline: { store } });
     await client.ready;
     await act(async () => reactRoot.render(React.createElement(SnapbackProvider, { client },
-      React.createElement(Thread, { conversationId, viewer: "dev:alice", onNote: () => undefined }))));
+      React.createElement(Thread, { conversationId, onNote: () => undefined }))));
     await waitFor(() => document.querySelector("ol.bubbles")?.getAttribute("data-view-source") === "partial-history",
       "the independently covered history fallback");
     assert.equal(sharedConsumers(client, api.messages.thread, { conversationId, c: null }), 1,

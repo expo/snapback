@@ -82,10 +82,10 @@ fn assert_rendering(template: &str, chat: bool) {
             .iter()
             .filter_map(|program| program["name"].as_str())
             .collect::<BTreeSet<_>>();
-        // 25 operations plus the expiry schedule's binding program (never an API operation).
+        // 26 operations plus the expiry schedule's binding program (never an API operation).
         assert_eq!(
             operations.len(),
-            26,
+            27,
             "unexpected chat operation set: {operations:?}"
         );
         let api = std::fs::read_to_string(project.path.join(".snapback/build/api.d.ts")).unwrap();
@@ -182,7 +182,7 @@ fn assert_rendering(template: &str, chat: bool) {
             .iter()
             .filter(|check| check["kind"] == "journey")
             .collect::<Vec<_>>();
-        assert_eq!(journeys.len(), 15, "{receipt}");
+        assert_eq!(journeys.len(), 16, "{receipt}");
         assert!(
             journeys.iter().all(|check| check["verdict"] == "pass"),
             "{receipt}"

@@ -5,12 +5,14 @@ import { useConnection, useOutbox, useQuery } from "snapback2/react-native";
 import { Inbox, type LogRow } from "./screens/Inbox";
 import { Thread } from "./screens/Thread";
 import { Search } from "./screens/Search";
+import { NewConversation } from "./NewConversation";
 
 export function Chat() {
   const connection = useConnection();
   const outbox = useOutbox();
   const [showChanges, setShowChanges] = useState(false);
   const inbox = useQuery(api.messages.inbox, { c: null }, { drain: true });
+  const groups = useQuery(api.groups.mine, { c: null }, { drain: true });
   const rows = (inbox.data ?? []) as LogRow[];
   const [selected, select] = useState<string>();
   return <SafeAreaView style={{ flex: 1, backgroundColor: "#f7f7fb" }}>
@@ -22,7 +24,7 @@ export function Chat() {
     </View>)}</ScrollView> : null}
     {selected ? <><Button title="Inbox" onPress={() => select(undefined)} /><Thread conversationId={selected} /></>
       : <ScrollView contentContainerStyle={{ padding: 16 }}>
-        <Search onOpen={select} /><Inbox rows={rows} onSelect={select} />
+        <Search onOpen={select} /><NewConversation onOpen={select} /><Inbox groups={groups.data ?? []} rows={rows} onSelect={select} />
         {inbox.status === "unavailable" ? <Text>{inbox.reason?.message}</Text> : null}
       </ScrollView>}
   </SafeAreaView>;

@@ -26,6 +26,49 @@ const coreEntry = await import("../dist/react-core.mjs");
 const { SnapbackProvider, createExpoClient, expoSecureTokenStore, expoSqliteDriver } = expoEntry;
 const { useSnapbackClient, useConnection, useAuth, useMutation, useOutbox, useSnapbackSnapshot } = nativeEntry;
 const { witnessControl, runSqliteDriverConformance } = await import("../dist/expo/witness.mjs");
+
+test("Expo starter account screen uses real signup, login, guest and logout with shared identity", async () => {
+  const bundlePath = fileURLToPath(new URL("../dist/.expo-auth.test.mjs", import.meta.url));
+  const bundled = await build({ entryPoints: [fileURLToPath(new URL("../templates/chat/expo/src/Auth.tsx", import.meta.url))],
+    bundle: true, write: false, format: "esm", jsx: "automatic", external: ["react", "react/jsx-runtime", "react-native", "snapback2/react-native"] });
+  await writeFile(bundlePath, bundled.outputFiles[0]!.text);
+  const { Auth } = await import(pathToFileURL(bundlePath).href);
+  const secure = expoSecureTokenStore("template", secureFake());
+  const paths: string[] = [];
+  const client = createClient({ url: "http://native-auth.test", tokenStore: secure, fetch: async (input, init) => {
+    const path = new URL(String(input)).pathname; paths.push(path);
+    assert.equal(new Headers(init?.headers).get("X-Snapback-As"), null);
+    if (path === "/api/auth/me") return Response.json({ code: "E_AUTH_REQUIRED", family: "auth", message: "Sign in", guide: "auth" }, { status: 401 });
+    if (path === "/api/auth/logout") return Response.json({ ok: true });
+    if (path.startsWith("/api/auth/")) {
+      const guest = path.endsWith("guest");
+      if (!guest) assert.deepEqual(JSON.parse(String(init?.body)), { email: "native@example.test", password: "password" });
+      return Response.json({ token: guest ? "guest-token" : "account-token", viewer: guest ? "guest-id" : "account-id", kind: guest ? "guest" : "user" });
+    }
+    return Response.json({ generation: "g", programGeneration: "p", ops: {}, channels: {}, auth: {} });
+  } });
+  let renderer: TestRenderer.ReactTestRenderer | undefined;
+  function Identity() { return React.createElement("Identity", null, nativeEntry.useViewer()); }
+  const press = async (title: string) => { await act(async () => {
+    renderer!.root.findAllByType("NativeButton").find(node => node.props.title === title)!.props.onPress();
+    await new Promise<void>(resolve => setImmediate(resolve));
+  }); };
+  try {
+    await act(async () => { renderer = TestRenderer.create(React.createElement(SnapbackProvider, { client }, React.createElement(Auth, null, React.createElement(Identity)))); await client.ready; });
+    assert.equal(renderer!.root.findAllByType("Identity").length, 0);
+    for (const action of ["Sign up", "Log in", "Continue as guest"]) {
+      await act(async () => { for (const field of renderer!.root.findAllByType("NativeTextInput")) field.props.onChangeText(field.props.secureTextEntry ? "password" : "native@example.test"); });
+      await press(action);
+      assert.equal(renderer!.root.findByType("Identity").children[0], action === "Continue as guest" ? "guest-id" : "account-id");
+      assert.equal(await secure.load(), action === "Continue as guest" ? "guest-token" : "account-token");
+      await press("Log out");
+      assert.equal(renderer!.root.findAllByType("Identity").length, 0);
+      assert.equal(await secure.load(), null);
+    }
+    assert.ok(["signup", "login", "guest", "logout", "me"].every(action => paths.includes(`/api/auth/${action}`)));
+  } finally { if (renderer) await act(async () => renderer!.unmount()); await client.close(); await rm(bundlePath, { force: true }); }
+});
+
 // Keep the real shared outbox read model when a test supplies transport doubles.
 const outboxBundle = await build({ entryPoints: [fileURLToPath(new URL("../src/client-outbox-observed.ts", import.meta.url))],
   bundle: true, write: false, format: "esm", platform: "node" });
@@ -564,7 +607,7 @@ test("replacing a supplied client clears authentication, mutations, and outbox r
     await act(async () => { renderer = TestRenderer.create(tree(alice)); });
     await act(async () => { await current.mutation.run({ stage: "last" }); });
     await act(async () => { await assertRefused(current.mutation.run({ stage: "transport" })); });
-    assert.equal(current.auth.viewer, "dev:alice");
+    assert.equal(current.auth.session.viewer, "dev:alice");
     assert.equal(current.mutation.last.code, "E_TRANSPORT");
     assert.equal(current.mutation.last.retryable, true);
     assert.equal(current.mutation.can.send, true);
@@ -582,8 +625,8 @@ test("replacing a supplied client clears authentication, mutations, and outbox r
     for (const view of renders) {
       assert.equal(view.client, bob);
       assert.equal(view.snapshot.persona, "bob", "even the first render uses Bob's snapshot");
-      assert.equal(view.auth.viewer, undefined);
-      assert.equal(view.auth.state, "hydrating");
+      assert.equal(view.auth.session.viewer, undefined);
+      assert.equal(view.auth.session.state, "hydrating");
       assert.equal(view.mutation.last, undefined);
       assert.equal(view.mutation.inFlight, false);
       assert.equal(view.mutation.can.send, false);
@@ -602,7 +645,7 @@ test("replacing a supplied client clears authentication, mutations, and outbox r
       lateFailure.reject(transport);
       await Promise.all([oldSuccess, oldFailure]);
     });
-    assert.equal(current.auth.viewer, "dev:bob");
+    assert.equal(current.auth.session.viewer, "dev:bob");
     assert.equal(current.mutation.last, undefined);
     assert.equal(current.mutation.inFlight, true, "Alice's completion cannot decrement Bob's pending run");
     assert.equal(current.outbox.can.send, true);
@@ -723,8 +766,8 @@ test("Expo provider and two native auth hooks share one cut/reconnect flight", a
       React.createElement(Probe, { index: 0 }), React.createElement(Probe, { index: 1 }))); await flush(); });
     assert.equal(requests, 2, "initial cut plus the Provider manifest transition");
     assert.deepEqual(views[0], views[1]);
-    assert.equal(views[0].state, "hydrating");
-    assert.equal(views[0].restoringViewer, "alice");
+    assert.equal(views[0].session.state, "hydrating");
+    assert.equal(views[0].session.restoringViewer, "alice");
     await act(async () => { cut = false; await client.offline(); await client.online(); await flush(); });
     assert.equal(requests, 3);
     const one = client.auth.me(), two = client.auth.me();
@@ -732,8 +775,8 @@ test("Expo provider and two native auth hooks share one cut/reconnect flight", a
     assert.equal(requests, 3);
     await act(async () => { finish(Response.json({ viewer: "alice", kind: "user", authEpoch: 1 })); await Promise.all([one, two]); await flush(); });
     assert.deepEqual(views[0], views[1]);
-    assert.equal(views[0].viewer, "alice");
-    assert.equal(views[0].kind, "user");
+    assert.equal(views[0].session.viewer, "alice");
+    assert.equal(views[0].session.kind, "user");
   } finally {
     finish(Response.json({ viewer: "alice", kind: "user" }));
     if (renderer) await act(async () => renderer.unmount());

@@ -1,5 +1,9 @@
 fn isAdmin from access
 
+query mine(c: cursor ?):
+  page = memberships[viewer] after c first 50 by byPrincipalConversation
+  return page { conversationId, conversation: conversations[.conversationId] }
+
 mutation groupCreate(title: text <=120, members: [principal] <=49):
   require count(members) >= 1 else GROUP_REQUIRES_MEMBER
   conversationId = new

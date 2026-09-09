@@ -25,7 +25,7 @@ const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const bundlePath = resolve(packageRoot, "dist/.chat-screens-recovery.test-bundle.mjs");
 let App: (props: Record<string, never>) => React.ReactElement;
 let Composer: (props: { conversationId: string; onNote(note: string): void }) => React.ReactElement;
-let Thread: (props: { conversationId: string; viewer: string | undefined; onNote(note: string): void }) => React.ReactElement;
+let Thread: (props: { conversationId: string; onNote(note: string): void }) => React.ReactElement;
 let screenOwner: RealOwnerHarness;
 
 before(async () => {
@@ -197,7 +197,7 @@ test("a follower Composer's send is durable before it resolves, survives a reloa
     });
   };
   const render = (client: any, conversationId: string) => React.createElement(SnapbackProvider, { client },
-    React.createElement(Thread, { conversationId, viewer: "dev:alice", onNote: (note: string) => notes.push(note) }));
+    React.createElement(Thread, { conversationId, onNote: (note: string) => notes.push(note) }));
   try {
     await writer.ready;
     follower = createClient({ url: screenOwner.url, persona: "alice", fetch: transport, offline: { store: store() } });

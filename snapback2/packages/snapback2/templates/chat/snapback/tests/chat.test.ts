@@ -1,5 +1,5 @@
 import { subscribe } from "snapback2/internal";
-import { api, mutationTarget, type ImageAsset } from "snapback2/client";
+import { api, createClient, mutationTarget, type ImageAsset } from "snapback2/client";
 import { fixture, journey } from "snapback2/test";
 const postedMessage = mutationTarget(api.messages.send, "messages");
 
@@ -719,4 +719,30 @@ journey("an expiring message is purged by the owner's schedule with every client
     thread.close();
     bob.close();
   }
+});
+
+
+journey("fresh accounts discover empty conversations and exchange a message", async ({ url }) => {
+  const creator = createClient({ url }), member = createClient({ url }), outsider = createClient({ url });
+  const email = `starter-${Date.now()}-${Math.random().toString(16).slice(2)}@example.test`;
+  try {
+    await creator.auth.signup({ email, password: "starter-password" });
+    const guest = await member.auth.guest();
+    await outsider.auth.guest();
+    const group = await creator.mutation(api.groups.groupCreate, { title: "Fresh conversation", members: [guest.viewer] });
+    if (group.state !== "committed") throw new Error(`create refused: ${JSON.stringify(group)}`);
+    const id = group.data.id;
+    for (const client of [creator, member]) {
+      const groups = await client.query(api.groups.mine, { c: null });
+      if (!("data" in groups) || !groups.data?.some(row => row.conversation?.id === id)) throw new Error("empty group absent from member inbox");
+    }
+    const hidden = await outsider.query(api.groups.mine, { c: null });
+    if (!("data" in hidden) || hidden.data?.some(row => row.conversationId === id)) throw new Error("outsider discovered a private group");
+    await creator.auth.logout();
+    await creator.auth.login({ email, password: "starter-password" });
+    const sent = await creator.mutation(api.messages.send, { conversationId: id, body: "No seed persona needed" });
+    if (sent.state !== "committed") throw new Error("fresh account could not send");
+    const thread = await member.query(api.messages.thread, { conversationId: id, c: null });
+    if (!("data" in thread) || !bodies(thread.data).includes("No seed persona needed")) throw new Error("guest could not read the account's message");
+  } finally { await Promise.all([creator.close(), member.close(), outsider.close()]); }
 });

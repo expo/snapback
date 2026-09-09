@@ -54,9 +54,9 @@ test("parent and later child auth hooks agree across a restoration cut and recon
     await restored(client);
     assert.equal(requests, 1);
     await act(async () => { renderer = TestRenderer.create(render(false)); await flush(); });
-    assert.equal(views[0].state, "hydrating");
-    assert.equal(views[0].restoringViewer, "alice");
-    assert.equal(views[0].viewer, undefined);
+    assert.equal(views[0].session.state, "hydrating");
+    assert.equal(views[0].session.restoringViewer, "alice");
+    assert.equal(views[0].session.viewer, undefined);
     assert.equal(store.load(), "token-a");
     const initial = requests;
     assert.equal(initial, 2, "the independent manifest reconnect triggers exactly one attempt");
@@ -64,9 +64,9 @@ test("parent and later child auth hooks agree across a restoration cut and recon
     assert.deepEqual(views[0], views[1]);
     assert.equal(requests, initial, "mounting another hook does not create another me request");
     await act(async () => { cut = false; await client.offline(); await client.online(); await flush(); });
-    assert.equal(views[0].state, "authenticated");
-    assert.equal(views[0].viewer, "alice");
-    assert.equal(views[0].restoringViewer, undefined);
+    assert.equal(views[0].session.state, "authenticated");
+    assert.equal(views[0].session.viewer, "alice");
+    assert.equal(views[0].session.restoringViewer, undefined);
     assert.deepEqual(views[0], views[1]);
     assert.equal(requests, initial + 1);
   } finally { if (renderer) await act(async () => renderer.unmount()); await client.close(); }
@@ -415,8 +415,8 @@ test("two persona hooks share the lazy me flight", async context => {
     assert.equal(requests, 1);
     assert.deepEqual(views[0], views[1]);
     await act(async () => { response.resolve(json({ viewer: "dev:alice", kind: "persona" })); await flush(); });
-    assert.equal(views[0].viewer, "dev:alice");
-    assert.equal(views[0].restoringViewer, undefined);
+    assert.equal(views[0].session.viewer, "dev:alice");
+    assert.equal(views[0].session.restoringViewer, undefined);
     assert.deepEqual(views[0], views[1]);
     assert.equal(requests, 1);
   } finally { response.resolve(me()); if (renderer) await act(async () => renderer.unmount()); await client.close(); }
@@ -563,10 +563,11 @@ test("session success publishes token, kind and authEpoch together to hooks", as
     await restored(client);
     await act(async () => { renderer = TestRenderer.create(React.createElement(SnapbackProvider, { client }, React.createElement(Probe))); await flush(); });
     await act(async () => { await client.auth.login({ email: "bob@example.com", password: "password" }); });
-    assert.equal(view!.kind, "guest", "the wire supplies kind; it is not guessed from the route");
-    assert.equal(view!.authEpoch, 42);
-    assert.equal(view!.viewer, "bob");
-    assert.equal(view!.token, "token-b");
+    assert.equal(view!.session.kind, "guest", "the wire supplies kind; it is not guessed from the route");
+    assert.equal(view!.session.authEpoch, 42);
+    assert.equal(view!.session.viewer, "bob");
+    assert.equal(client.snapshot.token, "token-b");
+    assert.equal("token" in view!, false, "the view does not expose bearer custody");
     for (const snapshot of snapshots.filter(snapshot => snapshot.token === "token-b")) {
       assert.equal(snapshot.auth.viewer, "bob");
       assert.equal(snapshot.auth.kind, "guest");

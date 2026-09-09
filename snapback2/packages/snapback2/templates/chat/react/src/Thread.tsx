@@ -1,17 +1,17 @@
 import { useRef, useState } from "react";
 import { api } from "snapback2/client";
-import { AssetImage, useMutation, useOutbox, useQuery, useSnapbackClient, useSnapbackSnapshot } from "snapback2/react";
+import { AssetImage, useMutation, useOutbox, useQuery, useViewer, useSnapbackClient, useSnapbackSnapshot } from "snapback2/react";
 import { Composer } from "./Composer";
 import { conversationItems, messageWrites } from "../shared/thread";
 
 const when = (at: number) => new Date(at).toLocaleTimeString();
 const describe = (error: unknown) => error instanceof Error ? error.message : String(error);
 
-export function Thread({ conversationId, viewer, onNote }: {
+export function Thread({ conversationId, onNote }: {
   conversationId: string;
-  viewer: string | undefined;
   onNote(note: string): void;
 }) {
+  const viewer = useViewer();
   const snapshot = useQuery(api.messages.conversationView, { conversationId }, { items: conversationItems });
   const [opened, setOpened] = useState<string[]>([]);
   const composite = snapshot.itemsFrom === "query" ? snapshot.data : undefined;

@@ -1,15 +1,19 @@
+import { Auth } from "./Auth";
 import { useState } from "react";
 import { api, intentLabel } from "snapback2/client";
-import { DevOverlay, useAuth, useConnection, useOutbox, useQuery } from "snapback2/react";
+import { DevOverlay, useConnection, useOutbox, useQuery } from "snapback2/react";
 import { Inbox, type LogRow } from "./Inbox";
 import { Search } from "./Search";
 import { Thread } from "./Thread";
+import { NewConversation } from "./NewConversation";
 
-export function App() {
+export function App() { return <Auth><Home /></Auth>; }
+
+function Home() {
   const connection = useConnection();
-  const auth = useAuth();
   const outbox = useOutbox();
   const inbox = useQuery(api.messages.inbox, { c: null }, { drain: true });
+  const groups = useQuery(api.groups.mine, { c: null }, { drain: true });
   const rows = (inbox.data ?? []) as LogRow[];
   const [selected, setSelected] = useState<string>();
   const [note, setNote] = useState("");
@@ -29,8 +33,9 @@ export function App() {
         </ul></details> : null}
       </header>
       <Search onOpen={setSelected} />
-      <Inbox rows={rows} selected={selected} onSelect={setSelected} />
-      {selected ? <Thread conversationId={selected} viewer={auth.viewer} onNote={setNote} /> : <p>Pick a conversation.</p>}
+      <Inbox groups={groups.data ?? []} rows={rows} selected={selected} onSelect={setSelected} />
+      {selected ? <Thread conversationId={selected} onNote={setNote} /> : <p>Pick a conversation.</p>}
+      <NewConversation onOpen={setSelected} />
       <DevOverlay />
     </main>
   );

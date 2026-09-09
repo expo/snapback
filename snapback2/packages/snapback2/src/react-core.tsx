@@ -283,8 +283,10 @@ export function useMutation<Args, Result>(ref: Op<Args, Result>): UseMutationRes
   );
 }
 
-export type AuthHookState = AuthSnapshot["state"];
-export interface UseAuthResult extends AuthSnapshot, AuthApi { token?: string }
+export interface UseAuthResult {
+  session: AuthSnapshot;
+  actions: AuthApi;
+}
 
 export function useAuth(): UseAuthResult {
   const { client, snapshot } = provider();
@@ -297,7 +299,13 @@ export function useAuth(): UseAuthResult {
     }).catch(() => undefined);
     return () => { active = false; };
   }, [client]);
-  return { ...snapshot.auth, token: snapshot.token, ...client.auth };
+  return useMemo(() => ({ session: snapshot.auth, actions: client.auth }), [snapshot.auth, client]);
+}
+
+/** Current or token-bound restored identity for display; never grants read/write authority. */
+export function useViewer(): Principal | undefined {
+  const { session } = useAuth();
+  return session.viewer ?? session.restoringViewer;
 }
 
 export interface UseChannelResult<Value> extends ChannelSnapshot<Value> {

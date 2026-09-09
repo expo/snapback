@@ -1,3 +1,7 @@
+import { readFileSync, writeFileSync, rmSync } from "node:fs";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { join } from "node:path";
+import { build } from "esbuild";
 import { assertRefused } from "./live-fixture.ts";
 import { isRefusalError } from "../dist/client-observed-test.mjs";
 import { subscribe } from "../src/internal.js";
@@ -7,9 +11,9 @@ import { createRequire } from "node:module";
 import { channelFrame } from "./live-fixture.ts";
 import React from "react";
 import TestRenderer, { act } from "react-test-renderer";
-import { api, createClient } from "../dist/client.mjs";
+import { api, browserTokenStore, createClient } from "../dist/client.mjs";
 import { RefusalError } from "../dist/client-observed-test.mjs";
-import { SnapbackProvider, useAuth, useMutation } from "../dist/react.mjs";
+import { SnapbackProvider, useAuth, useViewer, useMutation, type UseAuthResult } from "../dist/react.mjs";
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -518,14 +522,14 @@ test("useAuth ignores stale me responses after logout and client replacement", a
     await Promise.resolve();
   });
   assert.ok(releaseLogoutMe, "initial auth/me was not in flight");
-  await act(async () => { await auth.logout(); });
-  assert.equal(auth.state, "anonymous");
+  await act(async () => { await auth.actions.logout(); });
+  assert.equal(auth.session.state, "anonymous");
   await act(async () => {
     releaseLogoutMe!(fetchJson({ viewer: "old-viewer", kind: "user" }));
     await Promise.resolve();
   });
-  assert.equal(auth.state, "anonymous");
-  assert.notEqual(auth.viewer, "old-viewer");
+  assert.equal(auth.session.state, "anonymous");
+  assert.notEqual(auth.session.viewer, "old-viewer");
   await act(async () => { renderer!.unmount(); });
 
   let releaseOldClient: ((response: Response) => void) | undefined;
@@ -561,12 +565,12 @@ test("useAuth ignores stale me responses after logout and client replacement", a
     ));
     await Promise.resolve();
   });
-  assert.equal(auth.viewer, "new-viewer");
+  assert.equal(auth.session.viewer, "new-viewer");
   await act(async () => {
     releaseOldClient!(fetchJson({ viewer: "old-client-viewer", kind: "user" }));
     await Promise.resolve();
   });
-  assert.equal(auth.viewer, "new-viewer");
+  assert.equal(auth.session.viewer, "new-viewer");
   await act(async () => { renderer!.unmount(); });
 });
 
@@ -590,4 +594,87 @@ test("useMutation keeps a current catch and ignores a predecessor's late catch",
     await act(async () => { rejectOld(new Error("obsolete catch")); await old; });
     assert.strictEqual(hook.last, current); assert.equal(hook.inFlight, false);
   } finally { if (renderer) await act(async () => renderer.unmount()); await client.close(); }
+});
+
+test("shipped web auth signs up, restores who-am-I, logs out, rejects bad login, logs in and admits a guest", async () => {
+  const json = (value: unknown, status = 200) => Response.json(value, { status });
+  const me = (viewer: string) => json({ viewer, kind: "user", authEpoch: 1 });
+  const refusal = (code: string) => json({ code, family: "auth", message: code, guide: "auth/session" }, 401);
+  const flush = () => new Promise<void>(resolve => setImmediate(resolve));
+  const restored = async (client: { ready: Promise<void> }) => { await client.ready; await flush(); };
+  const root = fileURLToPath(new URL("../", import.meta.url));
+  assert.equal(readFileSync(join(root, "templates/react/src/Auth.tsx"), "utf8"),
+    readFileSync(join(root, "templates/chat/react/src/Auth.tsx"), "utf8"), "both web starters ship the same real flow");
+  const output = join(root, "dist/.auth-template.test.mjs");
+  const bundled = await build({ entryPoints: [join(root, "templates/chat/react/src/Auth.tsx")], bundle: true, write: false,
+    format: "esm", jsx: "automatic", external: ["react", "react/jsx-runtime", "snapback2/react"] });
+  writeFileSync(output, bundled.outputFiles[0]!.text);
+  const { Auth } = await import(pathToFileURL(output).href);
+  const saved = new Map<string, string>();
+  const store = browserTokenStore({ getItem: key => saved.get(key) ?? null, setItem: (key, value) => { saved.set(key, value); }, removeItem: key => { saved.delete(key); } }, "template-auth");
+  const requests: string[] = [];
+  let meRequests = 0;
+  const fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    const path = new URL(String(input)).pathname;
+    const bearer = new Headers(init?.headers).get("Authorization");
+    assert.equal(new Headers(init?.headers).get("X-Snapback-As"), null);
+    requests.push(path);
+    if (path === "/api/auth/me") {
+      meRequests++;
+      return bearer ? me(bearer === "Bearer guest-token" ? "guest-id" : "account-id") : refusal("E_AUTH_REQUIRED");
+    }
+    if (path === "/api/auth/logout") return json({ ok: true });
+    if (path === "/api/auth/login" && JSON.parse(String(init?.body)).password === "wrong") return refusal("E_AUTH_INVALID");
+    if (["/api/auth/signup", "/api/auth/login", "/api/auth/guest"].includes(path)) {
+      const guest = path.endsWith("guest");
+      if (!guest) assert.deepEqual(JSON.parse(String(init?.body)), { email: "new@example.test", password: "password" });
+      return json({ token: guest ? "guest-token" : "account-token", viewer: guest ? "guest-id" : "account-id", kind: guest ? "guest" : "user" });
+    }
+    return json({ generation: "g", programGeneration: "p", ops: {}, channels: {}, auth: {} });
+  };
+  let client = createClient({ url: "http://template.test", tokenStore: store, fetch });
+  let renderer!: TestRenderer.ReactTestRenderer, current!: UseAuthResult;
+  function Child() { current = useAuth(); return React.createElement("output", null, useViewer()); }
+  const mount = async () => { await act(async () => { renderer = TestRenderer.create(React.createElement(SnapbackProvider, { client }, React.createElement(Auth, null, React.createElement(Child)))); await restored(client); }); };
+  const button = (label: string) => renderer.root.findAllByType("button").find(node => node.children.join("") === label)!;
+  const click = async (label: string) => { await act(async () => { button(label).props.onClick(); await flush(); }); };
+  const fields = async (password: string) => { await act(async () => { for (const input of renderer.root.findAllByType("input")) input.props.onChange({ target: { value: input.props.type === "email" ? "new@example.test" : password } }); }); };
+  const login = async () => { await act(async () => { renderer.root.findByType("form").props.onSubmit({ preventDefault() {} }); await flush(); }); };
+  try {
+    await mount();
+    assert.equal(renderer.root.findAllByType("output").length, 0);
+    await fields("password"); await click("Sign up");
+    assert.equal(renderer.root.findByType("output").children[0], "account-id");
+    assert.equal(current.session, client.snapshot.auth);
+    assert.equal(current.actions, client.auth);
+    assert.equal("token" in current, false);
+    assert.equal(saved.get("template-auth"), "account-token");
+    await act(async () => renderer.unmount()); await client.close();
+    const beforeRestore = meRequests;
+    client = createClient({ url: "http://template.test", tokenStore: store, fetch });
+    await mount();
+    assert.equal(meRequests, beforeRestore + 1, "gate and nested identity read share restoration");
+    assert.equal(renderer.root.findByType("output").children[0], "account-id");
+    await act(async () => renderer.unmount()); await client.close();
+    const beforeOffline = meRequests;
+    client = createClient({ url: "http://template.test", tokenStore: store, fetch, startOffline: true });
+    await mount();
+    assert.equal(client.snapshot.auth.state, "hydrating");
+    assert.equal(renderer.root.findByType("output").children[0], "account-id", "token-bound identity keeps the held app mounted offline");
+    assert.equal(meRequests, beforeOffline, "offline restart does not dispatch authentication");
+    await act(async () => { await client.online(); await flush(); });
+    assert.equal(client.snapshot.auth.state, "authenticated");
+    await click("Log out");
+    assert.equal(saved.size, 0);
+    assert.equal(renderer.root.findAllByType("output").length, 0);
+    await fields("wrong"); await login();
+    assert.match(JSON.stringify(renderer.toJSON()), /E_AUTH_INVALID/);
+    assert.equal(renderer.root.findAllByType("output").length, 0);
+    await fields("password"); await login();
+    assert.equal(renderer.root.findByType("output").children[0], "account-id");
+    await click("Log out"); await click("Continue as guest");
+    assert.equal(renderer.root.findByType("output").children[0], "guest-id");
+    assert.equal(saved.get("template-auth"), "guest-token");
+    assert.ok(["signup", "login", "guest", "logout", "me"].every(action => requests.includes(`/api/auth/${action}`)));
+  } finally { if (renderer) await act(async () => renderer.unmount()); await client.close(); rmSync(output, { force: true }); }
 });

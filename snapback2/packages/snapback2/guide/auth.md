@@ -12,7 +12,23 @@ Restore: set `tokenStore`; await `client.ready`. Browser:
 `browserTokenStore(storage, backendSpecificKey)`. Personas refuse bearer
 transitions/tokens; production refuses personas. Logout/expiry fence one session.
 
-`snapshot.auth`/`useAuth()`: `hydrating`, `authenticated`
+React/Expo: `const { session, actions } = useAuth()`. `session` is the client's
+shared identity snapshot; `actions` is `signup`, `login`, `guest`, `logout`, `me`.
+The hook does not expose a token. `useViewer()` reads the same provider identity
+in any descendant: no viewer props or extra query. It includes token-bound
+`restoringViewer` for offline display, never permission to read or write.
+
+Every React/Expo starter ships a compact `Auth.tsx`: email/password signup and
+login, guest, visible errors, identity, logout, and automatic who-am-I restoration.
+Web explicitly stores its bearer in `localStorage`; Expo uses SecureStore. Both
+keys include the backend URL. Account changes remount app state. Cold offline
+restoration preserves the bound account's screen; the SDK admits only held reads.
+Chat's New conversation form invites a friend's displayed account ID.
+`groups.mine` lists the viewer's memberships, so both accounts discover empty
+conversations before the first message; delivery rows still supply previews.
+Development personas belong in CLI commands and test fixtures, not starter UI.
+
+`snapshot.auth` / `useAuth().session`: `hydrating`, `authenticated`
 (`viewer`, `kind`, `authEpoch`), `anonymous` (no `refusal`), `refused`
 (`refusal`). Restoration needs no hooks; callers share `me()`.
 Hydrating `restoringViewer` is confirmed for this token but display-only. Reads

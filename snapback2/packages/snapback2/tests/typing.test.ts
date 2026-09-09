@@ -9,6 +9,33 @@ import ts from "typescript";
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
+test("authenticated starter screens typecheck against their generated Quarry API", async context => {
+  for (const [template, arm] of [["todos", "react"], ["chat", "react"], ["chat", "expo"]]) await context.test(`${template}/${arm}`, async () => {
+    const root = await mkdtemp(join(tmpdir(), "snapback2-starter-types-"));
+    try {
+      await cp(join(packageRoot, "templates", template, "snapback"), join(root, "snapback"), { recursive: true });
+      await cp(join(packageRoot, "templates", ...(template === "chat" ? [template, arm] : [arm])), root, { recursive: true, dereference: true });
+      await mkdir(join(root, "node_modules"));
+      await symlink(packageRoot, join(root, "node_modules/snapback2"), "dir");
+      for (const dependency of ["react", "react-dom", "react-native", "expo", "expo-file-system", "vite", "@types"]) {
+        await symlink(join(packageRoot, "node_modules", dependency), join(root, "node_modules", dependency), "dir");
+      }
+      const compiled = spawnSync(process.execPath, [join(packageRoot, "dist/compiler.mjs"), "--project", root], { encoding: "utf8", timeout: 15_000 });
+      assert.equal(compiled.status, 0, `${compiled.stderr}\n${compiled.stdout}`);
+      const output = JSON.parse(compiled.stdout);
+      assert.equal(output.ok, true, compiled.stdout);
+      await writeFile(join(root, "api.d.ts"), output.apiDts);
+      const program = ts.createProgram({ rootNames: [join(root, "api.d.ts"), ...(arm === "expo" ? [join(root, "src/Auth.tsx"), join(root, "src/Chat.tsx")] : [join(root, "src/main.tsx"), join(packageRoot, "node_modules/vite/client.d.ts")])], options: {
+        target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext, moduleResolution: ts.ModuleResolutionKind.Bundler,
+        jsx: ts.JsxEmit.ReactJSX, strict: true, noEmit: true, skipLibCheck: true, esModuleInterop: true,
+        types: [], typeRoots: [join(root, "node_modules/@types")],
+      } });
+      const diagnostics = ts.getPreEmitDiagnostics(program);
+      assert.equal(diagnostics.length, 0, ts.formatDiagnostics(diagnostics, { getCanonicalFileName: name => name, getCurrentDirectory: () => root, getNewLine: () => "\n" }));
+    } finally { await rm(root, { recursive: true, force: true }); }
+  });
+});
+
 // @ref LLP 1018.001#4-reconciliation-and-acceptance-evidence — a generated result must retain its types through the real package boundary, including Expo's skipped declaration checking.
 test("built Quarry API preserves row and channel types in a packaged Expo consumer", async (context) => {
   const root = await mkdtemp(join(tmpdir(), "snapback2-generated-consumer-"));

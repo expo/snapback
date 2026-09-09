@@ -1344,7 +1344,7 @@ test("terminal expiry remains terminal when persisted custody cannot be cleared"
 
 test("React query identity moves to a hydrating auth-generation partition", async () => {
   const nextQuery = deferred<Response>();
-  const views: Array<{ auth: string; token?: string; query: string; data?: unknown }> = [];
+  const views: Array<{ auth: string; viewer?: string; query: string; data?: unknown }> = [];
   let auth!: UseAuthResult;
   let newQueryStarted = false;
   const fetch = async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
@@ -1373,12 +1373,12 @@ test("React query identity moves to a hydrating auth-generation partition", asyn
     auth = useAuth();
     const query = useQuery(api.private.current, {}, { live: false });
     views.push({
-      auth: auth.state,
-      ...(auth.token === undefined ? {} : { token: auth.token }),
+      auth: auth.session.state,
+      ...(auth.session.viewer === undefined ? {} : { viewer: auth.session.viewer }),
       query: query.receipt?.state ?? query.status,
       ...(query.receipt?.state === "complete" ? { data: query.data } : {}),
     });
-    return React.createElement("output", null, `${auth.state}:${query.status}`);
+    return React.createElement("output", null, `${auth.session.state}:${query.status}`);
   }
 
   let renderer!: TestRenderer.ReactTestRenderer;
@@ -1397,11 +1397,11 @@ test("React query identity moves to a hydrating auth-generation partition", asyn
   );
 
   await act(async () => {
-    await auth.login({ email: "new@example.com", password: "password" });
+    await auth.actions.login({ email: "new@example.com", password: "password" });
     await flush();
   });
   assert.equal(newQueryStarted, true);
-  const successorViews = views.filter((view) => view.token === "new-token");
+  const successorViews = views.filter((view) => view.viewer === "principal-new");
   assert.ok(successorViews.length > 0);
   assert.equal(successorViews[0]?.query, "loading", "the successor identity starts from nothing: no receipt leaks across partitions");
   assert.equal(successorViews.some((view) => view.data === "old-private"), false);

@@ -12,7 +12,7 @@ import React, { act } from "react";
 import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { api, createClient } from "../dist/client.mjs";
-import { indexedDbRangeStore, SnapbackProvider, useSnapbackClient, useSnapbackSnapshot } from "../dist/react.mjs";
+import { indexedDbRangeStore, SnapbackProvider, useSnapbackClient, useSnapbackSnapshot, useAuth, useQuery } from "../dist/react.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
 import { DAY, fakeOwner } from "./fake-owner.ts";
 import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
@@ -25,7 +25,7 @@ const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const bundlePath = resolve(packageRoot, "dist/.chat-screens.test-bundle.mjs");
 let App: (props: Record<string, never>) => React.ReactElement;
 let Composer: (props: { conversationId: string; onNote(note: string): void }) => React.ReactElement;
-let Thread: (props: { conversationId: string; viewer: string | undefined; onNote(note: string): void }) => React.ReactElement;
+let Thread: (props: { conversationId: string; onNote(note: string): void }) => React.ReactElement;
 
 before(async () => {
   const bundled = await build({
@@ -200,7 +200,8 @@ test("the composer is disabled until the inbox drain catches up and the first gr
 
 // @ref LLP 1012#4-the-range-store — confirming the first session epoch adopts it; it is not a
 // session change, so a drain page in flight still commits and the drain earns the first grant.
-// The browser witness caught this: the template's useAuth answers /api/auth/me while the inbox
+// The auth starter gates its app until identity is known; keep the earlier race
+// covered explicitly: a sibling useAuth answers /api/auth/me while the inbox
 // drain's first page is still at the owner, and the composer stayed "grant-missing" forever.
 test("the first identity confirmation during the inbox drain does not cost the drain its grant", async () => {
   const restore = installDom();
@@ -217,7 +218,11 @@ test("the first identity confirmation during the inbox drain does not cost the d
     return response;
   };
   let client: any;
-  function Probe() { client = useSnapbackClient(); return null; }
+  function Probe() { client = useSnapbackClient(); useAuth(); return null; }
+  function Drain() {
+    const inbox = useQuery(api.messages.inbox, { c: null }, { drain: true });
+    return React.createElement("p", { role: "status", "data-connection": "connected" }, inbox.local.caughtUp ? "log downloaded" : "loading");
+  }
   const reactRoot: Root = createRoot(document.getElementById("root")!);
   try {
     await act(async () => {
@@ -225,7 +230,7 @@ test("the first identity confirmation during the inbox drain does not cost the d
         SnapbackProvider,
         { url: "http://first-epoch.test", persona: "alice", fetch, offline: { store: fileRangeStore(root) } },
         React.createElement(Probe),
-        React.createElement(App),
+        React.createElement(Drain),
       ));
     });
     await waitFor(() => /log downloaded/.test(text(document.querySelector("[role=status][data-connection]"))), "the inbox drain");

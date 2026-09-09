@@ -32,13 +32,18 @@ test("built Expo under Hermes-like globals logs in, drains, and views a photo", 
 
 test("Expo app shows a readiness error after the client is already constructed", async () => {
   const original = (globalThis as any).__snapbackExpoSqlite;
+  const originalSecure = (globalThis as any).__snapbackSecureStore;
+  (globalThis as any).__snapbackSecureStore = {
+    getItemAsync: async (key: string) => key.endsWith(".token") ? "device-session" : JSON.stringify({ token: "device-session", principal: "dev:alice" }),
+    setItemAsync: async () => undefined, deleteItemAsync: async () => undefined,
+  };
   (globalThis as any).__snapbackExpoSqlite = async () => { throw new Error("device carrier refused"); };
   let renderer!: ReturnType<typeof TestRenderer.create>;
   try {
     await act(async () => { renderer = TestRenderer.create(React.createElement(NormalApp)); });
     await until(() => JSON.stringify(renderer.toJSON()).includes("device carrier refused"));
     assert.match(JSON.stringify(renderer.toJSON()), /device carrier refused/);
-  } finally { if (renderer) await act(async () => renderer.unmount()); (globalThis as any).__snapbackExpoSqlite = original; }
+  } finally { if (renderer) await act(async () => renderer.unmount()); (globalThis as any).__snapbackExpoSqlite = original; (globalThis as any).__snapbackSecureStore = originalSecure; }
 });
 
 test("witness source map contains the portable conformance runner under src and no tests", async () => {
