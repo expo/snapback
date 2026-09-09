@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2` (the binary: owner, server, verbs), `snapback2/packages/compiler` (project lowering, worker), `snapback2/packages/snapback2` (authoring runtime, client, React, test runner, shim), `snapback2/scripts/measure.mjs`
 **Author:** Claude Fable 5 (orchestrator) — implementers: codex gpt-5.6-sol, lanes B0 (compiler + authoring surface), B1 (owner + server + verbs), B2 (`init`, `test`, `why`, `trace`, `guide`), D (client + React + evaluator)
 **Date:** 2026-08-29
-**Revised:** 2026-09-09 (integrated shipped-docs accuracy: real chat README declarations, client/recovery scaffold route, composite continuation and public recovery examples); 2026-09-08 (lane D final focused repair: conditional stale-cache recovery and multi-fence effect guide coverage); 2026-09-08 (lane D second repair pass: valid guide fences, legal walk repairs, published family context, successor recovery and unique-source regression pins); 2026-09-08 (lane D review fixes: complete requirement metadata, conservative lookup explanations, executable families, CLI spelling repairs and complete subscriptions); 2026-09-08 (diagnostics say the fix: missing bounds, spelling repairs, current families, wrapping check, source-mapped why prose; implementer GPT-6 Astra, lane D); 2026-09-08 (Lane C final repair: reject statement-bearing expressions throughout policy probes; admit usable inbox arrays before comparison); 2026-09-08 (Lane C round 2: protected-independent guard proof, candidate rejection reasons, isolated count journey); 2026-09-08 (Lane C review: proved carrier projections, derived policy counts, executable Vite precedence and seeded maintain assertions); 2026-09-08 (templates are products, elegance program Lane C, implementer GPT-6 Astra); 2026-09-08 (LLP 1001.000 typed latest-state channels, leases and snapshot clients); 2026-09-08 (resource-aware blocking Rust test scheduling and paired timing); 2026-09-07 (generated insert/merge consumer type bindings; implementer GPT-6 Astra); 2026-09-07 (independent Quarry diagnostics, checked-type repair advice, lexical failure isolation and merge discovery ordering; implementer GPT-6 Astra); 2026-09-07 (preserve unrelated prefixed optional packages; staged platform dependency selection and exact-lock packaging regression; durable browser-follower admission and unknown-outcome recovery; client-owned observed query snapshots; explicit named-journey verification and executable React startup; startup cleanup fixture custody); 2026-09-06 (app guide operation/certificate custody; native logical SSE body; CLI help and executable migration recovery; auth startup recovery and held transition reads; queued transitions, interrupted sync, live held reads); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
+**Revised:** 2026-09-09 (docs round-1 review fixes: query retries versus mutation submission, established follower account, nested-page drain limits and public recovery repairs); 2026-09-09 (integrated shipped-docs accuracy: real chat README declarations, client/recovery scaffold route, composite continuation and public recovery examples); 2026-09-08 (lane D final focused repair: conditional stale-cache recovery and multi-fence effect guide coverage); 2026-09-08 (lane D second repair pass: valid guide fences, legal walk repairs, published family context, successor recovery and unique-source regression pins); 2026-09-08 (lane D review fixes: complete requirement metadata, conservative lookup explanations, executable families, CLI spelling repairs and complete subscriptions); 2026-09-08 (diagnostics say the fix: missing bounds, spelling repairs, current families, wrapping check, source-mapped why prose; implementer GPT-6 Astra, lane D); 2026-09-08 (Lane C final repair: reject statement-bearing expressions throughout policy probes; admit usable inbox arrays before comparison); 2026-09-08 (Lane C round 2: protected-independent guard proof, candidate rejection reasons, isolated count journey); 2026-09-08 (Lane C review: proved carrier projections, derived policy counts, executable Vite precedence and seeded maintain assertions); 2026-09-08 (templates are products, elegance program Lane C, implementer GPT-6 Astra); 2026-09-08 (LLP 1001.000 typed latest-state channels, leases and snapshot clients); 2026-09-08 (resource-aware blocking Rust test scheduling and paired timing); 2026-09-07 (generated insert/merge consumer type bindings; implementer GPT-6 Astra); 2026-09-07 (independent Quarry diagnostics, checked-type repair advice, lexical failure isolation and merge discovery ordering; implementer GPT-6 Astra); 2026-09-07 (preserve unrelated prefixed optional packages; staged platform dependency selection and exact-lock packaging regression; durable browser-follower admission and unknown-outcome recovery; client-owned observed query snapshots; explicit named-journey verification and executable React startup; startup cleanup fixture custody); 2026-09-06 (app guide operation/certificate custody; native logical SSE body; CLI help and executable migration recovery; auth startup recovery and held transition reads; queued transitions, interrupted sync, live held reads); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
 **Related:** LLP 1000, LLP 1001 (the engine this serves), LLP 1003 (effects),
 LLP 0329.016 §5 (the design this implements verbatim where it can), LLP
 0329.016 §5.11 (the verb table — no verb exists without its row), LLP
@@ -1136,7 +1136,8 @@ Three rulings folded 2026-08-30 from the client-tier arc (LLP 0329.018–.023):
   rule binds maintained targets: prediction starts an aggregate at zero only
   from an exact authority-issued `byId` absence, or updates a held target row;
   an unheld target with no absence rolls the mutation back as partial.
-`SnapbackProvider({ url, as? })` and an optional `<DevOverlay/>` (persona,
+`SnapbackProvider({ url, persona? })` (supersedes the `as` prop; LLP 1018.003
+§The plain tier) and an optional `<DevOverlay/>` (persona,
 connection, generation, last refusal).
 Reconnect with backoff; a lost SSE stream reports `stale(since)` until the
 first delivery after reconnect. The evaluator twin gains `Emit` as a
@@ -1184,6 +1185,22 @@ public recovery examples use `online()` and distinguish follower inbox writes
 from refused uploads/channels. Durable replay is distinguished from a call
 without durable admission; explicit upload promises retain their current
 failure behavior.
+
+**Round-1 review fixes (2026-09-09).** The no-resubmission guarantee is for
+mutation calls without durable admission; retryable query transport failures
+get up to three attempts. The README explicitly qualifies rejection as a
+transport failure. Follower inbox admission requires an established account;
+E_OFFLINE_FOLLOWER includes signing in to that tab and sending again. A record
+may carry one nested page's root `next`, but an object/nested page is not a
+resumable drain. Builder-facing replay and recovery name `online()`, including
+E_OFFLINE_INTENT_EXPIRED. E_OFFLINE_RESUME leads with the unsupported-log query
+repair: a direct ascending `after c first N` append page, `N <= 50`; `online()`
+may retry a mounted-limit refusal once but does not repair an unsupported log.
+Existing client regressions pin query versus mutation attempts, guide assertions
+pin these repairs and both README routes, and Quarry pays for its clarification
+by deletion within the unchanged byte budget. These qualifications supersede
+the audit candidate's unscoped calls/replay and incomplete drain/follower wording;
+runtime behavior is unchanged.
 
 ## Templates are products
 

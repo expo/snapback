@@ -69,14 +69,15 @@ views once from the atomic store revision; bookkeeping-only commits stay silent.
 `inFlight` marks an active call. `can.send`, `can.reason`, and `can.action`
 describe readiness and recovery. `last` is
 `queued`, `committed`, or `rejected`; every state is terminal or durable, and
-queued means saved on the device for FIFO replay after resume. `useOutbox()` exposes entries,
+queued means saved on the device for FIFO replay after `online()`. `useOutbox()` exposes entries,
 `dismiss`, `can`, and `detail`. The client's `outbox.drain()` and `settled()`
-report `{ stopped, remaining }`. Transport loss during replay preserves queued writes;
-without durable admission, `run` and `client.mutation` resolve a `rejected` refusal.
-Neither throws. `last` clears on account or operation changes.
+report `{ stopped, remaining }`. Transport loss during replay preserves queued writes.
+A transport failure without durable admission resolves a `rejected` refusal
+from `run` or `client.mutation`. Neither throws. `last` clears on account or operation changes.
 Run `snapback2 guide offline` for recovery.
 
-A second browser tab for the same account writes its mutation as a durable row
+A second browser tab for the same account, once that tab's account is established,
+writes its mutation as a durable row
 in the partition's own IndexedDB `inbox` store and resolves
 `{ state: "queued", intent: "inbox:<key>", ids: [] }` at once; the tab holding
 the partition lock admits rows in key order, in the same transaction as the

@@ -18,10 +18,10 @@ the startup transport cut; only `online()` reconnects.
 Clients share one packaged offline runtime.
 
 Expiry seals; session change wipes. One writer/account; web followers read live,
-submit inbox rows, and inherit the writer queue on closure. Uploads,
+submit inbox rows once their account is established, and inherit the writer queue on closure. Uploads,
 channels, or no carrier refuse E_OFFLINE_FOLLOWER pre-byte; else:
 E_OFFLINE_LOCK. Beyond `fenceDays` (1..30), reads are stale; prediction/replay
-await resume. Queued writes survive; held reads/`offline()` bypass startup auth.
+await `online()`. Queued writes survive; held reads/`offline()` bypass startup auth.
 
 ## Drain
 
@@ -36,7 +36,7 @@ Offline drains need held eligibility; repeated cursors refuse. Offline keeps its
 ## Recovery
 
 Admitted offline `run()`: `{ state: "queued", intent, ids }`; replay is FIFO.
-A non-writer tab inserts a durable `inbox` row
+A non-writer tab must establish its account (sign in), then inserts a durable `inbox` row
 and resolves `{ state: "queued", intent: "inbox:<key>", ids: [] }`;
 the writer admits rows in order. Follower status: `forwarding` or
 `writer-unresponsive` (ready), `inbox-full`, `follower` (no route).
@@ -63,6 +63,8 @@ refusal allows one smaller retry. Backward watermarks keep `online()` refused
 across reopen; coverage, grants, IDs and queue stay. Drain may replay in
 existing trust; write success does not repair a refused resume.
 
+E_OFFLINE_RESUME: rewrite an unsupported log as a direct ascending `after c first N`
+page (N <= 50); `online()` may retry mounted-limit once, not an unsupported log.
 E_OFFLINE_RESET: drop coverage, keep outbox, fetch program, re-resume.
 A mounted drain restarts once at null. E_AUTH_SESSION seals; E_OFFLINE_AUTHORITY keeps coverage.
 
@@ -82,4 +84,4 @@ Bytes share `(assetId,width)` leases under maxAssetBytes (256 MiB LRU).
 predictions. Offline media is null; online bytes stay in its viewing instance.
 Repeats: E_ASSET_VIEWED (assets,410). E_OFFLINE_CARRIER: configure carrier;
 E_OFFLINE_STATE: inspect state; E_OFFLINE_DELIVERY: retry authenticated query;
-E_OFFLINE_LIFECYCLE: sign in/reopen; E_OFFLINE_FOLLOWER: use writer tab.
+E_OFFLINE_LIFECYCLE: sign in/reopen; E_OFFLINE_FOLLOWER: sign in; use writer tab for uploads/channels or no inbox route.

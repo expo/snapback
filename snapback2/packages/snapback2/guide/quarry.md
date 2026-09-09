@@ -7,8 +7,8 @@ Quarry is the backend language. `check` compiles in memory; inspection goes in
 
 `snapback/schema.q` holds `use identity`, tables, maintains and channels.
 `.q` stems name API/shape namespaces; `messages.q` exports
-`api.messages.thread`. TypeScript is only seeds, tests, and effect I/O;
-otherwise use Quarry. Effect/`.q` stems differ.
+`api.messages.thread`. TypeScript is only seeds, tests, and effect I/O.
+Effect/`.q` stems differ.
 
 ## Types and tables
 
@@ -147,8 +147,8 @@ columns. Reset `c` when changing index/order. Non-page and local `partial`
 results have no continuation.
 
 One cursor-bearing page nested in a record supplies root `next`; fixed arrays
-do not (chat `conversationView`). Drain requires an ascending append page.
-Missing count authority makes the whole record partial.
+do not. Objects/nested pages cannot drain; drains require a direct ascending append page.
+Missing count authority makes the record partial.
 
 `merge table [after cursor] first|last N by index:` combines structurally
 distinct `[prefix keys]` lanes (named or positional), optionally `for name in`

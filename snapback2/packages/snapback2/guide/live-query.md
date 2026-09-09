@@ -16,9 +16,10 @@ code, `rule: CODE` and its authored `site`, live and replayed; authored
 Transport/body loss: `transport/E_TRANSPORT`, `retryable: true`.
 Cancellation, including during body reads: `client/E_ABORTED`. Malformed JSON and invalid
 wire data: `op/E_WIRE_SHAPE`. Closed: `owner/E_CLIENT_CLOSED`; unexpected local
-failure: `client/E_CLIENT`. These are non-retryable. Calls without durable admission
+failure: `client/E_CLIENT`. These are non-retryable. Mutation calls without durable admission
 never resubmit automatically; a lost/invalid response may follow a commit.
-Queued writes replay after resume (`guide offline`). `last` clears on
+Queries retry retryable transport failures with backoff, up to three attempts.
+Queued writes replay after `online()` (`guide offline`). `last` clears on
 account/op change. `ResultOf<Op>`/`ArgsOf<Op>`: `snapback2/client`.
 
 `usePage(op, args, options?)` returns

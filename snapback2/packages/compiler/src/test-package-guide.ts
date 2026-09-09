@@ -63,7 +63,12 @@ export function registerPackageGuideChecks(
         `TS${item.code}: ${ts.flattenDiagnosticMessageText(item.messageText, "\n")}`).join("\n"));
     });
     assert(!`${headless}\n${snippet}`.includes("c: null"), "README queries should omit the initial cursor");
-    assert(readme.includes("snapback2 guide offline"), "README recovery pointer must work in a source checkout");
+    for (const route of ["live-query", "offline"]) {
+      assert(readme.includes(`snapback2 guide ${route}`), `README ${route} pointer must work in a source checkout`);
+    }
+    assert(readme.includes("A transport failure without durable admission resolves a `rejected` refusal"),
+      "README must qualify plain-mutation rejection as a transport failure");
+    assert(readme.includes("FIFO replay after `online()`"), "README must name the public recovery method");
   });
 
   test("the built keyword guide resolves grammar constructs and the README Assets and Channels topics", async () => {
@@ -73,6 +78,12 @@ export function registerPackageGuideChecks(
     assert(quarry.includes("One cursor-bearing page nested in a record supplies root `next`"),
       "guide lost the certified composite-page continuation used by chat conversationView");
     assert(!quarry.includes("without root continuation"), "guide still denies composite-page continuation");
+    assert(quarry.includes("Objects/nested pages cannot drain"), "root next does not make a composite resumable");
+    const liveQuery = await readFile(`${guide}/live-query.md`, "utf8");
+    assert(liveQuery.includes("Mutation calls without durable admission\nnever resubmit automatically"),
+      "the no-resubmission guarantee applies to mutations");
+    assert(liveQuery.includes("up to three attempts"), "the guide must disclose retryable query recovery");
+    assert(liveQuery.includes("Queued writes replay after `online()`"), "live query must name the public recovery method");
     const keywords = JSON.parse(await readFile(`${guide}/keywords.json`, "utf8"));
     const entries = [...grammar.matchAll(/^- `([a-z][a-z0-9-]*)`: .+$/gm)];
     assert(entries.length === 23, "grammar must keep its 23 constructs");
