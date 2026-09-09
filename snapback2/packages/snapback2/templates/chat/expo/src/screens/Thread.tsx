@@ -6,7 +6,8 @@ import { Composer } from "../Composer";
 import { conversationItems } from "../../shared/thread";
 
 export function Thread({ conversationId }: { conversationId: string }) {
-  const { viewer } = useAuth();
+  const auth = useAuth();
+  const account = auth.state === "anonymous" ? null : auth.viewer ?? auth.restoringViewer;
   const [opened, setOpened] = useState<string[]>([]);
   const snapshot = useQuery(api.messages.conversationView, { conversationId }, { items: conversationItems });
   const composite = snapshot.data;
@@ -20,13 +21,13 @@ export function Thread({ conversationId }: { conversationId: string }) {
     {snapshot.partial || snapshot.reason?.code === "partial" ? <Text testID="thread-history-state">Downloaded history · Count and preview unavailable.</Text> : null}
     {snapshot.items.map((item) => {
       const message = item.data, messageId = item.key;
-      const photoKey = JSON.stringify([viewer, messageId]);
+      const photoKey = account == null ? undefined : JSON.stringify([account, messageId]);
       const post = item.pending.find(action => action.kind === "create");
       return <View key={messageId} testID={`message-${messageId}`} style={{ padding: 12, marginVertical: 4, backgroundColor: "#e7edff", borderRadius: 12 }}>
         <Text>{message?.body ?? item.draft?.body}</Text>
-        {message?.oncePhoto ? opened.includes(photoKey)
+        {message?.oncePhoto ? photoKey !== undefined && opened.includes(photoKey)
           ? <AssetImage asset={message.oncePhoto} width={240} />
-          : <Button title="View photo once" onPress={() => setOpened((ids) => [...ids, photoKey])} /> : null}
+          : <Button title="View photo once" disabled={photoKey === undefined} onPress={() => photoKey !== undefined && setOpened((ids) => [...ids, photoKey])} /> : null}
         {message?.photo ? <AssetImage asset={message.photo} width={240} /> : null}
         {message?.clip ? <AssetVideo asset={message.clip} width={240} /> : null}
         {message && !post && !item.predicted ? <Text>{new Date(message.at).toLocaleTimeString()}</Text> : null}

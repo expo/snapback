@@ -12,20 +12,20 @@ Restore: set `tokenStore`; await `client.ready`. Browser:
 `browserTokenStore(storage, backendSpecificKey)`. Personas refuse bearer
 transitions/tokens; production refuses personas. Logout/expiry fence one session.
 
-`snapshot.auth`/`useAuth()`: `hydrating`, `authenticated`
-(`viewer`, `kind`, `authEpoch`), `anonymous` (no `refusal`), `refused`
-(`refusal`). Restoration needs no hooks; callers share `me()`.
-Hydrating `restoringViewer` is confirmed for this token but display-only. Reads
-await confirmation or use held coverage. Unbound stores omit it.
+`snapshot.auth`/`useAuth()`: `hydrating`, `authenticated` (`viewer`, `kind`,
+`authEpoch`), `anonymous` (no refusal), `refused` (`refusal`). Restoration needs
+no hooks; callers share `me()`. `restoringViewer` is confirmed for its token, display-only;
+unbound stores omit it. Reads await confirmation or use held coverage.
+Chat once-photo keys: anonymous → null, else
+`viewer ?? restoringViewer`; null/unknown cannot open.
 
-Transport cuts retain custody; retry on connected/reconnecting and after
-1, 2, 4, … 30 s without queries. `retryAt` is Unix ms;
-explicit `me()` replaces its timer. Other codes
-retry once per reconnect; storage/protocol failures stay refused.
-Only `E_AUTH`, `E_AUTH_REQUIRED`, or `E_AUTH_SESSION` make restoration anonymous
-and clear custody. `offline()` pauses timers; `online()` resumes the shared flight.
-Offline restart stays paused. Logout/replacement/close cancel retries and ignore late replies.
-Closed `auth` is its last view, without `retryAt`.
+Transport cuts keep custody. Retry when connected/reconnecting, then at
+1, 2, 4, … 30 s without queries; `retryAt` is Unix ms. `me()` replaces the timer.
+Others retry per reconnect; storage/protocol failures stay refused.
+Only `E_AUTH`, `E_AUTH_REQUIRED`, `E_AUTH_SESSION` clear custody to anonymous.
+`offline()` pauses retries, including cold restart; `online()` resumes.
+Logout/replacement/close cancel retries and ignore late replies.
+Closed: last view without `retryAt`.
 
 Confirmation recovers sync. Replay grants: `guide offline`.
 Metadata errors set `lastRefusal`; initial errors reject

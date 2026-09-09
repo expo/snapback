@@ -143,6 +143,102 @@ for (const arm of ["Expo", "React"]) test(`${arm} renders real loading-history d
   }
 });
 
+for (const arm of ["Expo", "React"]) test(`${arm} cached once-photo waits for account confirmation and cannot reopen on logout`, async t => {
+  const bundlePath = fileURLToPath(new URL(`../dist/.${arm.toLowerCase()}-thread-once.test-bundle.mjs`, import.meta.url));
+  const bundled = await build({
+    stdin: { contents: arm === "Expo" ? 'export { Thread } from "./screens/Thread";' : 'export { Thread } from "./Thread";',
+      resolveDir: fileURLToPath(new URL(`../templates/chat/${arm.toLowerCase()}/src`, import.meta.url)), sourcefile: "once-entry.tsx", loader: "tsx" },
+    bundle: true, write: false, format: "esm", platform: "node", target: "es2022", jsx: "automatic",
+    external: ["react", "react/jsx-runtime", "react-native"],
+    plugins: [{ name: "package-dist", setup(plugin) {
+      plugin.onResolve({ filter: /^snapback2\/(react|react-native|client)$/ }, args => ({
+        path: `./${args.path.slice("snapback2/".length)}.mjs`, external: true,
+      }));
+    } }],
+  });
+  await writeFile(bundlePath, bundled.outputFiles[0]!.text);
+  const { Thread } = await import(pathToFileURL(bundlePath).href);
+  const owner = fakeOwner();
+  const png = await readFile(new URL("../../../scripts/witness-expo/view-once.png", import.meta.url));
+  let confirm!: () => void;
+  const confirmation = new Promise<void>(done => { confirm = done; });
+  const requests: string[] = [];
+  const client = createClient({ url: "http://once-account.test", fetch: async (input, init) => {
+    const path = new URL(String(input)).pathname;
+    if (path === "/api/auth/me") await confirmation;
+    if (path === "/api/auth/logout") return new Response(JSON.stringify({ ok: true }));
+    if (path.startsWith("/api/asset/")) {
+      requests.push(client.snapshot.auth.state);
+      return new Response(png, { headers: { "content-type": "image/png" } });
+    }
+    return owner.fetch(input, init);
+  } });
+  const message = { id: "cached-once", at: 1, authorId: "dev:alice", oncePhoto: {
+    id: "s2id-00000000000000000000000000000008-0000000000000001", width: 8, height: 8,
+  } };
+  // Keep the cached row visible even after logout: query reset must not mask a screen-owned opening.
+  const held = { status: "ready", data: undefined, partial: true, next: null,
+    items: [{ key: message.id, data: message, predicted: false, pending: [] }] };
+  client.observe = () => ({ getSnapshot: () => held, subscribe: () => () => undefined }) as any;
+  let renderer: TestRenderer.ReactTestRenderer | undefined;
+  function Screen() {
+    const { viewer } = useAuth();
+    return React.createElement(Thread, { conversationId: "conversation-1", viewer });
+  }
+  const bubble = () => arm === "Expo"
+    ? renderer!.root.findAllByType("NativeView").find(node => node.props.testID === "message-cached-once")!
+    : renderer!.root.findByProps({ "data-message": "cached-once" });
+  const list = () => renderer!.root.findByType(arm === "Expo" ? "NativeScrollView" : "ol");
+  const button = () => bubble().findAllByType(arm === "Expo" ? "NativeButton" : "button")
+    .find(node => arm === "Expo" ? node.props.title === "View photo once" : node.props.children === "View photo once");
+  const images = () => bubble().findAllByType(arm === "Expo" ? "NativeImage" : "img");
+  const press = async () => { await act(async () => {
+    const control = button()!;
+    (arm === "Expo" ? control.props.onPress : control.props.onClick)();
+    await new Promise(done => setImmediate(done));
+  }); };
+  try {
+    await client.ready;
+    await act(async () => { renderer = TestRenderer.create(React.createElement(SnapbackProvider, { client }, React.createElement(Screen)), {
+      createNodeMock: element => element.type === "img" ? { getBoundingClientRect: () => ({ width: 240 }) } : null,
+    }); });
+    assert.equal(client.snapshot.auth.state, "hydrating");
+    assert.equal(client.snapshot.auth.viewer ?? client.snapshot.auth.restoringViewer, undefined);
+    const originalList = list(), originalBubble = bubble();
+    const disabled = button()!.props.disabled === true;
+    // Invoke the callback even when disabled to prove it cannot record an unknown opening.
+    await press();
+    const unknown = { disabled, images: images().length, requests: requests.length };
+    t.diagnostic(`unknown: ${JSON.stringify(unknown)}`);
+    assert.deepEqual(unknown, { disabled: true, images: 0, requests: 0 });
+    await act(async () => { confirm(); await client.auth.me(); });
+    assert.equal(client.snapshot.auth.viewer, "dev:alice");
+    assert.equal(button()!.props.disabled, false, "confirmation must not find a recorded unknown opening");
+    assert.equal(images().length, 0);
+    assert.equal(requests.length, 0);
+    await press();
+    assert.equal(button(), undefined);
+    assert.equal(images().length, 1);
+    assert.ok(arm === "Expo" ? images()[0].props.source?.uri : images()[0].props.src, "the real asset component received bytes");
+    assert.deepEqual(requests, ["authenticated"], "the confirmed account spends exactly one opening");
+    assert.strictEqual(list(), originalList);
+    assert.strictEqual(bubble(), originalBubble);
+    await act(async () => { await client.auth.logout(); });
+    assert.equal(client.snapshot.auth.state, "anonymous");
+    assert.strictEqual(list(), originalList, "logout keeps the conversation/list mounted");
+    assert.strictEqual(bubble(), originalBubble, "the same cached once-photo remains visible");
+    assert.equal(images().length, 0, "the old opening cannot re-match anonymous identity");
+    assert.equal(button()!.props.disabled, true);
+    await press();
+    assert.equal(images().length, 0);
+    assert.deepEqual(requests, ["authenticated"], "logout and its disabled callback cannot request more bytes");
+    t.diagnostic("confirmed: 1 image, 1 authenticated asset request; logout: 0 images, 0 additional requests; list and bubble unchanged");
+  } finally {
+    confirm(); await act(async () => renderer?.unmount()); await client.close();
+    await rm(bundlePath, { force: true });
+  }
+});
+
 test("the Expo witness samples the composed observation only once eligible history has loaded, and reports a timeout", async () => {
   const bundlePath = fileURLToPath(new URL("../dist/.expo-composed-facts.test-bundle.mjs", import.meta.url));
   const bundled = await build({

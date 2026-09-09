@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { api } from "snapback2/client";
-import { AssetImage, useMutation, useOutbox, useQuery } from "snapback2/react";
+import { AssetImage, useAuth, useMutation, useOutbox, useQuery } from "snapback2/react";
 import { Composer } from "./Composer";
 import { threadWitness } from "./witness";
 import { conversationItems, messageWrites } from "../shared/thread";
@@ -10,6 +10,8 @@ export function Thread(props: Props) {
   return <Conversation key={props.conversationId} {...props} />;
 }
 function Conversation({ conversationId, viewer }: Props) {
+  const auth = useAuth();
+  const account = auth.state === "anonymous" ? null : auth.viewer ?? auth.restoringViewer;
   const snapshot = useQuery(api.messages.conversationView, { conversationId }, { items: conversationItems });
   const [opened, setOpened] = useState<string[]>([]);
   const { dismiss } = useOutbox();
@@ -34,11 +36,11 @@ function Conversation({ conversationId, viewer }: Props) {
       {snapshot.items.map((item) => {
         const message = item.data, messageId = item.key;
         const post = item.pending.find(action => action.kind === "create"), own = message?.authorId === viewer;
-        const photoKey = JSON.stringify([viewer, messageId]);
+        const photoKey = account == null ? undefined : JSON.stringify([account, messageId]);
         return <li key={messageId} data-message={messageId} data-state={post?.state ?? "row"} className={!message ? "bubble pending" : own ? "bubble own" : "bubble"}>
           <p>{message?.body || item.draft?.body || (message?.photo ? "[photo]" : message?.clip ? "[clip]" : "")}</p>
-          {message?.oncePhoto ? opened.includes(photoKey) ? <AssetImage asset={message.oncePhoto} width={240} />
-            : <button type="button" onClick={() => setOpened((ids) => [...ids, photoKey])}>View photo once</button> : null}
+          {message?.oncePhoto ? photoKey !== undefined && opened.includes(photoKey) ? <AssetImage asset={message.oncePhoto} width={240} />
+            : <button type="button" disabled={photoKey === undefined} onClick={() => photoKey !== undefined && setOpened((ids) => [...ids, photoKey])}>View photo once</button> : null}
           {message && !post && !item.predicted ? <time dateTime={new Date(message.at).toISOString()}>{new Date(message.at).toLocaleTimeString()}</time> : null}
           {item.pending.map(action => <small key={action.intent}
             data-edit={action.kind === "update" ? action.state : undefined} data-unsend={action.kind === "remove" ? action.state : undefined}>
