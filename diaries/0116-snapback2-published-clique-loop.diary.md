@@ -1849,8 +1849,9 @@ atomic recipe still certified at 4,516,191 bytes, above the 4 MiB closure
 ceiling. Splitting it into persisted passes introduced stale authorization.
 Replacing the wide post `maintain` with one compact per-author/period counter,
 updated beside all six current original-post inserts, brought the copied app
-to 2,763,906 closure bytes. Current memberships plus period pending-read
-counts stay in the same profile transaction as the unique digest, log and
-effect. The counter requires paired maintenance before any future post delete
-or key-changing update; this app currently exposes neither. Exact and Contract
-were not used, and this correction makes no new competitor claim.
+to 2,824,066 closure bytes with one readable three-field scratch row. Current
+memberships plus period pending-read counts stay in the same profile transaction
+as the unique digest, log and effect. The counter requires paired maintenance
+before any future post delete or key-changing update; this app currently
+exposes neither. Exact and Contract were not used, and this correction makes no
+new competitor claim.

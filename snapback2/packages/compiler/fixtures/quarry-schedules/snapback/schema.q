@@ -125,15 +125,10 @@ table pendingRead:
   update <- deny
   delete <- allow
 
-table digestPostScratch:
-  total: int
-  public
-  insert <- allow
-  update <- allow
-  delete <- allow
-
-table digestUnreadScratch:
-  packed: int
+table digestScratch:
+  newPostsInFollowing: int
+  unreadMessages: int
+  unreadChats: int
   public
   insert <- allow
   update <- allow

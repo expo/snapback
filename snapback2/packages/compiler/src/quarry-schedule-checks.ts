@@ -124,7 +124,7 @@ export function registerScheduleChecks(test: Test, frontend: string): void {
       && source.includes("memberships[p.principal] first 100 by byPrincipalConversation"), "digest selection lost its 500/100 envelope");
     assert(schema.includes("cap 500 by follower") && schema.includes("cap 100 by principal"), "digest pages are not storage-bounded");
     assert(source.includes("if cfg.replayMode = false:")
-      && source.includes("if newFollowers != 0 or postSummary.total != 0 or unreadMessages != 0 or unreadChats != 0:"),
+      && source.includes("if newFollowers != 0 or summary.newPostsInFollowing != 0 or summary.unreadMessages != 0 or summary.unreadChats != 0:"),
     "replay or quiet-period guard moved");
     const follow = JSON.stringify(operation(lowered.project.programs, "digest-recipes.setRecipeFollow").body);
     assert(follow.includes("follows") && follow.includes("digestFollows") && follow.includes("Insert") && follow.includes("Delete"),

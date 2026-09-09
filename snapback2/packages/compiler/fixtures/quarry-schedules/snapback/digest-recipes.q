@@ -53,30 +53,30 @@ job periodDigestSweep():
       prior = digests[p.principal, periodStart]
       if prior = null:
         newFollowers = newFollowerPeriodCounts[p.principal, periodStart] ?? 0
-        postScratch = insert digestPostScratch { total: 0 }
-        unreadScratch = insert digestUnreadScratch { packed: 0 }
+        scratch = insert digestScratch { newPostsInFollowing: 0, unreadMessages: 0, unreadChats: 0 }
         following = digestFollows[p.principal] first 500 by byFollower { followed }
         for followed in following:
           postCounter = postPeriodCounters[followed.followed, false, periodStart]
           if postCounter != null:
-            update digestPostScratch[postScratch] { total: .total + postCounter.total }
+            update digestScratch[scratch] { newPostsInFollowing: .newPostsInFollowing + postCounter.total }
         chats = memberships[p.principal] first 100 by byPrincipalConversation { conversationId }
         for membership in chats:
           messageCount = pendingReadPeriodByChat[p.principal, membership.conversationId, periodStart] ?? 0
           if messageCount > 0:
-            update digestUnreadScratch[unreadScratch] { packed: .packed + messageCount * 101 + 1 }
-        postSummary = digestPostScratch[postScratch.id] ! else DIGEST_STATE
-        unreadSummary = digestUnreadScratch[unreadScratch.id] ! else DIGEST_STATE
-        (unreadMessages, unreadChats) = divmod(unreadSummary.packed, 101)
-        if newFollowers != 0 or postSummary.total != 0 or unreadMessages != 0 or unreadChats != 0:
+            update digestScratch[scratch] {
+              unreadMessages: .unreadMessages + messageCount,
+              unreadChats: .unreadChats + 1,
+            }
+        summary = digestScratch[scratch.id] ! else DIGEST_STATE
+        if newFollowers != 0 or summary.newPostsInFollowing != 0 or summary.unreadMessages != 0 or summary.unreadChats != 0:
           insert digests {
             principal: p.principal,
             periodStart,
             periodEnd,
             newFollowers,
-            newPostsInFollowing: postSummary.total,
-            unreadMessages,
-            unreadChats,
+            newPostsInFollowing: summary.newPostsInFollowing,
+            unreadMessages: summary.unreadMessages,
+            unreadChats: summary.unreadChats,
           }
           insert pushLog {
             target: p.principal,
@@ -84,10 +84,9 @@ job periodDigestSweep():
             periodStart,
             periodEnd,
             newFollowers,
-            newPostsInFollowing: postSummary.total,
-            unreadMessages,
-            unreadChats,
+            newPostsInFollowing: summary.newPostsInFollowing,
+            unreadMessages: summary.unreadMessages,
+            unreadChats: summary.unreadChats,
           }
           emit notify { to: p.principal, body: 'digest' }
-        delete digestPostScratch[postSummary]
-        delete digestUnreadScratch[unreadSummary]
+        delete digestScratch[summary]
