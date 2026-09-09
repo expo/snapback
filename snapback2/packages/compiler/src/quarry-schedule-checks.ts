@@ -114,23 +114,24 @@ export function registerScheduleChecks(test: Test, frontend: string): void {
     const certificate = checked.find((item) => item.program === job.name)!.certificate!;
     assert(certificate.kind === "job" && (certificate.perChunk as any[]).length === 1, JSON.stringify(certificate));
     const body = JSON.stringify(job.body);
-    for (const required of ["digestFollows", "originalPostPeriodCounts", "memberships", "pendingReadPeriodByChat", "digests", "pushLog", "push.notify"]) {
+    for (const required of ["digestFollows", "postPeriodCounters", "memberships", "pendingReadPeriodByChat", "digests", "pushLog", "push.notify"]) {
       assert(body.includes(required), `digest job lost ${required}`);
     }
     assert(!body.includes("unreadMessageTotals") && !body.includes("unreadChatCounts"), "digest job used standing unread totals");
     const source = readFileSync(resolve(fixture, "snapback/digest-recipes.q"), "utf8");
     const schema = readFileSync(resolve(fixture, "snapback/schema.q"), "utf8");
     assert(source.includes("digestFollows[p.principal] first 500 by byFollower")
-      && source.includes("memberships[p.principal] first 50 by byPrincipalConversation"), "digest selection lost its 500/50 envelope");
-    assert(schema.includes("cap 500 by follower") && schema.includes("cap 50 by principal"), "digest pages are not storage-bounded");
+      && source.includes("memberships[p.principal] first 100 by byPrincipalConversation"), "digest selection lost its 500/100 envelope");
+    assert(schema.includes("cap 500 by follower") && schema.includes("cap 100 by principal"), "digest pages are not storage-bounded");
     assert(source.includes("if cfg.replayMode = false:")
-      && source.includes("if newFollowers != 0 or summary.newPostsInFollowing != 0 or summary.unreadMessages != 0 or summary.unreadChats != 0:"),
+      && source.includes("if newFollowers != 0 or postSummary.total != 0 or unreadMessages != 0 or unreadChats != 0:"),
     "replay or quiet-period guard moved");
     const follow = JSON.stringify(operation(lowered.project.programs, "digest-recipes.setRecipeFollow").body);
     assert(follow.includes("follows") && follow.includes("digestFollows") && follow.includes("Insert") && follow.includes("Delete"),
       "follow/mirror equality lost a transaction path");
     const post = JSON.stringify(operation(lowered.project.programs, "digest-recipes.createRecipePost").body);
-    assert(post.includes("posts") && !post.includes("digestFollows") && !post.includes("For"), "post creation gained follower-scaled work");
+    assert(post.includes("posts") && post.includes("postPeriodCounters")
+      && !post.includes("digestFollows") && !post.includes("For"), "post creation lost its follower-independent period counter");
   });
   test("Quarry schedules refuse non-time columns, bad targets, and sub-minute or calendar durations with the schedule family", async () => {
     const schema = readFileSync(resolve(fixture, "snapback/schema.q"), "utf8");

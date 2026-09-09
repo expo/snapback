@@ -90,12 +90,23 @@ table posts:
   update <- deny
   delete <- allow
 
+table postPeriodCounters:
+  author: principal
+  isReply: bool
+  periodStart: time
+  total: int
+  unique byAuthorReplyPeriod: author, isReply, periodStart
+  public
+  insert <- allow
+  update <- allow
+  delete <- deny
+
 table memberships:
   conversationId: conversations
   principal: principal
   unique byConversationPrincipal: conversationId, principal
   by byPrincipalConversation: principal, conversationId, id
-  cap 50 by principal
+  cap 100 by principal
   public
   insert <- allow
   update <- deny
@@ -114,10 +125,15 @@ table pendingRead:
   update <- deny
   delete <- allow
 
-table digestScratch:
-  newPostsInFollowing: int
-  unreadMessages: int
-  unreadChats: int
+table digestPostScratch:
+  total: int
+  public
+  insert <- allow
+  update <- allow
+  delete <- allow
+
+table digestUnreadScratch:
+  packed: int
   public
   insert <- allow
   update <- allow
@@ -138,9 +154,6 @@ table digests:
   delete <- deny
 
 maintain newFollowerPeriodCounts: count follows by followed, periodStart
-  read <- allow
-
-maintain originalPostPeriodCounts: count posts by author, isReply, periodStart
   read <- allow
 
 maintain pendingReadPeriodByChat: count pendingRead by recipient, conversationId, periodStart

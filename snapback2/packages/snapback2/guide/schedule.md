@@ -46,12 +46,20 @@ satisfy; `every` targets take none), `E_SCHEDULE_DURATION` (`Nm`, `Nh`, or
 Customers: the `chat` template's disappearing messages (`purgeMessage` writes
 the `expired` log rows and deletes the body) and the `periodDigestSweep` fixture.
 For a digest, stamp source rows with `[periodStart, periodEnd)`, read current
-bounded follows and memberships at emission, and combine them with maintained
-per-author and per-chat period counts. Do not make lifetime unread totals a
-period's eligibility. Write the unique principal/period digest, application
-log and effect in the same profile chunk; delete its transaction-local scratch
-before commit. An all-zero period writes and emits nothing. Keep the configured
-period equal to the `schedule` duration, and guard replay mode before work.
+bounded follows and memberships at emission, and combine them with
+transactionally maintained per-author and per-chat period counts. A compact
+explicit counter can replace an over-budget `maintain`, but every create,
+delete, or key-changing update must adjust it in the same transaction; deny
+any unpaired writer. This does not make arbitrary deletes auto-maintained. Do
+not make lifetime unread totals a period's eligibility. Write the unique
+principal/period digest, application log and effect in the same profile chunk;
+delete its transaction-local scratch before commit. An all-zero period writes
+and emits nothing. Keep the configured period equal to the `schedule` duration,
+and guard replay mode before work. A per-chat pending-row cap is also the unread
+counting envelope: reading only the first page must not claim later rows read.
+The compiled recipe admits at most 500 follows and 100 memberships per
+principal; row 101 refuses at write time instead of disappearing behind a
+`first 100` digest read. Its separate 50-members-per-conversation cap remains.
 
 See `guide expiry` for the complete timer → recipient log → tombstone →
 reconnect drain recipe and its current-member delivery limit.

@@ -1843,11 +1843,14 @@ truncation.
 
 The digest was less local. Lifetime unread totals repeated quiet periods, and
 calling the unused post helper per follower would have moved read work onto a
-celebrity's write. Digest-time maintained per-author counts kept post writes
-constant, but a direct 500-follow/50-membership atomic recipe certified at
-4,464,679 bytes, above the 4 MiB closure ceiling. Splitting it into persisted
-passes introduced stale authorization. A compact follow mirror, updated in
-the same follow/unfollow transaction, brought the atomic per-profile recipe
-under the ceiling; current memberships plus period pending-read counts avoid a
-second unread lifecycle. Exact and Contract were not used, and this correction
-makes no new competitor claim.
+celebrity's write. A compact follow mirror kept selection current without
+follower-scaled post writes, but the first faithful 500-follow/100-membership
+atomic recipe still certified at 4,516,191 bytes, above the 4 MiB closure
+ceiling. Splitting it into persisted passes introduced stale authorization.
+Replacing the wide post `maintain` with one compact per-author/period counter,
+updated beside all six current original-post inserts, brought the copied app
+to 2,763,906 closure bytes. Current memberships plus period pending-read
+counts stay in the same profile transaction as the unique digest, log and
+effect. The counter requires paired maintenance before any future post delete
+or key-changing update; this app currently exposes neither. Exact and Contract
+were not used, and this correction makes no new competitor claim.
