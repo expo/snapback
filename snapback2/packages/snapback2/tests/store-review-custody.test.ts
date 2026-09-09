@@ -7,7 +7,7 @@ import { createHash } from "node:crypto";
 import { fileRangeStore } from "../dist/test.mjs";
 import { decodeDeliveryEnvelope, encodeDeliveryEnvelope } from "../dist/index.mjs";
 import { indexedDbRangeStore } from "../dist/react.mjs";
-import { PersistentRangeStore, SqliteBackend, nodeSqliteDriver, OfflineRuntime } from "../dist/sqlite-test.mjs";
+import { PersistentRangeStore, SqliteBackend, nodeSqliteDriver, OfflineRuntime, Twin } from "../dist/sqlite-test.mjs";
 import { sqliteFactory } from "./sqlite-fixture.ts";
 import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
 
@@ -911,4 +911,104 @@ test('equal authenticated refresh shares built current ownership without semanti
     await runtime.store.commit({ dropAnswers: ['clock.fixed\0{}','clock.read\0{}'] });
     assert.equal((await runtime.twin.hydrate()).store.byId('events','r0'),null); await runtime.close();
   }
+});
+
+test('twin coalesces source installation, retries failures, catches later revisions and cold-resets without self-await', async () => {
+  const { nativeR8: { halo } } = JSON.parse(await readFile(new URL('../../evaluator/src/test-search-v5-fixtures.json',import.meta.url),'utf8'));
+  let saved: any, reads = 0, snapshots = 0, fail = false;
+  let gate: { started: PromiseWithResolvers<void>; release: PromiseWithResolvers<void> } | undefined;
+  const factory = () => {
+    const store = new PersistentRangeStore({ carrier: 'json',open: async () => saved,
+      replace: async state => { saved = structuredClone(state); },close() {},wipe: async () => {} });
+    return new Proxy(store, { get(target,property) {
+      const value = Reflect.get(target,property,target);
+      if (typeof value !== 'function') return value;
+      if (typeof property !== 'symbol') return value.bind(target);
+      return async (...args: any[]) => {
+        reads++;
+        if (fail) { fail = false; throw new Error('source fault'); }
+        const change = await value.apply(target,args), blocked = gate; gate = undefined;
+        if (blocked) { blocked.started.resolve(); await blocked.release.promise; }
+        if (change.snapshot) snapshots++;
+        return change;
+      };
+    } });
+  };
+  const runtime = new OfflineRuntime({ store: factory });
+  await runtime.open(halo.first.authority.principal,true); await runtime.program(halo.program);
+  await runtime.commit('clock.fixed',{},await runtime.accept('clock.fixed',{},halo.first));
+
+  fail = true;
+  const refused = await Promise.allSettled(Array.from({ length: 24 },() => runtime.twin.evaluate('clock.fixed',{})));
+  assert(refused.every(result => result.status === 'rejected' && result.reason.message === 'source fault'));
+  assert.equal(reads,1,'concurrent source failure is shared');
+  const cold = await Promise.all(Array.from({ length: 24 },() => runtime.twin.evaluate('clock.fixed',{})));
+  assert(cold.every(answer => answer?.state === 'capped')); assert.equal(reads,2); assert.equal(snapshots,1);
+  assert.equal((runtime.twin as any).indexed.incarnation,1,'one cold source image is installed once');
+
+  const warmReads = reads;
+  await Promise.all(Array.from({ length: 24 },() => runtime.twin.evaluate('clock.fixed',{})));
+  assert.equal(reads,warmReads + 1,'concurrent warm readers share the revision read');
+  const started = Promise.withResolvers<void>(), release = Promise.withResolvers<void>(); gate = { started,release };
+  const first = runtime.twin.evaluate('clock.fixed',{}); await started.promise;
+  await runtime.store.commit({ outbox: { put: [{ ...entry('late'),predicted: true }] },
+    overlay: { put: { late: [{ table: 'events',id: 'r0',row: { id: 'r0',at: 777 },fields: ['at'] }] } } });
+  const second = runtime.twin.evaluate('clock.fixed',{}); release.resolve();
+  const later = await Promise.all([first,second]);
+  assert(later.every(Boolean));
+  assert.equal((runtime.twin as any).indexed.store.byId('events','r0').Row.at.Int,777,
+    'a waiter arriving after the captured revision causes one later read and install');
+  assert.equal(reads,warmReads + 3); assert.equal((runtime.twin as any).indexed.incarnation,1);
+
+  const snapshot = await runtime.store.changes(); await runtime.close();
+  let replaceFacts = false; const resetReads: Array<any> = [];
+  const rootReset = new Twin({ program: () => halo.program,principal: () => halo.first.authority.principal,
+    authEpoch: () => halo.first.authority.authEpoch,now: () => halo.first.readTime,seq: () => 1,changes: async since => {
+      resetReads.push(since); const revision = snapshot.revision + Number(replaceFacts);
+      if (!replaceFacts || since === undefined) return { ...structuredClone(snapshot),revision };
+      return { incarnation: snapshot.incarnation,revision,records: { '*': { facts: structuredClone(snapshot.snapshot.facts) } } };
+    } });
+  await rootReset.evaluate('clock.fixed',{}); replaceFacts = true; resetReads.length = 0;
+  const reset = await Promise.race([rootReset.evaluate('clock.fixed',{}),
+    new Promise((_,reject) => setTimeout(() => reject(new Error('root reset self-awaited')),1000))]);
+  assert.equal((reset as any).state,'capped'); assert.equal(resetReads.length,2);
+  assert(resetReads[0] && resetReads[1] === undefined,'root facts replacement rereads cold inside the flight');
+
+  for (const kind of ['partition','epoch','program'] as const) {
+    let principal = halo.first.authority.principal, epoch = halo.first.authority.authEpoch;
+    const program = structuredClone(halo.program), current = structuredClone(snapshot);
+    const blocked = Promise.withResolvers<void>(), resume = Promise.withResolvers<void>(); let sourceReads = 0;
+    const twin = new Twin({ program: () => program,principal: () => principal,authEpoch: () => epoch,now: () => halo.first.readTime,seq: () => 1,
+      changes: async () => { const result = structuredClone(current); if (++sourceReads === 1) { blocked.resolve(); await resume.promise; } return result; } });
+    const stale = twin.evaluate('clock.fixed',{}); await blocked.promise;
+    if (kind === 'partition') principal = 'dev:successor';
+    else if (kind === 'epoch') { epoch++; current.snapshot.facts.authEpoch = epoch; }
+    else { current.snapshot.facts.generation = program.generation = 'e'.repeat(64); }
+    const successor = twin.evaluate('clock.fixed',{}); resume.resolve();
+    assert.equal(await stale,undefined,`${kind}: suspended predecessor is discarded`);
+    assert.equal((await successor)?.state,'capped',`${kind}: successor installs its own snapshot`);
+    assert.equal(sourceReads,2);
+  }
+});
+
+test('small carrier metadata is isolated and reconnect paths do not materialize coverage', async () => {
+  let saved: any, coverageReads = 0;
+  const base = new PersistentRangeStore({ carrier: 'json',open: async () => saved,
+    replace: async state => { saved = structuredClone(state); },close() {},wipe: async () => {} });
+  const store = new Proxy(base,{ get(target,property) {
+    const value = Reflect.get(target,property,target);
+    if (typeof value !== 'function') return value;
+    if (property === 'coverage') return async () => { coverageReads++; return value.call(target); };
+    return value.bind(target);
+  } });
+  const runtime = new OfflineRuntime({ store: () => store }); await runtime.open('dev:alice',true);
+  const facts = { generation: 'a'.repeat(64),schemaHash: 'b'.repeat(64),authEpoch: 7 };
+  await runtime.store.commit({ facts,watermark: { op: 'messages.inbox',args: { c: null },watermark: 'tail',updatedAt: 1,...facts } });
+  const first = await store.metadata!(); first.watermarks[0].args.c = 'changed'; first.facts!.generation = 'changed';
+  const second = await store.metadata!(); assert.equal(second.watermarks[0].args.c,null); assert.equal(second.facts!.generation,facts.generation);
+  assert.equal((await runtime.logWatermark())?.watermark,'tail');
+  await runtime.reauthenticate('dev:alice',7);
+  assert.equal((await runtime.resumeRequest([]))?.log?.watermark,'tail');
+  assert.equal(coverageReads,0,'watermark/facts paths never clone held rows or receipt ranges');
+  await runtime.close();
 });

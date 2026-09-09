@@ -28,7 +28,23 @@ export interface TwinStoreSources {
   program(): HeldProgram | undefined;
   changes(since?: StoreRevision): Promise<StoreChange<PersistedRangeState>>;
   principal(): string | undefined;
+  /** Current runtime authority, when the host owns it independently of carrier facts. */
+  authEpoch?(): number | undefined;
   now(): number;
+}
+
+interface SyncIdentity {
+  principal: string;
+  program: HeldProgram;
+  generation: string;
+  schemaHash: string;
+  authEpoch?: number;
+}
+
+interface SyncFlight {
+  identity: SyncIdentity;
+  requested: number;
+  promise: Promise<boolean>;
 }
 
 export class TwinStore {
@@ -39,8 +55,8 @@ export class TwinStore {
   rowsRevision = 0;
   authorityRevision = 0;
   overlayRevision = 0;
-  readonly evicted = new Set<string>();
-  readonly holed = new Set<string>();
+  evicted = new Set<string>();
+  holed = new Set<string>();
   private assets = new RowAssets({});
   get onceAssets(): Set<string> { return this.assets.once; }
   private state!: PersistedRangeState;
@@ -56,6 +72,7 @@ export class TwinStore {
   private answerHoles = new Map<string, string[]>();
   private deliveries = new Ordered<[number, string], number>((a, b) => a[0] - b[0] || a[1].localeCompare(b[1]));
   private answerTimes = new Map<string, number>();
+  private flight?: SyncFlight;
   constructor(private sources: TwinStoreSources) {}
   get facts() { return this.state.facts; }
   get deliveredAt(): number | undefined { return this.deliveries.seek(() => 0, true).next().value?.[1]; }
@@ -68,33 +85,60 @@ export class TwinStore {
       this.itemEntries ??= Object.values(this.state.outbox).sort(fifo));
   }
 
-  async sync(): Promise<boolean> {
+  // @ref LLP 1012#6-reads-offline — concurrent readers share one identity-fenced
+  // source installation; cold state is built privately and published whole.
+  sync(): Promise<boolean> {
+    const identity = this.identity();
+    if (!identity) return Promise.resolve(false);
+    const active = this.flight;
+    if (active) {
+      if (this.sameIdentity(active.identity, identity)) { active.requested++; return active.promise; }
+      // A changed partition/program/epoch never joins the predecessor's result.
+      return active.promise.then(() => this.sync(), () => this.sync());
+    }
+    const flight = { identity, requested: 1 } as SyncFlight;
+    // Start after this turn so one render/query fan-out shares one cold request.
+    this.flight = flight;
+    flight.promise = Promise.resolve().then(async () => {
+      let current = false, requested: number;
+      do { requested = flight.requested; current = await this.syncIdentity(identity); }
+      while (this.sameIdentity(identity) && requested !== flight.requested);
+      return this.sameIdentity(identity) && current;
+    }).finally(() => { if (this.flight === flight) this.flight = undefined; });
+    return flight.promise;
+  }
+
+  private identity(): SyncIdentity | undefined {
     const program = this.sources.program(), principal = this.sources.principal();
-    if (!program || principal === undefined) return false;
+    if (!program || principal === undefined) return undefined;
     validateIdentity(principal);
-    let change = isolate(await this.sources.changes(this.revision));
-    const facts = (change.snapshot?.facts ?? (change.records?.['*']?.facts as any) ?? this.state?.facts);
-    const fence = JSON.stringify([principal, program.generation, program.schemaHash, facts?.authEpoch]);
-    if (!change.snapshot && (fence !== this.fence || program !== this.program)) change = isolate(await this.sources.changes());
-    if (change.snapshot) {
-      this.state = change.snapshot;
-      this.itemEntries = undefined;
-      if (this.state.sealed || this.state.superseded || (this.state.facts &&
-        (this.state.facts.generation !== program.generation || this.state.facts.schemaHash !== program.schemaHash))) return false;
-      if (schemaDigest(program.schema) !== program.schemaHash) throw new TypeError('held schema identity mismatch');
-      this.program = program; this.fence = fence; this.incarnation++;
-      this.contributions.clear(); this.effectiveWork.clear(); this.intentRows.clear(); this.pendingEntries.clear(); this.pending = new Ordered(fifo);
-      this.assets = new RowAssets(onceColumns(program.schema)); this.evicted.clear(); this.holed.clear(); this.holes.clear(); this.answerHoles.clear();
-      this.deliveries = new Ordered((a, b) => a[0] - b[0] || a[1].localeCompare(b[1])); this.answerTimes.clear();
-      this.store = new ClientStore(program.schema, undefined, { readable: Object.entries(program.schema.tables ?? {})
-        .filter(([, t]) => t.retain === 'delivered-history').map(([name]) => name) });
-      const affected = new Set([...Object.keys(this.state.rows), ...Object.keys(this.state.negative), ...Object.keys(this.state.extentNegative), ...Object.keys(this.state.viewed)]);
-      for (const intent of Object.keys(this.state.overlay)) this.intent(intent, affected);
-      for (const key of affected) this.row(key);
-      for (const [key, answer] of Object.entries(this.state.answers)) this.answer(key, answer);
-      this.store.registerHeld(program.programs, this.context());
-      this.rowsRevision = this.authorityRevision = this.overlayRevision = 0;
-    } else if (change.revision !== this.revision?.revision) {
+    return { principal, program, generation: program.generation, schemaHash: program.schemaHash,
+      authEpoch: this.sources.authEpoch?.() };
+  }
+
+  private sameIdentity(left: SyncIdentity, right = this.identity()): boolean {
+    return !!right && left.principal === right.principal && left.program === right.program
+      && left.generation === right.generation && left.schemaHash === right.schemaHash
+      && left.authEpoch === right.authEpoch;
+  }
+
+  private async syncIdentity(identity: SyncIdentity): Promise<boolean> {
+    let since = this.revision;
+    for (;;) {
+      const change = isolate(await this.sources.changes(since));
+      if (!this.sameIdentity(identity)) return false;
+      const facts = change.snapshot?.facts ?? (change.records?.['*']?.facts as PersistedRangeState['facts']) ?? this.state?.facts;
+      const fence = JSON.stringify([identity.principal, identity.generation, identity.schemaHash, facts?.authEpoch]);
+      if (!change.snapshot && (fence !== this.fence || identity.program !== this.program)) {
+        if (since === undefined) return false;
+        since = undefined; continue;
+      }
+      if (change.snapshot) return this.installSnapshot(change.snapshot, identity, fence, change);
+      const reset = Object.keys(change.records?.['*'] ?? {}).some(k => ['rows', 'answers', 'negative', 'extentNegative', 'overlay', 'viewed', 'facts'].includes(k))
+        || change.removed?.['*']?.includes('facts');
+      // An inner cold turn avoids recursively awaiting this public flight.
+      if (reset || !this.state || !this.store) { if (since === undefined) return false; since = undefined; continue; }
+      if (change.revision === this.revision?.revision) { this.revision = { incarnation: change.incarnation, revision: change.revision }; return true; }
       const rows = new Set<string>(), answers = new Set<string>(), intents = new Set<string>();
       const changed = new Set<string>();
       for (const category of new Set([...Object.keys(change.records ?? {}), ...Object.keys(change.removed ?? {})])) {
@@ -108,9 +152,6 @@ export class TwinStore {
         }
       }
       if (this.state.sealed || this.state.superseded) { this.revision = undefined; return false; }
-      // Replaced root dictionaries mean a generation reset; request one coherent cold snapshot.
-      if (Object.keys(change.records?.['*'] ?? {}).some(k => ['rows', 'answers', 'negative', 'extentNegative', 'overlay', 'viewed', 'facts'].includes(k))
-        || change.removed?.['*']?.includes('facts')) { this.revision = undefined; return this.sync(); }
       for (const intent of intents) this.intent(intent, rows);
       if (changed.has('outbox')) this.itemEntries = undefined;
       let rowChanged = false, authorityChanged = false;
@@ -119,8 +160,31 @@ export class TwinStore {
       if (rowChanged) this.rowsRevision++;
       if (rowChanged || authorityChanged || changed.has('negative') || changed.has('extentNegative') || changed.has('viewed')) this.authorityRevision++;
       if (rowChanged && intents.size) this.overlayRevision++;
+      this.revision = { incarnation: change.incarnation, revision: change.revision };
+      return true;
     }
-    this.revision = { incarnation: change.incarnation, revision: change.revision };
+  }
+
+  private installSnapshot(snapshot: PersistedRangeState, identity: SyncIdentity, fence: string, revision: StoreRevision): boolean {
+    if (snapshot.sealed || snapshot.superseded || (snapshot.facts &&
+      (snapshot.facts.generation !== identity.generation || snapshot.facts.schemaHash !== identity.schemaHash
+        || (identity.authEpoch !== undefined && snapshot.facts.authEpoch !== identity.authEpoch)))) return false;
+    if (schemaDigest(identity.program.schema) !== identity.schemaHash) throw new TypeError('held schema identity mismatch');
+    // Build behind a private object; no concurrent evaluator can observe a partial row/index installation.
+    const next = new TwinStore(this.sources);
+    next.state = snapshot; next.program = identity.program; next.fence = fence; next.incarnation = this.incarnation + 1;
+    next.assets = new RowAssets(onceColumns(identity.program.schema));
+    next.store = new ClientStore(identity.program.schema, undefined, { readable: Object.entries(identity.program.schema.tables ?? {})
+      .filter(([, t]) => t.retain === 'delivered-history').map(([name]) => name) });
+    const affected = new Set([...Object.keys(snapshot.rows), ...Object.keys(snapshot.negative), ...Object.keys(snapshot.extentNegative), ...Object.keys(snapshot.viewed)]);
+    for (const intent of Object.keys(snapshot.overlay)) next.intent(intent, affected);
+    for (const key of affected) next.row(key);
+    for (const [key, answer] of Object.entries(snapshot.answers)) next.answer(key, answer);
+    next.store.registerHeld(identity.program.programs, next.context());
+    next.revision = { incarnation: revision.incarnation, revision: revision.revision };
+    if (!this.sameIdentity(identity)) return false;
+    // Class state is ordinary own data; the synchronous assignment is one event-loop publication turn.
+    Object.assign(this,next,{ flight: this.flight });
     return true;
   }
   private context(): Context { return { viewer: this.sources.principal()!, principal_kind: 'user', auth_epoch: this.facts?.authEpoch ?? 0,

@@ -20,6 +20,7 @@ import {
   OfflineStoreFailure,
   type Coverage,
   type CoverageFacts,
+  type CoverageMetadata,
   type HeldAnswer,
   type HeldOperation,
   type HeldProgram,
@@ -219,6 +220,7 @@ export class OfflineRuntime {
       program: () => this.held,
       changes: since => this.store[preparedChanges]?.(since) ?? this.store.changes(since),
       principal: () => this.partition,
+      authEpoch: () => this.authEpoch,
       now: () => Date.now(),
       seq: () => this.latestSeq,
     });
@@ -926,8 +928,8 @@ export class OfflineRuntime {
   async resumeRequest(mounted: MountedQuery[], adjustment: ResumeAdjustment = {}): Promise<ResumeRequestV1 | undefined> {
     if (this.partition === undefined) return undefined;
     if (this.facts && !this.coverageCurrent()) return { protocol: 1, ...this.facts, mounted: [] };
-    const coverage = await this.store.coverage();
-    const watermark = tailWatermark(coverage.watermarks);
+    const metadata = await this.storeMetadata();
+    const watermark = tailWatermark(metadata.watermarks);
     // Persisted logs go to the owner even if legacy metadata is missing. Fresh
     // drains must first have the owner's returned-page eligibility descriptor.
     for (const query of mounted) if (query.drain && query.op !== watermark?.op) this.drainCursor(query.op);
@@ -987,11 +989,15 @@ export class OfflineRuntime {
     return this.partition === undefined ? undefined : this.store.coverage();
   }
 
+  /** The settlement tail without materializing held rows or receipt ranges. */
+  async logWatermark(): Promise<WatermarkRecord | undefined> {
+    return this.partition === undefined ? undefined : tailWatermark((await this.storeMetadata()).watermarks);
+  }
+
   /** A real query earns the authority facts; metadata alone never renews trust. */
   async resumeSeed(mounted: MountedQuery[]): Promise<MountedQuery | undefined> {
     if (this.partition === undefined) return undefined;
-    const coverage = await this.store.coverage();
-    const held = tailWatermark(coverage.watermarks);
+    const held = tailWatermark((await this.storeMetadata()).watermarks);
     // Prefer the mounted drain, then the recorded log, then the first manifest
     // query with a Cursor and known arguments, then the first all-optional query.
     // An ordinary mounted query must not displace the app's chosen delivery log.
@@ -1072,14 +1078,14 @@ export class OfflineRuntime {
   }
 
   private async loadFacts(): Promise<void> {
-    const coverage = await this.store.coverage();
-    this.superseded = coverage.superseded;
-    if (coverage.facts) {
-      this.facts = coverage.facts;
-      this.sessionEpoch ??= coverage.facts.authEpoch;
+    const metadata = await this.storeMetadata();
+    this.superseded = metadata.superseded;
+    if (metadata.facts) {
+      this.facts = metadata.facts;
+      this.sessionEpoch ??= metadata.facts.authEpoch;
       return;
     }
-    const watermark = tailWatermark(coverage.watermarks);
+    const watermark = tailWatermark(metadata.watermarks);
     if (watermark?.generation && watermark.schemaHash && watermark.authEpoch !== undefined) {
       this.facts = {
         generation: watermark.generation,
@@ -1087,6 +1093,13 @@ export class OfflineRuntime {
         authEpoch: watermark.authEpoch,
       };
     }
+  }
+
+  private async storeMetadata(): Promise<CoverageMetadata> {
+    if (this.store.metadata) return this.store.metadata();
+    const coverage = await this.store.coverage();
+    return { watermarks: coverage.watermarks, ...(coverage.facts ? { facts: coverage.facts } : {}),
+      ...(coverage.superseded ? { superseded: coverage.superseded } : {}) };
   }
 
   private serial<T>(action: () => Promise<T>): Promise<T> {

@@ -181,6 +181,12 @@ export interface Coverage {
   deliveredAt?: number;
 }
 
+export interface CoverageMetadata {
+  watermarks: WatermarkRecord[];
+  facts?: CoverageFacts;
+  superseded?: CoverageFacts;
+}
+
 export type OutboxState = "queued" | "committed" | "rejected" | "expired";
 /** What the twin read when the intent was queued: the replay envelope's `trace` (LLP 1012 §7). */
 export interface OutboxTrace {
@@ -349,6 +355,8 @@ export interface RangeStore {
   answer<Result = unknown>(op: string, args: unknown): Promise<HeldAnswer<Result> | undefined>;
   commit(swap: StoreSwap): Promise<void>;
   coverage(): Promise<Coverage>;
+  /** Small custody read for reconnect and settlement; custom carriers may fall back to `coverage()`. */
+  metadata?(): Promise<CoverageMetadata>;
   changes(since?: StoreRevision): Promise<StoreChange<PersistedRangeState>>;
   /** @ref LLP 1018#3-move-one-one-coherent-reactive-client — post-commit effective local query inputs. */
   subscribeInputs(listener: () => void): () => void;
@@ -679,6 +687,14 @@ export class PersistentRangeStore implements RangeStore {
         ...(this.state.superseded === undefined ? {} : { superseded: clone(this.state.superseded) }),
         ...(deliveredAt === undefined ? {} : { deliveredAt }),
       };
+    });
+  }
+
+  async metadata(): Promise<CoverageMetadata> {
+    return this.read(() => this.state.sealed ? { watermarks: [] } : {
+      watermarks: clone(Object.values(this.state.watermarks)),
+      ...(this.state.facts === undefined ? {} : { facts: clone(this.state.facts) }),
+      ...(this.state.superseded === undefined ? {} : { superseded: clone(this.state.superseded) }),
     });
   }
 

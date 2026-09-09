@@ -12,7 +12,7 @@ import {
   wireShape,
 } from "./client-wire.js";
 import { DeliveryEnvelopeDecodeError } from "./offline-protocol.js";
-import { tailWatermark, type AcceptedDelivery, type OfflineRuntime } from "./offline.js";
+import { type AcceptedDelivery, type OfflineRuntime } from "./offline.js";
 import { OutboxRefusal, replayEnvelope, type OutboxEntry } from "./store/outbox.js";
 import { referenceName } from "./api.js";
 import { inboxKeyOf } from "./store/inbox.js";
@@ -342,10 +342,9 @@ async function settle(
  */
 async function logTail(options: DrainOptions, revision: number) {
   const { runtime } = options;
-  const coverage = await runtime.coverage();
+  const watermark = await runtime.logWatermark();
   throwIfAborted(options.signal);
   if (revision !== runtime.coverageRevision) return undefined;
-  const watermark = coverage ? tailWatermark(coverage.watermarks) : undefined;
   // No drained query, no tail: the intent settles `committed` with no rows in
   // its swap. That is the only way a queue held under a login grant with
   // nothing delivered can progress (LLP 1012 §7); the prediction overlay
