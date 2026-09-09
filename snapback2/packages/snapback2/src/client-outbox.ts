@@ -53,8 +53,10 @@ export function wireReplayResponse<Result>(value: unknown): MutationResult<Resul
     const program = wireObject(record.program, `${surface}.program`);
     if (typeof program.planHash !== "string" || !/^[a-f0-9]{64}$/.test(program.planHash)
       || typeof program.schemaHash !== "string" || !/^[a-f0-9]{64}$/.test(program.schemaHash)) throw wireShape(`${surface}.program must carry exact plan and schema hashes`);
-    if (record.effects !== undefined && (typeof record.effects !== "string" || !/^[a-f0-9]{64}$/.test(record.effects))) throw wireShape(`${surface}.effects must be a SHA-256 digest`);
-    return { ...result, ...intent, ...(typeof record.effects === "string" ? { effects: record.effects } : {}), program: { planHash: program.planHash, schemaHash: program.schemaHash } };
+    if (record.effects !== undefined && (!Array.isArray(record.effects) || record.effects.some(row => !row || typeof row !== "object"
+      || typeof row.table !== "string" || !row.table || typeof row.id !== "string" || !row.id
+      || (row.removed !== undefined && row.removed !== true)))) throw wireShape(`${surface}.effects must contain row addresses`);
+    return { ...result, ...intent, ...(Array.isArray(record.effects) ? { effects: record.effects } : {}), program: { planHash: program.planHash, schemaHash: program.schemaHash } };
   }
   if (result.state === "rejected" && typeof record.reason === "string") return { ...result, reason: record.reason, ...intent };
   return { ...result, ...intent };

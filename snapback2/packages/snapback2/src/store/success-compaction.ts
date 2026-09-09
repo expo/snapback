@@ -1,41 +1,32 @@
 // @ref LLP 1018.003.001#4-automatic-compaction-of-successful-history —
-// a success leaves the ledger only after every actual row effect has authority.
-import { sha256, compareCodepoints } from "../../../evaluator/src/hash.js";
-import { matchingMutationProgram } from "../mutation-targets.js";
+// the owner names the actor-observable effects; its commit settles server-only fan-out.
 import { rowKey } from "./row-values.js";
 import type { PersistedRangeState } from "./range-store.js";
 
-export interface SuccessEffects {
-  digest: string;
-  pending: { table: string; id: string; removed?: true }[];
-}
-
-/** Same canonical address set as the owner; no private fan-out addresses cross the wire. */
-export function successEffects(rows: SuccessEffects["pending"]): SuccessEffects {
-  const unique = new Map(rows.map(row => [rowKey(row), row]));
-  const pending = [...unique.values()].sort((a, b) => compareCodepoints(a.table, b.table) || compareCodepoints(a.id, b.id));
-  return { digest: sha256(JSON.stringify(pending.map(row => [row.table, row.id]))), pending };
-}
+export type SuccessEffects = { table: string; id: string; removed?: true }[];
 
 /** Runs in the existing carrier transaction, with or without query readers. */
 export function compactSuccesses(state: PersistedRangeState): number[] {
   const aliases: number[] = [];
   for (const [intent, entry] of Object.entries(state.outbox)) {
-    if (!matchingMutationProgram(entry) || entry.state !== "committed" || !entry.effects
-      || !state.facts || state.superseded || state.facts.generation !== entry.targets!.generation
-      || state.facts.schemaHash !== entry.targets!.schemaHash) continue;
-    const response = entry.response as { seq?: number; effects?: string };
-    const seq = response?.seq;
-    if (!Number.isSafeInteger(seq) || response.effects !== entry.effects.digest) continue;
-    const pending = entry.effects.pending.filter(row => {
+    if (entry.state !== "committed" || state.superseded) continue;
+    const response = entry.response as { seq?: number; effects?: SuccessEffects; program?: { schemaHash: string; planHash: string } };
+    const seq = response?.seq, identity = response?.program;
+    const held = state.programs[state.facts?.generation ?? ""] ?? Object.values(state.programs)[0];
+    if (!Number.isSafeInteger(seq) || !Array.isArray(response.effects) || !identity || !held
+      || held.schemaHash !== identity.schemaHash || held.programs[entry.op]?.planHash !== identity.planHash) continue;
+    const pending = entry.effects ?? response.effects;
+    const remaining = pending.filter(row => {
+      // Empty effect sets require no row coverage; nonempty sets need this exact schema.
+      if (!state.facts || state.facts.schemaHash !== identity.schemaHash || state.facts.generation !== held.generation) return true;
       const key = rowKey(row), positive = state.rows[key] ? state.rowSeq[key] ?? -1 : -1;
       const negative = state.negative[key] ?? -1;
       // No global sequence, page exclusion, patience, or disappeared overlay is evidence.
       return !(negative >= seq! && negative >= positive)
         && (row.removed || positive < seq! || positive <= negative);
     });
-    if (pending.length) {
-      if (pending.length !== entry.effects.pending.length) entry.effects.pending = pending;
+    if (remaining.length) {
+      if (remaining.length !== pending.length) entry.effects = remaining;
       continue;
     }
     // One scalar invalidates the freshness of older public snapshots; it is not
