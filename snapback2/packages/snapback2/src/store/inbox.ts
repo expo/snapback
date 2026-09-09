@@ -123,7 +123,7 @@ export interface InboxConnection {
   /** The persisted ledger entries, as the writer last committed them. */
   ledger(): Promise<Record<string, unknown>>;
   /** Rows and ledger from one readonly transaction over both stores, so a swap between the two reads cannot show a row twice or not at all. */
-  read(): Promise<{ rows: InboxRow[]; ledger: Record<string, unknown> }>;
+  read(): Promise<{ rows: InboxRow[]; ledger: Record<string, unknown>; compactedThrough?: number }>;
   /** True once `versionchange` closed the connection: the partition is being upgraded or deleted. */
   readonly ended: boolean;
   close(): void;

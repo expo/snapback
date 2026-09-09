@@ -98,7 +98,7 @@ export type OfflineQueryResult<Result> =
   | { state: "hydrating"; live: false; connection: "offline" };
 export type QueryResult<Result> = ServerQueryResult<Result> | OfflineQueryResult<Result> | RefusedDelivery;
 
-export type MutationCommitted<Result> = { state: "committed"; seq: number; data: Result; intent?: string;
+export type MutationCommitted<Result> = { effects?: string; state: "committed"; seq: number; data: Result; intent?: string;
   program?: import("./mutation-targets.js").MutationProgramIdentity };
 export type MutationRejected = { state: "rejected"; intent?: string } & Refusal;
 /**

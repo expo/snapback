@@ -2,6 +2,7 @@ import { assertRefused } from "./live-fixture.ts";
 import { isRefusalError } from "../dist/client-observed-test.mjs";
 import { subscribe } from "../src/internal.js";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -1149,4 +1150,51 @@ test("a cold start with the owner unreachable serves the held log and the outbox
   assert.deepEqual((await cold.outbox.entries()).map((entry) => entry.state), ["committed"], "the reach replays the queue");
   cold.close();
   await rm(root, { recursive: true, force: true });
+});
+
+
+// @ref LLP 1018.003.001#4-automatic-compaction-of-successful-history —
+// the transaction, not a hook, discharges every address before removing success.
+test("successful history compacts atomically only after the entire effect set on every carrier", async () => {
+  const identity = { planHash: "a".repeat(64), schemaHash };
+  const refs = [{ table: "messages", id: "m" }, { table: "counts", id: "aggregate" }];
+  const digest = (rows: typeof refs) => createHash("sha256").update(JSON.stringify(rows.map(r => [r.table, r.id]).sort())).digest("hex");
+  const entry = (intent: string, rows = refs, state = "committed", seq = 10): any => ({
+    intent, grant: "g", offset: 0, count: 1, ids: [], op: "edit", args: { body: "new" }, issuedSeq: seq - 1,
+    createdAt: 1, updatedAt: 2, state, targets: { ...identity, generation, complete: true, unresolved: [], rows: [] },
+    effects: { digest: digest(rows), pending: rows }, response: { state, seq, data: null, program: { ...identity }, effects: digest(rows) },
+  });
+  const delivery = (seq: number, rows: typeof refs): any => ({ op: "view", args: {}, seq, state: "complete", next: null,
+    rows: rows.map(r => ({ ...r, row: { id: r.id, body: "new" } })), data: rows.map(r => ({ $row: r })),
+    receipt: { ranges: [], absences: [], verdicts: [] } });
+  for (const carrier of await carriers()) {
+    const factory = carrier.factory(); let store = factory();
+    try {
+      await store.open("dev:alice");
+      await store.commit({ facts: { generation, schemaHash, authEpoch: 7 }, outbox: { put: [entry("success")] } });
+      await store.commit({ deliveries: [delivery(11, [refs[0]!])] });
+      assert.equal((await store.outbox.get("success"))?.effects?.pending.length, 1, carrier.name);
+      await store.close?.(); store = factory(); await store.open("dev:alice");
+      assert.equal((await store.outbox.get("success"))?.effects?.pending.length, 1, "partial discharge survives reopen");
+      await store.commit({ deliveries: [delivery(12, [refs[1]!])] });
+      assert.equal(await store.outbox.get("success"), undefined, "maintained sibling authority completes the atomic set");
+      assert.equal(await store.outbox.compactedThrough?.(), 10);
+      await store.commit({ outbox: { put: [entry("rejected", [], "rejected"), entry("expired", [], "expired"), entry("queued", [], "queued"), entry("empty", [])] } });
+      assert.equal(await store.outbox.get("empty"), undefined, "actual empty write set needs no query observer");
+      assert.deepEqual((await store.outbox.all()).map(e => e.intent).sort(), ["expired", "queued", "rejected"]);
+      const hidden = entry("fanout", [refs[0]!]); hidden.response.effects = digest(refs);
+      await store.commit({ outbox: { put: [hidden] } });
+      assert(await store.outbox.get("fanout"), "one displayed row is not proof of unseen fanout");
+      const replacement = entry("replacement", []); replacement.response.program.planHash = "f".repeat(64);
+      await store.commit({ outbox: { put: [replacement] } });
+      assert(await store.outbox.get("replacement"), "success under another program retains custody");
+      for (let n = 20; n < 120; n++) {
+        await store.commit({ outbox: { put: [entry(`online-${n}`, [refs[0]!], "committed", n)] }, deliveries: [delivery(n, [refs[0]!])] });
+      }
+      assert.equal((await store.outbox.all()).length, 5, "100 delivered successes leave no per-success markers");
+      await store.close?.(); store = factory(); await store.open("dev:alice");
+      assert.equal(await store.outbox.compactedThrough?.(), 119, "one durable watermark survives reopening");
+      assert.equal((await store.outbox.all()).length, 5, "reopen cannot resurrect compacted drafts");
+    } finally { await store.close?.(); await carrier.cleanup(); }
+  }
 });

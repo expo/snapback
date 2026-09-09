@@ -207,6 +207,7 @@ class Client implements SnapbackClient {
       query: (ref, args) => this.queryInternal(ref, args),
       local: (ref, args, drain) => answerOffline(this.offlineRuntime, referenceName(ref), args, error => this.offlineRefusal(error), drain),
       entries: () => this.offlineRuntime?.itemEntries() ?? Promise.resolve([]),
+      compactedThrough: () => this.offlineRuntime?.compactedThrough() ?? Promise.resolve(0),
     });
     this.offlineRuntime?.subscribeInputs(() => this.queries.refresh());
     this.outbox = createOutboxApi(this.offlineRuntime, () => this.drainNow(), () => this.localReady,

@@ -8,7 +8,7 @@ export function outboxOrder(entries: Record<string, OutboxEntry>): OutboxEntry[]
 }
 
 const RECORDS = ["answers", "rows", "negative", "extentNegative", "rowSeq", "viewed", "outbox", "overlay", "watermarks"];
-const ROOTS = [...RECORDS, "facts", "superseded", "programs", "onceColumns", "sealed"];
+const ROOTS = [...RECORDS, "facts", "superseded", "programs", "onceColumns", "sealed", "compactedThrough"];
 
 /** Carrier fields read by `answer()` or the incremental twin; transport-only custody stays silent. */
 export function changesQueryInputs(changed: ChangedRecords): boolean {

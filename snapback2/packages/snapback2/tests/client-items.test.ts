@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { test } from "node:test";
 import { build } from "esbuild";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -397,7 +398,15 @@ for (const carrier of ["file", "indexeddb"]) test(`${carrier}: four shared obser
     await until(() => once.getSnapshot().items[0]?.pending.length === 1, "work on the one-shot view");
     assert.strictEqual(once.getSnapshot().data, onceData, "ledger refresh does not secretly refresh a one-shot query");
     for (const other of observed) assert.strictEqual(other.getSnapshot(), settled, "one publication for all readers");
-    assert.equal((await client.outbox.entries()).length, 1, "no observer deletes terminal history");
+    assert.equal((await client.outbox.entries()).length, 1, "missing full-effect proof retains history");
+    const effects = createHash("sha256").update(JSON.stringify([["messages", message.id]])).digest("hex");
+    await store.commit({ outbox: { put: [{ ...edit, effects: { digest: effects, pending: [{ table: "messages", id: message.id }] },
+      response: { ...(edit.response as object), effects } }] } });
+    await until(() => once.getSnapshot().reason?.code === "changed", "old one-shot exposes compacted changes");
+    assert.equal((await client.outbox.entries()).length, 0, "runtime compacts with complete effect authority");
+    assert.strictEqual(once.getSnapshot().data, onceData, "compaction never advances the old image");
+    assert.equal(once.getSnapshot().freshness.compactedThrough, seq + 1);
+    assert.deepEqual(once.getSnapshot().items[0]?.pending, [], "one scalar replaces compacted action history");
   } finally {
     stops.forEach(stop => stop()); await client.close(); await rm(root, { recursive: true, force: true });
   }

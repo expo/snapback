@@ -4,6 +4,7 @@
 // envelope. Settlement never deletes; `dismiss` is the app's choice.
 import type { OutboxStatus } from "../types.js";
 import { inboxKeyOf, type InboxRow } from "./inbox.js";
+import { successEffects } from "./success-compaction.js";
 import { admittedMutationTargets } from "../mutation-targets.js";
 import type {
   OutboxEntry,
@@ -368,6 +369,10 @@ export class OutboxLedger {
         count,
         ids,
         ...(targets ? { targets } : {}),
+        ...(targets && (prediction?.predicted || targets.complete) ? { effects: successEffects(
+          prediction?.predicted ? prediction.overlay.map(({ table, id, removed }) => ({ table, id, ...(removed ? { removed } : {}) }))
+            : targets.rows.map(({ table, id, kind }) => ({ table, id, ...(kind === "remove" ? { removed: true as const } : {}) })),
+        ) } : {}),
         ...(input.presentation === undefined ? {} : { presentation: input.presentation }),
         op: input.op,
         args,

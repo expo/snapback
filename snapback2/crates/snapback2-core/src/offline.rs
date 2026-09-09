@@ -83,6 +83,8 @@ pub fn replay_mutation_response(
             "state": "committed",
             "seq": seq,
             "data": value_to_wire_json(&execution.result),
+            "effects": digest(&execution.trace.touched.iter()
+                .map(|key| (&key.table, &key.row_id)).collect::<BTreeSet<_>>()),
         }),
         ExecutionState::Rejected { code, message, rule: None, .. } if code == "conflict" => json!({
             "state": "rejected",
@@ -649,6 +651,27 @@ mod tests {
     use crate::engine::{AuthoritativeTrace, ClosureReceipt};
     use crate::ir::Order;
     use crate::object;
+
+    #[test]
+    fn replay_effect_digest_covers_every_unique_address_without_disclosing_rows() {
+        let mut run = execution(ClosureReceipt::default());
+        run.state = ExecutionState::Committed { seq: 8 };
+        let identity = ("a".repeat(64), "b".repeat(64));
+        let terminal = |run: &Execution| replay_mutation_response(run, "intent", Some((&identity.0, &identity.1)));
+        assert_eq!(terminal(&run)["effects"], digest(&Vec::<(String, String)>::new()));
+        for (table, id, index) in [("messages", "m", "byId"), ("counts", "aggregate", "byId"), ("messages", "m", "byGroup")] {
+            run.trace.touched.push(crate::store::TouchedKey {
+                table: table.into(), row_id: id.into(), index: index.into(), key: vec![],
+            });
+        }
+        let result = terminal(&run);
+        assert_eq!(result["effects"], digest(&vec![("counts", "aggregate"), ("messages", "m")]));
+        assert!(!result.to_string().contains("aggregate"));
+        run.trace.touched.pop();
+        assert_eq!(terminal(&run)["effects"], result["effects"], "multiple indexes are one row obligation");
+        run.trace.touched.pop();
+        assert_ne!(terminal(&run)["effects"], result["effects"], "a message alone cannot discharge its maintained target");
+    }
 
     fn hash(character: char) -> String {
         std::iter::repeat_n(character, 64).collect()

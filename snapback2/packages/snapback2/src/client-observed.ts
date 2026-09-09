@@ -100,10 +100,10 @@ export function queryEntry<Result, Event extends QueryMachineEvent<Result>>(
       const inputs = received ? rebindItemInputs(received, "data" in event ? event.data : undefined, "data" in next ? next.data : undefined)
         : "data" in next ? current.inputs : { ...emptyItemInputs, entries: current.inputs.entries };
       if (next === current.view && inputs === current.inputs) return current;
-      return Object.freeze({ view: next, snapshot: next === current.view ? current.snapshot : freezeTree(summarize(next, connection())), inputs });
+      return Object.freeze({ view: next, snapshot: freezeTree(summarize(next, connection(), inputs.compactedThrough)), inputs });
     },
     reproject: (current: QuerySnapshot<Result>) => current.snapshot.freshness.connection === connection()
-      ? current : Object.freeze({ ...current, snapshot: freezeTree(summarize(current.view, connection())) }),
+      ? current : Object.freeze({ ...current, snapshot: freezeTree(summarize(current.view, connection(), current.inputs.compactedThrough)) }),
     open,
     ...(refresh === undefined ? {} : { refresh: (current: QuerySnapshot<Result>, authoritative?: Event) => refresh(current.view, authoritative, current.inputs) }),
   };
@@ -205,6 +205,7 @@ interface QueryHost {
   query<Args, Result>(ref: Op<Args, Result>, args: Args): Promise<QueryResult<Result>>;
   local<Args, Result>(ref: Op<Args, Result>, args: Args, drain: boolean): Promise<QueryMachineEvent<Result>>;
   entries?(): Promise<ItemInputs["entries"]>;
+  compactedThrough?(): Promise<number>;
 }
 
 /** Owns query identity, lazy shared entries, and committed-local-input reevaluation for one client. */
@@ -236,7 +237,7 @@ export class ClientQueries {
       // follower has no local answer, so its items must still take the
       // runtime's current entries: the durable inbox rows it just wrote.
       return withItemInputs({ ...current } as SubscriptionDelivery<Result>,
-        { ...inputs, entries: itemInputs(event)?.entries ?? (await this.host.entries?.()) ?? inputs.entries });
+        { ...inputs, entries: itemInputs(event)?.entries ?? (await this.host.entries?.()) ?? inputs.entries, compactedThrough: await this.host.compactedThrough?.() });
     }
     // A drain is caught up only after DrainSubscription.mark has finished its
     // watermark and replay-grant work. A store-input refresh can see the page
@@ -326,11 +327,11 @@ export class ClientQueries {
     const observed = once ? this.shared.observe(queryEntry<Result, QueryMachineEvent<Result>>(
       key, (fanout) => oneShotQuery(() => this.host.query(request.ref, request.args), fanout),
       async (current, _authoritative, inputs = emptyItemInputs) => {
-        const entries = await this.host.entries?.();
+        const entries = await this.host.entries?.(), compactedThrough = await this.host.compactedThrough?.();
         if (!active() || entries === undefined) return undefined;
         // A one-shot keeps its original row witnesses and value. Ledger changes
         // can attach work but cannot turn it into an implicitly refreshed query.
-        return withItemInputs({ ...current } as QueryMachineEvent<Result>, { ...inputs, entries });
+        return withItemInputs({ ...current } as QueryMachineEvent<Result>, { ...inputs, entries, compactedThrough });
       }, this.host.connection,
     ), active, projection) : this.shared.observe(queryEntry<Result, SubscriptionDelivery<Result>>(
       key,

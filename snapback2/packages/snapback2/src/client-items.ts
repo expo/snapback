@@ -192,6 +192,7 @@ export interface ItemObservation {
   readonly absent?: true;
 }
 export interface ItemInputs {
+  readonly compactedThrough?: number;
   readonly program?: { generation: string; schemaHash: string };
   readonly entries: readonly OutboxEntry[];
   /** A complete answer to this query decides page membership, not row contents. */

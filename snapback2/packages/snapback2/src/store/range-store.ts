@@ -9,6 +9,7 @@ import { ClockCoverageReset, FullRevalidationRequired, deliveryFacts, FactTransa
 import { extentContains, rangeMeaningKey, type FactImage, type FactExtent, type ExtentProof, type ExtentCondition } from './extent-facts.js';
 import { SwapJournal, StoreChanges, raw, type StoreRevision, type StoreChange, type ChangedRecords } from "./swap-journal.js";
 import { changesQueryInputs, outboxOrder } from "./query-inputs.js";
+import { compactSuccesses } from "./success-compaction.js";
 import { onceColumns, onceRow, onceAssetIds, nullOnceMedia, type OnceColumns } from "./asset-policy.js";
 // @ref LLP 1012#4-the-range-store — every carrier persists the same per-principal answer/range model.
 // @ref LLP 1012#5-retention-revocation-and-the-fence — eviction is decided once over a complete swap.
@@ -189,6 +190,7 @@ export interface OutboxTrace {
 // @ref LLP 1012#7-writes-offline — one durable intent: its pinned id slice, its
 // bytes, and its terminal response, so a retry is the same envelope.
 export interface OutboxEntry {
+  effects?: import("./success-compaction.js").SuccessEffects;
   targets?: import("../mutation-targets.js").AdmittedMutationTargets;
   intent: string;
   grant: string;
@@ -232,6 +234,7 @@ export interface OutboxGrant {
 }
 
 export interface OutboxStore {
+  compactedThrough?(): Promise<number>;
   all(): Promise<OutboxEntry[]>;
   get(intent: string): Promise<OutboxEntry | undefined>;
   put(entry: OutboxEntry): Promise<void>;
@@ -377,6 +380,7 @@ export interface PersistedRangeState {
   answers: Record<string, StoredAnswer>;
   watermarks: Record<string, WatermarkRecord>;
   outbox: Record<string, OutboxEntry>;
+  compactedThrough?: number;
   grants: Record<string, OutboxGrant>;
   currentGrant?: string;
   overlay: Record<string, OverlayRow[]>;
@@ -517,6 +521,7 @@ export class PersistentRangeStore implements RangeStore {
   private tail: Promise<void> = Promise.resolve();
 
   readonly outbox: OutboxStore = {
+    compactedThrough: async () => this.read(() => this.state.sealed ? 0 : this.state.compactedThrough ?? 0),
     all: async () => this.read(() => {
       this.ensureUnsealed();
       return clone(outboxOrder(this.state.outbox));
@@ -769,8 +774,10 @@ export class PersistentRangeStore implements RangeStore {
       const journal = new SwapJournal(this.state), priorIndex = this.referenceIndex, priorSchema = this.referenceSchema;
       try {
         this.applySwap(journal.draft, normalized, delta);
+        const compactedAliases = compactSuccesses(journal.draft);
+        const combinedInbox = compactedAliases.length ? { ...inbox, remove: [...(inbox?.remove ?? []), ...compactedAliases] } : inbox;
         this.updates.prepare(journal.changed);
-        await this.replace(this.state, delta, undefined, journal.changed, inbox);
+        await this.replace(this.state, delta, undefined, journal.changed, combinedInbox);
       } catch (error) { journal.rollback(); this.referenceIndex = priorIndex; this.referenceSchema = priorSchema; throw error; }
       this.persisted = this.state;
       this.updates.publish(this.state, journal.changed);

@@ -47,7 +47,9 @@ outbox status, connection and queue. Actions share `sign-in | connect | other-ta
 wait; paused work offers Sync, even after a connected read. Followers use
 inbox readiness; `detail.writer` holds announced status.
 `outbox.observe(op?)` feeds hooks; `intentLabel` labels entries.
-Terminals persist until `dismiss(intent)`; queued work cannot be dismissed.
+Discharged successes compact automatically. Unresolved successes and failures
+remain dismissible; queued work cannot be dismissed. Older snapshots expose
+`reason.code: "changed"` and `freshness.compactedThrough`; refresh their query.
 Committed does not mean shown: query `items` need the target's observation
 through commit. `arrived`/global sequence cannot substitute. Expose failures.
 

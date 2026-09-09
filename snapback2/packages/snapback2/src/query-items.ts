@@ -88,7 +88,7 @@ export class ItemCapture {
   }
   inputs(): ItemInputs {
     const selection = this.held?.selection ?? freshItemSelection(this.held);
-    return { entries: this.entries ?? Object.values(this.state.outbox).sort((a, b) => (a.order ?? a.createdAt) - (b.order ?? b.createdAt)
+    return { compactedThrough: this.state.compactedThrough, entries: this.entries ?? Object.values(this.state.outbox).sort((a, b) => (a.order ?? a.createdAt) - (b.order ?? b.createdAt)
       || a.intent.localeCompare(b.intent)), observations: this.observations, values: this.values, predicted: new Map(this.predicted),
       ...(this.state.facts ? { program: { generation: this.state.facts.generation, schemaHash: this.state.facts.schemaHash } } : {}),
       ...(selection ? { selection } : {}) };

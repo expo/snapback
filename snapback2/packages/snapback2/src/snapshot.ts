@@ -16,7 +16,7 @@ import type {
 
 export type ReceiptState = "complete" | "capped" | "partial" | "denied";
 export type SnapshotStatus = "loading" | "ready" | "unavailable";
-export type SnapshotReasonCode = "refused" | "denied" | "partial" | "stale" | "offline" | "predicted" | "held";
+export type SnapshotReasonCode = "refused" | "denied" | "partial" | "stale" | "offline" | "predicted" | "held" | "changed";
 
 /** One observed query, as a screen reads it (LLP 1018.003 §1). */
 export type Snapshot<T> = {
@@ -36,7 +36,7 @@ export type Snapshot<T> = {
     sites?: readonly { site: string; reason: string }[];
   };
   /** How current it is. Transport truth, independent of the receipt. */
-  freshness: { live: boolean; staleSince?: number; connection: ConnectionState };
+  freshness: { live: boolean; staleSince?: number; connection: ConnectionState; compactedThrough?: number };
   /** What this device added. Offline truth. */
   local: {
     /** Rows a queued intent predicted, each with the intent that minted it; match `id` against the rows you render. */
@@ -54,6 +54,7 @@ export type Snapshot<T> = {
 
 /** The sentences behind `reason.message`, keyed by code; switch on `code` to supply your own. */
 export const reasonMessages: Readonly<Record<Exclude<SnapshotReasonCode, "refused">, string>> = Object.freeze({
+  changed: "Changes committed after this snapshot. Refresh to see them.",
   denied: "Not visible to this account.",
   partial: "Some data is not downloaded.",
   stale: "Showing downloaded data.",
@@ -94,7 +95,7 @@ function receiptOf<T>(view: QueryView<T>): Snapshot<T>["receipt"] | undefined {
  * view and connection always summarize the same way, and nothing here is a
  * fact the view did not already carry.
  */
-export function summarize<T>(view: QueryView<T>, connection: ConnectionState): Snapshot<T> {
+export function summarize<T>(view: QueryView<T>, connection: ConnectionState, compactedThrough?: number): Snapshot<T> {
   const data = "data" in view ? view.data : undefined;
   const receipt = receiptOf(view);
   const staleSince = view.state === "stale" ? view.since : "stale" in view ? view.stale?.since : undefined;
@@ -104,10 +105,11 @@ export function summarize<T>(view: QueryView<T>, connection: ConnectionState): S
     ...("caughtUp" in view && view.caughtUp !== undefined ? { caughtUp: view.caughtUp } : {}),
     ...("watermark" in view && view.watermark !== undefined ? { watermark: view.watermark } : {}),
   };
+  const changed = receipt !== undefined && compactedThrough !== undefined && receipt.seq < compactedThrough;
   const base = {
     data, next: receipt?.next ?? null, partial: false,
     ...(receipt === undefined ? {} : { receipt }),
-    freshness: { live: view.live, ...(staleSince === undefined ? {} : { staleSince }), connection },
+    freshness: { ...(changed ? { compactedThrough } : {}), live: view.live, ...(staleSince === undefined ? {} : { staleSince }), connection },
     local,
   };
   if (view.state === "refused") {
@@ -123,7 +125,8 @@ export function summarize<T>(view: QueryView<T>, connection: ConnectionState): S
   }
   if (data !== undefined && receipt !== undefined) {
     const code: SnapshotReasonCode | undefined = receipt.state === "partial" ? "partial"
-      : staleSince !== undefined ? "stale"
+      : changed ? "changed"
+        : staleSince !== undefined ? "stale"
         : local.predicted.length > 0 ? "predicted"
           : undefined;
     return {

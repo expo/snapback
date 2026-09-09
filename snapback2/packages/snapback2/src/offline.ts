@@ -180,6 +180,7 @@ export class OfflineRuntime {
   private inboxConnection?: InboxConnection;
   private inboxRowsCache: InboxRow[] = [];
   private inboxLedgerCache: Record<string, OutboxEntry> = {};
+  private inboxCompactedThrough = 0;
   /** Per wait: the route's first durable read, so a client can order it before any network work (LLP 1018.004 §2). */
   private readonly routeReady = new Map<object, Promise<void>>();
   private retention: Record<string, RetentionPolicy> = {};
@@ -228,9 +229,9 @@ export class OfflineRuntime {
 
   /** Bind a returned owner image to its own receipt after admission into this account. */
   async withQueryItems<T extends object>(op: string, args: unknown, accepted: AcceptedDelivery<unknown>, value: T): Promise<T> {
-    const entries = await this.itemEntries();
+    const entries = await this.itemEntries(), compactedThrough = await this.compactedThrough();
     if (accepted.envelope) {
-      const inputs = deliveredItemInputs(accepted.envelope, (value as { data?: unknown }).data, entries);
+      const inputs = { ...deliveredItemInputs(accepted.envelope, (value as { data?: unknown }).data, entries), compactedThrough };
       if (!inputs.selection) {
         const held = await this.answer(op, args);
         // Carry a past query observation, never a later concurrent answer into this frame.
@@ -242,7 +243,7 @@ export class OfflineRuntime {
     }
     // Unchanged carries the held answer's image evidence. A local refresh can
     // subsequently use the newly ordered durable observation of that image.
-    return withItemInputs(value, { ...(itemInputs(accepted.result) ?? emptyItemInputs), entries });
+    return withItemInputs(value, { ...(itemInputs(accepted.result) ?? emptyItemInputs), entries, compactedThrough });
   }
   /**
    * A sealed partition exposes neither query data nor its retained intent
@@ -251,6 +252,10 @@ export class OfflineRuntime {
    * same rows, so "changes on this device" is the device's on either tab and an
    * admitted row appears once (LLP 1018.004 §2).
    */
+  async compactedThrough(): Promise<number> {
+    if (this.inboxConnection) return this.inboxCompactedThrough;
+    return this.partition === undefined ? 0 : await this.store.outbox.compactedThrough?.() ?? 0;
+  }
   async itemEntries(): Promise<OutboxEntry[]> {
     const rows = unadmittedRows(this.inboxRowsCache).map(inboxEntry);
     if (this.inboxConnection) {
@@ -368,6 +373,7 @@ export class OfflineRuntime {
     this.inboxConnection = undefined;
     this.inboxRowsCache = [];
     this.inboxLedgerCache = {};
+    this.inboxCompactedThrough = 0;
   }
 
   private publishInputs(): void {
@@ -393,18 +399,20 @@ export class OfflineRuntime {
    * call it on a nudge or a poll; the writer's admission loop reads for itself.
    */
   async refreshInbox(): Promise<boolean> {
-    let rows: InboxRow[] = [], ledger: Record<string, OutboxEntry> = {};
+    let rows: InboxRow[] = [], ledger: Record<string, OutboxEntry> = {}, compactedThrough = 0;
     if (this.inboxConnection && !this.inboxConnection.ended) {
       // One transaction over both stores: a swap between two reads would show a row twice or not at all.
       const snapshot = await this.inboxConnection.read();
       rows = snapshot.rows;
       ledger = snapshot.ledger as Record<string, OutboxEntry>;
+      compactedThrough = snapshot.compactedThrough ?? 0;
     } else if (this.partition !== undefined && this.store.inboxRows) {
       rows = await this.store.inboxRows();
     } else return false;
-    const changed = canonical(rows) !== canonical(this.inboxRowsCache) || canonical(ledger) !== canonical(this.inboxLedgerCache);
+    const changed = compactedThrough !== this.inboxCompactedThrough || canonical(rows) !== canonical(this.inboxRowsCache) || canonical(ledger) !== canonical(this.inboxLedgerCache);
     this.inboxRowsCache = rows;
     this.inboxLedgerCache = ledger;
+    this.inboxCompactedThrough = compactedThrough;
     if (changed) { this.outbox.notify(); this.publishInputs(); }
     return changed;
   }
