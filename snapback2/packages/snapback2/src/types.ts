@@ -286,6 +286,8 @@ export interface AuthTokenStore {
 }
 
 interface ClientLocationOptions {
+  /** Begin with transport cut; only online() may reconnect. */
+  startOffline?: boolean;
   url: string;
   fetch?: typeof globalThis.fetch;
   offline?: OfflineClientOptions;

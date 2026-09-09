@@ -19,7 +19,7 @@ test("built Quarry API preserves row and channel types in a packaged Expo consum
     // missing package declarations. Only ordinary installed dependencies link out.
     await cp(join(packageRoot, "package.json"), join(installed, "package.json"));
     await cp(join(packageRoot, "dist"), join(installed, "dist"), { recursive: true });
-    for (const dependency of ["typescript", "expo", "react", "@types"]) {
+    for (const dependency of ["typescript", "expo", "react", "react-native", "expo-video", "@types"]) {
       await symlink(join(packageRoot, "node_modules", dependency), join(root, "node_modules", dependency), "dir");
     }
     await writeFile(join(root, "package.json"), JSON.stringify({ private: true, type: "module" }));
@@ -87,6 +87,17 @@ client.channel(api.channels.typing, { todoId: "todo-1" }).set({ typing: true, ex
 void active;
 void [done, wrong];
 `);
+    await writeFile(join(root, "Native.tsx"), `import { api } from "snapback2/client";
+import { usePage as nativePage } from "snapback2/react-native";
+import { usePage as expoPage } from "snapback2/expo";
+const nativeTitle: string | undefined = nativePage(api.todos.page, {}).items[0]?.title;
+const expoTitle: string | undefined = expoPage(api.todos.customPage, {}, { cursor: "after" }).items[0]?.title;
+// @ts-expect-error native paging requires arrays
+nativePage(api.todos.add, {});
+// @ts-expect-error Expo preserves item field types
+const badExpo: number = expoPage(api.todos.page, {}).items[0]!.title;
+void [nativeTitle, expoTitle, badExpo];
+`);
     const config = ts.getParsedCommandLineOfConfigFile(join(root, "tsconfig.json"), {}, {
       ...ts.sys, onUnRecoverableConfigFileDiagnostic: diagnostic => {
         assert.fail(ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n"));
@@ -96,9 +107,11 @@ void [done, wrong];
     assert.deepEqual(config.errors, []);
     assert.equal(config.options.skipLibCheck, true, "witness must retain Expo's declaration-checking setting");
     assert.equal(config.options.paths, undefined, "package exports must resolve without path substitution");
+    // Expo native peers declare their own DOM globals; use Expo's skipLibCheck
+    // for that graph. The core consumer still checks every shipped declaration.
     for (const skipLibCheck of [true, false]) {
       await context.test(`skipLibCheck=${skipLibCheck}`, () => {
-        const program = ts.createProgram({ rootNames: config.fileNames, options: { ...config.options, skipLibCheck } });
+        const program = ts.createProgram({ rootNames: config.fileNames.filter(file => skipLibCheck || !file.endsWith("/Native.tsx")), options: { ...config.options, skipLibCheck } });
         const diagnostics = ts.getPreEmitDiagnostics(program);
         const rendered = ts.formatDiagnostics(diagnostics, {
           getCanonicalFileName: name => name, getCurrentDirectory: () => root, getNewLine: () => "\n",

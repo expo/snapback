@@ -86,7 +86,7 @@ export function defineItems<Args, Result, Source, Row extends ItemRow,
   if (spec.create) {
     const { target, belongs, draft } = spec.create;
     bindings.push(Object.freeze({ op: target.op, kind: "create", key: address(target, "create"),
-      belongs: (entry: OutboxEntry, args: Args) => belongs(entry.args as CreateArgs, { ...args, c: (args as { c?: unknown }).c ?? null }),
+      belongs: (entry: OutboxEntry, args: Args) => belongs(entry.args as CreateArgs, args),
       draft: (entry: OutboxEntry) => draft(entry.args as CreateArgs) }));
   }
   const target = <A, K extends "update" | "remove">(kind: K, binding: Target<A, K> | undefined) => {

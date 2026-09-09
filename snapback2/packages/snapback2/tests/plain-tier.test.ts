@@ -107,7 +107,7 @@ test('plain tier: missing/null cursors share an observation and normalize item m
     assert.equal(sharedConsumers(client, api.messages.inbox, {}), 2);
     assert.equal(sharedConsumers(client, api.messages.inbox, { c: null }), 2);
     const items = clientEntry.defineItems(api.messages.inbox, { table: 'messages', select: row => row,
-      create: { target: clientEntry.mutationTarget(api.messages.send, 'messages'), belongs: (_args, q) => q.c === null,
+      create: { target: clientEntry.mutationTarget(api.messages.send, 'messages'), belongs: (_args, q) => q.c == null,
         draft: args => ({ body: args.body }) } });
     const inputs = { entries: [{ intent: 'i', op: 'messages.send', args: { body: 'draft' }, ids: [], state: 'queued' }], observations: new Map(), predicted: new Map() };
     const missing = attachItems(items, {}, undefined, inputs);

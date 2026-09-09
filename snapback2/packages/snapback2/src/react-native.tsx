@@ -12,7 +12,7 @@ export type { AssetImageProps, AssetVideoProps } from './react-native/components
 
 export type SnapbackProviderProps = (
   | (CreateExpoClientOptions & { client?: never })
-  | { client: SnapbackClient; url?: never; persona?: never; token?: never; tokenStore?: never; fetch?: never; offline?: never }
+  | { client: SnapbackClient; startOffline?: never; url?: never; persona?: never; token?: never; tokenStore?: never; fetch?: never; offline?: never }
 ) & { children: ReactNode };
 
 /** Native custody defaults with the shared provider's StrictMode and deferred-close lifetime. */

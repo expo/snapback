@@ -29,7 +29,7 @@ const spec = defineItems(ref<Query, { message: Message | null }[]>("deliveries.t
   table: "messages", select: delivery => delivery.message, order: "reverse",
   create: {
     target: mutationTarget(ref<{ conversationId: string; body: string }, { id: string }>("deliveries.post"), "messages"),
-    belongs: (args, query) => query.c === null && args.conversationId === query.conversationId,
+    belongs: (args, query) => query.c == null && args.conversationId === query.conversationId,
     draft: args => ({ body: args.body }),
   },
   update: { target: mutationTarget(ref<{ messageId: string; body: string }, null, "update">("deliveries.edit"), "messages") },
@@ -293,6 +293,37 @@ async function until(predicate: () => boolean, label: string): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 10));
   }
 }
+for (const cursor of ["c", "after"]) test(`${cursor}: simultaneous missing/null observations share durable delivery and item membership`, async () => {
+  const root = await mkdtemp(join(tmpdir(), "s2-cursor-identity-"));
+  const factory = fileRangeStore(root), store = factory(), owner = fakeOwner({ seed: true, cursorArg: cursor });
+  const client = createClient({ url: "http://cursor.test", persona: "alice", fetch: owner.fetch, offline: { store: () => store } });
+  await client.ready;
+  const missing = {}, explicit = { ...missing, [cursor]: null };
+  const spec = publicItems(api.deliveries.inbox, { table: "messages", select: (row: any) => row.message,
+    create: { target: mutationTarget(api.deliveries.post, "messages"),
+      belongs: (_write: any, query: any) => query[cursor] === null, draft: (write: any) => write } });
+  const observations = [missing, explicit].map(args => client.observe(api.deliveries.inbox, args, { items: spec }));
+  const stops = observations.map(observed => observed.subscribe(() => undefined));
+  try {
+    await client.ready;
+    await until(() => observations.every(o => o.getSnapshot().items.length === 2), "both page deliveries");
+    assert.strictEqual(observations[0].getSnapshot(), observations[1].getSnapshot(), "one shared observation");
+    await Promise.all([client.query(api.deliveries.inbox, missing), client.query(api.deliveries.inbox, explicit)]).then(results => {
+      for (const result of results) assert.equal(result.state, "complete");
+    });
+    const held = await store.answer("deliveries.inbox", missing);
+    assert.deepEqual(await store.answer("deliveries.inbox", explicit), held);
+    await client.offline();
+    await store.commit({ outbox: { put: [entry({ intent: "cursor-draft", args: { conversationId: "conversation-1", body: "draft" } })] } });
+    await until(() => observations.every(o => o.getSnapshot().items.some(item => item.draft)), "canonical membership callbacks");
+    assert.strictEqual(observations[0].getSnapshot(), observations[1].getSnapshot());
+  } finally { stops.forEach(stop => stop()); await client.close(); }
+  const reopened = factory();
+  try {
+    await reopened.open("dev:alice");
+    assert.deepEqual(await reopened.answer("deliveries.inbox", missing), await reopened.answer("deliveries.inbox", explicit));
+  } finally { await reopened.close(); await rm(root, { recursive: true, force: true }); }
+});
 for (const carrier of ["file", "indexeddb"]) test(`${carrier}: four shared observers resolve a no-ID edit only from the displayed target's new image`, async () => {
   const root = await mkdtemp(join(tmpdir(), "snapback-item-evidence-"));
   const store = carrier === "file" ? fileRangeStore(root)()

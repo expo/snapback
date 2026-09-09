@@ -64,20 +64,21 @@ test("a real rejected mutation carries the complete refusal envelope", async (co
   });
   assert.equal(response.status, 200);
   const rejected = await response.json();
+  assert.match(rejected.message, /program requirement failed/);
   assert.deepEqual(
     {
       state: rejected.state,
       code: rejected.code,
       family: rejected.family,
-      message: rejected.message,
       guide: rejected.guide,
+      rule: rejected.rule,
     },
     {
       state: "rejected",
       code: "NOT_MEMBER",
-      family: "input",
-      message: "E_REQUIRE:NOT_MEMBER: program requirement failed",
-      guide: "input/runtime",
+      family: "rule",
+      guide: "rule/runtime",
+      rule: "NOT_MEMBER",
     },
   );
 });
@@ -261,4 +262,30 @@ test("serve mode refuses a persona-bound real client", async (context) => {
   assert.equal(delivered.state, "refused");
   sub.close();
   value.close();
+});
+
+
+test("an application require can use a platform-looking code without losing its rule meaning", async (context) => {
+  if (!owner.owned) return context.skip("the require fixture belongs to the self-started harness");
+  const guest = await fetch(`${owner.url}/api/auth/guest`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
+  assert.equal(guest.status, 200);
+  const session = await guest.json();
+  const client = createClient({ url: owner.url, token: session.token });
+  try {
+    const result: any = await client.mutation(api.integration.requireInput, {});
+    assert.equal(result.state, "rejected"); assert.equal(result.family, "rule");
+    assert.equal(result.rule, "E_INPUT"); assert.equal(result.code, "E_INPUT");
+    const replay = { grant: session.grant.id, offset: 0, count: 1, intent: `${session.grant.id}:0`, trace: { points: [], verdicts: [] } };
+    const send = async () => {
+      const response = await fetch(`${owner.url}/api/mutation`, { method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${session.token}` },
+        body: JSON.stringify({ op: "integration.requireInput", args: {}, replay }) });
+      assert.equal(response.status, 200);
+      return response.json();
+    };
+    const replayed = await send();
+    assert.equal(replayed.family, "rule"); assert.equal(replayed.code, "E_INPUT");
+    assert.equal(replayed.rule, "E_INPUT"); assert.equal(replayed.state, "rejected");
+    assert.deepEqual(await send(), replayed, "the durable replay terminal preserves the structured application cause");
+  } finally { await client.close(); }
 });

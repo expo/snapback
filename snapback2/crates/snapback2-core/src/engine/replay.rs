@@ -24,6 +24,7 @@ impl Engine {
             Ok(execution) => Ok(execution),
             Err(error) if program.kind == ProgramKind::Mutation && is_sqlite_constraint(&error) => {
                 Ok(self.empty_execution(ExecutionState::Rejected {
+                    rule: error.require_code(),
                     code: "E_CONSTRAINT".to_owned(),
                     message: error.to_string(),
                 })?)
@@ -163,10 +164,12 @@ pub(super) fn settle(
             // reads and probes derived through a rule.
             let state = match conflict_site(&replay.trace, &trace.points, &rule_inputs, false) {
                 Some(site) => ExecutionState::Rejected {
+                    rule: None,
                     code: CONFLICT_CODE.to_owned(),
                     message: site,
                 },
                 None => ExecutionState::Rejected {
+                    rule: error.require_code(),
                     code,
                     message: error.to_string(),
                 },
@@ -366,6 +369,7 @@ fn settle_after_run(
         execution.result_provenance = ResultProvenance::None;
         execution.receipt = ClosureReceipt::default();
         execution.state = ExecutionState::Rejected {
+            rule: None,
             code: CONFLICT_CODE.to_owned(),
             message: site,
         };

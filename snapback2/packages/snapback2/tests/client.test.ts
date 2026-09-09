@@ -358,7 +358,7 @@ test("every HTTP wire state validates its state-specific required fields", async
       ? hangingSse(`data: ${JSON.stringify(channelFrame())}\n\n`)
       : fetchJson({ state: "refused" }),
   });
-  await assert.rejects(
+  await assertRefused(
     () => publishing.channel(api.typing, {}).set({ typing: true }),
     (error: unknown) => isWireShape(error, "code"),
   );

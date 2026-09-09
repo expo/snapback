@@ -13,6 +13,41 @@ import { SnapbackProvider, useAuth, useMutation } from "../dist/react.mjs";
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
+test("public read and write failures distinguish abort, closed client, integrity and transport", async () => {
+  for (const kind of ["abort", "integrity", "transport", "closed"]) {
+    let requests = 0;
+    const value = createClient({ url: "http://taxonomy.test", fetch: async () => {
+      requests++;
+      if (kind === "abort") throw new DOMException("cancelled", "AbortError");
+      if (kind === "integrity") return new Response('{"state":"complete"');
+      throw new TypeError("network lost");
+    } });
+    try {
+      if (kind === "closed") await value.close();
+      for (const run of [() => value.query(api.messages.thread, {}), () => value.mutation(api.messages.send, {})]) {
+        const result: any = await run();
+        assert.ok(result.state === "refused" || result.state === "rejected");
+        assert.equal(result.code, { abort: "E_ABORTED", integrity: "E_WIRE_SHAPE", transport: "E_TRANSPORT", closed: "E_CLIENT_CLOSED" }[kind]);
+        assert.equal(result.retryable, kind === "transport");
+        assert.ok(result.site && result.rewrite && result.guide);
+      }
+      if (kind === "abort" || kind === "integrity") assert.equal(requests, 2, "non-retryable errors are not retried");
+      if (kind === "closed") assert.equal(requests, 0);
+    } finally { await value.close(); }
+  }
+});
+
+test("rule meaning survives plain messages and application codes colliding with platform codes", async () => {
+  for (const code of ["NOT_MEMBER", "E_INPUT"]) {
+    const value = createClient({ url: "http://rules.test", fetch: async () => fetchJson({ state: "rejected",
+      code, family: "rule", rule: code, message: "program requirement failed", guide: "rule/runtime" }) });
+    try {
+      assert.deepEqual(await value.mutation(api.messages.send, {}), { state: "rejected", code, family: "rule",
+        rule: code, message: "program requirement failed", guide: "rule/runtime" });
+    } finally { await value.close(); }
+  }
+});
+
 test("owner harness releases lifecycle timers and listeners", async (context) => {
   const { default: processes } = await import("node:child_process");
   const { syncBuiltinESMExports } = await import("node:module");
@@ -370,7 +405,7 @@ test("status listener exceptions cannot leak registration or break peers", async
   value.close();
 });
 
-test("useMutation treats malformed successful bodies as ambiguous transport", async () => {
+test("useMutation refuses malformed successful bodies without offering retry", async () => {
   let current: any;
   let attempts = 0;
   const fetch = async (input: string | URL | Request) => {
@@ -413,7 +448,7 @@ test("useMutation treats malformed successful bodies as ambiguous transport", as
           ambiguous = error;
           return (error.state === "rejected" || error.state === "refused")
             && error.code === "E_WIRE_SHAPE"
-            && error.retryable === true;
+            && error.retryable === false;
         },
       );
     });
@@ -506,4 +541,26 @@ test("useAuth ignores stale me responses after logout and client replacement", a
   });
   assert.equal(auth.viewer, "new-viewer");
   await act(async () => { renderer!.unmount(); });
+});
+
+
+test("useMutation keeps a current catch and ignores a predecessor's late catch", async () => {
+  const client = createClient({ url: "http://hook.test", fetch: async () => fetchJson({ generation: "g", programGeneration: "p", ops: {}, channels: {}, auth: {} }) });
+  let hook: any, renderer: any, rejectOld!: (error: Error) => void;
+  function Probe({ op }: any) { hook = useMutation(op); return null; }
+  const render = (op: any) => React.createElement(SnapbackProvider, { client }, React.createElement(Probe, { op }));
+  try {
+    await act(async () => { renderer = TestRenderer.create(render(api.messages.send)); });
+    client.mutation = () => new Promise((_, reject) => { rejectOld = reject; });
+    let old: Promise<any>;
+    await act(async () => { old = hook.run({}); });
+    assert.equal(hook.inFlight, true);
+    await act(async () => { renderer.update(render(api.messages.edit)); });
+    client.mutation = async () => { throw new Error("local integrity failure"); };
+    await act(async () => { await hook.run({}); });
+    assert.equal(hook.last.code, "E_CLIENT"); assert.equal(hook.last.retryable, false);
+    const current = hook.last;
+    await act(async () => { rejectOld(new Error("obsolete catch")); await old; });
+    assert.strictEqual(hook.last, current); assert.equal(hook.inFlight, false);
+  } finally { if (renderer) await act(async () => renderer.unmount()); await client.close(); }
 });

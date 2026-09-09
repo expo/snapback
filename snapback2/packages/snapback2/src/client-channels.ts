@@ -1,6 +1,6 @@
 // @ref LLP 1001.000#observable-client-surface — one owned handle exposes current ephemeral state and privately holds its live lease.
 import {
-  RefusalError, copyRefusal, isTerminalSession, wireChannelFrame, wireChannelWrite,
+  RefusalError, copyRefusal, toRefusal, isTerminalSession, wireChannelFrame, wireChannelWrite,
   type ChannelFrame,
 } from "./client-wire.js";
 import { referenceName, type Channel as ChannelRef } from "./api.js";
@@ -49,7 +49,7 @@ interface Connection<Authority, Value> {
 }
 
 function refusal(code: string, message: string): RefusalError {
-  return new RefusalError({ code, family: "op", message, guide: "live-query",
+  return new RefusalError({ code, family: "op", message, guide: "live-query", site: "client.channel", retryable: false,
     rewrite: "use a ready channel handle; reconnect or create a new handle after closing it" });
 }
 function freeze<Value>(value: Value): Value {
@@ -267,8 +267,8 @@ export function createChannel<Authority, Expiration, Args, Value>(
 
   return {
     getSnapshot: () => state,
-    set: value => write("set", value),
-    clear: () => write("clear"),
+    set: value => write("set", value).catch(error => ({ state: "refused", ...toRefusal(error) })),
+    clear: () => write("clear").catch(error => ({ state: "refused", ...toRefusal(error) })),
     subscribe: callback => {
       const owned = new Set<Waiter<Value>>();
       const notify = (snapshot: ChannelSnapshot<Value>) => callback(snapshot);

@@ -968,8 +968,7 @@ test("a transition during slow terminal cleanup suppresses typed mutation and ch
     await flush();
     assert.equal(loginStarted, false, `${surface}: login must wait for the old write`);
     clear.resolve();
-    if (surface === "mutation") await assertRefused(old, isCode("E_AUTH_SUPERSEDED"));
-    else await assert.rejects(old, isCode("E_AUTH_SUPERSEDED"));
+    await assertRefused(old, isCode("E_AUTH_SUPERSEDED"));
     await login;
     assert.equal(stored, "replacement-token", surface);
     assert.equal(value.snapshot.token, "replacement-token", surface);
@@ -1302,7 +1301,7 @@ test("token-store clear failures stay visible on every request-based terminal pa
   await exercise(json({ state: "rejected", ...refusal("E_AUTH_SESSION") }), (value) =>
     value.mutation(api.messages.send, {}), true);
   await exercise(json({ state: "refused", ...refusal("E_AUTH_SESSION") }), (value) =>
-    value.channel(api.typing, {}).set({ typing: true }));
+    value.channel(api.typing, {}).set({ typing: true }), true);
   await exercise(json({ ok: true }), (value) => value.auth.logout());
 });
 

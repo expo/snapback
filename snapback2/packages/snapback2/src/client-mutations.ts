@@ -65,11 +65,6 @@ export async function performMutation<Args, Result>(
       if (isRefusalError(error) && isTerminalSession(error.envelope)) {
         await host.terminalRefusal(authority, error.envelope, { preserveVerdict: true });
       }
-      if (isRefusalError(error) && error.code === "E_WIRE_SHAPE") {
-        const ambiguous = new RefusalError(copyRefusal(error.envelope), true);
-        host.patchSnapshot({ connection: host.transportFailureState(), lastRefusal: ambiguous.envelope });
-        throw ambiguous;
-      }
       throw error;
     }
   });

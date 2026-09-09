@@ -84,21 +84,23 @@ pub fn replay_mutation_response(
             "seq": seq,
             "data": value_to_wire_json(&execution.result),
         }),
-        ExecutionState::Rejected { code, message } if code == "conflict" => json!({
+        ExecutionState::Rejected { code, message, .. } if code == "conflict" => json!({
             "state": "rejected",
             "reason": "conflict",
             "site": message,
         }),
-        ExecutionState::Rejected { code, message } => {
-            let family = rejection_family(code);
-            json!({
+        ExecutionState::Rejected { code, message, rule } => {
+            let family = if rule.is_some() { "rule" } else { rejection_family(code) };
+            let mut response = json!({
                 "state": "rejected",
                 "code": code,
                 "family": family,
                 "message": message,
                 "rewrite": "fix the rejected mutation input and retry",
                 "guide": format!("{family}/runtime"),
-            })
+            });
+            if let Some(rule) = rule { response["rule"] = json!(rule); }
+            response
         }
         // A replayed mutation that rolled back for want of authority settles
         // as that state: the ledger records it so a retry is exactly-once.

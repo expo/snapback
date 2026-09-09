@@ -216,10 +216,10 @@ test("the settlement tail and the resume log both name the first-mounted drained
     await client.outbox.settled();
     assert.equal((await client.outbox.entries())[0]?.state, "committed", carrier.name);
     assert.equal(resumes.length, 1);
-    assert.deepEqual({ op: resumes[0].log?.op, args: resumes[0].log?.args }, { op: "deliveries.inbox", args: {} },
+    assert.deepEqual({ op: resumes[0].log?.op, args: resumes[0].log?.args }, { op: "deliveries.inbox", args: { c: null } },
       `${carrier.name}: the resume log is the first-mounted drain`);
     assert.equal(queries.length, 1, `${carrier.name}: one settlement tail request`);
-    assert.deepEqual({ op: queries[0].op, args: queries[0].args }, { op: "deliveries.inbox", args: {} },
+    assert.deepEqual({ op: queries[0].op, args: queries[0].args }, { op: "deliveries.inbox", args: { c: null } },
       `${carrier.name}: the settlement tail is the first-mounted drain`);
     await client.offline();
     await client.online();
@@ -232,7 +232,7 @@ test("the settlement tail and the resume log both name the first-mounted drained
     await cold.ready;
     await tick(50);
     assert.equal(resumes.length, 3, `${carrier.name}: the cold start resumed`);
-    assert.deepEqual({ op: resumes[2].log?.op, args: resumes[2].log?.args }, { op: "deliveries.inbox", args: {} },
+    assert.deepEqual({ op: resumes[2].log?.op, args: resumes[2].log?.args }, { op: "deliveries.inbox", args: { c: null } },
       `${carrier.name}: the restarted client's resume names the first-mounted drain`);
     await cold.close();
     await tick();

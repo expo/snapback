@@ -15,7 +15,7 @@ import { api, browserTokenStore, createClient } from "../dist/client.mjs";
 import { RefusalError } from "../dist/client-observed-test.mjs";
 import { nodeSqliteDriver } from "../dist/sqlite-test.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
-import { fakeOwner } from "./fake-owner.ts";
+import { fakeOwner, seededStore } from "./fake-owner.ts";
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 (globalThis as any).__snapbackNative ??= { React, fileUris: [], fileBodies: new Map(), videoSources: [] };
@@ -413,10 +413,51 @@ test("Metro resolves browser React before native while retaining native and defa
 });
 
 test("built Expo entry exports every native component and hook by name", () => {
+  for (const entry of [nativeEntry, expoEntry]) assert.equal(typeof entry.usePage, "function");
   const nativeNames = Object.keys(nativeEntry).filter((name) => !(name in coreEntry)).sort();
   assert.ok(nativeNames.includes("AssetImage") && nativeNames.includes("AssetVideo"));
   assert.deepEqual(Object.keys(expoEntry).filter((name) => nativeNames.includes(name)).sort(), nativeNames);
   for (const name of nativeNames) assert.equal(typeof expoEntry[name], typeof nativeEntry[name], name);
+});
+
+test("native provider preserves a cold transport cut through rerenders and identity replacement", async () => {
+  const root = await mkdtemp(join(tmpdir(), "s2-provider-cut-"));
+  const store = fileRangeStore(root), owner = fakeOwner();
+  await seededStore(store);
+  let requests = 0, resumes = 0, current: any, renderer: any;
+  const fetch: typeof globalThis.fetch = async (input, init) => {
+    requests++;
+    if (String(input).includes("/api/resume")) resumes++;
+    return owner.fetch(input, init);
+  };
+  function Probe() { current = useSnapbackClient(); nativeEntry.useQuery(api.deliveries.inbox, {}); return null; }
+  const tree = (persona = "alice", startOffline = true) => React.createElement(React.StrictMode, {},
+    React.createElement(SnapbackProvider, { url: "http://provider-cut.test", persona, startOffline, fetch, offline: { store } }, React.createElement(Probe)));
+  try {
+    await act(async () => { renderer = TestRenderer.create(tree()); });
+    await act(async () => { await current.ready; });
+    const first = current;
+    await act(async () => { renderer.update(tree()); });
+    assert.equal(current, first);
+    assert.equal(requests, 0); assert.equal(resumes, 0);
+    await act(async () => { await current.online(); });
+    assert.ok(requests > 0); assert.ok(resumes > 0);
+    await act(async () => { await first.close(); });
+    requests = resumes = 0;
+    await act(async () => { renderer.update(tree("bob")); });
+    await act(async () => { await current.ready; });
+    assert.notEqual(current, first);
+    assert.equal(requests, 0); assert.equal(resumes, 0);
+    await act(async () => { await current.online(); });
+    assert.ok(requests > 0);
+    const online = current;
+    await act(async () => { renderer.update(tree("bob", false)); });
+    assert.notEqual(current, online, "startOffline participates in provider construction identity");
+  } finally {
+    if (renderer) await act(async () => renderer.unmount());
+    await current?.close(); await new Promise(resolve => setTimeout(resolve, 20));
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test("emitted web declarations exclude node modules and SQLite test exports", async () => {

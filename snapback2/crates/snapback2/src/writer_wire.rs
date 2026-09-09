@@ -22,16 +22,18 @@ pub fn execution_json(execution: &Execution) -> Json {
         ExecutionState::Committed { seq } => {
             json!({ "state": "committed", "seq": seq, "data": value_to_json(&execution.result) })
         }
-        ExecutionState::Rejected { code, message } => {
-            let family = rejection_family(code);
-            json!({
+        ExecutionState::Rejected { code, message, rule } => {
+            let family = if rule.is_some() { "rule" } else { rejection_family(code) };
+            let mut response = json!({
                 "state": "rejected",
                 "code": code,
                 "family": family,
                 "message": message,
                 "rewrite": "fix the rejected mutation input and retry",
                 "guide": format!("{family}/runtime"),
-            })
+            });
+            if let Some(rule) = rule { response["rule"] = json!(rule); }
+            response
         }
     }
 }
@@ -130,6 +132,7 @@ mod tests {
     #[test]
     fn rejected_mutations_and_channel_refusals_carry_complete_envelopes() {
         let rejected = execution_json(&execution(ExecutionState::Rejected {
+            rule: None,
             code: "E_RULE".to_owned(),
             message: "denied".to_owned(),
         }));
@@ -174,4 +177,26 @@ mod tests {
         assert!(opaque.get("take").is_none());
         assert!(opaque.get("reason").is_none());
     }
+
+    #[test]
+    fn require_meaning_is_structured_in_live_and_replayed_writes() {
+        for code in ["NOT_MEMBER", "E_INPUT"] {
+            let value = execution(ExecutionState::Rejected {
+                code: code.into(), message: "program requirement failed".into(), rule: Some(code.into()),
+            });
+            let replayed = snapback2_core::offline::replay_mutation_response(&value, "intent", None);
+            for result in [execution_json(&value), replayed] {
+                assert_eq!(result["family"], "rule");
+                assert_eq!(result["code"], code);
+                assert_eq!(result["rule"], code);
+                assert_eq!(result["message"], "program requirement failed");
+            }
+        }
+        let input = execution_json(&execution(ExecutionState::Rejected {
+            code: "E_INPUT".into(), message: "invalid input".into(), rule: None,
+        }));
+        assert_eq!(input["family"], "input");
+        assert!(input.get("rule").is_none());
+    }
+
 }

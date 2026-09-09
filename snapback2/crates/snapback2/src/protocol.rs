@@ -105,6 +105,11 @@ impl Refusal {
     }
 
     pub fn from_runtime(error: &RuntimeError) -> Self {
+        if let RuntimeError::Require { code } = error {
+            return Self::new(code, "rule", error.to_string(),
+                "satisfy the program requirement before retrying", "rule/runtime")
+                .with_detail("rule", json!(code));
+        }
         if let RuntimeError::Successor(refusal) = error {
             return Self::from_successor(refusal);
         }

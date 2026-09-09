@@ -44,6 +44,10 @@ query inboxObject(after: cursor ?, label: text <=40 ?):
 
 query inboxProjected(after: cursor ?, label: text <=40 ?):
   return deliveries[viewer] after after first 1 by byRecipientAt { id, kind }
+
+mutation requireInput():
+  require false else E_INPUT
+  return true
 `);
 }
 

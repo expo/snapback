@@ -365,7 +365,7 @@ export default seed({
         let missing = run(operation, args);
         assert_eq!(missing["state"], "rejected", "{missing}");
         assert_eq!(missing["code"], "NOT_FOUND", "{missing}");
-        assert_eq!(missing["family"], "input", "{missing}");
+        assert_eq!(missing["family"], "rule", "{missing}");
     }
 
     let upserted = run(
@@ -457,7 +457,7 @@ export default seed({
         "{scalar_update_missing}"
     );
     assert_eq!(
-        scalar_update_missing["family"], "input",
+        scalar_update_missing["family"], "rule",
         "{scalar_update_missing}"
     );
     let scalar_delete_missing = run(
@@ -473,7 +473,7 @@ export default seed({
         "{scalar_delete_missing}"
     );
     assert_eq!(
-        scalar_delete_missing["family"], "input",
+        scalar_delete_missing["family"], "rule",
         "{scalar_delete_missing}"
     );
 }

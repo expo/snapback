@@ -6,7 +6,7 @@ import React from "react";
 import TestRenderer, { act } from "react-test-renderer";
 import { api } from "../dist/client.mjs";
 import { SnapbackProvider, useChannel } from "../dist/react.mjs";
-import { channelFrame, fixtureClient } from "./live-fixture.ts";
+import { channelFrame, fixtureClient, assertRefused } from "./live-fixture.ts";
 import { parseSse } from "../src/sse-parser.ts";
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
@@ -56,6 +56,28 @@ function wire(initial = true) {
 }
 const entry = (key: string, typing = true) => ({ key, from: "alice", value: { typing }, expiresAt: Date.now() + 4_000 });
 
+test("channel writes resolve connection failures and strip private refusal fields", async context => {
+  const owner = wire(); context.after(() => owner.client.close());
+  const room = owner.client.channel(api.typing, {}), observer = room.subscribe(() => {});
+  await observer.until(value => value.status === "ready");
+  const refusal = { code: "NOT_MEMBER", family: "rule", message: "membership required", site: "typing.publish",
+    rewrite: "join this conversation", guide: "live-query" };
+  owner.response(async () => json({ state: "refused", ...refusal, cap: 10, which: "secret", op: "typing", shape: "private" }));
+  for (const write of [() => room.set({ typing: true }), () => room.clear()]) {
+    assert.deepEqual(await write(), { state: "refused", ...refusal });
+  }
+  owner.response(async () => { throw new TypeError("network lost"); });
+  for (const write of [() => room.set({ typing: true }), () => room.clear()]) {
+    await assertRefused(write, result => result.family === "transport" && result.retryable === true
+      && !!result.site && !!result.rewrite && !!result.guide);
+  }
+  room.close();
+  for (const write of [() => room.set({ typing: true }), () => room.clear()]) {
+    await assertRefused(write, result => result.code === "E_CHANNEL_CLOSED" && result.retryable === false
+      && !!result.site && !!result.rewrite && !!result.guide);
+  }
+});
+
 test("cold clear is inert; snapshots are immutable and keep the lease private", async context => {
   const owner = wire(); context.after(() => owner.client.close());
   const args = { conversationId: "one" };
@@ -83,14 +105,14 @@ test("cold clear is inert; snapshots are immutable and keep the lease private", 
   await eventually(() => connection.closed);
   assert.equal(room.getSnapshot().reason, "closed");
   assert.deepEqual(room.getSnapshot().entries, []);
-  await assert.rejects(room.set({ typing: true }), { code: "E_CHANNEL_CLOSED" });
+  await assertRefused(room.set({ typing: true }), { code: "E_CHANNEL_CLOSED" });
 });
 
 test("clear cancels a set waiting for the first snapshot without sending it later", async context => {
   const owner = wire(false); context.after(() => owner.client.close());
   const room = owner.client.channel(api.typing, {});
   const pending = room.set({ typing: true });
-  const rejected = assert.rejects(pending, { code: "E_CHANNEL_LEASE" });
+  const rejected = assertRefused(pending, { code: "E_CHANNEL_LEASE" });
   await eventually(() => owner.opens.length === 1);
   await room.clear(); await rejected;
   const connection = owner.opens[0]!;
@@ -134,13 +156,13 @@ test("reconnect erases state, replaces the lease and never replays an ambiguous 
   const response = deferred<Response>();
   owner.response(async () => response.promise);
   const setting = room.set({ typing: false });
-  const rejected = assert.rejects(setting, { code: "E_CHANNEL_LEASE" });
+  const rejected = assertRefused(setting, { code: "E_CHANNEL_LEASE" });
   await eventually(() => owner.writes.length === 1);
   first.end();
   await observer.until(value => value.status === "unavailable");
   assert.deepEqual(room.getSnapshot().entries, []);
   assert.equal(room.getSnapshot().key, undefined);
-  await assert.rejects(room.set({ typing: true }), { code: "E_CHANNEL_LEASE" });
+  await assertRefused(room.set({ typing: true }), { code: "E_CHANNEL_LEASE" });
   const reconnected = await observer.until(value => value.status === "ready" && value.key !== first.key);
   assert.equal(owner.opens.length, 2);
   assert.ok(owner.opens.every(connection => connection.lastEventId === null));
@@ -163,7 +185,7 @@ test("successor reset reconnects while ordinary refusal is terminal", async cont
   assert.equal(room.getSnapshot().refusal?.code, "E_RULE_CHANNEL_SUBSCRIBE");
   assert.deepEqual(room.getSnapshot().entries, []);
   assert.equal(room.getSnapshot().key, undefined);
-  await assert.rejects(room.set({ typing: true }), { code: "E_RULE_CHANNEL_SUBSCRIBE" });
+  await assertRefused(room.set({ typing: true }), { code: "E_RULE_CHANNEL_SUBSCRIBE" });
   observer.close(); room.close();
 });
 

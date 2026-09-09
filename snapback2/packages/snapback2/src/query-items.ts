@@ -4,7 +4,7 @@ import { RowImage } from "../../evaluator/src/row-image.js";
 import { fieldOrNull, wireJson } from "../../evaluator/src/value-runtime.js";
 import { mapExpandedRows } from "./store/row-values.js";
 import type { PersistedRangeState, StoredAnswer } from "./store/range-store.js";
-import { canonicalAnswerKey } from "./store/canonical.js";
+import { storedAnswerKey } from "./store/canonical.js";
 import type { ItemInputs, ItemObservation } from "./client-items.js";
 import { itemAddress } from "./query-frame.js";
 import type { DeliveryEnvelopeV1 } from "./offline-protocol.js";
@@ -42,7 +42,7 @@ export class ItemCapture {
   private readonly held: StoredAnswer | undefined;
   constructor(private readonly state: PersistedRangeState, op: string, args: unknown,
     private readonly predicted: ItemInputs["predicted"] = new Map(), private readonly entries?: ItemInputs["entries"]) {
-    this.held = state.answers[canonicalAnswerKey(op, args)];
+    this.held = state.answers[storedAnswerKey(state, op, args)];
     // Extent eviction and viewed-once bookkeeping are deliberately excluded.
     for (const [key, through] of Object.entries(state.negative)) {
       if ((state.rowSeq[key] ?? -1) <= through) this.observations.set(key, { through, absent: true });

@@ -1,5 +1,4 @@
 import { ClientPages, type PageSnapshot } from "./client-pages.js";
-import { queryArgs } from "./store/canonical.js";
 import React, {
   createContext,
   useCallback,
@@ -53,7 +52,7 @@ const Context = createContext<ProviderValue | null>(null);
 
 export type SnapbackProviderProps = (
   | (CreateClientOptions & { client?: never })
-  | { client: SnapbackClient; url?: never; persona?: never; token?: never; tokenStore?: never; fetch?: never; offline?: never }
+  | { client: SnapbackClient; startOffline?: never; url?: never; persona?: never; token?: never; tokenStore?: never; fetch?: never; offline?: never }
 ) & { children: ReactNode };
 
 /**
@@ -80,7 +79,7 @@ function offlineByValue(options: OfflineClientOptions): OfflineClientOptions {
 }
 
 // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test — React web is the first arm over the shared headless client.
-export function SnapbackProvider({ client: supplied, url, persona, token, tokenStore, fetch, offline, children }: SnapbackProviderProps): React.ReactElement {
+export function SnapbackProvider({ client: supplied, url, persona, token, tokenStore, fetch, offline, startOffline, children }: SnapbackProviderProps): React.ReactElement {
   if (persona !== undefined && (token !== undefined || tokenStore !== undefined)) {
     throw new TypeError("SnapbackProvider cannot combine dev persona `persona` with bearer token custody");
   }
@@ -89,7 +88,7 @@ export function SnapbackProvider({ client: supplied, url, persona, token, tokenS
   // StrictMode double-invokes memo factories and discards one result, which
   // would leak a lock-holding client; a ref survives the re-render untouched,
   // and the identity compares `offline` by its values, not its reference.
-  const identity = [supplied, url, persona, token, tokenStore, fetch] as const;
+  const identity = [supplied, url, persona, token, tokenStore, fetch, startOffline] as const;
   const held = useRef<{ identity: readonly unknown[]; offline: OfflineClientOptions | undefined; client: SnapbackClient }>(undefined);
   if (!held.current
     || held.current.identity.some((item, index) => item !== identity[index])
@@ -98,7 +97,7 @@ export function SnapbackProvider({ client: supplied, url, persona, token, tokenS
     held.current = {
       identity,
       offline,
-      client: supplied ?? createClient(persona !== undefined ? { url: url!, persona, fetch, offline: stable } : { url: url!, token, tokenStore, fetch, offline: stable }),
+      client: supplied ?? createClient(persona !== undefined ? { url: url!, persona, fetch, startOffline, offline: stable } : { url: url!, token, tokenStore, fetch, startOffline, offline: stable }),
     };
   }
   const client = held.current.client;
@@ -171,7 +170,7 @@ export function useQuery<Args, Result, Row extends ItemRow, Draft>(
   options: { live?: false; drain?: boolean; items?: Items<Args, Result, Row, Draft> } = {},
 ): Snapshot<Result> {
   const { client, snapshot } = provider();
-  const argsKey = stableSerialize(queryArgs(args));
+  const argsKey = stableSerialize(args);
   const stableArgs = useMemo(() => args, [argsKey]);
   const live = options.live !== false;
   if (!live && options.drain) throw new TypeError("useQuery drain requires a live subscription");
@@ -270,7 +269,7 @@ export function useMutation<Args, Result>(ref: Op<Args, Result>): UseMutationRes
       return result;
     } catch (error) {
       const result = { state: "rejected" as const, ...toRefusal(error) };
-      if (active()) setMachine(current => ({ ...current, last: result }));
+      if (active()) setMachine(current => ({ identity, pending: current.identity === identity ? current.pending : 0, last: result }));
       return result;
     } finally {
       if (active()) setMachine((current) => current.identity === identity

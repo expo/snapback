@@ -219,6 +219,7 @@ export function createOfflineDrain<Args, Result>(options: {
   /** Settles once the manifest was loaded or could not be: the cursor argument's name is known after it. */
   ready?: Promise<void>;
   cursor(): Promise<string> | string;
+  offline(): boolean;
   mounted: Map<string, MountedQuery>;
   query(pageArgs: Args): Promise<QueryResult<Result>>;
   subscribe(tailArgs: Args, callback: (delivery: SubscriptionDelivery<Result>) => void): Subscription<SubscriptionDelivery<Result>>;
@@ -231,6 +232,7 @@ export function createOfflineDrain<Args, Result>(options: {
 
   const draining = new DrainSubscription<Args, Result>({
     args: options.args,
+    offline: options.offline,
     query: options.query,
     subscribe: options.subscribe,
     // The cursor argument is named by the manifest's op descriptor (`c` until it is loaded).

@@ -192,6 +192,13 @@ pub enum RuntimeError {
 }
 
 impl RuntimeError {
+    pub fn require_code(&self) -> Option<String> {
+        match self {
+            Self::Require { code } => Some(code.clone()),
+            _ => None,
+        }
+    }
+
     pub fn code(&self) -> &str {
         match self {
             Self::Job(error) => &error.code,
@@ -471,6 +478,7 @@ impl Engine {
             Ok(execution) => Ok(execution),
             Err(error) if program.kind == ProgramKind::Mutation && is_sqlite_constraint(&error) => {
                 Ok(self.empty_execution(ExecutionState::Rejected {
+                    rule: error.require_code(),
                     code: "E_CONSTRAINT".to_owned(),
                     message: error.to_string(),
                 })?)
@@ -559,6 +567,7 @@ impl Engine {
             trace: AuthoritativeTrace::default(),
             receipt: ClosureReceipt::default(),
             state: ExecutionState::Rejected {
+                rule: None,
                 code: code.to_owned(),
                 message: message.to_owned(),
             },
@@ -765,6 +774,7 @@ impl Engine {
                     trace: AuthoritativeTrace::default(),
                     receipt: ClosureReceipt::default(),
                     state: ExecutionState::Rejected {
+                        rule: error.require_code(),
                         code: code.to_owned(),
                         message: error.to_string(),
                     },
@@ -786,6 +796,7 @@ impl Engine {
                     trace,
                     receipt: ClosureReceipt::default(),
                     state: ExecutionState::Rejected {
+                        rule: error.require_code(),
                         code: code.to_owned(),
                         message: error.to_string(),
                     },

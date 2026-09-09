@@ -16,8 +16,8 @@ import type {
 } from "./types.js";
 
 export function fallbackRefusal(code: string, message: string): Refusal {
-  return { code: code,
-    family: code === "E_TRANSPORT" ? "transport" : "owner", message, guide: "owner/connect" };
+  return { code, family: code === "E_TRANSPORT" ? "transport" : "owner", message,
+    site: "client.request", rewrite: "check the connection before trying again", guide: "live-query" };
 }
 
 const snapbackRefusalBrand = Symbol.for("snapback2.RefusalError");
@@ -42,7 +42,8 @@ export function isRefusalError(value: unknown): value is RefusalError {
 }
 
 export function wireShape(message: string): RefusalError {
-  return new RefusalError({ code: "E_WIRE_SHAPE", family: "op", message, guide: "op/wire-shape" });
+  return new RefusalError({ code: "E_WIRE_SHAPE", family: "op", message, retryable: false,
+    site: "client.decode", rewrite: "inspect the invalid owner response before retrying; a write may already have committed", guide: "live-query" });
 }
 
 export function wireObject(value: unknown, surface: string): Record<string, unknown> {
@@ -79,10 +80,7 @@ function optionalString(record: Record<string, unknown>, field: string, surface:
 }
 
 function optionalNumber(record: Record<string, unknown>, field: string, surface: string): number | undefined {
-  if (!has(record, field)) return undefined;
-  const value = record[field];
-  if (typeof value !== "number" || !Number.isFinite(value)) throw wireShape(`${surface}.${field} must be a number`);
-  return value;
+  return has(record, field) ? numberField(record, field, surface) : undefined;
 }
 
 function nullableString(record: Record<string, unknown>, field: string, surface: string): string | null {
@@ -99,15 +97,12 @@ export function wireRefusal(value: unknown, surface: string): Refusal & Record<s
     message: stringField(record, "message", surface),
     ...(record.guide === undefined ? {} : { guide: stringField(record, "guide", surface) }),
   };
-  for (const field of ["site", "rule", "rewrite", "reason", "op", "shape"] as const) {
+  for (const field of ["site", "rule", "rewrite", "reason", "op", "shape", "which"] as const) {
     const item = optionalString(record, field, surface);
     if (item !== undefined) envelope[field] = item;
   }
-  const which = optionalString(record, "which", surface);
-  if (which !== undefined) envelope.which = which;
   const cap = optionalNumber(record, "cap", surface);
   if (cap !== undefined) envelope.cap = cap;
-  if (envelope.family === "input" && envelope.message.startsWith(`E_REQUIRE:${envelope.code}:`)) envelope.family = "rule";
   if (record.retryable !== undefined) {
     if (typeof record.retryable !== "boolean") throw wireShape(`${surface}.retryable must be a boolean`);
     envelope.retryable = record.retryable;
@@ -128,7 +123,20 @@ export function toRefusal(error: unknown): Refusal {
   if (isRefusalError(error)) return copyRefusal(error.envelope);
   if (error && typeof error === "object" && "code" in error && "family" in error && "message" in error
     && typeof error.code === "string" && typeof error.family === "string" && typeof error.message === "string") return copyRefusal(error as Refusal);
-  return { code: "E_TRANSPORT", family: "transport", message: error instanceof Error ? error.message : String(error), retryable: true };
+  const name = error && typeof error === "object" && "name" in error ? error.name : undefined;
+  const message = error instanceof Error ? error.message : String(error);
+  const aborted = name === "AbortError";
+  return { code: aborted ? "E_ABORTED" : "E_CLIENT", family: "client", message, retryable: false,
+    site: aborted ? "client.request" : "client.result",
+    rewrite: aborted ? "start a new operation if it is still needed" : "inspect the client failure before trying again", guide: "live-query" };
+}
+
+export function requestRefusal(error: unknown): RefusalError {
+  if (isRefusalError(error)) return error;
+  const local = toRefusal(error);
+  return local.code === "E_CLIENT"
+    ? new RefusalError(fallbackRefusal("E_TRANSPORT", local.message), true)
+    : new RefusalError(local);
 }
 
 export function isTerminalSession(envelope: Pick<Refusal, "code" | "family">): boolean {
@@ -138,17 +146,14 @@ export function isTerminalSession(envelope: Pick<Refusal, "code" | "family">): b
 export function wireQuery<Result>(value: unknown, surface = "query response"): ServerQueryResult<Result> {
   const record = wireObject(value, surface);
   switch (stringField(record, "state", surface)) {
-    case "complete":
-      return {
-        state: "complete", data: present(record, "data", surface) as Result,
-        seq: numberField(record, "seq", surface), next: nullableString(record, "next", surface) as Cursor | null,
-      };
     case "capped":
       for (const field of ["site", "take", "reason"]) {
         if (has(record, field)) throw wireShape(`${surface}.capped must not carry ${field}`);
       }
+      // Both usable states carry the same page shape.
+    case "complete":
       return {
-        state: "capped", data: present(record, "data", surface) as Result,
+        state: record.state as "complete" | "capped", data: present(record, "data", surface) as Result,
         seq: numberField(record, "seq", surface), next: nullableString(record, "next", surface) as Cursor | null,
       };
     case "partial": {
@@ -205,7 +210,7 @@ export function wireChannelFrame<Value>(data: string): ChannelFrame<Value> {
   const surface = "channel delivery";
   const record = sseObject(data, surface);
   if (record.state === "refused") {
-    return { state: "refused", ...wireRefusal(record, `${surface} refusal`) } as RefusedDelivery;
+    return { state: "refused", ...copyRefusal(wireRefusal(record, `${surface} refusal`)) } as RefusedDelivery;
   }
   if (record.state !== "snapshot" || !Array.isArray(record.entries) || record.entries.length > 64) {
     throw wireShape(`${surface} requires a bounded snapshot`);
@@ -231,7 +236,7 @@ export function wireChannelWrite(value: unknown): ChannelWriteResult {
   const record = wireObject(value, surface);
   if (record.ok === true) return { ok: true };
   if (record.state !== "refused") throw wireShape(`${surface} must contain ok: true or state: refused`);
-  return { state: "refused", ...wireRefusal(record, `${surface} refusal`) };
+  return { state: "refused", ...copyRefusal(wireRefusal(record, `${surface} refusal`)) };
 }
 
 export function terminalSessionEnvelope(value: unknown): Refusal | undefined {

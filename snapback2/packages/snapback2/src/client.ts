@@ -1,3 +1,4 @@
+import { cursorArgument } from "./local-cursor.js";
 import { internalSubscribe, internalConsumers } from "./internal-access.js";
 import { mayNeedAssetPlanning } from "./assets.js";
 import { ClientAuth, anonymousAuth, restoreAuthToken, saveAuthToken, storageRefusal, ensureBearerTransition } from "./client-auth.js";
@@ -32,7 +33,7 @@ import {
 } from "./client-upload.js";
 import {
   RefusalError,
-  copyRefusal, toRefusal,
+  copyRefusal, toRefusal, requestRefusal,
   fallbackRefusal,
   isRefusalError,
   isTerminalSession,
@@ -88,8 +89,6 @@ type SessionExpiration =
 type InternalClientOptions = CreateClientOptions & {
   offlinePrincipal?: Principal;
   offlineReadObserver?: (ref: unknown, args: unknown, result: unknown) => void;
-  /** A restart of a device whose transport was cut boots cut, before any request. */
-  startOffline?: boolean;
 };
 // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test — auth custody is restored explicitly and every principal transition fences old in-memory work.
 class Client implements SnapbackClient {
@@ -100,6 +99,7 @@ class Client implements SnapbackClient {
   private readonly startupController = new AbortController();
   private readonly lifetimeController = new AbortController();
   private startupComplete = false;
+  private queryCursors?: Manifest["ops"];
   readonly url: string;
   readonly fetchImpl: typeof globalThis.fetch;
   readonly customFetch: boolean;
@@ -192,6 +192,12 @@ class Client implements SnapbackClient {
       failed: (error) => { this.patchSnapshot({ lastRefusal: this.offlineRefusal(error, "RangeStore.open").envelope }); },
     });
     this.queries = new ClientQueries({
+      cursor: op => this.offlineRuntime?.declaredCursorArg(op) ?? cursorArgument(this.queryCursors?.[op]),
+      prepare: async op => {
+        await this.ready;
+        const cursor = this.offlineRuntime?.declaredCursorArg(op);
+        return cursor ?? cursorArgument((await this.manifest()).ops[op]);
+      },
       identity: () => [this.authGeneration, this.operationFence],
       active: ([generation, fence]) => !this.closed && this.authGeneration === generation && this.operationFence === fence,
       connection: () => this.currentSnapshot.connection,
@@ -309,7 +315,6 @@ class Client implements SnapbackClient {
     try { return await performMutation(this as unknown as MutationClient, ref, args); }
     catch (error) { return { state: "rejected", ...toRefusal(error) }; }
   }
-
 
   upload(source: AssetUploadSource, options: AssetUploadOptions & { readonly kind: "image" }): Promise<ImageAsset>;
   upload(source: AssetUploadSource, options: AssetUploadOptions & { readonly kind: "video" }): Promise<VideoAsset>;
@@ -504,6 +509,7 @@ class Client implements SnapbackClient {
       runtime: this.offlineRuntime,
       ready: this.ready,
       mounted: this.mounted,
+      offline: () => this.forcedOffline,
       cursor: async () => this.offlineRuntime && !this.offlineRuntime.following
         ? this.offlineRuntime.drainCursor(op) : admitDrain(op, (await this.manifest()).ops[op]?.drain),
       query: (pageArgs: Args) => this.queryInternal(ref, pageArgs, true),
@@ -735,6 +741,7 @@ class Client implements SnapbackClient {
     throwIfAborted(signal);
     this.validated(authority);
     this.patchSnapshot({ generation: value.generation });
+    this.queryCursors = value.ops;
     this.offlineRuntime?.manifest(value);
     // A generation change re-fetches the program on the next read (LLP 1012 §8).
     if (this.offlineRuntime && this.offlineRuntime.programGeneration !== value.programGeneration) this.offlineMetadataLoaded = false;
@@ -810,10 +817,7 @@ class Client implements SnapbackClient {
       throwIfAborted(init.signal);
       if (enforceAuthority) this.ensureAuthority(authority);
       else this.ensureOpen();
-      const refusal = new RefusalError(
-        fallbackRefusal("E_TRANSPORT", error instanceof Error ? error.message : String(error)),
-        true,
-      );
+      const refusal = requestRefusal(error);
       this.patchSnapshot({ connection: this.transportFailureState(), lastRefusal: refusal.envelope });
       throw refusal;
     }
@@ -925,10 +929,7 @@ class Client implements SnapbackClient {
         });
         throw error;
       }
-      const refusal = new RefusalError(
-        fallbackRefusal("E_TRANSPORT", error instanceof Error ? error.message : String(error)),
-        true,
-      );
+      const refusal = requestRefusal(error);
       this.patchSnapshot({ connection: this.transportFailureState(), lastRefusal: refusal.envelope });
       throw refusal;
     }
@@ -940,10 +941,7 @@ class Client implements SnapbackClient {
   ): Promise<{ event?: RefusedDelivery; retry: boolean; refusal?: RefusalError }> {
     const refusal = isRefusalError(error)
       ? error
-      : new RefusalError(
-          fallbackRefusal("E_TRANSPORT", error instanceof Error ? error.message : String(error)),
-          true,
-        );
+      : requestRefusal(error);
     if (refusal.code === "E_AUTH_SUPERSEDED") {
       return { retry: false, refusal };
     }
@@ -1420,6 +1418,7 @@ class Client implements SnapbackClient {
 
   private closeTransports(except?: Subscription<unknown>): void {
     this.live.close();
+    this.queryCursors = undefined;
     this.queries.clear(except);
     // The stream a terminal refusal came from stays open to deliver it, and so
     // does a drain whose tail that stream is: closing the drain would silence it.
@@ -1451,14 +1450,13 @@ class Client implements SnapbackClient {
     }
   }
 
-
   private ensureOpen(): void {
     if (this.closed) {
       throw new RefusalError({
         code: "E_CLIENT_CLOSED",
         family: "owner",
-        message: "client is closed",
-        guide: "owner/connect",
+        message: "client is closed", retryable: false, site: "client.request",
+        rewrite: "create a new client before starting another operation", guide: "live-query",
       });
     }
   }
