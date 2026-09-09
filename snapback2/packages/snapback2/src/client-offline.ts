@@ -378,6 +378,8 @@ export async function performOfflineResume<Authority>(options: {
   const check = () => throwIfAborted(options.signal);
   check();
   if (!options.runtime) return false;
+  const grantPrincipal = options.runtime.principal;
+  if (grantPrincipal === undefined) return false;
   const fullRead = (op: string, args: unknown) => () => options.json("/api/query?receipt=1", {
     method: "POST", body: JSON.stringify({ op, args }), signal: options.signal,
   }, options.authority);
@@ -514,7 +516,7 @@ export async function performOfflineResume<Authority>(options: {
   options.validated(options.authority);
   // @ref LLP 1012#7-writes-offline — a resume may omit a replacement grant;
   // successful re-authorization itself renews trust, then replay is FIFO.
-  options.runtime.noteGrant(response);
+  options.runtime.noteGrant(response, grantPrincipal);
   try {
     await options.runtime.adoptPendingGrant();
     check();

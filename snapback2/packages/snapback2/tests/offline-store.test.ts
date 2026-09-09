@@ -13,7 +13,7 @@ import { decodeDeliveryEnvelope, schemaDigest } from "../dist/index.mjs";
 import { indexedDbRangeStore } from "../dist/react.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
 import { sqliteFactory } from "./sqlite-fixture.ts";
-import { offlineView } from "../dist/sqlite-test.mjs";
+import { OfflineRuntime, offlineView } from "../dist/sqlite-test.mjs";
 import { emptyItemInputs, withItemInputs } from "../dist/image-runtime.mjs";
 import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
 import { certifiedDrain, certifiedDrainEnvelope, certifiedDrainMetadataResponse, generation, schemaHash, planHash, metadataResponse } from "./offline-metadata-fixture.ts";
@@ -575,6 +575,70 @@ test("an exact receipt-backed owner page keeps its whole continuation across an 
   assert.equal(invalidated.data[0].id, "post-remaining",
     "invalidated custody does not conceal a newer revocation behind the old answer");
   assert.equal(invalidated.next, undefined);
+});
+
+test("a pending session grant never crosses principals after a failed partition open", async () => {
+  const root = await tempRoot();
+  const backing = fileRangeStore(root);
+  let refuseBob = true;
+  const failedAdoptionStarted = Promise.withResolvers<void>();
+  const releaseFailedAdoption = Promise.withResolvers<void>();
+  let failGrant = "grant-a-old";
+  const runtime = new OfflineRuntime({ store: () => {
+    const store = backing();
+    const open = store.open.bind(store);
+    const commit = store.commit.bind(store);
+    store.open = async (principal: string) => {
+      if (principal === "dev:bob" && refuseBob) { refuseBob = false; throw new Error("bob carrier unavailable"); }
+      await open(principal);
+    };
+    store.commit = async (swap: any) => {
+      if (swap.grants?.put?.[0]?.id === failGrant) {
+        failGrant = "";
+        failedAdoptionStarted.resolve();
+        await releaseFailedAdoption.promise;
+        throw new Error("grant persistence failed");
+      }
+      await commit(swap);
+    };
+    return store;
+  } });
+  const response = (suffix: string) => ({ grant: {
+    id: `grant-${suffix}`,
+    from: `s2id-0000000000000000000000000000000${suffix}-0000000000000001`,
+    count: 16, mintedAt: Date.now(), expiresAt: Date.now() + 60_000,
+  } });
+  try {
+    await runtime.open("dev:alice", true);
+    runtime.noteGrant({ ...response("a"), grant: { ...response("a").grant, id: "grant-a-old" } }, "dev:alice");
+    const failedAdoption = runtime.adoptPendingGrant();
+    await failedAdoptionStarted.promise;
+    runtime.noteGrant({ ...response("a"), grant: { ...response("a").grant, id: "grant-a" } }, "dev:alice");
+    releaseFailedAdoption.resolve();
+    await assert.rejects(failedAdoption, /grant persistence failed/);
+    await runtime.adoptPendingGrant();
+    assert.equal((await runtime.outbox.grant())?.id, "grant-a");
+
+    runtime.noteGrant(response("b"), "dev:bob");
+    await assert.rejects(runtime.open("dev:bob", true), /bob carrier unavailable/);
+    assert.equal(runtime.principal, undefined, "the failed account switch leaves no partition named");
+    await runtime.open("dev:alice", true);
+    assert.equal(await runtime.outbox.grant(), undefined,
+      "restoring the previous account discards, rather than adopts, Bob's pending grant");
+
+    runtime.noteGrant(response("b"), "dev:bob");
+    await runtime.open("dev:bob", true);
+    assert.equal((await runtime.outbox.grant())?.id, "grant-b",
+      "retrying the same principal keeps its pending grant recoverable");
+
+    runtime.noteGrant(response("c"), "dev:carol");
+    await runtime.wipe();
+    await runtime.open("dev:carol", true);
+    assert.equal(await runtime.outbox.grant(), undefined, "wipe clears obsolete pending grant custody");
+  } finally {
+    await runtime.close();
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test("sequence fences make absence, hidden, and tombstone evidence monotonic and deliveries idempotent", async () => {

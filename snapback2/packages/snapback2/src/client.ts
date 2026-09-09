@@ -5,7 +5,7 @@ import { ClientAuth, anonymousAuth, restoreAuthToken, saveAuthToken, storageRefu
 import { SharedSse } from "./live.js";
 import type { AssetFetchOptions } from "./store/byte-cache.js";
 import { api, referenceName, type Api, type ApiProxy, type Channel as ChannelRef, type Op } from "./api.js";
-import { captureGrant, createOutboxApi, drainOutbox, type DrainResult } from "./client-outbox.js";
+import { createOutboxApi, drainOutbox, type DrainResult } from "./client-outbox.js";
 import {
   acceptOffline,
   answerOffline,
@@ -655,9 +655,9 @@ class Client implements SnapbackClient {
   private async session(path: string, input: unknown): Promise<AuthSession> {
     ensureBearerTransition(this, path.slice("/api/auth/".length));
     const session = await this.transition(authority => this.authState.session(path, {
-      request: async () => captureGrant(this.offlineRuntime,
-        await this.json(path, { method: "POST", body: JSON.stringify(input) }, authority, { enforceAuthority: false, terminalSession: "keep" })),
-      install: async session => {
+      request: () => this.json(path, { method: "POST", body: JSON.stringify(input) }, authority, { enforceAuthority: false, terminalSession: "keep" }),
+      install: async (session, response) => {
+        this.offlineRuntime?.noteGrant(response, session.viewer);
         await this.openOffline(session.viewer, true, session.authEpoch);
         await this.installToken(session.token, session.viewer);
         this.ensureOpen();

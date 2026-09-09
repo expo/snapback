@@ -100,12 +100,13 @@ export class ClientAuth {
 
   async session(path: string, options: {
     request(): Promise<unknown>;
-    install(session: AuthSession): Promise<void>;
+    install(session: AuthSession, response: unknown): Promise<void>;
     metadata(): Promise<void>;
     validated(): void;
   }): Promise<AuthSession> {
-    const session = wireAuthSession(await options.request(), `${path.slice("/api/".length)} response`);
-    await options.install(session);
+    const response = await options.request();
+    const session = wireAuthSession(response, `${path.slice("/api/".length)} response`);
+    await options.install(session, response);
     const { token: _, ...confirmed } = session;
     this.reset({ state: "authenticated", ...confirmed });
     options.validated();

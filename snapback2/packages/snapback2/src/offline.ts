@@ -192,7 +192,7 @@ export class OfflineRuntime {
   private superseded?: CoverageFacts;
   private latestSeq = 0;
   private sessionEpoch?: number;
-  private pendingGrant?: OutboxGrant;
+  private pendingGrant?: { principal: string; grant: OutboxGrant };
   private pendingBounds?: Record<string, number>;
   private pendingProgram?: HeldProgram;
   private held?: HeldProgram;
@@ -565,13 +565,12 @@ export class OfflineRuntime {
 
   /**
    * Records the `grant` a signup, login, guest, or resume response carries. The
-   * partition may not be open yet (login opens it next), so the grant waits
-   * until the store for this principal is writable. Returns its input.
+   * validated principal travels with it because the partition may not be open
+   * yet (login opens it next).
    */
-  noteGrant<T>(value: T): T {
+  noteGrant(value: unknown, principal: string): void {
     const grant = decodeGrant(value);
-    if (grant) this.pendingGrant = grant;
-    return value;
+    if (grant) this.pendingGrant = { principal, grant };
   }
 
   async adoptPendingGrant(): Promise<void> {
@@ -597,6 +596,7 @@ export class OfflineRuntime {
     this.outbox.resetTrust();
     this.closeInbox();
     await this.serial(async () => {
+      this.pendingGrant = undefined;
       if (this.partition === undefined) return;
       const partition = this.partition;
       this.coverageRevision += 1;
@@ -1013,13 +1013,16 @@ export class OfflineRuntime {
   }
 
   private async flushGrant(): Promise<void> {
-    const grant = this.pendingGrant;
-    if (!grant || this.partition === undefined) return;
+    const pending = this.pendingGrant;
+    if (!pending || this.partition === undefined) return;
     this.pendingGrant = undefined;
+    // @ref LLP 1012#7-writes-offline — session and resume grants remain in
+    // their validated principal's custody even when opening that partition fails.
+    if (pending.principal !== this.partition) return;
     try {
-      await this.outbox.adopt(grant);
+      await this.outbox.adopt(pending.grant);
     } catch (error) {
-      this.pendingGrant = grant;
+      this.pendingGrant ??= pending;
       throw error;
     }
   }
