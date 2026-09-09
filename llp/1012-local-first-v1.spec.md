@@ -994,6 +994,8 @@ An app-authored `require` remains the way to express stricter or custom
 semantics. The design's per-table `merge: lww | append` policies for
 collaborative fields stay deferred (§11); a table that wants last-writer-wins
 today simply does not read the row it overwrites.
+Repeated reads of one key compare in occurrence order, including reads after
+the mutation’s own write; a later image is never compared to the first read.
 
 **Prediction.** On enqueue the write's rows enter the store as an overlay —
 visible to local evaluation, excluded from validators, keyed by the intent —

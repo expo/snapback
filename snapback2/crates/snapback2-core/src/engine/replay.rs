@@ -393,10 +393,12 @@ pub(super) fn conflict_site(
     rule_inputs: &[RuleInputTrace],
     strict: bool,
 ) -> Option<String> {
+    // Reads after our own writes observe a later image of the same key.
+    let mut occurrences = BTreeMap::<String, usize>::new();
     for point in &expected.points {
-        let current = points
-            .iter()
-            .find(|actual| same_point(actual, &point.table, &point.index, &point.key));
+        let offset = occurrences.entry(canonical_json(&(&point.table, &point.index, &point.key))).or_default();
+        let current = points.iter().filter(|actual| same_point(actual, &point.table, &point.index, &point.key)).nth(*offset);
+        *offset += 1;
         match current {
             Some(actual) if observed_digest(actual) == point.digest.as_deref() => {}
             Some(actual) => return Some(actual.site.clone()),
@@ -588,6 +590,17 @@ mod tests {
             }],
             ..AuthoritativeTrace::default()
         }
+    }
+
+    #[test]
+    fn repeated_points_compare_each_occurrence_before_and_after_own_writes() {
+        let expected = ReplayTrace { points: vec![expected_point(Some("a".repeat(64))), expected_point(Some("b".repeat(64)))], verdicts: vec![] };
+        let points = vec![point("before", true, Some("a".repeat(64))), point("after", true, Some("b".repeat(64)))];
+        assert_eq!(conflict_site(&expected, &points, &[], true), None);
+        let mut changed = points.clone(); changed[1].digest = Some("c".repeat(64));
+        assert_eq!(conflict_site(&expected, &changed, &[], true).as_deref(), Some("after"));
+        assert_eq!(conflict_site(&expected, &points[..1], &[], false), None, "an early rejection never reached the second read");
+        assert!(conflict_site(&expected, &points[..1], &[], true).is_some());
     }
 
     #[test]
