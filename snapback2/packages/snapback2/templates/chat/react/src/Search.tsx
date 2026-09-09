@@ -3,9 +3,9 @@ import { api, reasonMessages } from "snapback2/client";
 import { useQuery } from "snapback2/react";
 
 function Results({ term, onOpen }: { term: string; onOpen(conversationId: string): void }) {
-  const result = useQuery(api.messages.search, { term, c: null });
+  const result = useQuery(api.messages.search, { term });
   const hits = result.data ?? [];
-  const next = result.receipt?.next !== null && result.receipt?.next !== undefined;
+  const next = result.next !== null;
   const limit = next ? "Indexed result limit reached · more available" : "Indexed result limit reached";
   const predicted = hits.some((row) => result.local.predicted.some((item) => item.table === "messages" && item.id === row.id));
   const primary = result.status === "loading" ? "Searching…"

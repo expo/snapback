@@ -1,3 +1,6 @@
 export { MediaView } from "../templates/chat/expo/src/MediaView.js";
 export { configuration, persist } from "../templates/chat/expo/src/witness-state.js";
 export { NormalApp } from "../templates/chat/expo/App.js";
+export { Composer } from "../templates/chat/expo/src/Composer.js";
+export { Chat } from "../templates/chat/expo/src/Chat.js";
+export { Thread } from "../templates/chat/expo/src/screens/Thread.js";

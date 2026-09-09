@@ -12,8 +12,8 @@ An `if`/`else` can return a range or merge through aliases and shapes.
 columns. Reset `c` when changing index/order. Non-page and local `partial`
 results have no continuation.
 
-`{messages,count,preview}` is one outcome without root continuation; nested
-bounded arrays are not drainable. Missing count authority makes the whole record
-partial (chat `conversationView`).
+One cursor-bearing page nested in a record supplies root `next`; fixed arrays
+do not. Objects/nested pages cannot drain; drains require a direct ascending append page.
+Missing count authority makes the record partial (chat `conversationView`).
 
 See `guide quarry` for related topics.

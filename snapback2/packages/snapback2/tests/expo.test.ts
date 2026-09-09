@@ -12,7 +12,7 @@ import { build } from "esbuild";
 import React, { act } from "react";
 import TestRenderer from "react-test-renderer";
 import { api, browserTokenStore, createClient } from "../dist/client.mjs";
-import { RefusalError } from "../dist/client-observed-test.mjs";
+import { RefusalError, composeHistory } from "../dist/client-observed-test.mjs";
 import { nodeSqliteDriver } from "../dist/sqlite-test.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
 import { fakeOwner, seededStore } from "./fake-owner.ts";
@@ -78,12 +78,12 @@ function observeTestOutbox(client: any) {
     (notify: () => void) => client.outbox.subscribe(notify), () => String(client.snapshot.authGeneration));
 }
 
-test("Expo renders declared history for a partial composite and the composite once it is usable", async () => {
+for (const arm of ["Expo", "React"]) test(`${arm} renders real loading-history drafts and keeps the bubble into a usable composite`, async () => {
   const bundlePath = fileURLToPath(new URL("../dist/.expo-thread-history.test-bundle.mjs", import.meta.url));
   const bundled = await build({
     stdin: {
-      contents: 'export { Thread } from "./screens/Thread";',
-      resolveDir: fileURLToPath(new URL("../templates/chat/expo/src", import.meta.url)),
+      contents: arm === "Expo" ? 'export { Thread } from "./screens/Thread";' : 'export { Thread } from "./Thread";',
+      resolveDir: fileURLToPath(new URL(`../templates/chat/${arm.toLowerCase()}/src`, import.meta.url)),
       sourcefile: "expo-thread.tsx",
       loader: "tsx",
     },
@@ -97,7 +97,7 @@ test("Expo renders declared history for a partial composite and the composite on
     plugins: [{
       name: "package-dist",
       setup(plugin) {
-        plugin.onResolve({ filter: /^snapback2\/(react-native|client)$/ }, (args) => ({
+        plugin.onResolve({ filter: /^snapback2\/(react|react-native|client)$/ }, (args) => ({
           path: `./${args.path.slice("snapback2/".length)}.mjs`, external: true,
         }));
       },
@@ -108,13 +108,13 @@ test("Expo renders declared history for a partial composite and the composite on
   const listeners = new Set<() => void>();
   const observed: string[] = [];
   const message = { messageId: "message-held", at: 1, kind: "message",
-    message: { id: "message-held", authorId: "profile-alice", body: "independently held" } };
+    message: { id: "message-held", at: 1, authorId: "profile-alice", body: "independently held" } };
   const items = [{ key: "message-held", data: message.message, predicted: false, pending: [] }];
-  const offline = { freshness: { live: false, connection: "offline" }, local: { predicted: [], retained: false } };
-  const history = { status: "ready", data: [message], items, ...offline, reason: { code: "held", message: "Held on this device." } };
-  // The composed record of LLP 1018.006 §2: the screen never opens history itself.
-  let snapshot: any = { status: "unavailable", receipt: { state: "partial", source: "twin", seq: 1 }, ...offline,
-    items, itemsFrom: "history", history };
+  const reason = { code: "partial", message: "Some data is not downloaded." };
+  const receipt = { state: "partial", source: "twin", seq: 1, next: null };
+  const primary: any = { status: "unavailable", data: undefined, partial: false, next: null, reason, receipt, items };
+  const history: any = { status: "ready", data: [message], items, receipt: { ...receipt, state: "complete" } };
+  let snapshot: any = composeHistory(primary, history);
   const client: any = {
     ready: Promise.resolve(),
     snapshot: { authGeneration: 1, connection: "offline", auth: { state: "authenticated", viewer: "profile-alice" } },
@@ -147,21 +147,257 @@ test("Expo renders declared history for a partial composite and the composite on
     assert.match(partialTree, /Message count unavailable/);
     assert.match(partialTree, /Count and preview unavailable/);
 
-    await publish({ status: "unavailable", receipt: { state: "partial", source: "twin", seq: 2 }, ...offline,
-      items: [], itemsFrom: "drafts", history: { status: "loading", ...offline } });
+    const draft = { key: "draft-1", data: { id: "draft-1", body: "hidden primary row", at: 1 },
+      draft: { body: "unfinished local send" }, predicted: true,
+      pending: [{ intent: "intent-1", kind: "create", state: "queued", label: "Sending…", dismissible: false }] };
+    const loading = composeHistory({ ...primary, items: [...items, draft] }, { status: "loading", items: [] } as any);
+    assert.equal(loading.partial, false);
+    assert.equal(loading.itemsFrom, "drafts");
+    assert.equal(loading.history.status, "loading");
+    assert.equal(loading.items.length, 1);
+    assert.equal(loading.items[0].data, undefined);
+    await publish(loading);
     const loadingTree = JSON.stringify(renderer!.toJSON());
     assert.match(loadingTree, /Count and preview unavailable/, "loading history is still the fallback in force");
-    assert.doesNotMatch(loadingTree, /independently held/);
-
+    assert.doesNotMatch(loadingTree, /independently held|hidden primary row/);
+    assert.match(loadingTree, /unfinished local send|Sending…/);
+    assert.match(loadingTree, /Message count unavailable/);
+    const bubble = () => arm === "Expo"
+      ? renderer!.root.findAllByType("NativeView").find(node => node.props.testID === "message-draft-1")
+      : renderer!.root.findAllByType("li").find(node => node.props["data-message"] === "draft-1");
+    const pending = bubble(); assert.ok(pending);
+    if (arm === "React") {
+      assert.equal(renderer!.root.findByType("ol").props["data-view-source"], "partial-history");
+      assert.equal(renderer!.root.findByType("ol").props["data-view-state"], "loading");
+      assert.equal(renderer!.root.findAllByType("p").find(node => node.props.className === "thread-history-note")!.props["data-history-state"], "loading");
+    }
     const value = { messages: [message], count: 1, preview: [message] };
-    await publish({ status: "ready", data: value, receipt: { state: "complete", source: "server", seq: 3 },
-      freshness: { live: true, connection: "connected" }, local: { predicted: [], retained: false }, items, itemsFrom: "query" });
+    await publish(composeHistory({ status: "ready", data: value, partial: false, next: null,
+      receipt: { ...receipt, state: "complete" }, items: [...items, { ...draft, data: { ...draft.data, body: draft.draft.body } }] } as any, undefined));
+    assert.strictEqual(bubble(), pending, "the drafts-only bubble survives composite publication");
+    if (arm === "React") assert.equal(renderer!.root.findByType("ol").props["data-view-source"], "composite");
     const usableTree = JSON.stringify(renderer!.toJSON());
     assert.match(usableTree, /1 message · Latest: independently held/);
     assert.doesNotMatch(usableTree, /Count and preview unavailable/);
     assert.equal(observed.length, 1, "the same composed observation serves every state");
   } finally {
     await act(async () => { renderer?.unmount(); });
+    await rm(bundlePath, { force: true });
+  }
+});
+
+for (const arm of ["Expo", "React"]) test(`${arm} cached once-photo waits for account confirmation and cannot reopen on logout`, async t => {
+  const bundlePath = fileURLToPath(new URL(`../dist/.${arm.toLowerCase()}-thread-once.test-bundle.mjs`, import.meta.url));
+  const bundled = await build({
+    stdin: { contents: arm === "Expo" ? 'export { Thread } from "./screens/Thread";' : 'export { Thread } from "./Thread";',
+      resolveDir: fileURLToPath(new URL(`../templates/chat/${arm.toLowerCase()}/src`, import.meta.url)), sourcefile: "once-entry.tsx", loader: "tsx" },
+    bundle: true, write: false, format: "esm", platform: "node", target: "es2022", jsx: "automatic",
+    external: ["react", "react/jsx-runtime", "react-native"],
+    plugins: [{ name: "package-dist", setup(plugin) {
+      plugin.onResolve({ filter: /^snapback2\/(react|react-native|client)$/ }, args => ({
+        path: `./${args.path.slice("snapback2/".length)}.mjs`, external: true,
+      }));
+    } }],
+  });
+  await writeFile(bundlePath, bundled.outputFiles[0]!.text);
+  const { Thread } = await import(pathToFileURL(bundlePath).href);
+  const owner = fakeOwner();
+  const png = await readFile(new URL("../../../scripts/witness-expo/view-once.png", import.meta.url));
+  let confirm!: () => void;
+  const confirmation = new Promise<void>(done => { confirm = done; });
+  const requests: string[] = [];
+  const client = createClient({ url: "http://once-account.test", fetch: async (input, init) => {
+    const path = new URL(String(input)).pathname;
+    if (path === "/api/auth/me") await confirmation;
+    if (path === "/api/auth/logout") return new Response(JSON.stringify({ ok: true }));
+    if (path.startsWith("/api/asset/")) {
+      requests.push(client.snapshot.auth.state);
+      return new Response(png, { headers: { "content-type": "image/png" } });
+    }
+    return owner.fetch(input, init);
+  } });
+  const message = { id: "cached-once", at: 1, authorId: "dev:alice", oncePhoto: {
+    id: "s2id-00000000000000000000000000000008-0000000000000001", width: 8, height: 8,
+  } };
+  // Keep the cached row visible even after logout: query reset must not mask a screen-owned opening.
+  const held = { status: "ready", data: undefined, partial: true, next: null,
+    items: [{ key: message.id, data: message, predicted: false, pending: [] }] };
+  client.observe = () => ({ getSnapshot: () => held, subscribe: () => () => undefined }) as any;
+  let renderer: TestRenderer.ReactTestRenderer | undefined;
+  function Screen() {
+    return React.createElement(Thread, { conversationId: "conversation-1" });
+  }
+  const bubble = () => arm === "Expo"
+    ? renderer!.root.findAllByType("NativeView").find(node => node.props.testID === "message-cached-once")!
+    : renderer!.root.findByProps({ "data-message": "cached-once" });
+  const list = () => renderer!.root.findByType(arm === "Expo" ? "NativeScrollView" : "ol");
+  const button = () => bubble().findAllByType(arm === "Expo" ? "NativeButton" : "button")
+    .find(node => arm === "Expo" ? node.props.title === "View photo once" : node.props.children === "View photo once");
+  const images = () => bubble().findAllByType(arm === "Expo" ? "NativeImage" : "img");
+  const press = async () => { await act(async () => {
+    const control = button()!;
+    (arm === "Expo" ? control.props.onPress : control.props.onClick)();
+    await new Promise(done => setImmediate(done));
+  }); };
+  try {
+    await client.ready;
+    await act(async () => { renderer = TestRenderer.create(React.createElement(SnapbackProvider, { client }, React.createElement(Screen)), {
+      createNodeMock: element => element.type === "img" ? { getBoundingClientRect: () => ({ width: 240 }) } : null,
+    }); });
+    assert.equal(client.snapshot.auth.state, "hydrating");
+    assert.equal(client.snapshot.auth.viewer ?? client.snapshot.auth.restoringViewer, undefined);
+    const originalList = list(), originalBubble = bubble();
+    const disabled = button()!.props.disabled === true;
+    // Invoke the callback even when disabled to prove it cannot record an unknown opening.
+    await press();
+    const unknown = { disabled, images: images().length, requests: requests.length };
+    t.diagnostic(`unknown: ${JSON.stringify(unknown)}`);
+    assert.deepEqual(unknown, { disabled: true, images: 0, requests: 0 });
+    await act(async () => { confirm(); await client.auth.me(); });
+    assert.equal(client.snapshot.auth.viewer, "dev:alice");
+    assert.equal(button()!.props.disabled, false, "confirmation must not find a recorded unknown opening");
+    assert.equal(images().length, 0);
+    assert.equal(requests.length, 0);
+    await press();
+    assert.equal(button(), undefined);
+    assert.equal(images().length, 1);
+    assert.ok(arm === "Expo" ? images()[0].props.source?.uri : images()[0].props.src, "the real asset component received bytes");
+    assert.deepEqual(requests, ["authenticated"], "the confirmed account spends exactly one opening");
+    assert.strictEqual(list(), originalList);
+    assert.strictEqual(bubble(), originalBubble);
+    await act(async () => { await client.auth.logout(); });
+    assert.equal(client.snapshot.auth.state, "anonymous");
+    assert.strictEqual(list(), originalList, "logout keeps the conversation/list mounted");
+    assert.strictEqual(bubble(), originalBubble, "the same cached once-photo remains visible");
+    assert.equal(images().length, 0, "the old opening cannot re-match anonymous identity");
+    assert.equal(button()!.props.disabled, true);
+    await press();
+    assert.equal(images().length, 0);
+    assert.deepEqual(requests, ["authenticated"], "logout and its disabled callback cannot request more bytes");
+    t.diagnostic("confirmed: 1 image, 1 authenticated asset request; logout: 0 images, 0 additional requests; list and bubble unchanged");
+  } finally {
+    confirm(); await act(async () => renderer?.unmount()); await client.close();
+    await rm(bundlePath, { force: true });
+  }
+});
+
+for (const arm of ["Expo", "React"]) for (const boundary of ["logout/re-login", "A→B→A", "restoring confirmation"])
+test(`${arm} once-photo opening scope: ${boundary}`, async t => {
+  const bundlePath = fileURLToPath(new URL(`../dist/.${arm.toLowerCase()}-thread-scope.test-bundle.mjs`, import.meta.url));
+  const bundled = await build({
+    stdin: { contents: arm === "Expo" ? 'export { Thread } from "./screens/Thread";' : 'export { Thread } from "./Thread";',
+      resolveDir: fileURLToPath(new URL(`../templates/chat/${arm.toLowerCase()}/src`, import.meta.url)), sourcefile: "scope-entry.tsx", loader: "tsx" },
+    bundle: true, write: false, format: "esm", platform: "node", target: "es2022", jsx: "automatic",
+    external: ["react", "react/jsx-runtime", "react-native"],
+    plugins: [{ name: "package-dist", setup(plugin) {
+      plugin.onResolve({ filter: /^snapback2\/(react|react-native|client)$/ }, args => ({
+        path: `./${args.path.slice("snapback2/".length)}.mjs`, external: true,
+      }));
+    } }],
+  });
+  await writeFile(bundlePath, bundled.outputFiles[0]!.text);
+  const { Thread } = await import(`${pathToFileURL(bundlePath).href}?boundary=${encodeURIComponent(boundary)}`);
+  const owner = fakeOwner(), restoring = boundary === "restoring confirmation";
+  const png = await readFile(new URL("../../../scripts/witness-expo/view-once.png", import.meta.url));
+  let confirm!: () => void, principal = "dev:alice";
+  const confirmation = new Promise<void>(done => { confirm = done; });
+  const requests: string[] = [];
+  const client = createClient({ url: "http://once-scope.test",
+    ...(restoring ? { tokenStore: { load: () => "token-alice", save: () => undefined,
+      loadPrincipalBinding: () => ({ token: "token-alice", principal: "dev:alice" }), savePrincipal: () => undefined } } : {}),
+    fetch: async (input, init) => {
+      const path = new URL(String(input)).pathname;
+      if (path === "/api/auth/me") { await confirmation; return Response.json({ viewer: principal, kind: "user" }); }
+      if (path === "/api/auth/login") {
+        principal = JSON.parse(String(init?.body)).email === "bob@example.com" ? "dev:bob" : "dev:alice";
+        return Response.json({ token: `token-${principal}`, viewer: principal, kind: "user" });
+      }
+      if (path === "/api/auth/logout") return Response.json({ ok: true });
+      if (path.startsWith("/api/asset/")) {
+        requests.push(principal);
+        return new Response(png, { headers: { "content-type": "image/png" } });
+      }
+      return owner.fetch(input, init);
+    } });
+  const message = { id: "cached-once", at: 1, authorId: "dev:alice", oncePhoto: {
+    id: "s2id-00000000000000000000000000000008-0000000000000001", width: 8, height: 8,
+  } };
+  // Keep the row across every auth transition so query invalidation cannot hide an old opening.
+  const held = { status: "ready", data: undefined, partial: true, next: null,
+    items: [{ key: message.id, data: message, predicted: false, pending: [] }] };
+  client.observe = () => ({ getSnapshot: () => held, subscribe: () => () => undefined }) as any;
+  let renderer: TestRenderer.ReactTestRenderer | undefined;
+  const commits: { account: string | null | undefined; images: number }[] = [];
+  function Screen() {
+    const { session: auth } = useAuth();
+    React.useLayoutEffect(() => { if (renderer) commits.push({
+      account: auth.state === "anonymous" ? null : auth.viewer ?? auth.restoringViewer, images: images().length,
+    }); });
+    return React.createElement(Thread, { conversationId: "conversation-1" });
+  }
+  const bubble = () => arm === "Expo"
+    ? renderer!.root.findAllByType("NativeView").find(node => node.props.testID === "message-cached-once")!
+    : renderer!.root.findByProps({ "data-message": "cached-once" });
+  const list = () => renderer!.root.findByType(arm === "Expo" ? "NativeScrollView" : "ol");
+  const images = () => bubble().findAllByType(arm === "Expo" ? "NativeImage" : "img");
+  const button = () => bubble().findAllByType(arm === "Expo" ? "NativeButton" : "button")
+    .find(node => arm === "Expo" ? node.props.title === "View photo once" : node.props.children === "View photo once");
+  const press = async () => { await act(async () => {
+    const control = button()!;
+    (arm === "Expo" ? control.props.onPress : control.props.onClick)();
+    await new Promise(done => setImmediate(done));
+  }); };
+  const login = async (name: string) => { await act(async () => {
+    await client.auth.login({ email: `${name}@example.com`, password: "password" });
+    await new Promise(done => setImmediate(done));
+  }); };
+  try {
+    await client.ready;
+    if (!restoring) { confirm(); await client.auth.me(); }
+    await act(async () => { renderer = TestRenderer.create(React.createElement(SnapbackProvider, { client }, React.createElement(Screen)), {
+      createNodeMock: element => element.type === "img" ? { getBoundingClientRect: () => ({ width: 240 }) } : null,
+    }); });
+    const originalList = list(), originalBubble = bubble();
+    if (restoring) {
+      assert.equal(client.snapshot.auth.viewer, undefined);
+      assert.equal(client.snapshot.auth.restoringViewer, "dev:alice");
+    }
+    assert.equal(button()!.props.disabled, false);
+    await press();
+    assert.equal(images().length, 1);
+    const openedImage = images()[0];
+    commits.length = 0;
+    if (restoring) {
+      await act(async () => { confirm(); await client.auth.me(); await new Promise(done => setImmediate(done)); });
+      assert.equal(client.snapshot.auth.viewer, "dev:alice");
+      assert.strictEqual(images()[0], openedImage, "same-account confirmation preserves the opening and mounted image");
+      assert.ok(commits.length > 0 && commits.every(commit => commit.account === "dev:alice" && commit.images === 1));
+      assert.deepEqual(requests, ["dev:alice"], "confirmation completes the explicit opening exactly once");
+      assert.ok(arm === "Expo" ? images()[0].props.source?.uri : images()[0].props.src);
+      t.diagnostic("restoring dev:alice → confirmed dev:alice: same mounted image; exactly 1 Alice byte request; list and bubble unchanged");
+    } else {
+      assert.deepEqual(requests, ["dev:alice"]);
+      if (boundary === "logout/re-login") await act(async () => { await client.auth.logout(); });
+      else await login("bob");
+      assert.ok(commits.length > 0 && commits.every(commit => commit.images === 0), "the changed scope commits no old asset");
+      assert.equal(images().length, 0);
+      assert.deepEqual(requests, ["dev:alice"]);
+      if (boundary === "A→B→A") { await press(); assert.deepEqual(requests, ["dev:alice", "dev:bob"]); }
+      const spent = [...requests];
+      commits.length = 0;
+      await login("alice");
+      t.diagnostic(`${boundary}: return to Alice: images=${images().length}, additional requests=${requests.length - spent.length}, commits=${JSON.stringify(commits)}`);
+      assert.ok(commits.length > 0 && commits.every(commit => commit.account === "dev:alice" && commit.images === 0), "no return-to-Alice commit may auto-mount an old opening");
+      assert.equal(button()!.props.disabled, false, "returning Alice must choose to open again");
+      assert.deepEqual(requests, spent, "returning Alice cannot automatically re-request her photo");
+      await press();
+      assert.equal(images().length, 1);
+      assert.deepEqual(requests, [...spent, "dev:alice"], "only the new explicit click requests Alice bytes");
+    }
+    assert.strictEqual(list(), originalList, "account transitions keep the conversation/list mounted");
+    assert.strictEqual(bubble(), originalBubble, "the cached bubble never remounts");
+  } finally {
+    confirm(); await act(async () => renderer?.unmount()); await client.close();
     await rm(bundlePath, { force: true });
   }
 });

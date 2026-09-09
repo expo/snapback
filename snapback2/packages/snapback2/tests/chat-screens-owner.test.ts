@@ -24,8 +24,8 @@ import { RealOwnerHarness } from "./owner-harness.ts";
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const bundlePath = resolve(packageRoot, "dist/.chat-screens-owner.test-bundle.mjs");
 let App: (props: Record<string, never>) => React.ReactElement;
-let Composer: (props: { conversationId: string; onNote(note: string): void }) => React.ReactElement;
-let Thread: (props: { conversationId: string; onNote(note: string): void }) => React.ReactElement;
+let Composer: (props: { conversationId: string }) => React.ReactElement;
+let Thread: (props: { conversationId: string }) => React.ReactElement;
 let screenOwner: RealOwnerHarness;
 
 before(async () => {

@@ -24,8 +24,8 @@ import { RealOwnerHarness } from "./owner-harness.ts";
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const bundlePath = resolve(packageRoot, "dist/.chat-screens-recovery.test-bundle.mjs");
 let App: (props: Record<string, never>) => React.ReactElement;
-let Composer: (props: { conversationId: string; onNote(note: string): void }) => React.ReactElement;
-let Thread: (props: { conversationId: string; onNote(note: string): void }) => React.ReactElement;
+let Composer: (props: { conversationId: string }) => React.ReactElement;
+let Thread: (props: { conversationId: string }) => React.ReactElement;
 let screenOwner: RealOwnerHarness;
 
 before(async () => {
@@ -172,14 +172,13 @@ test("a follower Composer's send is durable before it resolves, survives a reloa
   let follower: ReturnType<typeof createClient> | undefined;
   let reloaded: ReturnType<typeof createClient> | undefined;
   let drain: any;
-  const notes: string[] = [];
   const reactRoot: Root = createRoot(document.getElementById("root")!);
   const waitForUi = async (predicate: () => boolean | Promise<boolean>, label: string, timeoutMs = 6_000) => {
     const started = performance.now();
     while (!(await predicate())) {
       if (performance.now() - started > timeoutMs) {
         const status = document.querySelector("form[aria-label=Composer] small[data-waiting]");
-        throw new Error(`timed out waiting for ${label}; notes=${JSON.stringify(notes)} waiting=${status?.getAttribute("data-waiting")} `
+        throw new Error(`timed out waiting for ${label}; alert=${JSON.stringify(text(document.querySelector("[role=alert]")))} waiting=${status?.getAttribute("data-waiting")} `
           + `text=${JSON.stringify(status?.textContent)} input=${JSON.stringify(document.querySelector<HTMLInputElement>("form[aria-label=Composer] input")?.value)}`);
       }
       await new Promise((resolve) => setTimeout(resolve, 20));
@@ -197,7 +196,7 @@ test("a follower Composer's send is durable before it resolves, survives a reloa
     });
   };
   const render = (client: any, conversationId: string) => React.createElement(SnapbackProvider, { client },
-    React.createElement(Thread, { conversationId, onNote: (note: string) => notes.push(note) }));
+    React.createElement(Thread, { conversationId }));
   try {
     await writer.ready;
     follower = createClient({ url: screenOwner.url, persona: "alice", fetch: transport, offline: { store: store() } });

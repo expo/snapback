@@ -1,6 +1,6 @@
 {
   "name": "snapback2",
-  "version": "0.0.19",
+  "version": "0.0.20",
   "description": "Snapback 2 CLI (the platform binary ships in snapback2-<os>-<arch>).",
   "license": "MIT",
   "type": "module",
@@ -119,8 +119,8 @@
     "ws": "8.18.3"
   },
   "optionalDependencies": {
-    "snapback2-darwin-arm64": "0.0.19",
-    "snapback2-linux-x64": "0.0.19"
+    "snapback2-darwin-arm64": "0.0.20",
+    "snapback2-linux-x64": "0.0.20"
   },
   "repository": {
     "type": "git",

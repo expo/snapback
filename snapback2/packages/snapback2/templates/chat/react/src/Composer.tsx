@@ -1,60 +1,53 @@
 import { messageWrites } from "../shared/thread";
-import { useRef, useState, type FormEvent } from "react";
-import { useMutation, useOutbox, useSnapbackClient, useSnapbackSnapshot } from "snapback2/react";
+import { useState, type FormEvent } from "react";
+import { useAuth, useMutation, useOutbox, useSnapbackClient } from "snapback2/react";
 
-const describe = (error: unknown) => error instanceof Error ? error.message : String(error);
-
-export function Composer({ conversationId, onNote }: { conversationId: string; onNote(note: string): void }) {
+export function Composer({ conversationId }: { conversationId: string }) {
+  const { session: auth } = useAuth();
+  const account = auth.state === "anonymous" ? null : auth.viewer ?? auth.restoringViewer;
+  const [scope, setScope] = useState({ account, key: 0 });
+  // First confirmation adopts the cold draft; logout and account switches reset it.
+  if (account !== undefined && account !== scope.account) {
+    setScope({ account, key: scope.key + (scope.account === undefined && account !== null ? 0 : 1) });
+  }
+  return <Draft key={JSON.stringify([scope.key, conversationId])} conversationId={conversationId} />;
+}
+function Draft({ conversationId }: { conversationId: string }) {
   const post = useMutation(messageWrites.create);
   const outbox = useOutbox();
-  const client = useSnapbackClient();
-  const generation = useSnapbackSnapshot().authGeneration;
   const [body, setBody] = useState("");
   const [syncing, setSyncing] = useState(false);
-  const visit = useRef({ conversationId, generation });
-  visit.current = { conversationId, generation };
-  const current = (captured: { conversationId: string; generation: number }) =>
-    visit.current.conversationId === captured.conversationId && client.snapshot.authGeneration === captured.generation;
-
+  const [syncNote, setSyncNote] = useState("");
+  const queued = post.last?.state === "queued" && outbox.detail.status.reason !== "forwarding"
+    && outbox.entries.some(entry => entry.intent === post.last?.intent && entry.state === "queued");
+  const note = post.last?.state === "rejected" ? `Not sent: ${post.last.rewrite ?? post.last.message}`
+    : queued ? post.can.reason?.code === "fence" ? "Queued until the next sync." : "Queued; use Sync now to retry delivery." : "";
   const send = async () => {
-    const text = body.trim();
+    const text = body.trim(), draft = body;
     if (!text || !post.can.send || post.inFlight) return;
-    const captured = visit.current, draft = body;
-    try {
-      const result = await post.run({ conversationId, body: text });
-      if (!current(captured)) return;
-      if (result.state !== "rejected") setBody((now) => (now === draft ? "" : now));
-      // A follower's queued result is the ordinary verdict and the bubble shows it; the writer's says how to move it.
-      onNote(result.state === "rejected" ? `Not sent: ${result.rewrite ?? result.message}`
-        : result.state !== "queued" || outbox.detail.status.reason === "forwarding" ? ""
-          : post.can.reason?.code === "fence" ? "Queued until the next sync." : "Queued; use Sync now to retry delivery.");
-    } catch (error) {
-      if (current(captured)) onNote(describe(error));
-    }
+    setSyncNote("");
+    const result = await post.run({ conversationId, body: text });
+    if (result.state !== "rejected") setBody(now => now === draft ? "" : now);
   };
-
+  const client = useSnapbackClient();
   const sync = async () => {
-    const captured = visit.current;
     setSyncing(true);
     try {
       await client.online();
       const result = await client.outbox.settled();
-      if (current(captured)) onNote(result.stopped ? `${result.remaining} queued; sync paused. Your messages are saved.` : "");
+      setSyncNote(result.stopped ? `${result.remaining} queued; sync paused. Your messages are saved.` : "");
     } catch (error) {
-      if (current(captured)) onNote(describe(error));
-    } finally {
-      setSyncing(false);
-    }
+      setSyncNote(error instanceof Error ? error.message : String(error));
+    } finally { setSyncing(false); }
   };
-
   const submit = (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); void send(); };
-  return (
-    <form aria-label="Composer" onSubmit={submit}>
-      <input aria-label="Message" value={body} placeholder="Message" onChange={(event) => setBody(event.target.value)} />
-      <button type="submit" disabled={post.inFlight || !post.can.send}>Send</button>
-      {post.can.reason ? <small role="status" data-waiting={post.can.reason.code}>{post.can.reason.message}</small> : null}
-      {post.can.action === "connect" ? <button type="button" disabled={syncing}
-        onClick={() => { void sync(); }}>{syncing ? "Syncing…" : "Sync now"}</button> : null}
-    </form>
-  );
+  return <form aria-label="Composer" onSubmit={submit}>
+    <input aria-label="Message" value={body} placeholder="Message" onChange={(event) => setBody(event.target.value)} />
+    <button type="submit" disabled={post.inFlight || !post.can.send}>Send</button>
+    {post.can.reason ? <small role="status" data-waiting={post.can.reason.code}>{post.can.reason.message}</small> : null}
+    {syncing || post.can.action === "connect" ? <button type="button" disabled={syncing}
+      onClick={() => { void sync(); }}>{syncing ? "Syncing…" : "Sync now"}</button> : null}
+    {note ? <p role="alert">{note}</p> : null}
+    {syncNote ? <p role="alert">{syncNote}</p> : null}
+  </form>;
 }

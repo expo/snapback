@@ -524,7 +524,31 @@ fn offline_guide_page_respects_its_budget_and_its_codes_have_pages() {
         let text = String::from_utf8_lossy(&refusal.stdout);
         assert!(refusal.status.success(), "{code}: {text}");
         assert!(text.contains("Family: `offline`"), "{code}: {text}");
+        assert!(!text.contains("client.resume("), "{code}: {text}");
+        if matches!(
+            code,
+            "E_OFFLINE_RESET" | "E_OFFLINE_RESUME" | "E_OFFLINE_INTENT_EXPIRED"
+        ) {
+            assert!(text.contains("await client.online()"), "{code}: {text}");
+        }
+        if code == "E_OFFLINE_RESUME" {
+            assert!(text.contains("unsupported-log"), "{code}: {text}");
+            assert!(text.contains("N <= 50"), "{code}: {text}");
+            assert!(text.contains("mounted-limit"), "{code}: {text}");
+            assert!(text.contains("may retry once with fewer queries"), "{code}: {text}");
+            assert!(text.contains("online() does not repair an unsupported log"), "{code}: {text}");
+            assert!(
+                text.find("after c first N").unwrap() < text.find("await client.online()").unwrap(),
+                "the unsupported-log query repair must lead: {text}"
+            );
+        }
     }
+    let follower = project.run(&["guide", "E_OFFLINE_FOLLOWER"]);
+    assert!(follower.status.success());
+    let text = String::from_utf8_lossy(&follower.stdout);
+    assert!(text.contains("followers with an inbox route queue mutations durably"), "{text}");
+    assert!(text.contains("sign in to establish this tab's account, then send again"), "{text}");
+    assert!(text.contains("after that, followers"), "durable admission needs the established account: {text}");
     let listed = project.run(&["guide", "does-not-exist", "--json"]);
     assert!(
         json_stdout(&listed)["message"]

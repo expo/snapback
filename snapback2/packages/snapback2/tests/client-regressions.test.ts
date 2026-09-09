@@ -19,9 +19,9 @@ import { SnapbackProvider, useAuth, useViewer, useMutation, type UseAuthResult }
 
 test("public read and write failures distinguish abort, closed client, integrity and transport", async () => {
   for (const kind of ["abort", "integrity", "transport", "closed"]) {
-    let requests = 0;
-    const value = createClient({ url: "http://taxonomy.test", fetch: async () => {
-      requests++;
+    const requests: string[] = [];
+    const value = createClient({ url: "http://taxonomy.test", fetch: async input => {
+      requests.push(new URL(String(input)).pathname);
       if (kind === "abort") throw new DOMException("cancelled", "AbortError");
       if (kind === "integrity") return new Response('{"state":"complete"');
       throw new TypeError("network lost");
@@ -35,8 +35,9 @@ test("public read and write failures distinguish abort, closed client, integrity
         assert.equal(result.retryable, kind === "transport");
         assert.ok(result.site && result.rewrite && result.guide);
       }
-      if (kind === "abort" || kind === "integrity") assert.equal(requests, 2, "non-retryable errors are not retried");
-      if (kind === "closed") assert.equal(requests, 0);
+      assert.deepEqual(requests, kind === "closed" ? [] : [
+        ...Array(kind === "transport" ? 3 : 1).fill("/api/query"), "/api/mutation",
+      ], "retryable transport loss gets three query attempts and one plain mutation submission; non-retryable failures get one attempt each");
     } finally { await value.close(); }
   }
 });
@@ -45,7 +46,7 @@ for (const status of [200, 409]) for (const [kind, code, family, retryable] of [
   ["abort", "E_ABORTED", "client", false],
   ["transport", "E_TRANSPORT", "transport", true],
   ["json", "E_WIRE_SHAPE", "op", false],
-] as const) test(`HTTP ${status} response body ${kind} preserves query and mutation cause without resubmission`, async () => {
+] as const) test(`HTTP ${status} response body ${kind} preserves cause and retries only retryable queries`, async () => {
   const requests: string[] = [];
   const client = createClient({ url: "http://body.test", fetch: async input => {
     requests.push(new URL(String(input)).pathname);
@@ -64,6 +65,8 @@ for (const status of [200, 409]) for (const [kind, code, family, retryable] of [
       assert.ok(result.site && result.rewrite && result.guide);
     }
     await new Promise(resolve => setTimeout(resolve, 300));
+    assert.equal(requests.filter(path => path === "/api/query").length, retryable ? 3 : 1,
+      "retryable response-body loss gets three query attempts; abort and malformed JSON get one");
     assert.equal(requests.filter(path => path === "/api/mutation").length, 1, "a response-body failure never resubmits a write");
   } finally { await client.close(); }
 });

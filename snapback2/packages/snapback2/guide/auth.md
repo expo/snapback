@@ -34,6 +34,11 @@ Development personas belong in CLI commands and test fixtures, not starter UI.
 Hydrating `restoringViewer` is confirmed for this token but display-only. Reads
 await confirmation or use held coverage. Unbound stores omit it.
 
+Chat once-photos use `useViewer() ?? null` as their account boundary: anonymous
+is `null`; otherwise the hook follows `session.viewer ?? session.restoringViewer`.
+Null/unknown cannot open. Logout/account changes clear openings synchronously; returning needs a
+click. Same-account confirmation keeps openings.
+
 Transport cuts retain custody; retry on connected/reconnecting and after
 1, 2, 4, … 30 s without queries. `retryAt` is Unix ms;
 explicit `me()` replaces its timer. Other codes

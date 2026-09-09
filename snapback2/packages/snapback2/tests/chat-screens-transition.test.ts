@@ -1,7 +1,7 @@
 import { subscribe } from "../src/internal.js";
 import { sharedConsumers } from "../src/internal.js";
 import assert from "node:assert/strict";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -12,7 +12,7 @@ import React, { act } from "react";
 import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { api, createClient } from "../dist/client.mjs";
-import { indexedDbRangeStore, SnapbackProvider, useSnapbackClient, useSnapbackSnapshot } from "../dist/react.mjs";
+import { indexedDbRangeStore, SnapbackProvider, useAuth, useSnapbackClient, useSnapbackSnapshot } from "../dist/react.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
 import { DAY, fakeOwner } from "./fake-owner.ts";
 import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
@@ -25,10 +25,8 @@ import { RealOwnerHarness } from "./owner-harness.ts";
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const bundlePath = resolve(packageRoot, "dist/.chat-screens-transition.test-bundle.mjs");
 let App: (props: Record<string, never>) => React.ReactElement;
-let Composer: (props: { conversationId: string; onNote(note: string): void }) => React.ReactElement;
-let Thread: (props: { conversationId: string; onNote(note: string): void }) => React.ReactElement;
-let usableConversationView: (result: any) => any;
-let authorizedHistoryRows: (result: any) => unknown[];
+let Composer: (props: { conversationId: string }) => React.ReactElement;
+let Thread: (props: { conversationId: string }) => React.ReactElement;
 let screenOwner: RealOwnerHarness;
 
 before(async () => {
@@ -40,7 +38,6 @@ before(async () => {
         'export { App } from "./App";',
         'export { Composer } from "./Composer";',
         'export { Thread } from "./Thread";',
-        'export { usableConversationView, authorizedHistoryRows } from "./Thread";',
       ].join("\n"),
       resolveDir: resolve(packageRoot, "templates/chat/react/src"),
       sourcefile: "screens.tsx",
@@ -61,7 +58,7 @@ before(async () => {
     }],
   });
   await writeFile(bundlePath, bundled.outputFiles[0]!.text);
-  ({ App, Composer, Thread, usableConversationView, authorizedHistoryRows }
+  ({ App, Composer, Thread }
     = await import(pathToFileURL(bundlePath).href));
   // The harness starts the production chat fixture when this file runs alone,
   // or uses the suite's already-qualified full-chat owner.
@@ -180,7 +177,7 @@ test("partial history becomes one coherent view without remounting its pending b
     client = createClient({ url: screenOwner.url, persona: "alice", startOffline: true, offline: { store } });
     await client.ready;
     await act(async () => reactRoot.render(React.createElement(SnapbackProvider, { client },
-      React.createElement(Thread, { conversationId, onNote: () => undefined }))));
+      React.createElement(Thread, { conversationId }))));
     await waitFor(() => document.querySelector("ol.bubbles")?.getAttribute("data-view-source") === "partial-history",
       "the independently covered history fallback");
     assert.equal(sharedConsumers(client, api.messages.thread, { conversationId, c: null }), 1,
@@ -209,5 +206,223 @@ test("partial history becomes one coherent view without remounting its pending b
     await act(async () => reactRoot.unmount());
     await warm.close(); await client?.close(); await writer.close(); restore();
     await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("the cold chat keeps both intents queued after a committed replay loses its response", async (t) => {
+  const restore = installDom();
+  const root = await mkdtemp(join(tmpdir(), "snapback2-screens-503-"));
+  const store = fileRangeStore(root);
+  const warm = createClient({ url: screenOwner.url, persona: "alice", offline: { store } });
+  const writer = createClient({ url: screenOwner.url, persona: "alice" });
+  const replays: string[] = [];
+  let cut = true, fault = true;
+  let client: any;
+  const reactRoot = createRoot(document.getElementById("root")!);
+  try {
+    await warm.ready;
+    const group: any = await writer.mutation(api.groups.groupCreate, { title: "503 transition", members: ["dev:bob"] });
+    assert.equal(group.state, "committed");
+    const conversationId = group.data.id;
+    await writer.mutation(api.messages.send, { conversationId, body: "held message" });
+    await warm.query(api.messages.thread, { conversationId });
+    const drain = subscribe(warm, api.messages.inbox, {}, () => undefined, { drain: true });
+    await drain.until((event: any) => event.live === true && event.caughtUp === true, 5_000);
+    await warm.offline();
+    const first = await warm.mutation(api.messages.send, { conversationId, body: "first durable send" });
+    assert.equal(first.state, "queued");
+    drain.close();
+    await warm.close();
+    client = createClient({ url: screenOwner.url, persona: "alice", offline: { store },
+      fetch: async (input: any, init: any) => {
+        const path = new URL(String(input)).pathname;
+        if (cut) throw new TypeError("owner unreachable");
+        if (path === "/api/mutation") replays.push(init.body);
+        const response = await globalThis.fetch(input, init);
+        if (fault && path === "/api/mutation") {
+          fault = false;
+          assert.equal((await response.json()).state, "committed", "the 503 replaces a real commit receipt");
+          return json({ message: "injected 503" }, 503);
+        }
+        return response;
+      },
+    });
+    await act(async () => reactRoot.render(React.createElement(React.StrictMode, null,
+      React.createElement(SnapbackProvider, { client }, React.createElement(App)))));
+    await client.offline();
+    await waitFor(() => !!document.querySelector(`nav li[data-conversation="${conversationId}"] button`), "cold inbox");
+    await act(async () => { document.querySelector<HTMLButtonElement>(`nav li[data-conversation="${conversationId}"] button`)!.click(); });
+    await waitFor(() => document.querySelector("ol.bubbles")?.getAttribute("data-view-source") === "partial-history", "cold partial history");
+    await type(document.querySelector<HTMLInputElement>("form[aria-label=Composer] input")!, "second durable send");
+    await act(async () => { document.querySelector<HTMLFormElement>("form[aria-label=Composer]")!.requestSubmit(); });
+    await waitFor(() => document.querySelectorAll("li[data-state=queued]").length === 2, "two queued bubbles");
+    const pending = document.querySelector(`li[data-message="${first.ids[0]}"]`)!;
+    const queued = (await client.outbox.entries()).filter((e: any) => e.state === "queued");
+    assert.equal(client.snapshot.auth.viewer, undefined, "the cold persona is not confirmed yet");
+    cut = false;
+    let verdict: any;
+    await act(async () => { await client.online(); verdict = await client.outbox.settled(); });
+    assert.deepEqual(verdict, { stopped: "transport", remaining: 2 });
+    assert.equal(client.snapshot.auth.viewer, "dev:alice");
+    const custody = (entries: any[]) => entries.map(({ intent, state, ids, args }) => ({ intent, state, ids, args }));
+    assert.deepEqual(custody(await client.outbox.entries()), custody(queued), "neither intent settled or changed after the lost receipt");
+    await waitFor(() => document.querySelector("ol.bubbles")?.getAttribute("data-view-source") === "composite"
+      && document.querySelectorAll("li[data-state=queued]").length === 2, "composite with both queued bubbles after the lost response");
+    assert.equal(document.querySelector(`li[data-message="${first.ids[0]}"]`) === pending, true, "auth confirmation must not remount the pinned bubble");
+    assert.equal(replays.length, 1, "mounting and confirming auth must not start an additional replay");
+    const sync = [...document.querySelectorAll<HTMLButtonElement>("form button")].find(button => text(button) === "Sync now");
+    assert.ok(sync && !sync.disabled, "the stopped queue exposes usable recovery");
+    await act(async () => { sync.click(); });
+    await waitFor(async () => (await client.outbox.entries()).every((e: any) => e.state === "committed")
+      && queued.every((e: any) => document.querySelector(`li[data-message="${e.ids[0]}"]`)?.getAttribute("data-state") === "row"), "both sends settle through Sync");
+    assert.deepEqual(replays.map(body => JSON.parse(body).replay.intent), [queued[0].intent, queued[0].intent, queued[1].intent]);
+    assert.equal(replays[1], replays[0], "recovery retries byte-identical pinned intent bytes");
+    assert.equal(document.querySelector(`li[data-message="${first.ids[0]}"]`) === pending, true, "settlement retains the same bubble");
+    const thread = await writer.query(api.messages.thread, { conversationId });
+    const bodies = thread.data.map((row: any) => row.message?.body);
+    assert.equal(bodies.filter((body: string) => body === "first durable send").length, 1);
+    assert.equal(bodies.filter((body: string) => body === "second durable send").length, 1);
+    assert.ok(bodies.indexOf("second durable send") < bodies.indexOf("first durable send"), "the newest-first thread proves FIFO execution");
+    t.diagnostic("503: 2 durable queued intents, 2 queued bubbles, 1 request; Sync: 3 attempts [first, first, second], 1 owner row each, pinned node unchanged");
+  } finally {
+    await act(async () => reactRoot.unmount());
+    await warm.close(); await client?.close(); await writer.close(); restore();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("preserving the conversation does not carry a photo-opening choice to another viewer", async (t) => {
+  const restore = installDom();
+  let bobAssetRequests = 0;
+  const alice = createClient({ url: screenOwner.url, persona: "alice" });
+  const bob = createClient({ url: screenOwner.url, persona: "bob", fetch: async (input, init) => {
+    if (new URL(String(input)).pathname.startsWith("/api/asset/")) bobAssetRequests++;
+    return globalThis.fetch(input, init);
+  } });
+  const root = createRoot(document.getElementById("root")!);
+  const render = (client: any) => React.createElement(SnapbackProvider, { client },
+    React.createElement(Thread, { conversationId: "conversation-1" }));
+  try {
+    await alice.ready; await alice.auth.me(); await bob.ready; await bob.auth.me();
+    const png = await readFile(new URL("../../../scripts/witness-expo/view-once.png", import.meta.url));
+    const photo = await alice.upload(new Blob([png], { type: "image/png" }), { kind: "image" });
+    const sent = await alice.mutation(api.messages.sendOncePhoto, { conversationId: "conversation-1", photo });
+    assert.equal(sent.state, "committed");
+    const selector = `li[data-message="${sent.data.id}"]`;
+    const button = () => [...document.querySelectorAll<HTMLButtonElement>(`${selector} button`)]
+      .find(node => text(node) === "View photo once");
+    await act(async () => root.render(render(alice)));
+    await waitFor(() => !!button(), "Alice's unopened photo");
+    await act(async () => { button()!.click(); });
+    await waitFor(() => !!document.querySelector(`${selector} img`)?.getAttribute("src"), "Alice's opened photo bytes");
+    const list = document.querySelector("ol.bubbles");
+    await act(async () => root.render(render(bob)));
+    await waitFor(() => !!button(), "Bob's separate photo-opening choice");
+    assert.ok(document.querySelector("ol.bubbles") === list, "viewer changes preserve the conversation/list");
+    assert.equal(document.querySelector(`${selector} img`), null, "Bob's photo is unopened before his click");
+    assert.equal(bobAssetRequests, 0, "changing viewers cannot spend the new viewer's once delivery");
+    const unopened = document.querySelector(selector);
+    await act(async () => { button()!.click(); });
+    await waitFor(() => !!document.querySelector(`${selector} img`)?.getAttribute("src"), "Bob's explicitly opened photo bytes");
+    assert.equal(bobAssetRequests, 1, "Bob's click requests his photo bytes exactly once");
+    assert.strictEqual(document.querySelector("ol.bubbles"), list);
+    assert.strictEqual(document.querySelector(selector), unopened, "opening preserves Bob's bubble");
+    t.diagnostic("Alice → Bob: 0 Bob byte requests before click; exactly 1 after explicit open; list and Bob bubble unchanged");
+  } finally { await act(async () => root.unmount()); await alice.close(); await bob.close(); restore(); }
+});
+
+
+for (const boundary of ["navigation", "account", "anonymous"]) test(`React cold Composer preserves confirmation and clears draft/Sync state at ${boundary}`, async (t) => {
+  const restore = installDom();
+  const renderer = createRoot(document.getElementById("root")!);
+  const update = async (client: any, conversationId: string) => { await act(async () => renderer.render(
+    React.createElement(SnapbackProvider, { client }, React.createElement(Composer, { conversationId }), React.createElement(CommitProbe, { conversationId })))); };
+  const input = () => document.querySelector<HTMLInputElement>("form input")!;
+  const body = () => input().value;
+  const typeDraft = (value: string) => type(input(), value);
+  const tree = () => text(document.querySelector("form"));
+  const syncButton = (title: string) => [...document.querySelectorAll<HTMLButtonElement>("form button")].find(button => text(button) === title)!;
+  const pressSync = async () => { await act(async () => { syncButton("Sync now").click(); }); };
+  const wait = (predicate: () => boolean) => waitFor(predicate, "cold Composer state");
+  const commits: { conversationId: string; state: string; viewer?: string; body: string }[] = [];
+  function CommitProbe({ conversationId }: { conversationId: string }) {
+    const { session: auth } = useAuth();
+    React.useLayoutEffect(() => {
+      if (renderer) commits.push({ conversationId, state: auth.state, viewer: auth.viewer, body: body() });
+    });
+    return null;
+  }
+  const directory = await mkdtemp(join(tmpdir(), "a2-cold-composer-"));
+  const store = fileRangeStore(directory);
+  const warm = createClient({ url: screenOwner.url, persona: "alice", offline: { store } });
+  const other = createClient({ url: screenOwner.url });
+  let client: any, release!: () => void, entered!: () => void;
+  const gate = new Promise<void>(done => { release = done; });
+  const replayEntered = new Promise<void>(done => { entered = done; });
+  let sends = 0;
+  try {
+    await warm.ready;
+    await warm.query(api.messages.thread, { conversationId: "conversation-1" });
+    const drain = subscribe(warm, api.messages.inbox, {}, () => undefined, { drain: true });
+    await drain.until(event => event.live === true && event.caughtUp === true, 5_000);
+    await warm.offline();
+    const queued = await warm.mutation(api.messages.send, { conversationId: "conversation-1", body: "queued before cold confirmation" });
+    assert.equal(queued.state, "queued");
+    drain.close(); await warm.close();
+    client = createClient({ url: screenOwner.url, persona: "alice", startOffline: true, offline: { store }, fetch: async (input, init) => {
+      const response = await globalThis.fetch(input, init);
+      if (new URL(String(input)).pathname !== "/api/mutation") return response;
+      sends++;
+      assert.equal((await response.json()).state, "committed");
+      entered(); await gate;
+      return new Response(JSON.stringify({ message: "lost receipt" }), { status: 503 });
+    } });
+    await client.ready;
+    await update(client, "conversation-1");
+    assert.equal(client.snapshot.auth.viewer, undefined);
+    await typeDraft("unfinished cold draft");
+    const coldInput = input();
+    await pressSync();
+    await act(async () => { await replayEntered; });
+    assert.equal(client.snapshot.auth.viewer, "dev:alice");
+    assert.equal(body(), "unfinished cold draft", "first confirmation preserves the unsent draft");
+    assert.strictEqual(input(), coldInput, "first confirmation keeps the Composer mounted");
+    assert.equal(syncButton("Syncing…").disabled, true, "Sync stays in flight while its response is held");
+    release();
+    await wait(() => tree().includes("1 queued; sync paused. Your messages are saved."));
+    assert.equal(body(), "unfinished cold draft");
+    assert.equal(syncButton("Sync now").disabled, false);
+    assert.equal(sends, 1, "confirmation must not trigger an extra replay");
+    assert.equal((await client.outbox.entries())[0].state, "queued");
+    await other.ready; await other.auth.guest();
+    if (boundary === "anonymous") await other.auth.logout();
+    commits.length = 0;
+    await update(boundary === "navigation" ? client : other, boundary === "navigation" ? "conversation-2" : "conversation-1");
+    assert.ok(commits.length > 0);
+    assert.ok(commits.every(commit => commit.body === ""), `${boundary}: no committed frame exposes the old draft`);
+    assert.equal(body(), "", `${boundary}: draft reset is synchronous`);
+    assert.ok(!tree().includes("sync paused"), `${boundary}: old Sync advice is gone`);
+    assert.ok(!tree().includes("Syncing…"), `${boundary}: old Sync activity is gone`);
+    // Exercise navigation and a live logout independently of the boundary above.
+    await typeDraft("navigation draft");
+    commits.length = 0;
+    await update(boundary === "navigation" ? client : other, boundary === "navigation" ? "conversation-1" : "conversation-2");
+    assert.ok(commits.length > 0 && commits.every(commit => commit.body === ""));
+    await update(other, "conversation-1");
+    if (boundary === "anonymous") await act(async () => { await other.auth.guest(); });
+    await typeDraft("logout draft");
+    commits.length = 0;
+    await act(async () => { await other.auth.logout(); });
+    const anonymous = commits.filter(commit => commit.state === "anonymous");
+    assert.ok(anonymous.length > 0);
+    assert.ok(anonymous.every(commit => commit.body === ""), "no anonymous commit exposes the old draft");
+    assert.equal(other.snapshot.auth.state, "anonymous");
+    assert.equal(body(), "", "logout resets the draft synchronously");
+    t.diagnostic("cold confirmation: unsent draft + input identity + in-flight Sync + stopped advice preserved; 1 replay; all scope resets verified");
+  } finally {
+    release(); await act(async () => renderer?.unmount());
+    await warm.close(); await client?.close(); await other.close();
+    restore();
+    await rm(directory, { recursive: true, force: true });
   }
 });

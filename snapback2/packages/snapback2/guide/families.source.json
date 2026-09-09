@@ -415,8 +415,8 @@
   {
     "family": "offline",
     "code": "E_OFFLINE_FOLLOWER",
-    "wrong": "send from a browser tab while another tab holds the account's writer lock",
-    "right": "send from the writer tab or close it; this tab reads live and inherits the queue when the writer closes",
+    "wrong": "upload an asset or write a channel from a follower tab, or submit a mutation without an established account or inbox route",
+    "right": "sign in to establish this tab's account, then send again; after that, followers with an inbox route queue mutations durably and inherit the queue when the writer closes. Use the writer tab for uploads/channels or when no inbox route is available",
     "guide": "offline"
   },
   {
@@ -436,22 +436,22 @@
   {
     "family": "offline",
     "code": "E_OFFLINE_RESET",
-    "wrong": "client.resume({ generation: heldGeneration }) // after the program changed",
-    "right": "on 409 drop held coverage, keep the outbox, fetch /api/program?generation=<returned>, cold-drain",
+    "wrong": "POST /api/resume with the previous generation after a program change",
+    "right": "await client.online(); // the SDK drops coverage, keeps the outbox, fetches the program and re-resumes; mounted drains restart once at null",
     "guide": "offline"
   },
   {
     "family": "offline",
     "code": "E_OFFLINE_RESUME",
-    "wrong": "client.resume({ mounted: fortyQueries })",
-    "right": "client.resume({ mounted: first32 }) // re-subscribe the rest as ordinary reads",
+    "wrong": "POST /api/resume with more than 32 mounted queries or an unsupported log shape",
+    "right": "For unsupported-log, rewrite the query as a direct ascending append page: after c first N (N <= 50); objects/nested pages cannot drain. For mounted-limit, await client.online(); the SDK may retry once with fewer queries. online() does not repair an unsupported log; its refusal and watermark remain.",
     "guide": "offline"
   },
   {
     "family": "offline",
     "code": "E_OFFLINE_INTENT_EXPIRED",
     "wrong": "replay: { grant: thirtyOneDayOldGrant, offset: 0, count: 2, intent }",
-    "right": "keep queued replay bytes unchanged; after the server settles an expired intent, resume and create a new intent",
+    "right": "keep queued replay bytes unchanged; after the server settles an expired intent, await client.online() and create a new intent",
     "guide": "offline"
   },
   {
