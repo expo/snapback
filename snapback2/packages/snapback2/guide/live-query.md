@@ -2,10 +2,10 @@
 
 `useQuery(api.messages.inbox, {})`: `data | undefined`, `status`
 (`loading | ready | unavailable`), `reason`, `items`, `next` (cursor/null),
-`partial` (history supplies items). Null/missing declared cursors share identity;
-item/history callbacks receive it as `null`, including delayed metadata.
-Unrelated `c: null` stays data. `client.observe(op, args)` exposes the snapshot
-via `getSnapshot()`/`subscribe(notify)`; `{ live: false }` reads once.
+`partial` (history). Once metadata resolves, missing/null declared cursors
+share identity; item/history callbacks get `null`.
+Preparation failure refuses; observe again to retry. Unrelated `c: null` stays data.
+`client.observe`: `getSnapshot()`/`subscribe(notify)`; `{ live: false }` reads once.
 
 `useMutation(op)`: `{ run, inFlight, last, can }`. `run(args)` and
 `client.mutation` resolve `committed | queued | rejected`, never throw.
@@ -14,7 +14,7 @@ via `getSnapshot()`/`subscribe(notify)`; `{ live: false }` reads once.
 code, `rule: CODE` and its authored `site`, live and replayed; authored
 `conflict` stays a rule rejection. `client.query` resolves failures as `refused`.
 Transport/body loss: `transport/E_TRANSPORT`, `retryable: true`.
-Cancellation/body reads: `client/E_ABORTED`. Malformed JSON and invalid
+Cancellation, including during body reads: `client/E_ABORTED`. Malformed JSON and invalid
 wire data: `op/E_WIRE_SHAPE`. Closed: `owner/E_CLIENT_CLOSED`; unexpected local
 failure: `client/E_CLIENT`. These are non-retryable. Writes never resubmit
 automatically; a lost/invalid response may follow a commit. `last` clears on

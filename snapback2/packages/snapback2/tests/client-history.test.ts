@@ -4,7 +4,8 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { api } from "../dist/client.mjs";
+import { api, createClient } from "../dist/client.mjs";
+import { multiplexFetch } from "./live-fixture.ts";
 import { ClientQueries, composeHistory, defineItems, withHistory } from "../dist/client-observed-test.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
 import { offlineView } from "../dist/sqlite-test.mjs";
@@ -144,6 +145,72 @@ test("delayed manifest normalizes declared after before identity, items and hist
 });
 
 const message = { messageId: "m", message: row("m") };
+
+for (const live of [true, false]) test(`public observe live=${live}: failed then recovered manifest cannot retain unnormalized history`, async t => {
+  let manifests = 0;
+  const opened: Array<{ op: string; args: any }> = [], historyArgs: any[] = [], selected: string[] = [];
+  const client = createClient({ url: "http://metadata.test", persona: "alice", fetch: multiplexFetch(async (input, init) => {
+    const url = new URL(String(input));
+    if (url.pathname === "/api/manifest") {
+      if (++manifests === 1) throw new TypeError("manifest connection lost");
+      return Response.json({ generation: "g", programGeneration: "p", channels: {}, auth: {}, ops: Object.fromEntries(
+        ["deliveries.inbox", "deliveries.thread"].map(op => [op, { kind: "query", planHash: op, args: [], cursor: "after" }])) });
+    }
+    const request = url.pathname === "/api/query" ? JSON.parse(String(init?.body))
+      : { op: url.searchParams.get("op"), args: JSON.parse(url.searchParams.get("args")!) };
+    opened.push(request);
+    const data = request.op === "deliveries.inbox" ? { state: "partial", seq: 1, reason: "count" }
+      : { state: "complete", seq: 1, next: null, data: [row(request.args.selected)] };
+    if (!live) return Response.json(data);
+    return new Response(new ReadableStream({ start(controller) {
+      controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(data)}\n\n`));
+      init?.signal?.addEventListener("abort", () => controller.close(), { once: true });
+    } }), { headers: { "Content-Type": "text/event-stream" } });
+  }) });
+  const select = (value: Row) => { selected.push(value.id); return value; };
+  const declared = withHistory(defineItems(api.deliveries.inbox as any, { table: "messages", select }), {
+    items: defineItems(api.deliveries.thread as any, { table: "messages", select }),
+    args: (args: any) => { historyArgs.push(args); return { c: args.c, after: null, selected: args.after === null ? "right" : "wrong" }; },
+  });
+  const options = { ...(live ? {} : { live: false as const }), items: declared };
+  const failed = client.observe(api.deliveries.inbox, { c: null }, options);
+  let notifications = 0;
+  const stops = [failed.subscribe(() => { notifications++; })];
+  const waitFor = async (predicate: () => boolean) => {
+    const deadline = Date.now() + 2000;
+    while (!predicate()) {
+      assert.ok(Date.now() < deadline, "observation settles");
+      await new Promise(resolve => setTimeout(resolve, 5));
+    }
+  };
+  try {
+    await waitFor(() => !!failed.getSnapshot().refusal || failed.getSnapshot().itemsFrom === "history");
+    const failedSnapshot = failed.getSnapshot(), failedNotifications = notifications;
+    const before = { callbacks: [...historyArgs], selected: [...selected], opened: [...opened] };
+    await client.manifest();
+    const recovered = [{ c: null }, { c: null, after: null }].map(args => client.observe(api.deliveries.inbox, args, options));
+    stops.push(...recovered.map(observed => observed.subscribe(() => {})));
+    await waitFor(() => recovered.every(observed => observed.getSnapshot().itemsFrom === "history"));
+    t.diagnostic(JSON.stringify({ live, before, recovered: recovered.map(observed => observed.getSnapshot().items.map(item => item.data?.id)), opened }));
+    assert.deepEqual(before, { callbacks: [], selected: [], opened: [] }, "failed metadata invokes no declaration callback and opens no query/history");
+    assert.equal(failedSnapshot.status, "unavailable");
+    assert.deepEqual([failedSnapshot.refusal?.family, failedSnapshot.refusal?.code, failedSnapshot.refusal?.retryable], ["transport", "E_TRANSPORT", true]);
+    assert.equal(failedSnapshot.data, undefined); assert.deepEqual(failedSnapshot.items, []);
+    assert.equal(failedSnapshot.history, undefined);
+    assert.ok(Object.isFrozen(failedSnapshot) && Object.isFrozen(failedSnapshot.refusal));
+    assert.strictEqual(failed.getSnapshot(), failedSnapshot, "failed preparation registers no core for recovered consumers to inherit");
+    assert.equal(notifications, failedNotifications, "the refused handle does not receive recovered history");
+    assert.deepEqual(historyArgs, [{ c: null, after: null }, { c: null, after: null }]);
+    assert.deepEqual(opened, [
+      { op: "deliveries.inbox", args: { c: null, after: null } },
+      { op: "deliveries.thread", args: { c: null, after: null, selected: "right" } },
+    ], "one normalized primary and correct history; unrelated c: null stays data");
+    assert.strictEqual(recovered[0].getSnapshot(), recovered[1].getSnapshot());
+    assert.deepEqual(recovered[0].getSnapshot().items.map(item => item.data?.id), ["right"]);
+    assert.ok(selected.length > 0 && selected.every(id => id === "right"));
+    assert.equal(manifests, 2);
+  } finally { stops.forEach(stop => stop()); await client.close(); }
+});
 
 test("retained projections stay partial while their certified page boundary and readable rows survive", async () => {
   const root = await mkdtemp(join(tmpdir(), "snapback2-retained-composite-"));

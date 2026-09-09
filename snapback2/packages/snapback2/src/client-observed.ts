@@ -1,5 +1,5 @@
 import { operationArgs, queryArgs } from "./store/canonical.js";
-import { isRefusalError } from "./client-wire.js";
+import { isRefusalError, toRefusal } from "./client-wire.js";
 import { referenceName, referencePath, type Op } from "./api.js";
 import { SharedSubscriptions } from "./client-sessions.js";
 import { summarize, type Snapshot } from "./snapshot.js";
@@ -283,19 +283,26 @@ export class ClientQueries {
     return this.observeReady(ref, args, { ...options });
   }
   private observeReady<Args, Result, Row extends ItemRow, Draft>(
-    ref: Op<Args, Result>, args: Args, options: { live?: false; drain?: boolean; items?: Items<Args, Result, Row, Draft> }, prepared = false,
+    ref: Op<Args, Result>, args: Args, options: { live?: false; drain?: boolean; items?: Items<Args, Result, Row, Draft> },
   ): ObservedQuery<Result> {
     const once = options.live === false, drain = options.drain === true;
     if (once && drain) throw new TypeError("query observation drain requires a live subscription");
     const cursor = this.host.cursor?.(referenceName(ref));
     const request = bindQueryRequest(ref, args, cursor), fence = this.host.identity();
-    if (!prepared && this.host.prepare && cursor === undefined) {
-      const initial = freezeTree({ ...summarize(initialQueryState<Result>(), this.host.connection()),
+    if (this.host.prepare && cursor === undefined) {
+      let snapshot = freezeTree({ ...summarize(initialQueryState<Result>(), this.host.connection()),
         ...(options.items ? { items: [], ...("history" in options.items ? { itemsFrom: "drafts" } : {}) } : {}) });
-      const fallback = { getSnapshot: () => initial, subscribe: () => () => undefined };
+      const fallback = { getSnapshot: () => snapshot, subscribe: () => () => undefined };
       return preparedObservation(fallback, async () => {
-        await this.host.prepare!(request.op).catch(() => undefined);
-        return this.host.active(fence) ? this.observeReady(request.ref, request.args, options, true) : fallback;
+        try { await this.host.prepare!(request.op); }
+        catch (error) {
+          // @ref LLP 1018.003#final-review-repair-2026-09-08 — failed metadata
+          // cannot bind an unnormalized shared identity or history selection.
+          if (this.host.active(fence)) snapshot = freezeTree({ ...snapshot,
+            ...summarize<Result>({ state: "refused", live: false, refusal: toRefusal(error) }, this.host.connection()) });
+          return fallback;
+        }
+        return this.host.active(fence) ? this.observeReady(request.ref, request.args, options) : fallback;
       });
     }
     const active = () => this.host.active(fence);
