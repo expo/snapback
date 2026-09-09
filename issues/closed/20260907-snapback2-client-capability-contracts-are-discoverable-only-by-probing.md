@@ -55,3 +55,12 @@ retaining a selected image across that echo, conditional mount and stable
 viewing token, fetch, durable admission and the refusal paths. The client
 owns admission before resolving bytes; applications do not perform a separate
 view commit. Entry-field and `issuedSeq` semantics remain this ticket's scope.
+
+## Resolution — 2026-09-09
+
+The remaining entry-field contract is now in `guide offline` under Entry fields:
+all four states, replay activity, device FIFO order, coverage-only `issuedSeq`,
+authoritative committed `response.seq`, IDs/semantic targets, device timestamps
+and inbox alias custody. It includes the settled-versus-visible distinction and
+an executable public `outbox.entries()` read. Combined with the assets/card
+changes above, every remaining item is documented on the shipped guide path.

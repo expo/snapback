@@ -144,7 +144,6 @@ class Client implements SnapbackClient {
   };
   private closed = false;
   private closing: Promise<void> = Promise.resolve();
-
   constructor(options: InternalClientOptions) {
     if (!options?.url) throw new TypeError("createClient requires url");
     if (options.persona !== undefined && (options.token !== undefined || options.tokenStore !== undefined)) {
@@ -232,16 +231,13 @@ class Client implements SnapbackClient {
         && this.authState.value.retryAt === undefined) return this.me();
     }).catch(() => undefined); // Each restoration attempt publishes its own failure.
   }
-
   get snapshot(): ClientSnapshot {
     return this.currentSnapshot;
   }
-
   async query<Args, Result>(ref: Op<Args, Result>, args: Args): Promise<QueryResult<Result>> {
     try { return await this.queryInternal(ref, args); }
     catch (error) { return { state: "refused", ...toRefusal(error) }; }
   }
-
   private async queryInternal<Args, Result>(ref: Op<Args, Result>, args: Args, drain = false): Promise<QueryResult<Result>> {
     await this.localReady;
     // Cold held reads may bypass restoration, never an explicit account transition.
@@ -313,12 +309,10 @@ class Client implements SnapbackClient {
       }
     }
   }
-
   async mutation<Args, Result>(ref: Op<Args, Result>, args: AssetInput<Args>): Promise<MutationResult<Result>> {
     try { return await performMutation(this as unknown as MutationClient, ref, args); }
     catch (error) { return { state: "rejected", ...toRefusal(error) }; }
   }
-
   upload(source: AssetUploadSource, options: AssetUploadOptions & { readonly kind: "image" }): Promise<ImageAsset>;
   upload(source: AssetUploadSource, options: AssetUploadOptions & { readonly kind: "video" }): Promise<VideoAsset>;
   upload(source: AssetUploadSource, options?: AssetUploadOptions): Promise<AssetRecord>;

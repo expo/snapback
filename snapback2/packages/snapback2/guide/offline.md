@@ -57,6 +57,25 @@ through commit. `arrived`/global sequence cannot substitute. Expose failures.
 Fence/transport/authority/offline/pending/writer-unresponsive pauses keep
 queued bytes. Retry `online()` or an online drain; reconnect never replays.
 
+## Entry fields
+
+`await client.outbox.entries()` returns this account's durable work:
+
+| Field | Meaning |
+| --- | --- |
+| `intent`, `op`, `args` | Stable intent identity and the submitted operation/arguments. Never edit queued bytes. |
+| `state` | `queued`, `committed`, `rejected`, or `expired`. Replaying is writer activity (`status.draining`), not another entry state. |
+| `issuedSeq` | Coverage sequence seen by this client at admission. It is neither a server commit nor proof of flush order. |
+| `order` | Device ledger FIFO position. Other devices have their own order. |
+| `response` | The terminal result. A committed `response.seq` is the owner's commit sequence; rejection includes its refusal. |
+| `ids`, `targets` | Reserved IDs and certified semantic targets. Use `mutationTarget(op, table)` rather than indexing `ids`. |
+| `createdAt`, `updatedAt` | Device timestamps; never use them to enforce a server edit/expiry window. |
+| `inbox` | Follower alias key; admission and later compaction preserve it atomically with the ledger. |
+
+For completion, await `client.outbox.settled()` and check `stopped`/`remaining`.
+For visibility, read the receiving query: a committed result alone does not mean
+its row reached that view. Server edit windows use Quarry `now`.
+
 ## Resume
 
 `/api/resume` compares receipt validators. Resume reauthorizes held rows and follows the

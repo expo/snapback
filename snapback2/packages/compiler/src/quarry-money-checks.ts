@@ -11,6 +11,17 @@ type Test = (name: string, run: () => void | Promise<void>) => void;
 export function registerQuarryMoneyChecks(test: Test, frontend: string): void {
   const fixtures = resolve(frontend, "fixtures");
 
+  test("decimal literals accept neutral zero in either operand without integer coercion", () => {
+    for (const value of ["0 + 2.5", "2.5 + 0", "0 - 2.50", "2.50 - 0", "0 < 2.5", "2.5 > 0", "min(0, 2.5)"]) {
+      const result = compileInline([{ fileName: "snapback/schema.q", source: "table rows:\n  value: int\n  public\n" },
+        { fileName: "snapback/zero.q", source: `query value():\n  return ${value}\n` }]);
+      assert(result.ok, `${value}: ${JSON.stringify(result)}`);
+    }
+    const ambiguous = compileInline([{ fileName: "snapback/schema.q", source: "table rows:\n  value: int\n  public\n" },
+      { fileName: "snapback/zero.q", source: "query value():\n  return 1 + 2.5\n" }]);
+    assert(!ambiguous.ok, "nonzero integer arithmetic still requires explicit decimal units");
+  });
+
   test("Quarry money builtins and branded multiplication preserve descriptors in direct IR", async () => {
     const schema = `table users:
   principal: principal

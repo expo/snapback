@@ -143,6 +143,11 @@ export function contextualValue(expression: BoundExpression, target: ScalarType,
 export function contextualPair(left: BoundExpression, right: BoundExpression, site: Site): [BoundExpression, BoundExpression] {
   const leftTarget = contextualTarget(right.facts.type);
   const rightTarget = contextualTarget(left.facts.type);
+  // A branded numeric operand supplies context to an integral literal. Never
+  // attempt the reverse coercion using the zero's original int type.
+  const branded = (type: ScalarType | undefined) => type?.kind === "decimal" || type?.kind === "money";
+  if (branded(leftTarget) && rightTarget?.kind === "int") return [contextualValue(left, leftTarget!, site), right];
+  if (branded(rightTarget) && leftTarget?.kind === "int") return [left, contextualValue(right, rightTarget!, site)];
   if (leftTarget) left = contextualValue(left, leftTarget, site);
   if (rightTarget) right = contextualValue(right, rightTarget, site);
   return [left, right];
