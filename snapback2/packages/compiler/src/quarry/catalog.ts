@@ -259,7 +259,7 @@ function validateIndexKeys(
   site: Site,
 ): void {
   if (table.name === "connected" && (keys.length !== 1 || infer(keys[0]!.value)?.kind !== "principal" || infer(keys[0]!.value)?.optional)) {
-    refuse(site, "connected requires one nonoptional principal", "use #connected[viewer] or exists connected[p] with p: principal");
+    refuse(site, "connected requires one nonoptional principal", "use connected[viewer] or exists connected[p] with p: principal");
   }
   const derived = derivedPosition(index.components);
   if (derived >= 0 && mode !== "range") typeError(site, "wordPrefixes indexes are scan-only; point, exists, rule, and write addressing require ordinary indexes", "use an ordinary index for this address or first/last for search");

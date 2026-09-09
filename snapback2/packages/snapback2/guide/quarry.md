@@ -1,6 +1,7 @@
 # Quarry v0.3
 
-Quarry is the backend language. `check` compiles in memory; inspection goes in `.snapback/build/quarry/`.
+Quarry is the backend language. `check` compiles in memory; inspection goes in
+`.snapback/build/quarry/`, never `snapback/`.
 
 ## Project
 
@@ -61,7 +62,7 @@ refuse. A cursor position takes the token, never an Id literal.
 Tables get `id` and `byId` implicitly. `by name: a, b` declares a named
 ordering. `unique name: a, b` declares a named unique
 ordering and its uniqueness constraint. Declarations name their indexes;
-unnamed indexes refuse with the inferred name as a repair. `id` may
+unnamed indexes refuse with an inferred-name repair. `id` may
 appear in an index. `immutable a, b` forbids changes to those columns.
 `cap N by a, b` holds every group at N rows (an omitted optional column is the
 `null` group); every writer, seeds included, refuses past it, naming the cap and group; a
@@ -175,13 +176,13 @@ lanes and at most N rows in their deduplicated union.
 bind expressions or `sorted` tuples, `return`, `if/else`, or bounded `for`;
 `return` works in all arms and a body's last expression is an implicit return.
 
-Object literals work anywhere; `{ id: conversationId, creatorMembershipId }`
-uses shorthand. `count(x)` is
+Objects allow shorthand: `{ id: conversationId, creatorMembershipId }`.
+`count(x)` is
 `x.length` for bounded lists and pages. Bindings and captured list fields keep their selected element count;
 a field named `length` stays that field. Other built-ins are `range`,
 `min`, `max`, `divmod`, and `share`. `sorted` is only `(lo, hi) = sorted(a, b)`:
 it evaluates `a` then `b` once and returns the values in canonical scalar order.
-`! else CODE` requires a present value; a bare `!` refuses with that repair.
+`! else CODE` requires presence; bare `!` refuses with that repair.
 `??` supplies a fallback. Program `=`/`!=` are total: absent equals absent, differs from present;
 `!=` is `not (=)`. Ordered comparison refuses an optional operand;
 use `! else CODE`, `??`, or narrowing first. `if x != null:` narrows a bound

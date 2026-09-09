@@ -1,13 +1,12 @@
 # Quarry grammar
 
-Start Expo with `snapback2 init my-app --template chat --client expo`.
-`snapback2 guide init` covers setup; `snapback2 guide auth`
-covers authentication; `snapback2 guide app` shows the current backend's certified
-facts. CLI options use `<command> --help`.
+`snapback2 guide init` covers setup; `guide auth` covers authentication;
+`guide app` shows certified facts. CLI options use `<command> --help`.
 `check` validates sources; `dev --status` shows what the owner has installed.
 
 Schema: `snapback/schema.q`. Programs/shapes: `snapback/<module>.q`.
 Seeds, tests and effect bodies use TypeScript.
+`shape`, `fn`, `proc`, and `cursor` are reserved bindings.
 Use `snapback2 guide <keyword>` for grammar and a defining paragraph.
 Symbols work without an index; misses list help.
 

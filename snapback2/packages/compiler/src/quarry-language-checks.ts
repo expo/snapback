@@ -259,6 +259,10 @@ mutation afterWrite(other: counts):
     });
   }
   test("connected certifies one probe per principal read and refuses nonprogram surfaces", async () => {
+    const invalidKey = compile("query bad(p: principal ?):\n  return connected[p] by byPrincipal\n");
+    assert(!invalidKey.ok, "connected admitted an optional principal");
+    deepStrictEqual(invalidKey.diagnostics[0]?.rewrite,
+      "-- use connected[viewer] or exists connected[p] with p: principal");
     await project("query count(p: principal):\n  return connected[p]\nquery online():\n  return exists connected[viewer]\nmutation gate(p: principal):\n  require exists connected[p] else OFFLINE\n  return connected[p]\n", result => {
       assert(!("connected" in result.project.schema.tables) && !("_connected" in result.project.schema.tables), "virtual table leaked into durable schema");
       const checked = rustCheck(result.project.programs, "synthetic", result.project.schema);
