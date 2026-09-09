@@ -12,6 +12,9 @@ import {
 import { resolve, dirname } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
+import { gzipSync } from "node:zlib";
+import { createRequire } from "node:module";
+import { runInNewContext } from "node:vm";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const args = new Set(process.argv.slice(2));
@@ -85,6 +88,65 @@ function scoreChecks(checks, budget, failedSteps, report = console.log, refuse =
 
 const failedSummary = (failedSteps) => `failed steps: ${[...failedSteps].join(", ")}`;
 
+const byteFields = ["client_gzip_bytes", "react_gzip_bytes", "expo_gzip_bytes", "runtime_gzip_bytes"];
+const byteToolchain = { node: "v24.18.0", esbuild: "0.25.9", gzipLevel: 9 };
+const byteFormat = "packaged-esm-closure-gzip-v1";
+const comparableToolchain = toolchain => Object.entries(byteToolchain).every(([key, value]) => toolchain?.[key] === value);
+const validByteValues = record => byteFields.every(field => Number.isSafeInteger(record[field]) && record[field] > 0);
+const comparableBytes = record => comparableToolchain(record.byte_toolchain) && record.byte_format === byteFormat;
+
+function publishByteMeasurements(record, values, toolchain, ok) {
+  // Keep rejected evidence separate from the fields that comparisons may trust.
+  record.byte_measurement = { values, toolchain, format: byteFormat, ok };
+  if (!comparableToolchain(toolchain)) {
+    throw new Error(`byte measurements require Node 24.18.0 / esbuild 0.25.9 / gzip 9: ${JSON.stringify(toolchain)}`);
+  }
+  if (!ok) return;
+  assert(validByteValues(values), "all four byte measurements must be positive integers");
+  Object.assign(record, values, { byte_toolchain: toolchain, byte_format: byteFormat });
+}
+
+function packagedEntryBytes(directory, entry) {
+  const ts = createRequire(resolve(directory, "../package.json"))("typescript");
+  const seen = new Set();
+  function visit(path) {
+    if (seen.has(path)) return 0;
+    seen.add(path);
+    const source = readFileSync(path, "utf8");
+    let bytes = gzipSync(source, { level: 9 }).length;
+    for (const statement of ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS).statements) {
+      const specifier = statement.moduleSpecifier?.text;
+      if (specifier?.startsWith(".")) bytes += visit(resolve(dirname(path), specifier));
+      else if (specifier?.startsWith("snapback2/")) bytes += visit(resolve(directory, `${specifier.slice(10)}.mjs`));
+    }
+    return bytes;
+  }
+  return visit(resolve(directory, `${entry}.mjs`));
+}
+
+function scoreBytes(record, history, failedSteps, report = console.log, refuse = fail) {
+  const previous = history.findLast(row => row.byte_baseline_accepted === true && comparableBytes(row)
+    && row.steps?.package_build_s?.ok === true && row.steps?.package_bytes_s?.ok === true && validByteValues(row));
+  for (const field of byteFields) {
+    const value = record[field];
+    if (!Number.isSafeInteger(value) || value <= 0) {
+      failedSteps.add(field);
+      refuse(`${field}: missing measurement`);
+      continue;
+    }
+    if (!comparableBytes(record) || record.steps?.package_bytes_s?.ok !== true || record.steps?.package_build_s?.ok !== true) {
+      failedSteps.add(field);
+      refuse(`${field}: measurement failed or is not comparable`);
+      continue;
+    }
+    if (previous === undefined) report(`ok ${field}: ${value} bytes (first accepted comparable record)`);
+    else if (value > previous[field] * 1.01) {
+      failedSteps.add(field);
+      refuse(`${field}: ${value} bytes exceeds ${previous[field]} by more than 1%`);
+    } else report(`ok ${field}: ${value} bytes ≤ ${previous[field]} + 1%`);
+  }
+}
+
 function preserveUnchangedExecutable(executable, operation, platform = process.platform) {
   if (platform !== "darwin" || !existsSync(executable)) return operation();
   const started = performance.now();
@@ -134,7 +196,10 @@ function main() {
     at: new Date().toISOString(),
     sha: run("git", ["rev-parse", "--short", "HEAD"]).stdout.trim(),
     steps: {},
+    ...Object.fromEntries(byteFields.map(field => [field, null])),
   };
+  const historyPath = resolve(root, "metrics/loop.jsonl");
+  const history = existsSync(historyPath) ? readFileSync(historyPath, "utf8").trim().split("\n").filter(Boolean).map(line => JSON.parse(line)) : [];
   // The chat template's image columns require the sibling media helper at boot.
   const buildArgs = ["build", "-q", "--release", "-p", "snapback2", "-p", "snapback2-media"];
   const bin = resolve(root, "target/release/snapback2");
@@ -153,9 +218,20 @@ function main() {
 
   const compiler = resolve(root, "packages/snapback2/dist/compiler.mjs");
   recordStep(record, failedSteps, "package_build_s",
-    () => run("node", ["build.mjs"], { cwd: resolve(root, "packages/snapback2") }), 3,
+    () => run(process.execPath, ["build.mjs"], { cwd: resolve(root, "packages/snapback2") }), 3,
     (result) => `package build failed\n${result.stdout ?? ""}\n${result.stderr ?? ""}`);
   const packageDist = resolve(root, "packages/snapback2/dist");
+  recordStep(record, failedSteps, "package_bytes_s", () => {
+    const values = {};
+    for (const entry of ["client", "react", "expo"]) {
+      values[`${entry}_gzip_bytes`] = packagedEntryBytes(packageDist, entry);
+    }
+    const measured = run(process.execPath, ["build.mjs", "--measure-twin"], { cwd: resolve(root, "packages/snapback2") });
+    const runtime = JSON.parse(measured.stdout);
+    values.runtime_gzip_bytes = runtime.gzip;
+    publishByteMeasurements(record, values, runtime.toolchain, measured.status === 0 && record.steps.package_build_s.ok);
+    return measured;
+  }, 3, result => `package byte measurement failed\n${result.stdout ?? ""}\n${result.stderr ?? ""}`);
   const compilerEnv = {
     ...process.env,
     SNAPBACK2_COMPILER: compiler,
@@ -257,17 +333,8 @@ function main() {
 
   try { record.production_binary_bytes = statSync(resolve(root, "target/production/snapback2")).size; } catch {}
 
-  try {
-    appendFileSync(resolve(root, "metrics/loop.jsonl"), JSON.stringify(record) + "\n");
-  } catch (error) {
-    const message = errorText(error);
-    record.steps.metrics_append = { ok: false, error: message };
-    failedSteps.add("metrics_append");
-    fail(message);
-  }
-  console.log(JSON.stringify(record));
-
   if (args.has("--check")) {
+    scoreBytes(record, history, failedSteps);
     // Budgets live in rules/RULES.md (the repo root); this parses the time table there.
     let rules = "";
     try {
@@ -293,10 +360,139 @@ function main() {
     ], (label) => label === "init → dev" ? 10 : 30, failedSteps);
   }
 
+  // Score before appending: a rejected regression can never approve its own retry.
+  record.byte_baseline_accepted = args.has("--check") && failedSteps.size === 0;
+  try {
+    appendFileSync(historyPath, JSON.stringify(record) + "\n");
+  } catch (error) {
+    const message = errorText(error);
+    record.steps.metrics_append = { ok: false, error: message };
+    failedSteps.add("metrics_append");
+    fail(message);
+  }
+  console.log(JSON.stringify(record));
   if (failedSteps.size > 0) console.error(`measure: ${failedSummary(failedSteps)}`);
 }
 
 function selfTest() {
+  const byteLines = [];
+  const values = n => Object.fromEntries(byteFields.map(field => [field, n]));
+  const candidate = n => ({ ...values(n), byte_toolchain: byteToolchain, byte_format: byteFormat,
+    steps: { package_build_s: { ok: true }, package_bytes_s: { ok: true } } });
+  const accepted = n => ({ ...candidate(n), byte_baseline_accepted: true });
+  const score = (record, history) => {
+    const failures = new Set();
+    scoreBytes(record, history, failures, line => byteLines.push(line), line => byteLines.push(line));
+    record.byte_baseline_accepted = failures.size === 0;
+    return [...failures];
+  };
+  const baseline = accepted(100);
+  assert.deepEqual(score(candidate(101), [baseline]), [], "exactly 1% growth passes");
+  const rejected = candidate(102);
+  assert.deepEqual(score(rejected, [baseline]), byteFields, "all four regressions report");
+  assert.deepEqual(score(candidate(102), [baseline, rejected]), byteFields, "an unchanged retry still fails");
+  assert.deepEqual(score(candidate(103), [baseline, accepted(102)]), [], "latest accepted comparable baseline wins");
+  for (const amount of [90, 110]) {
+    const incompatible = { steps: { package_build_s: { ok: true }, package_bytes_s: { ok: false } } };
+    const toolchain = { ...byteToolchain, node: "v26.7.0" };
+    assert.throws(() => publishByteMeasurements(incompatible, values(amount), toolchain, true), /require Node 24/);
+    assert(byteFields.every(field => incompatible[field] === undefined), "incompatible values are never published as trusted fields");
+    assert.deepEqual(incompatible.byte_measurement.values, values(amount), "rejected evidence is retained");
+    // Even a historical writer that published incompatible values and marked them accepted is excluded.
+    const poisoned = { ...accepted(amount), byte_toolchain: toolchain };
+    assert.deepEqual(score(candidate(102), [baseline, incompatible, poisoned]), byteFields, "incompatible high history cannot hide regression");
+    assert.deepEqual(score(candidate(100), [baseline, incompatible, poisoned]), [], "incompatible low history cannot invent regression");
+  }
+  for (const step of ["package_build_s", "package_bytes_s"]) {
+    const failed = accepted(110);
+    failed.steps[step].ok = false;
+    assert.deepEqual(score(candidate(102), [baseline, failed]), byteFields, "failed measurement/build is not a baseline");
+    assert.deepEqual(score(failed, [baseline]), byteFields, "failed current measurement cannot pass");
+  }
+  const ceilingFailure = {};
+  publishByteMeasurements(ceilingFailure, { ...values(100), runtime_gzip_bytes: 84080 }, byteToolchain, false);
+  assert.equal(ceilingFailure.runtime_gzip_bytes, undefined, "a ceiling refusal publishes no trusted values");
+  assert.equal(ceilingFailure.byte_measurement.values.runtime_gzip_bytes, 84080, "a ceiling refusal retains raw evidence");
+  assert.deepEqual(score(candidate(102), [baseline, ceilingFailure]), byteFields);
+  const legacy = { ...values(110), byte_toolchain: byteToolchain, steps: { package_bytes_s: { ok: false } } };
+  assert.deepEqual(score(candidate(102), [baseline, legacy, {}, { ...accepted(110), client_gzip_bytes: null },
+    { ...accepted(110), byte_format: "leaf-gzip" }]), byteFields, "legacy, incomplete and differently scoped records are not baselines");
+  assert.deepEqual(score({ ...candidate(100), client_gzip_bytes: null }, [baseline]), ["client_gzip_bytes"]);
+  assert.deepEqual(score(candidate(100), [legacy]), [], "first comparable run ignores failed parent-SHA evidence");
+  assert.equal(byteLines.filter(line => line.includes("first accepted comparable record")).length, 4);
+  const published = { steps: { package_build_s: { ok: true }, package_bytes_s: { ok: true } } };
+  publishByteMeasurements(published, values(100), byteToolchain, true);
+  assert.deepEqual(score(published, [baseline]), [], "valid measurement is published and scored");
+  console.log("byte baseline self-test ok: boundary, regression, retry, accepted, incompatible high/low, failed build/measurement, ceiling, legacy, missing, scope and publication");
+  // Keep the fixture beside the package so the production collector resolves the
+  // already-installed TypeScript parser without a fixture manifest or dependency.
+  const graphRoot = mkdtempSync(resolve(root, "packages/snapback2/.measure-self-test-"));
+  try {
+    const graph = new Map([
+      ["entry", 'import { left } from "./left.mjs"; export * from "./right.mjs"; export const entry = left;'],
+      ["left", 'import { shared } from "snapback2/shared"; export const left = () => shared;'],
+      ["right", 'export * from "./left.mjs";'],
+      ["shared", 'export { left } from "./left.mjs"; export const shared = 1;'],
+    ]);
+    const payload = `export const payload = ${JSON.stringify(Array.from({ length: 256 }, (_, i) => `${i}:${i * 7919}`).join("|"))};`;
+    for (const location of ["entry", "shared"]) {
+      const files = [...graph].map(([name, source]) => [name, source + (name === location ? payload : "")]);
+      for (const [name, source] of files) writeFileSync(resolve(graphRoot, `${name}.mjs`), source);
+      const expected = files.reduce((bytes, [, source]) => bytes + gzipSync(source, { level: 9 }).length, 0);
+      const measured = packagedEntryBytes(graphRoot, "entry");
+      assert.equal(measured, expected, "shared imports, re-exports and cycles count every file exactly once");
+      assert.equal(measured - gzipSync(files[0][1], { level: 9 }).length,
+        files.slice(1).reduce((bytes, [, source]) => bytes + gzipSync(source, { level: 9 }).length, 0),
+        "moving payload into the shared chunk retains its complete contribution");
+    }
+  } finally { rmSync(graphRoot, { recursive: true, force: true }); }
+  console.log("byte closure self-test ok: 2 payload locations; 4 files counted once through shared imports, re-exports and a cycle");
+
+  // Execute main itself with controlled I/O: production owns step recording,
+  // publication, scoring, acceptance and serialization, not a test-side copy.
+  const recordLoop = (consumerStatus, consumerSeconds, checked, bytes) => {
+    const appended = [];
+    const originalExitCode = process.exitCode;
+    let exitCode;
+    try {
+      process.exitCode = 0;
+      runInNewContext(`(${main.toString()})()`, {
+        root, args: new Set(checked ? ["--check"] : []), byteFields, resolve, tmpdir,
+        process: { execPath: process.execPath }, performance, recordStep, publishByteMeasurements,
+        failedSummary, errorText, fail, console: { log() {}, error() {} },
+        run: (_command, argv) => ({ seconds: 0.001, status: 0, stderr: "",
+          stdout: argv.includes("--measure-twin") ? JSON.stringify({ gzip: bytes, toolchain: byteToolchain })
+            : argv[0] === "doctor" ? '{"elapsedMs":1}' : argv[0] === "dev" ? "SNAPBACK_URL=http://test" : "{}" }),
+        packagedEntryBytes: () => bytes,
+        packDevelopmentConsumer: () => ({ status: consumerStatus, seconds: consumerSeconds, stderr: "simulated consumer failure" }),
+        preserveUnchangedExecutable: (_path, operation) => operation(),
+        existsSync: () => true,
+        readFileSync: path => path.endsWith("loop.jsonl") ? JSON.stringify(baseline) : readFileSync(path, "utf8"),
+        appendFileSync: (_path, line) => appended.push(JSON.parse(line)),
+        mkdtempSync: () => "/unused-measure-self-test", cpSync() {}, rmSync() {}, utimesSync() {},
+        statSync: () => ({ size: 1 }),
+        scoreBytes: (record, history, failures) => scoreBytes(record, history, failures, () => {}),
+        scoreChecks: (checks, budget, failures) => scoreChecks(checks, budget, failures, () => {}),
+      });
+      exitCode = process.exitCode;
+    } finally { process.exitCode = originalExitCode; }
+    assert.equal(appended.length, 1, "the complete production loop serializes one evidence record");
+    return { record: appended[0], exitCode };
+  };
+  for (const [status, seconds, checked, bytes, eligible, expectedExitCode] of [
+    [1, 0.1, true, 101, false, 1], [0, 31, true, 101, false, 1], [0, 0.1, true, 102, false, 1],
+    [0, 0.1, false, 101, false, 0], [0, 0.1, true, 101, true, 0],
+  ]) {
+    const { record: recorded, exitCode } = recordLoop(status, seconds, checked, bytes);
+    assert.equal(exitCode, expectedExitCode, "consumer, time-budget and byte failures refuse; successful runs do not");
+    assert.deepEqual(recorded.byte_measurement.values, values(bytes), "raw measurement survives serialization even after unrelated failure");
+    assert(byteFields.every(field => recorded[field] === bytes), "successful pinned bytes remain evidence");
+    assert.equal(recorded.steps.consumer_smoke_s.ok, status === 0);
+    assert.equal(recorded.byte_baseline_accepted, eligible, "only a fully successful checked loop becomes a baseline");
+    assert.deepEqual(score(candidate(102), [baseline, recorded]), eligible ? [] : byteFields,
+      "serialized rejected/unchecked evidence cannot approve a retry; a successful checked record can");
+  }
+  console.log("byte recording self-test ok: 5 production loops; consumer, time-budget and byte failures refuse; unchecked evidence excluded; successful checked record accepted without refusal");
   const artifactRoot = mkdtempSync(resolve(tmpdir(), "snapback2-measure-artifact-"));
   const artifact = resolve(artifactRoot, "snapback2");
   writeFileSync(artifact, "same bytes");

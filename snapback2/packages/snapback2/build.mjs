@@ -1,5 +1,7 @@
 import { gzipSync } from "node:zlib";
-import { cp, link, mkdir, open, readFile, readdir, rm, stat, unlink, writeFile } from "node:fs/promises";
+import { appendFile, cp, link, mkdir, open, readFile, readdir, rm, stat, unlink, writeFile } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
+import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
@@ -25,13 +27,12 @@ if (process.argv.includes("--measure-twin")) {
   const required = ["unicode-tables", "index-store", "twin-store", "swap-journal", "carrier-index", "metadata", "projection", "range-store", "offline.ts", "offline-protocol", "local-cursor", "held-program"];
   const inputs = Object.keys(measured.metafile.inputs);
   for (const name of required) if (!inputs.some(p => p.includes(name))) throw new Error(`unmeasured twin implementation: ${name}`);
-  console.log(JSON.stringify({ entry: "complete-local-runtime", minified: bytes.length, gzip, ceiling: 84000, target: 80000,
-    toolchain: { node: process.version, esbuild: esbuildVersion, gzipLevel: 9 }, inputs }));
+  const record = { at: new Date().toISOString(), sha: execFileSync("git", ["rev-parse", "HEAD"], { cwd: here, encoding: "utf8" }).trim(),
+    entry: "complete-local-runtime", minified: bytes.length, gzip, runtime_gzip_bytes: gzip, ceiling: 84000, target: 80000,
+    toolchain: { node: process.version, esbuild: esbuildVersion, gzipLevel: 9 }, inputs };
+  await appendFile(resolve(here, "../../metrics/twin.jsonl"), `${JSON.stringify(record)}\n`);
+  console.log(JSON.stringify(record));
   if (gzip > 84000) throw new Error(`twin exceeds 84000 gzip bytes: ${gzip}`);
-  process.exit(0);
-}
-if (process.argv.includes("--self-test")) {
-  await runGuideValidationSelfTest();
   process.exit(0);
 }
 const dist = resolve(here, "dist");
@@ -70,10 +71,9 @@ const imageRuntime = (path = './image-runtime.mjs') => ({
 await build({ entryPoints: [resolve(here,'src/image-runtime.ts')], outdir: dist, outExtension: { '.js': '.mjs' },
   bundle: true, minify: true, sourcemap: true, platform: 'neutral', format: 'esm', target: 'es2022' });
 
-await build({
+const armBuilds = [{
   entryPoints: {
     index: resolve(here, "src/index.ts"),
-    client: resolve(here, "src/client.ts"),
     react: resolve(here, "src/react.tsx"),
     "react-core": resolve(here, "src/react-core.tsx"),
     expo: resolve(here, "src/expo.ts"),
@@ -91,15 +91,14 @@ await build({
   target: "es2022",
   external: ["expo", "expo-constants", "react", "react-native", "expo-file-system", "expo/fetch", "expo-video", "expo-sqlite", "expo-secure-store", "snapback2/client", "snapback2/react-core", "snapback2/expo", "snapback2/react-native", "snapback2/expo/witness"],
   plugins: [externalClient, imageRuntime()],
-});
+}, {
 
 // This existing nested entry uses the same module by its relative output location.
-await build({ entryPoints: { 'expo/witness': resolve(here,'src/expo/witness.ts') }, outdir: dist,
+  entryPoints: { 'expo/witness': resolve(here,'src/expo/witness.ts') }, outdir: dist,
   outExtension: { '.js': '.mjs' }, sourcemap: true, bundle: true, format: 'esm', minify: true,
   platform: 'neutral', target: 'es2022', external: ['expo','react','react-native','expo-file-system','expo/fetch','expo-video','expo-sqlite','expo-secure-store','snapback2/client','snapback2/react-core','snapback2/expo','snapback2/react-native','snapback2/expo/witness'],
-  plugins: [externalClient,imageRuntime('../image-runtime.mjs')] });
+  plugins: [externalClient,imageRuntime('../image-runtime.mjs')] }, {
 
-await build({
   entryPoints: {
     test: resolve(here, "src/test.ts"),
     "sqlite-test": resolve(here, "tests/sqlite-exports.ts"),
@@ -113,8 +112,12 @@ await build({
   platform: "node",
   target: "node20",
   external: ["expo-file-system", "expo/fetch"],
-  plugins: [imageRuntime()],
-});
+  plugins: [externalClient, imageRuntime()],
+}];
+
+// @ref LLP 1012#bytes--frozen-allocation — client and carriers share one private
+// runtime; forwarding exports belong to snapback2/internal, never the public client.
+await buildClientArms(armBuilds, imageRuntime());
 
 await build({
   entryPoints: { compiler: resolve(here, "../compiler/src/worker.ts") },
@@ -273,8 +276,202 @@ if (snapshot) {
   }
 }
 
+if (process.argv.includes("--self-test")) {
+  await runGuideValidationSelfTest();
+  await runClientBundleSelfTest();
+}
 } finally {
   if (packageBuildToken) await releasePackageBuildLock(packageBuildToken);
+}
+
+async function buildClientArms(arms, imagePlugin) {
+  const client = { entryPoints: [resolve(here, "src/client.ts")], bundle: true, minify: true,
+    platform: "neutral", format: "esm", target: "es2022", external: arms[0].external, plugins: [imagePlugin] };
+  const graph = await build({ ...client, write: false, metafile: true });
+  const shared = new Set(Object.keys(graph.metafile.inputs).map(path => resolve(path)));
+  const imports = new Map();
+  const marker = "client-shared:";
+  const redirect = (probe) => ({ name: "one-client-runtime", setup(builder) {
+    builder.onResolve({ filter: /^\./ }, args => {
+      const stem = resolve(dirname(args.importer), args.path.replace(/\.[jt]sx?$/, ""));
+      const target = [stem, `${stem}.ts`, `${stem}.tsx`, `${stem}.js`].find(path => shared.has(path));
+      if (target) return probe ? { path: marker + target, external: true } : { path: target, namespace: "client-shared" };
+    });
+    builder.onLoad({ filter: /.*/, namespace: "client-shared" }, args => ({
+      contents: [...imports.get(args.path)].map(([name, alias]) =>
+        `export { ${alias} as ${name} } from "snapback2/internal";`).join("\n"), loader: "js",
+    }));
+  } });
+  for (const arm of arms) {
+    const probe = await build({ ...arm, external: [...arm.external, "snapback2/internal"], write: false, sourcemap: false, minify: false, plugins: [...arm.plugins, redirect(true)] });
+    for (const output of probe.outputFiles) {
+      const source = ts.createSourceFile(output.path, output.text, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+      for (const statement of source.statements) {
+        const specifier = statement.moduleSpecifier?.text;
+        if (!specifier?.startsWith(marker)) continue;
+        const path = specifier.slice(marker.length);
+        const names = imports.get(path) ?? new Map();
+        imports.set(path, names);
+        const bindings = statement.importClause?.namedBindings ?? statement.exportClause;
+        if (bindings && (ts.isNamedImports(bindings) || ts.isNamedExports(bindings))) {
+          for (const element of bindings.elements) names.set((element.propertyName ?? element.name).text, undefined);
+        } else {
+          // Namespace imports and star re-exports retain the module's full value surface.
+          const module = await build({ ...client, entryPoints: [path], write: false, metafile: true });
+          for (const name of Object.values(module.metafile.outputs)[0].exports) names.set(name, undefined);
+        }
+        if (statement.importClause?.name) names.set("default", undefined);
+      }
+    }
+  }
+  const forwarding = [];
+  for (const [index, [path, names]] of [...imports].sort(([a], [b]) => a.localeCompare(b)).entries()) {
+    const source = relative(here, path).split(sep).join("/");
+    for (const name of names.keys()) {
+      const alias = `__client${index}_${name}`;
+      names.set(name, alias);
+      forwarding.push(`export { ${name} as ${alias} } from ${JSON.stringify(source.startsWith(".") ? source : `./${source}`)};`);
+    }
+  }
+  const internalEntry = { name: "internal-client-exports", setup(builder) {
+    builder.onResolve({ filter: /^internal-client-exports$/ }, () => ({ path: "internal-client-exports", namespace: "internal-client-exports" }));
+    builder.onLoad({ filter: /.*/, namespace: "internal-client-exports" }, () => ({
+      contents: [
+        'export { subscribe, sharedConsumers, internalSubscribe, internalConsumers } from "./dist/image-runtime.mjs";',
+        ...forwarding,
+      ].join("\n"), resolveDir: here, loader: "ts",
+    }));
+  } };
+  await build({ ...client, entryPoints: { client: resolve(here, "src/client.ts"), internal: "internal-client-exports" },
+    splitting: true, chunkNames: "client-runtime", outdir: dist, outExtension: { ".js": ".mjs" }, sourcemap: true,
+    plugins: [...client.plugins, internalEntry, {
+      name: "internal-image-path", setup(builder) {
+        builder.onResolve({ filter: /^\.\/dist\/image-runtime\.mjs$/ }, () => ({ path: "./image-runtime.mjs", external: true }));
+      },
+    }] });
+  for (const arm of arms) await build({ ...arm, external: [...arm.external, "snapback2/client", "snapback2/internal"], plugins: [...arm.plugins, redirect(false)] });
+}
+
+async function runClientBundleSelfTest() {
+  const directory = resolve(here, "dist");
+  const entries = ["index", "react", "expo", "react-native", "react-core", "test", "test-runner", "sqlite-test", "client-observed-test", "witness-test", "expo/witness"];
+  const graphEntries = new Set(["client", "client-runtime", "internal", ...entries]);
+  const bundles = await Promise.all((await readdir(directory, { recursive: true }))
+    .filter(file => file.endsWith(".mjs")).sort().map(async file => {
+      const path = resolve(directory, file);
+      const map = JSON.parse(await readFile(`${path}.map`, "utf8"));
+      return { entry: file.slice(0, -4).split(sep).join("/"),
+        sources: map.sources.map(source => source.startsWith("client-shared:") ? source : resolve(dirname(path), source)),
+        mappings: [...ts.decodeMappings(map.mappings)] };
+    }));
+  assert.deepEqual(bundles.filter(bundle => graphEntries.has(bundle.entry)).map(bundle => bundle.entry).sort(), [...graphEntries].sort());
+  const implementations = new Set(bundles.filter(bundle => ["client", "client-runtime"].includes(bundle.entry)).flatMap(bundle => bundle.sources));
+  const declarations = [];
+  for (const [file, names] of [["store/range-store.ts", ["PersistentRangeStore", "applySwap"]], ["twin.ts", ["Twin"]], ["offline.ts", ["OfflineRuntime"]]]) {
+    const path = resolve(here, "src", file);
+    const source = ts.createSourceFile(path, await readFile(path, "utf8"), ts.ScriptTarget.Latest, true);
+    const visit = node => {
+      if ((ts.isClassDeclaration(node) || ts.isMethodDeclaration(node)) && names.includes(node.name?.text)) {
+        declarations.push({ name: node.name.text, path, ...source.getLineAndCharacterOfPosition(node.name.getStart(source)) });
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(source);
+  }
+  assert.equal(declarations.length, 4, "all four runtime declarations must be audited");
+  const audit = observed => {
+    // Count source occurrences, including both implementation entries. The existing
+    // image/compiler bundles have their own primitive graphs; audit their declarations below too.
+    for (const source of implementations) {
+      const owners = observed.filter(bundle => graphEntries.has(bundle.entry))
+        .flatMap(bundle => bundle.sources.filter(path => path === source).map(() => bundle.entry));
+      assert.equal(owners.length, 1, `${source} occurs ${owners.length} times in the client graph: ${owners}`);
+    }
+    for (const declaration of declarations) {
+      // Original declaration coordinates survive identifier mangling. Count emitted
+      // locations, so two bodies in the same output cannot pass a source-set check.
+      const owners = observed.flatMap(bundle => bundle.mappings.filter(mapping =>
+        bundle.sources[mapping.sourceIndex] === declaration.path && mapping.sourceLine === declaration.line
+        && mapping.sourceCharacter === declaration.character).map(() => bundle.entry));
+      assert.deepEqual(owners, ["client-runtime"], `${declaration.name} must be emitted exactly once, in client-runtime`);
+    }
+  };
+  audit(bundles);
+  const runtime = bundles.find(bundle => bundle.entry === "client-runtime");
+  assert.throws(() => audit([...bundles, { ...runtime, entry: "client" }]), /occurs .* times in the client graph/);
+  for (const declaration of declarations) {
+    const mapping = runtime.mappings.find(mapping => runtime.sources[mapping.sourceIndex] === declaration.path
+      && mapping.sourceLine === declaration.line && mapping.sourceCharacter === declaration.character);
+    const duplicate = { ...runtime, mappings: [...runtime.mappings, { ...mapping, generatedLine: mapping.generatedLine + 1000 }] };
+    assert.throws(() => audit(bundles.map(bundle => bundle === runtime ? duplicate : bundle)), new RegExp(`${declaration.name} must be emitted exactly once`));
+  }
+  console.log(`client graph self-test ok: ${implementations.size} sources occur once across ${graphEntries.size} entries; 4 declarations occur once across all ${bundles.length} packaged modules; 5 duplicate mutations refused`);
+  const sqlite = await import(resolve(directory, "sqlite-test.mjs"));
+  const internal = await import("snapback2/internal");
+  const canonical = await import("snapback2/client");
+  assert(!Object.keys(canonical).some(key => key.startsWith("__client")), "public client must not expose forwarding aliases");
+  for (const name of ["PersistentRangeStore", "Twin", "OfflineRuntime"]) {
+    const key = Object.keys(internal).find(key => key.endsWith(`_${name}`));
+    assert(key, `internal must own ${name}`);
+    assert.equal(sqlite[name], internal[key], `${name} must have one module identity`);
+  }
+  for (const [entry, ceiling] of [["react", 12000], ["expo", 16000]]) {
+    assert(gzipSync(await readFile(resolve(directory, `${entry}.mjs`)), { level: 9 }).length <= ceiling, `${entry} exceeds ${ceiling} gzip bytes`);
+  }
+  const exports = Object.keys(JSON.parse(await readFile(resolve(here, "package.json"), "utf8")).exports);
+  for (const condition of ["browser", "react-native", "node"]) {
+    const result = execFileSync(process.execPath, [`--conditions=${condition}`, "--input-type=module", "-e", `
+      import assert from 'node:assert/strict';
+      import { register } from 'node:module';
+      import { mkdtemp, rm } from 'node:fs/promises';
+      import { tmpdir } from 'node:os';
+      import { join } from 'node:path';
+      import React from 'react';
+      globalThis.__snapbackNative = { React, fileUris: [], fileBodies: new Map(), videoSources: [] };
+      register(new URL('./tests/native-mocks/loader.mjs', import.meta.url));
+      const paths = ${JSON.stringify(exports)}.map(path => path === '.' ? 'snapback2' : 'snapback2' + path.slice(1));
+      const modules = Object.fromEntries(await Promise.all(paths.map(async path => [path, await import(path)])));
+      const client = modules['snapback2/client'], internal = modules['snapback2/internal'];
+      const named = name => internal[Object.keys(internal).find(key => key.endsWith('_' + name))];
+      const react = modules['snapback2/react'], expo = modules['snapback2/expo'];
+      assert.equal(import.meta.resolve('snapback2/react'), new URL('./dist/${condition === "react-native" ? "react-native" : "react"}.mjs', import.meta.url).href);
+      assert.equal(react.useQuery, modules['snapback2/react-core'].useQuery);
+      const web = await import('./dist/react.mjs');
+      assert.equal(web.indexedDbRangeStore()().constructor, named('PersistentRangeStore'));
+      assert.equal(expo.expoSqliteStore()().constructor, named('PersistentRangeStore'));
+      assert.equal(modules.snapback2.decodeDeliveryEnvelope, named('decodeDeliveryEnvelope'));
+      const sqlite = await import('./dist/sqlite-test.mjs');
+      for (const name of ['PersistentRangeStore', 'Twin', 'OfflineRuntime']) assert.equal(sqlite[name], named(name));
+      await import('./dist/witness-test.mjs');
+      const directory = await mkdtemp(join(tmpdir(), 'snapback2-bundle-'));
+      const factories = [modules['snapback2/test'].fileRangeStore(directory), expo.sqliteRangeStore(() => sqlite.nodeSqliteDriver(join(directory, 'bundle.sqlite')))];
+      try {
+        for (const factory of factories) {
+          const store = factory();
+          assert.equal(store.constructor, named('PersistentRangeStore'));
+          await store.open('bundle');
+          await store.commit({ bounds: { bundle: 1 } });
+          assert.equal((await store.outbox.bounds()).bundle, 1);
+          await store.close();
+        }
+        const { fakeOwner } = await import('./tests/fake-owner.ts');
+        const clients = [client.createClient, expo.createExpoClient].map((create, i) => create({
+          url: 'http://bundle.test', persona: 'alice', fetch: fakeOwner().fetch, offline: { store: factories[i] },
+        }));
+        try {
+          await Promise.all(clients.map(client => client.ready));
+          assert.equal(clients[0].constructor, clients[1].constructor);
+          for (const current of clients) {
+            assert.equal(current.assetCache.constructor, named('ByteCache'));
+            assert.equal((await current.query(client.api.messages.inbox, { c: null })).state, 'complete');
+          }
+        } finally { await Promise.all(clients.map(client => client.close())); }
+      } finally { await rm(directory, { recursive: true, force: true }); }
+      console.log('${condition}: ' + paths.length + ' exports execute; web/native constructors, protocol, file/SQLite swaps and clients share identity');
+    `], { cwd: here, encoding: "utf8", timeout: 30_000 });
+    console.log(result.trim());
+  }
+  console.log("client bundle self-test ok: client, client-runtime, internal and 11 arms share one range store, twin and offline runtime; 3 export conditions execute");
 }
 
 async function runGuideValidationSelfTest() {

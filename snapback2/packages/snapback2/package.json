@@ -48,7 +48,7 @@
     },
     "./internal": {
       "types": "./dist/internal-access.d.ts",
-      "import": "./src/internal.js"
+      "import": "./dist/internal.mjs"
     }
   },
   "bin": {
@@ -60,8 +60,7 @@
     "ios",
     "expo-module.config.json",
     "android/build.gradle",
-    "android/src",
-    "src/internal.js"
+    "android/src"
   ],
   "scripts": {
     "build": "node build.mjs",

@@ -76,17 +76,15 @@ the third on 2026-09-04, LLP 1012 §12):
 - **A guide.** `snapback2 guide` serves the compiler's facts, a one-screen grammar, and
   about twelve recipes with CI-executed snippets. No million-word corpus, no embedded
   20 MB guide in the binary, no calendar freshness dates.
-- **WASM anywhere.** The client evaluator is the TypeScript twin. The 2026-09-06
-  search trade, revised under the 2026-09-07 architecture and client-item commissions, sets
-  **84,000 bytes gzip for the complete local runtime**, with **80,000 the working
-  target**. The canonical measurement uses Node 24.18.0, esbuild 0.25.9, gzip level 9.
-  All normalization data, decoding, indexes, incremental state, prediction and
-  local cursors participate in the measured entry; relocating required bytes
-  does not count as a saving. Historical measurements remain in
-  `snapback2/metrics/twin.jsonl`; the complete search integration is not yet
-  qualified. The measured scope revision in LLP1012 records why the earlier
-  34,000, 50,000 and 66,000 allocations were replaced; the item-surface trade in LLP 1018.003 records the 84,000 amendment; exceeding 84,000 requires
-  a new explicit scope decision.
+- **WASM anywhere.** The client evaluator is the TypeScript twin. The complete
+  local runtime has an **84,000-byte gzip ceiling**, **80,000 the target**,
+  frozen **2026-09-08 by the author's word**, superseding every prior allocation
+  increase. A feature that does not fit is
+  descoped or paid for by deletion. The five-root measurement uses Node 24.18.0,
+  esbuild 0.25.9, gzip level 9; all normalization data, decoding, indexes,
+  incremental state, prediction and local cursors participate. Relocating
+  required bytes does not count as a saving. Measurements remain in
+  `snapback2/metrics/twin.jsonl`; the allocation does not establish qualification.
 
 ## Process not doing
 
@@ -146,7 +144,8 @@ PR. If nothing can come off, the answer is no.
   persistent indexed twin, including exact held-search reads and local cursors;
   unblocks the same named search on already-synced messages warm and cold offline
   (brief M5/M6). **off:** Exact 2 until this search qualifies on React web and
-  Expo. **Budget:** 34,000 bytes gzip total twin, 30,000 target; the 1M-step,
+  Expo. **Budget:** 34,000 bytes gzip total twin, 30,000 target (historical;
+  superseded by the freeze above); the 1M-step,
   4 MiB closure, 8 MiB heap and 1 MiB output ceilings stay. **Build exception:**
   one ordinary `snapback2-core/build.rs` for pinned Unicode inputs to ignored
   build artifacts, coordinated with existing `build.mjs`; no new Unicode crate,
@@ -155,52 +154,4 @@ PR. If nothing can come off, the answer is no.
   rulings. The foundation implements shared Unicode/key primitives first;
   engine, compiler and held-twin integration/qualification follow.
 
-- 2026-09-06 — **Measured revision to the search trade:**50,000 bytes gzip total
-  twin,48,000 target replaces the earlier34,000/30,000 allocation. Exact pinned
-  WIP measurement is46,838 with required projection/receipt bodies retained;
-  earlier44,290 omitted bodies and remains an incomplete result. Full payload
-  stays measured; no feature or runtime-resource limit is removed. Rationale
-  and exact evidence are in LLP1012, "Indexed held search". This is Root's
-  current delegated decision, not a historical author ruling or a final pass.
-
-- 2026-09-06 — **Fixed complete local-runtime boundary:**66,000 bytes gzip,
- 64,000 target supersedes the partial50,000 allocation. Count full Twin,
- PersistentRangeStore, OfflineRuntime/offlineView, projection and receipt
- namespaces. Exact same-root baseline39,671/currentWIP62,624 and exhaustive
- export/method audit are retained in LLP1012's boundary decision. Earlier
- partial measurements remain incomplete. No runtime resource limit or required
- behavior changes; physical driver/HTTP framing exclusions are explicit.
-
-- 2026-09-07 — **Architecture allocation amendment:** 82,000 bytes gzip,
-  80,000 working target, under the user's LLP 1018.000 refinement and
-  implementation commission. Exact post-Words integration `527861e673` measures
-  79,207 on Node 24.18.0/esbuild 0.25.9/gzip 9 and fails the former 66,000
-  allocation. The new ceiling leaves 2,793 bytes for integration/review repairs;
-  it cannot silently fund another feature. Five complete-runtime roots,
-  resource limits and Exact 2 deferral stay. Independent Sol and Grok design
-  reviews accept this explicit footprint trade; final code/platform
-  qualification remains required. LLP 1012's allocation amendment records
-  alternatives and the separately measured client cost. This is Root's
-  delegated decision, not an earlier author ruling or retroactive size pass.
-
-- 2026-09-07 — **Merged-schema reconciliation allocation:** 82,500 bytes gzip,
-  with the 80,000 target unchanged, supersedes 82,000 under the same delegated
-  LLP 1018.000 commission. Required declared tombstones, schema validation and
-  truthful query provenance are included in the pinned 82,085-byte candidate;
-  the old ceiling still fails by 85 and that sample remains a failure. The
-  explicit 500-byte increase (0.61%) follows bounded readable consolidation,
-  funds this reconciliation only, and leaves 415 bytes. Five roots, resource
-  limits and Exact 2 deferral stay. Both closing reviews are READY and final
-  platform checks pass; the 80,000 target remains missed. LLP 1012 and
-  LLP 1018.000 record the trade and source-bound evidence.
-
-- 2026-09-07 — **Composed client items allocation:** 84,000 bytes gzip,
-  retaining the 80,000 target, under the user's client-shape commission.
-  Image-bound row observations and persistent query membership replace screen
-  joins and hook-triggered cleanup; online terminal history remains explicitly
-  dismissible. The prior 82,500 ceiling remains a failed comparison. All three
-  requested reviewers support this explicit allocation; their code verdicts
-  and measured runtime/full-client costs are recorded in LLP 1018.003. The
-  five-root instrument, wire, runtime dependencies and other resource limits
-  stay fixed. This is Root's delegated scope decision, not an earlier author
-  ruling or a claim that qualification has finished.
+- 2026-09-08 — Ceiling history (superseded by the freeze above): 34,000 → 50,000 → 66,000 → 82,000 → 82,500 → 84,000 bytes gzip.
