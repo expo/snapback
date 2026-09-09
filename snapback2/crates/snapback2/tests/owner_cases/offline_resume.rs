@@ -662,7 +662,8 @@ query members(conversationId: conversations, c: cursor ?):
 }
 
 /// Fix round 1, item 3: a grant is minted only when the client's unused ids
-/// are low — `remaining` absent or below 1,024 — on resume, login, and guest.
+/// are low — `remaining` absent or below 1,024 — on signup, resume, login,
+/// and guest. Signup has no existing client grant, so it always mints one.
 #[test]
 fn offline_grants_are_minted_only_when_remaining_ids_are_low() {
     let (root, mut owner, port, secret) = boot(|_| {});
@@ -696,6 +697,12 @@ fn offline_grants_are_minted_only_when_remaining_ids_are_low() {
         json!({ "email": "remaining@example.com", "password": "correct horse" }),
     );
     assert_eq!(signup.status, 200, "{}", signup.body);
+    assert_eq!(signup.body["grant"]["count"], 8_192, "{}", signup.body);
+    assert_eq!(
+        signup.body["grant"]["id"], signup.body["grant"]["from"],
+        "{}",
+        signup.body
+    );
     let stocked = request(
         port,
         "POST",

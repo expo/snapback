@@ -642,12 +642,13 @@ impl State {
                     .runtime_mut()
                     .signup(&email, &password, now)
                     .map_err(|error| Refusal::from_identity(&error))?;
+                let grant = self.grant_if_low(session.principal.id.as_str(), None)?;
                 Ok(session_json(
                     &session.token,
                     session.principal.id.as_str(),
                     &session.principal.kind,
                     session.auth_epoch,
-                    None,
+                    grant,
                 ))
             }
             Action::Login {
