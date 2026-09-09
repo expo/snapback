@@ -323,6 +323,19 @@ mutation remove(post: posts):
     assert.deepEqual(local?.sites?.map((site: any) => site.reason), ['computed-key', 'computed-key']);
     assert.equal(global.current.pages[0].receipt?.state, 'capped');
     assert.equal(global.current.pages[0].next, server.next);
+    const unrelated = { intent: 'unrelated-chat-prediction',grant: 'test',offset: 0,count: 0,ids: [],
+      op: 'messages.send',args: { conversationId: 'conversation-1',body: 'unrelated' },issuedSeq: 1,
+      state: 'queued' as const,predicted: true,createdAt: Date.now(),updatedAt: Date.now() };
+    await act(async () => { await client.offlineRuntime.store.commit({
+      outbox: { put: [unrelated] },overlay: { put: { [unrelated.intent]: [] } },
+    }); });
+    await waitFor(() => global.current.pages[0].receipt?.state === 'partial');
+    assert.equal(global.current.hasMore,false,
+      'an unrelated active prediction conservatively withholds the owner continuation');
+    await act(async () => { await client.offlineRuntime.store.commit({
+      outbox: { remove: [unrelated.intent] },overlay: { remove: [unrelated.intent] },
+    }); });
+    await waitFor(() => global.current.pages[0].receipt?.state === 'capped' && global.current.hasMore);
     await loadAll(global, expectedGlobal);
 
     const following = await mount(bob, api.carrier.following, { c: null });
