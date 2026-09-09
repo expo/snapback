@@ -102,7 +102,7 @@ test("durable client intents survive a schema successor and a lost acknowledgeme
     assert.equal(conflicted.data.length, before.data.length, "the conflicted sends wrote no messages");
     for (const body of ["successor first", "successor second"]) {
       const result = await reopened.mutation(api.messages.send, { conversationId: "conversation-1", body });
-      assert.equal(result.state, "committed");
+      assert.equal(result.state, "committed", JSON.stringify(result));
       assert.ok(!admitted.some(entry => entry.intent === JSON.parse(requests.at(-1)!.body).replay.intent));
     }
     const after: any = await reopened.query(api.messages.thread, { conversationId: "conversation-1", c: null });
@@ -184,16 +184,17 @@ test("real owner no-op successes compact with zero readers and preserve each iss
       await writeFile(join(project, "snapback/noop.q"), "mutation echo(value: int):\n  return value\n");
     } });
     const factory = fileRangeStore(root);
-    client = createClient({ url: local.url, persona: "alice", offline: { store: factory } });
+    client = createClient({ url: local.url, offline: { store: factory } });
     await client.ready;
+    const session = await client.auth.guest();
     for (let value = 0; value < 20; value++) {
       const result = await client.mutation(api.noop.echo, { value });
-      assert.equal(result.state, "committed");
+      assert.equal(result.state, "committed", JSON.stringify(result));
       if (result.state === "committed") { assert.equal(result.data, value); assert.deepEqual(result.effects, []); }
       assert.deepEqual(await client.outbox.entries(), [], "zero observers; no success accumulates");
     }
     await client.close(); client = undefined;
-    const reopened = factory(); await reopened.open("dev:alice");
+    const reopened = factory(); await reopened.open(session.viewer);
     assert.deepEqual(await reopened.outbox.all(), []);
     assert((await reopened.outbox.compactedThrough!()) > 0);
     await reopened.close?.();

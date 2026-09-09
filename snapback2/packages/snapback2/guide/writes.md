@@ -28,10 +28,8 @@ Offline, an unheld unique range remains `partial`.
 
 ## Conditional update
 
-```q
-mutation edit(id: messages, body: text <=2000, expectedBody: text <=2000):
-  return update messages[id] { body } if .body = expectedBody
-```
+Use `update messages[messageId] { body } if .body = baseBody` to edit only the
+body the caller read. The chat template's `messages.edit` is a complete example.
 
 The key evaluates once; the patch evaluates only after the condition passes.
 A false condition or absent/unreadable target returns a rejected mutation with
