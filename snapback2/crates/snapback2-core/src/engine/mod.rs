@@ -159,8 +159,6 @@ pub enum RuntimeError {
     Conflict { current: Read },
     #[error("E_RULE: {effect:?} denied on {table}")]
     Rule { table: String, effect: Effect },
-    #[error("E_CONSTRAINT: sealed unique conflict on {table}.{index}")]
-    Unique { table: String, index: String },
     #[error("E_CONSTRAINT: {0}")]
     Constraint(String),
     #[error("E_FANOUT: runtime loop exceeded its admitted bound")]
@@ -231,7 +229,7 @@ impl RuntimeError {
             Self::Require { code, .. } => code,
             Self::Conflict { .. } => "E_CONFLICT",
             Self::Rule { .. } => "E_RULE",
-            Self::Constraint(_) | Self::Unique { .. } => "E_CONSTRAINT",
+            Self::Constraint(_) => "E_CONSTRAINT",
             Self::Fanout => "E_FANOUT",
             Self::Steps(_) => "E_STEPS",
             Self::Input(_) => "E_INPUT",
@@ -1303,7 +1301,7 @@ pub(crate) fn mutation_rejection_code(error: &RuntimeError) -> Option<&str> {
         // @ref LLP 1001#3-read-and-write-states-no-silent-states — a table-rule
         // rejection keeps the same stable code in engine state and on the wire.
         RuntimeError::Rule { .. } => Some("E_RULE"),
-        RuntimeError::Constraint(_) | RuntimeError::Unique { .. } => Some("E_CONSTRAINT"),
+        RuntimeError::Constraint(_) => Some("E_CONSTRAINT"),
         error if is_sqlite_constraint(error) => Some("E_CONSTRAINT"),
         RuntimeError::Input(_) => Some("E_INPUT"),
         RuntimeError::AssetType(_)

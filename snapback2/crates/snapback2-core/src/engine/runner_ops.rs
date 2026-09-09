@@ -44,12 +44,9 @@ impl<'a> Runner<'a> {
             let mut missing = false;
             for index in indexes {
                 let key = index_values(&row, definition.index(&index).expect("unique index"));
-                match self.check_unique(table, &definition, &index, None, &row) {
-                    Err(RuntimeError::Unique { .. }) => {
-                        if local { self.trace.constraint_inputs.truncate(checkpoint); }
-                        return Ok(false);
-                    },
-                    result => result?,
+                if self.unique_conflict(table, &definition, &index, None, &row)? {
+                    if local { self.trace.constraint_inputs.truncate(checkpoint); }
+                    return Ok(false);
                 }
                 if self.rule_authority == RuleAuthority::ReceiptOnly
                     && !self.authority_absences.iter().any(|(t, i, k)| t == table && i == &index && k == &key) {
@@ -772,14 +769,22 @@ impl<'a> Runner<'a> {
         Ok(())
     }
 
-    pub(super) fn check_unique(
+    pub(super) fn check_unique(&mut self, table_name: &str, table: &Table, index_name: &str,
+        old: Option<&Value>, new: &Value) -> Result<(), RuntimeError> {
+        if self.unique_conflict(table_name, table, index_name, old, new)? {
+            return Err(RuntimeError::Constraint(format!("sealed unique conflict on {table_name}.{index_name}")));
+        }
+        Ok(())
+    }
+
+    fn unique_conflict(
         &mut self,
         table_name: &str,
         table: &Table,
         index_name: &str,
         old: Option<&Value>,
         new: &Value,
-    ) -> Result<(), RuntimeError> {
+    ) -> Result<bool, RuntimeError> {
         let index = table
             .index(index_name)
             .ok_or_else(|| RuntimeError::Schema(format!("missing unique index {index_name}")))?;
@@ -807,14 +812,10 @@ impl<'a> Runner<'a> {
             prefix: wanted,
             examined_ids: row_ids(&examined)?,
         });
-        let duplicate = examined.into_iter().any(|row| {
+        Ok(examined.into_iter().any(|row| {
             let id = row.field("id").ok().and_then(|id| id.as_str().ok());
             id != old_id
-        });
-        if duplicate {
-            return Err(RuntimeError::Unique { table: table_name.into(), index: index_name.into() });
-        }
-        Ok(())
+        }))
     }
 
     pub(super) fn check_rule(

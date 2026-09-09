@@ -1383,10 +1383,11 @@ fn every_frozen_corpus_case_replays_its_certification_outcome() {
     // tombstone schema-identity scenario was added later; Unicode index/search
     // coverage remains in the retained cases. Composite continuation adds 13
     // range/merge/alias/ambiguity witnesses. Maintained values add five
-    // same-mutation/group-visibility witnesses: 245 evaluator + 25 server-only.
+    // same-mutation/group-visibility witnesses. Guarded writes add five
+    // creation/collision/conditional witnesses: 250 evaluator + 25 server-only.
     assert_eq!(
         cases.len(),
-        270,
+        275,
         "the complete frozen corpus must be checked"
     );
     assert!(

@@ -397,7 +397,9 @@ held. It never invents an authoritative current-row payload.
 
 `insert table { fields } if absent` is `InsertIfAbsent { table, row, result }`
 in IR. It validates the candidate and its insert rule, then checks every
-unique key without a visible application read. A conflict is a committed
+unique key without a visible application read. The private uniqueness probe
+returns a decision; ordinary writes and seeds retain their existing
+`E_CONSTRAINT` refusal and constraint order. A conflict is a committed
 no-op yielding `null`; success yields the newly inserted row, with ordinary
 constraints, maintained writes, and insert postconditions. It never returns
 or grants custody of the conflicting row. The certificate keeps the insert
