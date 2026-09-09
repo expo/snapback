@@ -699,6 +699,11 @@ class ExpressionBinder {
     if (base.facts.type.kind !== "ref") return base;
     const tableInfo = this.catalog.get(base.facts.type.table);
     if (!tableInfo) refuse(this.diagnosticSite(site), `unknown table ${base.facts.type.table}`);
+    // @ref LLP 1011#one-spelling — implicit reference dereferences cannot recover the maintained row surface.
+    if (tableInfo.declaration.maintained) throw new QuarryError(this.diagnosticSite(site),
+      `maintained ${base.facts.type.table} references have values, not row fields or shapes`, "E_QUARRY_TYPE",
+      `${base.facts.type.table}[${quarryExpression(authored)}${base.facts.type.optional ? " ! else CODE" : ""}]`,
+      "quarry/types", true);
     const table: BoundTableSymbol = { kind: "table", id: `table:${base.facts.type.table}`, name: base.facts.type.table,
       declaration: tableInfo.declaration, source: sourceStack(tableInfo.declaration.site) };
     const selected = selectIndex(this.catalog, table.name, [{ value: authored, site: authored.site }], "point", "byId",

@@ -3,6 +3,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import ts from "typescript";
 import { canonicalValue, ClientStore, type Context, type Value } from "../../evaluator/src/evaluator";
+import { canonicalSchemaJson } from "../../evaluator/src/certificate-identity";
 import { lowerProject } from "./project";
 import { rustCheck } from "./rust-check";
 import { assert, compileInline, diagnosticsText, operation, withProject, type Test } from "./quarry-check-helpers";
@@ -70,6 +71,21 @@ table text then time toJSON tokens tombstones true ttl unique until-revoked up u
 value video viewer walk where while width wordPrefixes words
 `.split(/\s+/).filter(Boolean);
     deepStrictEqual(recognizedQuarryWords(frontend), expected);
+  });
+  test("one spelling: word freeze detects ordinary dispatch forms and aliases", async () => {
+    for (const decision of [
+      'switch (token.value) { case "unfrozenword": break; }',
+      'switch (expression.name) { case "unfrozenword": break; }',
+      'const spelling = token.value; switch (spelling) { case "unfrozenword": break; }',
+      'if (token.value == "unfrozenword") {}',
+      'if ("unfrozenword" !== token["value"]) {}',
+      'const spelling = expression.name; if (spelling === "unfrozenword") {}',
+      'const choices = ["unfrozenword"]; if (choices.includes(token.value)) {}',
+      'const choices = new Set(["unfrozenword"]); if (choices.has(token.value)) {}',
+      'const choices = new Map([["unfrozenword", 1]]); choices.get(expression.name);',
+    ]) await withProject({ "src/quarry/parser.ts": `function dispatch(token, expression) { ${decision} }` }, async root => {
+      deepStrictEqual(recognizedQuarryWords(root), ["unfrozenword"], decision);
+    });
   });
   // @ref LLP 1011#one-spelling — the commissioned spelling changes and their refusal repairs.
   test("one spelling: indexes require explicit names and pasteable inferred-name repairs", () => {
@@ -181,14 +197,16 @@ query field(p: posts):
   public
   insert <- allow
 maintain counts = count ledger by owner:
-  read <- allow
+  read <- .owner = viewer
 maintain balances = sum ledger of amount by owner:
-  read <- allow
+  read <- .owner = viewer
 maintain decimals = sum ledger of decimal by owner:
-  read <- allow
+  read <- .owner = viewer
 `;
     await project(`query values():
   return { count: counts[viewer], money: balances[viewer], decimal: decimals[viewer] }
+query valuesFor(owner: principal):
+  return { count: counts[owner], money: balances[owner], decimal: decimals[owner] }
 query online():
   return connected[viewer]
 query ordinary(p: ledger):
@@ -209,7 +227,58 @@ mutation afterWrite():
       const value = new ClientStore(lowered.project.schema, receipt).reexecute(
         operation(lowered.project.programs, "probe.values"), context).execution;
       equal(value.result, row({ count: { Int: 0 }, money: { Int: 0 }, decimal: { Int: 0 } }));
+      for (const [caseName, op] of [
+        ["maintain-numeric-after-write-present", "afterWrite"],
+        ["maintain-numeric-after-write-absent", "afterWrite"],
+        ["maintain-numeric-group-absent", "valuesFor"],
+        ["maintain-numeric-group-unreadable", "valuesFor"],
+      ]) {
+        const corpus = JSON.parse(readFileSync(join(frontend, "../../corpus", `${caseName}.json`), "utf8"));
+        // Use the authored operation, branded schema, authoritative receipt and exact
+        // typed expectation, not merely api.d.ts or the corpus's hand-built IR.
+        deepStrictEqual(canonicalSchemaJson(lowered.project.schema), canonicalSchemaJson(corpus.schema));
+        const store = new ClientStore(lowered.project.schema, corpus.receipt);
+        const program = operation(lowered.project.programs, `probe.${op}`);
+        const replay = op === "afterWrite" ? store.applyMutation(program, corpus.context) : store.reexecute(program, corpus.context);
+        deepStrictEqual(replay.state, corpus.expected.localState, caseName);
+        equal(replay.execution.result, corpus.expected.localResult);
+      }
     }, declarations);
+  });
+  test("one spelling: maintained reference projections refuse with executable scalar API repairs", async () => {
+    const declarations = `table ledger:
+  owner: principal
+  amount: money USD 2
+  decimal: decimal 3
+  public
+maintain counts = count ledger by owner:
+  read <- allow
+maintain balances = sum ledger of amount by owner:
+  read <- allow
+maintain decimals = sum ledger of decimal by owner:
+  read <- allow
+`;
+    for (const [table, expected] of [["counts", "number"], ["balances", 'Money<"USD", 2>'], ["decimals", "Decimal<3>"]]) {
+      for (const [binding, expression, optional] of [
+        ["", "c { * }", false], ["", "c.value", false], ["", "c tally", false],
+        ["  a = c\n", "a { * }", false], ["  a = c\n", "a.value", false], ["  a = c\n", "a tally", false],
+        ["", "c { * }", true], ["  a = c\n", "a.value", true], ["", "c tally", true],
+      ] as const) {
+        const source = `shape tally = { * }\nquery read(c: ${table}${optional ? " ?" : ""}):\n${binding}  return ${expression}\n`;
+        await withProject({ "snapback/schema.q": declarations, "snapback/probe.q": source }, async root => {
+          const lowered = await lowerProject(root);
+          assert(!lowered.ok, `${table}: ${expression} exposed a maintained row in api.d.ts`);
+          const diagnostic = lowered.diagnostics[0]!;
+          assert(diagnostic.code === "E_QUARRY_TYPE" && diagnostic.family === "quarry"
+            && diagnostic.site?.startsWith("snapback/probe.q:") && diagnostic.guide === "quarry/types", JSON.stringify(diagnostic));
+          const repair = `${table}[${binding ? "a" : "c"}${optional ? " ! else CODE" : ""}]`;
+          deepStrictEqual(diagnostic.rewrite, repair);
+          await project(source.replace(expression, repair), result => {
+            assert(result.apiDts.includes(`readonly read: Op<{ c${optional ? "?" : ""}: string${optional ? " | null" : ""} }, ${expected}>;`), result.apiDts);
+          }, declarations);
+        });
+      }
+    }
   });
   test("one spelling: compiler maintain query and mutation agree with engine and twin corpus values", async () => {
     const declarations = `table ledger:
@@ -221,11 +290,13 @@ maintain counts = count ledger by owner:
 `;
     await project(`query values(other: counts):
   return { present: counts[viewer], absent: counts[other] }
+query valuesGroup(other: principal):
+  return { present: counts[viewer], absent: counts[other] }
 mutation afterWrite(other: counts):
   insert ledger { id: new, owner: viewer }
   return { present: counts[viewer], absent: counts[other] }
 `, lowered => {
-      for (const [caseName, op] of [["maintain-value-query", "values"], ["maintain-value-after-write", "afterWrite"]]) {
+      for (const [caseName, op] of [["maintain-value-query", "values"], ["maintain-value-group-query", "valuesGroup"], ["maintain-value-after-write", "afterWrite"]]) {
         const corpus = JSON.parse(readFileSync(join(frontend, "../../corpus", `${caseName}.json`), "utf8"));
         const store = new ClientStore(lowered.project.schema, corpus.receipt);
         const program = operation(lowered.project.programs, `probe.${op}`);
@@ -555,9 +626,10 @@ query required(id: posts):
   });
 }
 
-/** Read the literal word decisions in the front end, including contextual
- * comparisons, lookup tables and intrinsic field declarations. This is not
- * a second vocabulary list: a new word in a decision changes this result. */
+/** Extract the front end's literal word dispatch: comparisons, switches,
+ * initializer aliases, parser calls, lookups and intrinsic declarations.
+ * Computed strings/regexes and cross-file aliases need explicit extractor
+ * support; this source-AST freeze is not a runtime vocabulary census. */
 export function recognizedQuarryWords(frontend: string): string[] {
   const words = new Set<string>();
   const directory = join(frontend, "src/quarry");
@@ -586,9 +658,18 @@ export function recognizedQuarryWords(frontend: string): string[] {
       } else if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)
         && node.expression.name.text === "map") literals(node.expression.expression);
     };
-    const wordOperand = (node: ts.Node): boolean => {
+    const wordOperand = (node: ts.Node, seen = new Set<ts.Node>()): boolean => {
+      if (seen.has(node)) return false;
+      seen.add(node);
+      if (ts.isParenthesizedExpression(node) || ts.isAsExpression(node) || ts.isNonNullExpression(node)) return wordOperand(node.expression, seen);
       if (ts.isPropertyAccessExpression(node)) return ["value", "name", "table", "column"].includes(node.name.text);
-      if (!ts.isIdentifier(node) || !["name", "unit", "policy"].includes(node.text)) return false;
+      if (ts.isElementAccessExpression(node) && ts.isStringLiteralLike(node.argumentExpression)) {
+        return ["value", "name", "table", "column"].includes(node.argumentExpression.text);
+      }
+      if (!ts.isIdentifier(node)) return false;
+      if (!["name", "unit", "policy"].includes(node.text)) {
+        return (declarations.get(node.text) ?? []).some(value => wordOperand(value, seen));
+      }
       // Object serialization's destructured property labels aren't authored word decisions.
       for (let parent = node.parent; parent; parent = parent.parent) {
         if (ts.isArrowFunction(parent)) return !parent.parameters.some(p => ts.isArrayBindingPattern(p.name));
@@ -597,15 +678,19 @@ export function recognizedQuarryWords(frontend: string): string[] {
       return true;
     };
     visit(source, node => {
-      if (ts.isBinaryExpression(node) && [ts.SyntaxKind.EqualsEqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsEqualsToken].includes(node.operatorToken.kind)) {
-        if (wordOperand(node.left) && ts.isStringLiteralLike(node.right)) literals(node.right);
-        if (wordOperand(node.right) && ts.isStringLiteralLike(node.left)) literals(node.left);
+      if (ts.isBinaryExpression(node) && [ts.SyntaxKind.EqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsToken,
+        ts.SyntaxKind.EqualsEqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsEqualsToken].includes(node.operatorToken.kind)) {
+        if (wordOperand(node.left)) literals(node.right);
+        if (wordOperand(node.right)) literals(node.left);
+      }
+      if (ts.isSwitchStatement(node) && wordOperand(node.expression)) {
+        for (const clause of node.caseBlock.clauses) if (ts.isCaseClause(clause)) literals(clause.expression);
       }
       if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)) {
         const call = node.expression;
         if (call.expression.kind === ts.SyntaxKind.ThisKeyword && ["at", "take", "maybe"].includes(call.name.text)) {
           node.arguments.forEach(arg => literals(arg));
-        } else if (["includes", "has", "get"].includes(call.name.text) && node.arguments.some(wordOperand)) {
+        } else if (["includes", "has", "get"].includes(call.name.text) && node.arguments.some(arg => wordOperand(arg))) {
           literals(call.expression);
         }
       }

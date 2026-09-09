@@ -711,7 +711,7 @@ fn validate_expr(
                         site: Some(read.site.clone()),
                         code: "E_ARGS_TYPE".to_owned(),
                         message: "connected requires one nonoptional principal".to_owned(),
-                        rewrite: "use exists connected[viewer] or connected[p] with p: principal"
+                        rewrite: "use connected[viewer] or exists connected[p] with p: principal"
                             .to_owned(),
                     });
                 }

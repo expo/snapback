@@ -312,7 +312,7 @@ test("a json column shaped like the byte variant rebuilds as application data, n
   }
 });
 
-test("every corpus query round-trips through atomic carrier snapshots and replays with its pinned execution inputs", async () => {
+test("corpus queries round-trip through atomic carriers or refuse native-only absence proofs", async () => {
   const cases = (await corpus()).filter((item: any) =>
     item.certificate !== null && item.program.kind === "Query" && item.prelude.length === 0 && item.replacementReceipt === null);
   assert.ok(cases.length >= 80, `corpus queries: ${cases.length}`);
@@ -326,6 +326,23 @@ test("every corpus query round-trips through atomic carrier snapshots and replay
     const root = await tempRoot();
     try {
       const facts = { generation, schemaHash, authEpoch: testCase.context.auth_epoch as number };
+      // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — primary-index absence projection.
+      // Native/evaluator receipts can carry grouping-index absences. The public
+      // wire deliberately admits only byId absences; retain that refusal rather
+      // than turning native conformance cases into new carrier capabilities.
+      if (testCase.receipt.absences.some(([, index]: any) => index !== "byId")) {
+        const store = fileRangeStore(root)();
+        await store.open(testCase.context.viewer);
+        try {
+          const { rows, receipt } = wireReceipt(testCase.receipt);
+          await assert.rejects(store.commit({ facts, schema: testCase.schema, deliveries: [{
+            op: testCase.name, args, state: "complete", data: wire(testCase.expected.localResult),
+            next: null, seq: 1, validator: hex("1"), rows, receipt,
+          }] }), /store receipts may evict only a primary byId absence/, testCase.name);
+        } finally { await store.close?.(); }
+        checked += 1;
+        continue;
+      }
       await seedCoverage(fileRangeStore(root), testCase.context.viewer, testCase, facts,
         fresh ? { op: testCase.name, args, data: wire(testCase.expected.localResult), next: testCase.expected.next ?? null } : undefined);
       // Hydration: the coverage the store holds is the corpus receipt, byte for byte.

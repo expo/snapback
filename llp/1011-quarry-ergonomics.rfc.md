@@ -21,7 +21,7 @@ ultra, grok-4.6 at xhigh), `llp/reviews/1011-quarry-ergonomics.*`
 **Implementer:** codex gpt-5.6-sol (xhigh), lane `s2/quarry-ergo`
 (`~/projects/snapback-s2`), orchestrated and landed by Claude Fable 5.1
 **Date:** 2026-09-03
-**Revised:** 2026-09-08 (one spelling: commissioned B1–B6, implemented by GPT-6 Astra in lane B); 2026-09-08 (one cursor-bearing page through composite records); 2026-09-08 (statement helpers, LLP 1018.005); 2026-09-07 (expression helpers refuse authorization assertions throughout nested shapes); 2026-09-07 (typed bound shape/function elaboration and one decimal representation); 2026-09-06 (session-delegated Unicode key/cursor integration contract, foundation only); 2026-09-06 (nested named-shape collection snapshots implemented by GPT-6 Astra; conditional page returns implemented by GPT-6 Astra; certification-derived provenance); 2026-09-05 (null keys and non-empty Id literals implemented by GPT-6 Astra, Clique L2); 2026-09-05 (d — Codex implements imported shapes, read-authorized
+**Revised:** 2026-09-08 (one spelling review fixes: maintained reference repairs, source word dispatch coverage, engine/twin numeric and visibility evidence); 2026-09-08 (one spelling: commissioned B1–B6, implemented by GPT-6 Astra in lane B); 2026-09-08 (one cursor-bearing page through composite records); 2026-09-08 (statement helpers, LLP 1018.005); 2026-09-07 (expression helpers refuse authorization assertions throughout nested shapes); 2026-09-07 (typed bound shape/function elaboration and one decimal representation); 2026-09-06 (session-delegated Unicode key/cursor integration contract, foundation only); 2026-09-06 (nested named-shape collection snapshots implemented by GPT-6 Astra; conditional page returns implemented by GPT-6 Astra; certification-derived provenance); 2026-09-05 (null keys and non-empty Id literals implemented by GPT-6 Astra, Clique L2); 2026-09-05 (d — Codex implements imported shapes, read-authorized
 write results, and order-preserving filter repairs under the author's request
 to advance Quarry); 2026-09-03 (c — implemented: §8 records the two lane commits
 and the one re-pinned expectation); 2026-09-03 (b — after the panel: `fn` deferred and `shape` kept;
@@ -79,11 +79,9 @@ unbounded program. B1 changes the normative typed-state and wire contracts
   2026-09-07:** real chat migration found reusable membership predicates and
   bounded membership reads while callers retained their own refusal codes.
   The implemented form below is expression-only and read-pure.
-- **Superseded 2026-09-08 by §One spelling: narrowing inside `x != null and R`.** Right operands lower with their
-  preludes before the runtime `&&` (`program.ts:319–325`), so a point read in
-  `R` would execute unconditionally on an absent `x`. Deferred until
-  right-hand preludes are conditionally lowered; `if` narrowing covers every
-  site in the corpus.
+- **Historical, superseded 2026-09-08 by §One spelling:** the deleted TS lowering's
+  unconditional right-hand preludes once prevented `and` narrowing; `bound.ts`
+  now narrows the right operand and `direct.ts`'s `lowerBinary` runs its preludes conditionally.
 - Ad-hoc filters, in programs or in the dev tool. `data --filter` was a
   post-filter on a bounded dump — `where` returning through the CLI — and
   is struck. Exploration is `data --index --prefix`, and after B1 `--after`.
@@ -388,13 +386,12 @@ the Clique fixture carries `if m.lastDeliveredAt != null:` followed by
 
 **Amendment.** `if x != null:` narrows `x` to non-optional in its `then`
 branch, where `x` is a bound name or **one** field of a bound row. Soundness
-rests on binding identity, not spelling: the lowering already clones the
-environment per branch (`Environment.clone`, `program.ts:56–62`), the
-narrowing attaches to the binding object in the clone, and a shadowing
-rebind replaces the object and drops the narrowing (`bindings.set`,
-`:118–119`). A one-hop field of a bound row is a property access on a
-snapshot value, not a dereference (`emitMember`, `:409–433`), and a later
-`update` does not mutate the bound value. The original deferral of conjunct
+rests on binding identity: `quarry/bound.ts`'s `narrowedScope` clones the
+bound-symbol scope, preserving each symbol ID and refining its type or
+`narrowedMembers`; a shadowing declaration binds a fresh symbol.
+`quarry/direct.ts` maps symbol IDs to IR values. Its `lowerExpression`
+member arm reads a bound row snapshot; a later `update` does not mutate
+that snapshot. The original deferral of conjunct
 narrowing is **superseded 2026-09-08 by §One spelling**: the direct lowering
 conditionally executes right-hand preludes. The else branch of `if x = null`
 and the remainder after a successful `require x != null` narrow too.
@@ -596,9 +593,27 @@ B6. Every `.q` in the repository (templates, corpus, fixtures, guide snippets, b
 only its point reads bind as a numeric aggregate; ordinary tables with a
 `value` column remain row reads. The existing engine/twin row get, null
 check and typed zero implement the value read, preserving authority and
-same-mutation writes. Two new shared corpus cases exercise present and
-absent counts in a query and after a mutation insert; compiler lowering
-replays the same receipts. Names and one-hop fields narrow by binding
-identity on the proven path. The word pin derives the recognized set from
-front-end word comparisons/lookups and intrinsic declarations, including
-refused words and reserved API names, without a second vocabulary registry.
+same-mutation writes. Implicit typed-reference row projections and member
+access, including aliases and named shapes, refuse in `bound.ts`'s `shapeBase`
+with a canonical bracket-read repair; optional references first require
+`! else CODE`. Count, money and decimal API regressions compile the repairs.
+The shared corpus covers grouping-index and by-id absence, existing and
+new-group same-mutation counts and branded sums, and unreadable groups.
+Hidden rows contribute no payload or absence to the receipt. The server
+returns typed zero; receipt-only replay computes the same value but remains
+partial at each uncovered point, never a falsely established zero. Compiler
+lowering replays those native typed results and custody states.
+Names and one-hop fields narrow by binding identity on the proven path.
+
+**Source word freeze (review revision, 2026-09-08).** One sorted literal pins
+121 words. The extractor scans `src/quarry/*.ts` for literal equality/inequality
+comparisons and switch labels on `value`, `name`, `table`, or `column` properties
+(dot/bracket access), contextual `name`/`unit`/`policy` variables and their
+initializer aliases; parser `this.at/take/maybe` calls; literal array/Set/Map
+lookups; lexer word arrays; and intrinsic `name` declarations in catalog/index.
+It includes refused words and reserved API module names (`channels`, `op`,
+`then`, `toJSON`), not just accepted grammar keywords. Regression probes exercise
+switches, aliases, equality and lookups. This is a source-AST freeze, not a runtime
+census: computed strings, regex dispatch, cross-file aliases and dispatch outside
+that directory are not inferred. New dispatch mechanisms must extend this same
+extractor; adding a significant word still requires the B5 literal and Moves edit.

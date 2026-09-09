@@ -92,17 +92,16 @@ so is an `or` with an arm proven true by the prefix.
 
 ## Maintains
 
-`maintain` builds count/sum targets with source group types: count is int; sum
-value matches its int/decimal/money source. The group
-index is unique; the block gives its read rule; user writes are denied.
+`maintain` builds count/sum targets with source group types: count is int;
+sum matches its source. Each has a unique group index and read rule; user writes refuse.
 
-`readable <- rule` discloses an aggregate so certification may rely on its
-summary when raw-source reads are non-uniform (`E_DISCLOSURE`); the target's
-`read` rule still applies.
+`readable <- rule` permits certification over non-uniform sources (`E_DISCLOSURE`);
+the target's `read` still applies.
 
 `total[key]` yields its typed value or typed zero when absent/unreadable;
 a later point read in a mutation reflects earlier writes. The `data` verb and
-rules still see maintain rows; program point reads and API types see the value.
+rules still see rows; API types see values. For `c: total`, `c.value` and `c { * }`
+(also aliases/named shapes) refuse: use `total[c]`; assert optional `c` first.
 
 ```q
 maintain messageCounts = count messages by conversationId:

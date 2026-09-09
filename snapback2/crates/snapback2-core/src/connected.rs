@@ -169,7 +169,7 @@ mod tests {
             let diagnostic = errors.iter().find(|error| error.code == "E_ARGS_TYPE").unwrap();
             assert_eq!(diagnostic.message, "connected requires one nonoptional principal");
             assert_eq!(diagnostic.rewrite,
-                "use exists connected[viewer] or connected[p] with p: principal");
+                "use connected[viewer] or exists connected[p] with p: principal");
         }
         let mut read = read();
         read.index = "byId".into();
