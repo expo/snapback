@@ -59,6 +59,10 @@ No login rate limit. Wrong passwords/unknown emails both yield `E_AUTH_INVALID`.
 Signup authenticates before profile creation; missing profiles need onboarding.
 Each successful signup response also installs the first replay grant, so a
 durable client can create that profile immediately without login or resume.
+Account creation and grant allocation are separate owner transactions. A late
+grant/storage failure can report signup failure after the account exists; once
+the owner recovers, offer login with the same credentials instead of assuming
+the account rolled back. This recovery is not part of a normal successful signup.
 The chat template's `createMyProfile` uses `if absent`: committed `null` can mean
 an existing profile or an occupied handle. Read `profiles.mine`; if absent, retry
 with another handle without repeating signup. Show other rejected results too.
