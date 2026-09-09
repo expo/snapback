@@ -1,5 +1,5 @@
-import { assertRefused } from "./live-fixture.ts";
-import { isRefusalError } from "../dist/client-observed-test.mjs";
+import { assertRefused, fixtureClient as createClient } from "./live-fixture.ts";
+import { isRefusalError, RefusalError } from "../dist/client-observed-test.mjs";
 import { subscribe } from "../src/internal.js";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
@@ -9,15 +9,12 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
 import { api, browserTokenStore } from "../dist/client.mjs";
-import { RefusalError } from "../dist/client-observed-test.mjs";
-import { fixtureClient as createClient } from "./live-fixture.ts";
 import { decodeDeliveryEnvelope, schemaDigest } from "../dist/index.mjs";
 import { indexedDbRangeStore } from "../dist/react.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
 import { sqliteFactory } from "./sqlite-fixture.ts";
 import { offlineView } from "../dist/sqlite-test.mjs";
 import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
-
 import { certifiedDrain, certifiedDrainEnvelope, certifiedDrainMetadataResponse, generation, schemaHash, planHash, metadataResponse } from "./offline-metadata-fixture.ts";
 
 const emptyReceipt = () => ({ ranges: [], absences: [], verdicts: [] });
@@ -50,7 +47,6 @@ const messageSchema = {
 };
 
 const evictionSchema = { tables: { messages: { ...messageSchema.tables.messages, indexes: { byConvTime: messageSchema.tables.messages.indexes.byConversationAt } } } };
-
 const range = (overrides: Record<string, unknown> = {}) => ({
   site: "thread.range",
   table: "messages",

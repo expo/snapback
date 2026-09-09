@@ -71,7 +71,7 @@ test("cyclic mutation arguments release uploaded bytes without sending a mutatio
     for (let index = 0; index < 24; index++) {
       await assertRefused(client.mutation(api.messages.sendPhoto, {
         conversationId: "conversation-1", photo: new File([png], "photo.png"), metadata,
-      } as any), TypeError);
+      } as any), (value: any) => value.state === "rejected" && /circular|cyclic/i.test(value.message));
       const listing = await client.listUploads();
       assert.deepEqual(listing.usage, { bytes: 0, objects: 0 });
       assert.deepEqual(listing.uploads, []);

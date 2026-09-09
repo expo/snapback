@@ -99,7 +99,7 @@ test("a lost committed media response retains the claimed asset and explicit dis
     const png = await readFile(new URL("../../../scripts/witness-expo/view-once.png", import.meta.url));
     await assertRefused(client.mutation(api.messages.sendPhoto, {
       conversationId: "conversation-1", photo: new File([png], "photo.png"),
-    }), (error: any) => error.code === "E_NETWORK");
+    }), (error: any) => error.code === "E_TRANSPORT");
     assert.equal(discards, 0, "an ambiguous response never triggers cleanup");
     assert.ok(!(await client.listUploads()).uploads.some((upload) => upload.id === photo.id));
     await assert.rejects(client.discardUpload(photo.id), (error: any) => error.code === "E_ASSET_IN_USE");

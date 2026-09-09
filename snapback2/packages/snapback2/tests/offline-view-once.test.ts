@@ -543,7 +543,7 @@ test("web asset fetch reads the live transport cut after a paused cache miss", a
       const url = (await client.assetUrl(photo(A)))!;
       client.assetCache!.getBytes = async () => { reading.resolve(); await gate.promise; return undefined; };
       const pending = client[method](url);
-      const refused = assert.rejects(pending, (error: any) => error.code === "E_NETWORK");
+      const refused = assert.rejects(pending, (error: any) => error.code === "E_TRANSPORT");
       await reading.promise; await client.offline(); gate.resolve(); await refused;
       assert.equal(owner.state.assetFetches, 0); assert.equal(client.snapshot.connection, "offline");
     } finally { gate.resolve(); await client.close(); await rm(directory, { recursive: true, force: true }); }

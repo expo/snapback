@@ -1,6 +1,7 @@
 import { Directory, File, Paths } from "expo-file-system";
 import { expoSqliteDriver } from "snapback2/expo";
-import type { AssetRecord, OutboxEntry, RangeStore, StoreSwap } from "snapback2/client";
+import type { AssetRecord, OutboxEntry, RangeStore } from "snapback2/client";
+import type { StoreSwap } from "snapback2/internal";
 
 export const DATABASE = "snapback2-witness.db";
 export interface Configuration { offline: boolean; fault: "carrier" | "none"; name: string; assets: AssetRecord[] }

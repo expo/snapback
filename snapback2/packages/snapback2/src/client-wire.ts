@@ -176,7 +176,7 @@ export function wireMutation<Result>(value: unknown): MutationResult<Result> {
     case "committed":
       return { state: "committed", data: present(record, "data", surface) as Result, seq: numberField(record, "seq", surface) };
     case "rejected":
-      return { state: "rejected", ...wireRefusal(record, "mutation rejected response") };
+      return { state: "rejected", ...copyRefusal(wireRefusal(record, "mutation rejected response")) };
     default:
       throw wireShape(`${surface}.state must be committed or rejected`);
   }

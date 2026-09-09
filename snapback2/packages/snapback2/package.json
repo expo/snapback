@@ -47,7 +47,7 @@
       "import": "./dist/expo/witness.mjs"
     },
     "./internal": {
-      "types": "./src/internal.d.ts",
+      "types": "./dist/internal-access.d.ts",
       "import": "./src/internal.js"
     }
   },
@@ -61,8 +61,7 @@
     "expo-module.config.json",
     "android/build.gradle",
     "android/src",
-    "src/internal.js",
-    "src/internal.d.ts"
+    "src/internal.js"
   ],
   "scripts": {
     "build": "node build.mjs",

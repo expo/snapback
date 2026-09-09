@@ -40,12 +40,9 @@ journey("Clique Pay covers wallets, exact splits, settlement, and privacy", asyn
   expectRejected(await alice.mutation(api.pay.sendMoney, { to: "user-bob", amount: 100000, note: null }), "INSUFFICIENT_FUNDS");
   expectRejected(await alice.mutation(api.pay.sendMoney, { to: "user-alice", amount: 1, note: null }), "SELF_PAY");
   expectRejected(await alice.mutation(api.pay.sendMoney, { to: "user-bob", amount: 0, note: null }), "NOT_POSITIVE");
-  let fractionalRefused = false;
-  try {
-    await alice.mutation(api.pay.sendMoney, { to: "user-bob", amount: 2.5, note: null });
-  } catch (error) {
-    fractionalRefused = String(error).includes("numeric arguments must be integers");
-  }
+  const fractional = await alice.mutation(api.pay.sendMoney, { to: "user-bob", amount: 2.5, note: null });
+  const fractionalRefused = fractional.state === "rejected"
+    && fractional.message.includes("numeric arguments must be integers");
   if (!fractionalRefused) throw new Error("fractional money input was not refused before dispatch");
   const aliceAfterRefusals = expectData<any[]>(await alice.query(api.pay.myLedger, {}), "Alice ledger after refusals");
   if (aliceAfterRefusals.length !== aliceLedger.length) throw new Error("a refused send wrote ledger state");

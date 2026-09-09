@@ -78,7 +78,7 @@ export class RealOwnerHarness {
     this.mode = options.mode;
   }
 
-  static async create(options: { fullChat?: boolean; withDeliveries?: boolean; fixture?: string } = {}): Promise<RealOwnerHarness> {
+  static async create(options: { fullChat?: boolean; withDeliveries?: boolean; fixture?: string; prepare?(root: string): Promise<void> } = {}): Promise<RealOwnerHarness> {
     const external = process.env.SNAPBACK_URL;
     if (external) return new RealOwnerHarness({ owned: false, url: external, mode: "external" });
 
@@ -88,6 +88,7 @@ export class RealOwnerHarness {
     try {
       await cp(options.fixture ?? (options.fullChat ? join(packageRoot, "templates/chat/snapback") : join(fixture, "snapback")), join(root, "snapback"), { recursive: true });
       if (!options.fixture) await addIntegrationOperations(root, options.withDeliveries ?? false);
+      await options.prepare?.(root);
       // `dev --foreground` compiles and certifies the project, loads its seed,
       // and opens the runtime before it publishes SNAPBACK_URL. A separate
       // `check` here repeats that complete startup admission in every test file.

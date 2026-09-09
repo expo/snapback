@@ -5,7 +5,7 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { api, createClient } from "../dist/client.mjs";
-import { RefusalError } from "../dist/client-observed-test.mjs";
+import { isRefusalError } from "../dist/client-observed-test.mjs";
 import { initialQueryState, reduceQueryState } from "../dist/react-core.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
 import { fakeOwner, seededStore } from "./fake-owner.ts";
@@ -33,7 +33,7 @@ test("unsupported drain reaches callback and matching waiter; current and later 
     assert.equal(refused.state, "refused");
     assert.equal((refused as any).shape, "descending");
     await waiting;
-    await assert.rejects(sub.until(event => event.caughtUp === true, 500), RefusalError);
+    await assert.rejects(sub.until(event => event.caughtUp === true, 500), isRefusalError);
     assert.equal(queries, 0, "refusal precedes pages and a watermark");
     assert.equal(events.length, 1);
     assert.equal((await client.query(api.deliveries.inbox as any, { c: null })).state, "capped");
@@ -93,7 +93,7 @@ test("legacy backward resume stays refused across offline reopen; coverage, queu
     assert.deepEqual(committed[0].ids, entries[0].ids);
     assert.equal(committed[0].intent, entries[0].intent);
     assert.equal(client.snapshot.lastRefusal?.reason, "unsupported-log");
-    await assert.rejects(client.online(), RefusalError);
+    await assert.rejects(client.online(), isRefusalError);
     sub.close();
     await client.close();
     client = createClient(options);
@@ -102,7 +102,7 @@ test("legacy backward resume stays refused across offline reopen; coverage, queu
     assert.deepEqual((await client.outbox.entries()).map(e => [e.intent, e.ids, e.state]), committed.map(e => [e.intent, e.ids, e.state]));
     const reopened = subscribe(client, api.deliveries.inbox as any, { c: null }, () => {}, { drain: true });
     assert.equal((await reopened.until(event => event.state === "refused", 500)).state, "refused");
-    await assert.rejects(client.online(), RefusalError);
+    await assert.rejects(client.online(), isRefusalError);
     reopened.close();
     assert.equal(owner.executions.length, 1);
   } finally { await client.close(); }
@@ -111,7 +111,7 @@ test("legacy backward resume stays refused across offline reopen; coverage, queu
 test("React refusal reduction preserves structured log diagnostics", () => {
   const view = reduceQueryState(initialQueryState(), { state: "refused", live: false, ...unsupported });
   assert.equal(view.state, "refused");
-  if (view.state === "refused") for (const field of ["code", "reason", "op", "shape", "which"] as const) {
+  if (view.state === "refused") for (const field of ["code", "family", "message", "reason", "site", "rewrite", "guide"] as const) {
     assert.equal(view.refusal[field], unsupported[field]);
   }
 });

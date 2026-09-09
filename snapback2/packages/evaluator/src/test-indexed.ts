@@ -241,7 +241,7 @@ await carrier.commit({ tombstones: [{ table: 'messages', id: 'c0', seq: 3 }], sc
 const negativeDelta = await carrier.changes(warm);
 assert.equal(negativeDelta.records?.negative?.['messages\0c0'], 3);
 assert(negativeDelta.removed?.rows?.includes('messages\0c0'));
-assert.equal(durable.answers['search\0' + JSON.stringify({ c: null, room: 'r', term: 'c0' })]?.state, 'partial');
+assert.equal(durable.answers['search\0' + JSON.stringify({ room: 'r', term: 'c0' })]?.state, 'partial');
 console.log('atomic carrier delta, immutable snapshot, metadata and rollback regressions passed');
 
 // A single Q2000 source shared by 100 disjoint ranges is normalized once, including post-execution coverage.

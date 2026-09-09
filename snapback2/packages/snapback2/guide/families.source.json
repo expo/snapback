@@ -30,6 +30,12 @@
     "right": "createClient({ url, persona: \"alice\" }).query(api.todos.list, {})"
   },
   {
+    "family": "transport",
+    "code": "E_TRANSPORT",
+    "wrong": "```text\nAssume a mutation committed when the owner could not be reached.\n```",
+    "right": "```text\nInspect the returned state. A transport failure resolves as rejected (writes) or refused (reads), with family transport and retryable: true. Restore the connection and retry. See guide live-query.\n```"
+  },
+  {
     "family": "args",
     "code": "E_ARGS_TYPE",
     "wrong": "client.query(api.messages.thread, { conversationId: 1 })",

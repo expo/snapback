@@ -19,7 +19,7 @@ import {
 } from "./byte-cache.js";
 import { admitOverlayAuthority, markDeliveredArrivals, pagePosition, recordOverlayAuthorityEvidence, retireOverlays,
   type OverlayAuthorityEvidence, type OverlayWatermark } from "./overlay-retirement.js";
-import { canonical, canonicalAnswerKey, jsonState } from "./canonical.js";
+import { canonical, canonicalAnswerKey, jsonState, queryArgs } from "./canonical.js";
 export { canonicalAnswerKey, jsonState } from "./canonical.js";
 import { ItemCapture, freshItemSelection } from "../query-items.js";
 import { withItemInputs } from "../query-frame.js";
@@ -1132,7 +1132,7 @@ export class PersistentRangeStore implements RangeStore {
       remember(key);
       const old = raw(state.answers[key]);
       const fingerprintPayload = {
-        op: delivery.op, args: delivery.args, state: delivery.state, data: delivery.data,
+        op: delivery.op, args: queryArgs(delivery.args), state: delivery.state, data: delivery.data,
         next: delivery.next, seq: delivery.seq, validator: delivery.validator,
         receipt: delivery.receiptEvidence ?? delivery.receipt, rows: delivery.rows, reason: delivery.reason, rule: delivery.rule,
         ...(delivery.readTime === undefined ? {} : { readTime: delivery.readTime, clockPlanHash: delivery.clockPlanHash }),

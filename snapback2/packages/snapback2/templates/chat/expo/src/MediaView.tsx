@@ -1,5 +1,5 @@
 import React, { useCallback } from "react";
-import type { AssetRecord } from "snapback2/client";
+import type { AssetRecord, Refusal } from "snapback2/client";
 import { AssetImage, AssetVideo } from "snapback2/react-native";
 
 export interface Media {
@@ -20,7 +20,7 @@ export function MediaView({ media }: { media: Media }) {
     if (media.once ? uri.startsWith("data:") : uri.startsWith("file://"))
       media.resolve({ loaded: true, uri, ...( "duration" in media.asset ? { playing: true } : {}) });
   }, [media]);
-  const refusal = useCallback((error: { envelope: unknown }) => media.resolve({ loaded: false, refusal: error.envelope }), [media]);
+  const refusal = useCallback((refusal: Refusal) => media.resolve({ loaded: false, refusal }), [media]);
   return "duration" in media.asset
     ? <AssetVideo asset={media.asset} width={64} autoPlay={!media.hidden} testID="witness-media"
         onSourceChange={source} onPlaybackStart={loaded} onRefusal={refusal} />

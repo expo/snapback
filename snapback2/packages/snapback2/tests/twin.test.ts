@@ -316,92 +316,88 @@ test("a json column shaped like the byte variant rebuilds as application data, n
   }
 });
 
-test("every corpus query round-trips through atomic carrier snapshots and replays with its pinned execution inputs", async () => {
-  const cases = (await corpus()).filter((item: any) =>
-    item.certificate !== null && item.program.kind === "Query" && item.prelude.length === 0 && item.replacementReceipt === null);
-  assert.ok(cases.length >= 80, `corpus queries: ${cases.length}`);
+const roundTripCases = (await corpus()).filter((item: any) =>
+  item.certificate !== null && item.program.kind === "Query" && item.prelude.length === 0 && item.replacementReceipt === null);
+test("corpus round-trip inventory includes at least 80 queries and 60 byte-identical fresh answers", () => {
+  assert.ok(roundTripCases.length >= 80, `corpus queries: ${roundTripCases.length}`);
+  assert.ok(roundTripCases.filter((item: any) => item.expected.localState === "fresh"
+    && item.category !== "connected" && item.context.read_time === null).length >= 60);
+});
+for (const testCase of roundTripCases) test(`atomic carrier round-trip with pinned inputs: ${testCase.name}`, async () => {
   const generation = hex("3");
-  let checked = 0;
-  let byteIdentical = 0;
-  for (const testCase of cases) {
-    const schemaHash = testCase.certificate.schema_hash as string;
-    const args = Object.fromEntries(Object.entries(testCase.context.args as Record<string, Tagged>).map(([name, value]) => [name, wire(value)]));
-    const fresh = testCase.expected.localState === "fresh";
-    const root = await tempRoot();
-    try {
-      const facts = { generation, schemaHash, authEpoch: testCase.context.auth_epoch as number };
-      await seedCoverage(fileRangeStore(root), testCase.context.viewer, testCase, facts,
-        fresh ? { op: testCase.name, args, data: wire(testCase.expected.localResult), next: testCase.expected.next ?? null } : undefined);
-      // Hydration: the coverage the store holds is the corpus receipt, byte for byte.
-      const store = fileRangeStore(root)();
-      await store.open(testCase.context.viewer);
-      const rebuilt = receiptFromSnapshot((await store.changes()).snapshot, testCase.schema, schemaHash, testCase.program);
-      assert.equal(canonical(rebuilt), canonical(holdableReceipt(testCase.receipt, schemaHash)), `${testCase.name}: hydration bytes`);
-      const heldAnswer = fresh ? await store.answer(testCase.name, args) : undefined;
-      await store.close?.();
-      // Local evaluation through the client, offline, against the corpus expectation.
-      const owner = corpusOwner({
-        viewer: testCase.context.viewer, generation, schemaHash, schema: testCase.schema,
-        programs: { [testCase.name]: { kind: "query", cursor: corpusPageCursors[testCase.name], ir: typedProgram(testCase), certificate: testCase.certificate } },
-      });
-      const client = createClient({ url: "http://corpus.test", token: "bearer", fetch: owner.fetch, offline: { store: fileRangeStore(root) } });
-      await client.ready;
-      await client.offline();
-      // The public query clock samples local time; native corpus values pin a different clock.
-      if (testCase.category === "connected") {
-        const answer: any = await client.query((api as any)[testCase.name], args);
-        assert.deepEqual(answer, { state: "hydrating", live: false, connection: "offline" });
-        checked += 1;
-        await client.close();
-        continue;
-      }
-      if (testCase.context.read_time !== null) {
-        const clockStore = fileRangeStore(root)(); await clockStore.open(testCase.context.viewer);
-        const held = (await clockStore.outbox.programs())[generation];
-        const pinned = new Twin({ program: () => held, changes: (since: any) => clockStore.changes(since), principal: () => testCase.context.viewer,
-          now: () => testCase.context.read_time, seq: () => 1 });
-        const answer = await pinned.evaluate(testCase.name, args);
-        assert.equal(canonical(answer?.data), canonical(wire(testCase.expected.localResult)), `${testCase.name}: explicit local clock parity`);
-        await clockStore.close?.(); checked += 1; await client.close(); continue;
-      }
-      const local: any = await client.query((api as any)[testCase.name], args).catch((error: unknown) => {
-        assert.equal(testCase.expected.localState, "refused", `${testCase.name}: unexpected refusal`);
-        assert.ok(isRefusalError(error) && error.message.includes(testCase.expected.errorCode), `${testCase.name}: ${error}`);
-        return { state: "refused" };
-      });
-      const expected = testCase.expected;
-      if (expected.localState === "fresh") {
-        assert.ok(local.state === "complete" || local.state === "capped", `${testCase.name}: ${local.state} ${local.reason ?? ""}`);
-        assert.equal(canonical(local.data), canonical(wire(expected.localResult)), `${testCase.name}: data`);
-        if (Object.hasOwn(expected, "next")) {
-          // The public search cursor adds local fences around the engine's exact ordinary suffix token.
-          const next = typeof local.next === "string" && local.next.startsWith("h1.") ? JSON.parse(local.next.slice(3))[4] : local.next;
-          assert.equal(next, expected.next, `${testCase.name}: next`);
-        }
-        assert.equal(canonical(local.data), canonical(heldAnswer!.data), `${testCase.name}: the twin's replay is the held answer's bytes`);
-        assert.equal(local.seq, heldAnswer!.seq, `${testCase.name}: the held answer's facts stay with the twin's data`);
-        byteIdentical += 1;
-      } else if (expected.localState === "partial") {
-        assert.equal(local.state, "partial", `${testCase.name}: ${local.state}`);
-        assert.deepEqual(local.sites.map((site: { site: string }) => site.site).sort(), [...expected.partialSites].sort(), `${testCase.name}: partial sites`);
-        assert.ok(["never-held", "evicted", "computed-key"].includes(local.reason), `${testCase.name}: reason ${local.reason}`);
-      } else if (expected.localState === "denied") {
-        assert.equal(local.state, "denied", `${testCase.name}: ${local.state}`);
-        assert.equal(local.rule, expected.errorCode, `${testCase.name}: rule`);
-      } else if (!testCase.name.startsWith("asset-") && Object.values(testCase.context.args as Record<string, Tagged>).every((value) =>
-        value === "Null" || "Bool" in value || "Int" in value || "String" in value || "Id" in value)) {
-        // A refusal the corpus pins on its untyped `Scalar` arguments is not reproducible under typed descriptors;
-        // tagging can still be unavailable, but a covered execution refusal is reported.
-        assert.ok(local.state === "hydrating" || local.state === "refused", `${testCase.name}: ${local.state}`);
-      }
-      checked += 1;
+  const schemaHash = testCase.certificate.schema_hash as string;
+  const args = Object.fromEntries(Object.entries(testCase.context.args as Record<string, Tagged>).map(([name, value]) => [name, wire(value)]));
+  const fresh = testCase.expected.localState === "fresh";
+  const root = await tempRoot();
+  try {
+    const facts = { generation, schemaHash, authEpoch: testCase.context.auth_epoch as number };
+    await seedCoverage(fileRangeStore(root), testCase.context.viewer, testCase, facts,
+      fresh ? { op: testCase.name, args, data: wire(testCase.expected.localResult), next: testCase.expected.next ?? null } : undefined);
+    // Hydration: the coverage the store holds is the corpus receipt, byte for byte.
+    const store = fileRangeStore(root)();
+    await store.open(testCase.context.viewer);
+    const rebuilt = receiptFromSnapshot((await store.changes()).snapshot, testCase.schema, schemaHash, testCase.program);
+    assert.equal(canonical(rebuilt), canonical(holdableReceipt(testCase.receipt, schemaHash)), `${testCase.name}: hydration bytes`);
+    const heldAnswer = fresh ? await store.answer(testCase.name, args) : undefined;
+    await store.close?.();
+    // Local evaluation through the client, offline, against the corpus expectation.
+    const owner = corpusOwner({
+      viewer: testCase.context.viewer, generation, schemaHash, schema: testCase.schema,
+      programs: { [testCase.name]: { kind: "query", cursor: corpusPageCursors[testCase.name], ir: typedProgram(testCase), certificate: testCase.certificate } },
+    });
+    const client = createClient({ url: "http://corpus.test", token: "bearer", fetch: owner.fetch, offline: { store: fileRangeStore(root) } });
+    await client.ready;
+    await client.offline();
+    // The public query clock samples local time; native corpus values pin a different clock.
+    if (testCase.category === "connected") {
+      const answer: any = await client.query((api as any)[testCase.name], args);
+      assert.deepEqual(answer, { state: "hydrating", live: false, connection: "offline" });
       await client.close();
-    } finally {
-      await rm(root, { recursive: true, force: true });
+      return;
     }
+    if (testCase.context.read_time !== null) {
+      const clockStore = fileRangeStore(root)(); await clockStore.open(testCase.context.viewer);
+      const held = (await clockStore.outbox.programs())[generation];
+      const pinned = new Twin({ program: () => held, changes: (since: any) => clockStore.changes(since), principal: () => testCase.context.viewer,
+        now: () => testCase.context.read_time, seq: () => 1 });
+      const answer = await pinned.evaluate(testCase.name, args);
+      assert.equal(canonical(answer?.data), canonical(wire(testCase.expected.localResult)), `${testCase.name}: explicit local clock parity`);
+      await clockStore.close?.(); await client.close(); return;
+    }
+    const local: any = await client.query((api as any)[testCase.name], args).catch((error: unknown) => {
+      assert.equal(testCase.expected.localState, "refused", `${testCase.name}: unexpected refusal`);
+      assert.ok(isRefusalError(error) && error.message.includes(testCase.expected.errorCode), `${testCase.name}: ${error}`);
+      return { state: "refused" };
+    });
+    const expected = testCase.expected;
+    if (expected.localState === "fresh") {
+      assert.ok(local.state === "complete" || local.state === "capped", `${testCase.name}: ${local.state} ${local.reason ?? ""}`);
+      assert.equal(canonical(local.data), canonical(wire(expected.localResult)), `${testCase.name}: data`);
+      if (Object.hasOwn(expected, "next")) {
+        // The public search cursor adds local fences around the engine's exact ordinary suffix token.
+        const next = typeof local.next === "string" && local.next.startsWith("h1.") ? JSON.parse(local.next.slice(3))[4] : local.next;
+        assert.equal(next, expected.next, `${testCase.name}: next`);
+      }
+      assert.equal(canonical(local.data), canonical(heldAnswer!.data), `${testCase.name}: the twin's replay is the held answer's bytes`);
+      assert.equal(local.seq, heldAnswer!.seq, `${testCase.name}: the held answer's facts stay with the twin's data`);
+    } else if (expected.localState === "partial") {
+      assert.equal(local.state, "partial", `${testCase.name}: ${local.state}`);
+      assert.deepEqual(local.sites.map((site: { site: string }) => site.site).sort(), [...expected.partialSites].sort(), `${testCase.name}: partial sites`);
+      assert.ok(["never-held", "evicted", "computed-key"].includes(local.reason), `${testCase.name}: reason ${local.reason}`);
+    } else if (expected.localState === "denied") {
+      assert.equal(local.state, "denied", `${testCase.name}: ${local.state}`);
+      assert.equal(local.rule, expected.errorCode, `${testCase.name}: rule`);
+    } else if (!testCase.name.startsWith("asset-") && Object.values(testCase.context.args as Record<string, Tagged>).every((value) =>
+      value === "Null" || "Bool" in value || "Int" in value || "String" in value || "Id" in value)) {
+      // A refusal the corpus pins on its untyped `Scalar` arguments is not reproducible under typed descriptors;
+      // tagging can still be unavailable, but a covered execution refusal is reported.
+      assert.ok(local.state === "hydrating" || local.state === "refused", `${testCase.name}: ${local.state}`);
+    }
+
+    await client.close();
+  } finally {
+    await rm(root, { recursive: true, force: true });
   }
-  assert.equal(checked, cases.length);
-  assert.ok(byteIdentical >= 60, `covered replays proven byte-identical: ${byteIdentical}`);
 });
 
 /** The messenger corpus: `named-thread` (query), `named-send` and `named-delete-message` (mutations) share one schema. */

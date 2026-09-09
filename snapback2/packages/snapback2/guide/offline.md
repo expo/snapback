@@ -59,14 +59,13 @@ use a new upload/intent; never rewrite args.
 
 ## Resume
 
-Equal validators mean unchanged. Resume reauthorizes held rows and follows the
+`/api/resume` compares receipt validators. Resume reauthorizes held rows and follows the
 log before mounted queries, up to 1 MiB per response. Only the mounted-limit
 refusal allows one smaller retry. Backward watermarks keep `online()` refused
 across reopen; coverage, grants, IDs and queue stay. Drain may replay in
 existing trust; write success does not repair a refused resume.
 
-E_OFFLINE_RESET drops coverage, keeps the outbox, fetches the program and
-resumes. E_AUTH_SESSION seals; E_OFFLINE_AUTHORITY retains coverage.
+E_OFFLINE_RESET: drop coverage, keep outbox, fetch program, re-resume. E_AUTH_SESSION seals; E_OFFLINE_AUTHORITY retains coverage.
 
 ## Grants and bytes
 

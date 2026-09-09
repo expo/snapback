@@ -1,4 +1,4 @@
-import { internalSubscribe, internalConsumers } from "./internal.js";
+import { internalSubscribe, internalConsumers } from "./internal-access.js";
 import { mayNeedAssetPlanning } from "./assets.js";
 import { ClientAuth, anonymousAuth, restoreAuthToken, saveAuthToken, storageRefusal, ensureBearerTransition } from "./client-auth.js";
 import { SharedSse } from "./live.js";

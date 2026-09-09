@@ -19,7 +19,7 @@ test("built Quarry API preserves row and channel types in a packaged Expo consum
     // missing package declarations. Only ordinary installed dependencies link out.
     await cp(join(packageRoot, "package.json"), join(installed, "package.json"));
     await cp(join(packageRoot, "dist"), join(installed, "dist"), { recursive: true });
-    for (const dependency of ["typescript", "expo"]) {
+    for (const dependency of ["typescript", "expo", "react", "@types"]) {
       await symlink(join(packageRoot, "node_modules", dependency), join(root, "node_modules", dependency), "dir");
     }
     await writeFile(join(root, "package.json"), JSON.stringify({ private: true, type: "module" }));
@@ -41,6 +41,12 @@ channel typing(todoId: todos):
     await writeFile(join(root, "snapback/todos.q"), `mutation add(done: bool ?):
   row = insert todos { title: 'typed row', done: done ?? false, ownerId: viewer }
   return { row, next: 'saved' }
+
+query page(c: cursor ?):
+  return todos[] after c first 20 by byId
+
+query customPage(after: cursor ?):
+  return todos[] after after first 20 by byId
 `);
     const compiled = spawnSync(process.execPath, [join(installed, "dist/compiler.mjs"), "--project", root], {
       cwd: root, encoding: "utf8", timeout: 15_000,
@@ -51,6 +57,18 @@ channel typing(todoId: todos):
     assert.equal(typeof output.apiDts, "string", "built worker did not return the generated API");
     await writeFile(join(root, ".snapback/build/api.d.ts"), output.apiDts);
     await writeFile(join(root, "App.tsx"), `import { api, createClient, type ResultOf, type ArgsOf } from "snapback2/client";
+import { usePage, useQuery } from "snapback2/react-core";
+const page = usePage(api.todos.page, {});
+const custom = usePage(api.todos.customPage, {}, { cursor: "after" });
+const title: string | undefined = page.items[0]?.title;
+const customTitle: string | undefined = custom.items[0]?.title;
+useQuery(api.todos.page, {});
+useQuery(api.todos.page, { c: null });
+// @ts-expect-error pagination requires an array result
+usePage(api.todos.add, {});
+// @ts-expect-error page items preserve the generated row's field types
+const wrongTitle: number = page.items[0]!.title;
+void [title, customTitle, wrongTitle];
 type Result = ResultOf<typeof api.todos.add>;
 const args: ArgsOf<typeof api.todos.add> = { done: true };
 void args;
@@ -103,8 +121,28 @@ test("generated Api rejects typos, extra query args, and wrong channel args", as
     const apiDts = join(root, "api.d.ts");
     await writeFile(sample, `
       import { api, browserTokenStore, createClient, defineItems, withHistory, type AuthTokenStore, type HistorySnapshot, type ItemSnapshot, type QueryView, type Snapshot, type SnapbackClient } from "snapback2/client";
+      // @ts-expect-error carrier internals are absent from the client entry
+      import type { Coverage } from "snapback2/client";
+      // @ts-expect-error carrier internals are absent from the client entry
+      import type { HeldAnswer } from "snapback2/client";
+      // @ts-expect-error carrier internals are absent from the client entry
+      import type { HeldProgram } from "snapback2/client";
+      // @ts-expect-error carrier internals are absent from the client entry
+      import type { OverlayRow } from "snapback2/client";
+      // @ts-expect-error carrier internals are absent from the client entry
+      import type { StoreSwap } from "snapback2/client";
+      // @ts-expect-error twin internals are absent from the client entry
+      import type { LocalAnswer } from "snapback2/client";
+      // @ts-expect-error twin internals are absent from the client entry
+      import type { Prediction } from "snapback2/client";
+      // @ts-expect-error twin internals are absent from the client entry
+      import type { PartialSite } from "snapback2/client";
       const tokenStore: AuthTokenStore = { load: () => null, save: (_token) => undefined };
       const client = createClient({ url: "http://127.0.0.1:3210", tokenStore });
+      // @ts-expect-error observe is the application read subscription
+      client.subscribe(api.messages.thread, { conversationId: "general" }, () => {});
+      // @ts-expect-error shared reader counts belong to the internal entry
+      client.sharedConsumers(api.messages.thread, { conversationId: "general" });
       const ready: Promise<void> = client.ready;
       const authGeneration: number = client.snapshot.authGeneration;
       const browserStore: AuthTokenStore = browserTokenStore(localStorage, "snapback2:http://127.0.0.1:3210:auth");

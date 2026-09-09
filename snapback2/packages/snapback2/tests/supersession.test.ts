@@ -226,7 +226,7 @@ for (const kind of ["transport", "refusal"] as const) {
       assert.equal(concurrent.seq, 7, "even online() joining the reset cannot block a live query");
       gate.resolve();
       await assert.rejects(online);
-      assert.equal(f.client.snapshot.lastRefusal?.code, kind === "transport" ? "E_NETWORK" : "E_RESET_TEST");
+      assert.equal(f.client.snapshot.lastRefusal?.code, kind === "transport" ? "E_TRANSPORT" : "E_RESET_TEST");
       assert.ok((await f.store.coverage()).superseded);
       f.hooks.resume = undefined;
       await f.client.query(api.messages.second, {});
@@ -342,7 +342,7 @@ test("failed program reload keeps the durable reset marker and online retries th
     f.state.generation = hex(2);
     f.hooks.program = async () => { throw new TypeError("program transport cut"); };
     await f.client.query(api.messages.second, {});
-    await eventually(() => f.client.snapshot.lastRefusal?.code === "E_NETWORK");
+    await eventually(() => f.client.snapshot.lastRefusal?.code === "E_TRANSPORT");
     assert.ok((await f.store.coverage()).superseded);
     f.hooks.program = undefined;
     await f.client.online();

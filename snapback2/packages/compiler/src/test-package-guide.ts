@@ -14,21 +14,21 @@ export function registerPackageGuideChecks(
   crate: string,
   packageBuildProof: PackageBuildProof,
 ): void {
-  test("README mutation example typechecks with queued pending entries and an inFlight button", async () => {
+  test("README mutation example typechecks with a last result and an inFlight button", async () => {
     const packageRoot = resolve(crate, "packages/snapback2");
     const readme = await readFile(resolve(packageRoot, "README.md"), "utf8");
     const snippet = /```tsx\n([\s\S]*?)\n```/.exec(readme)?.[1];
     assert(snippet, "README lost its React example");
     await withProject({
       "sample.tsx": `${snippet}
-        import type { OutboxEntry } from "snapback2/client";
+        import type { MutationResult } from "snapback2/client";
         function MutationTypes() {
           const send = useMutation(api.messages.send);
-          const pending: OutboxEntry[] = send.pending;
+          const last: MutationResult<null> | undefined = send.last;
           const inFlight: boolean = send.inFlight;
-          // @ts-expect-error Pending intents are an array, not a DOM disabled flag.
-          const badButton = <button disabled={send.pending} />;
-          void [pending, inFlight, badButton];
+          // @ts-expect-error A mutation result is not a DOM disabled flag.
+          const badButton = <button disabled={send.last} />;
+          void [last, inFlight, badButton];
           return <button disabled={send.inFlight} />;
         }`,
       "api.d.ts": `import type { Op } from "snapback2/client";

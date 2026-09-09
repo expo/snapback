@@ -513,7 +513,7 @@ journey("viewed photos render from the byte cache offline; a view-once photo and
     try {
       await cold.assetBlob(urls[0]!);
     } catch (error) {
-      gone = (error as { code?: string }).code === "E_NETWORK";
+      gone = (error as { code?: string }).code === "E_TRANSPORT";
     }
     if (!gone) throw new Error("an unsent row's bytes survived the resume");
     if ((await cold.assetBlob(urls[1]!)).size === 0) throw new Error("the kept photo lost its bytes on resume");

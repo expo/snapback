@@ -138,9 +138,9 @@ test("the inbox refuses at its bound with no row written, and a row from another
   const follower = open();
   await follower.ready;
   await until(async () => (await follower.outbox.status()).reason === "forwarding", "the follower's inbox route");
-  for (let index = 0; index < INBOX_LIMIT; index += 1) {
-    await follower.mutation(api.deliveries.post, { conversationId: "conversation-1", body: `bulk ${index}` });
-  }
+  const filled = await Promise.all(Array.from({ length: INBOX_LIMIT }, (_, index) =>
+    follower.mutation(api.deliveries.post, { conversationId: "conversation-1", body: `bulk ${index}` })));
+  assert.ok(filled.every(result => result.state === "queued"), "every slot is admitted before the bound refuses");
   await assertRefused(follower.mutation(api.deliveries.post, { conversationId: "conversation-1", body: "one too many" }),
     (error: unknown) => (error.state === "rejected" || error.state === "refused") && error.code === "E_OFFLINE_INBOX_FULL");
   assert.equal((await follower.outbox.status()).reason, "inbox-full");

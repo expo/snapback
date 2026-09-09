@@ -273,7 +273,7 @@ test("assetBlob reads the byte cache before the network, fills it after a fetch,
     await client.offline();
     assert.equal((await client.assetBlob(url)).size, 4, "a held rendition renders offline");
     await assert.rejects(client.assetBlob((await client.assetUrl(photo(A) as any, { width: 16 }))!), (error: unknown) =>
-      isRefusalError(error) && error.code === "E_NETWORK");
+      isRefusalError(error) && error.code === "E_TRANSPORT");
     assert.equal(assetFetches, 2);
     client.close();
   } finally { await rm(root, { recursive: true, force: true }); }

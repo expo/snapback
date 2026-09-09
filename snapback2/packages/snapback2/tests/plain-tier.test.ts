@@ -51,6 +51,8 @@ test('plain tier: public exports have one read hook and no thrown refusal type',
   assert.equal('useSubscription' in reactEntry, false);
   assert.equal('RefusalError' in clientEntry, false);
   assert.equal('isRefusalError' in clientEntry, false);
+  assert.equal('SnapbackRefusal' in clientEntry, false);
+  assert.equal('isSnapbackRefusal' in clientEntry, false);
 });
 
 import React from 'react';
@@ -66,6 +68,36 @@ const waitFor = async (condition: () => boolean) => {
   }
   assert.fail('live hook did not reach the expected state');
 };
+
+test('plain tier: run catches transport and supplied-client refusals into last', async () => {
+  const client = createClient({ url: 'http://127.0.0.1:1' });
+  let mutation: any, renderer: TestRenderer.ReactTestRenderer | undefined;
+  function Probe() { mutation = reactEntry.useMutation(api.messages.send); return null; }
+  try {
+    await act(async () => { renderer = TestRenderer.create(React.createElement(reactEntry.SnapbackProvider,
+      { client, children: React.createElement(Probe) })); });
+    await act(async () => {
+      const result = await mutation.run({});
+      assert.equal(result.state, 'rejected'); assert.equal(result.family, 'transport'); assert.equal(result.retryable, true);
+    });
+    assert.equal(mutation.last.code, 'E_TRANSPORT'); assert.equal(mutation.inFlight, false);
+    client.mutation = async () => { throw { code: 'NO_ACCESS', family: 'rule', message: 'not allowed', site: 'send', extra: 'private' }; };
+    await act(async () => {
+      assert.deepEqual(await mutation.run({}), { state: 'rejected', code: 'NO_ACCESS', family: 'rule', message: 'not allowed', site: 'send' });
+    });
+    assert.equal(mutation.last.code, 'NO_ACCESS'); assert.equal(mutation.inFlight, false);
+  } finally { if (renderer) await act(async () => { renderer!.unmount(); }); await client.close(); }
+});
+
+test('plain tier: a wire rejection exposes only the single refusal shape', async () => {
+  const client = createClient({ url: 'http://refusal.test', fetch: async () => Response.json({
+    state: 'rejected', code: 'NO_ACCESS', family: 'rule', message: 'not allowed', site: 'send',
+    which: 'private', op: 'messages.send', shape: 'private', cap: 50,
+  }) });
+  try { assert.deepEqual(await client.mutation(api.messages.send, {}), {
+    state: 'rejected', code: 'NO_ACCESS', family: 'rule', message: 'not allowed', site: 'send',
+  }); } finally { await client.close(); }
+});
 
 test('plain tier: missing/null cursors share an observation and normalize item membership', async () => {
   const client = createClient({ url: 'http://127.0.0.1:1' });
@@ -120,6 +152,7 @@ test('plain tier: usePage keeps three search pages live, rebinds boundaries and 
   const client = createClient({ url: owner.url, persona: 'alice' });
   let paged: any, renderer: TestRenderer.ReactTestRenderer | undefined;
   function Probe({ term }: { term: string }) { paged = reactEntry.usePage(api.messages.search, { term }); return null; }
+  function CustomCursor() { paged = reactEntry.usePage(api.integration.inboxProjected, {}, { cursor: 'after' }); return null; }
   const render = (term: string) => React.createElement(reactEntry.SnapbackProvider, { client, children: React.createElement(Probe, { term }) });
   try {
     const rows = [];
@@ -146,5 +179,12 @@ test('plain tier: usePage keeps three search pages live, rebinds boundaries and 
     assert.equal(paged.pages.length, 1);
     await waitFor(() => paged.status === 'ready');
     assert.deepEqual(paged.items, []); assert.equal(paged.hasMore, false);
+    await act(async () => { renderer!.update(React.createElement(reactEntry.SnapbackProvider,
+      { client, children: React.createElement(CustomCursor) })); });
+    await waitFor(() => paged.status === 'ready');
+    assert.equal(paged.items.length, 1); assert.equal(paged.pages.length, 1);
+    await act(async () => { paged.loadMore(); });
+    await waitFor(() => paged.status === 'ready' && paged.pages.length === 2);
+    assert.equal(paged.items.length, 2); assert.equal(new Set(paged.items.map(row => row.id)).size, 2);
   } finally { if (renderer) await act(async () => { renderer!.unmount(); }); await client.close(); await owner.close(); if (owner.owned) delete process.env.SNAPBACK_URL; }
 });

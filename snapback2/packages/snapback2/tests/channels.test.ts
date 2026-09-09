@@ -227,6 +227,7 @@ test("React Strict Mode keeps the active handle and closes replaced/unmounted sc
   await act(async () => { await latest!.set({ typing: true }); });
   await act(async () => { renderer.update(tree("two")); await pause(20); });
   await act(async () => { await eventually(() => latest?.status === "ready" && latest.key !== first.key); });
+  await eventually(() => first.closed);
   assert.equal(first.closed, true);
   const second = owner.opens.at(-1)!;
   assert.equal(second.closed, false);

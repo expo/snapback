@@ -9,6 +9,7 @@ import {
   type SnapbackClient,
 } from "./client.js";
 import { fileRangeStore } from "./store/file.js";
+import { canonicalAnswerKey } from "./store/canonical.js";
 
 export { fileRangeStore };
 
@@ -248,7 +249,7 @@ async function runCheck(
   try {
     if (storeRoot) await rm(storeRoot, { recursive: true, force: true });
     await within(5_000, async () => check.body({
-      persona: (name, options = {}) => {
+      as: (name, options = {}) => {
         if (options.store !== undefined && options.store !== "file") {
           throw new TypeError("journey as(...).store must be 'file'");
         }
@@ -267,7 +268,7 @@ async function runCheck(
               // Test-only custody observer: unlike the public proxy, this sees
               // drain pages issued by the client's internal query path too.
               offlineReadObserver: (ref: any, args: unknown, expected: unknown) => {
-                const key = `${String(ref?.op ?? ref)}:${stableSerialize(args)}`;
+                const key = canonicalAnswerKey(String(ref?.op ?? ref), args);
                 records.set(key, { ref, args, expected });
               },
             } as Parameters<typeof createClient>[0]

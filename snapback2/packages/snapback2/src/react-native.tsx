@@ -1,6 +1,7 @@
-import React, { useRef, type ReactNode } from 'react';
+import React, { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Text } from 'react-native';
 import { fetch as expoFetch } from 'expo/fetch';
-import { SnapbackProvider as CoreProvider } from './react-core.js';
+import { SnapbackProvider as CoreProvider, useSnapbackClient } from './react-core.js';
 import { expoSqliteStore, type CreateExpoClientOptions } from './expo/index.js';
 import { expoSecureTokenStore } from './expo/token-store.js';
 import type { SnapbackClient, CreateClientOptions } from './types.js';
@@ -23,5 +24,19 @@ export function SnapbackProvider(props: SnapbackProviderProps): React.ReactEleme
     offline: { ...props.offline, store: props.offline?.store ?? defaults.current.offline!.store },
     ...(props.persona === undefined ? { tokenStore: props.tokenStore ?? defaults.current.tokenStore } : {}),
   } as CreateClientOptions;
-  return <CoreProvider {...options}>{props.children}</CoreProvider>;
+  return <CoreProvider {...options}><Ready>{props.children}</Ready></CoreProvider>;
+}
+
+/** Carrier startup can fail before any query opens; the provider owns that failure too. */
+function Ready({ children }: { children: ReactNode }): React.ReactElement {
+  const client = useSnapbackClient();
+  const [failure, setFailure] = useState<{ client: SnapbackClient; message: string }>();
+  useEffect(() => {
+    let active = true;
+    void client.ready.catch(error => {
+      if (active) setFailure({ client, message: error instanceof Error ? error.message : String(error) });
+    });
+    return () => { active = false; };
+  }, [client]);
+  return failure?.client === client ? <Text accessibilityRole="alert">{failure.message}</Text> : <>{children}</>;
 }

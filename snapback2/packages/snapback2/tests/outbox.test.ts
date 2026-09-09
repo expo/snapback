@@ -272,7 +272,7 @@ test("live transport and a fresh login grant cannot release old intents; a grant
       now += 3 * DAY;
       await client.mutation(api.deliveries.post as any, post("past fence"));
       assert.equal(await client.outbox.ready(), true, "fence age does not gate custody");
-      await assert.rejects(client.online(), (error: any) => error.code === "E_NETWORK" || error.retryable);
+      await assert.rejects(client.online(), (error: any) => error.code === "E_TRANSPORT" || error.retryable);
       // online() restored transport before its failed resume. Mutations would
       // reach this spy if the fence guard were removed.
       assert.equal((await client.outbox.drain()).stopped, "fence");

@@ -128,23 +128,23 @@ test("repeated drain cursors refuse instead of looping or replacing the server w
   } finally { subscription?.close(); await client.close(); await rm(root, { recursive: true, force: true }); }
 });
 
-test("real sessions change epochs across re-login, seal and cold auth; custom cursor custody drains offline on every carrier", async () => {
-  const owner = await RealOwnerHarness.create();
+function recoveryOwner() {
+  return RealOwnerHarness.create({ prepare: async ownerRoot => {
+    await writeFile(join(ownerRoot, "snapback/recovery.q"), "query page(nextPage: cursor ?):\n  return profiles[] after nextPage first 1 by byId\n\nmutation echo(value: text <=100):\n  return value\n");
+  } });
+}
+
+test("real sessions change epochs across re-login, seal and cold auth", async () => {
+  const owner = await recoveryOwner();
   assert.ok(owner.root, "this regression requires its own owner");
   const root = await mkdtemp(join(tmpdir(), "s2-real-recovery-"));
   let client: ReturnType<typeof createClient> | undefined;
   const clients: Array<ReturnType<typeof createClient>> = [];
+  const releaseQuery = Promise.withResolvers<void>();
   try {
-    await writeFile(join(owner.root, "snapback/recovery.q"), "query page(nextPage: cursor ?):\n  return profiles[] after nextPage first 1 by byId\n\nmutation echo(value: text <=100):\n  return value\n");
-    for (let attempt = 0; attempt < 100; attempt++) {
-      const manifest = await (await fetch(`${owner.url}/api/manifest`)).json();
-      if (manifest.ops["recovery.page"]) break;
-      await tick();
-    }
     let failWrites = true;
     let holdQuery = false;
     const queryStarted = Promise.withResolvers<void>();
-    const releaseQuery = Promise.withResolvers<void>();
     const transport: typeof fetch = async (input, init) => {
       if (failWrites && new URL(String(input)).pathname === "/api/mutation") throw new TypeError("write transport cut");
       const response = await fetch(input, init);
@@ -202,6 +202,14 @@ test("real sessions change epochs across re-login, seal and cold auth; custom cu
     assert.equal((await client.outbox.entries())[0]?.state, "committed");
     await client.close();
 
+  } finally { releaseQuery.resolve(); await Promise.allSettled(clients.map(entry => entry.close())); await owner.close(); if (owner.owned) delete process.env.SNAPBACK_URL; await rm(root, { recursive: true, force: true }); }
+});
+
+test("custom cursor custody drains offline on every carrier", async () => {
+  const owner = await recoveryOwner();
+  const root = await mkdtemp(join(tmpdir(), "s2-cursor-recovery-"));
+  const clients: Array<ReturnType<typeof createClient>> = [];
+  try {
     const db = new FakeIndexedDb(), locks = new FakeLocks();
     const factories = [fileRangeStore(join(root, "cursor")), sqliteFactory(join(root, "cursor.db")), indexedDbRangeStore({ indexedDB: db as any, locks: locks as any })];
     for (const store of factories) {
@@ -227,7 +235,7 @@ test("real sessions change epochs across re-login, seal and cold auth; custom cu
       assert.deepEqual((await inspect.coverage()).watermarks, saved, "offline draining does not rewrite server watermarks");
       await inspect.close?.();
     }
-  } finally { await Promise.allSettled(clients.map((entry) => entry.close())); await owner.close(); await rm(root, { recursive: true, force: true }); }
+  } finally { await Promise.allSettled(clients.map((entry) => entry.close())); await owner.close(); if (owner.owned) delete process.env.SNAPBACK_URL; await rm(root, { recursive: true, force: true }); }
 });
 
 test("replacing an explicit bearer clears the old principal before persistence, so stalled cold auth cannot reveal its history", async () => {
