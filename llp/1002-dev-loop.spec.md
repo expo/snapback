@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2` (the binary: owner, server, verbs), `snapback2/packages/compiler` (project lowering, worker), `snapback2/packages/snapback2` (authoring runtime, client, React, test runner, shim), `snapback2/scripts/measure.mjs`
 **Author:** Claude Fable 5 (orchestrator) — implementers: codex gpt-5.6-sol, lanes B0 (compiler + authoring surface), B1 (owner + server + verbs), B2 (`init`, `test`, `why`, `trace`, `guide`), D (client + React + evaluator)
 **Date:** 2026-08-29
-**Revised:** 2026-09-08 (Lane C review: proved carrier projections, derived policy counts, executable Vite precedence and seeded maintain assertions); 2026-09-08 (templates are products, elegance program Lane C, implementer GPT-6 Astra); 2026-09-08 (LLP 1001.000 typed latest-state channels, leases and snapshot clients); 2026-09-08 (resource-aware blocking Rust test scheduling and paired timing); 2026-09-07 (generated insert/merge consumer type bindings; implementer GPT-6 Astra); 2026-09-07 (independent Quarry diagnostics, checked-type repair advice, lexical failure isolation and merge discovery ordering; implementer GPT-6 Astra); 2026-09-07 (preserve unrelated prefixed optional packages; staged platform dependency selection and exact-lock packaging regression; durable browser-follower admission and unknown-outcome recovery; client-owned observed query snapshots; explicit named-journey verification and executable React startup; startup cleanup fixture custody); 2026-09-06 (app guide operation/certificate custody; native logical SSE body; CLI help and executable migration recovery; auth startup recovery and held transition reads; queued transitions, interrupted sync, live held reads); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
+**Revised:** 2026-09-08 (Lane C round 2: protected-independent guard proof, candidate rejection reasons, isolated count journey); 2026-09-08 (Lane C review: proved carrier projections, derived policy counts, executable Vite precedence and seeded maintain assertions); 2026-09-08 (templates are products, elegance program Lane C, implementer GPT-6 Astra); 2026-09-08 (LLP 1001.000 typed latest-state channels, leases and snapshot clients); 2026-09-08 (resource-aware blocking Rust test scheduling and paired timing); 2026-09-07 (generated insert/merge consumer type bindings; implementer GPT-6 Astra); 2026-09-07 (independent Quarry diagnostics, checked-type repair advice, lexical failure isolation and merge discovery ordering; implementer GPT-6 Astra); 2026-09-07 (preserve unrelated prefixed optional packages; staged platform dependency selection and exact-lock packaging regression; durable browser-follower admission and unknown-outcome recovery; client-owned observed query snapshots; explicit named-journey verification and executable React startup; startup cleanup fixture custody); 2026-09-06 (app guide operation/certificate custody; native logical SSE body; CLI help and executable migration recovery; auth startup recovery and held transition reads; queued transitions, interrupted sync, live held reads); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
 **Related:** LLP 1000, LLP 1001 (the engine this serves), LLP 1003 (effects),
 LLP 0329.016 §5 (the design this implements verbatim where it can), LLP
 0329.016 §5.11 (the verb table — no verb exists without its row), LLP
@@ -1123,9 +1123,31 @@ remaining protected images and nulled images are separate. The seeded chat
 witness pins one carrier row and one nulled message in each response.
 Vite configuration precedence is explicit environment, Vite dotenv, then the
 owner URL file; the existing init regression executes Vite's `resolveConfig`.
-The conversation metadata journey pins count 1 from the source seed and count 2
-after a send. Provider honoring of `meta.id`, rather than the header alone,
+The conversation metadata journey pins count 1 from the source seed; its
+original shared-conversation send/unsend probe is superseded by the isolated
+round-2 journey below. Provider honoring of `meta.id`, rather than the header alone,
 is the condition that makes effect retries safe.
+
+**Round-2 review revision 2026-09-08 (implementer GPT-6 Astra):** policy-probe
+eligibility rejects terminal control flow whose truth can depend on the
+protected table under the denying successor. Ignoring top-level `Require` is
+superseded: each must resolve to stable literals/arguments/viewer or an existence
+check on a self-readable membership table with stable keys. The latter's read
+rule must probe only that same table/index; a protected-table read in the key
+or read policy invalidates the proof. Aliases preserve this classification;
+unknown expressions and other terminal control flow block. This is a bounded
+dependency rule, not a general IR interpreter, and applies to direct and carrier
+queries. The served `require exists messages['message-1']` and aliased variant
+block before applying a successor; the shipped membership guard stays eligible.
+Candidate selection retains the specific projection/control-flow rejection in
+the existing blocked receipt's `detail.candidates`, including the query name.
+
+The count journey still proves seeded count 1 before other journeys. Its writes
+use a disposable conversation and separate personas, assert 1 → 2 → 1 around
+send/unsend, and assert that the seeded member's inbox is unchanged. Removed
+message history therefore cannot reorder later shared-member journeys. Every
+client close in this journey is awaited. Round-1 projection, receipt-count,
+Vite-precedence, fixture and template-surface fixes remain in force.
 
 ## 11. Measured
 

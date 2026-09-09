@@ -89,6 +89,34 @@ fn successor_policy_blocks_unproved_mixed_projections_in_the_shipped_thread() {
         let receipt = json_stdout(&project.run(&["test", "--derived-only", "--json"]));
         let fence = check(&receipt, "successor-policy-fence");
         assert_eq!(fence["verdict"], "blocked", "unproved {leaked} candidate: {fence}");
+        assert!(fence["detail"]["candidates"].as_array().unwrap().iter().any(|reason|
+            reason.as_str().is_some_and(|reason| reason.contains("messages.thread")
+                && reason.contains("page of proved carrier fields and complete protected rows"))),
+            "projection rejection reason was lost: {fence}");
+    }
+}
+
+#[test]
+fn successor_policy_blocks_protected_dependent_require_in_the_shipped_thread() {
+    let project = Project::new();
+    assert!(project.init("chat", "none").status.success());
+    let path = project.path.join("snapback/messages.q");
+    let original = fs::read_to_string(&path).unwrap();
+    for guard in [
+        "require exists messages['message-1'] else HAS_MESSAGE",
+        "hasMessage = exists messages['message-1']\n  require hasMessage else HAS_MESSAGE",
+    ] {
+        fs::write(&path, original.replace(
+            "query thread(conversationId: conversations, c: cursor ?):",
+            &format!("query thread(conversationId: conversations, c: cursor ?):\n  {guard}"),
+        )).unwrap();
+        assert!(project.run(&["check", "--json"]).status.success());
+        let receipt = json_stdout(&project.run(&["test", "--derived-only", "--json"]));
+        let fence = check(&receipt, "successor-policy-fence");
+        assert_eq!(fence["verdict"], "blocked", "protected-dependent guard: {fence}");
+        assert!(fence["detail"]["candidates"].as_array().unwrap().iter().any(|reason|
+            reason.as_str().is_some_and(|reason| reason.contains("messages.thread")
+                && reason.contains("control flow"))), "guard rejection reason was lost: {fence}");
     }
 }
 

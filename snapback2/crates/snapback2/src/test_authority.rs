@@ -2,8 +2,8 @@
 // @ref LLP 1002#7-test-and-the-receipt — revocation and successor fences are named receipt proofs.
 
 use super::test_authority_ir::{
-    prepare_policy_successor, program_has_membership_guard_dependency, projected_policy_data,
-    policy_projection, require_policy_filtered,
+    policy_control_flow, policy_projection, prepare_policy_successor,
+    program_has_membership_guard_dependency, projected_policy_data, require_policy_filtered,
 };
 use super::test_sse::SseProbe;
 use super::{elapsed_ms, generated_args};
@@ -807,7 +807,8 @@ fn successor_attempt(
     };
     let expected_data = if projected {
         projected_policy_data(
-            &initial["data"], &projection,
+            &initial["data"],
+            &projection,
             &compiled.generation.schema().tables[&plan.protected_table],
         )?
     } else {
@@ -1074,26 +1075,25 @@ fn query_plan(
             ));
             continue;
         }
-        let queries =
-            compiled
-                .generation
-                .programs()
-                .iter()
-                .filter(|(_, (program, certificate))| {
-                    program.kind == ProgramKind::Query
-                        && query_isolates_protected_table(
-                            program,
-                            &certificate.read_sites,
-                            recipe,
-                            &protected.table,
-                            compiled.generation.schema(),
-                        )
-                        && certificate
-                            .read_sites
-                            .iter()
-                            .any(|site| site.table == protected.table)
-                });
-        for (query, (program, _)) in queries {
+        for (query, (program, certificate)) in compiled.generation.programs() {
+            if program.kind != ProgramKind::Query
+                || !certificate
+                    .read_sites
+                    .iter()
+                    .any(|site| site.table == protected.table)
+            {
+                continue;
+            }
+            if let Err(reason) = query_isolates_protected_table(
+                program,
+                &certificate.read_sites,
+                recipe,
+                &protected.table,
+                compiled.generation.schema(),
+            ) {
+                reasons.insert(format!("{query}: {reason}"));
+                continue;
+            }
             for (persona, principal, membership_id, scope) in membership_candidates(seed, recipe) {
                 if !seed.rows.get(&protected.table).is_some_and(|rows| {
                     rows.iter()
@@ -1139,25 +1139,39 @@ fn query_isolates_protected_table(
     recipe: &Recipe,
     protected_table: &str,
     schema: &Schema,
-) -> bool {
+) -> Result<(), String> {
     // A discovery scan can legitimately become an empty global-search lane
     // after membership removal. The terminal-revocation witness therefore
     // needs an explicit membership Require, not mere table overlap or take 1.
-    let projected = read_sites.iter().any(|site|
-        site.table != recipe.membership_table && site.table != protected_table);
-    (!projected || policy_projection(program, schema, protected_table).is_ok())
-        && read_sites
+    let projected = read_sites
         .iter()
-        .all(|site| site.table == recipe.membership_table || site.table == protected_table
-            || schema.tables.get(&site.table).is_some_and(|table| table.tombstones.iter().any(|t| t.table == protected_table)))
-        // This is only a bounded candidate preference. A dependency can be
-        // semantically weakened (for example, `member || true`); the served
-        // post-revocation terminal delivery below is the authority witness.
-        && program_has_membership_guard_dependency(
-            program,
-            &recipe.membership_table,
-            &recipe.membership_index,
-        )
+        .any(|site| site.table != recipe.membership_table && site.table != protected_table);
+    if projected {
+        policy_projection(program, schema, protected_table)?;
+    } else {
+        policy_control_flow(program, schema, protected_table)?;
+    }
+    if !read_sites.iter().all(|site| {
+        site.table == recipe.membership_table
+            || site.table == protected_table
+            || schema
+                .tables
+                .get(&site.table)
+                .is_some_and(|table| table.tombstones.iter().any(|t| t.table == protected_table))
+    }) {
+        return Err(
+            "policy probe reads a table outside the protected scope and its carrier".into(),
+        );
+    }
+    // The served post-revocation terminal delivery remains the authority witness.
+    if !program_has_membership_guard_dependency(
+        program,
+        &recipe.membership_table,
+        &recipe.membership_index,
+    ) {
+        return Err("policy probe needs an explicit membership guard dependency".into());
+    }
+    Ok(())
 }
 
 fn protected_write_eligible(

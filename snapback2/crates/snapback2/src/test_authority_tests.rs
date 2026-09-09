@@ -15,7 +15,8 @@ fn protected_write_recipe() -> Recipe {
 
 #[test]
 fn revocation_candidate_prefers_a_membership_guard_dependency() {
-    let recipe = protected_write_recipe();
+    let schema = authority_schema(ColumnType::Principal);
+    let recipe = membership_recipe(&schema).unwrap();
     let membership = snapback2_core::Read {
         site: "messages.thread.0".to_owned(),
         table: recipe.membership_table.clone(),
@@ -56,13 +57,9 @@ fn revocation_candidate_prefers_a_membership_guard_dependency() {
         read_time_granularity_ms: None,
         body: vec![Stmt::Return(Expr::Literal(Value::Null))],
     };
-    assert!(!query_isolates_protected_table(
-        &program,
-        &reads,
-        &recipe,
-        "messages",
-        &Schema::default()
-    ));
+    assert!(
+        query_isolates_protected_table(&program, &reads, &recipe, "messages", &schema).is_err()
+    );
     program.body.insert(
         0,
         Stmt::Const {
@@ -77,13 +74,69 @@ fn revocation_candidate_prefers_a_membership_guard_dependency() {
             code: "MEMBERSHIP_REQUIRED".to_owned(),
         },
     );
-    assert!(query_isolates_protected_table(
-        &program,
-        &reads,
-        &recipe,
-        "messages",
-        &Schema::default()
-    ));
+    assert!(query_isolates_protected_table(&program, &reads, &recipe, "messages", &schema).is_ok());
+    let safe = program.clone();
+    let read = snapback2_core::Read {
+        site: "guard".into(),
+        table: "messages".into(),
+        index: "byId".into(),
+        key: vec![],
+        provenance: KeyProvenance::Const,
+    };
+    for terminal in [
+        Stmt::Require {
+            condition: Expr::Exists(read.clone()),
+            code: "HAS_MESSAGE".into(),
+        },
+        Stmt::If {
+            condition: Expr::Exists(read),
+            then_body: vec![Stmt::Return(Expr::Literal(Value::Null))],
+            else_body: vec![],
+        },
+        Stmt::Break,
+        Stmt::Continue,
+    ] {
+        let mut guarded = safe.clone();
+        guarded.body.insert(2, terminal);
+        assert!(
+            query_isolates_protected_table(&guarded, &reads, &recipe, "messages", &schema).is_err()
+        );
+    }
+    let mut dependent_schema = schema.clone();
+    dependent_schema
+        .tables
+        .get_mut(&recipe.membership_table)
+        .unwrap()
+        .rules
+        .read = RuleExpr::Exists {
+        table: "messages".into(),
+        index: "byId".into(),
+        key: vec![],
+        provenance: KeyProvenance::Const,
+    };
+    assert!(
+        query_isolates_protected_table(&safe, &reads, &recipe, "messages", &dependent_schema)
+            .is_err(),
+        "membership visibility must not depend on the protected table"
+    );
+    let Stmt::Const {
+        value: Expr::Exists(membership),
+        ..
+    } = &mut program.body[0]
+    else {
+        panic!()
+    };
+    membership.key.push(Expr::Get(snapback2_core::Read {
+        site: "key".into(),
+        table: "messages".into(),
+        index: "byId".into(),
+        key: vec![],
+        provenance: KeyProvenance::Const,
+    }));
+    assert!(
+        query_isolates_protected_table(&program, &reads, &recipe, "messages", &schema).is_err(),
+        "membership keys must not depend on the protected table"
+    );
 }
 
 fn probe_mutation(scoped: bool) -> Program {
@@ -378,10 +431,16 @@ fn projected_policy_probe_requires_body_redaction_and_preserves_log_metadata() {
     }
     let projection = BTreeMap::from([("id".to_owned(), false), ("message".to_owned(), true)]);
     let initial = json!([{ "id": "delivery", "message": body }]);
-    for leaked in [json!("secret"), json!(["secret"]), json!({"nested": "secret"})] {
+    for leaked in [
+        json!("secret"),
+        json!(["secret"]),
+        json!({"nested": "secret"}),
+    ] {
         let mixed = json!([{ "id": "delivery", "message": body, "leakedBody": leaked }]);
-        assert!(projected_policy_data(&mixed, &projection, table).is_err(),
-            "unproved mixed projection accepted: {mixed}");
+        assert!(
+            projected_policy_data(&mixed, &projection, table).is_err(),
+            "unproved mixed projection accepted: {mixed}"
+        );
     }
     let expected = projected_policy_data(&initial, &projection, table).unwrap();
     assert_eq!(expected, json!([{ "id": "delivery", "message": null }]));
@@ -396,7 +455,8 @@ fn projected_policy_probe_requires_body_redaction_and_preserves_log_metadata() {
         require_policy_filtered(
             &json!({"state":"complete", "data":initial}),
             "projection",
-            &expected, &projection
+            &expected,
+            &projection
         )
         .is_err()
     );
@@ -404,12 +464,27 @@ fn projected_policy_probe_requires_body_redaction_and_preserves_log_metadata() {
         require_policy_filtered(
             &json!({"state":"complete", "data":[]}),
             "projection",
-            &expected, &projection
+            &expected,
+            &projection
         )
         .is_err()
     );
-    assert!(projected_policy_data(&json!([{ "id": "delivery", "message": null }]), &projection, table).is_err());
-    assert!(projected_policy_data(&json!([{ "message": {"unknown":"shape"} }]), &projection, table).is_err());
+    assert!(
+        projected_policy_data(
+            &json!([{ "id": "delivery", "message": null }]),
+            &projection,
+            table
+        )
+        .is_err()
+    );
+    assert!(
+        projected_policy_data(
+            &json!([{ "message": {"unknown":"shape"} }]),
+            &projection,
+            table
+        )
+        .is_err()
+    );
 }
 
 #[test]
@@ -417,7 +492,9 @@ fn policy_projection_proves_carrier_fields_and_blocks_mixed_protected_values() {
     let mut schema = authority_schema(ColumnType::Principal);
     let mut carrier = schema.tables["documents"].clone();
     carrier.tombstones = vec![snapback2_core::Tombstone {
-        table: "documents".into(), column: "scopeId".into(), when: RuleExpr::Allow,
+        table: "documents".into(),
+        column: "scopeId".into(),
+        when: RuleExpr::Allow,
     }];
     schema.tables.insert("log".into(), carrier);
     let mut program: Program = serde_json::from_value(json!({
@@ -442,23 +519,92 @@ fn policy_projection_proves_carrier_fields_and_blocks_mixed_protected_values() {
         ]
     })).unwrap();
     let projection = policy_projection(&program, &schema, "documents").unwrap();
-    assert_eq!(projection, BTreeMap::from([("metadata".into(), false), ("message".into(), true)]));
-    let initial = json!([{"metadata": "scope", "message": {"scopeId": "secret"}}]);
-    let expected = projected_policy_data(&initial, &projection, &schema.tables["documents"]).unwrap();
-    for subject in ["retained G handle", "fresh invocation"] {
-        let counts = require_policy_filtered(&json!({"state": "complete", "data": expected}), subject, &expected, &projection).unwrap();
-        assert_eq!((counts.rows, counts.protected_images, counts.nulled_images), (1, 0, 1));
-        assert!(require_policy_filtered(&json!({"state": "complete", "data": initial}), subject, &expected, &projection).is_err());
+    let exists = Expr::Exists(snapback2_core::Read {
+        site: "guard".into(),
+        table: "documents".into(),
+        index: "byId".into(),
+        key: vec![],
+        provenance: KeyProvenance::Const,
+    });
+    for aliased in [false, true] {
+        let mut guarded = program.clone();
+        let condition = if aliased {
+            guarded.body.insert(
+                0,
+                Stmt::Const {
+                    name: "hasMessage".into(),
+                    value: exists.clone(),
+                },
+            );
+            Expr::Variable("hasMessage".into())
+        } else {
+            exists.clone()
+        };
+        guarded.body.insert(
+            usize::from(aliased),
+            Stmt::Require {
+                condition,
+                code: "HAS_MESSAGE".into(),
+            },
+        );
+        assert!(
+            policy_projection(&guarded, &schema, "documents").is_err(),
+            "protected-dependent Require accepted (aliased={aliased})"
+        );
     }
-    let protected_field = Expr::Field { base: Box::new(Expr::Variable("message".into())), name: "scopeId".into() };
+    assert_eq!(
+        projection,
+        BTreeMap::from([("metadata".into(), false), ("message".into(), true)])
+    );
+    let initial = json!([{"metadata": "scope", "message": {"scopeId": "secret"}}]);
+    let expected =
+        projected_policy_data(&initial, &projection, &schema.tables["documents"]).unwrap();
+    for subject in ["retained G handle", "fresh invocation"] {
+        let counts = require_policy_filtered(
+            &json!({"state": "complete", "data": expected}),
+            subject,
+            &expected,
+            &projection,
+        )
+        .unwrap();
+        assert_eq!(
+            (counts.rows, counts.protected_images, counts.nulled_images),
+            (1, 0, 1)
+        );
+        assert!(
+            require_policy_filtered(
+                &json!({"state": "complete", "data": initial}),
+                subject,
+                &expected,
+                &projection
+            )
+            .is_err()
+        );
+    }
+    let protected_field = Expr::Field {
+        base: Box::new(Expr::Variable("message".into())),
+        name: "scopeId".into(),
+    };
     for value in [
-        protected_field.clone(), Expr::Array(vec![protected_field.clone()]),
+        protected_field.clone(),
+        Expr::Array(vec![protected_field.clone()]),
         Expr::Object(BTreeMap::from([("nested".into(), protected_field)])),
         Expr::Literal(Value::String("unproved constant".into())),
     ] {
-        let Stmt::For { body, .. } = &mut program.body[2] else { panic!() };
-        let Stmt::Push { value: Expr::Object(fields), .. } = &mut body[1] else { panic!() };
+        let Stmt::For { body, .. } = &mut program.body[2] else {
+            panic!()
+        };
+        let Stmt::Push {
+            value: Expr::Object(fields),
+            ..
+        } = &mut body[1]
+        else {
+            panic!()
+        };
         fields.insert("leakedBody".into(), value);
-        assert!(policy_projection(&program, &schema, "documents").is_err(), "mixed scalar/array/nested candidates must be ineligible");
+        assert!(
+            policy_projection(&program, &schema, "documents").is_err(),
+            "mixed scalar/array/nested candidates must be ineligible"
+        );
     }
 }

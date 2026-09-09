@@ -13,6 +13,8 @@ use std::collections::{BTreeMap, BTreeSet};
 #[derive(Clone)]
 enum Origin {
     Unknown,
+    Stable,
+    MembershipGuard,
     CarrierPage(String),
     CarrierRow(String),
     CarrierField,
@@ -30,6 +32,16 @@ fn origin(
 ) -> Origin {
     match value {
         Expr::Variable(name) => vars.get(name).cloned().unwrap_or(Origin::Unknown),
+        Expr::Literal(_) | Expr::Input(snapback2_core::Input::Viewer) => Origin::Stable,
+        // A self-readable membership existence check with stable keys cannot
+        // consult the protected table, even through its read-policy dependency.
+        Expr::Exists(read)
+            if read.table != protected
+                && read.key.iter().all(|key| matches!(origin(key, vars, schema, protected), Origin::Stable))
+                && schema.tables.get(&read.table).is_some_and(|table| matches!(
+                    &table.rules.read,
+                    RuleExpr::Exists { table, index, .. } if table == &read.table && index == &read.index
+                )) => Origin::MembershipGuard,
         Expr::Scan(scan)
             if scan.table != protected
                 && schema
@@ -61,6 +73,46 @@ fn origin(
         }
         _ => Origin::Unknown,
     }
+}
+
+pub(super) fn policy_control_flow(
+    program: &Program,
+    schema: &Schema,
+    protected: &str,
+) -> Result<(), String> {
+    let mut vars = program
+        .args
+        .keys()
+        .map(|name| (name.clone(), Origin::Stable))
+        .collect();
+    let unsupported = || {
+        "policy probe control flow must be independent of the protected table; only stable values and self-readable membership guards are proved".to_owned()
+    };
+    for (position, statement) in program.body.iter().enumerate() {
+        match statement {
+            Stmt::Const { name, value } | Stmt::Let { name, value } => {
+                let value = origin(value, &vars, schema, protected);
+                if vars.insert(name.clone(), value).is_some() {
+                    return Err(unsupported());
+                }
+            }
+            Stmt::Require { condition, .. }
+                if matches!(
+                    origin(condition, &vars, schema, protected),
+                    Origin::Stable | Origin::MembershipGuard
+                ) => {}
+            Stmt::For { body, .. }
+                if body.iter().all(|statement| {
+                    matches!(
+                        statement,
+                        Stmt::Const { .. } | Stmt::Let { .. } | Stmt::Push { .. }
+                    )
+                }) => {}
+            Stmt::Return(_) if position + 1 == program.body.len() => {}
+            _ => return Err(unsupported()),
+        }
+    }
+    Ok(())
 }
 
 // This intentionally recognizes only a straight-line carrier page projection.
@@ -102,6 +154,7 @@ pub(super) fn policy_projection(
                     return Err(unsupported());
                 }
             }
+            // Checked by policy_control_flow before returning a proved projection.
             Stmt::Require { .. } => {}
             Stmt::For {
                 binding,
@@ -152,7 +205,10 @@ pub(super) fn policy_projection(
             }
             Stmt::Return(value) => {
                 return match origin(value, &vars, schema, protected) {
-                    Origin::ProjectedPage(fields) => Ok(fields),
+                    Origin::ProjectedPage(fields) => {
+                        policy_control_flow(program, schema, protected)?;
+                        Ok(fields)
+                    }
                     _ => Err(unsupported()),
                 };
             }

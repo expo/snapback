@@ -14,25 +14,44 @@ function bodies(rows: unknown): string[] {
 journey("conversation metadata stays inside membership", async ({ as }) => {
   const bob = as("bob");
   const charlie = as("charlie");
+  const counter = as("count-probe");
+  const peer = as("count-peer");
   try {
+    const inboxBefore = await bob.query(api.messages.inbox, { c: null });
     const member = await bob.query(api.messages.conversationView, { conversationId: "conversation-1" });
     if ((member.state !== "complete" && member.state !== "capped") || member.data?.count !== 1) {
       throw new Error(`seeded maintained message count was not 1: ${JSON.stringify(member)}`);
     }
-    const sent = await bob.mutation(api.messages.send, { conversationId: "conversation-1", body: "count me" });
+    // Keep this journey's delivery history out of the shared members' inboxes.
+    const group = await counter.mutation(api.groups.groupCreate, {
+      title: "Count probe", members: [(await peer.auth.me()).viewer],
+    });
+    if (group.state !== "committed") throw new Error("count probe group did not commit");
+    const conversationId = group.data.id;
+    const first = await counter.mutation(api.messages.send, { conversationId, body: "first" });
+    if (first.state !== "committed") throw new Error("count probe opener did not commit");
+    const baseline = await counter.query(api.messages.conversationView, { conversationId });
+    if (!("data" in baseline) || baseline.data?.count !== 1) throw new Error("count probe baseline was not 1");
+    const sent = await counter.mutation(api.messages.send, { conversationId, body: "count me" });
     if (sent.state !== "committed") throw new Error("member send did not commit");
-    const updated = await bob.query(api.messages.conversationView, { conversationId: "conversation-1" });
+    const updated = await counter.query(api.messages.conversationView, { conversationId });
     if ((updated.state !== "complete" && updated.state !== "capped") || updated.data?.count !== 2) {
       throw new Error(`maintained message count did not increment to 2: ${JSON.stringify(updated)}`);
     }
 
-    const removed = await bob.mutation(api.messages.unsend, { messageId: sent.data.id });
+    const removed = await counter.mutation(api.messages.unsend, { messageId: sent.data.id });
     if (removed.state !== "committed") throw new Error("count probe cleanup did not commit");
+    const restored = await counter.query(api.messages.conversationView, { conversationId });
+    if (!("data" in restored) || restored.data?.count !== 1) throw new Error("count did not decrement to 1");
     const outsider = await charlie.query(api.messages.conversationView, { conversationId: "conversation-1" });
     if (outsider.state !== "denied") throw new Error("conversation metadata query admitted an outsider");
+    const inboxAfter = await bob.query(api.messages.inbox, { c: null });
+    if (!("data" in inboxBefore) || !("data" in inboxAfter)
+      || JSON.stringify(inboxAfter.data) !== JSON.stringify(inboxBefore.data)) {
+      throw new Error("count probe changed the shared member inbox for later journeys");
+    }
   } finally {
-    bob.close();
-    charlie.close();
+    await Promise.all([bob.close(), charlie.close(), counter.close(), peer.close()]);
   }
 });
 
