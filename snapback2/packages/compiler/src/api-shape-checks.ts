@@ -247,7 +247,7 @@ query maxResult(left: money USD, right: money USD):
     assert(lowered.ok, `Quarry chat fixture refused: ${lowered.ok ? "" : diagnosticsText(lowered.diagnostics)}`);
     const expected: Record<string, string> = {
       "follows.setFollow": `FollowsRow | null`,
-      "profiles.createMyProfile": `ProfilesRow`,
+      "profiles.createMyProfile": `ProfilesRow | null`,
     };
     for (const [operation, result] of Object.entries(expected)) {
       assert(operationResult(lowered.apiDts, operation) === result,

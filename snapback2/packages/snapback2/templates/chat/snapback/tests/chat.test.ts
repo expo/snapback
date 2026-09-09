@@ -189,7 +189,7 @@ journey("profile ownership, uniqueness, and live public reads", async ({ as }) =
       bio: "",
       location: "",
     });
-    if (duplicate.state !== "rejected") throw new Error("duplicate public handle was admitted");
+    if (duplicate.state !== "committed" || duplicate.data !== null) throw new Error("if-absent disclosed or replaced a duplicate public handle");
   } finally {
     profile.close();
     alice.close();
@@ -525,7 +525,7 @@ journey("offline sends queue, survive a restart, replay in order, and a 503 afte
   tail.close();
 });
 
-journey("offline edits reject stale reads by trace, and past-fence edits by the program CONFLICT", async ({ as }) => {
+journey("conditional edits return the readable current row online and past the offline fence", async ({ as }) => {
   const alice = as("alice", { store: "file" });
   const drain = subscribe(alice, api.messages.inbox, { c: null }, () => undefined, { drain: true });
   await drain.until((value) => (value.state === "complete" || value.state === "capped") && value.caughtUp === true);
@@ -557,9 +557,8 @@ journey("offline edits reject stale reads by trace, and past-fence edits by the 
   await alice.settled();
   const entry = (await alice.outbox.entries()).find((item) => item.intent === edit.intent);
   if (entry?.state !== "rejected") throw new Error(`the stale edit settled as ${entry?.state}`);
-  const response = entry.response as { code?: string; reason?: string; site?: string };
-  // Trace validation names the moved read before the program's own `CONFLICT` can.
-  if (response.reason !== "conflict" || response.code !== "E_OFFLINE_CONFLICT" || typeof response.site !== "string") {
+  const response = entry.response as { code?: string; reason?: string; current?: { body?: string } };
+  if (response.reason !== "conflict" || response.code !== "E_CONFLICT" || response.current?.body !== "theirs") {
     throw new Error(`the stale edit was refused for another reason: ${JSON.stringify(response)}`);
   }
   const matching = (await alice.outbox.entries()).find((item) => item.intent === untouched.intent);
@@ -586,9 +585,9 @@ journey("offline edits reject stale reads by trace, and past-fence edits by the 
     await alice.online();
     await alice.settled();
     const terminal = (await alice.outbox.entries()).find((item) => item.intent === late.intent);
-    const refusal = terminal?.response as { code?: string; reason?: string };
-    if (terminal?.state !== "rejected" || refusal.code !== "CONFLICT" || refusal.reason === "conflict") {
-      throw new Error(`past-fence edit must fail the program's CONFLICT, not trace OCC: ${JSON.stringify(terminal)}`);
+    const refusal = terminal?.response as { code?: string; reason?: string; current?: { body?: string } };
+    if (terminal?.state !== "rejected" || refusal.code !== "E_CONFLICT" || refusal.reason !== "conflict" || refusal.current?.body !== "theirs") {
+      throw new Error(`past-fence edit lost its current-row conflict result: ${JSON.stringify(terminal)}`);
     }
   } finally {
     Date.now = originalNow;

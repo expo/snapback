@@ -64,10 +64,8 @@ mutation unsend(messageId: messages):
   return null
 
 mutation edit(messageId: messages, body: text <=4000, baseBody: text <=4000):
-  msg = messages[messageId] ! else NOT_FOUND
-  require msg.authorId = viewer else NOT_AUTHOR
-  require msg.body = baseBody else CONFLICT
-  update messages[msg] { body }
+  msg = update messages[messageId] { body } if .body = baseBody
+  require msg != null else NOT_FOUND
   deliver(msg.conversationId, messageId, 'edit')
   return null
 

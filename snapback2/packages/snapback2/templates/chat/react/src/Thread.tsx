@@ -31,7 +31,9 @@ export function Thread({ conversationId, onNote }: {
     const captured = visit.current;
     try {
       const result = await edit.run({ messageId, body: next, baseBody: body });
-      if (current(captured)) onNote(result.state === "rejected" ? `Edit not sent: ${result.rewrite ?? result.message}` : "");
+      if (current(captured)) onNote(result.state !== "rejected" ? "" : result.reason === "conflict"
+        ? typeof result.current?.body === "string" ? `Edit not sent. Current message: ${result.current.body}` : "Edit not sent. The message is no longer readable."
+        : `Edit not sent: ${result.rewrite ?? result.message}`);
     } catch (error) { if (current(captured)) onNote(describe(error)); }
   };
   const onUnsend = async (messageId: string) => {
