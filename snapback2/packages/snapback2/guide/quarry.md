@@ -6,18 +6,18 @@ Quarry is the backend language. `check` compiles in memory; inspection goes in
 ## Project
 
 `snapback/schema.q` holds `use identity`, tables, maintains and channels.
-Other `.q` files hold operations/shapes; stems name API namespaces:
+Other `.q` stems name operation/shape namespaces:
 `messages.q` exports `api.messages.thread`.
 
-TypeScript in `snapback/` is only seeds, tests, and effect I/O; everything
-else is Quarry. Effect/`.q` stems must differ.
+TypeScript in `snapback/` is for seeds, tests and effect I/O; otherwise use
+Quarry. Effect/`.q` stems must differ.
 
 ## Types and tables
 
 Virtual `connected` supports only `exists connected[p]` and
 `#connected[p]` for `p: principal`; see `guide connected`.
 
-Columns and arguments use `principal`, `id`, table references, `int`, `time`,
+Column/argument types: `principal`, `id`, table references, `int`, `time`,
 `bool`, `decimal <scale>`, `money <CUR> [scale]`, `text <=N`, `text M..N`,
 `json <=N`, `bytes <=N`, `enum(...)`, and bounded lists `[type] <=N`. Decimal
 and money scales are integers 0–12 (money defaults to 2; its currency is three
@@ -60,7 +60,9 @@ A non-empty text literal in an Id position (key, merge prefix, equality,
 or `??` fallback) is an Id on the wire; text expressions and wrong-table refs
 refuse. A cursor position takes the token, never an Id literal.
 
-Tables get `id` and `byId` implicitly. `by name: a, b` declares a named
+Tables get `id` and `byId` implicitly.
+`walk` needs a separate edge such as `parent: posts ?`; `id` is reserved.
+`by name: a, b` declares a named
 ordering; `by a, b` infers `byAB`. `unique name: a, b` declares a named unique
 ordering and its uniqueness constraint; `unique a, b` infers `byAB`. `id` may
 appear in an index. `immutable a, b` forbids changes to those columns.
@@ -193,10 +195,9 @@ only, not an `and` operand or the else.
 `wordPrefixes(field)` index and an ordinary bounded prefix read; there is no
 public `words()` value function. See `guide live-query` for indexing and editing.
 
-`now` is the read clock in queries and the commit clock in mutations; `commit` is
-the commit clock, the same instant in mutations. `now` is pinned
-once per request rather than redrawn; `new` allocates a fresh ID on each
-evaluation.
+`now` is the read clock in queries, the commit clock in mutations; `commit`
+is the commit clock. `now` is pinned per request rather than redrawn;
+`new` allocates a fresh ID per evaluation.
 
 Writes: `insert table { fields }`, `update table[key] { patch }`,
 `upsert table[key] { row }`, `delete table[key]`. Non-insert keys must be complete

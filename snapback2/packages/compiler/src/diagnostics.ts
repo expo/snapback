@@ -123,9 +123,9 @@ function diagnosticFamily(code: DiagnosticCode): FrontendDiagnostic["family"] {
 }
 
 function diagnosticGuide(code: DiagnosticCode): string {
-  if (code === "E_QUARRY_TYPE") return "quarry/types";
+  if (code === "E_QUARRY_TYPE") return "quarry";
   if (code === "E_QUARRY_SYNTAX") return "quarry/grammar";
-  if (code === "E_QUARRY_AMBIGUOUS") return "quarry/indexes";
+  if (code === "E_QUARRY_AMBIGUOUS") return "quarry";
   if (code === "E_QUARRY_UNSUPPORTED") return "quarry/refusals";
   if (code === "E_QUARRY_PLACEMENT") return "quarry/projects";
   if (code === "E_QUARRY_RETAIN" || code === "E_QUARRY_TOMBSTONE") return "quarry/grammar";

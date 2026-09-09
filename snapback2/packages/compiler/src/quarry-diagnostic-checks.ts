@@ -454,6 +454,26 @@ table posts:
     { name: "intrinsic-only range needs a bound", source: "query all():\n  return conversations[]", message: "reads a range; name its bound", fixes: ["conversations[] first 50 by byId"], code: "E_UNBOUND_SCAN" },
     { name: "distant column lists names", source: "mutation add():\n  insert posts { unrelated: viewer }", message: "unknown posts field", fixes: ["authorId", "body", "status"], code: "E_QUARRY_TYPE" },
   ];
+  test("diagnostic fix: implicit walk id prescribes a legal self-reference repair", async () => {
+    let rewrite = "";
+    await withProject({ "snapback/schema.q": schema,
+      "snapback/ops.q": "query one(id: posts):\n  return walk posts[id] up .id depth 3\n" }, async root => {
+      const result = await lowerProject(root);
+      assert(!result.ok, "implicit id must not be a walk edge");
+      const diagnostic = result.diagnostics[0]!;
+      rewrite = diagnostic.rewrite;
+      assert(diagnostic.code === "E_QUARRY_TYPE" && diagnostic.guide === "quarry", JSON.stringify(diagnostic));
+      assert(!rewrite.includes("declare id:") && rewrite.includes("declare parent: posts ?")
+        && rewrite.includes("walk posts[id] up .parent depth 3"), rewrite);
+    });
+    const declaration = rewrite.match(/declare (parent: posts \?)/)![1]!;
+    const walk = rewrite.match(/walk posts\[id\] up \.parent depth 3/)![0];
+    await withProject({ "snapback/schema.q": schema.replace("table posts:", `table posts:\n  ${declaration}`),
+      "snapback/ops.q": `query one(id: posts):\n  return ${walk}\n` }, async root => {
+      const repaired = await lowerProject(root);
+      assert(repaired.ok, JSON.stringify(repaired));
+    });
+  });
   for (const item of cases) test(`diagnostic fix: ${item.name}`, async () => {
     await withProject({ "snapback/schema.q": schema, "snapback/posts.q": item.source + "\n",
       "snapback/access.q": "fn identity(v: int) = v\nshape card = { * }\nproc store():\n  insert posts { authorId: viewer, body: 'Hi', at: now, status: 'open' }\n",
@@ -462,7 +482,7 @@ table posts:
       assert(!result.ok, "invalid source escaped");
       const diagnostic = result.diagnostics.find(d => d.code === item.code && d.message.includes(item.message));
       assert(diagnostic && item.fixes.every(fix => diagnostic.rewrite.includes(fix)), JSON.stringify(result));
-      if (item.code === "E_UNBOUND_SCAN") assert(diagnostic.guide === "quarry", JSON.stringify(diagnostic));
+      if (item.code === "E_UNBOUND_SCAN" || item.code === "E_QUARRY_TYPE") assert(diagnostic.guide === "quarry", JSON.stringify(diagnostic));
       assert(!diagnostic.message.includes("[?]"), JSON.stringify(diagnostic));
       if (item.name === "walk rejects a wrong self-reference type") assert(!diagnostic.rewrite.includes("did you mean `body`"), JSON.stringify(diagnostic));
       if (item.name.startsWith("distant")) assert(!diagnostic.rewrite.includes("did you mean"), JSON.stringify(diagnostic));

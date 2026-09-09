@@ -38,7 +38,7 @@
     "family": "successor",
     "code": "E_SUCCESSOR_DESTRUCTIVE",
     "wrong": "```text\nRemove a column or replace an index, then assume a passing check installed the change.\n```",
-    "right": "```sh\nsnapback2 dev --status --json\n# Keep the owner running. Under status.refused, inspect migrationFile and\n# review that file's plan and project. Only apply the drops you intend.\n# Replace GENERATION below with the exact generation from migrationFile.\nsnapback2 dev --apply-migration .snapback/migration-GENERATION.json\nsnapback2 dev --status --json\n```\n\nRun these from the project root, or use the refusal's applyCommand, which includes the project and plan's absolute paths. Relative --apply-migration paths resolve from the working directory even with --project. check compiles, certifies, and refreshes the build cache; it does not install a successor. Until migration succeeds, the owner keeps serving its previous generation. The final status must be ready with the plan's generation.",
+    "right": "```sh\nsnapback2 dev --status --json\n# Keep the owner running. Under status.refused, inspect migrationFile and\n# review that file's plan and project. Only apply the drops you intend.\n# Replace GENERATION below with the exact generation from migrationFile.\nsnapback2 dev --apply-migration .snapback/migration-GENERATION.json\nsnapback2 dev --status --json\n```\n\nRun these from the project root, or use the refusal's applyCommand, which includes the project and plan's absolute paths. Relative --apply-migration paths resolve from the working directory even with --project. check compiles, certifies, and refreshes the build cache; it does not install a successor. Until migration succeeds, the owner keeps serving its previous generation. The final status must be ready with the plan's generation. A mismatched active certificate refuses why with E_WHY_STALE: resolve the refused successor using this recovery, or revert the refused edit, then run snapback2 check and retry why.",
     "guide": "operator"
   },
   {
@@ -65,64 +65,64 @@
   {
     "family": "bound",
     "code": "E_UNBOUND_SCAN",
-    "wrong": "```q\nquery all():\n  return posts[]\n```",
-    "right": "```q\nquery all():\n  return posts[] first 50 by byTime\n```",
+    "wrong": "```q\n-- snapback/schema.q\nuse identity\ntable posts:\n  ownerId: principal\n  author: principal\n  at: time\n  visible: bool\n  photo: image <=10000000 ?\n  by byTime: at, id\n  by byOwnerAt: ownerId, at, id\n  by byAuthorAt: author, at, id\n  public\n\n-- snapback/ops.q\nquery all():\n  return posts[]\n```",
+    "right": "```q\n-- snapback/schema.q\nuse identity\ntable posts:\n  ownerId: principal\n  author: principal\n  at: time\n  visible: bool\n  photo: image <=10000000 ?\n  by byTime: at, id\n  by byOwnerAt: ownerId, at, id\n  by byAuthorAt: author, at, id\n  public\n\n-- snapback/ops.q\nquery all():\n  return posts[] first 50 by byTime\n```",
     "guide": "quarry"
   },
   {
     "family": "bound",
     "code": "E_UNBOUND_LOOP",
-    "wrong": "```q\nmutation visit(items: json <=4096):\n  for item in items.values:\n    value = item\n  return null\n```",
-    "right": "```q\nmutation visit(items: [text <=100] <=20):\n  for title in items:\n    insert todos { title, ownerId: viewer }\n  return null\n```",
+    "wrong": "```q\n-- snapback/schema.q\nuse identity\ntable todos:\n  title: text <=100\n  ownerId: principal\n  by byOwner: ownerId, id\n  public\n  insert <- allow\n  update <- allow\n\n-- snapback/ops.q\nmutation visit(items: json <=4096):\n  for item in items.values:\n    value = item\n  return null\n```",
+    "right": "```q\n-- snapback/schema.q\nuse identity\ntable todos:\n  title: text <=100\n  ownerId: principal\n  by byOwner: ownerId, id\n  public\n  insert <- allow\n  update <- allow\n\n-- snapback/ops.q\nmutation visit(items: [text <=100] <=20):\n  for title in items:\n    insert todos { title, ownerId: viewer }\n  return null\n```",
     "guide": "quarry"
   },
   {
     "family": "bound",
     "code": "E_STRUCTURAL_COUNT",
-    "wrong": "```q\nquery total():\n  return (posts[] first 50 by byTime).length\n```",
-    "right": "```q\nquery total():\n  return postCounts[viewer]\n```",
+    "wrong": "```q\n-- The viewer-dependent read rule makes page length non-structural.\n-- snapback/schema.q\nuse identity\ntable posts:\n  ownerId: principal\n  author: principal\n  at: time\n  visible: bool\n  photo: image <=10000000 ?\n  by byTime: at, id\n  by byOwnerAt: ownerId, at, id\n  by byAuthorAt: author, at, id\n  read <- .ownerId = viewer\nmaintain postCounts = count posts by ownerId:\n  read <- allow\n\n-- snapback/ops.q\nquery total():\n  return (posts[] first 50 by byTime).length\n```",
+    "right": "```q\n-- The viewer-dependent read rule makes page length non-structural.\n-- snapback/schema.q\nuse identity\ntable posts:\n  ownerId: principal\n  author: principal\n  at: time\n  visible: bool\n  photo: image <=10000000 ?\n  by byTime: at, id\n  by byOwnerAt: ownerId, at, id\n  by byAuthorAt: author, at, id\n  read <- .ownerId = viewer\nmaintain postCounts = count posts by ownerId:\n  read <- allow\n\n-- snapback/ops.q\nquery total():\n  return postCounts[viewer]\n```",
     "guide": "quarry"
   },
   {
     "family": "opaque",
     "code": "E_AMBIENT_TIME",
-    "wrong": "```q\nquery current():\n  return commit\n```",
-    "right": "```q\nquery current():\n  return now\n```",
+    "wrong": "```q\n-- snapback/schema.q\ntable todos:\n  title: text <=100\n  public\n\n-- snapback/ops.q\nquery current():\n  return commit\n```",
+    "right": "```q\n-- snapback/schema.q\ntable todos:\n  title: text <=100\n  public\n\n-- snapback/ops.q\nquery current():\n  return now\n```",
     "guide": "quarry"
   },
   {
     "family": "opaque",
     "code": "E_OPAQUE",
-    "wrong": "```q\nquery size(value: json <=1000):\n  return value.length\n```",
-    "right": "```q\nquery size(value: [int] <=20):\n  return value.length\n```",
+    "wrong": "```q\n-- snapback/schema.q\ntable todos:\n  title: text <=100\n  public\n\n-- snapback/ops.q\nquery size(value: json <=1000):\n  return value.length\n```",
+    "right": "```q\n-- snapback/schema.q\ntable todos:\n  title: text <=100\n  public\n\n-- snapback/ops.q\nquery size(value: [int] <=20):\n  return value.length\n```",
     "guide": "quarry"
   },
   {
     "family": "bound",
     "code": "E_BOUND",
-    "wrong": "500 merge lanes \u00d7 (20 + 2), 50 writes \u00d7 cap 1000, or a wide nested result exceeds a named ceiling",
+    "wrong": "500 merge lanes × (20 + 2), 50 writes × cap 1000, or a wide nested result exceeds a named ceiling",
     "right": "Follow the largest sourced term: structurally reduce merge lanes/page, use two reads (two snapshots), or maintain a feed; for a cap use the named fitting chunk; for nested scans use maintain.count/sum; for bytes narrow the named collection and fields",
     "guide": "quarry"
   },
   {
     "family": "op",
     "code": "E_OP_INVALID",
-    "wrong": "```q\n-- snapback/nested/example.q\nquery valid():\n  return null\n```",
-    "right": "```q\n-- snapback/example.q\nquery valid():\n  return null\n```",
+    "wrong": "```q\n-- snapback/schema.q\ntable todos:\n  title: text <=100\n  public\n\n-- snapback/nested/example.q\nquery valid():\n  return null\n```",
+    "right": "```q\n-- snapback/schema.q\ntable todos:\n  title: text <=100\n  public\n\n-- snapback/example.q\nquery valid():\n  return null\n```",
     "guide": "quarry"
   },
   {
     "family": "op",
     "code": "E_OP_NONE",
-    "wrong": "```q\ntable todos:\n  title: text <=100\n  public\n```",
-    "right": "```q\nquery operation():\n  return null\n```",
+    "wrong": "```q\n-- snapback/schema.q\ntable todos:\n  title: text <=100\n  public\n```",
+    "right": "```q\n-- snapback/schema.q\ntable todos:\n  title: text <=100\n  public\n\n-- snapback/ops.q\nquery operation():\n  return null\n```",
     "guide": "quarry"
   },
   {
     "family": "op",
     "code": "E_OP_RESERVED",
-    "wrong": "```q\nquery check():\n  require false else E_AUTH_CUSTOM\n  return null\n```",
-    "right": "```q\nquery check():\n  require false else ACCESS_DENIED\n  return null\n```",
+    "wrong": "```q\n-- snapback/schema.q\ntable todos:\n  title: text <=100\n  public\n\n-- snapback/ops.q\nquery check():\n  require false else E_AUTH_CUSTOM\n  return null\n```",
+    "right": "```q\n-- snapback/schema.q\ntable todos:\n  title: text <=100\n  public\n\n-- snapback/ops.q\nquery check():\n  require false else ACCESS_DENIED\n  return null\n```",
     "guide": "quarry"
   },
   {
@@ -142,8 +142,8 @@
   {
     "family": "schema",
     "code": "E_SCHEMA_RESERVED",
-    "wrong": "```q\ntable _meta:\n  title: text <=100\n```",
-    "right": "```q\ntable metadata:\n  title: text <=100\n  public\n```",
+    "wrong": "```q\n-- snapback/schema.q\ntable _meta:\n  title: text <=100\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",
+    "right": "```q\n-- snapback/schema.q\ntable metadata:\n  title: text <=100\n  public\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",
     "guide": "quarry"
   },
   {
@@ -156,29 +156,29 @@
   {
     "family": "schema",
     "code": "E_SCHEMA_INDEX_COLUMN",
-    "wrong": "```q\nby byPhoto: photo\n```",
-    "right": "```q\nby byTime: at, id\n```",
+    "wrong": "```q\n-- snapback/schema.q\ntable posts:\n  photo: image <=10000000 ?\n  at: time\n  by byPhoto: photo\n  public\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",
+    "right": "```q\n-- snapback/schema.q\ntable posts:\n  photo: image <=10000000 ?\n  at: time\n  by byTime: at, id\n  public\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",
     "guide": "quarry"
   },
   {
     "family": "schema",
     "code": "E_SCHEMA_CONSTRAINT",
-    "wrong": "```q\ncap 50 by ownerId, ownerId\n```",
-    "right": "```q\ncap 50 by ownerId\n```",
+    "wrong": "```q\n-- snapback/schema.q\nuse identity\ntable todos:\n  title: text <=100\n  ownerId: principal\n  cap 50 by ownerId, ownerId\n  by byOwner: ownerId, id\n  public\n  insert <- allow\n  update <- allow\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",
+    "right": "```q\n-- snapback/schema.q\nuse identity\ntable todos:\n  title: text <=100\n  ownerId: principal\n  cap 50 by ownerId\n  by byOwner: ownerId, id\n  public\n  insert <- allow\n  update <- allow\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",
     "guide": "quarry"
   },
   {
     "family": "schema",
     "code": "E_SCHEMA_MAINTAIN",
-    "wrong": "```q\nmaintain counts = count postCounts by ownerId:\n  read <- allow\n```",
-    "right": "```q\nmaintain counts = count posts by ownerId:\n  read <- allow\n```",
+    "wrong": "```q\n-- snapback/schema.q\nuse identity\ntable posts:\n  ownerId: principal\n  author: principal\n  at: time\n  visible: bool\n  photo: image <=10000000 ?\n  by byTime: at, id\n  by byOwnerAt: ownerId, at, id\n  by byAuthorAt: author, at, id\n  public\nmaintain postCounts = count posts by ownerId:\n  read <- allow\nmaintain counts = count postCounts by ownerId:\n  read <- allow\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",
+    "right": "```q\n-- snapback/schema.q\nuse identity\ntable posts:\n  ownerId: principal\n  author: principal\n  at: time\n  visible: bool\n  photo: image <=10000000 ?\n  by byTime: at, id\n  by byOwnerAt: ownerId, at, id\n  by byAuthorAt: author, at, id\n  public\nmaintain postCounts = count posts by ownerId:\n  read <- allow\nmaintain counts = count posts by ownerId:\n  read <- allow\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",
     "guide": "quarry"
   },
   {
     "family": "schema",
     "code": "E_SCHEMA_ASSET_MAINTAIN",
-    "wrong": "```q\nmaintain counts = count posts by photo:\n  read <- deny\n```",
-    "right": "```q\nmaintain counts = count posts by ownerId:\n  read <- .ownerId = viewer\n```",
+    "wrong": "```q\n-- snapback/schema.q\nuse identity\ntable posts:\n  ownerId: principal\n  author: principal\n  at: time\n  visible: bool\n  photo: image <=10000000 ?\n  by byTime: at, id\n  by byOwnerAt: ownerId, at, id\n  by byAuthorAt: author, at, id\n  public\nmaintain postCounts = count posts by ownerId:\n  read <- allow\nmaintain counts = count posts by photo:\n  read <- deny\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",
+    "right": "```q\n-- snapback/schema.q\nuse identity\ntable posts:\n  ownerId: principal\n  author: principal\n  at: time\n  visible: bool\n  photo: image <=10000000 ?\n  by byTime: at, id\n  by byOwnerAt: ownerId, at, id\n  by byAuthorAt: author, at, id\n  public\nmaintain postCounts = count posts by ownerId:\n  read <- allow\nmaintain counts = count posts by ownerId:\n  read <- .ownerId = viewer\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",
     "guide": "quarry"
   },
   {
@@ -205,8 +205,8 @@
   {
     "family": "args",
     "code": "E_DECIMAL_SCALE",
-    "wrong": "```q\nmutation add():\n  insert prices { amount: 1.234 }\n```",
-    "right": "```q\nmutation add():\n  insert prices { amount: 1.23 }\n```",
+    "wrong": "```q\n-- snapback/schema.q\ntable prices:\n  amount: decimal 2\n  public\n  insert <- allow\n\n-- snapback/ops.q\nmutation add():\n  insert prices { amount: 1.234 }\n```",
+    "right": "```q\n-- snapback/schema.q\ntable prices:\n  amount: decimal 2\n  public\n  insert <- allow\n\n-- snapback/ops.q\nmutation add():\n  insert prices { amount: 1.23 }\n```",
     "guide": "quarry"
   },
   {
@@ -275,78 +275,78 @@
   {
     "family": "effect",
     "code": "E_EFFECT_THEN_ARGS",
-    "wrong": "```q\nmutation recordNotified(id: notifications):\n  return null\n```",
-    "right": "```q\nmutation recordNotified(outboxId: id, effect: text <=100, result: json <=4096):\n  return null\n```",
+    "wrong": "In a project with these files:\n\n```q\n-- snapback/schema.q\ntable notifications:\n  body: text <=100\n  public\n\n-- snapback/ops.q\nmutation recordNotified(id: notifications):\n  return null\n```\n\n```ts\n// snapback/delivery.ts\nimport { effect } from \"snapback2\";\nimport { recordNotified } from \"./ops\";\nexport const notify = effect({\n  grants: [\"https://example.com\"],\n  run: async (_payload: null) => null,\n  then: recordNotified,\n});\n```",
+    "right": "In a project with these files:\n\n```q\n-- snapback/schema.q\ntable notifications:\n  body: text <=100\n  public\n\n-- snapback/ops.q\nmutation recordNotified(outboxId: id, effect: text <=100, result: json <=4096):\n  return null\n```\n\n```ts\n// snapback/delivery.ts\nimport { effect } from \"snapback2\";\nimport { recordNotified } from \"./ops\";\nexport const notify = effect({\n  grants: [\"https://example.com\"],\n  run: async (_payload: null) => null,\n  then: recordNotified,\n});\n```",
     "guide": "effects"
   },
   {
     "family": "effect",
     "code": "E_EFFECT_UNKNOWN",
-    "wrong": "```q\nquery ping():\n  return null\neffect missing from unavailable\n```",
-    "right": "```q\nquery ping():\n  return null\neffect notify from delivery\n```",
+    "wrong": "In a project with these files:\n\n```q\n-- snapback/schema.q\ntable notifications:\n  body: text <=100\n  public\n\n-- snapback/ops.q\nquery ping():\n  return null\neffect missing from unavailable\n```\n\n```ts\n// snapback/delivery.ts\nimport { effect } from \"snapback2\";\nexport const notify = effect({\n  grants: [\"https://example.com\"],\n  run: async (_payload: null) => null,\n});\n```",
+    "right": "In a project with these files:\n\n```q\n-- snapback/schema.q\ntable notifications:\n  body: text <=100\n  public\n\n-- snapback/ops.q\nquery ping():\n  return null\neffect notify from delivery\n```\n\n```ts\n// snapback/delivery.ts\nimport { effect } from \"snapback2\";\nexport const notify = effect({\n  grants: [\"https://example.com\"],\n  run: async (_payload: null) => null,\n});\n```",
     "guide": "effects"
   },
   {
     "family": "effect",
     "code": "E_EMIT_IN_QUERY",
-    "wrong": "```q\nquery notifyNow():\n  emit notify null\n  return null\neffect notify from delivery\n```",
-    "right": "```q\nmutation notifyNow():\n  emit notify null\n  return null\neffect notify from delivery\n```",
+    "wrong": "In a project with these files:\n\n```q\n-- snapback/schema.q\ntable notifications:\n  body: text <=100\n  public\n\n-- snapback/ops.q\nquery notifyNow():\n  emit notify null\n  return null\neffect notify from delivery\n```\n\n```ts\n// snapback/delivery.ts\nimport { effect } from \"snapback2\";\nexport const notify = effect({\n  grants: [\"https://example.com\"],\n  run: async (_payload: null) => null,\n});\n```",
+    "right": "In a project with these files:\n\n```q\n-- snapback/schema.q\ntable notifications:\n  body: text <=100\n  public\n\n-- snapback/ops.q\nmutation notifyNow():\n  emit notify null\n  return null\neffect notify from delivery\n```\n\n```ts\n// snapback/delivery.ts\nimport { effect } from \"snapback2\";\nexport const notify = effect({\n  grants: [\"https://example.com\"],\n  run: async (_payload: null) => null,\n});\n```",
     "guide": "effects"
   },
   {
     "family": "quarry",
     "code": "E_QUARRY_SYNTAX",
-    "wrong": "```q\ntable items\n  name text <=100\n```",
-    "right": "```q\ntable items:\n  name: text <=100\n  public\n```",
+    "wrong": "```q\n-- snapback/schema.q\ntable todos:\n  title: text <=100\n  public\n\ntable items\n  name text <=100\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",
+    "right": "```q\n-- snapback/schema.q\ntable items:\n  name: text <=100\n  public\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",
     "guide": "quarry"
   },
   {
     "family": "quarry",
     "code": "E_QUARRY_UNKNOWN",
-    "wrong": "```q\nquery one(key: text <=20):\n  return settings[id = key]\n```",
-    "right": "```q\nquery one(key: text <=20):\n  return settings[key = key]\n```",
+    "wrong": "```q\n-- snapback/schema.q\ntable settings:\n  key: text <=20\n  value: text <=100\n  unique byKey: key\n  public\n\n-- snapback/ops.q\nquery one(key: text <=20):\n  return settings[id = key]\n```",
+    "right": "```q\n-- snapback/schema.q\ntable settings:\n  key: text <=20\n  value: text <=100\n  unique byKey: key\n  public\n\n-- snapback/ops.q\nquery one(key: text <=20):\n  return settings[key = key]\n```",
     "guide": "quarry"
   },
   {
     "family": "quarry",
     "code": "E_QUARRY_AMBIGUOUS",
-    "wrong": "```q\nquery recent(owner: principal):\n  return posts[owner] first 20\n```",
-    "right": "```q\nquery recent(owner: principal):\n  return posts[owner] first 20 by byAuthorTime\n```",
+    "wrong": "```q\n-- snapback/schema.q\nuse identity\ntable posts:\n  ownerId: principal\n  author: principal\n  at: time\n  visible: bool\n  photo: image <=10000000 ?\n  by byTime: at, id\n  by byAuthorTime: ownerId, at, id\n  by byAuthorAt: author, at, id\n  public\n\n-- snapback/ops.q\nquery recent(owner: principal):\n  return posts[owner] first 20\n```",
+    "right": "```q\n-- snapback/schema.q\nuse identity\ntable posts:\n  ownerId: principal\n  author: principal\n  at: time\n  visible: bool\n  photo: image <=10000000 ?\n  by byTime: at, id\n  by byAuthorTime: ownerId, at, id\n  by byAuthorAt: author, at, id\n  public\n\n-- snapback/ops.q\nquery recent(owner: principal):\n  return posts[owner] first 20 by byAuthorTime\n```",
     "guide": "quarry"
   },
   {
     "family": "quarry",
     "code": "E_QUARRY_UNSUPPORTED",
-    "wrong": "```q\nquery visible(author: principal):\n  return posts[author] first 20 by byAuthorAt where .visible = true\n```",
-    "right": "```q\n-- schema.q: by byAuthorVisibleAt: author, visible, at, id\nquery visible(author: principal):\n  return posts[author, true] first 20 by byAuthorVisibleAt\n```",
+    "wrong": "```q\n-- snapback/schema.q\nuse identity\ntable posts:\n  ownerId: principal\n  author: principal\n  at: time\n  visible: bool\n  photo: image <=10000000 ?\n  by byTime: at, id\n  by byOwnerAt: ownerId, at, id\n  by byAuthorVisibleAt: author, visible, at, id\n  by byAuthorAt: author, at, id\n  public\n\n-- snapback/ops.q\nquery visible(author: principal):\n  return posts[author] first 20 by byAuthorAt where .visible = true\n```",
+    "right": "```q\n-- snapback/schema.q\nuse identity\ntable posts:\n  ownerId: principal\n  author: principal\n  at: time\n  visible: bool\n  photo: image <=10000000 ?\n  by byTime: at, id\n  by byOwnerAt: ownerId, at, id\n  by byAuthorVisibleAt: author, visible, at, id\n  by byAuthorAt: author, at, id\n  public\n\n-- snapback/ops.q\nquery visible(author: principal):\n  return posts[author, true] first 20 by byAuthorVisibleAt\n```",
     "guide": "quarry"
   },
   {
     "family": "quarry",
     "code": "E_QUARRY_PLACEMENT",
-    "wrong": "```q\n-- snapback/items.q\ntable items:\n  name: text <=100\n```",
-    "right": "```q\n-- snapback/schema.q\ntable items:\n  name: text <=100\n  public\n```",
+    "wrong": "```q\n-- snapback/schema.q\ntable todos:\n  title: text <=100\n  public\n\n-- snapback/items.q\ntable items:\n  name: text <=100\n```",
+    "right": "```q\n-- snapback/schema.q\ntable items:\n  name: text <=100\n  public\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",
     "guide": "quarry"
   },
   {
     "family": "quarry",
     "code": "E_QUARRY_TYPE",
-    "wrong": "```q\nquery present(x: time ?):\n  if x:\n    return true\n  return false\n```",
-    "right": "```q\nquery present(x: time ?):\n  return x != null\n```",
+    "wrong": "```q\n-- snapback/schema.q\ntable todos:\n  title: text <=100\n  public\n\n-- snapback/ops.q\nquery present(x: time ?):\n  if x:\n    return true\n  return false\n```",
+    "right": "```q\n-- snapback/schema.q\ntable todos:\n  title: text <=100\n  public\n\n-- snapback/ops.q\nquery present(x: time ?):\n  return x != null\n```",
     "guide": "quarry"
   },
   {
     "family": "quarry",
     "code": "E_QUARRY_RETAIN",
-    "wrong": "```q\ntable messages:\n  body: text <=4000\n  retain forever\n```",
-    "right": "```q\ntable messages:\n  body: text <=4000\n  retain delivered-history\n```",
+    "wrong": "```q\n-- snapback/schema.q\ntable messages:\n  body: text <=4000\n  retain forever\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",
+    "right": "```q\n-- snapback/schema.q\ntable messages:\n  body: text <=4000\n  retain delivered-history\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",
     "guide": "quarry"
   },
   {
     "family": "quarry",
     "code": "E_QUARRY_TOMBSTONE",
-    "wrong": "```q\ntable deliveries:\n  recipient: principal\n  messageId: messages\n  kind: enum('message', 'removed')\n  tombstones messages[.recipient] if .kind = 'removed'\n```",
-    "right": "```q\ntable deliveries:\n  recipient: principal\n  messageId: messages\n  kind: enum('message', 'removed')\n  tombstones messages[.messageId] if .kind = 'removed'\n```",
+    "wrong": "```q\n-- snapback/schema.q\nuse identity\ntable messages:\n  body: text <=100\n  at: time\n  expiresAt: time ?\n  public\ntable deliveries:\n  recipient: principal\n  messageId: messages\n  kind: enum('message', 'removed')\n  tombstones messages[.recipient] if .kind = 'removed'\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",
+    "right": "```q\n-- snapback/schema.q\nuse identity\ntable messages:\n  body: text <=100\n  at: time\n  expiresAt: time ?\n  public\ntable deliveries:\n  recipient: principal\n  messageId: messages\n  kind: enum('message', 'removed')\n  tombstones messages[.messageId] if .kind = 'removed'\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",
     "guide": "quarry"
   },
   {
@@ -504,7 +504,7 @@
     "site": "by",
     "guide": "operator",
     "wrong": "send a control request with by: \"alice.smith\"",
-    "right": "set by to 1\u201380 ASCII letters, numbers, dashes, or underscores, such as operator-alice; system is reserved"
+    "right": "set by to 1–80 ASCII letters, numbers, dashes, or underscores, such as operator-alice; system is reserved"
   },
   {
     "family": "successor",
@@ -583,23 +583,23 @@
     "code": "E_SCHEDULE_COLUMN",
     "site": "schedule <name> on <table> at .<column>",
     "guide": "schedule",
-    "wrong": "```q\nschedule expireMessage on messages at .body:\n  purgeMessage(.id)\n```",
-    "right": "```q\n-- schema.q: expiresAt: time ?\nschedule expireMessage on messages at .expiresAt:\n  purgeMessage(.id)\n```"
+    "wrong": "```q\n-- snapback/schema.q\ntable messages:\n  body: text <=100\n  at: time\n  expiresAt: time ?\n  public\n\n-- snapback/ops.q\nmutation purgeMessage(id: messages):\n  delete messages[id]\n  return null\nquery thread(id: messages):\n  return messages[id]\nmutation digestSweep():\n  return null\nschedule expireMessage on messages at .body:\n  purgeMessage(.id)\n```",
+    "right": "```q\n-- snapback/schema.q\ntable messages:\n  body: text <=100\n  at: time\n  expiresAt: time ?\n  public\n\n-- snapback/ops.q\nmutation purgeMessage(id: messages):\n  delete messages[id]\n  return null\nquery thread(id: messages):\n  return messages[id]\nmutation digestSweep():\n  return null\nschedule expireMessage on messages at .expiresAt:\n  purgeMessage(.id)\n```"
   },
   {
     "family": "schedule",
     "code": "E_SCHEDULE_TARGET",
     "site": "schedule <name> ...: <target>",
     "guide": "schedule",
-    "wrong": "```q\nschedule expireMessage on messages at .expiresAt:\n  thread(.id)\n```",
-    "right": "```q\nschedule expireMessage on messages at .expiresAt:\n  purgeMessage(.id)\n```"
+    "wrong": "```q\n-- snapback/schema.q\ntable messages:\n  body: text <=100\n  at: time\n  expiresAt: time ?\n  public\n\n-- snapback/ops.q\nmutation purgeMessage(id: messages):\n  delete messages[id]\n  return null\nquery thread(id: messages):\n  return messages[id]\nmutation digestSweep():\n  return null\nschedule expireMessage on messages at .expiresAt:\n  thread(.id)\n```",
+    "right": "```q\n-- snapback/schema.q\ntable messages:\n  body: text <=100\n  at: time\n  expiresAt: time ?\n  public\n\n-- snapback/ops.q\nmutation purgeMessage(id: messages):\n  delete messages[id]\n  return null\nquery thread(id: messages):\n  return messages[id]\nmutation digestSweep():\n  return null\nschedule expireMessage on messages at .expiresAt:\n  purgeMessage(.id)\n```"
   },
   {
     "family": "schedule",
     "code": "E_SCHEDULE_DURATION",
     "site": "schedule <name> every <duration>",
     "guide": "schedule",
-    "wrong": "```q\nschedule dailyDigest every 30s:\n  digestSweep\n```",
-    "right": "```q\nschedule dailyDigest every 24h:\n  digestSweep\n```"
+    "wrong": "```q\n-- snapback/schema.q\ntable messages:\n  body: text <=100\n  at: time\n  expiresAt: time ?\n  public\n\n-- snapback/ops.q\nmutation purgeMessage(id: messages):\n  delete messages[id]\n  return null\nquery thread(id: messages):\n  return messages[id]\nmutation digestSweep():\n  return null\nschedule dailyDigest every 30s:\n  digestSweep\n```",
+    "right": "```q\n-- snapback/schema.q\ntable messages:\n  body: text <=100\n  at: time\n  expiresAt: time ?\n  public\n\n-- snapback/ops.q\nmutation purgeMessage(id: messages):\n  delete messages[id]\n  return null\nquery thread(id: messages):\n  return messages[id]\nmutation digestSweep():\n  return null\nschedule dailyDigest every 24h:\n  digestSweep\n```"
   }
 ]

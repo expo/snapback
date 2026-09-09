@@ -135,7 +135,8 @@ fn read_certificate(root: &Path, op: &str) -> Result<LocatedCertificate, Refusal
 }
 
 fn why_stale(message: impl Into<String>) -> Refusal {
-    Refusal::owner("E_WHY_STALE", message, "run snapback2 check")
+    Refusal::owner("E_WHY_STALE", message,
+        "run snapback2 dev --status --json; resolve the refused successor: review status.refused and run its applyCommand for an intended migration, or revert the refused edit; then run snapback2 check and retry why (check refreshes the cache but does not install a successor)")
 }
 
 fn enrich(op: &str, response: Json, latest: Json, certificate: Certificate) -> Json {

@@ -188,7 +188,7 @@ fn why_refuses_missing_corrupt_and_incomplete_certificates_as_stale() {
             );
             let refusal = json_stdout(&why);
             assert_eq!(refusal["code"], "E_WHY_STALE", "{refusal}");
-            assert_eq!(refusal["rewrite"], "run snapback2 check", "{refusal}");
+            assert!(refusal["rewrite"].as_str().unwrap().contains("snapback2 dev --status --json"), "{refusal}");
         }
         fs::write(&certificate_path, &valid).unwrap();
     }
@@ -490,7 +490,9 @@ query assertionOnly(id: todos):
             if !output.status.success() || !text.contains("denied (MISSING)")
                 || text.contains("require true") || !text.contains(&format!("todos[{id}]   {visibility}"))
                 || (matches!(op, "assertion" | "branches" | "nested") && !text.contains("ambiguous"))
-                || (op == "assertionOnly" && !text.contains("return todos[id] ! else MISSING")) {
+                || (matches!(op, "local" | "assertionOnly") && text.contains("ambiguous"))
+                || (op == "local" && !text.contains("explain.q:6   require p != null else MISSING"))
+                || (op == "assertionOnly" && !text.contains("explain.q:18   return todos[id] ! else MISSING")) {
                 failures.push(text);
             }
         }
@@ -529,8 +531,8 @@ fn why_prose_includes_real_capped_reads_absences_and_constraint_dependencies() {
     fs::write(project.path.join("snapback/todos.q"), "query list():\n  return { page: items[] first 2 by byId, total: #itemCounts[viewer] }\n").unwrap();
     fs::write(project.path.join("snapback/seed.ts"), r#"import { seed } from "snapback2";
 export default seed({ personas: ["alice"], rows: { items: [
-  { id: "1", ownerId: "dev:bob", group: "dev:bob", label: "visible" },
-  { id: "2", ownerId: "dev:alice", group: "dev:bob", label: "hidden" },
+  { id: "1", ownerId: "dev:bob", group: "dev:bob", label: "hidden" },
+  { id: "2", ownerId: "dev:alice", group: "dev:bob", label: "visible" },
   { id: "3", ownerId: "dev:alice", group: "dev:bob", label: "cut" },
 ], itemCounts: [] } });"#).unwrap();
     fs::remove_dir_all(project.path.join("snapback/tests")).unwrap();
@@ -580,5 +582,17 @@ fn why_does_not_quote_a_valid_but_unapplied_schema() {
     assert!(checked.status.success(), "{}", String::from_utf8_lossy(&checked.stdout));
     let why = project.run(&["why", "todos.list", "--as", "alice", "--json"]);
     assert!(!why.status.success(), "{}", String::from_utf8_lossy(&why.stdout));
-    assert_eq!(json_stdout(&why)["code"], "E_WHY_STALE");
+    let refusal = json_stdout(&why);
+    assert_eq!(refusal["code"], "E_WHY_STALE");
+    let rewrite = refusal["rewrite"].as_str().unwrap();
+    assert!(rewrite.contains("snapback2 dev --status --json") && rewrite.contains("refused")
+        && rewrite.contains("applyCommand") && rewrite.contains("revert"), "{refusal}");
+    // Follow the revert recovery: restore the accepted schema, then refresh the cache.
+    fs::write(&schema_path, original.replace("table todos:", "table todos:\n  legacy: text <=10 ?")).unwrap();
+    assert!(project.run(&["check", "--json"]).status.success());
+    let recovered = project.run(&["why", "todos.list", "--as", "alice"]);
+    assert!(recovered.status.success(), "{}", String::from_utf8_lossy(&recovered.stdout));
+    let text = String::from_utf8(recovered.stdout).unwrap();
+    assert!(text.contains("admitted by: read <- .ownerId = viewer"), "{text}");
+    assert!(!text.contains("read <- deny"), "{text}");
 }

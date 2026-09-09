@@ -17,9 +17,19 @@ function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
 
+function intendedFailure(errors: Array<{ code: string }>, code: string): boolean {
+  // Invalid schemas also prevent dependent operations from being certified.
+  // That trailing refusal is allowed; an unrelated first error never passes.
+  return errors[0]?.code === code && errors.every(error => error.code === code || error.code === "E_CHECK_IR_UNSUPPORTED");
+}
+
 export function registerFinalGateChecks(test: RegisterTest): void {
   test("missing-bound guides resolve for shared frontend and native certification", async () => {
     const sourceFile = ts.createSourceFile("probe.ts", "value", ts.ScriptTarget.ESNext);
+    for (const code of ["E_QUARRY_TYPE", "E_QUARRY_AMBIGUOUS"] as const) {
+      assert(diagnostic({ sourceFile, fileName: "probe.ts" }, code, sourceFile,
+        "invalid Quarry", "repair the declaration").guide === "quarry", code);
+    }
     const frontend = diagnostic({ sourceFile, fileName: "probe.ts" }, "E_UNBOUND_SCAN", sourceFile,
       "read needs a bound", "name the bound");
     await withProject({
@@ -36,48 +46,8 @@ export function registerFinalGateChecks(test: RegisterTest): void {
     });
   });
 
-  test("diagnostic family Quarry examples emit their claimed code and repairs compile", async () => {
+  test("diagnostic family published projects and core inputs emit their claimed code first and repairs compile", async () => {
     const families = JSON.parse(await readFile(resolve(crate, "packages/snapback2/guide/families.source.json"), "utf8"));
-    const schema = `use identity
-table todos:
-  title: text <=100
-  ownerId: principal
-  by byOwner: ownerId, id
-  public
-  insert <- allow
-  update <- allow
-table posts:
-  ownerId: principal
-  author: principal
-  at: time
-  visible: bool
-  photo: image <=10000000 ?
-  by byTime: at, id
-  by byOwnerAt: ownerId, at, id
-  by byOwnerVisible: ownerId, visible, id
-  by byAuthorAt: author, at, id
-  public
-table prices:
-  amount: decimal 2
-  public
-  insert <- allow
-table conversations:
-  title: text <=100
-  public
-table messages:
-  conversationId: conversations
-  body: text <=100
-  at: time
-  expiresAt: time ?
-  public
-table settings:
-  key: text <=20
-  value: text <=100
-  unique byKey: key
-  public
-maintain postCounts = count posts by ownerId:
-  read <- allow
-`;
     const codes = ["E_ARGS_TYPE", "E_EFFECT_UNKNOWN", "E_EFFECT_THEN_ARGS", "E_EMIT_IN_QUERY", "E_UNBOUND_SCAN", "E_UNBOUND_LOOP", "E_STRUCTURAL_COUNT", "E_AMBIENT_TIME", "E_OPAQUE", "E_OP_INVALID", "E_OP_NONE", "E_OP_RESERVED", "E_SCHEMA_RESERVED", "E_SCHEMA_ID_RESERVED", "E_SCHEMA_INDEX_COLUMN", "E_SCHEMA_CONSTRAINT", "E_SCHEMA_MAINTAIN", "E_SCHEMA_ASSET_MAINTAIN", "E_RULE_INVALID", "E_DECIMAL_SCALE", "E_QUARRY_SYNTAX", "E_QUARRY_UNKNOWN", "E_QUARRY_AMBIGUOUS", "E_QUARRY_UNSUPPORTED", "E_QUARRY_PLACEMENT", "E_QUARRY_TYPE", "E_QUARRY_RETAIN", "E_QUARRY_TOMBSTONE", "E_ARGS_CURSOR_INDEX", "E_ARGS_ID_SCALAR", "E_ARGS_ID_TEXT", "E_SCHEDULE_COLUMN", "E_SCHEDULE_TARGET", "E_SCHEDULE_DURATION"];
     const failures: string[] = [];
     for (const code of codes) for (const side of ["wrong", "right"]) {
@@ -86,38 +56,29 @@ maintain postCounts = count posts by ownerId:
       if (raw) {
         const checked = runBinaryCheck(["--json", "--ir"], JSON.parse(raw));
         const errors = checked.results.flatMap((result: any) => result.error ? [result.error] : []);
-        if (side === "wrong" ? !errors.some((error: any) => error.code === code) : checked.exitCode !== 0) failures.push(`${code}.${side}: ${JSON.stringify(errors)}`);
+        if (side === "wrong" ? (checked.exitCode !== 1 || !intendedFailure(errors, code)) : checked.exitCode !== 0) failures.push(`${code}.${side}: ${JSON.stringify(errors)}`);
         continue;
       }
-      const snippet = row[side].match(/```q\n([\s\S]*?)\n```/)?.[1];
-      if (!snippet) { failures.push(`${code}.${side}: missing Quarry example`); continue; }
-      const files: Record<string, string> = { "snapback/schema.q": schema, "snapback/ops.q": "query ping():\n  return null\n" };
-      if (code === "E_OP_NONE" && side === "wrong") delete files["snapback/ops.q"];
-      else if (["E_SCHEMA_RESERVED", "E_QUARRY_SYNTAX", "E_QUARRY_RETAIN"].includes(code)) files["snapback/schema.q"] = snippet;
-      else if (["E_SCHEMA_CONSTRAINT", "E_RULE_INVALID"].includes(code)) files["snapback/schema.q"] = schema.replace("  by byOwner:", snippet.split("\n").map((line: string) => `  ${line}`).join("\n") + "\n  by byOwner:");
-      else if (code === "E_SCHEMA_INDEX_COLUMN") files["snapback/schema.q"] = schema.replace("  by byTime: at, id", snippet.split("\n").map((line: string) => `  ${line}`).join("\n"));
-      else if (["E_SCHEMA_MAINTAIN", "E_SCHEMA_ASSET_MAINTAIN", "E_QUARRY_TOMBSTONE"].includes(code)) files["snapback/schema.q"] += "\n" + snippet;
-      else if (code === "E_ARGS_CURSOR_INDEX") {
-        files["snapback/schema.q"] = schema.replace("  expiresAt:", snippet.split("\n").map((line: string) => `  ${line}`).join("\n") + "\n  expiresAt:");
-        files["snapback/ops.q"] = "query page(c: cursor ?, conversationId: conversations):\n  return messages[conversationId] after c first 5 by byConvTime\n";
-      } else if (code === "E_ARGS_ID_SCALAR") files["snapback/ops.q"] = `mutation add(title: text <=100):\n  ${snippet}\n  return null\n`;
-      else if (code === "E_ARGS_ID_TEXT") files["snapback/ops.q"] = `query pair(leftId: principal, rightId: principal):\n  ${snippet}\n  return pair\n`;
-      else if (code.startsWith("E_SCHEDULE_")) files["snapback/ops.q"] = `mutation purgeMessage(id: messages):\n  delete messages[id]\n  return null\nquery thread(id: messages):\n  return messages[id]\nmutation digestSweep():\n  return null\n${snippet}\n`;
-      else files[code === "E_OP_INVALID" && side === "wrong" ? "snapback/nested/example.q" : "snapback/ops.q"] = snippet + "\n";
-      if (["E_EFFECT_UNKNOWN", "E_EFFECT_THEN_ARGS", "E_EMIT_IN_QUERY"].includes(code)) {
-        files["snapback/schema.q"] += "\ntable notifications:\n  body: text <=100\n  public\n";
-        files["snapback/delivery.ts"] = `import { effect } from "snapback2"; ${code === "E_EFFECT_THEN_ARGS" ? 'import { recordNotified } from "./ops";' : ''}
-export const notify = effect({ grants: ["https://example.com"], run: async (_payload: null) => null${code === "E_EFFECT_THEN_ARGS" ? ', then: recordNotified' : ''} });`;
+      // File markers and all schema/effect context are published inside the example.
+      // Compile those bytes; never infer a per-code cause or rewrite the snippet.
+      const files: Record<string, string> = {};
+      for (const block of row[side].matchAll(/^```(?:q|ts)\n([\s\S]*?)\n```/gm)) {
+        let path: string | undefined;
+        for (const line of block[1].split("\n")) {
+          const marker = /^(?:--|\/\/) (snapback\/[A-Za-z0-9_./-]+\.(?:q|ts))$/.exec(line);
+          if (marker) { path = marker[1]!; assert(!(path in files), `duplicate ${path}`); files[path] = ""; }
+          else if (path) files[path] += line + "\n";
+          else assert(!line.trim() || line.startsWith("-- "), `${code}.${side}: source without a file marker`);
+        }
       }
-      if (code === "E_RULE_INVALID") files["snapback/schema.q"] = files["snapback/schema.q"]!.replace("  public", "");
-      if (code === "E_STRUCTURAL_COUNT") files["snapback/schema.q"] = files["snapback/schema.q"]!.replace("  by byAuthorAt: author, at, id\n  public", "  by byAuthorAt: author, at, id\n  read <- .ownerId = viewer");
-      if (code === "E_QUARRY_AMBIGUOUS") files["snapback/schema.q"] = files["snapback/schema.q"]!.replace("byOwnerAt", "byAuthorTime");
-      if (code === "E_QUARRY_UNSUPPORTED") files["snapback/schema.q"] = files["snapback/schema.q"]!.replace("  by byAuthorAt:", "  by byAuthorVisibleAt: author, visible, at, id\n  by byAuthorAt:");
-      if (code === "E_QUARRY_PLACEMENT" && side === "right") { files["snapback/schema.q"] += "\n" + snippet; files["snapback/ops.q"] = "query ping():\n  return null\n"; }
+      if (!Object.keys(files).length) { failures.push(`${code}.${side}: missing published project files`); continue; }
       await withProject(files, async root => {
         const lowered = await lowerProject(root);
-        const diagnostics = lowered.ok ? runBinaryCheck(["--json", "--ir"], lowered.project).results.flatMap((r: any) => r.error ? [r.error] : []) : lowered.diagnostics;
-        if (side === "wrong" ? !diagnostics.some((d: any) => d.code === code) : diagnostics.length !== 0) failures.push(`${code}.${side}: ${JSON.stringify(diagnostics)}`);
+        const checked = lowered.ok ? runBinaryCheck(["--json", "--ir"], lowered.project) : undefined;
+        const diagnostics = lowered.ok ? checked!.results.flatMap((r: any) => r.error ? [r.error] : []) : lowered.diagnostics;
+        if (side === "wrong" ? (!intendedFailure(diagnostics, code) || (checked && checked.exitCode !== 1))
+          : (diagnostics.length !== 0 || checked?.exitCode !== 0)) failures.push(`${code}.${side}: ${JSON.stringify(diagnostics)}`);
+        if (code === "E_QUARRY_AMBIGUOUS" && side === "wrong") assert(diagnostics[0]?.guide === "quarry", JSON.stringify(diagnostics));
       });
     }
     assert(failures.length === 0, failures.join("\n"));

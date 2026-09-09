@@ -847,6 +847,12 @@ class ExpressionBinder {
   private walk(expression: Extract<Expr, { kind: "walk" }>): BoundExpression {
     const info = this.catalog.get(expression.table);
     if (!info) refuse(expression.site, `unknown table ${expression.table}`, nameRewrite(expression.table, this.catalog.keys()));
+    if (expression.column === "id") {
+      let parent = "parent";
+      for (let suffix = 2; info.columns.has(parent); suffix++) parent = `parent${suffix}`;
+      typeError(expression.site, `walk ${expression.table} up .id requires a separately named self-reference column; id is implicit`,
+        `declare ${parent}: ${expression.table} ? in schema.q and use walk ${expression.table}[${quarryExpression(expression.seed)}] up .${parent} depth ${expression.depth}`);
+    }
     const column = info.columns.get(expression.column);
     if (!column) refuse(expression.site, `unknown ${expression.table} field \`${expression.column}\``,
       nameRewrite(expression.column, info.columns.keys(), `declare ${expression.column}: ${expression.table} ? in schema.q`));
