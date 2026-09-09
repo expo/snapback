@@ -257,7 +257,7 @@ class Client implements SnapbackClient {
       return held;
     }
     if (!this.startupComplete && this.offlineRuntime?.principal !== undefined) {
-      const held = await answerOffline(this.offlineRuntime, op, args, (error) => this.offlineRefusal(error, "client.query.local"));
+      const held = await answerOffline(this.offlineRuntime, op, args, (error) => this.offlineRefusal(error, "client.query.local"), drain);
       this.ensureAuthority(localAuthority);
       if (held.state !== "hydrating") return held as QueryResult<Result>;
     }

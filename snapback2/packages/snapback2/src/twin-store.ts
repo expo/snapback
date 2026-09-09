@@ -95,11 +95,13 @@ export class TwinStore {
     // Start after this turn so one render/query fan-out shares one cold request.
     this.flight = flight;
     flight.promise = Promise.resolve().then(async () => {
-      let current = false, requested: number;
-      do { requested = flight.requested; current = await this.syncIdentity(identity); }
-      while (this.sameIdentity(identity) && requested !== flight.requested);
-      return this.sameIdentity(identity) && current;
-    }).finally(() => { if (this.flight === flight) this.flight = undefined; });
+      try {
+        let current = false, requested: number;
+        do { requested = flight.requested; current = await this.syncIdentity(identity); }
+        while (this.sameIdentity(identity) && requested !== flight.requested);
+        return this.sameIdentity(identity) && current;
+      } finally { this.flight = undefined; }
+    });
     return flight.promise;
   }
 

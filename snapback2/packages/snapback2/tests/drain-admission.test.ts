@@ -1,10 +1,11 @@
 import { subscribe } from "../src/internal.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { mkdtemp } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { api, createClient } from "../dist/client.mjs";
+import { emptyItemInputs, withItemInputs } from "../dist/image-runtime.mjs";
 import { isRefusalError } from "../dist/client-observed-test.mjs";
 import { initialQueryState, reduceQueryState } from "../dist/react-core.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
@@ -14,6 +15,25 @@ const json = (value: unknown, status = 200) => new Response(JSON.stringify(value
 const unsupported = { code: "E_OFFLINE_RESUME", family: "offline", guide: "offline", which: "log",
   reason: "unsupported-log", op: "messages.inbox", shape: "descending", site: "/api/resume.log",
   message: "backward log", rewrite: "use after c first 50; keep queued writes" };
+
+test("an incomplete-startup drain never inherits a cached owner continuation", async () => {
+  const root = await mkdtemp(join(tmpdir(), "s2-startup-drain-"));
+  const client: any = createClient({ url: "http://startup-drain.test", persona: "alice",
+    fetch: fakeOwner({ seed: true }).fetch,offline: { store: fileRangeStore(root) } });
+  try {
+    await client.ready;
+    const runtime = client.offlineRuntime;
+    client.startupComplete = false;
+    runtime.drainCursor = () => undefined;
+    runtime.answer = async () => ({ op: "messages.inbox",args: { c: null },state: "capped",data: ["owner"],
+      next: "owner-page-2",seq: 7,receipt: { ranges: [],absences: [],verdicts: [] } });
+    runtime.evaluate = async () => withItemInputs({ state: "partial",reason: "computed-key",site: "project",seq: 7,data: ["local"] },
+      { ...emptyItemInputs,selection: { through: 7 } });
+    const result = await client.queryInternal(api.messages.inbox,{ c: null },true);
+    assert.equal(result.state,"partial");
+    assert.equal(result.next,undefined,"a startup drain owns its tail instead of the cached page boundary");
+  } finally { await client.close(); await rm(root,{ recursive: true,force: true }); }
+});
 
 test("unsupported drain reaches callback and matching waiter; current and later success waiters reject, ordinary query remains valid", async () => {
   let queries = 0;

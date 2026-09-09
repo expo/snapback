@@ -989,6 +989,24 @@ test('twin coalesces source installation, retries failures, catches later revisi
     assert.equal((await successor)?.state,'capped',`${kind}: successor installs its own snapshot`);
     assert.equal(sourceReads,2);
   }
+
+  let settleReads = 0,scheduled = false,late: Promise<any> | undefined;
+  const settling = new Twin({
+    program: () => {
+      if (settleReads === 1 && (settling as any).indexed.store && !scheduled) {
+        scheduled = true;
+        queueMicrotask(() => { late = settling.evaluate('clock.fixed',{}); });
+      }
+      return halo.program;
+    },
+    principal: () => halo.first.authority.principal,authEpoch: () => halo.first.authority.authEpoch,
+    now: () => halo.first.readTime,seq: () => 1,
+    changes: async () => { settleReads++; return structuredClone(snapshot); },
+  });
+  assert.equal((await settling.evaluate('clock.fixed',{}))?.state,'capped');
+  while (!late) await Promise.resolve();
+  assert.equal((await late)?.state,'capped');
+  assert.equal(settleReads,2,'a reader queued at flight settlement starts a new revision read');
 });
 
 test('small carrier metadata is isolated and reconnect paths do not materialize coverage', async () => {
