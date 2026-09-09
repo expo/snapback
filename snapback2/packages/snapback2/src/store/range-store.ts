@@ -478,9 +478,12 @@ function normalizeState(value: PersistedRangeState | undefined): PersistedRangeS
   const { factGuards: legacyGuards, ...current } = value as PersistedRangeState & { factGuards?: object };
   const factFormat = value.factFormat ?? (Object.keys(legacyGuards ?? {}).length || Object.keys(value.rowFacts ?? {}).length
     || Object.keys(value.verdictFacts ?? {}).length || Object.values(value.answers).some(a => a.readTime !== undefined) ? 0 : FACT_FORMAT);
-  for (const key of ["watermarks", "outbox", "grants", "overlay", "overlayMisses", "overlayWatermarks",
-    "overlayNegatives", "bounds", "programs", "onceColumns", "negative", "rowSeq", "rowFacts", "verdictFacts",
-    "factImages", "factExtents", "extentGuards", "extentNegative", "assets", "viewed"] as const) current[key] ??= {};
+  // Empty-state custody defines the collection defaults for every carrier.
+  // Rows/answers were required above; never repair their absence implicitly.
+  for (const [key, initial] of Object.entries(emptyState())) {
+    if (key !== "rows" && key !== "answers" && typeof initial === "object")
+      (current as unknown as Record<string, unknown>)[key] ??= initial;
+  }
   return {
     ...current, factFormat,
     factSlots: factFormat !== FACT_FORMAT ? 0 : Object.keys(value.rowFacts ?? {}).length + Object.keys(value.verdictFacts ?? {}).length
@@ -523,38 +526,21 @@ export class PersistentRangeStore implements RangeStore {
 
   readonly outbox: OutboxStore = {
     compactedThrough: async () => this.read(() => this.state.sealed ? 0 : this.state.compactedThrough ?? 0),
-    all: async () => this.read(() => {
-      this.ensureUnsealed();
-      return clone(outboxOrder(this.state.outbox));
-    }),
-    get: async (intent) => this.read(() => {
-      this.ensureUnsealed();
-      return this.state.outbox[intent] && clone(this.state.outbox[intent]);
-    }),
+    all: () => this.readOutbox(state => outboxOrder(state.outbox)),
+    get: (intent) => this.readOutbox(state => state.outbox[intent]),
     put: async (entry) => this.commit({ outbox: { put: [entry] } }),
     remove: async (intent) => this.commit({ outbox: { remove: [intent] } }),
-    grant: async () => this.read(() => {
-      this.ensureUnsealed();
-      const current = this.state.currentGrant === undefined ? undefined : this.state.grants[this.state.currentGrant];
-      return current && clone(current);
-    }),
-    grants: async () => this.read(() => {
-      this.ensureUnsealed();
-      return clone(Object.values(this.state.grants));
-    }),
-    bounds: async () => this.read(() => {
-      this.ensureUnsealed();
-      return clone(this.state.bounds);
-    }),
-    overlay: async () => this.read(() => {
-      this.ensureUnsealed();
-      return clone(this.state.overlay);
-    }),
-    programs: async () => this.read(() => {
-      this.ensureUnsealed();
-      return clone(this.state.programs);
-    }),
+    grant: () => this.readOutbox(state => state.currentGrant === undefined ? undefined : state.grants[state.currentGrant]),
+    grants: () => this.readOutbox(state => Object.values(state.grants)),
+    bounds: () => this.readOutbox(state => state.bounds),
+    overlay: () => this.readOutbox(state => state.overlay),
+    programs: () => this.readOutbox(state => state.programs),
   };
+
+  /** Every outbox view shares the same admission and detached-value boundary. */
+  private readOutbox<T>(select: (state: PersistedRangeState) => T): Promise<T> {
+    return this.read(() => { this.ensureUnsealed(); return clone(select(this.state)); });
+  }
 
   readonly acquire?: (partition: PrincipalPartition, signal?: AbortSignal) => Promise<void>;
   readonly giveBack?: (partition: PrincipalPartition) => Promise<void>;
@@ -605,21 +591,14 @@ export class PersistentRangeStore implements RangeStore {
     });
   }
 
-  async unseal(): Promise<void> {
-    await this.enqueue(async () => {
-      this.ensureOpen();
-      if (!this.state.sealed) return;
-      const next = { ...this.state, sealed: false };
-      await this.replace(next, NO_BYTES, this.persisted);
-      this.state = this.persisted = next;
-      this.updates.reset();
-    });
-  }
+  unseal(): Promise<void> { return this.setSealed(false); }
+  seal(): Promise<void> { return this.setSealed(true); }
 
-  async seal(): Promise<void> {
-    await this.enqueue(async () => {
+  private setSealed(sealed: boolean): Promise<void> {
+    return this.enqueue(async () => {
       this.ensureOpen();
-      const next = { ...this.state, sealed: true };
+      if (!sealed && !this.state.sealed) return;
+      const next = { ...this.state, sealed };
       await this.replace(next, NO_BYTES, this.persisted);
       this.state = this.persisted = next;
       this.updates.reset();
