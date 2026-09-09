@@ -383,16 +383,30 @@ add, fill, drop; there is no rename operation (§9.5).
 ```q
 schedule expireMessage on messages at .expiresAt: purgeMessage(.id)
 
-schedule dailyDigest every 24h: digestSweep()
+schedule dailyDigest every 24h: digestSweep(.periodEnd)
 ```
 
 - **Two triggers, one kind.** `schedule name on table at .column [if
   predicate]: target(args from the row)` fires once per row when `column`
-  (a `time ?` column) is reached; `schedule name every <duration>: target()`
+  (a `time ?` column) is reached; `schedule name every <duration>: target(args)`
   fires once per period. A target is a mutation or a declared job of this
   project; a job target takes the row's or period's values as its
   arguments. Durations are `Nm | Nh | Nd`, at least one minute; there is no
   time-of-day, weekday, or calendar syntax (§9.2).
+- **Period values (completed spelling, 2026-09-09).** An `every` binding
+  exposes `.periodStart` and `.periodEnd` as present `time` values for its
+  logical occurrence. They are the schedule-anchored start and end selected
+  after missed-period coalescing, not the wall-clock time of the background
+  turn. Binding expressions remain pure and certified, with native validation
+  of their known fields and types; ambient `now` is not a substitute. Existing
+  zero-argument period targets and row bindings keep their meaning. Passing
+  `.periodEnd` to a job pins its logical cutoff in the durable job arguments
+  across chunks, queue delay and restart. It does not pin the job's reads or
+  authorization to a historical snapshot: each chunk still reads current
+  state under D2. If application source buckets are epoch-aligned while the
+  schedule was installed mid-period, first floor the logical end by the
+  configured duration, then subtract one duration to choose the completed
+  source bucket. Do not subtract directly from an install-phase-anchored end.
 - **The timer index.** `_timers (id, schedule, row_id NULL, at, period_start
   NULL, generation)`, indexed on `at`, is maintained by the engine as an
   index is: a row insert with a present `at` enqueues, an update to a
@@ -441,7 +455,8 @@ schedule dailyDigest every 24h: digestSweep()
 - **The two customers.** The `chat` template's disappearing messages become
   a `schedule … at .expiresAt` whose target writes the `expired` log rows
   LLP 1012 §3 describes; the client-side trigger is deleted. The
-  benchmark's M8 digest is `schedule dailyDigest every 24h: digestSweep()`
+  benchmark's M8 digest is
+  `schedule dailyDigest every 24h: digestSweep(.periodEnd)`
   where `digestSweep` is a job with one sweep over `profiles by byId` that
   emits one effect per user with a non-zero count — "driven by the schedule
   alone", restart-idempotent by occurrence, authorized because the sweep
