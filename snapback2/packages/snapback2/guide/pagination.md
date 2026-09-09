@@ -15,7 +15,7 @@ results have no continuation.
 A receipt-backed capped owner page keeps its whole opaque continuation when a
 durable local refresh is partial only because it cannot reconstruct computed
 projection fields. The client never attaches that cursor to the partial twin
-result, or preserves it across queued work or invalidation.
+result, or preserves it across an active local overlay or invalidation.
 
 One cursor-bearing page nested in a record supplies root `next`; fixed arrays
 do not. Objects/nested pages cannot drain; drains require a direct ascending append page.

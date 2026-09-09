@@ -1164,7 +1164,7 @@ export function offlineView<Result>(held: HeldAnswer<Result> | undefined, local?
   const exactOwnerAnswer = preserveOwner && held?.receipt !== undefined
     && held.state === "capped" && typeof held.next === "string"
     && sameOwnerRerun && !(local.predicted?.length)
-    && !localInputs?.entries.some((entry) => entry.state === "queued");
+    && !localInputs?.overlay;
   const useLocal = local !== undefined && !waitingForCoherentOwner && !cachedAnswerOnly && !exactOwnerAnswer
     && (!held?.retained || reconstructed);
   if (!useLocal) {

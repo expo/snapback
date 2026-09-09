@@ -523,8 +523,8 @@ test("an exact receipt-backed owner page keeps its whole continuation across an 
     data: [{ id: "post-1", likes: 0, liked: false }], next: "server-page-2", seq: 7, deliveredAt: 100,
     receipt: { ranges: [], absences: [], verdicts: [] },
   };
-  const ownerRerun = (value: any, through = 7, entries: any[] = []) => withItemInputs(value,
-    { ...emptyItemInputs, entries, selection: { through } });
+  const ownerRerun = (value: any, through = 7, overlay = false) => withItemInputs(value,
+    { ...emptyItemInputs, ...(overlay ? { overlay: true } : {}), selection: { through } });
   const view = offlineView(held, ownerRerun({
     state: "partial", reason: "computed-key", site: "social.feed.likes", seq: 7,
     data: [{ id: "post-1", likes: 0, liked: false }],
@@ -553,7 +553,7 @@ test("an exact receipt-backed owner page keeps its whole continuation across an 
   const queuedRemoval = offlineView(held, ownerRerun({
     state: "partial", reason: "computed-key", site: "social.feed.likes", seq: 7,
     data: [], predicted: [],
-  }, 7, [{ state: "queued" }]));
+  }, 7, true));
   assert.equal(queuedRemoval.state, "partial");
   assert.deepEqual(queuedRemoval.data, [], "a queued removal with no surviving predicted row stays visible");
   assert.equal(queuedRemoval.next, undefined);

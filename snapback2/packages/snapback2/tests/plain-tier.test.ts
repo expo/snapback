@@ -251,7 +251,7 @@ mutation remove(post: posts):
   };
   let client: any = createClient({ url: owner.url, persona: 'alice', fetch: observingFetch, offline: { store: aliceStore } });
   const bob: any = createClient({ url: owner.url, persona: 'bob', fetch: observingFetch, offline: { store: bobStore } });
-  let cold: any, raw: any;
+  let cold: any, colder: any, raw: any;
   const events: any[] = [], mounted: Array<{ close(): Promise<void> }> = [];
   const mount = async (reader: any, op: any, initialArgs: any) => {
     let paged: any, args = initialArgs, renderer: TestRenderer.ReactTestRenderer | undefined, closed = false;
@@ -372,9 +372,39 @@ mutation remove(post: posts):
     await loadAll(reopened, changed);
     assert.equal(cursors.length, requestsBeforeCold, 'cold usePage reads only the durable carrier');
     await reopened.close();
+
+    const fakeGrant = {
+      id: 'cold-removal-grant',
+      from: 's2id-0000000000000000000000000000000a-0000000000000001',
+      count: 16, mintedAt: Date.now(), expiresAt: Date.now() + 60_000,
+    };
+    cold.offlineRuntime.noteGrant({ grant: fakeGrant }, 'dev:alice');
+    await cold.offlineRuntime.adoptPendingGrant();
+    let queuedRemoval: any;
+    await act(async () => {
+      queuedRemoval = await cold.mutation(api.carrier.remove, { post: changed[0] });
+    });
+    assert.equal(queuedRemoval.state, 'queued');
+    const entry = await cold.offlineRuntime.store.outbox.get(queuedRemoval.intent);
+    assert.ok(entry);
+    await act(async () => {
+      await cold.offlineRuntime.store.commit({ outbox: { put: [{
+        ...entry, state: 'committed', response: { state: 'committed', seq: 49, data: true }, updatedAt: Date.now(),
+      }] } });
+    });
+    await cold.close(); cold = undefined;
+    colder = createClient({ url: owner.url, persona: 'alice', startOffline: true, fetch: observingFetch, offline: { store: aliceStore } });
+    await colder.ready;
+    const removal = await mount(colder, api.carrier.global, {});
+    await waitFor(() => removal.current.status === 'ready');
+    assert.equal(removal.current.pages[0].receipt?.state, 'partial');
+    assert.equal(removal.current.hasMore, false);
+    assert.equal(removal.current.items.some((row: any) => row.id === changed[0]), false,
+      'a committed removal overlay survives same-principal cold reopen until owner retirement');
+    await removal.close();
   } finally {
     raw?.close(); for (const view of mounted) await view.close();
-    await cold?.close(); await client?.close(); await bob.close(); await writer.close(); await bobWriter.close(); await owner.close();
+    await colder?.close(); await cold?.close(); await client?.close(); await bob.close(); await writer.close(); await bobWriter.close(); await owner.close();
     await rm(directory, { recursive: true, force: true });
     if (owner.owned) delete process.env.SNAPBACK_URL;
   }

@@ -195,6 +195,8 @@ export interface ItemInputs {
   readonly compactedThrough?: number;
   readonly program?: { generation: string; schemaHash: string };
   readonly entries: readonly OutboxEntry[];
+  /** An active overlay affects this local answer, including a removal with no surviving row. */
+  readonly overlay?: true;
   /** A complete answer to this query decides page membership, not row contents. */
   readonly selection?: ItemObservation;
   readonly observations: ReadonlyMap<string, ItemObservation>;

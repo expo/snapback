@@ -93,8 +93,13 @@ export class ItemCapture {
   }
   inputs(): ItemInputs {
     const selection = this.held?.selection ?? freshItemSelection(this.held);
+    const overlay = Object.keys(this.state.overlay).some((intent) => {
+      const state = this.state.outbox[intent]?.state;
+      return state !== undefined && state !== "rejected" && state !== "expired";
+    });
     return { compactedThrough: this.state.compactedThrough, entries: this.entries ?? Object.values(this.state.outbox).sort((a, b) => (a.order ?? a.createdAt) - (b.order ?? b.createdAt)
       || a.intent.localeCompare(b.intent)), observations: this.observations, values: this.values, predicted: new Map(this.predicted),
+      ...(overlay ? { overlay: true } : {}),
       ...(this.state.facts ? { program: { generation: this.state.facts.generation, schemaHash: this.state.facts.schemaHash } } : {}),
       ...(selection ? { selection } : {}) };
   }
