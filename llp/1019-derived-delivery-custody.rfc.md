@@ -2,11 +2,11 @@
 
 **Type:** RFC
 **Status:** Draft — proposal, binds nothing (`rules/RULES.md`: only implemented specs bind; implementer and date unassigned, the author's call). Written on the author's request of 2026-09-09 ("write up 3 LLPs or sub-LLPs to address 1 and 2 and 3") after the elegance assessment of 2026-09-08.
-**Systems:** the engine's schema and writer (`snapback2/crates/snapback2-core/src/schema.rs`, `engine/`, `timers.rs`, `writer_resume.rs`), the certificate (`certificate.rs`, `certificate/page.rs`, `fanout.rs`), the Quarry front end (`packages/compiler/src/quarry/{parser,bound-schema}.ts`), the twin (`packages/snapback2/src/{offline,tombstones}.ts`, `store/range-store.ts`), the `chat` template, the guide (`offline.md`, `quarry.md`, `grammar.md`), `guide/families.source.json`
+**Systems:** the engine's schema, writer, and row-change lifecycle (`snapback2/crates/snapback2-core/src/{schema,successor,timers}.rs`, `engine/{mod,runner_ops,timers}.rs`, `snapback2/crates/snapback2/src/{writer_resume,writer_replay,writer_ledger}.rs`), the certificate (`certificate.rs`, `certificate/page.rs`, `certificate_policy/{fanout,visibility}.rs`), the Quarry front end (`snapback2/packages/compiler/src/quarry/{parser,catalog,bound-schema,bound-project}.ts`), the evaluator twin and range store (`snapback2/packages/evaluator/src/{certificate-identity,runner}.ts`, `snapback2/packages/snapback2/src/{drain,offline,tombstones}.ts`, `store/range-store.ts`), the `chat` template and its seed and tests, the guide (`offline.md`, `quarry.md`, `grammar.md`), `guide/families.source.json`
 **Author:** Claude (Fable 5.1), for the author
 **Date:** 2026-09-09
-**Revised:** —
-**Related:** LLP 1012 §3 (the model on one page: the per-recipient delivery log as a program shape), §5 (retention, revocation, the fence), ruling 2 ("copy the answers, not the mailbox"); LLP 1018.003 §3 (`tombstones`) and §5 (the certified thread projection); LLP 1017 (cap and the certified fan-out); LLP 1016 D5 (schedules on the owner's clock); LLP 1011 revision "one spelling" (the word inventory); `issues/20260906-snapback2-no-delivered-ack-primitive-from-the-delivery-log.md`; `issues/20260904-quarry-uniformity-does-not-hoist-prefix-pinned-or.md`; `benchmarks/briefs/social-messenger.md` M3, M5, M6
+**Revised:** 2026-09-09 (revision (a): a blind gpt-6-astra review at maximum reasoning, `llp/reviews/1019-derived-delivery-custody.r1-astra.md`, returned NOT READY with seven blocking findings, all folded: the log is durable custody, not a rebuildable projection; a served cursor is not a receipt, so receipts are opt-in and built from durable client acknowledgements; the historical audience carries its own bound and successor admission; the log's authorization is table-wide and receipts are a separate engine-owned table; edits append `changed` events (LLP 1012 requires them); joiners read prior history from the content table, which the brief requires; three evidence sentences corrected. Both spelling questions and the update question are resolved by the review's rulings)
+**Related:** LLP 1012 §3 (the model on one page; the per-recipient log as a program shape; §3's implementation record on current-member fan-out), §5 (retention, revocation, the fence; swap rules 1–4), §"resume" (events for edits and removals; the last tail is live), ruling 2 ("copy the answers, not the mailbox"); LLP 1001 §4 (successors; queued intents across generations) and §"containment"; LLP 1018.003 §3 (`tombstones`) and §5 (the thread projection); LLP 1018.006 (declared partial custody: the thread's fallback); LLP 1017 (cap; the certified fan-out; nonuniform scans and the reserve); LLP 1016 D5 (schedules on the owner's clock); LLP 1011 revision "one spelling" (the word inventory; row reads versus maintain's scalar reads); LLP 1020 §A3 and §"What this does not do" (projection ownership does not cover custody); LLP 1021 (sibling); `issues/20260906-snapback2-no-delivered-ack-primitive-from-the-delivery-log.md`; `benchmarks/briefs/social-messenger.md` M3 (recipient set at send time; full prior history on join; departed members keep history), M5, M6
 
 ## Summary
 
@@ -14,10 +14,10 @@ Every private-messaging app on Snapback 2 must hand-write its own custody:
 a per-recipient event table with three indexes, a `tombstones` line, a
 `retain` word, a fan-out `proc`, and a call to it from every mutation that
 writes, edits, deletes, or expires a message. In the chat template that is
-27 lines that exist for no product reason, seven call sites that must not
-be forgotten, and one known hole — a departed member never receives the
-tombstone for an unsent body and learns by point absence instead, because
-the language could not express the fan-out any other way.
+27 lines that exist for no product reason and seven call sites that must
+not be forgotten — and the template's own fan-out reaches current members
+rather than the send-time audience, so a departed member never receives
+the tombstone for an unsent body and learns by point absence.
 
 This RFC proposes one schema declaration on the content table:
 
@@ -25,24 +25,31 @@ This RFC proposes one schema declaration on the content table:
 table messages:
   conversationId: conversations
   ...
-  deliver to memberships[.conversationId] as deliveries
+  deliver to memberships[.conversationId] as deliveries [with receipts]
   retain delivered-history
 ```
 
-from which the engine derives the per-recipient log (`deliveries`, an
-engine-owned table like a maintain target), writes one `delivered` event per
-recipient at commit, writes one `removed` event to every recipient who was
-delivered when the row is deleted by a mutation, a job, or a schedule, and
-maintains per-recipient drain watermarks so `received` is a readable fact.
-The fan-out is certified by the target group's `cap` exactly as LLP 1017
-certifies a mutation's `for`. The app's `deliveries` table, `proc deliver`,
-every `deliver(...)` call, and the `tombstones` declaration are deleted.
-The client changes nothing: the derived log has the resumable-log shape the
-twin already drains.
+from which the engine derives **durable per-recipient custody**: an
+engine-owned log named by `as` that records, for every content row, its
+send-time audience and three kinds of event — `delivered` at commit,
+`changed` when the row's content is updated, `removed` when the row is
+deleted by a mutation, a job, or a schedule — each to the row's **original
+recipients**, not to whoever is a member later. The log is custody, not a
+projection: it is never rebuilt from current membership, it carries its
+own audience bound with its own successor admission, and removing the
+declaration is a destructive plan. With `with receipts`, the first-party
+SDK acknowledges delivery events it has durably accepted, through ordinary
+certified writes, and `received` becomes a readable fact in an engine-owned
+receipts table under a table-wide rule. A new member reads prior history
+from the content table under its live rule, the way the brief requires,
+through a declared fallback the SDK already has.
 
-LLP 1012's security argument is kept whole: the client still never computes
-a fact a receipt did not cover; the engine computes one more engine-owned
-table, under a fixed rule, from a declaration.
+The app's `deliveries` table, `proc deliver`, every `deliver(...)` call, and
+the `tombstones` declaration are deleted. The twin changes only where it
+must predict the sender's own event. LLP 1012's security argument is kept
+whole: the client never computes a fact a receipt did not cover; the engine
+computes one more engine-owned table, under a fixed rule, from a
+declaration.
 
 ## Evidence
 
@@ -51,55 +58,64 @@ table, under a fixed rule, from a declaration.
   result cache stays; no replica. 'Every message on the phone' is the
   per-recipient delivery-log program shape, published as a recipe and
   adopted by the `chat` template." §3: "one immutable table, one row per
-  recipient per event, two indexes … Delete, expiry, and edit are further
-  log rows: the log is the app's revocation channel, and the mutation that
-  removes a body writes the rows in the same commit." The argument for "no
-  replica" (§3, lines 153–156) is that the *client* "never computes a fact
-  the receipt did not cover". Nothing in it requires the *app* to author
-  the log; it requires the log to be a program the receipt covers.
+  recipient per event … Delete, expiry, and edit are further log rows: the
+  log is the app's revocation channel." The "no replica" argument (§3,
+  lines 153–156) is that the *client* "never computes a fact the receipt
+  did not cover". Nothing in it requires the *app* to author the log; it
+  requires the log to be a program the receipt covers.
 - **The template pays for it.** `templates/chat/snapback/schema.q:80-94`
   (the `deliveries` table), `:71` (`retain delivered-history`),
   `access.q:7-9` (`proc deliver`), `messages.q:4` (the import) and seven
   `deliver(...)` calls (`messages.q:35,44,50,56,62,71,76`): 27 lines, plus
   five that read the log and would change shape.
-- **The fan-out has a hole the language forced.** LLP 1012 §3
-  implementation record (lines 253–264): "Tombstone and edit rows reach the
-  conversation's *current* members, not every original recipient. Two
-  private spellings were tried and refused by the language as it exists
-  (the uniformity analysis collects every field in both arms of an `or`
-  (`E_STRUCTURAL_COUNT`), and a `recipients` list on the message row cannot
-  be built because Quarry has no way to make a list from a range read) …
-  A departed member's copy of an unsent body is therefore evicted by §5 rule
-  1, the point absence its inbox page records when that page next
-  revalidates, not by a tombstone." The engine, which writes every
-  delivery, knows the delivered set exactly.
-- **`retain` does nothing on the server.** `schema.rs:129-153` carries
-  `RetentionPolicy { UntilRevoked, DeliveredHistory }`; its only consumer is
-  `certificate.rs:754`, into the manifest; the behavior is the twin's swap
-  rule 4 (`range-store.ts:1194-1206`). `tombstones` is likewise a schema
-  field evaluated by the twin (`tombstones.ts:38-53`, `offline.ts:822-825`).
-  The server records nothing per recipient: `git grep watermark` over both
-  crates hits only `writer_resume.rs`, where the *client* sends its
-  watermark and the server serves the tail (`:32-38`, `:269-274`,
-  `:296-330`).
-- **The receipt the product needs exists at the wrong layer.** The ticket
-  of 2026-09-06: both Clique builders wrote delivered/read receipts as app
+- **The fan-out reaches the wrong audience, and that is now a template
+  choice.** LLP 1012 §3's implementation record (lines 253–264) says
+  tombstone and edit rows "reach the conversation's *current* members, not
+  every original recipient", and attributes it to two language limits of
+  the time. One of them is gone: the uniformity analysis now proves an
+  `or` true when any arm is decided true
+  (`certificate_policy/visibility.rs:65-67`, recorded at LLP 1012 line
+  251). The other — no list from a range — stands
+  (`issues/20260904-quarry-no-list-from-range.md`). The engine, which
+  writes every delivery, knows the send-time audience exactly.
+- **`retain` and `tombstones` do nothing on the server beyond identity.**
+  `schema.rs:129-165` carries `RetentionPolicy` and `Tombstone`; retention
+  reaches the certificate (`certificate.rs:754`) and the manifest
+  (`writer_ledger.rs:350`); the behavior is the twin's swap rules 3 and 4
+  (`range-store.ts:1194-1206`, `tombstones.ts:38-53`). The server records
+  nothing per recipient: the resume path takes the *client's* watermark and
+  serves the tail (`writer_resume.rs:32-38`, `:269-330`); a replay "low
+  watermark" (`writer_replay.rs:55`) is about intents, not delivery.
+- **The brief's semantics.** `social-messenger.md` M3 (lines 500–510):
+  receipts go `sent → delivered (fetched by the recipient's client) →
+  read`; "the recipient set is membership at send time, and members who
+  leave or are removed before reaching a state drop out of the aggregate
+  requirement"; "New members see the group's full prior history on join";
+  "Removed members immediately stop receiving new messages but keep their
+  local copy of history from before removal." M5 acceptance 1 and M6
+  acceptance 1–2 are the expiry and offline cases.
+- **Edits must be events.** LLP 1012 (line 559): "the application log must
+  append events for edits and removals. The last tail is live, not every
+  historical page." The client's drain subscribes to the final tail only
+  (`drain.ts:184`); an old row edited while its thread is unmounted is
+  refreshed by nothing else. The template emits `'edit'` today
+  (`messages.q:71`).
+- **The receipt the product needs exists at the wrong layer — and a
+  served cursor is not it.** Both Clique builders wrote receipts as app
   rows; "under Playwright's offline toggle the recipient's client never
-  sent its delivered ack, so the choreography stalled". Its premise that
-  the engine "already tracks per-recipient delivery" is wrong today (see
-  above) — which is the point: the fact should exist, and it should exist
-  in the engine.
-- **The brief's semantics are exactly a delivery set at commit time.**
-  `social-messenger.md` M3 (lines 500–510): receipts go `sent → delivered
-  (fetched by the recipient's client) → read`; "the recipient set is
-  membership at send time"; "Removed members immediately stop receiving
-  new messages but keep their local copy of history from before removal."
-  M5 acceptance 1 and M6 acceptance 1–2 are the expiry and offline cases.
+  sent its delivered ack, so the choreography stalled" (the ticket of
+  2026-09-06). Serving a response does not establish that the client
+  received it: a dropped response, a 51-event commit paged at 50, or a
+  metadata-only read all leave rows the server "served" and the recipient
+  never held. Cursors are unsigned positions, not proofs of traversal (LLP
+  1011 line 167).
 - **There is no delete hook.** The only `after` form is `after insert <-
   exists …`, an assertion (`parser.ts:273-280`). Expiry today is
-  `schedule expireMessage on messages at .expiresAt: purgeMessage(.id)`,
-  and `purgeMessage` is a public mutation whose only job is to fan out
-  `'expired'` and delete (`messages.q:74-81`).
+  `schedule expireMessage on messages at .expiresAt: purgeMessage(.id)`;
+  `purgeMessage` is a mutation that exists only to fan out `'expired'` and
+  delete (`messages.q:74-81`) — schedule targets are excluded from the
+  client API (`quarry/bound-project.ts:79`), so it is app plumbing, not a
+  public operation.
 - **The drain is by shape, not by table.** `certificate/page.rs:105-150`
   admits any ascending, `take ≤ 50`, one-cursor page as a resumable log;
   `drain.ts:24-38` follows it to its watermark. A derived table with that
@@ -110,26 +126,35 @@ table, under a fixed rule, from a declaration.
 ### 1. The declaration
 
 ```
-deliver to <table>[<prefix keys>] [by .<principal column>] as <name>
+deliver to <table>[<prefix keys>] [by .<principal column>] as <name> [with receipts]
 ```
 
-is a table-block line on the content table (the table whose rows are
-delivered). It names a range on a **target** table whose rows carry the
-recipients:
+is a table-block line on the **content** table. It names a range on a
+**target** table whose rows carry the recipients:
 
 - The prefix keys are expressions over the content row (`.conversationId`),
   as in a rule; they must pin a group of the target table that carries a
   `cap N by <those columns>` (LLP 1017 §2.1). Without the cap the
-  declaration refuses `E_DELIVER_UNBOUNDED` ("`deliver to memberships[.conversationId]`
-  fans out over an unbounded group; declare `cap N by conversationId` on
-  memberships").
+  declaration refuses `E_DELIVER_UNBOUNDED` (family `bound`, site the
+  `deliver` line, rewrite "declare `cap N by conversationId` on
+  memberships", page `offline`).
 - The target table must have exactly one `principal` column, or the
-  declaration names it with `by .principal`; otherwise `E_DELIVER_PRINCIPAL`.
-- `as <name>` names the derived log. The name is a table name in the
-  schema's namespace (a collision is `E_SCHEMA_DUPLICATE`, the existing
-  code). One content table may carry at most one `deliver`.
+  declaration names it with `by .principal`; otherwise `E_DELIVER_PRINCIPAL`
+  (family `schema`, same site, rewrite naming the columns, page `offline`).
+- `as <name>` is required and names an engine-owned **row table** in the
+  existing schema namespace (`quarry/catalog.ts:7`); a collision refuses at
+  the declaration with `E_QUARRY_UNKNOWN` and a rename rewrite, the
+  existing duplicate-name path (`catalog.ts:23`). The table keeps ordinary
+  row-valued point and range reads; it does not inherit maintain's scalar
+  reads or projection-rebuild semantics. One content table carries at most
+  one `deliver`.
+- `with receipts` opts into §6. Without it the declaration creates no
+  receipt state and no acknowledgement traffic.
 
-### 2. The derived log
+The raw-schema form (the compiler's IR) admits the same declaration under
+the same refusals.
+
+### 2. The custody log
 
 The engine owns a table named by `as`, with the shape:
 
@@ -137,182 +162,290 @@ The engine owns a table named by `as`, with the shape:
 table deliveries:                       -- engine-owned; not authorable
   recipient: principal
   row: messages                         -- reference to the content table
+  incarnation: int                      -- the content row's commit seq at insert (§3)
   <the prefix key columns, copied>      -- conversationId: conversations
-  kind: enum('delivered', 'removed')
+  kind: enum('delivered', 'changed', 'removed')
   seq: int                              -- the commit that wrote this event
   at: time
   by byRecipient: recipient, seq, id
-  by byRecipientGroup: recipient, <prefix keys>, seq, id
+  by byRecipientGroup: recipient, <prefix keys>, kind, seq, id
   by byRow: row, recipient
   immutable *
   read <- .recipient = viewer
   insert <- deny / update <- deny / delete <- deny
 ```
 
-It is a maintained target in every mechanical sense that already exists:
-it is in the schema and the manifest, its identity is in the certificate,
-successors rebuild it transactionally when the declaration changes (LLP
-1001 §4's maintain rule), `data` and `why` see it, and a program reads it
-like any table. `byRow` is readable under the **content** table's read rule
-(a member who may read the message may read who it was delivered to); the
-other two indexes are readable only by their recipient.
+The rule is **table-wide**: a recipient reads only their own events, on
+every index. `byRow` exists for the engine's own fan-out on delete and
+change (§3) and for the receipts table (§6); it grants no reader anything
+the table rule does not. The log is in the schema, the manifest, and the
+certificate; `data` and `why` see it; a program reads it like any table.
+
+It is **custody, not a projection**. The maintain rebuild's safety argument
+(LLP 1001 §4, LLP 1020 §A3) does not transfer: current membership cannot
+reconstruct a send-time audience, and a deleted content row cannot
+reconstruct its history at all. So:
+
+- Adding `deliver` to a table with rows installs an **empty** log unless
+  the successor also says `bootstrap from current members`, which writes
+  one `delivered` event per current target row per existing content row,
+  bounded by the audience cap times the row count, is recorded in the
+  successor log as an approximation of send-time audiences, and is priced
+  under the installation budget LLP 1020 Part B defines (until then, it is
+  a job the refusal pastes).
+- Removing `deliver` is a **destructive plan** (`Drop::Table` of the log);
+  changing its target or prefix keys is destructive too. Custodial data is
+  never silently dropped.
+- The log's audience bound (§4) is a successor-admitted number that may
+  only rise while any stored audience exceeds the new value.
 
 ### 3. What writes it
 
-- **Insert** of a content row: for each target row in the pinned group at
-  commit time, one `delivered` event. This is "membership at send time".
-- **Delete** of a content row — by a mutation, a job, or a schedule — one
-  `removed` event to every recipient that holds a `delivered` event for
-  that row (read through `byRow`), not to the group's current members. A
-  departed recipient gets the tombstone. The `removed` event is the
-  tombstone: the engine's schema carries the equivalent of `tombstones
-  messages[.row] if .kind = 'removed'` for the derived log, so the twin's
-  swap rule 3 (LLP 1012 §5) applies with no declaration.
-- **Update**: no event. Edits change the row in place and the held row
-  updates through its identity (LLP 1018.003 §5, "an edit changes the
-  message row in place, so no edit event is needed for display").
-- **Successor**: when `deliver` is added to a table with rows, the log is
-  built from the current group membership for every existing row (the
-  transactional rebuild); when it is removed, the log is dropped as an
-  engine-owned target. Neither is a destructive plan (LLP 1020 §2).
+Every write is engine-owned, inside the content write's transaction, at
+the shared row-change lifecycle (`engine/runner_ops.rs:165`) so that no
+content-write path — mutation, job, schedule, seed, upsert, offline
+replay — can omit it:
 
-The writes are engine-owned like maintain writes (LLP 1001: "engine-owned
-seed/closed maintained writes"); no program can insert into the log.
+- **Insert** of a content row: one `delivered` event per target row in the
+  pinned group **at commit time**, deduplicated by principal. A target row
+  inserted in the same transaction counts if it is visible at the content
+  row's write; the audience is fixed at that instant and recorded as the
+  row's `audience` count. This is "membership at send time".
+- **Update** that changes the content row: one `changed` event to every
+  principal holding a `delivered` event for `(row, incarnation)`, read
+  through `byRow`, in the same transaction. Repeated updates append
+  repeated events. Product metadata such as `editedAt` stays authored; no
+  changed-column list is introduced.
+- **Delete** — by a mutation, a job, or a schedule — one `removed` event to
+  every such principal. A departed recipient gets the tombstone. The
+  `removed` event **is** the tombstone: the log's schema carries the
+  equivalent of `tombstones messages[.row] if .kind = 'removed'`, scoped
+  to `(row, incarnation)`, so the twin's swap rule 3 applies with no
+  declaration and an old tombstone can never evict a recreated body.
+- **Upsert** with an existing id follows the update path; **id reuse**
+  after a delete on a delivered table is refused (`E_DELIVER_INCARNATION`,
+  family `rule`, the write site) so tombstone targets stay unique — the
+  `incarnation` column is the engine's record, not a program input.
+- **Seeds** deliver like inserts. **Rollback** of the enclosing transaction
+  rolls the events back with it; there is no partial delivery.
+
+`schedule expireMessage on messages at .expiresAt: delete .` is admitted
+by lowering it ahead of time to a private mutation target with the
+schedule's existing admission, settlement, and rejection reporting
+(`timers.rs:175`, `engine/timers.rs:153`); the one-line spelling is sugar
+over that target, not a new runtime path.
 
 ### 4. Certification
 
-The fan-out is priced where the cap is: every insert site into a delivered
-table reserves `N` examined rows, `N` index entries, and `N` write rows per
-call, where `N` is the target group's cap — the same reservation LLP 1017
-§2.4 makes for a capped insert, applied once more for the log. A delete
-site reserves the same against `byRow`. A mutation whose reservations exceed
-a ceiling refuses `E_BOUND` with the sourced product, naming the `deliver`
-line as the term. A `schedule` that deletes prices the same way per fired
-row. The write-rows ceiling (2,048) bounds a bulk delete job exactly as it
-bounds any sweep.
+- **Insert** sites into a delivered table reserve `N` examined rows, `N`
+  index entries, and `N` write rows per call, where `N` is the target
+  group's cap — LLP 1017 §2.4's reservation, applied once more for the log
+  — and the nonuniform-scan protection of the fan-out reserve
+  (`certificate_policy/fanout.rs:93`) applies unchanged.
+- **Update and delete** sites reserve against the log's **audience bound**
+  `A`, a per-log number in the schema that starts at the target group's
+  cap when `deliver` is installed and may only be raised by a successor
+  while any stored audience exceeds the new value (§2). A membership cap
+  lowered from 50 to 2 does not shrink the historical audiences; `A`
+  stays 50 until no stored audience needs it, and the successor log says
+  so. Every generated read and write site is priced on every meter the
+  certificate has; a `schedule` that deletes prices per fired row; the
+  runtime's containment (`runner_ops.rs:1230`) guards the full reserve.
+- A mutation whose reservations exceed a ceiling refuses `E_BOUND` with the
+  sourced product naming the `deliver` line as the term.
 
 ### 5. Reads
 
-The log is read with the ordinary range forms, and the two the template
-needs have the resumable-log shape:
-
 ```q
 query inbox(c: cursor ?):
-  return deliveries[viewer] after c first 50 { *, message: messages[.row] }
+  return deliveries[viewer] after c first 50 by byRecipient { *, message: messages[.row] }
 
 query thread(conversationId: conversations, c: cursor ?):
   require isMember(conversationId, viewer) else MEMBERSHIP_REQUIRED
-  return deliveries[viewer, conversationId] after c last 50 { *, message: messages[.row] }
+  return deliveries[viewer, conversationId, 'delivered'] after c last 50 by byRecipientGroup { *, message: messages[.row] }
+
+query history(conversationId: conversations, c: cursor ?):
+  require isMember(conversationId, viewer) else MEMBERSHIP_REQUIRED
+  return messages[conversationId] after c last 50 by byConvTime
 ```
 
-`inbox` is the drain (`useQuery(api.messages.inbox, {}, { drain: true })`,
-unchanged); `thread` is the certified thread projection of LLP 1018.003 §5
-(one event per live message; a deleted body is a null nested read the
-screen drops). `conversationView` composes exactly as today.
+`inbox` names its index because two recipient-prefixed indexes match, and
+it drains every event kind (`useQuery(api.messages.inbox, {}, { drain:
+true })`); `changed` and `removed` events refresh or evict the shared body
+through the row's identity without creating thread entries. `thread` is
+the certified thread projection (LLP 1018.003 §5), pinned to `delivered`
+so a thread holds one event per live message; it is descending and not a
+resumable log, which it need not be. `history` is the **joiner's** read:
+the content table under its live membership rule, the way the brief
+requires ("full prior history on join"), bounded and online; it is the
+declared fallback of LLP 1018.006 behind `thread`, so a new member's
+screen reads history through the same items binding and custody begins
+with their first delivered event. Nothing rewrites send-time recipients.
+`conversationView` composes as today.
 
-### 6. Receipts
+### 6. Receipts (`with receipts`)
 
-When the writer serves a resume for a drain of a derived log (the path in
-`writer_resume.rs` that already computes the delivery watermark), it
-records `(recipient, log, seq)` in an engine-owned watermark row — one row
-per recipient per log, overwritten monotonically. The log gains a derived
-column `received: bool` = `watermark(recipient) ≥ seq`, readable through
-`byRow`:
+Serving a response or accepting a cursor acknowledges nothing. With
+`with receipts`:
+
+- The first-party SDK **acknowledges** delivery-event identities only
+  after it has validated and durably accepted a page that disclosed the
+  corresponding content row; acknowledgements are persisted with the
+  accepted page and sent as ordinary certified, traced writes to an
+  engine-owned mutation, in bounded idempotent batches, retried across
+  restarts. Two clients of one principal acknowledge independently; the
+  fact is per principal.
+- The engine owns a second table, `<name>Receipts` (`row`, `recipient`,
+  `received: bool`, `seq`), written only by that mutation, with a
+  **table-wide** read rule inherited from the **content** table's read rule
+  (a reader who may read the message may read who received it). Recipients
+  who were removed before acknowledging stay `received: false`, and the
+  brief's aggregate rule ("drop out of the aggregate requirement") is the
+  app's `count` over current members, which it can express.
+- `received: false` means unacknowledged; missing local authority on
+  receipt-only replay remains `partial`, never a fabricated false.
 
 ```q
 query receipts(messageId: messages):
   msg = messages[messageId] ! else NOT_FOUND
   require isMember(msg.conversationId, viewer) else MEMBERSHIP_REQUIRED
-  return deliveries[messageId] first 50 by byRow { recipient, received }
+  return deliveriesReceipts[messageId] first 50 by byRow { recipient, received }
 ```
 
-That is the brief's `sent → delivered` transition without an app table and
-without a client ack that can be dropped offline: the fact is the
-recipient's own drain reaching the row. `read` (seen) stays a product
-mutation; it is a human act, not a transport fact. The watermark row is
-under the resume path's existing authorization; it is written on a read
-path, once per resume, and is the one place this RFC lets a read write.
+`read` (seen) stays a product mutation; it is a human act, not a transport
+fact.
 
-### 7. What is deleted
+### 7. The twin
+
+The evaluator's certificate identity must admit `Table.deliver` and the
+engine-owned tables (`certificate-identity.ts:113` rejects unknown
+fields today). The twin **predicts** only the sender's own `delivered`
+event for a locally queued insert (it holds the sender's principal; it
+does not hold the audience), and predicts no `changed` or `removed` events;
+every other event arrives by drain. Receipt acknowledgements are ordinary
+queued writes with the outbox's fence and replay rules (LLP 1012 §5, §7);
+they never authorize replay early and never erase queued writes.
+
+### 8. What is deleted
 
 - The template's `deliveries` table, `proc deliver`, its import, all seven
-  calls, `purgeMessage`, and the `'edit'`/`'expired'` kinds. The schedule
-  becomes `schedule expireMessage on messages at .expiresAt: delete .`,
-  which needs `delete` admitted as a schedule body (today a schedule names
-  a mutation; the one-line form is a small parser change and the natural
-  spelling once nothing else needs to run).
+  calls, `purgeMessage`, and the `'edit'`/`'expired'` kinds; the template's
+  authored delivery seed rows (`seed.ts:26`) and the tests that assert
+  `messageId`/`expired` are rewritten to the equivalent behavior.
 - The `tombstones` declaration leaves the grammar: its only use was the
   authored log. The word inventory (LLP 1011 revision "one spelling", B5)
-  loses `tombstones` and gains `deliver` and `as`; the `rules/NOT-DOING.md`
-  § Moves line records the trade.
+  loses `tombstones` and gains `deliver`, `as`, `with`, `receipts`,
+  `bootstrap`; the `rules/NOT-DOING.md` § Moves line records the trade
+  with its offset.
 - LLP 1012 §3's "current members, not every original recipient" record is
   superseded by §3 above and marked so.
 
-The chat backend loses about 30 lines and one whole concept.
+The chat backend loses about 30 lines and one whole concept; the complete
+local runtime is measured against its 84,000-byte ceiling after §7 lands
+(deleting template lines saves nothing there).
+
+## Mechanism (to be settled by a prototype before D1)
+
+Two implementations satisfy this design; the r1 review preferred the
+first:
+
+1. **Ahead-of-time expansion.** The compiler expands `deliver` into
+   ordinary private tables and certified IR, and admission enforces the
+   generated writes at every content-write path (mutations, jobs,
+   schedules, seeds, replay), so the twin gets executable writes rather
+   than a second implicit mutation system.
+2. **Native derived writes.** The engine writes the log at the shared
+   row-change lifecycle (`runner_ops.rs:165`), like maintain writes.
+
+Either way the invariant is the same — custody cannot be omitted by any
+write path — and the prototype's job is to show which representation
+keeps the twin honest with the least new machinery. Neither needs a
+general trigger language.
 
 ## What this does not do
 
-- No back-fill on join: a member added after a message was delivered does
-  not receive it. (A product that wants it writes a mutation that inserts
-  into the content table; the engine delivers. The brief does not ask.)
-- No per-device delivery: `recipient` is a principal. Devices are below the
-  wire.
+- No per-device delivery: `recipient` is a principal. Devices are below
+  the wire.
 - No `seen`/`read` receipts, no typing, no presence: those are mutations
   and channels.
 - No cross-table delivery (`deliver` names one target range), no delivery
-  of maintains or channels, no delivery to a computed list.
-- No change to the twin's swap rules, the fence, or `retain`'s meaning. The
-  departed-member case simply gets the tombstone it was owed.
+  of maintains or channels, no delivery to a computed list, no configurable
+  changed-column triggers.
+- No back-fill of custody on join: a joiner reads history live (§5) and
+  holds offline only what was delivered to them.
+- No change to the twin's swap rules, the fence, or `retain`'s meaning.
 
 ## Acceptance
 
 1. The chat template compiles with the `deliveries` table, `proc deliver`,
    `purgeMessage`, and `tombstones` deleted; `snapback2 test` passes the
-   same 30 checks; `api.d.ts` still names `messages.inbox`, `thread`,
-   `conversationView` with unchanged result types (`message` nested,
-   nullable).
+   equivalent thirty checks with revised assertions; `api.d.ts` names
+   `messages.inbox`, `thread`, `history`, `conversationView`, `receipts`.
 2. The offline-bar journeys pass on the derived log: a never-opened chat
    renders offline from the drained log; an offline send is predicted into
-   it; unsend removes the body offline and survives a cold restart; an
-   expiring message is purged by the owner's schedule with every client
-   closed.
-3. New journey: a member is removed, then a message they had received is
-   unsent; the departed member's twin evicts the body by tombstone (swap
-   rule 3), not by point absence, and keeps every other pre-removal body
-   under `retain delivered-history`.
-4. New journey: the receipts query flips `received` for a recipient only
-   after that recipient's drain resumes past the row, including from an
-   offline start.
-5. Corpus cases: insert fan-out, delete fan-out to a departed recipient,
-   the successor that adds and removes `deliver`, and the `E_DELIVER_*`
-   refusals, with engine and twin agreeing.
-6. `check --cost` (LLP 1020 §6) shows the `deliver` term on every write
-   site of a delivered table.
+   it (the sender's own event); unsend removes the body offline and
+   survives a cold restart; an expiring message is purged by the owner's
+   schedule with every client closed.
+3. **Historical custody through evolution**: send to Alice and Bob; remove
+   Bob; add Carol; lower the membership cap; change the declaration
+   (refused as destructive); then unsend and expire old messages — Alice
+   and Bob receive `removed` events by tombstone (not point absence), Carol
+   reads prior history through `history` without becoming an original
+   recipient, Bob keeps every other pre-removal body under `retain
+   delivered-history`, and the audience bound `A` stays at the old cap
+   until no stored audience needs it.
+4. **Old edits outside the live tail**: drain several pages, leave the
+   thread unmounted, disconnect, edit an early message, reconnect only the
+   drain, restart offline, open the thread — the body and `editedAt` are
+   current, search finds the new text, no duplicate bubble.
+5. **Receipt truth** (with `with receipts`): 51 events in one commit paged
+   at 50, a dropped response, a metadata-only read, an arbitrary cursor,
+   two clients of one principal, acknowledgement retry across a restart —
+   an unfetched body is never `received: true`; unavailable authority stays
+   `partial`.
+6. **Containment and the fence**: engine/twin corpus cases at the audience
+   bound, mixed nonuniform scans, id reuse refused, job and schedule
+   rollback, a queued intent across a successor; acknowledgements neither
+   authorize replay early nor erase queued writes.
+7. Successor cases: `deliver` added with and without `bootstrap`, removed
+   (plan), retargeted (plan), `A` raised; the successor log lines.
+8. Loop and runtime budgets measured after §7 (`measure --check`, the
+   84,000-byte runtime ceiling).
 
 ## Implementation (proposed lanes; sizes are the orchestrator's estimate)
 
 | lane | scope | size |
 |---|---|---|
-| D1 | schema: `Deliver` on `Table`, the derived log's shape and identity, manifest, successor rebuild | medium |
-| D2 | writer: insert/delete fan-out inside the commit; schedule `delete .`; certificate pricing | medium–large |
-| D3 | compiler: the `deliver … as` line, `E_DELIVER_*`, `byRow` rule inheritance, delete `tombstones` | medium |
-| D4 | receipts: the watermark row on the resume path, `received` | medium |
-| D5 | template, guide (`offline.md`, `quarry.md`, `grammar.md` within budget), families, LLP 1012 §3 supersession, NOT-DOING move | small |
+| P0 | the mechanism prototype (§Mechanism): one content table, insert and delete fan-out on both representations, the twin's identity check | small–medium |
+| D1 | schema: `Deliver` on `Table`, the log's and receipts table's shapes and identities, manifest, audience bound, successor admission (install empty / `bootstrap`, destructive removal) | medium–large |
+| D2 | writes at the row-change lifecycle: insert/change/delete fan-out, incarnation, id-reuse refusal, `schedule … delete .` lowering, certificate pricing on every meter | large |
+| D3 | compiler: the `deliver … as … with receipts` line, `E_DELIVER_*` families with sites/rewrites/page, raw-schema admission, delete `tombstones`, inventory amendment | medium |
+| D4 | twin: identity, the sender's own predicted event, drain of `changed`/`removed`, receipts as queued writes | medium |
+| D5 | receipts: the SDK acknowledgement protocol, the engine-owned mutation and table, invalidation | medium |
+| D6 | template (`inbox`/`thread`/`history`/`receipts`, seeds, tests), guide within budget, LLP 1012 §3 supersession, NOT-DOING move | small–medium |
 
-D1–D3 land together (the schema without the writes is nothing); D4 and D5
-follow. Two blind reviews per lane under LLP 1002's loop.
+P0 first; D1–D3 land together; D4 with them or immediately after; D5 and
+D6 follow. Two blind reviews per lane under LLP 1002's loop.
 
-## Open questions (author)
+**Sequencing** (from the r1 reviews, adopted): after the five-lane program
+lands, publish, run the reduced loop bar and the Clique cold rerun; land
+LLP 1020 Part A's certificate-soundness and enum work first; commission
+this RFC on the cold rerun's evidence, with §3's historical-custody
+semantics settled before any code, and never as a prerequisite for that
+evidence.
 
-1. Should `received` be always on, or opt-in (`deliver … with receipts`)?
-   Proposed: always on — the watermark row is one row per recipient per
-   log, and a product that does not want to show receipts does not read
-   them. Delivery visibility is membership information the reader already
-   holds.
-2. Is `as <name>` the right spelling, or should the log be addressed as
-   `messages.delivered` without a name? Proposed: `as`, so the log has an
-   ordinary table name in `api.d.ts`, `data`, and `why`, and so two content
-   tables in one app can each name theirs.
-3. Should an **update** to a delivered row emit an event when a declared
-   column changes (a badge for "edited")? LLP 1018.003 §5 says display
-   needs none; proposed: no, until a brief asks.
+## Open questions (author) — resolved
+
+1. *Should `received` be always on, or opt-in?* **Resolved 2026-09-09 (r1
+   review, confidence 94):** opt-in with `with receipts`, implemented by
+   durable client acknowledgements through certified writes; a served
+   watermark is not a receipt (§6).
+2. *`as <name>` or an implicit `messages.delivered`?* **Resolved
+   2026-09-09 (r1 review, confidence 97):** `as <name>` is required; the
+   log is an ordinary row table in the existing namespace, with ordinary
+   row reads, never maintain's scalar reads or rebuild semantics (§1, §2).
+3. *Should an update emit an event?* **Resolved 2026-09-09 (r1 review,
+   confidence 99):** yes — mandatory `changed` events to the original
+   recipients, because the drain subscribes only to the tail and LLP 1012
+   requires edit events; edit metadata stays authored; no changed-column
+   trigger syntax (§3).
