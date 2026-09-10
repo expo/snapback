@@ -121,6 +121,9 @@ fn enum_removal_is_checked_instead_of_destructive() {
 }
 
 fn regroup_schema(by: &str) -> Schema {
+    regroup_schema_with(by, MaintainKind::Count)
+}
+fn regroup_schema_with(by: &str, kind: MaintainKind) -> Schema {
     let mut schema = generation(ColumnType::Int).schema().clone();
     let source = schema.tables.get_mut("items").unwrap();
     source
@@ -157,7 +160,7 @@ fn regroup_schema(by: &str) -> Schema {
         target: "counts".into(),
         source: "items".into(),
         by: vec![by.into()],
-        kind: MaintainKind::Count,
+        kind,
         readable: None,
     });
     schema
@@ -341,13 +344,12 @@ fn widening_matrix_installs_migrates_and_reopens_without_rewriting() {
 
 #[test]
 fn narrower_bounds_and_changed_scale_currency_or_once_keep_destructive_plans() {
+    // Smaller text/bytes/list maxima are checked narrowing (fix round r1 ruling), below.
     for (from, to) in [
-        (ColumnType::Text { max: 20 }, ColumnType::Text { max: 10 }),
         (
             ColumnType::Json { max_bytes: 200 },
             ColumnType::Json { max_bytes: 100 },
         ),
-        (ColumnType::Bytes { max: 20 }, ColumnType::Bytes { max: 10 }),
         (
             ColumnType::Image {
                 max: 200,
@@ -372,7 +374,6 @@ fn narrower_bounds_and_changed_scale_currency_or_once_keep_destructive_plans() {
                 once: false,
             },
         ),
-        (list(ColumnType::Int, 3), list(ColumnType::Int, 2)),
         (
             ColumnType::Decimal { scale: 2 },
             ColumnType::Decimal { scale: 3 },
@@ -478,10 +479,15 @@ fn nested_enum_removal_counts_rows_once_and_preserves_bytes_on_every_path() {
                     match Runtime::open(Store::open(&disk.db()).unwrap(), next) {
                         Ok(opened) => {
                             rt = opened;
-                            Ok(serde_json::from_str(
+                            let report: SuccessorReport = serde_json::from_str(
                                 &rt.store().meta("last_successor").unwrap().unwrap(),
                             )
-                            .unwrap())
+                            .unwrap();
+                            // The cold-open route hands the owner the same report the
+                            // hot path logs (fix round r1, item 5).
+                            assert_eq!(rt.take_opened_successor().as_ref(), Some(&report));
+                            assert_eq!(rt.take_opened_successor(), None);
+                            Ok(report)
                         }
                         Err(e) => {
                             rt = Runtime::open(Store::open(&disk.db()).unwrap(), old).unwrap();
@@ -493,7 +499,14 @@ fn nested_enum_removal_counts_rows_once_and_preserves_bytes_on_every_path() {
             let checks = if used {
                 let error = result.unwrap_err();
                 assert_eq!(error.code, "E_SUCCESSOR_NARROWING");
-                assert!(error.rewrite.contains("chunk p9 in items['i09'] first 1 by byId:"));
+                // Values inside lists cannot be one sweep (a `for` would delete one row
+                // twice, which the engine refuses): the sampled job, rerun until zero,
+                // with the remaining count in the message (fix round r1, item 6).
+                assert!(error.rewrite.starts_with(
+                    "-- keep the predecessor schema; this deletes the sampled rows (no one sweep can check values inside lists or bytes).\n-- Apply again after this job: the refusal counts the rows that remain; rerun its next sample job until that count is zero.\njob remove_items_value():\n  chunk p0 in items['i00'] first 1 by byId:\n    delete items[p0.id]\n"
+                ), "{}", error.rewrite);
+                assert!(error.rewrite.ends_with("  chunk p9 in items['i09'] first 1 by byId:\n    delete items[p9.id]"), "{}", error.rewrite);
+                assert!(error.message.contains("12 affected rows remain"), "{}", error.message);
                 error.narrowings
             } else {
                 result.unwrap().narrowings
@@ -776,4 +789,323 @@ fn zero_enum_removal_still_checks_uniqueness_caps_and_required_columns() {
             code
         );
     }
+}
+
+fn table_rows(rt: &Runtime, table: &str) -> Vec<(String, Value)> {
+    let mut statement = rt
+        .engine
+        .store()
+        .conn
+        .prepare("SELECT row_id, data FROM rows WHERE table_name = ?1 ORDER BY row_id")
+        .unwrap();
+    statement
+        .query_map([table], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                serde_json::from_str::<Value>(&row.get::<_, String>(1)?).unwrap(),
+            ))
+        })
+        .unwrap()
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap()
+}
+
+/// Fix round r1, item 1: a column that loses its outer `?` and an enum case at once
+/// gets one pasted job that fills the nulls and deletes the removed case, and the
+/// refusal carries both counts.
+#[test]
+fn combined_unwrap_and_enum_removal_pastes_one_job_that_fills_and_deletes() {
+    let mut rt = runtime(
+        optional(enumeration(&["a", "b", "c"])),
+        vec![None, Some(Value::String("c".into())), Some(Value::String("a".into()))],
+    );
+    let error = rt
+        .apply_successor(generation(enumeration(&["a", "b"])))
+        .unwrap_err();
+    assert_eq!(error.code, "E_SUCCESSOR_NARROWING");
+    let check = &error.narrowings[0];
+    assert_eq!(
+        (check.null_rows, check.affected_rows, check.oversize_rows),
+        (1, 2, 0)
+    );
+    assert_eq!(check.removed_cases, ["c"]);
+    assert_eq!(check.sample, ["id-00", "id-01"]);
+    assert!(
+        error.message.contains(
+            "items.value removes cases [\"c\"]: 2 affected rows remain (1 null or absent)"
+        ),
+        "{}",
+        error.message
+    );
+    assert_eq!(
+        error.rewrite,
+        "-- keep the predecessor schema; this deletes every row holding a removed case; null or absent values become the job's argument.\n-- To map instead, replace each delete with: update items[p.id] { value: <kept case> }\njob remove_items_value(value: enum('a', 'b')):\n  chunk p in items first 100 by byId:\n    if p.value = null:\n      update items[p.id] { value: value }\n    if p.value = 'c':\n      delete items[p.id]"
+    );
+    // The job's two effects, applied under the predecessor schema, make the successor admit.
+    let conn = &rt.engine.store().conn;
+    conn.execute(
+        "DELETE FROM rows WHERE table_name = 'items' AND row_id = 'id-01'",
+        [],
+    )
+    .unwrap();
+    conn.execute(
+        "UPDATE rows SET data = ?1 WHERE table_name = 'items' AND row_id = 'id-00'",
+        [canonical_json(&object([
+            ("id", Value::Id("id-00".into())),
+            ("value", Value::String("b".into())),
+        ]))],
+    )
+    .unwrap();
+    let report = rt
+        .apply_successor(generation(enumeration(&["a", "b"])))
+        .unwrap();
+    assert_eq!(
+        (
+            report.narrowings[0].affected_rows,
+            report.narrowings[0].null_rows
+        ),
+        (0, 0)
+    );
+    assert_eq!(read_values(&mut rt).as_array().map(|rows| rows.len()), Ok(2));
+}
+
+/// Fix round r1, item 2: ownership is the union of the predecessor and successor
+/// projected ids (RFC A3, LLP 1001 §4): a survivor sitting at a successor group key
+/// is engine-owned, so the regroup is the transactional replacement, not a plan.
+#[test]
+fn regroup_with_survivor_at_successor_key_is_owned_and_regroups_without_a_plan() {
+    let mut rt = Runtime::open(
+        Store::memory().unwrap(),
+        certified(regroup_schema("sender")),
+    )
+    .unwrap();
+    let key = canonical_json(&vec![Value::Id("dev:bob".into())]);
+    rt.seed(&[
+        (
+            "items".into(),
+            object([
+                ("id", Value::Id("item".into())),
+                ("value", Value::Int(1)),
+                ("sender", Value::Id("dev:alice".into())),
+                ("recipient", Value::Id("dev:bob".into())),
+            ]),
+        ),
+        (
+            "counts".into(),
+            object([
+                ("id", Value::Id(key.clone())),
+                ("sender", Value::Id("dev:carol".into())),
+                ("value", Value::Int(3)),
+            ]),
+        ),
+    ])
+    .unwrap();
+    let report = rt
+        .apply_successor(certified(regroup_schema("recipient")))
+        .unwrap();
+    assert_eq!(report.maintains, ["maintain counts: by sender → by recipient"]);
+    let rows = table_rows(&rt, "counts");
+    assert_eq!(rows.len(), 1, "{rows:?}");
+    let (id, row) = &rows[0];
+    assert_eq!(id, &key);
+    assert_eq!(row.field("value").unwrap(), &Value::Int(1));
+    assert_eq!(row.field("recipient").unwrap(), &Value::Id("dev:bob".into()));
+    assert!(row.field("sender").is_err(), "{row:?}");
+}
+
+/// Fix round r1, item 4 (ruling): a smaller list maximum is checked narrowing like enum
+/// removal — counted, sampled, repaired by a pasted job — never a retype that clears.
+#[test]
+fn lowered_list_maximum_with_enum_removal_is_checked_narrowing() {
+    let from = list(enumeration(&["a", "b"]), 5);
+    let to = list(enumeration(&["a"]), 3);
+    let strings = |items: &[&str]| {
+        Value::Array(items.iter().map(|s| Value::String((*s).into())).collect())
+    };
+    let mut rt = runtime(
+        from.clone(),
+        vec![
+            Some(strings(&["a", "b", "a", "b"])),
+            Some(strings(&["a"])),
+            Some(strings(&["b"])),
+        ],
+    );
+    let before = read_values(&mut rt);
+    let error = rt.apply_successor(generation(to.clone())).unwrap_err();
+    assert_eq!(error.code, "E_SUCCESSOR_NARROWING");
+    let check = &error.narrowings[0];
+    assert_eq!(check.removed_cases, ["b"]);
+    assert_eq!(
+        (check.oversize_rows, check.affected_rows, check.null_rows),
+        (1, 2, 0)
+    );
+    assert_eq!(check.sample, ["id-00", "id-02"]);
+    assert!(
+        error.message.contains(
+            "items.value removes cases [\"b\"] and lowers its maximum: 2 affected rows remain (0 null or absent, 1 over the new maximum)"
+        ),
+        "{}",
+        error.message
+    );
+    // A removed case inside a list is not one statement per row: the sampled job.
+    assert_eq!(
+        error.rewrite,
+        "-- keep the predecessor schema; this deletes the sampled rows (no one sweep can check values inside lists or bytes).\n-- Apply again after this job: the refusal counts the rows that remain; rerun its next sample job until that count is zero.\njob remove_items_value():\n  chunk p0 in items['id-00'] first 1 by byId:\n    delete items[p0.id]\n  chunk p1 in items['id-02'] first 1 by byId:\n    delete items[p1.id]"
+    );
+    assert_eq!(read_values(&mut rt), before, "a refusal never clears the column");
+
+    // A lowered maximum alone is one `.length` statement: a whole-table sweep.
+    let mut rt = runtime(from.clone(), vec![Some(strings(&["a", "b", "a", "b"]))]);
+    let error = rt
+        .apply_successor(generation(list(enumeration(&["a", "b"]), 3)))
+        .unwrap_err();
+    assert_eq!(
+        (error.narrowings[0].oversize_rows, error.narrowings[0].affected_rows),
+        (1, 1)
+    );
+    assert!(error.narrowings[0].removed_cases.is_empty());
+    assert_eq!(
+        error.rewrite,
+        "-- keep the predecessor schema; this deletes every row over the new maximum.\n-- To map instead, replace each delete with: update items[p.id] { value: <kept value> }\njob shrink_items_value():\n  chunk p in items first 100 by byId:\n    if p.value.length > 3:\n      delete items[p.id]"
+    );
+
+    let mut rt = runtime(from, vec![Some(strings(&["a", "a", "a"])), Some(strings(&[]))]);
+    let before = read_values(&mut rt);
+    let report = rt.apply_successor(generation(to)).unwrap();
+    let check = &report.narrowings[0];
+    assert_eq!(check.removed_cases, ["b"]);
+    assert_eq!((check.oversize_rows, check.affected_rows), (0, 0));
+    assert_eq!(read_values(&mut rt), before, "admission rewrites no row");
+}
+
+/// Fix round r1, item 4 (ruling): smaller `text` and `bytes` maxima are checked the same
+/// way; text is repaired by a whole-table truncation, bytes (which Quarry cannot measure)
+/// by the sampled sweep that is rerun until the count is zero.
+#[test]
+fn lowered_text_and_bytes_maxima_are_checked_narrowing() {
+    for route in ["install", "reopen"] {
+        let disk = Disk::new();
+        let mut rt = Runtime::open(
+            Store::open(&disk.db()).unwrap(),
+            generation(ColumnType::Text { max: 20 }),
+        )
+        .unwrap();
+        rt.seed(&[(
+            "items".into(),
+            object([
+                ("id", Value::Id("long".into())),
+                ("value", Value::String("x".repeat(15))),
+            ]),
+        )])
+        .unwrap();
+        let next = generation(ColumnType::Text { max: 10 });
+        let error = match route {
+            "install" => rt.apply_successor(next).unwrap_err(),
+            _ => {
+                drop(rt);
+                let error = Runtime::open(Store::open(&disk.db()).unwrap(), next).err().unwrap();
+                rt = Runtime::open(
+                    Store::open(&disk.db()).unwrap(),
+                    generation(ColumnType::Text { max: 20 }),
+                )
+                .unwrap();
+                error
+            }
+        };
+        assert_eq!(error.code, "E_SUCCESSOR_NARROWING", "{route}");
+        assert_eq!(error.narrowings[0].oversize_rows, 1);
+        assert_eq!(
+            error.rewrite,
+            "-- keep the predecessor schema; this truncates every items.value to 10 characters.\n-- To drop those rows instead, replace the update with: delete items[p.id]\njob shrink_items_value():\n  chunk p in items first 100 by byId:\n    update items[p.id] { value: slice(p.value, 0, 10) }"
+        );
+        assert_eq!(rt.generation().hash(), generation(ColumnType::Text { max: 20 }).hash());
+    }
+    let mut rt = runtime(
+        ColumnType::Text { max: 20 },
+        vec![Some(Value::String("short".into()))],
+    );
+    let report = rt
+        .apply_successor(generation(ColumnType::Text { max: 10 }))
+        .unwrap();
+    assert_eq!(
+        (
+            report.narrowings[0].oversize_rows,
+            report.narrowings[0].affected_rows
+        ),
+        (0, 0)
+    );
+
+    let mut rt = runtime(
+        ColumnType::Bytes { max: 20 },
+        vec![Some(Value::Bytes(vec![7; 15])), Some(Value::Bytes(vec![7; 5]))],
+    );
+    let error = rt
+        .apply_successor(generation(ColumnType::Bytes { max: 10 }))
+        .unwrap_err();
+    assert_eq!(error.code, "E_SUCCESSOR_NARROWING");
+    assert_eq!(error.narrowings[0].sample, ["id-00"]);
+    assert!(error.message.contains("1 affected rows remain"), "{}", error.message);
+    assert_eq!(
+        error.rewrite,
+        "-- keep the predecessor schema; this deletes the sampled rows (no one sweep can check values inside lists or bytes).\n-- Apply again after this job: the refusal counts the rows that remain; rerun its next sample job until that count is zero.\njob shrink_items_value():\n  chunk p0 in items['id-00'] first 1 by byId:\n    delete items[p0.id]"
+    );
+    rt.engine
+        .store()
+        .conn
+        .execute(
+            "DELETE FROM rows WHERE table_name = 'items' AND row_id = 'id-00'",
+            [],
+        )
+        .unwrap();
+    let report = rt
+        .apply_successor(generation(ColumnType::Bytes { max: 10 }))
+        .unwrap();
+    assert_eq!(report.narrowings[0].affected_rows, 0);
+}
+
+/// Fix round r1, item 7: the report line fires for kind and source changes, not only `by`.
+#[test]
+fn maintain_report_names_kind_and_source_changes() {
+    let mut rt = Runtime::open(
+        Store::memory().unwrap(),
+        certified(regroup_schema("sender")),
+    )
+    .unwrap();
+    rt.seed(&[(
+        "items".into(),
+        object([
+            ("id", Value::Id("item".into())),
+            ("value", Value::Int(4)),
+            ("sender", Value::Id("dev:alice".into())),
+            ("recipient", Value::Id("dev:bob".into())),
+        ]),
+    )])
+    .unwrap();
+    let report = rt
+        .apply_successor(certified(regroup_schema_with(
+            "sender",
+            MaintainKind::Sum { of: "value".into() },
+        )))
+        .unwrap();
+    assert_eq!(report.maintains, ["maintain counts: count → sum of value"]);
+    let rows = table_rows(&rt, "counts");
+    assert_eq!(rows[0].1.field("value").unwrap(), &Value::Int(4));
+
+    let old = Maintain {
+        target: "counts".into(),
+        source: "items".into(),
+        by: vec!["sender".into()],
+        kind: MaintainKind::Count,
+        readable: None,
+    };
+    let new = Maintain {
+        source: "posts".into(),
+        by: vec!["recipient".into(), "day".into()],
+        ..old.clone()
+    };
+    assert_eq!(
+        crate::successor::maintain_change_line(&old, &new).as_deref(),
+        Some("maintain counts: from items → from posts, by sender → by recipient, day")
+    );
+    assert_eq!(crate::successor::maintain_change_line(&old, &old), None);
 }

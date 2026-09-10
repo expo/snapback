@@ -6,34 +6,40 @@ pub struct NarrowingConflict {
     pub table: String,
     pub column: String,
     pub null_rows: u64,
+    /// Rows whose stored value exceeds a lowered `text`, `bytes`, or list maximum.
+    #[serde(default)]
+    pub oversize_rows: u64,
     pub affected_rows: u64,
     pub removed_cases: Vec<String>,
     pub sample: Vec<String>,
 }
 
-// @ref LLP 1020#a2-enum-case-removal-is-checked-narrowing — enum removals compose
-// through wrappers; optional-to-required keeps LLP 1016's outer-wrapper scope.
+// @ref LLP 1020#a2-enum-case-removal-is-checked-narrowing — enum removals and lowered
+// text/bytes/list maxima compose through wrappers (the fix-round r1 ruling: a smaller
+// maximum is checked like a removed case, never a retype that clears values);
+// optional-to-required keeps LLP 1016's outer-wrapper scope.
 pub(super) fn is_narrowing(current: &ColumnType, next: &ColumnType) -> bool {
     if widens(current, next) {
         return false;
     }
     match (current, next) {
         (ColumnType::Optional(a), b) if !matches!(b, ColumnType::Optional(_)) => {
-            widens(a, b) || enum_compatible(a, b)
+            widens(a, b) || checked(a, b)
         }
-        _ => enum_compatible(current, next),
+        _ => checked(current, next),
     }
 }
 
-fn enum_compatible(current: &ColumnType, next: &ColumnType) -> bool {
+/// Domain changes the successor checks against stored values instead of clearing them.
+fn checked(current: &ColumnType, next: &ColumnType) -> bool {
     match (current, next) {
-        (ColumnType::Enum { .. }, ColumnType::Enum { .. }) => true,
-        (ColumnType::Optional(a), ColumnType::Optional(b)) => enum_compatible(a, b),
-        (a, ColumnType::Optional(b)) if !matches!(a, ColumnType::Optional(_)) => {
-            enum_compatible(a, b)
-        }
-        (ColumnType::List { of: a, max: am }, ColumnType::List { of: b, max: bm }) => {
-            am <= bm && enum_compatible(a, b)
+        (ColumnType::Enum { .. }, ColumnType::Enum { .. })
+        | (ColumnType::Text { .. }, ColumnType::Text { .. })
+        | (ColumnType::Bytes { .. }, ColumnType::Bytes { .. }) => true,
+        (ColumnType::Optional(a), ColumnType::Optional(b)) => checked(a, b),
+        (a, ColumnType::Optional(b)) if !matches!(a, ColumnType::Optional(_)) => checked(a, b),
+        (ColumnType::List { of: a, .. }, ColumnType::List { of: b, .. }) => {
+            widens(a, b) || checked(a, b)
         }
         _ => false,
     }
@@ -51,10 +57,36 @@ fn removed_cases(current: &ColumnType, next: &ColumnType) -> Vec<String> {
     }
 }
 
+fn lowers_maximum(current: &ColumnType, next: &ColumnType) -> bool {
+    match (current, next) {
+        (ColumnType::Optional(a), b) => lowers_maximum(a, b),
+        (a, ColumnType::Optional(b)) => lowers_maximum(a, b),
+        (ColumnType::List { of: a, max: am }, ColumnType::List { of: b, max: bm }) => {
+            bm < am || lowers_maximum(a, b)
+        }
+        (ColumnType::Text { max: a }, ColumnType::Text { max: b })
+        | (ColumnType::Bytes { max: a }, ColumnType::Bytes { max: b }) => b < a,
+        _ => false,
+    }
+}
+
 fn contains_removed(value: &Value, removed: &[String]) -> bool {
     match value {
         Value::String(s) => removed.contains(s),
         Value::Array(items) => items.iter().any(|v| contains_removed(v, removed)),
+        _ => false,
+    }
+}
+
+/// A stored value larger than the successor's maximum at any depth.
+fn exceeds(value: &Value, next: &ColumnType) -> bool {
+    match (next, value) {
+        (ColumnType::Optional(inner), value) => exceeds(value, inner),
+        (ColumnType::List { of, max }, Value::Array(items)) => {
+            items.len() > *max as usize || items.iter().any(|item| exceeds(item, of))
+        }
+        (ColumnType::Text { max }, Value::String(text)) => text.chars().count() > *max as usize,
+        (ColumnType::Bytes { max }, Value::Bytes(bytes)) => bytes.len() > *max as usize,
         _ => false,
     }
 }
@@ -82,6 +114,7 @@ pub(super) fn checked_narrowings(
                 table: table.clone(),
                 column: column.clone(),
                 null_rows: 0,
+                oversize_rows: 0,
                 affected_rows: 0,
                 removed_cases: removed_cases(kind, next_kind),
                 sample: Vec::new(),
@@ -109,7 +142,11 @@ pub(super) fn checked_narrowings(
                 if null {
                     check.null_rows += 1;
                 }
-                if null || contains_removed(value, &check.removed_cases) {
+                let oversize = exceeds(value, next_kind);
+                if oversize {
+                    check.oversize_rows += 1;
+                }
+                if null || oversize || contains_removed(value, &check.removed_cases) {
                     check.affected_rows += 1;
                     if check.sample.len() < 10 {
                         check.sample.push(id);
@@ -143,29 +180,40 @@ pub(super) fn narrowing_refusal(
     let message = conflicts
         .iter()
         .map(|c| {
-            if c.removed_cases.is_empty() {
-                format!(
+            if c.removed_cases.is_empty() && c.oversize_rows == 0 {
+                return format!(
                     "{}.{} cannot become required: {} stored rows are null or absent",
                     c.table, c.column, c.null_rows
-                )
-            } else {
-                format!(
-                    "{}.{} removes cases {:?}: {} affected rows ({} null or absent)",
-                    c.table, c.column, c.removed_cases, c.affected_rows, c.null_rows
-                )
+                );
             }
+            let what = match (!c.removed_cases.is_empty(), c.oversize_rows > 0) {
+                (true, true) => format!("removes cases {:?} and lowers its maximum", c.removed_cases),
+                (true, false) => format!("removes cases {:?}", c.removed_cases),
+                _ => "lowers its maximum".to_owned(),
+            };
+            let over = if c.oversize_rows > 0 {
+                format!(", {} over the new maximum", c.oversize_rows)
+            } else {
+                String::new()
+            };
+            format!(
+                "{}.{} {what}: {} affected rows remain ({} null or absent{over})",
+                c.table, c.column, c.affected_rows, c.null_rows
+            )
         })
         .collect::<Vec<_>>()
         .join("; ");
-    let rewrite = conflicts.iter().map(|c| {
-        let (table, column) = (&c.table, &c.column);
-        if !c.removed_cases.is_empty() {
-            return removal_job(c, &current.tables[table].columns[column]);
-        }
-        let ty = quarry_type(&next.tables[table].columns[column]);
-        // @ref LLP 1016#d4--expand-fill-contract — the replacement is a typed job argument.
-        format!("-- keep {table}.{column} optional and apply, then fill it:\njob fill_{table}_{column}(value: {ty}):\n  chunk p in {table} first 100 by byId:\n    update {table}[p.id] {{ {column}: p.{column} ?? value }}")
-    }).collect::<Vec<_>>().join("\n\n");
+    let rewrite = conflicts
+        .iter()
+        .map(|c| {
+            repair_job(
+                c,
+                &current.tables[&c.table].columns[&c.column],
+                &next.tables[&c.table].columns[&c.column],
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n\n");
     Ok(Some(SuccessorRefusal {
         from: String::new(),
         to: String::new(),
@@ -184,23 +232,90 @@ pub(super) fn narrowing_refusal(
     }))
 }
 
-fn removal_job(c: &NarrowingConflict, predecessor: &ColumnType) -> String {
+fn quote(text: &str) -> String {
+    format!("'{}'", text.replace('\\', "\\\\").replace('\'', "\\'"))
+}
+
+fn scalar_text_max(kind: &ColumnType) -> Option<u32> {
+    match kind {
+        ColumnType::Text { max } => Some(*max),
+        ColumnType::Optional(inner) => scalar_text_max(inner),
+        _ => None,
+    }
+}
+
+/// The pasted repair for one conflict, written against the predecessor schema. It is one
+/// whole-table sweep whenever the check is one statement per row (`=` on a scalar case,
+/// one `.length` on the outer list, `slice` on scalar text). Values inside lists would
+/// need a `for` whose repeated `delete` of one row the engine refuses (and whose fan-out
+/// the certificate multiplies past the write ceiling), and `bytes` cannot be measured,
+/// so those jobs delete the sampled rows and are rerun until the count is zero.
+fn repair_job(c: &NarrowingConflict, predecessor: &ColumnType, successor: &ColumnType) -> String {
     let (table, column) = (&c.table, &c.column);
-    let quote = |text: &str| format!("'{}'", text.replace('\\', "\\\\").replace('\'', "\\'"));
-    if !holds_list(predecessor) {
-        // A scalar case compares directly, so one bounded sweep repairs every affected row.
-        let deletes = c
-            .removed_cases
-            .iter()
-            .map(|case| format!("    if p.{column} = {}:\n      delete {table}[p.id]", quote(case)))
+    let required = matches!(predecessor, ColumnType::Optional(_))
+        && !matches!(successor, ColumnType::Optional(_));
+    let lowered = lowers_maximum(predecessor, successor);
+    let ty = quarry_type(successor);
+    if c.removed_cases.is_empty() && !lowered {
+        // @ref LLP 1016#d4--expand-fill-contract — the replacement is a typed job argument.
+        return format!(
+            "-- keep {table}.{column} optional and apply, then fill it:\njob fill_{table}_{column}(value: {ty}):\n  chunk p in {table} first 100 by byId:\n    update {table}[p.id] {{ {column}: p.{column} ?? value }}"
+        );
+    }
+    let argument = if required { format!("value: {ty}") } else { String::new() };
+    if c.removed_cases.is_empty()
+        && let (Some(from), Some(to)) = (scalar_text_max(predecessor), scalar_text_max(successor))
+        && to < from
+    {
+        let fills = if required { " and fills null or absent values" } else { "" };
+        let update = if required {
+            format!("    update {table}[p.id] {{ {column}: slice(p.{column} ?? value, 0, {to}) }}")
+        } else if matches!(predecessor, ColumnType::Optional(_)) {
+            format!("    if p.{column} != null:\n      update {table}[p.id] {{ {column}: slice(p.{column}, 0, {to}) }}")
+        } else {
+            format!("    update {table}[p.id] {{ {column}: slice(p.{column}, 0, {to}) }}")
+        };
+        return format!(
+            "-- keep the predecessor schema; this truncates every {table}.{column} to {to} characters{fills}.\n-- To drop those rows instead, replace the update with: delete {table}[p.id]\njob shrink_{table}_{column}({argument}):\n  chunk p in {table} first 100 by byId:\n{update}"
+        );
+    }
+    let name = if c.removed_cases.is_empty() { "shrink" } else { "remove" };
+    let fill = if required {
+        format!("    if p.{column} = null:\n      update {table}[p.id] {{ {column}: value }}\n")
+    } else {
+        String::new()
+    };
+    if let Some(lines) = sweep_lines(
+        &format!("p.{column}"),
+        matches!(predecessor, ColumnType::Optional(_)),
+        predecessor,
+        successor,
+        &c.removed_cases,
+        table,
+    ) {
+        let what = match (!c.removed_cases.is_empty(), lowered) {
+            (true, true) => "holding a removed case or over the new maximum",
+            (true, false) => "holding a removed case",
+            _ => "over the new maximum",
+        };
+        let fills = if required { "; null or absent values become the job's argument" } else { "" };
+        let kept = if lowered { "<kept value>" } else { "<kept case>" };
+        let body = lines
+            .into_iter()
+            .map(|(depth, text)| format!("{}{text}", "  ".repeat(depth + 2)))
             .collect::<Vec<_>>()
             .join("\n");
         return format!(
-            "-- keep the predecessor schema; this deletes every row holding a removed case.\n-- To map instead, replace each delete with: update {table}[p.id] {{ {column}: <kept case> }}\njob remove_{table}_{column}():\n  chunk p in {table} first 100 by byId:\n{deletes}"
+            "-- keep the predecessor schema; this deletes every row {what}{fills}.\n-- To map instead, replace each delete with: update {table}[p.id] {{ {column}: {kept} }}\njob {name}_{table}_{column}({argument}):\n  chunk p in {table} first 100 by byId:\n{fill}{body}"
         );
     }
-    // Quarry bindings are lexical: a flag set inside nested list loops cannot reach an
-    // outer delete, so each sampled id gets its own exact, independently bounded sweep.
+    // No single statement can check this value, so each sampled id gets its own exact,
+    // independently bounded sweep; the refusal counts the rows that remain.
+    let fill = if required {
+        format!("  chunk p in {table} first 100 by byId:\n    if p.{column} = null:\n      update {table}[p.id] {{ {column}: value }}\n")
+    } else {
+        String::new()
+    };
     let sweeps = c
         .sample
         .iter()
@@ -209,15 +324,53 @@ fn removal_job(c: &NarrowingConflict, predecessor: &ColumnType) -> String {
         .collect::<Vec<_>>()
         .join("\n");
     format!(
-        "-- keep the predecessor schema; review deletion of these sampled rows.\n-- Retry narrowing after this job; if more affected rows remain, run its next sample job.\njob remove_{table}_{column}():\n{sweeps}"
+        "-- keep the predecessor schema; this deletes the sampled rows (no one sweep can check values inside lists or bytes).\n-- Apply again after this job: the refusal counts the rows that remain; rerun its next sample job until that count is zero.\njob {name}_{table}_{column}({argument}):\n{fill}{sweeps}"
     )
 }
 
-fn holds_list(kind: &ColumnType) -> bool {
-    match kind {
-        ColumnType::List { .. } => true,
-        ColumnType::Optional(inner) => holds_list(inner),
-        _ => false,
+/// Statements, as (relative depth, text), that delete the current row when the value at
+/// `expr` leaves the successor's domain; `None` when no single statement can check it.
+fn sweep_lines(
+    expr: &str,
+    optional: bool,
+    predecessor: &ColumnType,
+    successor: &ColumnType,
+    removed: &[String],
+    table: &str,
+) -> Option<Vec<(usize, String)>> {
+    let delete = |depth: usize| (depth + 1, format!("delete {table}[p.id]"));
+    match (predecessor, successor) {
+        (ColumnType::Optional(a), ColumnType::Optional(b)) => {
+            sweep_lines(expr, true, a, b, removed, table)
+        }
+        (ColumnType::Optional(a), b) => sweep_lines(expr, true, a, b, removed, table),
+        (a, ColumnType::Optional(b)) => sweep_lines(expr, optional, a, b, removed, table),
+        (ColumnType::List { of: a, max: am }, ColumnType::List { of: b, max: bm }) => {
+            // A check on the items needs a `for` that may delete one row twice (refused
+            // as NOT_FOUND) and is priced per item per maintain; only the outer length
+            // is one statement.
+            if !removed.is_empty() || lowers_maximum(a, b) {
+                return None;
+            }
+            let mut lines = Vec::new();
+            if bm < am {
+                let list = if optional { format!("({expr} ?? [])") } else { expr.to_owned() };
+                lines.push((0, format!("if {list}.length > {bm}:")));
+                lines.push(delete(0));
+            }
+            Some(lines)
+        }
+        (ColumnType::Enum { .. }, ColumnType::Enum { .. }) => Some(
+            removed
+                .iter()
+                .flat_map(|case| [(0, format!("if {expr} = {}:", quote(case))), delete(0)])
+                .collect(),
+        ),
+        (ColumnType::Text { max: a }, ColumnType::Text { max: b })
+        | (ColumnType::Bytes { max: a }, ColumnType::Bytes { max: b }) => {
+            (b >= a).then(Vec::new)
+        }
+        _ => Some(Vec::new()),
     }
 }
 
@@ -345,6 +498,82 @@ mod tests {
                     .contains("repair or remove stored row items.bad")
             );
         }
+    }
+    /// One conflict may need two repairs (nulls and a removed case) or a truncation; both
+    /// pastes are pinned to the fixture the compiler lowers (`repairs.q`).
+    #[test]
+    fn combined_and_truncating_repairs_are_the_fixture_the_compiler_lowers() {
+        let store = Store::memory().unwrap();
+        let mut current = Schema::default();
+        current.tables.insert(
+            "profiles".into(),
+            public_table(
+                BTreeMap::from([
+                    ("id".into(), ColumnType::Id),
+                    (
+                        "avatarUrl".into(),
+                        ColumnType::Optional(Box::new(ColumnType::Text { max: 2048 })),
+                    ),
+                    (
+                        "tier".into(),
+                        ColumnType::Optional(Box::new(ColumnType::Enum {
+                            variants: vec!["free".into(), "pro".into()],
+                        })),
+                    ),
+                ]),
+                BTreeMap::new(),
+            ),
+        );
+        let mut next = current.clone();
+        let columns = &mut next.tables.get_mut("profiles").unwrap().columns;
+        columns.insert(
+            "avatarUrl".into(),
+            ColumnType::Optional(Box::new(ColumnType::Text { max: 100 })),
+        );
+        columns.insert(
+            "tier".into(),
+            ColumnType::Enum {
+                variants: vec!["free".into()],
+            },
+        );
+        for (id, fields) in [
+            ("p1", vec![]),
+            ("p2", vec![("tier", Value::String("pro".into()))]),
+            ("p3", vec![("avatarUrl", Value::String("x".repeat(150)))]),
+        ] {
+            let mut row = BTreeMap::from([("id".to_owned(), Value::Id(id.into()))]);
+            for (name, value) in fields {
+                row.insert(name.to_owned(), value);
+            }
+            store
+                .conn
+                .execute(
+                    "INSERT INTO rows(table_name, row_id, data) VALUES ('profiles', ?1, ?2)",
+                    [id.to_owned(), crate::value::canonical_json(&Value::Row(row.into()))],
+                )
+                .unwrap();
+        }
+        let refusal = narrowing_refusal(&store.conn, &current, &next, &OwnedIds::new())
+            .unwrap()
+            .unwrap();
+        assert_eq!(refusal.code, "E_SUCCESSOR_NARROWING");
+        let fixture =
+            include_str!("../../../packages/compiler/fixtures/quarry-jobs/snapback/repairs.q");
+        assert_eq!(format!("{}\n", refusal.rewrite), fixture);
+        let avatar = &refusal.narrowings[0];
+        assert_eq!((avatar.oversize_rows, avatar.affected_rows, avatar.null_rows), (1, 1, 0));
+        let tier = &refusal.narrowings[1];
+        assert_eq!((tier.null_rows, tier.affected_rows, tier.oversize_rows), (2, 3, 0));
+        assert_eq!(tier.removed_cases, ["pro"]);
+        assert!(
+            refusal.message.contains(
+                "profiles.tier removes cases [\"pro\"]: 3 affected rows remain (2 null or absent)"
+            ) && refusal.message.contains(
+                "profiles.avatarUrl lowers its maximum: 1 affected rows remain (0 null or absent, 1 over the new maximum)"
+            ),
+            "{}",
+            refusal.message
+        );
     }
 }
 

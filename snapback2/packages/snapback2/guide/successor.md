@@ -1,39 +1,40 @@
 # Successors: `migrations`, `migration`
 
-`check` compiles and certifies; it does not install. On save, `dev` installs a
-successor transactionally. A refusal keeps the old generation and all its data.
-`dev --status --json` shows the active generation, refusal, and last successful
-`successor` report; `.snapback/log.jsonl` records applications and refusals.
-Reports compare `from` and `to`; refusal sites identify the declaration.
+`check` compiles and certifies but never installs. On save, `dev` installs a
+successor transactionally. A refusal keeps the old generation and its data.
+`dev --status --json` shows the active generation, refusal, and last `successor`
+report; `.snapback/log.jsonl` records applications and refusals.
+Reports carry `from`/`to`; refusal sites name the declaration.
 
 ## Additive changes preserve values
 
 - Add tables, optional columns, indexes, programs, or rules; raise caps.
-  New unique indexes still check existing keys; lowered caps check stored groups.
-- Add or reorder enum cases. Removing cases is checked narrowing: zero affected
-  rows admits, otherwise `E_SUCCESSOR_NARROWING` refuses. The report records
-  removed cases and affected-row counts, including zero, with at most ten IDs.
+  New unique indexes check existing keys; lowered caps check stored groups.
+- Add or reorder enum cases. Removing cases, or lowering a `text`, `bytes`, or
+  list maximum, is checked narrowing: zero affected rows admits, otherwise
+  `E_SUCCESSOR_NARROWING` refuses. The report records removed cases and null,
+  oversize and affected-row counts, including zero, with at most ten IDs.
 - Raise `text`, `json`, `bytes`, `image`, `video`, or list bounds; change `T` to
-  `T?`. Widening composes through `Optional` and lists, without rewriting rows.
-  Text minimum and `format` changes apply to later writes; stored rows are not
-  revalidated against those constraints, even when the constraint tightens.
+  `T?`. Widening composes through `Optional` and lists without rewriting rows.
+  Text minimum and `format` changes apply to later writes only; stored rows are
+  not revalidated, even when a constraint tightens.
 - Add image `once`; removing it is destructive. Scale or currency changes for
-  decimal/money and smaller type bounds are destructive.
+  decimal/money and smaller `json`, `image`, or `video` bounds are destructive.
 - Replace a count/sum maintain's grouping, kind, or source: the engine replaces
-  exactly the union of predecessor/successor projected IDs. Other rows survive;
-  destructive changes affecting those survivors still need a plan. Removing the
-  whole target table needs a plan. Jobs cannot write maintained targets.
+  exactly the union of predecessor/successor projected IDs. Other rows survive,
+  and destructive changes to them or removing the whole target table need a
+  plan. Jobs cannot write maintained targets.
 
-A positional read such as `counts[viewer]` can compile after regrouping while
-meaning something different. The log and status report say, for example,
-`maintain counts: by sender → by recipient`. Check refuses only provable missing
-names, incompatible types, or missing indexes; review each regroup's readers.
+A positional read such as `counts[viewer]` can compile after a regroup with its
+meaning changed. The log and status report say, for example, `maintain counts:
+by sender → by recipient`; check refuses only provable missing names,
+incompatible types, or missing indexes, so review each regroup's readers.
 
 ## Checked narrowing and repair
 
 A new required column on populated rows refuses `E_SUCCESSOR_COLUMN_REQUIRED`.
 For outer `T?` → `T`, absence counts as null. Keep it optional and apply; add a
-job in `snapback/admin.q`, run it, then make the column required and apply:
+job in `snapback/admin.q`, run it, then require the column and apply:
 
 ```q
 job fillAvatars():
@@ -41,35 +42,36 @@ job fillAvatars():
     update profiles[p.id] { avatarUrl: p.avatarUrl ?? 'https://cdn.example.com/default.png' }
 ```
 
-Run `snapback2 run fillAvatars --as system --plan`, then `--wait`. `guide job`
-covers resume and rehearsal. Update `seed.ts` too; seeds are checked before
-stored rows, and edits to seeds cannot backfill existing rows. The refusal
-pastes a typed fill job.
+Run `snapback2 run fillAvatars --as system --plan`, then `--wait` (`guide job`:
+resume, rehearsal). Update `seed.ts` too: seeds are checked before stored rows
+and never backfill them. The refusal pastes a typed fill job.
 
-Enum removals check values inside optional/list wrappers too. Keep the
-predecessor schema and run the pasted job: for a scalar enum it deletes every
-row holding a removed case (edit it to map instead); for list-wrapped enums it
-deletes the ten sampled rows, so rerun until the count is zero. No case is ever
-substituted. Mixed widening/narrowing still runs uniqueness, cap, address and
-reference checks. A queued write carrying a removed case keeps its bytes: resume
-resets, its replay refuses `E_INPUT` without spending the intent, and it commits
-if the case returns.
+Narrowing checks inside optional/list wrappers. Keep the predecessor schema
+and run the pasted job, one whole-table sweep: it deletes rows holding a
+removed case or over-long list, truncates over-long text with `slice`, and
+fills nulls from its argument when the column also becomes required.
+Values inside lists and `bytes` cannot be one sweep: that job deletes ten
+sampled rows; rerun until the remaining count is zero. No case is ever substituted. Mixed
+widening/narrowing still runs uniqueness, cap, address and reference checks. A
+queued write carrying a removed case keeps its bytes: resume resets, replay
+refuses `E_INPUT` unspent, `outbox.status().blocked` names it, `dismiss` returns
+its bytes and the queue continues (`guide offline`); it commits if the case
+returns.
 
 ## Destructive plans
 
 Dropping tables/columns/indexes or incompatible retypes produces a plan such as
 `{ "drops": [{ "kind": "column", "table": "messages", "name": "body" }] }`.
-Retypes clear the old column values; preserve them with a new optional column,
-a bounded mapping job, and changed readers before dropping the old column.
+Retypes clear old values: preserve them with a new optional column, a mapping
+job, and changed readers first.
 
 ```sh
 snapback2 dev --status --json
-# Inspect the refusal's migrationFile and its saved plan/project.
-# Replace GENERATION with that exact generation; keep the owner running.
+# Review the refusal's migrationFile (plan and project); keep the owner running.
 snapback2 dev --apply-migration .snapback/migration-GENERATION.json
 snapback2 dev --status --json
 ```
 
-Use the refusal's `applyCommand` from any directory; relative plan paths resolve
-from the working directory. Success means ready with the plan's generation; any
-failure rolls back rows, indexes, generation metadata and timers together.
+Or use the refusal's `applyCommand` (relative plan paths resolve from the
+working directory). Success is ready at the plan's generation; any failure rolls
+back rows, indexes, generation metadata and timers together.

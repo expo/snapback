@@ -326,6 +326,20 @@ export interface OutboxStatus {
   fence: "inside" | "past";
   /** The partition writer is actively replaying; a connected read cannot establish this. */
   draining?: true;
+  /**
+   * The head of the queue is an intent the owner refused non-retryably as bad input or
+   * schema (a removed enum case); every later intent waits behind it until it is
+   * dismissed. `dismiss(intent)` returns its bytes for re-authoring (LLP 1020 A2).
+   */
+  blocked?: { intent: string; code: string };
+}
+
+/** What `outbox.dismiss` returns for a queued intent it admitted: the bytes to re-author. */
+export interface DismissedIntent {
+  intent: string;
+  op: string;
+  args: unknown;
+  refusal: Refusal;
 }
 
 export interface OutboxApi {
@@ -333,8 +347,12 @@ export interface OutboxApi {
   entries(): Promise<OutboxEntry[]>;
   /** Lazy client-owned snapshot; one read per revision and distinct operation. */
   observe<Args = unknown, Result = unknown>(op?: Op<Args, Result>): ObservedOutbox;
-  /** Drops one settled entry; queued intents cannot be dismissed. */
-  dismiss(intent: string): Promise<void>;
+  /**
+   * Drops one settled entry. A queued intent is dismissed only when its last replay drew a
+   * non-retryable `input`/`schema` refusal (see `OutboxStatus.blocked`); then the
+   * dismissal returns the intent's bytes and the FIFO behind it continues.
+   */
+  dismiss(intent: string): Promise<DismissedIntent | undefined>;
   /** Observes the outbox; called with the current entries at once and after every change. */
   subscribe(listener: (entries: OutboxEntry[]) => void): () => void;
   /**

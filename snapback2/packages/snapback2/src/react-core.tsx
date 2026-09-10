@@ -33,6 +33,7 @@ import {
   type OfflineClientOptions,
   type OutboxEntry,
   type OutboxStatus,
+  type DismissedIntent,
   type Principal,
   type Refusal,
   type SnapbackClient,
@@ -213,7 +214,7 @@ export interface UseOutboxResult {
   /** Grant-present readiness: no particular write bound is implied. */
   can: Readiness;
   detail: { status: OutboxStatus; writer?: OutboxStatus };
-  dismiss(intent: string): Promise<void>;
+  dismiss(intent: string): Promise<DismissedIntent | undefined>;
 }
 
 // @ref LLP 1012#7-writes-offline — the outbox opens before the first request,

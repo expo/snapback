@@ -215,6 +215,12 @@ export interface OutboxEntry {
   arrived?: true;
   /** Prediction and its trace were skipped; the program will check this write on the server. */
   reason?: "fence";
+  /**
+   * The owner's last non-retryable `input`/`schema` refusal of this queued intent's
+   * replay (a removed enum case, LLP 1020 A2). The intent is unspent and still
+   * queued; it is the one kind of queued entry `dismiss` admits. Cleared on settlement.
+   */
+  refusal?: { code: string; family: string; message: string; rewrite?: string; guide?: string; site?: string };
   /** Engine-owned aggregate targets the prediction's overlay omits by design (the server writes them); absent when none. */
   omitted?: string[];
   trace?: OutboxTrace;

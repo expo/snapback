@@ -12,7 +12,7 @@ use crate::schema::{Auth, RuleExpr, Schema, maintain_issues};
 use crate::store::{Store, unix_millis};
 use crate::successor::{
     MigrationPlan, SuccessorRefusal, SuccessorReport, additive_refusal, apply_additive,
-    apply_migration_drops, plan, projected_predecessor_ids,
+    apply_migration_drops, plan, projected_owned_ids,
 };
 use crate::value::{Value, digest};
 use rusqlite::OptionalExtension;
@@ -496,6 +496,9 @@ pub struct Runtime {
     pub(crate) generation: Generation,
     pub(crate) subs: Subscriptions,
     pub(crate) executions: u64,
+    /// The report of the additive successor `open` installed at owner start, until the
+    /// owner takes it for the successor log (LLP 1020 A3: the cold-open route logs too).
+    opened_successor: Option<SuccessorReport>,
     #[cfg(test)]
     fail_after_then_commit: bool,
 }
@@ -527,6 +530,7 @@ impl Runtime {
                 .as_deref()
                 .is_some_and(|h| h != generation.program_hash())
             || evaluator_changed;
+        let mut opened_successor = None;
         match installed.clone() {
             None => {
                 let row_count: i64 = store
@@ -565,8 +569,10 @@ impl Runtime {
                 let current: Schema = serde_json::from_str(&current_json).map_err(|error| {
                     store_refusal(RuntimeError::Serialization(error.to_string()))
                 })?;
-                let migration =
-                    plan(&store.conn, &current, &generation.schema).map_err(store_refusal)?;
+                let owned = projected_owned_ids(&store.conn, &current, &generation.schema)
+                    .map_err(store_refusal)?;
+                let migration = plan(&store.conn, &current, &generation.schema, &owned)
+                    .map_err(store_refusal)?;
                 if !migration.drops.is_empty() {
                     return Err(SuccessorRefusal::destructive(migration));
                 }
@@ -582,23 +588,23 @@ impl Runtime {
                     evaluator_changed,
                 )
                 .map_err(store_refusal)?;
-                let owned = projected_predecessor_ids(&transaction, &current, &generation.schema)
-                    .map_err(store_refusal)?;
                 if let Some(refusal) =
                     additive_refusal(&transaction, &current, &generation.schema, &owned)
                         .map_err(store_refusal)?
                 {
                     return Err(refusal);
                 }
-                apply_additive(
-                    &transaction,
-                    &current,
-                    &generation.schema,
-                    hash,
-                    generation_hash,
-                    owned,
-                )
-                .map_err(store_refusal)?;
+                opened_successor = Some(
+                    apply_additive(
+                        &transaction,
+                        &current,
+                        &generation.schema,
+                        hash,
+                        generation_hash,
+                        owned,
+                    )
+                    .map_err(store_refusal)?,
+                );
                 persist_generation_transaction(&transaction, &generation, unix_millis())
                     .map_err(store_refusal)?;
                 transaction
@@ -618,9 +624,16 @@ impl Runtime {
             generation,
             subs: Subscriptions::default(),
             executions: 0,
+            opened_successor,
             #[cfg(test)]
             fail_after_then_commit: false,
         })
+    }
+
+    /// The additive successor this runtime installed while opening, once: the owner
+    /// writes it to the successor log exactly as a hot installation is written.
+    pub fn take_opened_successor(&mut self) -> Option<SuccessorReport> {
+        self.opened_successor.take()
     }
 
     pub fn execute(&mut self, op: &str, context: Context) -> Result<Execution, RuntimeError> {
@@ -996,12 +1009,13 @@ impl Runtime {
             .conn
             .transaction()
             .map_err(|error| store_refusal(RuntimeError::Sql(error)))?;
-        let migration = plan(&transaction, &current, &next.schema).map_err(store_refusal)?;
+        let owned =
+            projected_owned_ids(&transaction, &current, &next.schema).map_err(store_refusal)?;
+        let migration =
+            plan(&transaction, &current, &next.schema, &owned).map_err(store_refusal)?;
         if !migration.drops.is_empty() {
             return Err(SuccessorRefusal::destructive(migration));
         }
-        let owned = projected_predecessor_ids(&transaction, &current, &next.schema)
-            .map_err(store_refusal)?;
         if let Some(refusal) = additive_refusal(&transaction, &current, &next.schema, &owned)
             .map_err(store_refusal)?
         {
@@ -1053,10 +1067,17 @@ impl Runtime {
         released_at: i64,
     ) -> Result<SuccessorReport, RuntimeError> {
         crate::engine::validate_schema(&next.schema).map_err(first_schema_error)?;
+        // Ownership is read here, before the drops clear the columns it derives from.
+        let predecessor_maintain_ids = projected_owned_ids(
+            &self.engine.store().conn,
+            &self.generation.schema,
+            &next.schema,
+        )?;
         let expected = plan(
             &self.engine.store().conn,
             &self.generation.schema,
             &next.schema,
+            &predecessor_maintain_ids,
         )?;
         if &expected != migration {
             return Err(RuntimeError::MigrationPlan(format!(
@@ -1067,8 +1088,6 @@ impl Runtime {
         let mut reduced = self.generation.schema.clone();
         let from = self.generation.hash();
         let transaction = self.engine.store_mut().conn.transaction()?;
-        let predecessor_maintain_ids =
-            projected_predecessor_ids(&transaction, &reduced, &next.schema)?;
         apply_migration_drops(&transaction, &mut reduced, migration, released_at)?;
         // Ownership was read above, before the drops cleared the columns it derives from.
         if let Some(refusal) =

@@ -67,8 +67,22 @@ export function intentName(grant: string, offset: number): string {
 }
 
 export function settledEntry(entry: OutboxEntry, state: OutboxState, response: unknown, now: number): OutboxEntry {
-  const { response: _response, ...rest } = entry;
+  const { response: _response, refusal: _refusal, ...rest } = entry;
   return { ...rest, state, ...(response === undefined ? {} : { response }), updatedAt: now };
+}
+
+/** A queued intent whose replay the owner refused non-retryably as bad input or schema: never a transport stop. */
+export function dismissibleQueued(entry: OutboxEntry): boolean {
+  return entry.state === "queued" && entry.refusal !== undefined
+    && (entry.refusal.family === "input" || entry.refusal.family === "schema");
+}
+
+/** What `dismiss` hands back for a queued intent, so the app can re-author the write. */
+export interface DismissedIntent {
+  intent: string;
+  op: string;
+  args: unknown;
+  refusal: NonNullable<OutboxEntry["refusal"]>;
 }
 
 export interface EnqueueInput {
@@ -215,10 +229,15 @@ export class OutboxLedger {
   /** The same admission checks enqueue applies, without consuming a slice. */
   async status(op?: string): Promise<OutboxStatus> {
     const grant = await this.grant();
-    const remaining = (await this.queued()).length;
+    const queued = await this.queued();
+    const remaining = queued.length;
     const fence = await this.fence();
+    // @ref LLP 1020#a2-enum-case-removal-is-checked-narrowing — a head-of-queue intent the
+    // owner refuses as bad input blocks the FIFO until it is dismissed; the status names it.
+    const head = queued[0];
+    const blocked = head !== undefined && dismissibleQueued(head) ? { intent: head.intent, code: head.refusal!.code } : undefined;
     const state = (reason: OutboxStatus["reason"], action: OutboxStatus["action"]): OutboxStatus =>
-      ({ ready: reason === "ready", reason, action, remaining, fence });
+      ({ ready: reason === "ready", reason, action, remaining, fence, ...(blocked ? { blocked } : {}) });
     if (!grant) return state("grant-missing", "connect");
     if (this.expired(grant)) return state("grant-expired", "connect");
     const bound = op === undefined ? 0 : (await this.store.outbox.bounds())[op];
@@ -484,19 +503,42 @@ export class OutboxLedger {
     return settledEntry(entry, state, response, this.options.now());
   }
 
-  /** Removes a settled entry, or a rejected inbox row, by intent or `inbox:` alias; a queued intent is never dismissed. */
-  dismiss(intent: string): Promise<void> {
+  /**
+   * Records the owner's non-retryable input/schema refusal of a queued intent's replay.
+   * The intent stays queued and unspent (LLP 1012 §7); the record makes it dismissible.
+   */
+  recordRefusal(intent: string, refusal: NonNullable<OutboxEntry["refusal"]>): Promise<void> {
+    return this.serial(async () => {
+      const fresh = await this.store.outbox.get(intent);
+      if (!fresh || fresh.state !== "queued") return;
+      await this.store.commit({ outbox: { put: [{ ...fresh, refusal, updatedAt: this.options.now() }] } });
+      this.notify();
+    });
+  }
+
+  /**
+   * Removes a settled entry, or a rejected inbox row, by intent or `inbox:` alias. A
+   * queued intent is dismissed only when the owner refused its replay as bad input or
+   * schema (never a transport stop): the dismissal returns its bytes for re-authoring,
+   * the store drops its prediction with it, and the FIFO behind it continues.
+   */
+  dismiss(intent: string): Promise<DismissedIntent | undefined> {
     return this.serial(async () => {
       const rows = (await this.store.inboxRows?.()) ?? [];
       const { entry, row } = await this.resolveIntent(intent, rows);
+      let dismissed: DismissedIntent | undefined;
       if (entry) {
-        if (entry.state === "queued") return;
+        if (entry.state === "queued") {
+          if (!dismissibleQueued(entry)) return undefined;
+          dismissed = { intent: entry.intent, op: entry.op, args: entry.args, refusal: entry.refusal! };
+        }
         const mirrored = rows.filter((candidate) => candidate.admitted === entry.intent || candidate.key === entry.inbox).map((candidate) => candidate.key);
         await this.store.commit({ outbox: { remove: [entry.intent] }, ...(mirrored.length ? { inbox: { remove: mirrored } } : {}) });
       } else if (row && row.state === "rejected") {
         await this.store.commit({ inbox: { remove: [row.key] } });
-      } else return;
+      } else return undefined;
       this.notify();
+      return dismissed;
     });
   }
 }

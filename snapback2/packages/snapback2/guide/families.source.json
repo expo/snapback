@@ -669,7 +669,7 @@
     "code": "E_STEPS",
     "site": "snapback/ops.q:1:1",
     "guide": "bounds",
-    "wrong": "```q\n-- snapback/schema.q\ntable items:\n  body: text <=1000\n  read <- public\n\n-- snapback/ops.q\nquery work():\n  for n in range(0, 1000000):\n    value = n + 1\n  return true\n```",
-    "right": "```q\n-- Every iteration is priced as steps and the product names the literal range;\n-- shrink that bound, or move the work into a job's chunk loop.\n-- snapback/schema.q\ntable items:\n  body: text <=1000\n  read <- public\n\n-- snapback/ops.q\nquery work():\n  for n in range(0, 1000):\n    value = n + 1\n  return true\n```"
+    "wrong": "```q\n-- snapback/schema.q\ntable items:\n  body: text <=100\n  by bySearch: wordPrefixes(body), id\n  read <- public\n  update <- allow\n\n-- snapback/ops.q\njob reindex():\n  chunk p in items first 100 by byId:\n    update items[p.id] { body: p.body }\n```",
+    "right": "```q\n-- Each chunk row of a search-indexed text column re-derives its search terms,\n-- priced as steps per row for the whole chunk; the chunk size is the bound,\n-- so shrink it (or the text maximum).\n-- snapback/schema.q\ntable items:\n  body: text <=100\n  by bySearch: wordPrefixes(body), id\n  read <- public\n  update <- allow\n\n-- snapback/ops.q\njob reindex():\n  chunk p in items first 10 by byId:\n    update items[p.id] { body: p.body }\n```"
   }
 ]

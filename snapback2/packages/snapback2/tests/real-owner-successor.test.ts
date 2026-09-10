@@ -83,6 +83,12 @@ test("durable client intents survive a schema successor and a lost acknowledgeme
     assert.ok(schema.includes("table messages:\n"));
     await writeFile(schemaPath, schema.replace("table messages:\n", "table messages:\n  category: text <=40 ?\n"));
     await local.start(false);
+    // Fix round r1, item 5: the cold-open route (the schema changed while the owner was
+    // down) writes the same `successor: applied` line the hot installation writes.
+    const coldLog = (await readFile(join(local.root!, ".snapback/log.jsonl"), "utf8")).trim().split("\n").flatMap(line => { try { return [JSON.parse(line)]; } catch { return []; /* a record the owner is still writing */ } });
+    const coldApplied = coldLog.filter(line => line.successor === "applied" && line.report?.addedColumns?.includes("messages.category"));
+    assert.equal(coldApplied.length, 1, `cold open logs the successor once: ${JSON.stringify(coldLog.filter(line => line.successor))}`);
+    assert.ok(coldApplied[0].report.from && coldApplied[0].report.to && coldApplied[0].report.from !== coldApplied[0].report.to, JSON.stringify(coldApplied[0]));
 
     const reopened = makeClient();
     await reopened.ready;
@@ -432,7 +438,9 @@ test("positional reads compile after a regroup, report it in log/status, and abs
       await client.online();
       const replay = await client.offlineRuntime.evaluate(`ops.${name}`, { who });
       t.diagnostic(`${name}: ${JSON.stringify({ server: server.state, replay })}`);
+      assert.equal(server.state, "complete", `${name}: the server's typed zero is complete`);
       assert.equal(replay?.state, "partial", `${name}: receipt-only evaluation cannot mint zero authority`);
+      assert.equal(replay?.reason, "never-held", `${name}: the group was never held, so no false completeness: ${JSON.stringify(replay)}`);
     }
   } finally {
     await client?.close(); await owner?.close();
@@ -450,16 +458,43 @@ test("successor guide aliases and Quarry diagnostic rewrites compile", { timeout
     assert.ok(Buffer.byteLength(pages[0]) <= 4096);
     assert.ok(!pages[0].includes("once J1b lands"));
     const families = JSON.parse(await readFile(resolve(import.meta.dirname, "../guide/families.source.json"), "utf8"));
-    for (const code of ["E_SUCCESSOR_NARROWING", "E_SUCCESSOR_COLUMN_REQUIRED", "E_SUCCESSOR_UNIQUE", "E_SUCCESSOR_CAP"]) {
-      const example = families.find((family: any) => family.code === code);
-      assert.equal(example.guide, "successor"); assert.ok(example.site);
-      const source = /```q\n([\s\S]*?)\n```/.exec(example.right)![1];
+    // Fix round r1, item 9: every successor family row and the `E_STEPS` pair. A Quarry
+    // block compiles through `check` (file markers name the files; otherwise the block is
+    // the schema, with a job split into admin.q), and `E_STEPS.wrong` must refuse that code
+    // in family `bound`, page `bounds`. Prose-only sides (`E_SUCCESSOR_ROW_INVALID`,
+    // `E_SUCCESSOR_STORE`, `E_SUCCESSOR_DESTRUCTIVE.right`) have nothing to compile.
+    const project = (source: string): Record<string, string> => {
+      const marked: Record<string, string> = {};
+      let path: string | undefined;
+      for (const line of source.split("\n")) {
+        const marker = /^-- (snapback\/[A-Za-z0-9_./-]+\.q)$/.exec(line);
+        if (marker) { path = marker[1]!; marked[path] = ""; } else if (path) marked[path] += `${line}\n`;
+      }
+      if (Object.keys(marked).length) return marked;
       const start = source.indexOf("\njob ");
-      await writeFile(join(directory, "snapback/schema.q"), start < 0 ? source : source.slice(0, start));
-      if (start < 0) await writeFile(join(directory, "snapback/admin.q"), "query inspect():\n  return null\n");
-      else await writeFile(join(directory, "snapback/admin.q"), source.slice(start));
-      cli(directory, ["check"]);
+      return start < 0 ? { "snapback/schema.q": source, "snapback/admin.q": "query inspect():\n  return null\n" }
+        : { "snapback/schema.q": source.slice(0, start), "snapback/admin.q": source.slice(start) };
+    };
+    const rows = families.filter((row: any) => row.code.startsWith("E_SUCCESSOR") || row.code === "E_STEPS");
+    assert.deepEqual(rows.map((row: any) => row.code).sort(), ["E_STEPS", "E_SUCCESSOR_CAP", "E_SUCCESSOR_COLUMN_REQUIRED", "E_SUCCESSOR_DESTRUCTIVE", "E_SUCCESSOR_NARROWING", "E_SUCCESSOR_ROW_INVALID", "E_SUCCESSOR_STORE", "E_SUCCESSOR_UNIQUE"]);
+    let compiled = 0;
+    for (const example of rows) {
+      assert.equal(example.guide, example.code === "E_STEPS" ? "bounds" : "successor", example.code); assert.ok(example.site, example.code);
+      for (const side of example.code === "E_STEPS" ? ["wrong", "right"] : ["right"]) {
+        const source = /```q\n([\s\S]*?)\n```/.exec(example[side])?.[1];
+        if (!source) continue;
+        await rm(join(directory, "snapback"), { recursive: true, force: true });
+        await mkdir(join(directory, "snapback"));
+        for (const [path, text] of Object.entries(project(source))) await writeFile(join(directory, path), text);
+        const result = spawnSync(binary, ["check", "--project", directory, "--json"], { env, encoding: "utf8", timeout: 15_000 });
+        compiled += 1;
+        if (side === "right") { assert.equal(result.status, 0, `${example.code}.${side}: ${result.stdout}\n${result.stderr}`); continue; }
+        assert.equal(result.status, 1, `${example.code}.wrong: ${result.stdout}\n${result.stderr}`);
+        const refusal = JSON.parse(result.stdout.trim().split("\n")[0]);
+        assert.deepEqual({ code: refusal.code, family: refusal.family, guide: refusal.guide }, { code: "E_STEPS", family: "bound", guide: "bounds" }, result.stdout);
+      }
     }
+    assert.equal(compiled, 6, "four successor `right` blocks plus both E_STEPS sides compile");
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
 
@@ -525,6 +560,77 @@ export default seed({ personas: ['alice', 'bob'], rows: { messages: [
     assert.equal(flatReady.successor.narrowings.find((n: any) => n.column === "kind").affectedRows, 0);
     const afterSweep = JSON.stringify(cli(owner.root!, ["data", "messages", "--as", "system"]));
     assert.ok(afterSweep.includes('"keep"') && !afterSweep.includes('"scalar"'), afterSweep);
+  } finally {
+    await owner?.close();
+    if (previousUrl === undefined) delete process.env.SNAPBACK_URL; else process.env.SNAPBACK_URL = previousUrl;
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+// Fix round r1, items 1, 4 and 6: the combined unwrap-plus-removal job fills and deletes in
+// one sweep, the list-shrink job checks every row with one `.length`, and both run to zero
+// on a real owner (a removed case inside a list stays the sampled job: the nested test).
+test("combined and list-narrowing pasted jobs run to zero on the real owner", { timeout: 90000 }, async t => {
+  const { directory, source } = await fixture();
+  const previousUrl = process.env.SNAPBACK_URL;
+  let owner: RealOwnerHarness | undefined;
+  const declare = (note: string, tags: string) => schema().replace("  body: text <=100", `  body: text <=100\n  note: ${note}\n  tags: ${tags}`);
+  const ops = (note: string) => operations().replace(
+    "mutation send(kind: enum('text', 'image'), body: text <=100):\n  insert messages { sender: viewer, recipient: viewer, kind, body }",
+    `mutation send(kind: enum('text', 'image'), body: text <=100, note: ${note}):\n  insert messages { sender: viewer, recipient: viewer, kind, body, note }`);
+  const seed = (rows: string) => `import { seed } from 'snapback2';\nexport default seed({ personas: ['alice', 'bob'], rows: { messages: [\n${rows}\n] } });\n`;
+  const row = (id: string, fields: string) => `  { id: '${id}', sender: 'dev:alice', recipient: 'dev:bob', kind: 'text', body: '${id}'${fields} }`;
+  const wide = { note: "enum('a', 'b', 'c') ?", tags: "[enum('x', 'y')] <=3 ?" };
+  try {
+    await writeFile(join(source, "schema.q"), declare(wide.note, wide.tags));
+    await writeFile(join(source, "ops.q"), ops(wide.note));
+    await writeFile(join(source, "seed.ts"), seed([row("keep", ", note: 'a', tags: ['x']"), row("nul", ", tags: ['x', 'y', 'x']"), row("gone", ", note: 'c', tags: []")].join(",\n")));
+    owner = await RealOwnerHarness.create({ forceOwned: true, fixture: source });
+    const start: any = await status(owner);
+    // Seeds only feed an empty store; keep them valid for every schema below.
+    await writeFile(join(owner.root!, "snapback/seed.ts"), seed(row("keep", ", note: 'a', tags: ['x']")));
+    const declareAll = async (note: string, tags: string) => {
+      await writeFile(join(owner!.root!, "snapback/ops.q"), ops(note));
+      await writeFile(join(owner!.root!, "snapback/schema.q"), declare(note, tags));
+    };
+    const repair = join(directory, "repair.q");
+    const run = (args?: string) => spawnSync(binary, ["run", "--file", repair, ...(args ? [args] : []), "--as", "system", "--wait", "--project", owner!.root!, "--json"], { env, encoding: "utf8", timeout: 20_000 });
+    // 1. `note` loses its `?` and the case 'c' at once: one job fills the null and deletes the case.
+    await declareAll("enum('a', 'b')", wide.tags);
+    const first: any = await until(() => status(owner!), (s: any) => s.status?.refused?.some((e: any) => e.column === "note"), "combined narrowing refusal");
+    const note = first.status.refused.find((e: any) => e.column === "note");
+    assert.deepEqual({ affectedRows: note.affectedRows, nullRows: note.nullRows, oversizeRows: note.oversizeRows, removedCases: note.removedCases, sample: note.sample },
+      { affectedRows: 2, nullRows: 1, oversizeRows: 0, removedCases: ["c"], sample: ["gone", "nul"] }, JSON.stringify(note));
+    assert.ok(note.rewrite.includes("job remove_messages_note(value: enum('a', 'b')):\n  chunk p in messages first 100 by byId:\n    if p.note = null:\n      update messages[p.id] { note: value }\n    if p.note = 'c':\n      delete messages[p.id]"), note.rewrite);
+    await writeFile(repair, note.rewrite);
+    await declareAll(wide.note, wide.tags);
+    await until(() => status(owner!), (s: any) => s.status === "ready" && s.generation === start.generation, "predecessor restored");
+    const filled = run('{"value":"b"}');
+    assert.equal(filled.status, 0, `${filled.stdout}\n${filled.stderr}\n${note.rewrite}`); assert.ok(filled.stdout.includes('"state":"done"'), filled.stdout);
+    await declareAll("enum('a', 'b')", wide.tags);
+    const second: any = await until(() => status(owner!), (s: any) => s.status === "ready" && s.generation !== start.generation, "combined successor admitted");
+    assert.equal(second.successor.narrowings.find((n: any) => n.column === "note").affectedRows, 0);
+    let rows = JSON.stringify(cli(owner.root!, ["data", "messages", "--as", "system"]));
+    assert.ok(rows.includes('"keep"') && rows.includes('"nul"') && !rows.includes('"gone"') && rows.includes('"note":"b"'), rows);
+    // 2. `tags` keeps its cases and its maximum drops to 2: one sweep with `.length`.
+    await declareAll("enum('a', 'b')", "[enum('x', 'y')] <=2 ?");
+    const third: any = await until(() => status(owner!), (s: any) => s.status?.refused?.some((e: any) => e.column === "tags"), "list narrowing refusal");
+    const tags = third.status.refused.find((e: any) => e.column === "tags");
+    assert.deepEqual({ affectedRows: tags.affectedRows, nullRows: tags.nullRows, oversizeRows: tags.oversizeRows, removedCases: tags.removedCases, sample: tags.sample },
+      { affectedRows: 1, nullRows: 0, oversizeRows: 1, removedCases: [], sample: ["nul"] }, JSON.stringify(tags));
+    assert.ok(tags.rewrite.includes("job shrink_messages_tags():\n  chunk p in messages first 100 by byId:\n    if (p.tags ?? []).length > 2:\n      delete messages[p.id]"), tags.rewrite);
+    assert.match(tags.message, /1 affected rows remain \(0 null or absent, 1 over the new maximum\)/);
+    await writeFile(repair, tags.rewrite);
+    await declareAll("enum('a', 'b')", wide.tags);
+    await until(() => status(owner!), (s: any) => s.status === "ready" && s.generation === second.generation, "list predecessor restored");
+    const swept = run();
+    assert.equal(swept.status, 0, `${swept.stdout}\n${swept.stderr}\n${tags.rewrite}`); assert.ok(swept.stdout.includes('"state":"done"'), swept.stdout);
+    await declareAll("enum('a', 'b')", "[enum('x', 'y')] <=2 ?");
+    const fourth: any = await until(() => status(owner!), (s: any) => s.status === "ready" && s.generation !== second.generation, "list successor admitted");
+    assert.equal(fourth.successor.narrowings.find((n: any) => n.column === "tags").affectedRows, 0);
+    rows = JSON.stringify(cli(owner.root!, ["data", "messages", "--as", "system"]));
+    assert.ok(rows.includes('"keep"') && !rows.includes('"nul"'), rows);
+    t.diagnostic(`combined: ${JSON.stringify({ note: note.message, tags: tags.message })}`);
   } finally {
     await owner?.close();
     if (previousUrl === undefined) delete process.env.SNAPBACK_URL; else process.env.SNAPBACK_URL = previousUrl;

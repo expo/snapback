@@ -15,6 +15,9 @@ pub(crate) fn certification_family_guide(code: &str) -> (&'static str, &'static 
         // which-shape decision, not the loop-bound mechanics.
         "E_STRUCTURAL_FANOUT" => ("bound", "fanout"),
         "E_STRUCTURAL_COUNT" => ("bound", "bound/count"),
+        // @ref LLP 1020#a6-the-successor-page-and-its-families — the step ceiling is a
+        // bound with its own family pair; `check` files it where the runtime does.
+        "E_STEPS" => ("bound", "bounds"),
         "E_AMBIENT_TIME" => ("opaque", "opaque/time"),
         code if code.starts_with("E_BOUND") || code.starts_with("E_UNBOUND") => {
             ("bound", "bound/ceiling")
@@ -307,6 +310,7 @@ impl Refusal {
                 .with_detail("table", json!(narrowing.table))
                 .with_detail("column", json!(narrowing.column))
                 .with_detail("nullRows", json!(narrowing.null_rows))
+                .with_detail("oversizeRows", json!(narrowing.oversize_rows))
                 .with_detail("affectedRows", json!(narrowing.affected_rows))
                 .with_detail("removedCases", json!(narrowing.removed_cases))
                 .with_detail("sample", json!(narrowing.sample))

@@ -187,16 +187,15 @@ pub struct SuccessorReport {
     pub narrowings: Vec<NarrowingConflict>,
 }
 
+/// `owned` is `projected_owned_ids` taken before any migration drop (the same set the
+/// caller threads through admission and application).
 pub(crate) fn plan(
     connection: &Connection,
     current: &Schema,
     next: &Schema,
+    owned: &OwnedIds,
 ) -> Result<MigrationPlan, RuntimeError> {
     let mut drops = Vec::new();
-    // Ownership is the predecessor projection of every target the successor rebuilds
-    // or retires, read before any drop; the successor's own projection is never
-    // computed here, so a backfill that cannot be computed refuses at the rebuild.
-    let owned = projected_predecessor_ids(connection, current, next)?;
     for (table_name, table) in &current.tables {
         let Some(next_table) = next.tables.get(table_name) else {
             let rows: i64 = connection.query_row(
@@ -211,8 +210,8 @@ pub(crate) fn plan(
             continue;
         };
         // @ref LLP 1020#a3-exact-projection-ownership — a delta on a target whose
-        // stored rows are all engine-projected is the transactional replacement;
-        // any ordinary survivor keeps the plan.
+        // stored rows all lie in the union of the predecessor and successor projected
+        // ids is the transactional replacement; any ordinary survivor keeps the plan.
         if let Some(ids) = owned.get(table_name) {
             let mut statement =
                 connection.prepare("SELECT row_id FROM rows WHERE table_name=?1")?;
@@ -258,9 +257,9 @@ pub(crate) fn plan(
     Ok(MigrationPlan { drops })
 }
 
-/// `owned` is `projected_predecessor_ids` taken before any migration drop; the
-/// caller threads it through so nothing re-derives a projection over rows whose
-/// columns the drops have already cleared.
+/// `owned` is `projected_owned_ids` taken before any migration drop; the caller
+/// threads it through so nothing re-derives a projection over rows whose columns
+/// the drops have already cleared.
 pub(crate) fn additive_refusal(
     connection: &Connection,
     current: &Schema,
@@ -475,19 +474,13 @@ pub(crate) fn apply_additive(
         maintains: next
             .maintains
             .iter()
+            .filter(|m| !current.maintains.contains(m))
             .filter_map(|m| {
                 current
                     .maintains
                     .iter()
-                    .find(|old| old.target == m.target && old.by != m.by)
-                    .map(|old| {
-                        format!(
-                            "maintain {}: by {} → by {}",
-                            m.target,
-                            old.by.join(", "),
-                            m.by.join(", ")
-                        )
-                    })
+                    .find(|old| old.target == m.target && !next.maintains.contains(old))
+                    .and_then(|old| maintain_change_line(old, m))
             })
             .collect(),
         ..SuccessorReport::default()
@@ -729,6 +722,31 @@ fn drop_column_values(
     })
 }
 
+// @ref LLP 1020#a3-exact-projection-ownership — every regroup, kind, or source change
+// of a maintain states itself in the successor report: a positional read can keep
+// compiling after any of them with its meaning changed.
+pub(crate) fn maintain_change_line(old: &Maintain, new: &Maintain) -> Option<String> {
+    let kind = |m: &Maintain| match &m.kind {
+        MaintainKind::Count => "count".to_owned(),
+        MaintainKind::Sum { of } => format!("sum of {of}"),
+    };
+    let mut changes = Vec::new();
+    if old.source != new.source {
+        changes.push(format!("from {} → from {}", old.source, new.source));
+    }
+    if old.kind != new.kind {
+        changes.push(format!("{} → {}", kind(old), kind(new)));
+    }
+    if old.by != new.by {
+        changes.push(format!(
+            "by {} → by {}",
+            old.by.join(", "),
+            new.by.join(", ")
+        ));
+    }
+    (!changes.is_empty()).then(|| format!("maintain {}: {}", new.target, changes.join(", ")))
+}
+
 fn changed_maintains<'a>(current: &'a Schema, next: &'a Schema) -> Vec<&'a Maintain> {
     let mut unmatched_next = next.maintains.iter().collect::<Vec<_>>();
     let mut changed = Vec::new();
@@ -792,11 +810,17 @@ fn maintained_targets_requiring_rebuild(current: &Schema, next: &Schema) -> BTre
     targets
 }
 
-/// Per target, the ids the predecessor projection wrote: the rows a successor may
-/// replace or clear without a plan (LLP 1001 §4).
+/// Per target, the ids the engine owns: the union of the predecessor projection and
+/// the successor projection — the rows a successor may replace or clear without a
+/// plan (LLP 1001 §4, LLP 1020 A3).
 pub(crate) type OwnedIds = BTreeMap<String, BTreeSet<String>>;
 
-pub(crate) fn projected_predecessor_ids(
+// @ref LLP 1020#a3-exact-projection-ownership — read once, before any migration drop.
+// The successor projection joins the set only when it can be computed over the
+// stored rows; a backfill that cannot (overflow, a group field the successor adds)
+// contributes nothing here and refuses at the rebuild with its own code, so the
+// destructive classification is never pre-empted by `E_SUCCESSOR_STORE`.
+pub(crate) fn projected_owned_ids(
     connection: &Connection,
     current: &Schema,
     next: &Schema,
@@ -804,9 +828,12 @@ pub(crate) fn projected_predecessor_ids(
     maintained_targets_requiring_rebuild(current, next)
         .into_iter()
         .map(|target| {
-            let ids = projected_target_rows(connection, current, &target)?
+            let mut ids = projected_target_rows(connection, current, &target)?
                 .into_keys()
-                .collect();
+                .collect::<BTreeSet<_>>();
+            if let Ok(rows) = projected_target_rows(connection, next, &target) {
+                ids.extend(rows.into_keys());
+            }
             Ok((target, ids))
         })
         .collect()

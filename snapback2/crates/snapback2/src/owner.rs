@@ -165,6 +165,12 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
         .map_err(|error| Refusal::from_runtime(&error))?;
     let mut runtime = Runtime::open(store, compiled.generation.clone())
         .map_err(|error| crate::protocol::successor_site(Refusal::from_successor(&error), &compiled, None))?;
+    // @ref LLP 1020#a3-exact-projection-ownership — a successor installed at owner start
+    // (the schema changed while the owner was down) reaches the successor log exactly
+    // as a hot installation does, regroup line included.
+    if let Some(report) = runtime.take_opened_successor() {
+        crate::watch::log(&root, json!({ "successor": "applied", "report": report }));
+    }
     let now = unix_millis();
     for persona in &seed.personas {
         runtime

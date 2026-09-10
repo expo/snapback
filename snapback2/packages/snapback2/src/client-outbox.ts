@@ -263,6 +263,15 @@ async function drainQueued(options: DrainOptions): Promise<DrainResult> {
         );
         continue;
       }
+      // @ref LLP 1020#a2-enum-case-removal-is-checked-narrowing — the owner judged the
+      // replay by current validation and refused it unspent (LLP 1012 §7): the intent
+      // keeps its bytes at the head of the queue, and the refusal recorded on it is what
+      // makes `dismiss` admit it so the FIFO can continue (fix round r1 ruling).
+      if (isRefusalError(error) && (error.envelope.family === "input" || error.envelope.family === "schema")) {
+        const { code, family, message, rewrite, guide, site } = wireRefusal(error.envelope, "replay refusal");
+        await runtime.outbox.recordRefusal(entry.intent, { code, family, message,
+          ...(rewrite === undefined ? {} : { rewrite }), ...(guide === undefined ? {} : { guide }), ...(site === undefined ? {} : { site }) });
+      }
       throw error;
     }
     throwIfAborted(options.signal);
@@ -433,8 +442,9 @@ export function createOutboxApi(
     }, identity, () => (runtime?.following ? inbox?.writer : undefined)),
     // @ref LLP 1018.004#2-the-inbox — a follower's dismissal is a durable command row the writer consumes.
     dismiss: async (intent) => {
-      if (runtime?.following) { await inbox?.dismiss(intent); return; }
-      if (runtime && runtime.principal !== undefined) await runtime.outbox.dismiss(intent);
+      if (runtime?.following) { await inbox?.dismiss(intent); return undefined; }
+      if (runtime && runtime.principal !== undefined) return runtime.outbox.dismiss(intent);
+      return undefined;
     },
     subscribe: (listener) => {
       let active = true;
