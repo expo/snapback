@@ -360,10 +360,9 @@ for (const testCase of mediaCases) {
 
 journey("push response retry stays one stored row and one effect execution", async ({ as, url }) => {
   const identity = await proofIdentity();
-  const alice = as("alice", { store: "file" });
+  let alice = as("alice", { store: "file" });
   const bob = as("bob");
   const seen = new Set<string>();
-  let retrying: JourneyDevice | undefined;
   try {
     const grant = subscribe(alice, api.messages.inbox, { c: null }, () => undefined, { drain: true });
     await grant.until((value) =>
@@ -376,16 +375,16 @@ journey("push response retry stays one stored row and one effect execution", asy
       messageId: "preview-response-retry",
     });
     if (queued.state !== "queued") fail(`offline preview send was ${queued.state}`, queued);
-    retrying = await alice.restart();
-    retrying.failNextResponse("/api/mutation", 503);
-    await retrying.online();
-    await retrying.settled();
-    const afterFault = await retrying.outbox.entries();
+    alice = await alice.restart();
+    alice.failNextResponse("/api/mutation", 503);
+    await alice.online();
+    await alice.settled();
+    const afterFault = await alice.outbox.entries();
     if (afterFault.find((entry) => entry.intent === queued.intent)?.state !== "queued") {
       fail("injected response loss did not retain retry custody", afterFault);
     }
-    await retrying.outbox.drain();
-    const entries = await retrying.outbox.entries();
+    await alice.outbox.drain();
+    const entries = await alice.outbox.entries();
     const settled = entries.find((entry) => entry.intent === queued.intent);
     const response = settled?.response as { seq?: number; state?: string } | undefined;
     if (settled?.state !== "committed" || response?.state !== "committed" || typeof response.seq !== "number") {
@@ -408,8 +407,8 @@ journey("push response retry stays one stored row and one effect execution", asy
     if (matching.length !== 1) fail("response retry created duplicate stored pushes", matching);
     await writeEvidence("push response retry stays one stored row and one effect execution", [observed]);
   } finally {
-    alice.close();
-    retrying?.close();
+    // The journey runner owns durable clients through its mandatory
+    // runOfflineDerived pass after this body returns.
     bob.close();
   }
 });
