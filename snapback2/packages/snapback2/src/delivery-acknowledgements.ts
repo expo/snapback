@@ -5,6 +5,9 @@ import { collectRefs, rowKey } from './store/row-values.js';
 import { storedProgram } from './store/canonical.js';
 import type { PersistedRangeState, StoreSwap } from './store/range-store.js';
 
+/** The engine-owned acknowledgement mutation of one custody log (`receipts.rs::ack_name`). */
+const ACK_OP = /^_delivery\.([^.]+)\.ack$/;
+
 /** Keyed by the log row key. A terminal binding retries only on accepted redelivery. */
 export type DeliveryAcknowledgement = [seq: number, intent?: string, retry?: boolean];
 
@@ -27,9 +30,14 @@ export function applyDeliveryAcknowledgements(state: PersistedRangeState, swap: 
     }
   }
   for (const entry of swap.outbox?.put ?? []) {
-    if (!entry.op.startsWith('_delivery.')) continue;
-    for (const event of (entry.args as {events: string[]}).events) {
-      const ack = state.deliveryAcks[`${entry.op.slice(10, -4)}\0${event}`];
+    // Only the engine-owned acknowledgement mutation `_delivery.<log>.ack` carries event
+    // identities; `_delivery` is a legal module stem, so an authored `_delivery.send` is an
+    // ordinary product write and must pass untouched.
+    const log = ACK_OP.exec(entry.op)?.[1];
+    const events = (entry.args as { events?: unknown } | undefined)?.events;
+    if (log === undefined || !Array.isArray(events)) continue;
+    for (const event of events as string[]) {
+      const ack = state.deliveryAcks[`${log}\0${event}`];
       if (!ack) continue;
       if (!ack[1] && entry.state === 'queued') ack[1] = entry.intent;
       if (ack[1] === entry.intent && (entry.state === 'rejected' || entry.state === 'expired')) {

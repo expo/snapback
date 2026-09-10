@@ -8,7 +8,7 @@ import { indexedDbRangeStore } from '../dist/react.mjs';
 import { sqliteFactory } from './sqlite-fixture.ts';
 import { FakeIndexedDb, FakeLocks } from './fake-indexeddb.ts';
 import { test } from 'node:test';
-import { OfflineRuntime, PersistentRangeStore, drainOutbox } from '../dist/sqlite-test.mjs';
+import { OfflineRuntime, PersistentRangeStore, drainOutbox, applyDeliveryAcknowledgements, sqliteState } from '../dist/sqlite-test.mjs';
 import { engineId } from './fake-owner.ts';
 import { RefusalError } from '../dist/client-observed-test.mjs';
 
@@ -274,4 +274,18 @@ test('a long accepted tail retains compacted marks only for held log rows and su
   await r.close();const cold=await open(c);
   assert.equal(Object.keys(await cold.store.outbox.deliveryAcks()).length,1,'the bound survives reopen');
   await cold.close();
+});
+
+// `_delivery` is a legal module stem: an authored `_delivery.send` is an ordinary product write
+// and the acknowledgement helper must pass it untouched; only `_delivery.<log>.ack` carries events.
+test('an authored _delivery.* product mutation is not an acknowledgement', () => {
+  const state: any = { ...sqliteState(), deliveryAcks: { 'deliveries\0e1': [3] } };
+  const before = structuredClone(state.deliveryAcks);
+  const product = { intent: 'g:1', grant: 'g', offset: 0, count: 1, ids: [], op: '_delivery.send', args: { body: 'hi' }, issuedSeq: 1, state: 'queued', predicted: false, trace: { points: [], verdicts: [] }, createdAt: 1, updatedAt: 1, order: 1 };
+  assert.doesNotThrow(() => applyDeliveryAcknowledgements(state, { outbox: { put: [product] } } as any, 'alice'));
+  assert.deepEqual(state.deliveryAcks, before, 'a product write binds no mark');
+  const ack = { ...product, intent: 'g:2', op: '_delivery.deliveries.ack', args: { events: ['e1'] } };
+  state.outbox['g:2'] = ack; // the put lands in the same transaction; a bound, unretried mark whose intent AND event row are both absent retires
+  applyDeliveryAcknowledgements(state, { outbox: { put: [ack] } } as any, 'alice');
+  assert.equal(state.deliveryAcks['deliveries\0e1'][1], 'g:2', 'the engine-owned acknowledgement binds its mark');
 });

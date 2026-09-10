@@ -88,7 +88,8 @@ keep replay/dismissal rules.
 
 Acknowledgements price 50 × (N+1) membership candidates, point reads and receipt
 updates; one membership page is live.
-Missing events or failed probes refuse with a trace. Departed recipients
+A missing original delivery or a failed membership probe refuses with a
+trace; an event the client submits that no longer exists is a no-op. Departed recipients
 stay false; unavailable local authority stays partial. Only acknowledgement
 sets true and its first commit seq, independently per principal across devices.
 It never renews the fence or removes product writes. Seen/read stays authored.
