@@ -91,7 +91,7 @@ mutation fire():
 
   test("effect export aliases cannot bypass grants closure or then validation", async () => {
     for (const [config, code] of [
-      ['grants: [], run: async (_payload: null) => null', "E_EFFECT_GRANT"],
+      ['grants: ["https://api.example.com/path"], run: async (_payload: null) => null', "E_EFFECT_GRANT"],
       ['grants: ["https://api.example.com"], run: async (_payload: null) => helper()', "E_EFFECT_CLOSURE"],
       ['grants: ["https://api.example.com"], run: async (_payload: null) => null, then: ping', "E_EFFECT_THEN_ARGS"],
     ]) {
@@ -106,6 +106,52 @@ mutation fire():
         assert(!result.ok, `aliased effect bypassed ${code}`);
         assert(result.diagnostics.some((d) => d.code === code && d.family === "effect"
           && d.site.startsWith("snapback/delivery.ts:")), JSON.stringify(result));
+      });
+    }
+  });
+
+  test("empty grants compile without inventing authority or statically restricting fetch", async () => {
+    for (const body of [
+      "return { id: meta.id, body: payload.body };",
+      "return (await fetch(payload.body)).text();",
+      "const request = tools.fetch; return (await request(payload.body)).text();",
+      "async function request(url: string) { return (await tools.fetch(url)).text(); } return request(payload.body);",
+    ]) {
+      await withProject({
+        "snapback/schema.q": schema,
+        "snapback/delivery.ts": `import { effect } from "snapback2";
+          const local = effect({ grants: [], run: async (payload: { body: string }, tools) => { ${body} } });
+          export { local as notify };`,
+      }, async (root) => {
+        const result = await lowerProject(root);
+        assert(result.ok, JSON.stringify(result));
+        assert.equal(result.project.effects.length, 1);
+        assert.deepEqual(result.project.effects[0]!.grants, []);
+        assert.equal(result.project.effects[0]!.name, "delivery.notify");
+      });
+    }
+  });
+
+  test("grants remain explicit literal origin lists with a no-network rewrite", async () => {
+    for (const config of [
+      "",
+      'grants: "https://example.com",',
+      "grants: [42],",
+      'grants: ["*"],',
+      'grants: ["http://example.com"],',
+      'grants: ["https://example.com/path"],',
+      'grants: ["https://user:password@example.com"],',
+    ]) {
+      await withProject({
+        "snapback/schema.q": schema,
+        "snapback/delivery.ts": `import { effect } from "snapback2";
+          export const notify = effect({ ${config} run: async () => null });`,
+      }, async (root) => {
+        const result = await lowerProject(root);
+        const refusal = !result.ok && result.diagnostics.find((item) => item.code === "E_EFFECT_GRANT");
+        assert(refusal, JSON.stringify(result));
+        assert.match(refusal.message, /use \[\] for no network access/);
+        assert.match(refusal.rewrite, /grants: \[\]/);
       });
     }
   });
@@ -338,7 +384,7 @@ mutation fire():
   test("effect diagnostics retain grants, closure, imports, then, unknown, and query-emit refusals", async () => {
     const cases: Array<[Record<string, string>, string]> = [
       [{ "snapback/bad.ts": `import { effect } from "snapback2";
-        export const bad = effect({ grants: [], run: async () => null });` }, "E_EFFECT_GRANT"],
+        export const bad = effect({ grants: ["https://example.com/path"], run: async () => null });` }, "E_EFFECT_GRANT"],
       [{ "snapback/bad.ts": `import { effect } from "snapback2";
         const outside = () => null;
         export const bad = effect({ grants: ["https://example.com"], run: async () => outside() });` }, "E_EFFECT_CLOSURE"],

@@ -112,8 +112,9 @@ function lowerEffect(
 ): EffectJson | undefined {
   const config = objectOf(call.arguments[0]);
   const grants = config && stringArray(property(config, "grants"));
-  if (!config || !grants || grants.length === 0 || grants.some((grant) => !validGrant(grant))) {
-    diagnostics.push(effectDiagnostic(module, "E_EFFECT_GRANT", call, "grants must be a non-empty list of https:// or http://127.0.0.1 origins"));
+  // @ref LLP 1018.008.003#4-empty-grants-mean-no-network-authority — an explicit empty list gives the host no fetch authority.
+  if (!config || !grants || grants.some((grant) => !validGrant(grant))) {
+    diagnostics.push(effectDiagnostic(module, "E_EFFECT_GRANT", call, "grants must be a list of https:// or http://127.0.0.1 origins; use [] for no network access"));
     return undefined;
   }
   const runNode = property(config, "run");
@@ -333,6 +334,6 @@ function effectDiagnostic(
     : undefined;
   const callee = call?.expression.getText(module.sourceFile) ?? "effect";
   const rewrite = (code === "E_EFFECT_CLOSURE" ? `// Allowed globals: ${effectGlobals.join(", ")}. Other captured values must be module JSON constants.\n` : "")
-    + `export const ${name} = ${callee}({ grants: ["https://api.example.com"], run: async (_payload: null) => null });`;
+    + `export const ${name} = ${callee}({ grants: [], run: async (_payload: null) => null });`;
   return diagnostic(module, code, node, message, rewrite);
 }
