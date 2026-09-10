@@ -1,0 +1,24 @@
+diff --git a/snapback/messages.q b/snapback/messages.q
+--- a/snapback/messages.q
++++ b/snapback/messages.q
+@@ -145,7 +145,10 @@ mutation unsend(messageId: messages):
+   cfg = settings() ! else CONFIG
+   require now - msg.at <= cfg.deleteWindowMs else DELETE_WINDOW
+   deliver(msg.conversationId, messageId, 'removed')
+-  update messages[msg] { status: 'removed', body: null, photo: null, clip: null, oncePhoto: null }
++  poll = polls[messageId]
++  if poll != null:
++    delete polls[poll]
++  delete messages[msg]
+   return null
+ 
+ mutation edit(messageId: messages, body: text <=2000, baseBody: text <=2000):
+@@ -165,7 +168,7 @@ mutation purgeMessage(messageId: messages):
+   poll = polls[messageId]
+   if poll != null:
+     delete polls[poll]
+-  update messages[msg] { status: 'expired', body: null, photo: null, clip: null, oncePhoto: null }
++  delete messages[msg]
+   return null
+ 
+ mutation markDelivered(messageId: messages):

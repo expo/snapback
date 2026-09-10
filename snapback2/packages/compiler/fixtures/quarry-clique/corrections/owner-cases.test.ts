@@ -735,8 +735,8 @@ journey("an ordinary member author unsends period custody without receipt access
     const unsent = await bob.mutation(api.messages.unsend, { messageId: sent.data.id });
     if (unsent.state !== "committed") throw new Error(`ordinary author unsend was ${JSON.stringify(unsent)}`);
     const message = await alice.query(api["owner-inspection"].messageRow, { messageId: sent.data.id });
-    if (!("data" in message) || message.data?.status !== "removed" || message.data?.body != null) {
-      throw new Error(`unsent message remained visible: ${JSON.stringify(message)}`);
+    if (message.state !== "complete" || !("data" in message) || message.data !== null) {
+      throw new Error(`unsent message was not a successful explicit absence: ${JSON.stringify(message)}`);
     }
     const after = await alice.query(api["owner-inspection"].periodUnreadRow, {
       messageId: sent.data.id,
@@ -761,9 +761,7 @@ journey("an ordinary member author unsends period custody without receipt access
       throw new Error(`ordinary-author unsend entered digest: ${JSON.stringify(digest)}`);
     }
   } finally {
-    alice.close();
-    bob.close();
-    charlie.close();
+    await Promise.all([alice.close(), bob.close(), charlie.close()]);
   }
 });
 

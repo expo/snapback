@@ -80,6 +80,15 @@ Revocation closes session streams; silent partitions surface on failed writes
 with no latency guarantee. Offline reads are `hydrating` and never predicted.
 Connection promises no foreground/idle or delivery guarantee or channel/subscriber broadcast.
 
+For an application-level delivery acknowledgement loop, expose a private,
+indexed `first 1` query over the viewer's pending receipt rows. A mounted
+watcher acknowledges that exact row; its deletion advances the query to the
+next row. Do not rescan a capped message page as a work queue: unrelated
+rerenders repeat every acknowledgement, and the page stops changing length at
+its cap. Drive an open-thread read acknowledgement from a certified
+viewer-specific unread value instead. The write's readiness belongs in the
+effect dependency so a watcher mounted before its grant becomes ready later.
+
 ## Unicode word-prefix search
 
 Declare `by bySearch: conversationId, wordPrefixes(body), at, id`:

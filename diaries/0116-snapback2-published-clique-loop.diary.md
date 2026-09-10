@@ -1956,3 +1956,24 @@ left no stale draft. The final exact source passed 3 warmups plus 20 measured
 two-browser sends, an offline replay/commit gap, and the mounted expiry case.
 The separate HTTP-400 queued-intent behavior remains an open client issue; the
 application's scalar preflight is not recorded as its resolution.
+
+The 20-send run also made a costly application loop visible: every thread
+rerender walked all 50 visible delivery rows, while the global watcher walked
+the first inbox page, and both scheduled acknowledgements the backend's
+`markRead` already overlaps. The request count grew triangularly and the
+delivered marker lagged well behind owner acceptance and recipient rendering.
+The corrected copy uses the private pending-receipt index as a one-row durable
+work queue and uses the viewer's unread count—not capped page length—to trigger
+the existing bounded read acknowledgement. The web bridge likewise keeps its
+initial sync and real online/offline events without forcing `online()` every
+400 ms.
+
+A separate disappearing-message failure came from an application/schema
+mismatch. The delivery schema declared removed/expired rows as tombstones, but
+the mutations retained the same message as a positive body-null row. A real
+old-owner capture showed both facts at the same sequence in warm and cold
+responses; the carrier regression rejects that contradiction atomically on all
+three stores. Matching the documented template—write the delivery, remove any
+poll, then delete the message—keeps reconnect semantics coherent. These were
+post-run copied-app corrections only: no original lane, provider, Exact, or
+Contract work was performed, and no new competitor claim is made.

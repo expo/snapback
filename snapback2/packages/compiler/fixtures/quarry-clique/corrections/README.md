@@ -13,6 +13,9 @@ patch -p1 < syntax-adapter.patch
 patch -p1 < grok-app.patch
 patch -p1 < grok-current-sdk-auth.patch
 patch -p1 < grok-sender-pending.patch
+patch -p1 < grok-message-tombstone.patch
+patch -p1 < grok-receipt-scheduling.patch
+patch -p1 < grok-browser-online-events.patch
 patch -p1 < owner-inspection.patch
 cp owner-cases.test.ts snapback/tests/recipes.test.ts
 ```
@@ -38,6 +41,32 @@ Oversize message text is rejected locally at the schema's
 hooks run before the nullable-row return, so a mounted expiry cannot change
 hook order. The patch's SHA-256 is
 `e733e5cffa9d6bb75b41c017e651a6847628c61a0e7abe5f16c54b7b439f02c7`.
+
+Three final patches keep message removal and acknowledgement work aligned with
+the certified application state. `grok-message-tombstone.patch` deletes the
+message after writing its removed/expired delivery and deletes a companion poll
+before either removal; retaining a positive row with `status: expired` would
+contradict the delivery table's declared tombstone. Its SHA-256 is
+`baee5aa7e1b02a89ff7be59c72ea05f80aea4b994c08538004f4cd13fb8935a5`.
+`grok-receipt-scheduling.patch` adds the private, indexed
+`pendingDelivered[viewer] first 1` query. The global watcher acknowledges only
+that exact row and advances by deletion. The thread no longer acknowledges all
+50 visible deliveries on every rerender; it runs the existing bounded
+`markRead` only while the viewer-specific unread count is positive. Its
+SHA-256 is
+`9d9da2dfa889db7a9dbdcdd4eaa921d048e0e447d0b9d898f6173a20c3eee500`.
+`grok-browser-online-events.patch` removes the redundant 400 ms `online()`
+poll while preserving the initial sync and the browser's online/offline event
+listeners. Its SHA-256 is
+`b76fbb425cb97c579445bce071734f91e8bc1369284e961af2a6b9e8aa33f144`.
+
+All three patches apply after the auth and sender-pending stages above. Their
+round trip matches the ignored, credential-free four-file reviewer snapshot at
+`.snapback/clique-final-review-snapshot`; its `SHA256SUMS` binds
+`messages.q`, `delivery-watcher.tsx`, `thread-view.tsx`, and
+`snapback-provider.web.tsx`. The copied source compiles with the new bounded
+query. Browser/owner scale and reconnect qualification for these final patches
+is tracked separately below; the preceding 3+20 cohort predates them.
 
 `grok-live-proof-instrumentation.patch` is browser-proof instrumentation, not
 application behavior. It exposes only operation/state, row-count, target-id,
@@ -77,7 +106,7 @@ one of them requires. Its SHA-256 is
 The owner cases use it to exercise the private row rule directly; do not ship
 it as part of the application correction. The retained `owner-cases.test.ts`
 has SHA-256
-`61909786b276675d0eb9b1f03f6d494a28dc878eddd3b76e1d19791bcfabffbc`.
+`ecc7fe34b07fcfc305e7983731396865f3831fa547e084acbd3aa8371d5b2d8f`.
 
 The first faithful atomic digest at 500 follows and 100 current memberships
 needed 4,516,191 closure bytes, 321,887 above the 4 MiB ceiling. Persisting
@@ -164,14 +193,16 @@ null, an explicit deadline kept precedence, all configured kinds stored the
 selected window, and expiry removed the poll's question/options row. The six
 original-post branches passed in 682 ms with two
 schedule firings. The ordinary-member-author unsend passed in 4,892 ms with
-two firings: the message became a bodyless removed row, its recipient's period
-custody disappeared, and the later digest counted zero unread messages/chats
-without widening lifetime receipt access.
+two firings under the preceding retained-row version: the message became a
+bodyless removed row, its recipient's period custody disappeared, and the
+later digest counted zero unread messages/chats without widening lifetime
+receipt access. The final hard-delete patch updates this journey to require
+absence; its rerun is a separate final-generation witness.
 
 The local effect returns a deterministic result without `fetch`; no provider
 request was made.
 
-The final copied-web qualification used two fresh local-only accounts through
+The preceding copied-web qualification used two fresh local-only accounts through
 the actual signup and profile UI, two independent Chromium contexts, the
 preserved 400 ms online bridge and `DeliveryWatcher`, and no operation filter.
 Signup returned a grant and no login or reload occurred, but three/four
@@ -201,7 +232,7 @@ coverage, remount, and cold reopen. Its ledger entry has the copied helpers'
 literal ambiguous semantic target plus the explicit `args.messageId`; it does
 not substitute a resolved `ids[0]` target. The two carrier cases passed in
 229 ms; the full item-projection file passed 22/22 in 636 ms.
-The final browser source separately passed a mounted-TTL case: one exact id
+The preceding browser source separately passed a mounted-TTL case: one exact id
 committed, disappeared when its deadline fired, left the composer usable, and
 produced no React hook-order error or stale draft.
 
@@ -252,6 +283,22 @@ while one later ordinary post survived an injected 503, restart and outbox
 drain and appeared exactly once in that period's digest. The direct privacy,
 membership-incarnation and ordered-prune journey passed in 2,797 ms with two
 firings; its ordinary peer is a current chat member, not merely a nonmember.
+
+The raw old-owner expiry capture is
+`grok-live-proof.mBoW5Q/fact-trace/old-owner-envelope-trace.json` (SHA-256
+`20de2e63a6bb25e2233c4c144c6727ed56c0ec6d3079be433a4a498902bee243`).
+Warm seq 5433 and cold seq 5438 each contain an expired delivery and the same
+message as a positive `status: expired`, body-null row at that sequence. The
+one-shot controls did not themselves throw, so this proves the real emitted
+pattern, not the exact key behind browser attempt 026. Its field named
+`sourceGeneration` was mislabeled: it contains manifest
+`programGeneration=22948199c45477476f73669bb8da7dab389baaface399bdb0e691ae090739e8d`;
+the unchanged owner's actual manifest `generation` is `dc188a4b...`. A
+non-overwriting correction sidecar retains both values and exact source hashes.
+The automatic unclocked store regression installs the schema-derived negative,
+then presents the positive expired row and expired delivery at the same seq. It
+returns `E_OFFLINE_DELIVERY` and rolls back byte-identically on File, SQLite,
+and IndexedDB, warm and cold (7/7 including the parent test).
 
 ## Actual local effect execution
 
