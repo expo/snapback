@@ -46,8 +46,10 @@ Three final patches keep message removal and acknowledgement work aligned with
 the certified application state. `grok-message-tombstone.patch` deletes the
 message after writing its removed/expired delivery and deletes a companion poll
 before either removal; retaining a positive row with `status: expired` would
-contradict the delivery table's declared tombstone. Its SHA-256 is
-`baee5aa7e1b02a89ff7be59c72ea05f80aea4b994c08538004f4cd13fb8935a5`.
+contradict the delivery table's declared tombstone. Poll deletion admits only
+the current message author while that author remains a conversation member;
+an ordinary current member is refused by the table rule. Its SHA-256 is
+`459c67c6362b54ec56a1e3b62687a33a163c9bb1d54987e9ee349ce90a8a3eff`.
 `grok-receipt-scheduling.patch` adds the private, indexed
 `pendingDelivered[viewer] first 1` query. The global watcher acknowledges only
 that exact row and advances by deletion. The thread no longer acknowledges all
@@ -61,9 +63,9 @@ listeners. Its SHA-256 is
 `b76fbb425cb97c579445bce071734f91e8bc1369284e961af2a6b9e8aa33f144`.
 
 All three patches apply after the auth and sender-pending stages above. Their
-round trip matches the ignored, credential-free four-file reviewer snapshot at
+round trip matches the ignored, credential-free five-file reviewer snapshot at
 `.snapback/clique-final-review-snapshot`; its `SHA256SUMS` binds
-`messages.q`, `delivery-watcher.tsx`, `thread-view.tsx`, and
+`messages.q`, `schema.q`, `delivery-watcher.tsx`, `thread-view.tsx`, and
 `snapback-provider.web.tsx`. The copied source compiles with the new bounded
 query. Browser/owner scale and reconnect qualification for these final patches
 is tracked separately below; the preceding 3+20 cohort predates them.
@@ -102,11 +104,12 @@ Both patch stages pass `patch --dry-run -p1` against their respective inputs.
 After the behavioral patch it grants profiles a test-only replay-mode toggle,
 adds two period-unread inspection queries, and adds the total-order index suffix
 one of them requires. Its SHA-256 is
-`dd46868429b1dae631e1d8e032caad322d09ec07c0cb7f93929f78cd49ac93c9`.
-The owner cases use it to exercise the private row rule directly; do not ship
-it as part of the application correction. The retained `owner-cases.test.ts`
-has SHA-256
-`ecc7fe34b07fcfc305e7983731396865f3831fa547e084acbd3aa8371d5b2d8f`.
+`7557f8b8ddcf04e8a9c51514b98588e1a1f95963de69a1367bde7d46dab13220`.
+The test-only inspection also exposes one poll delete solely to prove that a
+current non-author member receives `E_RULE`/`rule`; production exposes no such
+operation. Do not ship this instrumentation as part of the application
+correction. The retained `owner-cases.test.ts` has SHA-256
+`450b7bfac94d44e5bc7363310a9e338045064078654c9e238423507ac254654b`.
 
 The first faithful atomic digest at 500 follows and 100 current memberships
 needed 4,516,191 closure bytes, 321,887 above the 4 MiB ceiling. Persisting
@@ -198,6 +201,16 @@ bodyless removed row, its recipient's period custody disappeared, and the
 later digest counted zero unread messages/chats without widening lifetime
 receipt access. The final hard-delete patch updates this journey to require
 absence; its rerun is a separate final-generation witness.
+
+The final production poll rule certified 66 operations as generation
+`b44b2b2167d349a13283e0b0ddaf7bcfe43eb09605e96c4a4f72fe10e10fb0c8`.
+With test-only inspection, the targeted poll-unsend journey passed in 123 ms
+as generation
+`d94e6249ddb6d245e113f1021fa395768e745050a805b3ff7a7c4f1159ed6ece`:
+the current non-author member was refused with `E_RULE`/`rule`, that refusal
+preserved the poll, and the current author then removed both the poll and its
+message. The retained receipt has SHA-256
+`58085962f73423e0a9c44f633e7ddbfcb987d7c5fb17fc7680c9a3afa7a4b50a`.
 
 The local effect returns a deterministic result without `fetch`; no provider
 request was made.

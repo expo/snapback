@@ -1021,8 +1021,8 @@ test("the schema's tombstones declaration evicts the named body in the same deli
   await rm(root, { recursive: true, force: true });
 });
 
-// @ref LLP 1012#3-the-fact-ledger — an ordinary FULL row may not contradict the
-// same-sequence negative fact derived automatically from a declared tombstone.
+// @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — an ordinary FULL row
+// may not contradict the same-sequence negative fact derived automatically from a declared tombstone.
 test("an expired delivery and positive expired body conflict atomically on every carrier, warm and cold", async (context) => {
   const root = await tempRoot();
   try {

@@ -765,6 +765,68 @@ journey("an ordinary member author unsends period custody without receipt access
   }
 });
 
+journey("only a current message author can remove a poll while unsending", async ({ as }) => {
+  const alice = as("alice");
+  const bob = as("bob");
+  const charlie = as("charlie");
+  try {
+    const profile = await charlie.mutation(api.profiles.createMyProfile, {
+      displayName: "Poll peer",
+      handle: "poll_unsend_peer",
+      bio: "",
+      location: "",
+    });
+    if (profile.state !== "committed") throw new Error(`profile was ${profile.state}`);
+    const group = await alice.mutation(api.groups.groupCreate, {
+      title: "Poll unsend authority",
+      members: ["dev:bob", "dev:charlie"],
+      conversationId: "poll-unsend-authority",
+    });
+    if (group.state !== "committed") throw new Error(`group was ${group.state}`);
+    const sent = await bob.mutation(api.messages.sendPoll, {
+      conversationId: "poll-unsend-authority",
+      question: "Remove this poll?",
+      option1: "Yes",
+      option2: "No",
+      option3: null,
+      option4: null,
+      optionId1: "poll-unsend-yes",
+      optionId2: "poll-unsend-no",
+      optionId3: null,
+      optionId4: null,
+      messageId: "poll-unsend-message",
+    });
+    if (sent.state !== "committed") throw new Error(`poll send was ${JSON.stringify(sent)}`);
+    const peerDelete = await charlie.mutation(api["owner-inspection"].deletePollForTest, {
+      messageId: sent.data.id,
+    });
+    if (
+      peerDelete.state !== "rejected"
+      || peerDelete.code !== "E_RULE"
+      || peerDelete.family !== "rule"
+    ) {
+      throw new Error(`ordinary member removed another author's poll: ${JSON.stringify(peerDelete)}`);
+    }
+    const before = await alice.query(api["owner-inspection"].pollRow, { messageId: sent.data.id });
+    if (before.state !== "complete" || !("data" in before) || before.data?.messageId !== sent.data.id) {
+      throw new Error(`peer refusal did not preserve the poll: ${JSON.stringify(before)}`);
+    }
+    const unsent = await bob.mutation(api.messages.unsend, { messageId: sent.data.id });
+    if (unsent.state !== "committed") throw new Error(`poll author unsend was ${JSON.stringify(unsent)}`);
+    const [message, poll] = await Promise.all([
+      alice.query(api["owner-inspection"].messageRow, { messageId: sent.data.id }),
+      alice.query(api["owner-inspection"].pollRow, { messageId: sent.data.id }),
+    ]);
+    for (const [kind, result] of [["message", message], ["poll", poll]] as const) {
+      if (result.state !== "complete" || !("data" in result) || result.data !== null) {
+        throw new Error(`${kind} was not a successful explicit absence: ${JSON.stringify(result)}`);
+      }
+    }
+  } finally {
+    await Promise.all([alice.close(), bob.close(), charlie.close()]);
+  }
+});
+
 journey("all six original-post branches feed one follower-independent counter", async ({ as, tick }) => {
   await tick(0);
   const alice = as("alice");

@@ -22,3 +22,12 @@ diff --git a/snapback/messages.q b/snapback/messages.q
    return null
  
  mutation markDelivered(messageId: messages):
+diff --git a/snapback/schema.q b/snapback/schema.q
+--- a/snapback/schema.q
++++ b/snapback/schema.q
+@@ -427 +427,4 @@ table polls:
+-  delete <- deny
++  delete <- (
++    exists memberships[.conversationId, viewer]
++    and exists messages[.messageId, viewer]
++  )
