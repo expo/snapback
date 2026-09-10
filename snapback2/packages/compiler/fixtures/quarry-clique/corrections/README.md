@@ -579,15 +579,43 @@ refusal. Attempt 011 preserved the exact cause: after 23 committed sends, the
 is `.snapback/clique-final-browser-proof/evidence/attempt-011-grant-limit-exact.json`
 (SHA-256
 `7f6063679140203bff7ebf85af7727cd0365cd2dc1aa8303011fa8cdc4e34958`).
-The 51-message same-thread page-boundary/browser-expiry witness therefore
-remains blocked on exposing the documented app recovery action; no hidden
-poll or harness renewal is counted as a passing workaround. The SDK already
-reports per-operation ids-exhausted/connect readiness; the copied composer
-omits its visible Sync now affordance (LLP 1018.003.001 §1). This is an app-only
-repair, not a change to core renewal policy. Independently, a mounted
-`DeliveryWatcher` processed 51 pending deliveries across distinct chats with
-one request and committed response per exact id and ended with the public
-`nextPendingDelivery` query empty (raw SHA-256
+This is the before-witness for the copied app's missing recovery affordance,
+not an SDK renewal failure. The existing ids-exhausted/connect surface maps
+to visible Sync now under LLP 1018.003.001 §1; core policy is unchanged.
+
+Attempt 012 applied the selected-operation readiness patch and passed the
+previously blocked bounded witness. Twice, the text operation reported
+`Reconnect to continue sending. Queued messages stay saved.`, the Send button
+was disabled, and the exact draft remained. Each real **Sync now** click made
+exactly one `/api/resume` request, no `messages.send` request, no submit-helper
+invocation, and no new application intent before returning with Send enabled;
+the later ordinary click committed once. No timer, hidden client call, or
+automatic resend participated. The same run passed mounted expiry and then 51
+same-thread filler sends: the expired and first-page-evicted rows stayed absent
+through remount and cold reopen despite retained committed outbox history. The
+recipient's actual mounted thread ended at exactly 50 rows, with the exact 51st
+filler last and its certified unread count/head at `0`/`null`; there were no
+hook-order or durable-fact conflicts. The raw request log records 54 sends,
+54 delivery acknowledgements and 55 read calls. The harness requires one
+committed response per send before advancing; it does not serialize every
+filler response as a separate raw ledger. The raw artifact and exact harness are
+`.snapback/clique-final-browser-proof/evidence/attempt-012-readiness-expiry-page.json`
+(SHA-256
+`00626f56cc977ce5f5a932b359da230a876a75cf04489c8262272265e0511e5c`)
+and `.snapback/clique-final-browser-proof/scripts/grok-live-dm-final.mjs`
+(SHA-256
+`8e053c091b89685e67c7817ce24dd6bcb43075858fa9c0d1c1f8d6ce158f9e24`).
+The production applied thread SHA-256 is
+`40520c156bb8d5a1d2f3f4f0a3b054b03e59e5e351ea10bbafde0bc8858cc2c0`;
+the live-proof plus thread-state-observer source used by the browser is
+`d02503bc71b8438fab3eec036e47112a582b8c69443f893262216fd827347591`.
+The raw browser log also retains two initial anonymous-mount
+`authentication is required` page errors before the fresh signups; they did
+not recur during the targeted cases and are not suppressed by the harness.
+
+Independently, a mounted `DeliveryWatcher` processed 51 pending deliveries
+across distinct chats with one request and committed response per exact id and
+ended with the public `nextPendingDelivery` query empty (raw SHA-256
 `c4a36ae53ad40296fbb0a1ae7fef91b06f7c24d4c9f6d61d5f3f7268d9583bea`).
 
 The old-owner expiry capture's non-overwriting generation correction is
