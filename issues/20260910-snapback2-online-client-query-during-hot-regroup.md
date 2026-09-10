@@ -37,3 +37,13 @@ Remove the `client.offline()` line the test now carries and run the package
 test file beside `scripts/test.sh`'s Rust half; the refusal appears within a few
 runs. A deterministic reproduction needs a hook between the successor
 installation and the client's next live frame.
+
+## 2026-09-10 (orchestrator, landing `succ`)
+
+The `offline()` → install → `online()` form races too: on the EPYC verification host
+the same test refused 2 of 4 runs with `E_SCHEMA: missing index components counts.byId`
+thrown from the twin's `applyCoverage → setRow` during `client.online()` — the resume
+applied the successor's delivery against the held predecessor schema before the reset
+dropped it. The test now opens a fresh client after the install and no longer claims the
+reset path; both the online and the resume forms are this ticket's to prove, with a hook
+between the installation and the next live frame or resume.

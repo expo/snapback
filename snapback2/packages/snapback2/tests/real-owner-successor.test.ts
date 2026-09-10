@@ -441,16 +441,20 @@ test("positional reads compile after a regroup, report it in log/status, and abs
     client = createClient({ url: owner.url, persona: "bob", offline: { store: fileRangeStore(join(directory, "bob")) } });
     await client.ready;
     assert.equal((await client.query(api.ops.count, { who: "dev:alice" })).data, 1);
-    // LLP 1012's reset path: the held generation is dropped on the next resume.
-    // (An online client racing the hot regroup is issues/20260910-snapback2-online-client-query-during-hot-regroup.md.)
-    await client.offline();
+    // A client that held the predecessor generation across the regroup is the ticketed race
+    // (issues/20260910-snapback2-online-client-query-during-hot-regroup.md: the twin commits the
+    // successor's delivery against the held schema, online or on the resume after `offline()`).
+    // This test proves the positional reads on a client opened after the install; the reset path
+    // is the ticket's to prove.
+    await client.close();
     const after: any = await install(owner, "'text', 'image'", "recipient");
     cli(owner.root!, ["check"]);
     assert.deepEqual(after.successor.maintains, ["maintain counts: by sender → by recipient"]);
     const text = await readFile(join(owner.root!, ".snapback/log.jsonl"), "utf8");
     assert.ok(text.includes("maintain counts: by sender → by recipient"));
     assert.deepEqual(cli(owner.root!, ["dev", "--status"]).successor.maintains, after.successor.maintains);
-    await client.online();
+    client = createClient({ url: owner.url, persona: "bob", offline: { store: fileRangeStore(join(directory, "bob-after")) } });
+    await client.ready;
     assert.equal((await client.query(api.ops.count, { who: "dev:alice" })).data, 0);
     assert.equal((await client.query(api.ops.count, { who: "dev:bob" })).data, 1);
     for (const [name, who] of [["count", "dev:alice"], ["hidden", "dev:alice"]]) {
