@@ -13,7 +13,7 @@ import { rustCheck } from "./rust-check";
 import { assert, operation, type Test } from "./quarry-check-helpers";
 
 export function registerQuarryChatCompositionChecks(test: Test, frontend: string): void {
-  test("shipped chat functions compose one certified conversation view with honest tombstones", async () => {
+  test("shipped chat functions compose one certified history view with derived custody", async () => {
     const productionRoot = resolve(frontend, "../snapback2/templates/chat");
     const lowered = await lowerProject(productionRoot);
     assert(lowered.ok, `shipped chat composition refused: ${JSON.stringify(lowered)}`);
@@ -73,14 +73,15 @@ export function registerQuarryChatCompositionChecks(test: Test, frontend: string
       photo: "Null",
       clip: "Null",
       oncePhoto: "Null",
-      expiresAt: "Null",
+      expiresAt: "Null", editedAt: "Null",
       at: { Int: 10 },
     });
     add("deliveries", "delivery-one", {
       recipient: viewer,
       conversationId: conversation,
-      messageId: { Id: "message-one" },
-      kind: { String: "message" },
+      row: { Id: "message-one" },
+      incarnation: { Int: 1 }, audience: { Int: 1 }, seq: { Int: 10 },
+      kind: { String: "delivered" },
       at: { Int: 10 },
     });
     const countId = '[{"Id":"conversation-one"}]';
@@ -102,7 +103,7 @@ export function registerQuarryChatCompositionChecks(test: Test, frontend: string
       conversationId: conversation,
       body: { String: "second" },
       expiresAt: "Null",
-    }, ["message-two", "delivery-two"]), false, certificate(post.name));
+    }, ["message-two"]), false, certificate(post.name), true);
     assert(posted.state === "predicted", `held post did not predict completely: ${JSON.stringify(posted)}`);
     const afterPost = store.reexecute(view, context({ conversationId: conversation, c: "Null" }), certificate(view.name));
     assert(afterPost.state === "fresh" && typeof afterPost.execution.next === "string",
@@ -114,10 +115,9 @@ export function registerQuarryChatCompositionChecks(test: Test, frontend: string
     };
     assert(postedResult.count === 2
       && postedResult.messages.length === 2
-      && postedResult.messages[0]?.id === "delivery-two"
       && postedResult.messages[0]?.message?.id === "message-two"
       && postedResult.preview.length === 1
-      && postedResult.preview[0]?.id === "delivery-two",
+      && postedResult.preview[0]?.message?.id === "message-two",
     `post did not update messages/count/preview coherently: ${JSON.stringify(postedResult)}`);
 
     const end = store.reexecute(view, context({ conversationId: conversation,
@@ -125,7 +125,7 @@ export function registerQuarryChatCompositionChecks(test: Test, frontend: string
     const endResult = wireJson(end.execution.result) as typeof postedResult;
     assert(end.state === "fresh" && end.execution.next === null && endResult.messages.length === 0,
       `the fixed preview stole the message-page continuation: ${JSON.stringify(end)}`);
-    assert(endResult.count === postedResult.count && endResult.preview[0]?.id === postedResult.preview[0]?.id,
+    assert(endResult.count === postedResult.count && endResult.preview[0]?.message?.id === postedResult.preview[0]?.message?.id,
       "an older message page keeps its coherent count and fixed latest preview");
 
     const removed = store.applyMutation(unsend, context({ messageId: { Id: "message-two" } }, ["delivery-removed"], 30),
@@ -137,14 +137,9 @@ export function registerQuarryChatCompositionChecks(test: Test, frontend: string
       count: number;
       preview: Array<{ kind: string; message: unknown }>;
     };
-    assert(afterUnsend.state === "partial"
-      && afterUnsend.partialSites.includes("messages.conversationView.3")
-      && afterUnsend.partialSites.includes("messages.conversationView.5")
-      && removedResult.count === 1 && removedResult.messages.length === 2
-      && removedResult.messages[0]?.kind === "message" && removedResult.messages[0]?.message === null
-      && removedResult.preview.length === 1 && removedResult.preview[0]?.kind === "message"
-      && removedResult.preview[0]?.message === null,
-    `tombstone preview or live message count was dishonest: ${JSON.stringify(afterUnsend)}`);
+    assert(afterUnsend.state === "fresh" && removedResult.count === 1
+      && removedResult.messages.length === 1 && removedResult.preview.length === 1,
+    `unsend did not update history/count/preview coherently: ${JSON.stringify(afterUnsend)}`);
 
     const withoutMembership = new ClientStore(schema, receipt(
       schema,
@@ -169,7 +164,6 @@ export function registerQuarryChatCompositionChecks(test: Test, frontend: string
     const missingCount = new ClientStore(schema, missingCountReceipt)
       .reexecute(view, context({ conversationId: conversation, c: "Null" }), certificate(view.name));
     assert(missingCount.state === "partial"
-      && missingCount.partialSites.includes("messages.conversationView.4")
       && (wireJson(missingCount.execution.result) as { count: number }).count === 0,
     `missing maintained-count authority implied a complete zero: ${JSON.stringify(missingCount)}`);
   });

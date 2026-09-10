@@ -95,7 +95,7 @@ function materializeMaintainsForOracle(schema: Document): void {
       immutable: [],
       caps: [],
       finalExists: [],
-      tombstones: [],
+
       site: declaration.site,
     };
     schema.tables.push(target);

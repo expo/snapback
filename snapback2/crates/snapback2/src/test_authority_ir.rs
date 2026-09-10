@@ -368,13 +368,19 @@ pub(super) fn prepare_policy_successor(
     protected_table: &str,
 ) -> Result<PreparedPolicySuccessor, String> {
     let mut project = base.clone();
-    project
-        .schema
-        .tables
-        .get_mut(protected_table)
-        .ok_or_else(|| format!("protected table {protected_table} disappeared"))?
-        .rules
-        .read = RuleExpr::Deny;
+    let content = project.schema.tables.get_mut(protected_table)
+        .ok_or_else(|| format!("protected table {protected_table} disappeared"))?;
+    let deliver = content.deliver.clone();
+    // Preserve copied rule columns while denying every read: the probe changes
+    // policy, not the generated receipt table's storage shape.
+    content.rules.read = if deliver.as_ref().is_some_and(|d| d.receipts) {
+        RuleExpr::And(vec![content.rules.read.clone(), RuleExpr::Deny])
+    } else { RuleExpr::Deny };
+    if let Some(deliver) = deliver.filter(|d| d.receipts) {
+        let receipt = snapback2_core::delivery::receipts_table(&project.schema, protected_table, &deliver)
+            .ok_or_else(|| "could not derive policy-successor receipts".to_owned())?;
+        project.schema.tables.insert(deliver.receipts_table().unwrap(), receipt);
+    }
 
     // The deliberately stale clone is the negative witness: a replacement
     // rule may invalidate compiler-derived held-search eligibility.

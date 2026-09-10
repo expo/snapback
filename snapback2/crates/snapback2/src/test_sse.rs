@@ -1,12 +1,15 @@
 //! Minimal SSE reader used by the derived invalidation checks.
 
 use super::{Json, OwnerInfo, Refusal, percent_encode, test_io};
+use crate::client;
+use serde_json::json;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::TcpStream;
 use std::time::{Duration, Instant};
 
 pub(super) struct SseProbe {
     pub(super) reader: BufReader<TcpStream>,
+    close: Option<(OwnerInfo, String, String)>,
 }
 
 pub(super) struct SilenceError {
@@ -21,6 +24,11 @@ enum SseFrame {
 }
 
 impl SseProbe {
+    #[cfg(test)]
+    pub(super) fn from_stream(stream: TcpStream) -> Self {
+        Self { reader: BufReader::new(stream), close: None }
+    }
+
     pub(super) fn connect(
         owner: &OwnerInfo,
         op: &str,
@@ -32,9 +40,7 @@ impl SseProbe {
             percent_encode(&serde_json::to_string(&args).unwrap_or_else(|_| "{}".to_owned()));
         write!(
             stream,
-            "GET /api/subscribe?op={}&args={} HTTP/1.1\r\nHost: 127.0.0.1:{}\r\nX-Snapback-As: {}\r\nConnection: close\r\n\r\n",
-            percent_encode(op),
-            encoded,
+            "POST /api/live HTTP/1.1\r\nHost: 127.0.0.1:{}\r\nX-Snapback-As: {}\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{{}}",
             owner.port,
             persona,
         )
@@ -57,7 +63,18 @@ impl SseProbe {
                 break;
             }
         }
-        Ok(Self { reader })
+        let mut probe = Self { reader, close: None };
+        let ready = probe.event(Duration::from_secs(2)).map_err(|error|
+            Refusal::owner("E_OWNER_TEST_SSE", error, "reconnect the live stream"))?;
+        let session = ready.get("session").and_then(Json::as_str).ok_or_else(||
+            Refusal::owner("E_OWNER_TEST_SSE", "live stream omitted its session", "reconnect the live stream"))?.to_owned();
+        probe.close = Some((owner.clone(), persona.to_owned(), session.clone()));
+        let response = client::api(owner, "POST", "/api/live/control", &[("X-Snapback-As", persona)],
+            json!({ "session": session, "add": [{ "id": "probe", "path": format!("/api/subscribe?op={}&args={}", percent_encode(op), encoded) }] }))?;
+        if response.status >= 400 {
+            return Err(Refusal::owner("E_OWNER_TEST_SSE", response.body.to_string(), "reconnect the live stream"));
+        }
+        Ok(probe)
     }
 
     pub(super) fn event(&mut self, timeout: Duration) -> Result<Json, String> {
@@ -135,13 +152,24 @@ impl SseProbe {
                 .map_err(|error| error.to_string())?;
             let text = String::from_utf8_lossy(&payload);
             if let Some(data) = text.lines().find_map(|line| line.strip_prefix("data: ")) {
-                return serde_json::from_str(data)
-                    .map(SseFrame::Event)
+                return serde_json::from_str::<Json>(data)
+                    .map(|event| SseFrame::Event(if event.get("id").is_some() { event["data"].clone() } else { event }))
                     .map_err(|error| error.to_string());
             }
             if text.lines().any(|line| line == ": heartbeat") {
                 return Ok(SseFrame::Heartbeat);
             }
+        }
+    }
+}
+
+// The installed transport has an explicit close. Each derived probe releases
+// its worker before the next one instead of waiting for a TCP heartbeat.
+impl Drop for SseProbe {
+    fn drop(&mut self) {
+        if let Some((owner, persona, session)) = self.close.take() {
+            let _ = client::api(&owner, "POST", "/api/live/control", &[("X-Snapback-As", &persona)],
+                json!({ "session": session, "close": true }));
         }
     }
 }

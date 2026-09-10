@@ -1,9 +1,9 @@
 import { nameRewrite } from "./diagnostics";
 import type { ArgType, DeliverJson, IndexComponent, SchemaJson, SourceSite, TableJson, Value } from "../ir";
 import { expandedNumericLiteral } from "../syntax";
-import type { ChannelDecl, Document, Expr, MaintainDecl, RuleDecl, ScalarType, Site, TableCatalog, TableDecl, TombstoneDecl } from "./ast";
+import type { ChannelDecl, Document, Expr, MaintainDecl, RuleDecl, ScalarType, Site, TableCatalog, TableDecl } from "./ast";
 import { orderedTables, selectIndex } from "./catalog";
-import { currentRule, refuse, tombstone, typeError } from "./diagnostics";
+import { currentRule, refuse, typeError } from "./diagnostics";
 import { quarryExpression } from "./print";
 
 type RuleContext = {
@@ -45,9 +45,6 @@ export function bindQuarrySchemaArtifact(documents: Document[], catalog: TableCa
     for (const [offset, site] of bound.constraintSources.entries()) {
       sources.push([`schema.tables.${declaration.name}.constraints[${offset}]`, site]);
     }
-    for (const [offset, site] of bound.tombstoneSources.entries()) {
-      sources.push([`schema.tables.${declaration.name}.tombstones[${offset}]`, site]);
-    }
     if (bound.deliverSource) sources.push([`schema.tables.${declaration.name}.deliver`, bound.deliverSource]);
   }
   const channels: Record<string, unknown> = Object.create(null);
@@ -74,7 +71,7 @@ export function bindQuarrySchemaArtifact(documents: Document[], catalog: TableCa
 function bindTable(
   declaration: TableDecl,
   catalog: TableCatalog,
-): { table: TableJson; constraintSources: SourceSite[]; tombstoneSources: SourceSite[]; deliverSource?: SourceSite } {
+): { table: TableJson; constraintSources: SourceSite[]; deliverSource?: SourceSite } {
   const columns: Record<string, unknown> = Object.assign(Object.create(null), { id: "Id" });
   for (const column of declaration.columns) columns[column.name] = bindColumn(column.type, catalog, column.site);
   const indexes: Record<string, unknown> = Object.create(null);
@@ -92,7 +89,6 @@ function bindTable(
     }
   }
   const constraints = bindConstraints(declaration, catalog);
-  const tombstones = bindTombstones(declaration, catalog);
   const deliver = bindDeliver(declaration, catalog);
   const table: TableJson = {
     columns,
@@ -101,10 +97,14 @@ function bindTable(
     constraints: constraints.values,
     // @ref LLP 1012#5-retention-revocation-and-the-fence — omission is an explicit IR default.
     retain: declaration.retain?.policy ?? "until-revoked",
-    ...(tombstones.values.length > 0 ? { tombstones: tombstones.values } : {}),
+    // @ref LLP 1019#3-what-writes-it — only the engine-derived log declares body eviction.
+    ...(declaration.derived?.kind === "log" ? { tombstones: [{
+      table: declaration.derived.deliver, column: "row",
+      when: { Eq: [{ Field: "kind" }, { Literal: { String: "removed" } }] },
+    }] } : {}),
     ...(deliver ? { deliver } : {}),
   };
-  return { table, constraintSources: constraints.sources, tombstoneSources: tombstones.sources,
+  return { table, constraintSources: constraints.sources,
     ...(declaration.deliver ? { deliverSource: declaration.deliver.site } : {}) };
 }
 
@@ -122,103 +122,6 @@ function bindDeliver(declaration: TableDecl, catalog: TableCatalog): DeliverJson
     ...(deliver.receipts ? { receipts: true as const } : {}),
     ...(deliver.bootstrap ? { bootstrap: true as const } : {}),
   };
-}
-
-// @ref LLP 1012#5-retention-revocation-and-the-fence — a delivered log row
-// decides eviction from its own certified fields; no ambient authority or read
-// can enter the declaration.
-function bindTombstones(
-  declaration: TableDecl,
-  catalog: TableCatalog,
-): { values: Array<{ table: string; column: string; when: unknown }>; sources: SourceSite[] } {
-  const values: Array<{ table: string; column: string; when: unknown }> = [];
-  const sources: SourceSite[] = [];
-  for (const item of declaration.tombstones) {
-    const head = `tombstones ${item.table}[.${item.column}]`;
-    const predicate = quarryExpression(item.predicate);
-    const references = declaration.columns.filter((column) => column.type.kind === "ref");
-    const column = declaration.columns.find((entry) => entry.name === item.column);
-    const referencing = references.find((entry) => entry.type.kind === "ref" && entry.type.table === item.table);
-    const rewrite = column?.type.kind === "ref" ? `tombstones ${column.type.table}[.${column.name}] if ${predicate}`
-      : referencing ? `tombstones ${item.table}[.${referencing.name}] if ${predicate}`
-      : `tombstones <table>[.<column of ${declaration.name} referencing it>] if ${predicate}`;
-    if (item.table === "connected" || !catalog.has(item.table)) {
-      tombstone(item.site, `${head} names unknown table ${item.table}`, `${rewrite}; ${nameRewrite(item.table, catalog.keys())}`);
-    }
-    if (!column) tombstone(item.site, `${head} names unknown column ${declaration.name}.${item.column}`, `${rewrite}; ${nameRewrite(item.column, declaration.columns.map(column => column.name))}`);
-    if (column.type.kind !== "ref" || column.type.table !== item.table) {
-      tombstone(item.site, `${head}: column ${declaration.name}.${item.column} is ${column.type.kind}, not a reference to ${item.table}`, rewrite);
-    }
-    validateTombstonePredicate(item.predicate, declaration, item, head);
-    const context: RuleContext = { names: new Set(), focal: true, table: declaration };
-    values.push({
-      table: tableName(catalog, item.table, item.site),
-      column: item.column,
-      when: bindRuleExpr(item.predicate, catalog, context),
-    });
-    sources.push(item.site);
-  }
-  return { values, sources };
-}
-
-function validateTombstonePredicate(expr: Expr, table: TableDecl, item: TombstoneDecl, head: string): void {
-  const fail = (site: Site, message: string, predicate: string): never =>
-    tombstone(site, `${head} ${message}`, `tombstones ${item.table}[.${item.column}] if ${predicate}`);
-  const kinds = table.columns.filter((column) => ["enum", "bool", "text"].includes(column.type.kind));
-  const example = kinds.find((column) => column.type.kind === "enum");
-  const suggested = example && example.type.kind === "enum" ? `.${example.name} = ${JSON.stringify(example.type.variants[0])}`
-    : kinds[0] ? (kinds[0].type.kind === "bool" ? `.${kinds[0].name} = true` : `.${kinds[0].name} = "..."`)
-      : ".<enum, bool, or text column> = <literal>";
-  const term = (value: Expr): "text" | "bool" => {
-    if (value.kind === "literal") {
-      if (typeof value.value === "string") return "text";
-      if (typeof value.value === "boolean") return "bool";
-      return fail(value.site, `literal ${quarryExpression(value)} must be a string or bool`, suggested);
-    }
-    if (value.kind === "member" && value.base.kind === "focal") {
-      const column = table.columns.find((entry) => entry.name === value.name);
-      const kind = value.name === "id" ? "id" : column?.type.kind;
-      if (!kind) return fail(value.site, `names unknown column ${table.name}.${value.name}`, nameRewrite(value.name, table.columns.map(column => column.name)));
-      if (kind === "enum" || kind === "text") return "text";
-      if (kind === "bool") return "bool";
-      return fail(value.site, `column .${value.name} is ${kind}; only enum, bool, and text columns decide a tombstone`, suggested);
-    }
-    if (value.kind === "name" && value.name === "viewer") {
-      return fail(value.site, "cannot mention viewer; it is decided by the delivered row alone", suggested);
-    }
-    if (value.kind === "name") {
-      return fail(value.site, `cannot read ${value.name}; only this table's .columns and literals decide a tombstone`, suggested);
-    }
-    return fail(value.site, `term ${quarryExpression(value)} must be a .column of ${table.name} or a literal`, suggested);
-  };
-  const walk = (value: Expr): void => {
-    if (value.kind === "binary" && (value.op === "and" || value.op === "or")) {
-      walk(value.left); walk(value.right); return;
-    }
-    if (value.kind === "unary" && value.op === "not") { walk(value.value); return; }
-    if (value.kind === "binary" && (value.op === "=" || value.op === "!=")) {
-      const left = term(value.left);
-      const right = term(value.right);
-      if (left !== right) {
-        fail(value.site, `compares a bool with text in ${quarryExpression(value)}; compare each column with a literal of its own type`, suggested);
-      }
-      for (const [field, literal] of [[value.left, value.right], [value.right, value.left]] as const) {
-        if (field.kind !== "member" || field.base.kind !== "focal"
-          || literal.kind !== "literal" || typeof literal.value !== "string") continue;
-        const type = table.columns.find((entry) => entry.name === field.name)?.type;
-        if (type?.kind === "enum" && !type.variants.includes(literal.value)) {
-          fail(literal.site, `compares .${field.name} with ${JSON.stringify(literal.value)}, which is not one of ${type.variants.join("|")}`,
-            nameRewrite(literal.value, type.variants));
-        }
-      }
-      return;
-    }
-    if (value.kind === "exists" || value.kind === "created") {
-      fail(value.site, `cannot probe other tables with ${value.kind}; it is decided by the delivered row alone`, suggested);
-    }
-    fail(value.site, `predicate ${quarryExpression(value)} must use =, !=, and, or, not over .columns and literals`, suggested);
-  };
-  walk(expr);
 }
 
 function bindColumn(type: ScalarType, catalog: TableCatalog, site: TableDecl["site"]): unknown {

@@ -25,10 +25,9 @@ import type {
   Site,
   Stmt,
   TableDecl,
-  TombstoneDecl,
 } from "./ast";
 import type { QuarryDiagnostic } from "./ast";
-import { QuarryError, currentRule, refuse, retention, syntax, tombstone, unsupported } from "./diagnostics";
+import { QuarryError, currentRule, refuse, retention, syntax, unsupported } from "./diagnostics";
 import { lex, type Token, type TokenKind } from "./lexer";
 import { quarryExpression } from "./print";
 
@@ -185,7 +184,6 @@ class Parser {
     const immutable: Array<{ columns: string[]; site: Site }> = [];
     const finalExists: TableDecl["finalExists"] = [];
     const caps: TableDecl["caps"] = [];
-    const tombstones: TombstoneDecl[] = [];
     let retain: TableDecl["retain"];
     let publicDecl: TableDecl["public"];
     let deliver: TableDecl["deliver"];
@@ -206,13 +204,13 @@ class Parser {
           if (retain) retention(this.peek(), `table ${name} has more than one retain line`);
           retain = this.parseRetention();
         }
-        else if (this.at("tombstones")) tombstones.push(this.parseTombstones());
         else if (this.at("deliver")) {
           if (deliver) syntax(this.peek(), `table ${name} has more than one deliver line`, "one deliver line per table");
           deliver = this.parseDeliver();
         }
         else if (this.at("after")) finalExists.push(this.parseFinalExists());
         else if (["read", "insert", "update", "delete"].includes(this.peek().value)) rules.push(this.parseRule());
+        else if (this.peek(1).value !== ":") refuse(this.peek(), `unknown table declaration ${this.peek().value}`, "remove this unknown table declaration");
         else columns.push(this.parseColumn());
       } catch (error) {
         this.capture(error);
@@ -220,7 +218,7 @@ class Parser {
       }
     }
     this.takeKind("dedent");
-    return { name, columns, indexes, rules, immutable, caps, finalExists, tombstones, ...(retain ? { retain } : {}), ...(publicDecl ? { public: publicDecl } : {}), ...(deliver ? { deliver } : {}), site };
+    return { name, columns, indexes, rules, immutable, caps, finalExists, ...(retain ? { retain } : {}), ...(publicDecl ? { public: publicDecl } : {}), ...(deliver ? { deliver } : {}), site };
   }
 
   // @ref LLP 1019#1-the-declaration — one table-block line names the target
@@ -258,26 +256,6 @@ class Parser {
     }
     this.newline();
     return { target, prefix, ...(by === undefined ? {} : { by }), name, receipts, bootstrap, site };
-  }
-
-  // @ref LLP 1012#5-retention-revocation-and-the-fence — rule 3's word: a delivered
-  // log row names the body the client evicts; the predicate reuses the rule grammar.
-  private parseTombstones(): TombstoneDecl {
-    const site = this.take("tombstones");
-    const rewrite = "tombstones messages[.messageId] if .kind = 'removed'";
-    if (!this.atKind("word")) tombstone(site, "tombstones requires a target table: tombstones <table>[.<column>] if <predicate>", rewrite);
-    const table = this.word().value;
-    if (!this.at("[") || this.peek(1).value !== "." || this.peek(2).kind !== "word" || this.peek(3).value !== "]") {
-      tombstone(site, `tombstones ${table} requires the referencing column of this table as [.column]`, rewrite);
-    }
-    this.take("["); this.take(".");
-    const column = this.word().value;
-    this.take("]");
-    if (!this.at("if")) tombstone(site, `tombstones ${table}[.${column}] requires if <predicate> over this table's enum, bool, or text columns`, rewrite);
-    this.take("if");
-    const predicate = this.expression(0, new Set(["<newline>"]));
-    this.newline();
-    return { table, column, predicate: currentRule(predicate), site };
   }
 
   private parseRetention(): NonNullable<TableDecl["retain"]> {

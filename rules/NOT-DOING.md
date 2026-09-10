@@ -162,7 +162,6 @@ PR. If nothing can come off, the answer is no.
 - 2026-09-10 — **on:** `deliver` (LLP 1019 D1/D3): the grammar gains `deliver`, `to`, `as`,
   `with`, `receipts`, `bootstrap`; unblocks engine-derived per-recipient custody — the
   send-time audience, tombstones as events, receipts — without an authored log table or a
-  fan-out proc in every app. **off:** the `tombstones` declaration, which leaves the
-  grammar at the chat template's cutover to the derived log (LLP 1019 D6): until D2's
-  writes exist the shipped template's offline eviction rides on it, so that line is the
-  offset this move owes.
+  fan-out proc in every app. **off:** the `tombstones` declaration, deleted from the grammar with the chat
+  template's derived-log cutover (LLP 1019 D6), together with the authored log,
+  fan-out proc, seven calls, delivery seeds and purge mutation. The offset is paid.

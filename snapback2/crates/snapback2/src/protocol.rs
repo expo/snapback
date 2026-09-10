@@ -24,10 +24,10 @@ pub(crate) fn certification_family_guide(code: &str) -> (&'static str, &'static 
         }
         // @ref LLP 1019#1-the-declaration — the raw-schema form refuses under
         // the compiler's families and page, not the E_SCHEMA catch-all.
-        "E_DELIVER_UNBOUNDED" => ("bound", "offline/deliver"),
-        "E_DELIVER_PRINCIPAL" => ("schema", "offline/deliver"),
-        "E_SCHEMA_DELIVER" => ("schema", "offline"),
-        "E_DELIVER_INCARNATION" => ("rule", "offline"),
+        "E_DELIVER_UNBOUNDED" => ("bound", "deliver"),
+        "E_DELIVER_PRINCIPAL" => ("schema", "deliver"),
+        "E_SCHEMA_DELIVER" => ("schema", "deliver"),
+        "E_DELIVER_INCARNATION" => ("rule", "deliver"),
         code if code.starts_with("E_SCHEMA") => ("schema", "schema/project"),
         code if code.starts_with("E_RULE") => ("rule", "schema/rules"),
         code if code.starts_with("E_SEED") => ("input", "schema/seed"),

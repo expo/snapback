@@ -250,7 +250,9 @@ acceptance.
 
 **Follow-up (Clique L8a, 2026-09-05):** The uniformity wall recorded below is now removed when a prefix decides an `or` arm true or a membership probe is the scanned row's own nonoptional unique key (LLP 1001 §3); covering caps still govern fan-out.
 
-**Implementation record (lane O1c, 2026-09-04).** Tombstone and edit rows
+**Superseded 2026-09-10 by [LLP 1019 §3](./1019-derived-delivery-custody.rfc.md#3-what-writes-it).** The chat template declares `deliver`: changed and removed events reach every original recipient, including departed members, through the generated log. Seeds deliver natively; expiry is `schedule expireMessage on messages at .expiresAt: delete .`. The authored-log recipe and current-member limitation below are historical.
+
+**Implementation record (lane O1c, 2026-09-04; superseded).** Tombstone and edit rows
 reach the conversation's *current* members, not every original recipient. Two
 private spellings were tried and refused by the language as it exists: a
 `sender` column in the fan-out index's prefix with `read <- .recipient = viewer

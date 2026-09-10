@@ -7,14 +7,14 @@ import { createExpoClient, expoSqliteStore, expoSqliteDriver, SnapbackProvider }
 import { MediaView, type Media } from "./MediaView";
 import { messageWrites } from "../shared/thread";
 import { witnessControl, runSqliteDriverConformance, type WitnessHooks } from "snapback2/expo/witness";
-type LogRow = { kind?: string; messageId: string; conversationId: string; message?: { body?: string | null } | null };
+type LogRow = { kind?: string; row: string; conversationId: string; message?: { body?: string | null } | null };
 type Entry = Awaited<ReturnType<SnapbackClient["outbox"]["entries"]>>[number];
 function bubbles(rows: LogRow[], entries: Entry[], conversationId: string) {
-  const live = rows.filter((row) => row.kind === "message" && row.message);
-  const placed = live.map((row) => ({ key: row.messageId,
-    kind: entries.some((entry) => entry.op === "messages.send" && entry.state === "queued" && messageWrites.create.id(entry) === row.messageId) ? "pending" : "row" }));
+  const live = rows.filter((row) => row.kind === "delivered" && row.message);
+  const placed = live.map((row) => ({ key: row.row,
+    kind: entries.some((entry) => entry.op === "messages.send" && entry.state === "queued" && messageWrites.create.id(entry) === row.row) ? "pending" : "row" }));
   const unplaced = entries.filter((entry) => entry.op === "messages.send"
-    && (entry.args as { conversationId?: string }).conversationId === conversationId && !live.some((row) => row.messageId === messageWrites.create.id(entry)))
+    && (entry.args as { conversationId?: string }).conversationId === conversationId && !live.some((row) => row.row === messageWrites.create.id(entry)))
     .map((entry) => ({ key: messageWrites.create.id(entry) ?? entry.intent, kind: "pending" }));
   return [...placed, ...unplaced];
 }

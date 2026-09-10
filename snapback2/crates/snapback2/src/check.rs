@@ -784,7 +784,7 @@ mod tests {
         assert_eq!(results[0].program, "<schema>");
         assert_eq!(
             (error.code.as_str(), error.family.as_str(), error.guide.as_str(), error.site.as_str()),
-            ("E_DELIVER_UNBOUNDED", "bound", "offline/deliver", "schema.tables.messages.deliver")
+            ("E_DELIVER_UNBOUNDED", "bound", "deliver", "schema.tables.messages.deliver")
         );
         assert_eq!(error.rewrite, "cap 50 by conversationId");
         assert_eq!(
@@ -801,7 +801,7 @@ mod tests {
         assert_eq!(results[0].program, "ops.forge");
         assert_eq!(
             (error.code.as_str(), error.family.as_str(), error.guide.as_str()),
-            ("E_SCHEMA_DELIVER", "schema", "offline")
+            ("E_SCHEMA_DELIVER", "schema", "deliver")
         );
         assert!(error.message.contains("engine-owned table deliveries"), "{}", error.message);
         assert!(check_schema(custody_schema(true), Vec::new()).iter().all(|item| item.error.is_none()));
@@ -812,7 +812,7 @@ mod tests {
         let error = results[0].error.as_ref().unwrap();
         assert_eq!(
             (error.code.as_str(), error.family.as_str(), error.guide.as_str(), error.site.as_str()),
-            ("E_DELIVER_PRINCIPAL", "schema", "offline/deliver", "schema.tables.messages.deliver")
+            ("E_DELIVER_PRINCIPAL", "schema", "deliver", "schema.tables.messages.deliver")
         );
         assert_eq!(error.rewrite, "deliver to memberships[.conversationId] by .principal as deliveries");
         assert_eq!(
@@ -833,7 +833,7 @@ mod tests {
         let error = &result[0]["error"];
         assert_eq!(error["code"], "E_SCHEMA_DELIVER");
         assert_eq!(error["family"], "schema");
-        assert_eq!(error["guide"], "offline");
+        assert_eq!(error["guide"], "deliver");
         assert_eq!(error["site"], "schema.tables.messages.deliver");
         assert_eq!(error["rewrite"], "remove the deliver line from messages; declare deliver on the maintain's source table");
     }
@@ -849,7 +849,7 @@ mod tests {
         });
         assert_eq!(
             (error.code.as_str(), error.family.as_str(), error.guide.as_str(), error.site.as_str()),
-            ("E_DELIVER_PRINCIPAL", "schema", "offline/deliver", "schema.tables.messages.deliver")
+            ("E_DELIVER_PRINCIPAL", "schema", "deliver", "schema.tables.messages.deliver")
         );
         assert_eq!(error.message, "deliver by .nobody: memberships has no such column");
         assert_eq!(error.rewrite, "deliver to memberships[.conversationId] by .principal as deliveries");
@@ -860,7 +860,7 @@ mod tests {
             message: "schema.tables.messages.deliver: pins no capped group".to_owned(),
             rewrite: "cap 50 by conversationId".to_owned(),
         });
-        assert_eq!((unbounded.family.as_str(), unbounded.guide.as_str()), ("bound", "offline/deliver"));
+        assert_eq!((unbounded.family.as_str(), unbounded.guide.as_str()), ("bound", "deliver"));
 
         let generic = SerializableError::schema(snapback2_core::RuntimeError::Schema("missing table".to_owned()));
         assert_eq!(

@@ -161,7 +161,7 @@ test("the chat screens render the log, queue offline sends as pinned bubbles, se
   const fetch = async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
     const body = requestBody(init);
     if (new URL(String(input)).pathname !== "/api/mutation" || !body) return globalThis.fetch(input, init);
-    mutationBodies.push(body);
+    if (!body.op?.startsWith("_delivery.")) mutationBodies.push(body);
     if (body.args?.body === "reject me") return json(rejected(body.replay?.intent));
     if (body.args?.body === "owner expired") {
       return json({
@@ -207,7 +207,7 @@ test("the chat screens render the log, queue offline sends as pinned bubbles, se
     await type(input, "queued while offline");
     await act(async () => { document.querySelector<HTMLFormElement>("form[aria-label=Composer]")!.requestSubmit(); });
     await waitFor(() => document.querySelector("li[data-state=queued]") !== null, "the pending fallback bubble");
-    const [entry] = await client.outbox.entries();
+    const entry = (await client.outbox.entries()).find((entry: any) => entry.op === "messages.send" && entry.state === "queued");
     assert.equal(entry.state, "queued");
     assert.equal(entry.presentation, "messages", "the actual Composer submits its selected semantic target");
     const pinned = mutationTarget(api.messages.send, "messages").id(entry);

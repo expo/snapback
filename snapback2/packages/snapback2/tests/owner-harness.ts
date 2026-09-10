@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { cp, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from "node:child_process";
@@ -22,6 +22,7 @@ function command(args: string[], options: { env?: NodeJS.ProcessEnv; timeout?: n
 }
 
 async function addIntegrationOperations(root: string): Promise<void> {
+  const logIndex = (await readFile(join(root, "snapback/schema.q"), "utf8")).includes("deliver to ") ? "byRecipient" : "byRecipientAt";
   await writeFile(join(root, "snapback/integration.q"), `query capped():
   return profiles[] first 1 by byId
 
@@ -30,19 +31,19 @@ query denied(conversationId: id):
   return true
 
 query inbox(c: cursor ?):
-  return deliveries[viewer] after c first 20 by byRecipientAt { id, conversationId: conversations[.conversationId] { *, creatorProfile: profiles[.creatorId] } }
+  return deliveries[viewer] after c first 20 by ${logIndex} { id, conversationId: conversations[.conversationId] { *, creatorProfile: profiles[.creatorId] } }
 
 query inboxHeld(c: cursor ?):
-  return deliveries[viewer] after c first 20 by byRecipientAt { id, conversationId, chat: conversations[.conversationId] { *, creatorProfile: profiles[.creatorId] } }
+  return deliveries[viewer] after c first 20 by ${logIndex} { id, conversationId, chat: conversations[.conversationId] { *, creatorProfile: profiles[.creatorId] } }
 
 query inboxPlain(c: cursor ?):
-  return deliveries[viewer] after c first 20 by byRecipientAt
+  return deliveries[viewer] after c first 20 by ${logIndex}
 
 query inboxObject(after: cursor ?, label: text <=40 ?):
-  return { entries: deliveries[viewer] after after first 1 by byRecipientAt { id, kind } }
+  return { entries: deliveries[viewer] after after first 1 by ${logIndex} { id, kind } }
 
 query inboxProjected(after: cursor ?, label: text <=40 ?):
-  return deliveries[viewer] after after first 1 by byRecipientAt { id, kind }
+  return deliveries[viewer] after after first 1 by ${logIndex} { id, kind }
 
 mutation requireInput():
   require false else E_INPUT

@@ -257,9 +257,7 @@ fn silence_probe_rejects_a_heartbeat_followed_by_stream_close() {
         stream.flush().unwrap();
     });
     let stream = TcpStream::connect(address).unwrap();
-    let mut probe = SseProbe {
-        reader: BufReader::new(stream),
-    };
+    let mut probe = SseProbe::from_stream(stream);
 
     let error = probe
         .prove_silence(Duration::from_millis(250))

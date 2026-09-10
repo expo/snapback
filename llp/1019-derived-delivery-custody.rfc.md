@@ -141,11 +141,11 @@ is a table-block line on the **content** table. It names a range on a
   an index led by those columns — and the compiler checks it before the
   engine does. Without the cap the declaration refuses `E_DELIVER_UNBOUNDED`
   (family `bound`, site the `deliver` line, rewrite `cap 50 by
-  conversationId`, page `offline`); without the index, the same code with
+  conversationId`, page `deliver`); without the index, the same code with
   the index line to declare.
 - The target table must have exactly one `principal` column, or the
   declaration names it with `by .principal`; otherwise `E_DELIVER_PRINCIPAL`
-  (family `schema`, same site, rewrite naming the columns, page `offline`).
+  (family `schema`, same site, rewrite naming the columns, page `deliver`).
 - `as <name>` is required and names an engine-owned **row table** in the
   existing schema namespace (`quarry/catalog.ts:7`); a collision refuses at
   the declaration with `E_QUARRY_UNKNOWN` and a rename rewrite, the
@@ -159,7 +159,7 @@ is a table-block line on the **content** table. It names a range on a
 The raw-schema form (the compiler's IR) admits the same declaration under
 the same refusals, and refuses a generated table that is not the engine's
 exact shape, an authored look-alike, or a program that writes one, as
-`E_SCHEMA_DELIVER` (family `schema`, page `offline`). On `check --ir` each
+`E_SCHEMA_DELIVER` (family `schema`, page `deliver`). On `check --ir` each
 of these keeps its own code, family, page, and the declaration's site
 (`schema.tables.<content>.deliver`); none is folded into `E_SCHEMA`.
 
@@ -339,7 +339,13 @@ requires ("full prior history on join"), bounded and online; it is the
 declared fallback of LLP 1018.006 behind `thread`, so a new member's
 screen reads history through the same items binding and custody begins
 with their first delivered event. Nothing rewrites send-time recipients.
-`conversationView` composes as today.
+**D6 implementation correction:** the existing `withHistory` activates only on
+partial custody; a joiner's empty log is complete. `conversationView` therefore
+composes live content history, count and preview online, with `thread` as its
+existing declared offline fallback. `history` remains the independent live
+content query. This gives joiners prior history without changing SDK fallback
+eligibility or rewriting send-time audiences; the preceding proposal that
+`history` could simply sit behind a complete empty `thread` is superseded.
 
 ### 6. Receipts (`with receipts`)
 
@@ -545,8 +551,8 @@ engine's representation of the generated log's tombstone (§3).
    and Bob receive `removed` events by tombstone (not point absence), Carol
    reads prior history through `history` without becoming an original
    recipient, Bob keeps every other pre-removal body under `retain
-   delivered-history`, and the audience bound `A` stays at the old cap
-   until no stored audience needs it.
+   delivered-history`, and the audience bound `A` remains at least the
+   largest stored delivered audience after the cap is lowered (§3).
 4. **Old edits outside the live tail**: drain several pages, leave the
    thread unmounted, disconnect, edit an early message, reconnect only the
    drain, restart offline, open the thread — the body and `editedAt` are
@@ -617,3 +623,4 @@ evidence.
 - 2026-09-10 — D4 + D5 (lane `custody-c1`, base `4729319698a1`, ready for orchestrator commit): §5–§7 sender-only membership-proved direct prediction, provisional/server identity reconciliation and cold changed/removed custody; engine-owned false receipt initialization and bounded certified/traced acknowledgement, durable accepted-page marks and ordinary fenced outbox retry on all carriers; §4 named acknowledgement reserve, retained-A job-plan specialization/refusal and owner structural-page pricing; maintained-source admission refusal and compiler repair-test naming resolve all four custody-b residuals. Tests: affected Rust 111 passed/1 skipped plus new full-batch proof 1 passed; compiler delivery 11 passed; corpus 293 (266 evaluator passed/27 server-only), 11 sender prediction checks; SDK additions 8 passed and affected neighbors 24 passed; runtime 86,297/90,000 gzip. RFC corrections: false initialization/copied-rule maintenance and provisional metadata now explicit. Report: `REPORT-custody-c1.md`. Status unchanged; D6 and full remote verification remain with the program.
 - 2026-09-10 — D4 + D5 fix round r1 (lane `custody-c1`, merged base `c1d96a23d4`, pending orchestrator commit): §4 receipt Upsert amplification and every dependent meter, generated-maintain final probes, site-specific receipt/acknowledgement checks; §6 pre-read containment, traced failed acknowledgements, visible admission/readmission after terminal redelivery, shared 8,192 backfill bound; §7 frozen prediction mode and real 51-message/page-loss/two-client plus cold-edit/search acceptances. Tests: delivery/cap/jobs/timers 117 passed/1 skipped; acknowledgement units 3 passed; corpus 293 (266 evaluator passed/27 server-only), prediction checks corrected to 10 passed with injected-failure exit 1; compiler 300 passed; SDK 44 passed; guide names 2 passed. Runtime 86,260/90,000 gzip. Reports: `REPORT-custody-c1.md`, writable `reports/final-custody-c1.md` § Fix round r1 (external program report outside sandbox). RFC Status unchanged; no full suite or commit.
 - 2026-09-10 — D4/D5 fix round r3 (lane `custody-c1`): §6 lifecycle-guarded acknowledgement admission shares partition replacement custody; receipt removal drops obsolete marks once; one persisted mark shape and shared batch builder; compacted success marks retire with evicted log events; range-store/corpus splits and maintained-content wire labels. Tests: named SDK suites 107/107, Rust delivery 59/59, wire labels 1/1; corpus unchanged at 293. REFUSED on client bytes: 140,612 / 150,322 / 153,926 exceed 139,277 / 149,089 / 152,832; even the fully reverted no-acknowledgement control remained over (139,789 / 149,499 / 153,103). Runtime 86,376 < 90,000. `reports/final-custody-c1.md` § Fix round r3 has per-input evidence; no commit, full suite, or Status change.
+- 2026-09-10 — D6 candidate (lane `custody-c2`, base `5877ec209e51`, uncommitted): §1/§5/§8 and Mechanism's deletion set — chat uses native delivery/receipts, live joiner history and direct expiry deletion; authored tombstones grammar, fan-out and seed log removed; delivery guide/labels, word offset and historical supersessions updated; backend 272→241 lines. Tests: template 32/32, compiler 298/298 (final delivery subset 13/13), evaluator 266/266 plus 10 prediction checks, named Rust 11/11, SDK/owner 10 passed/1 failed; metadata-only removal witness 1 passed/1 failed. Acceptance 3 remains open: the existing successor reset discards every held body, contradicting retained departed history across a cap successor; no twin reset rule was changed. Acceptance 3's stale old-cap wording corrected to §3's largest stored audience; §5's complete-empty-log fallback assumption corrected. `REPORT-custody-c2.md` records the failure, exact evidence and additional CLI proof-harness scope. Status unchanged: D4/D5 is held and D6 is not fully qualified or landed.

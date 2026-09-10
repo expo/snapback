@@ -47,6 +47,33 @@ const column = (name: string) => ({ Column: name });
 const index = (columns: string[], unique = false) => ({ components: columns.map(column), unique });
 
 export function registerDeliveryChecks(test: Test): void {
+  test("authored tombstones is an unknown table declaration", () => {
+    const parsed = parseDocument("snapback/schema.q", "table messages:\n  body: text <=10\n  tombstones messages[.body] if .body = 'removed'\n");
+    assert(parsed.diagnostics.some(item => item.code === "E_QUARRY_UNKNOWN" && item.message.includes("unknown table declaration tombstones")), JSON.stringify(parsed.diagnostics));
+    const line = "  tombstones messages[.body] if .body = 'removed'";
+    const source = `table messages:\n  body: text <=10\n${line}\n  public\n`;
+    const inputs = [{ fileName: "snapback/schema.q", source }, { fileName: "snapback/ops.q", source: OPS }];
+    const refused = compileInline(inputs);
+    assert(!refused.ok, "authored tombstones still compiles");
+    const diagnostic = refused.diagnostics.find(item => item.code === "E_QUARRY_UNKNOWN")!;
+    assert(diagnostic.family === "quarry" && diagnostic.site === "snapback/schema.q:3:3" && diagnostic.guide === "quarry/names", JSON.stringify(diagnostic));
+    inputs[0]!.source = source.replace(line, `  ${diagnostic.rewrite}`);
+    assert(compileInline(inputs).ok, "the unknown-declaration rewrite does not execute");
+  });
+
+  test("chat derives custody and exposes history and receipts without authored fan-out", async () => {
+    const root = decodeURIComponent(new URL("../../snapback2/templates/chat", import.meta.url).pathname);
+    const lowered = await lowerProject(root);
+    assert(lowered.ok, JSON.stringify(lowered));
+    assert(lowered.project.schema.tables.messages?.deliver?.log === "deliveries", "messages has no deliver declaration");
+    for (const name of ["inbox", "thread", "history", "conversationView", "receipts"]) {
+      assert(lowered.project.programs.some(program => program.name === `messages.${name}`), `missing messages.${name}`);
+      assert(lowered.apiDts.includes(`${name}: Op<`), `api.d.ts is missing messages.${name}`);
+    }
+    assert(!lowered.project.programs.some(program => program.name === "messages.purgeMessage"), "purgeMessage is still authored");
+    deepStrictEqual(plain(lowered.project.schema.tables.deliveries?.tombstones), [{ table: "messages", column: "row", when: { Eq: [{ Field: "kind" }, { Literal: { String: "removed" } }] } }]);
+  });
+
   test("the RFC receipts query certifies under the content table read rule", async () => {
     await withProject({ 'snapback/schema.q': schemaWith('deliver to memberships[.conversationId] as deliveries with receipts'),
       'snapback/messages.q': `query receipts(messageId: messages):
@@ -64,7 +91,7 @@ export function registerDeliveryChecks(test: Test): void {
   test("the incarnation refusal publishes an executable fresh-insert repair", async () => {
     const cards = JSON.parse(readFileSync(new URL("../../snapback2/guide/families.source.json", import.meta.url), "utf8"));
     const card = cards.find((c: any) => c.code === "E_DELIVER_INCARNATION");
-    assert(card.family === "rule" && card.guide === "offline", JSON.stringify(card));
+    assert(card.family === "rule" && card.guide === "deliver", JSON.stringify(card));
     for (const side of ["wrong", "right"]) {
       const files: Record<string, string> = {}; let path = "";
       for (const line of card[side].split("\n")) {
@@ -186,17 +213,17 @@ export function registerDeliveryChecks(test: Test): void {
   test("Quarry deliver refusals are sited, coded, rewritten, and paged", () => {
     const line = "deliver to memberships[.conversationId] as deliveries";
     const cases: Array<{ name: string; deliver: string; cap?: string; member?: string; code: string; family: string; guide: string; message: string; rewrite: RegExp }> = [
-      { name: "uncapped target", deliver: line, cap: "", code: "E_DELIVER_UNBOUNDED", family: "bound", guide: "offline/deliver",
+      { name: "uncapped target", deliver: line, cap: "", code: "E_DELIVER_UNBOUNDED", family: "bound", guide: "deliver",
         message: "pins no capped group", rewrite: /^cap 50 by conversationId$/ },
-      { name: "cap arity", deliver: line, cap: "cap 50 by conversationId, principal", code: "E_DELIVER_UNBOUNDED", family: "bound", guide: "offline/deliver",
+      { name: "cap arity", deliver: line, cap: "cap 50 by conversationId, principal", code: "E_DELIVER_UNBOUNDED", family: "bound", guide: "deliver",
         message: "memberships has no cap N by conversationId", rewrite: /^cap 50 by conversationId$/ },
-      { name: "cap by another column", deliver: line, cap: "cap 50 by principal", member: "by byPrincipal: principal", code: "E_DELIVER_UNBOUNDED", family: "bound", guide: "offline/deliver",
+      { name: "cap by another column", deliver: line, cap: "cap 50 by principal", member: "by byPrincipal: principal", code: "E_DELIVER_UNBOUNDED", family: "bound", guide: "deliver",
         message: "memberships has no cap N by conversationId", rewrite: /^cap 50 by conversationId$/ },
-      { name: "two principals", deliver: line, member: "invitedBy: principal", code: "E_DELIVER_PRINCIPAL", family: "schema", guide: "offline/deliver",
+      { name: "two principals", deliver: line, member: "invitedBy: principal", code: "E_DELIVER_PRINCIPAL", family: "schema", guide: "deliver",
         message: "has 2 principal columns (principal, invitedBy)", rewrite: /^deliver to memberships\[\.conversationId\] by \.principal as deliveries$/ },
-      { name: "by names text", deliver: "deliver to memberships[.conversationId] by .role as deliveries", member: "role: text <=10", code: "E_DELIVER_PRINCIPAL", family: "schema", guide: "offline/deliver",
+      { name: "by names text", deliver: "deliver to memberships[.conversationId] by .role as deliveries", member: "role: text <=10", code: "E_DELIVER_PRINCIPAL", family: "schema", guide: "deliver",
         message: "memberships.role is text, not principal", rewrite: /^deliver to memberships\[\.conversationId\] by \.principal as deliveries$/ },
-      { name: "by names nothing", deliver: "deliver to memberships[.conversationId] by .who as deliveries", code: "E_DELIVER_PRINCIPAL", family: "schema", guide: "offline/deliver",
+      { name: "by names nothing", deliver: "deliver to memberships[.conversationId] by .who as deliveries", code: "E_DELIVER_PRINCIPAL", family: "schema", guide: "deliver",
         message: "memberships has no such column", rewrite: /^deliver to .* by \.principal as deliveries$/ },
       { name: "as collides", deliver: "deliver to memberships[.conversationId] as memberships", code: "E_QUARRY_UNKNOWN", family: "quarry", guide: "quarry/names",
         message: "memberships is already declared", rewrite: /^deliver to memberships\[\.conversationId\] by \.principal as membershipsLog$/ },
@@ -235,7 +262,7 @@ export function registerDeliveryChecks(test: Test): void {
     assert(!indexless.ok, "a cap without an index led by its columns was admitted");
     const unenforced = indexless.diagnostics.find((diagnostic) => diagnostic.code === "E_DELIVER_UNBOUNDED");
     assert(unenforced?.message.includes("cap 50 by conversationId on memberships has no index whose leading columns are conversationId")
-      && unenforced.rewrite === "by byGroup: conversationId, principal" && unenforced.family === "bound" && unenforced.guide === "offline/deliver"
+      && unenforced.rewrite === "by byGroup: conversationId, principal" && unenforced.family === "bound" && unenforced.guide === "deliver"
       && unenforced.site === `snapback/schema.q:${LINE}:3`, JSON.stringify(indexless.diagnostics));
   });
 
@@ -284,7 +311,7 @@ export function registerDeliveryChecks(test: Test): void {
         body: [{ Insert: { table: "deliveries", row: { Object: { id: { Input: "NewId" } } } } }, { Return: { Literal: "Null" } }] };
       const refused = rustCheck([forged], "synthetic", lowered.project.schema, undefined, lowered.project.effects);
       assert(refused[0]?.error?.code === "E_SCHEMA_DELIVER" && refused[0].error.message.includes("engine-owned table deliveries")
-        && refused[0].error.family === "schema" && refused[0].error.guide === "offline",
+        && refused[0].error.family === "schema" && refused[0].error.guide === "deliver",
         `raw IR wrote the log: ${JSON.stringify(refused)}`);
       // A raw-schema refusal leaves check --ir as itself: code, family, page, and the declaration's site.
       const uncapped = structuredClone(lowered.project.schema) as typeof lowered.project.schema & { tables: Record<string, { constraints?: unknown[] }> };
@@ -292,7 +319,7 @@ export function registerDeliveryChecks(test: Test): void {
       const [schemaResult] = rustCheck([], "synthetic", uncapped, undefined, lowered.project.effects);
       deepStrictEqual(
         schemaResult && { program: schemaResult.program, ...schemaResult.error },
-        { program: "<schema>", code: "E_DELIVER_UNBOUNDED", family: "bound", guide: "offline/deliver", site: "schema.tables.messages.deliver",
+        { program: "<schema>", code: "E_DELIVER_UNBOUNDED", family: "bound", guide: "deliver", site: "schema.tables.messages.deliver",
           message: "deliver to memberships[.conversationId] pins no capped group: memberships has no cap N by conversationId", rewrite: "cap 50 by conversationId" },
         `check --ir relabeled the raw refusal: ${JSON.stringify(schemaResult)}`);
     });

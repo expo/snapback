@@ -129,10 +129,10 @@ function diagnosticGuide(code: DiagnosticCode): string {
   if (code === "E_QUARRY_AMBIGUOUS") return "quarry";
   if (code === "E_QUARRY_UNSUPPORTED") return "quarry/refusals";
   if (code === "E_QUARRY_PLACEMENT") return "quarry/projects";
-  if (code === "E_QUARRY_RETAIN" || code === "E_QUARRY_TOMBSTONE") return "quarry/grammar";
+  if (code === "E_QUARRY_RETAIN") return "quarry/grammar";
   if (code === "E_QUARRY_ONLY") return "quarry/projects";
   if (code === "E_QUARRY_UNKNOWN") return "quarry/names";
-  if (code === "E_DELIVER_UNBOUNDED" || code === "E_DELIVER_PRINCIPAL") return "offline/deliver";
+  if (code === "E_DELIVER_UNBOUNDED" || code === "E_DELIVER_PRINCIPAL") return "deliver";
   if (code === "E_UNBOUND_SCAN") return "quarry";
   if (code === "E_UNBOUND_LOOP") return "bound/loop";
   // @ref LLP 1017.000#31-d1 — the fan-out refusal anchors the which-shape decision.

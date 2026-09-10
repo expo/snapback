@@ -26,8 +26,8 @@ Use `withHistory` for declared partial history.
 ```q
 query thread(conversationId: conversations, c: cursor ?):
   require isMember(conversationId, viewer) else MEMBERSHIP_REQUIRED
-  page = deliveries[viewer, conversationId, 'message'] after c last 50 by byRecipientConversationKindAt
-  return page { *, message: messages[.messageId] }
+  page = deliveries[viewer, conversationId, 'delivered'] after c last 50 by byRecipientGroup
+  return page { *, message: messages[.row] }
 ```
 
 Send:
@@ -36,7 +36,6 @@ Send:
 mutation send(conversationId: conversations, body: text <=4000, expiresAt: time ?):
   require isMember(conversationId, viewer) else NOT_MEMBER
   row = insert messages { conversationId, authorId: viewer, body, expiresAt, at: now }
-  deliver(conversationId, row.id, 'message')
   for member in conversationMembers(conversationId):
     if member.principal != viewer:
       emit notify { to: member.principal, body }
@@ -54,23 +53,19 @@ schedule; insert a poll's companion row only after its message has taken that
 shared path, and remove the companion question/options row when the message
 expires.
 
-Edit/unsend fan out to current members. Tombstones and held-page point
-absences evict removed bodies.
-
-See `guide quarry` for related topics.
+Edits append `changed`; unsend and expiry append `removed`, always to original
+recipients including departed members. The generated removal metadata evicts
+held bodies and their bytes. See `guide deliver`.
 
 ## Scheduled removal through reconnect
 
-The chat template connects four declarations. `schedule expireMessage on
-messages at .expiresAt: purgeMessage(.id)` runs the owner mutation at the
-row deadline. `purgeMessage` emits `expired` entries into the recipient delivery
-log, then deletes the body. The log table declares `tombstones
-messages[.messageId] if .kind = 'removed' or .kind = 'expired'`.
-The client's ascending drained delivery query ingests those entries after
-reconnect and evicts the referenced held body and its leased bytes; see
-`guide offline` for the drain contract.
+```q
+schedule expireMessage on messages at .expiresAt: delete .
+```
 
-The purge visits the members returned at purge time. This recipe does not
-promise an expiry entry for every historical recipient who has since left.
-A deletion/log journey and a removed-event cache-eviction journey exercise
-different parts; reconnect after a timed expiry needs its own app journey.
+The owner's row timer deletes the body and appends removed events in the same
+transaction, even with every client closed. The ascending inbox drain accepts
+those events on reconnect and evicts the referenced body and leased bytes;
+this eviction survives a cold offline restart. `retain delivered-history`
+keeps departed members' other pre-removal bodies. The template journey proves
+the schedule with all clients closed; `guide offline` explains the drain.

@@ -653,11 +653,12 @@ pub(super) fn check(
     let mut delivery_probes = 0_u64;
     let mut silence_probes = 0_u64;
     let mut exclusions = 0_u64;
-    let system_then = compiled
+    let system_targets = compiled
         .generation
         .effects()
         .values()
         .filter_map(|effect| effect.then.as_deref())
+        .chain(compiled.generation.schema().schedules.iter().map(|schedule| schedule.target.as_str()))
         .collect::<BTreeSet<_>>();
     let default_persona = seed
         .personas
@@ -705,7 +706,7 @@ pub(super) fn check(
                     })).collect::<Vec<_>>(),
                 }));
             }
-            if system_then.contains(mutation_name.as_str()) {
+            if system_targets.contains(mutation_name.as_str()) {
                 exclusions += 1;
                 outcomes.push(json!({
                     "query": query_name,
@@ -718,7 +719,7 @@ pub(super) fn check(
                     "staticSitesIntersect": static_sites_intersect,
                     "disposition": "excluded",
                     "selected": false,
-                    "reason": "system-only effect continuation",
+                    "reason": "system-only effect continuation or schedule target",
                 }));
                 continue;
             }
@@ -765,6 +766,7 @@ pub(super) fn check(
                 };
                 let result = invalidation_attempt(
                     owner,
+                    &compiled.generation,
                     AttemptMeta {
                         query: query_name,
                         query_args: &query_args,
@@ -808,7 +810,7 @@ pub(super) fn check(
                 compiled.generation.programs()
             {
                 if mutation.kind != ProgramKind::Mutation
-                    || system_then.contains(mutation_name.as_str())
+                    || system_targets.contains(mutation_name.as_str())
                     || asset_mutations.contains(mutation_name.as_str())
                 {
                     continue;
@@ -830,6 +832,7 @@ pub(super) fn check(
                     attempts += 1;
                     let result = invalidation_attempt(
                         owner,
+                        &compiled.generation,
                         AttemptMeta {
                             query: query_name,
                             query_args: &query_args,
@@ -869,6 +872,7 @@ pub(super) fn check(
                 attempts += 1;
                 let result = invalidation_attempt(
                     owner,
+                    &compiled.generation,
                     AttemptMeta {
                         query: query_name,
                         query_args: &query_args,
@@ -932,7 +936,7 @@ pub(super) fn check(
     }
 }
 
-fn invalidation_attempt(owner: &OwnerInfo, meta: AttemptMeta<'_>) -> AttemptResult {
+fn invalidation_attempt(owner: &OwnerInfo, generation: &Generation, meta: AttemptMeta<'_>) -> AttemptResult {
     match client::control(owner, "POST", "/control/reset", json!({})) {
         Ok(response) if response.status == 200 => {}
         Ok(response) => {
@@ -944,6 +948,24 @@ fn invalidation_attempt(owner: &OwnerInfo, meta: AttemptMeta<'_>) -> AttemptResu
         }
         Err(error) => return failed_attempt(meta, "reset", format!("{error:?}")),
     }
+    // Native seed deliveries have owner-minted IDs, so authored seed arguments
+    // cannot exercise the generated acknowledgement's physical receipt write.
+    let mut mutation_args = meta.mutation_args.clone();
+    if let Some((_, delivery)) = generation.programs().get(meta.mutation)
+        .and_then(|(program, _)| snapback2_core::delivery::acknowledgement(generation.schema(), program))
+    {
+        let response = match client::control(owner, "POST", "/control/data", json!({
+            "table": delivery.log, "index": "byRecipient", "prefix": [format!("dev:{}", meta.mutation_persona)],
+            "limit": snapback2_core::delivery::ACK_BATCH, "as": meta.mutation_persona,
+        })) {
+            Ok(response) if response.status == 200 => response,
+            Ok(response) => return failed_attempt(meta, "ack-events", format!("HTTP {}: {}", response.status, response.body)),
+            Err(error) => return failed_attempt(meta, "ack-events", format!("{error:?}")),
+        };
+        mutation_args = json!({ "events": response.body["data"].as_array().into_iter().flatten()
+            .filter_map(|row| row.get("id")).collect::<Vec<_>>() });
+    }
+    let meta = AttemptMeta { mutation_args: &mutation_args, ..meta };
     let mut stream = match SseProbe::connect(
         owner,
         meta.query,
