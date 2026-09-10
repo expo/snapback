@@ -1977,3 +1977,28 @@ three stores. Matching the documented template—write the delivery, remove any
 poll, then delete the message—keeps reconnect semantics coherent. These were
 post-run copied-app corrections only: no original lane, provider, Exact, or
 Contract work was performed, and no new competitor claim is made.
+
+### 2026-09-10: final receipt and custody qualification
+
+The private pending-delivery queue needed an important deletion edge: an
+ordinary author cannot clean another recipient's private receipt. Recipient
+acknowledgement now starts from that private row and does not require the
+already-deleted message. Absence is idempotent success, while a present row
+still checks membership. The real root-screen watcher drains 51 conversations
+with one committed acknowledgement each and no mounted thread.
+
+Unread count alone also misses a read/new-message cycle that ends at the same
+count. The query's first pending-read identity is a small, useful dependency;
+the history preview is insufficient when timestamps coincide. Controlled
+drafts plus branch-specific scalar preflight preserve oversized text and media
+without entering custody. The final normal two-browser cohort has twenty
+measured sends, with exact-id p95 settlement/recipient/receipt of approximately
+240/242/417 ms. Separate explicit-offline replay preserves the same message id.
+
+The longer expiry stress then finds a different limit: after 23 committed
+sends, the signup grant has 85 ids left and the next certified write needs
+352. The local refusal is safe and retains the draft, but the application has
+no seamless path beyond it. Removing periodic sync exposed that recovery gap;
+it is being investigated as a bounded grant-lifecycle issue, not covered up by
+reinstating the timer. The mounted expiry itself passes. All work remains in
+fresh copies; no benchmark lane, provider, Exact or Contract is changed.
