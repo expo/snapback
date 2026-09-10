@@ -154,6 +154,9 @@ pub struct SuccessorReport {
     pub added_columns: Vec<String>,
     pub added_indexes: Vec<String>,
     pub backfilled_maintains: u64,
+    /// One line per custody log bootstrapped at this installation (LLP 1019 §2).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub bootstrapped_deliveries: Vec<String>,
 }
 
 pub(crate) fn plan(
@@ -209,6 +212,8 @@ pub(crate) fn plan(
             }
         }
     }
+    let custody = delivery::custody_drops(&store.conn, current, next, &drops)?;
+    drops.extend(custody);
     Ok(MigrationPlan { drops })
 }
 
@@ -231,6 +236,9 @@ pub(crate) fn additive_refusal(
 ) -> Result<Option<SuccessorRefusal>, RuntimeError> {
     let rebuilt_targets = maintained_targets_requiring_rebuild(current, next);
     if let Some(refusal) = narrowing_refusal(connection, current, next)? {
+        return Ok(Some(refusal));
+    }
+    if let Some(refusal) = delivery::audience_refusal(connection, current, next)? {
         return Ok(Some(refusal));
     }
     for (table_name, current_table) in &current.tables {
@@ -425,6 +433,7 @@ pub(crate) fn apply_additive(
     from: String,
     to: String,
     predecessor_maintain_ids: Option<BTreeMap<String, BTreeSet<String>>>,
+    now: i64,
 ) -> Result<SuccessorReport, RuntimeError> {
     let mut report = SuccessorReport {
         from,
@@ -529,6 +538,8 @@ pub(crate) fn apply_additive(
             })?;
         }
     }
+    // A log is populated before any maintain over it is rebuilt from its rows.
+    report.bootstrapped_deliveries = delivery::bootstrap(transaction, current, next, now)?;
     for target in maintained_targets_requiring_rebuild(current, next) {
         rebuild_target(
             transaction,
@@ -954,6 +965,8 @@ fn projected_backfill_rows(
 #[path = "successor/caps.rs"]
 mod caps;
 pub use caps::CapConflict;
+#[path = "successor/delivery.rs"]
+mod delivery;
 #[path = "successor_narrowing.rs"]
 mod narrowing;
 pub use narrowing::NarrowingConflict;

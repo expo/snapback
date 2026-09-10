@@ -355,10 +355,13 @@ impl State {
             .tables
             .iter()
             .map(|(name, table)| {
-                (
-                    name.clone(),
-                    json!({ "retain": table.retain, "columns": table.columns }),
-                )
+                let mut entry = json!({ "retain": table.retain, "columns": table.columns });
+                // @ref LLP 1019#7-the-twin — the declaration travels with the
+                // manifest so a client can tell a custody log from an ordinary table.
+                if let Some(deliver) = &table.deliver {
+                    entry["deliver"] = json!(deliver);
+                }
+                (name.clone(), entry)
             })
             .collect::<Map<_, _>>();
         let ops = self

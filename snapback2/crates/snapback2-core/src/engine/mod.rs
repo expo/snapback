@@ -1375,6 +1375,16 @@ pub fn validate_schema(schema: &Schema) -> Result<(), Vec<RuntimeError>> {
                 ))
             }),
     );
+    errors.extend(
+        crate::delivery::delivery_issues(schema)
+            .into_iter()
+            .map(|issue| {
+                RuntimeError::Schema(format!(
+                    "schema.tables.{}.deliver: {}: {}",
+                    issue.table, issue.code, issue.message
+                ))
+            }),
+    );
     if errors.is_empty() {
         Ok(())
     } else {

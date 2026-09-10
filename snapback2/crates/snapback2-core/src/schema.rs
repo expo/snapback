@@ -136,6 +136,11 @@ pub struct Table {
     // without the declaration hashes exactly as it did before the word existed.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tombstones: Vec<Tombstone>,
+    // @ref LLP 1019#1-the-declaration — one content table carries at most one
+    // `deliver`; absent from the bytes when none, so every schema without the
+    // declaration hashes exactly as it did before the word existed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deliver: Option<crate::delivery::Deliver>,
 }
 
 impl Table {
@@ -812,6 +817,7 @@ pub fn public_table(
         constraints: Vec::new(),
         retain: RetentionPolicy::default(),
         tombstones: Vec::new(),
+        deliver: None,
     }
 }
 

@@ -1,5 +1,5 @@
 import { nameRewrite } from "./diagnostics";
-import type { ArgType, IndexComponent, SchemaJson, SourceSite, TableJson, Value } from "../ir";
+import type { ArgType, DeliverJson, IndexComponent, SchemaJson, SourceSite, TableJson, Value } from "../ir";
 import { expandedNumericLiteral } from "../syntax";
 import type { ChannelDecl, Document, Expr, MaintainDecl, RuleDecl, ScalarType, Site, TableCatalog, TableDecl, TombstoneDecl } from "./ast";
 import { orderedTables, selectIndex } from "./catalog";
@@ -44,6 +44,7 @@ export function bindQuarrySchemaArtifact(documents: Document[], catalog: TableCa
     for (const [offset, site] of bound.tombstoneSources.entries()) {
       sources.push([`schema.tables.${declaration.name}.tombstones[${offset}]`, site]);
     }
+    if (bound.deliverSource) sources.push([`schema.tables.${declaration.name}.deliver`, bound.deliverSource]);
   }
   const channels: Record<string, unknown> = Object.create(null);
   for (const declaration of documents.flatMap((document) => document.channels)) {
@@ -69,7 +70,7 @@ export function bindQuarrySchemaArtifact(documents: Document[], catalog: TableCa
 function bindTable(
   declaration: TableDecl,
   catalog: TableCatalog,
-): { table: TableJson; constraintSources: SourceSite[]; tombstoneSources: SourceSite[] } {
+): { table: TableJson; constraintSources: SourceSite[]; tombstoneSources: SourceSite[]; deliverSource?: SourceSite } {
   const columns: Record<string, unknown> = Object.assign(Object.create(null), { id: "Id" });
   for (const column of declaration.columns) columns[column.name] = bindColumn(column.type, catalog, column.site);
   const indexes: Record<string, unknown> = Object.create(null);
@@ -88,6 +89,7 @@ function bindTable(
   }
   const constraints = bindConstraints(declaration, catalog);
   const tombstones = bindTombstones(declaration, catalog);
+  const deliver = bindDeliver(declaration, catalog);
   const table: TableJson = {
     columns,
     indexes,
@@ -96,8 +98,27 @@ function bindTable(
     // @ref LLP 1012#5-retention-revocation-and-the-fence — omission is an explicit IR default.
     retain: declaration.retain?.policy ?? "until-revoked",
     ...(tombstones.values.length > 0 ? { tombstones: tombstones.values } : {}),
+    ...(deliver ? { deliver } : {}),
   };
-  return { table, constraintSources: constraints.sources, tombstoneSources: tombstones.sources };
+  return { table, constraintSources: constraints.sources, tombstoneSources: tombstones.sources,
+    ...(declaration.deliver ? { deliverSource: declaration.deliver.site } : {}) };
+}
+
+// @ref LLP 1019#1-the-declaration — the resolved descriptor in Rust field
+// order; the tables it generates were materialized before the catalog.
+function bindDeliver(declaration: TableDecl, catalog: TableCatalog): DeliverJson | undefined {
+  const deliver = declaration.deliver;
+  if (!deliver) return undefined;
+  if (deliver.principal === undefined || deliver.audience === undefined) refuse(deliver.site, `deliver on ${declaration.name} was not resolved before binding`);
+  return {
+    target: tableName(catalog, deliver.target, deliver.site),
+    prefix: [...deliver.prefix],
+    principal: deliver.principal,
+    log: deliver.name,
+    ...(deliver.receipts ? { receipts: true as const } : {}),
+    audience: deliver.audience,
+    ...(deliver.bootstrap ? { bootstrap: true as const } : {}),
+  };
 }
 
 // @ref LLP 1012#5-retention-revocation-and-the-fence — a delivered log row

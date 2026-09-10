@@ -354,6 +354,7 @@ fn then_generation_with_cap(
         },
         retain: Default::default(),
         tombstones: Vec::new(),
+        deliver: None,
     };
     let emit = Program {
         name: "notifications.emit".to_owned(),

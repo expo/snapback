@@ -309,6 +309,7 @@ fn merge_schema() -> Schema {
         constraints: Vec::new(),
         retain: Default::default(),
         tombstones: Vec::new(),
+        deliver: None,
     };
     Schema {
         tables: BTreeMap::from([

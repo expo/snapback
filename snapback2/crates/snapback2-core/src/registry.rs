@@ -295,6 +295,22 @@ impl Generation {
             }
         }
 
+        errors.extend(
+            crate::delivery::delivery_issues(&schema)
+                .into_iter()
+                .map(|issue| {
+                    (
+                        format!("schema.tables.{}.deliver", issue.table),
+                        CheckError {
+                            site: None,
+                            code: issue.code.to_owned(),
+                            message: issue.message,
+                            rewrite: issue.rewrite,
+                        },
+                    )
+                }),
+        );
+
         errors.extend(maintain_issues(&schema).into_iter().map(|issue| {
             (
                 format!("schema.maintains[{}]", issue.position),
@@ -579,6 +595,7 @@ impl Runtime {
                 {
                     return Err(refusal);
                 }
+                let now = unix_millis();
                 apply_additive(
                     &transaction,
                     &current,
@@ -586,9 +603,10 @@ impl Runtime {
                     hash,
                     generation_hash,
                     None,
+                    now,
                 )
                 .map_err(store_refusal)?;
-                persist_generation_transaction(&transaction, &generation, unix_millis())
+                persist_generation_transaction(&transaction, &generation, now)
                     .map_err(store_refusal)?;
                 transaction
                     .commit()
@@ -987,6 +1005,7 @@ impl Runtime {
             from,
             next.hash(),
             None,
+            now,
         )
         .map_err(store_refusal)?;
         crate::store_jobs::reconcile(&transaction, &next, true).map_err(store_refusal)?;
@@ -1032,6 +1051,7 @@ impl Runtime {
             from,
             next.hash(),
             Some(predecessor_maintain_ids),
+            released_at,
         )?;
         crate::store_jobs::reconcile(&transaction, &next, true)?;
         persist_generation_transaction(&transaction, &next, released_at)?;
@@ -1360,6 +1380,7 @@ mod tests {
                     constraints: Vec::new(),
                     retain: Default::default(),
                     tombstones: Vec::new(),
+                    deliver: None,
                 },
             )]),
             ..Schema::default()

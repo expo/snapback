@@ -605,6 +605,7 @@ fn synthetic_table() -> Table {
         constraints: Vec::new(),
         retain: Default::default(),
         tombstones: Vec::new(),
+        deliver: None,
     }
 }
 

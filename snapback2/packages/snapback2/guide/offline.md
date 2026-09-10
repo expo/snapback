@@ -115,3 +115,20 @@ predictions. Offline media is null; online bytes stay in its viewing instance.
 Repeats: E_ASSET_VIEWED (assets,410). E_OFFLINE_CARRIER: configure carrier;
 E_OFFLINE_STATE: inspect state; E_OFFLINE_DELIVERY: retry authenticated query;
 E_OFFLINE_LIFECYCLE: sign in/reopen; E_OFFLINE_FOLLOWER: sign in; use writer tab for uploads/channels or no inbox route.
+
+## Custody
+
+`deliver to memberships[.conversationId] as deliveries` on a content table
+derives an engine-owned per-recipient log named by `as`: `recipient`, `row`,
+`incarnation`, the prefix keys, `kind` (`delivered`, `changed`, `removed`),
+`audience`, `seq`, `at`; indexes `byRecipient`, `byRecipientGroup`, `byRow`;
+read `.recipient = viewer`; a `removed` row tombstones its `row`. Programs
+read it and never write it. The keys must pin a `cap N by` group of the
+target (else E_DELIVER_UNBOUNDED, rewrite the cap); the target needs one
+principal column or `by .column` (else E_DELIVER_PRINCIPAL); `as` needs a
+free name. `with receipts` adds `<name>Receipts` (`row`, `recipient`,
+`received`, `seq`) under the content read rule. Adding the line installs an
+empty log; `bootstrap` fills it from current members once. Removing or
+retargeting the line is a destructive plan; the audience bound starts at
+the cap and lowers only when no stored audience exceeds it
+(E_SUCCESSOR_AUDIENCE).

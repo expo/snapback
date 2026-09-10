@@ -110,7 +110,7 @@ function normalizeMaintainKind(kind: any): any {
 }
 
 function normalizeTable(table: any): any {
-  known(table, ["columns", "indexes", "rules", "constraints", "retain", "tombstones"], "table");
+  known(table, ["columns", "indexes", "rules", "constraints", "retain", "tombstones", "deliver"], "table");
   const canonical: Record<string, any> = {
     columns: sortedMap(table.columns ?? {}, normalizeColumnType),
     indexes: sortedMap(table.indexes ?? {}, normalizeIndex),
@@ -126,7 +126,17 @@ function normalizeTable(table: any): any {
     }
     if (table.tombstones.length > 0) canonical.tombstones = table.tombstones.map(normalizeTombstone);
   }
+  // @ref LLP 1019#7-the-twin — the declaration is canonicalized in Rust field
+  // order and hashed, never stripped to make prediction work.
+  if (table.deliver !== undefined && table.deliver !== null) canonical.deliver = normalizeDeliver(table.deliver);
   return canonical;
+}
+
+function normalizeDeliver(deliver: any): any {
+  const out = pick(deliver, ["target", "prefix", "principal", "log", "receipts", "audience", "bootstrap"], "deliver");
+  if (out.receipts === false) delete out.receipts;
+  if (out.bootstrap === false) delete out.bootstrap;
+  return out;
 }
 
 function normalizeTombstone(tombstone: any): any {

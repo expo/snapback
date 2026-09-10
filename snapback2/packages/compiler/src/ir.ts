@@ -200,7 +200,9 @@ export type DiagnosticCode =
   | "E_QUARRY_TYPE"
   | "E_QUARRY_RETAIN"
   | "E_QUARRY_TOMBSTONE"
-  | "E_QUARRY_ONLY";
+  | "E_QUARRY_ONLY"
+  | "E_DELIVER_UNBOUNDED"
+  | "E_DELIVER_PRINCIPAL";
 
 export type RefusalFamily = "schedule" | "bound" | "opaque" | "schema" | "rule" | "effect" | "args" | "op" | "input" | "quarry";
 
@@ -214,10 +216,23 @@ export type FrontendDiagnostic = {
   guide: string;
 };
 
+/** `Table.deliver` in Rust field order; false flags are absent from the bytes (LLP 1019 §1). */
+export type DeliverJson = {
+  target: string;
+  prefix: string[];
+  principal: string;
+  log: string;
+  receipts?: true;
+  audience: number;
+  bootstrap?: true;
+};
+
 export type TableJson = {
   retain: RetentionPolicy;
-  /** Present only when the table declares `tombstones`; `when` is the rule-expression encoding. */
+  /** Present only when the table declares `tombstones` or is a generated custody log; `when` is the rule-expression encoding. */
   tombstones?: Array<{ table: string; column: string; when: unknown }>;
+  /** Present only on a content table carrying `deliver`. */
+  deliver?: DeliverJson;
   [key: string]: unknown;
 };
 

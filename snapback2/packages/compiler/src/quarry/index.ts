@@ -4,6 +4,7 @@ import { basename } from "node:path";
 import type { Document, QuarryDiagnostic, RuleDecl, ScalarType, TableCatalog, TableDecl } from "./ast";
 import { firstReturn } from "./bound";
 import { buildCatalog } from "./catalog";
+import { materializeDeliveries } from "./deliver";
 import { QuarryError } from "./diagnostics";
 import { parseDocument } from "./parser";
 import { prepareSchedules } from "./schedule";
@@ -38,6 +39,7 @@ export function prepareQuarry(inputs: QuarryInput[]): QuarryPrepareResult {
   let catalog: TableCatalog;
   try {
     materializeMaintains(documents);
+    materializeDeliveries(documents);
     catalog = buildCatalog(documents);
   } catch (error) {
     return { ok: false, diagnostics: [frontendQuarryDiagnostic(caughtDiagnostic(error, inputs[0]?.fileName))] };
@@ -188,7 +190,8 @@ function schemaTypeName(type: ScalarType): string {
 export function frontendQuarryDiagnostic(item: QuarryDiagnostic): FrontendDiagnostic {
   return {
     code: item.code,
-    family: item.code.startsWith("E_SCHEMA_") ? "schema"
+    family: item.code.startsWith("E_SCHEMA_") || item.code === "E_DELIVER_PRINCIPAL" ? "schema"
+      : item.code === "E_DELIVER_UNBOUNDED" ? "bound"
       : item.code.startsWith("E_SCHEDULE_") ? "schedule"
         : item.code === "E_EMIT_IN_QUERY" ? "effect"
           : item.code === "E_DECIMAL_SCALE" ? "args"

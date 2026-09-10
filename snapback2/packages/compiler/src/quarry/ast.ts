@@ -101,9 +101,25 @@ export type ColumnDecl = { name: string; type: ScalarType; site: Site };
 export type FinalExistsDecl = { value: Extract<Expr, { kind: "exists" }>; site: Site };
 /** `tombstones <table>[.<column>] if <predicate>`: a delivered row of this table names a row of `table` the client evicts. */
 export type TombstoneDecl = { table: string; column: string; predicate: Expr; site: Site };
+/** `deliver to <table>[.<col>, ...] [by .<principal>] as <name> [with receipts] [bootstrap]` (LLP 1019 §1). */
+export type DeliverDecl = {
+  target: string;
+  prefix: string[];
+  by?: string;
+  name: string;
+  receipts: boolean;
+  bootstrap: boolean;
+  site: Site;
+  /** Resolved at materialization: the target's principal column and its cap, the audience bound. */
+  principal?: string;
+  audience?: number;
+};
 export type TableDecl = {
   /** Materialized maintain: program point reads yield its value; rules still inspect rows. */
   maintained?: true;
+  /** Engine-generated custody table owned by a content table's `deliver` line; programs read it, never write it. */
+  derived?: { deliver: string; kind: "log" | "receipts" };
+  deliver?: DeliverDecl;
   name: string;
   columns: ColumnDecl[];
   indexes: IndexDecl[];
@@ -154,7 +170,8 @@ export type QuarryCode = "E_SCHEMA_ASSET_MAINTAIN" | "E_SCHEMA_CONSTRAINT" | "E_
   | "E_SCHEDULE_COLUMN" | "E_SCHEDULE_TARGET" | "E_SCHEDULE_DURATION"
   | "E_DECIMAL_SCALE" | "E_EMIT_IN_QUERY" | "E_OPAQUE" | "E_OP_RESERVED" | "E_UNBOUND_LOOP" | "E_UNBOUND_SCAN"
   | "E_QUARRY_SYNTAX" | "E_QUARRY_UNKNOWN" | "E_QUARRY_AMBIGUOUS" | "E_QUARRY_UNSUPPORTED" | "E_QUARRY_PLACEMENT"
-  | "E_QUARRY_TYPE" | "E_QUARRY_RETAIN" | "E_QUARRY_TOMBSTONE";
+  | "E_QUARRY_TYPE" | "E_QUARRY_RETAIN" | "E_QUARRY_TOMBSTONE"
+  | "E_DELIVER_UNBOUNDED" | "E_DELIVER_PRINCIPAL";
 export type QuarryDiagnostic = Site & { code: QuarryCode; message: string; rewrite: string; guide: string; executableRewrite?: boolean };
 
 export type TableCatalog = Map<string, {

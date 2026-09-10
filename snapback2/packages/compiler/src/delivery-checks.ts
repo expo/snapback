@@ -1,0 +1,184 @@
+import { deepStrictEqual } from "node:assert";
+import { lowerProject } from "./project";
+import { parseDocument } from "./quarry/parser";
+import { rustCheck } from "./rust-check";
+import { assert, compileInline, withProject, type Test } from "./quarry-check-helpers";
+
+// @ref LLP 1019#1-the-declaration — the `deliver` line: its grammar, the exact
+// generated shapes the engine holds every generation to, and each refusal's
+// family, site, rewrite, and page.
+
+const SCHEMA = `use identity
+
+table conversations:
+  title: text <=120
+  public
+
+table memberships:
+  conversationId: conversations
+  principal: principal
+  MEMBER
+  by byConversationPrincipal: conversationId, principal
+  CAP
+  read <- exists memberships[.conversationId, viewer]
+
+table messages:
+  conversationId: conversations
+  authorId: principal
+  body: text <=4000 ?
+  DELIVER
+  retain delivered-history
+  read <- exists memberships[.conversationId, viewer]
+  insert <- .authorId = viewer
+  update <- .authorId = viewer
+  delete <- .authorId = viewer
+`;
+const LINE = SCHEMA.split("\n").findIndex((line) => line.includes("DELIVER")) + 1;
+const OPS = "query ping():\n  return null\n";
+
+function schemaWith(deliver: string, cap = "cap 50 by conversationId", member = ""): string {
+  return SCHEMA.replace("  DELIVER", deliver ? `  ${deliver}` : "").replace("  CAP", cap ? `  ${cap}` : "").replace("  MEMBER", member ? `  ${member}` : "")
+    .replace(/\n\n\n+/g, "\n\n");
+}
+
+const plain = (value: unknown): unknown => JSON.parse(JSON.stringify(value));
+const column = (name: string) => ({ Column: name });
+const index = (columns: string[], unique = false) => ({ components: columns.map(column), unique });
+
+export function registerDeliveryChecks(test: Test): void {
+  test("Quarry deliver parses its options into one sited declaration", () => {
+    const parsed = parseDocument("snapback/schema.q", schemaWith("deliver to memberships[.conversationId] by .principal as deliveries with receipts bootstrap"));
+    assert(parsed.diagnostics.length === 0, `deliver did not parse: ${JSON.stringify(parsed.diagnostics)}`);
+    const messages = parsed.document.tables.find((table) => table.name === "messages")!;
+    const { site, ...declared } = messages.deliver!;
+    deepStrictEqual(declared, { target: "memberships", prefix: ["conversationId"], by: "principal", name: "deliveries", receipts: true, bootstrap: true });
+    assert(site.file === "snapback/schema.q" && site.line === LINE && site.col === 3, `deliver lost its site: ${JSON.stringify(site)}`);
+    const bare = parseDocument("snapback/schema.q", schemaWith("deliver to memberships[.conversationId] as deliveries"));
+    const decl = bare.document.tables.find((table) => table.name === "messages")!.deliver!;
+    assert(decl.by === undefined && !decl.receipts && !decl.bootstrap, JSON.stringify(decl));
+    assert(parsed.document.tables.every((table) => table.name === "messages" || table.deliver === undefined), "undeclared tables acquired deliver");
+  });
+
+  test("Quarry deliver lowers the descriptor and the exact generated tables, certifies in Rust, and names the rows in api.d.ts", async () => {
+    await withProject({
+      "snapback/schema.q": schemaWith("deliver to memberships[.conversationId] as deliveries with receipts"),
+      "snapback/ops.q": OPS,
+    }, async (root) => {
+      const lowered = await lowerProject(root);
+      assert(lowered.ok, `deliver project refused: ${lowered.ok ? "" : JSON.stringify(lowered.diagnostics)}`);
+      const tables = lowered.project.schema.tables;
+      deepStrictEqual(plain(tables.messages?.deliver), {
+        target: "memberships", prefix: ["conversationId"], principal: "principal", log: "deliveries", receipts: true, audience: 50,
+      });
+      deepStrictEqual(plain(tables.deliveries), {
+        columns: {
+          id: "Id", recipient: "Principal", row: { Ref: { table: "messages" } }, incarnation: "Int",
+          conversationId: { Ref: { table: "conversations" } },
+          kind: { Enum: { variants: ["delivered", "changed", "removed"] } }, audience: "Int", seq: "Int", at: "Time",
+        },
+        indexes: {
+          byId: index(["id"], true),
+          byRecipient: index(["recipient", "seq", "id"]),
+          byRecipientGroup: index(["recipient", "conversationId", "kind", "seq", "id"]),
+          byRow: index(["row", "kind", "recipient"]),
+        },
+        rules: { read: { Eq: [{ Field: "recipient" }, "Viewer"] }, insert: "Deny", update: "Deny", delete: "Deny" },
+        constraints: [{ Immutable: { fields: ["at", "audience", "conversationId", "incarnation", "kind", "recipient", "row", "seq"] } }],
+        retain: "until-revoked",
+        tombstones: [{ table: "messages", column: "row", when: { Eq: [{ Field: "kind" }, { Literal: { String: "removed" } }] } }],
+      });
+      deepStrictEqual(plain(tables.deliveriesReceipts), {
+        columns: {
+          id: "Id", row: { Ref: { table: "messages" } }, recipient: "Principal", received: "Bool", seq: "Int",
+          conversationId: { Ref: { table: "conversations" } },
+        },
+        indexes: { byId: index(["id"], true), byRow: index(["row", "recipient"], true) },
+        rules: {
+          read: { Exists: { table: "memberships", index: "byConversationPrincipal", key: [{ Field: "conversationId" }, "Viewer"], provenance: "Shape" } },
+          insert: "Deny", update: "Deny", delete: "Deny",
+        },
+        constraints: [{ Unique: { index: "byRow" } }, { Immutable: { fields: ["recipient", "row"] } }],
+        retain: "until-revoked",
+      });
+      for (const name of ["deliveries", "deliveriesReceipts", "memberships"]) {
+        assert(!Object.hasOwn(tables[name]!, "deliver"), `${name} carries a deliver key without a declaration`);
+      }
+      const source = lowered.sources["schema.tables.messages.deliver"];
+      assert(source?.file === "snapback/schema.q" && source.line === LINE && source.col === 3, `deliver lost its authored site: ${JSON.stringify(source)}`);
+      const checked = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema, undefined, lowered.project.effects);
+      assert(checked.every((item) => !item.error), `Rust refused the generated shapes: ${JSON.stringify(checked.filter((item) => item.error))}`);
+      for (const alias of ["type DeliveriesRow = {", "type DeliveriesReceiptsRow = {", "  received: boolean;", "  audience: number;"]) {
+        assert(lowered.apiDts.includes(alias), `api.d.ts lost ${alias}`);
+      }
+    });
+  });
+
+  test("Quarry deliver refusals are sited, coded, rewritten, and paged", () => {
+    const line = "deliver to memberships[.conversationId] as deliveries";
+    const cases: Array<{ name: string; deliver: string; cap?: string; member?: string; code: string; family: string; guide: string; message: string; rewrite: RegExp }> = [
+      { name: "uncapped target", deliver: line, cap: "", code: "E_DELIVER_UNBOUNDED", family: "bound", guide: "offline/deliver",
+        message: "pins no capped group", rewrite: /^cap 50 by conversationId$/ },
+      { name: "cap arity", deliver: line, cap: "cap 50 by conversationId, principal", code: "E_DELIVER_UNBOUNDED", family: "bound", guide: "offline/deliver",
+        message: "has no cap N by 1 column", rewrite: /^cap 50 by conversationId$/ },
+      { name: "two principals", deliver: line, member: "invitedBy: principal", code: "E_DELIVER_PRINCIPAL", family: "schema", guide: "offline/deliver",
+        message: "has 2 principal columns (principal, invitedBy)", rewrite: /^deliver to memberships\[\.conversationId\] by \.principal as deliveries$/ },
+      { name: "by names text", deliver: "deliver to memberships[.conversationId] by .role as deliveries", member: "role: text <=10", code: "E_DELIVER_PRINCIPAL", family: "schema", guide: "offline/deliver",
+        message: "memberships.role is text, not principal", rewrite: /^deliver to memberships\[\.conversationId\] by \.principal as deliveries$/ },
+      { name: "by names nothing", deliver: "deliver to memberships[.conversationId] by .who as deliveries", code: "E_DELIVER_PRINCIPAL", family: "schema", guide: "offline/deliver",
+        message: "memberships has no such column", rewrite: /^deliver to .* by \.principal as deliveries$/ },
+      { name: "as collides", deliver: "deliver to memberships[.conversationId] as memberships", code: "E_QUARRY_UNKNOWN", family: "quarry", guide: "quarry/names",
+        message: "memberships is already declared", rewrite: /^deliver to memberships\[\.conversationId\] by \.principal as membershipsLog$/ },
+      { name: "unknown target", deliver: "deliver to rooms[.conversationId] as deliveries", code: "E_QUARRY_UNKNOWN", family: "quarry", guide: "quarry/names",
+        message: "unknown table rooms", rewrite: /^-- / },
+      { name: "unknown prefix column", deliver: "deliver to memberships[.threadId] as deliveries", code: "E_QUARRY_UNKNOWN", family: "quarry", guide: "quarry/names",
+        message: "prefix key .threadId is not a column of messages", rewrite: /^-- / },
+      { name: "missing to", deliver: "deliver memberships[.conversationId] as deliveries", code: "E_QUARRY_SYNTAX", family: "quarry", guide: "quarry/grammar",
+        message: "requires a target range", rewrite: /^-- deliver to memberships/ },
+      { name: "missing as", deliver: "deliver to memberships[.conversationId]", code: "E_QUARRY_SYNTAX", family: "quarry", guide: "quarry/grammar",
+        message: "requires as <name>", rewrite: /^-- deliver to memberships/ },
+      { name: "with takes receipts", deliver: "deliver to memberships[.conversationId] as deliveries with seen", code: "E_QUARRY_SYNTAX", family: "quarry", guide: "quarry/grammar",
+        message: "with takes receipts", rewrite: /with receipts$/ },
+      { name: "two lines", deliver: `${line}\n  deliver to memberships[.conversationId] as custody`, code: "E_QUARRY_SYNTAX", family: "quarry", guide: "quarry/grammar",
+        message: "more than one deliver line", rewrite: /^-- one deliver line per table$/ },
+    ];
+    for (const item of cases) {
+      const compiled = compileInline([{ fileName: "snapback/schema.q", source: schemaWith(item.deliver, item.cap, item.member) }]);
+      assert(!compiled.ok, `${item.name} was accepted`);
+      const refusal = compiled.diagnostics.find((diagnostic) => diagnostic.code === item.code);
+      assert(refusal, `${item.name} did not refuse with ${item.code}: ${JSON.stringify(compiled.diagnostics)}`);
+      assert(refusal.message.includes(item.message), `${item.name} message changed: ${refusal.message}`);
+      assert(refusal.family === item.family && refusal.guide === item.guide, `${item.name} lost its family or page: ${JSON.stringify(refusal)}`);
+      assert(item.rewrite.test(refusal.rewrite), `${item.name} rewrite changed: ${refusal.rewrite}`);
+      const expectedLine = item.name === "two lines" ? LINE + 1 : LINE;
+      assert(refusal.site === `snapback/schema.q:${expectedLine}:3`, `${item.name} lost its authored site: ${refusal.site}`);
+    }
+    const mismatch = compileInline([{ fileName: "snapback/schema.q",
+      source: schemaWith(line).replace("table messages:\n  conversationId: conversations", "table messages:\n  conversationId: text <=40") }]);
+    assert(!mismatch.ok && mismatch.diagnostics[0]?.code === "E_QUARRY_TYPE"
+      && mismatch.diagnostics[0].message.includes("does not match memberships.conversationId"), JSON.stringify(mismatch));
+  });
+
+  test("programs read a generated custody table and never write it", async () => {
+    const write = compileInline([
+      { fileName: "snapback/schema.q", source: schemaWith("deliver to memberships[.conversationId] as deliveries") },
+      { fileName: "snapback/ops.q", source: "mutation fake(messageId: messages):\n  insert deliveries { recipient: viewer, row: messageId, incarnation: 1, conversationId: messageId, kind: 'delivered', audience: 1, seq: 1, at: now }\n  return null\n" },
+    ]);
+    assert(!write.ok, "a program wrote the generated log");
+    const refusal = write.diagnostics.find((item) => item.code === "E_QUARRY_UNSUPPORTED");
+    assert(refusal?.message.includes("writing deliveries") && refusal.rewrite.includes("write messages"), JSON.stringify(write.diagnostics));
+    await withProject({
+      "snapback/schema.q": schemaWith("deliver to memberships[.conversationId] as deliveries"),
+      "snapback/ops.q": "query inbox(c: cursor ?):\n  return deliveries[viewer] after c first 50 by byRecipient { *, message: messages[.row] }\n",
+    }, async (root) => {
+      const lowered = await lowerProject(root);
+      assert(lowered.ok, `reading the log refused: ${lowered.ok ? "" : JSON.stringify(lowered.diagnostics)}`);
+      const checked = rustCheck(lowered.project.programs, "synthetic", lowered.project.schema, undefined, lowered.project.effects);
+      assert(checked.every((item) => !item.error), `Rust refused the inbox read: ${JSON.stringify(checked)}`);
+      const forged: typeof lowered.project.programs[number] = { name: "ops.forge", kind: "Mutation", args: {}, read_time_granularity_ms: null,
+        body: [{ Insert: { table: "deliveries", row: { Object: { id: { Input: "NewId" } } } } }, { Return: { Literal: "Null" } }] };
+      const refused = rustCheck([forged], "synthetic", lowered.project.schema, undefined, lowered.project.effects);
+      assert(refused[0]?.error?.code === "E_SCHEMA_DELIVER" && refused[0].error.message.includes("engine-owned table deliveries"),
+        `raw IR wrote the log: ${JSON.stringify(refused)}`);
+    });
+  });
+}

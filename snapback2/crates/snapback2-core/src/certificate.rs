@@ -359,6 +359,25 @@ impl<'a> Checker<'a> {
         let mut summary = analyzer
             .statements(&program.body, 1, &[])
             .map_err(|error| vec![error])?;
+        // @ref LLP 1019#2-the-custody-log — no program writes a generated
+        // table; `insert <- deny` alone does not stop the system principal, so
+        // the refusal is static and principal-blind.
+        if let Some((content, write)) = summary.writes.iter().find_map(|write| {
+            crate::delivery::owner(self.schema, &write.table).map(|(content, ..)| (content, write))
+        }) {
+            return Err(vec![CheckError {
+                site: None,
+                code: crate::delivery::SHAPE.to_owned(),
+                message: format!(
+                    "program writes engine-owned table {}, which the engine derives from the deliver line on {content}",
+                    write.table
+                ),
+                rewrite: format!(
+                    "write {content}; the engine records every {} event itself",
+                    write.table
+                ),
+            }]);
+        }
         // @ref LLP 1016#d5--schedules-row-timers-and-periods-on-the-owners-clock — one timer index update per schedule per affected row, inside the write ceiling.
         let mut timer_writes = crate::timers::write_bound(self.schema, &summary.writes);
         if timer_writes > 0 {

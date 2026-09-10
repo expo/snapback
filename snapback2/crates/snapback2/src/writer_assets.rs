@@ -935,6 +935,7 @@ mod tests {
             constraints: Vec::new(),
             retain: Default::default(),
             tombstones: Vec::new(),
+            deliver: None,
         };
         let insert = Program {
             name: "media.insert".to_owned(),
@@ -1121,6 +1122,7 @@ mod tests {
             constraints: Vec::new(),
             retain: Default::default(),
             tombstones: Vec::new(),
+            deliver: None,
         };
         let insert = Program {
             name: "media.insert".to_owned(),
