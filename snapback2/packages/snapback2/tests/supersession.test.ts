@@ -146,7 +146,7 @@ for (const carrier of ["file", "IndexedDB"] as const) {
       assert.equal(f.queries.at(-1).generation, hex(2), "the successful live response was requested from G2");
       await f.rebuilt();
       assert.equal(f.resets(), 1);
-      assert.deepEqual(f.resumes[0], { protocol: 1, generation: hex(1), schemaHash: certified.schemaHash, authEpoch: 1, mounted: [] });
+      assert.deepEqual(f.resumes[0], { protocol: 1, generation: hex(1), schemaHash: certified.schemaHash, authEpoch: 1, mounted: [], remaining: 0 });
       assert.equal((await f.store.coverage()).rows.find((row: any) => row.id === overlapRow.id)?.row.at, overlapRow.row.at);
       // Sequence and negative-evidence guards still hold within the new coverage.
       await f.store.commit({ deliveries: [{ op: "older", args: {}, state: "complete", seq: 6, data: null,

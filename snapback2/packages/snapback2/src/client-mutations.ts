@@ -47,7 +47,7 @@ export async function performMutation<Args, Result>(
           const offline = host.forcedOffline;
           const generation = expectedGeneration ?? host.offlineRuntime?.programGeneration;
           const result = await submitMutation<Result>({
-            expectedGeneration: generation ?? (!host.offlineRuntime ? host.observedProgramGeneration : undefined),
+            expectedGeneration: expectedGeneration ?? (!host.offlineRuntime ? host.observedProgramGeneration : undefined),
             runtime: host.offlineRuntime, offline: host.forcedOffline, op, args: mutationArgs, presentation,
             json: (path, init, onSend) => host.json(path, init, authority, { terminalSession: "after-cleanup", onSend }),
             failure: error => host.offlineRefusal(error), drain: () => host.drainNow(authority),

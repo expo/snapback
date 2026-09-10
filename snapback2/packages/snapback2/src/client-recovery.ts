@@ -24,7 +24,7 @@ const available = (host: RecoveryClient) => !host.closed && !host.forcedOffline;
 export function recoveryConnection(host: RecoveryClient, connected: boolean): void {
   const before = host.recoveryReachable;
   host.recoveryReachable = connected;
-  if (connected && !before && !host.resumeFlight) recoveryOpportunity(host);
+  if (connected && !before && !host.resumeFlight && !host.offlineRuntime?.draining) recoveryOpportunity(host);
 }
 export function recoveryOpportunity(host: RecoveryClient): void {
   const revision = ++host.recoveryRevision, runtime = host.offlineRuntime;
