@@ -121,6 +121,12 @@ export interface InboxConnection {
   rows(): Promise<InboxRow[]>;
   /** Deletes one row this partition rejected at admission; the writer deletes every other row. */
   remove(key: number): Promise<void>;
+  /**
+   * Reads and deletes one row in one carrier transaction and returns the row actually
+   * consumed — `undefined` once another connection took it. A completed dismissal
+   * command is consumed this way, so one caller gets its bytes whatever tab raced.
+   */
+  take(key: number): Promise<InboxRow | undefined>;
   /** The persisted ledger entries, as the writer last committed them. */
   ledger(): Promise<Record<string, unknown>>;
   /** Rows and ledger from one readonly transaction over both stores, so a swap between the two reads cannot show a row twice or not at all. */

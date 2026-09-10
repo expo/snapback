@@ -109,9 +109,9 @@ test("a dismissal consumed before a takeover keeps its bytes with the caller", a
     await writer.offline();
     const head = (await writer.outbox.entries())[0]!;
     const runtime = (follower as any).offlineRuntime;
-    const remove = runtime.removeInboxRow.bind(runtime);
+    const take = runtime.takeInboxRow.bind(runtime);
     let deleted = false;
-    runtime.removeInboxRow = async (key: number) => { await remove(key); deleted = true; await paused; };
+    runtime.takeInboxRow = async (key: number) => { const row = await take(key); deleted = true; await paused; return row; };
     const pending = follower.outbox.dismiss(first.intent!).then(value => ({ value }), error => ({ error }));
     await until(() => deleted, "the follower consumed the durable result");
     await writer.close();
@@ -122,6 +122,79 @@ test("a dismissal consumed before a takeover keeps its bytes with the caller", a
     assert.equal(await follower.outbox.dismiss(first.intent!), undefined, "nothing durable remains to recover");
     await follower.online();
     await follower.outbox.drain();
+    assert.deepEqual(owner.executions.map(e => (e.args as any).body), ["after"], "only the next intent replays");
+  } finally { release(); closeDrain(); await follower.close(); await writer.close(); }
+});
+
+// Two follower TABS racing for one completed command: the carrier's single transaction decides
+// who consumed it, so exactly one returns the bytes and the other finds nothing.
+test("two follower tabs consume a completed dismissal once", async () => {
+  const refusal = { code: "E_INPUT", family: "input", message: "enum case removed", guide: "input/runtime" };
+  const { owner, open } = tabs({ refuse: (_intent, body) => body.args.body === "removed" ? { status: 400, envelope: refusal } : undefined });
+  const writer = open(); await writer.ready;
+  const closeDrain = await earnGrant(writer);
+  await writer.offline();
+  const a = open(); await a.ready;
+  const b = open(); await b.ready;
+  try {
+    for (const follower of [a, b]) await until(async () => (await follower.outbox.status()).reason === "forwarding", "follower route");
+    const args = { conversationId: "conversation-1", body: "removed" };
+    await a.mutation(api.messages.send, args);
+    await a.mutation(api.messages.send, { ...args, body: "after" });
+    await until(async () => (await writer.outbox.entries()).filter(e => e.grant).length === 2, "writer admission");
+    await assert.rejects(writer.online(), { code: "E_INPUT" });
+    await writer.offline();
+    const head = (await writer.outbox.entries())[0]!;
+    // Both tabs observe the completed command before either take lands.
+    for (const follower of [a, b]) {
+      const runtime = (follower as any).offlineRuntime;
+      const take = runtime.takeInboxRow.bind(runtime);
+      runtime.takeInboxRow = async (key: number) => { await new Promise(resolve => setTimeout(resolve, 60)); return take(key); };
+    }
+    const results = await Promise.all([a.outbox.dismiss(head.intent), b.outbox.dismiss(head.intent)]);
+    const returned = results.filter(value => value !== undefined);
+    assert.equal(returned.length, 1, `exactly one tab gets the bytes: ${JSON.stringify(results)}`);
+    assert.deepEqual(returned[0], { intent: head.intent, op: head.op, args, refusal });
+    const rows = await (writer as any).offlineRuntime.store.inboxRows();
+    assert.equal(rows.some((row: any) => row.kind === "dismiss"), false, "the completed command is gone");
+    await writer.online();
+    await writer.outbox.drain();
+    assert.deepEqual(owner.executions.map(e => (e.args as any).body), ["after"], "only the next intent replays");
+  } finally { closeDrain(); await a.close(); await b.close(); await writer.close(); }
+});
+
+// The writer's recovery racing the follower's consumption of the same completed command.
+test("a writer's recovery and the follower's consumption return one result between them", async () => {
+  const refusal = { code: "E_INPUT", family: "input", message: "enum case removed", guide: "input/runtime" };
+  const { owner, open } = tabs({ refuse: (_intent, body) => body.args.body === "removed" ? { status: 400, envelope: refusal } : undefined });
+  const writer = open(); await writer.ready;
+  const closeDrain = await earnGrant(writer);
+  await writer.offline();
+  const follower = open(); await follower.ready;
+  let release!: () => void;
+  const paused = new Promise<void>(resolve => { release = resolve; });
+  try {
+    await until(async () => (await follower.outbox.status()).reason === "forwarding", "follower route");
+    const args = { conversationId: "conversation-1", body: "removed" };
+    await follower.mutation(api.messages.send, args);
+    await follower.mutation(api.messages.send, { ...args, body: "after" });
+    await until(async () => (await writer.outbox.entries()).filter(e => e.grant).length === 2, "writer admission");
+    await assert.rejects(writer.online(), { code: "E_INPUT" });
+    await writer.offline();
+    const head = (await writer.outbox.entries())[0]!;
+    const runtime = (follower as any).offlineRuntime;
+    const take = runtime.takeInboxRow.bind(runtime);
+    let reached = false;
+    runtime.takeInboxRow = async (key: number) => { reached = true; await paused; return take(key); };
+    const pending = follower.outbox.dismiss(head.intent);
+    await until(() => reached, "the follower saw the completed command");
+    const recovered = await writer.outbox.dismiss(head.intent);
+    assert.deepEqual(recovered, { intent: head.intent, op: head.op, args, refusal }, "the writer's recovery consumed the result first");
+    release();
+    assert.equal(await pending, undefined, "the follower's take finds nothing");
+    assert.equal(await writer.outbox.dismiss(head.intent), undefined, "returned only once");
+    await writer.online();
+    await writer.outbox.drain();
     assert.deepEqual(owner.executions.map(e => (e.args as any).body), ["after"], "only the next intent replays");
   } finally { release(); closeDrain(); await follower.close(); await writer.close(); }
 });

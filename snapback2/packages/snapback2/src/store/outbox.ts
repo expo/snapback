@@ -440,8 +440,10 @@ export class OutboxLedger {
         && (row.target === intent || (row.response as OutboxEntry | null)?.intent === intent
           || key !== undefined && (row.response as OutboxEntry | null)?.inbox === key));
       if (completed) {
-        await this.commit({ inbox: { remove: [completed.key] } });
-        return (completed.response ?? undefined) as OutboxEntry | undefined;
+        // The carrier decides who consumed the result: a follower's take on its own
+        // connection and this recovery cannot both return the same bytes.
+        const taken = await this.store.inboxTake?.(completed.key);
+        return (taken?.response ?? undefined) as OutboxEntry | undefined;
       }
       const receipt = rows.find(row => row.key === command);
       if (command !== undefined && (!receipt || receipt.state !== "queued")) return;

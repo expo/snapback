@@ -651,3 +651,16 @@ consumed before a takeover keeps its bytes with the caller` (pause after the del
 take over, the original call returns the exact bytes, the successor finds nothing, only the next
 intent replays); `overlapping follower dismissals consume a completed result once`. Inbox,
 outbox, custody, and recovery files 72/72; runtime 84778 gzip (ceiling 85,000).
+
+## Fix round r5 (orchestrator)
+
+Codex r5 (`reviews/succ-r5-codex.md`): the r4 guard was one client's memory, so two follower
+tabs, or a follower and the writer's recovery, could both consume one completed dismissal —
+the carrier's deletion reported nothing. Fixed: `InboxConnection.take(key)` and the backend's
+`inboxTake(key)` read and delete the row in one carrier transaction and return the row actually
+consumed; the follower (`OfflineRuntime.takeInboxRow`) and the writer's recovery
+(`OutboxLedger.dismiss`) both consume through it and return only what they took. Tests
+(`inbox.test.ts`): `two follower tabs consume a completed dismissal once`; `a writer's recovery
+and the follower's consumption return one result between them`; the takeover and overlap tests
+from r4 rehooked onto the take. Inbox, outbox, custody, recovery, and local-data files 85/85;
+runtime 84832 gzip.
