@@ -18,6 +18,7 @@ import { OutboxRefusal, replayEnvelope, type OutboxEntry } from "./store/outbox.
 import { referenceName } from "./api.js";
 import { inboxKeyOf } from "./store/inbox.js";
 import { observeOutbox } from "./client-outbox-observed.js";
+import type { RecoveryDemand } from "./client-recovery.js";
 import type { MutationResult, OutboxApi, OutboxSettlement, OutboxStatus } from "./types.js";
 
 /**
@@ -73,8 +74,9 @@ export interface SubmitMutationOptions {
   failure(error: unknown): Error;
   drain(): Promise<{ stopped: boolean }>;
   onCustody?(kind: "wire" | "outbox"): void;
+  prepare?(op: string): Promise<void>;
   /** The writer admits every inbox row durable before this write, so a local write never overtakes them (LLP 1018.004 §4). */
-  admitInbox?(): Promise<{ stopped?: string } | void>;
+  admitInbox?(): Promise<{ stopped?: string; op?: string } | void>;
 }
 
 /**
@@ -101,21 +103,38 @@ export async function submitMutation<Result>(options: SubmitMutationOptions): Pr
   // tab's queued intents would invert their order when that queue is inherited.
   if (runtime?.following) throw followerRefusal();
   if (!runtime || runtime.principal === undefined) return plain();
-  const gate = await options.admitInbox?.();
-  if (gate && gate.stopped !== undefined) {
+  const admitInbox = async () => {
+    let gate = await options.admitInbox?.();
+    if (gate?.stopped && !options.offline && options.prepare) {
+      await options.prepare(gate.op ?? options.op);
+      gate = await options.admitInbox?.();
+    }
+    if (!gate?.stopped) return;
     // An older row another tab wrote is waiting on what this partition lacks; this write may not overtake it.
     throw options.failure(new OutboxRefusal("E_OFFLINE_ID_BLOCK",
       `an older write from another tab of this device is waiting for admission (${gate.stopped}); this write queues behind it`,
       "client.outbox.enqueue", "resume online for a fresh grant, then send again"));
-  }
+  };
+  await admitInbox();
   const enqueue = async (): Promise<OutboxEntry> => {
+    if (!options.offline) await options.prepare?.(options.op);
+    await admitInbox(); // A follower may have become durable while capacity was in flight.
+    let custody = false;
+    const admit = () => runtime.outbox.enqueue(
+      { op: options.op, args: options.args, expectedGeneration: options.expectedGeneration, issuedSeq: runtime.seq, presentation: options.presentation },
+      ids => runtime.predict(options.op, options.args, ids),
+      () => { options.onCustody?.("outbox"); custody = true; },
+    );
     try {
-      return await runtime.outbox.enqueue(
-        { op: options.op, args: options.args, expectedGeneration: options.expectedGeneration, issuedSeq: runtime.seq, presentation: options.presentation },
-        (ids) => runtime.predict(options.op, options.args, ids),
-        () => options.onCustody?.("outbox"),
-      );
+      return await admit();
     } catch (error) {
+      // Capacity was advisory: another concurrent admission may have consumed
+      // the slice. Retry only this pristine ID refusal, never ambiguous custody.
+      if (!custody && !options.offline && options.prepare && error instanceof OutboxRefusal && error.code === "E_OFFLINE_ID_BLOCK") {
+        await options.prepare(options.op);
+        await admitInbox();
+        try { return await admit(); } catch (next) { throw options.failure(next); }
+      }
       throw options.failure(error);
     }
   };
@@ -215,8 +234,8 @@ export interface DrainOptions {
  */
 export function drainOutbox(options: DrainOptions): Promise<DrainResult> {
   const { runtime } = options;
-  // @ref LLP 1018.003.001#1-readiness-actions — only active replay justifies
-  // waiting for the server; a successful read cannot resume a stopped queue.
+  // @ref LLP 1018.008.000#follower-tabs-and-readiness — waiting describes
+  // actual recovery/replay work, not connected transport by itself.
   const run = runtime.drainTail.then(async () => {
     throwIfAborted(options.signal);
     runtime.draining = true;
@@ -408,6 +427,8 @@ export function createOutboxApi(
   offline: () => boolean = () => false,
   inbox?: FollowerInbox,
   identity: () => string = () => runtime?.principal ?? "",
+  prepare?: (op: string) => RecoveryDemand,
+  recovering: () => boolean = () => false,
 ): OutboxApi {
   const entries = (): Promise<OutboxEntry[]> => runtime?.itemEntries() ?? Promise.resolve([]);
   const status = async (op?: import("./api.js").Op<any, any>): Promise<OutboxStatus> => {
@@ -417,7 +438,7 @@ export function createOutboxApi(
     if (!runtime || runtime.principal === undefined) return { ready: true, reason: "ready", action: "none", remaining: 0, fence: "inside" };
     try {
       const value = await runtime.outbox.status(op === undefined ? undefined : referenceName(op));
-      return { ...value, ...(runtime.draining ? { draining: true as const } : {}) };
+      return { ...value, ...(runtime.draining ? { draining: true as const } : {}), ...(recovering() ? { recovering: true as const } : {}) };
     }
     catch (error) {
       if (error instanceof Error && /sealed/.test(error.message)) return { ready: false, reason: "sealed", action: "sign-in", remaining: 0, fence: "past" };
@@ -430,7 +451,7 @@ export function createOutboxApi(
     observe: observeOutbox(entries, status, notify => {
       const stop = runtime?.outbox.subscribe(notify), stopInbox = inbox?.subscribe(notify);
       return () => { stop?.(); stopInbox?.(); };
-    }, identity, () => (runtime?.following ? inbox?.writer : undefined)),
+    }, identity, () => (runtime?.following ? inbox?.writer : undefined), prepare),
     // @ref LLP 1018.004#2-the-inbox — a follower's dismissal is a durable command row the writer consumes.
     dismiss: async (intent) => {
       if (runtime?.following) { await inbox?.dismiss(intent); return; }

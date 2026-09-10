@@ -25,6 +25,9 @@ struct ResumeRequest {
     /// The client's count of unused pinned ids; absent means it holds none.
     #[serde(default)]
     remaining: Option<Json>,
+    /// The selected mutation; request.generation binds its certified demand.
+    #[serde(default)]
+    demand: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -127,8 +130,28 @@ impl State {
             None => None,
         };
 
-        let grant =
-            self.grant_if_low(authority.principal.id.as_str(), request.remaining.as_ref())?;
+        // @ref LLP 1018.008.000#capacity-acquisition — capacity follows the
+        // selected generation's existing allocation formula, not client arithmetic.
+        let demand = match request.demand.as_deref() {
+            None => 0,
+            Some(op) => {
+                let (program, certificate) = self.runtime().generation().programs().get(op)
+                    .ok_or_else(|| unknown_op(op))?;
+                if program.kind != ProgramKind::Mutation {
+                    return Err(Refusal::input("capacity demand must name a mutation", "select a mutation from /api/program"));
+                }
+                let count = certificate.write_sites.iter().filter(|site| matches!(site.kind,
+                    snapback2_core::certificate::WriteKind::Insert | snapback2_core::certificate::WriteKind::Upsert))
+                    .fold(1u64, |count, site| count.saturating_add(site.max_rows));
+                if count > u64::from(snapback2_core::REPLAY_GRANT_COUNT) {
+                    return Err(Refusal::offline("E_OFFLINE_ID_BLOCK",
+                        format!("{op} needs {count} pinned IDs, above one {}-ID replay grant", snapback2_core::REPLAY_GRANT_COUNT))
+                        .with_site("/api/resume.demand"));
+                }
+                count
+            }
+        };
+        let grant = self.grant_if_low(authority.principal.id.as_str(), request.remaining.as_ref(), demand)?;
         let log = match (&request.log, log_args) {
             (Some(held), Some(args)) => self.resume_log(held, args, &authority)?,
             _ => Json::Null,

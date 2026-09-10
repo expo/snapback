@@ -16,7 +16,7 @@ const pause = () => new Promise(done => setTimeout(done, 10));
 const grant = (now = Date.now()) => ({ id: engineId(700), from: engineId(700), count: 100, used: 0, mintedAt: now, expiresAt: now + 30 * DAY });
 
 for (const observers of [0, 1, 4]) {
-  test(`${observers} observers: active replay waits; a connected read leaves a stopped queue actionable`, async () => {
+  test(`${observers} observers: active replay waits; a real reconnect resumes the same stopped queue`, async () => {
     const root = await mkdtemp(join(tmpdir(), "s2-ready-drain-"));
     const store = fileRangeStore(root), owner = fakeOwner({ failAfterCommit: 1 });
     await seededStore(store);
@@ -33,6 +33,7 @@ for (const observers of [0, 1, 4]) {
     try {
       await client.ready; await client.offline();
       await client.mutation(api.messages.send, { conversationId: engineId(10), body: "one" });
+      await client.mutation(api.messages.send, { conversationId: engineId(10), body: "two" });
       const delivery = client.online();
       await sent; await pause();
       const active = await client.outbox.status(api.messages.send);
@@ -44,13 +45,9 @@ for (const observers of [0, 1, 4]) {
       assert.equal((await client.outbox.settled()).stopped, "transport");
       await client.query(api.messages.inbox, { c: null });
       assert.equal(client.snapshot.connection, "connected");
-      const paused = await client.outbox.status(api.messages.send);
-      assert.equal(paused.draining, undefined);
-      assert.equal(readiness(paused, client.snapshot.connection, 1).action, "connect");
-      assert.match(readiness(paused, "connected", 1).reason!.message, /Sync to resume/);
-      await client.outbox.drain();
+      for (let count = 0; count < 100 && (await client.outbox.entries()).some(entry => entry.state === "queued"); count++) await pause();
       assert.equal((await client.outbox.settled()).remaining, 0);
-      assert.equal(owner.executions.length, 1, "retry uses the original durable intent");
+      assert.deepEqual(owner.executions.map(item => (item.args as any).body), ["one", "two"], "lost acknowledgement keeps the original envelope and FIFO stop ordering");
     } finally {
       release(); detach.forEach(close => close()); await client.close();
       await rm(root, { recursive: true, force: true });
@@ -169,6 +166,7 @@ test("bound adoption alone updates useMutation.ready without an entries change",
 test("operation change mid-probe hides old readiness and ignores superseded completions", async () => {
   const f = await mounted();
   try {
+    await f.client.offline(); // Isolate projection probes from the recovery owner's own admission checks.
     const ledger = f.client.offlineRuntime.outbox;
     await act(async () => { await ledger.adopt(grant()); await pause(); });
     assert.equal(f.mutation.can.send, true);

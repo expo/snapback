@@ -380,6 +380,7 @@ test("Expo Thread queues in partial history, preserves the bubble through failed
     await until(() => nativeText(renderer).includes("native sync cut"));
     assert.equal((await client.outbox.entries())[0].state, "queued");
     assert.strictEqual(bubble(), pending);
+    await until(() => Boolean(nativeButton(renderer, "Sync now")));
     failResume = false;
     await act(async () => nativeButton(renderer, "Sync now").props.onPress());
     await until(() => nativeText(renderer).includes("2 messages · Latest: native recovery message")

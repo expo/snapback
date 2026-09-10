@@ -100,8 +100,10 @@ not proposal text or old test counts.
 | `packages/snapback2` | Headless client, React web and Expo arms; durable per-principal store/outbox, retention, resume and asset-byte custody (LLP 1012); item/work presentation (LLP 1018.003), explicit independent history fallback (LLP 1018.006) |
 | `corpus/`, `scripts/`, `metrics/` | Shared conformance cases, existing build/test/measure/publication entry points, retained evidence; counts are generated from the current corpus, not maintained in this map |
 
-The complete local runtime's allocation is **85,000 gzip bytes**, with an
-**80,000-byte target** (2026-09-09 author ruling, `rules/NOT-DOING.md`).
+The complete local runtime's allocation is **90,000 gzip bytes**, with an
+**80,000-byte target** (2026-09-10 author ruling, `rules/NOT-DOING.md`;
+LLP 1018.008 §10). The measurement roots and separate package-growth checks
+remain unchanged.
 React/Expo implementation is not a blanket offline-bar or publication claim;
 the scoped qualification records remain in LLP 1012 and the benchmark LLPs.
 

@@ -18,9 +18,13 @@ test("failed outbox admission or prediction leaves no upload, intent, or mutatio
   const { join } = await import("node:path");
   const { fileRangeStore } = await import("../dist/test.mjs");
   const directory = await mkdtemp(join(tmpdir(), "snapback-upload-admission-"));
-  let mutations = 0;
+  let mutations = 0, failedAcquisitions = 0, failCapacity = true;
   const client = createClient({ url: owner.url, persona: "alice", offline: { store: fileRangeStore(directory) },
     fetch: async (input, init) => {
+      if (failCapacity && new URL(String(input)).pathname === "/api/resume") {
+        failedAcquisitions++;
+        throw new TypeError("capacity acquisition unavailable");
+      }
       if (new URL(String(input)).pathname === "/api/mutation") mutations++;
       return fetch(input, init);
     },
@@ -31,10 +35,12 @@ test("failed outbox admission or prediction leaves no upload, intent, or mutatio
     for (let index = 0; index < 24; index++) {
       await assertRefused(client.mutation(api.messages.sendPhoto, {
         conversationId: "conversation-1", photo: new File([png], "photo.png"),
-      }), (error: any) => error.code === "E_OFFLINE_ID_BLOCK");
+      }), (error: any) => error.code === "E_TRANSPORT");
       assert.deepEqual((await client.listUploads()).usage, initial);
       assert.deepEqual(await client.outbox.entries(), []);
     }
+    assert.equal(failedAcquisitions, 24, "each explicit pristine call attempts capacity before refusing without custody");
+    failCapacity = false;
     const drain = subscribe(client, api.integration.inbox, { c: null }, () => {}, { drain: true });
     await drain.until((event: any) => event.live === true, 3_000);
     drain.close();

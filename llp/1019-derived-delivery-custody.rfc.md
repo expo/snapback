@@ -396,8 +396,8 @@ they never authorize replay early and never erase queued writes.
   superseded by §3 above and marked so.
 
 The chat backend loses about 30 lines and one whole concept; the complete
-local runtime is measured against its 85,000-byte ceiling (the author's
-ruling of 2026-09-09, LLP 1012) after §7 lands (deleting template lines
+local runtime is measured against its 90,000-byte ceiling (the author's
+ruling of 2026-09-10, LLP 1012 §"Bytes — frozen allocation") after §7 lands (deleting template lines
 saves nothing there).
 
 ## Mechanism — decided by P0 (2026-09-10)

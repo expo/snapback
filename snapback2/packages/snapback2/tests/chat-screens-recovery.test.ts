@@ -162,16 +162,18 @@ test("a follower Composer's send is durable before it resolves, survives a reloa
   const database = new FakeIndexedDb(), locks = new FakeLocks();
   const store = () => indexedDbRangeStore({ indexedDB: database as any, locks: locks as any });
   const serverPosts: any[] = [];
+  let releaseCapacity!: () => void;
+  const capacity = new Promise<void>(resolve => { releaseCapacity = resolve; });
   const transport = async (input: string | URL | Request, init?: RequestInit) => {
     const body = requestBody(init);
+    if (new URL(String(input)).pathname === "/api/resume") await capacity;
     if (new URL(String(input)).pathname === "/api/mutation" && body?.op === "messages.send") serverPosts.push(body);
     return globalThis.fetch(input, init);
   };
-  // The writer holds no grant until its drain runs, so rows it cannot admit yet stay durable and visible.
+  // Hold the writer's automatic capacity acquisition across the follower reload.
   const writer = createClient({ url: screenOwner.url, persona: "alice", fetch: transport, offline: { store: store() } });
   let follower: ReturnType<typeof createClient> | undefined;
   let reloaded: ReturnType<typeof createClient> | undefined;
-  let drain: any;
   const reactRoot: Root = createRoot(document.getElementById("root")!);
   const waitForUi = async (predicate: () => boolean | Promise<boolean>, label: string, timeoutMs = 6_000) => {
     const started = performance.now();
@@ -229,9 +231,8 @@ test("a follower Composer's send is durable before it resolves, survives a reloa
     await waitForUi(() => document.querySelector("li[data-state=queued]") !== null, "the reloaded tab's queued bubble from durable state");
     assert.match(text(document.querySelector("li[data-state=queued]")), /one durable send/);
 
-    // The writer earns its grant; the row is admitted, replayed once, and becomes the server row under the same body.
-    drain = subscribe(writer, api.messages.inbox, { c: null }, () => undefined, { drain: true });
-    await drain.until((event: any) => event.caughtUp === true, 4_000);
+    // Oldest inbox demand acquires capacity without a writer hook or drain.
+    releaseCapacity();
     await waitForUi(() => serverPosts.filter((post) => post.args?.body === "one durable send").length === 1, "the writer's single replay");
     await waitForUi(() => document.querySelector("li[data-state=queued]") === null
       && [...document.querySelectorAll("li[data-message]")].some((node) => /one durable send/.test(text(node)) && node.getAttribute("data-state") === "row"),
@@ -245,7 +246,7 @@ test("a follower Composer's send is durable before it resolves, survives a reloa
     t.diagnostic(`inbox screen failure before cleanup: ${error instanceof Error ? error.stack ?? error.message : String(error)}`);
     throw error;
   } finally {
-    drain?.close(); await reloaded?.close(); await follower?.close().catch(() => undefined); await writer.close();
+    releaseCapacity(); await reloaded?.close(); await follower?.close().catch(() => undefined); await writer.close();
     MemoryBroadcastChannel.members.clear(); (globalThis as any).BroadcastChannel = OriginalBroadcastChannel;
     restore();
   }
