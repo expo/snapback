@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-// Copies --handoff into three isolated variants, audits every generated seed
-// and certificate, then runs bulk setup outside the five-second journey
+// Copies only --handoff/snapback into three fresh isolated variants, audits
+// every generated seed and certificate, then runs bulk setup outside the journey
 // harness. The standalone setup budget is 120 seconds; the 3+20 post timings
 // contain no setup work and no product/test ceiling is changed.
 // node follower-scale.mjs --handoff /read-only/app --generation <64hex> \
@@ -9,7 +9,7 @@
 //   --client /dist/client.mjs --work /new/empty/directory
 
 import { createHash } from "node:crypto";
-import { cp, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { arch, hostname, platform, release } from "node:os";
@@ -17,6 +17,7 @@ import { capturedCommand, withOwnedOwner } from "./follower-scale-runtime.mjs";
 
 const warmups = 3, measured = 20, setupBudgetMs = 120_000;
 const setupBatchSize = 25, digestPollBudgetMs = 10_000;
+const digestAdvanceMs = 60_000, digestAdvanceSteps = 4;
 
 function fail(message, value) {
   throw new Error(value === undefined ? message : `${message}: ${JSON.stringify(value)}`);
@@ -93,17 +94,14 @@ function withDigestPrincipals(seed) {
   return output;
 }
 async function prepareVariant(handoff, root, seedTransform) {
-  await cp(handoff, root, { recursive: true, force: false, errorOnExist: true });
-  await rm(join(root, ".snapback", "receipts"), { recursive: true, force: true });
-  await rm(join(root, ".snapback", "owner.json"), { force: true });
-  for (const entry of await readdir(join(root, ".snapback"))) {
-    if (entry.startsWith("test-run-") || (entry.startsWith("test-") && entry.endsWith(".sqlite"))) {
-      await rm(join(root, ".snapback", entry), { recursive: true, force: true });
-    }
-  }
+  await mkdir(root, { recursive: false });
+  await cp(join(handoff, "snapback"), join(root, "snapback"),
+    { recursive: true, force: false, errorOnExist: true });
+  await mkdir(join(root, ".snapback"), { recursive: false });
   const seedPath = join(root, "snapback", "seed.ts");
   await writeFile(seedPath, seedTransform(await readFile(seedPath, "utf8")));
-  return { root, seed: await fileIdentity(seedPath) };
+  return { root, seed: await fileIdentity(seedPath), sourceTree: await treeIdentity(join(root, "snapback")),
+    copyPolicy: "copied handoff/snapback only into a fresh root with an empty .snapback" };
 }
 
 function certificateFacts(certificates, generation) {
@@ -207,6 +205,20 @@ async function control(owner, path, body) {
   if (!response.ok) fail(`control ${path} returned ${response.status}`, value);
   return value;
 }
+async function pollDigest(reader, api, sourcePeriod, budgetMs) {
+  const started = performance.now();
+  let polls = 0;
+  while (performance.now() - started <= budgetMs) {
+    polls += 1;
+    const pushes = await reader.query(api.messages.pushRecent, { c: null });
+    const digest = "data" in pushes && Array.isArray(pushes.data)
+      ? pushes.data.find((row) => row.kind === "digest" && row.periodStart === sourcePeriod)
+      : undefined;
+    if (digest) return { digest, polls, elapsedMs: performance.now() - started };
+    await new Promise((done) => setTimeout(done, 10));
+  }
+  return { digest: undefined, polls, elapsedMs: performance.now() - started };
+}
 async function digestArm(options) {
   const samplePath = join(options.variant.root, ".snapback", "digest-500.json");
   const owned = await withOwnedOwner(options, async (owner) => {
@@ -234,19 +246,24 @@ async function digestArm(options) {
       const post = await writer.mutation(options.api.posts.createPost,
         { body: "activity at the lexicographically last follow edge", postId: "digest-500-last-edge-activity" });
       if (post.state !== "committed") fail("digest source post was not committed", post);
-      const clock = await control(owner, "/control/clock", { advanceMs: 120_000 });
-      const pollStarted = performance.now();
-      let digest;
-      while (performance.now() - pollStarted <= digestPollBudgetMs) {
-        const pushes = await reader.query(options.api.messages.pushRecent, { c: null });
-        digest = "data" in pushes && Array.isArray(pushes.data) ? pushes.data.find((row) => row.kind === "digest") : undefined;
-        if (digest) break;
-        await new Promise((done) => setTimeout(done, 10));
+      const sourcePeriod = post.data?.periodStart;
+      if (typeof sourcePeriod !== "number") fail("source post omitted its actual period", post);
+      const controlClockSteps = [];
+      let observed;
+      for (let step = 1; step <= digestAdvanceSteps; step += 1) {
+        const clock = await control(owner, "/control/clock", { advanceMs: digestAdvanceMs });
+        const poll = await pollDigest(reader, options.api, sourcePeriod, digestPollBudgetMs / digestAdvanceSteps);
+        controlClockSteps.push({ step, advanceMs: digestAdvanceMs, clock,
+          polls: poll.polls, pollElapsedMs: poll.elapsedMs, matchedSourcePeriod: poll.digest !== undefined });
+        if (poll.digest) { observed = poll.digest; break; }
       }
-      if (!digest || digest.newPostsInFollowing !== 1) fail("500-follow digest differed", digest);
+      if (!observed || observed.periodEnd !== sourcePeriod + 120_000 || observed.newPostsInFollowing !== 1) {
+        fail("500-follow digest for the source post period differed", { sourcePeriod, observed, controlClockSteps });
+      }
       const sample = { format: "clique-digest-500-v2", following: count.data.following,
         activityAuthor: "dev:zzzz-activity", orderingWitness: "lexicographically last of 500 followed principals",
-        setup, clock, digest, pollElapsedMs: performance.now() - pollStarted,
+        setup, sourcePost: { id: post.data.id, periodStart: sourcePeriod },
+        controlClockSteps, digest: observed,
         effectExecutionClaim: "none; reads the durable digest row without inspecting effect settlement" };
       await writeFile(samplePath, `${JSON.stringify(sample, null, 2)}\n`);
       return sample;

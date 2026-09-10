@@ -6,6 +6,9 @@ import { createInterface } from "node:readline";
 
 const startupBudgetMs = 30_000;
 const stopBudgetMs = 10_000;
+const commandBudgetMs = 60_000;
+const controlBudgetMs = 5_000;
+const terminateGraceMs = 5_000;
 
 function fail(message, value) {
   throw new Error(value === undefined ? message : `${message}: ${JSON.stringify(value)}`);
@@ -20,31 +23,97 @@ async function identity(path) {
 function waitExit(child, timeoutMs, label) {
   if (child.exitCode !== null || child.signalCode !== null) return Promise.resolve();
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`${label} did not exit within ${timeoutMs} ms`)), timeoutMs);
-    child.once("exit", () => { clearTimeout(timer); resolve(); });
-    child.once("error", (error) => { clearTimeout(timer); reject(error); });
+    const finish = (callback, value) => {
+      clearTimeout(timer);
+      child.off("exit", onExit);
+      child.off("error", onError);
+      callback(value);
+    };
+    const onExit = () => finish(resolve);
+    const onError = (error) => finish(reject, error);
+    const timer = setTimeout(() => finish(reject, new Error(`${label} did not exit within ${timeoutMs} ms`)), timeoutMs);
+    child.once("exit", onExit);
+    child.once("error", onError);
   });
+}
+
+async function waitStreams(child) {
+  const drained = Promise.all([child.stdout, child.stderr].map((stream) => {
+    if (stream.closed || stream.readableEnded) return Promise.resolve();
+    return new Promise((resolve) => {
+      stream.once("end", resolve);
+      stream.once("close", resolve);
+    });
+  })).then(() => true);
+  let timer;
+  const completed = await Promise.race([
+    drained,
+    new Promise((resolve) => { timer = setTimeout(() => resolve(false), terminateGraceMs); }),
+  ]);
+  clearTimeout(timer);
+  return completed;
+}
+
+async function terminateOwned(child, label) {
+  const signals = [];
+  if (child.exitCode === null && child.signalCode === null) {
+    signals.push("SIGTERM");
+    child.kill("SIGTERM");
+    try { await waitExit(child, terminateGraceMs, `${label} SIGTERM`); } catch { /* escalate exact PID */ }
+  }
+  if (child.exitCode === null && child.signalCode === null) {
+    signals.push("SIGKILL");
+    child.kill("SIGKILL");
+    await waitExit(child, terminateGraceMs, `${label} SIGKILL`);
+  }
+  return signals;
+}
+
+async function boundedFetch(url, options) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), controlBudgetMs);
+  try { return await fetch(url, { ...options, signal: controller.signal }); }
+  finally { clearTimeout(timer); }
 }
 
 export async function capturedCommand({ command, args, cwd, env, label, pids }) {
   const stdoutPath = join(cwd, ".snapback", `${label}.stdout`);
   const stderrPath = join(cwd, ".snapback", `${label}.stderr`);
   const child = spawn(command, args, { cwd, env, stdio: ["ignore", "pipe", "pipe"] });
-  pids.push({ kind: "preflight", label, pid: child.pid, command: [command, ...args] });
+  const pidReceipt = { kind: "preflight", label, pid: child.pid, command: [command, ...args],
+    budgetMs: commandBudgetMs, forcedSignals: [] };
+  pids.push(pidReceipt);
   process.stdout.write(`${JSON.stringify({ event: "launched", kind: "preflight", label, pid: child.pid })}\n`);
   const stdout = [], stderr = [];
   child.stdout.on("data", (chunk) => stdout.push(chunk));
   child.stderr.on("data", (chunk) => stderr.push(chunk));
-  const exitCode = await new Promise((resolve, reject) => {
-    child.once("error", reject);
-    child.once("exit", (code, signal) => signal ? reject(new Error(`${label} ended by ${signal}`)) : resolve(code));
+  const exited = new Promise((resolve) => {
+    child.once("error", (error) => resolve({ error }));
+    child.once("close", (code, signal) => resolve({ code, signal }));
   });
+  let timer;
+  const outcome = await Promise.race([
+    exited,
+    new Promise((resolve) => { timer = setTimeout(() => resolve({ timedOut: true }), commandBudgetMs); }),
+  ]);
+  clearTimeout(timer);
+  if (outcome.timedOut) {
+    pidReceipt.forcedSignals = await terminateOwned(child, label);
+    pidReceipt.streamsDrained = await waitStreams(child);
+  } else {
+    pidReceipt.streamsDrained = true;
+  }
+  pidReceipt.exitCode = child.exitCode;
+  pidReceipt.signalCode = child.signalCode;
+  pidReceipt.timedOut = outcome.timedOut === true;
   const stdoutBytes = Buffer.concat(stdout), stderrBytes = Buffer.concat(stderr);
   await Promise.all([writeFile(stdoutPath, stdoutBytes), writeFile(stderrPath, stderrBytes)]);
-  if (exitCode !== 0) fail(`${label} exited ${exitCode}`, {
+  if (outcome.error) fail(`${label} failed to launch`, String(outcome.error));
+  if (outcome.timedOut || child.exitCode !== 0) fail(`${label} ${outcome.timedOut ? "timed out" : `exited ${child.exitCode}`}`, {
     stdout: stdoutBytes.toString().slice(-4000), stderr: stderrBytes.toString().slice(-4000),
   });
-  return { exitCode, pid: child.pid, stdout: await identity(stdoutPath), stderr: await identity(stderrPath) };
+  return { exitCode: child.exitCode, pid: child.pid, budgetMs: commandBudgetMs,
+    stdout: await identity(stdoutPath), stderr: await identity(stderrPath) };
 }
 
 async function startOwner(options) {
@@ -54,8 +123,10 @@ async function startOwner(options) {
     cwd: options.variant.root, env: { ...process.env, SNAPBACK2_COMPILER: options.compiler },
     stdio: ["ignore", "pipe", "pipe"],
   });
-  options.pids.push({ kind: "owner", label: options.variant.label, pid: child.pid,
-    command: [options.binary, "dev", "--foreground", "--port", "0"] });
+  const pidReceipt = { kind: "owner", label: options.variant.label, pid: child.pid,
+    command: [options.binary, "dev", "--foreground", "--port", "0"],
+    startupBudgetMs, stopBudgetMs, forcedSignals: [] };
+  options.pids.push(pidReceipt);
   process.stdout.write(`${JSON.stringify({ event: "launched", kind: "owner", label: options.variant.label, pid: child.pid })}\n`);
   const stdout = [], stderr = [];
   child.stdout.on("data", (chunk) => stdout.push(chunk));
@@ -75,39 +146,44 @@ async function startOwner(options) {
       fail("owner identity differed", { expectedGeneration: options.generation, pid: child.pid,
         actual: { generation: raw.generation, pid: raw.pid, url: raw.url } });
     }
-    return { child, raw, stdout, stderr, stdoutPath, stderrPath };
+    pidReceipt.state = "running";
+    return { child, raw, stdout, stderr, stdoutPath, stderrPath, pidReceipt };
   } catch (error) {
-    if (child.exitCode === null && child.signalCode === null) {
-      child.kill("SIGTERM");
-      await waitExit(child, stopBudgetMs, "failed-start owned owner");
-    }
+    pidReceipt.forcedSignals = await terminateOwned(child, "failed-start owned owner");
+    await waitStreams(child);
+    pidReceipt.exitCode = child.exitCode;
+    pidReceipt.signalCode = child.signalCode;
+    pidReceipt.state = "failed-start-cleaned";
     await Promise.all([writeFile(stdoutPath, Buffer.concat(stdout)), writeFile(stderrPath, Buffer.concat(stderr))]);
     throw error;
   }
 }
 
 async function stopOwner(handle) {
-  let forcedSignal = null;
+  let forcedSignals = [];
+  let streamsDrained = false;
   try {
-    const response = await fetch(`${handle.raw.url}/control/stop`, { method: "POST",
+    const response = await boundedFetch(`${handle.raw.url}/control/stop`, { method: "POST",
       headers: { "content-type": "application/json", "x-snapback-control": handle.raw.secret },
       body: JSON.stringify({ cause: "follower-scale proof complete" }) });
     if (!response.ok) fail(`owner stop returned ${response.status}`, await response.text());
     await waitExit(handle.child, stopBudgetMs, "owned owner");
   } catch (error) {
-    if (handle.child.exitCode === null && handle.child.signalCode === null) {
-      forcedSignal = "SIGTERM";
-      handle.child.kill(forcedSignal);
-      await waitExit(handle.child, stopBudgetMs, "SIGTERM-owned owner");
-    }
-    if (forcedSignal === null) throw error;
+    forcedSignals = await terminateOwned(handle.child, "stop-owned owner");
+    if (forcedSignals.length === 0) throw error;
   } finally {
+    streamsDrained = await waitStreams(handle.child);
     await Promise.all([
       writeFile(handle.stdoutPath, Buffer.concat(handle.stdout)),
       writeFile(handle.stderrPath, Buffer.concat(handle.stderr)),
     ]);
+    handle.pidReceipt.forcedSignals = forcedSignals;
+    handle.pidReceipt.exitCode = handle.child.exitCode;
+    handle.pidReceipt.signalCode = handle.child.signalCode;
+    handle.pidReceipt.state = "exited";
   }
-  return { exitCode: handle.child.exitCode, signalCode: handle.child.signalCode, forcedSignal,
+  return { exitCode: handle.child.exitCode, signalCode: handle.child.signalCode, forcedSignals,
+    controlBudgetMs, streamsDrained,
     stdout: await identity(handle.stdoutPath), stderr: await identity(handle.stderrPath) };
 }
 
@@ -120,5 +196,6 @@ export async function withOwnedOwner(options, body) {
   if (bodyError) throw bodyError;
   const { secret: _secret, ...owner } = handle.raw;
   return { value, owner, process: processReceipt,
-    harnessBudgets: { startupMs: startupBudgetMs, stopMs: stopBudgetMs } };
+    harnessBudgets: { startupMs: startupBudgetMs, stopMs: stopBudgetMs,
+      commandMs: commandBudgetMs, controlMs: controlBudgetMs } };
 }
