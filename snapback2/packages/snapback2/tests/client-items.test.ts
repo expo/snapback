@@ -55,6 +55,50 @@ const inputs = (entries: OutboxEntry[], extra: Partial<ItemInputs> = {}): ItemIn
 const row: Message = Object.freeze({ id: "m", body: "current", at: 7 });
 const page = [{ message: row }];
 
+test("identity selection keeps original array and composite rows with explicit table and order", () => {
+  const second = Object.freeze({ id: "other", body: "second", at: 8 });
+  const source = Object.freeze([row, second]);
+  const original = defineItems(ref<Query, readonly Message[]>("messages.rows"), { table: "messages", order: "reverse" });
+  const composite = defineItems(ref<Query, { messages: readonly Message[]; count: number }>("messages.view"), {
+    table: "messages", rows: view => view.messages,
+  });
+  const frame = inputs([], { values: new Map(source.map(value => [value, itemAddress("messages", value.id)])) });
+  const direct = attachItems(original, args, source, frame);
+  assert.deepEqual(direct.map(item => item.key), ["other", "m"]);
+  assert.equal(direct[1]?.data, row);
+  assert.deepEqual(source, [row, second], "reverse does not mutate the query's page");
+  const nested = attachItems(composite, args, { messages: source, count: 2 }, frame);
+  assert.equal(nested[0]?.data, row);
+  assert.equal(nested[1]?.data, second);
+  assert.equal(Object.isFrozen(original), true);
+  assert.equal(Object.isFrozen(composite), true);
+  const filtered = defineItems(ref<Query, readonly Message[]>("messages.rows"), {
+    table: "messages", select: value => value.id === "m" ? value : null,
+  });
+  assert.deepEqual(attachItems(filtered, args, source, frame).map(item => item.data), [row],
+    "an authored selector still owns selection and null filtering");
+});
+
+test("identity selection cannot upgrade a computed row's observation or prediction", () => {
+  const original = defineItems(ref<Query, readonly Message[]>("messages.rows"), {
+    table: "messages",
+    update: { target: mutationTarget(ref<{ messageId: string; body: string }, null, "update">("messages.edit"), "messages") },
+  });
+  const edit = entry({ op: "messages.edit", args: { messageId: "m", body: "submitted" }, state: "committed", response: { seq: 41 } });
+  const frame = inputs([edit], { values: new Map([[row, itemAddress("messages", "m")]]),
+    observations: new Map([[itemAddress("messages", "m"), { through: 42 }]]),
+    predicted: new Map([[itemAddress("messages", "m"), [{ intent: edit.intent, kind: "update" }]]]),
+  });
+  const copy = { ...row };
+  const result = attachItems(original, args, [copy], frame);
+  assert.equal(result[0]?.data, copy);
+  assert.equal(result[0]?.predicted, false);
+  assert.equal(result[0]?.pending.length, 1, "same id and fields cannot borrow original-row proof");
+  const unpredicted = { ...frame, predicted: new Map() };
+  assert.equal(attachItems(original, args, [row], unpredicted)[0]?.pending.length, 0,
+    "the actual original row retains its matching observation proof");
+});
+
 test("one key survives an unpredicted send, commit without delivery, fan-out arrival, and actual row delivery", () => {
   const queued = entry();
   const first = attachItems(spec, args, undefined, inputs([queued]));
