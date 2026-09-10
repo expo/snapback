@@ -205,15 +205,48 @@ pub(crate) fn claim_outbox(runtime: &Runtime, root: &Path, now: i64) -> Result<J
         .keys()
         .cloned()
         .collect::<Vec<_>>();
+    // Claims also atomically fail declarations removed by a successor. Capture
+    // their identities before that transaction; report only after it commits.
+    let removed = runtime
+        .store()
+        .outbox_undeclared(&declared_names)
+        .map_err(|e| Refusal::from_runtime(&e))?;
     let claimed = runtime
         .store()
         .outbox_claim_next(now, &declared_names)
         .map_err(|error| Refusal::from_runtime(&error))?;
+    for row in removed {
+        crate::writer::transition(
+            root,
+            &row,
+            Some("queued"),
+            "failed",
+            json!({"error":"E_EFFECT_UNKNOWN"}),
+        );
+    }
+    if let Some(row) = &claimed {
+        crate::writer::transition(
+            root,
+            row,
+            Some("queued"),
+            "running",
+            json!({"attempt":row.attempts}),
+        );
+    }
     serialize_claimed_outbox(
         runtime,
         claimed,
         |row| serde_json::to_value(row).map_err(|error| error.to_string()),
         |outbox_id, message| {
+            if let Ok(Some(row)) = runtime.store().outbox_get(outbox_id) {
+                crate::writer::transition(
+                    root,
+                    &row,
+                    Some("running"),
+                    "queued",
+                    json!({"error":message}),
+                );
+            }
             crate::watch::log(
                 root,
                 json!({

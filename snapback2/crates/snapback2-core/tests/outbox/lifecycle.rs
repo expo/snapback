@@ -77,6 +77,7 @@ fn store_open_adds_then_binding_columns_to_an_existing_outbox() {
             .execute_batch(
                 "ALTER TABLE _outbox DROP COLUMN then_op;
                  ALTER TABLE _outbox DROP COLUMN generation;
+                 ALTER TABLE _outbox DROP COLUMN then_seq;
                  INSERT INTO _outbox VALUES
                     ('old', 1, 'audit', '\"Null\"', 'queued', 0, 0, NULL, NULL, 0, 0);",
             )
@@ -86,6 +87,7 @@ fn store_open_adds_then_binding_columns_to_an_existing_outbox() {
     let old = store.outbox_get("old").unwrap().unwrap();
     assert_eq!(old.then_op, None);
     assert_eq!(old.generation, None);
+    assert_eq!(old.then_seq, None);
     drop(store);
     cleanup(&path);
 }
@@ -118,6 +120,15 @@ fn execute_then_commits_bookkeeping_and_sent_settlement_once() {
     }
 
     let mut restarted = Runtime::open(Store::open(&path).unwrap(), generation).unwrap();
+    assert_eq!(
+        restarted
+            .store()
+            .outbox_get("outbox-1")
+            .unwrap()
+            .unwrap()
+            .then_seq,
+        Some(2)
+    );
     assert!(
         restarted
             .store()

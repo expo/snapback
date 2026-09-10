@@ -1057,10 +1057,30 @@ fn terminate_journey_runner(child: &mut Child) {
 }
 
 fn journey_receipts(output: &JourneyRunnerOutput) -> Vec<CheckReceipt> {
+    // @ref LLP 1021#2-journeys-see-and-settle-the-outbox — the supervisor retains engine absence even if the journey throws on an unsettled result.
+    let no_engine = output
+        .lines
+        .iter()
+        .filter_map(|line| serde_json::from_str::<Json>(line).ok())
+        .filter(|event| event["runner"] == "effects:no-engine")
+        .filter_map(|event| event["name"].as_str().map(str::to_owned))
+        .collect::<BTreeSet<_>>();
     output
         .lines
         .iter()
         .filter_map(|line| serde_json::from_str::<CheckReceipt>(line).ok())
+        .map(|check| {
+            if check.kind == "journey" && no_engine.contains(&check.name) {
+                CheckReceipt::blocked(
+                    &check.name,
+                    "journey",
+                    check.ms,
+                    json!({"reason":"effects:no-engine","journey":check.detail}),
+                )
+            } else {
+                check
+            }
+        })
         .collect()
 }
 

@@ -37,7 +37,31 @@ type JourneyDevice = SnapbackClient & {
   failNextResponse(path: string, status: number): void;
   settled(): ReturnType<SnapbackClient["outbox"]["settled"]>;
 };
+export type EffectRow = {
+  id: string;
+  seq: number;
+  effect: string;
+  state: "queued" | "running" | "then_pending" | "sent" | "failed" | "sent_unknown";
+  attempts: number;
+  nextAt: number;
+  lastError: string | null;
+  result: unknown;
+  resultCapped?: { bytes: number; limit: number };
+  then?: { op: string; state: "committed" | "rejected"; seq?: number; code?: string };
+};
+export type EffectsPage = { rows: EffectRow[]; after: string | null };
+export type EffectsSettlement = {
+  settled: boolean;
+  rows: EffectRow[];
+  remaining: { id: string; reason: "backoff" | "then_pending" | "running" | "engine:none" | "budget"; nextAt?: number }[];
+};
+export type JourneyEffects = {
+  rows(options?: { state?: EffectRow["state"]; after?: string; limit?: number }): Promise<EffectsPage>;
+  settle(options?: { upTo?: number; budgetMs?: number }): Promise<EffectsSettlement>;
+};
+
 type JourneyContext = {
+  effects: JourneyEffects;
   as(name: string, options?: {
     store?: "file";
   }): JourneyDevice;
@@ -83,9 +107,9 @@ async function loadJourneyFile(path: string): Promise<RegisteredJourney[]> {
   return [...registered];
 }
 
-async function control(url: string, secret: string, path: string, body: unknown): Promise<Record<string, unknown>> {
+async function control(url: string, secret: string, path: string, body?: unknown): Promise<Record<string, unknown>> {
   const response = await fetch(`${url}${path}`, {
-    method: "POST",
+    method: body === undefined ? "GET" : "POST",
     headers: { "content-type": "application/json", "x-snapback-control": secret },
     body: JSON.stringify(body),
   });
@@ -296,6 +320,20 @@ async function runCheck(
         const device = { client, records, durable: options.store === "file", faults };
         devices.add(device);
         return wrapDevice(device, clients);
+      },
+      effects: {
+        rows: async (options = {}) => {
+          const query = new URLSearchParams();
+          for (const [key, value] of Object.entries(options)) if (value !== undefined) query.set(key, String(value));
+          return await control(url, secret, `/control/outbox?${query}`) as EffectsPage;
+        },
+        settle: async (options = {}) => {
+          const result = await control(url, secret, "/control/effects/settle", options) as EffectsSettlement;
+          if (result.remaining.some(row => row.reason === "engine:none")) {
+            process.stdout.write(`${JSON.stringify({ runner: "effects:no-engine", name: check.name })}\n`);
+          }
+          return result;
+        },
       },
       tick: (ms) => control(url, secret, "/control/clock", { advanceMs: ms }),
       url,

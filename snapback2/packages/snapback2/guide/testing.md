@@ -10,33 +10,36 @@ maintained targets need no empty seed arrays.
     ],
 ```
 
-Here `profile-alice` is an application row id while `dev:alice` is the persona
-Principal used by creator, membership, and author columns. Identity email and
-password hashes are deliberately absent from application seed rows. These
-`avatarUrl` strings are external URLs, not uploads; asset values are deliberately
-absent because seeds cannot mint asset ledger rows (LLP 1006 §2a). The chat
-fixture also keeps `charlie` as an account/persona without a profile so the
-idempotent post-auth profile-creation path has a real absent-row proof.
+Seed ids such as `profile-alice` are application ids; `dev:alice` is a
+Principal. Seeds omit identity credentials and assets, which require uploads.
+The chat fixture keeps `charlie` without a profile to test profile creation.
 
 `fixture("fixtures/photo.jpg")` from `snapback2/test` reads bytes relative to
 the authored test file, even after compilation; commit media under `tests/fixtures/`.
 
-Write journeys with `journey(name, async ({ as, tick, url }) => …)`. The test
+Write journeys with `journey(name, async ({ as, tick, effects, url }) => …)`. The test
 verb starts a fresh isolated owner, runs all six derived check families, runs
 every journey through the headless wire client, removes the test store, and
 writes `.snapback/receipts/<timestamp>.json`. Zero checks cannot pass. Use
 `snapback2 test --blocked "reason"` for an honest blocked receipt.
 
 Select: `snapback2 test --journey "todos round trip"`.
-Literals: `--journey=--help` or `--journey=-h`, not just quotes.
-Duplicates run; scope is `scope.journey`. Focused processes compare
-names/body source/order/count; registration drift fails before a wrong body.
-Keep captured state stable: source identity cannot inspect it. Unsuccessful
-runner exits fail. Skips other journeys and top-level derived checks;
-embedded offline checks remain. Unknown names fail with available names;
-compile/load failures remain. Five-second deadlines and isolation remain.
-Cannot combine with `--derived-only` or `--blocked` or infer affected coverage.
+Use `--journey=--help` or `--journey=-h` for literal names. Duplicates run; selection records `scope.journey`, and skips unrelated journeys and
+upper-level derived checks; embedded offline checks remain. Unknown names,
+registration drift and unsuccessful runner exits fail. Five-second deadlines
+and owner isolation remain. Cannot combine with `--derived-only` or `--blocked`.
 Plain `snapback2 test` runs the full suite.
+
+Journey `effects.rows({ state, after, limit })` pages the server outbox by
+`(seq, id)`, up to 200 rows; pass the returned `after` until null.
+`effects.settle({ upTo: sent.seq, budgetMs: 1000 })` runs a due background turn
+and waits for those emissions, including `then`. Check `settled`, `rows`, and
+`remaining`: backoff (with `nextAt`), then_pending, running, engine:none, budget.
+`tick(ms)` advances retry eligibility. Results over 16 KiB carry `resultCapped`;
+`guide effects` defines receipts and limits. No engine returns at once and
+records `blocked: effects:no-engine`, even if the journey throws on unsettled
+work; it cannot pass on a queued row. The derived effects check also remains
+`blocked: no engine in this build`.
 
 Projects with scoped memberships also run the canonical `live-revocation`,
 `successor-policy-fence`, and `grant-incarnation-aba` authorization proofs.
@@ -48,11 +51,10 @@ Guards must be independent of the denied table: only literals, arguments, viewer
 self-readable membership existence with stable keys are proved. Unproved terminal control
 flow blocks, including merges anywhere in expressions; `detail.candidates` names
 each rejected query and its reason.
-Receipts count retained carrier rows separately from protected and nulled images.
 Journeys share the owner; isolate disposable writes from later inboxes and await
-client closes. The chat count probe compares usable inbox arrays and uses its own conversation and personas.
+client closes.
 
-Derived checks use a small representative seed, not a load-test dataset.
+Derived checks use a small seed.
 Rules compare every stored row for every seed persona, within a 16,384-probe
 budget; oversized tables block with the counts and a smaller-seed rewrite.
 Invalidation witnesses each query's distinct certificate-intersection groups

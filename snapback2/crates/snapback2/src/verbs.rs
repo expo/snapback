@@ -102,7 +102,7 @@ Execute through the owner. --plan inspects; --wait streams chunk receipts;
             "usage: snapback2 data <table> --as <persona|system> [--index name] [--prefix json] [--after token] [--limit 50] [--project dir] [--json]\n\nRead a bounded, rule-checked page. The maximum limit is 500."
         }
         "logs" => {
-            "usage: snapback2 logs [--since seq] [--limit 100] [--project dir] [--json]\n\nRead structured owner logs and commits."
+            "usage: snapback2 logs [--effects] [--since seq] [--limit 100] [--project dir] [--json]\n\nRead structured owner logs and commits."
         }
         "persona" => {
             "usage: snapback2 persona list [--project dir] [--json]\n\nList development personas. First use creates a persona; read snapback2 guide personas."
@@ -227,12 +227,16 @@ pub fn data(args: &[String]) -> ExitCode {
 }
 
 pub fn logs(args: &[String]) -> ExitCode {
-    let options = match parse_options(args, &["--project", "--since", "--limit"], &["--json"]) {
+    let options = match parse_options(
+        args,
+        &["--project", "--since", "--limit"],
+        &["--json", "--effects"],
+    ) {
         Ok(options) => options,
         Err(code) => return code,
     };
     if options.positionals().len() != 1 {
-        return usage("usage: snapback2 logs [--since seq] [--limit 100] [--json]");
+        return usage("usage: snapback2 logs [--effects] [--since seq] [--limit 100] [--json]");
     }
     let since = match numeric_option(&options, "--since") {
         Ok(value) => value.unwrap_or(0),
@@ -245,7 +249,10 @@ pub fn logs(args: &[String]) -> ExitCode {
     control(
         &options,
         "GET",
-        &format!("/control/logs?since={since}&limit={limit}"),
+        &format!(
+            "/control/logs?since={since}&limit={limit}&effects={}",
+            options.has("--effects")
+        ),
         json!({}),
     )
 }

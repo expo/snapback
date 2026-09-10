@@ -1,4 +1,3 @@
-use super::writer_effects::settle_outbox;
 use crate::effects::serialize_claimed_outbox;
 use serde_json::json;
 use snapback2_core::{
@@ -53,19 +52,27 @@ fn fractional_json_result_settles_running_before_then_conversion() {
         .unwrap()
         .unwrap();
 
-    settle_outbox(
-        &runtime,
-        "outbox-1",
-        "then_pending",
-        Some(&json!({ "ratio": 1.5 })),
-        None,
-        None,
-    )
-    .unwrap();
+    let mut state = super::writer_live_tests::state("fractional-effect");
+    state.runtime = Some(runtime);
+    state
+        .settle_outbox(
+            "outbox-1",
+            "then_pending",
+            Some(&json!({ "ratio": 1.5 })),
+            None,
+            None,
+        )
+        .unwrap();
 
-    let row = runtime.store().outbox_get("outbox-1").unwrap().unwrap();
+    let row = state
+        .runtime()
+        .store()
+        .outbox_get("outbox-1")
+        .unwrap()
+        .unwrap();
     assert_eq!(row.state, "then_pending");
     assert_eq!(row.result, Some(json!({ "ratio": 1.5 })));
+    std::fs::remove_dir_all(state.root).unwrap();
 }
 
 #[test]

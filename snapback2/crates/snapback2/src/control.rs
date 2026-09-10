@@ -91,6 +91,44 @@ pub fn route(
         }
     }
     let result = match (method, path) {
+        // @ref LLP 1021#2-journeys-see-and-settle-the-outbox — the wait belongs to this HTTP worker, never the writer.
+        ("GET", "/control/outbox") => {
+            let limit = query.get("limit").map(str::parse::<usize>).transpose();
+            let state = query.get("state");
+            match limit {
+                Ok(limit)
+                    if (1..=200).contains(&limit.unwrap_or(200))
+                        && state.is_none_or(|state| {
+                            matches!(
+                                state,
+                                "queued"
+                                    | "running"
+                                    | "then_pending"
+                                    | "sent"
+                                    | "failed"
+                                    | "sent_unknown"
+                            )
+                        }) =>
+                {
+                    call(Action::OutboxPage {
+                        state: state.map(str::to_owned),
+                        after: query.get("after").map(str::to_owned),
+                        up_to: u64::MAX,
+                        limit: limit.unwrap_or(200),
+                    })
+                }
+                _ => Err((
+                    400,
+                    Refusal::input(
+                        "invalid outbox state or limit",
+                        "use a lifecycle state and limit 1..200",
+                    ),
+                )),
+            }
+        }
+        ("POST", "/control/effects/settle") => {
+            settle_effects(&context.handle, &body).map_err(|e| (400, e))
+        }
         ("GET", "/control/timers") => call(Action::Timers),
         ("GET", "/control/jobs") => call(Action::Jobs),
         // `control_run::route` already refused any disagreeing flag; `mode: "plan"` and
@@ -179,15 +217,27 @@ pub fn route(
         ("GET", "/control/logs") => {
             let since = query.u64("since").unwrap_or(0);
             let limit = query.usize("limit").unwrap_or(100).min(500);
+            let effects = query.get("effects") == Some("true");
             match (
-                call(Action::Commits { since, limit }),
-                log_lines(&context.root.join(".snapback/log.jsonl"), limit),
+                if effects {
+                    Ok(json!([]))
+                } else {
+                    call(Action::Commits { since, limit })
+                },
+                filtered_log_lines(&context.root.join(".snapback/log.jsonl"), limit, |line| {
+                    !effects
+                        || (line.get("outbox").is_some()
+                            && line["outbox"]["seq"]
+                                .as_u64()
+                                .is_none_or(|seq| seq >= since))
+                }),
             ) {
                 (Ok(commits), Ok(lines)) => Ok(json!({ "lines": lines, "commits": commits })),
                 (Err(error), _) => Err(error),
                 (_, Err(error)) => Err((500, error)),
             }
         }
+
         ("GET", "/control/personas") => call(Action::Personas),
         ("POST", "/control/persona") => call(Action::Persona {
             name: body
@@ -276,6 +326,91 @@ pub fn route(
     Some(result)
 }
 
+pub(crate) fn settle_effects(handle: &OwnerHandle, body: &Json) -> Result<Json, Refusal> {
+    let integer = |key: &str| -> Result<Option<u64>, Refusal> {
+        body.get(key)
+            .map(|value| {
+                value
+                    .as_u64()
+                    .filter(|n| *n <= 9_007_199_254_740_991)
+                    .ok_or_else(|| {
+                        Refusal::input(
+                            format!("{key} must be a non-negative safe integer"),
+                            "pass { upTo: seq, budgetMs: 1000 }",
+                        )
+                    })
+            })
+            .transpose()
+    };
+    let up_to = integer("upTo")?;
+    let budget = integer("budgetMs")?.unwrap_or(1000);
+    if budget > 4000 {
+        return Err(Refusal::input(
+            "settle budgetMs exceeds 4000",
+            "pass budgetMs between 0 and 4000",
+        ));
+    }
+    let deadline = std::time::Instant::now() + std::time::Duration::from_millis(budget);
+    let turn = handle.call(Action::EffectsTurn)?;
+    let up_to = up_to.unwrap_or_else(|| turn["seq"].as_u64().unwrap_or(0));
+    loop {
+        let mut rows = Vec::new();
+        let mut remaining = Vec::new();
+        let mut after = None;
+        loop {
+            let page = handle.call(Action::OutboxPage {
+                state: None,
+                after,
+                up_to,
+                limit: 200,
+            })?;
+            let now = page["now"].as_i64().unwrap_or(0);
+            let engine = page["engine"].as_str().unwrap_or("none");
+            for row in page["rows"].as_array().expect("outbox page rows") {
+                if let Some(reason) = remaining_reason(row, engine, now) {
+                    remaining.push(reason);
+                }
+                rows.push(row.clone());
+            }
+            after = page["after"].as_str().map(str::to_owned);
+            if after.is_none() {
+                break;
+            }
+        }
+        let settled = remaining.is_empty();
+        let expired = std::time::Instant::now() >= deadline;
+        // No runnable work is an explicit result, never proof of settlement.
+        let unavailable = remaining.iter().any(|r| r["reason"] == "engine:none");
+        if settled || expired || unavailable {
+            return Ok(json!({"settled":settled,"rows":rows,"remaining":remaining}));
+        }
+        // The single real runner owns execution. Waking it pumps another bounded
+        // drain; polling snapshots yields the writer to clock, then, and clients.
+        handle.call(Action::EffectsWake)?;
+        std::thread::sleep(
+            std::time::Duration::from_millis(10)
+                .min(deadline.saturating_duration_since(std::time::Instant::now())),
+        );
+    }
+}
+
+fn remaining_reason(row: &Json, engine: &str, now: i64) -> Option<Json> {
+    let reason = match row["state"].as_str() {
+        Some("failed" | "sent_unknown") => return None,
+        Some("sent") => return None,
+        Some("then_pending") => "then_pending",
+        Some("running") => "running",
+        Some("queued") if engine == "none" => "engine:none",
+        Some("queued") if row["nextAt"].as_i64().is_some_and(|at| at > now) => "backoff",
+        _ => "budget",
+    };
+    let mut value = json!({"id":row["id"],"reason":reason});
+    if reason == "backoff" {
+        value["nextAt"] = row["nextAt"].clone();
+    }
+    Some(value)
+}
+
 // @ref LLP 1016#d6--the-operator-seat-ad-hoc-programs-and-rehearsal — token admission is a later lane; the local dev transport is the only seat today.
 pub(crate) fn operator_transport(local: bool, mode: &str) -> Result<(), Refusal> {
     if local && mode == "dev" {
@@ -326,7 +461,32 @@ pub(crate) fn valid_name(name: &str) -> bool {
             .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
 }
 
+#[cfg(test)]
 fn log_lines(path: &Path, limit: usize) -> Result<Vec<Json>, Refusal> {
+    filtered_log_lines(path, limit, |_| true)
+}
+
+pub(crate) fn outbox_history(path: &Path, seq: u64) -> Result<Vec<Json>, Refusal> {
+    // A truncated tail cannot certify a row's complete history.
+    if fs::metadata(path)
+        .map(|m| m.len() > MAX_LOG_TAIL_BYTES)
+        .unwrap_or(false)
+    {
+        return Err(log_error(
+            path,
+            "transition history exceeds the bounded log read; inspect the log file".to_owned(),
+        ));
+    }
+    filtered_log_lines(path, usize::MAX, |line| {
+        line["outbox"]["seq"].as_u64() == Some(seq)
+    })
+}
+
+fn filtered_log_lines(
+    path: &Path,
+    limit: usize,
+    filter: impl Fn(&Json) -> bool,
+) -> Result<Vec<Json>, Refusal> {
     if limit == 0 {
         return Ok(Vec::new());
     }
@@ -356,7 +516,17 @@ fn log_lines(path: &Path, limit: usize) -> Result<Vec<Json>, Refusal> {
     }
     let text = std::str::from_utf8(&bytes)
         .map_err(|error| log_error(path, format!("log tail is not UTF-8: {error}")))?;
-    let candidates = text.lines().rev().take(limit).collect::<Vec<_>>();
+    let mut candidates = Vec::new();
+    for line in text.lines().rev() {
+        let line: Json = serde_json::from_str(line)
+            .map_err(|error| log_error(path, format!("malformed JSON log record: {error}")))?;
+        if filter(&line) {
+            candidates.push(line);
+        }
+        if candidates.len() == limit {
+            break;
+        }
+    }
     if start > 0 && candidates.len() < limit {
         return Err(Refusal::owner(
             "E_OWNER_LOG_TRUNCATED",
@@ -369,14 +539,8 @@ fn log_lines(path: &Path, limit: usize) -> Result<Vec<Json>, Refusal> {
             ),
         ));
     }
-    let mut lines = Vec::with_capacity(candidates.len());
-    for line in candidates.into_iter().rev() {
-        lines.push(
-            serde_json::from_str(line)
-                .map_err(|error| log_error(path, format!("malformed JSON log record: {error}")))?,
-        );
-    }
-    Ok(lines)
+    candidates.reverse();
+    Ok(candidates)
 }
 
 fn log_error(path: &Path, message: String) -> Refusal {
@@ -493,6 +657,48 @@ mod tests {
         let refusal = log_lines(&path, 500).unwrap_err();
         assert_eq!(refusal.code, "E_OWNER_LOG_TRUNCATED");
 
+        fs::remove_file(path).unwrap();
+    }
+    #[test]
+    fn remaining_reasons_preserve_backoff_and_pending_then() {
+        for (state, engine, next_at, expected) in [
+            ("queued", "none", 30, Some("engine:none")),
+            ("queued", "hermes", 30, Some("backoff")),
+            ("queued", "hermes", 10, Some("budget")),
+            ("running", "hermes", 10, Some("running")),
+            ("then_pending", "none", 10, Some("then_pending")),
+            ("sent", "none", 10, None),
+            ("failed", "none", 10, None),
+            ("sent_unknown", "none", 10, None),
+        ] {
+            let row = json!({"id":"one","state":state,"nextAt":next_at});
+            let remaining = remaining_reason(&row, engine, 20);
+            assert_eq!(
+                remaining.as_ref().and_then(|r| r["reason"].as_str()),
+                expected
+            );
+            if expected == Some("backoff") {
+                assert_eq!(remaining.unwrap()["nextAt"], 30);
+            }
+        }
+    }
+
+    #[test]
+    fn effect_filter_applies_before_the_limit_and_preserves_order() {
+        let path = std::env::temp_dir().join(format!(
+            "snapback2-effect-filter-{}.jsonl",
+            std::process::id()
+        ));
+        fs::write(&path, "{\"outbox\":{\"seq\":1,\"to\":\"queued\"}}\n{\"outbox\":{\"seq\":1,\"to\":\"running\"}}\n{\"other\":true}\n").unwrap();
+        let lines = filtered_log_lines(&path, 2, |line| line.get("outbox").is_some()).unwrap();
+        assert_eq!(
+            lines
+                .iter()
+                .map(|line| line["outbox"]["to"].as_str().unwrap())
+                .collect::<Vec<_>>(),
+            vec!["queued", "running"]
+        );
+        assert_eq!(outbox_history(&path, 1).unwrap(), lines);
         fs::remove_file(path).unwrap();
     }
 }

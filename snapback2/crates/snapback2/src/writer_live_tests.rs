@@ -159,6 +159,7 @@ pub(super) fn state(label: &str) -> State {
         },
         exited: false,
         effects_wake: None,
+        outbox_observation: Default::default(),
         asset_carriers: BTreeMap::new(),
         blobs,
         staging,

@@ -560,3 +560,38 @@ fn measure_row_timer_lateness_p99_while_the_owner_serves_sends() {
     stop_owner(port, &secret, &mut owner, "timer lateness measurement");
     fs::remove_dir_all(root).unwrap();
 }
+
+#[cfg(not(feature = "hermes"))]
+#[test]
+fn effects_settle_includes_emissions_from_the_tick_advanced_background_turn() {
+    let (root, _compiler, mut owner, port, secret) = boot_schedules();
+    control(
+        port,
+        &secret,
+        "POST",
+        "/control/clock",
+        json!({"advanceMs":DAY}),
+    );
+    let response = control(
+        port,
+        &secret,
+        "POST",
+        "/control/effects/settle",
+        json!({"budgetMs":100}),
+    );
+    let rows = response["rows"].as_array().unwrap();
+    assert!(
+        rows.iter().any(|row| row["effect"] == "push.digest"),
+        "{response}"
+    );
+    assert_eq!(response["settled"], false);
+    assert!(
+        response["remaining"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|row| row["reason"] == "engine:none")
+    );
+    stop_owner(port, &secret, &mut owner, "settle background complete");
+    fs::remove_dir_all(root).unwrap();
+}

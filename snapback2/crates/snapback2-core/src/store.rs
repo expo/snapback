@@ -92,6 +92,7 @@ pub struct OutboxRow {
     pub last_error: Option<String>,
     pub result: Option<serde_json::Value>,
     pub then_op: Option<String>,
+    pub then_seq: Option<u64>,
     /// Project generation active when this row was claimed. The retained
     /// declaration metadata for that generation binds restart replay.
     pub generation: Option<String>,
@@ -306,6 +307,7 @@ impl Store {
         ensure_column(connection, "_commits", "schedule", "TEXT")?;
         ensure_column(connection, "_outbox", "then_op", "TEXT")?;
         ensure_column(connection, "_outbox", "generation", "TEXT")?;
+        ensure_column(connection, "_outbox", "then_seq", "INTEGER")?;
         ensure_column(connection, "_assets", "released_at", "INTEGER")?;
         ensure_column(
             connection,
@@ -802,7 +804,8 @@ impl Store {
         updated_at: i64,
     ) -> Result<(), RuntimeError> {
         let changed = transaction.execute(
-            "UPDATE _outbox SET state = 'sent', last_error = ?1, updated_at = ?2
+            "UPDATE _outbox SET state = 'sent', last_error = ?1, updated_at = ?2,
+                then_seq = CASE WHEN ?1 IS NULL THEN (SELECT MAX(seq) FROM _commits) ELSE NULL END
              WHERE id = ?3 AND state = 'then_pending'",
             params![last_error, updated_at, id],
         )?;
@@ -831,7 +834,7 @@ impl Store {
     pub fn outbox_for_seq(&self, seq: u64) -> Result<Vec<OutboxRow>, RuntimeError> {
         let mut statement = self.conn.prepare(
             "SELECT id, seq, effect, payload, state, attempts, next_at,
-                    last_error, result, then_op, generation, created_at, updated_at
+                    last_error, result, then_op, generation, created_at, updated_at, then_seq
              FROM _outbox WHERE seq = ?1 ORDER BY created_at ASC, id ASC",
         )?;
         let rows = statement.query_map([seq as i64], raw_outbox_row)?;
@@ -841,6 +844,47 @@ impl Store {
     // @ref LLP 1002#8-why-trace-guide — trace reads the durable rows emitted by this commit, never program syntax.
     pub fn outbox_rows_for_seq(&self, seq: u64) -> Result<Vec<OutboxRow>, RuntimeError> {
         self.outbox_for_seq(seq)
+    }
+
+    // @ref LLP 1021#2-journeys-see-and-settle-the-outbox — a cursor must include id because one commit can emit many rows.
+    pub fn outbox_page(
+        &self,
+        state: Option<&str>,
+        after: Option<(u64, &str)>,
+        up_to: u64,
+        limit: usize,
+    ) -> Result<Vec<OutboxRow>, RuntimeError> {
+        let (seq, id) = after.unwrap_or((0, ""));
+        let mut statement = self.conn.prepare(
+            "SELECT id, seq, effect, payload, state, attempts, next_at,
+                    last_error, result, then_op, generation, created_at, updated_at, then_seq
+             FROM _outbox WHERE (?1 IS NULL OR state = ?1)
+               AND (seq > ?2 OR (seq = ?2 AND id > ?3)) AND seq <= ?4
+             ORDER BY seq, id LIMIT ?5",
+        )?;
+        let rows = statement.query_map(
+            params![
+                state,
+                seq,
+                id,
+                up_to.min(i64::MAX as u64),
+                limit.min(201) as i64
+            ],
+            raw_outbox_row,
+        )?;
+        rows.map(|row| decode_outbox_row(row?)).collect()
+    }
+
+    pub fn outbox_undeclared(&self, names: &[String]) -> Result<Vec<OutboxRow>, RuntimeError> {
+        let mut statement = self.conn.prepare(
+            "SELECT id, seq, effect, payload, state, attempts, next_at,
+                    last_error, result, then_op, generation, created_at, updated_at, then_seq
+             FROM _outbox WHERE state = 'queued' AND effect NOT IN (SELECT value FROM json_each(?1))
+             ORDER BY seq, id",
+        )?;
+        let names = serde_json::to_string(names).map_err(|e| RuntimeError::Serialization(e.to_string()))?;
+        let rows = statement.query_map([names], raw_outbox_row)?;
+        rows.map(|row| decode_outbox_row(row?)).collect()
     }
 
     pub fn outbox_mark_unknown_running(&self) -> Result<u64, RuntimeError> {
@@ -855,7 +899,7 @@ impl Store {
     pub fn outbox_then_pending(&self, limit: usize) -> Result<Vec<OutboxRow>, RuntimeError> {
         let mut statement = self.conn.prepare(
             "SELECT id, seq, effect, payload, state, attempts, next_at,
-                    last_error, result, then_op, generation, created_at, updated_at
+                    last_error, result, then_op, generation, created_at, updated_at, then_seq
              FROM _outbox WHERE state = 'then_pending'
              ORDER BY created_at ASC, id ASC LIMIT ?1",
         )?;
@@ -868,7 +912,7 @@ impl Store {
         let now = unix_millis();
         let changed = self.conn.execute(
             "UPDATE _outbox SET state = 'queued', attempts = 0, next_at = ?1,
-                    last_error = NULL, result = NULL, then_op = NULL,
+                    last_error = NULL, result = NULL, then_op = NULL, then_seq = NULL,
                     generation = NULL, updated_at = ?1
              WHERE id = ?2 AND state IN ('sent_unknown', 'failed')",
             params![now, id],
@@ -918,6 +962,7 @@ type RawOutboxRow = (
     Option<String>,
     i64,
     i64,
+    Option<u64>,
 );
 
 fn raw_outbox_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<RawOutboxRow> {
@@ -935,6 +980,7 @@ fn raw_outbox_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<RawOutboxRow> {
         row.get(10)?,
         row.get(11)?,
         row.get(12)?,
+        row.get(13)?,
     ))
 }
 
@@ -953,6 +999,7 @@ fn decode_outbox_row(raw: RawOutboxRow) -> Result<OutboxRow, RuntimeError> {
         generation,
         created_at,
         updated_at,
+        then_seq,
     ) = raw;
     Ok(OutboxRow {
         id,
@@ -971,6 +1018,7 @@ fn decode_outbox_row(raw: RawOutboxRow) -> Result<OutboxRow, RuntimeError> {
             })
             .transpose()?,
         then_op,
+        then_seq,
         generation,
         created_at,
         updated_at,
@@ -984,7 +1032,7 @@ fn outbox_get_connection(
     connection
         .query_row(
             "SELECT id, seq, effect, payload, state, attempts, next_at,
-                    last_error, result, then_op, generation, created_at, updated_at
+                    last_error, result, then_op, generation, created_at, updated_at, then_seq
              FROM _outbox WHERE id = ?1",
             [id],
             raw_outbox_row,
@@ -1422,6 +1470,8 @@ mod tests {
         let queued = rows.iter().find(|row| row.id == "queued").unwrap();
         assert_eq!(queued.payload, Value::String("queued".to_owned()));
         assert_eq!(queued.result, Some(serde_json::json!(true)));
+        assert!(store.outbox_undeclared(&["notify".into()]).unwrap().is_empty());
+        assert_eq!(store.outbox_undeclared(&[]).unwrap().iter().map(|r|r.id.as_str()).collect::<Vec<_>>(),vec!["queued"]);
     }
 }
 
