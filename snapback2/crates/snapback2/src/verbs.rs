@@ -126,6 +126,17 @@ Execute through the owner. --plan inspects; --wait streams chunk receipts;
     })
 }
 
+fn test_owner_flags(test_owner: bool, owner_child: bool) -> Result<(), crate::protocol::Refusal> {
+    if test_owner && !owner_child {
+        return Err(crate::protocol::Refusal::input(
+            "--test-owner belongs to the owner child started by snapback2 test",
+            "run snapback2 test to bind journey providers",
+        )
+        .with_site("dev --test-owner"));
+    }
+    Ok(())
+}
+
 pub fn dev(args: &[String]) -> ExitCode {
     let options = match parse_options(
         args,
@@ -133,6 +144,7 @@ pub fn dev(args: &[String]) -> ExitCode {
         &[
             "--foreground",
             "--owner-child",
+            "--test-owner",
             "--serve",
             "--stop",
             "--status",
@@ -146,6 +158,10 @@ pub fn dev(args: &[String]) -> ExitCode {
         return usage(
             "usage: snapback2 dev [--port N] [--foreground] [--stop] [--status] [--apply-migration file] [--serve] [--project dir] [--json]",
         );
+    }
+    if let Err(error) = test_owner_flags(options.has("--test-owner"), options.has("--owner-child"))
+    {
+        return owner::print_refusal(error, options.has("--json"), 2);
     }
     let port = match options.value("--port") {
         Some(value) => match value.parse() {
@@ -168,6 +184,7 @@ pub fn dev(args: &[String]) -> ExitCode {
         status: options.has("--status"),
         apply_migration: options.value("--apply-migration").map(PathBuf::from),
         json: options.has("--json"),
+        test_owner: options.has("--test-owner"),
     })
 }
 
@@ -492,6 +509,17 @@ mod tests {
 
     fn args(values: &[&str]) -> Vec<String> {
         values.iter().map(|v| (*v).to_owned()).collect()
+    }
+
+    #[test]
+    fn test_owner_is_only_accepted_for_the_supervisor_child() {
+        let error = test_owner_flags(true, false).unwrap_err();
+        assert_eq!(error.code, "E_INPUT");
+        assert!(error.message.contains("snapback2 test"));
+        assert!(error.site.is_some());
+        for (test, child) in [(false, false), (false, true), (true, true)] {
+            assert!(test_owner_flags(test, child).is_ok());
+        }
     }
 
     #[test]

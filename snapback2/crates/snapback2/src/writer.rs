@@ -26,6 +26,9 @@ use std::time::{Duration, Instant};
 mod writer_assets;
 #[path = "writer_auth.rs"]
 mod writer_auth;
+#[path = "writer_bindings.rs"]
+mod writer_bindings;
+pub(crate) use writer_bindings::close_effects_epoch;
 #[path = "writer_channels.rs"]
 mod writer_channels;
 #[path = "writer_connected.rs"]
@@ -344,8 +347,21 @@ pub enum Action {
     },
     EffectsTurn,
     EffectsWake,
+    EffectsEpoch {
+        epoch: Option<String>,
+    },
+    EffectsEpochRunning,
+    EffectsBind {
+        origin: String,
+        to: String,
+        epoch: String,
+    },
     OutboxClaim {
         now: i64,
+    },
+    OutboxProvider {
+        id: String,
+        provider: Json,
     },
     OutboxSettle {
         id: String,
@@ -421,6 +437,9 @@ struct State {
     exited: bool,
     effects_wake: Option<SyncSender<()>>,
     outbox_observation: writer_effects::Observation,
+    // `Some` only for the owner `snapback2 test` starts: its transport is
+    // bound-only and every claim carries its journey epoch's table.
+    effect_bindings: Option<writer_bindings::Bindings>,
     asset_carriers: BTreeMap<String, writer_auth::AssetCarrier>,
     blobs: Arc<dyn BlobStore>,
     staging: Arc<LocalStaging>,
@@ -442,6 +461,7 @@ pub fn spawn_writer(
     owner: OwnerInfo,
     blobs: Arc<dyn BlobStore>,
     staging: Arc<LocalStaging>,
+    bound_effects: bool,
 ) -> Result<OwnerHandle, Refusal> {
     let (tx, rx) = mpsc::channel();
     let handle = OwnerHandle { tx };
@@ -472,6 +492,7 @@ pub fn spawn_writer(
                     exited: false,
                     effects_wake: None,
                     outbox_observation: Default::default(),
+                    effect_bindings: bound_effects.then(Default::default),
                     asset_carriers: BTreeMap::new(),
                     blobs,
                     staging,
@@ -607,16 +628,25 @@ impl State {
                 let mut replay = replay;
                 if replay.is_some() {
                     if let Some(generation) = expected_generation {
-                        replay.as_mut().and_then(Json::as_object_mut)
-                            .ok_or_else(|| Refusal::input("replay must be an object", "send the SDK replay envelope"))?
+                        replay
+                            .as_mut()
+                            .and_then(Json::as_object_mut)
+                            .ok_or_else(|| {
+                                Refusal::input(
+                                    "replay must be an object",
+                                    "send the SDK replay envelope",
+                                )
+                            })?
                             .insert("expectedGeneration".into(), generation);
                     }
-                } else if let Some(response) = self.generation_rejection(expected_generation.as_ref())? {
+                } else if let Some(response) =
+                    self.generation_rejection(expected_generation.as_ref())?
+                {
                     self.resolve_authority(identity.clone())?;
                     return Ok(response);
                 }
                 self.execute(&op, args, identity, expected, offline, replay)
-            },
+            }
             Action::Resume { body, identity } => self.resume(body, identity),
             Action::Subscribe {
                 op,
@@ -890,6 +920,9 @@ impl State {
                 self.wake_effects();
                 Ok(json!({"ok":true}))
             }
+            Action::EffectsEpoch { epoch } => self.effects_epoch(epoch),
+            Action::EffectsEpochRunning => Ok(json!({"running": self.epoch_running()?})),
+            Action::EffectsBind { origin, to, epoch } => self.bind_effect(&origin, &to, &epoch),
             Action::EffectsTurn => {
                 self.outbox_dev()?;
                 self.background_turn()?;
@@ -905,7 +938,13 @@ impl State {
                     return Ok(Json::Null);
                 }
                 let root = self.root.clone();
-                let claimed = crate::effects::claim_outbox(self.runtime(), &root, now)?;
+                let mut claimed = crate::effects::claim_outbox(self.runtime(), &root, now)?;
+                if let Some(seq) = claimed["seq"].as_u64()
+                    && let Some(bindings) = self.claim_bindings(seq)
+                {
+                    claimed["bindings"] = bindings;
+                }
+                self.record_epoch_claim(&claimed);
                 if let Some(id) = claimed["id"].as_str() {
                     self.outbox_observation
                         .started
@@ -913,6 +952,12 @@ impl State {
                 }
                 self.log_unavailable()?;
                 Ok(claimed)
+            }
+            Action::OutboxProvider { id, provider } => {
+                if self.effect_bindings.is_some() {
+                    self.outbox_observation.provider.insert(id, provider);
+                }
+                Ok(json!({"ok":true}))
             }
             Action::OutboxSettle {
                 id,

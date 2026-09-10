@@ -9,6 +9,7 @@ pub(super) const RESULT_BYTES: usize = 16 * 1024;
 pub(super) struct Observation {
     pub(super) queued: Option<u64>,
     pub(super) started: BTreeMap<String, Instant>,
+    pub(super) provider: BTreeMap<String, Json>,
 }
 
 pub(crate) fn transition(
@@ -134,7 +135,7 @@ impl State {
         Ok(())
     }
 
-    pub(super) fn log_then(&self, row: &OutboxRow, execution: &Json) -> Result<(), Refusal> {
+    pub(super) fn log_then(&mut self, row: &OutboxRow, execution: &Json) -> Result<(), Refusal> {
         let after = self
             .runtime()
             .store()
@@ -155,13 +156,12 @@ impl State {
         } else {
             outcome["code"] = execution["code"].clone();
         }
-        transition(
-            &self.root,
-            row,
-            Some(&row.state),
-            &after.state,
-            json!({"then":outcome}),
-        );
+        let mut detail = json!({"then":outcome, "attempt":row.attempts});
+        if let Some(provider) = self.outbox_observation.provider.remove(&row.id) {
+            detail["provider"] = provider;
+        }
+        transition(&self.root, row, Some(&row.state), &after.state, detail);
+        self.settled_epoch_claim(&row.id);
         Ok(())
     }
 
@@ -267,6 +267,13 @@ impl State {
             .outbox_settle(id, state, result, last_error, next_at)
             .map_err(|e| Refusal::from_runtime(&e))?;
         let mut detail = json!({"attempt":row.attempts});
+        if let Some(provider) = self.outbox_observation.provider.get(id) {
+            detail["provider"] = provider.clone();
+        }
+        if state != "then_pending" {
+            self.outbox_observation.provider.remove(id);
+            self.settled_epoch_claim(id);
+        }
         if let Some(started) = self.outbox_observation.started.remove(id) {
             detail["ms"] = json!(started.elapsed().as_millis() as u64);
         }
@@ -535,7 +542,12 @@ mod tests {
                 cache: None,
             })
             .unwrap();
-        assert!(state.handle(Action::OutboxClaim { now: 1 }).unwrap().is_null());
+        assert!(
+            state
+                .handle(Action::OutboxClaim { now: 1 })
+                .unwrap()
+                .is_null()
+        );
         let row = state.runtime().store().outbox_get("one").unwrap().unwrap();
         assert_eq!(
             (row.state.as_str(), row.last_error.as_deref()),
@@ -549,10 +561,45 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(
             failed,
-            vec![json!({"outbox":{"id":"one","seq":1,"effect":"delivery.notify",
-                "from":"queued","to":"failed","error":"E_EFFECT_UNKNOWN"}})]
+            vec![
+                json!({"outbox":{"id":"one","seq":1,"effect":"delivery.notify",
+                "from":"queued","to":"failed","error":"E_EFFECT_UNKNOWN"}})
+            ]
         );
         std::fs::remove_dir_all(&state.root).unwrap();
+    }
+
+    // @ref LLP 1021#2-journeys-see-and-settle-the-outbox — a claimed row is in flight; `settle` waits for it to the budget, never reports it at once.
+    #[test]
+    fn settlement_waits_for_a_running_row_to_the_budget() {
+        let mut state = effect_state();
+        state.handle(Action::OutboxClaim { now: 1 }).unwrap();
+        let root = state.root.clone();
+        let (wake, _wakes) = mpsc::sync_channel(1);
+        state.effects_wake = Some(wake);
+        let (tx, rx) = mpsc::channel();
+        let handle = OwnerHandle { tx };
+        let writer = thread::spawn(move || run_writer(state, rx));
+        let started = Instant::now();
+        let response =
+            crate::control::settle_effects(&handle, &json!({"upTo":1,"budgetMs":400})).unwrap();
+        let elapsed = started.elapsed();
+        assert_eq!(
+            response["remaining"],
+            json!([{"id":"one","reason":"running"}]),
+            "{response}"
+        );
+        assert!(
+            elapsed >= Duration::from_millis(400),
+            "returned at {elapsed:?} with a row still running"
+        );
+        handle
+            .call(Action::Stop {
+                cause: "running wait test complete".into(),
+            })
+            .unwrap();
+        writer.join().unwrap();
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

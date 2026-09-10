@@ -202,6 +202,7 @@ fn job(id: &str, payload: Value) -> EffectJob {
         payload,
         attempt: 1,
         generation: Some("generation-1".to_owned()),
+        bindings: None,
     }
 }
 
@@ -1362,7 +1363,7 @@ fn payload_json_parse_preserves_an_own_proto_key() {
 #[test]
 fn effect_global_surface_is_exact_allowlist() {
     let decl = declaration("async () => true", vec!["http://127.0.0.1:1".to_owned()]);
-    let mut runtime = build_runtime(&decl, Instant::now() + Duration::from_secs(10))
+    let mut runtime = build_runtime(&decl, None, Instant::now() + Duration::from_secs(10))
         .expect("build effect runtime");
     assert_eq!(
         runtime.runtime.global_names(),

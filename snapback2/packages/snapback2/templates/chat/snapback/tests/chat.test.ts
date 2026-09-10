@@ -746,3 +746,20 @@ journey("fresh accounts discover empty conversations and exchange a message", as
     if (!("data" in thread) || !bodies(thread.data).includes("No seed persona needed")) throw new Error("guest could not read the account's message");
   } finally { await Promise.all([creator.close(), member.close(), outsider.close()]); }
 });
+
+journey("a sent message notifies the recipient", async ({ as, effects }) => {
+  const provider = await effects.provider("https://api.example.com", async () => Response.json({ id: "prov-1" }));
+  const alice = as("alice");
+  try {
+    const sent = await alice.mutation(api.messages.send, { conversationId: "conversation-1", body: "hi bob" });
+    if (sent.state !== "committed") throw new Error(`send was ${sent.state}`);
+    const { settled, rows, remaining } = await effects.settle({ upTo: sent.seq });
+    if (!settled) throw new Error(`unsettled: ${JSON.stringify(remaining)}`);
+    const row = rows.find((r) => r.seq === sent.seq && r.effect === "delivery.notify");
+    if (row?.state !== "sent" || row.then?.state !== "committed") throw new Error(`notify: ${JSON.stringify(row)}`);
+    if (provider.requests.length !== 1) throw new Error(`expected one provider call, saw ${provider.requests.length}`);
+    if (provider.requests[0]?.headers["idempotency-key"] !== row.id) throw new Error("the provider call did not carry meta.id as its idempotency key");
+  } finally {
+    alice.close();
+  }
+});

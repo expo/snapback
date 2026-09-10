@@ -38,9 +38,43 @@ export type EffectsSettlement = {
   rows: EffectRow[];
   remaining: { id: string; reason: "backoff" | "then_pending" | "running" | "engine:none" | "budget"; nextAt?: number }[];
 };
+/** One request a journey's provider stand-in answered. */
+export type ProviderRequest = {
+  method: string;
+  path: string;
+  headers: Record<string, string>;
+  /** The body as UTF-8 text, up to `caps.bodyBytes`; `bodyCapped` reports the cut. */
+  body: string;
+  /** Original request body byte count, before capture truncation. */
+  bodyBytes: number;
+  bodyCapped?: { bytes: number; limit: number };
+};
+/**
+ * The third party a journey stands in for: a loopback server the test owner
+ * substitutes for `origin` after the effect's grant admits it. Bound to this
+ * journey only; the supervisor revokes it when the journey ends.
+ */
+export type JourneyProvider = {
+  /** The logical origin the effect names, as `fetch` computes it. */
+  origin: string;
+  /** The loopback origin the requests actually reach. */
+  to: string;
+  /** Oldest first, up to `caps.requests`; later ones count in `dropped`. */
+  requests: ProviderRequest[];
+  readonly dropped: number;
+  caps: { requests: number; bodyBytes: number };
+  close(): Promise<void>;
+};
 export type JourneyEffects = {
   rows(options?: { state?: EffectRow["state"]; after?: string; limit?: number }): Promise<EffectsPage>;
   settle(options?: { upTo?: number; budgetMs?: number }): Promise<EffectsSettlement>;
+  /**
+   * Bind a provider stand-in for `origin` (`scheme://host[:port]`) for this
+   * journey; `handler` answers each request the effect makes there. In a test
+   * owner nothing else answers: a fetch to an origin with no live binding is
+   * `E_EFFECT_UNBOUND`, terminal, and reaches no transport. Journeys only.
+   */
+  provider(origin: string, handler: (request: Request) => Response | Promise<Response>): Promise<JourneyProvider>;
 };
 
 export declare function journey(name: string, body: (context: {

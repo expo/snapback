@@ -61,7 +61,7 @@
   // body has been read — and the web keeps status, url, and headers readable
   // after the body is gone. The headers become a real Headers. A HEAD, 204,
   // 205, or 304 response has no body to read, so its record goes at once.
-  function response(handle, redirected, method, track) {
+  function response(handle, redirected, method, track, logicalUrl) {
     var r = Object.create(Response.prototype);
     var status = field(handle, 0);
     var empty = method === "HEAD" || status === 204 || status === 205 || status === 304;
@@ -73,7 +73,7 @@
       track: track,
       status: status,
       ok: field(handle, 1),
-      url: field(handle, 2),
+      url: logicalUrl === undefined ? field(handle, 2) : logicalUrl,
       redirected: redirected === undefined ? field(handle, 5) : redirected,
       headers: new Headers(JSON.parse(field(handle, 7))),
     };
@@ -196,7 +196,13 @@
   // object. `track` is the host's count of the job's in-flight network I/O.
   // Default redirect following is kept on this side of the binding so each
   // denied hop remains attributable without widening Ibex's capability.
-  return function makeFetch(raw, tagRawError, track) {
+  return function makeFetch(raw, tagRawError, track, bound) {
+    function logicalUrl(input) {
+      if (!bound) return undefined;
+      var url = new URL(String(input));
+      url.hash = "";
+      return url.toString();
+    }
     return function fetch(input, init) {
       var currentInit = copyInit(init);
       var redirectMode = currentInit.redirect !== undefined ? String(currentInit.redirect) : "follow";
@@ -205,8 +211,9 @@
         return Promise.reject(new TypeError("Invalid redirect mode"));
       }
       if (redirectMode !== "follow") {
-        return invokeRaw(raw, input, currentInit, redirectMode, tagRawError)
-          .then(function (handle) { return response(handle, undefined, methodOf(currentInit), track); });
+        var requestedUrl = String(input);
+        return invokeRaw(raw, requestedUrl, currentInit, redirectMode, tagRawError)
+          .then(function (handle) { return response(handle, undefined, methodOf(currentInit), track, logicalUrl(requestedUrl)); });
       }
 
       var currentUrl = String(input);
@@ -216,7 +223,7 @@
       function next() {
         return invokeRaw(raw, currentUrl, currentInit, "manual", tagRawError).then(function (handle) {
           var method = methodOf(currentInit);
-          var value = response(handle, redirects > 0, method, track);
+          var value = response(handle, redirects > 0, method, track, logicalUrl(currentUrl));
           if (!isRedirect(value.status)) return value;
           var location = value.headers.get("location");
           if (location === null) return value;

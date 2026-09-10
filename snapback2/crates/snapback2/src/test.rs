@@ -29,6 +29,11 @@ mod test_authority;
 mod test_authority_ir;
 #[path = "test_bounds.rs"]
 mod test_bounds;
+#[path = "test_effects.rs"]
+mod test_effects;
+#[path = "test_journey_runner.rs"]
+mod test_journey_runner;
+use test_journey_runner::{supervise_bound_journey, supervise_journey_runner};
 #[path = "test_invalidation.rs"]
 mod test_invalidation;
 #[path = "test_policy.rs"]
@@ -79,6 +84,7 @@ pub fn run(args: &[String]) -> ExitCode {
     }
     let finish_selected = |root: &Path, stamp, mut receipt: TestReceipt, json_output| {
         receipt.scope.journey = selected_journey.map(str::to_owned);
+        receipt.scope.derived_only = options.has("--derived-only").then_some(true);
         finish(root, stamp, receipt, json_output)
     };
     if let Some(reason) = options.value("--blocked") {
@@ -188,16 +194,20 @@ pub fn run(args: &[String]) -> ExitCode {
         checks.push(test_invalidation::check(&isolated.info, &compiled, &seed));
         checks.push(check_replay(&isolated.info, &compiled, &seed));
         checks.extend(test_authority::checks(&isolated.info, &compiled, &seed));
-        if let Some(effects) = check_effects(&isolated.info, &compiled) {
-            checks.push(effects);
-        }
     }
+    let mut windows = Vec::new();
     if !derived_only {
-        checks.extend(run_journeys(
-            &isolated.info.project,
-            &isolated.info,
-            selected_journey,
-        ));
+        let (journeys, ran) =
+            run_journeys(&isolated.info.project, &isolated.info, selected_journey);
+        checks.extend(journeys);
+        windows = ran;
+    }
+    // Witnesses come from the journeys, so the effects check reads the outbox after them.
+    if !journeys_only
+        && !derived_only
+        && let Some(effects) = test_effects::check_effects(&isolated.info, &compiled, &windows)
+    {
+        checks.push(effects);
     }
     let mut receipt = TestReceipt::new(compiled.generation.hash(), commands, checks);
     if !compiled.generation.schema().schedules.is_empty() {
@@ -295,6 +305,7 @@ impl IsolatedOwner {
                         project.to_str().unwrap_or_default(),
                         "--foreground",
                         "--owner-child",
+                        "--test-owner",
                         "--json",
                     ])
                     .stdin(Stdio::null())
@@ -690,60 +701,43 @@ fn replay_fork(
         })
 }
 
-fn check_effects(owner: &OwnerInfo, compiled: &CompiledProject) -> Option<CheckReceipt> {
-    let started = Instant::now();
-    let status = client::control(owner, "GET", "/control/status", json!({}))
-        .ok()
-        .map(|response| response.body)
-        .unwrap_or_else(|| json!({}));
-    let engine = status
-        .get("effects")
-        .and_then(|effects| effects.get("engine"))
-        .and_then(Json::as_str)
-        .unwrap_or("none");
-    if compiled.generation.effects().is_empty() {
-        None
-    } else if engine == "none" {
-        Some(CheckReceipt::blocked(
-            "effects",
-            "derived",
-            elapsed_ms(started),
-            json!({ "reason": "no engine in this build", "declarations": compiled.generation.effects().keys().collect::<Vec<_>>() }),
-        ))
-    } else {
-        Some(CheckReceipt::pass(
-            "effects",
-            "derived",
-            elapsed_ms(started),
-            json!({ "engine": engine, "declarations": compiled.generation.effects().keys().collect::<Vec<_>>() }),
-        ))
-    }
-}
-
-fn run_journeys(root: &Path, owner: &OwnerInfo, selected: Option<&str>) -> Vec<CheckReceipt> {
+/// Every journey runs inside its own provider-binding epoch on the test
+/// owner; the windows say which outbox rows each journey emitted.
+fn run_journeys(
+    root: &Path,
+    owner: &OwnerInfo,
+    selected: Option<&str>,
+) -> (Vec<CheckReceipt>, Vec<test_effects::JourneyWindow>) {
+    let mut windows = Vec::new();
     let files = match journey_files(root) {
         Ok(files) => files,
         Err(error) => {
-            return vec![CheckReceipt::fail(
-                "journeys",
-                "journey",
-                0,
-                serde_json::to_value(error).unwrap_or(Json::Null),
-            )];
+            return (
+                vec![CheckReceipt::fail(
+                    "journeys",
+                    "journey",
+                    0,
+                    serde_json::to_value(error).unwrap_or(Json::Null),
+                )],
+                windows,
+            );
         }
     };
     if files.is_empty() && selected.is_none() {
-        return Vec::new();
+        return (Vec::new(), windows);
     }
     let runner = match runner_path() {
         Ok(runner) => runner,
         Err(error) => {
-            return vec![CheckReceipt::fail(
-                "journeys",
-                "journey",
-                0,
-                serde_json::to_value(error).unwrap_or(Json::Null),
-            )];
+            return (
+                vec![CheckReceipt::fail(
+                    "journeys",
+                    "journey",
+                    0,
+                    serde_json::to_value(error).unwrap_or(Json::Null),
+                )],
+                windows,
+            );
         }
     };
     let mut checks = Vec::new();
@@ -832,13 +826,47 @@ fn run_journeys(root: &Path, owner: &OwnerInfo, selected: Option<&str>) -> Vec<C
                 continue;
             }
             matched = true;
+            // @ref LLP 1021#3-a-provider-stand-in-and-nothing-else-answers — the epoch opens before the runner and closes after it, whatever the runner did.
+            let epoch = format!(
+                "{}:{index}",
+                file.file_name()
+                    .and_then(|f| f.to_str())
+                    .unwrap_or("journeys")
+            );
+            let since = match test_effects::open_epoch(owner, &epoch) {
+                Ok(since) => since,
+                Err(error) => {
+                    checks.push(CheckReceipt::fail(
+                        &name,
+                        "journey",
+                        0,
+                        json!({ "error": "journey epoch could not be opened", "refusal": error }),
+                    ));
+                    continue;
+                }
+            };
             let mut command = journey_command(&runner, owner);
             command.arg("--journey-index").arg(index.to_string());
+            command.arg("--epoch").arg(&epoch);
             if let Some(expected) = expected_identity {
                 command.arg("--expected-journeys").arg(expected);
             }
             command.arg("--").arg(&file);
-            let output = match supervise_journey_runner(command) {
+            let (supervised, closed) = supervise_bound_journey(command, owner);
+            match closed {
+                Ok(until) => windows.push(test_effects::JourneyWindow {
+                    journey: name.clone(),
+                    since,
+                    until,
+                }),
+                Err(error) => checks.push(CheckReceipt::fail(
+                    &name,
+                    "journey",
+                    0,
+                    json!({ "error": "journey epoch could not be closed", "refusal": error }),
+                )),
+            }
+            let output = match supervised {
                 Ok(output) => output,
                 Err(error) => {
                     checks.push(CheckReceipt::fail(
@@ -896,7 +924,7 @@ fn run_journeys(root: &Path, owner: &OwnerInfo, selected: Option<&str>) -> Vec<C
                 "rewrite": "use a listed journey name, or run snapback2 test for the full suite" }),
         ));
     }
-    checks
+    (checks, windows)
 }
 
 const JOURNEY_DEADLINE: Duration = Duration::from_secs(5);
@@ -935,125 +963,6 @@ fn journey_command(runner: &Path, owner: &OwnerInfo) -> Command {
                 .join(format!("test-{}", owner.started_at)),
         );
     command
-}
-
-fn supervise_journey_runner(mut command: Command) -> Result<JourneyRunnerOutput, std::io::Error> {
-    command.stdout(Stdio::piped()).stderr(Stdio::piped());
-    #[cfg(unix)]
-    {
-        use std::os::unix::process::CommandExt;
-        command.process_group(0);
-    }
-    let mut child = command.spawn()?;
-    let stdout = child.stdout.take().expect("piped journey stdout");
-    let stderr = child.stderr.take().expect("piped journey stderr");
-    let (send, receive) = mpsc::channel();
-    let stdout_thread = thread::spawn(move || {
-        let mut reader = BufReader::new(stdout.take((JOURNEY_OUTPUT_LIMIT + 1) as u64));
-        let mut total = 0_usize;
-        loop {
-            let mut line = String::new();
-            match reader.read_line(&mut line) {
-                Ok(0) => break,
-                Ok(bytes) => {
-                    total = total.saturating_add(bytes);
-                    if total > JOURNEY_OUTPUT_LIMIT {
-                        let _ = send.send(None);
-                        break;
-                    }
-                    let _ = send.send(Some(line));
-                }
-                Err(_) => break,
-            }
-        }
-    });
-    let stderr_thread = thread::spawn(move || {
-        let mut bytes = Vec::new();
-        let _ = stderr
-            .take((JOURNEY_OUTPUT_LIMIT + 1) as u64)
-            .read_to_end(&mut bytes);
-        String::from_utf8_lossy(&bytes[..bytes.len().min(JOURNEY_OUTPUT_LIMIT)]).into_owned()
-    });
-
-    let mut deadline = Instant::now() + JOURNEY_DEADLINE;
-    let mut current = None;
-    let mut completed = false;
-    let mut lines = Vec::new();
-    let mut capped = false;
-    let mut timeout_name = None;
-    let mut grace_terminated = false;
-    let status = loop {
-        if let Some(exit) = child.try_wait()? {
-            while let Ok(event) = receive.try_recv() {
-                match event {
-                    Some(line) => lines.push(line),
-                    None => capped = true,
-                }
-            }
-            break exit.code();
-        }
-        let now = Instant::now();
-        if now >= deadline {
-            grace_terminated = completed;
-            terminate_journey_runner(&mut child);
-            if !completed {
-                timeout_name = Some(current.unwrap_or_else(|| "journey runner".to_owned()));
-            }
-            break child.wait().ok().and_then(|exit| exit.code());
-        }
-        let wait = deadline
-            .saturating_duration_since(now)
-            .min(Duration::from_millis(25));
-        match receive.recv_timeout(wait) {
-            Ok(Some(line)) => {
-                if let Ok(event) = serde_json::from_str::<Json>(&line) {
-                    if event.get("runner").and_then(Json::as_str) == Some("start") {
-                        current = event
-                            .get("name")
-                            .and_then(Json::as_str)
-                            .map(ToOwned::to_owned);
-                        deadline = Instant::now() + JOURNEY_DEADLINE;
-                    } else if event.get("verdict").and_then(Json::as_str).is_some() {
-                        completed = true;
-                        deadline = Instant::now() + JOURNEY_EXIT_GRACE;
-                    }
-                }
-                lines.push(line);
-            }
-            Ok(None) => {
-                capped = true;
-                terminate_journey_runner(&mut child);
-                break child.wait().ok().and_then(|exit| exit.code());
-            }
-            Err(mpsc::RecvTimeoutError::Timeout) => {}
-            Err(mpsc::RecvTimeoutError::Disconnected) => {}
-        }
-    };
-    let _ = stdout_thread.join();
-    let stderr = stderr_thread.join().unwrap_or_default();
-    while let Ok(event) = receive.try_recv() {
-        match event {
-            Some(line) => lines.push(line),
-            None => capped = true,
-        }
-    }
-    Ok(JourneyRunnerOutput {
-        status,
-        lines,
-        stderr,
-        timeout_name,
-        capped,
-        grace_terminated,
-    })
-}
-
-fn terminate_journey_runner(child: &mut Child) {
-    #[cfg(unix)]
-    if unsafe { libc::kill(-(child.id() as i32), libc::SIGKILL) } != 0 {
-        let _ = child.kill();
-    }
-    #[cfg(not(unix))]
-    let _ = child.kill();
 }
 
 fn journey_receipts(output: &JourneyRunnerOutput) -> Vec<CheckReceipt> {

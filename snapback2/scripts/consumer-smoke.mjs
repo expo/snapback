@@ -58,14 +58,20 @@ export function receiptVerdict(result, allowNoEngine = false) {
   try { receipt = JSON.parse(result.stdout); } catch { return { accepted: false, verdict: 'invalid receipt' }; }
   const checks = Array.isArray(receipt.checks) ? receipt.checks : [];
   if (!checks.length) return { accepted: false, verdict: 'zero checks' };
+  // Effects may retain notWitnessed rows beside a successful witness. The
+  // coverage verdict decides acceptance; negative evidence alone cannot pass.
   if (result.status === 0 && receipt.verdict === 'pass' && checks.every(c => c.verdict === 'pass')) {
     return { accepted: true, verdict: 'pass' };
   }
   const blocked = checks.filter(c => c.verdict === 'blocked');
+  // Exactly the engine-absence blocks (LLP 1021 §4): the effects check with no
+  // engine, and the journeys the supervisor recorded blocked for that reason.
+  const engineAbsence = c => c.verdict === 'blocked' && (
+    (c.name === 'effects' && c.detail?.reason === 'no engine in this build')
+    || (c.kind === 'journey' && c.detail?.reason === 'effects:no-engine'));
   if (allowNoEngine && result.status === 1 && receipt.verdict === 'blocked' && blocked.length
-    && checks.every(c => c.verdict === 'pass' || (c.name === 'effects' && c.verdict === 'blocked'
-      && c.detail?.reason === 'no engine in this build'))) {
-    return { accepted: true, verdict: 'blocked', blocked: 'effects' };
+    && checks.every(c => c.verdict === 'pass' || engineAbsence(c))) {
+    return { accepted: true, verdict: 'blocked', blocked: blocked.map(c => c.name).join(', ') };
   }
   return { accepted: false, verdict: receipt.verdict ?? 'missing' };
 }

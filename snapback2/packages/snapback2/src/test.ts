@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { readFile, rm } from "node:fs/promises";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
@@ -12,7 +14,7 @@ import {
 import { fileRangeStore } from "./store/file.js";
 import { canonicalAnswerKey } from "./store/canonical.js";
 // The journey effects contract is declared once, in the shipped types.
-import type { EffectsPage, EffectsSettlement, JourneyEffects } from "../types/test.js";
+import type { EffectsPage, EffectsSettlement, JourneyEffects, JourneyProvider, ProviderRequest } from "../types/test.js";
 
 export { fileRangeStore };
 
@@ -96,6 +98,102 @@ async function control(url: string, secret: string, path: string, body?: unknown
   return value;
 }
 
+const PROVIDER_REQUEST_CAP = 200;
+const PROVIDER_BODY_CAP = 16_384;
+
+/**
+ * A journey's stand-in for the third party its effect names: a loopback
+ * server the test owner substitutes for `origin` after the grant admits it,
+ * bound to this journey's epoch only. The owner revokes the binding when the
+ * journey ends, however it ends; closing the server here is hygiene.
+ */
+// @ref LLP 1021#3-a-provider-stand-in-and-nothing-else-answers — the provider is code in the journey that answers a real request; nothing of Snapback is doubled.
+async function startProvider(
+  url: string,
+  secret: string,
+  epoch: string | undefined,
+  origin: string,
+  handler: (request: Request) => Response | Promise<Response>,
+): Promise<JourneyProvider> {
+  if (typeof handler !== "function") throw new TypeError("effects.provider(origin, handler) requires a handler function");
+  let logical: string;
+  try {
+    logical = new URL(String(origin)).origin;
+  } catch {
+    logical = "";
+  }
+  if (!logical || logical === "null" || logical !== String(origin)) {
+    throw new TypeError(`effects.provider origin must be scheme://host[:port] with no path, such as https://api.example.com; got ${JSON.stringify(origin)}`);
+  }
+  if (!epoch) throw new Error("effects.provider(origin, handler) binds inside a snapback2 test journey; this runner has no journey epoch");
+  const requests: ProviderRequest[] = [];
+  let dropped = 0;
+  const server = createServer(async (incoming, outgoing) => {
+    const chunks: Buffer[] = [];
+    for await (const chunk of incoming) chunks.push(chunk as Buffer);
+    const body = Buffer.concat(chunks);
+    const method = incoming.method ?? "GET";
+    const path = incoming.url ?? "/";
+    const headers = new Headers();
+    for (const [name, value] of Object.entries(incoming.headers)) {
+      if (value !== undefined) headers.set(name, Array.isArray(value) ? value.join(", ") : value);
+    }
+    headers.set("host", new URL(logical).host);
+    // Stop before a partial UTF-8 scalar; slicing JS text would count UTF-16.
+    const capture = Buffer.from(body.toString("utf8"));
+    let end = Math.min(capture.byteLength, PROVIDER_BODY_CAP);
+    while (end > 0 && end < capture.byteLength && (capture[end]! & 0xc0) === 0x80) end--;
+    const text = capture.subarray(0, end).toString("utf8");
+    if (requests.length < PROVIDER_REQUEST_CAP) {
+      const record: ProviderRequest = { method, path, headers: Object.fromEntries(headers), body: text, bodyBytes: body.byteLength };
+      if (capture.byteLength > PROVIDER_BODY_CAP) record.bodyCapped = { bytes: body.byteLength, limit: PROVIDER_BODY_CAP };
+      requests.push(record);
+    } else {
+      dropped += 1;
+    }
+    let response: Response;
+    try {
+      response = await handler(new Request(`${logical}${path}`, {
+        method,
+        headers,
+        body: method === "GET" || method === "HEAD" ? undefined : body,
+      }));
+      if (!(response instanceof Response)) throw new TypeError("provider handler must return a Response");
+    } catch (error) {
+      response = new Response(error instanceof Error ? error.message : String(error), { status: 500 });
+    }
+    const bytes = Buffer.from(await response.arrayBuffer());
+    const outgoingHeaders: Record<string, string> = Object.fromEntries(response.headers);
+    delete outgoingHeaders["transfer-encoding"];
+    outgoingHeaders["content-length"] = String(bytes.byteLength);
+    outgoing.writeHead(response.status, outgoingHeaders);
+    outgoing.end(bytes);
+  });
+  await new Promise<void>((resolveListening, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => resolveListening());
+  });
+  const to = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  const close = () => new Promise<void>((resolveClosed) => {
+    server.closeAllConnections();
+    server.close(() => resolveClosed());
+  });
+  try {
+    await control(url, secret, "/control/effects/bind", { origin: logical, to, epoch });
+  } catch (error) {
+    await close();
+    throw error;
+  }
+  return {
+    origin: logical,
+    to,
+    requests,
+    get dropped() { return dropped; },
+    caps: { requests: PROVIDER_REQUEST_CAP, bodyBytes: PROVIDER_BODY_CAP },
+    close,
+  };
+}
+
 async function within<T>(ms: number, body: () => Promise<T>): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
@@ -115,6 +213,7 @@ async function runEntry(): Promise<void> {
   const secret = argument("--secret");
   const files = runnerFiles();
   const storeRoot = argument("--store-root");
+  const epoch = argument("--epoch");
   if (!url || !secret || files.length === 0) {
     process.stdout.write(`${JSON.stringify({ name: "journeys", kind: "journey", verdict: "fail", ms: 0, detail: "runner requires --url, --secret, and files" })}\n`);
     process.exitCode = 1;
@@ -149,7 +248,7 @@ async function runEntry(): Promise<void> {
       }
       const check = journeys[index];
       if (!check) throw new Error(`journey index ${index} is out of range`);
-      if (!await runCheck(check, files[0]!, url, secret, storeRoot)) process.exitCode = 1;
+      if (!await runCheck(check, files[0]!, url, secret, storeRoot, epoch)) process.exitCode = 1;
     } catch (error) {
       process.stdout.write(`${JSON.stringify({ name: files[0], kind: "journey", verdict: "fail", ms: 0, detail: String(error) })}\n`);
       process.exitCode = 1;
@@ -167,7 +266,7 @@ async function runEntry(): Promise<void> {
       continue;
     }
     for (const check of journeys) {
-      if (!await runCheck(check, file, url, secret, storeRoot)) failed = true;
+      if (!await runCheck(check, file, url, secret, storeRoot, epoch)) failed = true;
     }
   }
   if (failed) process.exitCode = 1;
@@ -262,10 +361,13 @@ async function runCheck(
   url: string,
   secret: string,
   storeRoot?: string,
+  epoch?: string,
 ): Promise<boolean> {
   const started = performance.now();
   const clients = new Set<SnapbackClient>();
   const devices = new Set<Device>();
+  const providers = new Set<JourneyProvider>();
+  let epochClosed: Promise<void> | undefined;
   process.stdout.write(`${JSON.stringify({ runner: "start", name: check.name })}\n`);
   try {
     if (storeRoot) await rm(storeRoot, { recursive: true, force: true });
@@ -312,6 +414,24 @@ async function runCheck(
           }
           return result;
         },
+        provider: async (origin, handler) => {
+          const provider = await startProvider(url, secret, epoch, origin, handler);
+          providers.add(provider);
+          // Only a bound provider needs to live until the drained close. Arm
+          // before the receipt so an immediate acknowledgment is retained.
+          epochClosed ??= new Promise<void>(resolveClosed => {
+            const done = () => {
+              process.stdin.off("data", done);
+              process.stdin.off("end", done);
+              process.stdin.pause();
+              resolveClosed();
+            };
+            process.stdin.once("data", done);
+            process.stdin.once("end", done);
+            process.stdin.resume();
+          });
+          return provider;
+        },
       },
       tick: (ms) => control(url, secret, "/control/clock", { advanceMs: ms }),
       url,
@@ -324,6 +444,8 @@ async function runCheck(
     return false;
   } finally {
     for (const client of clients) client.close();
+    await epochClosed;
+    for (const provider of providers) await provider.close().catch(() => undefined);
     if (storeRoot) await rm(storeRoot, { recursive: true, force: true }).catch(() => undefined);
   }
 }

@@ -70,6 +70,8 @@ pub struct ScopeReceipt {
     pub changed: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub journey: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub derived_only: Option<bool>,
 }
 
 impl TestReceipt {
