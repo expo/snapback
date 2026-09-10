@@ -101,8 +101,9 @@ one schedule firing) and active/quiet/active with
 copy passed configured expiry (46 ms), the exact stored 80-scalar Unicode preview (40 ms),
 following activity on the logical-cutoff build (295 ms, one firing), and
 active/quiet/active suppression (654 ms, three firings). The compiled fixture separately executes the same bounded value
-through storage and emit; the focused owner preview case does not inspect the
-effect payload yet. A separate journey committed 99 groups on top of Bob's
+through storage and emit; the original focused owner preview case does not inspect
+the effect payload. The separate executed matrix below closes that distinction.
+A separate journey committed 99 groups on top of Bob's
 seeded membership and passed the real 100-membership digest path in 969 ms. On
 the final logical-cutoff build, one completed period simultaneously excluded
 an unfollowed post and read, unsent, expired, removed/rejoined, and
@@ -137,3 +138,38 @@ while one later ordinary post survived an injected 503, restart and outbox
 drain and appeared exactly once in that period's digest. The direct privacy,
 membership-incarnation and ordered-prune journey passed in 2,797 ms with two
 firings; its ordinary peer is a current chat member, not merely a nonmember.
+
+## Actual local effect execution
+
+`owner-preview.test.ts` is an additional retained proof, not production code.
+Copy it into the isolated app's `snapback/tests/` and set
+`CLIQUE_EXPECTED_GENERATION` and `CLIQUE_PREVIEW_RECEIPT` as its header describes.
+Each named case runs independently under the existing five-second journey
+deadline. A default `NoEngine` binary cannot qualify this check; use the
+Hermes-featured owner and its configured media helper.
+
+Root executed the final instrumented generation
+`faa570f446e53781cdd6cc80dd522d3da9d63917072c39a4bde4481d501b47da`
+on BLACK with binary `rust64:046d2b2aabe0ca35` (SHA-256
+`21d0bd8a270501fc79d916679e2ad9d82e6f2bdc8dc4d4cd5abdd79f849d6104`).
+All nine scalar/media cases pass: 0/79/80/81/223 scalars in 51/52/60/52/70 ms,
+emoji boundary in 132 ms, photo/video fallback in 220/243 ms and view-once
+hidden-body exclusion in 228 ms. Every trace is `sent`, one attempt, with
+stored target/preview equal to effect arguments and the settled result; the
+returned provider id equals the outbox id. The exact compiled effect only
+returns payload/meta fields. This is executed local-effect evidence, not an
+instrumented network observation or real-provider delivery/idempotency claim.
+
+Raw JSON and CLI receipts remain on BLACK as
+`/tmp/clique-20260909-preview-<label>.json` and `.stdout`; the 80-scalar label
+is `scalars-80-attempt2`. Its raw SHA-256 is
+`b52d15af51dc750f12127f2f4aa08e3c34005cb0855e507ec4ad4d4c140d4ab4`.
+The emoji raw SHA-256 is
+`004899dc0e9776048021b196ec58ab59b527f1bb7517c1288ce05a62a3f7873b`;
+view-once is
+`2ecfdeb6bf535e281fdcf624f4a2ff17a619098841c883c6569d7859bc5bdd7d`.
+An earlier source-copy race failed project-root discovery before execution.
+The response-loss case writes a successful equality receipt but then fails
+cleanup with `client is closed`; its journey is still **failed**, and a
+corrected lifecycle rerun remains required. Its preserved raw hash is
+`44fa99140bcde06d18996f1c42c908b3965aab8fa175fc9a10af99d477ae1b45`.
