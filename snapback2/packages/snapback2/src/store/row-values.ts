@@ -66,28 +66,34 @@ export function rowKey(ref: RowRef): string {
 }
 
 export function hiddenRefs(before: unknown, after: unknown, output = new Map<string, RowRef>()): RowRef[] {
+  collectHiddenRefs(before, after, output);
+  return [...output.values()];
+}
+
+// @ref LLP 1018.008.004#3-first-slice-remove-duplicate-work-within-existing-contracts
+// Recursive callers need only the shared collection, not a copy at every node.
+function collectHiddenRefs(before: unknown, after: unknown, output: Map<string, RowRef>): void {
   if (after === null || after === undefined) {
     for (const ref of collectRefs(before)) output.set(rowKey(ref), ref);
-    return [...output.values()];
+    return;
   }
-  if (asRowRef(before)) return [...output.values()];
+  if (asRowRef(before)) return;
   before = escapedFields(before) ?? before;
   after = escapedFields(after) ?? after;
   if (Array.isArray(before) && Array.isArray(after)) {
     for (let index = 0; index < Math.min(before.length, after.length); index += 1) {
-      hiddenRefs(before[index], after[index], output);
+      collectHiddenRefs(before[index], after[index], output);
     }
   } else if (before && after && typeof before === "object" && typeof after === "object"
     && !Array.isArray(before) && !Array.isArray(after)) {
     for (const key of Object.keys(before as object)) {
-      hiddenRefs(
+      collectHiddenRefs(
         (before as Record<string, unknown>)[key],
         Object.hasOwn(after, key) ? (after as Record<string, unknown>)[key] : undefined,
         output,
       );
     }
   }
-  return [...output.values()];
 }
 
 /** Restore references whose retention policy survived a partial fresh answer. */
