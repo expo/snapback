@@ -120,6 +120,16 @@ the resulting proof-only provider SHA-256 is
 while the unchanged production provider remains
 `93e746ca4b882c4999310be35a0f956c18d356fd21c20166583c316ba4c30ddd`.
 
+`grok-thread-state-proof-instrumentation.patch` is also browser-proof
+instrumentation, not production behavior. After the live-proof and composer-
+readiness patches, it records only the current conversation id, the exact
+visible message ids, and the certified viewer-specific unread count/head id at
+each relevant render. It makes no client call and changes no receipt, query, or
+composer policy. The patch SHA-256 is
+`328202053ab572a838faa8ecaffcc5237baeab25b6232109c4b97602403d59f3`;
+the resulting combined proof-only thread SHA-256 is
+`d02503bc71b8438fab3eec036e47112a582b8c69443f893262216fd827347591`.
+
 `syntax-adapter.patch` is only the raw snapshot's mechanical move to current V2
 declaration spelling (`fn`/`maintain` colon headers, job parentheses, and inline
 schedule calls). Its SHA-256 is
