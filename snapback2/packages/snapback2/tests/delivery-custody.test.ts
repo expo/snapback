@@ -285,7 +285,7 @@ test('an authored _delivery.* product mutation is not an acknowledgement', () =>
   assert.doesNotThrow(() => applyDeliveryAcknowledgements(state, { outbox: { put: [product] } } as any, 'alice'));
   assert.deepEqual(state.deliveryAcks, before, 'a product write binds no mark');
   const ack = { ...product, intent: 'g:2', op: '_delivery.deliveries.ack', args: { events: ['e1'] } };
-  state.outbox['g:2'] = ack; // the swap's put lands in the same transaction; a bound mark whose intent is absent retires
+  state.outbox['g:2'] = ack; // the put lands in the same transaction; a bound, unretried mark whose intent AND event row are both absent retires
   applyDeliveryAcknowledgements(state, { outbox: { put: [ack] } } as any, 'alice');
   assert.equal(state.deliveryAcks['deliveries\0e1'][1], 'g:2', 'the engine-owned acknowledgement binds its mark');
 });

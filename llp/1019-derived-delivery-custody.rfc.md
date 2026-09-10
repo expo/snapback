@@ -206,8 +206,8 @@ reconstruct its history at all. So:
   installation bootstraps may not exceed 8,192 events (the successor's
   128-row batch × 64); above it the successor refuses
   `E_SUCCESSOR_BOOTSTRAP` (family `successor`, site the first such
-  declaration, page `migrations` — the wire label is `successor/migrations`,
-  family/page) naming the total and each log's share, and the rewrite is
+  declaration, page `successor` — the wire label is `successor`, one family
+  and page since the migrations page was renamed) naming the total and each log's share, and the rewrite is
   every such line without the word — no program may write the log, so no
   job can be pasted; the priced installation path is LLP 1020 Part B's.
 - Removing `deliver` is a **destructive plan** (`Drop::Table` of the log);
