@@ -155,8 +155,8 @@ for (const bootstrap of [false, true]) test(`chat successor installs ${bootstrap
     // Its application journeys belong to the complete template, tested separately.
     await rm(join(root, 'snapback/tests'), { recursive: true, force: true });
     await writeFile(join(root, 'snapback/schema.q'), originalSchema.replace(`  ${declaration}\n`, ''));
-    await writeFile(join(root, 'snapback/messages.q'), withoutLogQueries(originalOps).replace(/^fn conversation(?:Log|Preview) from access\n/gm, ''));
-    await writeFile(join(root, 'snapback/access.q'), originalAccess.replace(/^fn conversation(?:Log|Preview).*\n/gm, ''));
+    await writeFile(join(root, 'snapback/messages.q'), withoutLogQueries(originalOps));
+    await writeFile(join(root, 'snapback/access.q'), originalAccess);
   } });
   const bob = createClient({ url: owner.url, persona: 'bob' });
   try {
@@ -186,8 +186,8 @@ for (const bootstrap of [false, true]) test(`chat successor installs ${bootstrap
     assert.equal((await manifest(owner)).tables.messages.deliver.target, 'memberships');
     await writeFile(schemaPath, acceptedSchema);
     await until(() => control(owner, 'status'), s => s.status === 'ready', 'restore target');
-    await writeFile(opsPath, withoutLogQueries(originalOps).replace(/^fn conversation(?:Log|Preview) from access\n/gm, ''));
-    await writeFile(accessPath, originalAccess.replace(/^fn conversation(?:Log|Preview).*\n/gm, '').replace('first 50 by byConversationPrincipal', 'first 60 by byConversationPrincipal'));
+    await writeFile(opsPath, withoutLogQueries(originalOps));
+    await writeFile(accessPath, originalAccess.replace('first 50 by byConversationPrincipal', 'first 60 by byConversationPrincipal'));
     await writeFile(schemaPath, acceptedSchema.replace(`  ${declaration}${bootstrap ? ' bootstrap' : ''}\n`, ''));
     const removed = await until(() => control(owner, 'status'), s => s.status?.refused?.some((r: any) => r.code === 'E_SUCCESSOR_DESTRUCTIVE'), 'removal requires a plan');
     assert.equal(removed.generation, raised.generation);
@@ -210,4 +210,68 @@ test('chat removal is delivered to an original recipient who left before unsend'
     const log: any = await bob.query(api.messages.inbox, { c: null });
     assert.equal(log.data.filter((row: any) => row.kind === 'removed').length, 1, 'departed Bob receives one removal event');
   } finally { await Promise.all([alice.close(), bob.close()]); await owner.close(); }
+});
+
+test('a joiner pages all prior live history through both shipped reads without retroactive deliveries', async () => {
+  const owner = await RealOwnerHarness.create({ forceOwned: true, fixture });
+  const alice = createClient({ url: owner.url, persona: 'alice' });
+  const carol = createClient({ url: owner.url, persona: 'carol' });
+  try {
+    await Promise.all([alice.ready, carol.ready]);
+    const ids = ['message-1'];
+    for (let n = 0; n < 105; n++) {
+      const sent: any = await alice.mutation(api.messages.send, { conversationId: group, body: `prior ${n}` });
+      assert.equal(sent.state, 'committed'); ids.push(sent.data.id);
+    }
+    assert.equal((await alice.mutation(api.groups.memberAdd, { conversationId: group, principal: 'dev:carol' })).state, 'committed');
+    const history = await pages(carol, api.messages.history, { conversationId: group });
+    assert.deepEqual(history.map(r => r.id).sort(), [...ids].sort());
+    const composite: string[] = []; let c: string | null = null; let preview: unknown;
+    do {
+      const view: any = await carol.query(api.messages.conversationView, { conversationId: group, c });
+      assert.equal(view.data.count, 106);
+      preview ??= view.data.preview; assert.deepEqual(view.data.preview, preview);
+      composite.push(...view.data.messages.map((r: any) => r.message.id)); c = view.next;
+    } while (c);
+    assert.deepEqual(composite.sort(), [...ids].sort());
+    assert.deepEqual(await pages(carol, api.messages.inbox), []);
+  } finally { await Promise.all([alice.close(), carol.close()]); await owner.close(); }
+});
+
+for (const evolve of [false, true]) test(`metadata-only departed removal evicts leased photo bytes and retains unrelated custody ${evolve ? 'across a successor' : 'without a successor'}`, async () => {
+  const owner = await RealOwnerHarness.create({ forceOwned: true, fixture, prepare: root =>
+    writeFile(join(root, 'snapback/custody.q'), 'query events(c: cursor ?):\n  return deliveries[viewer] after c first 50 by byRecipient\n') });
+  const root = await mkdtemp(join(tmpdir(), 'chat-custody-bytes-'));
+  const alice = createClient({ url: owner.url, persona: 'alice' });
+  let bob: any = createClient({ url: owner.url, persona: 'bob', offline: { store: fileRangeStore(root) } });
+  let drain: any;
+  try {
+    await Promise.all([alice.ready, bob.ready]);
+    const bytes = await readFile(join(fixture, 'tests/fixtures/photo.jpg'));
+    const sent: any[] = [];
+    for (let n = 0; n < 2; n++) {
+      const message: any = await alice.mutation(api.messages.sendPhoto, { conversationId: group, photo: new File([bytes], 'photo.jpg', { type: 'image/jpeg' }) });
+      assert.equal(message.state, 'committed'); sent.push(message.data);
+    }
+    drain = await warm(bob); const urls: string[] = [];
+    for (const message of sent) {
+      const url = await bob.assetUrl(message.photo, { width: message.photo.width });
+      assert((await bob.assetBlob(url, { viewing: {} })).size > 0); urls.push(url);
+    }
+    drain.close(); drain = undefined; await bob.offline();
+    assert.equal((await alice.mutation(api.groups.memberRemove, { conversationId: group, membershipId: 'membership-2' })).state, 'committed');
+    if (evolve) await installSchema(owner, (await readFile(join(owner.root!, 'snapback/schema.q'), 'utf8')).replace('cap 50 by conversationId', 'cap 2 by conversationId'));
+    const sender = createClient({ url: owner.url, persona: 'alice' });
+    try { await sender.ready; const removed = await sender.mutation(api.messages.unsend, { messageId: sent[0].id });
+      assert.equal(removed.state, 'committed', JSON.stringify(removed)); } finally { await sender.close(); }
+    await bob.close(); bob = createClient({ url: owner.url, persona: 'bob', offline: { store: fileRangeStore(root) } }); await bob.ready;
+    drain = subscribe(bob, api.custody.events, { c: null }, () => {}, { drain: true });
+    await drain.until((v: any) => v.data?.some((r: any) => r.row === sent[0].id && r.kind === 'removed'), 10000);
+    drain.close(); drain = undefined; await bob.offline(); bob = await bob.restart();
+    const held = await pages(bob, api.messages.inbox);
+    assert(!held.some(r => r.message?.id === sent[0].id));
+    assert(held.some(r => r.message?.id === sent[1].id));
+    await assert.rejects(bob.assetBlob(urls[0]));
+    assert((await bob.assetBlob(urls[1])).size > 0);
+  } finally { drain?.close(); await Promise.all([alice.close(), bob.close()]); await owner.close(); await rm(root, { recursive: true, force: true }); }
 });

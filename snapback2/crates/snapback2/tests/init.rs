@@ -92,7 +92,7 @@ fn assert_rendering(template: &str, chat: bool) {
         // 26 operations plus the expiry schedule's binding program (never an API operation).
         assert_eq!(
             operations.len(),
-            27,
+            29,
             "unexpected chat operation set: {operations:?}"
         );
         let api = std::fs::read_to_string(project.path.join(".snapback/build/api.d.ts")).unwrap();
@@ -118,7 +118,8 @@ fn assert_rendering(template: &str, chat: bool) {
             "messages.send",
             "messages.unsend",
             "messages.edit",
-            "messages.purgeMessage",
+            "messages.history",
+            "messages.receipts",
             "messages.search",
         ] {
             assert!(

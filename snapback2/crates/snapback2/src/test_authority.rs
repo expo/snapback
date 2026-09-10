@@ -261,7 +261,7 @@ fn live_revocation_attempt(
             ));
         }
         stream
-            .prove_silence(Duration::from_millis(250))
+            .prove_silence(Duration::from_secs(2))
             .map_err(|error| match error.delivery {
                 Some(delivery) => format!(
                     "revoked retained stream delivered after protected write at seq {protected_write_seq}: {delivery}"

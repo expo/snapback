@@ -103,7 +103,7 @@ existing trust; write success does not repair a refused resume.
 
 E_OFFLINE_RESUME: rewrite an unsupported log as a direct ascending `after c first N`
 page (N <= 50); `online()` may retry mounted-limit once, not an unsupported log.
-E_OFFLINE_RESET: drop coverage, keep outbox, fetch program, re-resume.
+E_OFFLINE_RESET: reset answers/facts, keep outbox and delivered-history bodies anchored by held delivered events; removed events still evict. Fetch program, re-resume.
 A mounted drain restarts once at null. E_AUTH_SESSION seals; E_OFFLINE_AUTHORITY keeps coverage.
 
 Legacy `{c:null}` keys require a cold store for this pre-release.

@@ -201,7 +201,7 @@ impl Engine {
                     "site":error.require_site().unwrap_or_else(|| schedule.site.clone()),"message":error.to_string(),"rewrite":error.rewrite().unwrap_or_else(|| "fix the target or data, then run the target --as system".into()),"guide":"schedule"});
                 if code == crate::delivery::INCARNATION {
                     rejected["site"] = json!(error.require_site());
-                    rejected["guide"] = json!("offline");
+                    rejected["guide"] = json!("deliver");
                 }
                 if code == "E_BOUND" { rejected["guide"] = json!("bound/ceiling"); }
                 rejected

@@ -392,7 +392,7 @@ fn auth_recipe_executes_scoped_admin_reads_and_diagnoses_owner_only_absence() {
 fn prose_project() -> Project {
     let project = Project::new();
     assert!(project.init("chat", "none").status.success());
-    fs::write(project.path.join("snapback/explain.q"), "fn isMember from access\n\nquery thread(conversationId: conversations):\n  require isMember(conversationId, viewer) else MEMBERSHIP_REQUIRED\n  return deliveries[viewer, conversationId, 'message'] last 50 by byRecipientConversationKindAt\n").unwrap();
+    fs::write(project.path.join("snapback/explain.q"), "fn isMember from access\n\nquery thread(conversationId: conversations):\n  require isMember(conversationId, viewer) else MEMBERSHIP_REQUIRED\n  return deliveries[viewer, conversationId, 'delivered'] last 50 by byRecipientGroup\n").unwrap();
     assert!(project.run(&["check", "--json"]).status.success());
     project
 }
@@ -425,8 +425,8 @@ fn why_prose_explains_denied_chat_guard_at_its_call_site() {
             "  derived scratch          0            0\n",
             "  writes                   0            0\n",
             "  heap peak             8928  unavailable\n",
-            "  output bytes         35312  unavailable\n",
-            "  closure bytes        35250  unavailable\n",
+            "  output bytes         41612  unavailable\n",
+            "  closure bytes        41550  unavailable\n",
             "  explain.q:4   require isMember(conversationId, viewer) else MEMBERSHIP_REQUIRED\n",
             "    memberships[conversation-1, dev:charlie]   absent   (byConversationPrincipal)\n",
         )
@@ -477,19 +477,19 @@ fn why_prose_explains_admitted_chat_reads_bounds_rules_and_subscriptions() {
             "  derived scratch          0            0\n",
             "  writes                   0            0\n",
             "  heap peak             8928  unavailable\n",
-            "  output bytes         35312  unavailable\n",
-            "  closure bytes        35250  unavailable\n",
+            "  output bytes         41612  unavailable\n",
+            "  closure bytes        41550  unavailable\n",
             "  explain.q:4   require isMember(conversationId, viewer) else MEMBERSHIP_REQUIRED\n",
             "    memberships[conversation-1, dev:alice]   1 row examined, 1 visible\n",
             "    point by byConversationPrincipal — complete\n",
             "    admitted by: read <- exists memberships[.conversationId, viewer]\n",
-            "  explain.q:5   return deliveries[viewer, conversationId, 'message'] last 50 by byRecipientConversationKindAt\n",
-            "    deliveries[dev:alice, conversation-1, message]   1 row examined, 1 visible\n",
-            "    last 50 by byRecipientConversationKindAt — complete\n",
-            "    admitted by: read <- .recipient = viewer\n",
+            "  explain.q:5   return deliveries[viewer, conversationId, 'delivered'] last 50 by byRecipientGroup\n",
+            "    deliveries[dev:alice, conversation-1, delivered]   1 row examined, 1 visible\n",
+            "    last 50 by byRecipientGroup — complete\n",
+            "    admitted by: deliver to memberships[.conversationId] as deliveries with receipts\n",
             "  subscriptions:\n",
             "    memberships byConversationPrincipal [conversation-1, dev:alice]\n",
-            "    deliveries byRecipientConversationKindAt [dev:alice, conversation-1, message]\n",
+            "    deliveries byRecipientGroup [dev:alice, conversation-1, delivered]\n",
         )
     );
 }

@@ -2,13 +2,34 @@
 use super::*;
 
 #[test]
+fn generated_rules_block_when_seeded_content_has_no_recipients() {
+    let project = Project::new();
+    assert!(project.init("chat", "none").status.success());
+    let schema = project.path.join("snapback/schema.q");
+    fs::write(&schema, fs::read_to_string(&schema).unwrap().replace("  after insert <- exists memberships[.id, .creatorId, 'admin']\n", "")).unwrap();
+    let path = project.path.join("snapback/seed.ts");
+    let source = fs::read_to_string(&path).unwrap();
+    let source = source.lines().filter(|line| !["id: \"membership-1\"", "id: \"membership-2\"", "id: \"message-2\""]
+        .iter().any(|id| line.contains(id))).collect::<Vec<_>>().join("\n");
+    fs::write(path, source).unwrap();
+    let receipt = json_stdout(&project.run(&["test", "--derived-only", "--json"]));
+    let rules = check(&receipt, "rules");
+    assert_eq!(rules["verdict"], "blocked", "{rules}");
+    for table in ["deliveries", "deliveriesReceipts"] {
+        assert_eq!(rules["detail"]["tables"][table]["probes"], 0, "{rules}");
+        assert!(rules["detail"]["blocked"].as_array().unwrap().iter().any(|entry|
+            entry["table"] == table && entry["reason"] == "no stored rows to probe"), "{rules}");
+    }
+}
+
+#[test]
 fn chat_count_journey_refuses_matching_unusable_inboxes() {
     let project = Project::new();
     assert!(project.init("chat", "none").status.success());
     let path = project.path.join("snapback/messages.q");
     let original = fs::read_to_string(&path).unwrap();
     fs::write(&path, original.replace(
-        "query inbox(c: cursor ?):\n  page = deliveries[viewer] after c first 50 by byRecipientAt\n  return page { *, message: messages[.messageId] }",
+        "query inbox(c: cursor ?):\n  page = deliveries[viewer] after c first 50 by byRecipient\n  return page { *, message: messages[.row] }",
         "query inbox(c: cursor ?):\n  return null",
     )).unwrap();
     let receipt = json_stdout(&project.run(&[

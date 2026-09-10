@@ -95,7 +95,10 @@ fn chat_seed_205_memberships_applies_and_reset_51_in_one_group_refuses_atomicall
         before.body,
         "refused reset changed stored membership rows"
     );
-    assert_eq!(status(port, secret)["status"], "ready");
+    // The source watcher can still be publishing the seed-only successor.
+    wait_for(Duration::from_secs(6), || {
+        (status(port, secret)["status"] == "ready").then_some(())
+    });
     let stop = request(
         port,
         "POST",

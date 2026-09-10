@@ -562,7 +562,7 @@ fn finish_invalidation_attempt(
             Err(error) => (None, Some(format!("expected SSE delivery: {error}"))),
         }
     } else {
-        match stream.prove_silence(Duration::from_millis(250)) {
+        match stream.prove_silence(Duration::from_secs(2)) {
             Ok(()) => (None, None),
             Err(error) if error.delivery.is_some() => (
                 error.delivery,

@@ -978,7 +978,7 @@ export class OfflineRuntime {
       // crash after program adoption. Facts let a cold restart authenticate its
       // resume even before any fresh query has committed.
       const superseded = facts ?? this.superseded ?? this.facts;
-      await this.store.commit({ resetCoverage: true, facts, superseded });
+      await this.store.commit({ resetCoverage: true, schema: this.schema, facts, superseded });
       this.coverageRevision += 1;
       this.facts = facts;
       this.sessionEpoch = epoch;

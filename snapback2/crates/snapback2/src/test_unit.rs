@@ -272,6 +272,28 @@ fn silence_probe_rejects_a_heartbeat_followed_by_stream_close() {
     server.join().unwrap();
 }
 
+#[test]
+fn silence_probe_requires_an_ordered_barrier_and_rejects_an_earlier_delivery() {
+    for delivered in [false, true] {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let events = if delivered { vec!["probe", "z-silence"] } else { vec!["z-silence"] };
+            for id in events {
+                let frame = format!("data: {}\n\n", json!({ "id": id, "data": { "seq": 2 } }));
+                write!(stream, "{:x}\r\n{frame}\r\n", frame.len()).unwrap();
+            }
+            stream.flush().unwrap();
+        });
+        let mut probe = SseProbe::from_stream(TcpStream::connect(address).unwrap());
+        let result = probe.prove_silence(Duration::from_secs(2));
+        assert_eq!(result.is_ok(), !delivered);
+        if delivered { assert!(result.err().unwrap().delivery.is_some()); }
+        server.join().unwrap();
+    }
+}
+
 // @ref LLP 1016#d5--schedules-row-timers-and-periods-on-the-owners-clock — the receipt's
 // `schedules` block is the owner's counts verbatim, and its absence is a failed receipt.
 #[test]

@@ -51,6 +51,33 @@ const clocked = (op: string, ids: string[], seq: number, readTime: number, extra
   ...delivery(op, ids, seq), readTime, clockPlanHash: 'c'.repeat(64), validator: 'd'.repeat(64), ...extra,
 });
 
+test('coverage reset preserves delivered-history anchors and bodies, never unanchored or removed rows, across cold reopen', async () => {
+  const { root, factories } = await carriers();
+  const schema = { tables: { messages: { retain: 'delivered-history', deliver: { log: 'deliveries', receipts: false } } } };
+  const event = (id: string, target: string, kind: string) => ({ table: 'deliveries', id,
+    row: { id, row: target, kind, incarnation: 1, recipient: 'alice' } });
+  const events = [event('d1', 'kept', 'delivered'), event('d2', 'removed', 'delivered'), event('r2', 'removed', 'removed'), event('c3', 'changed-only', 'changed')];
+  try {
+    for (const factory of factories) {
+      let store = factory(); await store.open('alice');
+      await store.commit({ schema, deliveries: [{ ...delivery('inbox', ['kept', 'removed', 'unanchored', 'changed-only'], 1),
+        rows: [...events, ...['kept', 'removed', 'unanchored', 'changed-only'].map(id => row(id))] }] });
+      await store.commit({ schema, resetCoverage: true });
+      const check = async () => {
+        const coverage = await store.coverage();
+        assert.deepEqual(coverage.rows.filter(r => r.table === 'messages').map(r => r.id), ['kept']);
+        assert.deepEqual(coverage.rows.filter(r => r.table === 'deliveries').map(r => r.id).sort(), events.map(r => r.id).sort());
+        assert.equal(await store.answer('inbox', {}), undefined);
+        assert.equal(coverage.ranges.length, 0);
+      };
+      await check(); await store.close(); store = factory(); await store.open('alice'); await check();
+      await store.commit({ schema, tombstones: [{ table: 'messages', id: 'kept', seq: 2 }] });
+      assert(!(await store.coverage()).rows.some(r => r.table === 'messages'));
+      await store.close();
+    }
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
 test('unchanged native26c9 movement, revocation and halo deliveries survive public admission on every carrier', async context => {
   const { nativeR8: native } = JSON.parse(await readFile(new URL('../../evaluator/src/test-search-v5-fixtures.json', import.meta.url), 'utf8'));
   const { root, factories } = await carriers();

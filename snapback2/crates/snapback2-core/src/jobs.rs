@@ -142,7 +142,7 @@ impl JobRefusal {
             refusal.site = error.require_site().unwrap_or_else(|| site.into());
         }
         refusal.guide = if code == "E_DELIVER_INCARNATION" {
-            "offline".into()
+            "deliver".into()
         } else if code == "E_BOUND" {
             "bound/ceiling".into()
         } else if family == "job" {

@@ -4,7 +4,7 @@ import { sha256 } from "./hash";
 import { CURRENT_VALUE_MODEL_VERSION } from "./runner";
 import { ClientStore } from "./store";
 import { canonicalValue, clone, rangeStops } from "./value-runtime";
-import type { ActualResult, CorpusCase, CorpusExpected, HydrationResult } from "./types";
+import type { ActualResult, CorpusCase, CorpusExpected, HydrationResult, RowRecord } from "./types";
 
 export { sha256 } from "./hash";
 export { canonicalValue, rowDigest, scopedRuleHash, wireJson } from "./value-runtime";
@@ -106,7 +106,7 @@ export function evaluateCase(testCase: CorpusCase): ActualResult {
       rangeStops: rangeStops(local.execution.trace.ranges),
       evictedRows,
       next: local.execution.next,
-      ...(testCase.predictDelivery ? { deliveryWrites: local.execution.writes.filter(w => w.row !== null
+      ...(testCase.predictDelivery ? { deliveryWrites: local.execution.writes.filter((w): w is RowRecord => w.row !== null
         && Object.values<any>(testCase.schema.tables).some(t => t.deliver?.log === w.table)) } : {}),
     };
   } catch (error) {

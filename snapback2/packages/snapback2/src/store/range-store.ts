@@ -953,8 +953,24 @@ export class PersistentRangeStore implements RangeStore {
 
   private applyCoverage(state: PersistedRangeState, swap: StoreSwap, bytes: ByteDelta, clockOnly: Set<string>, deliveredIds: Set<string>) {
     if (swap.resetCoverage) {
-      state.rows = {};
-      // Sequence guards belong to this generation's coverage, just like rows.
+      // @ref LLP 1019#5-reads — reset coverage, never the recipient's delivered custody.
+      const schema = swap.schema ?? storedProgram(state)?.schema ?? this.referenceSchema;
+      const kept = new Set<string>();
+      for (const [table, declaration] of Object.entries(schema?.tables ?? {})) {
+        if (declaration.retain !== 'delivered-history' || !declaration.deliver) continue;
+        const delivered = new Set<string>(), removed = new Set<string>();
+        for (const [key, event] of Object.entries(state.rows)) {
+          if (event.table !== declaration.deliver.log) continue;
+          kept.add(key);
+          if (typeof event.row.row !== 'string') continue;
+          const target = rowKey({ table, id: event.row.row });
+          if (event.row.kind === 'delivered') delivered.add(target);
+          if (event.row.kind === 'removed') removed.add(target);
+        }
+        for (const key of delivered) if (!removed.has(key)) kept.add(key);
+      }
+      state.rows = Object.fromEntries(Object.entries(state.rows).filter(([key]) => kept.has(key)));
+      // Sequence guards belong to this generation's coverage.
       // A query-only successor can deliver the same row at the same data seq.
       state.rowSeq = {};
       state.negative = {};

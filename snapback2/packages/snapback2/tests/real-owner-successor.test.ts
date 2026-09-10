@@ -30,7 +30,7 @@ test("durable client intents survive a schema successor and a lost acknowledgeme
     const response = await fetch(input, init);
     const path = new URL(String(input)).pathname;
     if (path === "/api/resume") resets.push(await response.clone().json());
-    if (path === "/api/mutation") {
+    if (path === "/api/mutation" && JSON.parse(String(init?.body)).op === "messages.send") {
       const body = await response.clone().json();
       requests.push({ body: String(init?.body), response: body });
       if (loseAcknowledgement && body.state === "committed") {
@@ -70,7 +70,7 @@ test("durable client intents survive a schema successor and a lost acknowledgeme
       assert.equal(result.state, "queued");
       queued.push(result);
     }
-    const admitted = await first.outbox.entries();
+    const admitted = (await first.outbox.entries()).filter(entry => entry.op === "messages.send");
     assert.equal(admitted.length, 2);
     assert.equal(admitted[0].predicted, true);
     assert.equal(admitted[1].predicted, true);
@@ -233,10 +233,12 @@ test("real chat sends compact after own fanout and maintained count arrive", asy
     for (let n = 0; n < 10; n++) {
       const result = await client.mutation(api.messages.send, { conversationId: "conversation-1", body: `compact ${n}` });
       assert.equal(result.state, "committed", JSON.stringify(result));
-      if (result.state === "committed") assert.deepEqual(result.effects?.map(row => row.table).sort(), ["deliveries", "messageCounts", "messages"]);
+      if (result.state === "committed") assert.deepEqual(result.effects?.map(row => row.table).sort(), ["deliveries", "deliveriesReceipts", "deliveriesReceipts", "messageCounts", "messages"]);
       const view = await client.query(api.messages.conversationView, { conversationId: "conversation-1", c: null });
       assert("data" in view && view.data.messages.some((row: any) => row.message?.body === `compact ${n}`));
-      assert.deepEqual(await client.outbox.entries(), [], "all readable fanout and count arrived; no success history remains");
+      await client.query(api.messages.receipts, { messageId: (result as any).data.id });
+      await client.outbox.drain();
+      assert.deepEqual((await client.outbox.entries()).filter(entry => entry.op === "messages.send"), [], "all readable fanout, receipts and count arrived; no send history remains");
     }
   } finally { drain?.close(); await client?.close(); await local?.close(); await rm(root, { recursive: true, force: true }); }
 });

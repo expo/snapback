@@ -9,7 +9,7 @@ use std::time::{Duration, Instant};
 
 pub(super) struct SseProbe {
     pub(super) reader: BufReader<TcpStream>,
-    close: Option<(OwnerInfo, String, String)>,
+    close: Option<(OwnerInfo, String, String, String)>,
 }
 
 pub(super) struct SilenceError {
@@ -68,9 +68,10 @@ impl SseProbe {
             Refusal::owner("E_OWNER_TEST_SSE", error, "reconnect the live stream"))?;
         let session = ready.get("session").and_then(Json::as_str).ok_or_else(||
             Refusal::owner("E_OWNER_TEST_SSE", "live stream omitted its session", "reconnect the live stream"))?.to_owned();
-        probe.close = Some((owner.clone(), persona.to_owned(), session.clone()));
+        let path = format!("/api/subscribe?op={}&args={}", percent_encode(op), encoded);
+        probe.close = Some((owner.clone(), persona.to_owned(), session.clone(), path.clone()));
         let response = client::api(owner, "POST", "/api/live/control", &[("X-Snapback-As", persona)],
-            json!({ "session": session, "add": [{ "id": "probe", "path": format!("/api/subscribe?op={}&args={}", percent_encode(op), encoded) }] }))?;
+            json!({ "session": session, "add": [{ "id": "probe", "path": path }] }))?;
         if response.status >= 400 {
             return Err(Refusal::owner("E_OWNER_TEST_SSE", response.body.to_string(), "reconnect the live stream"));
         }
@@ -85,35 +86,37 @@ impl SseProbe {
                 return Err("timed out waiting for delivery".to_owned());
             }
             match self.frame(remaining)? {
-                SseFrame::Event(event) => return Ok(event),
+                SseFrame::Event(event) => return Ok(if event.get("id").is_some() { event["data"].clone() } else { event }),
                 SseFrame::Heartbeat => {}
                 SseFrame::TimedOut => return Err("timed out waiting for delivery".to_owned()),
             }
         }
     }
 
-    pub(super) fn prove_silence(&mut self, window: Duration) -> Result<(), SilenceError> {
+    pub(super) fn prove_silence(&mut self, timeout: Duration) -> Result<(), SilenceError> {
+        let failure = |message: String| SilenceError { message, delivery: None };
+        // The write and its notifications settle on the owner before this add.
+        // serve_live drains children in key order: probe precedes z-silence, so
+        // its unwanted delivery cannot hide behind the fresh subscription frame.
+        if let Some((owner, persona, session, path)) = &self.close {
+            let response = client::api(owner, "POST", "/api/live/control", &[("X-Snapback-As", persona)],
+                json!({ "session": session, "add": [{ "id": "z-silence", "path": path }] }))
+                .map_err(|error| failure(format!("silence barrier: {error:?}")))?;
+            if response.status >= 400 { return Err(failure(format!("silence barrier: {}", response.body))); }
+        }
         let started = Instant::now();
         loop {
-            let remaining = window.saturating_sub(started.elapsed());
-            if remaining.is_zero() {
-                return Ok(());
-            }
+            let remaining = timeout.saturating_sub(started.elapsed());
+            if remaining.is_zero() { return Err(failure("silence barrier timed out".into())); }
             match self.frame(remaining) {
-                Ok(SseFrame::Event(delivery)) => {
-                    return Err(SilenceError {
-                        message: "delivery received during the silence window".to_owned(),
-                        delivery: Some(delivery),
-                    });
-                }
-                Ok(SseFrame::Heartbeat) => {}
-                Ok(SseFrame::TimedOut) => return Ok(()),
-                Err(message) => {
-                    return Err(SilenceError {
-                        message,
-                        delivery: None,
-                    });
-                }
+                Ok(SseFrame::Event(event)) if event["id"] == "z-silence" && event.get("data").is_some() => return Ok(()),
+                Ok(SseFrame::Event(event)) => return Err(SilenceError {
+                    message: "delivery received before the silence barrier".into(),
+                    delivery: Some(if event.get("id").is_some() { event["data"].clone() } else { event }),
+                }),
+                Ok(SseFrame::Heartbeat) => {},
+                Ok(SseFrame::TimedOut) => return Err(failure("silence barrier timed out".into())),
+                Err(message) => return Err(failure(message)),
             }
         }
     }
@@ -153,7 +156,7 @@ impl SseProbe {
             let text = String::from_utf8_lossy(&payload);
             if let Some(data) = text.lines().find_map(|line| line.strip_prefix("data: ")) {
                 return serde_json::from_str::<Json>(data)
-                    .map(|event| SseFrame::Event(if event.get("id").is_some() { event["data"].clone() } else { event }))
+                    .map(SseFrame::Event)
                     .map_err(|error| error.to_string());
             }
             if text.lines().any(|line| line == ": heartbeat") {
@@ -167,7 +170,7 @@ impl SseProbe {
 // its worker before the next one instead of waiting for a TCP heartbeat.
 impl Drop for SseProbe {
     fn drop(&mut self) {
-        if let Some((owner, persona, session)) = self.close.take() {
+        if let Some((owner, persona, session, _)) = self.close.take() {
             let _ = client::api(&owner, "POST", "/api/live/control", &[("X-Snapback-As", &persona)],
                 json!({ "session": session, "close": true }));
         }

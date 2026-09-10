@@ -492,7 +492,7 @@ fn offline_guide_page_respects_its_budget_and_its_codes_have_pages() {
         content.len()
     );
     assert!(
-        content.contains("drop coverage, keep outbox, fetch program, re-resume"),
+        content.contains("reset answers/facts, keep outbox") && content.contains("Fetch program, re-resume"),
         "reset recovery must preserve queued writes and resume before replay"
     );
     assert!(!content.contains("cold-drain"));
@@ -603,7 +603,8 @@ fn app_guide_uses_chat_expo_operations_without_internal_timer_bindings() {
             serde_json::from_str(page["content"].as_str().unwrap()).unwrap();
         let operations = app["operations"].as_object().unwrap();
         assert!(!operations.contains_key(binding));
-        assert!(operations.contains_key("messages.purgeMessage"));
+        assert!(!operations.contains_key("messages.purgeMessage"));
+        assert!(operations.contains_key("messages._timerDelete_expireMessage"));
         assert!(operations.contains_key("messages.send"));
         assert_eq!(
             operations.keys().collect::<Vec<_>>(),
@@ -618,12 +619,12 @@ fn app_guide_uses_chat_expo_operations_without_internal_timer_bindings() {
                 "{name}"
             );
             assert_eq!(op["bounds"]["maxSteps"], certificate["max_steps"], "{name}");
-            let program = cached["programs"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .find(|p| p["name"] == *name)
-                .unwrap();
+            let Some(program) = cached["programs"].as_array().unwrap().iter().find(|p| p["name"] == *name) else {
+                assert_eq!(name, "_delivery.deliveries.ack");
+                assert_eq!(op["kind"], "Mutation");
+                assert_eq!(op["args"], serde_json::json!({ "events": { "List": { "of": { "Ref": { "table": "deliveries" } }, "max": 50 } } }));
+                continue;
+            };
             assert_eq!(op["kind"], program["kind"], "{name}");
             assert_eq!(op["args"], program["args"], "{name}");
         }
@@ -673,7 +674,7 @@ fn app_guide_requires_exposed_operations_even_with_timer_binding_names() {
     assert!(app["operations"].get(exposed).is_some());
     let certificate_path = project.path.join(".snapback/build/certificates.json");
     let valid = fs::read(&certificate_path).unwrap();
-    for missing in [exposed, "messages.send", "messages.purgeMessage"] {
+    for missing in [exposed, "messages.send", "messages.history", "messages.receipts"] {
         let mut certificates: serde_json::Value = serde_json::from_slice(&valid).unwrap();
         assert!(
             certificates

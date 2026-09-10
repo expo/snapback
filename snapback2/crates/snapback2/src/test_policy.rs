@@ -130,6 +130,9 @@ pub(super) fn check_rules(
                 }));
             }
         }
+        if table_probes == 0 {
+            blocked.push(json!({ "table": table_name, "reason": "no stored rows to probe" }));
+        }
         tables.insert(
             table_name.clone(),
             json!({

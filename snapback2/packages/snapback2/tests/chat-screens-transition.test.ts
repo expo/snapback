@@ -234,7 +234,6 @@ test("the cold chat keeps both intents queued after a committed replay loses its
     assert.equal(group.state, "committed");
     const conversationId = group.data.id;
     await writer.mutation(api.messages.send, { conversationId, body: "held message" });
-    await warm.query(api.messages.thread, { conversationId });
     const drain = subscribe(warm, api.messages.inbox, {}, () => undefined, { drain: true });
     await drain.until((event: any) => event.live === true && event.caughtUp === true, 5_000);
     await warm.offline();
@@ -246,9 +245,9 @@ test("the cold chat keeps both intents queued after a committed replay loses its
       fetch: async (input: any, init: any) => {
         const path = new URL(String(input)).pathname;
         if (cut) throw new TypeError("owner unreachable");
-        if (path === "/api/mutation") replays.push(init.body);
+        if (path === "/api/mutation" && JSON.parse(String(init.body)).op === "messages.send") replays.push(init.body);
         const response = await globalThis.fetch(input, init);
-        if (fault && path === "/api/mutation") {
+        if (fault && path === "/api/mutation" && JSON.parse(String(init.body)).op === "messages.send") {
           fault = false;
           assert.equal((await response.json()).state, "committed", "the 503 replaces a real commit receipt");
           cut = true; // No genuine reconnect opportunity until the manual fallback below.
@@ -275,7 +274,7 @@ test("the cold chat keeps both intents queued after a committed replay loses its
     await act(async () => { await client.online(); verdict = await client.outbox.settled(); });
     assert.deepEqual(verdict, { stopped: "transport", remaining: 2 });
     assert.equal(client.snapshot.auth.viewer, principal);
-    const custody = (entries: any[]) => entries.map(({ intent, state, ids, args }) => ({ intent, state, ids, args }));
+    const custody = (entries: any[]) => entries.filter(entry => entry.op === "messages.send").map(({ intent, state, ids, args }) => ({ intent, state, ids, args }));
     assert.deepEqual(custody(await client.outbox.entries()), custody(queued), "neither intent settled or changed after the lost receipt");
     await waitFor(() => document.querySelectorAll("li[data-state=queued]").length === 2,
       "both queued bubbles through the continuing outage after the lost response");
@@ -407,7 +406,7 @@ for (const boundary of ["navigation", "account", "anonymous"]) test(`React cold 
     assert.equal(body(), "unfinished cold draft");
     assert.equal(syncButton("Sync now").disabled, false);
     assert.equal(sends, 1, "confirmation must not trigger an extra replay");
-    assert.equal((await client.outbox.entries())[0].state, "queued");
+    assert.equal((await client.outbox.entries()).find((entry: any) => entry.op === "messages.send")!.state, "queued");
     await other.ready; await other.auth.guest();
     if (boundary === "anonymous") await other.auth.logout();
     commits.length = 0;

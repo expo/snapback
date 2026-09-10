@@ -658,7 +658,7 @@ fn real_incarnation_refusals_keep_the_table_repair_on_direct_seed_and_replay_wir
     let mut refusals = vec![Refusal::from_runtime(&engine.execute(&program, &Checker::new(&schema, Ceilings::default()).check(&program).unwrap(), context()).unwrap_err())];
     refusals.push(Refusal::from_runtime(&engine.seed("notes", row.clone()).unwrap_err()));
     for (refusal, site) in refusals.iter().zip(["notes.send:statement:1", "seed:statement:1"]) {
-        assert_eq!(refusal.family, "rule"); assert_eq!(refusal.guide, "offline");
+        assert_eq!(refusal.family, "rule"); assert_eq!(refusal.guide, "deliver");
         assert_eq!(refusal.site.as_deref(), Some(site));
         assert_eq!(refusal.rewrite.as_deref(), Some("insert notes { authorId: viewer, conversationId, text }"));
     }
@@ -669,7 +669,7 @@ fn real_incarnation_refusals_keep_the_table_repair_on_direct_seed_and_replay_wir
     let replay = offline::ReplayCommit { grant: grant.id.clone(), offset: 0, count: 1, intent: format!("{}:0", grant.id), request_digest: "d".repeat(64), trace: Default::default(), at: 2 };
     let execution = rt.execute_replay(&program.name, context(), &replay).unwrap();
     for wire in [crate::writer_wire::execution_json(&execution), offline::replay_mutation_response(&execution, &replay.intent, None)] {
-        assert_eq!(wire["family"], "rule"); assert_eq!(wire["guide"], "offline");
+        assert_eq!(wire["family"], "rule"); assert_eq!(wire["guide"], "deliver");
         assert_eq!(wire["site"], "notes.send:statement:1");
         assert_eq!(wire["rewrite"], "insert notes { authorId: viewer, conversationId, text }");
     }

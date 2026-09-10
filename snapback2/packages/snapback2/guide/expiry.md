@@ -19,7 +19,8 @@ exports `notify = effect({ grants, run, then: recordNotified })`. The `run`
 body performs I/O using its granted `fetch`; `meta.id` is its idempotency key.
 See `snapback2 guide effects` for the executable TypeScript recipe.
 
-`messages.thread` reads the delivery log; `conversationView` adds count/preview.
+`messages.thread` reads delivered events; `conversationView` reads live content
+history with count/preview, including prior messages for joiners.
 Use `withHistory` for declared partial history.
 `snapback/messages.q`:
 

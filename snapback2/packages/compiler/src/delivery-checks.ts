@@ -132,7 +132,7 @@ export function registerDeliveryChecks(test: Test): void {
     assert(compiled.ok, JSON.stringify(compiled));
     assert(compiled.project.sources["notes.send:statement:1"]?.line === 2, JSON.stringify(compiled.project.sources));
     assert(!Object.keys(compiled.project.sources).some(key => key.includes("/body/")), JSON.stringify(compiled.project.sources));
-    assert(rustCheck(compiled.project.programs, "synthetic", compiled.project.schema as unknown as Record<string, unknown>).every(r => !r.error));
+    assert(rustCheck(compiled.project.programs, "synthetic", compiled.project.schema as unknown as Record<string, unknown>).every(r => !r.error), "fresh-insert rewrite did not certify");
   });
   test("schedule delete refuses periods, other rows, extra fields, and non-time columns", () => {
     const schema = schemaWith("deliver to memberships[.conversationId] as deliveries").replace("  authorId:", "  expiresAt: time ?\n  authorId:");
