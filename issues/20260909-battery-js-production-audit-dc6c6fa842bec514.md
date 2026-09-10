@@ -10,12 +10,12 @@
 **Battery gate:** `js-production-audit`
 **Failure signature:** `sha256:dc6c6fa842bec5141eda7dcd4d91ccb1acf1593c7e3115c2c3d8d53866cda6fe`
 **First observed run:** `local.20260909T074306Z.2b8ec71c667f`
-**Last observed run:** `local.20260910T020125Z.c971a88a5bb1`
-**Last processed run:** `local.20260910T020125Z.c971a88a5bb1`
+**Last observed run:** `local.20260910T111530Z.4b2b32e6865b`
+**Last processed run:** `local.20260910T111530Z.4b2b32e6865b`
 **Detected at revision:** `2b8ec71c667f7f1a72bb1ff6c3097e4f662e2148`
-**Last observed revision:** `c971a88a5bb194ee997597c08faa8477da3fdca0`
-**Consecutive red runs:** `3`
-**Escalation:** `pending (3/4)`
+**Last observed revision:** `4b2b32e6865b17e725068e3b75d18f5b3d281461`
+**Consecutive red runs:** `4`
+**Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary
@@ -41,3 +41,8 @@ node scripts/check-js-production-audit.mjs
 
 Fix forward, rerun the complete battery, and let the next determinate pass close
 this signature. Four consecutive red observations require author escalation.
+
+## Author escalation
+
+This root-failure signature remained red for 4 consecutive scheduled
+battery runs. Escalate to the author (Charlie Cheever) before the next run.
