@@ -175,7 +175,7 @@ test("self-minted but already expired replacement is one failed automatic episod
   } finally { detach(); await f.close(); }
 });
 
-test("an expensive selected observer gets its own bounded demand after joining a healthy no-demand resume", async () => {
+for (const disconnect of [false, true]) test(`an expensive selected observer ${disconnect ? "detached while joining stops before followup" : "gets its own bounded demand after joining a healthy no-demand resume"}`, async () => {
   let hold = false, release!: () => void, entered!: () => void;
   const sent = new Promise<void>(resolve => { entered = resolve; }), held = new Promise<void>(resolve => { release = resolve; });
   const f = await fixture({ facts: true, allocation: 1702, fetch: owner => async (input, init) => {
@@ -187,13 +187,42 @@ test("an expensive selected observer gets its own bounded demand after joining a
     const current = await f.carrier.outbox.grant();
     await f.client.offlineRuntime.outbox.adopt({ ...current, id: engineId(9000), from: engineId(9000), used: 6808 });
     hold = true; const sync = f.client.online(); await sent;
+    let joined = false;
+    const resume = f.client.performResume.bind(f.client);
+    f.client.performResume = (authority: any, demand?: string) => { joined ||= demand === "messages.send"; return resume(authority, demand); };
     const view = f.client.outbox.observe(api.messages.send); detach = view.subscribe(() => undefined);
-    await until(() => view.getSnapshot().status.recovering === true);
-    release(); await sync; await until(() => view.getSnapshot().status.ready);
+    await until(() => joined);
+    if (disconnect) detach();
+    release(); await sync;
+    if (disconnect) {
+      for (let i = 0; i < 10; i++) await pause();
+      assert.equal(f.resumes.length, 2, "a detached observer cannot start its demand-specific followup");
+      return;
+    }
+    await until(() => view.getSnapshot().status.ready);
     assert.equal(f.resumes.length, 3, "startup, healthy resume, then one selected-demand followup");
     assert.equal(f.resumes[1].demand, undefined);
     assert.equal(f.resumes[2].demand, "messages.send");
     assert.equal(f.resumes[2].remaining, 1384);
+  } finally { release(); detach?.(); await f.close(); }
+});
+
+test("detaching the last observer during asynchronous preflight starts no capacity request", async () => {
+  const f = await fixture();
+  let detach: (() => void) | undefined, release!: () => void, entered!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; }), sent = new Promise<void>(resolve => { entered = resolve; });
+  try {
+    const status = f.client.offlineRuntime.outbox.status.bind(f.client.offlineRuntime.outbox);
+    let reads = 0;
+    f.client.offlineRuntime.outbox.status = async (op?: string) => {
+      const value = await status(op);
+      if (op === "messages.send" && ++reads === 2) { entered(); await held; }
+      return value;
+    };
+    detach = f.client.outbox.observe(api.messages.send).subscribe(() => undefined);
+    await sent; detach(); release();
+    for (let i = 0; i < 10; i++) await pause();
+    assert.equal(f.resumes.length, 0);
   } finally { release(); detach?.(); await f.close(); }
 });
 
@@ -251,13 +280,14 @@ test("program replacement during acquisition refuses the original call before du
   } finally { release(); await f.close(); }
 });
 
-test("manual Sync joining capacity-only recovery still drains the original queued envelope", async () => {
+for (const automatic of [false, true]) test(`${automatic ? "selected capacity recovery alone" : "manual Sync joining capacity-only recovery"} still drains the original queued envelope`, async () => {
   let hold = false, release!: () => void, entered!: () => void;
   const held = new Promise<void>(resolve => { release = resolve; }), sent = new Promise<void>(resolve => { entered = resolve; });
   const f = await fixture({ fetch: owner => async (input, init) => {
     if (hold && new URL(String(input)).pathname === "/api/resume") { hold = false; entered(); await held; }
     return owner.fetch(input, init);
   } });
+  let detach: (() => void) | undefined;
   try {
     f.owner.state.failAfterCommit = 1;
     const queued = await f.client.mutation(api.messages.send, args("lost acknowledgement"));
@@ -265,13 +295,19 @@ test("manual Sync joining capacity-only recovery still drains the original queue
     const original = (await f.client.outbox.entries())[0], old = await f.carrier.outbox.grant();
     await f.client.offlineRuntime.outbox.adopt({ ...old, id: engineId(9000), from: engineId(9000), used: old.count });
     hold = true;
-    const capacity = f.client.performResume(await f.client.operationAuthority(), "messages.send"); await sent;
-    const sync = f.client.online(); release(); await capacity; await sync;
+    if (automatic) {
+      detach = f.client.outbox.observe(api.messages.send).subscribe(() => undefined);
+      await sent; release();
+      await until(async () => (await f.client.outbox.entries())[0].state === "committed");
+    } else {
+      const capacity = f.client.performResume(await f.client.operationAuthority(), "messages.send"); await sent;
+      const sync = f.client.online(); release(); await capacity; await sync;
+    }
     const settled = (await f.client.outbox.entries())[0];
     assert.equal(settled.state, "committed"); assert.equal(settled.intent, original.intent);
     assert.equal(settled.grant, original.grant); assert.deepEqual(settled.ids, original.ids);
     assert.equal(f.owner.executions.length, 1);
-  } finally { release(); await f.close(); }
+  } finally { release(); detach?.(); await f.close(); }
 });
 
 test("an obsolete queued grant-adoption callback cannot consume a newer session grant", async () => {

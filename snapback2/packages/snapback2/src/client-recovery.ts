@@ -54,7 +54,7 @@ export function observeRecovery(host: RecoveryClient, op: string): RecoveryDeman
       attempted = key;
       const authority = await host.operationAuthority(false);
       if (active && revision === host.recoveryRevision && available(host)) {
-        try { await prepareRecovery(host, op, authority); }
+        try { await prepareRecovery(host, op, authority, () => active && revision === host.recoveryRevision); }
         // An unusable replacement is our own attempt, not a new opportunity.
         finally { if (active && revision === host.recoveryRevision) attempted = await keyOf(); }
       }
@@ -75,14 +75,14 @@ export function blockedRecovery(host: RecoveryClient, op?: string): void {
 
 /** Explicit admission lends its captured authority: waiting for another
  * auth transition here would deadlock that transition's tracked-write wait. */
-export async function prepareRecovery(host: RecoveryClient, op: string, authority: Authority): Promise<void> {
+export async function prepareRecovery(host: RecoveryClient, op: string, authority: Authority, current?: () => boolean): Promise<void> {
   const runtime = host.offlineRuntime;
   if (!runtime || !available(host) || runtime.following || !runtime.principal) return;
   if ((await runtime.store.outbox.bounds())[op] === undefined) return;
   for (let attempt = 0; attempt < 2; attempt++) {
     const status = await runtime.outbox.status(op);
     host.ensureAuthority(authority);
-    if (status.ready || status.reason === "program-missing" || !available(host)) return;
+    if (status.ready || status.reason === "program-missing" || !available(host) || current?.() === false) return;
     const joined = !!host.resumeFlight && host.resumeDemand !== op;
     await host.performResume(authority, op);
     host.ensureAuthority(authority);

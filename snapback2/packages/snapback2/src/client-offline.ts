@@ -633,7 +633,12 @@ export async function resumeClient(host: ResumeClient, authority: ClientAuthorit
       reload: (current) => host.ensureOfflineMetadata(current, true, true, signal),
     });
     check();
-    if (reset === "capacity") return true;
+    if (reset === "capacity") {
+      if ((await runtime.queuedIntents()).length === 0) return true;
+      // Capacity can restore transport while the flight owns the reconnect.
+      // Preserve its queued replay purpose under the same deadline and fences.
+      check(); return resumeClient(host, authority, signal);
+    }
     if (reset) for (const item of [...host.mounted.values()].filter(item => !item.drain)) {
       const principal = runtime.principal!;
       const key = `${principal}\u0000${item.op}\u0000${stableSerialize(item.args)}`;
