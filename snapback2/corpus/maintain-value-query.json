@@ -293,7 +293,327 @@
       "counts.byOwner"
     ],
     "disclosures": [],
-    "bound_product": "absent point read on counts × 1 calls = 1 + present point read on counts × 1 calls = 1"
+    "bound_product": "absent point read on counts × 1 calls = 1 + present point read on counts × 1 calls = 1",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 1,
+        "source": "absent point read on counts × 1 calls",
+        "site": "absent"
+      },
+      {
+        "meter": "examined entries",
+        "value": 1,
+        "source": "present point read on counts × 1 calls",
+        "site": "present"
+      },
+      {
+        "meter": "index entries",
+        "value": 1,
+        "source": "absent point read on counts × 1 calls",
+        "site": "absent"
+      },
+      {
+        "meter": "index entries",
+        "value": 1,
+        "source": "present point read on counts × 1 calls",
+        "site": "present"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "absent point read on counts × 1 calls × 4",
+        "site": "absent"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "present point read on counts × 1 calls × 4",
+        "site": "present"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "public count absence evidence",
+        "site": "maintain-value-query:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "maintain-value-query:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "maintain-value-query:statement:6"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "maintain-value-query:statement:7"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "maintain-value-query:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "maintain-value-query:statement:3:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "maintain-value-query:statement:4"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "maintain-value-query:statement:6:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "maintain-value-query:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "maintain-value-query:statement:5"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-value-query:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-value-query:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-value-query:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-value-query:statement:3:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-value-query:statement:4"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-value-query:statement:5"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-value-query:statement:6"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-value-query:statement:6:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-value-query:statement:7"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 4266,
+        "source": "search closure scratch",
+        "site": null
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "absent point read on counts × 1 calls × 4 × 32",
+        "site": "absent"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "present point read on counts × 1 calls × 4 × 32",
+        "site": "present"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "public count absence evidence × 32",
+        "site": "maintain-value-query:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions × 32",
+        "site": "maintain-value-query:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions × 32",
+        "site": "maintain-value-query:statement:6"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions × 32",
+        "site": "maintain-value-query:statement:7"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "maintain-value-query:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "maintain-value-query:statement:3:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "maintain-value-query:statement:4"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "maintain-value-query:statement:6:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "maintain-value-query:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "maintain-value-query:statement:5"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-value-query:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-value-query:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-value-query:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-value-query:statement:3:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-value-query:statement:4"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-value-query:statement:5"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-value-query:statement:6"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-value-query:statement:6:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-value-query:statement:7"
+      },
+      {
+        "meter": "output bytes",
+        "value": 41,
+        "source": "counts.value",
+        "site": "absent"
+      },
+      {
+        "meter": "output bytes",
+        "value": 41,
+        "source": "counts.value",
+        "site": "present"
+      },
+      {
+        "meter": "output bytes",
+        "value": 31,
+        "source": "shape: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 1704,
+        "source": "2 pooled counts first images with table/id envelopes",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 2085,
+        "source": "public count absence evidence",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 2562,
+        "source": "maintained-address closure: whole row pool and actual issuing metadata: framing/shared encoding/growth adjustment",
+        "site": null
+      }
+    ]
   },
   "context": {
     "viewer": "u1",

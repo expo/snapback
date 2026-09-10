@@ -234,7 +234,111 @@
       "posts.byAt"
     ],
     "disclosures": [],
-    "bound_product": "opaque-cursor-wrong-index-refused take 2 (+2 reserve) × 1 calls on posts = 4"
+    "bound_product": "opaque-cursor-wrong-index-refused take 2 (+2 reserve) × 1 calls on posts = 4",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 4,
+        "source": "opaque-cursor-wrong-index-refused take 2 (+2 reserve) × 1 calls on posts",
+        "site": "opaque-cursor-wrong-index-refused"
+      },
+      {
+        "meter": "index entries",
+        "value": 4,
+        "source": "opaque-cursor-wrong-index-refused take 2 (+2 reserve) × 1 calls on posts",
+        "site": "opaque-cursor-wrong-index-refused"
+      },
+      {
+        "meter": "steps",
+        "value": 20,
+        "source": "opaque-cursor-wrong-index-refused take 2 (+2 reserve) × 1 calls on posts × 5",
+        "site": "opaque-cursor-wrong-index-refused"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "opaque-cursor-wrong-index-refused:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "opaque-cursor-wrong-index-refused:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 640,
+        "source": "opaque-cursor-wrong-index-refused take 2 (+2 reserve) × 1 calls on posts × 5 × 32",
+        "site": "opaque-cursor-wrong-index-refused"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "opaque-cursor-wrong-index-refused:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "opaque-cursor-wrong-index-refused:statement:1"
+      },
+      {
+        "meter": "output bytes",
+        "value": 76,
+        "source": "posts.at",
+        "site": "opaque-cursor-wrong-index-refused"
+      },
+      {
+        "meter": "output bytes",
+        "value": 308,
+        "source": "posts.author",
+        "site": "opaque-cursor-wrong-index-refused"
+      },
+      {
+        "meter": "output bytes",
+        "value": 300,
+        "source": "posts.id",
+        "site": "opaque-cursor-wrong-index-refused"
+      },
+      {
+        "meter": "output bytes",
+        "value": 20,
+        "source": "posts row width: framing/shared encoding/growth adjustment",
+        "site": "opaque-cursor-wrong-index-refused"
+      },
+      {
+        "meter": "output bytes",
+        "value": 14,
+        "source": "posts first 2 at opaque-cursor-wrong-index-refused: framing/shared encoding/growth adjustment",
+        "site": "opaque-cursor-wrong-index-refused"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 76,
+        "source": "posts.at",
+        "site": "opaque-cursor-wrong-index-refused"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 308,
+        "source": "posts.author",
+        "site": "opaque-cursor-wrong-index-refused"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 300,
+        "source": "posts.id",
+        "site": "opaque-cursor-wrong-index-refused"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 20,
+        "source": "posts row width: framing/shared encoding/growth adjustment",
+        "site": "opaque-cursor-wrong-index-refused"
+      }
+    ]
   },
   "context": {
     "viewer": "u1",

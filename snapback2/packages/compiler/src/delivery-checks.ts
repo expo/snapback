@@ -78,10 +78,20 @@ export function registerDeliveryChecks(test: Test): void {
       assert(target.kind === "Mutation", JSON.stringify(target));
       assert(target.body.some(s => typeof s === "object" && "Delete" in s), JSON.stringify(target));
       assert(!compiled.project.clientPrograms.some(p => p.name === target.name), "private target entered client map");
-      assert(compiled.project.sources[`${target.name}/body/0`]?.file === `snapback/${file}.q`, "write source missing");
+      assert(compiled.project.sources[`${target.name}:statement:1`]?.file === `snapback/${file}.q`, "write source missing");
       const checked = rustCheck(compiled.project.programs, "synthetic", compiled.project.schema as unknown as Record<string, unknown>);
       assert(checked.every(r => !r.error), JSON.stringify(checked));
     }
+  });
+  test("incarnation repairs fit required fields and writes use only statement source sites", () => {
+    const schema = schemaWith("deliver to memberships[.conversationId] as deliveries", "cap 3 by conversationId")
+      .replaceAll("messages", "notes").replace("body: text <=4000 ?", "text: text <=30");
+    const compiled = compileInline([{ fileName: "snapback/schema.q", source: schema }, { fileName: "snapback/notes.q", source:
+      "mutation send(conversationId: conversations, text: text <=30):\n  insert notes { authorId: viewer, conversationId, text }\n" }]);
+    assert(compiled.ok, JSON.stringify(compiled));
+    assert(compiled.project.sources["notes.send:statement:1"]?.line === 2, JSON.stringify(compiled.project.sources));
+    assert(!Object.keys(compiled.project.sources).some(key => key.includes("/body/")), JSON.stringify(compiled.project.sources));
+    assert(rustCheck(compiled.project.programs, "synthetic", compiled.project.schema as unknown as Record<string, unknown>).every(r => !r.error));
   });
   test("schedule delete refuses periods, other rows, extra fields, and non-time columns", () => {
     const schema = schemaWith("deliver to memberships[.conversationId] as deliveries").replace("  authorId:", "  expiresAt: time ?\n  authorId:");

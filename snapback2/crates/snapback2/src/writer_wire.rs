@@ -27,7 +27,7 @@ pub fn execution_json(execution: &Execution) -> Json {
             "code": code, "family": "input", "message": "the row no longer matches the update condition",
             "site": site, "rewrite": "review current, then submit a new conditional update", "guide": "quarry"
         }),
-        ExecutionState::Rejected { code, message, rule, site } => {
+        ExecutionState::Rejected { code, message, rule, site, rewrite } => {
             let family = if rule.is_some() { "rule" } else { rejection_family(code) };
             let mut response = json!({
                 "state": "rejected",
@@ -39,7 +39,10 @@ pub fn execution_json(execution: &Execution) -> Json {
             });
             if code == snapback2_core::delivery::INCARNATION {
                 response["guide"] = json!("offline");
-                response["rewrite"] = json!(snapback2_core::delivery::INCARNATION_REWRITE);
+            }
+            if let Some(rewrite) = rewrite {
+                response["rewrite"] = json!(rewrite);
+                if code == "E_BOUND" { response["guide"] = json!("bound/ceiling"); }
             }
             if let Some(rule) = rule { response["rule"] = json!(rule); }
             if let Some(site) = site { response["site"] = json!(site); }
@@ -142,6 +145,7 @@ mod tests {
     #[test]
     fn rejected_mutations_and_channel_refusals_carry_complete_envelopes() {
         let rejected = execution_json(&execution(ExecutionState::Rejected {
+            rewrite: None,
             site: None,
             rule: None,
             code: "E_RULE".to_owned(),
@@ -192,6 +196,7 @@ mod tests {
             ),
         ] {
             let result = execution_json(&execution(ExecutionState::Rejected {
+                rewrite: None,
                 code: code.to_owned(),
                 message: before.to_owned(),
                 site: None,
@@ -214,6 +219,7 @@ mod tests {
     fn require_meaning_is_structured_in_live_and_replayed_writes() {
         for code in ["NOT_MEMBER", "E_INPUT", "conflict"] {
             let value = execution(ExecutionState::Rejected {
+                rewrite: None,
                 code: code.into(), message: "program requirement failed".into(), rule: Some(code.into()),
                 site: Some("snapback/rules.q:8:3".into()),
             });
@@ -227,6 +233,7 @@ mod tests {
             }
         }
         let occ = snapback2_core::offline::replay_mutation_response(&execution(ExecutionState::Rejected {
+            rewrite: None,
             code: "conflict".into(), message: "messages.byId".into(), rule: None, site: None,
         }), "occ-intent", None);
         assert_eq!(occ["reason"], "conflict");
@@ -234,6 +241,7 @@ mod tests {
         assert!(occ.get("rule").is_none());
         assert!(occ.get("code").is_none());
         let input = execution_json(&execution(ExecutionState::Rejected {
+            rewrite: None,
             code: "E_INPUT".into(), message: "invalid input".into(), rule: None, site: None,
         }));
         assert_eq!(input["family"], "input");

@@ -1,15 +1,5 @@
-#![allow(unused_imports)]
-//! Runner, part 2: writes, maintenance, constraints, rules, bookkeeping.
+//! Row writes and their shared constraint and derived-write lifecycle.
 use super::*;
-use crate::certificate::Certificate;
-use crate::ir::*;
-use crate::schema::*;
-use crate::value::{I53_MAX, I53_MIN, Value, ValueError, canonical_json, digest, object};
-use rusqlite::{Connection, OptionalExtension, Transaction, params, params_from_iter};
-use serde::{Deserialize, Serialize};
-use std::cmp::Ordering;
-use std::collections::{BTreeMap, BTreeSet, VecDeque};
-use thiserror::Error;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum RowChangeOrigin {

@@ -131,17 +131,20 @@ impl JobRefusal {
         let mut refusal = Self::new(
             code,
             error.to_string(),
-            site,
+            error.require_site().as_deref().unwrap_or(site),
             "fix the refused data or constraint, then run --resume <job-id> --as system",
         );
         refusal.family = family.into();
+        if let Some(rewrite) = error.rewrite() { refusal.rewrite = rewrite; }
         // The job family's page is `job`; every other family pages its runtime page.
         if code == "E_DELIVER_INCARNATION" {
-            refusal.rewrite = crate::delivery::INCARNATION_REWRITE.into();
+            refusal.rewrite = error.rewrite().unwrap_or_else(|| "insert with a fresh id".into());
             refusal.site = error.require_site().unwrap_or_else(|| site.into());
         }
         refusal.guide = if code == "E_DELIVER_INCARNATION" {
             "offline".into()
+        } else if code == "E_BOUND" {
+            "bound/ceiling".into()
         } else if family == "job" {
             "job".into()
         } else {

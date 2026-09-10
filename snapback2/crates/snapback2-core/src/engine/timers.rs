@@ -198,12 +198,12 @@ impl Engine {
                 tx.execute_batch("ROLLBACK TO schedule_target; RELEASE schedule_target")?;
                 trace = AuthoritativeTrace::default();
                 let mut rejected = json!({"state":"rejected","code":code,"family":crate::jobs::rejection_family(code),
-                    "site":schedule.site,"message":error.to_string(),"rewrite":"fix the target or data, then run the target --as system","guide":"schedule"});
+                    "site":error.require_site().unwrap_or_else(|| schedule.site.clone()),"message":error.to_string(),"rewrite":error.rewrite().unwrap_or_else(|| "fix the target or data, then run the target --as system".into()),"guide":"schedule"});
                 if code == crate::delivery::INCARNATION {
                     rejected["site"] = json!(error.require_site());
-                    rejected["rewrite"] = json!(crate::delivery::INCARNATION_REWRITE);
                     rejected["guide"] = json!("offline");
                 }
+                if code == "E_BOUND" { rejected["guide"] = json!("bound/ceiling"); }
                 rejected
             }
         };

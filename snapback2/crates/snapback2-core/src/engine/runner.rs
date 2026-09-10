@@ -93,7 +93,7 @@ pub(super) struct Runner<'a> {
     pub(super) delivery_step_reserve: u64,
     pub(super) delivery_heap_reserve: u64,
     pub(super) delivery_write_reserves: BTreeMap<String, u64>,
-    pub(super) write_path: String,
+    pub(super) statement_site: String,
     /// Index ranges of `trace.rule_inputs` minted while a rule check ran on a
     /// candidate row that turned out hidden. They stay in the authoritative
     /// trace (metering, invalidation) but never reach a client-facing compare.
@@ -159,7 +159,7 @@ impl<'a> Runner<'a> {
             delivery_step_reserve: 0,
             delivery_heap_reserve: 0,
             delivery_write_reserves: BTreeMap::new(),
-            write_path: String::new(),
+            statement_site: String::new(),
             discarded_rule_inputs: Vec::new(),
         }
     }
@@ -217,18 +217,21 @@ impl<'a> Runner<'a> {
             delivery_step_reserve: 0,
             delivery_heap_reserve: 0,
             delivery_write_reserves: BTreeMap::new(),
-            write_path: String::new(),
+            statement_site: String::new(),
             discarded_rule_inputs: Vec::new(),
         }
     }
 
     pub(super) fn statements(&mut self, statements: &[Stmt]) -> Result<Flow, RuntimeError> {
-        self.statements_at(statements, "")
+        self.statements_at(statements, self.certificate.map_or("write", |c| c.program.as_str()), "")
     }
 
-    pub(super) fn statements_at(&mut self, statements: &[Stmt], prefix: &str) -> Result<Flow, RuntimeError> {
+    pub(super) fn statements_at(&mut self, statements: &[Stmt], prefix: &str, page_prefix: &str) -> Result<Flow, RuntimeError> {
         for (index, statement) in statements.iter().enumerate() {
-            let path = format!("{prefix}{index}");
+            let path = format!("{prefix}:statement:{}", index + 1);
+            // Cursor lineage uses the certificate/twin's result-page addresses,
+            // independently of the authored statement's diagnostic source site.
+            let page_path = format!("{page_prefix}{index}");
             // @ref LLP 1016#d6--the-operator-seat-ad-hoc-programs-and-rehearsal — preserve the attempted write site even when validation refuses before a row is touched.
             if self.context.operator_by.is_some() {
                 use crate::certificate::WriteKind;
@@ -259,7 +262,7 @@ impl<'a> Runner<'a> {
                     );
                 }
             }
-            self.write_path = format!("{}/body/{path}", self.certificate.map_or("write", |c| c.program.as_str()));
+            self.statement_site = path.clone();
             self.step(1)?;
             let flow = match statement {
                 Stmt::Const { name, value } => {
@@ -333,7 +336,7 @@ impl<'a> Runner<'a> {
                     } else {
                         (else_body, "else")
                     };
-                    self.statements_at(branch, &format!("{path}/{arm}/"))?
+                    self.statements_at(branch, &format!("{path}:{arm}"), &format!("{page_path}/{arm}/"))?
                 }
                 Stmt::For {
                     binding,
@@ -346,7 +349,7 @@ impl<'a> Runner<'a> {
                         self.env.insert(binding.clone(), tracked.value);
                         self.env_provenance
                             .insert(binding.clone(), tracked.provenance);
-                        match self.statements_at(body, &format!("{path}/body/"))? {
+                        match self.statements_at(body, &path, &format!("{page_path}/loop/"))? {
                             Flow::Next | Flow::Continue => {}
                             Flow::Break => break,
                             returned @ Flow::Return(..) => {
@@ -413,7 +416,7 @@ impl<'a> Runner<'a> {
                 }
                 Stmt::Return(value) => {
                     let tracked = self.expr_tracked(value)?;
-                    self.trace.result_page_return = Some(path);
+                    self.trace.result_page_return = Some(page_path);
                     Flow::Return(tracked.value, tracked.provenance)
                 }
                 Stmt::Break => Flow::Break,

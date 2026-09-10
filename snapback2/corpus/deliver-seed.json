@@ -312,6 +312,34 @@
     "read_time_granularity_ms": null,
     "body": [
       {
+        "Upsert": {
+          "table": "messages",
+          "key": {
+            "Literal": {
+              "Id": "m"
+            }
+          },
+          "row": {
+            "Literal": {
+              "Row": {
+                "authorId": {
+                  "Id": "u1"
+                },
+                "body": {
+                  "String": "hello"
+                },
+                "conversationId": {
+                  "Id": "c1"
+                },
+                "id": {
+                  "Id": "m"
+                }
+              }
+            }
+          }
+        }
+      },
+      {
         "Return": {
           "Scan": {
             "site": "delivery.inbox",
@@ -340,7 +368,7 @@
   },
   "certificate": {
     "program": "deliver-seed",
-    "plan_hash": "53bc8df7970b564b3a4e035218f5ebb607fc14dbf1824130788243bba79ab533",
+    "plan_hash": "9404f67e05d3dd9ca9818c5622bdea78c74bf463814d8ff596d404c4ee21e7f7",
     "schema_hash": "61348a763b331c12b1a9e6b63d4e3ca389bb1c44e0d6f3177cd73f687b9a5f2a",
     "tables": {
       "conversations": {
@@ -357,7 +385,10 @@
       }
     },
     "rule_hashes": {
-      "deliveries.read": "5d628128a0dd49b60767e1f7aada3ddf71210ac15a603cdaf6f6ad880b11cc38"
+      "deliveries.insert": "b3f8cbfaa08d2fd92070f2a2b5a99c7ea2335b62dc2507fee6cfd6e15228e2a6",
+      "deliveries.read": "5d628128a0dd49b60767e1f7aada3ddf71210ac15a603cdaf6f6ad880b11cc38",
+      "messages.insert": "9305fd58fcac951c399ca16375ce2edb0537d3c855986a9daefe93b8effd4660",
+      "messages.update": "9305fd58fcac951c399ca16375ce2edb0537d3c855986a9daefe93b8effd4660"
     },
     "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
     "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
@@ -375,20 +406,49 @@
         "complete": false
       }
     ],
-    "write_sites": [],
+    "write_sites": [
+      {
+        "table": "messages",
+        "kind": "Upsert",
+        "max_rows": 1
+      },
+      {
+        "table": "deliveries",
+        "kind": "Insert",
+        "max_rows": 4
+      }
+    ],
     "mutation_targets": {
-      "targets": [],
-      "complete": true
+      "targets": [
+        {
+          "table": "messages",
+          "kind": "create",
+          "unresolved": "conditional"
+        },
+        {
+          "table": "messages",
+          "kind": "update",
+          "unresolved": "conditional"
+        }
+      ],
+      "complete": false
     },
     "maintained_amplification": 0,
-    "constraint_checks": [],
-    "max_examined": 52,
-    "max_index_entries": 52,
+    "constraint_checks": [
+      "deliveries:DeliverAudience(messages)",
+      "deliveries:DeliverIncarnation",
+      "deliveries:Immutable([\"at\", \"audience\", \"conversationId\", \"incarnation\", \"kind\", \"recipient\", \"row\", \"seq\"])",
+      "deliveries:Unique(byId)",
+      "memberships:DeliverAudience(messages)",
+      "messages:Unique(byId)"
+    ],
+    "max_examined": 56,
+    "max_index_entries": 56,
     "max_rule_probes": 0,
-    "max_steps": 263,
+    "max_steps": 355,
     "derived_steps": 0,
     "derived_scratch_bytes": 0,
-    "max_heap_bytes": 8416,
+    "max_heap_bytes": 25680,
     "max_output_bytes": 41612,
     "max_closure_bytes": 41550,
     "completeness": "Page",
@@ -396,10 +456,266 @@
     "read_time_granularity_ms": null,
     "halo_rows": 1,
     "indexes_required": [
-      "deliveries.byRecipient"
+      "deliveries.byRecipient",
+      "deliveries.byRow",
+      "memberships.byConversationPrincipal"
     ],
     "disclosures": [],
-    "bound_product": "delivery.inbox take 50 (+2 reserve) × 1 calls on deliveries = 52"
+    "bound_product": "delivery.inbox take 50 (+2 reserve) × 1 calls on deliveries = 52 + deliver to memberships[.conversationId] as deliveries on messages: 1 calls × 4 reserved rows = 4",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 52,
+        "source": "delivery.inbox take 50 (+2 reserve) × 1 calls on deliveries",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "examined entries",
+        "value": 4,
+        "source": "deliver to memberships[.conversationId] as deliveries on messages: 1 calls × 4 reserved rows",
+        "site": "schema.tables.messages.deliver"
+      },
+      {
+        "meter": "index entries",
+        "value": 52,
+        "source": "delivery.inbox take 50 (+2 reserve) × 1 calls on deliveries",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "index entries",
+        "value": 4,
+        "source": "deliver to memberships[.conversationId] as deliveries on messages: 1 calls × 4 reserved rows",
+        "site": "schema.tables.messages.deliver"
+      },
+      {
+        "meter": "steps",
+        "value": 260,
+        "source": "delivery.inbox take 50 (+2 reserve) × 1 calls on deliveries × 5",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "steps",
+        "value": 84,
+        "source": "deliver to memberships[.conversationId] as deliveries on messages: 1 calls × 4 reserved rows",
+        "site": "schema.tables.messages.deliver"
+      },
+      {
+        "meter": "steps",
+        "value": 5,
+        "source": "messages Upsert writes",
+        "site": "deliver-seed:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "deliver-seed:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "deliver-seed:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "deliver-seed:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "deliver-seed:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 14320,
+        "source": "deliver to memberships[.conversationId] as deliveries on messages: candidate images, recipient map and event construction",
+        "site": "schema.tables.messages.deliver"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 8320,
+        "source": "delivery.inbox take 50 (+2 reserve) × 1 calls on deliveries × 5 × 32",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 2688,
+        "source": "deliver to memberships[.conversationId] as deliveries on messages: 1 calls × 4 reserved rows × 32",
+        "site": "schema.tables.messages.deliver"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 160,
+        "source": "messages Upsert writes × 32",
+        "site": "deliver-seed:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "deliver-seed:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "deliver-seed:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "deliver-seed:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "deliver-seed:statement:2"
+      },
+      {
+        "meter": "output bytes",
+        "value": 1900,
+        "source": "deliveries.at",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "output bytes",
+        "value": 2200,
+        "source": "deliveries.audience",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "output bytes",
+        "value": 8100,
+        "source": "deliveries.conversationId",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "output bytes",
+        "value": 7500,
+        "source": "deliveries.id",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "output bytes",
+        "value": 2350,
+        "source": "deliveries.incarnation",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "output bytes",
+        "value": 1650,
+        "source": "deliveries.kind",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "output bytes",
+        "value": 7850,
+        "source": "deliveries.recipient",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "output bytes",
+        "value": 7550,
+        "source": "deliveries.row",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "output bytes",
+        "value": 1950,
+        "source": "deliveries.seq",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "output bytes",
+        "value": 500,
+        "source": "deliveries row width: framing/shared encoding/growth adjustment",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "output bytes",
+        "value": 62,
+        "source": "deliveries first 50 at delivery.inbox: framing/shared encoding/growth adjustment",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 1900,
+        "source": "deliveries.at",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 2200,
+        "source": "deliveries.audience",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 8100,
+        "source": "deliveries.conversationId",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 7500,
+        "source": "deliveries.id",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 2350,
+        "source": "deliveries.incarnation",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 1650,
+        "source": "deliveries.kind",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 7850,
+        "source": "deliveries.recipient",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 7550,
+        "source": "deliveries.row",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 1950,
+        "source": "deliveries.seq",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 500,
+        "source": "deliveries row width: framing/shared encoding/growth adjustment",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "messages Upsert",
+        "site": "deliver-seed:statement:1"
+      },
+      {
+        "meter": "write rows",
+        "value": 4,
+        "source": "deliveries Insert",
+        "site": "schema.tables.deliveries"
+      }
+    ]
   },
   "context": {
     "viewer": "u1",
@@ -413,61 +729,6 @@
   "receipt": {
     "schema_hash": "61348a763b331c12b1a9e6b63d4e3ca389bb1c44e0d6f3177cd73f687b9a5f2a",
     "rows": [
-      {
-        "table": "deliveries",
-        "id": "6c48a87066386fac057252de3adff8d4e540f8715f8ac23108d5aeb42364b57e",
-        "row": {
-          "Row": {
-            "at": {
-              "Int": 0
-            },
-            "audience": {
-              "Int": 2
-            },
-            "conversationId": {
-              "Id": "c1"
-            },
-            "id": {
-              "Id": "6c48a87066386fac057252de3adff8d4e540f8715f8ac23108d5aeb42364b57e"
-            },
-            "incarnation": {
-              "Int": 4
-            },
-            "kind": {
-              "String": "delivered"
-            },
-            "recipient": {
-              "Id": "u1"
-            },
-            "row": {
-              "Id": "m"
-            },
-            "seq": {
-              "Int": 4
-            }
-          }
-        }
-      },
-      {
-        "table": "messages",
-        "id": "m",
-        "row": {
-          "Row": {
-            "authorId": {
-              "Id": "u1"
-            },
-            "body": {
-              "String": "hello"
-            },
-            "conversationId": {
-              "Id": "c1"
-            },
-            "id": {
-              "Id": "m"
-            }
-          }
-        }
-      },
       {
         "table": "memberships",
         "id": "a",
@@ -541,61 +802,37 @@
         "lt": null,
         "lte": null,
         "rule_hash": "5d628128a0dd49b60767e1f7aada3ddf71210ac15a603cdaf6f6ad880b11cc38",
-        "row_ids": [
-          "6c48a87066386fac057252de3adff8d4e540f8715f8ac23108d5aeb42364b57e"
-        ],
+        "row_ids": [],
         "stop": "Exhausted",
-        "absence": false,
+        "absence": true,
         "halo": null,
         "n2_suffix": null
       }
     ],
-    "absences": [],
+    "absences": [
+      [
+        "messages",
+        "byId",
+        [
+          {
+            "Id": "m"
+          }
+        ]
+      ]
+    ],
     "verdicts": []
   },
   "prelude": [],
   "replacementReceipt": null,
   "expected": {
     "localResult": {
-      "Array": [
-        {
-          "Row": {
-            "at": {
-              "Int": 0
-            },
-            "audience": {
-              "Int": 2
-            },
-            "conversationId": {
-              "Id": "c1"
-            },
-            "id": {
-              "Id": "6c48a87066386fac057252de3adff8d4e540f8715f8ac23108d5aeb42364b57e"
-            },
-            "incarnation": {
-              "Int": 4
-            },
-            "kind": {
-              "String": "delivered"
-            },
-            "recipient": {
-              "Id": "u1"
-            },
-            "row": {
-              "Id": "m"
-            },
-            "seq": {
-              "Int": 4
-            }
-          }
-        }
-      ]
+      "Array": []
     },
     "errorCode": null,
     "localState": "predicted",
     "partialSites": [],
-    "canonicalResult": "{\"Array\":[{\"Row\":{\"at\":{\"Int\":0},\"audience\":{\"Int\":2},\"conversationId\":{\"Id\":\"c1\"},\"id\":{\"Id\":\"6c48a87066386fac057252de3adff8d4e540f8715f8ac23108d5aeb42364b57e\"},\"incarnation\":{\"Int\":4},\"kind\":{\"String\":\"delivered\"},\"recipient\":{\"Id\":\"u1\"},\"row\":{\"Id\":\"m\"},\"seq\":{\"Int\":4}}}]}",
-    "digest": "4f3a7a880e9e08e6ab3f3428fd469f93cb632662e0fca7e5eda1b8061ed7f57d",
+    "canonicalResult": "{\"Array\":[]}",
+    "digest": "62db520212cc069676ef47ebdcb00c4ab646bb477ec4065963f0f9f9f8ee1c66",
     "rangeStops": {
       "delivery.inbox": [
         "exhausted"

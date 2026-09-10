@@ -22,6 +22,8 @@ fn timer_runtime(fail: bool) -> Runtime {
         "expiresAt".into(),
         ColumnType::Optional(Box::new(ColumnType::Time)),
     );
+    schema.tables.get_mut("messages").unwrap().rules.delete =
+        RuleExpr::Eq(RuleTerm::Field("authorId".into()), RuleTerm::Viewer);
     let target = Program {
         name: "expiry.delete".into(),
         args: BTreeMap::from([(
@@ -82,7 +84,7 @@ fn timer_runtime(fail: bool) -> Runtime {
 }
 
 #[test]
-fn schedule_delete_delivers_the_departed_recipient_tombstone_and_settles() {
+fn schedule_delete_as_owner_obeys_custody_despite_author_only_delete_rule() {
     let mut rt = timer_runtime(false);
     let fired = rt.fire_due_at(64, 10).unwrap();
     assert_eq!(fired.len(), 1);

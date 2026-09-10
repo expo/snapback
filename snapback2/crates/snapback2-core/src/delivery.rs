@@ -36,7 +36,13 @@ pub const PRINCIPAL: &str = "E_DELIVER_PRINCIPAL";
 /// or a program writes a generated table (family `schema`).
 pub const SHAPE: &str = "E_SCHEMA_DELIVER";
 pub const INCARNATION: &str = "E_DELIVER_INCARNATION";
-pub const INCARNATION_REWRITE: &str = "insert messages { conversationId, authorId: viewer, body }";
+pub fn incarnation_rewrite(schema: &Schema, table: &str) -> String {
+    let columns = schema.tables[table].columns.iter()
+        .filter(|(name, kind)| name.as_str() != "id" && !matches!(kind, ColumnType::Optional(_)))
+        .map(|(name, kind)| if matches!(kind, ColumnType::Principal) { format!("{name}: viewer") } else { name.clone() })
+        .collect::<Vec<_>>().join(", ");
+    format!("insert {table} {{ {columns} }}")
+}
 
 /// `deliver to <target>[<prefix>] [by .<principal>] as <log> [with receipts] [bootstrap]`
 /// on a content table, resolved: the compiler picks the principal column; raw

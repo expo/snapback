@@ -33,16 +33,14 @@ impl Engine {
         };
         let certificate = Checker::new(&self.schema, seed_ceilings())
             .check(&program)
-            .map_err(|e| RuntimeError::SchemaDeliver {
-                code: e.code,
-                message: e.message,
-                rewrite: e.rewrite,
-            })?;
+            .map_err(|e| RuntimeError::Refusal(Box::new(e)))?;
         let execution = self.execute_seed(&program, &certificate, 0)?;
         match execution.state {
             ExecutionState::Committed { .. } => Ok(()),
-            ExecutionState::Rejected { code, site, .. } => {
-                Err(RuntimeError::Require { code, site })
+            ExecutionState::Rejected { code, site, message, rewrite, .. } => {
+                Err(RuntimeError::Refusal(Box::new(crate::CheckError {
+                    code, site, message, rewrite: rewrite.unwrap_or_else(|| "fix the seed row".into()),
+                })))
             }
             state => Err(RuntimeError::Input(format!(
                 "seed did not commit: {state:?}"
@@ -60,57 +58,27 @@ impl Runner<'_> {
         old: Option<&Value>,
         new: Option<&Value>,
     ) -> Result<(), RuntimeError> {
-        if self.rule_authority != RuleAuthority::StoreAuthoritative || old == new {
+        if self.rule_authority != RuleAuthority::StoreAuthoritative {
             return Ok(());
         }
         let Some(deliver) = self.schema.table(table).and_then(|t| t.deliver.clone()) else {
             return Ok(());
         };
-        let content = new.or(old).expect("row change");
+        // Compare the same images fetch_id exposes: omitted optionals are null.
+        let normalize = |image: &Value| {
+            let mut image = image.clone();
+            super::index::materialize_optional_fields(&mut image, &self.schema.tables[table]);
+            image
+        };
+        let old = old.map(normalize);
+        let new = new.map(normalize);
+        if old == new { return Ok(()); }
+        let content = new.as_ref().or(old.as_ref()).expect("row change");
         let id = content.field("id")?.as_str()?;
         // Rows with an empty audience have no event to remember their identity.
         // Keep only retired identities here; live incarnation is always the log's.
         let retired = format!("custody_retired:{}", digest(&(table, id)));
         self.step(4)?;
-        if old.is_none() {
-            let exists: bool = self.tx.query_row(
-                "SELECT EXISTS(SELECT 1 FROM _meta WHERE key=?1)",
-                [&retired],
-                |r| r.get(0),
-            )?;
-            // A pre-existing custody log is also authority for a retired id,
-            // including a bootstrapped log whose body is already absent. This
-            // probe either finds one row and refuses, or reads zero rows before
-            // the N+1 membership probe: its examined bound is max(1, N+1).
-            let log = &self.schema.tables[&deliver.log];
-            let prior = if exists {
-                Vec::new()
-            } else {
-                scan_indexed(
-                    self.tx,
-                    &deliver.log,
-                    "byRow",
-                    log,
-                    log.index("byRow").unwrap(),
-                    &[
-                        content.field("id")?.clone(),
-                        Value::String("delivered".into()),
-                    ],
-                    None,
-                    None,
-                    None,
-                    Order::Asc,
-                    1,
-                )?
-            };
-            self.trace.examined = self.trace.examined.saturating_add(prior.len() as u64);
-            if exists || !prior.is_empty() {
-                return Err(RuntimeError::Require {
-                    code: "E_DELIVER_INCARNATION".into(),
-                    site: Some(self.write_path.clone()),
-                });
-            }
-        }
         let cap = delivery::group_cap(&self.schema.tables[&deliver.target], &deliver.prefix)
             .expect("validated deliver");
         let (target, index, prefix, limit, kind) = if old.is_none() {
@@ -171,6 +139,9 @@ impl Runner<'_> {
             .map(|w| w.max_rows)
             .fold(0u64, u64::saturating_add);
         if *reserved_writes > writes
+            || !certificate.constraint_checks.contains(&format!("{target}:DeliverAudience({table})"))
+            || (old.is_none() && !certificate.constraint_checks.contains(&format!("{}:DeliverIncarnation", deliver.log)))
+            || !certificate.indexes_required.contains(&format!("{}.byRow", deliver.log))
             || !certificate
                 .indexes_required
                 .contains(&format!("{target}.{index}"))
@@ -187,6 +158,55 @@ impl Runner<'_> {
                 deliver.line(None)
             )));
         }
+        if old.is_none() {
+            let exists: bool = self.tx.query_row(
+                "SELECT EXISTS(SELECT 1 FROM _meta WHERE key=?1)",
+                [&retired],
+                |r| r.get(0),
+            )?;
+            // A pre-existing custody log is also authority for a retired id,
+            // including a bootstrapped log whose body is already absent. This
+            // probe either finds one row and refuses, or reads zero rows before
+            // the N+1 membership probe: its examined bound is max(1, N+1).
+            let log = &self.schema.tables[&deliver.log];
+            let prior = if exists {
+                Vec::new()
+            } else {
+                scan_indexed(
+                    self.tx,
+                    &deliver.log,
+                    "byRow",
+                    log,
+                    log.index("byRow").unwrap(),
+                    &[
+                        content.field("id")?.clone(),
+                        Value::String("delivered".into()),
+                    ],
+                    None,
+                    None,
+                    None,
+                    Order::Asc,
+                    1,
+                )?
+            };
+            self.trace.examined = self.trace.examined.saturating_add(prior.len() as u64);
+            if !exists {
+                self.trace.constraint_inputs.push(ConstraintTrace {
+                    table: deliver.log.clone(), check: "DeliverIncarnation".into(),
+                    index: "byRow".into(),
+                    prefix: vec![content.field("id")?.clone(), Value::String("delivered".into())],
+                    examined_ids: row_ids(&prior)?,
+                });
+            }
+            if exists || !prior.is_empty() {
+                return Err(RuntimeError::Refusal(Box::new(crate::CheckError {
+                    code: "E_DELIVER_INCARNATION".into(),
+                    site: Some(self.statement_site.clone()),
+                    message: "a deleted delivered row cannot reuse its id".into(),
+                    rewrite: delivery::incarnation_rewrite(self.schema, table),
+                })));
+            }
+        }
         let definition = &self.schema.tables[target];
         let rows = scan_indexed(
             self.tx,
@@ -202,6 +222,10 @@ impl Runner<'_> {
             limit as usize,
         )?;
         self.trace.examined = self.trace.examined.saturating_add(rows.len() as u64);
+        self.trace.constraint_inputs.push(ConstraintTrace {
+            table: target.into(), check: format!("DeliverAudience({table})"),
+            index: index.into(), prefix: prefix.clone(), examined_ids: row_ids(&rows)?,
+        });
         self.step(rows.len() as u64 * 5)?;
         if kind == "delivered" && rows.len() as u64 > u64::from(cap) {
             return Err(RuntimeError::TraceSubset(format!(
@@ -313,11 +337,7 @@ impl Engine {
         certificate
             .with_delivery_audiences(&self.schema, &bounds, &ceilings)
             .map(Cow::Owned)
-            .map_err(|e| RuntimeError::SchemaDeliver {
-                code: e.code,
-                message: format!("{}: {}", e.site.unwrap_or_default(), e.message),
-                rewrite: e.rewrite,
-            })
+            .map_err(|e| RuntimeError::Refusal(Box::new(e)))
     }
 }
 
@@ -449,4 +469,24 @@ fn a_retained_delivery_log_refuses_reuse_without_a_retired_metadata_record() {
     );
     assert!(engine.rows("messages").unwrap().is_empty());
     assert_eq!(engine.rows("deliveries").unwrap().len(), 1);
+}
+
+#[cfg(test)]
+#[test]
+fn custody_storage_fault_does_not_settle_replay_or_then_as_a_program_refusal() {
+    let fixture: serde_json::Value = serde_json::from_str(include_str!("../../../../corpus/deliver-log-schema-identity.json")).unwrap();
+    let schema: Schema = serde_json::from_value(fixture["schema"].clone()).unwrap();
+    let mut engine = Engine::memory(schema.clone()).unwrap();
+    engine.store.conn.execute("UPDATE _meta SET value='broken' WHERE key='custody_audience:deliveries'", []).unwrap();
+    engine.store.conn.execute("INSERT INTO _outbox(id,seq,effect,payload,state,attempts,next_at,created_at,updated_at) VALUES ('pending',1,'effect',?1,'then_pending',0,0,0,0)", [canonical_json(&Value::Null)]).unwrap();
+    let program = Program { name: "remove".into(), kind: ProgramKind::Mutation, args: BTreeMap::new(), read_time_granularity_ms: None, body: vec![Stmt::Delete { table: "messages".into(), key: Expr::Literal(Value::Id("m".into())) }] };
+    let certificate = Checker::new(&schema, Ceilings::default()).check(&program).unwrap();
+    let replay = crate::offline::ReplayCommit { grant: "grant".into(), offset: 0, count: 1, intent: "grant:0".into(), request_digest: "d".repeat(64), trace: Default::default(), at: 1 };
+    let error = engine.execute_replay(&program, &certificate, Context::mutation(Actor::user("alice").unwrap(), BTreeMap::new()), &replay).unwrap_err();
+    assert_eq!(error.code(), "E_STORE_VERSION");
+    assert!(engine.store.stored_client_intent("alice", "grant:0").unwrap().is_none());
+    assert!(engine.store.replay_slice_is_unused("grant", "another", 0, 1).unwrap());
+    let error = engine.execute_then(&program, &certificate, BTreeMap::new(), 1, None, VecDeque::new(), "pending").unwrap_err();
+    assert_eq!(error.code(), "E_STORE_VERSION");
+    assert_eq!(engine.store.outbox_get("pending").unwrap().unwrap().state, "then_pending");
 }

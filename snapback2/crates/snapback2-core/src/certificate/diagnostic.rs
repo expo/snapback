@@ -188,6 +188,11 @@ impl WorkTerms {
             }
         }
     }
+    pub fn delivery(&mut self, rows: u64, steps: u64, site: &str, label: &str) {
+        for (meter, value) in [(0, rows), (1, rows), (3, steps)] {
+            self.0[meter].push(Cost { value, site: Some(site.into()), source: label.into(), repair: Repair::Work });
+        }
+    }
     pub fn scan(&mut self, cost: Cost) {
         self.0[0].push(cost.clone());
         self.0[1].push(cost.clone());
@@ -287,10 +292,12 @@ impl Checker<'_> {
         if actual <= ceiling {
             return Ok(());
         }
+        let terms = meter_terms(self.schema, summary, name, actual);
+        let site = terms.first().and_then(|term| term.site.clone());
+        let delivery_dominates = site.as_ref().is_some_and(|site| site.ends_with(".deliver"));
         let (product, rewrite) = if let Some(shape) = bytes {
             (shape.render(), shape.rewrite())
         } else {
-            let terms = meter_terms(summary, name, actual);
             let maintain_line = terms.iter().find_map(|term| match &term.repair {
                 Repair::Cap {
                     maintain_line: Some(line),
@@ -320,8 +327,8 @@ impl Checker<'_> {
             )
         };
         Err(CheckError {
-            site: summary.writes.iter().find_map(|w| self.schema.table(&w.table).and_then(|t| t.deliver.as_ref()).map(|_| format!("schema.tables.{}.deliver", w.table))),
-            code: if name == "steps" && summary.delivery_indexes.is_empty() {
+            site,
+            code: if name == "steps" && !delivery_dominates {
                 "E_STEPS"
             } else {
                 "E_BOUND"
@@ -333,7 +340,7 @@ impl Checker<'_> {
     }
 }
 
-fn meter_terms(summary: &Summary, name: &str, actual: u64) -> Vec<Cost> {
+fn meter_terms(schema: &Schema, summary: &Summary, name: &str, actual: u64) -> Vec<Cost> {
     let mut terms = summary.costs.for_meter(name);
     for term in &summary.derived_terms {
         let value = match name { "steps" => term.steps, "heap bytes" => term.scratch, _ => 0 };
@@ -341,12 +348,16 @@ fn meter_terms(summary: &Summary, name: &str, actual: u64) -> Vec<Cost> {
             terms.push(Cost { value, source: term.source.clone(), site: term.site.clone(), repair: Repair::Work });
         }
     }
-    if name == "heap bytes" && summary.delivery_heap_bytes > 0 {
-        terms.push(Cost {
-            value: summary.delivery_heap_bytes, site: None,
-            source: "deliver: candidate images, recipient map and event construction".into(),
-            repair: Repair::Work,
-        });
+    if name == "heap bytes" {
+        for write in &summary.writes {
+            if let Some(d) = schema.table(&write.table).and_then(|t| t.deliver.as_ref()) {
+                let rows = (u64::from(crate::delivery::group_cap(&schema.tables[&d.target], &d.prefix).unwrap_or(0))
+                    + u64::from(matches!(write.kind, WriteKind::Insert | WriteKind::Upsert))).saturating_mul(write.max_rows);
+                terms.push(Cost { value: rows.saturating_mul(crate::delivery::scratch_per_recipient(schema, d)),
+                    site: Some(format!("schema.tables.{}.deliver", write.table)),
+                    source: format!("{} on {}: candidate images, recipient map and event construction", d.line(None), write.table), repair: Repair::Work });
+            }
+        }
     }
     let total = terms.iter().fold(0_u64, |n, c| n.saturating_add(c.value));
     if actual > total {
@@ -360,12 +371,12 @@ fn meter_terms(summary: &Summary, name: &str, actual: u64) -> Vec<Cost> {
 }
 
 pub(super) fn priced_terms(
-    summary: &Summary, meters: &[(&str, u64)], output: &ByteShape, closure: &ByteShape,
+    schema: &Schema, summary: &Summary, meters: &[(&str, u64)], output: &ByteShape, closure: &ByteShape,
     maintained: &BTreeMap<String, u64>,
 ) -> Vec<CostTerm> {
     let mut result = Vec::new();
     for &(meter, actual) in meters {
-        for cost in meter_terms(summary, meter, actual) {
+        for cost in meter_terms(schema, summary, meter, actual) {
             result.push(CostTerm { meter: meter.into(), value: cost.value.into(), source: cost.source, site: cost.site });
         }
     }

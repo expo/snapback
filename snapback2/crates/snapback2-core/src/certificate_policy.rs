@@ -2,7 +2,7 @@
 
 use crate::certificate::{CheckError, Checker};
 use crate::ir::*;
-use crate::schema::{ColumnType, Schema};
+use crate::schema::{ColumnType, RuleExpr, Schema};
 use crate::value::{I53_MAX, I53_MIN, Value};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -81,7 +81,7 @@ impl Checker<'_> {
             })
             .collect();
         let (fanout_errors, complete) = if self.job_chunk {
-            (Vec::new(), BTreeSet::new())
+            (fanout::reserve_errors(self.schema, program), BTreeSet::new())
         } else {
             fanout::check(self.schema, program)
         };
@@ -1413,3 +1413,42 @@ fn validate_point_key_arity(checker: &Checker<'_>, read: &Read, errors: &mut Vec
 mod visit;
 pub(crate) use visit::visit_statement_exprs;
 use visit::walk_expr;
+
+pub(crate) fn collect_rule_indexes(
+    schema: &Schema,
+    rule: &RuleExpr,
+    indexes: &mut BTreeSet<String>,
+    visited_visibility_tables: &mut BTreeSet<String>,
+) {
+    match rule {
+        RuleExpr::Exists { table, index, .. } => {
+            indexes.insert(format!("{table}.{index}"));
+            if visited_visibility_tables.insert(table.clone())
+                && let Some(table) = schema.table(table)
+            {
+                collect_rule_indexes(
+                    schema,
+                    &table.rules.read,
+                    indexes,
+                    visited_visibility_tables,
+                );
+            }
+        }
+        RuleExpr::Created { table, index, .. } => {
+            indexes.insert(format!("{table}.{index}"));
+        }
+        RuleExpr::And(rules) | RuleExpr::Or(rules) => {
+            for rule in rules {
+                collect_rule_indexes(schema, rule, indexes, visited_visibility_tables);
+            }
+        }
+        RuleExpr::Not(rule) => {
+            collect_rule_indexes(schema, rule, indexes, visited_visibility_tables)
+        }
+        RuleExpr::Public { .. }
+        | RuleExpr::Allow
+        | RuleExpr::Deny
+        | RuleExpr::Eq(_, _)
+        | RuleExpr::Ne(_, _) => {}
+    }
+}

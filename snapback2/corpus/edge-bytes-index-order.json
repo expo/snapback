@@ -138,7 +138,99 @@
       "blobs.byPayload"
     ],
     "disclosures": [],
-    "bound_product": "bytesIndexOrder.blobs take 10 (+2 reserve) × 1 calls on blobs = 12"
+    "bound_product": "bytesIndexOrder.blobs take 10 (+2 reserve) × 1 calls on blobs = 12",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 12,
+        "source": "bytesIndexOrder.blobs take 10 (+2 reserve) × 1 calls on blobs",
+        "site": "bytesIndexOrder.blobs"
+      },
+      {
+        "meter": "index entries",
+        "value": 12,
+        "source": "bytesIndexOrder.blobs take 10 (+2 reserve) × 1 calls on blobs",
+        "site": "bytesIndexOrder.blobs"
+      },
+      {
+        "meter": "steps",
+        "value": 60,
+        "source": "bytesIndexOrder.blobs take 10 (+2 reserve) × 1 calls on blobs × 5",
+        "site": "bytesIndexOrder.blobs"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "bytesIndexOrder:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "bytesIndexOrder:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 1920,
+        "source": "bytesIndexOrder.blobs take 10 (+2 reserve) × 1 calls on blobs × 5 × 32",
+        "site": "bytesIndexOrder.blobs"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "bytesIndexOrder:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "bytesIndexOrder:statement:1"
+      },
+      {
+        "meter": "output bytes",
+        "value": 1500,
+        "source": "blobs.id",
+        "site": "bytesIndexOrder.blobs"
+      },
+      {
+        "meter": "output bytes",
+        "value": 350,
+        "source": "blobs.payload",
+        "site": "bytesIndexOrder.blobs"
+      },
+      {
+        "meter": "output bytes",
+        "value": 100,
+        "source": "blobs row width: framing/shared encoding/growth adjustment",
+        "site": "bytesIndexOrder.blobs"
+      },
+      {
+        "meter": "output bytes",
+        "value": 22,
+        "source": "blobs first 10 at bytesIndexOrder.blobs: framing/shared encoding/growth adjustment",
+        "site": "bytesIndexOrder.blobs"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 1500,
+        "source": "blobs.id",
+        "site": "bytesIndexOrder.blobs"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 350,
+        "source": "blobs.payload",
+        "site": "bytesIndexOrder.blobs"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 100,
+        "source": "blobs row width: framing/shared encoding/growth adjustment",
+        "site": "bytesIndexOrder.blobs"
+      }
+    ]
   },
   "context": {
     "viewer": "u1",

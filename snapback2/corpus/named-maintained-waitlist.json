@@ -1177,7 +1177,117 @@
     "disclosures": [
       "E_DISCLOSURE: count waitlist summarized into waitCounts"
     ],
-    "bound_product": "programs.maintainedWaitlistDepth.0 point read on waitCounts × 1 calls = 1"
+    "bound_product": "programs.maintainedWaitlistDepth.0 point read on waitCounts × 1 calls = 1",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 1,
+        "source": "programs.maintainedWaitlistDepth.0 point read on waitCounts × 1 calls",
+        "site": "programs.maintainedWaitlistDepth.0"
+      },
+      {
+        "meter": "index entries",
+        "value": 1,
+        "source": "programs.maintainedWaitlistDepth.0 point read on waitCounts × 1 calls",
+        "site": "programs.maintainedWaitlistDepth.0"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "programs.maintainedWaitlistDepth.0 point read on waitCounts × 1 calls × 4",
+        "site": "programs.maintainedWaitlistDepth.0"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "public count absence evidence",
+        "site": "maintainedWaitlistDepth:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "maintainedWaitlistDepth:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintainedWaitlistDepth:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 3007,
+        "source": "search closure scratch",
+        "site": null
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "programs.maintainedWaitlistDepth.0 point read on waitCounts × 1 calls × 4 × 32",
+        "site": "programs.maintainedWaitlistDepth.0"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "public count absence evidence × 32",
+        "site": "maintainedWaitlistDepth:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "maintainedWaitlistDepth:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintainedWaitlistDepth:statement:1"
+      },
+      {
+        "meter": "output bytes",
+        "value": 309,
+        "source": "waitCounts.id",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 158,
+        "source": "waitCounts.resourceId",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 41,
+        "source": "waitCounts.value",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 10,
+        "source": "waitCounts row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 861,
+        "source": "1 pooled waitCounts first images with table/id envelopes",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 2135,
+        "source": "public count absence evidence",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 2146,
+        "source": "maintained-address closure: whole row pool and actual issuing metadata: framing/shared encoding/growth adjustment",
+        "site": null
+      }
+    ]
   },
   "context": {
     "viewer": "u1",

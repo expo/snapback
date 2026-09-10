@@ -192,7 +192,231 @@
     "halo_rows": 1,
     "indexes_required": [],
     "disclosures": [],
-    "bound_product": null
+    "bound_product": null,
+    "cost_terms": [
+      {
+        "meter": "steps",
+        "value": 5,
+        "source": "_outbox Emit writes",
+        "site": "emitAfterInsert:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 5,
+        "source": "events Insert writes",
+        "site": "emitAfterInsert:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 5,
+        "source": "events Insert writes",
+        "site": "emitAfterInsert:statement:5"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "emitAfterInsert:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "emitAfterInsert:statement:5"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "emitAfterInsert:statement:6"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "emitAfterInsert:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "emitAfterInsert:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "emitAfterInsert:statement:4"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "emitAfterInsert:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "emitAfterInsert:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "emitAfterInsert:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "emitAfterInsert:statement:4"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "emitAfterInsert:statement:5"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "emitAfterInsert:statement:6"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 160,
+        "source": "_outbox Emit writes × 32",
+        "site": "emitAfterInsert:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 160,
+        "source": "events Insert writes × 32",
+        "site": "emitAfterInsert:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 160,
+        "source": "events Insert writes × 32",
+        "site": "emitAfterInsert:statement:5"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions × 32",
+        "site": "emitAfterInsert:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions × 32",
+        "site": "emitAfterInsert:statement:5"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions × 32",
+        "site": "emitAfterInsert:statement:6"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "emitAfterInsert:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "emitAfterInsert:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "emitAfterInsert:statement:4"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "emitAfterInsert:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "emitAfterInsert:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "emitAfterInsert:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "emitAfterInsert:statement:4"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "emitAfterInsert:statement:5"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "emitAfterInsert:statement:6"
+      },
+      {
+        "meter": "output bytes",
+        "value": 144,
+        "source": "NewId",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 144,
+        "source": "NewId",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 14,
+        "source": "array: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 0,
+        "source": "closure at peak retention",
+        "site": null
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "events Insert",
+        "site": "emitAfterInsert:statement:2"
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "_outbox Emit",
+        "site": "emitAfterInsert:statement:3"
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "events Insert",
+        "site": "emitAfterInsert:statement:2"
+      }
+    ]
   },
   "context": {
     "viewer": "u1",

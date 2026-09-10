@@ -273,9 +273,9 @@ over that target, not a new runtime path.
 
 ### 4. Certification
 
-- **Insert** sites into a delivered table reserve `N` examined rows, `N`
-  index entries, and `N` write rows per call, where `N` is the target
-  group's cap — LLP 1017 §2.4's reservation, applied once more for the log
+- **Insert** sites into a delivered table reserve `N+1` examined rows,
+  index entries, and write rows per call (the bounded overflow probe),
+  where `N` is the target group's cap — LLP 1017 §2.4's reservation, applied once more for the log
   — and the nonuniform-scan protection of the fan-out reserve
   (`certificate_policy/fanout.rs:93`) applies unchanged.
 - **Update and delete** sites reserve against the log's **audience bound**
@@ -288,7 +288,8 @@ over that target, not a new runtime path.
   keep `A` at 50 until every 50-audience row is gone, and the next
   installation follows the cap. `A` is outside the schema hash, so the
   certificate binds the compiler's schema and the twin agrees; D2 prices
-  update and delete sites against `A` as the engine holds it. Every
+  update and delete sites against `A` as the engine holds it; upserts
+  reserve `max(N+1, A)`. Every
   generated read and write site is priced on every meter the
   certificate has; a `schedule` that deletes prices per fired row; the
   runtime's containment (`runner_ops.rs:1230`) guards the full reserve.
@@ -432,8 +433,7 @@ bound `A` cannot bound; and the raw fixture helper `Engine::seed`
 lifecycle and produced zero events in the spike — D2 routes it through the
 certified seed path for delivered tables or removes its production
 availability, and the RFC no longer claims "every writer" until it does.
-Native reserves `N + 1` per insert (a bounded overflow probe); §4's `N` is
-read as that.
+Native reserves `N + 1` per insert (a bounded overflow probe), as §4 specifies.
 
 Successor notes from the spike, binding on D1: the log is an ordinary
 durable table in the schema, **not** in `Schema.maintains`, so `plan()`
@@ -513,7 +513,7 @@ engine's representation of the generated log's tombstone (§3).
 7. Successor cases: `deliver` added with and without `bootstrap`, removed
    (plan), retargeted (plan), `A` raised; the successor log lines.
 8. Loop and runtime budgets measured after §7 (`measure --check`, the
-   84,000-byte runtime ceiling).
+   85,000-byte runtime ceiling).
 
 ## Implementation (proposed lanes; sizes are the orchestrator's estimate)
 
@@ -561,3 +561,4 @@ evidence.
 - 2026-09-10 — D1 + D3 fix round r1 (lane `custody-a`, branch `s2/ri-custody`, from the grok/muse blind reviews): the pinned group is the cap whose `by` equals the prefix (`delivery.rs::group_cap`, `quarry/deliver.ts`), the compiler requires the enforcement index; `A` is engine-recorded (`successor/delivery.rs::record_audience_bounds`, `_meta` `custody_audience:<log>`, `SuccessorReport.audience_bounds`, manifest `deliver.audience`; `Deliver.audience` and `E_SUCCESSOR_AUDIENCE` deleted); raw-schema codes keep their families and page on `check --ir` (`RuntimeError::SchemaDeliver`, `certification_family_guide`); deliveries materialize before maintains; `bootstrap` bounded (`E_SUCCESSOR_BOOTSTRAP`, 8,192 events) with the incarnation convention above; per-commit event ordinal in `event_row`; manifest emission tested. Tests: `tests/delivery.rs` (14), `check.rs` (`deliver_refusals_keep_their_codes_families_and_pages_on_the_ir_path`), `writer_ledger.rs` (`manifest_discloses_deliver_with_the_engine_recorded_audience_bound`), `delivery-checks.ts` (6), the evaluator identity golden; corpus regenerated (277). Revision (c) of this RFC. Report: `reports/final-custody-a.md` § Fix round r1.
 - 2026-09-10 — D1 + D3 fix round r2 (lane `custody-a`, branch `s2/ri-custody`, from the r2 grok/muse blind reviews and the host measure): the complete local runtime paid its bytes by construction in `certificate-identity.ts` (the descriptor through `pick` inline, sibling bespoke reconstructions through the same walker, a dead `COLUMN_FIELDS` entry deleted) — 85,087 → 84,996 gzip against the 85,000 ceiling, `main` at the base measuring 84,994; `audience_bound` is loud on an unreadable record (`E_STORE_VERSION`) and the manifest refuses rather than publishing `deliver` without `A` (`writer_ledger.rs::manifest_table`); the `check --ir` fallback carries a `SchemaDeliver`'s code, family, page, rewrite, and site when the certify row is not located; the bootstrap bound is summed over every log one installation bootstraps (`bootstrap_refusal`); `E_SUCCESSOR_BOOTSTRAP`'s family and page agreement (wire `successor/migrations`, card `migrations`) pinned by test; §Summary, §2, §3 (D2 handoff), §Mechanism, §8 revised. Tests: `tests/delivery.rs` (16: `bootstrap_bound_is_summed_over_every_log_one_installation_bootstraps`, `audience_bound_is_loud_when_its_record_is_unreadable`), `check.rs` (`an_unlocated_deliver_refusal_keeps_its_labels_on_the_ir_path`; the located test gains the `E_DELIVER_PRINCIPAL` case), `protocol.rs` (`successor_bootstrap_has_one_family_and_page_on_the_wire_and_in_the_guide`), `writer_ledger.rs` (`manifest_refuses_a_custody_log_whose_audience_bound_is_unreadable_or_unrecorded`). Report: `reports/final-custody-a.md` § Fix round r2.
 - 2026-09-10 — D2 (lane `custody-b`, working tree `s2/ri-custody-b`, ready for orchestrator commit): §3 native insert/changed/removed writes at `finish_row_change`, original audience/incarnation, commit ordinals, transactional rollback, certified fixture seeds and incarnation refusal; §4 N+1 insert reserve and engine-recorded A specialization with full containment; private `schedule …: delete .` lowering; §7 receipt-only skip preserved. Tests: 18 delivery integration additions, 2 core lifecycle units, 1 wire unit, 3 compiler additions; targeted lifecycle/cap/job/timer run 91 passed/1 ignored plus final named proof 5 passed; compiler 9 passed; corpus 277→288 (261 evaluator cases passed, 27 server-only); guide checks passed; complete runtime 84,996 gzip (+0). Scope, exact commands, RFC corrections, and inherited caps violation: `REPORT-custody-b.md`. RFC Status unchanged.
+- 2026-09-10 — D2 fix round r1 (lane `custody-b`, merged base `5434af50be`, pending orchestrator commit): §3 optional-row normalization, pre-scan private containment/traces, durable replay/then specialization refusals, table-specific incarnation repair through direct/seed/replay/job/timer envelopes; §4 dominant-meter diagnostics, N+1/max(N+1,A) pricing text, raw chunk reserve protection; §7 receipt exclusion preserved; one statement-site spelling. Tests: affected delivery/cap/timer/job suites 104 passed/1 skipped; custody/certificate units 35 passed; real refusal wire 1 passed; frozen corpus 288 (261 evaluator/27 server-only), compiler 299 passed; runtime 84,946/85,000 gzip at this HEAD. Reports: `REPORT-custody-b.md`, writable `reports/final-custody-b.md` § Fix round r1; external canonical report and newer-main fetch blocked by filesystem sandbox. RFC Status unchanged.

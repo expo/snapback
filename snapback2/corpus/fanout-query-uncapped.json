@@ -245,7 +245,117 @@
       "memberships.byConversationPrincipal"
     ],
     "disclosures": [],
-    "bound_product": "members.query take 50 (+2 reserve) × 1 calls on memberships = 52"
+    "bound_product": "members.query take 50 (+2 reserve) × 1 calls on memberships = 52",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 52,
+        "source": "members.query take 50 (+2 reserve) × 1 calls on memberships",
+        "site": "members.query"
+      },
+      {
+        "meter": "index entries",
+        "value": 52,
+        "source": "members.query take 50 (+2 reserve) × 1 calls on memberships",
+        "site": "members.query"
+      },
+      {
+        "meter": "steps",
+        "value": 260,
+        "source": "members.query take 50 (+2 reserve) × 1 calls on memberships × 5",
+        "site": "members.query"
+      },
+      {
+        "meter": "steps",
+        "value": 50,
+        "source": "expressions (calls from members.query take 50)",
+        "site": "fanout-query-uncapped:statement:1:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 50,
+        "source": "statements (calls from members.query take 50)",
+        "site": "fanout-query-uncapped:statement:1:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "fanout-query-uncapped:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "fanout-query-uncapped:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "fanout-query-uncapped:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "fanout-query-uncapped:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 8320,
+        "source": "members.query take 50 (+2 reserve) × 1 calls on memberships × 5 × 32",
+        "site": "members.query"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 1600,
+        "source": "expressions (calls from members.query take 50) × 32",
+        "site": "fanout-query-uncapped:statement:1:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 1600,
+        "source": "statements (calls from members.query take 50) × 32",
+        "site": "fanout-query-uncapped:statement:1:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "fanout-query-uncapped:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "fanout-query-uncapped:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "fanout-query-uncapped:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "fanout-query-uncapped:statement:2"
+      },
+      {
+        "meter": "output bytes",
+        "value": 6,
+        "source": "null value",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 0,
+        "source": "closure at peak retention",
+        "site": null
+      }
+    ]
   },
   "context": {
     "viewer": "u0",

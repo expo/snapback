@@ -416,7 +416,303 @@
       "memberships.byPrincipalConversation"
     ],
     "disclosures": [],
-    "bound_product": "members.page take 100 (+2 reserve) × 1 calls on memberships = 102 + conversation.point point read on conversations × 100 calls (calls from members.page take 100) = 100"
+    "bound_product": "members.page take 100 (+2 reserve) × 1 calls on memberships = 102 + conversation.point point read on conversations × 100 calls (calls from members.page take 100) = 100",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 102,
+        "source": "members.page take 100 (+2 reserve) × 1 calls on memberships",
+        "site": "members.page"
+      },
+      {
+        "meter": "examined entries",
+        "value": 100,
+        "source": "conversation.point point read on conversations × 100 calls (calls from members.page take 100)",
+        "site": "conversation.point"
+      },
+      {
+        "meter": "index entries",
+        "value": 102,
+        "source": "members.page take 100 (+2 reserve) × 1 calls on memberships",
+        "site": "members.page"
+      },
+      {
+        "meter": "index entries",
+        "value": 100,
+        "source": "conversation.point point read on conversations × 100 calls (calls from members.page take 100)",
+        "site": "conversation.point"
+      },
+      {
+        "meter": "rule probes",
+        "value": 200,
+        "source": "conversation.point: 100 calls × 2 rule probes (calls from members.page take 100)",
+        "site": "conversation.point"
+      },
+      {
+        "meter": "steps",
+        "value": 510,
+        "source": "members.page take 100 (+2 reserve) × 1 calls on memberships × 5",
+        "site": "members.page"
+      },
+      {
+        "meter": "steps",
+        "value": 400,
+        "source": "conversation.point point read on conversations × 100 calls (calls from members.page take 100) × 4",
+        "site": "conversation.point"
+      },
+      {
+        "meter": "steps",
+        "value": 400,
+        "source": "expressions (calls from members.page take 100)",
+        "site": "self-probe-enriched-membership-page:statement:2:statement:4"
+      },
+      {
+        "meter": "steps",
+        "value": 300,
+        "source": "expressions (calls from members.page take 100)",
+        "site": "self-probe-enriched-membership-page:statement:2:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 300,
+        "source": "expressions (calls from members.page take 100)",
+        "site": "self-probe-enriched-membership-page:statement:2:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 300,
+        "source": "expressions (calls from members.page take 100)",
+        "site": "self-probe-enriched-membership-page:statement:2:statement:3:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 100,
+        "source": "expressions (calls from members.page take 100)",
+        "site": "self-probe-enriched-membership-page:statement:2:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 100,
+        "source": "statements (calls from members.page take 100)",
+        "site": "self-probe-enriched-membership-page:statement:2:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 100,
+        "source": "statements (calls from members.page take 100)",
+        "site": "self-probe-enriched-membership-page:statement:2:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 100,
+        "source": "statements (calls from members.page take 100)",
+        "site": "self-probe-enriched-membership-page:statement:2:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 100,
+        "source": "statements (calls from members.page take 100)",
+        "site": "self-probe-enriched-membership-page:statement:2:statement:3:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 100,
+        "source": "statements (calls from members.page take 100)",
+        "site": "self-probe-enriched-membership-page:statement:2:statement:4"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "self-probe-enriched-membership-page:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "self-probe-enriched-membership-page:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "self-probe-enriched-membership-page:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "self-probe-enriched-membership-page:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "self-probe-enriched-membership-page:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "self-probe-enriched-membership-page:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 16320,
+        "source": "members.page take 100 (+2 reserve) × 1 calls on memberships × 5 × 32",
+        "site": "members.page"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 12800,
+        "source": "conversation.point point read on conversations × 100 calls (calls from members.page take 100) × 4 × 32",
+        "site": "conversation.point"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 12800,
+        "source": "expressions (calls from members.page take 100) × 32",
+        "site": "self-probe-enriched-membership-page:statement:2:statement:4"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 9600,
+        "source": "expressions (calls from members.page take 100) × 32",
+        "site": "self-probe-enriched-membership-page:statement:2:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 9600,
+        "source": "expressions (calls from members.page take 100) × 32",
+        "site": "self-probe-enriched-membership-page:statement:2:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 9600,
+        "source": "expressions (calls from members.page take 100) × 32",
+        "site": "self-probe-enriched-membership-page:statement:2:statement:3:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 3200,
+        "source": "expressions (calls from members.page take 100) × 32",
+        "site": "self-probe-enriched-membership-page:statement:2:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 3200,
+        "source": "statements (calls from members.page take 100) × 32",
+        "site": "self-probe-enriched-membership-page:statement:2:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 3200,
+        "source": "statements (calls from members.page take 100) × 32",
+        "site": "self-probe-enriched-membership-page:statement:2:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 3200,
+        "source": "statements (calls from members.page take 100) × 32",
+        "site": "self-probe-enriched-membership-page:statement:2:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 3200,
+        "source": "statements (calls from members.page take 100) × 32",
+        "site": "self-probe-enriched-membership-page:statement:2:statement:3:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 3200,
+        "source": "statements (calls from members.page take 100) × 32",
+        "site": "self-probe-enriched-membership-page:statement:2:statement:4"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "self-probe-enriched-membership-page:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "self-probe-enriched-membership-page:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "self-probe-enriched-membership-page:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "self-probe-enriched-membership-page:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "self-probe-enriched-membership-page:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "self-probe-enriched-membership-page:statement:3"
+      },
+      {
+        "meter": "output bytes",
+        "value": 12,
+        "source": "array",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 22500,
+        "source": "conversations.title",
+        "site": "members.page"
+      },
+      {
+        "meter": "output bytes",
+        "value": 1000,
+        "source": "shape: framing/shared encoding/growth adjustment",
+        "site": "members.page"
+      },
+      {
+        "meter": "output bytes",
+        "value": 15000,
+        "source": "memberships.id",
+        "site": "members.page"
+      },
+      {
+        "meter": "output bytes",
+        "value": 2600,
+        "source": "shape: framing/shared encoding/growth adjustment",
+        "site": "members.page"
+      },
+      {
+        "meter": "output bytes",
+        "value": 100,
+        "source": "memberships first 100 at members.page (100 repetitions): framing/shared encoding/growth adjustment",
+        "site": "members.page"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 22500,
+        "source": "conversations.title",
+        "site": "conversation.point"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 15000,
+        "source": "memberships.id",
+        "site": "members.page"
+      }
+    ]
   },
   "context": {
     "viewer": "u1",

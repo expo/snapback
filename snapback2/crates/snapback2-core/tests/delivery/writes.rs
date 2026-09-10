@@ -129,7 +129,7 @@ fn changed_removed_and_reuse_follow_original_custody() {
     assert_eq!(reused.code(), "E_DELIVER_INCARNATION");
     assert_eq!(
         reused.require_site().as_deref(),
-        Some("custody.write/body/0")
+        Some("custody.write:statement:1")
     );
 }
 
@@ -629,3 +629,6 @@ fn log_maintains_share_native_writes_and_the_historical_reserve() {
     assert_eq!(counts.len(), 2);
     assert!(counts.iter().all(|r| field(r, "value") == &Value::Int(3)));
 }
+
+#[path = "fix_round.rs"]
+mod fix_round;

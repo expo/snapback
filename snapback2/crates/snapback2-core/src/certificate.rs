@@ -23,7 +23,7 @@ pub(crate) mod search;
 mod summary;
 mod targets;
 use diagnostic::Cost;
-use delivery::collect_rule_indexes;
+use crate::certificate_policy::collect_rule_indexes;
 use page::result_pages;
 pub use page::{result_cursor, resumable_log_cursor};
 use summary::Summary;
@@ -556,7 +556,7 @@ impl<'a> Checker<'a> {
                     .to_owned(),
             });
         }
-        let cost_terms = diagnostic::priced_terms(&summary, &[
+        let cost_terms = diagnostic::priced_terms(self.schema, &summary, &[
             ("examined entries", max_examined), ("index entries", max_index_entries),
             ("rule probes", max_rule_probes), ("steps", max_steps), ("heap bytes", max_heap_bytes),
         ], &output.shape, &closure, &maintained_writes);
@@ -718,6 +718,7 @@ impl<'a> Checker<'a> {
                 }
             }
         }
+        delivery::constraint_checks(self.schema, &summary.writes, &mut constraint_checks);
         let constraint_checks = constraint_checks.into_iter().collect();
         let disclosures = self
             .schema

@@ -128,11 +128,13 @@ nameReceipts (row, recipient, received, seq, the read rule's columns) under
 that rule. Installing, bootstrapping, removing, and the audience bound `A`:
 `guide migrations`.
 
-Inserts and seeds deliver to the group visible at that write, deduplicated by
-principal. Changed updates/upserts and deletes append events to the original
-recipients, including departed members; unchanged updates append nothing.
-Repeated edits have distinct event ids. Transaction rollback rolls events back.
-A deleted content id cannot be reused (E_DELIVER_INCARNATION): use `insert`
-with a fresh id. Receipt-only replay never derives these writes from held members.
-Insert reserves N+1 rows on each meter; update/delete reserve the stored A.
-Nonuniform scans cannot spend that reserve; E_BOUND names the deliver line.
+Inserts/seeds deliver to the group at that write, deduplicated by principal.
+Changed updates/upserts and deletes append to original recipients, including
+departed members. Omitted optionals are null; equivalent writes add no events.
+Repeated edits get distinct ids; rollback removes their events. A deleted id
+cannot be reused (E_DELIVER_INCARNATION): repair inserts into that table
+with its required fields and a fresh id. Receipt-only replay derives no events.
+Private audience probes are traced, outside receipts. Insert reserves N+1;
+update/delete A; upsert max(N+1, A). Nonuniform scans cannot spend this reserve,
+including in job chunks. E_BOUND names a dominant deliver term; loop-dominated
+steps keep E_STEPS. A replay or then refused by historical A settles durably.

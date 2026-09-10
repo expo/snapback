@@ -218,7 +218,7 @@ fn add_write_cases(cases: &mut Vec<CorpusCase>) {
         for (name, principal) in [("a", "u1"), ("b", "u2"), ("b2", "u2")] {
             engine.seed("memberships", object([("id", id(name)), ("conversationId", id("c1")), ("principal", id(principal))])).unwrap();
         }
-        let existing = !matches!(action, "insert-cap3" | "replay-skip");
+        let existing = !matches!(action, "insert-cap3" | "replay-skip" | "seed");
         if existing { engine.seed("messages", content("m", "hello")).unwrap(); assert_eq!(engine.rows("deliveries").unwrap().len(), 2); }
         let delete = |table: &str, key: &str| Stmt::Delete { table: table.into(), key: Expr::Literal(id(key)) };
         let execute = |engine: &mut Engine, body: Vec<Stmt>| {
@@ -244,6 +244,7 @@ fn add_write_cases(cases: &mut Vec<CorpusCase>) {
         let body = match action {
             "insert-cap3" | "replay-skip" | "id-reuse" => vec![insert],
             "changed-original" => vec![update("first"), update("second")],
+            "seed" => vec![Stmt::Upsert { table: "messages".into(), key: Expr::Literal(id("m")), row: Expr::Literal(content("m", "hello")) }],
             "upsert-existing" => vec![Stmt::Upsert { table: "messages".into(), key: Expr::Literal(id("m")), row: Expr::Literal(content("m", "replacement")) }],
             "delete-departed" | "schedule-delete-target" | "job-delete-chunk" => vec![delete("messages", "m")],
             "rollback" => vec![delete("messages", "m"), Stmt::Require { condition: Expr::Literal(Value::Bool(false)), code: "ROLLBACK".into(), site: None }],
@@ -255,7 +256,7 @@ fn add_write_cases(cases: &mut Vec<CorpusCase>) {
         else if action == "rollback" { assert!(server.is_err()); assert_eq!(engine.rows("deliveries").unwrap(), before); }
         else {
             server.unwrap();
-            let added = match action { "insert-cap3" | "replay-skip" | "upsert-existing" | "delete-departed" | "schedule-delete-target" | "job-delete-chunk" => 2, "changed-original" => 4, _ => 0 };
+            let added = match action { "insert-cap3" | "replay-skip" | "seed" | "upsert-existing" | "delete-departed" | "schedule-delete-target" | "job-delete-chunk" => 2, "changed-original" => 4, _ => 0 };
             assert_eq!(engine.rows("deliveries").unwrap().len(), before.len() + added, "{action}");
         }
         let name = format!("deliver-{action}");

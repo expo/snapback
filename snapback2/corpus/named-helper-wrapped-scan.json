@@ -1185,7 +1185,123 @@
     "disclosures": [
       "E_DISCLOSURE: count waitlist summarized into waitCounts"
     ],
-    "bound_product": "programs.helperWrappedScan.0 take 37 (+2 reserve) × 1 calls on cards = 39"
+    "bound_product": "programs.helperWrappedScan.0 take 37 (+2 reserve) × 1 calls on cards = 39",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 39,
+        "source": "programs.helperWrappedScan.0 take 37 (+2 reserve) × 1 calls on cards",
+        "site": "programs.helperWrappedScan.0"
+      },
+      {
+        "meter": "index entries",
+        "value": 39,
+        "source": "programs.helperWrappedScan.0 take 37 (+2 reserve) × 1 calls on cards",
+        "site": "programs.helperWrappedScan.0"
+      },
+      {
+        "meter": "steps",
+        "value": 195,
+        "source": "programs.helperWrappedScan.0 take 37 (+2 reserve) × 1 calls on cards × 5",
+        "site": "programs.helperWrappedScan.0"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "helperWrappedScan:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "helperWrappedScan:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 6240,
+        "source": "programs.helperWrappedScan.0 take 37 (+2 reserve) × 1 calls on cards × 5 × 32",
+        "site": "programs.helperWrappedScan.0"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "helperWrappedScan:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "helperWrappedScan:statement:1"
+      },
+      {
+        "meter": "output bytes",
+        "value": 5772,
+        "source": "cards.columnId",
+        "site": "programs.helperWrappedScan.0"
+      },
+      {
+        "meter": "output bytes",
+        "value": 5550,
+        "source": "cards.id",
+        "site": "programs.helperWrappedScan.0"
+      },
+      {
+        "meter": "output bytes",
+        "value": 1517,
+        "source": "cards.order",
+        "site": "programs.helperWrappedScan.0"
+      },
+      {
+        "meter": "output bytes",
+        "value": 10397,
+        "source": "cards.title",
+        "site": "programs.helperWrappedScan.0"
+      },
+      {
+        "meter": "output bytes",
+        "value": 370,
+        "source": "cards row width: framing/shared encoding/growth adjustment",
+        "site": "programs.helperWrappedScan.0"
+      },
+      {
+        "meter": "output bytes",
+        "value": 49,
+        "source": "cards first 37 at programs.helperWrappedScan.0: framing/shared encoding/growth adjustment",
+        "site": "programs.helperWrappedScan.0"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 5772,
+        "source": "cards.columnId",
+        "site": "programs.helperWrappedScan.0"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 5550,
+        "source": "cards.id",
+        "site": "programs.helperWrappedScan.0"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 1517,
+        "source": "cards.order",
+        "site": "programs.helperWrappedScan.0"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 10397,
+        "source": "cards.title",
+        "site": "programs.helperWrappedScan.0"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 370,
+        "source": "cards row width: framing/shared encoding/growth adjustment",
+        "site": "programs.helperWrappedScan.0"
+      }
+    ]
   },
   "context": {
     "viewer": "u1",

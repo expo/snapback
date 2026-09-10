@@ -103,7 +103,7 @@ pub fn replay_mutation_response(
             "code": code, "family": "input", "message": "the row no longer matches the update condition",
             "site": site, "rewrite": "review current, then submit a new conditional update", "guide": "quarry"
         }),
-        ExecutionState::Rejected { code, message, rule, site } => {
+        ExecutionState::Rejected { code, message, rule, site, rewrite } => {
             let family = if rule.is_some() { "rule" } else { rejection_family(code) };
             let mut response = json!({
                 "state": "rejected",
@@ -115,7 +115,10 @@ pub fn replay_mutation_response(
             });
             if code == crate::delivery::INCARNATION {
                 response["guide"] = json!("offline");
-                response["rewrite"] = json!(crate::delivery::INCARNATION_REWRITE);
+            }
+            if let Some(rewrite) = rewrite {
+                response["rewrite"] = json!(rewrite);
+                if code == "E_BOUND" { response["guide"] = json!("bound/ceiling"); }
             }
             if let Some(rule) = rule { response["rule"] = json!(rule); }
             if let Some(site) = site { response["site"] = json!(site); }
@@ -161,7 +164,7 @@ pub fn replay_mutation_response(
 }
 
 fn rejection_family(code: &str) -> &'static str {
-    if code.starts_with("E_RULE") {
+    if code.starts_with("E_RULE") || code == crate::delivery::INCARNATION {
         "rule"
     } else if code.starts_with("E_BOUND")
         || matches!(code, "E_FANOUT" | "E_STEPS" | "E_TRACE_SUBSET")

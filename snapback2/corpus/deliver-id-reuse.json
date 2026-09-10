@@ -424,8 +424,10 @@
     },
     "maintained_amplification": 0,
     "constraint_checks": [
+      "deliveries:DeliverIncarnation",
       "deliveries:Immutable([\"at\", \"audience\", \"conversationId\", \"incarnation\", \"kind\", \"recipient\", \"row\", \"seq\"])",
       "deliveries:Unique(byId)",
+      "memberships:DeliverAudience(messages)",
       "messages:Unique(byId)"
     ],
     "max_examined": 56,
@@ -447,7 +449,261 @@
       "memberships.byConversationPrincipal"
     ],
     "disclosures": [],
-    "bound_product": "delivery.inbox take 50 (+2 reserve) × 1 calls on deliveries = 52 + deliver to memberships[.conversationId] as deliveries on messages: 1 calls × 4 reserved rows = 4"
+    "bound_product": "delivery.inbox take 50 (+2 reserve) × 1 calls on deliveries = 52 + deliver to memberships[.conversationId] as deliveries on messages: 1 calls × 4 reserved rows = 4",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 52,
+        "source": "delivery.inbox take 50 (+2 reserve) × 1 calls on deliveries",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "examined entries",
+        "value": 4,
+        "source": "deliver to memberships[.conversationId] as deliveries on messages: 1 calls × 4 reserved rows",
+        "site": "schema.tables.messages.deliver"
+      },
+      {
+        "meter": "index entries",
+        "value": 52,
+        "source": "delivery.inbox take 50 (+2 reserve) × 1 calls on deliveries",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "index entries",
+        "value": 4,
+        "source": "deliver to memberships[.conversationId] as deliveries on messages: 1 calls × 4 reserved rows",
+        "site": "schema.tables.messages.deliver"
+      },
+      {
+        "meter": "steps",
+        "value": 260,
+        "source": "delivery.inbox take 50 (+2 reserve) × 1 calls on deliveries × 5",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "steps",
+        "value": 84,
+        "source": "deliver to memberships[.conversationId] as deliveries on messages: 1 calls × 4 reserved rows",
+        "site": "schema.tables.messages.deliver"
+      },
+      {
+        "meter": "steps",
+        "value": 5,
+        "source": "messages Insert writes",
+        "site": "deliver-id-reuse:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "deliver-id-reuse:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "deliver-id-reuse:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "deliver-id-reuse:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "deliver-id-reuse:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 14320,
+        "source": "deliver to memberships[.conversationId] as deliveries on messages: candidate images, recipient map and event construction",
+        "site": "schema.tables.messages.deliver"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 8320,
+        "source": "delivery.inbox take 50 (+2 reserve) × 1 calls on deliveries × 5 × 32",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 2688,
+        "source": "deliver to memberships[.conversationId] as deliveries on messages: 1 calls × 4 reserved rows × 32",
+        "site": "schema.tables.messages.deliver"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 160,
+        "source": "messages Insert writes × 32",
+        "site": "deliver-id-reuse:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "deliver-id-reuse:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "deliver-id-reuse:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "deliver-id-reuse:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "deliver-id-reuse:statement:2"
+      },
+      {
+        "meter": "output bytes",
+        "value": 1900,
+        "source": "deliveries.at",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "output bytes",
+        "value": 2200,
+        "source": "deliveries.audience",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "output bytes",
+        "value": 8100,
+        "source": "deliveries.conversationId",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "output bytes",
+        "value": 7500,
+        "source": "deliveries.id",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "output bytes",
+        "value": 2350,
+        "source": "deliveries.incarnation",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "output bytes",
+        "value": 1650,
+        "source": "deliveries.kind",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "output bytes",
+        "value": 7850,
+        "source": "deliveries.recipient",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "output bytes",
+        "value": 7550,
+        "source": "deliveries.row",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "output bytes",
+        "value": 1950,
+        "source": "deliveries.seq",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "output bytes",
+        "value": 500,
+        "source": "deliveries row width: framing/shared encoding/growth adjustment",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "output bytes",
+        "value": 62,
+        "source": "deliveries first 50 at delivery.inbox: framing/shared encoding/growth adjustment",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 1900,
+        "source": "deliveries.at",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 2200,
+        "source": "deliveries.audience",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 8100,
+        "source": "deliveries.conversationId",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 7500,
+        "source": "deliveries.id",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 2350,
+        "source": "deliveries.incarnation",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 1650,
+        "source": "deliveries.kind",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 7850,
+        "source": "deliveries.recipient",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 7550,
+        "source": "deliveries.row",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 1950,
+        "source": "deliveries.seq",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 500,
+        "source": "deliveries row width: framing/shared encoding/growth adjustment",
+        "site": "delivery.inbox"
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "messages Insert",
+        "site": "deliver-id-reuse:statement:1"
+      },
+      {
+        "meter": "write rows",
+        "value": 4,
+        "source": "deliveries Insert",
+        "site": "schema.tables.deliveries"
+      }
+    ]
   },
   "context": {
     "viewer": "u1",

@@ -114,7 +114,7 @@ impl Engine {
         for (_, row) in &visited {
             runner.env.insert(binding.clone(), row.clone());
             processed += 1;
-            match runner.statements_at(body, &format!("{}/body/", job.sweep))? {
+            match runner.statements_at(body, &format!("{}:statement:{}", program.name, job.sweep + 1), "")? {
                 Flow::Next | Flow::Continue => {}
                 Flow::Break | Flow::Return(..) => break,
             }

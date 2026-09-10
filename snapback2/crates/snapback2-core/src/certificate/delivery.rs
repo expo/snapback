@@ -1,44 +1,5 @@
 use super::*;
 
-pub(super) fn collect_rule_indexes(
-    schema: &Schema,
-    rule: &RuleExpr,
-    indexes: &mut BTreeSet<String>,
-    visited_visibility_tables: &mut BTreeSet<String>,
-) {
-    match rule {
-        RuleExpr::Exists { table, index, .. } => {
-            indexes.insert(format!("{table}.{index}"));
-            if visited_visibility_tables.insert(table.clone())
-                && let Some(table) = schema.table(table)
-            {
-                collect_rule_indexes(
-                    schema,
-                    &table.rules.read,
-                    indexes,
-                    visited_visibility_tables,
-                );
-            }
-        }
-        RuleExpr::Created { table, index, .. } => {
-            indexes.insert(format!("{table}.{index}"));
-        }
-        RuleExpr::And(rules) | RuleExpr::Or(rules) => {
-            for rule in rules {
-                collect_rule_indexes(schema, rule, indexes, visited_visibility_tables);
-            }
-        }
-        RuleExpr::Not(rule) => {
-            collect_rule_indexes(schema, rule, indexes, visited_visibility_tables)
-        }
-        RuleExpr::Public { .. }
-        | RuleExpr::Allow
-        | RuleExpr::Deny
-        | RuleExpr::Eq(_, _)
-        | RuleExpr::Ne(_, _) => {}
-    }
-}
-
 // @ref LLP 1019#4-certification — the private read and write reserve is added
 // before maintained amplification; logs can themselves source a maintain.
 pub(super) fn reserve(schema: &Schema, summary: &mut Summary) {
@@ -63,20 +24,12 @@ pub(super) fn reserve(schema: &Schema, summary: &mut Summary) {
         );
         summary.examined = summary.examined.saturating_add(rows);
         summary.index_entries = summary.index_entries.saturating_add(rows);
-        summary.costs.scan(Cost {
-            value: rows,
-            site: None,
-            source: label.clone(),
-            repair: diagnostic::Repair::Work,
-        });
         // Scan, construction/hash/indexing and a bounded identity metadata point.
         let steps = rows
             .saturating_mul(20)
             .saturating_add(write.max_rows.saturating_mul(4));
         summary.steps = summary.steps.saturating_add(steps);
-        summary
-            .costs
-            .step(steps.saturating_sub(rows.saturating_mul(5)), &label, &[]);
+        summary.costs.delivery(rows, steps, &format!("schema.tables.{}.deliver", write.table), &label);
         let probes = rows.saturating_mul(final_probes(schema, &deliver.log));
         summary.rule_probes = summary.rule_probes.saturating_add(probes);
         summary
@@ -286,4 +239,33 @@ fn final_probes(schema: &Schema, log: &str) -> u64 {
                 .count() as u64
         })
         .sum()
+}
+
+pub(super) fn constraint_checks(schema: &Schema, writes: &[WriteSite], checks: &mut BTreeSet<String>) {
+    for write in writes {
+        if let Some(d) = schema.table(&write.table).and_then(|t| t.deliver.as_ref()) {
+            if matches!(write.kind, WriteKind::Insert | WriteKind::Upsert) {
+                checks.insert(format!("{}:DeliverIncarnation", d.log));
+                checks.insert(format!("{}:DeliverAudience({})", d.target, write.table));
+            }
+            if write.kind != WriteKind::Insert {
+                checks.insert(format!("{}:DeliverAudience({})", d.log, write.table));
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn a_nonuniform_job_chunk_cannot_spend_the_delivery_reserve() {
+    let fixture: serde_json::Value = serde_json::from_str(include_str!("../../../../corpus/deliver-log-schema-identity.json")).unwrap();
+    let mut schema: Schema = serde_json::from_value(fixture["schema"].clone()).unwrap();
+    schema.tables.get_mut("memberships").unwrap().rules.read = RuleExpr::Eq(crate::RuleTerm::Field("principal".into()), crate::RuleTerm::Viewer);
+    let program = Program { name: "chunk".into(), kind: ProgramKind::Mutation, args: BTreeMap::new(), read_time_granularity_ms: None, body: vec![
+        Stmt::Let { name: "members".into(), value: Expr::Scan(Scan { site: "chunk.members".into(), table: "memberships".into(), index: "byId".into(), prefix: vec![], order: Order::Asc, take: Bound::Literal(1), after: None, before: None, range: None, opaque_cursor: false, merge_site: None, provenance: KeyProvenance::Const }) },
+        Stmt::Delete { table: "messages".into(), key: Expr::Literal(crate::Value::Id("m".into())) },
+    ] };
+    let error = Checker::new(&schema, Ceilings::default()).job_chunk().check(&program).unwrap_err();
+    assert_eq!(error.code, "E_STRUCTURAL_FANOUT");
+    assert_eq!(error.site.as_deref(), Some("chunk.members"));
 }
