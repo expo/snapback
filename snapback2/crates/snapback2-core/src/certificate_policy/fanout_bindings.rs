@@ -58,6 +58,12 @@ pub(super) fn collect(body: &[Stmt], top: bool, out: &mut BTreeMap<String, Bindi
 
 pub(super) fn capped_writes(schema: &Schema, body: &[Stmt], out: &mut BTreeSet<String>) {
     for stmt in body {
+        #[cfg(test)]
+        if let Stmt::Insert { table, .. } | Stmt::InsertIfAbsent { table, .. } | Stmt::Upsert { table, .. } | Stmt::Delete { table, .. } = stmt {
+            if crate::engine::delivery_spike::bound(schema, table, crate::certificate::WriteKind::Upsert) > 0 {
+                out.insert(table.clone());
+            }
+        }
         match stmt {
             Stmt::InsertIfAbsent { table, .. }
             | Stmt::Insert { table, .. }

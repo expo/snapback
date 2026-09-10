@@ -11,6 +11,7 @@ await import('./test-indexed');
 await import('./test-rule-hash-memo');
 await import('./test-maintained-address');
 await import('./test-merge');
+await import('./test-delivery-prototype');
 import {
   ClientStore,
   canonicalValue,

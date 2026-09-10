@@ -210,6 +210,11 @@ impl<'a> Runner<'a> {
 
     fn statements_at(&mut self, statements: &[Stmt], prefix: &str) -> Result<Flow, RuntimeError> {
         for (index, statement) in statements.iter().enumerate() {
+            #[cfg(test)]
+            if let Some(flow) = self.p0_aot_block(statement)? {
+                if !matches!(flow, Flow::Next) { return Ok(flow); }
+                continue;
+            }
             let path = format!("{prefix}{index}");
             // @ref LLP 1016#d6--the-operator-seat-ad-hoc-programs-and-rehearsal — preserve the attempted write site even when validation refuses before a row is touched.
             if self.context.operator_by.is_some() {

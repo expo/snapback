@@ -1329,6 +1329,18 @@ impl<'a> Analyzer<'a> {
         factors: &[(String, u64)],
     ) -> Summary {
         let mut summary = write_summary(table, kind, calls, factors);
+        #[cfg(test)]
+        {
+            let n = crate::engine::delivery_spike::bound(self.schema, table, kind);
+            if n > 0 {
+                let rows = (n + 1).saturating_mul(calls);
+                summary.examined = summary.examined.saturating_add(rows);
+                summary.index_entries = summary.index_entries.saturating_add(rows);
+                summary.steps = summary.steps.saturating_add(rows.saturating_mul(20));
+                summary.writes.push(WriteSite { table: "deliveries".into(), kind: WriteKind::Insert, max_rows: n.saturating_mul(calls) });
+                summary.costs.scan(Cost::cap("messages deliver", &["conversationId".into()], n as u32, None, calls, factors));
+            }
+        }
         // @ref LLP 1017#24-metering — reserve only probes a writer may perform.
         for (by, max) in crate::cap::write_caps(self.schema, table, kind, patch) {
             let maintained = crate::cap::count_maintain(self.schema, table, by);

@@ -1080,7 +1080,7 @@ impl Runtime {
     }
 }
 
-fn seed_program(
+pub(crate) fn seed_program(
     schema: &Schema,
     rows: &[(String, Value)],
 ) -> Result<(Program, Certificate), RuntimeError> {

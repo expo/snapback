@@ -453,3 +453,5 @@ evidence.
 ## Implementation record
 
 - 2026-09-10 — commissioned; lanes and landings are appended here as each lands (the orchestrator, program `~/projects/snapback-ri-20260910/plan.md`).
+
+- 2026-09-10 — P0 decision branch (not a landing): Mechanism/§3 insert-delete/§7 spikes compare AOT IR and native lifecycle writes; native recommended; 11 Rust witnesses and 3 twin experiments; report `REPORT-proto.md` records the byRow bound correction, raw-seed closure, and verification limits.

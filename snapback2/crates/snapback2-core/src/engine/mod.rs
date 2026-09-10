@@ -338,6 +338,11 @@ impl Engine {
     }
 
     pub fn seed(&mut self, table: &str, row: Value) -> Result<(), RuntimeError> {
+        #[cfg(test)]
+        if delivery_spike::bound(&self.schema, table, crate::certificate::WriteKind::Upsert) > 0 {
+            let (p, c) = crate::registry::seed_program(&self.schema, &[(table.into(), row)])?;
+            return self.execute_seed(&p, &c, Context::system()).map(|_| ());
+        }
         validate_row(&self.schema, table, &row)?;
         if self.rule_authority == RuleAuthority::StoreAuthoritative {
             crate::assets::refuse_seed_assets(&self.schema, table, &row)?;
@@ -1404,6 +1409,13 @@ mod replay;
 mod row_membership;
 mod runner;
 mod runner_ops;
+mod runner_bounds;
+#[cfg(test)]
+pub(crate) mod delivery_spike;
+#[cfg(test)]
+mod delivery_aot_spike;
+#[cfg(test)]
+mod delivery_spike_tests;
 mod scan;
 mod search;
 pub(crate) mod search_index;
