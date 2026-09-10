@@ -51,10 +51,13 @@ impl Engine {
             None => json!([schedule.name, timer.row_id, timer.at]),
         };
         let seq = self.store.commit_seq()?.saturating_add(1);
+        let custody_certificate = self.custody_certificate(certificate, false);
         let tx = self.store.conn.transaction()?;
         tx.execute_batch("SAVEPOINT schedule_target")?;
         let mut trace = AuthoritativeTrace::default();
         let attempted = (|| -> Result<serde_json::Value, RuntimeError> {
+            let custody_certificate = custody_certificate?;
+            let certificate = custody_certificate.as_ref();
             let mut context = Context::system();
             context.connected = self.connected.clone();
             context.now = Some(now);
@@ -194,8 +197,14 @@ impl Engine {
                 };
                 tx.execute_batch("ROLLBACK TO schedule_target; RELEASE schedule_target")?;
                 trace = AuthoritativeTrace::default();
-                json!({"state":"rejected","code":code,"family":crate::jobs::rejection_family(code),
-                    "site":schedule.site,"message":error.to_string(),"rewrite":"fix the target or data, then run the target --as system","guide":"schedule"})
+                let mut rejected = json!({"state":"rejected","code":code,"family":crate::jobs::rejection_family(code),
+                    "site":schedule.site,"message":error.to_string(),"rewrite":"fix the target or data, then run the target --as system","guide":"schedule"});
+                if code == crate::delivery::INCARNATION {
+                    rejected["site"] = json!(error.require_site());
+                    rejected["rewrite"] = json!(crate::delivery::INCARNATION_REWRITE);
+                    rejected["guide"] = json!("offline");
+                }
+                rejected
             }
         };
         if let Trigger::Every { duration_ms } = schedule.trigger {

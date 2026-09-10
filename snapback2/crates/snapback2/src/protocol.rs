@@ -135,11 +135,21 @@ impl Refusal {
 
     pub fn from_runtime(error: &RuntimeError) -> Self {
         if let RuntimeError::Require { code, site } = error {
+            if code == "E_DELIVER_INCARNATION" {
+                return Self::new(code, "rule", "a deleted delivered row cannot reuse its id",
+                    snapback2_core::delivery::INCARNATION_REWRITE, "offline")
+                    .with_site(site.as_deref().unwrap_or("write"));
+            }
             let mut refusal = Self::new(code, "rule", error.to_string(),
                 "satisfy the program requirement before retrying", "rule/runtime");
             refusal.rule = Some(code.clone());
             refusal.site = site.clone();
             return refusal;
+        }
+        if let RuntimeError::SchemaDeliver { code, message, rewrite } = error {
+            let (family, guide) = certification_family_guide(code);
+            let (site, message) = message.split_once(": ").unwrap_or(("deliver", message));
+            return Self::new(code, family, message, rewrite, guide).with_site(site);
         }
         if let RuntimeError::Successor(refusal) = error {
             return Self::from_successor(refusal);
@@ -573,4 +583,29 @@ fn runtime_requirement_message_does_not_embed_its_application_code() {
     });
     assert_eq!(refusal.code, "MEMBERSHIP_REQUIRED");
     assert_eq!(refusal.message, "program requirement failed");
+}
+
+#[cfg(test)]
+#[test]
+fn delivery_incarnation_has_one_family_write_site_rewrite_and_page_on_every_wire() {
+    use snapback2_core::{Context, Engine, ExecutionState, Program, ProgramKind, Stmt, Expr, Ceilings, Checker, Actor};
+    let error = RuntimeError::Require { code: "E_DELIVER_INCARNATION".into(), site: Some("messages.send/body/0".into()) };
+    let refusal = Refusal::from_runtime(&error);
+    assert_eq!(refusal.family, "rule");
+    assert_eq!(refusal.guide, "offline");
+    assert_eq!(refusal.site.as_deref(), Some("messages.send/body/0"));
+    assert_eq!(refusal.rewrite.as_deref(), Some(snapback2_core::delivery::INCARNATION_REWRITE));
+    let schema = snapback2_core::Schema::default();
+    let program = Program { name: "empty".into(), kind: ProgramKind::Mutation, args: BTreeMap::new(), read_time_granularity_ms: None, body: vec![Stmt::Return(Expr::Literal(Value::Null))] };
+    let certificate = Checker::new(&schema, Ceilings::default()).check(&program).unwrap();
+    let mut execution = Engine::memory(schema).unwrap().execute(&program, &certificate, Context::mutation(Actor::user("alice").unwrap(), BTreeMap::new())).unwrap();
+    execution.state = ExecutionState::Rejected { code: error.code().into(), site: error.require_site(), rule: error.require_code(), message: error.to_string() };
+    for wire in [crate::writer_wire::execution_json(&execution), snapback2_core::offline::replay_mutation_response(&execution, "intent", None)] {
+        assert_eq!(wire["family"], "rule"); assert_eq!(wire["guide"], "offline");
+        assert_eq!(wire["site"], "messages.send/body/0"); assert_eq!(wire["rewrite"], snapback2_core::delivery::INCARNATION_REWRITE);
+    }
+    let cards: Vec<Json> = serde_json::from_str(include_str!("../../../packages/snapback2/guide/families.source.json")).unwrap();
+    let card = cards.iter().find(|c| c["code"] == "E_DELIVER_INCARNATION").unwrap();
+    assert_eq!(card["family"], "rule"); assert_eq!(card["guide"], "offline");
+    assert!(card["right"].as_str().unwrap().contains(snapback2_core::delivery::INCARNATION_REWRITE));
 }

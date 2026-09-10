@@ -35,6 +35,8 @@ pub const PRINCIPAL: &str = "E_DELIVER_PRINCIPAL";
 /// A raw schema's declaration or generated table is not the canonical form,
 /// or a program writes a generated table (family `schema`).
 pub const SHAPE: &str = "E_SCHEMA_DELIVER";
+pub const INCARNATION: &str = "E_DELIVER_INCARNATION";
+pub const INCARNATION_REWRITE: &str = "insert messages { conversationId, authorId: viewer, body }";
 
 /// `deliver to <target>[<prefix>] [by .<principal>] as <log> [with receipts] [bootstrap]`
 /// on a content table, resolved: the compiler picks the principal column; raw
@@ -651,4 +653,12 @@ fn first_difference(actual: &Table, expected: &Table) -> &'static str {
     } else {
         "deliver"
     }
+}
+
+// Native fan-out owns the candidate images, recipient map, and constructed event.
+// Count both read shapes: upsert may take either path and historical A can exceed N.
+pub(crate) fn scratch_per_recipient(schema: &Schema, deliver: &Deliver) -> u64 {
+    crate::bounds::declared_serialized_row_max(schema, &deliver.target)
+        .max(crate::bounds::declared_serialized_row_max(schema, &deliver.log))
+        .saturating_mul(4).saturating_add(256)
 }

@@ -1388,10 +1388,10 @@ fn every_frozen_corpus_case_replays_its_certification_outcome() {
     // same-mutation/group-visibility witnesses. Guarded writes add five
     // creation/collision/conditional witnesses. The deliver declaration adds
     // its schema-identity golden and one owned-write refusal (LLP 1019 D1):
-    // 251 evaluator + 26 server-only.
+    // D2 adds ten paired native/receipt-only scenarios and one audience refusal: 261 evaluator + 27 server-only.
     assert_eq!(
         cases.len(),
-        277,
+        288,
         "the complete frozen corpus must be checked"
     );
     assert!(

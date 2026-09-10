@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { deepStrictEqual } from "node:assert";
 import { lowerProject } from "./project";
 import { parseDocument } from "./quarry/parser";
@@ -46,6 +47,51 @@ const column = (name: string) => ({ Column: name });
 const index = (columns: string[], unique = false) => ({ components: columns.map(column), unique });
 
 export function registerDeliveryChecks(test: Test): void {
+  test("the incarnation refusal publishes an executable fresh-insert repair", async () => {
+    const cards = JSON.parse(readFileSync(new URL("../../snapback2/guide/families.source.json", import.meta.url), "utf8"));
+    const card = cards.find((c: any) => c.code === "E_DELIVER_INCARNATION");
+    assert(card.family === "rule" && card.guide === "offline", JSON.stringify(card));
+    for (const side of ["wrong", "right"]) {
+      const files: Record<string, string> = {}; let path = "";
+      for (const line of card[side].split("\n")) {
+        const marker = /^-- (snapback\/.*\.q)$/.exec(line);
+        if (marker) { path = marker[1]!; files[path] = ""; }
+        else if (path && !line.startsWith("```")) files[path] += line + "\n";
+      }
+      await withProject(files, async root => {
+        const lowered = await lowerProject(root);
+        assert(lowered.ok, JSON.stringify(lowered));
+        assert(rustCheck(lowered.project.programs, "synthetic", lowered.project.schema).every(r => !r.error), side);
+      });
+    }
+    assert(card.right.includes("insert messages { conversationId, authorId: viewer, body }"), card.right);
+  });
+  test("schedule delete lowers to a private mutation with its existing admission and source", async () => {
+    for (const file of ["schema", "expiry"]) {
+      const line = "schedule expireMessage on messages at .expiresAt: delete .\n";
+      const schema = schemaWith("deliver to memberships[.conversationId] as deliveries", "cap 3 by conversationId").replace("  authorId:", "  expiresAt: time ?\n  authorId:");
+      const compiled = compileInline([{ fileName: "snapback/schema.q", source: schema + (file === "schema" ? line : "") },
+        { fileName: "snapback/expiry.q", source: OPS + (file === "expiry" ? line : "") }]);
+      assert(compiled.ok, JSON.stringify(compiled));
+      const schedule = compiled.project.schema.schedules![0]!;
+      const target = compiled.project.programs.find(p => p.name === schedule.target)!;
+      assert(target.kind === "Mutation", JSON.stringify(target));
+      assert(target.body.some(s => typeof s === "object" && "Delete" in s), JSON.stringify(target));
+      assert(!compiled.project.clientPrograms.some(p => p.name === target.name), "private target entered client map");
+      assert(compiled.project.sources[`${target.name}/body/0`]?.file === `snapback/${file}.q`, "write source missing");
+      const checked = rustCheck(compiled.project.programs, "synthetic", compiled.project.schema as unknown as Record<string, unknown>);
+      assert(checked.every(r => !r.error), JSON.stringify(checked));
+    }
+  });
+  test("schedule delete refuses periods, other rows, extra fields, and non-time columns", () => {
+    const schema = schemaWith("deliver to memberships[.conversationId] as deliveries").replace("  authorId:", "  expiresAt: time ?\n  authorId:");
+    for (const spelling of ["schedule x every 1m: delete .", "schedule x on messages at .expiresAt: delete messages[.id]", "schedule x on messages at .expiresAt: delete .id", "schedule x on messages at .body: delete ."]) {
+      const compiled = compileInline([{ fileName: "snapback/schema.q", source: schema }, { fileName: "snapback/expiry.q", source: spelling + "\n" }]);
+      assert(!compiled.ok, spelling);
+      assert(compiled.diagnostics.some(d => d.code === "E_SCHEDULE_TARGET" || d.code === "E_SCHEDULE_COLUMN"), JSON.stringify(compiled));
+      assert(compiled.diagnostics.every(d => d.site && d.rewrite), JSON.stringify(compiled));
+    }
+  });
   test("Quarry deliver parses its options into one sited declaration", () => {
     const parsed = parseDocument("snapback/schema.q", schemaWith("deliver to memberships[.conversationId] by .principal as deliveries with receipts bootstrap"));
     assert(parsed.diagnostics.length === 0, `deliver did not parse: ${JSON.stringify(parsed.diagnostics)}`);

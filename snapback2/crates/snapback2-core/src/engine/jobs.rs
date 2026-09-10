@@ -57,6 +57,8 @@ impl Engine {
         context.new_ids = ids;
         context.operator_by = Some(job.enqueued_by.clone());
         let seq = self.store.commit_seq()?.saturating_add(1);
+        let custody_certificate = self.custody_certificate(chunk_certificate, false)?;
+        let chunk_certificate = &custody_certificate;
         let tx = self.store.conn.transaction()?;
         validate_asset_inputs(&tx, program, &context)?;
         let mut runner = Runner::new(
@@ -112,7 +114,7 @@ impl Engine {
         for (_, row) in &visited {
             runner.env.insert(binding.clone(), row.clone());
             processed += 1;
-            match runner.statements(body)? {
+            match runner.statements_at(body, &format!("{}/body/", job.sweep))? {
                 Flow::Next | Flow::Continue => {}
                 Flow::Break | Flow::Return(..) => break,
             }

@@ -289,8 +289,13 @@ enum AssetDeliveryAuthority {
 }
 
 impl Engine {
-    pub fn new(store: Store, schema: Schema) -> Result<Self, RuntimeError> {
+    pub fn new(mut store: Store, schema: Schema) -> Result<Self, RuntimeError> {
         validate_schema(&schema).map_err(first_schema_error)?;
+        if crate::delivery::declarations(&schema).next().is_some() {
+            let tx = store.conn.transaction()?;
+            crate::successor::delivery::record_audience_bounds(&tx, &schema, &schema)?;
+            tx.commit()?;
+        }
         Ok(Self {
             connected: Default::default(),
             store,
@@ -348,6 +353,12 @@ impl Engine {
     }
 
     pub fn seed(&mut self, table: &str, row: Value) -> Result<(), RuntimeError> {
+        if self.rule_authority == RuleAuthority::StoreAuthoritative
+            && (self.schema.table(table).is_some_and(|t| t.deliver.is_some() || t.constraints.iter().any(|c| matches!(c, Constraint::Cap { .. })))
+                || crate::delivery::declarations(&self.schema).any(|(_, _, d)| d.target == table)
+                || crate::delivery::owner(&self.schema, table).is_some()) {
+            return self.seed_custody(table, row);
+        }
         validate_row(&self.schema, table, &row)?;
         if self.rule_authority == RuleAuthority::StoreAuthoritative {
             crate::assets::refuse_seed_assets(&self.schema, table, &row)?;
@@ -682,6 +693,8 @@ impl Engine {
         } else {
             current_seq
         };
+        let custody_certificate = self.custody_certificate(certificate, commit_kind == Some("seed"))?;
+        let certificate = &custody_certificate;
         let transaction = self.store.conn.transaction()?;
         if then_outbox_id.is_some() {
             transaction.execute_batch("SAVEPOINT snapback2_effect_then")?;
@@ -942,11 +955,12 @@ impl Engine {
              DELETE FROM _outbox;
              DELETE FROM _jobs;
              DELETE FROM _timers;
-             DELETE FROM _meta WHERE key LIKE 'job_plan:%';
+             DELETE FROM _meta WHERE key LIKE 'job_plan:%' OR key LIKE 'custody_retired:%';
              DELETE FROM _grant_slices;
              DELETE FROM _client_intents;
              DELETE FROM _grants;",
         )?;
+        crate::successor::delivery::record_audience_bounds(&transaction, &Schema::default(), &self.schema)?;
         // A reset store is a fresh install: period timers re-arm from now, row timers follow the seed's rows.
         crate::store_timers::reconcile(&transaction, &Schema::default(), &self.schema, commit_at)?;
         let seq = 1;
@@ -1307,6 +1321,7 @@ pub(crate) fn is_sqlite_constraint(error: &RuntimeError) -> bool {
 pub(crate) fn mutation_rejection_code(error: &RuntimeError) -> Option<&str> {
     match error {
         RuntimeError::Require { code, .. } => Some(code),
+        RuntimeError::SchemaDeliver { code, .. } if code == "E_BOUND" => Some(code),
         RuntimeError::Conflict { .. } => Some("E_CONFLICT"),
         // @ref LLP 1001#3-read-and-write-states-no-silent-states — a table-rule
         // rejection keeps the same stable code in engine state and on the wire.
@@ -1423,6 +1438,8 @@ mod replay;
 mod row_membership;
 mod runner;
 mod runner_ops;
+mod custody;
+mod containment;
 mod scan;
 mod search;
 pub(crate) mod search_index;

@@ -127,3 +127,12 @@ viewer`; removed tombstones its row; programs never write it. Keys must pin a
 nameReceipts (row, recipient, received, seq, the read rule's columns) under
 that rule. Installing, bootstrapping, removing, and the audience bound `A`:
 `guide migrations`.
+
+Inserts and seeds deliver to the group visible at that write, deduplicated by
+principal. Changed updates/upserts and deletes append events to the original
+recipients, including departed members; unchanged updates append nothing.
+Repeated edits have distinct event ids. Transaction rollback rolls events back.
+A deleted content id cannot be reused (E_DELIVER_INCARNATION): use `insert`
+with a fresh id. Receipt-only replay never derives these writes from held members.
+Insert reserves N+1 rows on each meter; update/delete reserve the stored A.
+Nonuniform scans cannot spend that reserve; E_BOUND names the deliver line.

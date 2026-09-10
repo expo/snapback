@@ -30,7 +30,7 @@ Indexes name their ordering: `by name: columns` or `unique name: columns`.
 All callable declarations and calls include parentheses. A declaration uses
 `:` before its body: `fn double(n: int): n * 2`, `proc store(n: int):` with
 a block, or `maintain counts: count rows by owner` with indented read rules.
-Schedules use one inline call: `schedule hourly every 1h: cleanup()`.
+Schedules use one inline call (`schedule hourly every 1h: cleanup()`), or `delete .` on a row timer.
 Fractional literals infer their exact decimal scale; `guide money` explains units.
 
 ## Constructs

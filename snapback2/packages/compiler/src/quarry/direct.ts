@@ -11,6 +11,7 @@ type Lowering = {
   usesReadTime: boolean;
   sources: Array<[string, SourceSite]>;
   loopOrdinals: Map<string, number>;
+  writeSources: Map<Stmt, SourceSite>;
   reservedNames: Set<string>;
   focals: Map<string, Expr>;
   bindings: Map<string, Expr>;
@@ -27,7 +28,7 @@ export function lowerBoundQuarryArtifact(program: BoundQuarryProgram): {
 } {
   const lowering: Lowering = {
     program: program.name, accessOrdinal: 0, temporaryOrdinal: 0, operandOrdinal: 0, usesReadTime: false,
-    sources: [], loopOrdinals: new Map(),
+    sources: [], loopOrdinals: new Map(), writeSources: new Map(),
     reservedNames: new Set([...program.args.map((arg) => arg.name), ...boundLocalNames(program.body)]),
     focals: new Map(), bindings: new Map(),
   };
@@ -36,6 +37,15 @@ export function lowerBoundQuarryArtifact(program: BoundQuarryProgram): {
     .sort(([left], [right]) => left.localeCompare(right))) });
   const body = lowerStatements(program.body, lowering);
   if (program.kind !== "job" && statementsFallThrough(program.body)) body.push({ Return: { Literal: "Null" } });
+  const locateWrites = (statements: Stmt[], prefix = "") => statements.forEach((statement, index) => {
+    const path = `${prefix}${index}`;
+    const source = lowering.writeSources.get(statement);
+    if (source) lowering.sources.push([`${program.name}/body/${path}`, source]);
+    if (typeof statement !== "object") return;
+    if ("For" in statement) locateWrites(statement.For.body, `${path}/body/`);
+    if ("If" in statement) { locateWrites(statement.If.then_body, `${path}/then/`); locateWrites(statement.If.else_body, `${path}/else/`); }
+  });
+  locateWrites(body);
   return { program: {
     name: program.name,
     kind: program.kind === "query" ? "Query" : program.kind === "mutation" ? "Mutation" : "job",
@@ -305,7 +315,18 @@ function lowerWalk(expression: Extract<BoundExpression, { kind: "walk" }>, lower
   };
 }
 
-function lowerWrite(
+// @ref LLP 1019#3-what-writes-it — runtime incarnation refusal names the
+// lowered write's path; retain its authored source without growing the IR.
+function lowerWrite(expression: Extract<BoundExpression, { kind: "write" }>, lowering: Lowering, resultUsed: boolean): LoweredValue {
+  const result = lowerWriteInner(expression, lowering, resultUsed);
+  for (const statement of result.setup) {
+    if (typeof statement === "object" && ["Insert", "InsertIfAbsent", "Update", "Upsert", "Delete"].some(key => key in statement)
+        && !lowering.writeSources.has(statement)) lowering.writeSources.set(statement, { ...expression.source.definition, ...(expression.source.use ? { use: expression.source.use } : {}) });
+  }
+  return result;
+}
+
+function lowerWriteInner(
   expression: Extract<BoundExpression, { kind: "write" }>,
   lowering: Lowering,
   resultUsed: boolean,

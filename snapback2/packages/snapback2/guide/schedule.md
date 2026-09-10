@@ -4,6 +4,11 @@
 is reached; a period timer fires once per whole-minute period. The target is a
 mutation or a declared job of this project, run as the owner.
 
+`schedule expireMessage on messages at .expiresAt: delete .` deletes its trigger
+row through a private mutation. It has the same admission, settlement and
+rejection reporting as a named target; custody tombstones and rollback are
+transactional and priced per fired row. Periods cannot use `delete .`.
+
 ```q
 schedule expireMessage on messages at .expiresAt: purgeMessage(.id)
 ```

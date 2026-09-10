@@ -62,15 +62,18 @@ pub(super) fn capped_writes(schema: &Schema, body: &[Stmt], out: &mut BTreeSet<S
             Stmt::InsertIfAbsent { table, .. }
             | Stmt::Insert { table, .. }
             | Stmt::Upsert { table, .. }
-            | Stmt::Update { table, .. } => {
+            | Stmt::Update { table, .. }
+            | Stmt::Delete { table, .. } => {
                 use crate::certificate::WriteKind;
                 let (kind, patch) = match stmt {
                     Stmt::Insert { .. } | Stmt::InsertIfAbsent { .. } => (WriteKind::Insert, None),
                     Stmt::Upsert { .. } => (WriteKind::Upsert, None),
+                    Stmt::Delete { .. } => (WriteKind::Delete, None),
                     Stmt::Update { patch, .. } => (WriteKind::Update, Some(patch)),
                     _ => unreachable!(),
                 };
-                if !crate::cap::write_caps(schema, table, kind, patch).is_empty() {
+                if !crate::cap::write_caps(schema, table, kind, patch).is_empty()
+                    || schema.table(table).is_some_and(|t| t.deliver.is_some()) {
                     out.insert(table.clone());
                 }
             }

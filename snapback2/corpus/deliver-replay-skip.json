@@ -1,0 +1,576 @@
+{
+  "corpusVersion": 1,
+  "name": "deliver-replay-skip",
+  "category": "scenario",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "conversations": {
+        "columns": {
+          "id": "Id"
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked"
+      },
+      "deliveries": {
+        "columns": {
+          "at": "Time",
+          "audience": "Int",
+          "conversationId": {
+            "Ref": {
+              "table": "conversations"
+            }
+          },
+          "id": "Id",
+          "incarnation": "Int",
+          "kind": {
+            "Enum": {
+              "variants": [
+                "delivered",
+                "changed",
+                "removed"
+              ]
+            }
+          },
+          "recipient": "Principal",
+          "row": {
+            "Ref": {
+              "table": "messages"
+            }
+          },
+          "seq": "Int"
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          },
+          "byRecipient": {
+            "components": [
+              {
+                "Column": "recipient"
+              },
+              {
+                "Column": "seq"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          },
+          "byRecipientGroup": {
+            "components": [
+              {
+                "Column": "recipient"
+              },
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "kind"
+              },
+              {
+                "Column": "seq"
+              },
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": false
+          },
+          "byRow": {
+            "components": [
+              {
+                "Column": "row"
+              },
+              {
+                "Column": "kind"
+              },
+              {
+                "Column": "recipient"
+              }
+            ],
+            "unique": false
+          }
+        },
+        "rules": {
+          "read": {
+            "Eq": [
+              {
+                "Field": "recipient"
+              },
+              "Viewer"
+            ]
+          },
+          "insert": "Deny",
+          "update": "Deny",
+          "delete": "Deny"
+        },
+        "constraints": [
+          {
+            "Immutable": {
+              "fields": [
+                "at",
+                "audience",
+                "conversationId",
+                "incarnation",
+                "kind",
+                "recipient",
+                "row",
+                "seq"
+              ]
+            }
+          }
+        ],
+        "retain": "until-revoked",
+        "tombstones": [
+          {
+            "table": "messages",
+            "column": "row",
+            "when": {
+              "Eq": [
+                {
+                  "Field": "kind"
+                },
+                {
+                  "Literal": {
+                    "String": "removed"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "memberships": {
+        "columns": {
+          "conversationId": {
+            "Ref": {
+              "table": "conversations"
+            }
+          },
+          "id": "Id",
+          "principal": "Principal"
+        },
+        "indexes": {
+          "byConversationPrincipal": {
+            "components": [
+              {
+                "Column": "conversationId"
+              },
+              {
+                "Column": "principal"
+              }
+            ],
+            "unique": false
+          },
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [
+          {
+            "Cap": {
+              "by": [
+                "conversationId"
+              ],
+              "max": 3
+            }
+          }
+        ],
+        "retain": "until-revoked"
+      },
+      "messages": {
+        "columns": {
+          "authorId": "Principal",
+          "body": {
+            "Text": {
+              "max": 256
+            }
+          },
+          "conversationId": {
+            "Ref": {
+              "table": "conversations"
+            }
+          },
+          "id": "Id"
+        },
+        "indexes": {
+          "byId": {
+            "components": [
+              {
+                "Column": "id"
+              }
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [],
+        "retain": "until-revoked",
+        "deliver": {
+          "target": "memberships",
+          "prefix": [
+            "conversationId"
+          ],
+          "principal": "principal",
+          "log": "deliveries"
+        }
+      }
+    },
+    "maintains": []
+  },
+  "program": {
+    "name": "deliver-replay-skip",
+    "kind": "Mutation",
+    "args": {},
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Insert": {
+          "table": "messages",
+          "row": {
+            "Literal": {
+              "Row": {
+                "authorId": {
+                  "Id": "u1"
+                },
+                "body": {
+                  "String": "hello"
+                },
+                "conversationId": {
+                  "Id": "c1"
+                },
+                "id": {
+                  "Id": "m"
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "Return": {
+          "Scan": {
+            "site": "delivery.inbox",
+            "table": "deliveries",
+            "index": "byRecipient",
+            "prefix": [
+              {
+                "Scalar": {
+                  "Input": "Viewer"
+                }
+              }
+            ],
+            "order": "Asc",
+            "take": {
+              "Literal": 50
+            },
+            "after": null,
+            "before": null,
+            "range": null,
+            "merge_site": null,
+            "provenance": "Viewer"
+          }
+        }
+      }
+    ]
+  },
+  "certificate": {
+    "program": "deliver-replay-skip",
+    "plan_hash": "f2b4b51ce6f15cf1b47147d533c0678520c4a0daecc05defc3cd1d9a8ce8e3ac",
+    "schema_hash": "61348a763b331c12b1a9e6b63d4e3ca389bb1c44e0d6f3177cd73f687b9a5f2a",
+    "tables": {
+      "conversations": {
+        "retain": "until-revoked"
+      },
+      "deliveries": {
+        "retain": "until-revoked"
+      },
+      "memberships": {
+        "retain": "until-revoked"
+      },
+      "messages": {
+        "retain": "until-revoked"
+      }
+    },
+    "rule_hashes": {
+      "deliveries.insert": "b3f8cbfaa08d2fd92070f2a2b5a99c7ea2335b62dc2507fee6cfd6e15228e2a6",
+      "deliveries.read": "5d628128a0dd49b60767e1f7aada3ddf71210ac15a603cdaf6f6ad880b11cc38",
+      "messages.insert": "9305fd58fcac951c399ca16375ce2edb0537d3c855986a9daefe93b8effd4660"
+    },
+    "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
+    "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
+    "read_sites": [
+      {
+        "site": "delivery.inbox",
+        "table": "deliveries",
+        "index": "byRecipient",
+        "prefix_template": "Viewer",
+        "take": 50,
+        "max_calls": 1,
+        "rule_probes_per_candidate": 0,
+        "hoist": true,
+        "decided_true": true,
+        "complete": false
+      }
+    ],
+    "write_sites": [
+      {
+        "table": "messages",
+        "kind": "Insert",
+        "max_rows": 1
+      },
+      {
+        "table": "deliveries",
+        "kind": "Insert",
+        "max_rows": 4
+      }
+    ],
+    "mutation_targets": {
+      "targets": [
+        {
+          "table": "messages",
+          "kind": "create",
+          "unresolved": "computed"
+        }
+      ],
+      "complete": false
+    },
+    "maintained_amplification": 0,
+    "constraint_checks": [
+      "deliveries:Immutable([\"at\", \"audience\", \"conversationId\", \"incarnation\", \"kind\", \"recipient\", \"row\", \"seq\"])",
+      "deliveries:Unique(byId)",
+      "messages:Unique(byId)"
+    ],
+    "max_examined": 56,
+    "max_index_entries": 56,
+    "max_rule_probes": 0,
+    "max_steps": 354,
+    "derived_steps": 0,
+    "derived_scratch_bytes": 0,
+    "max_heap_bytes": 25648,
+    "max_output_bytes": 41612,
+    "max_closure_bytes": 41550,
+    "completeness": "Page",
+    "prediction_sites": [],
+    "read_time_granularity_ms": null,
+    "halo_rows": 1,
+    "indexes_required": [
+      "deliveries.byRecipient",
+      "deliveries.byRow",
+      "memberships.byConversationPrincipal"
+    ],
+    "disclosures": [],
+    "bound_product": "delivery.inbox take 50 (+2 reserve) × 1 calls on deliveries = 52 + deliver to memberships[.conversationId] as deliveries on messages: 1 calls × 4 reserved rows = 4"
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": 0,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "schema_hash": "61348a763b331c12b1a9e6b63d4e3ca389bb1c44e0d6f3177cd73f687b9a5f2a",
+    "rows": [
+      {
+        "table": "memberships",
+        "id": "a",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "id": {
+              "Id": "a"
+            },
+            "principal": {
+              "Id": "u1"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "b",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "id": {
+              "Id": "b"
+            },
+            "principal": {
+              "Id": "u2"
+            }
+          }
+        }
+      },
+      {
+        "table": "memberships",
+        "id": "b2",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "id": {
+              "Id": "b2"
+            },
+            "principal": {
+              "Id": "u2"
+            }
+          }
+        }
+      }
+    ],
+    "ranges": [
+      {
+        "site": "delivery.inbox",
+        "table": "deliveries",
+        "index": "byRecipient",
+        "prefix": [
+          {
+            "Scalar": {
+              "Id": "u1"
+            }
+          }
+        ],
+        "order": "Asc",
+        "take": 50,
+        "after": null,
+        "before": null,
+        "gt": null,
+        "gte": null,
+        "lt": null,
+        "lte": null,
+        "rule_hash": "5d628128a0dd49b60767e1f7aada3ddf71210ac15a603cdaf6f6ad880b11cc38",
+        "row_ids": [],
+        "stop": "Exhausted",
+        "absence": true,
+        "halo": null,
+        "n2_suffix": null
+      }
+    ],
+    "absences": [
+      [
+        "messages",
+        "byId",
+        [
+          {
+            "Id": "m"
+          }
+        ]
+      ]
+    ],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": {
+      "Array": []
+    },
+    "errorCode": null,
+    "localState": "predicted",
+    "partialSites": [],
+    "canonicalResult": "{\"Array\":[]}",
+    "digest": "62db520212cc069676ef47ebdcb00c4ab646bb477ec4065963f0f9f9f8ee1c66",
+    "rangeStops": {
+      "delivery.inbox": [
+        "exhausted"
+      ]
+    },
+    "evictedRows": null,
+    "next": null
+  }
+}

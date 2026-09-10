@@ -88,6 +88,12 @@ pub(super) struct Runner<'a> {
     pub(super) missing_authority: bool,
     pub(super) authority_miss_serial: u64,
     pub(super) seq: u64,
+    pub(super) delivery_ordinal: u32,
+    pub(super) delivery_reserve: u64,
+    pub(super) delivery_step_reserve: u64,
+    pub(super) delivery_heap_reserve: u64,
+    pub(super) delivery_write_reserves: BTreeMap<String, u64>,
+    pub(super) write_path: String,
     /// Index ranges of `trace.rule_inputs` minted while a rule check ran on a
     /// candidate row that turned out hidden. They stay in the authoritative
     /// trace (metering, invalidation) but never reach a client-facing compare.
@@ -148,6 +154,12 @@ impl<'a> Runner<'a> {
             missing_authority: false,
             authority_miss_serial: 0,
             seq,
+            delivery_ordinal: 0,
+            delivery_reserve: 0,
+            delivery_step_reserve: 0,
+            delivery_heap_reserve: 0,
+            delivery_write_reserves: BTreeMap::new(),
+            write_path: String::new(),
             discarded_rule_inputs: Vec::new(),
         }
     }
@@ -200,6 +212,12 @@ impl<'a> Runner<'a> {
             missing_authority: false,
             authority_miss_serial: 0,
             seq,
+            delivery_ordinal: 0,
+            delivery_reserve: 0,
+            delivery_step_reserve: 0,
+            delivery_heap_reserve: 0,
+            delivery_write_reserves: BTreeMap::new(),
+            write_path: String::new(),
             discarded_rule_inputs: Vec::new(),
         }
     }
@@ -208,7 +226,7 @@ impl<'a> Runner<'a> {
         self.statements_at(statements, "")
     }
 
-    fn statements_at(&mut self, statements: &[Stmt], prefix: &str) -> Result<Flow, RuntimeError> {
+    pub(super) fn statements_at(&mut self, statements: &[Stmt], prefix: &str) -> Result<Flow, RuntimeError> {
         for (index, statement) in statements.iter().enumerate() {
             let path = format!("{prefix}{index}");
             // @ref LLP 1016#d6--the-operator-seat-ad-hoc-programs-and-rehearsal — preserve the attempted write site even when validation refuses before a row is touched.
@@ -241,6 +259,7 @@ impl<'a> Runner<'a> {
                     );
                 }
             }
+            self.write_path = format!("{}/body/{path}", self.certificate.map_or("write", |c| c.program.as_str()));
             self.step(1)?;
             let flow = match statement {
                 Stmt::Const { name, value } => {

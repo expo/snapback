@@ -113,6 +113,10 @@ pub fn replay_mutation_response(
                 "rewrite": "fix the rejected mutation input and retry",
                 "guide": format!("{family}/runtime"),
             });
+            if code == crate::delivery::INCARNATION {
+                response["guide"] = json!("offline");
+                response["rewrite"] = json!(crate::delivery::INCARNATION_REWRITE);
+            }
             if let Some(rule) = rule { response["rule"] = json!(rule); }
             if let Some(site) = site { response["site"] = json!(site); }
             response

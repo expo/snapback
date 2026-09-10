@@ -136,7 +136,13 @@ impl JobRefusal {
         );
         refusal.family = family.into();
         // The job family's page is `job`; every other family pages its runtime page.
-        refusal.guide = if family == "job" {
+        if code == "E_DELIVER_INCARNATION" {
+            refusal.rewrite = crate::delivery::INCARNATION_REWRITE.into();
+            refusal.site = error.require_site().unwrap_or_else(|| site.into());
+        }
+        refusal.guide = if code == "E_DELIVER_INCARNATION" {
+            "offline".into()
+        } else if family == "job" {
             "job".into()
         } else {
             format!("{family}/runtime")
@@ -146,7 +152,7 @@ impl JobRefusal {
 }
 /// The family a rejected mutation carries on the wire; a parked chunk uses the same one.
 pub fn rejection_family(code: &str) -> &'static str {
-    if code.starts_with("E_RULE") {
+    if code.starts_with("E_RULE") || code == "E_DELIVER_INCARNATION" {
         "rule"
     } else if code.starts_with("E_BOUND")
         || matches!(code, "E_FANOUT" | "E_STEPS" | "E_TRACE_SUBSET")

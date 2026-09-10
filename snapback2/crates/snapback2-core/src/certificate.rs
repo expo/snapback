@@ -12,6 +12,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use thiserror::Error;
 
 mod diagnostic;
+mod delivery;
 mod merge;
 mod output;
 mod page;
@@ -19,13 +20,14 @@ pub(crate) mod search;
 mod summary;
 mod targets;
 use diagnostic::Cost;
+use delivery::collect_rule_indexes;
 use page::result_pages;
 pub use page::{result_cursor, resumable_log_cursor};
 use summary::Summary;
 pub use targets::{MutationTarget, MutationTargets, TargetKind, TargetSource, UnresolvedTarget};
 
 // Heap is calibrated; output/closure use declared maxima. These are admission bounds, not allocator/serializer proofs.
-const HEAP_BYTES_PER_STEP: u64 = 32;
+pub(crate) const HEAP_BYTES_PER_STEP: u64 = 32;
 pub const CURRENT_EVALUATOR_VERSION: &str = "bounded-spike-rust-search-text-refinements-5";
 impl Certificate {
     pub(crate) fn has_current_semantics(&self) -> bool {
@@ -378,6 +380,7 @@ impl<'a> Checker<'a> {
                 ),
             }]);
         }
+        delivery::reserve(self.schema, &mut summary);
         // @ref LLP 1016#d5--schedules-row-timers-and-periods-on-the-owners-clock — one timer index update per schedule per affected row, inside the write ceiling.
         let mut timer_writes = crate::timers::write_bound(self.schema, &summary.writes);
         if timer_writes > 0 {
@@ -487,7 +490,8 @@ impl<'a> Checker<'a> {
         }
         let max_heap_bytes = max_steps
             .saturating_mul(HEAP_BYTES_PER_STEP)
-            .saturating_add(derived.scratch);
+            .saturating_add(derived.scratch)
+            .saturating_add(summary.delivery_heap_bytes);
         let max_steps = max_steps.saturating_add(derived.steps);
         let output = OutputEstimator::estimate(self.schema, program);
         let max_output_bytes = output.bytes;
@@ -565,7 +569,7 @@ impl<'a> Checker<'a> {
         }
         if max_writes > self.ceilings.write_rows {
             bound_errors.push(CheckError {
-                site: None,
+                site: summary.writes.iter().find_map(|w| self.schema.table(&w.table).and_then(|t| t.deliver.as_ref()).map(|_| format!("schema.tables.{}.deliver", w.table))),
                 code: "E_BOUND".to_owned(),
                 message: format!(
                     "write amplification {} exceeds ceiling {} ({})",
@@ -574,7 +578,7 @@ impl<'a> Checker<'a> {
                     summary
                         .writes
                         .iter()
-                        .map(|w| format!("{} {:?} × {}", w.table, w.kind, w.max_rows))
+                        .map(|w| crate::delivery::owner(self.schema, &w.table).map_or_else(|| format!("{} {:?} × {}", w.table, w.kind, w.max_rows), |(content, d, _)| format!("{} on {content} × {}", d.line(None), w.max_rows)))
                         .chain(
                             maintained_writes
                                 .iter()
@@ -597,6 +601,7 @@ impl<'a> Checker<'a> {
             .iter()
             .map(|site| format!("{}.{}", site.table, site.index))
             .collect();
+        indexes_required.extend(summary.delivery_indexes.clone());
         indexes_required.extend(
             summary
                 .count_probe_tables
@@ -1414,44 +1419,6 @@ fn write_summary(table: &str, kind: WriteKind, calls: u64, factors: &[(String, u
     summary
 }
 
-fn collect_rule_indexes(
-    schema: &Schema,
-    rule: &RuleExpr,
-    indexes: &mut BTreeSet<String>,
-    visited_visibility_tables: &mut BTreeSet<String>,
-) {
-    match rule {
-        RuleExpr::Exists { table, index, .. } => {
-            indexes.insert(format!("{table}.{index}"));
-            if visited_visibility_tables.insert(table.clone())
-                && let Some(table) = schema.table(table)
-            {
-                collect_rule_indexes(
-                    schema,
-                    &table.rules.read,
-                    indexes,
-                    visited_visibility_tables,
-                );
-            }
-        }
-        RuleExpr::Created { table, index, .. } => {
-            indexes.insert(format!("{table}.{index}"));
-        }
-        RuleExpr::And(rules) | RuleExpr::Or(rules) => {
-            for rule in rules {
-                collect_rule_indexes(schema, rule, indexes, visited_visibility_tables);
-            }
-        }
-        RuleExpr::Not(rule) => {
-            collect_rule_indexes(schema, rule, indexes, visited_visibility_tables)
-        }
-        RuleExpr::Public { .. }
-        | RuleExpr::Allow
-        | RuleExpr::Deny
-        | RuleExpr::Eq(_, _)
-        | RuleExpr::Ne(_, _) => {}
-    }
-}
 
 #[cfg(test)]
 mod tests;

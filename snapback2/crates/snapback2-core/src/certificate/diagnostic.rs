@@ -279,6 +279,9 @@ impl Checker<'_> {
             (shape.render(), shape.rewrite())
         } else {
             let mut terms = summary.costs.for_meter(name);
+            if name == "heap bytes" && summary.delivery_heap_bytes > 0 {
+                terms.push(Cost { value: summary.delivery_heap_bytes, source: "deliver: candidate images, recipient map and event construction".into(), repair: Repair::Work });
+            }
             let total = terms.iter().fold(0_u64, |n, c| n.saturating_add(c.value));
             if actual > total {
                 terms.push(Cost {
@@ -317,8 +320,8 @@ impl Checker<'_> {
             )
         };
         Err(CheckError {
-            site: None,
-            code: if name == "steps" {
+            site: summary.writes.iter().find_map(|w| self.schema.table(&w.table).and_then(|t| t.deliver.as_ref()).map(|_| format!("schema.tables.{}.deliver", w.table))),
+            code: if name == "steps" && summary.delivery_indexes.is_empty() {
                 "E_STEPS"
             } else {
                 "E_BOUND"

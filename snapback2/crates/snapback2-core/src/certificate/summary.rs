@@ -14,6 +14,8 @@ pub(super) struct Summary {
     pub(super) count_absence_bytes: u64,
     pub(super) count_probe_tables: BTreeSet<String>,
     pub(super) costs: WorkTerms,
+    pub(super) delivery_heap_bytes: u64,
+    pub(super) delivery_indexes: BTreeSet<String>,
 }
 
 impl Summary {
