@@ -177,6 +177,11 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
         .map_err(|error| Refusal::from_runtime(&error))?
         == 0
         && !rows.is_empty()
+        && runtime
+            .store()
+            .meta("reset_empty")
+            .map_err(|error| Refusal::from_runtime(&error))?
+            .is_none()
     {
         apply_seed(&mut runtime, &rows)?;
     }
@@ -213,7 +218,7 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
         blobs.clone(),
         staging.clone(),
     )?;
-    let _effects = crate::effects::spawn(handle.clone());
+    let _effects = crate::effects::spawn(handle.clone(), &root, stop.clone());
     handle.call(Action::PublishOwner)?;
     if let Err(error) = print_url(
         &info,

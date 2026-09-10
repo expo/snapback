@@ -5,8 +5,8 @@ maintained targets need no empty seed arrays.
 
 ```ts
     profiles: [
-      { id: "profile-alice", principal: "dev:alice", displayName: "Alice", handle: "alice", avatarUrl: "https://example.com/alice.png", bio: "", location: "" },
-      { id: "profile-bob", principal: "dev:bob", displayName: "Bob", handle: "bob", avatarUrl: "https://example.com/bob.png", bio: "", location: "" },
+      { id: "profile-alice", principal: "dev:alice", displayName: "Alice", handle: "alice_dev", avatarUrl: "https://example.com/alice.png", bio: "", location: "" },
+      { id: "profile-bob", principal: "dev:bob", displayName: "Bob", handle: "bob_dev", avatarUrl: "https://example.com/bob.png", bio: "", location: "" },
     ],
 ```
 
@@ -67,3 +67,11 @@ found within the limit, the check blocks. Replay still covers every generic
 mutation independently. Put operation-specific behavior and larger scenarios
 in authored journeys, and keep useful admitted and excluded personas and scopes
 near the start of the seed.
+
+`dev --stop` admits no new effect claims and joins the runner for at most the
+budget + 1 s; only if the thread is still running does it log
+`outbox.engine: detached` with the running ids. Detachment does not prove
+execution stopped; the next boot marks those rows `sent_unknown`.
+
+`reset` reports seed row and persona counts; `reset --empty` skips the seed
+and stays empty after restart. Sessions survive either form (`guide operator`).

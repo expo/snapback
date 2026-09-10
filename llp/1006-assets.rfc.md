@@ -12,7 +12,7 @@ decode helper executable, §14a), `packages/compiler` (the column types),
 revisions (f)–(j) by Claude Fable 5.1 at the author's rulings, in session,
 2026-09-03
 **Date:** 2026-08-31
-**Revised:** 2026-09-06 (s — pending object slots exclude successful releases; original-byte admission unchanged; Astra, asset-pending lane); (r — upload recovery and definitive-refusal cleanup);
+**Revised:** 2026-09-10 (t — transactional discard of validated unused staged arguments at commit, LLP 1021 §6; implementer GPT-6 Astra, traps lane); 2026-09-06 (s — pending object slots exclude successful releases; original-byte admission unchanged; Astra, asset-pending lane); (r — upload recovery and definitive-refusal cleanup);
 2026-09-05 (q — image once, server one-use delivery, lane L11);
 2026-09-04 (p/o — two-phase typed upload and descriptor fence; n — device
 byte cache; m/l — finalized-byte reservation, reclamation, helper safety);
@@ -675,6 +675,12 @@ rolls back exactly as it does for a unique-index collision.
 
 There is nothing to remember to call, so there is nothing to forget, and the
 forged-string property is preserved.
+
+### 6a. Discard unused arguments at commit
+
+Amendment, 2026-09-10 (LLP 1021 §6): a successful mutation discards its validated staged asset arguments that remain unattached, including idempotent early returns and offline-replay settlement. The same transaction tombstones the ready ledger rows, releasing both pending object slots and original-byte admission charges. The candidate set contains only this call's typed arguments, recursively through optionals/lists, validated as owned by the caller and staged at entry; work is bounded by the call's argument asset-use count (a list argument holds several ids). Already-attached arguments retain ordinary release semantics, and so does any released row: an argument attached and released inside the same body, or a released in-grace id passed again, is never discarded. A rejection or replay conflict rolls back the tentative discard; a committed discard leaves no attachment for later rollback to restore.
+
+This is not release: release's 24-hour grace and byte charge remain unchanged. Physical deletion still uses the fork-aware sweep and durable tombstones, so restarts or cleanup failure cannot resurrect admission charge. Receiving-byte custody and the operator upload recovery verbs are unchanged.
 
 ## 7. Reading
 

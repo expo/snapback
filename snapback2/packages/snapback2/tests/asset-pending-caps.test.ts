@@ -19,13 +19,15 @@ test("public never-claimed uploads still hit 20 creator and 40 owner slots witho
   const owned: [any, string][] = [];
   try {
     for (const client of [a, b]) {
+      const unused = await client.upload(file(), { kind: "image" });
+      owned.push([client, unused.id]);
+      const inspected = await client.mutation(api.media.inspect, { photo: unused });
+      assert.equal(inspected.state, "committed");
+      assert.deepEqual((await client.listUploads()).usage, { objects: 0, bytes: 0 },
+        "a committed return-only mutation discards its unused staged argument");
       for (let index = 0; index < 20; index++) {
         const photo = await client.upload(file(), { kind: "image" });
         owned.push([client, photo.id]);
-        if (index === 0) {
-          const inspected = await client.mutation(api.media.inspect, { photo });
-          assert.equal(inspected.state, "committed", "return-only success is not a claim");
-        }
       }
       const listing = await client.listUploads();
       assert.equal(listing.usage.objects, 20);

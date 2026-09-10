@@ -1,4 +1,5 @@
 #![allow(unused_imports)]
+use crate::assets_ledger::validate_asset_inputs;
 use crate::certificate::{Certificate, RuleCertificate};
 use crate::cursor::{CursorPosition, decode_cursor, decode_cursor_for, encode_cursor};
 use crate::identity::{Actor, CURRENT_VALUE_MODEL_VERSION, SYSTEM_PRINCIPAL_ID};
@@ -560,10 +561,11 @@ impl Engine {
         program: &Program,
         certificate: &Certificate,
         now: i64,
+        empty: bool,
     ) -> Result<(Execution, Vec<String>), RuntimeError> {
         let mut context = Context::system();
         context.now = Some(now);
-        self.reset_and_execute(program, certificate, context, Some("seed"))
+        self.reset_and_execute(program, certificate, context, empty)
     }
 
     pub(crate) fn settle_rejected_then(
@@ -686,7 +688,7 @@ impl Engine {
         {
             validate_asset_inputs(&transaction, program, &context)
         } else {
-            Ok(())
+            Ok(Vec::new())
         };
         let mut runner = Runner::new(
             &transaction,
@@ -700,7 +702,11 @@ impl Engine {
             seq,
         );
         runner.replay_preimages = replay.map(|_| BTreeMap::new());
-        let mut attempted = entry_validation.and_then(|()| runner.statements(&program.body));
+        let mut unused_assets = Vec::new();
+        let mut attempted = entry_validation.and_then(|assets| {
+            unused_assets = assets;
+            runner.statements(&program.body)
+        });
         if attempted.is_ok()
             && program.kind == ProgramKind::Mutation
             && let Err(error) = runner.check_final_constraints()
@@ -712,6 +718,14 @@ impl Engine {
             && let Err(error) = runner.assert_bounds()
         {
             attempted = Err(error);
+        }
+        if attempted.is_ok() && !runner.missing_authority && program.kind == ProgramKind::Mutation {
+            // The replay savepoint also contains this discard: a conflict rolls it back.
+            crate::assets_ledger::discard_unused_arguments(
+                &transaction,
+                principal.as_str(),
+                &unused_assets,
+            )?;
         }
         if let Some(replay) = replay {
             // @ref LLP 1012#7-writes-offline — every replayed outcome settles in replay.rs.
@@ -896,7 +910,7 @@ impl Engine {
         program: &Program,
         certificate: &Certificate,
         mut context: Context,
-        commit_kind: Option<&str>,
+        empty: bool,
     ) -> Result<(Execution, Vec<String>), RuntimeError> {
         complete_optional_args(&program.args, &mut context.args);
         validate_inputs(&self.schema, program, &context.args)?;
@@ -939,9 +953,21 @@ impl Engine {
              DELETE FROM _client_intents;
              DELETE FROM _grants;",
         )?;
-        // A reset store is a fresh install: period timers re-arm from now, row timers follow the seed's rows.
-        crate::store_timers::reconcile(&transaction, &Schema::default(), &self.schema, commit_at)?;
-        let seq = 1;
+        if empty {
+            transaction.execute(
+                "INSERT OR REPLACE INTO _meta(key,value) VALUES ('reset_empty','1')",
+                [],
+            )?;
+        } else {
+            transaction.execute("DELETE FROM _meta WHERE key='reset_empty'", [])?;
+            crate::store_timers::reconcile(
+                &transaction,
+                &Schema::default(),
+                &self.schema,
+                commit_at,
+            )?;
+        }
+        let seq = if empty { 0 } else { 1 };
         let mut runner = Runner::new(
             &transaction,
             &self.schema,
@@ -973,8 +999,12 @@ impl Engine {
             seq,
             next: None,
         };
+        if empty {
+            transaction.commit()?;
+            return Ok((execution, asset_ids));
+        }
         // @ref LLP 1001#2-what-a-commit-records — reset, seed rows, and the seed commit are atomic.
-        let kind = commit_kind.unwrap_or(if is_system { "system" } else { "mutation" });
+        let kind = "seed";
         append_commit(
             &transaction,
             &CommitRecord {
@@ -1255,26 +1285,6 @@ pub(super) fn disallowed_text_control_code_point(text: &str) -> Option<u32> {
     text.chars()
         .find(|character| *character <= '\u{001f}' && !matches!(*character, '\t' | '\n' | '\r'))
         .map(u32::from)
-}
-
-fn validate_asset_inputs(
-    transaction: &Transaction<'_>,
-    program: &Program,
-    context: &Context,
-) -> Result<(), RuntimeError> {
-    for (name, kind) in &program.args {
-        if !kind.contains_asset() {
-            continue;
-        }
-        let value = context
-            .args
-            .get(name)
-            .ok_or_else(|| RuntimeError::Input(format!("missing arg {name}")))?;
-        for asset in crate::assets::arg_asset_uses(kind, value, &format!("arg {name}"))? {
-            crate::assets_ledger::validate_asset_use(transaction, &asset, context.viewer(), true)?;
-        }
-    }
-    Ok(())
 }
 
 pub(crate) fn value_contains_reserved_principal(value: &Value) -> bool {

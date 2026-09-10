@@ -121,6 +121,17 @@ pub(super) fn state(label: &str) -> State {
             ]),
         )])
         .unwrap();
+    state_from(label, project, generation, runtime)
+}
+
+/// A writer state over a prepared runtime; the effects seam tests hand in a
+/// store that already holds queued outbox rows.
+pub(super) fn state_from(
+    label: &str,
+    project: ProjectJson,
+    generation: Generation,
+    runtime: Runtime,
+) -> State {
     let nonce = NEXT_ROOT.fetch_add(1, AtomicOrdering::Relaxed);
     let root = std::env::temp_dir().join(format!(
         "snapback2-writer-live-{label}-{}-{nonce}",

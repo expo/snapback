@@ -561,6 +561,149 @@ fn measure_row_timer_lateness_p99_while_the_owner_serves_sends() {
     fs::remove_dir_all(root).unwrap();
 }
 
+#[test]
+fn reset_reports_seed_and_empty_survives_restart_with_schedules() {
+    fn restart(root: &Path, compiler: &Path) -> (ChildGuard, u16, String) {
+        let mut owner = ChildGuard::spawn(env!("CARGO_BIN_EXE_snapback2"), compiler, root);
+        let port = owner
+            .ready_line()
+            .trim()
+            .strip_prefix("SNAPBACK_URL=http://127.0.0.1:")
+            .unwrap()
+            .parse()
+            .unwrap();
+        let info: Value =
+            serde_json::from_slice(&fs::read(root.join(".snapback/owner.json")).unwrap()).unwrap();
+        (owner, port, info["secret"].as_str().unwrap().to_owned())
+    }
+    let (root, compiler, mut owner, mut port, mut secret) = boot_schedules();
+    let signup = request(
+        port,
+        "POST",
+        "/api/auth/signup",
+        &[],
+        json!({"email":"reset@example.com", "password":"test-password-reset"}),
+    );
+    assert_eq!(signup.status, 200, "{}", signup.body);
+    let token = format!("Bearer {}", signup.body["token"].as_str().unwrap());
+    let reset = cli(&root, &compiler, &["reset"]);
+    assert_eq!(reset.0, 0, "{reset:?}");
+    assert_eq!(reset.1[0]["seed"], json!({"rows":18,"personas":3}));
+    stop_owner(port, &secret, &mut owner, "reset restart");
+    (owner, port, secret) = restart(&root, &compiler);
+    assert_eq!(
+        per_schedule(
+            &control(port, &secret, "GET", "/control/timers", json!({})),
+            "dailyDigest"
+        )
+        .unwrap()["count"],
+        1
+    );
+    send_expiring(
+        port,
+        "before empty reset",
+        owner_now(port, &secret) + 3 * DAY,
+    );
+    control(
+        port,
+        &secret,
+        "POST",
+        "/control/clock",
+        json!({"advanceMs": DAY + 1_000}),
+    );
+    // The digest schedule emitted two rows; the Hermes build may already have
+    // claimed or retried them, so count every outbox state rather than `queued`.
+    wait_for(Duration::from_secs(5), || {
+        let status = control(port, &secret, "GET", "/control/status", json!({}));
+        let rows = [
+            "queued",
+            "running",
+            "thenPending",
+            "sent",
+            "failed",
+            "sentUnknown",
+        ]
+        .iter()
+        .map(|state| status["effects"][state].as_u64().unwrap_or(0))
+        .sum::<u64>();
+        (rows >= 2).then_some(())
+    });
+    let empty = cli(&root, &compiler, &["reset", "--empty"]);
+    assert_eq!(empty.0, 0, "{empty:?}");
+    assert_eq!(empty.1[0]["seed"], "skipped");
+    assert_eq!(empty.1[0]["seq"], 0);
+    stop_owner(port, &secret, &mut owner, "empty restart");
+    (owner, port, secret) = restart(&root, &compiler);
+    let timers = control(port, &secret, "GET", "/control/timers", json!({}));
+    assert_eq!(timers["next"], Value::Null, "{timers}");
+    let clean = control(port, &secret, "GET", "/control/status", json!({}));
+    assert_eq!(clean["jobs"], json!({"parked":0,"queued":0,"running":0}));
+    for state in [
+        "queued",
+        "running",
+        "thenPending",
+        "sent",
+        "failed",
+        "sentUnknown",
+    ] {
+        assert_eq!(clean["effects"][state], 0, "{clean}");
+    }
+    assert_eq!(
+        control(port, &secret, "GET", "/control/jobs", json!({}))["jobs"],
+        json!([])
+    );
+    let data = cli(&root, &compiler, &["data", "profiles", "--as", "system"]);
+    assert_eq!(data.0, 0, "{data:?}");
+    assert_eq!(data.1[0]["data"], json!([]));
+    let mine = request(
+        port,
+        "POST",
+        "/api/query",
+        &[("Authorization", &token)],
+        json!({"op":"profiles.mine", "args":{}}),
+    );
+    assert_eq!(mine.status, 200, "{}", mine.body);
+    assert_eq!(mine.body["data"], Value::Null);
+    let human = Command::new(env!("CARGO_BIN_EXE_snapback2"))
+        .args(["reset", "--empty", "--project"])
+        .arg(&root)
+        .env("SNAPBACK2_COMPILER", &compiler)
+        .output()
+        .unwrap();
+    assert!(human.status.success());
+    assert_eq!(
+        String::from_utf8(human.stdout).unwrap().trim(),
+        "reset: cleared application data; seed: skipped"
+    );
+    let created = request(
+        port,
+        "POST",
+        "/api/mutation",
+        &[("Authorization", &token)],
+        json!({"op":"profiles.createMyProfile", "args":{"displayName":"Real", "handle":"real", "bio":"", "location":""}}),
+    );
+    assert_eq!(created.body["state"], "committed", "{}", created.body);
+    let timers = control(port, &secret, "GET", "/control/timers", json!({}));
+    assert_eq!(
+        per_schedule(&timers, "dailyDigest").unwrap()["count"],
+        1,
+        "{timers}"
+    );
+    let human = Command::new(env!("CARGO_BIN_EXE_snapback2"))
+        .args(["reset", "--project"])
+        .arg(&root)
+        .env("SNAPBACK2_COMPILER", &compiler)
+        .output()
+        .unwrap();
+    assert!(human.status.success());
+    assert_eq!(
+        String::from_utf8(human.stdout).unwrap().trim(),
+        "reset: cleared application data; seed: 18 rows, 3 personas"
+    );
+    stop_owner(port, &secret, &mut owner, "empty completed");
+    fs::remove_dir_all(root).unwrap();
+}
+
 #[cfg(not(feature = "hermes"))]
 #[test]
 fn effects_settle_includes_emissions_from_the_tick_advanced_background_turn() {

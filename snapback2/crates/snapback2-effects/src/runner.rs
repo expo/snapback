@@ -2,6 +2,10 @@ use crate::{EffectHost, EffectJob, EffectLog, Outcome};
 use serde_json::Value;
 use snapback2_core::EffectDecl;
 use std::panic::{AssertUnwindSafe, catch_unwind};
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+};
 use std::time::Duration;
 use thiserror::Error;
 
@@ -147,6 +151,7 @@ pub struct Runner<H: EffectHost> {
     host: H,
     budget: Duration,
     generation: Option<String>,
+    stop: Option<Arc<AtomicBool>>,
 }
 
 impl<H: EffectHost> Runner<H> {
@@ -155,6 +160,7 @@ impl<H: EffectHost> Runner<H> {
             host,
             budget: DEFAULT_BUDGET,
             generation: None,
+            stop: None,
         }
     }
 
@@ -163,7 +169,18 @@ impl<H: EffectHost> Runner<H> {
             host,
             budget,
             generation: None,
+            stop: None,
         }
+    }
+
+    pub fn set_stop_flag(&mut self, stop: Arc<AtomicBool>) {
+        self.stop = Some(stop);
+    }
+
+    fn stopping(&self) -> bool {
+        self.stop
+            .as_ref()
+            .is_some_and(|stop| stop.load(Ordering::SeqCst))
     }
 
     pub fn host(&self) -> &H {
@@ -217,6 +234,9 @@ impl<H: EffectHost> Runner<H> {
         mut now: F,
     ) -> Result<Drained, OutboxError> {
         let mut drained = Drained::default();
+        if self.stopping() {
+            return Ok(drained);
+        }
         let pending = drain_pending(access, limit, &mut drained)?;
         let remaining = limit.saturating_sub(pending);
         if self.host.describe() == "none" {
@@ -228,6 +248,10 @@ impl<H: EffectHost> Runner<H> {
         }
         for _ in 0..remaining {
             let claim_at = now(access)?;
+            // @ref LLP 1021#5-a-running-effect-can-be-stopped — shutdown cannot start another job in this drain.
+            if self.stopping() {
+                break;
+            }
             let Some(job) = access.claim_next(claim_at)? else {
                 break;
             };
@@ -758,6 +782,42 @@ mod tests {
             result,
             leftover: false,
         }
+    }
+
+    #[test]
+    fn stopping_during_a_host_call_prevents_the_next_claim() {
+        struct StopHost {
+            stop: Arc<AtomicBool>,
+            calls: usize,
+        }
+        impl EffectHost for StopHost {
+            fn run(&mut self, _: &EffectDecl, _: &EffectJob, _: Duration) -> Outcome {
+                self.calls += 1;
+                self.stop.store(true, Ordering::SeqCst);
+                sent(json!(true))
+            }
+            fn describe(&self) -> &'static str {
+                "stop-test"
+            }
+        }
+        let stop = Arc::new(AtomicBool::new(false));
+        let mut runner = Runner::new(StopHost {
+            stop: stop.clone(),
+            calls: 0,
+        });
+        runner.set_stop_flag(stop.clone());
+        let mut outbox = MemoryOutbox::default();
+        install(&mut outbox, declaration(None));
+        for id in ["o1", "o2", "o3"] {
+            outbox.push(id, "notifications.notify", "queued", 0);
+        }
+        let drained = runner.drain(&mut outbox).unwrap();
+        assert_eq!(drained.claimed, 1);
+        assert_eq!(outbox.row("o1").state, "sent");
+        assert_eq!(outbox.row("o2").state, "queued");
+        assert_eq!(outbox.row("o3").job.attempt, 0);
+        assert_eq!(runner.drain(&mut outbox).unwrap().claimed, 0);
+        assert_eq!(runner.host().calls, 1);
     }
 
     #[test]

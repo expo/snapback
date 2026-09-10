@@ -23,6 +23,7 @@ mod offline_replay_successor;
 mod offline_resume;
 mod operator;
 mod outbox;
+mod seed;
 mod timers;
 #[cfg(not(feature = "hermes"))]
 mod wire_lifecycle;
@@ -891,4 +892,5 @@ fn successful_hot_apply_never_pairs_successor_trace_with_predecessor_certificate
     fs::remove_dir_all(root).unwrap();
 }
 
+#[cfg(not(feature = "hermes"))]
 mod channels;

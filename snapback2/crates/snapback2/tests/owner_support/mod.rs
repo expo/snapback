@@ -211,7 +211,6 @@ pub(super) fn seed_effect_rows(
         .collect()
 }
 
-#[cfg(not(feature = "hermes"))]
 pub(super) fn stop_owner(port: u16, secret: &str, owner: &mut ChildGuard, cause: &str) {
     let stopped = request(
         port,
