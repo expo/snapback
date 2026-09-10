@@ -58,7 +58,7 @@ test("a resume whose grant persistence crosses a seal cannot restore trust; the 
     const originalNow = Date.now;
     let now = originalNow();
     Date.now = () => now;
-    const owner = fakeOwner();
+    const owner = fakeOwner({ grantCount: 100 }); // The second resume genuinely needs a replacement.
     const meStarted = Promise.withResolvers<void>();
     const expired = Promise.withResolvers<Response>();
     const persistenceStarted = Promise.withResolvers<void>();
@@ -670,7 +670,7 @@ test("the drain replays FIFO after resume, one envelope per request, and both se
     assert.deepEqual(entries.map((entry) => entry.state), ["committed", "committed"]);
     assert.equal((entries[0]!.response as any).data.id, entries[0]!.ids[0], "the server minted the pinned id");
     assert.equal((entries[1]!.response as any).intent, entries[1]!.intent);
-    assert.equal(owner.grantsMinted(), 2, "resume minted a fresh grant; queued intents replayed under their own");
+    assert.equal(owner.grantsMinted(), 1, "healthy resume keeps capacity; queued intents replay under their original grant");
     client.close();
     await carrier.cleanup();
   }
@@ -982,29 +982,26 @@ test("online writes carry the replay envelope under custody; a transport failure
   let dead = false;
   const owner = fakeOwner({ dead: () => dead });
   await seededStore(fileRangeStore(root));
-  const client = createClient({ url: "http://bytes.test", persona: "alice", fetch: owner.fetch, offline: { store: fileRangeStore(root) } });
-  await client.ready;
   const bodies: string[] = [];
-  const spying = createClient({
+  const client = createClient({
     url: "http://bytes.test", persona: "alice", offline: { store: fileRangeStore(root) },
     fetch: async (input, init) => {
       if (new URL(String(input)).pathname === "/api/mutation") bodies.push(String(init?.body));
       return owner.fetch(input, init);
     },
   });
-  await spying.ready;
+  await client.ready;
   // @ref LLP 1012#7-writes-offline — with a grant and a bound every write is
   // a durable intent replayed under the envelope, online too: the ledger makes
   // the online path exactly-once. Settlement keeps its durable terminal.
-  const online = await spying.mutation(api.messages.send as any, post("plain"));
+  const online = await client.mutation(api.messages.send as any, post("plain"));
   assert.equal(online.state, "committed");
   const sent = JSON.parse(bodies[0]!);
   assert.equal(sent.replay?.intent, online.state === "committed" ? online.intent : undefined, "an online write under custody carries the replay envelope");
   assert.deepEqual(sent.replay.trace, { points: [], verdicts: [] });
   assert.deepEqual(owner.executions.map((item) => (item.args as any).body), ["plain"]);
-  assert.deepEqual((await spying.outbox.entries()).map(entry => entry.state), ["committed"],
+  assert.deepEqual((await client.outbox.entries()).map(entry => entry.state), ["committed"],
     "returning committed does not prove that a query displays the target");
-  spying.close();
   dead = true;
   const queued = await client.mutation(api.messages.send as any, post("after failure"));
   assert.equal(queued.state, "queued", "a network failure enqueues instead of throwing");
@@ -1014,7 +1011,7 @@ test("online writes carry the replay envelope under custody; a transport failure
   // Every write under custody entered the ledger, in order.
   assert.deepEqual(owner.executions.map((item) => (item.args as any).body), ["plain", "after failure", "behind"]);
   assert.deepEqual((await client.outbox.entries()).map((entry) => [entry.state, (entry.args as any).body]),
-    [["committed", "after failure"], ["committed", "behind"]]);
+    [["committed", "plain"], ["committed", "after failure"], ["committed", "behind"]]);
   client.close();
   await rm(root, { recursive: true, force: true });
 });
@@ -1087,7 +1084,7 @@ test("an online terminal survives zero, one, and four readers, missing target de
 // @ref LLP 1012#7-writes-offline — with a partition open there is no plain-bytes
 // path: no grant or no bound refuses before any request, so a 503 after a commit
 // can never double-send; only a client with no store sends today's bytes.
-test("a store with an open partition never sends plain bytes: no grant or no bound refuses E_OFFLINE_ID_BLOCK with no request; a client with no store sends today's bytes", async () => {
+test("a store never sends plain bytes: offline no-grant or unknown-bound refuses; a client with no store sends today's bytes", async () => {
   const owner = fakeOwner();
   const bodies: string[] = [];
   const spy = async (input: string | URL | Request, init?: RequestInit) => {
@@ -1098,6 +1095,7 @@ test("a store with an open partition never sends plain bytes: no grant or no bou
   const grantlessRoot = await tempRoot();
   const grantless = createClient({ url: "http://custody.test", persona: "alice", fetch: spy, offline: { store: fileRangeStore(grantlessRoot) } });
   await grantless.ready;
+  await grantless.offline();
   assert.equal(owner.grantsMinted(), 0);
   await assertRefused(
     () => grantless.mutation(api.messages.send as any, post("no grant")),

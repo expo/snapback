@@ -1165,7 +1165,7 @@ test("cold resume sends the bounded shape before subscribe and a 404 falls back 
   await new Promise((resolve) => setTimeout(resolve, 20));
   assert.deepEqual(order.slice(0, 2), ["resume", "subscribe"]);
   assert.deepEqual(request, {
-    protocol: 1, generation, schemaHash, authEpoch: 7,
+    protocol: 1, generation, schemaHash, authEpoch: 7, remaining: 0,
     log: { op: "messages.inbox", args: { c: null }, watermark: "cursor-9", validator: "1".repeat(64) },
     mounted: [],
   });

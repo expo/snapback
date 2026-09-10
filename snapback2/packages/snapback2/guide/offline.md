@@ -43,32 +43,36 @@ the writer admits rows in order. Follower status: `forwarding` or
 
 `useMutation(op).can`/`useOutbox().can`: send/action/reason from
 outbox status, connection and queue. Actions share `sign-in | connect | other-tab
-| wait | none`. `useOutbox().detail.status.draining` means active replay:
-wait; paused work offers Sync, even after a connected read. Followers use
+| wait | none`. `detail.status.draining` means active replay; `recovering`
+means the owner is acquiring capacity/reauthorizing. Both wait; stopped work
+offers Sync. A real reconnect/auth recovery resumes durable queued work. Followers use
 inbox readiness; `detail.writer` holds announced status.
 Use the selected mutation's `can` for a composer: text, edit and media can
 need different ID slices. Render its reason; `can.action === "connect"`
 offers a visible **Sync now** button that awaits `client.online()` and surfaces
-failure without clearing the draft or attachment. A connected transport does
-not replenish an exhausted grant by itself. After recovery, let the user
+failure without clearing the draft or attachment. Admission and a subscribed
+selected operation acquire missing capacity through one bounded resume flight;
+`can`/snapshot reads do no I/O. After recovery, let the user
 submit normally; do not automatically resubmit a refused write or add a
 periodic `online()` loop. Generic `useOutbox().can` cannot price a specific op.
+One automatic attempt per opportunity; the flight has a 10-second deadline.
+Explicit offline cuts forbid automatic networking; only `online()` releases them.
 `outbox.observe(op?)` feeds hooks; `intentLabel` labels entries.
 Discharged successes compact automatically. Unresolved successes and failures
 remain dismissible. Queued work is dismissible only once the owner refused its
 last replay as bad input or schema. Starting another replay durably clears that
 eligibility before sending; in-flight or unknown outcomes cannot be dismissed.
 `status.blocked` names the refused head; its label and item Dismiss action agree.
-`dismiss` returns its bytes to re-author and FIFO continues on either tab;
-a follower awaits the durable result, recoverable once by its original alias
-after takeover or reopening. Older snapshots expose
+`dismiss` returns its bytes to re-author and FIFO continues on either tab; a
+follower awaits the durable result, recoverable once by its alias after a
+takeover or reopen. Older snapshots expose
 `reason.code: "changed"` and `freshness.compactedThrough`; refresh their query.
 Committed does not mean shown: query `items` need the target's observation
 through commit. `arrived`/global sequence cannot substitute. Expose failures.
 
 `outbox.drain()`/`settled()`: `{ stopped, remaining }`; false is drained.
 Fence/transport/authority/offline/pending/writer-unresponsive pauses keep
-queued bytes. Retry `online()` or an online drain; transport reconnect alone never replays.
+queued bytes. A real reconnect can start bounded recovery; retry stopped work with `online()` or an online drain.
 
 ## Entry fields
 

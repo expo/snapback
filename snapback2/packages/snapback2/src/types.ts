@@ -332,6 +332,8 @@ export interface OutboxStatus {
    * dismissed. `dismiss(intent)` returns its bytes for re-authoring (LLP 1020 A2).
    */
   blocked?: { intent: string; code: string };
+  /** The account owner is actively acquiring capacity or reauthorizing replay. */
+  recovering?: true;
 }
 
 /** What `outbox.dismiss` returns for a queued intent it admitted: the bytes to re-author. */

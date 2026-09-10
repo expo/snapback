@@ -60,13 +60,15 @@ impl State {
 
     /// Mint a grant only when the client's unused pinned ids are low.
     /// `remaining` is the client's own count; absent or `null` means it
-    /// holds none, and a count at or above the low watermark mints nothing.
+    /// holds none. Above the watermark, only a certified selected mutation's
+    /// larger allocation demand can request a replacement.
     // @ref LLP 1012#7-writes-offline — a grant is returned when the client's
     // remaining ids are low, never on every reconnect.
     pub(super) fn grant_if_low(
         &mut self,
         principal: &str,
         remaining: Option<&Json>,
+        demand: u64,
     ) -> Result<Option<ReplayGrant>, Refusal> {
         let remaining = match remaining {
             None | Some(Json::Null) => None,
@@ -77,7 +79,7 @@ impl State {
                 )
             })?),
         };
-        if remaining.is_none_or(|count| count < REPLAY_GRANT_LOW_WATERMARK) {
+        if remaining.is_none_or(|count| count < REPLAY_GRANT_LOW_WATERMARK || count < demand) {
             Ok(Some(self.mint_replay_grant(principal)?))
         } else {
             Ok(None)

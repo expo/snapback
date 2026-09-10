@@ -754,3 +754,51 @@ fn offline_grants_are_minted_only_when_remaining_ids_are_low() {
     );
     fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn resume_capacity_demand_uses_the_current_mutation_certificate_above_the_watermark() {
+    let (root, mut owner, port, secret) = boot(|root| {
+        let mut source = "\nmutation capacity(conversationId: conversations, messageId: messages):\n".to_owned();
+        // Each loop covers the real schema cap (50); thirty independently
+        // bounded writes fit the 2,048 ceiling while pricing above 1,024 IDs.
+        for index in 0..30 {
+            source.push_str(&format!("  for member{index} in memberships[conversationId] first 50 by byConversationPrincipal:\n    insert deliveries {{ recipient: member{index}.principal, conversationId, messageId, kind: 'message', at: now }}\n"));
+        }
+        source.push_str("  return null\n");
+        append_source(root, "snapback/messages.q", &source);
+    });
+    let (generation, schema_hash) = generation_pair(port);
+    let alice = [("X-Snapback-As", "alice")];
+    let program = request(port, "GET", &format!("/api/program?generation={generation}"), &alice, json!({}));
+    assert_eq!(program.status, 200, "{}", program.body);
+    let count = 1 + program.body["programs"]["messages.capacity"]["certificate"]["write_sites"]
+        .as_array().unwrap_or_else(|| panic!("missing capacity certificate: {}", program.body)).iter()
+        .filter(|site| matches!(site["kind"].as_str(), Some("Insert" | "Upsert")))
+        .map(|site| site["max_rows"].as_u64().unwrap()).sum::<u64>();
+    assert!(count > 1_025 && count <= 8_192, "fixture must price a real above-watermark deficit: {count}");
+    let mut body = resume_body(&generation, &schema_hash, Value::Null, json!([]));
+    body["remaining"] = json!(count - 1);
+    let healthy = request(port, "POST", "/api/resume", &alice, body.clone());
+    assert_eq!(healthy.status, 200, "{}", healthy.body);
+    assert!(healthy.body.get("grant").is_none());
+    body["demand"] = json!("messages.capacity");
+    let deficit = request(port, "POST", "/api/resume", &alice, body.clone());
+    assert_eq!(deficit.status, 200, "{}", deficit.body);
+    assert_eq!(deficit.body["grant"]["count"], 8_192);
+    body["remaining"] = json!(count);
+    let exact = request(port, "POST", "/api/resume", &alice, body.clone());
+    assert_eq!(exact.status, 200, "{}", exact.body);
+    assert!(exact.body.get("grant").is_none());
+    body["demand"] = json!("messages.thread");
+    let query = request(port, "POST", "/api/resume", &alice, body.clone());
+    assert_eq!(query.status, 400, "{}", query.body);
+    body["demand"] = json!("messages.unknown");
+    assert_eq!(request(port, "POST", "/api/resume", &alice, body.clone()).status, 404);
+    body["demand"] = json!("messages.capacity");
+    body["generation"] = json!("0".repeat(64));
+    let obsolete = request(port, "POST", "/api/resume", &alice, body);
+    assert_eq!(obsolete.body["code"], "E_OFFLINE_RESET");
+    assert!(obsolete.body.get("grant").is_none());
+    stop_owner(port, &secret, &mut owner, "capacity demand complete");
+    fs::remove_dir_all(root).unwrap();
+}

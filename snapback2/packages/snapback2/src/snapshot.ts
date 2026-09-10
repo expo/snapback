@@ -172,7 +172,7 @@ export const readinessMessages: Readonly<Record<string, string>> = Object.freeze
 /**
  * `queued` is the op-scoped count the hook computes, not the partition-wide
  * `remaining`; active replay decides whether waiting is useful on the writer.
- * `connect` offers `client.online()`: a connected read alone replays nothing.
+ * `connect` offers `client.online()` after automatic recovery stops.
  */
 export function readiness(status: OutboxStatus, connection: ConnectionState, queued: number): Readiness {
   const reason = status.reason as string;
@@ -180,18 +180,18 @@ export function readiness(status: OutboxStatus, connection: ConnectionState, que
   if (reason === "follower") return { send: false, action: "other-tab", reason: { code: reason, message: message(reason) } };
   if (reason === "sealed") return { send: false, action: "sign-in", reason: { code: reason, message: message(reason) } };
   if (!status.ready) {
-    return { send: false, action: reason === "inbox-full" ? "wait" : "connect", reason: { code: reason, message: message(reason) } };
+    return { send: false, action: reason === "inbox-full" || status.recovering ? "wait" : "connect", reason: { code: reason, message: message(reason) } };
   }
   // @ref LLP 1018.004#3-readiness-on-a-follower — a follower's rows are durable
   // and FIFO: an unresponsive writer is a reason on a sendable status, and the
   // pending sentence names the sending tab rather than the server.
   if (reason === "writer-unresponsive") return { send: true, action: "wait", reason: { code: reason, message: message(reason) } };
-  if (status.fence === "past") return { send: true, action: "connect", reason: { code: "fence", message: message("fence") } };
+  if (status.fence === "past") return { send: true, action: status.recovering ? "wait" : "connect", reason: { code: "fence", message: message("fence") } };
   if (queued > 0) {
     const waiting = reason === "forwarding" ? "Waiting for the sending tab."
-      : status.draining ? "Waiting for the server."
+      : status.draining || status.recovering ? "Waiting for the server."
         : connection === "connected" ? "Sync to resume delivery." : "Waiting for connection.";
-    return { send: true, action: reason === "forwarding" || status.draining ? "wait" : "connect",
+    return { send: true, action: reason === "forwarding" || status.draining || status.recovering ? "wait" : "connect",
       reason: { code: "pending", message: `${queued} queued · ${waiting}` } };
   }
   return { send: true, action: "none" };

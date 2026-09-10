@@ -173,11 +173,12 @@ export class OutboxLedger {
   }
 
   /** A fresh grant replaces the consumption target; older grants stay for the intents that name them. */
-  adopt(grant: OutboxGrant): Promise<void> {
+  adopt(grant: OutboxGrant, check?: () => void): Promise<void> {
     return this.write(async () => {
       const grants = await this.store.outbox.grants();
       const held = grants.some(item => item.id === grant.id);
       const queued = new Set((await this.queued()).map(entry => entry.grant));
+      check?.();
       await this.commit({ grants: { current: grant.id, ...(held ? {} : {
         put: [grant], remove: grants.filter(item => !queued.has(item.id)).map(item => item.id),
       }) } });
