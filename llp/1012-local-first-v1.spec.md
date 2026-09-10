@@ -1381,8 +1381,8 @@ the intent remains recoverable. Replay request bytes and dedup precedence do not
 change. The generated `mutationTarget(op, table)` removes positional app bindings.
 
 ## 8. The delivery envelope, the validator, and resume
-
-**2026-09-10 amendment (author ruling, LLP 1019 §5):** a successor reset clears coverage (answers, facts and slots), never custody: held delivery-log events and the content rows their `delivered` events anchor under `retain delivered-history` survive, except rows tombstoned by `removed`, and the next drain revalidates them.
+### Coverage reset amendment
+**2026-09-10 reset amendment (author/orchestrator ruling, LLP 1019):** reset clears coverage (answers, facts, slots), never custody: held delivery events and their anchored `delivered-history` bodies survive unless `removed`. At adoption of a differing program schema, exact cold row preparation drops incompatible content images, including in a shared reset/adoption swap; anchors and fitting bodies remain. History shows an absent body under the missing-row rule; current members re-read live. Ordinary delivery and cold corruption checks stay strict.
 
 A public maintained Count query may deliver an empty full-group range together
 with a separately verified canonical primary-ID absence (LLP 1001 §4). The

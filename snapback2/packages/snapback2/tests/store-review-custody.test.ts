@@ -12,6 +12,7 @@ import { PersistentRangeStore, SqliteBackend, nodeSqliteDriver, OfflineRuntime, 
 import { assertRefused, fixtureClient as createClient } from "./live-fixture.ts";
 import { sqliteFactory } from "./sqlite-fixture.ts";
 import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
+import { preparedChanges } from "../dist/image-runtime.mjs";
 import { generation, metadataResponse, planHash, schemaHash } from "./offline-metadata-fixture.ts";
 
 const ref = (id: string) => ({ $row: { table: "messages", id } });
@@ -76,6 +77,64 @@ test('coverage reset preserves delivered-history anchors and bodies, never unanc
       await store.close();
     }
   } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test('program adoption drops unrepresentable retained images, preserving fitting siblings and anchors across cold preparation', async context => {
+  const { root, factories } = await carriers();
+  const program = (required: boolean) => {
+    const schema = { tables: {
+      messages: { columns: { id: 'Id', version: required ? 'Int' : { Optional: 'Int' } }, indexes: {},
+        retain: 'delivered-history', deliver: { log: 'deliveries', receipts: false } },
+      deliveries: { columns: { id: 'Id', row: { Ref: { table: 'messages' } }, kind: { Text: { max: 20 } } }, indexes: {} },
+    }, maintains: [] };
+    return { generation: required ? 'required' : 'optional', schemaHash: schemaDigest(schema), schema, programs: {} };
+  };
+  const first = program(false);
+  try {
+    for (const factory of factories) for (const required of [false, true]) for (const reset of ['together', 'before', 'none']) for (const prepared of [false, true])
+      await context.test(`${factory.carrier}/${required ? 'required' : 'optional'}/${reset}/${prepared ? 'prepared' : 'wire'}`, async () => {
+        let store: any = factory(); await store.open(`adoption-${required}-${reset}-${prepared}`);
+        const rows = ['nullable', 'fitting'].flatMap(id => [
+          { table: 'messages', id, row: { id, version: id === 'nullable' ? null : 7 } },
+          { table: 'deliveries', id: `anchor-${id}`, row: { id: `anchor-${id}`, row: id, kind: 'delivered' } },
+        ]);
+        await store.commit({ programs: { [first.generation]: first }, deliveries: [{ ...delivery('inbox', [], 1), rows }] });
+        if (prepared) await store[preparedChanges](); // Also exercises a previously prepared RowImage at adoption.
+        if (reset === 'before') await store.commit({ resetCoverage: true });
+        const successor = program(required);
+        await store.commit({ programs: { [successor.generation]: successor }, resetCoverage: reset === 'together' });
+        await store.close(); store = factory(); await store.open(`adoption-${required}-${reset}-${prepared}`);
+        await store[preparedChanges](); // The real cold preparation must remain strict.
+        const held = (await store.coverage()).rows;
+        assert.deepEqual(held.filter((r: any) => r.table === 'messages').map((r: any) => r.id).sort(), required ? ['fitting'] : ['fitting', 'nullable']);
+        assert.deepEqual(held.filter((r: any) => r.table === 'deliveries').map((r: any) => r.id).sort(), ['anchor-fitting', 'anchor-nullable']);
+        if (reset !== 'none') assert.equal(await store.answer('inbox', {}), undefined);
+        assert.equal((await store.coverage()).ranges.length, 0);
+        // A later invalid delivery under the same schema is corruption, not adoption.
+        await store.commit({ deliveries: [{ ...delivery('corrupt', [], 2), rows: [
+          { table: 'messages', id: 'corrupt', row: { id: 'corrupt', version: 'invalid' } },
+        ] }] });
+        await assert.rejects(store[preparedChanges](), /expected safe integer/);
+        await store.close();
+      });
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test('clock reset carries the runtime schema and lets the explicit swap schema win', async () => {
+  const runtime = new OfflineRuntime({ store: () => new PersistentRangeStore({ carrier: 'memory',
+    open: async () => undefined, replace: async () => {}, close() {}, wipe: async () => {} }) });
+  await runtime.open('alice');
+  const held = { tables: { messages: { retain: 'delivered-history' } } };
+  const override = { tables: {} }, swaps: any[] = [];
+  (runtime as any).schema = held;
+  runtime.store.commit = async swap => { swaps.push(swap); };
+  try {
+    await (runtime as any).resetClock({ exhausted: false });
+    await (runtime as any).resetClock({ exhausted: false }, { schema: override });
+    assert.equal(swaps[0].schema, held);
+    assert.equal(swaps[1].schema, override);
+    assert(swaps.every(swap => swap.resetCoverage));
+  } finally { await runtime.close(); }
 });
 
 test('unchanged native26c9 movement, revocation and halo deliveries survive public admission on every carrier', async context => {

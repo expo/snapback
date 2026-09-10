@@ -19,7 +19,7 @@ export default seed({
     ],
     messages: [
       // Keep the disjoint room first so derived invalidation probes can commit
-      // the recipe's messageId-only edit/unsend mutations outside General.
+      // the recipe's row-keyed edit/unsend mutations outside General.
       { id: "message-2", conversationId: "conversation-2", authorId: "dev:alice", body: "derived test", at: 1 },
       { id: "message-1", conversationId: "conversation-1", authorId: "dev:alice", body: "Welcome", at: 1 },
     ],

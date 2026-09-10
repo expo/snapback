@@ -64,7 +64,7 @@ impl SseProbe {
             }
         }
         let mut probe = Self { reader, close: None };
-        let ready = probe.event(Duration::from_secs(2)).map_err(|error|
+        let ready = probe.next_event(Duration::from_secs(2)).map_err(|error|
             Refusal::owner("E_OWNER_TEST_SSE", error, "reconnect the live stream"))?;
         let session = ready.get("session").and_then(Json::as_str).ok_or_else(||
             Refusal::owner("E_OWNER_TEST_SSE", "live stream omitted its session", "reconnect the live stream"))?.to_owned();
@@ -79,6 +79,33 @@ impl SseProbe {
     }
 
     pub(super) fn event(&mut self, timeout: Duration) -> Result<Json, String> {
+        Self::payload(self.next_event(timeout)?, "probe")
+    }
+
+    fn payload(event: Json, child: &str) -> Result<Json, String> {
+        if event["id"] != child || event["terminal"] != false {
+            return Err(format!("expected live {child} delivery: {event}"));
+        }
+        let data = &event["data"];
+        if !matches!(data["state"].as_str(), Some("complete" | "capped" | "denied")) {
+            return Err(format!("{child} did not deliver a query result: {event}"));
+        }
+        Ok(data.clone())
+    }
+
+    pub(super) fn denial(&mut self, seq: u64) -> Result<Json, String> {
+        let delivery = self.event(Duration::from_secs(2))?;
+        if delivery["state"] != "denied" || delivery["seq"].as_u64() != Some(seq) {
+            return Err(format!("expected denial at seq {seq}: {delivery}"));
+        }
+        if !(delivery["data"].is_null() || delivery["data"] == json!([]))
+            || delivery.get("rows").is_some_and(|rows| rows != &json!([])) {
+            return Err(format!("denied delivery exposed post-revocation rows: {delivery}"));
+        }
+        Ok(delivery)
+    }
+
+    fn next_event(&mut self, timeout: Duration) -> Result<Json, String> {
         let started = Instant::now();
         loop {
             let remaining = timeout.saturating_sub(started.elapsed());
@@ -86,7 +113,7 @@ impl SseProbe {
                 return Err("timed out waiting for delivery".to_owned());
             }
             match self.frame(remaining)? {
-                SseFrame::Event(event) => return Ok(if event.get("id").is_some() { event["data"].clone() } else { event }),
+                SseFrame::Event(event) => return Ok(event),
                 SseFrame::Heartbeat => {}
                 SseFrame::TimedOut => return Err("timed out waiting for delivery".to_owned()),
             }
@@ -109,7 +136,8 @@ impl SseProbe {
             let remaining = timeout.saturating_sub(started.elapsed());
             if remaining.is_zero() { return Err(failure("silence barrier timed out".into())); }
             match self.frame(remaining) {
-                Ok(SseFrame::Event(event)) if event["id"] == "z-silence" && event.get("data").is_some() => return Ok(()),
+                Ok(SseFrame::Event(event)) if event["id"] == "z-silence" =>
+                    return Self::payload(event, "z-silence").map(|_| ()).map_err(failure),
                 Ok(SseFrame::Event(event)) => return Err(SilenceError {
                     message: "delivery received before the silence barrier".into(),
                     delivery: Some(if event.get("id").is_some() { event["data"].clone() } else { event }),

@@ -22,13 +22,14 @@ import {
 } from "./byte-cache.js";
 import { admitOverlayAuthority, dropOverlay, markDeliveredArrivals, pagePosition, recordOverlayAuthorityEvidence, retireOverlays,
   type OverlayAuthorityEvidence, type OverlayWatermark } from "./overlay-retirement.js";
-import { canonical, canonicalAnswerKey, jsonState, queryArgs, storedAnswerKey, storedProgram } from "./canonical.js";
+import { defined, canonical, canonicalAnswerKey, jsonState, queryArgs, storedAnswerKey, storedProgram } from "./canonical.js";
 export { canonicalAnswerKey, jsonState } from "./canonical.js";
 import { ItemCapture, freshItemSelection } from "../query-items.js";
 import { withItemInputs } from "../query-frame.js";
 import { isSha256, sha256 } from "../../../evaluator/src/hash.js";
 import { compareArrays, totalCompare } from "../../../evaluator/src/value-runtime.js";
-import { prepareWireRow, preparedDeliveryRows, tagWireValue, type TaggedValue } from "../offline-protocol.js";
+import { EvalError } from "../../../evaluator/src/errors.js";
+import { DeliveryEnvelopeDecodeError, prepareWireRow, preparedDeliveryRows, tagWireValue, type TaggedValue } from "../offline-protocol.js";
 import { asRowRef, collectRefs, mapRowValues, object, purgeAnswerData, restoreRetained, rowKey, hiddenRefs } from "./row-values.js";
 import type { InboxConnection, InboxDelta, InboxRow } from "./inbox.js";
 import { MaintainedTransitions } from "./maintained-coherence.js";
@@ -548,11 +549,11 @@ export class PersistentRangeStore implements RangeStore {
       await this.tail;
       return this.partition === undefined || this.state.sealed ? {} : clone(this.state.deliveryAcks);
     },
-    compactedThrough: async () => this.read(() => this.state.sealed ? 0 : this.state.compactedThrough ?? 0),
+    compactedThrough: () => this.read(() => this.state.sealed ? 0 : this.state.compactedThrough ?? 0),
     all: () => this.readOutbox(state => outboxOrder(state.outbox)),
     get: (intent) => this.readOutbox(state => state.outbox[intent]),
-    put: async (entry) => this.commit({ outbox: { put: [entry] } }),
-    remove: async (intent) => this.commit({ outbox: { remove: [intent] } }),
+    put: (entry) => this.commit({ outbox: { put: [entry] } }),
+    remove: (intent) => this.commit({ outbox: { remove: [intent] } }),
     grant: () => this.readOutbox(state => state.currentGrant === undefined ? undefined : state.grants[state.currentGrant]),
     grants: () => this.readOutbox(state => Object.values(state.grants)),
     bounds: () => this.readOutbox(state => state.bounds),
@@ -573,8 +574,8 @@ export class PersistentRangeStore implements RangeStore {
     this.coordinationScope = backend.coordinationScope;
     if (backend.acquire) this.acquire = (partition, signal) => backend.acquire!(partition, signal);
     if (backend.giveBack) this.giveBack = (partition) => backend.giveBack!(partition);
-    if (backend.inboxRows) this.inboxRows = async () => await this.read(() => { this.ensureOpen(); return backend.inboxRows!(); });
-    if (backend.inboxTake) this.inboxTake = async (key) => await this.read(() => { this.ensureOpen(); return backend.inboxTake!(key); });
+    if (backend.inboxRows) this.inboxRows = () => this.read(() => { this.ensureOpen(); return backend.inboxRows!(); });
+    if (backend.inboxTake) this.inboxTake = (key) => this.read(() => { this.ensureOpen(); return backend.inboxTake!(key); });
     if (backend.inbox) this.inbox = (partition) => backend.inbox!(partition);
   }
   readonly inboxRows?: () => Promise<InboxRow[]>; readonly inboxTake?: (key: number) => Promise<InboxRow | undefined>;
@@ -634,11 +635,7 @@ export class PersistentRangeStore implements RangeStore {
     await this.enqueue(async () => {
       await this.backend.wipe(partition);
       if (this.partition === partition) {
-        this.partition = undefined;
-        this.state = emptyState();
-        this.updates.reset();
-        this.persisted = undefined;
-        this.referenceIndex = undefined; this.referenceSchema = undefined;
+        this.release();
       }
     });
   }
@@ -653,12 +650,12 @@ export class PersistentRangeStore implements RangeStore {
       const media = (this.referenceIndex ??= new CarrierIndex(this.state, this.referenceSchema)).assets;
       const { refs: _refs, order: _order, fingerprint: _fingerprint, cursorArg: _cursorArg, rowProofs: _rows, verdictProofs: _verdicts, extentProofs: _extents, clockOnly: _clockOnly, selection: _selection, ...visible } = stored;
       const { data, ...answer } = clone(visible);
-      const value = {
+      const value = defined({
         ...answer,
         // A viewed view-once row reads as absent: the view was its one delivery (LLP 1012 §9).
-        ...(data === undefined ? {} : { data: nullOnceMedia(expand(data, this.state.rows, media.exhausted), media.once) as Result }),
-        ...(watermark === undefined ? {} : { caughtUp: true, watermark: watermark.watermark }),
-      };
+        data: data === undefined ? undefined : nullOnceMedia(expand(data, this.state.rows, media.exhausted), media.once) as Result,
+        caughtUp: watermark === undefined ? undefined : true, watermark: watermark?.watermark,
+      });
       const capture = new ItemCapture(this.state, op, args);
       capture.references(stored.data, value.data);
       return withItemInputs(value, capture.inputs());
@@ -671,11 +668,13 @@ export class PersistentRangeStore implements RangeStore {
       const ranges = new Map<string, ReceiptRange>();
       const absences = new Map<string, Receipt["absences"][number]>();
       const verdicts = new Map<string, unknown>();
+      let deliveredAt: number | undefined;
       for (const answer of Object.values(this.state.answers)) {
+        if (deliveredAt === undefined || answer.deliveredAt > deliveredAt) deliveredAt = answer.deliveredAt;
         for (const range of answer.receipt?.ranges ?? []) {
-          ranges.set(`${range.site}\u0000${canonical(range.prefix)}\u0000${canonical([
+          ranges.set(canonical([range.site, range.prefix,
             range.order, range.after, range.before, range.gt, range.gte, range.lt, range.lte,
-          ])}`, clone(range));
+          ]), clone(range));
         }
         for (const absence of answer.receipt?.absences ?? []) absences.set(canonical(absence), clone(absence));
         for (const verdict of answer.receipt?.verdicts ?? []) verdicts.set(canonical(verdict), clone(verdict));
@@ -687,12 +686,8 @@ export class PersistentRangeStore implements RangeStore {
         const absence: Receipt["absences"][number] = [ref.table, "byId", [ref.id]];
         absences.set(canonical(absence), absence);
       }
-      let deliveredAt: number | undefined;
-      for (const answer of Object.values(this.state.answers)) {
-        if (deliveredAt === undefined || answer.deliveredAt > deliveredAt) deliveredAt = answer.deliveredAt;
-      }
-      return {
-        rows: clone(Object.entries(this.state.rows).filter(([key]) => !exhausted[key]).map(([, row]) => imageRecord(row))),
+      return defined({
+        rows: clone(Object.entries(this.state.rows).flatMap(([key, row]) => exhausted[key] ? [] : [imageRecord(row)])),
         ranges: [...ranges.values()],
         absences: [...absences.values()],
         verdicts: [...verdicts.values()],
@@ -700,20 +695,20 @@ export class PersistentRangeStore implements RangeStore {
         viewed,
         evicted: [...new Set([...Object.keys(this.state.negative), ...Object.keys(this.state.extentNegative)
           .filter(key => this.state.extentNegative[key].active)])].map(key => factRow(key)!),
-        ...(this.state.facts === undefined ? {} : { facts: clone(this.state.facts) }),
-        ...(this.state.superseded === undefined ? {} : { superseded: clone(this.state.superseded) }),
-        ...(deliveredAt === undefined ? {} : { deliveredAt }),
-      };
+        facts: clone(this.state.facts),
+        superseded: clone(this.state.superseded),
+        deliveredAt,
+      });
     });
   }
 
-  async metadata(): Promise<CoverageMetadata> {
+  metadata(): Promise<CoverageMetadata> {
     return this.read(() => clone(this.state.sealed ? { watermarks: [] } : {
       watermarks: Object.values(this.state.watermarks), facts: this.state.facts, superseded: this.state.superseded,
     }));
   }
 
-  async changes(since?: StoreRevision): Promise<StoreChange<PersistedRangeState>> {
+  changes(since?: StoreRevision): Promise<StoreChange<PersistedRangeState>> {
     return this.read(() => { this.ensureUnsealed(); const change = this.updates.read(this.state,since);
       if (change.snapshot) change.snapshot = imageState(change.snapshot);
       if (change.records?.rows) change.records.rows = imageRecords(change.records.rows as Record<string,StoredRow>);
@@ -724,7 +719,7 @@ export class PersistentRangeStore implements RangeStore {
     this.inputListeners.add(listener);
     return () => { this.inputListeners.delete(listener); };
   }
-  async [preparedChanges](since?: StoreRevision): Promise<StoreChange<PersistedRangeState>> {
+  [preparedChanges](since?: StoreRevision): Promise<StoreChange<PersistedRangeState>> {
     return this.read(() => {
       this.ensureUnsealed();
       const program = storedProgram(this.state);
@@ -784,12 +779,13 @@ export class PersistentRangeStore implements RangeStore {
       }
       const journal = new SwapJournal(this.state), priorIndex = this.referenceIndex, priorSchema = this.referenceSchema;
       try {
-        this.applySwap(journal.draft, normalized, delta);
+        const removed = this.applySwap(journal.draft, normalized, delta);
         const compactedAliases = compactSuccesses(journal.draft);
         const removedAcks = applyDeliveryAcknowledgements(journal.draft, normalized, this.partition!);
         const combinedInbox = compactedAliases.length ? { ...inbox, remove: [...(inbox?.remove ?? []), ...compactedAliases] } : inbox;
         this.updates.prepare(journal.changed);
         await this.replace(this.state, delta, undefined, journal.changed, combinedInbox);
+        for (const [table, count] of removed) console.info(JSON.stringify({ snapback2: "adopt", table, removed: count }));
         if (removedAcks) console.info("delivery acknowledgements removed: receipts removed");
       } catch (error) { journal.rollback(); this.referenceIndex = priorIndex; this.referenceSchema = priorSchema; throw error; }
       this.persisted = this.state;
@@ -817,7 +813,7 @@ export class PersistentRangeStore implements RangeStore {
     });
   }
 
-  async bytes(): Promise<ByteCacheStatus> {
+  bytes(): Promise<ByteCacheStatus> {
     return this.read(() => {
       if (this.state.sealed) return { entries: [], totalBytes: 0, viewed: [] };
       const entries = clone(Object.values(this.state.assets));
@@ -830,25 +826,25 @@ export class PersistentRangeStore implements RangeStore {
   }
 
   /** Held rows whose values carry this asset record: the lease under which its bytes may be cached. */
-  async rowsReferencing(assetId: string): Promise<StoredRow[]> {
+  rowsReferencing(assetId: string): Promise<StoredRow[]> {
     return this.read(() => this.state.sealed
       ? []
       : clone(Object.values(this.state.rows).filter((row) => assetIdsIn(row.row).has(assetId)).map(imageRecord)));
   }
 
   /** The schema columns that own this one-use image. */
-  async onceRows(assetId: string): Promise<RowRef[]> {
+  onceRows(assetId: string): Promise<RowRef[]> {
     return this.read(() => this.state.sealed ? [] : Object.values(this.state.rows)
       .filter(row => onceAssetIds(this.state.onceColumns, [row]).has(assetId))
       .map(({ table, id }) => ({ table, id })));
   }
 
-  async viewedAsset(assetId: string): Promise<boolean> {
+  viewedAsset(assetId: string): Promise<boolean> {
     return this.read(() => !this.state.sealed && viewedOnlyAssets(this.state).has(assetId));
   }
 
   /** The viewed view-once rows; a live frame nulls them exactly as a held answer does. */
-  async viewedRows(): Promise<RowRef[]> {
+  viewedRows(): Promise<RowRef[]> {
     return this.read(() => this.state.sealed ? [] : Object.keys(fullyViewed(this.state)).map(key => factRow(key)!));
   }
 
@@ -872,14 +868,16 @@ export class PersistentRangeStore implements RangeStore {
 
   async close(): Promise<void> {
     await this.enqueue(async () => {
-      this.partition = undefined;
-      this.state = emptyState();
-      this.persisted = undefined;
-      this.referenceIndex = undefined; this.referenceSchema = undefined; this.updates.reset();
+      this.release();
       await this.backend.close();
     });
   }
-  private applySwap(state: PersistedRangeState, swap: StoreSwap, bytes: ByteDelta): PersistedRangeState {
+  private release(): void {
+    this.partition = undefined; this.state = emptyState(); this.persisted = undefined;
+    this.referenceIndex = undefined; this.referenceSchema = undefined; this.updates.reset();
+  }
+  private applySwap(state: PersistedRangeState, swap: StoreSwap, bytes: ByteDelta) {
+    const removed = new Map<string, number>();
     if (state.sealed) throw new OfflineStoreFailure("E_OFFLINE_CARRIER", "range store is sealed");
     if (swap.resetCoverage && swap.factLimitReset !== undefined && swap.factLimitReset === state.factLimitReset)
       throw new OfflineStoreFailure('E_OFFLINE_CARRIER', 'fact custody still exceeds its slot budget after revalidation',
@@ -906,14 +904,15 @@ export class PersistentRangeStore implements RangeStore {
     const answerKey = (op: string, args: unknown, cursor = cursorArgument(program?.programs[op])) => canonicalAnswerKey(op, args, cursor);
     if (custody && !swap.resetCoverage) for (const answer of Object.values(state.answers)) {
       const op = custody.programs[answer.op]; if (!op) continue;
-      if (queryClock(op) && answer.readTime === undefined) throw new ClockCoverageReset();
-      if (answer.readTime !== undefined && (!queryClock(op) || answer.clockPlanHash !== op.planHash)) throw new TypeError('held clock identity mismatch');
+      const clock = queryClock(op);
+      if (clock && answer.readTime === undefined) throw new ClockCoverageReset();
+      if (answer.readTime !== undefined && (!clock || answer.clockPlanHash !== op.planHash)) throw new TypeError('held clock identity mismatch');
     }
     if (swap.factLimitReset !== undefined) state.factLimitReset = swap.factLimitReset;
     const schema = swap.schema ?? (swap.programs && Object.values(swap.programs)[0]?.schema);
     if (schema) { const columns = onceColumns(schema); if (canonical(columns) !== canonical(state.onceColumns)) state.onceColumns = columns; }
     const clockOnly = new Set<string>(), deliveredIds = new Set<string>();
-    const authoritativeEvidence = changesCoverage(swap) ? this.applyCoverage(state, swap, bytes, clockOnly, deliveredIds, program, answerKey) : new Map<string, OverlayAuthorityEvidence>();
+    const authoritativeEvidence = changesCoverage(swap) ? this.applyCoverage(state, swap, bytes, clockOnly, deliveredIds, program, answerKey, removed) : new Map<string, OverlayAuthorityEvidence>();
     if (swap.facts && canonical(state.facts) !== canonical(swap.facts)) state.facts = clone(swap.facts);
     if (swap.superseded === null) delete state.superseded;
     else if (swap.superseded) state.superseded = clone(swap.superseded);
@@ -933,28 +932,30 @@ export class PersistentRangeStore implements RangeStore {
     for (const intent of swap.overlay?.remove ?? []) dropOverlay(state, intent);
     for (const [intent, rows] of Object.entries(swap.overlay?.put ?? {})) {
       state.overlay[intent] = clone(rows);
-      delete state.overlayMisses[intent];
-      delete state.overlayWatermarks[intent];
-      delete state.overlayNegatives[intent];
+      for (const field of ['overlayMisses', 'overlayWatermarks', 'overlayNegatives'] as const) delete state[field][intent];
       admitOverlayAuthority(state, intent, rows, key => {
         const index = this.referenceIndex ??= new CarrierIndex(state, this.referenceSchema);
         return index.absences.get(key) ?? [];
       });
     }
     retireOverlays(state, swap, authoritativeEvidence, clockOnly, previousTail, tail, committedNow, answerKey, clone);
-    return state;
+    return removed;
   }
 
   private applyCoverage(state: PersistedRangeState, swap: StoreSwap, bytes: ByteDelta, clockOnly: Set<string>, deliveredIds: Set<string>,
-    program: HeldProgram | undefined, answerKey: (op: string, args: unknown, cursor?: string) => string) {
+    program: HeldProgram | undefined, answerKey: (op: string, args: unknown, cursor?: string) => string, removed: Map<string, number>) {
     const schema = swap.schema ?? (swap.resetCoverage ? storedProgram(state) : program)?.schema ?? this.referenceSchema;
+    const dropRow = (key: string) => { delete state.rows[key]; delete state.rowSeq[key]; };
     const retains = (table: string) => schema?.tables?.[table]?.retain === 'delivered-history';
+    const adopted = swap.programs && Object.values(swap.programs)[0];
+    const validate = adopted && adopted.schemaHash !== storedProgram(state)?.schemaHash;
+    const kept = swap.resetCoverage ? Object.create(null) : undefined;
     if (swap.resetCoverage) {
-      // @ref LLP 1019#5-reads — reset coverage, never the recipient's delivered custody.
-      const kept: Record<string, boolean> = Object.create(null);
+      // @ref LLP 1012#coverage-reset-amendment — custody survives reset; incompatible images leave at adoption.
       for (const [table, declaration] of Object.entries(schema?.tables ?? {})) {
         if (!retains(table) || !declaration.deliver) continue;
-        for (const [key, event] of Object.entries(state.rows)) {
+        for (const [key, record] of Object.entries(state.rows)) {
+          const event = imageRecord(record);
           if (event.table !== declaration.deliver.log) continue;
           kept[key] = true;
           if (typeof event.row.row !== 'string') continue;
@@ -962,7 +963,6 @@ export class PersistentRangeStore implements RangeStore {
           if (event.row.kind === 'removed' || event.row.kind === 'delivered') kept[target] = kept[target] !== false && event.row.kind === 'delivered';
         }
       }
-      for (const key of Object.keys(state.rows)) if (!kept[key]) delete state.rows[key];
       // Sequence guards belong to this generation's coverage.
       // A query-only successor can deliver the same row at the same data seq.
       for (const field of ['rowSeq', 'negative', 'extentNegative', 'overlayNegatives', 'answers', 'watermarks', 'overlayMisses'] as const) state[field] = {};
@@ -970,6 +970,15 @@ export class PersistentRangeStore implements RangeStore {
       // These describe coverage, unlike the overlay and its replay entry.
       state.overlayWatermarks = Object.fromEntries(Object.keys(state.overlay).map((intent) => [intent, null]));
       delete state.facts;
+    }
+    if (swap.resetCoverage || validate) for (const [key, { table, row }] of Object.entries(state.rows)) {
+      if (swap.resetCoverage && !kept[key]) { dropRow(key); continue; }
+      if (validate && retains(table)) try { prepareWireRow(adopted.schema, table, row, adopted.schemaHash); }
+      catch (error) {
+        if (!(error instanceof DeliveryEnvelopeDecodeError) && !(error instanceof EvalError && ['E_INPUT', 'E_SCHEMA'].includes(error.code))) throw error;
+        dropRow(key);
+        removed.set(table, (removed.get(table) ?? 0) + 1);
+      }
     }
     if (swap.resetCoverage || swap.programs || (swap.schema && !this.referenceSchema)) this.referenceIndex = undefined;
     this.referenceSchema = swap.schema ?? this.referenceSchema;
@@ -1205,28 +1214,28 @@ export class PersistentRangeStore implements RangeStore {
       for (const range of delivery.receipt?.ranges ?? [])
         for (const id of [...range.rowIds, ...(range.haloId ? [range.haloId] : [])]) add({ table: range.table, id });
       frame.pool = new Map(frameImages(frame).map(image => [image.key,image]));
-      const stored: StoredAnswer = {
+      const stored: StoredAnswer = defined({
         op: delivery.op,
-        ...(delivery.cursorArg === undefined ? {} : { cursorArg: delivery.cursorArg }),
+        cursorArg: delivery.cursorArg,
         args: clone(delivery.args),
         state: answerState,
-        ...(data === undefined ? {} : { data }),
-        ...(delivery.next === undefined ? {} : { next: delivery.next }),
+        data,
+        next: delivery.next,
         nextSeq: delivery.seq,
         seq: delivery.seq,
-        ...(delivery.readTime === undefined ? {} : { readTime: delivery.readTime, clockPlanHash: delivery.clockPlanHash }),
+        readTime: delivery.readTime, clockPlanHash: delivery.readTime === undefined ? undefined : delivery.clockPlanHash,
         ...storedProofs(proofs),
-        ...(clockOnly.has(key) ? { clockOnly: true } : {}),
-        ...(delivery.validator === undefined ? {} : { validator: delivery.validator }),
-        ...(delivery.receipt === undefined ? {} : { receipt: index.receipt(delivery.receipt, frame.pool, delivery.op) }),
+        clockOnly: clockOnly.has(key) ? true : undefined,
+        validator: delivery.validator,
+        receipt: delivery.receipt === undefined ? undefined : index.receipt(delivery.receipt, frame.pool, delivery.op),
         deliveredAt: delivery.deliveredAt ?? Date.now(),
-        ...(retained ? { retained: true } : {}),
-        ...(retained ? { reason: "retained" } : delivery.reason === undefined ? {} : { reason: delivery.reason }),
-        ...(delivery.rule === undefined ? {} : { rule: delivery.rule }),
+        retained: retained ? true : undefined,
+        reason: retained ? "retained" : delivery.reason,
+        rule: delivery.rule,
         refs,
         order: ++state.clock,
         fingerprint,
-      };
+      });
       stored.selection = freshItemSelection(stored) ?? old?.selection;
       state.answers[key] = stored;
       frame.answer = stored; applied.push(frame);
@@ -1363,8 +1372,7 @@ export class PersistentRangeStore implements RangeStore {
         if ((state.extentNegative[key]?.seq ?? Infinity) <= eviction.seq) { delete state.extentNegative[key]; state.factSlots--; }
       }
       appliedEvictions.add(key);
-      delete state.rows[key];
-      delete state.rowSeq[key];
+      dropRow(key);
       for (const answerKey of kind === "authority"
         ? new Set([...candidates(key), ...candidates(key, true), ...(index.rangeTables.get(eviction.table) ?? []), ...changedAnswers])
         : candidates(key)) {
@@ -1426,7 +1434,7 @@ export class PersistentRangeStore implements RangeStore {
     for (const key of maybeUnused) {
       const used = [...(index.references.get(key) ?? [])].some(owner => !changedAnswers.has(owner))
         || [...changedAnswers].some(owner => state.answers[owner]?.refs.some(r => rowKey(r) === key));
-      if (!used) { delete state.rows[key]; delete state.rowSeq[key]; }
+      if (!used) dropRow(key);
     }
 
     // Bytes join the swap by row lease: whatever left `state.rows` above takes its bytes with it.
@@ -1462,7 +1470,7 @@ export class PersistentRangeStore implements RangeStore {
     return run;
   }
 
-  private async read<T>(action: () => T): Promise<T> {
+  private async read<T>(action: () => T | Promise<T>): Promise<T> {
     await this.tail;
     this.ensureOpen();
     return action();

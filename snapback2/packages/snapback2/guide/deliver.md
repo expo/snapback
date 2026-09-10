@@ -50,6 +50,11 @@ never rewrites audience. The template's `conversationView` composes live content
 preview, so a joiner sees prior messages online. Its shared `withHistory` items
 binding falls back to the delivered `thread` under partial offline custody.
 An empty log is complete, so it cannot itself activate a partial-only fallback.
+Coverage resets, including clock resets, preserve delivered custody. When a
+client adopts a different program schema, content images it cannot represent
+leave the store; fitting images and delivery anchors stay. History shows the
+entry with its body absent under the same missing-row rule; current members
+re-read live. Cold preparation still rejects corrupt rows.
 
 A queued insert predicts only the sender's delivered event after successful
 `require exists memberships[conversationId, viewer]`, including a proc or
@@ -71,7 +76,7 @@ remove `with receipts` from the enabling lines and `bootstrap` from new logs.
 ```q
 query receipts(messageId: messages):
   msg = messages[messageId] ! else NOT_FOUND
-  require exists memberships[msg.conversationId, viewer] else MEMBERSHIP_REQUIRED
+  require isMember(msg.conversationId, viewer) else MEMBERSHIP_REQUIRED
   return deliveriesReceipts[messageId] first 50 by byRow { recipient, received }
 ```
 

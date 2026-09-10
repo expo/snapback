@@ -281,7 +281,7 @@ fn silence_probe_requires_an_ordered_barrier_and_rejects_an_earlier_delivery() {
             let (mut stream, _) = listener.accept().unwrap();
             let events = if delivered { vec!["probe", "z-silence"] } else { vec!["z-silence"] };
             for id in events {
-                let frame = format!("data: {}\n\n", json!({ "id": id, "data": { "seq": 2 } }));
+                let frame = format!("data: {}\n\n", json!({ "id": id, "terminal": false, "data": { "state": "complete", "seq": 2 } }));
                 write!(stream, "{:x}\r\n{frame}\r\n", frame.len()).unwrap();
             }
             stream.flush().unwrap();
@@ -290,6 +290,40 @@ fn silence_probe_requires_an_ordered_barrier_and_rejects_an_earlier_delivery() {
         let result = probe.prove_silence(Duration::from_secs(2));
         assert_eq!(result.is_ok(), !delivered);
         if delivered { assert!(result.err().unwrap().delivery.is_some()); }
+        server.join().unwrap();
+    }
+}
+
+#[test]
+fn authority_sequence_requires_a_live_probe_denial_and_a_live_delivery_barrier() {
+    for (terminal, barrier_terminal, barrier_refused, wrong_child) in [
+        (false, false, false, false), (true, false, false, false),
+        (false, true, false, false), (false, false, true, false),
+        (false, false, false, true),
+    ] {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let barrier = if barrier_refused { json!({ "code": "E_REFUSED" }) }
+                else { json!({ "state": "denied", "seq": 3, "data": null, "rows": [] }) };
+            for event in [
+                json!({ "id": if wrong_child { "other" } else { "probe" }, "terminal": terminal,
+                    "data": { "state": "denied", "seq": 2, "data": null, "rows": [] } }),
+                json!({ "id": "z-silence", "terminal": barrier_terminal, "data": barrier }),
+            ] {
+                let frame = format!("data: {event}\n\n");
+                write!(stream, "{:x}\r\n{frame}\r\n", frame.len()).unwrap();
+            }
+            stream.flush().unwrap();
+        });
+        let mut probe = SseProbe::from_stream(TcpStream::connect(address).unwrap());
+        // This is the complete consumed-event sequence used by the authority proof.
+        let result = (|| {
+            probe.denial(2)?;
+            probe.prove_silence(Duration::from_secs(2)).map_err(|error| error.message)
+        })();
+        assert_eq!(result.is_ok(), !(terminal || barrier_terminal || barrier_refused || wrong_child));
         server.join().unwrap();
     }
 }

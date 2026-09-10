@@ -275,3 +275,59 @@ for (const evolve of [false, true]) test(`metadata-only departed removal evicts 
     assert((await bob.assetBlob(urls[1])).size > 0);
   } finally { drain?.close(); await Promise.all([alice.close(), bob.close()]); await owner.close(); await rm(root, { recursive: true, force: true }); }
 });
+
+
+test('departed nullable custody survives required-schema adoption as a missing body through metadata-only reconnect and cold reads', { timeout: 60000 }, async () => {
+  const owner = await RealOwnerHarness.create({ forceOwned: true, fixture, prepare: async root => {
+    const path = join(root, 'snapback/schema.q');
+    await writeFile(path, (await readFile(path, 'utf8')).replace('  editedAt: time ?', '  editedAt: time ?\n  version: int ?'));
+    await writeFile(join(root, 'snapback/custody.q'), `query events(c: cursor ?):
+  return deliveries[viewer] after c first 50 by byRecipient
+
+query history():
+  return deliveries[viewer] first 50 by byRecipient { *, message: messages[.row] }
+
+query unrelated():
+  return profiles[] first 10 by byId
+
+job fill():
+  chunk message in messages first 10 by byId:
+    update messages[message.id] { version: 7 }
+`);
+    // A fitting sibling is delivered before departure, alongside the nullable seed.
+    const seed = join(root, 'snapback/seed.ts');
+    await writeFile(seed, (await readFile(seed, 'utf8')).replace('id: "message-1",', 'id: "fitting", version: 7,')
+      .replace('    messages: [', '    messages: [\n      { id: "nullable", conversationId: "conversation-1", authorId: "dev:alice", body: "nullable history", at: 0 },'));
+  } });
+  const root = await mkdtemp(join(tmpdir(), 'chat-schema-custody-'));
+  const store = fileRangeStore(root);
+  const alice = createClient({ url: owner.url, persona: 'alice' });
+  let bob: any = createClient({ url: owner.url, persona: 'bob', offline: { store } }), drain: any;
+  try {
+    await Promise.all([alice.ready, bob.ready]);
+    drain = await warm(bob);
+    const received = await pages(bob, api.messages.inbox);
+    assert.equal(received.find(r => r.row === 'nullable').message.version, null);
+    assert.equal(received.find(r => r.row === 'fitting').message.version, 7);
+    drain.close(); drain = undefined; await bob.offline();
+    assert.equal((await alice.mutation(api.groups.memberRemove, { conversationId: group, membershipId: 'membership-2' })).state, 'committed');
+    const job: any = await control(owner, 'job', { name: 'custody.fill', args: {} });
+    await until(() => control(owner, `job/${job.id}`), value => value.state === 'done', 'owner fill');
+    const messagesPath = join(owner.root!, 'snapback/messages.q'), seedPath = join(owner.root!, 'snapback/seed.ts');
+    await writeFile(messagesPath, (await readFile(messagesPath, 'utf8')).replaceAll('insert messages {', 'insert messages { version: 7,'));
+    await writeFile(seedPath, (await readFile(seedPath, 'utf8')).replaceAll('id: "nullable",', 'id: "nullable", version: 7,').replaceAll('id: "message-2",', 'id: "message-2", version: 7,'));
+    await installSchema(owner, (await readFile(join(owner.root!, 'snapback/schema.q'), 'utf8')).replace('  version: int ?', '  version: int'));
+    await bob.close();
+    bob = createClient({ url: owner.url, persona: 'bob', offline: { store } }); await bob.ready;
+    drain = subscribe(bob, api.custody.events, { c: null }, () => {}, { drain: true });
+    await drain.until((v: any) => v.live && v.caughtUp && v.data?.some((r: any) => r.row === 'nullable' && r.kind === 'changed'), 10000);
+    drain.close(); drain = undefined; await bob.offline(); bob = await bob.restart();
+    const history: any = await bob.query(api.custody.history, {});
+    assert(history.data.some((r: any) => r.row === 'nullable' && r.kind === 'delivered' && r.message === null), JSON.stringify(history));
+    assert(history.data.some((r: any) => r.row === 'fitting' && r.message?.version === 7), JSON.stringify(history));
+    assert.notEqual(history.state, 'complete', 'metadata-only delivery grants no current-schema body authority');
+    const unrelated: any = await bob.query(api.custody.unrelated, {});
+    assert.notEqual(unrelated.state, 'complete', 'old profile custody earns no current-generation coverage');
+    assert(!['E_INPUT', 'E_SCHEMA'].includes(unrelated.code), JSON.stringify(unrelated));
+  } finally { drain?.close(); await Promise.all([alice.close(), bob.close()]); await owner.close(); await rm(root, { recursive: true, force: true }); }
+});

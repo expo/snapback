@@ -70,11 +70,14 @@ after(async () => { await screenOwner?.close(); await rm(bundlePath, { force: tr
 // Both Thread screens import this exact conversationView → withHistory → threadItems binding.
 test("never-opened Thread binding renders a cold drained chat and predicts one offline send", async () => {
   const root = await mkdtemp(join(tmpdir(), "s2-never-opened-screen-"));
-  const reads: string[] = [];
+  const reads: string[] = [], attempts: unknown[] = [];
+  let offline = false;
   const options = { url: screenOwner.url, persona: "never-opened-bob", offline: { store: fileRangeStore(root) },
     fetch: async (input: any, init?: RequestInit) => {
+      if (offline) { attempts.push({ input, init }); assert.fail("offline screen attempted transport"); }
       const body = requestBody(init);
       if (body?.op) reads.push(body.op);
+      for (const mounted of body?.mounted ?? []) reads.push(mounted.op);
       return globalThis.fetch(input, init);
     } };
   const alice = createClient({ url: screenOwner.url, persona: "never-opened-alice" });
@@ -89,9 +92,8 @@ test("never-opened Thread binding renders a cold drained chat and predicts one o
     drain = subscribe(bob, api.messages.inbox, { c: null }, () => {}, { drain: true });
     await drain.until((value: any) => value.live && value.caughtUp, 10000);
     drain.close(); drain = undefined;
-    await bob.outbox.drain(); await bob.offline(); bob = await bob.restart();
+    await bob.outbox.drain(); await bob.offline(); offline = true; bob = await bob.restart();
     assert(!reads.includes("messages.conversationView") && !reads.includes("messages.thread"), "neither screen query was opened online");
-    const before = reads.length;
     const observed = bob.observe(api.messages.conversationView, { conversationId }, { items: conversationItems });
     stop = observed.subscribe(() => {});
     await waitFor(() => observed.getSnapshot().itemsFrom === "history", "the screen's declared history");
@@ -107,7 +109,7 @@ test("never-opened Thread binding renders a cold drained chat and predicts one o
     assert.deepEqual(snapshot.items.map((item: any) => item.data?.body), ["only the log was drained", "predicted into the screen"]);
     assert.equal(snapshot.items.filter((item: any) => item.data?.id === id).length, 1);
     assert.equal(snapshot.items.find((item: any) => item.data?.id === id).predicted, true);
-    assert.equal(reads.length, before, "the screen binding and send use held custody without transport");
+    assert.deepEqual(attempts, [], "the screen binding and send use held custody without any transport attempt");
   } finally {
     stop?.(); drain?.close(); await Promise.all([alice.close(), bob.close()]);
     await rm(root, { recursive: true, force: true });

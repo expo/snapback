@@ -1,4 +1,4 @@
-import { operationArgs, queryArgs } from "./store/canonical.js";
+import { defined, operationArgs, queryArgs } from "./store/canonical.js";
 import { isSha256 } from "../../evaluator/src/hash.js";
 import { decodeHeldProgram, queryClock } from "./held-program.js";
 import { cursorArgument, serverArguments } from "./local-cursor.js";
@@ -109,13 +109,21 @@ type ResumeFacts = CoverageFacts;
 
 /** Cache revalidation and full deliveries expose the same query value fields. */
 function queryResult<Result>(source: Omit<AcceptedDelivery<unknown>["result"], "data">, data: Result | undefined, seq = source.seq): AcceptedDelivery<Result>["result"] {
-  return {
+  return defined({
     state: source.state, seq,
-    ...(source.state !== "denied" && data !== undefined ? { data } : {}),
-    ...((source.state === "complete" || source.state === "capped") && source.next !== undefined ? { next: source.next } : {}),
-    ...(source.reason === undefined ? {} : { reason: source.reason }),
-    ...(source.rule === undefined ? {} : { rule: source.rule }),
-  };
+    data: source.state === "denied" ? undefined : data,
+    next: source.state === "complete" || source.state === "capped" ? source.next : undefined,
+    reason: source.reason,
+    rule: source.rule,
+  });
+}
+
+function programCustody(held?: HeldProgram): Record<string, HeldProgram> | undefined {
+  return held && { [held.generation]: held };
+}
+
+function programFacts(program: Pick<CoverageFacts, 'generation' | 'schemaHash'>, authEpoch: number): CoverageFacts {
+  return { generation: program.generation, schemaHash: program.schemaHash, authEpoch };
 }
 
 function sameProgram(a: Pick<CoverageFacts, "generation" | "schemaHash">, b: Pick<CoverageFacts, "generation" | "schemaHash">): boolean {
@@ -491,7 +499,7 @@ export class OfflineRuntime {
       this.inboxLedgerCache = Object.fromEntries((await this.outbox.entries()).map((entry) => [entry.intent, entry]));
     }
     if (changed) { this.outbox.notify(); this.publishInputs(); }
-    return { admitted, ...(stopped === undefined ? {} : { stopped }) };
+    return defined({ admitted, stopped });
   }
 
   async open(principal: string, authenticated = false): Promise<void> {
@@ -625,7 +633,7 @@ export class OfflineRuntime {
     this.stopInputChanges?.();
     this.inputListeners.clear();
     this.bytes.forget();
-    await this.outbox.write(async () => { await this.store.close?.(); });
+    await this.outbox.write(async () => this.store.close?.());
   }
 
   manifest(value: Manifest): void {
@@ -673,9 +681,8 @@ export class OfflineRuntime {
         throwIfAborted(signal);
         // Custody must succeed before a reset can erase the predecessor coverage.
         if (this.partition !== undefined) {
-          const swap = { bounds, ...(held ? { programs: { [held.generation]: held } } : {}) };
-          try { await this.store.commit(swap); }
-          catch (error) { if (!(ClockCoverageReset.is(error))) throw error; await this.resetClock(error, swap); }
+          const swap = { bounds, programs: programCustody(held) };
+          await this.commitProgram(swap);
           throwIfAborted(signal);
         } else {
           this.pendingBounds = bounds;
@@ -774,10 +781,7 @@ export class OfflineRuntime {
           if (this.sessionEpoch !== undefined && envelope.authority.authEpoch !== this.sessionEpoch) {
             throw new OfflineAuthorityError("delivery/session auth epoch mismatch");
           }
-          if (!nextFacts && this.held) nextFacts = {
-            generation: this.held.generation, schemaHash: this.held.schemaHash,
-            authEpoch: this.sessionEpoch ?? envelope.authority.authEpoch,
-          };
+          if (!nextFacts && this.held) nextFacts = programFacts(this.held, this.sessionEpoch ?? envelope.authority.authEpoch);
           // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — a
           // rotation: the server now runs another generation or schema. The
           // delivery is not held (one generation per partition), the caller
@@ -785,7 +789,7 @@ export class OfflineRuntime {
           // superseded so the twin serves nothing stale-exact from it; the next
           // resume carries the old facts, is refused `E_OFFLINE_RESET`, and the
           // reset path drops the coverage and re-fetches the program.
-          const received = { generation: envelope.generation, schemaHash: envelope.schemaHash, authEpoch: envelope.authority.authEpoch };
+          const received = programFacts(envelope, envelope.authority.authEpoch);
           if (nextFacts && !sameProgram(envelope, nextFacts)) {
             superseded = received;
             sawSupersession = true;
@@ -816,15 +820,14 @@ export class OfflineRuntime {
           op,
           args,
           state: source.state,
-          ...(source.data === undefined ? {} : { data: source.data }),
-          ...(source.next === undefined ? {} : { next: source.next }),
+          data: source.data, next: source.next,
           seq: source.seq,
           ...(envelope?.readTime === undefined ? {} : { readTime: envelope.readTime, clockPlanHash: envelope.planHash }),
-          ...(envelope?.validator === undefined ? {} : { validator: envelope.validator }),
+          validator: envelope?.validator,
           // Structural admission retains authoritative bodies/leases; only checked issuing IR grants receipt coverage.
-          ...(envelope ? { rows: envelope.rows, receiptEvidence: envelope.receipt } : {}), ...(checked ? { receipt: envelope!.receipt } : {}),
-          ...("reason" in source && typeof source.reason === "string" ? { reason: source.reason } : {}),
-          ...("rule" in source && typeof source.rule === "string" ? { rule: source.rule } : {}),
+          rows: envelope?.rows, receiptEvidence: envelope?.receipt, receipt: checked ? envelope!.receipt : undefined,
+          reason: "reason" in source && typeof source.reason === "string" ? source.reason : undefined,
+          rule: "rule" in source && typeof source.rule === "string" ? source.rule : undefined,
           deliveredAt: Date.now(),
         });
         // @ref LLP 1018.003#3-tombstones-are-declared-certified-and-shared — rule 3 fires on the
@@ -838,7 +841,7 @@ export class OfflineRuntime {
       const watermarkRecord = !sawSupersession && watermark ? {
         ...watermark,
         cursorArg: this.declaredCursorArg(watermark.op),
-        ...(nextFacts ? { generation: nextFacts.generation, schemaHash: nextFacts.schemaHash, authEpoch: nextFacts.authEpoch } : {}),
+        ...(nextFacts ? programFacts(nextFacts, nextFacts.authEpoch) : {}),
         updatedAt: Date.now(),
       } : undefined;
       await this.store.commit({
@@ -846,13 +849,13 @@ export class OfflineRuntime {
         refreshes,
         tombstones,
         schema: this.schema,
-        ...(watermarkRecord ? { watermark: watermarkRecord } : {}),
-        ...(settlement ? { outbox: settlement } : {}),
+        watermark: watermarkRecord,
+        outbox: settlement,
         // A resume counts toward overlay retirement only under the coverage it
         // resumed; a successor tail persists nothing but its pending marker.
-        ...(resumeSeq === undefined || sawSupersession ? {} : { resumeSeq }),
-        ...(nextFacts && nextFacts !== this.facts ? { facts: nextFacts } : {}),
-        ...(superseded && superseded !== this.superseded ? { superseded } : {}),
+        resumeSeq: sawSupersession ? undefined : resumeSeq,
+        facts: nextFacts !== this.facts ? nextFacts : undefined,
+        superseded: superseded !== this.superseded ? superseded : undefined,
       });
       this.facts = nextFacts;
       this.sessionEpoch ??= nextFacts?.authEpoch;
@@ -872,7 +875,7 @@ export class OfflineRuntime {
       if (ClockCoverageReset.is(error)) return this.serial(async () => {
         if ((current && !current()) || (revision !== undefined && revision !== this.coverageRevision)) return false;
         const envelope = items.find(i => i.accepted.envelope)?.accepted.envelope;
-        await this.resetClock(error, { facts: this.facts ?? (envelope && { generation: envelope.generation, schemaHash: envelope.schemaHash, authEpoch: envelope.authority.authEpoch }) }); return true;
+        await this.resetClock(error, { facts: this.facts ?? (envelope && programFacts(envelope, envelope.authority.authEpoch)) }); return true;
       });
       if (!(FullRevalidationRequired.is(error))) throw error;
       // No I/O inside a carrier transaction or runtime queue. The same request
@@ -912,7 +915,7 @@ export class OfflineRuntime {
 
   async markWatermark(op: string, args: unknown, watermark: string | null, validator?: string, revision = this.coverageRevision): Promise<void> {
     if (this.partition === undefined) return;
-    await this.commitMany([], { op, args: operationArgs(args, this.declaredCursorArg(op)), watermark, ...(validator === undefined ? {} : { validator }) }, undefined, revision);
+    await this.commitMany([], { op, args: operationArgs(args, this.declaredCursorArg(op)), watermark, validator }, undefined, revision);
   }
 
   /** Offline admission uses the held generation; current metadata never certifies stale coverage. */
@@ -944,11 +947,10 @@ export class OfflineRuntime {
     if (!this.facts) return undefined;
     if (!this.coverageCurrent()) return { protocol: 1, ...this.facts, mounted: [] };
     if (!adjustment.demand && !watermark && answers.length === 0 && (await this.outbox.status()).remaining === 0) return undefined;
-    return { protocol: 1, ...this.facts,
-      ...(watermark ? { log: { op: watermark.op, args: watermark.args, watermark: watermark.watermark,
-        ...(watermark.validator === undefined ? {} : { validator: watermark.validator }) } } : {}),
+    return defined({ protocol: 1 as const, ...this.facts,
+      log: watermark ? defined({ op: watermark.op, args: watermark.args, watermark: watermark.watermark, validator: watermark.validator }) : undefined,
       mounted: answers.map(({ query, answer }) => ({ op: query.op, args: query.args, validator: answer.validator })),
-    };
+    });
   }
 
   async resetCoverage(authEpoch?: number, signal?: AbortSignal): Promise<void> {
@@ -957,16 +959,13 @@ export class OfflineRuntime {
     if (this.partition !== undefined) await this.serial(async () => {
       throwIfAborted(signal);
       const epoch = authEpoch ?? this.sessionEpoch ?? this.facts?.authEpoch;
-      const facts = this.held && epoch !== undefined ? {
-        generation: this.held.generation, schemaHash: this.held.schemaHash, authEpoch: epoch,
-      } : undefined;
+      const facts = this.held && epoch !== undefined ? programFacts(this.held, epoch) : undefined;
       // Keep a durable pending marker through the entire rebuild, including a
       // crash after program adoption. Facts let a cold restart authenticate its
       // resume even before any fresh query has committed.
       const superseded = facts ?? this.superseded ?? this.facts;
-      await this.store.commit({ resetCoverage: true, schema: this.schema, facts, superseded });
-      this.coverageRevision++;
-      this.facts = facts; this.superseded = superseded;
+      await this.commitReset(facts, superseded);
+      this.coverageRevision++; this.facts = facts; this.superseded = superseded;
       this.sessionEpoch = epoch;
     });
   }
@@ -1037,11 +1036,11 @@ export class OfflineRuntime {
     this.pendingProgram = undefined;
     try {
       // One generation is held at a time: the program replaces its predecessor whole.
-      await this.outbox.recordBounds(bounds, program === undefined ? undefined : { [program.generation]: program });
+      await this.outbox.recordBounds(bounds, programCustody(program));
       if (program) this.restoreProgram(program);
     } catch (error) {
       if (ClockCoverageReset.is(error)) {
-        await this.outbox.write(() => this.resetClock(error, { bounds, ...(program ? { programs: { [program.generation]: program } } : {}) }));
+        await this.outbox.write(() => this.resetClock(error, { bounds, programs: programCustody(program) }));
         if (program) this.restoreProgram(program);
         return;
       }
@@ -1051,6 +1050,11 @@ export class OfflineRuntime {
     }
   }
 
+  private async commitProgram(swap: StoreSwap): Promise<void> {
+    try { await this.store.commit(swap); }
+    catch (error) { if (!ClockCoverageReset.is(error)) throw error; await this.resetClock(error, swap); }
+  }
+
   private async loadProgram(): Promise<void> {
     let programs: Record<string, HeldProgram>;
     // Custody like the outbox: sealed with it, read again on unseal.
@@ -1058,21 +1062,22 @@ export class OfflineRuntime {
     const held = Object.values(programs)[0];
     if (held) {
       this.restoreProgram(held);
-      if (this.held) try { await this.store.commit({ programs: { [held.generation]: this.held } }); }
-      catch (error) { if (!(ClockCoverageReset.is(error))) throw error; await this.resetClock(error); }
+      if (this.held) await this.commitProgram({ programs: programCustody(this.held) });
     }
   }
 
   private async resetClock(error: ClockCoverageReset, extra: StoreSwap = {}): Promise<void> {
     const held = extra.programs && Object.values(extra.programs)[0] || this.held;
     const epoch = this.sessionEpoch ?? extra.facts?.authEpoch ?? this.facts?.authEpoch;
-    const facts = held && epoch !== undefined ? { generation: held.generation, schemaHash: held.schemaHash, authEpoch: epoch } : extra.facts ?? this.facts;
-    const identity = JSON.stringify([this.partition, facts]);
+    const facts = held && epoch !== undefined ? programFacts(held, epoch) : extra.facts ?? this.facts;
     const superseded = facts ?? this.superseded;
-    await this.store.commit({ ...extra, resetCoverage: true, facts, superseded,
-      ...(error.exhausted ? { factLimitReset: identity } : {}) });
+    await this.commitReset(facts, superseded, { ...extra, ...(error.exhausted ? { factLimitReset: JSON.stringify([this.partition, facts]) } : {}) });
     this.outbox.resetTrust(); this.coverageRevision++;
     this.facts = facts; this.superseded = superseded;
+  }
+
+  private commitReset(facts: CoverageFacts | undefined, superseded: CoverageFacts | undefined, extra: StoreSwap = {}): Promise<void> {
+    return this.store.commit({ schema: this.schema, ...extra, resetCoverage: true, facts, superseded });
   }
 
   private restoreProgram(held: HeldProgram): void {
@@ -1092,11 +1097,7 @@ export class OfflineRuntime {
     }
     const watermark = tailWatermark(metadata.watermarks);
     if (watermark?.generation && watermark.schemaHash && watermark.authEpoch !== undefined) {
-      this.facts = {
-        generation: watermark.generation,
-        schemaHash: watermark.schemaHash,
-        authEpoch: watermark.authEpoch,
-      };
+      this.facts = programFacts(watermark as CoverageFacts, watermark.authEpoch);
     }
   }
 
@@ -1178,22 +1179,18 @@ export function offlineView<Result>(held: HeldAnswer<Result> | undefined, local?
       deliveredAt, data, next,
       ...answer
     } = held;
-    return carryItemInputs(held, {
+    return carryItemInputs(held, defined({
       ...answer,
       ...(held.retained && (held.state === "complete" || held.state === "capped") ? { state: "partial", reason: "retained" } : {}),
-      ...(held.state !== 'denied' && data !== undefined ? { data } : {}),
-      ...(heldContinuation && next !== undefined ? { next } : {}),
+      data: held.state === 'denied' ? undefined : data,
+      next: heldContinuation ? next : undefined,
       live: false,
       connection: "offline",
       stale: { since: deliveredAt },
-    });
+    }));
   }
   const { since, ...answer } = local;
-  const facts = held === undefined ? {} : {
-    seq: held.seq,
-    ...(held.caughtUp === undefined ? {} : { caughtUp: held.caughtUp }),
-    ...(held.watermark === undefined ? {} : { watermark: held.watermark }),
-  };
+  const facts = defined({ seq: held?.seq, caughtUp: held?.caughtUp, watermark: held?.watermark });
   return carryItemInputs(local, {
     ...answer,
     ...facts,
