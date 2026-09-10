@@ -489,3 +489,85 @@ has SHA-256 `ea144b7e000265715e4272ef07fa6fd599eae9ee2b0e5b33d1108ea3054129ce`;
 it binds actual setup, all samples, certificate sites, copied source, binary,
 client and process output. Earlier count-shape, oversized seed and typed-site
 assertion failures remain preserved rather than counted as product timings.
+
+### Final no-poll copied-browser qualification
+
+The final copied app compiled as schema generation
+`b44b2b2167d349a13283e0b0ddaf7bcfe43eb09605e96c4a4f72fe10e10fb0c8`
+and program generation
+`6f7b82ef54cb7beca68eba9c79509e759e84cf1fc63c28abe5bc7604e831b672`.
+The browser loaded the final normal SDK runtime
+`85120d5540303d8f605bcf4a9e6f912fae65dbc709492d75c0437e710c2bc2d8`,
+client `62f7e746f651fd4333271f37d35be9c74d5da1992a98e8fa541d2ce387312a2b`,
+and React arm
+`954ee6ef039479614469bbdb2fd1f12cb3b690132943282427b48b8144170d99`;
+the exact instrumented thread SHA-256 was
+`55fa2a77fd5d7d03937c7ae78c1ddd431ff0cda3a41c21ef6d92ba63bae7fa54`.
+No operation filter, provider request, or
+400 ms online poll was present.
+
+Attempt 001 created two fresh local test accounts through the actual signup
+UI. Both signup responses contained a grant, each immediate profile mutation
+ran before any resume/login request and without reload, and all 3 warmups plus
+20 measured DM sends passed. Every intent made one `messages.send` request and
+appeared exactly once under the response id in both sender and recipient DOM,
+with no terminal pending row. Exact-id p95 was 239.5 ms to sender settlement,
+416.199951 ms to delivered, and 241.399902 ms to recipient DOM. The raw JSON is
+`.snapback/clique-final-browser-proof/evidence/attempt-001-normal-3plus20.json`
+(SHA-256
+`f605ff0ad9849855c20ddf8a87ccef79fa1c3136c70570be36f062940e8d4304`).
+Its harness was reconstructed by reversing the preserved stimulus-only edits;
+its full digest below matches the originally recorded `ebe888e4` short hash.
+The recovered source is
+`.snapback/clique-final-browser-proof/scripts/reconstructed/attempt-001.mjs`
+(SHA-256
+`ebe888e4c1d675a3ba66697c7f9e9226e2daafed628164fa790b577a0824431c`).
+The artifact's top-level `pass` is false only because Playwright physical
+offline emulation did not drive the application's browser-offline handler;
+the scoped signup and ordinary 3+20 claims above use the recorded subresults.
+
+Attempts 002–007 retain the correction of that offline stimulus rather than
+discarding setup failures. Attempt 002 dispatched events while
+`navigator.onLine` remained true. Attempts 003/004 tried nonexistent thread
+TabBar anchor/button locators. Attempt 005 then preflighted the mounted input,
+send, file, attachment, error, and public offline-status DOM in one pass.
+Attempt 006 passed exact 2,001-scalar text and 501-scalar media-caption local
+refusals with the input (and media attachment) retained, zero custody, and zero
+send requests. Attempt 007 used the separate public-`useConnection()` observer:
+it recorded `offline -> reconnecting -> connected`, one exact queued row before
+online, then one request for that same id and one terminal read/delivered row in
+both DOMs. It also repeated both local-refusal passes. Its raw overall false is
+an overbroad harness predicate: the raw transition contains one POST
+`/api/live/control` and separately one aborted `/api/live` request, while
+`messages.send` before online and route interceptions were both zero. The raw
+artifact and non-overwriting evaluation are
+`.snapback/clique-final-browser-proof/evidence/attempt-007-direct-observer.json`
+(SHA-256
+`5e95b75ef833c8ad783be6ea855b6a9b9672cfdc6211c0348a0735f9154e2723`)
+and `attempt-007-evaluation-addendum.json` (SHA-256
+`df8afbc7550e22ee923a04f23375b2ca2a1e99e58850bb4369d8796f7ea4e484`).
+This is an event-driven explicit-offline witness while physical network access
+remained available, not a physical-outage claim.
+
+Attempt 008 independently passed mounted expiry: the exact committed row and
+bubble disappeared, the composer stayed mounted, and there was no hook-order
+or durable-fact conflict error. Its later page-boundary setup locator failed.
+Attempts 009/010 admitted 23 sends before an initially under-instrumented local
+refusal. Attempt 011 preserved the exact cause: after 23 committed sends, the
+24th canonical submit created one id but no outbox row or request, reporting
+`the replay grant has 85 ids left and this write needs 352`. The raw artifact
+is `.snapback/clique-final-browser-proof/evidence/attempt-011-grant-limit-exact.json`
+(SHA-256
+`7f6063679140203bff7ebf85af7727cd0365cd2dc1aa8303011fa8cdc4e34958`).
+The 51-message same-thread page-boundary/browser-expiry witness therefore
+remains blocked on ordinary online grant replenishment; no hidden poll or
+manual renewal is counted as a passing workaround. Independently, a mounted
+`DeliveryWatcher` processed 51 pending deliveries across distinct chats with
+one request and committed response per exact id and ended with the public
+`nextPendingDelivery` query empty (raw SHA-256
+`c4a36ae53ad40296fbb0a1ae7fef91b06f7c24d4c9f6d61d5f3f7268d9583bea`).
+
+The old-owner expiry capture's non-overwriting generation correction is
+`fact-trace/old-owner-envelope-trace-binding.json` (SHA-256
+`78cab4a55434c4fefb28c86dab9db20343f1be12952ebcb43b5b1dd5ba91b912`);
+the raw capture itself remains unchanged.
