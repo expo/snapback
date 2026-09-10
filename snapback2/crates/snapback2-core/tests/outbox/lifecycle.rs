@@ -20,7 +20,7 @@ fn store_claim_settle_restart_and_requeue_accessors_are_durable() {
     let claimed = runtime
         .store()
         .outbox_claim_next(100, &["audit".to_owned()])
-        .unwrap()
+        .unwrap().claimed
         .expect("queued row");
     assert_eq!(claimed.state, "running");
     assert_eq!(claimed.attempts, 1);
@@ -30,7 +30,7 @@ fn store_claim_settle_restart_and_requeue_accessors_are_durable() {
         runtime
             .store()
             .outbox_claim_next(100, &["audit".to_owned()])
-            .unwrap()
+            .unwrap().claimed
             .is_none()
     );
 
@@ -45,7 +45,7 @@ fn store_claim_settle_restart_and_requeue_accessors_are_durable() {
     let claimed = runtime
         .store()
         .outbox_claim_next(i64::MAX, &["audit".to_owned()])
-        .unwrap()
+        .unwrap().claimed
         .unwrap();
     assert_eq!(claimed.attempts, 1);
     assert_eq!(runtime.store().outbox_mark_unknown_running().unwrap(), 1);
@@ -62,7 +62,7 @@ fn store_claim_settle_restart_and_requeue_accessors_are_durable() {
         runtime
             .store()
             .outbox_claim_next(i64::MAX, &["audit".to_owned()])
-            .unwrap()
+            .unwrap().claimed
             .is_none()
     );
 }
@@ -77,6 +77,7 @@ fn store_open_adds_then_binding_columns_to_an_existing_outbox() {
             .execute_batch(
                 "ALTER TABLE _outbox DROP COLUMN then_op;
                  ALTER TABLE _outbox DROP COLUMN generation;
+                 ALTER TABLE _outbox DROP COLUMN then_seq;
                  INSERT INTO _outbox VALUES
                     ('old', 1, 'audit', '\"Null\"', 'queued', 0, 0, NULL, NULL, 0, 0);",
             )
@@ -86,6 +87,7 @@ fn store_open_adds_then_binding_columns_to_an_existing_outbox() {
     let old = store.outbox_get("old").unwrap().unwrap();
     assert_eq!(old.then_op, None);
     assert_eq!(old.generation, None);
+    assert_eq!(old.then_seq, None);
     drop(store);
     cleanup(&path);
 }
@@ -118,6 +120,15 @@ fn execute_then_commits_bookkeeping_and_sent_settlement_once() {
     }
 
     let mut restarted = Runtime::open(Store::open(&path).unwrap(), generation).unwrap();
+    assert_eq!(
+        restarted
+            .store()
+            .outbox_get("outbox-1")
+            .unwrap()
+            .unwrap()
+            .then_seq,
+        Some(2)
+    );
     assert!(
         restarted
             .store()
@@ -269,10 +280,21 @@ fn undeclared_effect_is_failed_without_ever_becoming_running() {
     context.new_ids = VecDeque::from(["kept-outbox".to_owned(), "kept-return".to_owned()]);
     runtime.execute("ops.kept", context).unwrap();
 
-    let claimed = runtime
+    let claim = runtime
         .store()
         .outbox_claim_next(11, &["kept".to_owned()])
-        .unwrap()
+        .unwrap();
+    assert_eq!(
+        claim
+            .failed
+            .iter()
+            .map(|row| (row.id.as_str(), row.effect.as_str(), row.state.as_str()))
+            .collect::<Vec<_>>(),
+        vec![("unknown-outbox", "audit", "queued")],
+        "the claim transaction reports the rows it failed, as they were before it"
+    );
+    let claimed = claim
+        .claimed
         .expect("the declared row is claimed in the unknown-settlement transaction");
     assert_eq!(claimed.id, "kept-outbox");
     assert_eq!(claimed.state, "running");
@@ -281,7 +303,7 @@ fn undeclared_effect_is_failed_without_ever_becoming_running() {
         runtime
             .store()
             .outbox_claim_next(11, &["kept".to_owned()])
-            .unwrap()
+            .unwrap().claimed
             .is_none()
     );
     let row = runtime
@@ -450,7 +472,7 @@ fn leave_then_pending(runtime: &mut Runtime) {
     runtime
         .store()
         .outbox_claim_next(10, &["notifications.notify".to_owned()])
-        .unwrap()
+        .unwrap().claimed
         .unwrap();
     runtime
         .store()

@@ -223,3 +223,84 @@ fn discarding_a_paused_body_closes_bytes_before_releasing_quota_and_prevents_lat
     drop(owner);
     fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn seven_photo_retries_rollback_restart_and_physical_cleanup() {
+    let root = fixture_root();
+    let mut source = fs::read_to_string(root.join("snapback/media.q")).unwrap();
+    source.push_str(
+        r#"
+mutation sendPhoto(id: id, photo: image <=5000000, reject: bool):
+  require reject = false else ROLLBACK
+  existing = publicMedia[id]
+  if existing != null:
+    return existing
+  return insert publicMedia { id, owner: viewer, photo }
+"#,
+    );
+    fs::write(root.join("snapback/media.q"), source).unwrap();
+    let helper = Path::new(env!("CARGO_BIN_EXE_snapback2")).with_file_name("snapback2-media");
+    let mut owner = Owner::spawn(&root, &helper);
+    let mut port = owner.port();
+    let alice = ("X-Snapback-As", "alice");
+    let bytes = image_bytes("jpeg", 10, 10);
+    let mut original = Value::Null;
+    let mut discarded = Vec::new();
+    for attempt in 1..=7 {
+        let photo = upload(port, alice, &bytes);
+        if attempt == 1 {
+            original = photo.clone();
+        } else {
+            discarded.push(photo["id"].as_str().unwrap().to_owned());
+        }
+        let args = json!({"id":"same-message", "photo":photo, "reject":false});
+        if attempt == 7 {
+            let mut refused_args = args.clone();
+            refused_args["reject"] = json!(true);
+            let rejected = mutation(port, alice, "media.sendPhoto", refused_args);
+            assert_eq!(rejected["state"], "rejected", "{rejected}");
+            let usage = wire(port, "GET", "/api/uploads", &[alice], &[]).json()["usage"].clone();
+            assert_eq!(usage["objects"], 1);
+            assert!(usage["bytes"].as_u64().unwrap() > 0);
+            drop(owner);
+            owner = Owner::spawn(&root, &helper);
+            port = owner.port();
+            assert_eq!(
+                wire(port, "GET", "/api/uploads", &[alice], &[]).json()["usage"],
+                usage
+            );
+        }
+        let sent = mutation(port, alice, "media.sendPhoto", args);
+        assert_eq!(sent["state"], "committed", "{sent}");
+        assert_eq!(sent["data"]["photo"], original);
+        assert_eq!(
+            wire(port, "GET", "/api/uploads", &[alice], &[]).json()["usage"],
+            json!({"objects":0, "bytes":0})
+        );
+    }
+    drop(owner);
+    owner = Owner::spawn(&root, &helper);
+    port = owner.port();
+    assert_eq!(
+        wire(port, "GET", "/api/uploads", &[alice], &[]).json()["usage"],
+        json!({"objects":0, "bytes":0})
+    );
+    for id in discarded {
+        assert!(!root.join(".snapback/blobs").join(id).exists());
+    }
+    let original_id = original["id"].as_str().unwrap();
+    assert!(root.join(".snapback/blobs").join(original_id).is_file());
+    assert_eq!(
+        wire(
+            port,
+            "GET",
+            &format!("/api/asset/{original_id}"),
+            &[alice],
+            &[]
+        )
+        .status,
+        200
+    );
+    drop(owner);
+    fs::remove_dir_all(root).unwrap();
+}

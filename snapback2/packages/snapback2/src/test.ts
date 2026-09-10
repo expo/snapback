@@ -11,6 +11,8 @@ import {
 } from "./client.js";
 import { fileRangeStore } from "./store/file.js";
 import { canonicalAnswerKey } from "./store/canonical.js";
+// The journey effects contract is declared once, in the shipped types.
+import type { EffectsPage, EffectsSettlement, JourneyEffects } from "../types/test.js";
 
 export { fileRangeStore };
 
@@ -38,6 +40,7 @@ type JourneyDevice = SnapbackClient & {
   settled(): ReturnType<SnapbackClient["outbox"]["settled"]>;
 };
 type JourneyContext = {
+  effects: JourneyEffects;
   as(name: string, options?: {
     store?: "file";
   }): JourneyDevice;
@@ -83,12 +86,11 @@ async function loadJourneyFile(path: string): Promise<RegisteredJourney[]> {
   return [...registered];
 }
 
-async function control(url: string, secret: string, path: string, body: unknown): Promise<Record<string, unknown>> {
-  const response = await fetch(`${url}${path}`, {
-    method: "POST",
-    headers: { "content-type": "application/json", "x-snapback-control": secret },
-    body: JSON.stringify(body),
-  });
+async function control(url: string, secret: string, path: string, body?: unknown): Promise<Record<string, unknown>> {
+  // A GET carries neither a body nor a JSON content-type.
+  const response = await fetch(`${url}${path}`, body === undefined
+    ? { method: "GET", headers: { "x-snapback-control": secret } }
+    : { method: "POST", headers: { "content-type": "application/json", "x-snapback-control": secret }, body: JSON.stringify(body) });
   const value = await response.json() as Record<string, unknown>;
   if (!response.ok) throw Object.assign(new Error(String(value.message ?? `control HTTP ${response.status}`)), value);
   return value;
@@ -297,6 +299,20 @@ async function runCheck(
         devices.add(device);
         return wrapDevice(device, clients);
       },
+      effects: {
+        rows: async (options = {}) => {
+          const query = new URLSearchParams();
+          for (const [key, value] of Object.entries(options)) if (value !== undefined) query.set(key, String(value));
+          return await control(url, secret, `/control/outbox?${query}`) as EffectsPage;
+        },
+        settle: async (options = {}) => {
+          const result = await control(url, secret, "/control/effects/settle", options) as EffectsSettlement;
+          if (result.remaining.some(row => row.reason === "engine:none")) {
+            process.stdout.write(`${JSON.stringify({ runner: "effects:no-engine", name: check.name })}\n`);
+          }
+          return result;
+        },
+      },
       tick: (ms) => control(url, secret, "/control/clock", { advanceMs: ms }),
       url,
     })));
@@ -304,7 +320,7 @@ async function runCheck(
     process.stdout.write(`${JSON.stringify({ name: check.name, kind: "journey", verdict: "pass", ms: Math.round(performance.now() - started), detail: { file } })}\n`);
     return true;
   } catch (error) {
-    process.stdout.write(`${JSON.stringify({ name: check.name, kind: "journey", verdict: "fail", ms: Math.round(performance.now() - started), detail: error instanceof Error ? error.message : String(error) })}\n`);
+    process.stdout.write(`${JSON.stringify({ name: check.name, kind: "journey", verdict: "fail", ms: Math.round(performance.now() - started), detail: { file, error: error instanceof Error ? error.message : String(error) } })}\n`);
     return false;
   } finally {
     for (const client of clients) client.close();

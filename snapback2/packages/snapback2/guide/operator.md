@@ -27,6 +27,12 @@ Refusals keep the old generation (`dev --status --json`).
 Update `seed.ts` too: seeds are checked before stored rows, even in populated
 stores. Changing seeds cannot fill existing rows.
 
+`reset` clears application data and reapplies the seed; its JSON adds
+`seed: { rows, personas }` and the human line prints those counts.
+`reset --empty` prints `seed: skipped`: it clears rows, commits, outbox, jobs
+and timers, keeps principals and sessions, re-arms no schedule until a row
+exists, and stays empty across restart.
+
 ## Recovering abandoned media uploads
 
 Pass browser `File` or Expo `{ uri, size?/fileSize? }` directly as an asset
@@ -50,6 +56,11 @@ pending or queued mutations. Receiving bodies are fenced before freeing their
 charge; running finalizers or failed staging unlinks can retain it. Ready
 disposal removes the charge before blob sweeping finishes; usage is not disk
 size. Cleanup expiry cannot replace a settled result.
+
+A committed mutation discards the validated staged asset arguments it left
+unattached, including an idempotent early return and offline replay: the
+object slot and the byte charge leave in the same transaction. A rejected
+call keeps its uploads staged; a released row keeps its grace.
 
 Cleanup starts 24 hours after creation or latest release.
 Releases retain derived widths and once-view history; creators may reclaim ids. `E_ASSET_TOO_LARGE` distinguishes object pressure,
