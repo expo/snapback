@@ -56,12 +56,11 @@ Releases retain derived widths and once-view history; creators may reclaim ids. 
 byte pressure (including released originals), and column bounds. Discard abandoned ids or wait. Free slots need not mean byte headroom;
 releases and replacements gain no capacity refusal.
 
-`why <query> [args-json] --as <persona|system>` explains a read:
-denials name a unique requirement, or say its source is ambiguous, and keep
-executed lookups. Admitted sites show examined/visible rows, bound,
-complete/capped state and read rule. Subscriptions include table/index keys,
-absences and whole-table constraint inputs. Locations use compiled callers or
-site IDs. `--json` keeps trace, bounds, digests and deliveries.
+`why <query> [args-json] --as <persona|system>` shows source, rule, read state,
+subscriptions and certified bounds beside **measured** examined/probes/steps,
+derived scratch and writes. Heap peak, closure, index and output bytes are
+**unavailable**: no trace measures them. `--json` keeps the columns and trace. Denials keep
+executed lookups and name the requirement, or say its source is ambiguous.
 
 `check` wraps full repairs with indented continuations; `--json` keeps fields.
 Refusal messages omit their codes. Unbounded reads list matching indexes and

@@ -427,7 +427,8 @@ impl<'a> RetentionEstimator<'a> {
                         },
                     );
                     let (provenance, growth, price) = assignment.into_parts();
-                    if let Some(growth) = growth.filter(|_| price.collection) {
+                    if let Some(growth) = growth.filter(|growth| (price.collection || growth.occurrences > 0)
+                        && !crate::growth::fixed_width_from(value, variables, |binding| &binding.value)) {
                         let current = variables.get_mut(name).expect("growth target exists");
                         let mut added = price
                             .flow

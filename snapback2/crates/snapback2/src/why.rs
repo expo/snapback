@@ -236,6 +236,22 @@ fn enrich(op: &str, response: Json, latest: Json, certificate: Certificate) -> J
             .cloned()
             .unwrap_or_else(|| json!([])),
     );
+    // @ref LLP 1020#a4-check---cost — only recorded counters are measured; no allocator/closure measurement is inferred.
+    let write_bound = certificate.write_sites.iter().fold(certificate.maintained_amplification, |n, w| n.saturating_add(w.max_rows));
+    let writes = trace.get("writes").and_then(Json::as_object).map(|rows| rows.values().filter_map(Json::as_u64).fold(0u64, u64::saturating_add));
+    let meters: Vec<_> = [
+        ("examined", certificate.max_examined, trace.get("examined").cloned()),
+        ("index entries", certificate.max_index_entries, None),
+        ("probes", certificate.max_rule_probes, trace.get("rule_probes").cloned()),
+        ("steps", certificate.max_steps, trace.get("steps").cloned()),
+        ("derived scratch", certificate.derived_scratch_bytes, trace.get("derived_scratch_bytes").cloned()),
+        ("writes", write_bound, writes.map(|n| json!(n))),
+        ("heap peak", certificate.max_heap_bytes, None),
+        ("output bytes", certificate.max_output_bytes, None),
+        ("closure bytes", certificate.max_closure_bytes, None),
+    ].into_iter().map(|(meter, bound, measured)| json!({"meter": meter, "certified": bound,
+        "measured": measured.unwrap_or(json!("unavailable"))})).collect();
+    output.insert("meters".into(), json!(meters));
     output.insert("readSites".to_owned(), json!(certificate.read_sites));
     output.insert("authoritativeTrace".to_owned(), trace);
     output.insert("subscriptions".to_owned(), Json::Array(subscriptions));
@@ -268,6 +284,13 @@ fn prose(op: &str, persona: &str, output: &Json, sources: &BTreeMap<String, Sour
         "{op} as {persona} — {state}{}\n",
         rule.map(|rule| format!(" ({rule})")).unwrap_or_default()
     );
+    if let Some(meters) = output["meters"].as_array() {
+        text.push_str(&format!("  {:<15} {:>10} {:>12}\n", "meter", "certified", "measured"));
+        for meter in meters {
+            let measured = meter["measured"].as_str().map(str::to_owned).unwrap_or_else(|| meter["measured"].to_string());
+            text.push_str(&format!("  {:<15} {:>10} {:>12}\n", meter["meter"].as_str().unwrap_or("?"), meter["certified"].to_string(), measured));
+        }
+    }
     let trace = &output["authoritativeTrace"];
     let points = entries(&trace["points"]);
     let ranges = entries(&trace["ranges"]);

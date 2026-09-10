@@ -9,6 +9,7 @@ use std::collections::BTreeMap;
 pub(crate) struct OutputEstimator<'a> {
     pub(crate) schema: &'a Schema,
     pub(crate) max_result: u64,
+    pub(crate) retained_bytes: u64,
     pub(crate) next_identity: u64,
     pub(crate) shape: ByteShape,
 }
@@ -25,6 +26,7 @@ pub(crate) struct OutputBound {
 }
 pub(crate) struct OutputEstimate {
     pub bytes: u64,
+    pub retained_bytes: u64,
     pub shape: ByteShape,
 }
 pub(crate) struct OutputAssignmentPrice {

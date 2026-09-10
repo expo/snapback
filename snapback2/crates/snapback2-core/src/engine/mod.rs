@@ -1419,8 +1419,8 @@ pub use receipt::{
 use index::{EvaluatedRange, delete_index_row, lookup_indexed, row_ids, scan_indexed};
 #[allow(unused_imports)]
 pub(crate) use index::{
-    fetch_table_connection, index_values, materialize_optional_fields, reindex_row,
-    validate_column_value, validate_row, validate_typed_column_value,
+    fetch_table_connection, index_values, materialize_optional_fields, reindex_replaced_row,
+    reindex_row, validate_column_value, validate_row, validate_typed_column_value,
 };
 #[allow(unused_imports)]
 use runner::{Flow, Runner};

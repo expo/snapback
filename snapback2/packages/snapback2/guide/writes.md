@@ -15,6 +15,8 @@ right after writing: a snapshot, or absence when its read rule denies the
 caller (including self-revocation). `! else CODE` requires that view and
 rolls back on refusal. Ignored update/upsert adds no result read. Delete yields
 no value. A body's final write is an implicit return; never in a proc.
+An update re-derives a search index, and is priced for it, only when its patch
+names a column that index reads; other patches keep the postings at no cost.
 
 See `guide quarry` for related topics.
 

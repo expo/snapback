@@ -14,3 +14,13 @@ or refuse the pattern statically with a rewrite to an explicit accumulator.
 
 Pin: the reviewer's program (a `Let` rebound in a `For` over a page from its
 own previous value and a text column) certifies at or above its served bytes.
+
+## Resolved 2026-09-10 (LLP 1020 A5, lane `cost`)
+
+A loop-carried scalar/object rebind is priced as growth per iteration × the loop bound, across
+self-occurrences, aliases, branches, nested loops, and retained intermediates
+(`growth::fixed_width_from`, `certificate/recurrence.rs`, `certificate/output.rs`,
+`retention.rs`). The pin is `snapback2/crates/snapback2-core/tests/certificate_cost.rs::
+ticket_68_vs_1020_is_a_runnable_projected_rebind` (measured 1,020 under its bound) and
+`loop_carried_value_bounds_dominate_maximum_width_escaped_executions` (nine loop-growth
+shapes × four maximum-width escaped fills, bound ≥ measured for output and closure).

@@ -391,3 +391,59 @@ mod media;
 
 #[path = "search_guide_tests.rs"]
 mod guide;
+// @ref LLP 1020#a7-two-reproductions-before-any-ruling — the M7 bulk job: an update outside every derived component is priced and performed without re-derivation.
+#[test]
+fn update_outside_derived_components_keeps_postings_and_records_no_derivation() {
+    let p = crate::certificate::search::tests::project(crate::certificate::search::tests::RECIPES);
+    let mut schema = p.schema;
+    schema.tables.get_mut("messages").unwrap().columns.insert(
+        "pinned".into(),
+        ColumnType::Optional(Box::new(ColumnType::Bool)),
+    );
+    for table in schema.tables.values_mut() {
+        table.rules.insert = RuleExpr::Allow;
+        table.rules.update = RuleExpr::Allow;
+        table.rules.delete = RuleExpr::Allow;
+    }
+    let mut engine = Engine::memory(schema).unwrap();
+    conversation(&mut engine, "c1");
+    let p = program(&p.programs, "search.inConversation");
+    write(
+        &mut engine,
+        Stmt::Insert {
+            table: "messages".into(),
+            row: Expr::Literal(message("a", "c1", Some("cat cat"), None, 1)),
+        },
+    );
+    assert_eq!(ids(&query(&mut engine, &p, "ca").unwrap()), ["a"]);
+    let pin = |value: bool| Stmt::Update {
+        table: "messages".into(),
+        key: Expr::Literal(Value::Id("a".into())),
+        patch: Expr::Literal(object([("pinned", Value::Bool(value))])),
+    };
+    let priced = Checker::new(&engine.schema, Ceilings::default())
+        .check_all(&Program {
+            name: "search.pin".into(),
+            kind: ProgramKind::Mutation,
+            args: BTreeMap::new(),
+            read_time_granularity_ms: None,
+            body: vec![pin(true)],
+        })
+        .unwrap();
+    assert_eq!(priced.derived_steps, 0, "{priced:?}");
+    let pinned = write(&mut engine, pin(true));
+    assert_eq!(pinned.trace.derived_steps, 0);
+    assert_eq!(pinned.trace.derived_scratch_bytes, 0);
+    assert_eq!(ids(&query(&mut engine, &p, "ca").unwrap()), ["a"]);
+    let rewritten = write(
+        &mut engine,
+        Stmt::Update {
+            table: "messages".into(),
+            key: Expr::Literal(Value::Id("a".into())),
+            patch: Expr::Literal(object([("body", Value::String("dog".into()))])),
+        },
+    );
+    assert!(rewritten.trace.derived_steps > 0);
+    assert!(ids(&query(&mut engine, &p, "ca").unwrap()).is_empty());
+    assert_eq!(ids(&query(&mut engine, &p, "do").unwrap()), ["a"]);
+}

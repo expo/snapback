@@ -10,6 +10,8 @@ pub(super) struct Summary {
     pub(super) index_entries: u64,
     pub(super) rule_probes: u64,
     pub(super) steps: u64,
+    pub(super) derived_steps: u64,
+    pub(super) derived_scratch: u64,
     pub(super) nonuniform_range: bool,
     pub(super) count_absence_bytes: u64,
     pub(super) count_probe_tables: BTreeSet<String>,

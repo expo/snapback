@@ -72,12 +72,14 @@ Relative --apply-migration paths resolve from your working directory, even with
 --project. Read snapback2 guide E_SUCCESSOR_DESTRUCTIVE for the full sequence."
         }
         "check" => {
-            "usage: snapback2 check [--project dir] [--json]
+            "usage: snapback2 check [--cost [<op>]] [--project dir] [--json]
        snapback2 check --ir [file] [--json]
 
 Compile, certify, and refresh .snapback/build, including api.d.ts.
 check validates sources; it does not install them in the running owner.
 Use snapback2 dev --status to see the active generation and successor refusals.
+--cost [<op>] shows each sourced analyzer term and all eight meters, even on refusal.
+It inspects without refreshing the cache; jobs show per-chunk bounds. --json keeps terms.
 --ir validates project JSON from a file or stdin instead of authored sources."
         }
         "run" => {

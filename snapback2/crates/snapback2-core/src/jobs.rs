@@ -231,18 +231,18 @@ pub struct ChunkOutcome {
     pub execution: Option<crate::Execution>,
 }
 
-pub(crate) fn certify(
+pub(crate) fn inspect(
     schema: &Schema,
     program: &Program,
     ceilings: &Ceilings,
-) -> Result<Certificate, Vec<CheckError>> {
+) -> crate::certificate::CheckAnalysis {
     if ceilings.write_rows == 0 {
-        return Err(vec![CheckError {
+        return crate::certificate::CheckAnalysis { certificate: None, errors: vec![CheckError {
             site: None,
             code: "E_BOUND".into(),
             message: "a job chunk needs one engine progress write".into(),
             rewrite: "allow at least one write for _jobs progress".into(),
-        }]);
+        }] };
     }
     // @ref LLP 1016#d1--the-system-principal-is-the-stores-owner — certify owner reads under total visibility; constraints and all write accounting stay intact.
     let mut owner_schema = schema.clone();
@@ -393,17 +393,26 @@ pub(crate) fn certify(
         // Reserve the progress write before checking the mutation's physical writes.
         let mut chunk_ceilings = ceilings.clone();
         chunk_ceilings.write_rows = chunk_ceilings.write_rows.saturating_sub(1);
-        match Checker::new(&owner_schema, chunk_ceilings)
+        let analysis = Checker::new(&owner_schema, chunk_ceilings)
             .job_chunk()
-            .check_all(&chunk)
-        {
-            Ok(mut certificate) => {
+            .inspect(&chunk);
+        errors.extend(analysis.errors);
+        if let Some(mut certificate) = analysis.certificate {
                 certificate.schema_hash = schema.hash();
+                for term in &mut certificate.cost_terms {
+                    if let Some(id) = &mut term.site {
+                        let prefix = format!("{}:statement:2", program.name);
+                        if id == &prefix || id.starts_with(&format!("{prefix}:")) {
+                            *id = format!("{site}{}", &id[prefix.len()..]);
+                        } else if id == &format!("{}:statement:1", program.name) { *id = scan.site.clone(); }
+                    }
+                }
                 certificate.write_sites.push(WriteSite {
                     table: "_jobs".into(),
                     kind: WriteKind::Update,
                     max_rows: 1,
                 });
+                certificate.cost_terms.push(crate::certificate::CostTerm { meter: "write rows".into(), value: 1, source: "_jobs progress".into(), site: Some(site.clone()) });
                 sweeps.push(Sweep {
                     table: scan.table.clone(),
                     index: scan.index.clone(),
@@ -415,12 +424,10 @@ pub(crate) fn certify(
                     take,
                 });
                 per_chunk.push(certificate);
-            }
-            Err(mut refused) => errors.append(&mut refused),
         }
     }
-    if !errors.is_empty() {
-        return Err(errors);
+    if per_chunk.is_empty() {
+        return crate::certificate::CheckAnalysis { certificate: None, errors };
     }
     let mut certificate = per_chunk[0].clone();
     certificate.plan_hash = crate::digest(program);
@@ -432,7 +439,7 @@ pub(crate) fn certify(
     }));
     certificate.engine_writes.insert(0, "_jobs".into());
     certificate.plan_hash = crate::store_jobs::bound_hash(program, &certificate, schema);
-    Ok(certificate)
+    crate::certificate::CheckAnalysis { certificate: Some(certificate), errors }
 }
 pub(crate) fn upper_scan(scan: &Scan) -> Scan {
     Scan {

@@ -18,9 +18,10 @@ impl<'a> OutputEstimator<'a> {
     pub(super) fn estimate(schema: &'a Schema, program: &Program) -> OutputEstimate {
         let mut estimator = Self {
             schema,
+            retained_bytes: 0,
             max_result: canonical_json(&Value::Null).len() as u64,
             next_identity: program.args.len() as u64 + 1,
-            shape: ByteShape::leaf(4, "null value"),
+            shape: ByteShape::leaf(canonical_json(&Value::Null).len() as u64, "null value"),
         };
         let mut next_identity = 1_u64;
         let mut variables = program
@@ -53,6 +54,7 @@ impl<'a> OutputEstimator<'a> {
         estimator.statements(&program.body, &mut variables, 1, 0, &mut Vec::new());
         OutputEstimate {
             bytes: estimator.max_result,
+            retained_bytes: estimator.retained_bytes,
             shape: estimator.shape,
         }
     }
@@ -116,7 +118,8 @@ impl<'a> OutputEstimator<'a> {
                         },
                     );
                     let (provenance, growth, price) = assignment.into_parts();
-                    if let Some(growth) = growth.filter(|_| price.collection) {
+                    if let Some(growth) = growth.filter(|growth| (price.collection || growth.occurrences > 0)
+                        && !crate::growth::fixed_width_from(value, variables, |bound| &bound.value)) {
                         let current = variables.get_mut(name).expect("growth target exists");
                         let mut added = price
                             .bytes
@@ -144,7 +147,7 @@ impl<'a> OutputEstimator<'a> {
                         current.shape = ByteShape::repeated(
                             current.bytes,
                             format!(
-                                "{name} collection growth over {} repetitions",
+                                "{name} value growth over {} repetitions",
                                 growth.repetitions
                             ),
                             growth.repetitions,
@@ -283,9 +286,27 @@ impl<'a> OutputEstimator<'a> {
                             value: Expr::Variable(binding.clone()),
                         },
                     );
+                    let coupled = self.coupled_widths(body, &nested, bound);
                     loops.push((binding.clone(), domain.clone()));
                     self.statements(body, &mut nested, nested_calls, nested_iteration, loops);
                     loops.pop();
+                    let mut widened = false;
+                    for (name, bytes) in coupled {
+                        if let Some(value) = nested.get_mut(&name) {
+                            if bytes > value.bytes {
+                                value.bytes = bytes;
+                                value.table = None;
+                                value.shape = ByteShape::leaf(bytes, format!("{name}: coupled loop recurrence over {bound} iterations"));
+                                widened = true;
+                            }
+                        }
+                    }
+                    if widened {
+                        let mut peak = nested.clone();
+                        self.statements(body, &mut peak, calls, nested_iteration, loops);
+                        self.retained_bytes = self.retained_bytes.max(peak.values().fold(0u64, |sum, value| sum.saturating_add(value.bytes)));
+                        Self::merge_variables(&mut nested, peak);
+                    }
                     nested.remove(binding);
                     Self::merge_variables(variables, nested);
                 }
@@ -313,7 +334,7 @@ impl<'a> OutputEstimator<'a> {
         }
     }
 
-    fn domain(&self, domain: &LoopDomain, variables: &BTreeMap<String, OutputBound>) -> (u64, u64) {
+    pub(super) fn domain(&self, domain: &LoopDomain, variables: &BTreeMap<String, OutputBound>) -> (u64, u64) {
         match domain {
             LoopDomain::Page(scan) => (scan.take.maximum(), self.row(&scan.table)),
             LoopDomain::LiteralRange {

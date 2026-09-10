@@ -699,6 +699,45 @@ pub(crate) fn disjoint_merge(schema: &Schema, merge: &Merge) -> bool {
     true
 }
 
+/// Tables whose `Update` patches may write a column a derived index reads. A patch
+/// that is not a field literal is taken to write every column.
+fn update_targets_writing_derived_components(schema: &Schema, body: &[Stmt]) -> BTreeSet<String> {
+    let mut tables = BTreeSet::new();
+    for stmt in body {
+        match stmt {
+            Stmt::Update { table, patch, .. } => {
+                let Some(t) = schema.table(table) else { continue };
+                let written: Option<BTreeSet<&str>> = match patch {
+                    Expr::Object(fields) => Some(fields.keys().map(String::as_str).collect()),
+                    Expr::Literal(Value::Row(fields) | Value::Map(fields)) => {
+                        Some(fields.keys().map(String::as_str).collect())
+                    }
+                    _ => None,
+                };
+                let writes = |column: &str| written.as_ref().is_none_or(|w| w.contains(column));
+                let touches = t.indexes.values().filter(|i| i.derived_offset().is_some()).any(|i| {
+                    i.components.iter().any(|c| match c {
+                        IndexComponent::Column(column) => writes(column),
+                        IndexComponent::WordPrefixes { fields, .. } => fields.iter().any(|f| writes(f)),
+                    })
+                });
+                if touches {
+                    tables.insert(table.clone());
+                }
+            }
+            Stmt::If { then_body, else_body, .. } => {
+                tables.extend(update_targets_writing_derived_components(schema, then_body));
+                tables.extend(update_targets_writing_derived_components(schema, else_body));
+            }
+            Stmt::For { body, .. } => {
+                tables.extend(update_targets_writing_derived_components(schema, body));
+            }
+            _ => {}
+        }
+    }
+    tables
+}
+
 pub(super) fn derivation_bound(
     schema: &Schema,
     program: &Program,
@@ -709,7 +748,12 @@ pub(super) fn derivation_bound(
     use crate::engine::search_index::{Derivation, table_write_bound};
     let audit = audit(schema, program);
     let mut out = crate::engine::search_index::Derivation::default();
+    let derived_updates = update_targets_writing_derived_components(schema, &program.body);
     for w in writes {
+        // @ref LLP 1020#a7-two-reproductions-before-any-ruling — an update is charged derivation only when a patch names a derived component; the engine keeps the postings otherwise.
+        if w.kind == WriteKind::Update && !derived_updates.contains(&w.table) {
+            continue;
+        }
         if let Some(t) = schema.table(&w.table) {
             let mut b = table_write_bound(
                 schema,

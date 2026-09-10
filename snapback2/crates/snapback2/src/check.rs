@@ -839,3 +839,98 @@ fn check_hangs_wrapped_candidate_index_repairs_under_the_rewrite() {
     assert_eq!(joined, format!("rewrite: {rewrite}"));
     assert!(printed.lines().all(|line| line.chars().count() <= 100));
 }
+
+// @ref LLP 1020#a4-check---cost — diagnostic certificates never enter the build cache or grant admission.
+pub fn run_cost_project(root: &Path, selected: Option<&str>, json: bool) -> ExitCode {
+    let lowered = project::CompilerWorker::spawn()
+        .map_err(|error| vec![error])
+        .and_then(|mut worker| worker.lower_source(root, None));
+    let (project, source) = match lowered {
+        Ok(value) => value,
+        Err(errors) => {
+            for error in errors {
+                if json { println!("{}", serde_json::to_string(&error).unwrap()); }
+                else { print!("{}", format_diagnostic(&error.code, error.site.as_deref(), &error.message, error.rewrite.as_deref())); }
+            }
+            return ExitCode::from(1);
+        }
+    };
+    let ceilings = Ceilings::default();
+    let request: Request = serde_json::from_value(serde_json::to_value(&project).unwrap()).unwrap();
+    let mut results = check_request(request);
+    let refused = results.iter().any(|item| item.error.is_some());
+    if let Some(name) = selected {
+        let matches: Vec<_> = project.programs.iter().filter(|p| p.name == name || p.name.rsplit('.').next() == Some(name)).collect();
+        if matches.len() != 1 {
+            return crate::owner::print_refusal(crate::protocol::Refusal::input(
+                format!("cost operation {name} is unknown or ambiguous"),
+                format!("use one of {}", project.programs.iter().map(|p| p.name.as_str()).collect::<Vec<_>>().join(", ")),
+            ), json, 2);
+        }
+        results.retain(|item| item.program == matches[0].name || item.program == "<schema>");
+    }
+    let checker = snapback2_core::Checker::new(&project.schema, ceilings.clone());
+    let schema_valid = validate_schema(&project.schema).is_ok();
+    let mut reports = Vec::new();
+    let mut seen = BTreeSet::new();
+    for item in &results {
+        if !seen.insert(item.program.clone()) { continue; }
+        let Some(program) = project.programs.iter().find(|p| p.name == item.program) else { continue; };
+        let certificate = item.certificate.clone().or_else(|| schema_valid.then(|| checker.inspect(program).certificate).flatten());
+        let errors: Vec<_> = results.iter().filter(|r| r.program == item.program).filter_map(|r| r.error.as_ref()).collect();
+        if !json {
+            println!("{} ({:?}) — {}", program.name, program.kind, if errors.is_empty() { "admitted" } else { "refused; partial certificate" });
+            if let Some(certificate) = &certificate {
+                print_cost(certificate, &source.sources, &ceilings);
+            } else { println!("  priced plan unavailable: program could not be analyzed"); }
+            for error in &errors { print!("{}", format_diagnostic(&error.code, Some(&error.site), &error.message, Some(&error.rewrite))); }
+        }
+        reports.push(serde_json::json!({"program": program.name, "kind": program.kind,
+            "admitted": errors.is_empty(), "certificate": certificate, "errors": errors}));
+    }
+    if json { println!("{}", serde_json::json!({"ok": !refused, "ceilings": ceilings, "results": reports, "sources": source.sources,
+        "schemaErrors": results.iter().filter(|r| r.program == "<schema>").collect::<Vec<_>>() })); }
+    else {
+        for item in results.iter().filter(|r| r.program == "<schema>") {
+            if let Some(error) = &item.error { print!("{}", format_diagnostic(&error.code, Some(&error.site), &error.message, Some(&error.rewrite))); }
+        }
+    }
+    if refused { ExitCode::from(1) } else { ExitCode::SUCCESS }
+}
+
+fn print_cost(certificate: &Certificate, sources: &BTreeMap<String, project::SourceSite>, ceilings: &Ceilings) {
+    if let Some(job) = &certificate.job {
+        for (n, chunk) in job.per_chunk.iter().enumerate() {
+            println!("  chunk {} (one commit; total chunks unbounded)", n + 1);
+            print_cost(chunk, sources, ceilings);
+        }
+        return;
+    }
+    const METERS: [&str; 8] = ["examined entries", "index entries", "rule probes", "steps", "heap bytes", "output bytes", "closure bytes", "write rows"];
+    println!("  source / term\texamined\tindex\tprobes\tsteps\theap\toutput\tclosure\twrites");
+    // One row per (source line, term): a term priced on several meters, or repeated per
+    // lowered statement of one authored line, reads as one line with its meters filled in.
+    let mut rows: Vec<(String, String, [Option<i128>; 8])> = Vec::new();
+    for term in &certificate.cost_terms {
+        let source = term.site.as_deref().and_then(|id| sources.get(id))
+            .or_else(|| sources.iter().filter(|(id, _)| term.source.contains(id.as_str())).max_by_key(|(id, _)| id.len()).map(|(_, source)| source))
+            .or_else(|| sources.get(&certificate.program));
+        let location = source.map(|s| s.r#use.as_deref().unwrap_or(s));
+        let location = location.map(|s| format!("{}:{}", s.file, s.line)).unwrap_or_else(|| term.site.clone().unwrap_or_else(|| certificate.program.clone()));
+        let Some(column) = METERS.iter().position(|meter| *meter == term.meter) else { continue };
+        let row = match rows.iter_mut().find(|(at, source, _)| *at == location && *source == term.source) {
+            Some(row) => row,
+            None => { rows.push((location, term.source.clone(), [None; 8])); rows.last_mut().expect("pushed row") }
+        };
+        row.2[column] = Some(row.2[column].unwrap_or(0) + term.value);
+    }
+    for (location, source, cells) in rows {
+        let cells = cells.map(|cell| cell.map_or_else(|| "·".to_owned(), |value| value.to_string()));
+        println!("  {location} {source}\t{}", cells.join("\t"));
+    }
+    let writes = certificate.write_sites.iter().fold(certificate.maintained_amplification, |n, w| n.saturating_add(w.max_rows));
+    println!("total\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}", certificate.max_examined, certificate.max_index_entries,
+        certificate.max_rule_probes, certificate.max_steps, certificate.max_heap_bytes, certificate.max_output_bytes, certificate.max_closure_bytes, writes);
+    println!("ceilings\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}", ceilings.examined, ceilings.index_entries, ceilings.rule_probes, ceilings.steps,
+        ceilings.heap_bytes, ceilings.output_bytes, ceilings.closure_bytes, ceilings.write_rows);
+}
