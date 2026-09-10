@@ -257,7 +257,9 @@ pub enum Action {
     Fork {
         path: PathBuf,
     },
-    Reset,
+    Reset {
+        empty: bool,
+    },
     // The periodic sweep reclaims in place; this variant is the owner's
     // on-demand reclamation entry point and is exercised by tests.
     #[allow(dead_code)]
@@ -769,7 +771,7 @@ impl State {
                     .map_err(|error| Refusal::from_runtime(&error))?;
                 Ok(json!({ "ok": true, "path": path }))
             }
-            Action::Reset => self.reset(),
+            Action::Reset { empty } => self.reset(empty),
             Action::ReclaimAssets => self.reclaim_assets(),
             Action::ListUploads { identity, after } => self.list_uploads(identity, &after),
             Action::DiscardUpload { identity, id } => self.discard_upload(identity, &id),
@@ -863,6 +865,9 @@ impl State {
             }
             Action::EffectsNow => Ok(json!({ "now": self.now() })),
             Action::OutboxClaim { now } => {
+                if self.stop.load(AtomicOrdering::SeqCst) {
+                    return Ok(Json::Null);
+                }
                 let root = self.root.clone();
                 crate::effects::claim_outbox(self.runtime(), &root, now)
             }

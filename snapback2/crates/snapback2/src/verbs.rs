@@ -22,7 +22,7 @@ pub(crate) const TOP_HELP: &str = "usage: snapback2 <command> [options]
   data <table>       Page through rows with --as <persona|system>
   logs               Read the owner's logs
   persona list       List development personas
-  reset              Clear application data and reapply the seed
+  reset [--empty]    Clear data and reapply seed; --empty skips seed
   guide [topic]      Read grammar, recipes, symbols, or refusal recovery
   doctor             Check the installed toolchain
   version            Print the version
@@ -108,7 +108,7 @@ Execute through the owner. --plan inspects; --wait streams chunk receipts;
             "usage: snapback2 persona list [--project dir] [--json]\n\nList development personas. First use creates a persona; read snapback2 guide personas."
         }
         "reset" => {
-            "usage: snapback2 reset [--project dir] [--json]\n\nClear application data and jobs, then reapply the seed through the owner."
+            "usage: snapback2 reset [--empty] [--project dir] [--json]\n\nClear application data, jobs and timers; report seed row/persona counts. --empty skips the seed and stays empty after restart; identities and sessions remain."
         }
         "guide" => {
             "usage: snapback2 guide [grammar|init|dev|check|app|<keyword>|<symbol>|<E_CODE>|<recipe>] [--project dir] [--json]\n\nRead installed help; app reads the checked build cache. Default: grammar."
@@ -265,14 +265,19 @@ pub fn persona(args: &[String]) -> ExitCode {
 }
 
 pub fn reset(args: &[String]) -> ExitCode {
-    let options = match parse_options(args, &["--project"], &["--json"]) {
+    let options = match parse_options(args, &["--project"], &["--json", "--empty"]) {
         Ok(options) => options,
         Err(code) => return code,
     };
     if options.positionals().len() != 1 {
-        return usage("usage: snapback2 reset [--json]");
+        return usage("usage: snapback2 reset [--empty] [--json]");
     }
-    control(&options, "POST", "/control/reset", json!({}))
+    control(
+        &options,
+        "POST",
+        "/control/reset",
+        json!({"empty":options.has("--empty")}),
+    )
 }
 
 fn control(options: &ParsedOptions<'_>, method: &str, path: &str, body: Json) -> ExitCode {
@@ -297,6 +302,14 @@ pub(crate) fn attached(
 pub(crate) fn print_response(status: u16, body: Json, json_output: bool) -> ExitCode {
     if json_output {
         println!("{}", serde_json::to_string(&body).unwrap_or_default());
+    } else if body.get("seed").is_some() && body.get("assetIds").is_some() && status < 400 {
+        let seed = &body["seed"];
+        let summary = if seed == "skipped" {
+            "skipped".to_owned()
+        } else {
+            format!("{} rows, {} personas", seed["rows"], seed["personas"])
+        };
+        println!("reset: cleared application data; seed: {summary}");
     } else {
         println!(
             "{}",

@@ -432,3 +432,5 @@ evidence, never as a prerequisite for obtaining it.
 ## Implementation record
 
 - 2026-09-10 — commissioned; lanes and landings are appended here as each lands (the orchestrator, program `~/projects/snapback-ri-20260910/plan.md`).
+
+- 2026-09-10 — traps: §6 F6a/F6b (transactional unused-argument discard, reset accounting/`--empty`, fixture handles) and §5 runner/owner shutdown (per-claim stop fence, budget + 1 s bounded join and detach log); tests: quota/replay/grace, seven-photo rollback/restart/cleanup, seeded/empty reset with schedules and sessions, real `alice` signup/`charlie` onboarding, stop-during-drain/detach, and Hermes `dev --stop` owner-process exit.

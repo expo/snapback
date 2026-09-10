@@ -416,3 +416,240 @@ fn reclaiming_a_released_identity_resets_grace_without_forgetting_once_history()
     assert!(runtime.store().asset(&id).unwrap().is_none());
     assert!(!runtime.store().asset_viewed(&id, "alice").unwrap());
 }
+
+#[test]
+fn seven_retried_photo_sends_discard_both_charges_at_commit() {
+    let mut retry = insert_program("photo", ArgType::Image { max: 50_000_000 });
+    retry.name = "media.retry".into();
+    retry.body = vec![Stmt::Return(var("rowId"))];
+    let schema = schema_with(table_with(
+        "photo",
+        ColumnType::Image {
+            max: 50_000_000,
+            once: false,
+        },
+    ));
+    let generation = generation(
+        schema,
+        vec![
+            insert_program("photo", ArgType::Image { max: 50_000_000 }),
+            retry,
+        ],
+    );
+    let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
+    let alice = user("alice");
+    let original = image(&mut runtime, &alice, 50_000_000, 1, 1);
+    claim(&mut runtime, &alice, "same-message", original.clone(), 1);
+    for attempt in 2..=7 {
+        let photo = image(&mut runtime, &alice, 50_000_000, 1, 1);
+        assert_committed(
+            &runtime
+                .execute(
+                    "media.retry",
+                    Context::mutation(alice.clone(), args("same-message", photo)),
+                )
+                .unwrap(),
+        );
+        eprintln!(
+            "photo send {attempt}: {:?}",
+            runtime.asset_staging_usage(&alice).unwrap().creator
+        );
+    }
+    assert_eq!(
+        runtime.asset_staging_usage(&alice).unwrap().creator,
+        AssetStagingUsage::default()
+    );
+    assert!(
+        runtime
+            .store()
+            .asset(&asset_id(&original))
+            .unwrap()
+            .unwrap()
+            .locator
+            .is_some()
+    );
+}
+
+#[test]
+fn discard_is_scoped_to_validated_typed_arguments_and_offline_commit() {
+    let mut retry = insert_program("photo", ArgType::Image { max: 1_000 });
+    retry.name = "media.retry".into();
+    retry.body = vec![Stmt::Return(var("rowId"))];
+    let mut untyped = retry.clone();
+    untyped.name = "media.untyped".into();
+    untyped
+        .args
+        .insert("asset".into(), ArgType::Json { max_bytes: 1024 });
+    let project_generation = generation(
+        schema_with(table_with(
+            "photo",
+            ColumnType::Image {
+                max: 1_000,
+                once: false,
+            },
+        )),
+        vec![retry, untyped],
+    );
+    let mut runtime = Runtime::open(Store::memory().unwrap(), project_generation).unwrap();
+    let alice = user("alice");
+    let bob = user("bob");
+    let unrelated = image(&mut runtime, &alice, 3, 1, 1);
+    let foreign = image(&mut runtime, &bob, 5, 1, 1);
+    let photo = image(&mut runtime, &alice, 7, 1, 1);
+    let refused = runtime
+        .execute(
+            "media.retry",
+            Context::mutation(alice.clone(), args("same", foreign.clone())),
+        )
+        .unwrap();
+    assert_state(refused, "E_ASSET_TYPE");
+    assert_committed(
+        &runtime
+            .execute(
+                "media.untyped",
+                Context::mutation(alice.clone(), args("same", photo.clone())),
+            )
+            .unwrap(),
+    );
+    assert_eq!(
+        runtime.asset_staging_usage(&alice).unwrap().creator,
+        AssetStagingUsage {
+            objects: 2,
+            bytes: 10
+        }
+    );
+    let mut replay = snapback2_core::offline::ReplayCommit {
+        grant: "grant-discard".into(),
+        offset: 0,
+        count: 1,
+        intent: "grant-discard:0".into(),
+        request_digest: "d".repeat(64),
+        at: 1,
+        trace: snapback2_core::offline::ReplayTrace {
+            points: vec![snapback2_core::offline::ReplayTracePoint {
+                table: "media".into(),
+                index: "byId".into(),
+                key: vec![Value::Id("same".into())],
+                digest: Some("e".repeat(64)),
+            }],
+            verdicts: vec![],
+        },
+    };
+    let conflict = runtime
+        .execute_replay(
+            "media.retry",
+            Context::mutation(alice.clone(), args("same", photo.clone())),
+            &replay,
+        )
+        .unwrap();
+    assert_state(conflict, "conflict");
+    assert!(
+        !runtime
+            .store()
+            .asset(&asset_id(&photo))
+            .unwrap()
+            .unwrap()
+            .reclaiming
+    );
+    assert_eq!(
+        runtime.asset_staging_usage(&alice).unwrap().creator,
+        AssetStagingUsage {
+            objects: 2,
+            bytes: 10
+        }
+    );
+    replay.trace = Default::default();
+    replay.offset = 1;
+    replay.intent = "grant-discard:1".into();
+    assert_committed(
+        &runtime
+            .execute_replay(
+                "media.retry",
+                Context::mutation(alice.clone(), args("same", photo.clone())),
+                &replay,
+            )
+            .unwrap(),
+    );
+    assert!(
+        runtime
+            .store()
+            .asset(&asset_id(&photo))
+            .unwrap()
+            .unwrap()
+            .reclaiming
+    );
+    assert!(
+        !runtime
+            .store()
+            .asset(&asset_id(&unrelated))
+            .unwrap()
+            .unwrap()
+            .reclaiming
+    );
+    assert!(
+        !runtime
+            .store()
+            .asset(&asset_id(&foreign))
+            .unwrap()
+            .unwrap()
+            .reclaiming
+    );
+    assert_eq!(
+        runtime.asset_staging_usage(&alice).unwrap().creator,
+        AssetStagingUsage {
+            objects: 1,
+            bytes: 3
+        }
+    );
+    assert_eq!(
+        runtime.asset_staging_usage(&bob).unwrap().creator,
+        AssetStagingUsage {
+            objects: 1,
+            bytes: 5
+        }
+    );
+}
+
+#[test]
+fn an_already_attached_argument_uses_ordinary_release_grace() {
+    let mut remove = delete_program();
+    remove
+        .args
+        .insert("asset".into(), ArgType::Image { max: 1_000 });
+    let project_generation = generation(
+        schema_with(table_with(
+            "photo",
+            ColumnType::Image {
+                max: 1_000,
+                once: false,
+            },
+        )),
+        vec![
+            insert_program("photo", ArgType::Image { max: 1_000 }),
+            remove,
+        ],
+    );
+    let mut runtime = Runtime::open(Store::memory().unwrap(), project_generation).unwrap();
+    let alice = user("alice");
+    let photo = image(&mut runtime, &alice, 7, 1, 1);
+    claim(&mut runtime, &alice, "kept", photo.clone(), 1);
+    let mut context = Context::mutation(alice.clone(), args("kept", photo.clone()));
+    context.now = Some(2);
+    assert_committed(&runtime.execute("media.delete", context).unwrap());
+    let row = runtime.store().asset(&asset_id(&photo)).unwrap().unwrap();
+    assert!(!row.reclaiming);
+    assert_eq!(row.released_at, Some(2));
+    assert_eq!(
+        runtime.asset_staging_usage(&alice).unwrap().creator,
+        AssetStagingUsage {
+            objects: 0,
+            bytes: 7
+        }
+    );
+    assert!(
+        runtime
+            .reclaim_assets(2 + ASSET_RECLAIM_GRACE_MS - 1)
+            .unwrap()
+            .is_empty()
+    );
+}

@@ -11,14 +11,15 @@ use snapback2_effects::{
     EffectDeclarations, EffectLog, OutboxAccess, OutboxError, OutboxSettlement, PendingThen,
     Runner, ThenOutcome,
 };
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc::{Receiver, RecvTimeoutError, SyncSender, sync_channel};
-use std::sync::{Arc, atomic};
+use std::sync::{Arc, Mutex, atomic};
 use std::thread::{self, JoinHandle};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 struct WriterAccess {
     handle: OwnerHandle,
+    running: Arc<Mutex<Vec<String>>>,
 }
 
 impl WriterAccess {
@@ -65,6 +66,9 @@ impl OutboxAccess for WriterAccess {
         now: i64,
     ) -> Result<Option<snapback2_effects::EffectJob>, OutboxError> {
         let row: Option<OutboxRow> = decode(self.handle.call(Action::OutboxClaim { now }))?;
+        if let Some(row) = &row {
+            *self.running.lock().unwrap_or_else(|e| e.into_inner()) = vec![row.id.clone()];
+        }
         Ok(row.map(|row| snapback2_effects::EffectJob {
             id: row.id,
             effect: row.effect,
@@ -118,8 +122,12 @@ impl OutboxAccess for WriterAccess {
                 last_error,
                 next_at,
             })
-            .map(|_| ())
-            .map_err(outbox_error)
+            .map_err(outbox_error)?;
+        self.running
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .retain(|running| running != id);
+        Ok(())
     }
 
     fn pending_then(&mut self, limit: usize) -> Result<Vec<PendingThen>, OutboxError> {
@@ -260,6 +268,9 @@ pub struct EffectsStatus {
     wake: SyncSender<()>,
     stop: Arc<atomic::AtomicBool>,
     thread: Option<JoinHandle<()>>,
+    root: PathBuf,
+    running: Arc<Mutex<Vec<String>>>,
+    budget: Duration,
 }
 
 impl Drop for EffectsStatus {
@@ -267,14 +278,34 @@ impl Drop for EffectsStatus {
         self.stop.store(true, atomic::Ordering::SeqCst);
         let _ = self.wake.try_send(());
         if let Some(thread) = self.thread.take() {
-            let _ = thread.join();
+            // @ref LLP 1021#5-a-running-effect-can-be-stopped — detachment reports uncertainty; only the host deadline stops execution.
+            let deadline = Instant::now() + self.budget + Duration::from_secs(1);
+            while !thread.is_finished() && Instant::now() < deadline {
+                thread::sleep(
+                    Duration::from_millis(5)
+                        .min(deadline.saturating_duration_since(Instant::now())),
+                );
+            }
+            if thread.is_finished() {
+                let _ = thread.join();
+            } else {
+                let running = self
+                    .running
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .clone();
+                crate::watch::log(
+                    &self.root,
+                    json!({"outbox":{"engine":"detached", "running":running}}),
+                );
+            }
         }
     }
 }
 
-pub fn spawn(handle: OwnerHandle) -> EffectsStatus {
+pub fn spawn(handle: OwnerHandle, root: &Path, stop: Arc<atomic::AtomicBool>) -> EffectsStatus {
     let (wake, receiver) = sync_channel(1);
-    let stop = Arc::new(atomic::AtomicBool::new(false));
+    let running = Arc::new(Mutex::new(Vec::new()));
     handle
         .call(Action::InstallEffectsWake { wake: wake.clone() })
         .expect("effects runner must install its writer wake channel");
@@ -282,24 +313,33 @@ pub fn spawn(handle: OwnerHandle) -> EffectsStatus {
         .name("snapback2-effects".to_owned())
         .spawn({
             let stop = stop.clone();
-            move || run(handle, receiver, stop)
+            let running = running.clone();
+            move || run(handle, receiver, stop, running)
         })
         .expect("effects runner thread must start");
     EffectsStatus {
         wake,
         stop,
         thread: Some(thread),
+        root: root.to_owned(),
+        running,
+        budget: snapback2_effects::DEFAULT_BUDGET,
     }
 }
 
-fn run(handle: OwnerHandle, receiver: Receiver<()>, stop: Arc<atomic::AtomicBool>) {
+fn run(
+    handle: OwnerHandle,
+    receiver: Receiver<()>,
+    stop: Arc<atomic::AtomicBool>,
+    running: Arc<Mutex<Vec<String>>>,
+) {
     #[cfg(feature = "hermes")]
     let runner = Runner::new(
         snapback2_effects::Ibex2Host::new().expect("Hermes effect host must initialize"),
     );
     #[cfg(not(feature = "hermes"))]
     let runner = Runner::new(snapback2_effects::NoEngine);
-    run_with(runner, WriterAccess { handle }, receiver, stop);
+    run_with(runner, WriterAccess { handle, running }, receiver, stop);
 }
 
 fn run_with<H: snapback2_effects::EffectHost, A: RunnerAccess>(
@@ -308,6 +348,7 @@ fn run_with<H: snapback2_effects::EffectHost, A: RunnerAccess>(
     receiver: Receiver<()>,
     stop: Arc<atomic::AtomicBool>,
 ) {
+    runner.set_stop_flag(stop.clone());
     let mut initialized = false;
     loop {
         if stop.load(atomic::Ordering::SeqCst) {
@@ -430,6 +471,45 @@ mod tests {
         ) -> Result<ThenOutcome, OutboxError> {
             unreachable!("there are no pending rows")
         }
+    }
+
+    #[test]
+    fn shutdown_detaches_with_a_durable_running_id_after_budget_plus_one_second() {
+        let root = std::env::temp_dir().join(format!(
+            "snapback2-detach-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(root.join(".snapback")).unwrap();
+        let (release, wait) = std::sync::mpsc::channel::<()>();
+        let (wake, _) = sync_channel(1);
+        let stop = Arc::new(atomic::AtomicBool::new(false));
+        let budget = Duration::from_millis(25);
+        let started = Instant::now();
+        drop(EffectsStatus {
+            wake,
+            stop: stop.clone(),
+            root: root.clone(),
+            budget,
+            running: Arc::new(Mutex::new(vec!["running-1".into()])),
+            thread: Some(thread::spawn(move || {
+                let _ = wait.recv();
+            })),
+        });
+        assert!(stop.load(atomic::Ordering::SeqCst));
+        assert!(started.elapsed() >= budget + Duration::from_secs(1));
+        assert!(started.elapsed() < budget + Duration::from_millis(1_200));
+        let log = std::fs::read_to_string(root.join(".snapback/log.jsonl")).unwrap();
+        let line: Json = serde_json::from_str(log.trim()).unwrap();
+        assert_eq!(
+            line["outbox"],
+            json!({"engine":"detached","running":["running-1"]})
+        );
+        release.send(()).unwrap();
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

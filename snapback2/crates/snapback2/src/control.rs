@@ -156,7 +156,9 @@ pub fn route(
                 )),
             }
         }
-        ("POST", "/control/reset") => call(Action::Reset),
+        ("POST", "/control/reset") => call(Action::Reset {
+            empty: body.get("empty").and_then(Json::as_bool).unwrap_or(false),
+        }),
         ("POST", "/control/fork") => {
             let name = body.get("name").and_then(Json::as_str).unwrap_or_default();
             if valid_name(name) {
