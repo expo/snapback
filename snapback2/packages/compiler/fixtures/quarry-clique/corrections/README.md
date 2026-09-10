@@ -186,3 +186,37 @@ one executed attempt despite the injected post-commit 503. Raw
 `62091123eb969457e88c1a793b4891bd175b946fa4691e7780d4cc7a045238a8`.
 All ten named actual-effect cases have now passed; the earlier failures remain
 retained and are not included in a manufactured all-attempts-green claim.
+
+## Standalone follower-scale proof
+
+`follower-scale.mjs` and `follower-scale-runtime.mjs` retain a separate real-owner
+driver. Use a corrected **production** handoff, without `owner-inspection.patch`,
+and an output directory that does not yet exist:
+
+```sh
+node follower-scale.mjs \
+  --handoff /path/to/copied-corrected-app \
+  --generation dc188a4b0db4a9b3e062a52740af81834a109dfaf4a5143f380e47a07726fa94 \
+  --binary /path/to/current/snapback2 \
+  --compiler /path/to/current/dist/compiler.mjs \
+  --client /path/to/current/dist/client.mjs \
+  --work /path/to/new-proof-output
+```
+
+The handoff must already contain the matching generated project/certificates.
+The driver copies only its `snapback/` source into three fresh variants with
+empty `.snapback` directories. Generated principal rows are setup fixtures;
+follows themselves are created through the current headless client. Every
+variant's syntax, compiled generation, certificates and unchanged schema bounds
+are checked before any owner is launched. Keep the driver and its sibling helper
+together. Each child is owned by exact PID and its output is retained.
+
+The explicit 120-second setup budget is outside the measurement interval; it
+does not change a product cap or the existing five-second journey deadline.
+The timing arms each use three warm-ups and twenty measured post writes at
+five and nine hundred actual followers. The separate digest arm creates five
+hundred actual follows and checks activity at the last sorted follow edge in
+the source post's own period. That arm observes a durable digest row, not
+effect execution, so a no-JavaScript-engine owner cannot turn it into an
+external push-delivery claim. A successful final receipt is still required;
+source presence or a syntax check alone does not qualify these scale claims.
