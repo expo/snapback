@@ -158,3 +158,10 @@ PR. If nothing can come off, the answer is no.
 - 2026-09-08 — Ceiling history (superseded by the freeze above): 34,000 → 50,000 → 66,000 → 82,000 → 82,500 → 84,000 bytes gzip.
 - 2026-09-09 — Quarry `slice(text, start, end)` exposes the existing Unicode-scalar IR primitive; it unblocks one 80-character stored-and-emitted push preview without a new runtime feature, service, or dependency.
 - 2026-09-09 — Period `.periodStart`/`.periodEnd` bindings complete LLP 1016 D5's existing period-value contract; they unblock one cutoff across digest and prune sweeps without a new scheduler kind, service, state table, or dependency.
+- 2026-09-10 — **on:** `deliver` (LLP 1019 D1/D3): the grammar gains `deliver`, `to`, `as`,
+  `with`, `receipts`, `bootstrap`; unblocks engine-derived per-recipient custody — the
+  send-time audience, tombstones as events, receipts — without an authored log table or a
+  fan-out proc in every app. **off:** the `tombstones` declaration, which leaves the
+  grammar at the chat template's cutover to the derived log (LLP 1019 D6): until D2's
+  writes exist the shipped template's offline eviction rides on it, so that line is the
+  offset this move owes.

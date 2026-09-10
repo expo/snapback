@@ -23,6 +23,8 @@ mod export_corpus_constraints;
 mod merge_cases;
 #[path = "export_corpus/tombstone_cases.rs"]
 mod tombstone_cases;
+#[path = "export_corpus/delivery_cases.rs"]
+mod delivery_cases;
 #[path = "export_corpus/twin_cases.rs"]
 mod twin_cases;
 #[path = "export_corpus/visibility_cases.rs"]
@@ -137,6 +139,7 @@ fn main() {
     add_time_arithmetic_case(&mut cases);
     visibility_cases::add_visibility_cases(&mut cases);
     tombstone_cases::add_tombstone_case(&mut cases);
+    delivery_cases::add_delivery_cases(&mut cases);
     enriched_pages::add_enriched_page_case(&mut cases);
     cap_cases::add_cap_cases(&mut cases);
     bytes_cases::add_bytes_cases(&mut cases);
@@ -548,6 +551,7 @@ fn named_emit_case() -> CorpusCase {
                 constraints: Vec::new(),
                 retain: Default::default(),
                 tombstones: Vec::new(),
+                deliver: None,
             },
         )]),
         maintains: Vec::new(),

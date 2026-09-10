@@ -42,6 +42,7 @@ Fractional literals infer their exact decimal scale; `guide money` explains unit
 - `immutable`: `immutable columns` forbids changes.
 - `public`: `public ['reason']` declares public reads.
 - `retain`: `retain until-revoked|delivered-history` controls hidden-row custody; both policy words lex consistently everywhere.
+- `deliver`: `deliver to table[.keys] [by .principal] as name [with receipts] [bootstrap]` derives an engine-owned per-recipient log from a capped group.
 - `channel`: `channel name(args):` declares value, publish, subscribe and ttl.
 - `connected`: `exists connected[p]` tests live connections; `connected[p]` counts them (`p: principal`).
 - `schedule`: `schedule name on table at .column:` or `every Nm|Nh|Nd:`.

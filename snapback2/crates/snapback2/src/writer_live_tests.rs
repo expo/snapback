@@ -180,6 +180,13 @@ pub(super) fn state_from(
     }
 }
 
+/// An in-process writer over `project`, on a fresh in-memory store.
+pub(super) fn state_with(label: &str, project: ProjectJson) -> State {
+    let generation = Generation::certify(&project, Ceilings::default()).unwrap();
+    let runtime = Runtime::open(Store::memory().unwrap(), generation.clone()).unwrap();
+    state_from(label, project, generation, runtime)
+}
+
 fn subscribe(state: &mut State, op: &str, args: Json) -> (u64, SseReceiver) {
     let (events, receiver) = sse_queue();
     let response = state

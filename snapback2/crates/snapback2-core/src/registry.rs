@@ -295,6 +295,22 @@ impl Generation {
             }
         }
 
+        errors.extend(
+            crate::delivery::delivery_issues(&schema)
+                .into_iter()
+                .map(|issue| {
+                    (
+                        format!("schema.tables.{}.deliver", issue.table),
+                        CheckError {
+                            site: None,
+                            code: issue.code.to_owned(),
+                            message: issue.message,
+                            rewrite: issue.rewrite,
+                        },
+                    )
+                }),
+        );
+
         errors.extend(maintain_issues(&schema).into_iter().map(|issue| {
             (
                 format!("schema.maintains[{}]", issue.position),
@@ -579,6 +595,7 @@ impl Runtime {
                 {
                     return Err(refusal);
                 }
+                let now = unix_millis();
                 apply_additive(
                     &transaction,
                     &current,
@@ -586,9 +603,10 @@ impl Runtime {
                     hash,
                     generation_hash,
                     None,
+                    now,
                 )
                 .map_err(store_refusal)?;
-                persist_generation_transaction(&transaction, &generation, unix_millis())
+                persist_generation_transaction(&transaction, &generation, now)
                     .map_err(store_refusal)?;
                 transaction
                     .commit()
@@ -995,17 +1013,19 @@ impl Runtime {
             .conn
             .transaction()
             .map_err(|error| store_refusal(RuntimeError::Sql(error)))?;
-        let report = apply_additive(
+        let mut report = apply_additive(
             &transaction,
             &current,
             &next.schema,
             from,
             next.hash(),
             None,
+            now,
         )
         .map_err(store_refusal)?;
         crate::store_jobs::reconcile(&transaction, &next, true).map_err(store_refusal)?;
-        persist_generation_transaction(&transaction, &next, now).map_err(store_refusal)?;
+        report.audience_bounds =
+            persist_generation_transaction(&transaction, &next, now).map_err(store_refusal)?;
         transaction
             .commit()
             .map_err(|error| store_refusal(RuntimeError::Sql(error)))?;
@@ -1040,16 +1060,17 @@ impl Runtime {
         if let Some(refusal) = additive_refusal(&transaction, &reduced, &next.schema)? {
             return Err(RuntimeError::Successor(Box::new(refusal)));
         }
-        let report = apply_additive(
+        let mut report = apply_additive(
             &transaction,
             &reduced,
             &next.schema,
             from,
             next.hash(),
             Some(predecessor_maintain_ids),
+            released_at,
         )?;
         crate::store_jobs::reconcile(&transaction, &next, true)?;
-        persist_generation_transaction(&transaction, &next, released_at)?;
+        report.audience_bounds = persist_generation_transaction(&transaction, &next, released_at)?;
         transaction.commit()?;
         self.engine.set_schema(next.schema.clone())?;
         self.generation = next;
@@ -1160,11 +1181,13 @@ fn persist_generation(
 /// `now` is the clock a newly installed period timer is anchored to: the owner passes its own
 /// (dev-clock) sample through `apply_successor_at`; a fresh open uses wall time, which is the
 /// owner's clock at process start.
+/// Every installation path records each custody log's audience bound (LLP
+/// 1019 §4) and returns it for the successor report.
 fn persist_generation_transaction(
     transaction: &rusqlite::Transaction<'_>,
     generation: &Generation,
     now: i64,
-) -> Result<(), RuntimeError> {
+) -> Result<BTreeMap<String, u32>, RuntimeError> {
     let previous: Option<String> = transaction
         .query_row("SELECT value FROM _meta WHERE key='schema_json'", [], |r| {
             r.get(0)
@@ -1176,6 +1199,11 @@ fn persist_generation_transaction(
         .transpose()?
         .unwrap_or_default();
     crate::store_timers::reconcile(transaction, &previous, &generation.schema, now)?;
+    let audience_bounds = crate::successor::delivery::record_audience_bounds(
+        transaction,
+        &previous,
+        &generation.schema,
+    )?;
     let schema_json = serde_json::to_string(&generation.schema)
         .map_err(|error| RuntimeError::Serialization(error.to_string()))?;
     let effects_json = serde_json::to_string(&generation.effects)
@@ -1208,7 +1236,7 @@ fn persist_generation_transaction(
                 .map_err(|error| RuntimeError::Serialization(error.to_string()))?
         ],
     )?;
-    Ok(())
+    Ok(audience_bounds)
 }
 
 fn store_refusal(error: RuntimeError) -> SuccessorRefusal {
@@ -1375,6 +1403,7 @@ mod tests {
                     constraints: Vec::new(),
                     retain: Default::default(),
                     tombstones: Vec::new(),
+                    deliver: None,
                 },
             )]),
             ..Schema::default()

@@ -33,7 +33,9 @@ Authored `.ts` uses ES2020 types. The globals in `run` are exactly `Array, Array
 Other globals, DOM types, imports inside `run`, `require`, `eval`, and `Function`
 refuse. Captures must be module JSON constants, not imported helpers.
 `fetch` has text/JSON/arrayBuffer readers; `Response` has no constructor.
-Every redirect checks grants and strips cross-origin credentials.
+`grants` is an explicit origin list; `[]` grants no network access. Every fetch,
+including aliases and local helpers, checks grants before transport. Every
+redirect checks grants and strips cross-origin credentials.
 Both `meta` and `tools.meta` carry `id`, `effect`, and `attempt`.
 
 `dev` reports engine and queued count at boot (`effects` in JSON). Build an
@@ -72,6 +74,6 @@ transport reached — derived-check rows, earlier journeys' leftovers, and their
 retries included. Bindings belong to one journey; the supervisor revokes them
 when it ends, however it ends. `dev` has no binding route.
 
-The example origin is a placeholder. Locally, return `{ providerId: meta.id }`
-from `run`, retaining the required grant even without fetch. Restore a real
-provider before claiming delivery.
+The example origin is a placeholder. For a no-network body, use `grants: []`
+and return `{ providerId: meta.id }` from `run`. That proves local execution,
+not delivery; restore a real provider and its origin grant before claiming it.

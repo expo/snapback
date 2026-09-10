@@ -677,6 +677,7 @@ fn visibility_probe_case(
         constraints: Vec::new(),
         retain: Default::default(),
         tombstones: Vec::new(),
+        deliver: None,
     };
     let relationships = Table {
         columns: BTreeMap::from([
@@ -716,6 +717,7 @@ fn visibility_probe_case(
         constraints: Vec::new(),
         retain: Default::default(),
         tombstones: Vec::new(),
+        deliver: None,
     };
     let schema = Schema {
         schedules: Vec::new(),
@@ -1384,10 +1386,12 @@ fn every_frozen_corpus_case_replays_its_certification_outcome() {
     // coverage remains in the retained cases. Composite continuation adds 13
     // range/merge/alias/ambiguity witnesses. Maintained values add five
     // same-mutation/group-visibility witnesses. Guarded writes add five
-    // creation/collision/conditional witnesses: 250 evaluator + 25 server-only.
+    // creation/collision/conditional witnesses. The deliver declaration adds
+    // its schema-identity golden and one owned-write refusal (LLP 1019 D1):
+    // 251 evaluator + 26 server-only.
     assert_eq!(
         cases.len(),
-        275,
+        277,
         "the complete frozen corpus must be checked"
     );
     assert!(
