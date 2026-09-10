@@ -220,3 +220,14 @@ the source post's own period. That arm observes a durable digest row, not
 effect execution, so a no-JavaScript-engine owner cannot turn it into an
 external push-delivery claim. A successful final receipt is still required;
 source presence or a syntax check alone does not qualify these scale claims.
+
+Root's final EPYC receipt now passes: three warm-ups and twenty measured writes
+per arm give p95 13.216021 ms at five followers and 11.655974 ms at nine hundred,
+a 0.881958 ratio against the 3× ceiling. The separate 500-follow account includes
+exactly one post from its last sorted follow edge in the matching source period.
+All owned processes exit normally. The receipt at
+`/home/ccheever/lanes/clique-20260909-recipe-proofs/run-root-final.oppWQ6/scale/follower-scale-receipt.json`
+has SHA-256 `ea144b7e000265715e4272ef07fa6fd599eae9ee2b0e5b33d1108ea3054129ce`;
+it binds actual setup, all samples, certificate sites, copied source, binary,
+client and process output. Earlier count-shape, oversized seed and typed-site
+assertion failures remain preserved rather than counted as product timings.
