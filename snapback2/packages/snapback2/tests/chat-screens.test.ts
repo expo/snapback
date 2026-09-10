@@ -1,4 +1,3 @@
-import { assertRefused } from "./live-fixture.ts";
 import { subscribe } from "../src/internal.js";
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
@@ -184,21 +183,20 @@ async function type(input: HTMLInputElement, value: string): Promise<void> {
   });
 }
 
-// @ref LLP 1012#7-writes-offline — a device with a store writes only under a
-// replay grant, which the inbox drain earns when it first reaches its watermark:
-// the composer is disabled with the reason until then, never retried blindly.
-test("the composer is disabled until the inbox drain catches up and the first grant exists, then enabled", async () => {
+// @ref LLP 1018.008.000#capacity-acquisition — a selected composer registers
+// demand; only the completed capacity flight enables sending. No drain or
+// manual Sync is required merely to acquire the first grant.
+test("the composer acquires its first grant from selected demand without an inbox drain or Sync click", async () => {
   const restore = installDom();
   const root = await mkdtemp(join(tmpdir(), "snapback2-screens-grant-"));
-  const owner = fakeOwner({ seed: true });
+  const owner = fakeOwner({ seed: true, meEpoch: 7 });
   let release!: () => void;
   const gate = new Promise<void>((resolve) => { release = resolve; });
   // This is a transport-order test for Composer rather than a query rendering
   // test. The actual Thread/container is covered in chat-screens-owner.test.ts;
   // keeping this fake narrowly avoids fabricating a composite certificate.
   const fetch = async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
-    const op = String(input).includes("/api/query") && init?.body ? JSON.parse(String(init.body)).op : undefined;
-    if (op === "messages.inbox") await gate;
+    if (new URL(String(input)).pathname === "/api/resume") await gate;
     return owner.fetch(input, init);
   };
   let client: any;
@@ -213,20 +211,17 @@ test("the composer is disabled until the inbox drain catches up and the first gr
         React.createElement(Composer, { conversationId: "conversation-1" }),
       ));
     });
-    const drain = subscribe(client, api.messages.inbox, { c: null }, () => undefined, { drain: true });
     const send = () => document.querySelector<HTMLButtonElement>("form[aria-label=Composer] button[type=submit]")!;
     await type(document.querySelector<HTMLInputElement>("form[aria-label=Composer] input")!, "a draft before downloading");
     assert.equal(send().disabled, true, "send is enabled before a grant exists");
     assert.match(text(document.querySelector("form[aria-label=Composer] small[data-waiting=grant-missing]")), /Connect to enable sending/);
-    assert.equal(owner.grantsMinted(), 0, "no grant was minted while the drain waited");
-    await assertRefused(client.mutation(api.messages.send, { conversationId: "conversation-1", body: "too early" }), (error: any) =>
-      error.code === "E_OFFLINE_ID_BLOCK" && /drain/.test(error.rewrite), "a write before the grant is refused with the rewrite the composer would surface");
+    assert.equal(owner.grantsMinted(), 0, "no grant was minted while capacity acquisition waited");
     release();
     await waitFor(() => !send().disabled, "the grant");
-    assert.equal(owner.grantsMinted(), 1, "the drain reaching its watermark minted the first grant");
+    assert.equal(owner.grantsMinted(), 1, "one selected-operation capacity request minted the first grant");
     assert.equal(document.querySelector("form[aria-label=Composer] small[data-waiting=grant-missing]"), null, "the reason left with the grant");
-    drain.close();
   } finally {
+    release();
     await act(async () => { reactRoot.unmount(); });
     await client?.close();
     restore();

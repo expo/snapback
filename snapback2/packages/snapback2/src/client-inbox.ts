@@ -41,6 +41,7 @@ export interface ClientInboxHost {
   subscribeLedger(listener: () => void): () => void;
   /** An admission created entries: replay them (respects forced-offline). */
   admitted(): void;
+  blocked?(op?: string): void;
 }
 
 interface FollowerRole {
@@ -81,7 +82,7 @@ export class ClientInbox {
   private pollTimer?: ReturnType<typeof setTimeout>;
   private unresponsiveTimer?: ReturnType<typeof setTimeout>;
   private unresponsive = false;
-  private admitting?: Promise<{ stopped?: string }>;
+  private admitting?: Promise<{ stopped?: string; op?: string }>;
   private admitAgain = false;
   private unsubscribeLedger?: () => void;
   private retryTimer?: ReturnType<typeof setTimeout>;
@@ -257,12 +258,12 @@ export class ClientInbox {
    * pass. Runs whether or not the follower marker is still set, so takeover
    * can admit inherited rows before its first resume (LLP 1018.004 §4).
    */
-  admit(): Promise<{ stopped?: string }> {
+  admit(): Promise<{ stopped?: string; op?: string }> {
     const runtime = this.host.runtime;
     if (!runtime || !runtime.principal || !runtime.coordinationScope) return Promise.resolve({});
     if (this.admitting) { this.admitAgain = true; return this.admitting; }
-    const run = (async (): Promise<{ stopped?: string }> => {
-      let last: { stopped?: string } = {};
+    const run = (async (): Promise<{ stopped?: string; op?: string }> => {
+      let last: { stopped?: string; op?: string } = {};
       do {
         this.admitAgain = false;
         const fence = this.host.fence(), principal = runtime.principal!;
@@ -274,7 +275,10 @@ export class ClientInbox {
         try { verdict = await runtime.admitInbox({ scope, custody }); }
         catch (error) { if (!this.host.closed()) this.host.failure(error, "client.inbox.admit"); }
         if (verdict.admitted > 0) this.host.admitted();
-        last = verdict.stopped === undefined ? {} : { stopped: verdict.stopped };
+        const op = verdict.stopped === undefined ? undefined
+          : runtime.inboxRows.find(row => row.kind === "mutation" && row.state === "queued" && row.admitted === undefined)?.op;
+        last = verdict.stopped === undefined ? {} : { stopped: verdict.stopped, op };
+        this.host.blocked?.(op);
         this.post({ protocol: PROTOCOL, type: "ledger", scope });
         if (this.writerScope === scope) await this.announce();
       } while (this.admitAgain && !this.host.closed());

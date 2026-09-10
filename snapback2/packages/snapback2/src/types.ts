@@ -326,6 +326,8 @@ export interface OutboxStatus {
   fence: "inside" | "past";
   /** The partition writer is actively replaying; a connected read cannot establish this. */
   draining?: true;
+  /** The account owner is actively acquiring capacity or reauthorizing replay. */
+  recovering?: true;
 }
 
 export interface OutboxApi {
