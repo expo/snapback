@@ -1,0 +1,54 @@
+diff --git a/lib/thread-view.tsx b/lib/thread-view.tsx
+--- a/lib/thread-view.tsx
++++ b/lib/thread-view.tsx
+@@ -120,6 +120,29 @@
+     return [{ id, body: args.body ?? "", pending: entry.state === "queued" }];
+   });
+ 
++  useEffect(() => {
++    const entries = outbox.entries.map((entry) => {
++      const target = messageCreateTargets[entry.op as keyof typeof messageCreateTargets];
++      const args = entry.args as { conversationId?: string; messageId?: string | null };
++      return {
++        op: entry.op,
++        state: entry.state,
++        idCount: entry.ids.length,
++        targetId: args.messageId ?? target?.id(entry) ?? null,
++        sameConversation: args.conversationId === conversationId,
++        projected: projectedMessages.some((message) => message.id === (args.messageId ?? target?.id(entry))),
++      };
++    });
++    const evidence = globalThis as {
++      __grokOutboxEvidence?: { entries: typeof entries; committedProjectedIds: string[] };
++    };
++    const committedProjectedIds = new Set(evidence.__grokOutboxEvidence?.committedProjectedIds ?? []);
++    for (const entry of entries) {
++      if (entry.state === "committed" && entry.projected && entry.targetId) committedProjectedIds.add(entry.targetId);
++    }
++    evidence.__grokOutboxEvidence = { entries, committedProjectedIds: [...committedProjectedIds] };
++  }, [conversationId, outbox.entries, projectedMessages]);
++
+   return (
+     <Screen
+       title={title}
+@@ -487,9 +510,19 @@
+   opts.setError(undefined);
+   if ([...opts.text].length > 2_000) {
+     opts.setError("Message must be 2,000 characters or fewer");
++    const proof = globalThis as { __grokSubmitEvidence?: { messageId: string | null; textLength: number; at: number }[] };
++    proof.__grokSubmitEvidence = [
++      ...(proof.__grokSubmitEvidence ?? []),
++      { messageId: null, textLength: opts.text.length, at: Date.now() },
++    ];
+     return;
+   }
+   const messageId = `clique-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 14)}`;
++  const proof = globalThis as { __grokSubmitEvidence?: { messageId: string; textLength: number; at: number }[] };
++  proof.__grokSubmitEvidence = [
++    ...(proof.__grokSubmitEvidence ?? []),
++    { messageId, textLength: opts.text.length, at: Date.now() },
++  ];
+   let result: { state: string; data?: { id?: string }; message?: string } | undefined;
+   if (opts.editId) {
+     const original = opts.items.find((r) => r.messageId === opts.editId)?.message?.body ?? "";
+

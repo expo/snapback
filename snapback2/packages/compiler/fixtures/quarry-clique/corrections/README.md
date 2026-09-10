@@ -4,15 +4,44 @@ These files reproduce the bounded 2026-09-09 Clique correction without the
 grader, credentials, generated output, database state, or provider settings.
 The benchmark evidence remains read-only.
 
-Apply the two independent application stages from the copied app root. Add the
-third, test-only stage only when running the retained owner cases:
+Apply the backend stages from the copied app root. Add the owner-inspection
+stage only when running the retained owner cases. The two frontend stages are
+independent of that test instrumentation and apply to the same copied root:
 
 ```sh
 patch -p1 < syntax-adapter.patch
 patch -p1 < grok-app.patch
+patch -p1 < grok-current-sdk-auth.patch
+patch -p1 < grok-sender-pending.patch
 patch -p1 < owner-inspection.patch
 cp owner-cases.test.ts snapback/tests/recipes.test.ts
 ```
+
+`grok-current-sdk-auth.patch` moves the copied published-app calls from the
+old flat `useAuth()` object to the current `session` and `actions` arms. Its
+SHA-256 is
+`0f154611149124959656f8bc8ffd4550fcea8078c5daf86953cd42cb93836d6e`.
+`grok-sender-pending.patch` removes the web document-capture submitter so the
+form and mobile composer are the only submit paths. It assigns one stable
+message id to each new text/media intent and renders exact same-conversation
+outbox rows while they are `queued` or `committed`, until the live query owns
+that id. The generated mutation target is used when it resolves; this copied
+app also supplies the id explicitly because this app's helper-shaped
+operations certify with ambiguous presentation targets. Oversize message text
+is rejected locally at the schema's 2,000-Unicode-scalar limit before outbox
+custody. The patch's SHA-256 is
+`30f9821f0faa975fa8082bb1c7bac3ffdddfb039a05350771a355ab572026d4e`.
+
+`grok-live-proof-instrumentation.patch` is browser-proof instrumentation, not
+application behavior. It exposes only operation/state, row-count, target-id,
+conversation-match, and projection facts; it never exposes credentials,
+tokens, or message text. Its SHA-256 is
+`9dfe9308d9489451fc0eb4f3004abc281cea6147ad4cf24d9631a37a05b64caf`.
+Applying all three frontend patches in order reproduced its retained source
+byte-for-byte. The production `app/` + `lib/` composite SHA-256 is
+`cd4cc21a3a5beed73a0e3d599cb8146e9ee2542630275bc739bc91c2f7027dd9`;
+the instrumented composite is
+`f1320645bd581575cb73815d8f4cb00e6d3509844267634b68e49efb42301f95`.
 
 `syntax-adapter.patch` is only the raw snapshot's mechanical move to current V2
 declaration spelling (`fn`/`maintain` colon headers, job parentheses, and inline
@@ -130,6 +159,40 @@ without widening lifetime receipt access.
 
 The local effect returns a deterministic result without `fetch`; no provider
 request was made.
+
+The final copied-web qualification used two fresh local-only accounts through
+the actual signup and profile UI, two independent Chromium contexts, the
+preserved 400 ms online bridge and `DeliveryWatcher`, and no operation filter.
+Signup returned a grant and no login or reload occurred, but three/four
+automatic `/api/resume` requests preceded the first profile write; this is a
+post-resume profile success, not an immediate-signup-grant claim. Six of six
+measured text sends each made one mutation request and produced one exact
+sender and recipient row. Exact sender-settled, sender-delivered and
+recipient-DOM p95 were 262.2 ms, 1,230.2 ms and 262.2 ms. One offline send rendered one
+queued exact-id row, replayed that same id once, remained visible through a
+committed-before-query interval, and settled/delivered once. An oversize input
+showed the local error with zero mutation requests and no pending row.
+
+The successful raw artifact is
+`grok-live-proof.mBoW5Q/evidence/grok-live-dm.final-019.json` (SHA-256
+`d176b5b8973d4e707ae45c445ddbeb2755ff0ca2be276b2ebbe26a42a5927c4c`).
+Its harness SHA-256 is
+`a3bcec228ce1c62707529b32efedc3a8283a808cd2eb5a19d09476d3dcc2874e`.
+Chromium 151.0.7922.34 and Node v25.9.0 ran against generation
+`dc188a4b0db4a9b3e062a52740af81834a109dfaf4a5143f380e47a07726fa94`,
+Hermes binary SHA-256
+`21d0bd8a270501fc79d916679e2ad9d82e6f2bdc8dc4d4cd5abdd79f849d6104`,
+and exact SDK dist composite SHA-256
+`539556108369957b57578a9cdc2fa18e9d430e530ccae81ac826500646ba5c96`.
+The owner was local port 51200 behind proof-only gateway 51203 and frontend
+51202; the browser, gateway and frontend were stopped after the run.
+
+Failed attempts remain evidence. In particular, attempt 017 proves that one
+oversize submit and one stable message id received two HTTP 400 requests about
+374 ms apart while the durable row remained queued as the online bridge
+retried. The final app avoids acquiring custody for this schema-known invalid
+input; it does not claim to resolve or discard the SDK's inherited
+malformed-400 queue classification.
 
 The same-period replay journey passed against the logical-cutoff build in
 3,721 ms with two schedule firings:

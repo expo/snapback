@@ -1907,3 +1907,32 @@ first twenty. The two remaining feeds are still being traced. Both copied apps
 also need a separately recorded flat-auth-to-session/actions compatibility
 bridge to use the current SDK; that version adjustment must not become a
 reload/login workaround for the signup first-write bug.
+
+## 2026-09-09 — copied Grok web qualification
+
+The final browser pass found two application-version seams after the backend
+recipe was already sound. The published copy expected a flat auth hook while
+the current SDK separates `session` and `actions`; a narrow copied-app bridge
+made the authored signup/profile flow runnable. Two fresh UI signups returned
+grants and wrote profiles without login or reload, although the preserved
+400 ms online bridge issued resume requests first. I therefore record this as
+post-resume success, not evidence that the UI consumed the signup grant
+immediately.
+
+The apparent send failure was local presentation duplication, not recipient
+loss. A document capture handler and the form handler both submitted, and a
+timestamp-keyed local pending list could outlive the authoritative row. Keeping one
+submit path, assigning the app's exact message id before custody, and rendering
+queued plus committed outbox rows until the query owns that id removed the
+phantom without hiding pending work. Six actual sends then produced one sender
+and one recipient bubble each; an offline intent stayed visible through replay
+and a committed-before-observed interval. A malformed 4,021-scalar attempt
+also showed why invalid input should be checked before custody here: one
+submit's durable intent remained queued across two same-id HTTP 400 attempts.
+The copied UI now enforces its schema-known 2,000-Unicode-scalar bound and
+surfaces an error without enqueueing. This is not a core outbox fix.
+
+All browser work used copied sources, fresh local identities, a local owner,
+and a deterministic no-fetch effect. The original benchmark lanes and provider
+stayed untouched. Exact and Contract were not used, and this entry makes no new
+competitor claim.
