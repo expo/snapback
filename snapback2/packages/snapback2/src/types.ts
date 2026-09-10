@@ -350,7 +350,9 @@ export interface OutboxApi {
   /**
    * Drops one settled entry. A queued intent is dismissed only when its last replay drew a
    * non-retryable `input`/`schema` refusal (see `OutboxStatus.blocked`); then the
-   * dismissal returns the intent's bytes and the FIFO behind it continues.
+   * dismissal returns the intent's bytes and the FIFO behind it continues. Starting
+   * another replay clears eligibility durably before sending; an unknown outcome
+   * cannot be dismissed. A follower awaits the writer's durable dismissal result.
    */
   dismiss(intent: string): Promise<DismissedIntent | undefined>;
   /** Observes the outbox; called with the current entries at once and after every change. */

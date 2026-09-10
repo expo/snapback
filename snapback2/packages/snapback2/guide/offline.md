@@ -56,9 +56,11 @@ periodic `online()` loop. Generic `useOutbox().can` cannot price a specific op.
 `outbox.observe(op?)` feeds hooks; `intentLabel` labels entries.
 Discharged successes compact automatically. Unresolved successes and failures
 remain dismissible. Queued work is dismissible only once the owner refused its
-replay as bad input or schema (a removed enum case; never a transport stop):
-`status.blocked` names that head intent, `dismiss` returns its bytes to
-re-author, and the FIFO continues. Older snapshots expose
+last replay as bad input or schema. Starting another replay durably clears that
+eligibility before sending; in-flight or unknown outcomes cannot be dismissed.
+`status.blocked` names the refused head; its label and item Dismiss action agree.
+`dismiss` returns its bytes to re-author and FIFO continues on either tab;
+a follower awaits the writer's durable result. Older snapshots expose
 `reason.code: "changed"` and `freshness.compactedThrough`; refresh their query.
 Committed does not mean shown: query `items` need the target's observation
 through commit. `arrived`/global sequence cannot substitute. Expose failures.

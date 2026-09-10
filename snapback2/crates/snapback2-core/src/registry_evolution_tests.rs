@@ -829,7 +829,7 @@ fn combined_unwrap_and_enum_removal_pastes_one_job_that_fills_and_deletes() {
         (1, 2, 0)
     );
     assert_eq!(check.removed_cases, ["c"]);
-    assert_eq!(check.sample, ["id-00", "id-01"]);
+    assert_eq!(check.sample, ["id-01"]);
     assert!(
         error.message.contains(
             "items.value removes cases [\"c\"]: 2 affected rows remain (1 null or absent)"
@@ -1016,7 +1016,7 @@ fn lowered_text_and_bytes_maxima_are_checked_narrowing() {
         assert_eq!(error.narrowings[0].oversize_rows, 1);
         assert_eq!(
             error.rewrite,
-            "-- keep the predecessor schema; this truncates every items.value to 10 characters.\n-- To drop those rows instead, replace the update with: delete items[p.id]\njob shrink_items_value():\n  chunk p in items first 100 by byId:\n    update items[p.id] { value: slice(p.value, 0, 10) }"
+            "-- keep the predecessor schema; this truncates every items.value to 10 characters.\n-- To delete only over-long rows, keep any null fill and replace truncation with:\n-- if p.value != slice(p.value, 0, 10):\n--   delete items[p.id]\njob shrink_items_value():\n  chunk p in items first 100 by byId:\n    update items[p.id] { value: slice(p.value, 0, 10) }"
         );
         assert_eq!(rt.generation().hash(), generation(ColumnType::Text { max: 20 }).hash());
     }
@@ -1108,4 +1108,26 @@ fn maintain_report_names_kind_and_source_changes() {
         Some("maintain counts: from items → from posts, by sender → by recipient, day")
     );
     assert_eq!(crate::successor::maintain_change_line(&old, &old), None);
+}
+
+#[test]
+fn sampled_required_list_repair_fills_null_without_deleting_it() {
+    let old = optional(list(enumeration(&["a", "b"]), 3));
+    let new = list(enumeration(&["a"]), 3);
+    let mut rt = runtime(old, vec![Some(Value::Null), Some(Value::Array(vec![Value::String("b".into())]))]);
+    let refusal = rt.apply_successor(generation(new.clone())).unwrap_err();
+    let check = &refusal.narrowings[0];
+    assert_eq!((check.null_rows, check.affected_rows), (1, 2));
+    assert_eq!(check.sample, ["id-01"]);
+    assert!(refusal.rewrite.contains("if p.value = null:\n      update items[p.id] { value: value }"));
+    assert!(!refusal.rewrite.contains("items['id-00']"));
+    assert!(refusal.rewrite.contains("items['id-01']"));
+    let conn = &rt.engine.store().conn;
+    conn.execute("UPDATE rows SET data = ?1 WHERE table_name = 'items' AND row_id = 'id-00'", [canonical_json(&object([
+        ("id", Value::Id("id-00".into())), ("value", Value::Array(vec![Value::String("a".into())])),
+    ]))]).unwrap();
+    conn.execute("DELETE FROM rows WHERE table_name = 'items' AND row_id = 'id-01'", []).unwrap();
+    assert_eq!(rt.apply_successor(generation(new)).unwrap().narrowings[0].affected_rows, 0);
+    assert_eq!(table_rows(&rt, "items").len(), 1);
+    assert_eq!(table_rows(&rt, "items")[0].0, "id-00");
 }

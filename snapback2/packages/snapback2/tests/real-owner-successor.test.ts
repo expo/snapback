@@ -322,15 +322,25 @@ async function install(owner: RealOwnerHarness, cases: string, by = "sender", re
 }
 
 // @ref LLP 1020#a8-acceptance — actual owners, durable carriers, and original intent bytes.
-test("two clients and cold carrier reopen preserve rows through widening; removed enum intents keep bytes and explicit conflict", { timeout: 60000 }, async t => {
+test("two clients and cold carrier reopen preserve rows; an enum replay with a lost acknowledgment cannot be dismissed", { timeout: 60000 }, async t => {
   const { directory, source } = await fixture();
   const previousUrl = process.env.SNAPBACK_URL;
   let owner: RealOwnerHarness | undefined;
   const clients: any[] = [];
   const resets: any[] = [];
+  let loseAcknowledgment = false;
+  const committed = Promise.withResolvers<void>(), release = Promise.withResolvers<void>();
+  let retry: Promise<unknown> | undefined;
   const observe: typeof fetch = async (input, init) => {
     const response = await fetch(input, init);
-    if (new URL(String(input)).pathname === "/api/resume") resets.push(await response.clone().json());
+    const path = new URL(String(input)).pathname;
+    if (path === "/api/resume") resets.push(await response.clone().json());
+    if (path === "/api/mutation" && loseAcknowledgment && response.ok) {
+      assert.equal((await response.clone().json()).state, "committed");
+      loseAcknowledgment = false;
+      committed.resolve(); await release.promise;
+      throw new TypeError("replay committed; acknowledgment lost");
+    }
     return response;
   };
   try {
@@ -395,6 +405,16 @@ test("two clients and cold carrier reopen preserve rows through widening; remove
     t.diagnostic(`old-generation intent: ${JSON.stringify({ state: stale.state, refusal: refused.envelope, reset: resets.find((result: any) => result.code === "E_OFFLINE_RESET")?.code, originalBytes })}`);
     // Widening the case back admits the same bytes: nothing was rewritten or dropped.
     await install(owner, "'text', 'image', 'poll'", "sender", false);
+    loseAcknowledgment = true;
+    retry = alice.outbox.drain();
+    void retry!.catch(() => undefined);
+    await committed.promise;
+    assert.equal(await alice.outbox.dismiss(queued.intent), undefined, "committed replay is still in flight");
+    release.resolve();
+    assert.deepEqual(await retry, { stopped: "transport", remaining: 1 });
+    assert.equal(await alice.outbox.dismiss(queued.intent), undefined, "lost acknowledgment leaves the outcome unknown");
+    assert.equal((await alice.outbox.status()).blocked, undefined);
+    assert.equal((await alice.outbox.entries()).find((e: any) => e.intent === queued.intent).refusal, undefined);
     await alice.online();
     assert.deepEqual(await alice.outbox.drain(), { stopped: false, remaining: 0 });
     const landed = (await alice.outbox.entries()).find((entry: any) => entry.intent === queued.intent);
@@ -404,6 +424,7 @@ test("two clients and cold carrier reopen preserve rows through widening; remove
     const rows: any = await bob.query(api.ops.all, {});
     assert.equal(rows.data.filter((row: any) => row.kind === "image" && row.body === args.body).length, 1, JSON.stringify(rows));
   } finally {
+    release.resolve(); await retry?.catch(() => undefined);
     for (const client of clients.reverse()) await client.close();
     await owner?.close();
     if (previousUrl === undefined) delete process.env.SNAPBACK_URL; else process.env.SNAPBACK_URL = previousUrl;
@@ -600,7 +621,7 @@ test("combined and list-narrowing pasted jobs run to zero on the real owner", { 
     const first: any = await until(() => status(owner!), (s: any) => s.status?.refused?.some((e: any) => e.column === "note"), "combined narrowing refusal");
     const note = first.status.refused.find((e: any) => e.column === "note");
     assert.deepEqual({ affectedRows: note.affectedRows, nullRows: note.nullRows, oversizeRows: note.oversizeRows, removedCases: note.removedCases, sample: note.sample },
-      { affectedRows: 2, nullRows: 1, oversizeRows: 0, removedCases: ["c"], sample: ["gone", "nul"] }, JSON.stringify(note));
+      { affectedRows: 2, nullRows: 1, oversizeRows: 0, removedCases: ["c"], sample: ["gone"] }, JSON.stringify(note));
     assert.ok(note.rewrite.includes("job remove_messages_note(value: enum('a', 'b')):\n  chunk p in messages first 100 by byId:\n    if p.note = null:\n      update messages[p.id] { note: value }\n    if p.note = 'c':\n      delete messages[p.id]"), note.rewrite);
     await writeFile(repair, note.rewrite);
     await declareAll(wide.note, wide.tags);
@@ -635,5 +656,104 @@ test("combined and list-narrowing pasted jobs run to zero on the real owner", { 
     await owner?.close();
     if (previousUrl === undefined) delete process.env.SNAPBACK_URL; else process.env.SNAPBACK_URL = previousUrl;
     await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("sampled required-list repair keeps filled nulls and converges beyond ten removed-case rows", { timeout: 90000 }, async t => {
+  const { directory, source } = await fixture();
+  const previousUrl = process.env.SNAPBACK_URL;
+  let owner: RealOwnerHarness | undefined;
+  const declare = (type: string) => schema().replace("  body: text <=100", `  body: text <=100\n  tags: ${type}`);
+  const wide = "[enum('a', 'b')] <=3 ?", narrow = "[enum('a')] <=3";
+  const rows = [{ id: "00-null", tags: null }, { id: "keep", tags: ["a"] },
+    ...Array.from({ length: 12 }, (_, i) => ({ id: `bad-${i}`, tags: ["b"] }))]
+    .map(row => ({ sender: "dev:alice", recipient: "dev:bob", kind: "text", body: row.id, ...row }));
+  const seed = (values: unknown[]) => `import { seed } from 'snapback2';\nexport default seed({ personas: ['alice', 'bob'], rows: { messages: ${JSON.stringify(values)} } });\n`;
+  try {
+    await writeFile(join(source, "schema.q"), declare(wide));
+    await writeFile(join(source, "ops.q"), operations().replace("kind, body }", "kind, body, tags: ['a'] }"));
+    await writeFile(join(source, "seed.ts"), seed(rows));
+    owner = await RealOwnerHarness.create({ forceOwned: true, fixture: source });
+    const start: any = await status(owner);
+    await writeFile(join(owner.root!, "snapback/seed.ts"), seed([rows[1]]));
+    const schemaPath = join(owner.root!, "snapback/schema.q");
+    const data = () => (cli(owner!.root!, ["data", "messages", "--as", "system"]) as any).data;
+    const unchanged = JSON.stringify(data().find((row: any) => row.id === "keep"));
+    const repair = join(directory, "repair.q");
+    let priorSample: string[] = [];
+    for (const remaining of [13, 2]) {
+      await writeFile(schemaPath, declare(narrow));
+      const refused: any = await until(() => status(owner!), (s: any) => s.status?.refused?.some((e: any) => e.column === "tags"), "sampled narrowing refusal");
+      const conflict = refused.status.refused.find((e: any) => e.column === "tags");
+      assert.equal(conflict.affectedRows, remaining);
+      assert.equal(conflict.nullRows, remaining === 13 ? 1 : 0);
+      assert.ok(conflict.sample.every((id: string) => !priorSample.includes(id)), "fresh sample on re-apply");
+      priorSample = conflict.sample;
+      await writeFile(repair, conflict.rewrite);
+      await writeFile(schemaPath, declare(wide));
+      await until(() => status(owner!), (s: any) => s.status === "ready" && s.generation === start.generation, "predecessor restored");
+      const run = spawnSync(binary, ["run", "--file", repair, '{"value":["a"]}', "--as", "system", "--wait", "--project", owner.root!, "--json"], { env, encoding: "utf8", timeout: 20_000 });
+      assert.equal(run.status, 0, `${run.stdout}\n${run.stderr}\n${conflict.rewrite}`);
+      const after = data();
+      assert.deepEqual(after.find((row: any) => row.id === "00-null")?.tags, ["a"], "filled null survives");
+      assert.equal(JSON.stringify(after.find((row: any) => row.id === "keep")), unchanged);
+      assert.ok(run.stdout.includes('"state":"done"'), run.stdout);
+      t.diagnostic(`${conflict.affectedRows} affected; sample ${JSON.stringify(conflict.sample)}; repair done; filled null and unchanged row kept`);
+    }
+    await writeFile(schemaPath, declare(narrow));
+    const admitted: any = await until(() => status(owner!), (s: any) => s.status === "ready" && s.generation !== start.generation, "narrow successor admitted");
+    assert.equal(admitted.successor.narrowings.find((n: any) => n.column === "tags").affectedRows, 0);
+    const after = data();
+    assert.deepEqual(after.map((row: any) => row.id).sort(), ["00-null", "keep"]);
+  } finally {
+    await owner?.close();
+    if (previousUrl === undefined) delete process.env.SNAPBACK_URL; else process.env.SNAPBACK_URL = previousUrl;
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("text repair truncates scalars or deletes only over-long rows, preserving short text and nulls", { timeout: 90000 }, async () => {
+  for (const remove of [false, true]) {
+    const { directory, source } = await fixture();
+    const previousUrl = process.env.SNAPBACK_URL;
+    let owner: RealOwnerHarness | undefined;
+    const declare = (max: number) => schema().replace("  body: text <=100", `  body: text <=100\n  note: text <=${max} ?`);
+    const rows = [{ id: "null", note: null }, { id: "short", note: "a😀" }, { id: "long", note: "😀".repeat(12) }]
+      .map(row => ({ sender: "dev:alice", recipient: "dev:bob", kind: "text", body: row.id, ...row }));
+    const seed = (values: unknown[]) => `import { seed } from 'snapback2';\nexport default seed({ personas: ['alice', 'bob'], rows: { messages: ${JSON.stringify(values)} } });\n`;
+    try {
+      await writeFile(join(source, "schema.q"), declare(20));
+      await writeFile(join(source, "seed.ts"), seed(rows));
+      owner = await RealOwnerHarness.create({ forceOwned: true, fixture: source });
+      const start: any = await status(owner);
+      await writeFile(join(owner.root!, "snapback/seed.ts"), seed(rows.slice(0, 2)));
+      const path = join(owner.root!, "snapback/schema.q");
+      await writeFile(path, declare(10));
+      const refused: any = await until(() => status(owner!), (s: any) => s.status?.refused?.some((e: any) => e.column === "note"), "text maximum refusal");
+      const conflict = refused.status.refused.find((e: any) => e.column === "note");
+      assert.equal(conflict.oversizeRows, 1);
+      let job = conflict.rewrite;
+      if (remove) {
+        const alternative = job.split("\n").filter((line: string) => /^-- (if |  delete )/.test(line)).map((line: string) => `    ${line.slice(3)}`).join("\n");
+        assert.match(alternative, /!= slice/);
+        job = `job drop_messages_note():\n  chunk p in messages first 100 by byId:\n${alternative}`;
+      }
+      const repair = join(directory, "repair.q");
+      await writeFile(repair, job);
+      await writeFile(path, declare(20));
+      await until(() => status(owner!), (s: any) => s.status === "ready" && s.generation === start.generation, "text predecessor restored");
+      const run = spawnSync(binary, ["run", "--file", repair, "--as", "system", "--wait", "--project", owner.root!, "--json"], { env, encoding: "utf8", timeout: 20_000 });
+      assert.equal(run.status, 0, `${run.stdout}\n${run.stderr}\n${job}`);
+      await writeFile(path, declare(10));
+      await until(() => status(owner!), (s: any) => s.status === "ready" && s.generation !== start.generation, "text successor admitted");
+      const data = (cli(owner.root!, ["data", "messages", "--as", "system"]) as any).data;
+      assert.deepEqual(data.find((row: any) => row.id === "short"), rows[1]);
+      assert.deepEqual(data.find((row: any) => row.id === "null"), rows[0]);
+      assert.deepEqual(data.find((row: any) => row.id === "long"), remove ? undefined : { ...rows[2], note: "😀".repeat(10) });
+    } finally {
+      await owner?.close();
+      if (previousUrl === undefined) delete process.env.SNAPBACK_URL; else process.env.SNAPBACK_URL = previousUrl;
+      await rm(directory, { recursive: true, force: true });
+    }
   }
 });

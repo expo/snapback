@@ -208,7 +208,7 @@ export interface UseMutationResult<Args, Result> {
   last: MutationResult<Result> | undefined;
 }
 
-/** The durable outbox of the open partition, FIFO, with `dismiss` for settled intents. */
+/** The durable outbox of the open partition, FIFO, with `dismiss` for eligible intents. */
 export interface UseOutboxResult {
   entries: OutboxEntry[];
   /** Grant-present readiness: no particular write bound is implied. */

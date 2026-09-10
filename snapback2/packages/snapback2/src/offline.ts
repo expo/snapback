@@ -447,7 +447,7 @@ export class OfflineRuntime {
       const foreign = row.scope !== check.scope || row.principal !== this.partition || epochMismatch;
       if (row.kind === "dismiss") {
         // A dismissal from another backend, principal, or session cannot touch this ledger: the command is discarded.
-        if (foreign) await this.outbox.discardInbox(row.key); else await this.outbox.consumeDismiss(row);
+        if (foreign) await this.outbox.discardInbox(row.key); else await this.outbox.dismiss(row.target!, row.key);
         continue;
       }
       if (row.state !== "queued" || row.admitted !== undefined || row.op === undefined) continue;

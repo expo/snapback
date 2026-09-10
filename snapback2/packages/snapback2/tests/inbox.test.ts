@@ -24,11 +24,11 @@ async function until(condition: () => Promise<boolean> | boolean, what: string, 
   }
 }
 
-function tabs(options: { grant?: boolean } = {}) {
+function tabs(options: { grant?: boolean; refuse?: NonNullable<Parameters<typeof fakeOwner>[0]>["refuse"] } = {}) {
   const database = new FakeIndexedDb();
   const locks = new FakeLocks();
   const store = indexedDbRangeStore({ indexedDB: database as any, locks: locks as any });
-  const owner = fakeOwner({ seed: true, cursorArg: "c" });
+  const owner = fakeOwner({ seed: true, cursorArg: "c", refuse: options.refuse });
   const open = () => createClient({ url: "http://tabs.test", persona: "alice", fetch: owner.fetch, offline: { store } });
   return { database, locks, store, owner, open, grant: options.grant ?? true };
 }
@@ -223,4 +223,30 @@ test("the carrier: a follower connection closes on versionchange, and a wipe und
   await assert.rejects(connection.insert({ kind: "mutation", scope: "s", principal: "dev:alice", followerId: "f", op: "messages.send",
     args: { body: "z" }, state: "queued", ids: [], createdAt: now, updatedAt: now }), /inbox connection has ended/);
   await store.close();
+});
+
+test("a follower dismisses a refused queued intent with its original bytes and blocked status; FIFO continues", async () => {
+  const refusal = { code: "E_INPUT", family: "input", message: "enum case removed", guide: "input/runtime" };
+  const { owner, open } = tabs({ refuse: (_intent, body) => body.args.body === "removed" ? { status: 400, envelope: refusal } : undefined });
+  const writer = open(); await writer.ready;
+  const closeDrain = await earnGrant(writer);
+  await writer.offline();
+  const follower = open(); await follower.ready;
+  try {
+    await until(async () => (await follower.outbox.status()).reason === "forwarding", "follower route");
+    const args = { conversationId: "conversation-1", body: "removed" };
+    const first = await follower.mutation(api.messages.send, args);
+    const second = await follower.mutation(api.messages.send, { ...args, body: "after" });
+    await until(async () => (await writer.outbox.entries()).filter(e => e.grant).length === 2, "writer admission");
+    await assert.rejects(writer.online(), { code: "E_INPUT" });
+    await until(async () => (await follower.outbox.entries()).some(e => e.refusal?.code === "E_INPUT"), "durable refusal");
+    const head = (await writer.outbox.entries())[0]!;
+    assert.deepEqual((await follower.outbox.status()).blocked, { intent: head.intent, code: "E_INPUT" });
+    assert.equal(await follower.outbox.dismiss(second.intent!), undefined, "an unrefused queued entry is ineligible through the inbox too");
+    const dismissed = await follower.outbox.dismiss(first.intent!);
+    assert.deepEqual(dismissed, { intent: head.intent, op: head.op, args, refusal });
+    assert.deepEqual(await writer.outbox.drain(), { stopped: false, remaining: 0 });
+    await until(async () => !(await follower.outbox.status()).blocked, "cleared blocked status");
+    assert.deepEqual(owner.executions.map(e => (e.args as any).body), ["after"]);
+  } finally { closeDrain(); await follower.close(); await writer.close(); }
 });

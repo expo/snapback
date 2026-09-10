@@ -104,9 +104,9 @@ export async function submitMutation<Result>(options: SubmitMutationOptions): Pr
   const gate = await options.admitInbox?.();
   if (gate && gate.stopped !== undefined) {
     // An older row another tab wrote is waiting on what this partition lacks; this write may not overtake it.
-    throw options.failure(new OutboxRefusal("E_OFFLINE_ID_BLOCK",
+    throw options.failure(new OutboxRefusal(
       `an older write from another tab of this device is waiting for admission (${gate.stopped}); this write queues behind it`,
-      "client.outbox.enqueue", "resume online for a fresh grant, then send again"));
+      "resume online for a fresh grant, then send again"));
   }
   const enqueue = async (): Promise<OutboxEntry> => {
     try {
@@ -241,13 +241,16 @@ async function drainQueued(options: DrainOptions): Promise<DrainResult> {
   if (runtime.principal === undefined) return finish();
   for (const queued of await runtime.outbox.queued()) {
     throwIfAborted(options.signal);
-    const entry = await runtime.store.outbox.get(queued.intent);
+    let entry = await runtime.store.outbox.get(queued.intent);
     throwIfAborted(options.signal);
     if (!entry || entry.state !== "queued") continue;
     // @ref LLP 1012#7-writes-offline — the fence never discards a queued
     // write: an intent neither its grant nor a later resume can vouch for
     // stops the drain, and only the owner's refusal can expire it.
     if (!(await runtime.outbox.canReplay(entry))) return finish("fence");
+    throwIfAborted(options.signal);
+    entry = await runtime.outbox.attempt(entry.intent);
+    if (!entry) continue; // dismissal won the lock: never send discarded bytes.
     throwIfAborted(options.signal);
     let raw: unknown;
     try {
@@ -268,9 +271,7 @@ async function drainQueued(options: DrainOptions): Promise<DrainResult> {
       // keeps its bytes at the head of the queue, and the refusal recorded on it is what
       // makes `dismiss` admit it so the FIFO can continue (fix round r1 ruling).
       if (isRefusalError(error) && (error.envelope.family === "input" || error.envelope.family === "schema")) {
-        const { code, family, message, rewrite, guide, site } = wireRefusal(error.envelope, "replay refusal");
-        await runtime.outbox.recordRefusal(entry.intent, { code, family, message,
-          ...(rewrite === undefined ? {} : { rewrite }), ...(guide === undefined ? {} : { guide }), ...(site === undefined ? {} : { site }) });
+        await runtime.outbox.attempt(entry.intent, wireRefusal(error.envelope, "replay refusal"));
       }
       throw error;
     }
@@ -405,9 +406,15 @@ async function logTail(options: DrainOptions, revision: number) {
 export interface FollowerInbox {
   status(): Promise<OutboxStatus>;
   subscribe(listener: () => void): () => void;
-  dismiss(intent: string): Promise<void>;
+  dismiss(intent: string): Promise<OutboxEntry | undefined>;
   refresh(): Promise<void>;
   readonly writer: OutboxStatus | undefined;
+}
+
+/** Derive the blocked head from durable entries on either tab. */
+export function blockedStatus(entries: OutboxEntry[]): Pick<OutboxStatus, "blocked"> {
+  const head = entries.find(entry => entry.state === "queued");
+  return head?.refusal ? { blocked: { intent: head.intent, code: head.refusal.code } } : {};
 }
 
 export function createOutboxApi(
@@ -426,7 +433,7 @@ export function createOutboxApi(
     if (!runtime || runtime.principal === undefined) return { ready: true, reason: "ready", action: "none", remaining: 0, fence: "inside" };
     try {
       const value = await runtime.outbox.status(op === undefined ? undefined : referenceName(op));
-      return { ...value, ...(runtime.draining ? { draining: true as const } : {}) };
+      return { ...value, ...blockedStatus(await runtime.outbox.queued()), ...(runtime.draining ? { draining: true as const } : {}) };
     }
     catch (error) {
       if (error instanceof Error && /sealed/.test(error.message)) return { ready: false, reason: "sealed", action: "sign-in", remaining: 0, fence: "past" };
@@ -442,9 +449,10 @@ export function createOutboxApi(
     }, identity, () => (runtime?.following ? inbox?.writer : undefined)),
     // @ref LLP 1018.004#2-the-inbox — a follower's dismissal is a durable command row the writer consumes.
     dismiss: async (intent) => {
-      if (runtime?.following) { await inbox?.dismiss(intent); return undefined; }
-      if (runtime && runtime.principal !== undefined) return runtime.outbox.dismiss(intent);
-      return undefined;
+      const entry = runtime?.following ? await inbox?.dismiss(intent)
+        : runtime?.principal !== undefined ? await runtime.outbox.dismiss(intent) : undefined;
+      return entry?.state === "queued" && entry.refusal
+        ? { intent: entry.intent, op: entry.op, args: entry.args, refusal: entry.refusal } : undefined;
     },
     subscribe: (listener) => {
       let active = true;

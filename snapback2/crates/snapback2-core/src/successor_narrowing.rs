@@ -121,6 +121,9 @@ pub(super) fn checked_narrowings(
             };
             let required = matches!(kind, ColumnType::Optional(_))
                 && !matches!(next_kind, ColumnType::Optional(_));
+            // A sampled repair fills nulls separately. Keep them out of its delete set;
+            // pure optional-to-required checks still sample nulls for their fill diagnostic.
+            let sample_nulls = check.removed_cases.is_empty() && !lowers_maximum(kind, next_kind);
             let mut statement = connection
                 .prepare("SELECT row_id, data FROM rows WHERE table_name = ?1 ORDER BY row_id")?;
             let rows = statement.query_map([table], |row| {
@@ -148,7 +151,7 @@ pub(super) fn checked_narrowings(
                 }
                 if null || oversize || contains_removed(value, &check.removed_cases) {
                     check.affected_rows += 1;
-                    if check.sample.len() < 10 {
+                    if check.sample.len() < 10 && (!null || sample_nulls) {
                         check.sample.push(id);
                     }
                 }
@@ -275,8 +278,13 @@ fn repair_job(c: &NarrowingConflict, predecessor: &ColumnType, successor: &Colum
         } else {
             format!("    update {table}[p.id] {{ {column}: slice(p.{column}, 0, {to}) }}")
         };
+        let text = if matches!(predecessor, ColumnType::Optional(_)) {
+            format!("(p.{column} ?? '')")
+        } else {
+            format!("p.{column}")
+        };
         return format!(
-            "-- keep the predecessor schema; this truncates every {table}.{column} to {to} characters{fills}.\n-- To drop those rows instead, replace the update with: delete {table}[p.id]\njob shrink_{table}_{column}({argument}):\n  chunk p in {table} first 100 by byId:\n{update}"
+            "-- keep the predecessor schema; this truncates every {table}.{column} to {to} characters{fills}.\n-- To delete only over-long rows, keep any null fill and replace truncation with:\n-- if {text} != slice({text}, 0, {to}):\n--   delete {table}[p.id]\njob shrink_{table}_{column}({argument}):\n  chunk p in {table} first 100 by byId:\n{update}"
         );
     }
     let name = if c.removed_cases.is_empty() { "shrink" } else { "remove" };

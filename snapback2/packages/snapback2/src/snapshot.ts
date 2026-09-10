@@ -200,7 +200,7 @@ export function readiness(status: OutboxStatus, connection: ConnectionState, que
 /** The label a queued or settled intent shows; never a client clock (LLP 1012 §7). */
 export function intentLabel(entry: OutboxEntry): string {
   switch (entry.state) {
-    case "queued": return entry.reason === "fence" ? "Will be checked by the server"
+    case "queued": return entry.refusal ? `Not sent · ${entry.refusal.rewrite ?? entry.refusal.message}` : entry.reason === "fence" ? "Will be checked by the server"
       : entry.predicted ? "Sending… · Preview" : "Sending… · Awaiting confirmation";
     case "committed": return "Sent";
     case "expired": return "Expired";

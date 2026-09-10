@@ -5,6 +5,8 @@
 // message costs latency, never custody.
 // @ref LLP 1018.004#4-liveness-nudges-polls-and-where-admission-runs — polls
 // on both sides cover a lost nudge and a browser without BroadcastChannel.
+import { blockedStatus } from "./client-outbox.js";
+import type { OutboxEntry } from "./store/range-store.js";
 import { followerRefusal, RefusalError } from "./client-wire.js";
 import { inboxAlias, inboxKeyOf, InboxFull, INBOX_LIMIT } from "./store/inbox.js";
 import type { OfflineRuntime } from "./offline.js";
@@ -172,13 +174,15 @@ export class ClientInbox {
     const follower = this.follower, runtime = this.host.runtime;
     if (!follower || !runtime) return { ready: false, reason: "follower", action: "other-tab", remaining: 0, fence: "inside" };
     // Ledger entries are the ones not named by an alias; an admitted row's entry counts as the ledger's.
-    const ledgerQueued = (await runtime.itemEntries()).filter((entry) => entry.state === "queued" && inboxKeyOf(entry.intent) === undefined).length;
+    const entries = await runtime.itemEntries();
+    const blocked = blockedStatus(entries);
+    const ledgerQueued = entries.filter((entry) => entry.state === "queued" && inboxKeyOf(entry.intent) === undefined).length;
     const remaining = runtime.inboxPending + ledgerQueued;
     const fence = this.writerAnnounced?.status.fence ?? "inside";
-    if (!follower.established) return { ready: false, reason: "sealed", action: "sign-in", remaining, fence };
-    if (!runtime.inboxAvailable) return { ready: false, reason: "follower", action: "other-tab", remaining, fence };
-    if (runtime.inboxPending >= INBOX_LIMIT) return { ready: false, reason: "inbox-full", action: "wait", remaining, fence };
-    return { ready: true, reason: this.unresponsive ? "writer-unresponsive" : "forwarding", action: this.unresponsive || remaining > 0 ? "wait" : "none", remaining, fence };
+    if (!follower.established) return { ready: false, reason: "sealed", action: "sign-in", remaining, fence, ...blocked };
+    if (!runtime.inboxAvailable) return { ready: false, reason: "follower", action: "other-tab", remaining, fence, ...blocked };
+    if (runtime.inboxPending >= INBOX_LIMIT) return { ready: false, reason: "inbox-full", action: "wait", remaining, fence, ...blocked };
+    return { ready: true, reason: this.unresponsive ? "writer-unresponsive" : "forwarding", action: this.unresponsive || remaining > 0 ? "wait" : "none", remaining, fence, ...blocked };
   }
 
   /** A follower's write: a durable row before this resolves (LLP 1018.004 §2). */
@@ -226,18 +230,36 @@ export class ClientInbox {
   }
 
   /** A follower's dismissal is a durable command row the writer consumes; a rejected row of its own is deleted directly. */
-  async dismiss(intent: string): Promise<void> {
+  async dismiss(intent: string): Promise<OutboxEntry | undefined> {
     const follower = this.follower, runtime = this.host.runtime;
     if (!follower || !runtime || !runtime.inboxAvailable) throw followerRefusal("client.outbox.dismiss");
     const key = inboxKeyOf(intent);
     const row = key === undefined ? undefined : runtime.inboxRows.find((candidate) => candidate.key === key);
     if (row && row.state === "rejected" && row.admitted === undefined) { await runtime.removeInboxRow(row.key); return; }
+    await this.refresh();
+    const generation = this.generation, fence = this.host.fence();
     const now = Date.now();
-    await runtime.insertInbox({ kind: "dismiss", scope: follower.scope, principal: follower.principal,
+    const existing = runtime.inboxRows.find(row => row.kind === "dismiss" && row.target === intent
+      && row.scope === follower.scope && row.authEpoch === follower.authEpoch);
+    const command = existing?.key ?? await runtime.insertInbox({ kind: "dismiss", scope: follower.scope, principal: follower.principal,
       ...(follower.authEpoch === undefined ? {} : { authEpoch: follower.authEpoch }), followerId: follower.followerId,
       target: intent, state: "queued", ids: [], createdAt: now, updatedAt: now });
     this.post({ protocol: PROTOCOL, type: "inbox", scope: follower.scope });
-    this.armFollowerPoll();
+    const deadline = now + UNRESPONSIVE_MS;
+    for (;;) {
+      if (this.generation !== generation || this.host.fence() !== fence || this.host.closed()) throw this.host.superseded();
+      await this.refresh();
+      if (this.generation !== generation || this.host.fence() !== fence || this.host.closed()) throw this.host.superseded();
+      const result = runtime.inboxRows.find(row => row.key === command);
+      if (!result) return undefined;
+      if (result.state === "done") {
+        await runtime.removeInboxRow(command);
+        if (this.generation !== generation || this.host.fence() !== fence || this.host.closed()) throw this.host.superseded();
+        return (result.response ?? undefined) as OutboxEntry | undefined;
+      }
+      if (Date.now() >= deadline) throw followerRefusal("client.outbox.dismiss");
+      await new Promise(resolve => setTimeout(resolve, 20));
+    }
   }
 
   /** A follower re-reads its rows and the ledger now (a nudge, a poll, or `online()`). */
@@ -305,7 +327,7 @@ export class ClientInbox {
     const runtime = this.host.runtime, scope = this.writerScope;
     if (!runtime || !scope || !runtime.principal) return;
     let status: OutboxStatus;
-    try { status = { ...await this.host.writerStatus(), ...(runtime.draining ? { draining: true as const } : {}) }; }
+    try { status = { ...await this.host.writerStatus(), ...blockedStatus(await runtime.itemEntries()), ...(runtime.draining ? { draining: true as const } : {}) }; }
     catch { return; }
     if (this.writerScope !== scope) return;
     this.post({ protocol: PROTOCOL, type: "writer", scope, principal: runtime.principal,
@@ -326,7 +348,7 @@ export class ClientInbox {
     clearTimeout(this.pollTimer);
     const runtime = this.host.runtime;
     if (!this.follower || !runtime) return;
-    const pending = runtime.inboxPending > 0 || runtime.inboxRows.some((row) => row.kind === "dismiss");
+    const pending = runtime.inboxPending > 0 || runtime.inboxRows.some((row) => row.kind === "dismiss" && row.state === "queued");
     if (!pending && this.available) return;
     this.pollTimer = setTimeout(() => {
       if (!this.follower || this.host.closed()) return;

@@ -1,5 +1,7 @@
 -- keep the predecessor schema; this truncates every profiles.avatarUrl to 100 characters.
--- To drop those rows instead, replace the update with: delete profiles[p.id]
+-- To delete only over-long rows, keep any null fill and replace truncation with:
+-- if (p.avatarUrl ?? '') != slice((p.avatarUrl ?? ''), 0, 100):
+--   delete profiles[p.id]
 job shrink_profiles_avatarUrl():
   chunk p in profiles first 100 by byId:
     if p.avatarUrl != null:

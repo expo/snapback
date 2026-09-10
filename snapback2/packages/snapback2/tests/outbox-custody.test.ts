@@ -463,3 +463,51 @@ test("online() replays a queue held under a login grant when no resume can be bu
   await tick();
   await rm(root, { recursive: true, force: true });
 });
+
+// LLP 1020 A2: an acknowledgment loss must never reuse an earlier refusal as authority to dismiss.
+test("replay clears a recorded refusal durably before sending; in-flight and unknown outcomes cannot be dismissed", async () => {
+  for (const carrier of await carriers()) {
+    let removed = true;
+    const owner = fakeOwner({ failAfterCommit: 1, refuse: () => removed ? { status: 400, envelope: {
+      code: "E_INPUT", family: "input", message: "enum case removed", guide: "input/runtime",
+    } } : undefined });
+    const entered = Promise.withResolvers<void>(), release = Promise.withResolvers<void>();
+    let pause = false;
+    await seededStore(carrier.factory());
+    const open = () => createClient({ url: "http://retry-refusal.test", persona: "alice", offline: { store: carrier.factory() },
+      fetch: async (input, init) => {
+        if (new URL(String(input)).pathname === "/api/mutation" && pause) {
+          pause = false; entered.resolve(); await release.promise;
+        }
+        return owner.fetch(input, init);
+      } });
+    let client = open();
+    let retry: Promise<unknown> | undefined;
+    try {
+      await client.ready; await client.offline();
+      await client.mutation(api.messages.send, post("case returns"));
+      await assert.rejects(client.online(), { code: "E_INPUT" });
+      const head = (await client.outbox.entries())[0]!;
+      assert.equal(head.refusal?.code, "E_INPUT");
+      removed = false; pause = true;
+      retry = client.outbox.drain();
+      void retry.catch(() => undefined);
+      await entered.promise;
+      assert.equal(await client.outbox.dismiss(head.intent), undefined, `${carrier.name}: in-flight dismissal must refuse`);
+      assert.equal((await client.outbox.entries())[0]?.refusal, undefined, "the prior refusal is cleared before the owner sees a byte");
+      release.resolve();
+      assert.deepEqual(await retry, { stopped: "transport", remaining: 1 });
+      assert.equal(owner.executions.length, 1, "the replay committed with its acknowledgment lost");
+      await client.close();
+      const stored = carrier.factory()(); await stored.open("dev:alice");
+      assert.equal((await stored.outbox.get(head.intent))?.refusal, undefined, "uncertainty survives cold reopen");
+      await stored.close();
+      client = open(); await client.ready;
+      assert.equal(await client.outbox.dismiss(head.intent), undefined, "unknown outcome cannot discard custody");
+      assert.equal((await client.outbox.status()).blocked, undefined);
+      await client.online();
+      assert.deepEqual(await client.outbox.settled(), { stopped: false, remaining: 0 });
+      assert.equal(owner.executions.length, 1, "the next resume settles the same intent exactly once");
+    } finally { release.resolve(); await retry?.catch(() => undefined); await client.close(); await carrier.cleanup(); }
+  }
+});
