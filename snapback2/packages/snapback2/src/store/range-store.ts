@@ -241,6 +241,7 @@ export interface OutboxGrant {
 }
 
 export interface OutboxStore {
+  deliveryAcks?(): Promise<Record<string, import('../delivery-acknowledgements.js').DeliveryAcknowledgement>>;
   compactedThrough?(): Promise<number>;
   all(): Promise<OutboxEntry[]>;
   get(intent: string): Promise<OutboxEntry | undefined>;
@@ -301,6 +302,7 @@ export interface OfflineSchema {
 }
 
 export interface StoreSwap {
+  deliveryAcks?: Record<string, import('../delivery-acknowledgements.js').DeliveryAcknowledgement>;
   factLimitReset?: string;
   deliveries?: StoreDelivery[];
   refreshes?: StoreRefresh[];
@@ -382,6 +384,7 @@ export class OfflineStoreFailure extends Error {
 }
 
 export interface PersistedRangeState {
+  deliveryAcks: Record<string, import('../delivery-acknowledgements.js').DeliveryAcknowledgement>;
   version: 1;
   sealed: boolean;
   clock: number;
@@ -442,7 +445,7 @@ const NO_BYTES: ByteDelta = { put: [], remove: [] };
 
 export function emptyState(): PersistedRangeState {
   return {
-    version: 1, sealed: false, clock: 0, rows: {}, answers: {}, watermarks: {}, outbox: {}, rowFacts: {}, verdictFacts: {}, factSlots: 0,
+    version: 1, sealed: false, clock: 0, rows: {}, answers: {}, watermarks: {}, outbox: {}, deliveryAcks: {}, rowFacts: {}, verdictFacts: {}, factSlots: 0,
     factFormat: FACT_FORMAT, factImages: {}, factExtents: {}, extentGuards: {}, extentNegative: {},
     grants: {}, overlay: {}, overlayMisses: {}, overlayWatermarks: {}, overlayNegatives: {}, bounds: {}, programs: {},
     negative: {}, rowSeq: {}, assets: {}, viewed: {}, onceColumns: {},
@@ -531,6 +534,7 @@ export class PersistentRangeStore implements RangeStore {
   private tail: Promise<void> = Promise.resolve();
 
   readonly outbox: OutboxStore = {
+    deliveryAcks: () => this.readOutbox(state => state.deliveryAcks),
     compactedThrough: async () => this.read(() => this.state.sealed ? 0 : this.state.compactedThrough ?? 0),
     all: () => this.readOutbox(state => outboxOrder(state.outbox)),
     get: (intent) => this.readOutbox(state => state.outbox[intent]),
@@ -917,6 +921,10 @@ export class PersistentRangeStore implements RangeStore {
       delete state.overlayNegatives[intent];
     }
     const committedNow = new Set<string>();
+    for (const [key, ack] of Object.entries(swap.deliveryAcks ?? {})) {
+      const old = state.deliveryAcks[key];
+      if ((!old && ack.rows.every(key => state.rows[key] !== undefined)) || (old && !old.intent && ack.intent)) state.deliveryAcks[key] = clone(ack);
+    }
     for (const entry of swap.outbox?.put ?? []) {
       if (typeof entry.intent !== "string" || entry.intent.length === 0) throw new TypeError("outbox entry needs an intent");
       const previous = state.outbox[entry.intent];

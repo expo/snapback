@@ -313,7 +313,13 @@ impl Runtime {
             .as_ref()
             .ok_or_else(|| RuntimeError::Input("--plan requires a job".into()))?;
         let mut sweeps = Vec::new();
+        let audiences = crate::delivery::declarations(&self.generation.schema)
+            .map(|(_, _, d)| Ok((d.log.clone(), crate::delivery::audience_bound(self.store(), &d.log)?
+                .ok_or_else(|| RuntimeError::StoreVersion { detail: format!("missing custody audience for {}", d.log) })?)))
+            .collect::<Result<BTreeMap<_, _>, RuntimeError>>()?;
         for (sweep, ceiling) in job.sweeps.iter().zip(&job.per_chunk) {
+            let ceiling = ceiling.with_delivery_audiences(&self.generation.schema, &audiences, &Ceilings::default())
+                .map_err(|error| RuntimeError::Refusal(Box::new(error)))?;
             let prefix = sweep
                 .prefix_template
                 .iter()

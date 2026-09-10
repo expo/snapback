@@ -32,3 +32,13 @@ one-line rename.
    price the chunk's delivery reserve under the owner's visibility too, or state in the RFC that
    the job path relies on the chunk's structural page reserve.
 
+**Resolved:** 2026-09-10, custody-c1 working tree, pending orchestrator commit.
+`registry_jobs::plan_job` specializes every chunk with retained A and exposes
+specialization refusal. `delivery_issues` rejects a maintained content source
+with E_SCHEMA_DELIVER. The compiler check now explicitly names its handwritten
+repair. LLP 1019 §4 and `guide deliver` state that owner scans use structural
+page reserve, while native delivery is separately priced, including retained A.
+Tests: `receipts::job_plan_specializes_retained_audience_under_owner_total_visibility`
+(effective certificate equality and E_BOUND with A=10),
+`receipts::maintained_content_refuses_deliver_at_admission`, and the delivery
+compiler checks. Evidence and scope: `REPORT-custody-c1.md`.

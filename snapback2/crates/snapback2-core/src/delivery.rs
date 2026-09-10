@@ -13,6 +13,8 @@ use crate::schema::{
 use crate::value::{Value, digest, object};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
+mod receipts;
+pub use receipts::{ACK_BATCH, ack_name, ack_program, acknowledgement, receipt_row};
 
 /// The event kinds a log records for one content row, to its original recipients.
 pub const EVENT_KINDS: [&str; 3] = ["delivered", "changed", "removed"];
@@ -440,6 +442,10 @@ pub fn delivery_issues(schema: &Schema) -> Vec<DeliveryIssue> {
             });
         };
         let line = deliver.line(Some(&deliver.principal));
+        if schema.maintains.iter().any(|m| m.target == content) {
+            refuse(SHAPE, format!("{content} is maintained; deliver requires an authored content table"),
+                format!("remove the deliver line from {content}; declare deliver on the maintain's source table"));
+        }
         for name in deliver.generated() {
             let owners = &claims[&name];
             if owners.len() > 1 {
@@ -666,5 +672,6 @@ fn first_difference(actual: &Table, expected: &Table) -> &'static str {
 pub(crate) fn scratch_per_recipient(schema: &Schema, deliver: &Deliver) -> u64 {
     crate::bounds::declared_serialized_row_max(schema, &deliver.target)
         .max(crate::bounds::declared_serialized_row_max(schema, &deliver.log))
+        .max(deliver.receipts_table().map_or(0, |table| crate::bounds::declared_serialized_row_max(schema, &table)))
         .saturating_mul(4).saturating_add(256)
 }

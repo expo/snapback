@@ -86,10 +86,12 @@ impl<'a> Runner<'a> {
         let Some(old) = self.fetch_id(table, id)? else {
             return self.missing_write_row(table, id);
         };
+        if self.acknowledgement.as_deref() == Some(table) && !self.acknowledge(table, &old)? { return Ok(()); }
         let mut new = old.as_object()?.clone();
         for (name, value) in patch.as_object()? {
             new.insert(name.clone(), value.clone());
         }
+        if self.acknowledgement.as_deref() == Some(table) { new.insert("seq".into(), Value::Int(self.seq as i64)); }
         self.replace(table, key, Value::Row(new.into()))
     }
 
@@ -816,6 +818,7 @@ impl<'a> Runner<'a> {
         old: Option<&Value>,
         next: &Value,
     ) -> Result<bool, RuntimeError> {
+        if effect == Effect::Update && self.acknowledgement.as_deref() == Some(table) { return Ok(true); }
         // @ref LLP 1016#d1--the-system-principal-is-the-stores-owner — only viewer rules are bypassed; row validation, constraints, and trace accounting still run.
         if self.context.viewer.is_system() {
             return Ok(true);

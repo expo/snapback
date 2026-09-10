@@ -317,7 +317,10 @@ impl<'a> Checker<'a> {
         // table; `insert <- deny` alone does not stop the system principal, so
         // the refusal is static and principal-blind.
         if let Some((content, write)) = summary.writes.iter().find_map(|write| {
-            crate::delivery::owner(self.schema, &write.table).map(|(content, ..)| (content, write))
+            crate::delivery::owner(self.schema, &write.table)
+                .filter(|(_, d, kind)| !(*kind == crate::delivery::Generated::Receipts
+                    && crate::delivery::acknowledgement(self.schema, program).is_some_and(|(_, ack)| ack == *d)))
+                .map(|(content, ..)| (content, write))
         }) {
             return Err(vec![CheckError {
                 site: None,

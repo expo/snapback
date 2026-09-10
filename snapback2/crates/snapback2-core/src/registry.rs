@@ -405,7 +405,10 @@ impl Generation {
 
         let mut programs = BTreeMap::new();
         let mut seen_programs = BTreeSet::new();
-        for program in &project.programs {
+        let acknowledgements: Vec<_> = crate::delivery::declarations(&schema)
+            .filter(|(_, _, d)| d.receipts).map(|(content, _, d)| crate::delivery::ack_program(content, d))
+            .filter(|p| !project.programs.contains(p)).collect();
+        for program in project.programs.iter().chain(&acknowledgements) {
             let first_declaration = seen_programs.insert(program.name.clone());
             if !first_declaration {
                 errors.push((

@@ -274,6 +274,9 @@ impl Runner<'_> {
                 self.delivery_ordinal,
                 self.context.now.unwrap_or(0),
             )?;
+            if new.is_some() {
+                self.delivery_receipt(&deliver, content, if kind == "delivered" { &event } else { &original })?;
+            }
             self.delivery_ordinal = self
                 .delivery_ordinal
                 .checked_add(1)

@@ -98,11 +98,11 @@ export class ClientStore {
     this.touchProofs(changes); this.touchProofs(old.authorityOwners());
     return removed;
   }
-  applyMutation(program: any, context: Context, preview = false, certificate: any = null): LocalExecution {
+  applyMutation(program: any, context: Context, preview = false, certificate: any = null, predictDelivery = false): LocalExecution {
     validateInputs(this.schema, program, context.args);
     if (this.journal) throw new EvalError('E_INPUT', 'nested prediction transaction');
     this.journal = new Map();
-    const runner = new Runner(this, this.schema, context, certificate);
+    const runner = new Runner(this, this.schema, context, certificate, undefined, predictDelivery);
     let execution: Execution;
     try { execution = runner.execute(program); }
     catch (error) {

@@ -174,7 +174,7 @@ export class Twin {
     if (!context) return none;
     let local: ReturnType<ClientStore["applyMutation"]>;
     try {
-      local = hydrated.store.applyMutation(ir, context, true, operation.certificate);
+      local = hydrated.store.applyMutation(ir, context, true, operation.certificate, true);
     } catch (error) {
       // A typed local mutation refusal (including an unsupported local IR or
       // schema) does not reject the intent: the server still judges it (§7).

@@ -47,6 +47,20 @@ const column = (name: string) => ({ Column: name });
 const index = (columns: string[], unique = false) => ({ components: columns.map(column), unique });
 
 export function registerDeliveryChecks(test: Test): void {
+  test("the RFC receipts query certifies under the content table read rule", async () => {
+    await withProject({ 'snapback/schema.q': schemaWith('deliver to memberships[.conversationId] as deliveries with receipts'),
+      'snapback/messages.q': `query receipts(messageId: messages):
+  msg = messages[messageId] ! else NOT_FOUND
+  require exists memberships[msg.conversationId, viewer] else MEMBERSHIP_REQUIRED
+  return deliveriesReceipts[messageId] first 50 by byRow { recipient, received }
+` }, async root => {
+      const lowered = await lowerProject(root);
+      assert(lowered.ok, JSON.stringify(lowered));
+      if (!lowered.ok) return;
+      const checked = rustCheck(lowered.project.programs, 'synthetic', lowered.project.schema, undefined, lowered.project.effects);
+      assert(checked.every(item => !item.error), JSON.stringify(checked));
+    });
+  });
   test("the incarnation refusal publishes an executable fresh-insert repair", async () => {
     const cards = JSON.parse(readFileSync(new URL("../../snapback2/guide/families.source.json", import.meta.url), "utf8"));
     const card = cards.find((c: any) => c.code === "E_DELIVER_INCARNATION");
@@ -83,7 +97,7 @@ export function registerDeliveryChecks(test: Test): void {
       assert(checked.every(r => !r.error), JSON.stringify(checked));
     }
   });
-  test("incarnation repairs fit required fields and writes use only statement source sites", () => {
+  test("a handwritten fresh-insert repair fits required fields and writes use only statement source sites", () => {
     const schema = schemaWith("deliver to memberships[.conversationId] as deliveries", "cap 3 by conversationId")
       .replaceAll("messages", "notes").replace("body: text <=4000 ?", "text: text <=30");
     const compiled = compileInline([{ fileName: "snapback/schema.q", source: schema }, { fileName: "snapback/notes.q", source:

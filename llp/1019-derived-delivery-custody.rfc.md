@@ -297,6 +297,17 @@ over that target, not a new runtime path.
 - A mutation whose reservations exceed a ceiling refuses `E_BOUND` with the
   sourced product naming the `deliver` line as the term.
 
+With receipts, content writes additionally reserve one receipt upsert and
+private receipt identity probe per reserved recipient. Acknowledgement is
+the engine-generated `_delivery.<log>.ack` mutation: at most 50 event ids,
+ordinary event/content/receipt point reads and receipt updates, plus the named
+`delivery acknowledgement` reserve of `50 × (N+1)` private membership
+candidates. Membership scratch is one page's peak, not 50 simultaneous pages.
+Named jobs certify owner reads under total visibility: their scans use the
+chunk's structural page reserve; the native delivery reserve is still priced
+separately, including retained A in each live plan. A specialization refusal
+refuses the plan instead of displaying portable cap-only ceilings.
+
 ### 5. Reads
 
 ```q
@@ -339,12 +350,21 @@ Serving a response or accepting a cursor acknowledges nothing. With
   restarts. Two clients of one principal acknowledge independently; the
   fact is per principal.
 - The engine owns a second table, `<name>Receipts` (`row`, `recipient`,
-  `received: bool`, `seq`), written only by that mutation, with a
+  `received: bool`, `seq`), with a
   **table-wide** read rule inherited from the **content** table's read rule
   (a reader who may read the message may read who received it). Recipients
   who were removed before acknowledging stay `received: false`, and the
   brief's aggregate rule ("drop out of the aggregate requirement") is the
   app's `count` over current members, which it can express.
+- **D5 implementation correction:** the query above needs rows for
+  unacknowledged recipients. Delivery initializes them false; content changes
+  refresh copied read-rule inputs, preserving received/seq. Only acknowledgement
+  changes false to true. Enabling receipts over an existing log initializes
+  false rows for live bodies from retained delivered events in the installer's
+  existing row batches; it never reconstructs audience from current membership.
+  Delivered or changed event ids can acknowledge the same original receipt;
+  removed events cannot disclose a body. Idempotent retries preserve the first
+  acknowledgement commit seq.
 - `received: false` means unacknowledged; missing local authority on
   receipt-only replay remains `partial`, never a fabricated false.
 
@@ -379,6 +399,13 @@ does not hold the audience), and predicts no `changed` or `removed` events;
 every other event arrives by drain. Receipt acknowledgements are ordinary
 queued writes with the outbox's fence and replay rules (LLP 1012 §5, §7);
 they never authorize replay early and never erase queued writes.
+
+The provisional event uses an `own:` identity derived from row and sender;
+its unknown audience/incarnation are zero placeholders and its seq/at are the
+local prediction clock. These are predicted metadata, never server facts.
+The accepted delivered row replaces the provisional identity even when the
+mutation response was lost and the intent remains queued. An ordinary body
+arrival alone cannot retire this provisional event before its log row arrives.
 
 ### 8. What is deleted
 
@@ -565,3 +592,4 @@ evidence.
 - 2026-09-10 — D2 (lane `custody-b`, working tree `s2/ri-custody-b`, ready for orchestrator commit): §3 native insert/changed/removed writes at `finish_row_change`, original audience/incarnation, commit ordinals, transactional rollback, certified fixture seeds and incarnation refusal; §4 N+1 insert reserve and engine-recorded A specialization with full containment; private `schedule …: delete .` lowering; §7 receipt-only skip preserved. Tests: 18 delivery integration additions, 2 core lifecycle units, 1 wire unit, 3 compiler additions; targeted lifecycle/cap/job/timer run 91 passed/1 ignored plus final named proof 5 passed; compiler 9 passed; corpus 277→288 (261 evaluator cases passed, 27 server-only); guide checks passed; complete runtime 84,996 gzip (+0). Scope, exact commands, RFC corrections, and inherited caps violation: `REPORT-custody-b.md`. RFC Status unchanged.
 - 2026-09-10 — D2 fix round r1 (lane `custody-b`, merged base `5434af50be`, pending orchestrator commit): §3 optional-row normalization, pre-scan private containment/traces, durable replay/then specialization refusals, table-specific incarnation repair through direct/seed/replay/job/timer envelopes; §4 dominant-meter diagnostics, N+1/max(N+1,A) pricing text, raw chunk reserve protection; §7 receipt exclusion preserved; one statement-site spelling. Tests: affected delivery/cap/timer/job suites 104 passed/1 skipped; custody/certificate units 35 passed; real refusal wire 1 passed; frozen corpus 288 (261 evaluator/27 server-only), compiler 299 passed; runtime 84,946/85,000 gzip at this HEAD. Reports: `REPORT-custody-b.md`, writable `reports/final-custody-b.md` § Fix round r1; external canonical report and newer-main fetch blocked by filesystem sandbox. RFC Status unchanged.
 - 2026-09-10 — D2 LANDED (lane `custody-b`, orchestrator; blind reviews `custody-b-r1-*`, `custody-b-r2-*`: r2 grok and codex both LAND WITH FIXES): the fix-round work merged with main (`5434af50be`, `f4c5546eb9`, `b4a4a8ad3b`); the D2 write rules moved to `guide/deliver.md`, the page `guide quarry` names, because the offline page ran over its 8,192-byte limit beside main's recovery prose (labels unchanged); the E_SUCCESSOR_BOOTSTRAP card's site is the content table's deliver line; host verify `custody-b-m3`: 1038 Rust, package 1108/0, compiler 299, evaluator 261, runtime 84,986 (ceiling now 90,000; the client-bundle scorer red is main's approved size trade). Residuals for custody-c: `issues/20260910-snapback2-custody-b-review-residuals.md` (job plans under a retained `A`, `deliver` on a maintain refused at admission, the compiler check's name, and — grok r2 — production jobs certify under total visibility so a job's nonuniform chunk reserve is not refused at `enqueue`).
+- 2026-09-10 — D4 + D5 (lane `custody-c1`, base `4729319698a1`, ready for orchestrator commit): §5–§7 sender-only membership-proved direct prediction, provisional/server identity reconciliation and cold changed/removed custody; engine-owned false receipt initialization and bounded certified/traced acknowledgement, durable accepted-page marks and ordinary fenced outbox retry on all carriers; §4 named acknowledgement reserve, retained-A job-plan specialization/refusal and owner structural-page pricing; maintained-source admission refusal and compiler repair-test naming resolve all four custody-b residuals. Tests: affected Rust 111 passed/1 skipped plus new full-batch proof 1 passed; compiler delivery 11 passed; corpus 293 (266 evaluator passed/27 server-only), 11 sender prediction checks; SDK additions 8 passed and affected neighbors 24 passed; runtime 86,297/90,000 gzip. RFC corrections: false initialization/copied-rule maintenance and provisional metadata now explicit. Report: `REPORT-custody-c1.md`. Status unchanged; D6 and full remote verification remain with the program.

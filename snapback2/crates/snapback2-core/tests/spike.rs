@@ -1412,7 +1412,7 @@ fn every_frozen_corpus_case_replays_its_certification_outcome() {
     // D2 adds ten paired native/receipt-only scenarios and one audience refusal: 261 evaluator + 27 server-only.
     assert_eq!(
         cases.len(),
-        288,
+        293,
         "the complete frozen corpus must be checked"
     );
     assert!(

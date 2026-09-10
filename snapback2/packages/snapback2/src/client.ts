@@ -167,6 +167,10 @@ class Client implements SnapbackClient {
     validateOfflineOptions(options.offline);
     try {
       this.offlineRuntime = createOfflineRuntime(options.offline);
+      if (this.offlineRuntime) this.offlineRuntime.acknowledgementsReady = () => {
+        if (this.closed || this.forcedOffline || this.offlineRuntime?.draining) return;
+        void this.drainNow().catch(error => this.recordRefusal(this.offlineRefusal(error).envelope));
+      };
     } catch (error) {
       if (error instanceof InvalidOfflineStoreError) throw error;
       throw this.offlineRefusal(error);

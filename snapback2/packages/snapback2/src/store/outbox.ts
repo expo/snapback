@@ -312,6 +312,27 @@ export class OutboxLedger {
     return this.serial(() => this.enqueueNow(input, predict, beforeCommit));
   }
 
+  /** Pending page acknowledgements consume ordinary FIFO slices; each admission
+   * marks its event identities in the same transaction as its intent. */
+  admitAcknowledgements(): Promise<number> {
+    return this.serial(async () => {
+      const pending = Object.entries(await this.store.outbox.deliveryAcks?.() ?? {}).filter(([, ack]) => !ack.intent);
+      let admitted = 0;
+      while (pending.length) {
+        const op = pending[0]![1].op;
+        const batch = pending.filter(([, ack]) => ack.op === op).slice(0, 50);
+        try {
+          await this.enqueueNow({ op, args: { events: batch.map(([, ack]) => ack.event) },
+            issuedSeq: Math.max(...batch.map(([, ack]) => ack.seq)) }, undefined, undefined,
+            entry => ({ deliveryAcks: Object.fromEntries(batch.map(([key, ack]) => [key, { ...ack, intent: entry.intent }])) }));
+        } catch (error) { if (error instanceof OutboxRefusal) break; throw error; }
+        admitted += batch.length;
+        for (const item of batch) pending.splice(pending.indexOf(item), 1);
+      }
+      return admitted;
+    });
+  }
+
   private async enqueueNow(
     input: EnqueueInput,
     predict?: (ids: string[]) => Promise<EnqueuePrediction>,

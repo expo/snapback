@@ -3,6 +3,7 @@
 import { collectRefs, object, rowKey } from "./row-values.js";
 import type { OverlayRow, PersistedRangeState, StoreSwap, StoredAnswer, WatermarkRecord } from "./range-store.js";
 import { canonical } from "./canonical.js";
+import { imageField } from '../../../evaluator/src/row-image.js';
 
 // @ref LLP 1018.003#4-pending-rows-attribution-settlement-and-failure — record arrival after outbox puts, so settlement and its tail count together.
 export function markDeliveredArrivals(state: PersistedRangeState, deliveredIds: Set<string>): void {
@@ -145,6 +146,9 @@ export function retireOverlays(
     const maintains = (program.schema as { maintains?: Array<{ target?: unknown }> }).maintains ?? [];
     return maintains.flatMap((maintain) => typeof maintain.target === "string" ? [maintain.target] : []);
   }));
+  const deliveryLogs = new Set(Object.values(state.programs).flatMap(program =>
+    Object.values((program.schema as any).tables).flatMap((t: any) => t.deliver ? [t.deliver.log] : [])));
+  const provisional = (row: OverlayRow) => deliveryLogs.has(row.table) && row.id.startsWith('own:');
   const pages = answers.filter((answer) => {
     const nonempty = Array.isArray(answer.data) ? answer.data.length > 0 : collectRefs(answer.data).length > 0;
     return !answer.clockOnly && !answer.retained && (answer.state === "complete" || answer.state === "capped") && answer.receipt !== undefined
@@ -158,6 +162,13 @@ export function retireOverlays(
       delete state.overlay[intent]; delete state.overlayMisses[intent]; delete state.overlayWatermarks[intent];
       delete state.overlayNegatives[intent]; if (entry) delete entry.predicted; continue;
     }
+    // @ref LLP 1019#7-the-twin — a provisional sender event has no commit seq
+    // or server ordinal. The received delivered identity replaces it even if
+    // the mutation's response was lost and its ordinary intent is still queued.
+    state.overlay[intent] = state.overlay[intent]!.filter(row => !provisional(row)
+      || !(swap.deliveries ?? []).some(page => (page.rows ?? []).some(actual => actual.table === row.table && state.rows[rowKey(actual)] !== undefined
+        && imageField(actual.row, 'kind') === 'delivered' && imageField(actual.row, 'row') === imageField(row.row, 'row')
+        && imageField(actual.row, 'recipient') === imageField(row.row, 'recipient'))));
     for (const row of state.overlay[intent]!) {
       const key = rowKey(row), evidence = authoritativeEvidence.get(key);
       const previous = state.overlayNegatives[intent]?.[key];
@@ -199,7 +210,7 @@ export function retireOverlays(
     }
     const overlay = state.overlay[intent]!, seq = Number(committedSeq);
     const predicted = new Set(overlay.filter((row) => !row.removed).map(rowKey));
-    const ordinary = new Set(overlay.filter((row) => !targetTables().has(row.table)).map(rowKey));
+    const ordinary = new Set(overlay.filter((row) => !targetTables().has(row.table) && !provisional(row)).map(rowKey));
     const committedWatermark = state.overlayWatermarks[intent] ?? undefined;
     const chainKey = committedWatermark ? canonical({ op: committedWatermark.op, args: committedWatermark.args,
       cursorArg: committedWatermark.cursorArg, watermark: committedWatermark.watermark, seq }) : "";

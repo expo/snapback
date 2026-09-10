@@ -13,3 +13,4 @@ export { CURRENT_EVALUATOR, CURRENT_VALUE_MODEL_VERSION } from '../../evaluator/
 export { Twin } from '../src/twin.js';
 export { ClientStore } from '../../evaluator/src/store.js';
 export { OfflineRuntime, offlineView } from '../src/offline.js';
+export { drainOutbox } from '../src/client-outbox.js';

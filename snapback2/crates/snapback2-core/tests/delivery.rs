@@ -10,6 +10,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 #[path = "delivery/writes.rs"]
 mod writes;
+#[path = "delivery/receipts.rs"]
+mod receipts;
 
 fn index(columns: &[&str], unique: bool) -> Index {
     Index {

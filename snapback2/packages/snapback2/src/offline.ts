@@ -6,6 +6,7 @@ export { decodeHeldProgram } from "./held-program.js";
 import { tombstonesFor } from "./tombstones.js";
 import { RefusalError, throwIfAborted, isRefusalError } from "./client-wire.js";
 import { ClockCoverageReset, FullRevalidationRequired } from './store/fact-integrity.js';
+import { deliveryAcknowledgements } from './delivery-acknowledgements.js';
 import {
   DeliveryEnvelopeDecodeError,
   decodeDeliveryEnvelope,
@@ -151,6 +152,7 @@ export function admitDrain(op: string, contract: DrainContract | undefined): str
 export class InvalidOfflineStoreError extends TypeError {}
 
 export class OfflineRuntime {
+  acknowledgementsReady?: () => void;
   readonly store: RangeStore;
   readonly fenceDays: number;
   readonly maxAssetBytes: number;
@@ -755,6 +757,7 @@ export class OfflineRuntime {
       const deliveries: StoreDelivery[] = [];
       const refreshes: StoreRefresh[] = [];
       const tombstones: StoreTombstone[] = [];
+      const deliveryAcks: Record<string, import('./delivery-acknowledgements.js').DeliveryAcknowledgement> = {};
       let nextFacts = this.facts;
       let superseded = this.superseded;
       let sawSupersession = false;
@@ -811,6 +814,7 @@ export class OfflineRuntime {
           if (operation.planHash !== envelope.planHash) throw new TypeError('delivery operation identity mismatch');
           if (queryClock(operation) !== (envelope.readTime !== undefined)) throw new TypeError('delivery query clock identity mismatch');
           prepared = prepareClosureReceipt(envelope, this.held!.schema, operation.ir);
+          Object.assign(deliveryAcks, deliveryAcknowledgements(this.held!.schema, envelope));
         }
         deliveries.push({
           ...(prepared ? { [preparedDeliveryRows]: prepared.rows as unknown as StoreDelivery['rows'], [preparedDeliveryRanges]: prepared[preparedDeliveryRanges] } : {}),
@@ -847,6 +851,7 @@ export class OfflineRuntime {
         deliveries,
         refreshes,
         tombstones,
+        deliveryAcks,
         retention: this.retention,
         schema: this.schema,
         ...(watermarkRecord ? { watermark: watermarkRecord } : {}),
@@ -866,7 +871,11 @@ export class OfflineRuntime {
       return sawSupersession;
     };
     const attempt = () => this.serial(() => outbox ? this.outbox.write(run) : run());
-    for (;;) try { return await attempt(); }
+    for (;;) try {
+      const superseded = await attempt();
+      if (!superseded && this.partition && await this.outbox.admitAcknowledgements()) this.acknowledgementsReady?.();
+      return superseded;
+    }
     catch (error) {
       if (ClockCoverageReset.is(error)) return this.serial(async () => {
         if ((current && !current()) || (revision !== undefined && revision !== this.coverageRevision)) return false;

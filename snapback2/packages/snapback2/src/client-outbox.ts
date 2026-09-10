@@ -258,7 +258,10 @@ async function drainQueued(options: DrainOptions): Promise<DrainResult> {
   const finish = async (reason?: DrainResult["reason"]): Promise<DrainResult> =>
     ({ stopped: reason !== undefined, ...(reason ? { reason } : {}), remaining: runtime.principal === undefined ? 0 : (await runtime.outbox.queued()).length });
   if (runtime.principal === undefined) return finish();
-  for (const queued of await runtime.outbox.queued()) {
+  for (;;) {
+    await runtime.outbox.admitAcknowledgements();
+    const queued = (await runtime.outbox.queued())[0];
+    if (!queued) break;
     throwIfAborted(options.signal);
     const entry = await runtime.store.outbox.get(queued.intent);
     throwIfAborted(options.signal);

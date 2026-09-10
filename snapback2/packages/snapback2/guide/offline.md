@@ -129,7 +129,8 @@ read `.recipient = viewer`; removed tombstones its row; programs never write
 it). Keys pin a `cap N by` group of T (E_DELIVER_UNBOUNDED); T needs one
 principal column or `by .column` (E_DELIVER_PRINCIPAL); the name must be free.
 `with receipts` adds nameReceipts (row, recipient, received, seq, the read
-rule's columns) under that rule. Installing, bootstrapping, removing, and the
+rule's columns) under that rule; durable acknowledgement: `guide deliver`.
+Installing, bootstrapping, removing, and the
 audience bound `A`: `guide successor`.
 
 What each write delivers, the reserve it prices, and id reuse: `guide deliver`.

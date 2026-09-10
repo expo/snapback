@@ -592,6 +592,7 @@ impl Engine {
             seq,
         );
         runner.replay_preimages = replay.map(|_| BTreeMap::new());
+        runner.acknowledgement = crate::delivery::acknowledgement(&self.schema, program).and_then(|(_, d)| d.receipts_table());
         let mut unused_assets = Vec::new();
         let mut attempted = entry_validation.and_then(|assets| {
             unused_assets = assets;
@@ -1321,6 +1322,7 @@ mod row_membership;
 mod runner;
 mod runner_ops;
 mod custody;
+mod acknowledgements;
 mod containment;
 mod scan;
 mod search;

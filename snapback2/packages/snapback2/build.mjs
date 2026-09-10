@@ -822,7 +822,7 @@ async function loadQuarryParser() {
 
 async function fixtureFiles(root) {
   const output = [];
-  for (const name of ["quarry-todos", "quarry-chat", "quarry-surface", "quarry-assets", "quarry-jobs", "quarry-schedules", "quarry-fanout-guide"]) {
+  for (const name of ["quarry-todos", "quarry-chat", "quarry-surface", "quarry-assets", "quarry-jobs", "quarry-schedules", "quarry-fanout-guide", "quarry-delivery"]) {
     const directory = resolve(root, name, "snapback");
     for (const entry of await readdir(directory, { withFileTypes: true })) {
       if (entry.isFile() && (entry.name.endsWith(".ts") || entry.name.endsWith(".q"))) output.push(resolve(directory, entry.name));

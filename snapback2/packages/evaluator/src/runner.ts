@@ -1,4 +1,5 @@
 import { mergeRemainder, mergeStreams } from "./merge";
+import { DeliveryPrediction } from './delivery-prediction';
 import coreIrContract from "../../../crates/snapback2-core/ir-contract.json" with { type: "json" };
 import { EvalError, requireRowIdentity } from "./errors";
 import { cursorSuffix, decodeCursorFor, encodeCursor } from "./cursor";
@@ -51,6 +52,8 @@ type Flow =
 const NEXT: Flow = { kind: "next" };
 
 export class Runner {
+  private delivery?: DeliveryPrediction;
+  private acknowledgement?: string;
   private readonly env = new Map<string, Value>();
   private readonly consts = new Set<string>();
   private returnPath: string | null = null;
@@ -103,7 +106,9 @@ export class Runner {
     context: Context,
     private readonly certificate: any,
     search = new SearchExecution(),
+    predictDelivery = false,
   ) {
+    if (predictDelivery) this.delivery = new DeliveryPrediction(schema, context.viewer);
     this.search = search;
     search.meter(this.chargeSearch);
     this.context = clone(context);
@@ -113,6 +118,8 @@ export class Runner {
   }
 
   execute(program: any): Execution {
+    this.acknowledgement = Object.values<any>(this.schema.tables).map(t => t.deliver).find(d =>
+      d?.receipts && program.name === `_delivery.${d.log}.ack`)?.log;
     const flow = this.statements(program.body);
     this.checkFinalConstraints();
     return {
@@ -182,10 +189,13 @@ export class Runner {
           }
           break;
         }
-        case "Require":
-          if (!asBool(this.expr(data.condition)))
+        case "Require": {
+          const value = this.expr(data.condition);
+          if (!asBool(value))
             throw new EvalError("E_REQUIRE", "program requirement failed", data.code);
+          this.delivery?.require(value);
           break;
+        }
         case "Check":
           if (!asBool(this.expr(data.condition))) {
             const { table, index } = data.current, key = data.current.key.map((value: any) => this.expr(value));
@@ -302,8 +312,10 @@ export class Runner {
     switch (kind) {
       case "Literal":
         return clone(data);
-      case "Variable":
-        return clone(this.requiredEnv(data));
+      case "Variable": {
+        const value = this.requiredEnv(data), copy = clone(value);
+        return this.delivery?.copy(copy, value) ?? copy;
+      }
       case "Input":
         return this.input(data);
       case "Field":
@@ -333,8 +345,10 @@ export class Runner {
       }
       case "Get":
         return this.get(data);
-      case "Exists":
-        return { Bool: this.get(data) !== "Null" };
+      case "Exists": {
+        const row = this.get(data), value = { Bool: row !== 'Null' };
+        return this.delivery?.point(value, data.table, row) ?? value;
+      }
       case "Scan":
         return this.scan(data);
       case "Merge":
@@ -368,7 +382,7 @@ export class Runner {
   private binary(data: any): Value {
     const left = this.expr(data.left);
     if (data.op === "And" && !asBool(left)) return { Bool: false };
-    if (data.op === "Or" && asBool(left)) return { Bool: true };
+    if (data.op === "Or" && asBool(left)) return left;
     const right = this.expr(data.right);
     switch (data.op) {
       case "Eq":
@@ -392,9 +406,9 @@ export class Runner {
       case "Mul":
         return int(asInt(left) * asInt(right));
       case "And":
-        return { Bool: asBool(left) && asBool(right) };
+        return this.delivery?.copy({ Bool: asBool(left) && asBool(right) }, left, right) ?? { Bool: asBool(left) && asBool(right) };
       case "Or":
-        return { Bool: asBool(left) || asBool(right) };
+        return this.delivery?.copy({ Bool: asBool(left) || asBool(right) }, asBool(left) ? left : right) ?? { Bool: asBool(left) || asBool(right) };
       default:
         throw new EvalError("E_OPAQUE", `unsupported binary ${data.op}`);
     }
@@ -767,10 +781,23 @@ export class Runner {
     this.insertedRows.push({ table, row: clone(row) });
     this.ruleMemo.clear();
     this.maintain(table, null, row);
+    const event = this.delivery?.event(table, row, this.context.now ?? 0);
+    if (event) {
+      this.store.put(event.table, event.row);
+      this.recordWrite(event.table, event.row);
+      this.rememberCreatedRow(event.table, event.row);
+      this.maintain(event.table, null, event.row);
+    }
+    this.delivery?.changed(table);
     return true;
   }
 
   private update(table: string, key: Value, patch: Value): void {
+    // @ref LLP 1019#6-receipts-with-receipts — certified acknowledgements need
+    // live private membership authority, which no held receipt can establish.
+    if (this.acknowledgement && table === `${this.acknowledgement}Receipts`) {
+      this.partial.add('missing-authority'); this.authorityMissSerial++; return;
+    }
     const old = this.store.byId(table, asString(key));
     if (old === null) {
       this.missingWriteRow(table, asString(key));
@@ -796,6 +823,7 @@ export class Runner {
     this.refreshCreatedPoints(table, row);
     this.ruleMemo.clear();
     this.maintain(table, old, row);
+    this.delivery?.changed(table);
   }
 
   private delete(table: string, id: string): void {
@@ -812,6 +840,7 @@ export class Runner {
     this.forgetCreatedPoints(table, id);
     this.ruleMemo.clear();
     this.maintain(table, old, null);
+    this.delivery?.changed(table);
   }
 
   // @ref LLP 1011#b3-one-missing-row-rule-no-id-in-an-upsert-row — preserve

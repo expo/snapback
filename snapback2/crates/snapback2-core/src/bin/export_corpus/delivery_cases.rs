@@ -70,6 +70,7 @@ fn schema() -> Schema {
 
 pub(super) fn add_delivery_cases(cases: &mut Vec<CorpusCase>) {
     add_write_cases(cases);
+    add_receipt_and_prediction_cases(cases);
     add_bound_case(cases);
     let name = "deliver-log-schema-identity";
     let program = pure_program(
@@ -170,6 +171,52 @@ pub(super) fn add_delivery_cases(cases: &mut Vec<CorpusCase>) {
             next: None,
         },
     });
+}
+
+fn add_receipt_and_prediction_cases(cases: &mut Vec<CorpusCase>) {
+    let base = cases.iter().find(|c| c.name == "deliver-insert-cap3").unwrap().clone();
+    for contract in [false, true] {
+        let name = if contract { "deliver-own-membership-contract" } else { "deliver-no-membership-contract" };
+        let mut program = base.program.clone(); program.name = name.into();
+        if contract { program.body.insert(0, Stmt::Require { condition: Expr::Exists(Read {
+            site: "required.membership".into(), table: "memberships".into(), index: "byConversationPrincipal".into(),
+            key: vec![Expr::Literal(id("c1")), Expr::Input(Input::Viewer)], provenance: KeyProvenance::Viewer,
+        }), code: "MEMBERSHIP_REQUIRED".into(), site: None }); }
+        cases.push(case_from_parts(name, "scenario", base.schema.clone(), program, base.context.clone(), base.receipt.clone(), vec![], None, None));
+    }
+    let mut s = schema();
+    let mut d = s.tables["messages"].deliver.clone().unwrap(); d.receipts = true;
+    s.tables.get_mut("messages").unwrap().deliver = Some(d.clone());
+    s.tables.insert(d.receipts_table().unwrap(), delivery::receipts_table(&s, "messages", &d).unwrap());
+    let mut engine = Engine::memory(s.clone()).unwrap();
+    engine.seed("memberships", object([("id", id("a")), ("conversationId", id("c1")), ("principal", id("u1"))])).unwrap();
+    engine.seed("messages", content("m", "body")).unwrap();
+    let name = "deliver-receipts-query";
+    let query = pure_program(name, Expr::Scan(Scan { table: "deliveriesReceipts".into(), index: "byRow".into(), site: name.into(),
+        prefix: vec![IndexKeyExpr::Scalar(Expr::Literal(id("m")))], order: Order::Asc, take: Bound::Literal(50), after: None, before: None,
+        range: None, opaque_cursor: false, merge_site: None, provenance: KeyProvenance::Const }), &BTreeMap::new());
+    let cert = Checker::new(&s, Ceilings::default()).check(&query).unwrap();
+    let execution = engine.execute(&query, &cert, query_context([])).unwrap();
+    let receipt_rows = execution.receipt.rows.clone();
+    cases.push(case_from_parts(name, "scenario", s.clone(), query, query_context([]), execution.receipt, vec![], None, None));
+    let name = "deliver-receipts-inbox";
+    let Expr::Scan(mut tail) = inbox() else { unreachable!() };
+    tail.after = Some(Box::new(Expr::Variable("c".into()))); tail.opaque_cursor = true;
+    let mut query = pure_program(name, Expr::Object(BTreeMap::from([
+        ("events".into(), Expr::Scan(tail)),
+        ("message".into(), Expr::Get(Read { site: "content".into(), table: "messages".into(), index: "byId".into(), key: vec![Expr::Literal(id("m"))], provenance: KeyProvenance::Const })),
+    ])), &BTreeMap::new());
+    query.args.insert("c".into(), ArgType::Optional(Box::new(ArgType::Cursor)));
+    let cert = Checker::new(&s, Ceilings::default()).check(&query).unwrap();
+    let execution = engine.execute(&query, &cert, query_context([("c", Value::Null)])).unwrap();
+    let mut ack_receipt = execution.receipt.clone(); ack_receipt.rows.extend(receipt_rows);
+    cases.push(case_from_parts(name, "scenario", s.clone(), query, query_context([("c", Value::Null)]), execution.receipt, vec![], None, None));
+    let ack = delivery::ack_program("messages", &d);
+    let event = engine.rows("deliveries").unwrap()[0].field("id").unwrap().clone();
+    let case = case_from_parts("deliver-ack-missing-authority", "scenario", s, ack,
+        mutation_context([("events", Value::Array(vec![event]))], [] as [&str;0]), ack_receipt, vec![], None, None);
+    assert!(case.expected.local_state.contains("partial"), "live acknowledgement authority is never a receipt");
+    cases.push(case);
 }
 
 fn columns<const N: usize>(columns: [(&str, ColumnType); N]) -> BTreeMap<String, ColumnType> {

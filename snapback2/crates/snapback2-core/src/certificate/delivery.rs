@@ -5,6 +5,21 @@ use super::*;
 pub(super) fn reserve(schema: &Schema, summary: &mut Summary) {
     let sources = summary.writes.clone();
     for write in sources {
+        if let Some((_, d, crate::delivery::Generated::Receipts)) = crate::delivery::owner(schema, &write.table) {
+            let n = u64::from(crate::delivery::group_cap(&schema.tables[&d.target], &d.prefix).unwrap()) + 1;
+            let rows = write.max_rows.saturating_mul(n);
+            let steps = rows.saturating_mul(5);
+            summary.examined = summary.examined.saturating_add(rows);
+            summary.index_entries = summary.index_entries.saturating_add(rows);
+            summary.steps = summary.steps.saturating_add(steps);
+            // Each acknowledgement releases its private membership page before
+            // the next identity; body/event pooling is priced by ordinary reads.
+            summary.delivery_heap_bytes = summary.delivery_heap_bytes.saturating_add(n.saturating_mul(
+                crate::bounds::declared_serialized_row_max(schema, &d.target).saturating_mul(4).saturating_add(256)));
+            summary.costs.delivery(rows, steps, &format!("schema.tables.{}.deliver", crate::delivery::owner(schema, &write.table).unwrap().0), "delivery acknowledgement: 50 event identities × (N+1) membership reserve");
+            let (index, _) = crate::cap::enforcement_index(&schema.tables[&d.target], &d.prefix).unwrap();
+            summary.delivery_indexes.insert(format!("{}.{index}", d.target));
+        }
         let Some(deliver) = schema.table(&write.table).and_then(|t| t.deliver.as_ref()) else {
             continue;
         };
@@ -13,6 +28,11 @@ pub(super) fn reserve(schema: &Schema, summary: &mut Summary) {
         let per_call =
             u64::from(cap) + u64::from(matches!(write.kind, WriteKind::Insert | WriteKind::Upsert));
         let rows = per_call.saturating_mul(write.max_rows);
+        if let Some(table) = deliver.receipts_table() {
+            summary.writes.push(WriteSite { table: table.clone(), kind: WriteKind::Upsert, max_rows: rows });
+            summary.delivery_indexes.insert(format!("{table}.byId"));
+        }
+        let rows = rows.saturating_mul(if deliver.receipts { 2 } else { 1 });
         let label = format!(
             "{} on {}: {} calls × {per_call} reserved rows",
             deliver.line(None),
@@ -38,7 +58,7 @@ pub(super) fn reserve(schema: &Schema, summary: &mut Summary) {
         summary.writes.push(WriteSite {
             table: deliver.log.clone(),
             kind: WriteKind::Insert,
-            max_rows: rows,
+            max_rows: per_call.saturating_mul(write.max_rows),
         });
         let index = crate::cap::enforcement_index(&schema.tables[&deliver.target], &deliver.prefix)
             .map(|(name, _)| name.as_str())
@@ -87,6 +107,10 @@ impl Certificate {
             let extra = actual.saturating_sub(base).saturating_mul(write.max_rows);
             let total = additions.entry(d.log.clone()).or_default();
             *total = total.saturating_add(extra);
+            if let Some(table) = d.receipts_table() {
+                *expected.entry(table.clone()).or_default() += base.saturating_mul(write.max_rows);
+                *additions.entry(table).or_default() += extra;
+            }
             if extra > 0 {
                 terms.push((
                     format!("schema.tables.{}.deliver", write.table),
@@ -123,7 +147,7 @@ impl Certificate {
             let reserved: u64 = next
                 .write_sites
                 .iter()
-                .filter(|w| w.table == *log && w.kind == WriteKind::Insert)
+                .filter(|w| w.table == *log && matches!(w.kind, WriteKind::Insert | WriteKind::Upsert))
                 .map(|w| w.max_rows)
                 .fold(0u64, u64::saturating_add);
             if reserved < expected[log] {
@@ -134,7 +158,7 @@ impl Certificate {
             let site = next
                 .write_sites
                 .iter_mut()
-                .find(|w| w.table == *log && w.kind == WriteKind::Insert)
+                .find(|w| w.table == *log && matches!(w.kind, WriteKind::Insert | WriteKind::Upsert))
                 .unwrap();
             site.max_rows = site.max_rows.saturating_add(*extra);
         }
@@ -243,6 +267,10 @@ fn final_probes(schema: &Schema, log: &str) -> u64 {
 
 pub(super) fn constraint_checks(schema: &Schema, writes: &[WriteSite], checks: &mut BTreeSet<String>) {
     for write in writes {
+        if let Some((_, d, crate::delivery::Generated::Receipts)) = crate::delivery::owner(schema, &write.table) {
+            checks.insert(format!("{}:DeliveryAcknowledgement", d.target));
+            checks.insert(format!("{}:DeliveryReceipt", write.table));
+        }
         if let Some(d) = schema.table(&write.table).and_then(|t| t.deliver.as_ref()) {
             if matches!(write.kind, WriteKind::Insert | WriteKind::Upsert) {
                 checks.insert(format!("{}:DeliverIncarnation", d.log));

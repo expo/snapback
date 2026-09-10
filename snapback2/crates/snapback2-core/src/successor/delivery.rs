@@ -200,6 +200,27 @@ pub(super) fn bootstrap(
     let seq = commit_seq(transaction)?;
     let mut ordinal = 0u32;
     for (content, content_table, deliver) in delivery::declarations(next) {
+        if installed(current, content, deliver) && deliver.receipts
+            && !current.tables[content].deliver.as_ref().unwrap().receipts {
+            let table = deliver.receipts_table().unwrap();
+            let mut count = 0;
+            // Adding receipt state does not reconstruct the audience: reuse
+            // the retained log, in the installer's existing bounded row batches.
+            for_row_batches(transaction, &deliver.log, |event| {
+                if event.field("kind")?.as_str()? != "delivered" { return Ok(()); }
+                use rusqlite::OptionalExtension;
+                let body: Option<String> = transaction.query_row("SELECT data FROM rows WHERE table_name=?1 AND row_id=?2",
+                    params![content, event.field("row")?.as_str()?], |r| r.get(0)).optional()?;
+                if let Some(body) = body {
+                    let mut body: Value = serde_json::from_str(&body).map_err(|e| RuntimeError::Schema(e.to_string()))?;
+                    materialize_optional_fields(&mut body, content_table);
+                    insert_engine_row(transaction, next, &table, delivery::receipt_row(next, &body, &event, &table, false, seq)?)?;
+                    count += 1;
+                }
+                Ok(())
+            })?;
+            lines.push(format!("{table}: initialized {count} unacknowledged receipt(s) from retained delivery events"));
+        }
         if !deliver.bootstrap || installed(current, content, deliver) {
             continue;
         }
@@ -229,6 +250,10 @@ pub(super) fn bootstrap(
                     &row, deliver, principal, "delivered", seq, audience, seq, ordinal, at,
                 )?;
                 ordinal += 1;
+                if let Some(table) = deliver.receipts_table() {
+                    let receipt = delivery::receipt_row(next, &row, &event, &table, false, seq)?;
+                    insert_engine_row(transaction, next, &table, receipt)?;
+                }
                 insert_engine_row(transaction, next, &deliver.log, event)?;
                 events += 1;
             }
