@@ -2009,3 +2009,12 @@ documented template renders Sync now and calls `client.online()`; this copied
 composer omitted that affordance. The repair therefore belongs in the app,
 not an automatic core renewal loop. This is exactly the kind of authoring
 detail a complete composer recipe needs to make hard to miss.
+
+The visible recovery control now closes that gap without a new SDK policy.
+In the final browser witness, two exhausted grants each prompt Sync now;
+the exact draft remains, sync alone sends nothing, and the user's following
+send succeeds. Fifty-one further messages leave the mounted recipient at its
+fifty-row cap with the newest id present and no unread head. Expired and
+page-evicted messages do not resurrect after remount or cold reopen despite
+retained committed history. Both independent source reviews are READY. These
+are final copied-app observations, not a regrade of either benchmark lane.
