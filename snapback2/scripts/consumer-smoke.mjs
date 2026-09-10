@@ -58,6 +58,8 @@ export function receiptVerdict(result, allowNoEngine = false) {
   try { receipt = JSON.parse(result.stdout); } catch { return { accepted: false, verdict: 'invalid receipt' }; }
   const checks = Array.isArray(receipt.checks) ? receipt.checks : [];
   if (!checks.length) return { accepted: false, verdict: 'zero checks' };
+  // Effects may retain notWitnessed rows beside a successful witness. The
+  // coverage verdict decides acceptance; negative evidence alone cannot pass.
   if (result.status === 0 && receipt.verdict === 'pass' && checks.every(c => c.verdict === 'pass')) {
     return { accepted: true, verdict: 'pass' };
   }

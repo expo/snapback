@@ -39,6 +39,61 @@ fn run_test(project: &Project, args: &[&str]) -> Value {
     receipt
 }
 
+#[test]
+fn binding_after_an_emission_is_claimed_cannot_rescue_its_unbound_attempt() {
+    let project = scaffold_chat();
+    let delivery = project.path.join("snapback/delivery.ts");
+    // Keep the claim observable before its first fetch; bind only after rows()
+    // reports running, so this pins the claim snapshot without racing the wake.
+    let source = fs::read_to_string(&delivery).unwrap().replace(
+        "    const request = {",
+        "    await new Promise(resolve => setTimeout(resolve, 1000));\n    const request = {",
+    );
+    assert!(source.contains("setTimeout(resolve, 1000)"));
+    fs::write(delivery, source).unwrap();
+    fs::write(project.path.join("snapback/tests/chat.test.ts"), r#"
+import { journey } from "snapback2/test";
+import { api } from "snapback2/client";
+journey("bind after the claim", async ({ as, effects }) => {
+  const sent = await as("alice").mutation(api.messages.send, { conversationId: "conversation-1", body: "bind too late" });
+  if (sent.state !== "committed") throw new Error(JSON.stringify(sent));
+  for (;;) {
+    const page = await effects.rows();
+    const row = page.rows.find(row => row.seq === sent.seq && row.effect === "delivery.notify");
+    if (row?.state === "running") break;
+    if (row && row.state !== "queued") throw new Error("claim was not observed: " + JSON.stringify(row));
+    await new Promise(resolve => setTimeout(resolve, 5));
+  }
+  const provider = await effects.provider("https://api.example.com", () => Response.json({ id: "too-late" }));
+  const result = await effects.settle({ upTo: sent.seq, budgetMs: 3000 });
+  const row = result.rows.find(row => row.seq === sent.seq && row.effect === "delivery.notify");
+  if (!result.settled || row?.state !== "failed" || !String(row.lastError).includes("E_EFFECT_UNBOUND")) throw new Error(JSON.stringify(result));
+  if (provider.requests.length !== 0) throw new Error(JSON.stringify(provider.requests));
+});
+"#).unwrap();
+    let receipt = run_test(&project, &["--journey", "bind after the claim"]);
+    assert_eq!(receipt["verdict"], "pass", "{receipt}");
+    assert_eq!(check(&receipt, "bind after the claim")["verdict"], "pass");
+}
+
+#[test]
+fn hermes_chat_derived_only_passes_without_effect_or_journey_checks() {
+    let project = scaffold_chat();
+    let output = project.run(&["test", "--derived-only", "--json"]);
+    let receipt = json_stdout(&output);
+    assert!(output.status.success(), "{receipt}");
+    assert_eq!(receipt["verdict"], "pass", "{receipt}");
+    assert_eq!(receipt["scope"]["derivedOnly"], true);
+    let checks = receipt["checks"].as_array().unwrap();
+    assert!(!checks.is_empty(), "{receipt}");
+    assert!(
+        checks.iter().all(|check| check["name"] != "effects"
+            && check["kind"] != "journey"
+            && check["verdict"] == "pass"),
+        "{receipt}"
+    );
+}
+
 // @ref LLP 1021#4-test-counts-witnesses — acceptance 2: the scaffolded chat reports `effects: pass` with one witness whose `then` committed with a seq.
 #[test]
 fn chat_template_test_reports_one_witness_per_effect_with_its_then_committed() {
@@ -77,24 +132,24 @@ fn chat_template_test_reports_one_witness_per_effect_with_its_then_committed() {
     // The template's other journeys send messages without binding a provider:
     // their rows failed E_EFFECT_UNBOUND, reached nothing, and are negative
     // evidence only.
-    let refused = effects["detail"]["refused"]["delivery.notify"]["rows"]
+    let not_witnessed = effects["detail"]["notWitnessed"]["delivery.notify"]["rows"]
         .as_array()
         .unwrap();
-    assert!(!refused.is_empty(), "{effects}");
+    assert!(!not_witnessed.is_empty(), "{effects}");
     assert!(
-        refused.iter().all(|row| {
+        not_witnessed.iter().all(|row| {
             row["state"] == "failed"
                 && row["lastError"]
                     .as_str()
                     .is_some_and(|error| error.contains("E_EFFECT_UNBOUND"))
         }),
-        "{refused:?}"
+        "{not_witnessed:?}"
     );
     assert!(
-        refused
+        not_witnessed
             .iter()
             .any(|row| row["journey"] == "alice posts to the room and a non-member cannot"),
-        "{refused:?}"
+        "{not_witnessed:?}"
     );
     assert_eq!(
         check(&receipt, "a sent message notifies the recipient")["verdict"],
@@ -270,14 +325,14 @@ fn lifecycle_journeys_isolate_bindings_retry_after_backoff_replay_offline_and_re
     );
     assert_eq!(witness["attempts"], 1);
     assert_eq!(witness["then"]["state"], "committed");
-    let refused = effects["detail"]["refused"]["delivery.notify"]["rows"]
+    let not_witnessed = effects["detail"]["notWitnessed"]["delivery.notify"]["rows"]
         .as_array()
         .unwrap();
     let refusal = |journey: &str| {
-        refused
+        not_witnessed
             .iter()
             .find(|row| row["journey"] == journey)
-            .unwrap_or_else(|| panic!("no refusal for {journey}: {refused:?}"))["lastError"]
+            .unwrap_or_else(|| panic!("no refusal for {journey}: {not_witnessed:?}"))["lastError"]
             .as_str()
             .unwrap()
             .to_owned()
@@ -544,12 +599,13 @@ journey("return without provider contact", async ({ as, effects }) => {
         "{effects}"
     );
     assert_eq!(
-        effects["detail"]["refused"]["delivery.notify"]["rows"][0]["provider"]["requests"], 0,
+        effects["detail"]["notWitnessed"]["delivery.notify"]["rows"][0]["provider"]["requests"], 0,
         "{effects}"
     );
     if catch_unbound {
         assert_eq!(
-            effects["detail"]["refused"]["delivery.notify"]["rows"][0]["provider"]["refused"]["E_EFFECT_UNBOUND"],
+            effects["detail"]["notWitnessed"]["delivery.notify"]["rows"][0]["provider"]["refused"]
+                ["E_EFFECT_UNBOUND"],
             1,
             "{effects}"
         );
@@ -629,11 +685,11 @@ journey("caught redirect refusal", async ({{ as, effects }}) => {{
         "{effects}"
     );
     assert_eq!(effects["detail"]["witnesses"], json!({}), "{effects}");
-    let refused = &effects["detail"]["refused"]["delivery.notify"]["rows"];
-    assert_eq!(refused.as_array().unwrap().len(), 1, "{effects}");
-    assert_eq!(refused[0]["state"], "sent");
+    let not_witnessed = &effects["detail"]["notWitnessed"]["delivery.notify"]["rows"];
+    assert_eq!(not_witnessed.as_array().unwrap().len(), 1, "{effects}");
+    assert_eq!(not_witnessed[0]["state"], "sent");
     assert_eq!(
-        refused[0]["provider"],
+        not_witnessed[0]["provider"],
         json!({
             "origins": ["https://api.example.com"], "requests": 1, "refused": {code: 1}
         })
@@ -682,25 +738,17 @@ journey("the next epoch observes the old settlement without provider contaminati
 }
 
 #[test]
-fn owner_journeys_admit_relative_and_host_derived_redirects_on_the_logical_origin() {
+fn owner_journeys_admit_relative_and_https_host_derived_redirects_on_the_logical_origin() {
     let project = scaffold_chat();
-    let path = project.path.join("snapback/delivery.ts");
-    fs::write(
-        &path,
-        fs::read_to_string(&path)
-            .unwrap()
-            .replace("https://api.example.com", "http://127.0.0.1:9"),
-    )
-    .unwrap();
     fs::write(project.path.join("snapback/tests/chat.test.ts"), r#"
 import { journey } from "snapback2/test";
 import { api } from "snapback2/client";
 for (const kind of ["relative", "host"]) journey(kind + " logical redirect", async ({ as, effects }) => {
-  const provider = await effects.provider("http://127.0.0.1:9", request => {
+  const provider = await effects.provider("https://api.example.com", request => {
     if (new URL(request.url).pathname === "/send") return new Response(null, { status: 302, headers: {
-      location: kind === "relative" ? "/next" : "http://" + request.headers.get("host") + "/next"
+      location: kind === "relative" ? "/next" : `https://${request.headers.get("host")}/next`
     }});
-    if (request.headers.get("host") !== "127.0.0.1:9") throw new Error("wrong Host");
+    if (request.url !== "https://api.example.com/next" || request.headers.get("host") !== "api.example.com") throw new Error("wrong logical URL or Host");
     return Response.json({ id: kind });
   });
   const sent = await as("alice").mutation(api.messages.send, { conversationId: "conversation-1", body: kind });
@@ -708,7 +756,7 @@ for (const kind of ["relative", "host"]) journey(kind + " logical redirect", asy
   const result = await effects.settle({ upTo: sent.seq, budgetMs: 3000 });
   const row = result.rows.find(row => row.seq === sent.seq);
   if (!result.settled || row?.state !== "sent" || row.then?.state !== "committed") throw new Error(JSON.stringify(result));
-  if (provider.requests.length !== 2 || provider.requests[1]?.path !== "/next") throw new Error(JSON.stringify(provider.requests));
+  if (provider.requests.length !== 2 || provider.requests[1]?.path !== "/next" || provider.requests[1]?.headers.host !== "api.example.com") throw new Error(JSON.stringify(provider.requests));
 });
 "#).unwrap();
     let receipt = run_test(&project, &[]);
@@ -789,7 +837,7 @@ journey("provider succeeds but then rejects", async ({ as, effects }) => {
         effects["detail"]["reason"], "effects:no-witness",
         "{effects}"
     );
-    let refused = &effects["detail"]["refused"]["delivery.notify"]["rows"][0];
-    assert_eq!(refused["provider"]["requests"], 1);
-    assert_eq!(refused["then"]["state"], "rejected");
+    let not_witnessed = &effects["detail"]["notWitnessed"]["delivery.notify"]["rows"][0];
+    assert_eq!(not_witnessed["provider"]["requests"], 1);
+    assert_eq!(not_witnessed["then"]["state"], "rejected");
 }

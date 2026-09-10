@@ -96,7 +96,10 @@ fn request(
 fn read_timeout(path: &str, body: &Json) -> Option<Duration> {
     use crate::control_run::{Mode, requested_mode};
     if path == "/control/effects/epoch" {
-        return Some(snapback2_effects::DEFAULT_BUDGET + Duration::from_secs(2));
+        return Some(match body.get("epoch") {
+            None | Some(Json::Null) => snapback2_effects::DEFAULT_BUDGET + Duration::from_secs(2),
+            _ => Duration::from_secs(5),
+        });
     }
     match requested_mode(body) {
         Ok(Mode::DryRun) => None,
@@ -324,6 +327,33 @@ mod tests {
         ] {
             assert_eq!(read_timeout("/control/run", &body), task, "{body}");
         }
+    }
+
+    #[test]
+    fn epoch_open_keeps_the_task_timeout_and_only_close_gets_the_drain_budget() {
+        for body in [
+            json!({"epoch":"journey-1"}),
+            json!({"epoch":17}),
+            json!({"epoch":false}),
+        ] {
+            assert_eq!(
+                read_timeout("/control/effects/epoch", &body),
+                Some(Duration::from_secs(5)),
+                "{body}"
+            );
+        }
+        // The owner treats an omitted epoch exactly like explicit null.
+        for body in [json!({"epoch":null}), json!({})] {
+            assert_eq!(
+                read_timeout("/control/effects/epoch", &body),
+                Some(snapback2_effects::DEFAULT_BUDGET + Duration::from_secs(2)),
+                "{body}"
+            );
+        }
+        assert_eq!(
+            read_timeout("/control/status", &json!({"epoch":null})),
+            Some(Duration::from_secs(5))
+        );
     }
 
     #[test]

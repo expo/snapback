@@ -763,7 +763,8 @@ read-only in the receipt, never editable):
    committed. A granted effect requires at least one substituted request in
    that sent attempt; a grant-less effect records `provider: { declared: false }`.
    The receipt lists `{ journey, id, seq, attempts, state, ms, provider, then }`
-   per effect and refusals as `refused[effect]: { rows, dropped }`; missing evidence is
+   per effect and terminal non-witness rows as
+   `notWitnessed[effect]: { rows, dropped }`; missing evidence is
    `blocked: effects:no-witness` naming the effect and the journey it needs.
    Without an engine the check stays `blocked: no engine in this build` with
    `detail.build`, and engine-dependent journeys are `blocked: effects:no-engine`.

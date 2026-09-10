@@ -52,6 +52,7 @@ epoch on every exit, waiting for its in-flight claims for at most the effect
 budget + 1 s. A still-running row fails the journey before another epoch opens.
 Close returns at once with no outstanding claims; a journey with no provider
 needs no cleanup acknowledgment.
+Opening an epoch keeps the ordinary five-second control timeout.
 Malformed bindings and stale epochs return `E_INPUT` with the control route
 as the site; bind through `effects.provider` in the current journey.
 `provider.requests` captures method, path, headers and UTF-8 body text: at most
@@ -69,8 +70,8 @@ and cannot witness. An effect with no grants records `provider: { declared: fals
 no `then` records `then: { declared: false }`. The witness receipt lists
 `{ journey, id, seq, attempts, state, ms, provider, then }`. Timing matches the
 outbox id and attempt; unavailable timing is `ms: null, timing: "unavailable"`.
-Negative evidence is `refused[effect]: { rows, dropped }`: terminal rows that
-are not witnesses, capped at 20 rows.
+Negative evidence is `notWitnessed[effect]: { rows, dropped }`: terminal rows that
+are not witnesses, capped at 20 rows, with `lastError` and `provider` evidence.
 Missing witnesses block `effects:no-witness`, naming the effect and journey
 needed. Unavailable trace history blocks `effects:history-unavailable` with its
 reason in `detail.history`, instead of asking for another witness. Malformed

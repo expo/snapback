@@ -483,3 +483,52 @@ fn response_url_stays_logical_after_redirect_and_relative_followup() {
     assert_eq!(provider.hits().len(), 4);
     assert!(logical.hits().is_empty());
 }
+
+#[test]
+fn production_response_url_is_the_engine_url_without_rewriting() {
+    let server = Listener::start("ok", Some("/next?engine=1".into()));
+    let decl = declaration(
+        "async (payload, { fetch }) => ({ url: (await fetch(payload.url)).url })",
+        vec![server.origin()],
+    );
+    let mut host = Ibex2Host::new().unwrap();
+    for (path, final_path) in [
+        ("/send?engine=1", "/send?engine=1"),
+        ("/start", "/next?engine=1"),
+    ] {
+        let outcome = host.run(
+            &decl,
+            &EffectJob {
+                bindings: None,
+                ..bound_job(
+                    "production-url",
+                    json!({"url":format!("{}{path}", server.origin())}),
+                    &[],
+                )
+            },
+            Duration::from_secs(5),
+        );
+        let Outcome::Sent { result, .. } = outcome else {
+            panic!("{outcome:?}")
+        };
+        assert_eq!(
+            result,
+            json!({"url":format!("{}{final_path}", server.origin())})
+        );
+        assert!(
+            host.take_provider().is_none(),
+            "production records no substituted transport"
+        );
+    }
+    let hits = server.hits();
+    assert_eq!(hits.len(), 3, "{hits:?}");
+    assert!(
+        hits[0].starts_with("GET /send?engine=1 HTTP/1.1"),
+        "{hits:?}"
+    );
+    assert!(hits[1].starts_with("GET /start HTTP/1.1"), "{hits:?}");
+    assert!(
+        hits[2].starts_with("GET /next?engine=1 HTTP/1.1"),
+        "{hits:?}"
+    );
+}

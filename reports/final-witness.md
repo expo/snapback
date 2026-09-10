@@ -620,3 +620,169 @@ both witness assertions (not TypeScript compilation).
   used the real `/Users/ccheever/.volta/tools/image/node/24.18.0/bin` first on PATH.
   Initial measurement hit EPERM writing the default npm cache; reruns used
   `npm_config_cache=/tmp/witness-r2-npm-cache`, without changing configuration.
+
+
+## Fix round r3
+
+Base/unchanged HEAD: `d49a32f1445558c8dfe435f8e062f89038380fe7`, branch `s2/ri-witness`.
+Read Grok r2, the prior report through r2, the program plan, the Snapback 2 fence,
+LLP 1021 §3–§4, and the cited lifecycle/receipt contracts. No commit, stash,
+branch operation, or whole-suite run. All seven requested items are fixed;
+no r3 item is refused.
+
+### Governing context
+
+Scope: provider witness receipts, epoch client timeout, and their existing tests.
+Constraints: LLP 1021#3-a-provider-stand-in-and-nothing-else-answers (bindings are
+snapshotted at claim, grant-first bound transport, logical URLs/Host),
+LLP 1021#4-test-counts-witnesses (coverage requires successful contact without
+refusals), LLP 1003#2-the-outbox-lifecycle (terminal settlement and committed
+then), LLP 1002#7-test-and-the-receipt (selected coverage). No new design decision
+or hand-off; the RFC Status remains unchanged.
+
+### Item disposition
+
+1. **FIXED — bind after emit/claim.**
+   `binding_after_an_emission_is_claimed_cannot_rescue_its_unbound_attempt` emits
+   `messages.send`, polls `effects.rows()` until its `delivery.notify` is `running`,
+   then binds and settles: `failed`, `E_EFFECT_UNBOUND`, zero provider requests.
+   The fixture delays its first fetch by one second so the running claim is
+   observable. Choosing `running` from the brief's queued/running alternatives
+   pins the claim-before-bind ordering; a merely queued row has not snapshotted
+   its bindings yet. No production change. The existing guide bind-first sentence
+   already states the rule.
+2. **FIXED — Hermes derived-only.**
+   `hermes_chat_derived_only_passes_without_effect_or_journey_checks` runs the
+   Hermes test binary against a scaffolded chat using `test --derived-only --json`:
+   exit 0, verdict pass, `scope.derivedOnly: true`, nonempty passing checks, no
+   effects check and no journey checks. No production change; existing guide
+   scope sentence applies.
+3. **FIXED — honest receipt name.** `detail.notWitnessed[effect]: { rows, dropped }`
+   replaces the terminal non-witness list's `refused` key, without an alias.
+   `lastError` and `provider` evidence remain on every retained row. Actual
+   refusal counts keep their distinct `provider.refused` field.
+   `not_witnessed_receipt_names_terminal_non_witnesses_and_preserves_evidence`
+   exercises `check_effects` over HTTP and trace history, asserting sent/no-contact,
+   caught refusal, real failed refusal, their original evidence, and absence of
+   the old list key. `not_witnessed_evidence_reports_every_row_dropped_past_twenty`
+   pins 20 retained / 7 dropped. Every real-owner receipt reader now uses the new
+   key. `receiptVerdict uses coverage verdicts with notWitnessed evidence` pins
+   consumer acceptance with and without a successful witness, with both values
+   of `allowNoEngine`. `receiptVerdict` already ignores evidence-field names;
+   its explanatory comment and coverage test were updated, with no unnecessary
+   acceptance-logic change. Guide testing and LLPs 1002/1021 use the new name.
+4. **FIXED — HTTPS Host-built redirect.**
+   `owner_journeys_admit_relative_and_https_host_derived_redirects_on_the_logical_origin`
+   keeps the scaffold grant `https://api.example.com`. `/send` returns
+   `Location: https://${request.headers.get("host")}/next`; `/next` returns JSON.
+   Both relative and Host-built cases assert two hits, `sent`, committed `then`,
+   logical `/next` URL, and second-hop `Host: api.example.com`. No transport change.
+5. **FIXED — production response URL.**
+   `production_response_url_is_the_engine_url_without_rewriting` uses production
+   jobs (`bindings: None`) whose body returns `(await fetch(payload.url)).url`.
+   Direct and redirected requests return the real server URL/path/query; three
+   real hits and no substituted-provider evidence. No engine or fetch-factory edit.
+6. **FIXED — minor timeout and receipt site.**
+   `epoch_open_keeps_the_task_timeout_and_only_close_gets_the_drain_budget`
+   pins five seconds for open/malformed epoch values, budget + 2 seconds for
+   close (null or omitted, matching the owner), and no extension on other routes.
+   Guide testing states the open timeout. The existing
+   `a_failing_control_client_fails_instead_of_claiming_engine_absence` already
+   asserted the actual receipt's `E_OWNER_TEST_IO` and `/control/status` site in
+   r2; those assertions remain and pass. Its one-read raw-socket HTTP-500 fixture
+   failed once during this round, so it now uses the existing `tiny_http` helper
+   to answer a complete request instead of risking an early connection close.
+7. **FIXED — records.** This section appended to `reports/final-witness.md`,
+   standalone `REPORT-witness.md` written, and r3 line appended to LLP 1021's
+   Implementation record. RFC Status unchanged.
+
+### Before / after evidence
+
+Logs: `/tmp/witness-r3-*.log`. Items 1, 2, 4, and 5 are missing-coverage fixes;
+their new assertions passed against the existing r2 behavior. Only the list
+name and open timeout change product behavior.
+
+- Bind (`bind-before.log`):
+  `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 19 filtered out; finished in 11.47s`.
+  Asserts `failed` + `E_EFFECT_UNBOUND` and zero requests after observed running.
+- Derived-only (`derived-before.log`):
+  `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 19 filtered out; finished in 16.73s`.
+- Receipt (`receipt-before.log`): emitted `"refused":{"delivery.notify":{"dropped":0,"rows":[…]}}`
+  with states `sent`, `sent`, `failed`; the no-old-key assertion failed.
+  `test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 220 filtered out; finished in 0.00s`.
+  After (`receipt-after.log`): the same evidence is under `notWitnessed`.
+  `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 220 filtered out; finished in 0.01s`.
+  The final unit additionally sources provider evidence from claim/settlement history.
+- HTTPS (`https-before.log`):
+  `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 19 filtered out; finished in 17.39s`.
+- Production URL (`production-before.log`):
+  `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 73 filtered out; finished in 0.08s`.
+- Open timeout (`timeout-before.log`): `left: Some(32s)`, `right: Some(5s)`
+  for `{"epoch":"journey-1"}`.
+  `test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 221 filtered out; finished in 0.00s`.
+  After: open 5 s, close 32 s; the client group passes 4/4.
+- Initial test_effects group (`test-effects.log`):
+  `test result: FAILED. 10 passed; 1 failed; 0 ignored; 0 measured; 211 filtered out; finished in 0.01s`.
+  Only the existing HTTP-500 fixture's message assertion failed. After its complete
+  HTTP-response fixture replaced the single raw read, the group passes 11/11.
+
+### Verification (verbatim counts)
+
+- `scripts/hermes test -p snapback2-effects`:
+  `test result: ok. 74 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.77s`.
+- `scripts/hermes test -p snapback2 --test effects -- --test-threads=2`:
+  `test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 149.78s`.
+- `cargo test -p snapback2 --bin snapback2 test_effects`:
+  `test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 211 filtered out; finished in 0.01s`.
+- `cargo test -p snapback2 --bin snapback2 writer_bindings`:
+  `test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 215 filtered out; finished in 0.11s`.
+- `cargo test -p snapback2 --bin snapback2 client::`:
+  `test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 218 filtered out; finished in 0.00s`.
+- `node --test tests/effects-visibility.test.ts`:
+  `ℹ tests 9; ℹ suites 0; ℹ pass 9; ℹ fail 0; ℹ cancelled 0; ℹ skipped 0; ℹ todo 0; ℹ duration_ms 43969.472042`.
+- `node build.mjs`: exit 0; `guide: 31 cards, 84584/98304 bytes (13% headroom)`.
+  Testing guide 7,242 / existing 8,192-byte cap; no budget changed.
+- `cargo build`, `cargo build -p snapback2-media`, final `cargo build`: exit 0.
+- Final requested selections: 125 tests passed, 0 failed. Effects crate doctests: 0/0.
+  Both owner-stop tests passed; no sandbox artifact in the final results.
+- `./ref-check --verbose`: `ref-check: ok — 439 LLP docs, 8599 refs in 22365 files, 0 errors, 0 unchecked`.
+- `git diff --check`: pass. All 11 changed/added files are below 1,500 lines;
+  largest is LLP 1002 at 1,475, largest changed source is `test_effects.rs` at 864.
+- `scripts/test.sh`, full workspace tests, and loop measurements were not run,
+  following this final round's explicit targeted-only instruction.
+
+### Changed files and scope
+
+- `snapback2/crates/snapback2/src/test_effects.rs`: receipt list/internal names,
+  end-to-end receipt unit fixture, complete HTTP-500 fixture, existing assertions.
+- `snapback2/crates/snapback2/src/client.rs`: epoch timeout predicate and unit.
+- `snapback2/crates/snapback2/tests/effects_cases/witness.rs`: bind-after-claim,
+  Hermes derived-only, HTTPS redirect, renamed receipt readers.
+- `snapback2/crates/snapback2-effects/src/ibex_bound_tests.rs`: production URL test.
+- `snapback2/packages/snapback2/tests/effects-visibility.test.ts`: receiptVerdict test.
+- `snapback2/packages/snapback2/guide/testing.md`: list name/evidence and open timeout.
+- `snapback2/scripts/consumer-smoke.mjs`: receiptVerdict explanation only.
+- `llp/1002-dev-loop.spec.md`: receipt-field spelling in the cited receipt contract.
+- `llp/1021-effects-in-the-loop.rfc.md`: receipt-field spelling and r3 record.
+- `reports/final-witness.md`, `REPORT-witness.md`: requested reports.
+
+Scope note: the receipt contract in LLP 1002 and the existing consumer-smoke
+script were also touched to keep the explicitly requested name/consumer update
+consistent; no new script, registry, config, check, design document, or template
+was added. The shared program directory was read only; its report copy remains
+for the orchestrator to update from this worktree. No edit to `writer.rs`
+(still 1,363 lines), runtime transport, or epoch claim policy.
+
+### Deviations / open questions
+
+- No r3 item refused and no open r3 question. The running-state poll is the
+  deterministic member of the requested queued/running alternatives; it does
+  not claim that a later bind must fail while the row remains unclaimed.
+- The existing receiptVerdict function does not inspect the renamed key; behavior
+  remains verdict-based, now documented and exercised with `notWitnessed`.
+- No new grant, diagnostic, budget, or runtime behavior beyond the named changes.
+- Historical report sections above use the field names at those revisions; this
+  section supersedes their terminal-list naming. Actual refusal counts continue
+  to be called `provider.refused`.
+- The prior post-provider/pre-durable-settlement crash-seam issue stays open;
+  r3 neither changes it nor claims that boundary.

@@ -4,6 +4,7 @@ import { mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
 import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { resolve, join } from "node:path";
+import { receiptVerdict } from "../../../scripts/consumer-smoke.mjs";
 
 const workspace = fileURLToPath(new URL("../../../", import.meta.url));
 const binary = resolve(workspace, "target/debug/snapback2");
@@ -19,6 +20,26 @@ const cli = (args: string[], timeout = 30_000) => {
   assert.equal(result.error, undefined);
   return result;
 };
+
+test("receiptVerdict uses coverage verdicts with notWitnessed evidence", () => {
+  const rows = [
+    { state: "sent", lastError: null, provider: { requests: 0, refused: {} } },
+    { state: "sent", lastError: null, provider: { requests: 1, refused: { E_EFFECT_UNBOUND: 1 } } },
+    { state: "failed", lastError: "E_EFFECT_UNBOUND", provider: { requests: 0, refused: { E_EFFECT_UNBOUND: 1 } } },
+  ];
+  for (const witnessed of [false, true]) {
+    const verdict = witnessed ? "pass" : "blocked";
+    const receipt = { verdict, checks: [{ name: "effects", kind: "derived", verdict, detail: {
+      reason: witnessed ? undefined : "effects:no-witness",
+      witnesses: witnessed ? { "delivery.notify": { state: "sent", provider: { requests: 1, refused: {} } } } : {},
+      notWitnessed: { "delivery.notify": { rows, dropped: 0 } },
+    } }] };
+    for (const allowNoEngine of [false, true]) {
+      assert.deepEqual(receiptVerdict({ status: witnessed ? 0 : 1, stdout: JSON.stringify(receipt) }, allowNoEngine),
+        { accepted: witnessed, verdict });
+    }
+  }
+});
 
 // One scaffolded chat app serves both tests so each keeps its own ten-second budget.
 before(async () => {

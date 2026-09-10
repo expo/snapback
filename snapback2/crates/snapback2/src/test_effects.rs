@@ -117,7 +117,7 @@ pub(super) fn check_effects(
     };
     let evidence = witness_evidence(&rows, windows, effects);
     let mut witnesses = Map::new();
-    let mut refused = Map::new();
+    let mut not_witnessed = Map::new();
     let mut unavailable = Map::new();
     let mut missing = Vec::new();
     let mut missing_history = false;
@@ -127,10 +127,10 @@ pub(super) fn check_effects(
         if !history.is_empty() {
             unavailable.insert(effect.clone(), json!(history));
         }
-        if !found.refused.is_empty() {
-            refused.insert(
+        if !found.not_witnessed.is_empty() {
+            not_witnessed.insert(
                 effect.clone(),
-                json!({"rows":found.refused,"dropped":found.dropped}),
+                json!({"rows":found.not_witnessed,"dropped":found.dropped}),
             );
         }
         match &found.witness {
@@ -152,7 +152,7 @@ pub(super) fn check_effects(
         "declarations": declarations,
         "journeys": windows.iter().map(|window| &window.journey).collect::<Vec<_>>(),
         "witnesses": witnesses,
-        "refused": refused,
+        "notWitnessed": not_witnessed,
     });
     if !unavailable.is_empty() {
         detail["history"] = json!(unavailable);
@@ -338,16 +338,16 @@ fn checked_control(
 #[derive(Default)]
 struct Evidence {
     witness: Option<Json>,
-    refused: Vec<Json>,
+    not_witnessed: Vec<Json>,
     dropped: usize,
     unavailable: BTreeMap<u64, Json>,
 }
 
-const REFUSED_CAP: usize = 20;
+const NOT_WITNESSED_CAP: usize = 20;
 
 /// Per declared effect: the lowest-seq successful witness among the rows the
-/// journeys emitted, and the refusals those rows met — negative evidence a
-/// journey may have asked for, which substitutes for no witness.
+/// journeys emitted, and terminal rows that did not witness — including sent
+/// rows without contact, caught refusals, and failed attempts.
 fn witness_evidence(
     rows: &[Json],
     windows: &[JourneyWindow],
@@ -422,11 +422,11 @@ fn witness_evidence(
                 }
             }
             Some("sent") | Some("failed") => {
-                if found.refused.len() == REFUSED_CAP {
+                if found.not_witnessed.len() == NOT_WITNESSED_CAP {
                     found.dropped += 1;
                     continue;
                 }
-                found.refused.push(json!({
+                found.not_witnessed.push(json!({
                     "journey": window.journey,
                     "id": row["id"],
                     "seq": seq,
@@ -500,8 +500,8 @@ mod tests {
         assert_eq!(witness["id"], "first");
         assert_eq!(witness["journey"], "b");
         assert_eq!(witness["then"], committed);
-        assert_eq!(found.refused.len(), 1);
-        assert_eq!(found.refused[0]["id"], "rejected");
+        assert_eq!(found.not_witnessed.len(), 1);
+        assert_eq!(found.not_witnessed[0]["id"], "rejected");
     }
 
     #[test]
@@ -517,9 +517,9 @@ mod tests {
         let evidence = witness_evidence(&rows, &windows, &with_then);
         let found = &evidence["delivery.notify"];
         assert!(found.witness.is_none());
-        assert_eq!(found.refused.len(), 2);
+        assert_eq!(found.not_witnessed.len(), 2);
         assert!(
-            found.refused[0]["lastError"]
+            found.not_witnessed[0]["lastError"]
                 .as_str()
                 .unwrap()
                 .contains("E_EFFECT_UNBOUND")
@@ -576,7 +576,7 @@ mod tests {
         let effects = declared(None);
         let found = witness_evidence(&[sent.clone()], &windows, &effects);
         assert!(found["delivery.notify"].witness.is_none());
-        assert_eq!(found["delivery.notify"].refused.len(), 1);
+        assert_eq!(found["delivery.notify"].not_witnessed.len(), 1);
         let mut no_grants = effects;
         no_grants.get_mut("delivery.notify").unwrap().grants.clear();
         sent["provider"]["refused"] = json!({});
@@ -600,7 +600,7 @@ mod tests {
                 let found = witness_evidence(&[sent.clone()], &[window("caught", 2, 4)], &effects);
                 assert!(found["delivery.notify"].witness.is_none());
                 assert_eq!(
-                    found["delivery.notify"].refused[0]["provider"],
+                    found["delivery.notify"].not_witnessed[0]["provider"],
                     sent["provider"]
                 );
             }
@@ -608,12 +608,12 @@ mod tests {
     }
 
     #[test]
-    fn refused_evidence_reports_every_row_dropped_past_twenty() {
+    fn not_witnessed_evidence_reports_every_row_dropped_past_twenty() {
         let rows = (1..=27)
             .map(|i| row(&format!("refused-{i}"), i, "failed", Json::Null))
             .collect::<Vec<_>>();
         let found = witness_evidence(&rows, &[window("refusals", 0, 28)], &declared(None));
-        assert_eq!(found["delivery.notify"].refused.len(), 20);
+        assert_eq!(found["delivery.notify"].not_witnessed.len(), 20);
         assert_eq!(found["delivery.notify"].dropped, 7);
         assert!(found["delivery.notify"].witness.is_none());
     }
@@ -694,15 +694,19 @@ mod tests {
     }
 
     fn check_with_history(history: Json) -> CheckReceipt {
+        let rows = ["one", "two"].map(|id| {
+            json!({
+                "id":id,"seq":3,"effect":"delivery.notify","state":"sent","attempts":1
+            })
+        });
+        check_with_rows_and_history(json!(rows), history)
+    }
+
+    fn check_with_rows_and_history(rows: Json, history: Json) -> CheckReceipt {
         let server = tiny_http::Server::http("127.0.0.1:0").unwrap();
         let owner = test_owner(server.server_addr().to_ip().unwrap().port());
         let server = std::thread::spawn(move || {
-            let rows = ["one", "two"].map(|id| {
-                json!({
-                    "id":id,"seq":3,"effect":"delivery.notify","state":"sent","attempts":1
-                })
-            });
-            // Both rows share one trace request, including when unavailable.
+            // Rows share one trace request, including when unavailable.
             for (path, body) in [
                 (
                     "/control/status",
@@ -738,18 +742,63 @@ mod tests {
     }
 
     #[test]
+    fn not_witnessed_receipt_names_terminal_non_witnesses_and_preserves_evidence() {
+        let mut no_contact = row("no-contact", 3, "sent", Json::Null);
+        no_contact["provider"] = json!({"origins":[],"requests":0,"refused":{}});
+        let mut caught = row("caught", 3, "sent", Json::Null);
+        caught["provider"]["refused"] = json!({"E_EFFECT_UNBOUND":1});
+        let mut failed = row("failed", 3, "failed", Json::Null);
+        failed["lastError"] = json!("E_EFFECT_UNBOUND: no provider");
+        failed["provider"] = json!({"origins":[],"requests":0,"refused":{"E_EFFECT_UNBOUND":1}});
+        let rows = [no_contact, caught, failed];
+        let history = rows
+            .iter()
+            .flat_map(|row| {
+                [
+                    json!({"outbox":{"id":row["id"],"attempt":1,"to":"running"}}),
+                    json!({"outbox":{
+                        "id":row["id"],"attempt":1,"from":"running","to":row["state"],
+                        "ms":1,"provider":row["provider"]
+                    }}),
+                ]
+            })
+            .collect::<Vec<_>>();
+        let mut stored = rows.clone();
+        for row in &mut stored {
+            row.as_object_mut().unwrap().remove("provider");
+        }
+        let receipt = check_with_rows_and_history(json!(stored), json!(history));
+        assert_eq!(receipt.verdict, "blocked", "{}", receipt.detail);
+        assert_eq!(receipt.detail["reason"], "effects:no-witness");
+        assert_eq!(receipt.detail["witnesses"], json!({}));
+        assert!(
+            receipt.detail.get("refused").is_none(),
+            "{}",
+            receipt.detail
+        );
+        let evidence = &receipt.detail["notWitnessed"]["delivery.notify"];
+        assert_eq!(evidence["dropped"], 0);
+        let retained = evidence["rows"].as_array().unwrap();
+        assert_eq!(retained.len(), rows.len());
+        for (actual, original) in retained.iter().zip(rows) {
+            for field in ["id", "state", "lastError", "provider"] {
+                assert_eq!(actual[field], original[field], "{field}: {actual}");
+            }
+        }
+    }
+
+    #[test]
     fn a_failing_control_client_fails_instead_of_claiming_engine_absence() {
-        use std::io::{Read, Write};
-        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-        let owner = test_owner(listener.local_addr().unwrap().port());
+        let server = tiny_http::Server::http("127.0.0.1:0").unwrap();
+        let owner = test_owner(server.server_addr().to_ip().unwrap().port());
         let server = std::thread::spawn(move || {
-            let (mut socket, _) = listener.accept().unwrap();
-            let mut bytes = [0; 4096];
-            let _ = socket.read(&mut bytes);
-            socket
-                .write_all(
-                    b"HTTP/1.1 500 Broken\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}",
-                )
+            let request = server
+                .recv_timeout(std::time::Duration::from_secs(5))
+                .unwrap()
+                .unwrap();
+            assert_eq!(request.url(), "/control/status");
+            request
+                .respond(tiny_http::Response::from_string("{}").with_status_code(500))
                 .unwrap();
         });
         let receipt = check_effects(&owner, &effect_project(), &[]).unwrap();
@@ -767,7 +816,10 @@ mod tests {
         assert_eq!(refusal["family"], "owner");
         assert_eq!(refusal["guide"], "testing");
         assert_eq!(refusal["rewrite"], "rerun snapback2 test");
-        assert!(refusal["message"].as_str().unwrap().contains("HTTP 500"));
+        assert!(
+            refusal["message"].as_str().unwrap().contains("HTTP 500"),
+            "{refusal}"
+        );
     }
 
     #[test]
