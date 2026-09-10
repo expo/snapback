@@ -14,3 +14,4 @@ export { Twin } from '../src/twin.js';
 export { ClientStore } from '../../evaluator/src/store.js';
 export { OfflineRuntime, offlineView } from '../src/offline.js';
 export { drainOutbox } from '../src/client-outbox.js';
+export { applyDeliveryAcknowledgements } from '../src/delivery-acknowledgements.js';
