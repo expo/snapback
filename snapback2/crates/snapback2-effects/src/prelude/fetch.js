@@ -1,16 +1,18 @@
-// Adapted from expo/ibex at revision ae72807aeaef7a2215d3f0dcf5f4e548ffc4c218:
+// Adapted from expo/ibex at revision 90229cbe003b47a0534220ac89b5b9754a99f198:
 // crates/ibex2/src/bindings/fetch.js. Snapback follows redirects through the
 // grant-bound raw binding one hop at a time so a denial retains the attempted
-// hop's origin instead of being mislabeled with the initial request.
+// hop's origin instead of being mislabeled with the initial request, and it
+// reads a body to its end in one go: effects get text, json, and arrayBuffer,
+// not the upstream reader surface.
 // fetch and Response.
 //
 // A response crosses the boundary as an integer handle into a runtime-wide
-// table, and the accessor that reads a handle's fields was a GLOBAL — so any
-// module could read any other module's in-flight response by guessing small
-// integers, granted or not. The accessor is captured here and removed from
-// the global object; the handle lives in a WeakMap behind a Response object;
-// and the only way to get a Response is the fetch a module was handed. The
-// handle is never observable and cannot be forged.
+// table, and the accessors that read a handle's fields and body were GLOBALS
+// — so any module could read any other module's in-flight response by
+// guessing small integers, granted or not. The accessors are captured here
+// and removed from the global object; the handle lives in a WeakMap behind a
+// Response object; and the only way to get a Response is the fetch a module
+// was handed. The handle is never observable and cannot be forged.
 //
 // This script's VALUE is the fetch factory. It defines no global: the engine
 // side stores the completion value and calls it once per grant set, so a
@@ -19,17 +21,21 @@
   "use strict";
 
   var field = global.__ibex2_response_field;
+  var readBody = global.__ibex2_response_read;
+  var control = global.__ibex2_fetch_control;
   var decode = global.__ibex2_text_decode;
   var Headers = global.Headers;
   var freeHeaders = global.__sb_saved.freeHeaders;
   delete global.__ibex2_response_field;
+  delete global.__ibex2_response_read;
+  delete global.__ibex2_fetch_control;
   // Pure helpers nothing outside the bindings needs: the engine provides
   // TextEncoder and TextDecoder itself.
   delete global.__ibex2_text_encode;
   delete global.__ibex2_text_decode;
   delete global.__ibex2_text_encode_into;
 
-  var handles = new WeakMap(); // Response -> { handle, used, status, ok, url, redirected, headers }
+  var handles = new WeakMap(); // Response -> { handle, used, empty, track, status, ok, url, redirected, headers }
 
   function own(response) {
     var r = handles.get(response);
@@ -41,20 +47,33 @@
     throw new TypeError("Response is not constructible; it comes from fetch");
   }
 
-  // The metadata is read once here, because consuming the body releases the
-  // record on the Rust side — and the web keeps status, url, and headers
-  // readable after the body is gone. The headers become a real Headers.
-  function response(handle, redirected) {
+  // Forget the record on the Rust side, aborting its native request if the
+  // body is still open. Every handle is released exactly once: after its
+  // body is read, when it has no body, or when a redirect hop is left behind.
+  function release(handle) {
+    field(handle, 8);
+  }
+
+  // The metadata is read once here, because the record is released when the
+  // body has been read — and the web keeps status, url, and headers readable
+  // after the body is gone. The headers become a real Headers. A HEAD, 204,
+  // 205, or 304 response has no body to read, so its record goes at once.
+  function response(handle, redirected, method, track) {
     var r = Object.create(Response.prototype);
+    var status = field(handle, 0);
+    var empty = method === "HEAD" || status === 204 || status === 205 || status === 304;
     handles.set(r, {
       handle: handle,
       used: false,
-      status: field(handle, 0),
+      empty: empty,
+      track: track,
+      status: status,
       ok: field(handle, 1),
       url: field(handle, 2),
       redirected: redirected === undefined ? field(handle, 5) : redirected,
       headers: new Headers(JSON.parse(field(handle, 7))),
     });
+    if (empty) release(handle);
     return r;
   }
 
@@ -68,15 +87,38 @@
   define("bodyUsed", function () { return own(this).used; });
   define("headers", function () { return own(this).headers; });
 
+  // The body streams from the engine one native read at a time until EOF
+  // (null); the chunks are joined and the record released. The reads are the
+  // job's in-flight network I/O, so the host counts them with its fetches.
   function consume(response) {
     var r = own(response);
     if (r.used) return Promise.reject(new TypeError("body already consumed"));
     r.used = true;
-    try {
-      return Promise.resolve(field(r.handle, 4));
-    } catch (e) {
-      return Promise.reject(e);
+    if (r.empty) return Promise.resolve(new ArrayBuffer(0));
+    var chunks = [];
+    var length = 0;
+    function next() {
+      return readBody(r.handle).then(function (bytes) {
+        if (bytes !== null) {
+          var chunk = new Uint8Array(bytes);
+          chunks.push(chunk);
+          length += chunk.byteLength;
+          return next();
+        }
+        var joined = new Uint8Array(length);
+        var offset = 0;
+        for (var i = 0; i < chunks.length; i++) {
+          joined.set(chunks[i], offset);
+          offset += chunks[i].byteLength;
+        }
+        return joined.buffer;
+      });
     }
+    r.track(1);
+    return next().then(
+      function (bytes) { r.track(-1); release(r.handle); return bytes; },
+      function (error) { r.track(-1); release(r.handle); throw error; }
+    );
   }
   Response.prototype.arrayBuffer = function () { return consume(this); };
   Response.prototype.text = function () {
@@ -102,8 +144,13 @@
     return status === 301 || status === 302 || status === 303 || status === 307 || status === 308;
   }
 
+  function methodOf(init) {
+    return init.method === undefined ? "GET" : String(init.method).toUpperCase();
+  }
+
   function invokeRaw(raw, url, init, redirectMode, tagRawError) {
     var headers;
+    var token;
     try {
       var method = init.method !== undefined ? String(init.method) : "";
       var body = init.body;
@@ -115,14 +162,20 @@
         body = new TextEncoder().encode(body);
       }
       // Lowercase pairs survive redirects independently of the caller's record,
-      // iterable, or Headers. The fifth raw argument is Ibex's validated handle.
+      // iterable, or Headers. The fifth raw argument is Ibex's validated handle;
+      // the sixth is a control token, which is what lets the engine abort a
+      // request still waiting for headers when the runtime is destroyed. It
+      // is released once the request settles; the response record carries the
+      // body's own control from there.
       init.headers = Array.from(headers);
-      return raw(target, method, body, redirectMode, headers._handle).then(
-        function (handle) { freeHeaders(headers._handle); return handle; },
-        function (error) { freeHeaders(headers._handle); throw tagRawError(error, target); }
+      token = control(0);
+      return raw(target, method, body, redirectMode, headers._handle, token).then(
+        function (handle) { freeHeaders(headers._handle); control(2, token); return handle; },
+        function (error) { freeHeaders(headers._handle); control(2, token); throw tagRawError(error, target); }
       );
     } catch (error) {
       if (headers) freeHeaders(headers._handle);
+      if (token !== undefined) control(2, token);
       return Promise.reject(error);
     }
   }
@@ -133,9 +186,10 @@
 
   // The factory. `raw` is the engine's async binding for one grant set; it
   // resolves to a handle, and this is the only place a handle becomes an
-  // object. Default redirect following is kept on this side of the binding so
-  // each denied hop remains attributable without widening Ibex's capability.
-  return function makeFetch(raw, tagRawError) {
+  // object. `track` is the host's count of the job's in-flight network I/O.
+  // Default redirect following is kept on this side of the binding so each
+  // denied hop remains attributable without widening Ibex's capability.
+  return function makeFetch(raw, tagRawError, track) {
     return function fetch(input, init) {
       var currentInit = copyInit(init);
       var redirectMode = currentInit.redirect !== undefined ? String(currentInit.redirect) : "follow";
@@ -145,7 +199,7 @@
       }
       if (redirectMode !== "follow") {
         return invokeRaw(raw, input, currentInit, redirectMode, tagRawError)
-          .then(function (handle) { return response(handle); });
+          .then(function (handle) { return response(handle, undefined, methodOf(currentInit), track); });
       }
 
       var currentUrl = String(input);
@@ -154,14 +208,16 @@
 
       function next() {
         return invokeRaw(raw, currentUrl, currentInit, "manual", tagRawError).then(function (handle) {
-          var value = response(handle, redirects > 0);
+          var method = methodOf(currentInit);
+          var value = response(handle, redirects > 0, method, track);
           if (!isRedirect(value.status)) return value;
           var location = value.headers.get("location");
           if (location === null) return value;
+          // The hop's body is never read; let its record go before the next hop.
+          release(handle);
           redirects++;
           if (redirects > 20) throw new TypeError("TypeError: Failed to fetch — too many redirects");
 
-          var method = currentInit.method === undefined ? "GET" : String(currentInit.method).toUpperCase();
           // @ref LLP 1003#1-authoring — Fetch method rewrites discard body headers; cross-origin hops discard credentials.
           if ((value.status === 303 && method !== "GET" && method !== "HEAD") ||
               ((value.status === 301 || value.status === 302) && method === "POST")) {

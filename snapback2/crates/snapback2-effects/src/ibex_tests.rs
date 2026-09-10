@@ -667,6 +667,9 @@ fn fetch_releases_only_its_own_header_snapshots_on_every_exit() {
       const free = __sb_saved.freeHeaders;
       __sb_saved.freeHeaders = function (handle) { released.push(handle); free(handle); };
       globalThis.__ibex2_text_decode = __sb_saved.decode;
+      let tokens = 0;
+      globalThis.__ibex2_fetch_control = function (action) { return action === 0 ? ++tokens : undefined; };
+      globalThis.__ibex2_response_read = function () { return Promise.resolve(null); };
       globalThis.__ibex2_response_field = function (handle, field) {
         if (field === 0) return handle === 307 ? 307 : 200;
         if (field === 1) return handle !== 307;
@@ -707,7 +710,7 @@ fn fetch_releases_only_its_own_header_snapshots_on_every_exit() {
         return { calls, releases: released.length, caller: caller.get('authorization') };
       })().then(function (value) { result = JSON.stringify(value); }, function (error) { result = String(error); });
     "#).unwrap();
-    runtime.pump();
+    runtime.pump().unwrap();
     let result = runtime.eval("result").unwrap();
     assert_eq!(
         serde_json::from_str::<Value>(&result).unwrap(),
@@ -804,7 +807,7 @@ fn throw_retries_and_never_resolving_promise_times_out() {
     let outcome = host.run(
         &throws,
         &job("throw-1", Value::Null),
-        Duration::from_millis(50),
+        Duration::from_secs(1),
     );
     assert!(
         matches!(outcome, Outcome::Failed { retry: true, ref error } if error.contains("provider broke"))
@@ -818,7 +821,7 @@ fn throw_retries_and_never_resolving_promise_times_out() {
         host.run(
             &mimics_denial,
             &job("throw-denial-text", Value::Null),
-            Duration::from_millis(50),
+            Duration::from_secs(1),
         ),
         Outcome::Failed { retry: true, ref error }
             if error.contains("denied: net.fetch provider overloaded")
@@ -1211,7 +1214,7 @@ fn resolved_job_with_leftover_timer_discards_runtime() {
         host.run(
             &decl,
             &job("timer-1", json!({ "schedule": true, "value": "first" })),
-            Duration::from_millis(5),
+            Duration::from_millis(100),
         ),
         Outcome::Sent {
             result: json!("first"),
@@ -1286,7 +1289,7 @@ fn host_refuses_a_result_for_another_job_token() {
         .next()
         .expect("one cached runtime");
     let error = read_job_snapshot(cached, "wrong-job").unwrap_err();
-    assert_eq!(error, "E_EFFECT_RESULT");
+    assert_eq!(error, HostFailure::Message("E_EFFECT_RESULT".to_owned()));
 }
 
 #[test]

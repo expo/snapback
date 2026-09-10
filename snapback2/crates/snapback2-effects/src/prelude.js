@@ -15,13 +15,18 @@
   const scheduleTimer = globalThis.setTimeout;
   const NativeReferenceError = globalThis.ReferenceError;
   globalThis.__ibex2_response_field = saved.field;
+  globalThis.__ibex2_response_read = saved.read;
+  globalThis.__ibex2_fetch_control = saved.control;
   globalThis.__ibex2_text_decode = saved.decode;
   globalThis.__ibex2_text_encode = saved.encode;
   globalThis.__ibex2_text_encode_into = saved.encodeInto;
 
   // The factory captures the restored accessors and deletes them itself.
+  // A body streams in after its fetch resolved, so its reads count as the
+  // job's pending network I/O alongside the fetches themselves.
   const makeFetch = __SNAPBACK_FETCH_FACTORY__;
-  const grantedFetch = makeFetch(globalThis.__ibex2_fetch, tagRawGrantError);
+  const trackBodyRead = function (delta) { state.pendingFetches += delta; };
+  const grantedFetch = makeFetch(globalThis.__ibex2_fetch, tagRawGrantError, trackBodyRead);
   delete globalThis.__ibex2_fetch;
   delete globalThis.__sb_saved;
   // Effects never load ESM, so its lowering-only helpers have no job here.

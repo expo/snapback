@@ -151,6 +151,87 @@ fn owner_runs_effect_then_delivery_and_honest_restart_requeue() {
     fs::remove_dir_all(root).unwrap();
 }
 
+/// Acceptance 5's spinning half (LLP 1021 §5): with `while (true) {}` running
+/// in the effect, `dev --stop` returns and the owner process is observed to
+/// exit within the budget plus one second. The engine's deadline is what ends
+/// the job; the CLI's own two-second `E_OWNER_STOP_TIMEOUT` is not the
+/// observation. This takes the whole default budget, by design.
+#[test]
+fn dev_stop_observes_owner_process_exit_while_a_spinning_effect_runs() {
+    let root = temp_root();
+    copy_tree(&fixture().join("snapback"), &root.join("snapback"));
+    fs::write(root.join("snapback/delivery.ts"), SPINNING_DELIVERY).unwrap();
+    let binary = env!("CARGO_BIN_EXE_snapback2");
+    let compiler = compiler(&root);
+    let mut owner = ChildGuard::spawn(binary, &compiler, &root);
+    let (port, secret) = owner.ready(&root);
+    let sent = request(
+        port,
+        "POST",
+        "/api/mutation",
+        &[("X-Snapback-As", "alice")],
+        json!({
+            "op": "messages.send",
+            "args": {
+                "conversationId": "conversation-1",
+                "recipientId": "profile-bob",
+                "body": "stop while the effect spins"
+            }
+        }),
+    );
+    assert_eq!(sent.body["state"], "committed", "{}", sent.body);
+    wait_for(Duration::from_secs(8), || {
+        (status(port, &secret)["effects"]["running"] == 1).then_some(())
+    });
+    let started = Instant::now();
+    let stopping = Command::new(binary)
+        .args(["dev", "--stop", "--json", "--project"])
+        .arg(&root)
+        .env("SNAPBACK2_COMPILER", &compiler)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let exit = wait_for(
+        snapback2_effects::DEFAULT_BUDGET + Duration::from_secs(1),
+        || owner.child.try_wait().unwrap(),
+    );
+    let elapsed = started.elapsed();
+    assert!(exit.success(), "owner exit: {exit}");
+    let stopped = stopping.wait_with_output().unwrap();
+    let cli = format!(
+        "{}{}",
+        String::from_utf8_lossy(&stopped.stdout),
+        String::from_utf8_lossy(&stopped.stderr)
+    );
+    assert!(
+        stopped.status.success() || cli.contains("E_OWNER_STOP_TIMEOUT"),
+        "{cli}"
+    );
+    eprintln!(
+        "dev --stop returned {}; the owner process exited {elapsed:?} after the stop (budget {:?})",
+        stopped.status,
+        snapback2_effects::DEFAULT_BUDGET
+    );
+    fs::remove_dir_all(root).unwrap();
+}
+
+/// The fixture's effect with its body replaced by a loop that never ends.
+const SPINNING_DELIVERY: &str = r#"import { effect } from "snapback2";
+import { recordNotified } from "./notifications";
+
+export const notify = effect({
+  grants: ["https://api.example.com"],
+  run: async (payload: { to: string; body: string }) => {
+    let spins = 0;
+    while (spins >= 0) { spins += 1; }
+    return { providerId: payload.to + ":" + spins };
+  },
+  then: recordNotified,
+});
+"#;
+
+
 fn prepare_effect_fixture(root: &Path, origin: &str) {
     let delivery = root.join("snapback/delivery.ts");
     let source = fs::read_to_string(&delivery)

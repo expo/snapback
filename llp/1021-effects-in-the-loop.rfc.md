@@ -432,3 +432,5 @@ evidence, never as a prerequisite for obtaining it.
 ## Implementation record
 
 - 2026-09-10 — commissioned; lanes and landings are appended here as each lands (the orchestrator, program `~/projects/snapback-ri-20260910/plan.md`).
+
+- 2026-09-10 — deadline (the snapback half of F5, §5): `ibex2` pinned at `90229cbe0` — the upstream deadline, and with it the streaming-body fetch ABI (`prelude/fetch.js` reads bodies through `__ibex2_response_read` under a control token and counts the reads as the job's pending I/O); `Ibex2Host` arms one deadline from the budget before the first `call_host` and holds it across every entrance, and the engine's `JsError::Deadline` is `E_EFFECT_TIMEOUT` with `retry: true`; tests: `ibex_deadline_tests.rs` (synchronous loop, recursive microtask chain, never-answering provider, well-behaved control, one deadline not renewed per entrance, five attempts across the backoff schedule to `failed`) and the Hermes `dev --stop` spinning-effect owner-exit journey in `tests/effects.rs`.
