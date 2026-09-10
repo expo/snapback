@@ -825,6 +825,9 @@ export class Runner {
     throw new EvalError("E_REQUIRE", "program requirement failed", "NOT_FOUND");
   }
 
+  // @ref LLP 1019#7-the-twin — receipt-only replay maintains aggregates only.
+  // Delivery audiences/incarnations are authoritative; never derive their writes
+  // from held membership rows. Own-event prediction is a separate contract.
   private maintain(source: string, old: Value | null, next: Value | null): void {
     for (const maintain of this.schema.maintains ?? []) {
       if (maintain.source !== source) continue;

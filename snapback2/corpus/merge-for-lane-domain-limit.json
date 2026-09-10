@@ -275,7 +275,189 @@
       "posts.byAuthorAt"
     ],
     "disclosures": [],
-    "bound_product": "merge merge.for-limit: 1 lanes heads + 3 advances + 2 lookahead × 1 calls (merge.for-limit.lane × 1) = 6 + merge.for-limit.domain take 1 (+2 reserve) × 1 calls on follows = 3"
+    "bound_product": "merge merge.for-limit: 1 lanes heads + 3 advances + 2 lookahead × 1 calls (merge.for-limit.lane × 1) = 6 + merge.for-limit.domain take 1 (+2 reserve) × 1 calls on follows = 3",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 6,
+        "source": "merge merge.for-limit: 1 lanes heads + 3 advances + 2 lookahead × 1 calls (merge.for-limit.lane × 1)",
+        "site": "merge.for-limit"
+      },
+      {
+        "meter": "examined entries",
+        "value": 3,
+        "source": "merge.for-limit.domain take 1 (+2 reserve) × 1 calls on follows",
+        "site": "merge.for-limit.domain"
+      },
+      {
+        "meter": "index entries",
+        "value": 6,
+        "source": "merge merge.for-limit: 1 lanes heads + 3 advances + 2 lookahead × 1 calls (merge.for-limit.lane × 1)",
+        "site": "merge.for-limit"
+      },
+      {
+        "meter": "index entries",
+        "value": 3,
+        "source": "merge.for-limit.domain take 1 (+2 reserve) × 1 calls on follows",
+        "site": "merge.for-limit.domain"
+      },
+      {
+        "meter": "steps",
+        "value": 42,
+        "source": "merge merge.for-limit: heap work",
+        "site": "merge.for-limit:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 30,
+        "source": "merge merge.for-limit: 1 lanes heads + 3 advances + 2 lookahead × 1 calls (merge.for-limit.lane × 1) × 5",
+        "site": "merge.for-limit"
+      },
+      {
+        "meter": "steps",
+        "value": 15,
+        "source": "merge.for-limit.domain take 1 (+2 reserve) × 1 calls on follows × 5",
+        "site": "merge.for-limit.domain"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "merge.for-limit:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions (calls from merge.for-limit.domain take 1)",
+        "site": "merge.for-limit:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "merge.for-limit:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 1344,
+        "source": "merge merge.for-limit: heap work × 32",
+        "site": "merge.for-limit:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 960,
+        "source": "merge merge.for-limit: 1 lanes heads + 3 advances + 2 lookahead × 1 calls (merge.for-limit.lane × 1) × 5 × 32",
+        "site": "merge.for-limit"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 480,
+        "source": "merge.for-limit.domain take 1 (+2 reserve) × 1 calls on follows × 5 × 32",
+        "site": "merge.for-limit.domain"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions (calls from merge.for-limit.domain take 1) × 32",
+        "site": "merge.for-limit:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "merge.for-limit:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "merge.for-limit:statement:1"
+      },
+      {
+        "meter": "output bytes",
+        "value": 114,
+        "source": "posts.at",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 462,
+        "source": "posts.author",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 450,
+        "source": "posts.id",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 30,
+        "source": "posts row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 15,
+        "source": "merge merge.for-limit: emitted page: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 228,
+        "source": "posts.at",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 924,
+        "source": "posts.author",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 900,
+        "source": "posts.id",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 60,
+        "source": "posts row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 76,
+        "source": "follows.at",
+        "site": "merge.for-limit.domain"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 312,
+        "source": "follows.followed",
+        "site": "merge.for-limit.domain"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 312,
+        "source": "follows.follower",
+        "site": "merge.for-limit.domain"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 300,
+        "source": "follows.id",
+        "site": "merge.for-limit.domain"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 20,
+        "source": "follows row width: framing/shared encoding/growth adjustment",
+        "site": "merge.for-limit.domain"
+      }
+    ]
   },
   "context": {
     "viewer": "u1",

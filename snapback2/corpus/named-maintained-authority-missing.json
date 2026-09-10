@@ -225,7 +225,171 @@
       "counts.byId"
     ],
     "disclosures": [],
-    "bound_product": "optionalMaintain.count point read on counts × 1 calls = 1"
+    "bound_product": "optionalMaintain.count point read on counts × 1 calls = 1",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 1,
+        "source": "optionalMaintain.count point read on counts × 1 calls",
+        "site": "optionalMaintain.count"
+      },
+      {
+        "meter": "index entries",
+        "value": 1,
+        "source": "optionalMaintain.count point read on counts × 1 calls",
+        "site": "optionalMaintain.count"
+      },
+      {
+        "meter": "steps",
+        "value": 5,
+        "source": "events Insert writes",
+        "site": "events.recordWithoutBucket:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "optionalMaintain.count point read on counts × 1 calls × 4",
+        "site": "optionalMaintain.count"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "public count absence evidence",
+        "site": "events.recordWithoutBucket:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "events.recordWithoutBucket:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "events.recordWithoutBucket:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "events.recordWithoutBucket:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "events.recordWithoutBucket:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 3130,
+        "source": "search closure scratch",
+        "site": null
+      },
+      {
+        "meter": "heap bytes",
+        "value": 160,
+        "source": "events Insert writes × 32",
+        "site": "events.recordWithoutBucket:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "optionalMaintain.count point read on counts × 1 calls × 4 × 32",
+        "site": "optionalMaintain.count"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "public count absence evidence × 32",
+        "site": "events.recordWithoutBucket:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions × 32",
+        "site": "events.recordWithoutBucket:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "events.recordWithoutBucket:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "events.recordWithoutBucket:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "events.recordWithoutBucket:statement:2"
+      },
+      {
+        "meter": "output bytes",
+        "value": 157,
+        "source": "counts.__proto__",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 599,
+        "source": "counts.id",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 156,
+        "source": "counts.toString",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 41,
+        "source": "counts.value",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 10,
+        "source": "counts row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 1592,
+        "source": "1 pooled counts first images with table/id envelopes",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 3450,
+        "source": "public count absence evidence",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 1538,
+        "source": "maintained-address closure: whole row pool and actual issuing metadata: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "events Insert",
+        "site": "events.recordWithoutBucket:statement:1"
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "counts maintained applications",
+        "site": "schema.tables.counts"
+      }
+    ]
   },
   "context": {
     "viewer": "u1",

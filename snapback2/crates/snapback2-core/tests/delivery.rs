@@ -8,6 +8,9 @@ use snapback2_core::ir::IndexKeyExpr;
 use snapback2_core::*;
 use std::collections::{BTreeMap, BTreeSet};
 
+#[path = "delivery/writes.rs"]
+mod writes;
+
 fn index(columns: &[&str], unique: bool) -> Index {
     Index {
         components: columns
@@ -756,8 +759,8 @@ fn audience_bound_is_engine_recorded_and_lowering_the_cap_is_admitted() {
     assert_eq!(audience_bound(&runtime), Some(50));
     assert_eq!(rows_of(&mut runtime, "deliveries").len(), 50);
 
-    // Every 50-audience row gone (a reset empties the log), the recorded fact
-    // stands until the next installation; re-applying follows the cap.
+    // Reset is a fresh installation: the old audience is gone and its seed
+    // delivers to the two current recipients under the recomputed bound.
     runtime
         .reset_and_seed(&[
             ("conversations".to_owned(), row([("id", id("c1"))])),
@@ -766,8 +769,8 @@ fn audience_bound_is_engine_recorded_and_lowering_the_cap_is_admitted() {
             message("msg-2", "c1"),
         ])
         .unwrap();
-    assert!(rows_of(&mut runtime, "deliveries").is_empty());
-    assert_eq!(audience_bound(&runtime), Some(50));
+    assert_eq!(rows_of(&mut runtime, "deliveries").len(), 2);
+    assert_eq!(audience_bound(&runtime), Some(2));
     let report = runtime.apply_successor(lowered).unwrap();
     assert_eq!(report.audience_bounds["deliveries"], 2);
     assert_eq!(audience_bound(&runtime), Some(2));

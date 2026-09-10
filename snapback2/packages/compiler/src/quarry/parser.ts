@@ -136,6 +136,17 @@ class Parser {
       trigger = { every: { durationMs } };
     }
     this.take(":");
+    // @ref LLP 1019#3-what-writes-it — emit an ordinary private target ahead
+    // of binding; the owner keeps its existing schedule transaction.
+    if (this.at("delete")) {
+      this.take("delete");
+      const rewrite = `schedule ${name} on ${"row" in trigger ? trigger.row.table : "messages"} at .${"row" in trigger ? trigger.row.column : "expiresAt"}: delete .`;
+      if (!("row" in trigger) || !this.at(".")) throw new QuarryError(site, "schedule delete requires a row trigger and exactly delete .", "E_SCHEDULE_TARGET", rewrite, "schedule");
+      this.take(".");
+      if (!this.atKind("newline") && !this.atKind("eof")) throw new QuarryError(site, "schedule delete accepts only its trigger row", "E_SCHEDULE_TARGET", rewrite, "schedule");
+      this.newline();
+      return { name, trigger, target: "delete", args: [], predicate, site };
+    }
     let target = this.word().value;
     if (this.at(".")) { this.take("."); target += "." + this.word().value; }
     const args: Expr[] = [];

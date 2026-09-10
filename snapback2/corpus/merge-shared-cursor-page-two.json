@@ -401,7 +401,219 @@
       "posts.byAuthorAt"
     ],
     "disclosures": [],
-    "bound_product": "merge merge.pages.first: 2 lanes heads + 3 advances + 2 lookahead × 1 calls (merge.pages.first.a × 1; merge.pages.first.b × 1) = 7 + merge merge.pages.second: 2 lanes heads + 3 advances + 2 lookahead × 1 calls (merge.pages.second.a × 1; merge.pages.second.b × 1) = 7"
+    "bound_product": "merge merge.pages.first: 2 lanes heads + 3 advances + 2 lookahead × 1 calls (merge.pages.first.a × 1; merge.pages.first.b × 1) = 7 + merge merge.pages.second: 2 lanes heads + 3 advances + 2 lookahead × 1 calls (merge.pages.second.a × 1; merge.pages.second.b × 1) = 7",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 7,
+        "source": "merge merge.pages.first: 2 lanes heads + 3 advances + 2 lookahead × 1 calls (merge.pages.first.a × 1; merge.pages.first.b × 1)",
+        "site": "merge.pages.first"
+      },
+      {
+        "meter": "examined entries",
+        "value": 7,
+        "source": "merge merge.pages.second: 2 lanes heads + 3 advances + 2 lookahead × 1 calls (merge.pages.second.a × 1; merge.pages.second.b × 1)",
+        "site": "merge.pages.second"
+      },
+      {
+        "meter": "index entries",
+        "value": 7,
+        "source": "merge merge.pages.first: 2 lanes heads + 3 advances + 2 lookahead × 1 calls (merge.pages.first.a × 1; merge.pages.first.b × 1)",
+        "site": "merge.pages.first"
+      },
+      {
+        "meter": "index entries",
+        "value": 7,
+        "source": "merge merge.pages.second: 2 lanes heads + 3 advances + 2 lookahead × 1 calls (merge.pages.second.a × 1; merge.pages.second.b × 1)",
+        "site": "merge.pages.second"
+      },
+      {
+        "meter": "steps",
+        "value": 70,
+        "source": "merge merge.pages.first: heap work",
+        "site": "merge.pages:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 70,
+        "source": "merge merge.pages.second: heap work",
+        "site": "merge.pages:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 35,
+        "source": "merge merge.pages.first: 2 lanes heads + 3 advances + 2 lookahead × 1 calls (merge.pages.first.a × 1; merge.pages.first.b × 1) × 5",
+        "site": "merge.pages.first"
+      },
+      {
+        "meter": "steps",
+        "value": 35,
+        "source": "merge merge.pages.second: 2 lanes heads + 3 advances + 2 lookahead × 1 calls (merge.pages.second.a × 1; merge.pages.second.b × 1) × 5",
+        "site": "merge.pages.second"
+      },
+      {
+        "meter": "steps",
+        "value": 13,
+        "source": "expressions",
+        "site": "merge.pages:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "merge.pages:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 2240,
+        "source": "merge merge.pages.first: heap work × 32",
+        "site": "merge.pages:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 2240,
+        "source": "merge merge.pages.second: heap work × 32",
+        "site": "merge.pages:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 1120,
+        "source": "merge merge.pages.first: 2 lanes heads + 3 advances + 2 lookahead × 1 calls (merge.pages.first.a × 1; merge.pages.first.b × 1) × 5 × 32",
+        "site": "merge.pages.first"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 1120,
+        "source": "merge merge.pages.second: 2 lanes heads + 3 advances + 2 lookahead × 1 calls (merge.pages.second.a × 1; merge.pages.second.b × 1) × 5 × 32",
+        "site": "merge.pages.second"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 416,
+        "source": "expressions × 32",
+        "site": "merge.pages:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "merge.pages:statement:1"
+      },
+      {
+        "meter": "output bytes",
+        "value": 114,
+        "source": "posts.at",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 462,
+        "source": "posts.author",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 450,
+        "source": "posts.id",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 30,
+        "source": "posts row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 15,
+        "source": "merge merge.pages.first: emitted page: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 114,
+        "source": "posts.at",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 462,
+        "source": "posts.author",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 450,
+        "source": "posts.id",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 30,
+        "source": "posts row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 15,
+        "source": "merge merge.pages.second: emitted page: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 14,
+        "source": "array: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 266,
+        "source": "posts.at",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 1078,
+        "source": "posts.author",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 1050,
+        "source": "posts.id",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 70,
+        "source": "posts row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 266,
+        "source": "posts.at",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 1078,
+        "source": "posts.author",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 1050,
+        "source": "posts.id",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 70,
+        "source": "posts row width: framing/shared encoding/growth adjustment",
+        "site": null
+      }
+    ]
   },
   "context": {
     "viewer": "u1",

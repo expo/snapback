@@ -297,7 +297,111 @@
       "memberships.byRoleConversation"
     ],
     "disclosures": [],
-    "bound_product": "members.reordered take 50 (+2 reserve) × 1 calls on memberships = 52"
+    "bound_product": "members.reordered take 50 (+2 reserve) × 1 calls on memberships = 52",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 52,
+        "source": "members.reordered take 50 (+2 reserve) × 1 calls on memberships",
+        "site": "members.reordered"
+      },
+      {
+        "meter": "index entries",
+        "value": 52,
+        "source": "members.reordered take 50 (+2 reserve) × 1 calls on memberships",
+        "site": "members.reordered"
+      },
+      {
+        "meter": "steps",
+        "value": 260,
+        "source": "members.reordered take 50 (+2 reserve) × 1 calls on memberships × 5",
+        "site": "members.reordered"
+      },
+      {
+        "meter": "steps",
+        "value": 250,
+        "source": "deliveries Insert writes (calls from members.reordered take 50)",
+        "site": "fanout-complete-reordered-tuple:statement:1:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 150,
+        "source": "expressions (calls from members.reordered take 50)",
+        "site": "fanout-complete-reordered-tuple:statement:1:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 50,
+        "source": "statements (calls from members.reordered take 50)",
+        "site": "fanout-complete-reordered-tuple:statement:1:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "fanout-complete-reordered-tuple:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "fanout-complete-reordered-tuple:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 8320,
+        "source": "members.reordered take 50 (+2 reserve) × 1 calls on memberships × 5 × 32",
+        "site": "members.reordered"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 8000,
+        "source": "deliveries Insert writes (calls from members.reordered take 50) × 32",
+        "site": "fanout-complete-reordered-tuple:statement:1:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 4800,
+        "source": "expressions (calls from members.reordered take 50) × 32",
+        "site": "fanout-complete-reordered-tuple:statement:1:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 1600,
+        "source": "statements (calls from members.reordered take 50) × 32",
+        "site": "fanout-complete-reordered-tuple:statement:1:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "fanout-complete-reordered-tuple:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "fanout-complete-reordered-tuple:statement:1"
+      },
+      {
+        "meter": "output bytes",
+        "value": 6,
+        "source": "null value",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 0,
+        "source": "closure at peak retention",
+        "site": null
+      },
+      {
+        "meter": "write rows",
+        "value": 50,
+        "source": "deliveries Insert",
+        "site": "fanout-complete-reordered-tuple:statement:1:statement:1"
+      }
+    ]
   },
   "context": {
     "viewer": "u0",

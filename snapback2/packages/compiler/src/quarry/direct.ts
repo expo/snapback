@@ -326,7 +326,18 @@ function lowerWalk(expression: Extract<BoundExpression, { kind: "walk" }>, lower
   };
 }
 
-function lowerWrite(
+// @ref LLP 1019#3-what-writes-it — runtime incarnation refusal names the
+// lowered write's statement site; retain its authored source without growing the IR.
+function lowerWrite(expression: Extract<BoundExpression, { kind: "write" }>, lowering: Lowering, resultUsed: boolean): LoweredValue {
+  const result = lowerWriteInner(expression, lowering, resultUsed);
+  for (const statement of result.setup) {
+    if (typeof statement === "object" && ["Insert", "InsertIfAbsent", "Update", "Upsert", "Delete"].some(key => key in statement)
+        && !lowering.statementSources.has(statement)) lowering.statementSources.set(statement, expression.source);
+  }
+  return result;
+}
+
+function lowerWriteInner(
   expression: Extract<BoundExpression, { kind: "write" }>,
   lowering: Lowering,
   resultUsed: boolean,

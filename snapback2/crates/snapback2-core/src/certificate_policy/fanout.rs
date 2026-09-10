@@ -90,12 +90,24 @@ pub(crate) fn check(schema: &Schema, program: &Program) -> (Vec<CheckError>, BTr
             },
         );
     }
+    flow.errors.extend(reserve_errors(schema, program));
+    flow.statements(&program.body, &Origin::Other, true);
+    (flow.errors, flow.complete)
+}
+
+// A chunk is already bounded by its cursor; its private native reserves still
+// cannot fund a nonuniform read elsewhere in that chunk.
+pub(crate) fn reserve_errors(schema: &Schema, program: &Program) -> Vec<CheckError> {
+    let mut scans = Vec::new();
+    all_scans(&program.body, &mut scans);
+    let nonuniform = scans.into_iter().find(|scan| !uniform_visibility(schema, scan));
+    let mut errors = Vec::new();
     // @ref LLP 1017#24-metering — no unbounded consumer may spend a cap probe's reserve.
     let mut capped = BTreeSet::new();
     bindings::capped_writes(schema, &program.body, &mut capped);
-    if let Some(scan) = &flow.nonuniform {
+    if let Some(scan) = &nonuniform {
         for table in capped {
-            flow.errors.push(CheckError {
+            errors.push(CheckError {
                 site: Some(scan.site.clone()),
                 code: "E_STRUCTURAL_FANOUT".into(),
                 message: format!("the non-uniform scan at {} can spend the budget the cap check on {table} needs", scan.site),
@@ -103,8 +115,7 @@ pub(crate) fn check(schema: &Schema, program: &Program) -> (Vec<CheckError>, BTr
             });
         }
     }
-    flow.statements(&program.body, &Origin::Other, true);
-    (flow.errors, flow.complete)
+    errors
 }
 
 fn all_scans(statements: &[Stmt], scans: &mut Vec<Scan>) {

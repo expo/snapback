@@ -234,7 +234,111 @@
       "posts.byAt"
     ],
     "disclosures": [],
-    "bound_product": "opaque-cursor-complete-next-null take 5 (+2 reserve) × 1 calls on posts = 7"
+    "bound_product": "opaque-cursor-complete-next-null take 5 (+2 reserve) × 1 calls on posts = 7",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 7,
+        "source": "opaque-cursor-complete-next-null take 5 (+2 reserve) × 1 calls on posts",
+        "site": "opaque-cursor-complete-next-null"
+      },
+      {
+        "meter": "index entries",
+        "value": 7,
+        "source": "opaque-cursor-complete-next-null take 5 (+2 reserve) × 1 calls on posts",
+        "site": "opaque-cursor-complete-next-null"
+      },
+      {
+        "meter": "steps",
+        "value": 35,
+        "source": "opaque-cursor-complete-next-null take 5 (+2 reserve) × 1 calls on posts × 5",
+        "site": "opaque-cursor-complete-next-null"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "opaque-cursor-complete-next-null:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "opaque-cursor-complete-next-null:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 1120,
+        "source": "opaque-cursor-complete-next-null take 5 (+2 reserve) × 1 calls on posts × 5 × 32",
+        "site": "opaque-cursor-complete-next-null"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "opaque-cursor-complete-next-null:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "opaque-cursor-complete-next-null:statement:1"
+      },
+      {
+        "meter": "output bytes",
+        "value": 190,
+        "source": "posts.at",
+        "site": "opaque-cursor-complete-next-null"
+      },
+      {
+        "meter": "output bytes",
+        "value": 770,
+        "source": "posts.author",
+        "site": "opaque-cursor-complete-next-null"
+      },
+      {
+        "meter": "output bytes",
+        "value": 750,
+        "source": "posts.id",
+        "site": "opaque-cursor-complete-next-null"
+      },
+      {
+        "meter": "output bytes",
+        "value": 50,
+        "source": "posts row width: framing/shared encoding/growth adjustment",
+        "site": "opaque-cursor-complete-next-null"
+      },
+      {
+        "meter": "output bytes",
+        "value": 17,
+        "source": "posts first 5 at opaque-cursor-complete-next-null: framing/shared encoding/growth adjustment",
+        "site": "opaque-cursor-complete-next-null"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 190,
+        "source": "posts.at",
+        "site": "opaque-cursor-complete-next-null"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 770,
+        "source": "posts.author",
+        "site": "opaque-cursor-complete-next-null"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 750,
+        "source": "posts.id",
+        "site": "opaque-cursor-complete-next-null"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 50,
+        "source": "posts row width: framing/shared encoding/growth adjustment",
+        "site": "opaque-cursor-complete-next-null"
+      }
+    ]
   },
   "context": {
     "viewer": "u1",

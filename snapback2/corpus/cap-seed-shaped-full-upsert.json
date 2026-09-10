@@ -247,7 +247,87 @@
       "memberships.byConversationPrincipal"
     ],
     "disclosures": [],
-    "bound_product": "1 calls × cap 50 by conversationId on memberships = 50"
+    "bound_product": "1 calls × cap 50 by conversationId on memberships = 50",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 50,
+        "source": "1 calls × cap 50 by conversationId on memberships",
+        "site": "schema.tables.memberships"
+      },
+      {
+        "meter": "index entries",
+        "value": 50,
+        "source": "1 calls × cap 50 by conversationId on memberships",
+        "site": "schema.tables.memberships"
+      },
+      {
+        "meter": "steps",
+        "value": 250,
+        "source": "1 calls × cap 50 by conversationId on memberships × 5",
+        "site": "schema.tables.memberships"
+      },
+      {
+        "meter": "steps",
+        "value": 5,
+        "source": "memberships Upsert writes",
+        "site": "cap-seed-shaped-full-upsert:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "cap-seed-shaped-full-upsert:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "cap-seed-shaped-full-upsert:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 8000,
+        "source": "1 calls × cap 50 by conversationId on memberships × 5 × 32",
+        "site": "schema.tables.memberships"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 160,
+        "source": "memberships Upsert writes × 32",
+        "site": "cap-seed-shaped-full-upsert:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "cap-seed-shaped-full-upsert:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "cap-seed-shaped-full-upsert:statement:1"
+      },
+      {
+        "meter": "output bytes",
+        "value": 6,
+        "source": "null value",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 0,
+        "source": "closure at peak retention",
+        "site": null
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "memberships Upsert",
+        "site": "cap-seed-shaped-full-upsert:statement:1"
+      }
+    ]
   },
   "context": {
     "viewer": "u0",

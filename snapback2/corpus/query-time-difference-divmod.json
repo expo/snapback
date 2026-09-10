@@ -1195,7 +1195,57 @@
     "disclosures": [
       "E_DISCLOSURE: count waitlist summarized into waitCounts"
     ],
-    "bound_product": null
+    "bound_product": null,
+    "cost_terms": [
+      {
+        "meter": "steps",
+        "value": 9,
+        "source": "expressions",
+        "site": "query-time-difference-divmod:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "query-time-difference-divmod:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 288,
+        "source": "expressions × 32",
+        "site": "query-time-difference-divmod:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "query-time-difference-divmod:statement:1"
+      },
+      {
+        "meter": "output bytes",
+        "value": 256,
+        "source": "Divmod { remainder_sink: \"lexicographic-id\" } result",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 256,
+        "source": "Divmod { remainder_sink: \"lexicographic-id\" } result",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 30,
+        "source": "shape: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 32,
+        "source": "closure at peak retention",
+        "site": null
+      }
+    ]
   },
   "context": {
     "viewer": "u1",

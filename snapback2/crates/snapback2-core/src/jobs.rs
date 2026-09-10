@@ -131,12 +131,21 @@ impl JobRefusal {
         let mut refusal = Self::new(
             code,
             error.to_string(),
-            site,
+            error.require_site().as_deref().unwrap_or(site),
             "fix the refused data or constraint, then run --resume <job-id> --as system",
         );
         refusal.family = family.into();
+        if let Some(rewrite) = error.rewrite() { refusal.rewrite = rewrite; }
         // The job family's page is `job`; every other family pages its runtime page.
-        refusal.guide = if family == "job" {
+        if code == "E_DELIVER_INCARNATION" {
+            refusal.rewrite = error.rewrite().unwrap_or_else(|| "insert with a fresh id".into());
+            refusal.site = error.require_site().unwrap_or_else(|| site.into());
+        }
+        refusal.guide = if code == "E_DELIVER_INCARNATION" {
+            "offline".into()
+        } else if code == "E_BOUND" {
+            "bound/ceiling".into()
+        } else if family == "job" {
             "job".into()
         } else {
             format!("{family}/runtime")
@@ -146,7 +155,7 @@ impl JobRefusal {
 }
 /// The family a rejected mutation carries on the wire; a parked chunk uses the same one.
 pub fn rejection_family(code: &str) -> &'static str {
-    if code.starts_with("E_RULE") {
+    if code.starts_with("E_RULE") || code == "E_DELIVER_INCARNATION" {
         "rule"
     } else if code.starts_with("E_BOUND")
         || matches!(code, "E_FANOUT" | "E_STEPS" | "E_TRACE_SUBSET")

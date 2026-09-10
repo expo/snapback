@@ -138,7 +138,99 @@
       "blobs.byPayload"
     ],
     "disclosures": [],
-    "bound_product": "bytesRoundTrip.blobs take 10 (+2 reserve) × 1 calls on blobs = 12"
+    "bound_product": "bytesRoundTrip.blobs take 10 (+2 reserve) × 1 calls on blobs = 12",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 12,
+        "source": "bytesRoundTrip.blobs take 10 (+2 reserve) × 1 calls on blobs",
+        "site": "bytesRoundTrip.blobs"
+      },
+      {
+        "meter": "index entries",
+        "value": 12,
+        "source": "bytesRoundTrip.blobs take 10 (+2 reserve) × 1 calls on blobs",
+        "site": "bytesRoundTrip.blobs"
+      },
+      {
+        "meter": "steps",
+        "value": 60,
+        "source": "bytesRoundTrip.blobs take 10 (+2 reserve) × 1 calls on blobs × 5",
+        "site": "bytesRoundTrip.blobs"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "bytesRoundTrip:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "bytesRoundTrip:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 1920,
+        "source": "bytesRoundTrip.blobs take 10 (+2 reserve) × 1 calls on blobs × 5 × 32",
+        "site": "bytesRoundTrip.blobs"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "bytesRoundTrip:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "bytesRoundTrip:statement:1"
+      },
+      {
+        "meter": "output bytes",
+        "value": 1500,
+        "source": "blobs.id",
+        "site": "bytesRoundTrip.blobs"
+      },
+      {
+        "meter": "output bytes",
+        "value": 350,
+        "source": "blobs.payload",
+        "site": "bytesRoundTrip.blobs"
+      },
+      {
+        "meter": "output bytes",
+        "value": 100,
+        "source": "blobs row width: framing/shared encoding/growth adjustment",
+        "site": "bytesRoundTrip.blobs"
+      },
+      {
+        "meter": "output bytes",
+        "value": 22,
+        "source": "blobs first 10 at bytesRoundTrip.blobs: framing/shared encoding/growth adjustment",
+        "site": "bytesRoundTrip.blobs"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 1500,
+        "source": "blobs.id",
+        "site": "bytesRoundTrip.blobs"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 350,
+        "source": "blobs.payload",
+        "site": "bytesRoundTrip.blobs"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 100,
+        "source": "blobs row width: framing/shared encoding/growth adjustment",
+        "site": "bytesRoundTrip.blobs"
+      }
+    ]
   },
   "context": {
     "viewer": "u1",

@@ -32,6 +32,19 @@ export function prepareSchedules(documents: Document[], catalog: TableCatalog) {
     if (row && (!table || table.columns.get(row.column)?.kind !== "time" || !table.columns.get(row.column)?.optional)) {
       fail(`schedule ${schedule.name} requires ${row.table}.${row.column} to be time ?`, "E_SCHEDULE_COLUMN");
     }
+    if (schedule.target === "delete" && row) {
+      const site = schedule.site;
+      const name = `_timerDelete_${schedule.name}`;
+      if (operations.some(op => op.program.name === name)) fail(`reserved target name ${name}`);
+      const program: ProgramDecl = { kind: "mutation", name, site,
+        args: [{ name: "rowId", type: { kind: "ref", table: row.table, optional: false }, site }],
+        body: [{ kind: "expr", site, value: { kind: "write", op: "delete", table: row.table,
+          keys: [{ value: { kind: "name", name: "rowId", site }, site }], fields: [], site } }] };
+      document.programs.push(program);
+      operations.push({ document, program, name: `${basename(document.file, ".q")}.${name}` });
+      schedule.target = name;
+      schedule.args = [{ kind: "member", base: { kind: "focal", site }, name: "id", site }];
+    }
     const localName = `${basename(document.file, ".q")}.${schedule.target}`;
     const candidates = operations.filter(op => op.name === schedule.target || op.name === localName);
     const matches = candidates.length ? candidates : operations.filter(op => op.program.name === schedule.target);

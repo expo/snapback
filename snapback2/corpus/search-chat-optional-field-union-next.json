@@ -389,7 +389,147 @@
       "messages.byConversationWords"
     ],
     "disclosures": [],
-    "bound_product": "search.inConversation.0 take 20 (+2 reserve) × 1 calls on messages = 22"
+    "bound_product": "search.inConversation.0 take 20 (+2 reserve) × 1 calls on messages = 22",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 22,
+        "source": "search.inConversation.0 take 20 (+2 reserve) × 1 calls on messages",
+        "site": "search.inConversation.0"
+      },
+      {
+        "meter": "index entries",
+        "value": 22,
+        "source": "search.inConversation.0 take 20 (+2 reserve) × 1 calls on messages",
+        "site": "search.inConversation.0"
+      },
+      {
+        "meter": "rule probes",
+        "value": 2,
+        "source": "search.inConversation.0: 1 calls × 2 rule probes",
+        "site": "search.inConversation.0"
+      },
+      {
+        "meter": "steps",
+        "value": 353091,
+        "source": "search term normalization at search.inConversation.0",
+        "site": "search.inConversation.0"
+      },
+      {
+        "meter": "steps",
+        "value": 110,
+        "source": "search.inConversation.0 take 20 (+2 reserve) × 1 calls on messages × 5",
+        "site": "search.inConversation.0"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "expressions",
+        "site": "search.inConversation:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "search.inConversation:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 380847,
+        "source": "search closure scratch",
+        "site": null
+      },
+      {
+        "meter": "heap bytes",
+        "value": 292876,
+        "source": "search term normalization at search.inConversation.0",
+        "site": "search.inConversation.0"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 3520,
+        "source": "search.inConversation.0 take 20 (+2 reserve) × 1 calls on messages × 5 × 32",
+        "site": "search.inConversation.0"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "expressions × 32",
+        "site": "search.inConversation:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "search.inConversation:statement:1"
+      },
+      {
+        "meter": "output bytes",
+        "value": 760,
+        "source": "messages.at",
+        "site": "search.inConversation.0"
+      },
+      {
+        "meter": "output bytes",
+        "value": 320480,
+        "source": "messages.body",
+        "site": "search.inConversation.0"
+      },
+      {
+        "meter": "output bytes",
+        "value": 4540,
+        "source": "messages.caption",
+        "site": "search.inConversation.0"
+      },
+      {
+        "meter": "output bytes",
+        "value": 3200,
+        "source": "messages.conversation",
+        "site": "search.inConversation.0"
+      },
+      {
+        "meter": "output bytes",
+        "value": 3000,
+        "source": "messages.id",
+        "site": "search.inConversation.0"
+      },
+      {
+        "meter": "output bytes",
+        "value": 200,
+        "source": "messages row width: framing/shared encoding/growth adjustment",
+        "site": "search.inConversation.0"
+      },
+      {
+        "meter": "output bytes",
+        "value": 32,
+        "source": "messages last 20 at search.inConversation.0: framing/shared encoding/growth adjustment",
+        "site": "search.inConversation.0"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 12018,
+        "source": "search.inConversation.0 × 1 ranges: source descriptor, suffix bounds, row/halo references",
+        "site": "search.inConversation.0"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 1324,
+        "source": "2 pooled memberships first images with table/id envelopes",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 352611,
+        "source": "21 pooled messages first images with table/id envelopes",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 14894,
+        "source": "search closure: whole row pool and actual issuing metadata: framing/shared encoding/growth adjustment",
+        "site": null
+      }
+    ]
   },
   "context": {
     "viewer": "alice",

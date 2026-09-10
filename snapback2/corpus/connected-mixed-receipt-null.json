@@ -298,7 +298,303 @@
       "notes.byId"
     ],
     "disclosures": [],
-    "bound_product": "note point read on notes × 1 calls = 1"
+    "bound_product": "note point read on notes × 1 calls = 1",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 1,
+        "source": "note point read on notes × 1 calls",
+        "site": "note"
+      },
+      {
+        "meter": "index entries",
+        "value": 1,
+        "source": "note point read on notes × 1 calls",
+        "site": "note"
+      },
+      {
+        "meter": "rule probes",
+        "value": 1,
+        "source": "connected: 1 calls × 1 rule probes",
+        "site": "connected"
+      },
+      {
+        "meter": "rule probes",
+        "value": 1,
+        "source": "note: 1 calls × 1 rule probes",
+        "site": "note"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "note point read on notes × 1 calls × 4",
+        "site": "note"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "rule evaluation / non-uniform budget reserve",
+        "site": null
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "connected-mixed-receipt-null:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "connected-mixed-receipt-null:statement:6"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "connected-mixed-receipt-null:statement:7"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "connected-mixed-receipt-null:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "connected-mixed-receipt-null:statement:3:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "connected-mixed-receipt-null:statement:5"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "connected-mixed-receipt-null:statement:6:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "connected-mixed-receipt-null:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "connected-mixed-receipt-null:statement:4"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "connected-mixed-receipt-null:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "connected-mixed-receipt-null:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "connected-mixed-receipt-null:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "connected-mixed-receipt-null:statement:3:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "connected-mixed-receipt-null:statement:4"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "connected-mixed-receipt-null:statement:5"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "connected-mixed-receipt-null:statement:6"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "connected-mixed-receipt-null:statement:6:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "connected-mixed-receipt-null:statement:7"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "note point read on notes × 1 calls × 4 × 32",
+        "site": "note"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "rule evaluation / non-uniform budget reserve",
+        "site": null
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions × 32",
+        "site": "connected-mixed-receipt-null:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions × 32",
+        "site": "connected-mixed-receipt-null:statement:6"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions × 32",
+        "site": "connected-mixed-receipt-null:statement:7"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "connected-mixed-receipt-null:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "connected-mixed-receipt-null:statement:3:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "connected-mixed-receipt-null:statement:5"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "connected-mixed-receipt-null:statement:6:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "connected-mixed-receipt-null:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "connected-mixed-receipt-null:statement:4"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "connected-mixed-receipt-null:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "connected-mixed-receipt-null:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "connected-mixed-receipt-null:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "connected-mixed-receipt-null:statement:3:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "connected-mixed-receipt-null:statement:4"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "connected-mixed-receipt-null:statement:5"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "connected-mixed-receipt-null:statement:6"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "connected-mixed-receipt-null:statement:6:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "connected-mixed-receipt-null:statement:7"
+      },
+      {
+        "meter": "output bytes",
+        "value": 41,
+        "source": "_connected.value",
+        "site": "connected"
+      },
+      {
+        "meter": "output bytes",
+        "value": 104,
+        "source": "notes.name",
+        "site": "note"
+      },
+      {
+        "meter": "output bytes",
+        "value": 23,
+        "source": "shape: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 41,
+        "source": "_connected.value",
+        "site": "connected"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 104,
+        "source": "notes.name",
+        "site": "note"
+      }
+    ]
   },
   "context": {
     "viewer": "alice",

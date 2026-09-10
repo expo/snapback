@@ -882,6 +882,7 @@ impl Runtime {
             trace: AuthoritativeTrace::default(),
             receipt: ClosureReceipt::default(),
             state: ExecutionState::Rejected {
+                rewrite: None,
                 site: None,
                 rule: None,
                 code: code.to_owned(),
@@ -918,6 +919,7 @@ impl Runtime {
                         trace: AuthoritativeTrace::default(),
                         receipt: ClosureReceipt::default(),
                         state: ExecutionState::Rejected {
+                            rewrite: error.rewrite(),
                             site: error.require_site(),
                             rule: error.require_code(),
                             code: code.to_owned(),

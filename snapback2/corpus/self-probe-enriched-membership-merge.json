@@ -495,7 +495,441 @@
       "words.byConversationTermTime"
     ],
     "disclosures": [],
-    "bound_product": "merge words.merge: 100 lanes heads + 20 advances + 2 lookahead × 1 calls (words.lane × 100) = 122 + members.page take 100 (+2 reserve) × 1 calls on memberships = 102 + conversation.point point read on conversations × 20 calls (calls from merge words take 20 20) = 20"
+    "bound_product": "merge words.merge: 100 lanes heads + 20 advances + 2 lookahead × 1 calls (words.lane × 100) = 122 + members.page take 100 (+2 reserve) × 1 calls on memberships = 102 + conversation.point point read on conversations × 20 calls (calls from merge words take 20 20) = 20",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 122,
+        "source": "merge words.merge: 100 lanes heads + 20 advances + 2 lookahead × 1 calls (words.lane × 100)",
+        "site": "words.merge"
+      },
+      {
+        "meter": "examined entries",
+        "value": 102,
+        "source": "members.page take 100 (+2 reserve) × 1 calls on memberships",
+        "site": "members.page"
+      },
+      {
+        "meter": "examined entries",
+        "value": 20,
+        "source": "conversation.point point read on conversations × 20 calls (calls from merge words take 20 20)",
+        "site": "conversation.point"
+      },
+      {
+        "meter": "index entries",
+        "value": 122,
+        "source": "merge words.merge: 100 lanes heads + 20 advances + 2 lookahead × 1 calls (words.lane × 100)",
+        "site": "words.merge"
+      },
+      {
+        "meter": "index entries",
+        "value": 102,
+        "source": "members.page take 100 (+2 reserve) × 1 calls on memberships",
+        "site": "members.page"
+      },
+      {
+        "meter": "index entries",
+        "value": 20,
+        "source": "conversation.point point read on conversations × 20 calls (calls from merge words take 20 20)",
+        "site": "conversation.point"
+      },
+      {
+        "meter": "rule probes",
+        "value": 200,
+        "source": "words.lane: 100 calls × 2 rule probes (calls from members.page take 100)",
+        "site": "words.lane"
+      },
+      {
+        "meter": "rule probes",
+        "value": 40,
+        "source": "conversation.point: 20 calls × 2 rule probes (calls from merge words take 20 20)",
+        "site": "conversation.point"
+      },
+      {
+        "meter": "steps",
+        "value": 3050,
+        "source": "merge words.merge: heap work",
+        "site": "self-probe-enriched-membership-merge:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 610,
+        "source": "merge words.merge: 100 lanes heads + 20 advances + 2 lookahead × 1 calls (words.lane × 100) × 5",
+        "site": "words.merge"
+      },
+      {
+        "meter": "steps",
+        "value": 510,
+        "source": "members.page take 100 (+2 reserve) × 1 calls on memberships × 5",
+        "site": "members.page"
+      },
+      {
+        "meter": "steps",
+        "value": 300,
+        "source": "expressions (calls from members.page take 100)",
+        "site": "self-probe-enriched-membership-merge:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 80,
+        "source": "conversation.point point read on conversations × 20 calls (calls from merge words take 20 20) × 4",
+        "site": "conversation.point"
+      },
+      {
+        "meter": "steps",
+        "value": 80,
+        "source": "expressions (calls from merge words take 20 20)",
+        "site": "self-probe-enriched-membership-merge:statement:3:statement:4"
+      },
+      {
+        "meter": "steps",
+        "value": 60,
+        "source": "expressions (calls from merge words take 20 20)",
+        "site": "self-probe-enriched-membership-merge:statement:3:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 60,
+        "source": "expressions (calls from merge words take 20 20)",
+        "site": "self-probe-enriched-membership-merge:statement:3:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 60,
+        "source": "expressions (calls from merge words take 20 20)",
+        "site": "self-probe-enriched-membership-merge:statement:3:statement:3:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 20,
+        "source": "expressions (calls from merge words take 20 20)",
+        "site": "self-probe-enriched-membership-merge:statement:3:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 20,
+        "source": "statements (calls from merge words take 20 20)",
+        "site": "self-probe-enriched-membership-merge:statement:3:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 20,
+        "source": "statements (calls from merge words take 20 20)",
+        "site": "self-probe-enriched-membership-merge:statement:3:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 20,
+        "source": "statements (calls from merge words take 20 20)",
+        "site": "self-probe-enriched-membership-merge:statement:3:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 20,
+        "source": "statements (calls from merge words take 20 20)",
+        "site": "self-probe-enriched-membership-merge:statement:3:statement:3:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 20,
+        "source": "statements (calls from merge words take 20 20)",
+        "site": "self-probe-enriched-membership-merge:statement:3:statement:4"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "self-probe-enriched-membership-merge:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "self-probe-enriched-membership-merge:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "self-probe-enriched-membership-merge:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "self-probe-enriched-membership-merge:statement:4"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "self-probe-enriched-membership-merge:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "self-probe-enriched-membership-merge:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "self-probe-enriched-membership-merge:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "self-probe-enriched-membership-merge:statement:4"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 97600,
+        "source": "merge words.merge: heap work × 32",
+        "site": "self-probe-enriched-membership-merge:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 19520,
+        "source": "merge words.merge: 100 lanes heads + 20 advances + 2 lookahead × 1 calls (words.lane × 100) × 5 × 32",
+        "site": "words.merge"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 16320,
+        "source": "members.page take 100 (+2 reserve) × 1 calls on memberships × 5 × 32",
+        "site": "members.page"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 9600,
+        "source": "expressions (calls from members.page take 100) × 32",
+        "site": "self-probe-enriched-membership-merge:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 2560,
+        "source": "conversation.point point read on conversations × 20 calls (calls from merge words take 20 20) × 4 × 32",
+        "site": "conversation.point"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 2560,
+        "source": "expressions (calls from merge words take 20 20) × 32",
+        "site": "self-probe-enriched-membership-merge:statement:3:statement:4"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 1920,
+        "source": "expressions (calls from merge words take 20 20) × 32",
+        "site": "self-probe-enriched-membership-merge:statement:3:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 1920,
+        "source": "expressions (calls from merge words take 20 20) × 32",
+        "site": "self-probe-enriched-membership-merge:statement:3:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 1920,
+        "source": "expressions (calls from merge words take 20 20) × 32",
+        "site": "self-probe-enriched-membership-merge:statement:3:statement:3:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 640,
+        "source": "expressions (calls from merge words take 20 20) × 32",
+        "site": "self-probe-enriched-membership-merge:statement:3:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 640,
+        "source": "statements (calls from merge words take 20 20) × 32",
+        "site": "self-probe-enriched-membership-merge:statement:3:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 640,
+        "source": "statements (calls from merge words take 20 20) × 32",
+        "site": "self-probe-enriched-membership-merge:statement:3:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 640,
+        "source": "statements (calls from merge words take 20 20) × 32",
+        "site": "self-probe-enriched-membership-merge:statement:3:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 640,
+        "source": "statements (calls from merge words take 20 20) × 32",
+        "site": "self-probe-enriched-membership-merge:statement:3:statement:3:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 640,
+        "source": "statements (calls from merge words take 20 20) × 32",
+        "site": "self-probe-enriched-membership-merge:statement:3:statement:4"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "self-probe-enriched-membership-merge:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "self-probe-enriched-membership-merge:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "self-probe-enriched-membership-merge:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "self-probe-enriched-membership-merge:statement:4"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "self-probe-enriched-membership-merge:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "self-probe-enriched-membership-merge:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "self-probe-enriched-membership-merge:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "self-probe-enriched-membership-merge:statement:4"
+      },
+      {
+        "meter": "output bytes",
+        "value": 12,
+        "source": "array",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 4500,
+        "source": "conversations.title",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 200,
+        "source": "shape: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 3000,
+        "source": "words.id",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 520,
+        "source": "shape: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 20,
+        "source": "merge words.merge: emitted page (20 repetitions): framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 4500,
+        "source": "conversations.title",
+        "site": "conversation.point"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 35802,
+        "source": "memberships.conversationId",
+        "site": "members.page"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 33150,
+        "source": "memberships.id",
+        "site": "members.page"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 34697,
+        "source": "memberships.principal",
+        "site": "members.page"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 2210,
+        "source": "memberships row width: framing/shared encoding/growth adjustment",
+        "site": "members.page"
+      },
+      {
+        "meter": "closure bytes",
+        "value": -39480,
+        "source": "members.page take 100 × 1 calls; memberships at members.page: 221 retained rows: framing/shared encoding/growth adjustment",
+        "site": "members.page"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 9956,
+        "source": "words.at",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 42444,
+        "source": "words.conversationId",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 39300,
+        "source": "words.id",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 73360,
+        "source": "words.term",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 2620,
+        "source": "words row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": -68600,
+        "source": "merge words.merge: emitted page + heads + lookahead; words at words.merge: 262 retained rows: framing/shared encoding/growth adjustment",
+        "site": null
+      }
+    ]
   },
   "context": {
     "viewer": "u1",
