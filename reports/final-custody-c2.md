@@ -226,3 +226,100 @@ Changed implementation: `src/{offline.ts,delivery-acknowledgements.ts,store/rang
 All changed files are **≤1500 lines**; largest is `offline-store.test.ts`, **1483**. Root caps retains only the unchanged Snapback 1 1504-line violation (**205/204** baseline). The existing oversized LLP 1012 is untouched in r2. Reference audit and whitespace validation pass; the final audit log is `/tmp/custody-c2-r2-refs-final.log`.
 
 **Open semantic/allocation questions: none.** The generic scorer still reflects historical accepted baselines, as it did for the author's custody allocation; its policy remains unchanged. This writable `reports/final-custody-c2.md` mirror is the program report for the orchestrator to collect. Local writes stay in the allowed roots; fleet verification reuses r1's isolated `/tmp/s2-custody-c2-r1.dc7UEr` snapshot. No other checkout or branch was changed. No commit and no whole-suite run.
+
+## Fix round r3
+
+
+Base: `cc64186513` (r2 + orchestrator test fix + pre-round main merge). No commit, stash, branch change, or main merge. RFC Status unchanged. **Items 1–6 fixed; no byte refusal.** Item 7 residuals are listed once at the end. Item 8 records are written here and in `reports/final-custody-c2.md` and LLP 1019.
+
+## Allocation and construction
+
+| Measure | Before | Final | Delta | Maximum | Headroom |
+|---|---:|---:|---:|---:|---:|
+| Client packaged closure, gzip | 140,680 | **140,696** | +16 | 140,700 | 4 |
+| React packaged closure, gzip | 150,416 | **150,432** | +16 | 150,500 | 68 |
+| Expo packaged closure, gzip | 154,019 | **154,035** | +16 | 154,100 | 65 |
+| Complete runtime, gzip | 86,455 | **86,538** | +83 | 90,000 | 3,462 |
+| Shared client-runtime leaf, minified | 300,292 | 299,660 | −632 | — | — |
+| Shared client-runtime leaf, gzip | 95,841 | 95,857 | +16 | Included above | — |
+
+Toolchain: Node **24.18.0**, esbuild **0.25.9**, Node gzip level **9**. Esbuild metafile contributions below are minified bytes, not additive gzip attribution:
+
+| Shared client-runtime input | Before | Final | Delta |
+|---|---:|---:|---:|
+| `src/offline.ts` | 22,771 | 22,068 | −703 |
+| `src/store/canonical.ts` | 539 | 605 | +66 |
+| `src/store/overlay-retirement.ts` | 5,974 | 5,979 | +5 |
+| `src/store/range-store.ts` | 26,483 | 26,483 | 0 |
+
+The overlay-retirement source is unchanged; its five-byte difference is esbuild binding allocation. Every other packaged `.mjs` output has identical byte counts and input contributions. Existing entry graphs are unchanged. Evidence: `/tmp/custody-c2-r3-{before,after}/`, `/tmp/custody-c2-r3-input-diff.json`. Metafiles came from a temporary stdin copy of `build.mjs` adding only capture; no build/check/config source changed. The ordinary build and canonical measurement produce the same closures.
+
+Payment by construction: reuse program-map/fact/reset/commit construction; remove only undefined fields from fresh result records with one shared `defined` helper (nulls and nominal values remain); fold delivery-time collection into the existing answer walk; use one canonical tuple per range key; share close/wipe release, row deletion, and inbox transaction adapters; compute query clock once; remove redundant promise wrappers while preserving the original `answer()`/`coverage()` settling boundaries. Receipt/bounds validation, outbox notification, authority checks, reset sequencing, and corruption checks remain. No diagnostic prose was shortened and no implementation moved to another entry.
+
+## Disposition by requested item
+
+1. **Codex B1 FIXED.** `range-store.ts` validates retained content only when an incoming held program's schema differs from its predecessor, using the exact `prepareWireRow` used by cold preparation. The incoming program is first known at the `swap.programs` installation, before `state.programs` changes; `storedProgram(state, swap)` may still select the predecessor named by old facts, so validation explicitly uses the incoming program. Reset and adoption share the existing row-removal walk. Invalid content images and their sequence entries leave; anchor events and fitting siblings survive. Only expected row-validation failures are caught. Same-schema ordinary delivery is unvalidated here, and later corrupt cold preparation still throws. After successful durable replacement, one structured line per affected table reports e.g. `{"snapback2":"adopt","table":"messages","removed":1}`. The reset anchor walk now recognizes prepared RowImages as well as wire records: before this correction, a warm prepared anchor could be lost even without a schema change.
+
+   Tests: 36 carrier/control cases (three carriers × Optional/required successor × reset-together/reset-before/no-reset × wire/prepared), plus the real-owner departed Bob extension. Bob receives null and fitting-7 messages, departs, the owner fills and installs required `version: int`, Bob reconnects through a metadata-only delivery query and cold-restarts offline; history keeps the null message's anchor with absent body and the fitting sibling, and an unrelated query does not claim current-generation completeness. `real-owner-chat-custody.test.ts` is 333 lines. LLP 1012 §8 and `guide/deliver.md` record the ruling; the reset `@ref` uses `LLP 1012#coverage-reset-amendment`.
+
+2. **Codex B2 FIXED.** `SseProbe` retains the multiplexed frame through a checked payload accessor: exact child identity, explicit `terminal: false`, and a query-result state are required before payload acceptance. The authority proof calls the shared row-free, exact-sequence denial check. A terminal or refused barrier also fails. The unit negative control executes the authority proof's entire consumed-event sequence: denial then ordered barrier. It rejects terminal probe denial followed by a valid barrier, terminal barrier, refused barrier, and wrong probe identity; the ordinary nonterminal denial passes. Rust only; zero client bytes for this item.
+
+3. **Codex B3 APPLIED AS RULED.** LLP 1012 is **1,861 lines at this worktree base and final**, net zero; the brief's 1,853 is not this HEAD's count. The replacement reset paragraph records adoption semantics, and the former blank line becomes the exact anchor heading. No spec split. All changed source files are ≤1,500 lines (largest Rust `test_authority.rs`: 1,485; store: 1,478).
+
+4. **Without-transport assertion FIXED.** The offline fetch records and fails every attempted request before examining payload shape. Offline observe and predict assert zero attempts. Online priming inspects both top-level `op` and every `mounted[].op`. The exercised subject remains the actual shared Thread binding, not a mounted Thread component; that residual is explicit below.
+
+5. **Grok material 3 FIXED.** `resetClock` and `resetCoverage` share a schema-first commit: `{ schema: this.schema, ...extra, resetCoverage: true, facts, superseded }`. Explicit `extra.schema` wins. Reset state/trust updates remain in the callers after awaiting commit. Direct regression checks both schema presence and override precedence. The final closures above include this change.
+
+6. **Minor items FIXED.** LLP 1019's non-goal now names both the ruled custody reset extension and incompatible-image adoption rule while retaining the fence/retain meanings. Reset `@ref` names LLP 1012's exact amendment anchor. Seed comment says `row-keyed edit/unsend mutations`. Receipts guide uses `require isMember(msg.conversationId, viewer)` like the template. `guide/deliver.md` is **5,982 bytes ≤8,192**; no budget changed.
+
+## Before / after evidence
+
+| Reproduction | Base output | Final evidence |
+|---|---|---|
+| All-carrier adoption controls | **tests 37, pass 12, fail 25**; required successor throws `E_INPUT: messages.version must be an i53 integer`; prepared reset variants also lose anchors/fitting rows | **37/37 pass** within named run; optional controls keep null, required drops null only, anchors/fitting remain; later corrupt delivery still rejects `expected safe integer` |
+| Terminal denial then valid barrier | **0 passed; 1 failed**: result accepted `true`, expected `false` | unit module **9 passed; 0 failed**, including five-case authority sequence |
+| Clock reset schema | **tests 1, pass 0, fail 1**: actual `undefined`, expected runtime schema | new schema/override test passes within named run |
+| Never-opened screen transport observation | Base only collected top-level `body.op`; mounted resume attempts were invisible | all attempted offline fetches fail and are counted; zero attempts after observe/predict |
+| Departed owner's null image | Existing reviewed cold-store failure; new end-to-end fixture added | required successor + metadata-only reconnect + offline history/unrelated read passes; adoption logs one removed messages row |
+
+Before logs: `/tmp/custody-c2-r3-b1-before.log`, `/tmp/custody-c2-r3-b2-before.log`, `/tmp/custody-c2-r3-clock-before.log`. Base controls temporarily substituted original source from HEAD without checkout/reset/branch mutation, and restored final source before final verification. The four older client/asset failures listed below also reproduce with all three changed TS runtime modules restored to HEAD: **tests 4, pass 0, fail 4**, `/tmp/custody-c2-r3-stale-base-tests.log`.
+
+## Verification
+
+| Scope / command | Exact result | Evidence |
+|---|---|---|
+| Initial `cargo build`, media build; final `scripts/hermes build -p snapback2` | exit 0 | `/tmp/custody-c2-r3-{cargo-build,media-build,hermes-build}.log` |
+| Final ordinary `node build.mjs` | exit 0; **32 cards, 91351/98304 bytes** | `/tmp/custody-c2-r3-restored-build.log` and canonical measure |
+| Six named package files, final fleet run | **tests 407, pass 407, fail 0, cancelled 0, skipped 0, todo 0** | `/tmp/custody-c2-r3-remote-targeted-final.log` |
+| `scripts/test.sh`, local package portion | **tests 1179, pass 1179, fail 0, cancelled 0, skipped 0, todo 0** | `/tmp/custody-c2-r3-full-final.log` |
+| `scripts/test.sh`, local Rust nextest | **1105 tests run: 1103 passed, 2 failed, 4 skipped**; both owner-stop sandbox artifacts below | same |
+| Final fleet Rust workspace nextest | **1105 tests run: 1105 passed, 4 skipped** | `/tmp/custody-c2-r3-remote-rust.log` |
+| Rust `test::unit_tests`; `test::test_authority` | **9 passed; 0 failed**; **13 passed; 0 failed** | `/tmp/custody-c2-r3-rust-{unit-real,authority}.log` |
+| Evaluator | **cases 266, passed 266, serverOnly 27, failed 0**; prediction **10 passed, 0 failed** | `/tmp/custody-c2-r3-full-local.log` |
+| Compiler `bun run check`; `bun src/test.ts`, local Bun 1.3.12 | typecheck exit 0; **Compiler checks: 298 passed, 0 failed** | `/tmp/custody-c2-r3-compiler-{check-final,final}.log` |
+| Hermes chat template `test --json` | **32 checks, 32 pass, 0 fail, 0 blocked**; schedules **fired 1, late 1, rejected 0** | `/tmp/custody-c2-r3-hermes-final.json` |
+| Full package, every `tests/*.test.ts`, final serial fleet run | **tests 1319, pass 1314, fail 5, cancelled 0, skipped 0, todo 0**; four base-proven older failures + snapshot Git metadata artifact | `/tmp/custody-c2-r3-remote-all-final.log` |
+| `node scripts/measure.mjs --check` | all functional/timing steps pass; exit 1 only four historical byte baselines; all custody allocations pass | `/tmp/custody-c2-r3-measure-order-final.log` |
+
+Canonical measurement: warm build **0.29s ≤300s**; incremental **2.95s ≤15s**; consumer smoke **13.06s ≤30s**; project check **0.486s ≤1s**; doctor **0.122 /0.047s ≤0.5s**; init→dev **0.841s ≤10s**. Historical comparator still uses **136547 /146166 /149836 /84580** plus 1%; no accepted baseline or synthetic passing record added. All original attempts remain in existing `metrics/{loop,twin}.jsonl`.
+
+The first complete `scripts/test.sh` invocation (`/tmp/custody-c2-r3-full-local.log`) exits 1 only because the sandbox denies `ps`: `stop_during_generation_update_is_bounded_and_cannot_recreate_owner_state` and `owner_cases::wire_lifecycle::chat_owner_wire_sse_channels_and_successors` report `E_OWNER_STOP_TIMEOUT`. Both pass in the final fleet workspace run. The first full local run and fleet run pass doctests. After restoring the two read promise wrappers, the repeated blocking run again passes all 1,179 package tests and has the same two Rust sandbox failures; it was interrupted (exit 130) after repeatedly stalling in unchanged Rust doctests. One zero-test doctest target had completed; the repeat is not claimed a completed full invocation. Rust/doc sources were unchanged by the wrapper restoration. Final compiler/type checks and canonical measurement were run separately afterward. Root caps retains the inherited Snapback 1 `crates/snapback-tools/src/bin/snapback-agent-safe-paired.rs` 1,504-line violation (**205/204** baseline); no changed source violates the cap. Reference audit and `git diff --check` pass.
+
+Additional attempts are not claimed green: first local named run **407 tests, 405 pass, 2 fail** (owner readiness timeouts before bodies); the final six-file fleet run above clears them. The legacy package-directory entry point (`tests/index.js`) runs only **713 tests: 707 pass, 5 fail, 1 skipped**, so it was followed by the explicit all-files glob. The first all-files run overlapped compiler package regression tests that delete/rebuild `dist/`: **1319 tests, 1301 pass, 18 fail** included missing compiler/declarations, timing-sensitive owner/recovery failures, the four baseline failures, and missing Git metadata. The stable-dist serial run was **1319 tests, 1313 pass, 6 fail**: four base failures, missing Git metadata, and an early reset-refusal assertion. That reset assertion passed ten consecutive checks on base, failed intermittently after wrapper removal, and passes ten consecutive checks after restoring the original `answer()`/`coverage()` promise boundaries (`/tmp/custody-c2-r3-reset-{base,order-final}.log`). That finding is fixed in the final source; full verification was repeated. An intermediate mechanical edit also put `async` on two interface signatures; the declaration build rejected it, and the signatures were corrected before final testing. The extra remote compiler run under Bun **1.4.0** is **296 passed, 2 failed** on null-prototype-vs-plain-object deep equality; unchanged compiler/evaluator source, local Bun **1.3.12** required suite is **298/298**. No compiler source was changed to conceal that toolchain difference.
+
+## Files, deviations, scope
+
+Runtime: `snapback2/packages/snapback2/src/{offline.ts,store/range-store.ts,store/canonical.ts}`. The small existing canonical helper module is the only runtime scope extension beyond the two named sites; it pays shared record construction. Tests: `snapback2/packages/snapback2/tests/{store-review-custody,real-owner-chat-custody,chat-screens-owner}.test.ts`. Rust: `snapback2/crates/snapback2/src/{test_sse,test_authority,test_unit}.rs`. Docs/template: `llp/{1012-local-first-v1.spec,1019-derived-delivery-custody.rfc}.md`, `snapback2/packages/snapback2/guide/deliver.md`, `snapback2/packages/snapback2/templates/chat/snapback/seed.ts`. Evidence: existing `snapback2/metrics/{loop,twin}.jsonl`, `REPORT-custody-c2.md`, `reports/final-custody-c2.md`. No other source files changed.
+
+Code-fact corrections: adoption's authoritative incoming schema is known in the program swap before old facts are replaced; prepared rows require `imageRecord` when discovering anchors; LLP 1012 base is 1,861 lines. Cargo accepts one filter, so the requested three-name shorthand was implemented with real module filters plus the full workspace. An initial literal `test_unit` filter matched zero and is not claimed as a test. The same-source owner fixture needed required-field values in both seed data and future insert sites when installing the successor. This is fixture preparation, not a production exception. No compatibility shim, new apparatus, design doc, diagnostic, budget increase, or user-facing text shortening.
+
+## Residuals for the orchestrator's single follow-up ticket
+
+- Mounted Thread Acceptance 2 component test remains beyond the existing shared-binding proof; zero transport is now checked exhaustively for that binding.
+- End-to-end manifest-only-schema reset test remains; direct clock-reset schema/override regression and all-carrier reset/adoption controls are added.
+- Carol offline after paginated joiner history remains untested in this round.
+- LLP 1011 B5 wording remains outside this lane.
+- Four inherited older expectations outside the blocking package list remain: `client.test.ts` “query retries HTTP and network transport failures while mutation retries neither”; `assets.test.ts` “mutation substitutes scalar, optional, list, and video sources from one manifest generation”, “descriptor fence refuses an observed manifest generation change after uploads”, and “local serialization failure discards automatic uploads before any mutation request”. Exact base-source control fails all four identically. They concern current transport refusal/expectedGeneration behavior, not adoption custody.
+- Fleet snapshots lack Git metadata for the tracked-source NUL check; that check passes in the real local worktree. Remote Bun 1.4.0's two compiler object-prototype assertion failures differ from the passing local invocation. Neither is hidden as a passing result.
+
+Open semantic/allocation questions: **none**. Orchestrator owns commit and integration.
