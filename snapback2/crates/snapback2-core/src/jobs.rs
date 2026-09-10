@@ -399,6 +399,8 @@ pub(crate) fn inspect(
         errors.extend(analysis.errors);
         if let Some(mut certificate) = analysis.certificate {
                 certificate.schema_hash = schema.hash();
+                // The rewrite below maps `statement:1` to the upper scan and `statement:2` to the chunk.
+                debug_assert!(matches!(chunk.body.as_slice(), [Stmt::Const { .. }, Stmt::For { .. }]), "chunk program is [upper scan, chunk]");
                 for term in &mut certificate.cost_terms {
                     if let Some(id) = &mut term.site {
                         let prefix = format!("{}:statement:2", program.name);

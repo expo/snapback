@@ -69,116 +69,42 @@ impl<'a> OutputEstimator<'a> {
     ) {
         for statement in statements {
             match statement {
+                // @ref LLP 1020#a5-recurrence-pricing-is-a-bound — `let`/`const` of a name already
+                // bound overwrite it exactly as an assignment does, so a loop-carried rebind in either
+                // spelling is priced as the same recurrence.
                 Stmt::Const { name, value } | Stmt::Let { name, value }
                 | Stmt::InsertIfAbsent { result: name, row: value, .. } => {
-                    let provenance = provenance_expression_from(
-                        value,
-                        variables,
-                        |bound| &bound.provenance,
-                        iteration,
-                    );
-                    let bytes = self.expression(value, variables);
-                    let collection =
-                        collection_price_from(value, variables, |bound| bound.collection);
-                    let table = self.expression_table(value, variables);
-                    let shape = self.expression_shape(value, variables);
-                    let identity = take_identity(&mut self.next_identity);
-                    variables.insert(
-                        name.clone(),
-                        OutputBound {
-                            whole_element: false,
-                            bytes,
-                            instances: calls,
-                            collection,
-                            table,
-                            provenance: ProvenanceBinding::new(identity, provenance),
-                            shape,
-                            value: value.clone(),
-                        },
-                    );
-                }
-                Stmt::Assign { name, value } => {
-                    let whole_element = variables.get(name).is_some_and(|v| v.whole_element);
-                    let instances = variables.get(name).map_or(calls, |bound| bound.instances);
-                    let assignment = assignment_growth(
-                        variables.get(name).map(|bound| &bound.provenance),
-                        value,
-                        variables,
-                        |bound| &bound.provenance,
-                        calls,
-                        instances,
-                        iteration,
-                        || OutputAssignmentPrice {
-                            bytes: self.expression(value, variables),
-                            collection: collection_price_from(value, variables, |bound| {
-                                bound.collection
-                            }),
-                            table: self.expression_table(value, variables),
-                            shape: self.expression_shape(value, variables),
-                        },
-                    );
-                    let (provenance, growth, price) = assignment.into_parts();
-                    if let Some(growth) = growth.filter(|growth| (price.collection || growth.occurrences > 0)
-                        && !crate::growth::fixed_width_from(value, variables, |bound| &bound.value)) {
-                        let current = variables.get_mut(name).expect("growth target exists");
-                        let mut added = price
-                            .bytes
-                            .saturating_sub(current.bytes.saturating_mul(growth.occurrences));
-                        if added == 0 {
-                            added = price.bytes;
-                        }
-                        current.bytes =
-                            if growth.occurrences > 1 {
-                                current.bytes.saturating_add(added).saturating_mul(
-                                    saturating_power(growth.occurrences, growth.repetitions),
-                                )
-                            } else if growth.occurrences == 1 {
-                                current
-                                    .bytes
-                                    .saturating_add(added.saturating_mul(growth.repetitions))
-                            } else {
-                                current
-                                    .bytes
-                                    .saturating_add(price.bytes.saturating_mul(growth.repetitions))
-                            };
-                        current.collection = true;
-                        current.table = None;
-                        current.provenance = current.provenance.assigned(provenance);
-                        current.shape = ByteShape::repeated(
-                            current.bytes,
-                            format!(
-                                "{name} value growth over {} repetitions",
-                                growth.repetitions
-                            ),
-                            growth.repetitions,
-                            price.shape,
-                        );
-                        current.value = value.clone();
-                        current.whole_element = whole_element;
+                    if !matches!(statement, Stmt::InsertIfAbsent { .. }) && variables.contains_key(name) {
+                        self.assign(name, value, variables, calls, iteration);
                     } else {
-                        let identity = variables
-                            .get(name)
-                            .map(|bound| bound.provenance.identity)
-                            .unwrap_or_else(|| take_identity(&mut self.next_identity));
-                        let assigned = variables
-                            .get(name)
-                            .map(|bound| bound.provenance.assigned(provenance.clone()))
-                            .unwrap_or_else(|| ProvenanceBinding::new(identity, provenance));
+                        let provenance = provenance_expression_from(
+                            value,
+                            variables,
+                            |bound| &bound.provenance,
+                            iteration,
+                        );
+                        let bytes = self.expression(value, variables);
+                        let collection =
+                            collection_price_from(value, variables, |bound| bound.collection);
+                        let table = self.expression_table(value, variables);
+                        let shape = self.expression_shape(value, variables);
+                        let identity = take_identity(&mut self.next_identity);
                         variables.insert(
                             name.clone(),
                             OutputBound {
-                                whole_element,
-                                bytes: price.bytes,
-                                instances,
-                                collection: price.collection,
-                                table: price.table,
-                                provenance: assigned,
-                                shape: price.shape,
+                                whole_element: false,
+                                bytes,
+                                instances: calls,
+                                collection,
+                                table,
+                                provenance: ProvenanceBinding::new(identity, provenance),
+                                shape,
                                 value: value.clone(),
                             },
                         );
                     }
                 }
+                Stmt::Assign { name, value } => self.assign(name, value, variables, calls, iteration),
                 Stmt::Push { target, value } => {
                     let whole_element = false;
                     let shape = self.expression_shape(value, variables);
@@ -331,6 +257,89 @@ impl<'a> OutputEstimator<'a> {
                 | Stmt::Break
                 | Stmt::Continue => {}
             }
+        }
+    }
+
+    fn assign(&mut self, name: &str, value: &Expr, variables: &mut BTreeMap<String, OutputBound>, calls: u64, iteration: u64) {
+        let whole_element = variables.get(name).is_some_and(|v| v.whole_element);
+        let instances = variables.get(name).map_or(calls, |bound| bound.instances);
+        let assignment = assignment_growth(
+            variables.get(name).map(|bound| &bound.provenance),
+            value,
+            variables,
+            |bound| &bound.provenance,
+            calls,
+            instances,
+            iteration,
+            || OutputAssignmentPrice {
+                bytes: self.expression(value, variables),
+                collection: collection_price_from(value, variables, |bound| {
+                    bound.collection
+                }),
+                table: self.expression_table(value, variables),
+                shape: self.expression_shape(value, variables),
+            },
+        );
+        let (provenance, growth, price) = assignment.into_parts();
+        if let Some(growth) = growth.filter(|growth| (price.collection || growth.occurrences > 0)
+            && !crate::growth::fixed_width_from(value, variables, |bound| &bound.value)) {
+            let current = variables.get_mut(name).expect("growth target exists");
+            let mut added = price
+                .bytes
+                .saturating_sub(current.bytes.saturating_mul(growth.occurrences));
+            if added == 0 {
+                added = price.bytes;
+            }
+            current.bytes =
+                if growth.occurrences > 1 {
+                    current.bytes.saturating_add(added).saturating_mul(
+                        saturating_power(growth.occurrences, growth.repetitions),
+                    )
+                } else if growth.occurrences == 1 {
+                    current
+                        .bytes
+                        .saturating_add(added.saturating_mul(growth.repetitions))
+                } else {
+                    current
+                        .bytes
+                        .saturating_add(price.bytes.saturating_mul(growth.repetitions))
+                };
+            current.collection = true;
+            current.table = None;
+            current.provenance = current.provenance.assigned(provenance);
+            current.shape = ByteShape::repeated(
+                current.bytes,
+                format!(
+                    "{name} value growth over {} repetitions",
+                    growth.repetitions
+                ),
+                growth.repetitions,
+                price.shape,
+            );
+            current.value = value.clone();
+            current.whole_element = whole_element;
+        } else {
+            let identity = variables
+                .get(name)
+                .map(|bound| bound.provenance.identity)
+                .unwrap_or_else(|| take_identity(&mut self.next_identity));
+            let assigned = variables
+                .get(name)
+                .map(|bound| bound.provenance.assigned(provenance.clone()))
+                .unwrap_or_else(|| ProvenanceBinding::new(identity, provenance));
+            variables.insert(
+                name.to_owned(),
+                OutputBound {
+                    whole_element,
+                    bytes: price.bytes,
+                    instances,
+                    collection: price.collection,
+                    table: price.table,
+                    provenance: assigned,
+                    shape: price.shape,
+                    value: value.clone(),
+                },
+            );
         }
     }
 

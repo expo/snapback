@@ -24,3 +24,10 @@ self-occurrences, aliases, branches, nested loops, and retained intermediates
 ticket_68_vs_1020_is_a_runnable_projected_rebind` (measured 1,020 under its bound) and
 `loop_carried_value_bounds_dominate_maximum_width_escaped_executions` (nine loop-growth
 shapes × four maximum-width escaped fills, bound ≥ measured for output and closure).
+
+**Annotation 2026-09-10 (fix round r1):** the pin above was written with `Assign`; the reviewer's
+program rebinds with `let` inside the `for`, and the estimators priced a `let`/`const` overwrite as a
+fresh single-iteration binding (53 output bytes certified against 2,029 served at `first 252`,
+`body: text <=4`). Both estimators and the coupled recurrence now treat a `let`/`const` of a name
+already bound as the same assignment; the pin in the ticket's own spelling is
+`certificate_cost.rs::ticket_let_rebind_in_a_for_is_priced_as_the_same_recurrence`.

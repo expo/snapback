@@ -79,7 +79,8 @@ Compile, certify, and refresh .snapback/build, including api.d.ts.
 check validates sources; it does not install them in the running owner.
 Use snapback2 dev --status to see the active generation and successor refusals.
 --cost [<op>] shows each sourced analyzer term and all eight meters, even on refusal.
-It inspects without refreshing the cache; jobs show per-chunk bounds. --json keeps terms.
+It inspects without refreshing the cache; jobs show per-chunk bounds. --json keeps terms;
+a term value is a JSON integer, or a decimal string when it lies outside 64-bit range.
 --ir validates project JSON from a file or stdin instead of authored sources."
         }
         "run" => {

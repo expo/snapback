@@ -898,6 +898,13 @@ pub fn run_cost_project(root: &Path, selected: Option<&str>, json: bool) -> Exit
     if refused { ExitCode::from(1) } else { ExitCode::SUCCESS }
 }
 
+/// A merge site is spelled `file:line:col` by the compiler; read it as the location it names.
+fn site_location(site: &str) -> Option<project::SourceSite> {
+    let (rest, col) = site.rsplit_once(':')?;
+    let (file, line) = rest.rsplit_once(':')?;
+    Some(project::SourceSite { file: file.to_owned(), line: line.parse().ok()?, col: col.parse().ok()?, ..Default::default() })
+}
+
 fn print_cost(certificate: &Certificate, sources: &BTreeMap<String, project::SourceSite>, ceilings: &Ceilings) {
     if let Some(job) = &certificate.job {
         for (n, chunk) in job.per_chunk.iter().enumerate() {
@@ -912,11 +919,17 @@ fn print_cost(certificate: &Certificate, sources: &BTreeMap<String, project::Sou
     // lowered statement of one authored line, reads as one line with its meters filled in.
     let mut rows: Vec<(String, String, [Option<i128>; 8])> = Vec::new();
     for term in &certificate.cost_terms {
-        let source = term.site.as_deref().and_then(|id| sources.get(id))
-            .or_else(|| sources.iter().filter(|(id, _)| term.source.contains(id.as_str())).max_by_key(|(id, _)| id.len()).map(|(_, source)| source))
-            .or_else(|| sources.get(&certificate.program));
-        let location = source.map(|s| s.r#use.as_deref().unwrap_or(s));
-        let location = location.map(|s| format!("{}:{}", s.file, s.line)).unwrap_or_else(|| term.site.clone().unwrap_or_else(|| certificate.program.clone()));
+        // A term is placed by its site alone: a declared site, or a merge site that is itself
+        // spelled `file:line:col`. A program-level term (a budget reserve, the search closure)
+        // prints at the operation's declaration.
+        let source = term.site.as_deref().and_then(|id| sources.get(id));
+        let location = match (source, term.site.as_deref().and_then(site_location)) {
+            (Some(s), _) => Some(s.clone()),
+            (None, Some(location)) => Some(location),
+            (None, None) => sources.get(&certificate.program).cloned(),
+        };
+        let location = location.map(|s| { let s = s.r#use.as_deref().unwrap_or(&s); format!("{}:{}", s.file, s.line) })
+            .unwrap_or_else(|| term.site.clone().unwrap_or_else(|| certificate.program.clone()));
         let Some(column) = METERS.iter().position(|meter| *meter == term.meter) else { continue };
         let row = match rows.iter_mut().find(|(at, source, _)| *at == location && *source == term.source) {
             Some(row) => row,

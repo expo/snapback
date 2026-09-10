@@ -543,3 +543,19 @@ fn denied_range_fallback_reports_visibility_without_claiming_absence() {
         );
     }
 }
+
+// @ref LLP 1020#a4-check---cost — a counter the trace does not carry is `unavailable`, never inferred.
+#[cfg(test)]
+#[test]
+fn meters_mark_a_missing_writes_map_unavailable_and_sum_a_present_one() {
+    use snapback2_core::{Ceilings, Checker, spike_schema, thread_program};
+    let certificate = Checker::new(&spike_schema(), Ceilings::default()).check(&thread_program(20)).unwrap();
+    let meter = |output: &Json, name: &str| output["meters"].as_array().unwrap().iter().find(|m| m["meter"] == name).unwrap()["measured"].clone();
+    let without = enrich("messages.thread", json!({ "trace": { "examined": 3, "steps": 9 } }), json!({}), certificate.clone());
+    assert_eq!(meter(&without, "writes"), "unavailable");
+    assert_eq!(meter(&without, "examined"), 3);
+    assert_eq!(meter(&without, "probes"), "unavailable");
+    assert_eq!(meter(&without, "heap peak"), "unavailable");
+    let with = enrich("messages.thread", json!({ "trace": { "writes": { "messages": 2, "_outbox": 3 } } }), json!({}), certificate);
+    assert_eq!(meter(&with, "writes"), 5);
+}

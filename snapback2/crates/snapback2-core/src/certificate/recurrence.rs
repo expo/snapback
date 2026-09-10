@@ -23,7 +23,8 @@ fn substitute(width: &Width, env: &BTreeMap<String, Width>) -> Width {
 fn targets(body: &[Stmt], names: &mut BTreeSet<String>) {
     for stmt in body {
         match stmt {
-            Stmt::Assign { name, .. } | Stmt::Push { target: name, .. } => { names.insert(name.clone()); }
+            // Only names bound before the loop survive the callers' `retain`; a fresh `let` is not carried.
+            Stmt::Assign { name, .. } | Stmt::Let { name, .. } | Stmt::Const { name, .. } | Stmt::Push { target: name, .. } => { names.insert(name.clone()); }
             Stmt::For { body, .. } => targets(body, names),
             Stmt::If { then_body, else_body, .. } => { targets(then_body, names); targets(else_body, names); }
             _ => {}

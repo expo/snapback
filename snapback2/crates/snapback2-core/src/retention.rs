@@ -358,6 +358,105 @@ impl<'a> RetentionEstimator<'a> {
         }
     }
 
+    fn assign(&mut self, name: &str, value: &Expr, variables: &mut BTreeMap<String, Binding>, calls: u64, iteration: u64) {
+        let instances = variables
+            .get(name)
+            .map_or(calls, |binding| binding.instances);
+        let assignment = assignment_growth(
+            variables.get(name).map(|binding| &binding.provenance),
+            value,
+            variables,
+            |binding| &binding.provenance,
+            calls,
+            instances,
+            iteration,
+            || {
+                let (flow, collection_len, held_collection) =
+                    self.expression(value, variables);
+                RetentionAssignmentPrice {
+                    flow,
+                    collection_len,
+                    held_collection,
+                    collection: collection_price_from(value, variables, |binding| {
+                        binding.collection
+                    }),
+                    table: self.expression_table(value, variables),
+                }
+            },
+        );
+        let (provenance, growth, price) = assignment.into_parts();
+        if let Some(growth) = growth.filter(|growth| (price.collection || growth.occurrences > 0)
+            && !crate::growth::fixed_width_from(value, variables, |binding| &binding.value)) {
+            let current = variables.get_mut(name).expect("growth target exists");
+            let mut added = price
+                .flow
+                .clone()
+                .growth_over(&current.flow, growth.occurrences);
+            if !added.has_growth_width() {
+                added = price.flow.clone();
+            }
+            current.flow = if growth.occurrences > 1 {
+                let factor = saturating_power(growth.occurrences, growth.repetitions);
+                current
+                    .flow
+                    .clone()
+                    .scale(factor)
+                    .add(added.retain_value_width().scale(factor))
+            } else if growth.occurrences == 1 {
+                current
+                    .flow
+                    .clone()
+                    .add(added.retain_value_width().scale(growth.repetitions))
+            } else {
+                current.flow.clone().add(
+                    price
+                        .flow
+                        .clone()
+                        .retain_value_width()
+                        .scale(growth.repetitions),
+                )
+            };
+            current.collection_len = current
+                .collection_len
+                .zip(price.collection_len)
+                .map(|(current_len, assigned_len)| {
+                    current_len.saturating_add(
+                        assigned_len
+                            .saturating_sub(current_len)
+                            .saturating_mul(growth.repetitions),
+                    )
+                });
+            current.held_collection = true;
+            current.collection = true;
+            current.table = None;
+            current.value = value.clone();
+            current.provenance = current.provenance.assigned(provenance);
+        } else {
+            let identity = variables
+                .get(name)
+                .map(|binding| binding.provenance.identity)
+                .unwrap_or_else(|| take_identity(&mut self.next_identity));
+            let assigned = variables
+                .get(name)
+                .map(|binding| binding.provenance.assigned(provenance.clone()))
+                .unwrap_or_else(|| ProvenanceBinding::new(identity, provenance));
+            variables.insert(
+                name.to_owned(),
+                Binding {
+                    flow: price.flow,
+                    instances,
+                    collection_len: price.collection_len,
+                    held_collection: price.held_collection,
+                    collection: price.collection,
+                    table: price.table,
+                    value: value.clone(),
+                    provenance: assigned,
+                },
+            );
+        }
+        self.record_held_collections(variables);
+    }
+
     // Retention is a data-flow property, not an expression-shape property. Scan
     // rows count only when the page (or a row derived from it) reaches Return or
     // is pushed into a collection that grows with the page. Binding a page and
@@ -372,132 +471,41 @@ impl<'a> RetentionEstimator<'a> {
     ) {
         for statement in statements {
             match statement {
+                // @ref LLP 1020#a5-recurrence-pricing-is-a-bound — a `let`/`const` overwrite of a bound
+                // name retains like an assignment.
                 Stmt::Const { name, value } | Stmt::Let { name, value }
                 | Stmt::InsertIfAbsent { result: name, row: value, .. } => {
-                    let provenance = provenance_expression_from(
-                        value,
-                        variables,
-                        |binding| &binding.provenance,
-                        iteration,
-                    );
-                    let (flow, collection_len, held_collection) = self.expression(value, variables);
-                    let collection =
-                        collection_price_from(value, variables, |binding| binding.collection);
-                    let table = self.expression_table(value, variables);
-                    let identity = take_identity(&mut self.next_identity);
-                    variables.insert(
-                        name.clone(),
-                        Binding {
-                            flow,
-                            instances: calls,
-                            collection_len,
-                            held_collection,
-                            collection,
-                            table,
-                            value: value.clone(),
-                            provenance: ProvenanceBinding::new(identity, provenance),
-                        },
-                    );
-                    self.record_held_collections(variables);
-                }
-                Stmt::Assign { name, value } => {
-                    let instances = variables
-                        .get(name)
-                        .map_or(calls, |binding| binding.instances);
-                    let assignment = assignment_growth(
-                        variables.get(name).map(|binding| &binding.provenance),
-                        value,
-                        variables,
-                        |binding| &binding.provenance,
-                        calls,
-                        instances,
-                        iteration,
-                        || {
-                            let (flow, collection_len, held_collection) =
-                                self.expression(value, variables);
-                            RetentionAssignmentPrice {
-                                flow,
-                                collection_len,
-                                held_collection,
-                                collection: collection_price_from(value, variables, |binding| {
-                                    binding.collection
-                                }),
-                                table: self.expression_table(value, variables),
-                            }
-                        },
-                    );
-                    let (provenance, growth, price) = assignment.into_parts();
-                    if let Some(growth) = growth.filter(|growth| (price.collection || growth.occurrences > 0)
-                        && !crate::growth::fixed_width_from(value, variables, |binding| &binding.value)) {
-                        let current = variables.get_mut(name).expect("growth target exists");
-                        let mut added = price
-                            .flow
-                            .clone()
-                            .growth_over(&current.flow, growth.occurrences);
-                        if !added.has_growth_width() {
-                            added = price.flow.clone();
-                        }
-                        current.flow = if growth.occurrences > 1 {
-                            let factor = saturating_power(growth.occurrences, growth.repetitions);
-                            current
-                                .flow
-                                .clone()
-                                .scale(factor)
-                                .add(added.retain_value_width().scale(factor))
-                        } else if growth.occurrences == 1 {
-                            current
-                                .flow
-                                .clone()
-                                .add(added.retain_value_width().scale(growth.repetitions))
-                        } else {
-                            current.flow.clone().add(
-                                price
-                                    .flow
-                                    .clone()
-                                    .retain_value_width()
-                                    .scale(growth.repetitions),
-                            )
-                        };
-                        current.collection_len = current
-                            .collection_len
-                            .zip(price.collection_len)
-                            .map(|(current_len, assigned_len)| {
-                                current_len.saturating_add(
-                                    assigned_len
-                                        .saturating_sub(current_len)
-                                        .saturating_mul(growth.repetitions),
-                                )
-                            });
-                        current.held_collection = true;
-                        current.collection = true;
-                        current.table = None;
-                        current.value = value.clone();
-                        current.provenance = current.provenance.assigned(provenance);
+                    if !matches!(statement, Stmt::InsertIfAbsent { .. }) && variables.contains_key(name) {
+                        self.assign(name, value, variables, calls, iteration);
                     } else {
-                        let identity = variables
-                            .get(name)
-                            .map(|binding| binding.provenance.identity)
-                            .unwrap_or_else(|| take_identity(&mut self.next_identity));
-                        let assigned = variables
-                            .get(name)
-                            .map(|binding| binding.provenance.assigned(provenance.clone()))
-                            .unwrap_or_else(|| ProvenanceBinding::new(identity, provenance));
+                        let provenance = provenance_expression_from(
+                            value,
+                            variables,
+                            |binding| &binding.provenance,
+                            iteration,
+                        );
+                        let (flow, collection_len, held_collection) = self.expression(value, variables);
+                        let collection =
+                            collection_price_from(value, variables, |binding| binding.collection);
+                        let table = self.expression_table(value, variables);
+                        let identity = take_identity(&mut self.next_identity);
                         variables.insert(
                             name.clone(),
                             Binding {
-                                flow: price.flow,
-                                instances,
-                                collection_len: price.collection_len,
-                                held_collection: price.held_collection,
-                                collection: price.collection,
-                                table: price.table,
+                                flow,
+                                instances: calls,
+                                collection_len,
+                                held_collection,
+                                collection,
+                                table,
                                 value: value.clone(),
-                                provenance: assigned,
+                                provenance: ProvenanceBinding::new(identity, provenance),
                             },
                         );
+                        self.record_held_collections(variables);
                     }
-                    self.record_held_collections(variables);
                 }
+                Stmt::Assign { name, value } => self.assign(name, value, variables, calls, iteration),
                 Stmt::Push { target, value } => {
                     let (element, _, _) = self.expression(value, variables);
                     let current = variables.entry(target.clone()).or_insert(Binding {

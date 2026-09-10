@@ -335,9 +335,11 @@ impl Checker<'_> {
 
 fn meter_terms(summary: &Summary, name: &str, actual: u64) -> Vec<Cost> {
     let mut terms = summary.costs.for_meter(name);
-    let derived = match name { "steps" => summary.derived_steps, "heap bytes" => summary.derived_scratch, _ => 0 };
-    if derived > 0 {
-        terms.push(Cost { value: derived, source: if name == "steps" { "derived index work" } else { "derived index/closure scratch" }.into(), site: None, repair: Repair::Work });
+    for term in &summary.derived_terms {
+        let value = match name { "steps" => term.steps, "heap bytes" => term.scratch, _ => 0 };
+        if value > 0 {
+            terms.push(Cost { value, source: term.source.clone(), site: term.site.clone(), repair: Repair::Work });
+        }
     }
     let total = terms.iter().fold(0_u64, |n, c| n.saturating_add(c.value));
     if actual > total {
@@ -375,7 +377,9 @@ pub(super) fn priced_terms(
     bytes(&mut result, "output bytes", output, 1, summary, None);
     bytes(&mut result, "closure bytes", closure, 1, summary, None);
     for write in &summary.writes {
-        result.push(CostTerm { meter: "write rows".into(), value: write.max_rows.into(), source: format!("{} {:?}", write.table, write.kind), site: Some(format!("schema.tables.{}", write.table)) });
+        let key = format!("{} {:?}", write.table, write.kind);
+        let site = summary.write_origins.get(&key).cloned().unwrap_or_else(|| format!("schema.tables.{}", write.table));
+        result.push(CostTerm { meter: "write rows".into(), value: write.max_rows.into(), source: key, site: Some(site) });
     }
     for (table, rows) in maintained {
         result.push(CostTerm { meter: "write rows".into(), value: (*rows).into(), source: format!("{table} maintained applications"), site: Some(format!("schema.tables.{table}")) });

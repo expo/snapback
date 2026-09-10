@@ -738,16 +738,34 @@ fn update_targets_writing_derived_components(schema: &Schema, body: &[Stmt]) -> 
     tables
 }
 
+/// One cause of derived work — a write's re-derivation, a maintained target's applications, a
+/// scan's search-term normalization, or the search closure — with the site that caused it.
+/// Steps add across terms; scratch is a per-row peak, so it is charged on the widest term only.
+// @ref LLP 1020#a4-check---cost — derived terms name their write or scan site, so the priced plan attributes them to a source line.
+#[derive(Clone, Debug)]
+pub(crate) struct DerivedTerm {
+    pub site: Option<String>,
+    pub source: String,
+    pub steps: u64,
+    pub scratch: u64,
+}
+
 pub(super) fn derivation_bound(
     schema: &Schema,
     program: &Program,
     writes: &[WriteSite],
     maintained: &BTreeMap<String, u64>,
     reads: &BTreeMap<String, ReadSite>,
-) -> crate::engine::search_index::Derivation {
+    write_origins: &BTreeMap<String, String>,
+) -> (crate::engine::search_index::Derivation, Vec<DerivedTerm>) {
     use crate::engine::search_index::{Derivation, table_write_bound};
     let audit = audit(schema, program);
     let mut out = crate::engine::search_index::Derivation::default();
+    let mut terms = Vec::new();
+    let mut charge = |site: Option<String>, source: String, bound: Derivation| {
+        out.add(bound);
+        terms.push(DerivedTerm { site, source, steps: bound.steps, scratch: bound.scratch });
+    };
     let derived_updates = update_targets_writing_derived_components(schema, &program.body);
     for w in writes {
         // @ref LLP 1020#a7-two-reproductions-before-any-ruling — an update is charged derivation only when a patch names a derived component; the engine keeps the postings otherwise.
@@ -763,14 +781,15 @@ pub(super) fn derivation_bound(
                 w.kind != WriteKind::Insert,
             );
             b.steps = b.steps.saturating_mul(w.max_rows);
-            out.add(b);
+            let key = format!("{} {:?}", w.table, w.kind);
+            charge(write_origins.get(&key).cloned(), format!("derived index work for {key} × {}", w.max_rows), b);
         }
     }
     for (name, count) in maintained {
         if let Some(t) = schema.table(name) {
             let mut b = table_write_bound(schema, name, t, true, true);
             b.steps = b.steps.saturating_mul(*count);
-            out.add(b);
+            charge(Some(format!("schema.tables.{name}")), format!("derived index work for {name} maintained applications × {count}"), b);
         }
     }
     let mut normalized = BTreeSet::new();
@@ -823,7 +842,7 @@ pub(super) fn derivation_bound(
                         .saturating_mul(norm_calls)
                         .saturating_add(4 * q * resolve_calls);
                     descriptors = descriptors.saturating_add((8 * q + 256).saturating_mul(calls));
-                    out.add(Derivation {
+                    charge(Some(scan.site.clone()), format!("search term normalization at {}", scan.site), Derivation {
                         steps,
                         scratch: (crate::unicode::normalization_scratch_bytes(*source_max)
                             .unwrap_or(usize::MAX) as u64)
@@ -834,7 +853,13 @@ pub(super) fn derivation_bound(
             }
         }
     });
-    out
+    drop(charge);
+    // Scratch is a peak, not a sum: the widest term carries it so the terms reconcile with the total.
+    let peak = terms.iter().enumerate().filter(|(_, t)| t.scratch > 0).max_by_key(|(_, t)| t.scratch).map(|(i, _)| i);
+    for (i, term) in terms.iter_mut().enumerate() {
+        if Some(i) != peak { term.scratch = 0; }
+    }
+    (out, terms)
 }
 
 #[cfg(test)]

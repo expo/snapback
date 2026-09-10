@@ -406,20 +406,28 @@ impl<'a> Checker<'a> {
         } else {
             summary.steps
         };
-        let mut derived = search::derivation_bound(
+        let (mut derived, mut derived_terms) = search::derivation_bound(
             self.schema,
             program,
             &summary.writes,
             &maintained_writes,
             &summary.reads,
+            &summary.write_origins,
         );
         let search_closure =
             search::closure::estimate(self.schema, program, &summary.reads, &analyzer.merge_sites);
         if let Some(closure) = &search_closure {
             derived.scratch = derived.scratch.saturating_add(closure.bytes);
+            derived_terms.push(search::DerivedTerm {
+                site: analyzer.merge_sites.keys().next().cloned(),
+                source: "search closure scratch".into(),
+                steps: 0,
+                scratch: closure.bytes,
+            });
         }
         summary.derived_steps = derived.steps;
         summary.derived_scratch = derived.scratch;
+        summary.derived_terms = derived_terms;
         let max_heap_bytes = max_steps
             .saturating_mul(HEAP_BYTES_PER_STEP)
             .saturating_add(derived.scratch);
@@ -887,6 +895,11 @@ impl<'a> Analyzer<'a> {
                 };
             next.costs.step(calls, "statements", factors);
             next.costs.locate(&self.site);
+            for write in &next.writes {
+                next.write_origins
+                    .entry(format!("{} {:?}", write.table, write.kind))
+                    .or_insert_with(|| self.site.clone());
+            }
             summary = summary.add(next);
             summary.steps = summary.steps.saturating_add(calls);
         }
