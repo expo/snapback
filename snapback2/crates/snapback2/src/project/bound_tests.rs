@@ -209,11 +209,14 @@ table receipts:
                     && e.rewrite.as_deref().is_some_and(|r| r.contains(expected))),
             "{errors:?}"
         );
+        // Every refusal is sited at authored source: the program, or — since schema
+        // declarations have sources (LLP 1020 A6) — the cap declaration when that term
+        // dominates the product (`50 calls × cap 1000 by follower on follows`).
         assert!(errors.iter().all(|e| {
-            e.site
-                .as_deref()
-                .is_some_and(|site| site.starts_with("snapback/programs.q:"))
-        }));
+            e.site.as_deref().is_some_and(|site| {
+                site.starts_with("snapback/programs.q:") || site.starts_with("snapback/schema.q:")
+            })
+        }), "{errors:?}");
     }
     drop(worker);
     fs::remove_dir_all(root).unwrap();
