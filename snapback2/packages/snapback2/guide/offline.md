@@ -55,17 +55,16 @@ selected operation acquire missing capacity through one bounded resume flight;
 `can`/snapshot reads do no I/O. After recovery, let the user
 submit normally; do not automatically resubmit a refused write or add a
 periodic `online()` loop. Generic `useOutbox().can` cannot price a specific op.
-One automatic attempt per opportunity; the flight has a 10-second deadline.
-Explicit offline cuts forbid automatic networking; only `online()` releases them.
+One automatic attempt per opportunity, with a 10-second deadline; an explicit
+offline cut forbids automatic networking until `online()`.
 `outbox.observe(op?)` feeds hooks; `intentLabel` labels entries.
-Discharged successes compact automatically. Unresolved successes and failures
-remain dismissible. Queued work is dismissible only once the owner refused its
-last replay as bad input or schema. Starting another replay durably clears that
-eligibility before sending; in-flight or unknown outcomes cannot be dismissed.
-`status.blocked` names the refused head; its label and item Dismiss action agree.
-`dismiss` returns its bytes to re-author and FIFO continues on either tab; a
-follower awaits the durable result, recoverable once by its alias after a
-takeover or reopen. Older snapshots expose
+Discharged successes compact automatically; unresolved successes and failures
+stay dismissible. Queued work is dismissible only after the owner refused its
+last replay as bad input or schema; another replay durably clears that before
+sending, and in-flight or unknown outcomes cannot be dismissed. `status.blocked`
+names the refused head (label and item Dismiss agree). `dismiss` returns the
+bytes to re-author; FIFO continues on either tab, and a follower's result is
+recoverable once by its alias after a takeover or reopen. Older snapshots expose
 `reason.code: "changed"` and `freshness.compactedThrough`; refresh their query.
 Committed does not mean shown: query `items` need the target's observation
 through commit. `arrived`/global sequence cannot substitute. Expose failures.
@@ -136,4 +135,4 @@ viewer`; removed tombstones its row; programs never write it. Keys must pin a
 `by .column` (E_DELIVER_PRINCIPAL); name must be free. `with receipts` adds
 nameReceipts (row, recipient, received, seq, the read rule's columns) under
 that rule. Installing, bootstrapping, removing, and the audience bound `A`:
-`guide migrations`.
+`guide successor`.
