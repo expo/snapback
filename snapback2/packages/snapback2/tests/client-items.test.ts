@@ -422,6 +422,8 @@ test("a computed lookalike cannot borrow another row's observation or prediction
   assert.equal(result[0]!.pending.length, 1);
 });
 
+// @ref LLP 1018.003.000#4-observation-and-retention — a checked page absence
+// retires presentation across coverage loss and reopen; the ledger alone does not.
 for (const carrier of ["file", "indexeddb"]) test(`${carrier}: query membership survives reopen; other deliveries cannot advance it`, async () => {
   const root = await mkdtemp(join(tmpdir(), "snapback-item-membership-"));
   const factory = carrier === "file" ? fileRangeStore(root)
@@ -434,20 +436,38 @@ for (const carrier of ["file", "indexeddb"]) test(`${carrier}: query membership 
     assert.equal(Object.hasOwn(answer!, "selection"), false, "membership metadata stays private to the frame");
     return attachItems(spec, args, answer!.data, capturedInputs(answer)!);
   };
+  const legacyProjectsCommittedAbsence = async () => {
+    const answer = await store.answer("messages.thread", args);
+    const rows = Array.isArray(answer?.data) ? answer.data : [];
+    return (await store.outbox.all()).some(intent => {
+      const submitted = intent.args as { conversationId?: string; messageId?: string };
+      const id = submitted.messageId ?? intent.ids[0];
+      return intent.state === "committed" && submitted.conversationId === args.conversationId
+        && !rows.some(delivery => delivery.message?.id === id);
+    });
+  };
   try {
     await store.open("dev:alice");
     await store.commit({ deliveries: [emptyPage(40)] });
-    await store.commit({ outbox: { put: [entry({ order: undefined, state: "committed", response: { seq: 41 } })] } });
+    await store.commit({ outbox: { put: [entry({ order: undefined, state: "committed", response: { seq: 41 },
+      args: { conversationId: "chat", body: "submitted", messageId: "m" },
+      targets: { generation, ...mutationProgram, complete: false, rows: [],
+        unresolved: [{ table: "messages", kind: "create", reason: "ambiguous" }] } })] } });
     await store.commit({ deliveries: [{ ...emptyPage(42), op: "messages.other", args: {},
       data: { $row: { table: "messages", id: "m" } }, rows: [{ table: "messages", id: "m", row }] }] });
+    assert.equal(await legacyProjectsCommittedAbsence(), true, "commit-before-query remains projected by either recipe");
     assert.equal((await items()).length, 1, "the newer pool does not make the old page current");
     await store.commit({ deliveries: [{ ...emptyPage(43),
       rows: [{ table: "messages", id: "anchor", row: { ...row, id: "anchor" } }] }] });
+    assert.equal(await legacyProjectsCommittedAbsence(), true,
+      "the copied app's former raw outbox-plus-current-page test would resurrect the observed create");
     assert.deepEqual(await items(), [], "the query itself now chooses a page without the committed create");
     await store.commit({ tombstones: [{ table: "messages", id: "anchor", seq: 44 }] });
     assert.equal((await store.answer("messages.thread", args))!.state, "partial", "coverage loss invalidates the held answer");
     assert.deepEqual(await items(), [], "coverage loss does not revoke the earlier membership observation");
     await store.close?.(); store = factory(); await store.open("dev:alice");
+    assert.equal(await legacyProjectsCommittedAbsence(), true,
+      "the copied app's former projection also resurrects after a cold reopen");
     assert.deepEqual(await items(), [], "cold reopen cannot resurrect an old success");
     assert.equal((await store.outbox.all()).length, 1, "presentation has not dismissed it");
     for (const [seq, state] of [[45, "partial"], [46, "denied"]] as const) {

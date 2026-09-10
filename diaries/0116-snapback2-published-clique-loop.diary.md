@@ -1936,3 +1936,23 @@ All browser work used copied sources, fresh local identities, a local owner,
 and a deterministic no-fetch effect. The original benchmark lanes and provider
 stayed untouched. Exact and Contract were not used, and this entry makes no new
 competitor claim.
+
+A late review caught that “until the query owns the id” cannot mean merely
+“while the id is absent from the current page.” Durable committed entries
+survive longer than a 50-row page and longer than an expired row, so that test
+could resurrect an old body after pagination or cold reopen. The useful paved
+piece was already present: `defineItems` persists a query-scoped
+complete/capped membership observation. Four pure item projections share the
+same thread query transport and expose only the intents that are still
+unplaced; the app keeps its explicit message ids without inventing sequence
+or body heuristics. File and IndexedDB carrier cases now show the old predicate
+failing after a fresh excluding page and the query-owned form staying retired
+through partial coverage and reopen.
+
+The same expiry run exposed a simpler copied-app defect: `ThreadBubble`
+returned before its final `useMemo` when a timer made the row nullable. Moving
+that existing hook above the null return kept mounted expiry from crashing and
+left no stale draft. The final exact source passed 3 warmups plus 20 measured
+two-browser sends, an offline replay/commit gap, and the mounted expiry case.
+The separate HTTP-400 queued-intent behavior remains an open client issue; the
+application's scalar preflight is not recorded as its resolution.

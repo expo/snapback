@@ -23,25 +23,36 @@ SHA-256 is
 `0f154611149124959656f8bc8ffd4550fcea8078c5daf86953cd42cb93836d6e`.
 `grok-sender-pending.patch` removes the web document-capture submitter so the
 form and mobile composer are the only submit paths. It assigns one stable
-message id to each new text/media intent and renders exact same-conversation
-outbox rows while they are `queued` or `committed`, until the live query owns
-that id. The generated mutation target is used when it resolves; this copied
-app also supplies the id explicitly because this app's helper-shaped
-operations certify with ambiguous presentation targets. Oversize message text
-is rejected locally at the schema's 2,000-Unicode-scalar limit before outbox
-custody. The patch's SHA-256 is
-`30f9821f0faa975fa8082bb1c7bac3ffdddfb039a05350771a355ab572026d4e`.
+message id to each new text/media intent. Four `defineItems` declarations use
+the thread query's own complete/capped page-membership receipt to decide
+whether each text/photo/clip/view-once create is still unplaced. They are pure
+projections over one shared query transport. The app renders an exact
+same-conversation outbox row only while one of those projections still carries
+that intent; a raw committed ledger row plus absence from the current page is
+not enough, because it would resurrect an observed message after pagination,
+expiry, remount, or reopen. The generated mutation target is used when it
+resolves; this copied app also supplies the id explicitly because this app's
+helper-shaped operations certify with ambiguous presentation targets.
+Oversize message text is rejected locally at the schema's
+2,000-Unicode-scalar limit before outbox custody. Finally, all `ThreadBubble`
+hooks run before the nullable-row return, so a mounted expiry cannot change
+hook order. The patch's SHA-256 is
+`e733e5cffa9d6bb75b41c017e651a6847628c61a0e7abe5f16c54b7b439f02c7`.
 
 `grok-live-proof-instrumentation.patch` is browser-proof instrumentation, not
 application behavior. It exposes only operation/state, row-count, target-id,
 conversation-match, and projection facts; it never exposes credentials,
 tokens, or message text. Its SHA-256 is
-`9dfe9308d9489451fc0eb4f3004abc281cea6147ad4cf24d9631a37a05b64caf`.
+`f7082cf9e68ef301f5174136605008d38ae26c1e0ec148e48a808e497100a7a7`.
 Applying all three frontend patches in order reproduced its retained source
 byte-for-byte. The production `app/` + `lib/` composite SHA-256 is
-`cd4cc21a3a5beed73a0e3d599cb8146e9ee2542630275bc739bc91c2f7027dd9`;
+`307c46886dd1c54c15e84345c112630727d75484b9e83d67ad4f0bfa2cdf0332`;
 the instrumented composite is
-`f1320645bd581575cb73815d8f4cb00e6d3509844267634b68e49efb42301f95`.
+`a62eec9d6f1306ff22173e349e617829b4f72664ab6576180765bcdb3918b807`.
+The exact production and instrumented `lib/thread-view.tsx` SHA-256 values are
+`5e4c1aeb10a433d618dc2e2e7f878d0f9e8d7d115fbdbc41ff2d0376cf20263c`
+and
+`3f412752daa038a9676d8f18245cc1f1f0d65e49c3cc5d7f757c027ea69e35c4`.
 
 `syntax-adapter.patch` is only the raw snapshot's mechanical move to current V2
 declaration spelling (`fn`/`maintain` colon headers, job parentheses, and inline
@@ -165,20 +176,49 @@ the actual signup and profile UI, two independent Chromium contexts, the
 preserved 400 ms online bridge and `DeliveryWatcher`, and no operation filter.
 Signup returned a grant and no login or reload occurred, but three/four
 automatic `/api/resume` requests preceded the first profile write; this is a
-post-resume profile success, not an immediate-signup-grant claim. Six of six
-measured text sends each made one mutation request and produced one exact
-sender and recipient row. Exact sender-settled, sender-delivered and
-recipient-DOM p95 were 262.2 ms, 1,230.2 ms and 262.2 ms. One offline send rendered one
-queued exact-id row, replayed that same id once, remained visible through a
-committed-before-query interval, and settled/delivered once. An oversize input
-showed the local error with zero mutation requests and no pending row.
+post-resume profile success, not an immediate-signup-grant claim. The first
+corrected revision passed six of six measured text sends. The final
+query-owned-membership revision then passed 3 warmups plus 20 of 20 measured
+sends. Every measured intent made one mutation request and produced the same
+exact authoritative id once in the sender and recipient DOM, with zero
+terminal pending bubbles. Exact sender-settled, sender-delivered and
+recipient-DOM p95 were 2,436.3 ms, 10,160.0 ms and 2,958.3 ms. One offline send
+rendered one queued exact-id row, replayed that same id once, remained visible
+through a committed-before-query interval, and settled/delivered once. An
+oversize input showed the local error with zero mutation requests and no
+pending row. The ordinary cohort had no request retries, but delivery receipt
+lag—not owner acceptance or recipient rendering—dominates its tail: delivered
+p95 trails recipient DOM p95 by about 7.2 seconds. The preserved 400 ms bridge,
+`DeliveryWatcher`, and application receipt work were not filtered, so 20/20 is
+a functional qualification, not a claim that live-send latency is solved.
 
-The successful raw artifact is
+The deterministic real-carrier seam demonstrates the projection decision on
+both file and IndexedDB stores. The former raw `committed && page-missing`
+predicate still projects after a fresh page excludes the observed row and
+again after cold reopen. The query-owned item projection remains visible
+before that fresh answer, then stays retired across page movement, partial
+coverage, remount, and cold reopen. Its ledger entry has the copied helpers'
+literal ambiguous semantic target plus the explicit `args.messageId`; it does
+not substitute a resolved `ids[0]` target. The two carrier cases passed in
+229 ms; the full item-projection file passed 22/22 in 636 ms.
+The final browser source separately passed a mounted-TTL case: one exact id
+committed, disappeared when its deadline fired, left the composer usable, and
+produced no React hook-order error or stale draft.
+
+The original six-send artifact is
 `grok-live-proof.mBoW5Q/evidence/grok-live-dm.final-019.json` (SHA-256
 `d176b5b8973d4e707ae45c445ddbeb2755ff0ca2be276b2ebbe26a42a5927c4c`).
-Its harness SHA-256 is
-`a3bcec228ce1c62707529b32efedc3a8283a808cd2eb5a19d09476d3dcc2874e`.
-Chromium 151.0.7922.34 and Node v25.9.0 ran against generation
+The final mounted-expiry artifact is
+`grok-live-proof.mBoW5Q/evidence/grok-live-dm.mounted-after-028.json`
+(SHA-256
+`012b28938d1ace72f000d469edd269ddddb1b9f6766988b7fdce317f37a1b1ad`),
+and the final 3+20 artifact is
+`grok-live-proof.mBoW5Q/evidence/grok-live-dm.final-after-029.json`
+(SHA-256
+`189c09295f5241c731b8fb907200ba6e77ba2a729bee5cfeccf24f8896f65bdc`).
+The final harness SHA-256 is
+`59261216aecebe5a96af1f8b875ea30be0d244fd55a8be855e6c044d736c8578`.
+Chromium 151.0.7922.34 and Node v24.18.0 ran the final cohort against generation
 `dc188a4b0db4a9b3e062a52740af81834a109dfaf4a5143f380e47a07726fa94`,
 Hermes binary SHA-256
 `21d0bd8a270501fc79d916679e2ad9d82e6f2bdc8dc4d4cd5abdd79f849d6104`,
@@ -193,6 +233,17 @@ oversize submit and one stable message id received two HTTP 400 requests about
 retried. The final app avoids acquiring custody for this schema-known invalid
 input; it does not claim to resolve or discard the SDK's inherited
 malformed-400 queue classification.
+That unresolved custody classification is tracked in
+`issues/20260909-snapback2-http400-outbox-intent-remains-queued.md`.
+
+Attempts 021–026 also remain preserved. The first mounted-expiry attempt
+exposed the copied app's pre-existing conditional-hook return; moving the
+existing hook before that return fixed it. Attempt 026 passed that mounted
+expiry, then its long 51-send browser fill encountered 584 current-client
+`conflicting durable fact` page errors and never supplied a projection
+verdict. It is not counted as old/fixed evidence. The deterministic carrier
+case supplies the causal old-fails/fixed-passes page lifecycle without hiding
+that separate failure.
 
 The same-period replay journey passed against the logical-cutoff build in
 3,721 ms with two schedule firings:

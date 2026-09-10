@@ -1,7 +1,8 @@
 diff --git a/lib/thread-view.tsx b/lib/thread-view.tsx
+index da03c36..374821d 100644
 --- a/lib/thread-view.tsx
 +++ b/lib/thread-view.tsx
-@@ -120,6 +120,29 @@
+@@ -169,6 +169,29 @@ export function ThreadView({
      return [{ id, body: args.body ?? "", pending: entry.state === "queued" }];
    });
  
@@ -31,7 +32,7 @@ diff --git a/lib/thread-view.tsx b/lib/thread-view.tsx
    return (
      <Screen
        title={title}
-@@ -487,9 +510,19 @@
+@@ -536,9 +559,19 @@ async function submitMessage(opts: {
    opts.setError(undefined);
    if ([...opts.text].length > 2_000) {
      opts.setError("Message must be 2,000 characters or fewer");
@@ -51,4 +52,18 @@ diff --git a/lib/thread-view.tsx b/lib/thread-view.tsx
    let result: { state: string; data?: { id?: string }; message?: string } | undefined;
    if (opts.editId) {
      const original = opts.items.find((r) => r.messageId === opts.editId)?.message?.body ?? "";
-
+@@ -554,10 +587,14 @@ async function submitMessage(opts: {
+     }
+     opts.setPendingFile(null);
+   } else {
++    const proof = globalThis as { __grokNextExpiryAt?: number };
++    const expiresAt = proof.__grokNextExpiryAt ?? null;
++    delete proof.__grokNextExpiryAt;
+     result = await opts.send.run({
+       conversationId: opts.conversationId,
+       body: opts.text,
+       quoteId: opts.quoteId ?? null,
++      expiresAt,
+       messageId,
+     } as never);
+   }
