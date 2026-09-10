@@ -560,8 +560,11 @@ is `.snapback/clique-final-browser-proof/evidence/attempt-011-grant-limit-exact.
 (SHA-256
 `7f6063679140203bff7ebf85af7727cd0365cd2dc1aa8303011fa8cdc4e34958`).
 The 51-message same-thread page-boundary/browser-expiry witness therefore
-remains blocked on ordinary online grant replenishment; no hidden poll or
-manual renewal is counted as a passing workaround. Independently, a mounted
+remains blocked on exposing the documented app recovery action; no hidden
+poll or harness renewal is counted as a passing workaround. The SDK already
+reports per-operation ids-exhausted/connect readiness; the copied composer
+omits its visible Sync now affordance (LLP 1018.003.001 §1). This is an app-only
+repair, not a change to core renewal policy. Independently, a mounted
 `DeliveryWatcher` processed 51 pending deliveries across distinct chats with
 one request and committed response per exact id and ended with the public
 `nextPendingDelivery` query empty (raw SHA-256

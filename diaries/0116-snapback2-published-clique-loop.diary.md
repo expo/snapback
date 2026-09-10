@@ -2002,3 +2002,10 @@ no seamless path beyond it. Removing periodic sync exposed that recovery gap;
 it is being investigated as a bounded grant-lifecycle issue, not covered up by
 reinstating the timer. The mounted expiry itself passes. All work remains in
 fresh copies; no benchmark lane, provider, Exact or Contract is changed.
+
+Reading the recovery contract resolves the classification: the SDK already
+offers `can.action = connect` when a particular write exhausts its grant. The
+documented template renders Sync now and calls `client.online()`; this copied
+composer omitted that affordance. The repair therefore belongs in the app,
+not an automatic core renewal loop. This is exactly the kind of authoring
+detail a complete composer recipe needs to make hard to miss.
