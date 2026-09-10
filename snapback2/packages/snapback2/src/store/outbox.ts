@@ -283,7 +283,7 @@ export class OutboxLedger {
   /** Pending page acknowledgements consume ordinary FIFO slices; each admission
    * marks its event identities in the same transaction as its intent. */
   admitAcknowledgements(): Promise<number> {
-    return this.serial(async () => {
+    return this.write(async () => {
       const pending = Object.entries(await this.store.outbox.deliveryAcks?.() ?? {}).filter(([, ack]) => !ack.intent);
       let admitted = 0;
       while (pending.length) {
