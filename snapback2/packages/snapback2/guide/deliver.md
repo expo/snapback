@@ -1,8 +1,9 @@
 # Delivery custody: `deliver`
 
-The declaration, its log's shape, receipts, and refusals are `guide offline`
-(Custody); installing, bootstrapping, removing, and the audience bound `A` are
-`guide successor`. This page is what a write does to the log.
+`deliver to T[.keys] as name` on a content table derives an engine-owned
+per-recipient log. The declaration, the log's shape, receipts, and refusals are
+`guide offline` (Custody); installing, bootstrapping, removing, and the audience
+bound `A` are `guide successor`. This page is what a write does to the log.
 
 Inserts and seeds deliver to the group at that write, one event per principal.
 Changed updates/upserts and deletes append to the original recipients, departed
