@@ -35,6 +35,33 @@ test("an incomplete-startup drain never inherits a cached owner continuation", a
   } finally { await client.close(); await rm(root,{ recursive: true,force: true }); }
 });
 
+test("a drain whose three owner attempts lose transport never inherits a cached owner continuation", async () => {
+  const root = await mkdtemp(join(tmpdir(), "s2-transport-drain-"));
+  const owner = fakeOwner({ seed: true });
+  let queries = 0;
+  const client: any = createClient({ url: "http://transport-drain.test", persona: "alice",
+    fetch: async (input: any, init?: RequestInit) => {
+      if (new URL(String(input)).pathname === "/api/query") {
+        queries++;
+        throw new TypeError("network lost");
+      }
+      return owner.fetch(input, init);
+    },offline: { store: fileRangeStore(root) } });
+  try {
+    await client.ready;
+    const runtime = client.offlineRuntime;
+    runtime.drainCursor = () => undefined;
+    runtime.answer = async () => ({ op: "messages.inbox",args: { c: null },state: "capped",data: ["owner"],
+      next: "owner-page-2",seq: 7,receipt: { ranges: [],absences: [],verdicts: [] } });
+    runtime.evaluate = async () => withItemInputs({ state: "partial",reason: "computed-key",site: "project",seq: 7,data: ["local"] },
+      { ...emptyItemInputs,selection: { through: 7 } });
+    const result = await client.queryInternal(api.messages.inbox,{ c: null },true);
+    assert.equal(queries,3,"the public retry bound is unchanged");
+    assert.equal(result.state,"partial");
+    assert.equal(result.next,undefined,"the offline drain owns its tail after retry exhaustion");
+  } finally { await client.close(); await rm(root,{ recursive: true,force: true }); }
+});
+
 test("unsupported drain reaches callback and matching waiter; current and later success waiters reject, ordinary query remains valid", async () => {
   let queries = 0;
   const client = createClient({ url: "http://drain-admission.test", persona: "alice", fetch: async input => {

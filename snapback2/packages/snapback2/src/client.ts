@@ -301,7 +301,7 @@ class Client implements SnapbackClient {
       } catch (error) {
         if (isRefusalError(error) && error.retryable && this.offlineRuntime && attempt >= 3) {
           this.patchSnapshot({ connection: "offline" });
-          return answerOffline(this.offlineRuntime, op, args, (failure) => this.offlineRefusal(failure));
+          return answerOffline(this.offlineRuntime, op, args, (failure) => this.offlineRefusal(failure), drain);
         }
         if (!isRefusalError(error)
           || error.code !== "E_TRANSPORT"
