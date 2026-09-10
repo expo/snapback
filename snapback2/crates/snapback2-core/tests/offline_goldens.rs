@@ -25,6 +25,7 @@ fn schema() -> Schema {
             Table {
                 retain: Default::default(),
                 tombstones: Vec::new(),
+                deliver: None,
                 columns: BTreeMap::from([
                     ("at".to_owned(), ColumnType::Time),
                     ("body".to_owned(), ColumnType::Text { max: 256 }),
@@ -523,6 +524,7 @@ fn oracle_schema() -> Schema {
         constraints: Vec::new(),
         retain: Default::default(),
         tombstones: Vec::new(),
+        deliver: None,
     };
     let secrets = Table {
         columns: BTreeMap::from([
@@ -569,6 +571,7 @@ fn oracle_schema() -> Schema {
         constraints: Vec::new(),
         retain: Default::default(),
         tombstones: Vec::new(),
+        deliver: None,
     };
     let grants = Table {
         columns: BTreeMap::from([("id".to_owned(), ColumnType::Id)]),
@@ -586,6 +589,7 @@ fn oracle_schema() -> Schema {
         constraints: Vec::new(),
         retain: Default::default(),
         tombstones: Vec::new(),
+        deliver: None,
     };
     Schema {
         tables: BTreeMap::from([
@@ -840,6 +844,7 @@ fn hidden_candidate_memo_rollback_preserves_envelope_receipt_replay() {
                     constraints: Vec::new(),
                     retain: Default::default(),
                     tombstones: Vec::new(),
+                    deliver: None,
                 },
             ),
             (
@@ -854,6 +859,7 @@ fn hidden_candidate_memo_rollback_preserves_envelope_receipt_replay() {
                     constraints: Vec::new(),
                     retain: Default::default(),
                     tombstones: Vec::new(),
+                    deliver: None,
                 },
             ),
         ]),
@@ -1037,6 +1043,7 @@ fn engine_result_provenance_distinguishes_identical_rows_from_two_tables() {
         constraints: Vec::new(),
         retain: Default::default(),
         tombstones: Vec::new(),
+        deliver: None,
     };
     let schema = Schema {
         tables: BTreeMap::from([
@@ -1166,6 +1173,7 @@ fn all_types_schema() -> Schema {
                 constraints: Vec::new(),
                 retain: Default::default(),
                 tombstones: Vec::new(),
+                deliver: None,
             },
         )]),
         ..Schema::default()

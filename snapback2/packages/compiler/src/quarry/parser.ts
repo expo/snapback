@@ -4,6 +4,7 @@ import type {
   ArgDecl,
   ChannelDecl,
   ColumnDecl,
+  DeliverDecl,
   Document,
   Expr,
   FunctionDecl,
@@ -176,6 +177,7 @@ class Parser {
     const tombstones: TombstoneDecl[] = [];
     let retain: TableDecl["retain"];
     let publicDecl: TableDecl["public"];
+    let deliver: TableDecl["deliver"];
     while (!this.atKind("dedent") && !this.atKind("eof")) {
       this.skipNewlines();
       if (this.atKind("dedent")) break;
@@ -194,6 +196,10 @@ class Parser {
           retain = this.parseRetention();
         }
         else if (this.at("tombstones")) tombstones.push(this.parseTombstones());
+        else if (this.at("deliver")) {
+          if (deliver) syntax(this.peek(), `table ${name} has more than one deliver line`, "one deliver line per table");
+          deliver = this.parseDeliver();
+        }
         else if (this.at("after")) finalExists.push(this.parseFinalExists());
         else if (["read", "insert", "update", "delete"].includes(this.peek().value)) rules.push(this.parseRule());
         else columns.push(this.parseColumn());
@@ -203,7 +209,44 @@ class Parser {
       }
     }
     this.takeKind("dedent");
-    return { name, columns, indexes, rules, immutable, caps, finalExists, tombstones, ...(retain ? { retain } : {}), ...(publicDecl ? { public: publicDecl } : {}), site };
+    return { name, columns, indexes, rules, immutable, caps, finalExists, tombstones, ...(retain ? { retain } : {}), ...(publicDecl ? { public: publicDecl } : {}), ...(deliver ? { deliver } : {}), site };
+  }
+
+  // @ref LLP 1019#1-the-declaration — one table-block line names the target
+  // range, the principal column, the custody log, and its two options.
+  private parseDeliver(): DeliverDecl {
+    const site = this.take("deliver");
+    const rewrite = "deliver to memberships[.conversationId] as deliveries";
+    if (!this.maybe("to") || !this.atKind("word")) syntax(site, "deliver requires a target range: deliver to <table>[.<column>, ...] as <name>", rewrite);
+    const target = this.word().value;
+    if (!this.at("[")) syntax(site, `deliver to ${target} requires prefix keys over this table: ${target}[.column]`, rewrite);
+    this.take("[");
+    const prefix: string[] = [];
+    do {
+      if (!this.at(".") || this.peek(1).kind !== "word") syntax(site, `deliver to ${target}[...] takes .column prefix keys of this table`, rewrite);
+      this.take(".");
+      prefix.push(this.word().value);
+    } while (this.maybe(","));
+    this.take("]");
+    let by: string | undefined;
+    if (this.maybe("by")) {
+      if (!this.at(".") || this.peek(1).kind !== "word") syntax(site, "deliver by names the target's principal column as .column", "deliver to memberships[.conversationId] by .principal as deliveries");
+      this.take(".");
+      by = this.word().value;
+    }
+    if (!this.maybe("as") || !this.atKind("word")) syntax(site, "deliver requires as <name> for its custody log", rewrite);
+    const name = this.word().value;
+    let receipts = false;
+    let bootstrap = false;
+    while (!this.atKind("newline") && !this.atKind("eof")) {
+      if (this.maybe("with")) {
+        if (!this.maybe("receipts")) syntax(site, "deliver ... with takes receipts", `${rewrite} with receipts`);
+        receipts = true;
+      } else if (this.maybe("bootstrap")) bootstrap = true;
+      else syntax(site, `unexpected ${this.peek().value} after as ${name}; deliver accepts with receipts and bootstrap`, rewrite);
+    }
+    this.newline();
+    return { target, prefix, ...(by === undefined ? {} : { by }), name, receipts, bootstrap, site };
   }
 
   // @ref LLP 1012#5-retention-revocation-and-the-fence — rule 3's word: a delivered

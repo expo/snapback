@@ -46,6 +46,7 @@ pub(super) fn add_incomplete_constraint_cases(cases: &mut Vec<CorpusCase>) {
                 constraints: Vec::new(),
                 retain: Default::default(),
                 tombstones: Vec::new(),
+                deliver: None,
             },
         )]),
         ..Schema::default()
@@ -112,6 +113,7 @@ pub(super) fn add_incomplete_constraint_cases(cases: &mut Vec<CorpusCase>) {
                 }],
                 retain: Default::default(),
                 tombstones: Vec::new(),
+                deliver: None,
             },
         )]),
         ..Schema::default()

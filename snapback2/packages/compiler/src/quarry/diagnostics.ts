@@ -80,6 +80,7 @@ function guideFor(code: QuarryCode): string {
   if (code === "E_QUARRY_PLACEMENT") return "quarry/projects";
   if (code === "E_QUARRY_TYPE") return "quarry";
   if (code === "E_QUARRY_RETAIN" || code === "E_QUARRY_TOMBSTONE") return "quarry/grammar";
+  if (code === "E_DELIVER_UNBOUNDED" || code === "E_DELIVER_PRINCIPAL") return "offline/deliver";
   return "quarry/names";
 }
 

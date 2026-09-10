@@ -116,14 +116,14 @@ query fallback(values: [decimal 3] <=4 ?):
   test("one spelling: significant Quarry words are frozen", () => {
     // One pin, derived on the other side from the actual lexer/parser/binder decisions.
     const expected = `
-absent after allow and at before bool by byId byPrincipal bytes cap channel channels chunk commit connected
-count created cursor d decimal delete delivered-history deny depth device divmod duration effect
+absent after allow and as at before bool bootstrap by byId byPrincipal bytes cap channel channels chunk commit connected
+count created cursor d decimal delete deliver delivered-history deny depth device divmod duration effect
 else emit enum every exists false first fn for format from guests h handle height id identity if
 image immutable in index insert int job json last length m maintain max merge min money mutation new
 not now null oblivious of on once op or password periodEnd periodStart principal proc public publish query quotient range
-read readable remainder require retain return s schedule shape share slice sorted subscribe sum system
-table text then time toJSON tokens tombstones true ttl unique until-revoked up update upsert url use
-value video viewer walk where while width wordPrefixes words
+read readable receipts remainder require retain return s schedule shape share slice sorted subscribe sum system
+table text then time to toJSON tokens tombstones true ttl unique until-revoked up update upsert url use
+value video viewer walk where while width with wordPrefixes words
 `.split(/\s+/).filter(Boolean);
     deepStrictEqual(recognizedQuarryWords(frontend), expected);
   });

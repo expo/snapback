@@ -110,7 +110,8 @@ function span(module: Pick<DiagnosticModule, "sourceFile" | "fileName">, node: t
 
 function diagnosticFamily(code: DiagnosticCode): FrontendDiagnostic["family"] {
   if (code.startsWith("E_QUARRY_")) return "quarry";
-  if (code.startsWith("E_SCHEMA_")) return "schema";
+  if (code.startsWith("E_SCHEMA_") || code === "E_DELIVER_PRINCIPAL") return "schema";
+  if (code === "E_DELIVER_UNBOUNDED") return "bound";
   if (code.startsWith("E_RULE_")) return "rule";
   if (code.startsWith("E_SEED_")) return "input";
   if (code.startsWith("E_EFFECT_") || code === "E_EMIT_IN_QUERY") return "effect";
@@ -131,6 +132,7 @@ function diagnosticGuide(code: DiagnosticCode): string {
   if (code === "E_QUARRY_RETAIN" || code === "E_QUARRY_TOMBSTONE") return "quarry/grammar";
   if (code === "E_QUARRY_ONLY") return "quarry/projects";
   if (code === "E_QUARRY_UNKNOWN") return "quarry/names";
+  if (code === "E_DELIVER_UNBOUNDED" || code === "E_DELIVER_PRINCIPAL") return "offline/deliver";
   if (code === "E_UNBOUND_SCAN") return "quarry";
   if (code === "E_UNBOUND_LOOP") return "bound/loop";
   // @ref LLP 1017.000#31-d1 — the fan-out refusal anchors the which-shape decision.
