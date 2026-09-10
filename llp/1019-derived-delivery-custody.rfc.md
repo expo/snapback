@@ -513,7 +513,8 @@ engine's representation of the generated log's tombstone (§3).
 7. Successor cases: `deliver` added with and without `bootstrap`, removed
    (plan), retargeted (plan), `A` raised; the successor log lines.
 8. Loop and runtime budgets measured after §7 (`measure --check`, the
-   85,000-byte runtime ceiling).
+   runtime ceiling — 90,000 bytes since the author's 2026-09-10 allocation; the
+   measurements recorded above stayed under the 85,000 of their day).
 
 ## Implementation (proposed lanes; sizes are the orchestrator's estimate)
 
