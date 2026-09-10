@@ -1,6 +1,8 @@
 #![cfg(feature = "hermes")]
 
 mod common;
+#[path = "effects_cases/epoch.rs"]
+mod epoch;
 #[path = "effects_cases/witness.rs"]
 mod witness;
 
@@ -300,7 +302,6 @@ export const notify = effect({
 });
 "#;
 
-
 /// The outbox row's state and last error, read from the store after the
 /// owner has exited (printed by the spinning journey; see the ticket it
 /// names for why it is not yet asserted).
@@ -573,10 +574,19 @@ struct ChildGuard {
 
 impl ChildGuard {
     fn spawn(binary: &str, compiler: &Path, root: &Path) -> Self {
+        Self::spawn_flags(binary, compiler, root, &[])
+    }
+
+    fn spawn_test(binary: &str, compiler: &Path, root: &Path) -> Self {
+        Self::spawn_flags(binary, compiler, root, &["--owner-child", "--test-owner"])
+    }
+
+    fn spawn_flags(binary: &str, compiler: &Path, root: &Path, flags: &[&str]) -> Self {
         let mut child = Command::new(binary)
             .args(["dev", "--project"])
             .arg(root)
             .arg("--foreground")
+            .args(flags)
             .env("SNAPBACK2_COMPILER", compiler)
             .stdin(Stdio::null())
             .stdout(Stdio::piped())

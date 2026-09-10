@@ -56,6 +56,12 @@ pub trait EffectHost {
     /// cached runtimes have nothing to do.
     fn generation_changed(&mut self) {}
 
+    /// Framework-owned provider contact for the most recent bound attempt.
+    /// Production hosts return none; authored results cannot supply evidence.
+    fn take_provider(&mut self) -> Option<Value> {
+        None
+    }
+
     /// Return console records produced by the most recent `run`.
     fn take_logs(&mut self) -> Vec<EffectLog> {
         Vec::new()

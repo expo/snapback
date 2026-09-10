@@ -71,8 +71,13 @@ admits the logical origin first, on every request and redirect hop
 (`E_EFFECT_GRANT` exactly as in production); only then does the loopback stand
 in. An origin with no live binding fails `E_EFFECT_UNBOUND`: terminal, no
 transport reached — derived-check rows, earlier journeys' leftovers, and their
-retries included. Bindings belong to one journey; the supervisor revokes them
-when it ends, however it ends. `dev` has no binding route.
+retries included. Bind before emitting: a claim between emit and bind is
+`E_EFFECT_UNBOUND`. Bindings belong to one journey; the supervisor revokes them
+when it ends, however it ends, and waits for its in-flight claims to settle
+before the next journey. Close waits at most the effect budget + 1 s; any
+remaining running rows fail the journey. The effect's `response.url` stays
+logical, including after redirects; the provider sees the logical URL and
+`Host`. Manual `dev` has no binding route; `--test-owner` requires `--owner-child`.
 
 The example origin is a placeholder. For a no-network body, use `grants: []`
 and return `{ providerId: meta.id }` from `run`. That proves local execution,

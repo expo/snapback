@@ -90,10 +90,14 @@ fn request(
 /// client waits exactly as long as the owner may work: a rehearsal runs the entire job
 /// before it answers, so it alone has no bound; ad hoc `plan` and `run` compile with the
 /// owner's worker first, so `/control/run` waits out the compiler's own timeout plus a
-/// margin; every other request keeps the five-second task bound. A body the owner will
+/// margin. Epoch close gets the effect budget + 2 s to receive the owner's
+/// budget + 1 s drain result; other requests keep the five-second task bound. A body the owner will
 /// refuse (a disagreeing flag) is answered at once and keeps the short bound.
 fn read_timeout(path: &str, body: &Json) -> Option<Duration> {
     use crate::control_run::{Mode, requested_mode};
+    if path == "/control/effects/epoch" {
+        return Some(snapback2_effects::DEFAULT_BUDGET + Duration::from_secs(2));
+    }
     match requested_mode(body) {
         Ok(Mode::DryRun) => None,
         Ok(Mode::Plan | Mode::Run) if path == "/control/run" => {
@@ -269,6 +273,10 @@ mod tests {
 
     #[test]
     fn read_timeouts_follow_the_owners_mode_predicate() {
+        assert_eq!(
+            read_timeout("/control/effects/epoch", &json!({"epoch":null})),
+            Some(snapback2_effects::DEFAULT_BUDGET + Duration::from_secs(2))
+        );
         let task = Some(Duration::from_secs(5));
         let compile = Some(crate::project::COMPILER_REQUEST_TIMEOUT + Duration::from_secs(5));
         // A rehearsal has no bound, however it is spelled.

@@ -59,6 +59,11 @@ fn chat_template_test_reports_one_witness_per_effect_with_its_then_committed() {
     );
     assert_eq!(witness["state"], "sent");
     assert_eq!(witness["attempts"], 1);
+    assert_eq!(witness["provider"]["requests"], 1);
+    assert_eq!(
+        witness["provider"]["origins"],
+        json!(["https://api.example.com"])
+    );
     assert_eq!(witness["then"]["op"], "notifications.recordNotified");
     assert_eq!(witness["then"]["state"], "committed");
     let emitted = witness["seq"].as_u64().unwrap();
@@ -72,7 +77,7 @@ fn chat_template_test_reports_one_witness_per_effect_with_its_then_committed() {
     // The template's other journeys send messages without binding a provider:
     // their rows failed E_EFFECT_UNBOUND, reached nothing, and are negative
     // evidence only.
-    let refused = effects["detail"]["refused"]["delivery.notify"]
+    let refused = effects["detail"]["refused"]["delivery.notify"]["rows"]
         .as_array()
         .unwrap();
     assert!(!refused.is_empty(), "{effects}");
@@ -163,7 +168,7 @@ journey("a provider 503 is retried on attempt 2 once tick passes nextAt", async 
     const attempted = first.rows.find((row) => row.seq === sent.seq);
     if (attempted?.attempts !== 1 || !String(attempted.lastError).includes("provider 503")) throw new Error(`attempt 1: ${JSON.stringify(attempted)}`);
     await tick(1_001);
-    // Attempt 2 rebuilds the effect's runtime on a loaded box: a budget above the default.
+    // Allow the retry and its then to settle on a loaded owner.
     const second = await effects.settle({ upTo: sent.seq, budgetMs: 3000 });
     const row = second.rows.find((r) => r.seq === sent.seq);
     if (!second.settled || row?.state !== "sent" || row.attempts !== 2 || row.then?.state !== "committed") throw new Error(`attempt 2: ${JSON.stringify(second)}`);
@@ -265,7 +270,7 @@ fn lifecycle_journeys_isolate_bindings_retry_after_backoff_replay_offline_and_re
     );
     assert_eq!(witness["attempts"], 1);
     assert_eq!(witness["then"]["state"], "committed");
-    let refused = effects["detail"]["refused"]["delivery.notify"]
+    let refused = effects["detail"]["refused"]["delivery.notify"]["rows"]
         .as_array()
         .unwrap();
     let refusal = |journey: &str| {
@@ -475,4 +480,232 @@ fn a_then_changed_while_the_provider_held_the_request_fails_e_effect_then_change
     assert_eq!(stopped.status, 200, "{}", stopped.body);
     owner.wait();
     fs::remove_dir_all(root).unwrap();
+}
+
+fn successful_return_without_contact(catch_unbound: bool, no_grants: bool) {
+    let project = scaffold_chat();
+    let grants = if no_grants {
+        ""
+    } else {
+        "\"https://api.example.com\""
+    };
+    let body = if catch_unbound {
+        "try { await fetch(\"https://api.example.com/send\"); } catch (_) {}"
+    } else {
+        ""
+    };
+    fs::write(
+        project.path.join("snapback/delivery.ts"),
+        format!(
+            r#"
+import {{ effect }} from "snapback2";
+import {{ recordNotified }} from "./notifications";
+export const notify = effect({{
+  grants: [{grants}],
+  run: async (payload: {{ to: string; body: string }}, {{ fetch, meta }}) => {{
+    {body}
+    return {{ providerId: meta.id }};
+  }},
+  then: recordNotified,
+}});
+"#
+        ),
+    )
+    .unwrap();
+    fs::write(project.path.join("snapback/tests/chat.test.ts"), r#"
+import { journey } from "snapback2/test";
+import { api } from "snapback2/client";
+journey("return without provider contact", async ({ as, effects }) => {
+  const sent = await as("alice").mutation(api.messages.send, { conversationId: "conversation-1", body: "no contact" });
+  if (sent.state !== "committed") throw new Error(JSON.stringify(sent));
+  const result = await effects.settle({ upTo: sent.seq, budgetMs: 3000 });
+  const row = result.rows.find(r => r.seq === sent.seq);
+  if (!result.settled || row?.state !== "sent" || row.then?.state !== "committed") throw new Error(JSON.stringify(result));
+});
+"#).unwrap();
+    let receipt = run_test(&project, &[]);
+    assert_eq!(
+        check(&receipt, "return without provider contact")["verdict"],
+        "pass",
+        "{receipt}"
+    );
+    let effects = check(&receipt, "effects");
+    if no_grants {
+        assert_eq!(effects["verdict"], "pass", "{effects}");
+        assert_eq!(
+            effects["detail"]["witnesses"]["delivery.notify"]["provider"],
+            json!({"declared":false})
+        );
+        return;
+    }
+    assert_eq!(effects["verdict"], "blocked", "{effects}");
+    assert_eq!(
+        effects["detail"]["reason"], "effects:no-witness",
+        "{effects}"
+    );
+    assert_eq!(
+        effects["detail"]["refused"]["delivery.notify"]["rows"][0]["provider"]["requests"], 0,
+        "{effects}"
+    );
+    if catch_unbound {
+        assert_eq!(
+            effects["detail"]["refused"]["delivery.notify"]["rows"][0]["provider"]["refused"]["E_EFFECT_UNBOUND"],
+            1,
+            "{effects}"
+        );
+    }
+}
+
+#[test]
+fn granted_effect_returning_without_fetching_is_not_a_witness() {
+    successful_return_without_contact(false, false);
+}
+
+#[test]
+fn caught_unbound_refusal_returning_success_is_not_a_witness() {
+    successful_return_without_contact(true, false);
+}
+
+#[test]
+fn supervisor_close_keeps_a_completed_journeys_provider_alive_until_settlement() {
+    let project = scaffold_chat();
+    fs::write(project.path.join("snapback/tests/chat.test.ts"), r#"
+import { journey } from "snapback2/test";
+import { api } from "snapback2/client";
+journey("finish with a request held", async ({ as, effects }) => {
+  const provider = await effects.provider("https://api.example.com", async () => {
+    await new Promise(resolve => setTimeout(resolve, 400));
+    return Response.json({ id: "old-binding" });
+  });
+  const sent = await as("alice").mutation(api.messages.send, { conversationId: "conversation-1", body: "held" });
+  if (sent.state !== "committed") throw new Error(JSON.stringify(sent));
+  while (!provider.requests.length) await new Promise(resolve => setTimeout(resolve, 5));
+});
+journey("the next epoch observes the old settlement without provider contamination", async ({ effects }) => {
+  const provider = await effects.provider("https://api.example.com", () => Response.json({ id: "new-binding" }));
+  const page = await effects.rows();
+  const old = page.rows.find(row => JSON.stringify(row.result).includes("old-binding"));
+  if (old?.state !== "sent" || old.then?.state !== "committed") throw new Error("old request did not settle before next journey: " + JSON.stringify(page));
+  if (provider.requests.length) throw new Error("old attempt reached new provider");
+});
+"#).unwrap();
+    let receipt = run_test(&project, &[]);
+    assert_eq!(receipt["verdict"], "pass", "{receipt}");
+    assert_eq!(
+        check(&receipt, "effects")["detail"]["witnesses"]["delivery.notify"]["provider"]["requests"],
+        1
+    );
+}
+
+#[test]
+fn owner_journeys_admit_relative_and_host_derived_redirects_on_the_logical_origin() {
+    let project = scaffold_chat();
+    let path = project.path.join("snapback/delivery.ts");
+    fs::write(
+        &path,
+        fs::read_to_string(&path)
+            .unwrap()
+            .replace("https://api.example.com", "http://127.0.0.1:9"),
+    )
+    .unwrap();
+    fs::write(project.path.join("snapback/tests/chat.test.ts"), r#"
+import { journey } from "snapback2/test";
+import { api } from "snapback2/client";
+for (const kind of ["relative", "host"]) journey(kind + " logical redirect", async ({ as, effects }) => {
+  const provider = await effects.provider("http://127.0.0.1:9", request => {
+    if (new URL(request.url).pathname === "/send") return new Response(null, { status: 302, headers: {
+      location: kind === "relative" ? "/next" : "http://" + request.headers.get("host") + "/next"
+    }});
+    if (request.headers.get("host") !== "127.0.0.1:9") throw new Error("wrong Host");
+    return Response.json({ id: kind });
+  });
+  const sent = await as("alice").mutation(api.messages.send, { conversationId: "conversation-1", body: kind });
+  if (sent.state !== "committed") throw new Error(JSON.stringify(sent));
+  const result = await effects.settle({ upTo: sent.seq, budgetMs: 3000 });
+  const row = result.rows.find(row => row.seq === sent.seq);
+  if (!result.settled || row?.state !== "sent" || row.then?.state !== "committed") throw new Error(JSON.stringify(result));
+  if (provider.requests.length !== 2 || provider.requests[1]?.path !== "/next") throw new Error(JSON.stringify(provider.requests));
+});
+"#).unwrap();
+    let receipt = run_test(&project, &[]);
+    assert_eq!(receipt["verdict"], "pass", "{receipt}");
+    assert_eq!(
+        check(&receipt, "effects")["detail"]["witnesses"]["delivery.notify"]["provider"]["requests"],
+        2
+    );
+}
+
+#[test]
+fn effects_emitted_in_one_commit_keep_their_own_provider_timing() {
+    let project = scaffold_chat();
+    let delivery = project.path.join("snapback/delivery.ts");
+    let original = fs::read_to_string(&delivery).unwrap();
+    let fast = original[original.find("export const notify").unwrap()..]
+        .replace("const notify", "const fast")
+        .replace("/send", "/fast");
+    fs::write(delivery, format!("{original}\n{fast}")).unwrap();
+    fs::write(project.path.join("snapback/pair.q"), "effect notify from delivery\neffect fast from delivery\nmutation send():\n  emit notify { to: 'bob', body: 'slow' }\n  emit fast { to: 'bob', body: 'fast' }\n  return null\n").unwrap();
+    fs::write(project.path.join("snapback/tests/chat.test.ts"), r#"
+import { journey } from "snapback2/test";
+import { api } from "snapback2/client";
+journey("two effects in one commit", async ({ as, effects }) => {
+  await effects.provider("https://api.example.com", async request => {
+    if (new URL(request.url).pathname === "/send") await new Promise(resolve => setTimeout(resolve, 200));
+    return Response.json({ id: request.headers.get("idempotency-key") });
+  });
+  const sent = await as("alice").mutation(api.pair.send, {});
+  if (sent.state !== "committed") throw new Error(JSON.stringify(sent));
+  const result = await effects.settle({ upTo: sent.seq, budgetMs: 3000 });
+  if (!result.settled) throw new Error(JSON.stringify(result));
+});
+"#).unwrap();
+    let receipt = run_test(&project, &[]);
+    assert_eq!(receipt["verdict"], "pass", "{receipt}");
+    let witnesses = &check(&receipt, "effects")["detail"]["witnesses"];
+    let slow = &witnesses["delivery.notify"];
+    let fast = &witnesses["delivery.fast"];
+    assert_eq!(slow["seq"], fast["seq"]);
+    assert_ne!(slow["id"], fast["id"]);
+    assert!(
+        slow["ms"].as_u64().unwrap() >= fast["ms"].as_u64().unwrap() + 100,
+        "{witnesses}"
+    );
+    assert_eq!(slow["provider"]["requests"], 1);
+    assert_eq!(fast["provider"]["requests"], 1);
+}
+
+#[test]
+fn grantless_effect_witness_explicitly_declares_no_provider() {
+    successful_return_without_contact(false, true);
+}
+
+#[test]
+fn a_bound_provider_with_a_rejecting_then_is_negative_witness_evidence() {
+    let project = scaffold_chat();
+    fs::write(project.path.join("snapback/tests/chat.test.ts"), r#"
+import { journey } from "snapback2/test";
+import { api } from "snapback2/client";
+journey("provider succeeds but then rejects", async ({ as, effects }) => {
+  const provider = await effects.provider("https://api.example.com", () => Response.json({ id: "x".repeat(201) }));
+  const sent = await as("alice").mutation(api.messages.send, { conversationId: "conversation-1", body: "reject bookkeeping" });
+  if (sent.state !== "committed") throw new Error(JSON.stringify(sent));
+  const result = await effects.settle({ upTo: sent.seq, budgetMs: 3000 });
+  const row = result.rows.find(row => row.seq === sent.seq);
+  if (!result.settled || row?.state !== "sent" || row.then?.state !== "rejected" || provider.requests.length !== 1) throw new Error(JSON.stringify(result));
+});
+"#).unwrap();
+    let receipt = run_test(&project, &[]);
+    assert_eq!(
+        check(&receipt, "provider succeeds but then rejects")["verdict"],
+        "pass",
+        "{receipt}"
+    );
+    let effects = check(&receipt, "effects");
+    assert_eq!(
+        effects["detail"]["reason"], "effects:no-witness",
+        "{effects}"
+    );
+    let refused = &effects["detail"]["refused"]["delivery.notify"]["rows"][0];
+    assert_eq!(refused["provider"]["requests"], 1);
+    assert_eq!(refused["then"]["state"], "rejected");
 }

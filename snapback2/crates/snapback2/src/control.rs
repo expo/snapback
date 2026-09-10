@@ -132,7 +132,11 @@ pub fn route(
         }
         // @ref LLP 1021#3-a-provider-stand-in-and-nothing-else-answers — the supervisor opens and closes epochs; journeys bind inside one; a dev owner refuses both.
         ("POST", "/control/effects/epoch") => match body.get("epoch") {
-            None | Some(Json::Null) => call(Action::EffectsEpoch { epoch: None }),
+            None | Some(Json::Null) => crate::writer::close_effects_epoch(
+                &context.handle,
+                snapback2_effects::DEFAULT_BUDGET + Duration::from_secs(1),
+            )
+            .map_err(|e| (400, e)),
             Some(Json::String(epoch)) => call(Action::EffectsEpoch {
                 epoch: Some(epoch.clone()),
             }),

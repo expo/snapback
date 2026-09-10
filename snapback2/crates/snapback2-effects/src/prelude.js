@@ -24,9 +24,11 @@
   // The factory captures the restored accessors and deletes them itself.
   // A body streams in after its fetch resolved, so its reads count as the
   // job's pending network I/O alongside the fetches themselves.
+  const provider = globalThis.__sb_provider;
+  delete globalThis.__sb_provider;
   const makeFetch = __SNAPBACK_FETCH_FACTORY__;
   const trackBodyRead = function (delta) { state.pendingFetches += delta; };
-  const grantedFetch = makeFetch(globalThis.__ibex2_fetch, tagRawGrantError, trackBodyRead);
+  const grantedFetch = makeFetch(globalThis.__ibex2_fetch, tagRawGrantError, trackBodyRead, !!provider);
   delete globalThis.__ibex2_fetch;
   delete globalThis.__sb_saved;
   // Effects never load ESM, so its lowering-only helpers have no job here.
@@ -298,6 +300,7 @@
     state.thrownError = null;
     state.contaminated = false;
     state.pendingFetches = 0;
+    if (provider) provider(true);
     let effectResult;
     try {
       const payload = JSON.parse(payloadJson);
@@ -386,6 +389,7 @@
     return {
       token: state.token,
       status: state.status,
+      provider: provider ? provider(false) : null,
       result: state.result,
       error: state.error,
       errorCode: state.errorCode,

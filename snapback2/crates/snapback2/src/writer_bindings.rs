@@ -11,6 +11,7 @@ use super::*;
 #[derive(Default)]
 pub(super) struct Bindings {
     epoch: Option<Epoch>,
+    closing: BTreeMap<String, u32>,
 }
 
 struct Epoch {
@@ -20,6 +21,7 @@ struct Epoch {
     /// leftover, a retry of either — claims an empty table.
     since: u64,
     origins: BTreeMap<String, String>,
+    claims: BTreeMap<String, u32>,
 }
 
 impl State {
@@ -35,11 +37,12 @@ impl State {
             .map_err(|error| Refusal::from_runtime(&error))
     }
 
-    /// Open (`Some`) or close (`None`) the live journey epoch. Opening drops
-    /// the previous epoch's bindings; closing revokes them. The reply carries
+    /// Open (`Some`) or revoke (`None`) the live journey epoch. The HTTP
+    /// worker waits for the revoked epoch's claims off the writer. The reply carries
     /// the commit seq at the boundary: `since` on open, `until` on close.
     pub(super) fn effects_epoch(&mut self, epoch: Option<String>) -> Result<Json, Refusal> {
         let seq = self.commit_seq()?;
+        let running = self.epoch_running()?;
         let bindings = self.bindings_mut()?;
         match epoch {
             Some(id) => {
@@ -49,17 +52,67 @@ impl State {
                         "pass the supervisor's epoch token",
                     ));
                 }
+                if bindings.epoch.is_some() || !running.is_empty() {
+                    return Err(Refusal::input(
+                        "the previous journey epoch has not closed",
+                        "close the previous epoch and await its running claims before opening another",
+                    ));
+                }
                 bindings.epoch = Some(Epoch {
                     id: id.clone(),
                     since: seq,
                     origins: BTreeMap::new(),
+                    claims: BTreeMap::new(),
                 });
                 Ok(json!({ "epoch": id, "since": seq }))
             }
             None => {
                 let closed = bindings.epoch.take();
-                Ok(json!({ "epoch": closed.map(|epoch| epoch.id), "until": seq }))
+                let id = closed.map(|epoch| {
+                    bindings.closing.extend(epoch.claims);
+                    epoch.id
+                });
+                let running = self.epoch_running()?;
+                Ok(json!({ "epoch": id, "until": seq, "running": running }))
             }
+        }
+    }
+
+    pub(super) fn epoch_running(&mut self) -> Result<Vec<Json>, Refusal> {
+        let claims = self.bindings_mut()?.closing.clone();
+        let mut running = Vec::new();
+        for (id, attempt) in claims {
+            let row = self
+                .runtime()
+                .store()
+                .outbox_get(&id)
+                .map_err(|e| Refusal::from_runtime(&e))?;
+            if let Some(row) = row.filter(|r| {
+                r.attempts == attempt && matches!(r.state.as_str(), "running" | "then_pending")
+            }) {
+                running.push(json!({"id":id,"attempt":attempt,"state":row.state}));
+            } else {
+                self.bindings_mut()?.closing.remove(&id);
+            }
+        }
+        Ok(running)
+    }
+
+    pub(super) fn settled_epoch_claim(&mut self, id: &str) {
+        if let Some(bindings) = &mut self.effect_bindings {
+            if let Some(epoch) = &mut bindings.epoch {
+                epoch.claims.remove(id);
+            }
+            bindings.closing.remove(id);
+        }
+    }
+
+    pub(super) fn record_epoch_claim(&mut self, row: &Json) {
+        if let Some(epoch) = self.effect_bindings.as_mut().and_then(|b| b.epoch.as_mut())
+            && row["seq"].as_u64().is_some_and(|seq| seq > epoch.since)
+            && let (Some(id), Some(attempt)) = (row["id"].as_str(), row["attempts"].as_u64())
+        {
+            epoch.claims.insert(id.to_owned(), attempt as u32);
         }
     }
 
@@ -101,6 +154,23 @@ impl State {
             .unwrap_or_default();
         Some(json!(origins))
     }
+}
+
+// @ref LLP 1021#3-a-provider-stand-in-and-nothing-else-answers — revoke future claims atomically, then wait off the writer for old claims to settle.
+pub(crate) fn close_effects_epoch(handle: &OwnerHandle, budget: Duration) -> Result<Json, Refusal> {
+    let deadline = Instant::now() + budget;
+    let mut closed = handle.call(Action::EffectsEpoch { epoch: None })?;
+    while closed["running"]
+        .as_array()
+        .is_some_and(|rows| !rows.is_empty())
+        && Instant::now() < deadline
+    {
+        thread::sleep(
+            Duration::from_millis(5).min(deadline.saturating_duration_since(Instant::now())),
+        );
+        closed["running"] = handle.call(Action::EffectsEpochRunning)?["running"].clone();
+    }
+    Ok(closed)
 }
 
 fn journeys_only() -> Refusal {
@@ -340,7 +410,10 @@ mod tests {
         // Closing revokes; a second epoch starts empty, and rows from before
         // it — the first journey's, retried later — claim nothing.
         let closed = state.handle(Action::EffectsEpoch { epoch: None }).unwrap();
-        assert_eq!(closed, json!({ "epoch": "j1", "until": since }));
+        assert_eq!(
+            closed,
+            json!({ "epoch": "j1", "until": since, "running": [] })
+        );
         assert_eq!(state.claim_bindings(since + 1), Some(json!({})));
         state
             .handle(Action::EffectsEpoch {
@@ -366,5 +439,102 @@ mod tests {
             Json::Null
         );
         std::fs::remove_dir_all(&state.root).unwrap();
+    }
+
+    #[test]
+    fn epoch_close_reports_a_claim_still_running_at_its_bound() {
+        let mut state = super::super::effects_tests::effects_state("epoch-close-bound", 1);
+        state.effect_bindings = Some(Bindings::default());
+        state.effects_epoch(Some("held".into())).unwrap();
+        // The fixture emitted before opening; place that real row inside this
+        // epoch's sequence window so its real claim is tracked.
+        state
+            .effect_bindings
+            .as_mut()
+            .unwrap()
+            .epoch
+            .as_mut()
+            .unwrap()
+            .since = 0;
+        let claimed = state.handle(Action::OutboxClaim { now: 1 }).unwrap();
+        assert_eq!(claimed["id"], "outbox-1");
+        let (tx, rx) = mpsc::channel();
+        let handle = OwnerHandle { tx };
+        thread::spawn(move || super::super::writer_jobs::drive(&mut state, rx));
+        let start = Instant::now();
+        let closed = close_effects_epoch(&handle, Duration::from_millis(30)).unwrap();
+        assert!(start.elapsed() >= Duration::from_millis(30));
+        assert_eq!(
+            closed["running"],
+            json!([{"id":"outbox-1","attempt":1,"state":"running"}])
+        );
+        assert!(
+            handle
+                .call(Action::EffectsEpoch {
+                    epoch: Some("next".into())
+                })
+                .is_err()
+        );
+        handle
+            .call(Action::OutboxSettle {
+                id: "outbox-1".into(),
+                state: "failed".into(),
+                result: None,
+                last_error: Some("test".into()),
+                next_at: None,
+            })
+            .unwrap();
+        assert_eq!(
+            handle.call(Action::EffectsEpochRunning).unwrap()["running"],
+            json!([])
+        );
+        assert!(
+            handle
+                .call(Action::EffectsEpoch {
+                    epoch: Some("next".into())
+                })
+                .is_ok()
+        );
+    }
+
+    #[test]
+    fn an_unbound_requeue_does_not_extend_the_closed_epochs_claim() {
+        let mut state = super::super::effects_tests::effects_state("epoch-requeue", 1);
+        state.effect_bindings = Some(Bindings::default());
+        state.effects_epoch(Some("old".into())).unwrap();
+        state
+            .effect_bindings
+            .as_mut()
+            .unwrap()
+            .epoch
+            .as_mut()
+            .unwrap()
+            .since = 0;
+        state.handle(Action::OutboxClaim { now: 1 }).unwrap();
+        assert_eq!(
+            state.effects_epoch(None).unwrap()["running"]
+                .as_array()
+                .unwrap()
+                .len(),
+            1
+        );
+        state
+            .settle_outbox("outbox-1", "failed", None, Some("test"), None)
+            .unwrap();
+        state
+            .handle(Action::OutboxRequeue {
+                id: "outbox-1".into(),
+            })
+            .unwrap();
+        let new_claim = state.handle(Action::OutboxClaim { now: i64::MAX }).unwrap();
+        assert_eq!(
+            new_claim["attempts"], 1,
+            "requeue resets the attempt number"
+        );
+        assert_eq!(new_claim["bindings"], json!({}));
+        assert!(
+            state.epoch_running().unwrap().is_empty(),
+            "this running attempt is not the old epoch's claim"
+        );
     }
 }

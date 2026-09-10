@@ -28,7 +28,8 @@ Use `--journey=--help` or `--journey=-h` for literal names. Duplicates run; sele
 upper-level derived checks; embedded offline checks remain. Unknown names,
 registration drift and unsuccessful runner exits fail. Five-second deadlines
 and owner isolation remain. Cannot combine with `--derived-only` or `--blocked`.
-Plain `snapback2 test` runs the full suite.
+`--derived-only` skips journeys and the effects witness check and records
+`scope.derivedOnly: true`. Plain `snapback2 test` runs the full suite.
 
 Journey `effects.rows({ state, after, limit })` pages the server outbox by
 `(seq, id)`, up to 200 rows; pass the returned `after` until null.
@@ -43,16 +44,31 @@ budget; it returns at once only when nothing ≤ `upTo` can move. The run is
 after `effects.settle` a queued row cannot pass. The derived effects check also
 remains `blocked: no engine in this build`, with `detail.build`.
 
-`effects.provider(origin, handler)` starts a loopback stand-in for that
-provider and binds it for this journey only; `handler(request)` returns a
-`Response`. `provider.requests` records method, path, headers, and body up to
-`caps` (200 requests, 16 KiB bodies; `bodyCapped` and `dropped` say so).
-With an engine the `effects` check counts witnesses: each declared effect
-needs one journey that emitted it, executed it against a bound provider, and
-let its `then` commit. The receipt lists `{ journey, id, seq, attempts, state,
-ms, then }` per effect, refusals under `refused`, and blocks
-`effects:no-witness` naming the effect and the journey it needs; a selected
-run skips the check and records `scope.journey`.
+`effects.provider(origin, handler)` starts a loopback stand-in for this
+journey; bind before emitting. A row claimed between emit and bind fails
+`E_EFFECT_UNBOUND`. The handler's `Request` URL and `Host`, and the effect's
+`response.url` (including redirects), stay logical. The supervisor closes the
+epoch on every exit, waiting for its in-flight claims for at most the effect
+budget + 1 s. A still-running row fails the journey before another epoch opens.
+`provider.requests` captures method, path, headers and UTF-8 body text: at most
+200 requests and 16 KiB per body, cut at a character boundary. `bodyBytes`
+reports original bytes; `bodyCapped: { bytes, limit }` reports truncation;
+`dropped` counts requests beyond the cap.
+
+With an engine, each declared effect needs one journey emission whose row is
+`sent` and whose declared `then` committed. An effect with grants also needs
+at least one request the bound transport substituted in that attempt, recorded
+as `provider: { origins, requests, refused }` on its transition. Returning
+without fetching or catching an unbound/grant refusal proves no provider
+contact. An effect with no grants records `provider: { declared: false }`;
+no `then` records `then: { declared: false }`. The witness receipt lists
+`{ journey, id, seq, attempts, state, ms, provider, then }`. Timing matches the
+outbox id and attempt; unavailable timing is `ms: null, timing: "unavailable"`.
+Negative evidence is `refused[effect]: { rows, dropped }`, capped at 20 rows.
+Missing witnesses block `effects:no-witness`, naming the effect and journey
+needed. A control-client failure fails the check; only an observed engine
+absence blocks it. A selected journey run skips the check with `scope.journey`.
+`E_OWNER_TEST_IO` names the failed supervisor control route; rerun `snapback2 test`.
 
 Projects with scoped memberships also run the canonical `live-revocation`,
 `successor-policy-fence`, and `grant-incarnation-aba` authorization proofs.

@@ -116,6 +116,7 @@ struct EffectRuntime {
     // one binding table never serves a job with another.
     bindings: Option<BTreeMap<String, String>>,
     jobs: u32,
+    provider: Option<serde_json::Value>,
     host_token: String,
 }
 
@@ -124,6 +125,7 @@ struct EffectRuntime {
 pub struct Ibex2Host {
     runtimes: BTreeMap<RuntimeKey, EffectRuntime>,
     logs: Vec<EffectLog>,
+    provider: Option<serde_json::Value>,
     available: bool,
 }
 
@@ -132,6 +134,7 @@ impl Ibex2Host {
         Ok(Self {
             runtimes: BTreeMap::new(),
             logs: Vec::new(),
+            provider: None,
             available: engine_available(),
         })
     }
@@ -179,6 +182,7 @@ impl Ibex2Host {
         runtime.jobs += 1;
         let (outcome, logs, contaminated, quiescent) = run_job(runtime, job, budget, deadline);
         self.logs = logs;
+        self.provider = runtime.provider.take();
         if contaminated
             || !quiescent
             || runtime.jobs >= MAX_JOBS_PER_RUNTIME
@@ -198,6 +202,7 @@ impl Ibex2Host {
 impl EffectHost for Ibex2Host {
     fn run(&mut self, decl: &EffectDecl, job: &EffectJob, budget: Duration) -> Outcome {
         self.logs.clear();
+        self.provider = None;
         self.run_inner(decl, job, budget)
     }
 
@@ -211,6 +216,10 @@ impl EffectHost for Ibex2Host {
 
     fn generation_changed(&mut self) {
         Ibex2Host::generation_changed(self);
+    }
+
+    fn take_provider(&mut self) -> Option<serde_json::Value> {
+        self.provider.take()
     }
 
     fn take_logs(&mut self) -> Vec<EffectLog> {
@@ -369,9 +378,7 @@ fn build_runtime(
              delete globalThis.__snapback_install; \
              Object.preventExtensions(globalThis)",
         ))
-        .map_err(|error| {
-            BuildFailure::Invalid(format!("capture effect host entry: {error}"))
-        })?;
+        .map_err(|error| BuildFailure::Invalid(format!("capture effect host entry: {error}")))?;
     runtime
         .harden()
         .map_err(|error| BuildFailure::Invalid(format!("harden effect runtime: {error}")))?;
@@ -400,6 +407,7 @@ fn build_runtime(
         declared_grants: decl.grants.clone(),
         bindings: bindings.cloned(),
         jobs: 0,
+        provider: None,
         host_token,
     })
 }
@@ -580,13 +588,15 @@ fn read_job_snapshot(
             Some("result") => FailureKind::Result,
             Some("retryable") => FailureKind::Retryable,
             other => {
-                return Err(
-                    format!("host snapshot failureKind is not a classification: {other:?}").into(),
-                );
+                return Err(format!(
+                    "host snapshot failureKind is not a classification: {other:?}"
+                )
+                .into());
             }
         }),
         _ => JobStatus::Running,
     };
+    effect_runtime.provider = value.get("provider").filter(|v| !v.is_null()).cloned();
     Ok(JobSnapshot {
         status,
         result: field("result")?.as_str().map(str::to_owned),
@@ -715,6 +725,10 @@ fn run_job(
     budget: Duration,
     deadline: Instant,
 ) -> JobResult {
+    effect_runtime.provider = job
+        .bindings
+        .as_ref()
+        .map(|_| json!({"origins":[],"requests":0,"refused":{}}));
     let _ = effect_runtime.runtime.drain_console();
     let payload = match serde_json::to_string(&job.payload) {
         Ok(payload) => payload,
@@ -888,8 +902,9 @@ fn drive(
             .runtime
             .pump()
             .map_err(|error| entrance_failed(effect_runtime, job, "timer pump", error))?;
-        call_host(effect_runtime, "disarmTimers", &[])
-            .map_err(|failure| host_channel_failed(effect_runtime, job, "disarm timers", failure))?;
+        call_host(effect_runtime, "disarmTimers", &[]).map_err(|failure| {
+            host_channel_failed(effect_runtime, job, "disarm timers", failure)
+        })?;
     }
 }
 

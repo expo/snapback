@@ -138,10 +138,15 @@ async function startProvider(
     for (const [name, value] of Object.entries(incoming.headers)) {
       if (value !== undefined) headers.set(name, Array.isArray(value) ? value.join(", ") : value);
     }
-    const text = body.toString("utf8");
+    headers.set("host", new URL(logical).host);
+    // Stop before a partial UTF-8 scalar; slicing JS text would count UTF-16.
+    const capture = Buffer.from(body.toString("utf8"));
+    let end = Math.min(capture.byteLength, PROVIDER_BODY_CAP);
+    while (end > 0 && end < capture.byteLength && (capture[end]! & 0xc0) === 0x80) end--;
+    const text = capture.subarray(0, end).toString("utf8");
     if (requests.length < PROVIDER_REQUEST_CAP) {
-      const record: ProviderRequest = { method, path, headers: Object.fromEntries(headers), body: text.slice(0, PROVIDER_BODY_CAP) };
-      if (body.byteLength > PROVIDER_BODY_CAP) record.bodyCapped = { bytes: body.byteLength, limit: PROVIDER_BODY_CAP };
+      const record: ProviderRequest = { method, path, headers: Object.fromEntries(headers), body: text, bodyBytes: body.byteLength };
+      if (capture.byteLength > PROVIDER_BODY_CAP) record.bodyCapped = { bytes: body.byteLength, limit: PROVIDER_BODY_CAP };
       requests.push(record);
     } else {
       dropped += 1;
@@ -362,6 +367,14 @@ async function runCheck(
   const clients = new Set<SnapbackClient>();
   const devices = new Set<Device>();
   const providers = new Set<JourneyProvider>();
+  // Keep stand-ins answering until the supervisor has closed and drained the
+  // epoch. Install the reader before the receipt so an immediate ack is kept.
+  const epochClosed = epoch ? new Promise<void>(resolveClosed => {
+    const done = () => { process.stdin.pause(); resolveClosed(); };
+    process.stdin.once("data", done);
+    process.stdin.once("end", done);
+    process.stdin.resume();
+  }) : Promise.resolve();
   process.stdout.write(`${JSON.stringify({ runner: "start", name: check.name })}\n`);
   try {
     if (storeRoot) await rm(storeRoot, { recursive: true, force: true });
@@ -425,6 +438,7 @@ async function runCheck(
     return false;
   } finally {
     for (const client of clients) client.close();
+    await epochClosed;
     for (const provider of providers) await provider.close().catch(() => undefined);
     if (storeRoot) await rm(storeRoot, { recursive: true, force: true }).catch(() => undefined);
   }

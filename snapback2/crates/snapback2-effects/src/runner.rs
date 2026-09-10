@@ -109,6 +109,11 @@ pub trait OutboxAccess {
     /// recording its error.
     fn settle(&mut self, id: &str, settlement: OutboxSettlement) -> Result<(), OutboxError>;
 
+    /// Attach framework-owned provider evidence to this attempt's settlement.
+    fn observe_provider(&mut self, _id: &str, _provider: Value) -> Result<(), OutboxError> {
+        Ok(())
+    }
+
     /// Return at most `limit` durable `then_pending` rows in stable outbox order.
     fn pending_then(&mut self, limit: usize) -> Result<Vec<PendingThen>, OutboxError>;
 
@@ -330,6 +335,9 @@ impl<H: EffectHost> Runner<H> {
         }
         let outcome = self.host.run(&decl, job, self.budget);
         drained.logs.extend(self.host.take_logs());
+        if let Some(provider) = self.host.take_provider() {
+            access.observe_provider(&job.id, provider)?;
+        }
         match outcome {
             Outcome::Sent { result, leftover } => {
                 if leftover {

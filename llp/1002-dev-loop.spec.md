@@ -676,6 +676,8 @@ and records `scope.journey` on success and failure receipts. A missing name fail
 with available names; loading or compilation failures remain failures. It cannot
 combine with `--derived-only` or `--blocked`. This is explicit selection, not
 an automatic affected-coverage claim; plain `test` still proves the full suite.
+`--derived-only` runs the top-level derived families except the effects witness
+check, runs no journeys, and records `scope.derivedOnly: true` on its receipts.
 
 A parsed passing receipt cannot mask an unsuccessful discovery/body process
 exit. Retain reported checks and add the host failure when no failure was
@@ -758,8 +760,10 @@ read-only in the receipt, never editable):
    engine against a provider the journey bound with
    `effects.provider(origin, handler)` (the test owner's transport is
    bound-only; an unbound origin is `E_EFFECT_UNBOUND`), its declared `then`
-   committed. The receipt lists `{ journey, id, seq, attempts, state, ms, then }`
-   per effect and the refusals journeys met as `refused`; missing evidence is
+   committed. A granted effect requires at least one substituted request in
+   that sent attempt; a grant-less effect records `provider: { declared: false }`.
+   The receipt lists `{ journey, id, seq, attempts, state, ms, provider, then }`
+   per effect and refusals as `refused[effect]: { rows, dropped }`; missing evidence is
    `blocked: effects:no-witness` naming the effect and the journey it needs.
    Without an engine the check stays `blocked: no engine in this build` with
    `detail.build`, and engine-dependent journeys are `blocked: effects:no-engine`.

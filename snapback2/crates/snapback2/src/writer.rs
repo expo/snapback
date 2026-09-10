@@ -28,6 +28,7 @@ mod writer_assets;
 mod writer_auth;
 #[path = "writer_bindings.rs"]
 mod writer_bindings;
+pub(crate) use writer_bindings::close_effects_epoch;
 #[path = "writer_channels.rs"]
 mod writer_channels;
 #[path = "writer_connected.rs"]
@@ -349,6 +350,7 @@ pub enum Action {
     EffectsEpoch {
         epoch: Option<String>,
     },
+    EffectsEpochRunning,
     EffectsBind {
         origin: String,
         to: String,
@@ -356,6 +358,10 @@ pub enum Action {
     },
     OutboxClaim {
         now: i64,
+    },
+    OutboxProvider {
+        id: String,
+        provider: Json,
     },
     OutboxSettle {
         id: String,
@@ -622,16 +628,25 @@ impl State {
                 let mut replay = replay;
                 if replay.is_some() {
                     if let Some(generation) = expected_generation {
-                        replay.as_mut().and_then(Json::as_object_mut)
-                            .ok_or_else(|| Refusal::input("replay must be an object", "send the SDK replay envelope"))?
+                        replay
+                            .as_mut()
+                            .and_then(Json::as_object_mut)
+                            .ok_or_else(|| {
+                                Refusal::input(
+                                    "replay must be an object",
+                                    "send the SDK replay envelope",
+                                )
+                            })?
                             .insert("expectedGeneration".into(), generation);
                     }
-                } else if let Some(response) = self.generation_rejection(expected_generation.as_ref())? {
+                } else if let Some(response) =
+                    self.generation_rejection(expected_generation.as_ref())?
+                {
                     self.resolve_authority(identity.clone())?;
                     return Ok(response);
                 }
                 self.execute(&op, args, identity, expected, offline, replay)
-            },
+            }
             Action::Resume { body, identity } => self.resume(body, identity),
             Action::Subscribe {
                 op,
@@ -906,6 +921,7 @@ impl State {
                 Ok(json!({"ok":true}))
             }
             Action::EffectsEpoch { epoch } => self.effects_epoch(epoch),
+            Action::EffectsEpochRunning => Ok(json!({"running": self.epoch_running()?})),
             Action::EffectsBind { origin, to, epoch } => self.bind_effect(&origin, &to, &epoch),
             Action::EffectsTurn => {
                 self.outbox_dev()?;
@@ -928,6 +944,7 @@ impl State {
                 {
                     claimed["bindings"] = bindings;
                 }
+                self.record_epoch_claim(&claimed);
                 if let Some(id) = claimed["id"].as_str() {
                     self.outbox_observation
                         .started
@@ -935,6 +952,12 @@ impl State {
                 }
                 self.log_unavailable()?;
                 Ok(claimed)
+            }
+            Action::OutboxProvider { id, provider } => {
+                if self.effect_bindings.is_some() {
+                    self.outbox_observation.provider.insert(id, provider);
+                }
+                Ok(json!({"ok":true}))
             }
             Action::OutboxSettle {
                 id,

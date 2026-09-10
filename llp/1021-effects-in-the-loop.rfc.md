@@ -220,7 +220,15 @@ the journey process and registers a **binding** with the test owner
 - **Lifetime.** A binding belongs to one journey epoch, not the owner's
   lifetime. The supervisor (`test.rs:996`) revokes every binding of a
   journey on completion, failure, timeout, or process death; revocation
-  never depends on journey cleanup code.
+  never depends on journey cleanup code. `POST /control/effects/epoch
+  { epoch: null }` revokes future claims atomically, then waits off the writer
+  for every claim from that epoch to settle (including its `then`). The wait
+  is bounded by the effect budget + 1 s. The close response lists any claims
+  still running at the bound and the supervisor fails the journey; another
+  epoch cannot open while they remain. There is no live per-hop epoch check:
+  an in-flight attempt finishes against its original binding. On normal
+  completion the runner keeps its providers alive until the supervisor
+  acknowledges this close; death/timeout still closes through the supervisor.
 - **No fallback, anywhere in the test owner.** Every effect fetch in a
   `test` owner — including rows emitted by the derived checks, rows left
   over from an earlier journey, and rows retried after backoff — must match
@@ -229,16 +237,23 @@ the journey process and registers a **binding** with the test owner
   effect's `fetch` call, rewrite "declare `effects.provider('<origin>', …)`
   in the journey that emits `<effect>`", page `guide effects`) and never
   reaches external transport. A row from an earlier epoch cannot acquire a
-  later journey's binding.
-- **Grants first.** The existing grant check (`ibex.rs:308`,
-  `prelude/fetch.js:134,155`) admits the **logical** origin on every
+  later journey's binding. Epoch membership is keyed by commit seq: only
+  `row.seq > epoch.since` claims the epoch's table. A journey binds **before
+  it emits**: a row claimed between emit and bind fails `E_EFFECT_UNBOUND`.
+- **Grants first.** In bound mode a separate logical admission check in
+  `prelude/bound.js` sits in front of Ibex's raw loopback-only grant check.
+  It admits the **logical** origin on every
   request and on every redirect, and the credential-stripping rule keys on
   logical origins as today; only after admission does transport resolve
   the origin to the bound loopback address. `E_EFFECT_GRANT` fires exactly
   as in production. The effect's source, timer permit, `meta.id`, and
-  `then` run unchanged in the real engine.
+  `then` run unchanged in the real engine. `response.url` stays logical,
+  including after redirects; the stand-in's `Request` carries the logical
+  URL and `Host` (and `:authority` if present).
 - **Capture.** `provider.requests` records method, path, headers, and body
-  up to a cap; the cap is reported, not silently truncated.
+  up to a cap: 200 requests and 16,384 UTF-8 bytes per retained body at a
+  character boundary. `bodyBytes` reports original bytes, `bodyCapped` the
+  truncation and limit, and `dropped` the requests beyond the cap.
 - **Journeys only.** Manual `dev` has no binding route (question 1). A
   builder who wants a local provider in `dev` changes the effect's request
   URL and its grant, which is one line and honest.
@@ -256,15 +271,25 @@ ran:
 1. For every declared effect, at least one **successful witness**: a real
    mutation, job, or schedule committed an emission; the real engine
    executed it against a journey-owned provider; its declared `then`
-   committed (an effect without `then` records that explicitly).
+   committed (an effect without `then` records that explicitly). A granted
+   effect requires at least one substituted request, counted per attempt and
+   every hop by the bound transport and reported by the prelude. The runner
+   records `provider: { origins, requests, refused }` on the settlement line;
+   production jobs record none. A grant-less effect requires `sent` alone
+   (plus any declared `then`) and records `provider: { declared: false }`.
 2. The receipt lists, per effect: the journey, the outbox id, the emission
    `seq`, attempts, terminal state, elapsed time, and the `then` outcome
-   with its commit `seq`.
+   with its commit `seq`, and the provider evidence. Time matches the outbox
+   id and attempt; missing timing is `ms: null, timing: "unavailable"`.
+   `refused[effect]: { rows, dropped }` reports the 20-row negative-evidence cap.
 3. An expected-refusal journey (an ungranted origin, an unbound origin) is
    negative evidence and does not substitute for a witness.
 4. Missing evidence is `blocked: effects:no-witness` naming the effect and
    the journey it needs. A selected run (`test <journey>`) states its
    coverage scope and cannot claim execution coverage it did not obtain.
+   `--derived-only` also skips the effects witness check and records
+   `scope.derivedOnly: true`. Failed control requests are a `fail` verdict,
+   never inferred engine absence.
 
 Without an engine the check stays `blocked: no engine in this build` with
 `detail.build` naming the command (repo: `scripts/hermes build -p
@@ -440,4 +465,6 @@ evidence, never as a prerequisite for obtaining it.
 - 2026-09-10 — deadline (the snapback half of F5, §5): `ibex2` pinned at `90229cbe0` — the upstream deadline, and with it the streaming-body fetch ABI (`prelude/fetch.js` reads bodies through `__ibex2_response_read` under a control token and counts the reads as the job's pending I/O); `Ibex2Host` arms one deadline from the budget before the first `call_host` and holds it across every entrance, and the engine's `JsError::Deadline` is `E_EFFECT_TIMEOUT` with `retry: true`; tests: `ibex_deadline_tests.rs` (synchronous loop, recursive microtask chain, never-answering provider, well-behaved control, one deadline not renewed per entrance, five attempts across the backoff schedule to `failed`) and the Hermes `dev --stop` spinning-effect owner-exit journey in `tests/effects.rs`.
 
 - 2026-09-10 — deadline, fix round r1 (§5): `ibex2` re-pinned at `9cbf9e62d` (the reviewed upstream fix round); the deadline is armed before the runtime's top-level evaluation of the authored module, so a spin at a module's top level is the same timeout (`a_spin_at_the_module_top_level_is_stopped_at_the_budget`); a job the host observed settled before the deadline keeps its settlement when the deadline ends its leftover I/O — the failure classification is made at settlement and carried by the snapshot, so a grant denial at the budget edge stays `retry: false` (`a_job_settled_before_the_deadline_keeps_its_settlement_when_leftover_io_reaches_it`); `prelude/fetch.js` releases a bodiless redirect hop once and settles the pending-I/O count when a body read throws (`ibex_fetch_tests.rs`); `E_EFFECT_ENGINE` has its families entry; the deadline tests warm the runtime before the clock, the `dev --stop` journey observes the first attempt's `running → queued` / `E_EFFECT_TIMEOUT` transition in the owner before stopping during the second attempt's spin (the settlement of the attempt spinning at the stop is lost to the writer's exit — `issues/20260910-snapback2-dev-stop-drops-the-settlement-of-a-job-the-deadline-ended.md`), and the holding provider closes its listener.
-- 2026-09-10 — witness (`s2/ri-witness`): §3/F3 and §4/F4 implemented — `effects.provider(origin, handler)` starts a loopback stand-in in the journey process and binds it through `POST /control/effects/bind { origin, to, epoch }`; epochs are supervisor-owned (`POST /control/effects/epoch { epoch | null }` around every journey run, closed whatever the runner did, so revocation never waits on journey cleanup) and exist only on the owner `snapback2 test` starts (`dev --test-owner`; a `dev` owner refuses both routes, `E_INPUT`); a claimed row carries its epoch's binding table (rows emitted at or before the epoch's opening seq — derived checks, earlier journeys, their retries — carry an empty one); in the runtime the host installs a bound transport in front of Ibex's raw binding (`prelude/bound.js`: the grant on the logical origin first, with the engine's own denial text so `E_EFFECT_GRANT` is unchanged, then the binding, then substitution) and installs the raw binding with the bound loopback origins as its only grants, so no socket leaves the loopback; `E_EFFECT_UNBOUND` (family `effect`, page `effects`, tagged terminal in the prelude like a grant denial, message carries the rewrite) reaches no transport; `check_effects` runs after the journeys and counts one successful witness per declared effect inside a journey's seq window (`{ journey, id, seq, attempts, state, ms, then }`, `then: { declared: false }` for an effect without one, `refused` as negative evidence), `blocked: effects:no-witness` names the effect and the journey it needs, `blocked: no engine in this build` carries `detail.build`; `receiptVerdict` (measure/consumer smoke) accepts exactly the engine-absence blocks; the chat template gains the `a sent message notifies the recipient` journey; guide sentences on `effects.md`/`testing.md`; LLP 1002 §7 item 6 and the acceptance sentence revised. Tests: `ibex_bound_tests.rs` (substitution, unbound, grant-before-binding, rerouted and refused redirect hops, per-binding runtimes), `writer_bindings` (origin rule, dev refusal, epochs), `test_effects` (witness selection, negative evidence), `effects-visibility.test.ts` (dev refusal, `guide E_EFFECT_UNBOUND`, the engine-less receipt's `build` and the blocked provider journey), and the Hermes owner suite `tests/effects.rs` (chat template `effects: pass` with a committed `then` seq; isolation across a killed journey; provider 503 with `tick` past `nextAt`; `E_EFFECT_THEN_CHANGED`; offline replay after a lost response; a schedule with every client disconnected; `then` receipts across the restart-requeue path). Facts the RFC should state: a `then_pending` row after a restart is drained by `initialize` without a requeue, so the `sent_unknown → requeue` path is the row still `running` at death; epochs are keyed by the owner's commit seq, not stamped on rows; the provider sees `request.url` on the logical origin while the effect's `response.url` is the loopback.
+- 2026-09-10 — witness (`s2/ri-witness`): §3/F3 and §4/F4 implemented — `effects.provider(origin, handler)` starts a loopback stand-in in the journey process and binds it through `POST /control/effects/bind { origin, to, epoch }`; epochs are supervisor-owned (`POST /control/effects/epoch { epoch | null }` around every journey run, closed whatever the runner did, so revocation never waits on journey cleanup) and exist only on the owner `snapback2 test` starts (`dev --test-owner`; a `dev` owner refuses both routes, `E_INPUT`); a claimed row carries its epoch's binding table (rows emitted at or before the epoch's opening seq — derived checks, earlier journeys, their retries — carry an empty one); in the runtime the host installs a bound transport in front of Ibex's raw binding (`prelude/bound.js`: the grant on the logical origin first, with the engine's own denial text so `E_EFFECT_GRANT` is unchanged, then the binding, then substitution) and installs the raw binding with the bound loopback origins as its only grants, so no socket leaves the loopback; `E_EFFECT_UNBOUND` (family `effect`, page `effects`, tagged terminal in the prelude like a grant denial, message carries the rewrite) reaches no transport; `check_effects` runs after the journeys and counts one successful witness per declared effect inside a journey's seq window (`{ journey, id, seq, attempts, state, ms, then }`, `then: { declared: false }` for an effect without one, `refused` as negative evidence), `blocked: effects:no-witness` names the effect and the journey it needs, `blocked: no engine in this build` carries `detail.build`; `receiptVerdict` (measure/consumer smoke) accepts exactly the engine-absence blocks; the chat template gains the `a sent message notifies the recipient` journey; guide sentences on `effects.md`/`testing.md`; LLP 1002 §7 item 6 and the acceptance sentence revised. Tests: `ibex_bound_tests.rs` (substitution, unbound, grant-before-binding, rerouted and refused redirect hops, per-binding runtimes), `writer_bindings` (origin rule, dev refusal, epochs), `test_effects` (witness selection, negative evidence), `effects-visibility.test.ts` (dev refusal, `guide E_EFFECT_UNBOUND`, the engine-less receipt's `build` and the blocked provider journey), and the Hermes owner suite `tests/effects.rs` (chat template `effects: pass` with a committed `then` seq; isolation across a killed journey; provider 503 with `tick` past `nextAt`; `E_EFFECT_THEN_CHANGED`; offline replay after a lost response; a schedule with every client disconnected; `then` receipts across the restart-requeue path). Facts the RFC should state: a `then_pending` row after a restart is drained by `initialize` without a requeue, so the `sent_unknown → requeue` path is the row still `running` at death; epochs are keyed by the owner's commit seq, not stamped on rows; journeys bind before emitting.
+
+- 2026-09-10 — witness fix round r1 (§3/F3, §4/F4): framework-owned per-attempt provider request/refusal counts on settlement transitions; granted witnesses require substituted contact, grant-less witnesses explicitly declare no provider; epoch close revokes future claims and waits off the writer for its claims (budget + 1 s, running identities fail the supervisor), with provider cleanup acknowledged only after close; logical response URLs and provider Host, UTF-8 capture bounds/original bytes, derived-only scope, owner-child-only test-owner flag, id/attempt timing and reported refusal truncation, and E_OWNER_TEST_IO sites/card. Tests: Hermes effects crate 73/0; Hermes owner effects suite 16/0; affected units 37/0; package effects-visibility 7/0, diagnostic-card follow-up 1/0. Restart under a test owner refuses the explicitly requeued old row without a second provider hit; the post-provider/pre-durable-settlement crash seam is still absent and tracked in issues/20260910-snapback2-crash-after-provider-before-settlement-witness-seam.md (item 10, no new apparatus).

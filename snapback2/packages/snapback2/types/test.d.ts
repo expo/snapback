@@ -45,6 +45,8 @@ export type ProviderRequest = {
   headers: Record<string, string>;
   /** The body as UTF-8 text, up to `caps.bodyBytes`; `bodyCapped` reports the cut. */
   body: string;
+  /** Original request body byte count, before capture truncation. */
+  bodyBytes: number;
   bodyCapped?: { bytes: number; limit: number };
 };
 /**

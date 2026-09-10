@@ -128,6 +128,16 @@ impl OutboxAccess for WriterAccess {
         })
     }
 
+    fn observe_provider(&mut self, id: &str, provider: Json) -> Result<(), OutboxError> {
+        self.handle
+            .call(Action::OutboxProvider {
+                id: id.to_owned(),
+                provider,
+            })
+            .map(|_| ())
+            .map_err(outbox_error)
+    }
+
     fn settle(&mut self, id: &str, settlement: OutboxSettlement) -> Result<(), OutboxError> {
         let terminal = !matches!(settlement, OutboxSettlement::ThenPending { .. });
         let (state, result, last_error, next_at) = match settlement {

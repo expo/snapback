@@ -28,14 +28,22 @@
   for (var j = 0; j < names.length; j++) {
     try { targets[new URL(names[j]).origin] = String(bindings[names[j]]); } catch (_) {}
   }
+  var evidence;
+  globalThis.__sb_provider = function (reset) {
+    if (reset) evidence = { origins: [], requests: 0, refused: {} };
+    return evidence;
+  };
+  function refuse(code) { evidence.refused[code] = (evidence.refused[code] || 0) + 1; }
   globalThis.__ibex2_fetch = function (target) {
     var url;
     try { url = new URL(String(target)); } catch (error) { return Promise.reject(error); }
     if (granted.indexOf(url.origin) === -1) {
+      refuse("E_EFFECT_GRANT");
       return Promise.reject(new Error("denied: net.fetch"));
     }
     var to = targets[url.origin];
     if (to === undefined) {
+      refuse("E_EFFECT_UNBOUND");
       var unbound = new Error(
         "E_EFFECT_UNBOUND: no journey provider is bound for " + url.origin
         + "; declare effects.provider('" + url.origin + "', handler) in the journey that emits " + effect
@@ -46,6 +54,8 @@
     }
     var args = Array.prototype.slice.call(arguments);
     args[0] = to + url.pathname + url.search;
+    evidence.requests++;
+    if (evidence.origins.indexOf(url.origin) === -1) evidence.origins.push(url.origin);
     return raw.apply(undefined, args);
   };
 })(globalThis.__ibex2_fetch, __SNAPBACK_GRANTS__, __SNAPBACK_BINDINGS__, __SNAPBACK_EFFECT_NAME__);

@@ -24,7 +24,11 @@ impl Listener {
 
     /// As `start`, but the first request is answered with `first_status` and
     /// a short body instead of `reply`.
-    fn start_with(reply: &'static str, redirect: Option<String>, first_status: Option<u16>) -> Self {
+    fn start_with(
+        reply: &'static str,
+        redirect: Option<String>,
+        first_status: Option<u16>,
+    ) -> Self {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let port = listener.local_addr().unwrap().port();
         let hits = Arc::new(Mutex::new(Vec::new()));
@@ -373,6 +377,10 @@ fn a_job_with_other_bindings_gets_its_own_runtime_and_equal_bindings_reuse_it() 
     );
     assert_eq!(logical.hits().len(), 1);
     assert_eq!(second.hits().len(), 2);
+    assert!(
+        host.take_provider().is_none(),
+        "production jobs record no provider evidence"
+    );
 }
 
 /// A provider error on one attempt leaves the runtime usable for the next:
@@ -397,7 +405,12 @@ fn a_retry_after_a_provider_error_completes_on_the_reused_runtime() {
         panic!("{first:?}")
     };
     assert!(retry && error.contains("provider 503"), "{error}");
-    assert_eq!(host.cached_runtime_count(), 1, "a provider error keeps the runtime");
+    assert_eq!(host.take_provider().unwrap()["requests"], 1);
+    assert_eq!(
+        host.cached_runtime_count(),
+        1,
+        "a provider error keeps the runtime"
+    );
     let started = std::time::Instant::now();
     let second = host.run(
         &decl,
@@ -416,7 +429,57 @@ fn a_retry_after_a_provider_error_completes_on_the_reused_runtime() {
         "after {:?}",
         started.elapsed()
     );
-    assert!(started.elapsed() < Duration::from_secs(2), "{:?}", started.elapsed());
+    assert!(
+        started.elapsed() < Duration::from_secs(2),
+        "{:?}",
+        started.elapsed()
+    );
+    assert_eq!(
+        host.take_provider().unwrap()["requests"],
+        1,
+        "attempt two has its own count"
+    );
     assert_eq!(provider.hits().len(), 2);
+    assert!(logical.hits().is_empty());
+}
+
+#[test]
+fn response_url_stays_logical_after_redirect_and_relative_followup() {
+    let logical = Listener::start("must not arrive", None);
+    let provider = Listener::start("ok", Some("/next".into()));
+    let decl = declaration(
+        r#"async (payload, { fetch }) => {
+        const response = await fetch(payload.url);
+        await response.text();
+        const next = await fetch(new URL("/last", response.url));
+        await next.text();
+        const input = new URL(payload.url);
+        const pending = fetch(input, { redirect: "manual" });
+        input.pathname = "/changed-after-request";
+        const manual = await pending;
+        await manual.text();
+        return { url: response.url, next: next.url, redirected: response.redirected, manual: manual.url };
+    }"#,
+        vec![logical.origin()],
+    );
+    let mut host = Ibex2Host::new().unwrap();
+    let result = host.run(
+        &decl,
+        &bound_job(
+            "logical-response",
+            json!({"url":format!("{}/start",logical.origin())}),
+            &[(logical.origin(), provider.origin())],
+        ),
+        Duration::from_secs(5),
+    );
+    let Outcome::Sent { result, .. } = result else {
+        panic!("{result:?}")
+    };
+    assert_eq!(
+        result,
+        json!({"url":format!("{}/next",logical.origin()), "next":format!("{}/last",logical.origin()), "redirected":true, "manual":format!("{}/start",logical.origin())})
+    );
+    assert_eq!(host.take_provider().unwrap()["requests"], 4);
+    assert_eq!(provider.hits().len(), 4);
     assert!(logical.hits().is_empty());
 }

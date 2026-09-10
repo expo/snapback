@@ -71,6 +71,14 @@
   },
   {
     "family": "owner",
+    "code": "E_OWNER_TEST_IO",
+    "site": "the test supervisor's owner control request",
+    "wrong": "A test owner control request failed or its epoch still has running claims after the effect budget + 1 s.",
+    "right": "snapback2 test",
+    "guide": "testing"
+  },
+  {
+    "family": "owner",
     "code": "E_OWNER_NOT_RUNNING",
     "wrong": "snapback2 why todos.list --as alice",
     "right": "snapback2 dev && snapback2 why todos.list --as alice",

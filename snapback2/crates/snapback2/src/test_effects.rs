@@ -1,8 +1,8 @@
 //! The `effects` derived check counts witnesses, not probes: for every
 //! declared effect, one successful authored witness among the journeys that
 //! ran — a real emission, executed by the real engine against a
-//! journey-owned provider (the test owner's transport is bound-only, so a
-//! `sent` row can have reached nothing else), its declared `then` committed.
+//! journey-owned provider (at least one substituted request when grants are
+//! declared), its declared `then` committed.
 //! Missing evidence is `blocked`, naming the effect and the journey it needs.
 // @ref LLP 1021#4-test-counts-witnesses — the check manufactures nothing; it aggregates what the framework recorded while the selected journeys ran.
 
@@ -37,26 +37,24 @@ pub(super) fn close_epoch(owner: &OwnerInfo) -> Result<u64, Refusal> {
 }
 
 fn epoch_call(owner: &OwnerInfo, body: Json, field: &str) -> Result<u64, Refusal> {
-    let response = client::control(owner, "POST", "/control/effects/epoch", body)?;
-    if response.status >= 400 {
-        return Err(
-            serde_json::from_value(response.body.clone()).unwrap_or_else(|_| {
-                Refusal::owner(
-                    "E_OWNER_TEST_EPOCH",
-                    format!(
-                        "journey epoch route answered {}: {}",
-                        response.status, response.body
-                    ),
-                    "rerun snapback2 test",
-                )
-            }),
-        );
+    let response = checked_control(owner, "POST", "/control/effects/epoch", body)?;
+    if response["running"]
+        .as_array()
+        .is_some_and(|rows| !rows.is_empty())
+    {
+        return Err(supervisor_refusal(
+            format!(
+                "epoch close exceeded the effect budget + 1 s; still running: {}",
+                response["running"]
+            ),
+            "/control/effects/epoch",
+        )
+        .with_detail("running", response["running"].clone()));
     }
-    response.body[field].as_u64().ok_or_else(|| {
-        Refusal::owner(
-            "E_OWNER_TEST_EPOCH",
-            format!("journey epoch reply omitted {field}: {}", response.body),
-            "rerun snapback2 test",
+    response[field].as_u64().ok_or_else(|| {
+        supervisor_refusal(
+            format!("journey epoch reply omitted {field}: {response}"),
+            "/control/effects/epoch",
         )
     })
 }
@@ -72,11 +70,28 @@ pub(super) fn check_effects(
         return None;
     }
     let declarations = effects.keys().collect::<Vec<_>>();
-    let status = client::control(owner, "GET", "/control/status", json!({}))
-        .ok()
-        .map(|response| response.body)
-        .unwrap_or_else(|| json!({}));
-    let engine = status["effects"]["engine"].as_str().unwrap_or("none");
+    let status = checked_control(owner, "GET", "/control/status", json!({})).and_then(|status| {
+        if status["effects"]["engine"].is_string() {
+            Ok(status)
+        } else {
+            Err(supervisor_refusal(
+                format!("status omitted the effect engine: {status}"),
+                "/control/status",
+            ))
+        }
+    });
+    let status = match status {
+        Ok(status) => status,
+        Err(error) => {
+            return Some(CheckReceipt::fail(
+                "effects",
+                "derived",
+                elapsed_ms(started),
+                json!({"error":"effect engine status could not be read", "refusal":error}),
+            ));
+        }
+    };
+    let engine = status["effects"]["engine"].as_str().unwrap();
     if engine == "none" {
         return Some(CheckReceipt::blocked(
             "effects",
@@ -89,7 +104,7 @@ pub(super) fn check_effects(
             }),
         ));
     }
-    let rows = match outbox_rows(owner) {
+    let rows = match outbox_rows(owner).and_then(|rows| observe_rows(owner, rows)) {
         Ok(rows) => rows,
         Err(error) => {
             return Some(CheckReceipt::fail(
@@ -107,13 +122,14 @@ pub(super) fn check_effects(
     for (effect, decl) in effects {
         let found = &evidence[effect];
         if !found.refused.is_empty() {
-            refused.insert(effect.clone(), Json::Array(found.refused.clone()));
+            refused.insert(
+                effect.clone(),
+                json!({"rows":found.refused,"dropped":found.dropped}),
+            );
         }
         match &found.witness {
             Some(witness) => {
-                let mut witness = witness.clone();
-                witness["ms"] = witness_ms(owner, witness["seq"].as_u64());
-                witnesses.insert(effect.clone(), witness);
+                witnesses.insert(effect.clone(), witness.clone());
             }
             None => missing.push(json!({
                 "effect": effect,
@@ -164,17 +180,17 @@ fn engine_build() -> String {
 }
 
 fn journey_needed(effect: &str, decl: &EffectDecl) -> String {
-    let origin = decl
+    let provider = decl
         .grants
         .first()
-        .map(String::as_str)
-        .unwrap_or("<origin>");
+        .map(|origin| format!(", binds its provider with effects.provider({origin:?}, handler)"))
+        .unwrap_or_default();
     let then = match &decl.then {
         Some(then) => format!(" and lets {then} commit"),
         None => String::new(),
     };
     format!(
-        "a journey that emits {effect} through a real mutation, job, or schedule, binds its provider with effects.provider({origin:?}, handler), and settles it with effects.settle({{ upTo }}){then}"
+        "a journey that emits {effect} through a real mutation, job, or schedule{provider}, and settles it with effects.settle({{ upTo }}){then}"
     )
 }
 
@@ -189,28 +205,12 @@ fn outbox_rows(owner: &OwnerInfo) -> Result<Vec<Json>, Refusal> {
             ),
             None => "/control/outbox?limit=200".to_owned(),
         };
-        let response = client::control(owner, "GET", &path, json!({}))?;
-        if response.status >= 400 {
-            return Err(
-                serde_json::from_value(response.body.clone()).unwrap_or_else(|_| {
-                    Refusal::owner(
-                        "E_OWNER_TEST_OUTBOX",
-                        format!(
-                            "outbox page answered {}: {}",
-                            response.status, response.body
-                        ),
-                        "rerun snapback2 test",
-                    )
-                }),
-            );
-        }
-        rows.extend(
-            response.body["rows"]
-                .as_array()
-                .cloned()
-                .unwrap_or_default(),
-        );
-        after = response.body["after"].as_str().map(str::to_owned);
+        let response = checked_control(owner, "GET", &path, json!({}))?;
+        let page = response["rows"].as_array().ok_or_else(|| {
+            supervisor_refusal(format!("outbox page omitted rows: {response}"), &path)
+        })?;
+        rows.extend(page.iter().cloned());
+        after = response["after"].as_str().map(str::to_owned);
         if after.is_none() {
             break;
         }
@@ -218,35 +218,103 @@ fn outbox_rows(owner: &OwnerInfo) -> Result<Vec<Json>, Refusal> {
     Ok(rows)
 }
 
-/// The claim-to-settlement time the runner logged on the row's
-/// `running → then_pending | sent` line, read from its transition history.
-fn witness_ms(owner: &OwnerInfo, seq: Option<u64>) -> Json {
-    let Some(seq) = seq else { return Json::Null };
-    client::control(
-        owner,
-        "GET",
-        &format!("/control/trace?seq={seq}"),
-        json!({}),
+// Read each emission's history once; several effects may share its commit.
+fn observe_rows(owner: &OwnerInfo, mut rows: Vec<Json>) -> Result<Vec<Json>, Refusal> {
+    let mut histories = BTreeMap::new();
+    for row in &mut rows {
+        let Some(seq) = row["seq"].as_u64() else {
+            continue;
+        };
+        if let std::collections::btree_map::Entry::Vacant(entry) = histories.entry(seq) {
+            let trace = checked_control(
+                owner,
+                "GET",
+                &format!("/control/trace?seq={seq}"),
+                json!({}),
+            )?;
+            entry.insert(
+                trace["outbox"]["history"]
+                    .as_array()
+                    .cloned()
+                    .unwrap_or_default(),
+            );
+        }
+        attempt_evidence(row, &histories[&seq]);
+    }
+    Ok(rows)
+}
+
+fn attempt_evidence(row: &mut Json, history: &[Json]) {
+    // Requeue resets attempts. Scan from the last claim for this id/attempt,
+    // never borrowing a prior authorized run's contact or another row's time.
+    let start = history.iter().rposition(|line| {
+        let line = &line["outbox"];
+        line["id"] == row["id"] && line["to"] == "running" && line["attempt"] == row["attempts"]
+    });
+    let lines = &history[start.unwrap_or(history.len())..];
+    let matches = |line: &&Json| {
+        line["outbox"]["id"] == row["id"] && line["outbox"]["attempt"] == row["attempts"]
+    };
+    let settlement = lines
+        .iter()
+        .filter(matches)
+        .rev()
+        .find(|line| line["outbox"]["to"] == row["state"]);
+    let provider = settlement.map(|line| line["outbox"]["provider"].clone());
+    let ms = lines
+        .iter()
+        .filter(matches)
+        .find(|line| {
+            line["outbox"]["from"] == "running"
+                && matches!(
+                    line["outbox"]["to"].as_str(),
+                    Some("then_pending" | "sent" | "failed" | "queued")
+                )
+        })
+        .map(|line| line["outbox"]["ms"].clone())
+        .filter(Json::is_number);
+    if let Some(provider) = provider.filter(|p| !p.is_null()) {
+        row["provider"] = provider;
+    }
+    row["ms"] = ms.unwrap_or(Json::Null);
+    if row["ms"].is_null() {
+        row["timing"] = json!("unavailable");
+    }
+}
+
+fn supervisor_refusal(message: impl Into<String>, site: &str) -> Refusal {
+    Refusal::new(
+        "E_OWNER_TEST_IO",
+        "owner",
+        message,
+        "rerun snapback2 test",
+        "testing",
     )
-    .ok()
-    .and_then(|response| {
-        response.body["outbox"]["history"]
-            .as_array()?
-            .iter()
-            .map(|line| &line["outbox"])
-            .find(|line| {
-                line["from"] == "running"
-                    && matches!(line["to"].as_str(), Some("then_pending" | "sent"))
-            })
-            .map(|line| line["ms"].clone())
-    })
-    .unwrap_or(Json::Null)
+    .with_site(site)
+}
+
+fn checked_control(
+    owner: &OwnerInfo,
+    method: &str,
+    path: &str,
+    body: Json,
+) -> Result<Json, Refusal> {
+    let response = client::control(owner, method, path, body)
+        .map_err(|error| supervisor_refusal(format!("{}: {}", error.code, error.message), path))?;
+    if response.status >= 400 {
+        return Err(supervisor_refusal(
+            format!("HTTP {}: {}", response.status, response.body),
+            path,
+        ));
+    }
+    Ok(response.body)
 }
 
 #[derive(Default)]
 struct Evidence {
     witness: Option<Json>,
     refused: Vec<Json>,
+    dropped: usize,
 }
 
 const REFUSED_CAP: usize = 20;
@@ -285,16 +353,28 @@ fn witness_evidence(
             Some(_) => row["then"].clone(),
         };
         let committed = decl.then.is_none() || then["state"] == "committed";
+        let provider = if decl.grants.is_empty() {
+            json!({"declared":false})
+        } else {
+            row["provider"].clone()
+        };
+        let contacted =
+            decl.grants.is_empty() || provider["requests"].as_u64().is_some_and(|n| n > 0);
         match row["state"].as_str() {
-            Some("sent") if committed => {
-                let witness = json!({
+            Some("sent") if committed && contacted => {
+                let mut witness = json!({
                     "journey": window.journey,
                     "id": row["id"],
                     "seq": seq,
                     "attempts": row["attempts"],
                     "state": "sent",
                     "then": then,
+                    "provider": provider,
+                    "ms": row["ms"],
                 });
+                if witness["ms"].is_null() {
+                    witness["timing"] = json!("unavailable");
+                }
                 if found
                     .witness
                     .as_ref()
@@ -303,13 +383,18 @@ fn witness_evidence(
                     found.witness = Some(witness);
                 }
             }
-            Some("sent") | Some("failed") if found.refused.len() < REFUSED_CAP => {
+            Some("sent") | Some("failed") => {
+                if found.refused.len() == REFUSED_CAP {
+                    found.dropped += 1;
+                    continue;
+                }
                 found.refused.push(json!({
                     "journey": window.journey,
                     "id": row["id"],
                     "seq": seq,
                     "state": row["state"],
                     "lastError": row["lastError"],
+                    "provider": provider,
                     "then": then,
                 }));
             }
@@ -345,6 +430,7 @@ mod tests {
 
     fn row(id: &str, seq: u64, state: &str, then: Json) -> Json {
         let mut row = json!({ "id": id, "seq": seq, "effect": "delivery.notify", "state": state, "attempts": 1, "lastError": null });
+        row["provider"] = json!({"origins":["https://api.example.com"],"requests":1,"refused":{}});
         if !then.is_null() {
             row["then"] = then;
         }
@@ -416,5 +502,170 @@ mod tests {
             needs.contains("lets notifications.recordNotified commit"),
             "{needs}"
         );
+    }
+
+    #[test]
+    fn timing_and_provider_contact_match_the_outbox_id_and_latest_attempt() {
+        let history = vec![
+            json!({"outbox":{"id":"slow","attempt":1,"to":"running"}}),
+            json!({"outbox":{"id":"slow","attempt":1,"from":"running","to":"sent","ms":900,"provider":{"requests":1}}}),
+            json!({"outbox":{"id":"fast","attempt":1,"to":"running"}}),
+            json!({"outbox":{"id":"fast","attempt":1,"from":"running","to":"then_pending","ms":7,"provider":{"requests":1}}}),
+            json!({"outbox":{"id":"fast","attempt":1,"from":"then_pending","to":"sent","provider":{"requests":1}}}),
+        ];
+        let mut slow = row("slow", 3, "sent", Json::Null);
+        let mut fast = row("fast", 3, "sent", Json::Null);
+        attempt_evidence(&mut slow, &history);
+        attempt_evidence(&mut fast, &history);
+        assert_eq!(slow["ms"], 900);
+        assert_eq!(fast["ms"], 7);
+        // Operator requeue resets attempts. A later claim with the same number
+        // must not reuse the former attempt's settlement or elapsed time.
+        let mut requeued = history;
+        requeued.push(json!({"outbox":{"id":"fast","attempt":1,"to":"running"}}));
+        fast.as_object_mut().unwrap().remove("provider");
+        attempt_evidence(&mut fast, &requeued);
+        assert_eq!(fast["ms"], Json::Null);
+        assert_eq!(fast["timing"], "unavailable");
+        assert!(fast["provider"].is_null());
+    }
+
+    #[test]
+    fn granted_success_without_contact_is_not_a_witness_and_grantless_success_is_explicit() {
+        let mut sent = row("none", 3, "sent", Json::Null);
+        sent["provider"] = json!({"origins":[],"requests":0,"refused":{"E_EFFECT_UNBOUND":1}});
+        let windows = [window("no contact", 2, 4)];
+        let effects = declared(None);
+        let found = witness_evidence(&[sent.clone()], &windows, &effects);
+        assert!(found["delivery.notify"].witness.is_none());
+        assert_eq!(found["delivery.notify"].refused.len(), 1);
+        let mut no_grants = effects;
+        no_grants.get_mut("delivery.notify").unwrap().grants.clear();
+        let found = witness_evidence(&[sent], &windows, &no_grants);
+        let witness = found["delivery.notify"].witness.as_ref().unwrap();
+        assert_eq!(witness["provider"], json!({"declared":false}));
+        assert_eq!(witness["then"], json!({"declared":false}));
+        assert_eq!(witness["timing"], "unavailable");
+    }
+
+    #[test]
+    fn refused_evidence_reports_every_row_dropped_past_twenty() {
+        let rows = (1..=27)
+            .map(|i| row(&format!("refused-{i}"), i, "failed", Json::Null))
+            .collect::<Vec<_>>();
+        let found = witness_evidence(&rows, &[window("refusals", 0, 28)], &declared(None));
+        assert_eq!(found["delivery.notify"].refused.len(), 20);
+        assert_eq!(found["delivery.notify"].dropped, 7);
+        assert!(found["delivery.notify"].witness.is_none());
+    }
+
+    fn effect_project() -> CompiledProject {
+        use snapback2_core::{Auth, Ceilings, Generation, ProjectJson, Schema};
+        let effects = declared(None).into_values().collect::<Vec<_>>();
+        let project = ProjectJson {
+            version: 1,
+            schema: Schema {
+                schedules: vec![],
+                tables: BTreeMap::new(),
+                maintains: vec![],
+                channels: BTreeMap::new(),
+                auth: Auth::default(),
+                effects: vec!["delivery.notify".into()],
+            },
+            programs: vec![],
+            effects,
+            auth: Auth::default(),
+        };
+        CompiledProject {
+            generation: Generation::certify(&project, Ceilings::default()).unwrap(),
+            project,
+            api_dts: String::new(),
+            compiler_ms: 0.0,
+            quarry: vec![],
+            sources: BTreeMap::new(),
+        }
+    }
+
+    fn test_owner(port: u16) -> OwnerInfo {
+        OwnerInfo {
+            pid: 0,
+            port,
+            url: format!("http://127.0.0.1:{port}"),
+            secret: "test".into(),
+            generation: String::new(),
+            started_at: 0,
+            mode: "dev".into(),
+            project: std::env::temp_dir(),
+        }
+    }
+
+    #[test]
+    fn a_failing_control_client_fails_instead_of_claiming_engine_absence() {
+        use std::io::{Read, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let owner = test_owner(listener.local_addr().unwrap().port());
+        let server = std::thread::spawn(move || {
+            let (mut socket, _) = listener.accept().unwrap();
+            let mut bytes = [0; 4096];
+            let _ = socket.read(&mut bytes);
+            socket
+                .write_all(
+                    b"HTTP/1.1 500 Broken\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}",
+                )
+                .unwrap();
+        });
+        let receipt = check_effects(&owner, &effect_project(), &[]).unwrap();
+        server.join().unwrap();
+        assert_eq!(receipt.verdict, "fail");
+        assert!(
+            !receipt
+                .detail
+                .to_string()
+                .contains("no engine in this build")
+        );
+        let refusal = supervisor_refusal("bad reply", "/control/outbox");
+        assert_eq!(refusal.code, "E_OWNER_TEST_IO");
+        assert_eq!(refusal.site.as_deref(), Some("/control/outbox"));
+        assert_eq!(refusal.guide, "testing");
+    }
+
+    #[test]
+    fn epoch_close_with_a_running_row_fails_with_the_row_identity() {
+        use std::io::{Read, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let owner = test_owner(listener.local_addr().unwrap().port());
+        let server = std::thread::spawn(move || {
+            let (mut socket, _) = listener.accept().unwrap();
+            {
+                use std::io::BufRead;
+                let mut reader = std::io::BufReader::new(&mut socket);
+                let mut length = 0;
+                loop {
+                    let mut line = String::new();
+                    reader.read_line(&mut line).unwrap();
+                    if line == "\r\n" {
+                        break;
+                    }
+                    if let Some((key, value)) = line.split_once(':') {
+                        if key.eq_ignore_ascii_case("content-length") {
+                            length = value.trim().parse().unwrap();
+                        }
+                    }
+                }
+                reader.read_exact(&mut vec![0; length]).unwrap();
+            }
+            let body = json!({"until":3,"running":[{"id":"held","attempt":1,"state":"running"}]})
+                .to_string();
+            write!(
+                socket,
+                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            )
+            .unwrap();
+        });
+        let refused = close_epoch(&owner).unwrap_err();
+        server.join().unwrap();
+        assert_eq!(refused.detail["running"][0]["id"], "held");
+        assert!(refused.message.contains("budget + 1 s"));
     }
 }

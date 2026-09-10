@@ -140,6 +140,11 @@ test("a dev owner refuses provider bindings, and E_EFFECT_UNBOUND is a registere
   const content = String(JSON.parse(card.stdout).content);
   assert.match(content, /# E_EFFECT_UNBOUND/);
   assert.match(content, /Family: `effect`/);
+  const ioCard = cli(["guide", "E_OWNER_TEST_IO", "--json"]);
+  assert.equal(ioCard.status, 0, ioCard.stdout + ioCard.stderr);
+  const ioContent = String(JSON.parse(ioCard.stdout).content);
+  assert.match(ioContent, /Family: `owner`/);
+  assert.match(ioContent, /snapback2 test/);
   assert.match(content, /effects\.provider\("https:\/\/api\.example\.com", async \(\) => Response\.json/);
 });
 
@@ -179,4 +184,48 @@ test("a journey that throws on an engine:none settle is recorded blocked: effect
   assert.equal(journey?.detail.journey.file.endsWith("effects-visibility.mjs"), true, JSON.stringify(journey));
   assert.match(journey?.detail.journey.error, /^unsettled: \[\{"id":"[^"]+","reason":"engine:none"\}\]$/, JSON.stringify(journey));
   assert.equal(receipt.checks.some((check: any) => check.verdict === "fail"), false, receiptRun.stdout);
+});
+
+
+test("provider capture bounds UTF-8 bytes at scalar boundaries and reports dropped requests", { timeout: 30_000 }, async () => {
+  await writeFile(join(root, "snapback/tests/provider-capture.test.ts"), `
+import { journey } from "snapback2/test";
+journey("capture bounds", async ({ effects }) => {
+  const provider = await effects.provider("https://api.example.com", request => Response.json({ host: request.headers.get("host"), url: request.url }));
+  for (const body of ["界".repeat(16384), "a" + "界".repeat(5461), "界".repeat(5461) + "ab"]) {
+    const response = await fetch(provider.to + "/capture", { method: "POST", body });
+    const data = await response.json();
+    const record = provider.requests[provider.requests.length - 1];
+    const retained = new TextEncoder().encode(record.body).length;
+    const bytes = new TextEncoder().encode(body).length;
+    if (retained > 16384 || record.body.includes("�")) throw new Error("capture retained " + retained + " bytes, limit 16384");
+    if (record.bodyBytes !== bytes) throw new Error("missing original byte count: " + record.bodyBytes);
+    if (bytes > 16384 && (record.bodyCapped?.bytes !== bytes || record.bodyCapped?.limit !== 16384)) throw new Error("capture omitted its cap");
+    if (bytes === 16384 && (record.body !== body || record.bodyCapped)) throw new Error("exact boundary was truncated");
+    if (data.host !== "api.example.com" || data.url !== "https://api.example.com/capture" || record.headers.host !== "api.example.com") throw new Error("logical host lost: " + JSON.stringify(data));
+  }
+  for (let i = 3; i < 201; i++) await (await fetch(provider.to + "/capture")).text();
+  if (provider.requests.length !== 200 || provider.dropped !== 1) throw new Error("request cap not reported");
+});
+`);
+  try {
+    const result = cli(["test", "--journey", "capture bounds", "--json"]);
+    const receipt = JSON.parse(result.stdout);
+    assert.equal(receipt.verdict, "pass", result.stdout + result.stderr);
+  } finally { await rm(join(root, "snapback/tests/provider-capture.test.ts")); }
+});
+
+test("derived-only states its scope and skips the effects witness check", { timeout: 30_000 }, () => {
+  const result = cli(["test", "--derived-only", "--json"]);
+  const receipt = JSON.parse(result.stdout);
+  assert.deepEqual(receipt.scope, { changed: [], derivedOnly: true });
+  assert.equal(receipt.checks.some((check: any) => check.name === "effects" || check.kind === "journey"), false, result.stdout);
+  assert.equal(receipt.verdict, "pass", result.stdout + result.stderr);
+});
+
+test("manual dev cannot opt into test-owner bindings", () => {
+  const result = cli(["dev", "--test-owner", "--status", "--json"]);
+  const refused = JSON.parse(result.stdout || result.stderr);
+  assert.equal(refused.code, "E_INPUT", result.stdout + result.stderr);
+  assert.match(refused.message, /snapback2 test/);
 });
