@@ -367,14 +367,7 @@ async function runCheck(
   const clients = new Set<SnapbackClient>();
   const devices = new Set<Device>();
   const providers = new Set<JourneyProvider>();
-  // Keep stand-ins answering until the supervisor has closed and drained the
-  // epoch. Install the reader before the receipt so an immediate ack is kept.
-  const epochClosed = epoch ? new Promise<void>(resolveClosed => {
-    const done = () => { process.stdin.pause(); resolveClosed(); };
-    process.stdin.once("data", done);
-    process.stdin.once("end", done);
-    process.stdin.resume();
-  }) : Promise.resolve();
+  let epochClosed: Promise<void> | undefined;
   process.stdout.write(`${JSON.stringify({ runner: "start", name: check.name })}\n`);
   try {
     if (storeRoot) await rm(storeRoot, { recursive: true, force: true });
@@ -424,6 +417,19 @@ async function runCheck(
         provider: async (origin, handler) => {
           const provider = await startProvider(url, secret, epoch, origin, handler);
           providers.add(provider);
+          // Only a bound provider needs to live until the drained close. Arm
+          // before the receipt so an immediate acknowledgment is retained.
+          epochClosed ??= new Promise<void>(resolveClosed => {
+            const done = () => {
+              process.stdin.off("data", done);
+              process.stdin.off("end", done);
+              process.stdin.pause();
+              resolveClosed();
+            };
+            process.stdin.once("data", done);
+            process.stdin.once("end", done);
+            process.stdin.resume();
+          });
           return provider;
         },
       },

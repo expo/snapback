@@ -418,3 +418,205 @@ The shared program's report at `/Users/ccheever/projects/snapback-ri-20260910/re
 - `:authority` is not exposed by the current HTTP/1/Web Request carrier. Logical Host is implemented and tested; any future HTTP/2 carrier must preserve logical authority too.
 - Existing page budgets are 8,192, not the common brief's older 4,096; unchanged.
 - No remaining design question is reopened.
+
+
+## Fix round r2
+
+Base/unchanged HEAD: `79e6cf693d2790164e69d03266819971ad9ccb56`, branch `s2/ri-witness`.
+No commit, stash, branch operation, or full-suite run. Governing scope: LLP 1021 §3–§4,
+LLP 1003 §2–§4, LLP 1002 §7, and the r1 rulings. Codex r2 and the completed Grok r2
+review were read; Grok arrived during implementation and reports LAND WITH FIXES,
+none blocking. This section supersedes r1's witness/refusal and runner-exit claims.
+
+### Item disposition
+
+1. **FIXED — caught refusals cannot witness.** A granted effect requires an empty
+   `provider.refused` object as well as substituted contact. Any recorded refusal
+   also disqualifies a grant-less effect. The terminal row retains its real provider
+   evidence in `refused`, even after catching the denial and returning JSON.
+   Real-owner tests `caught_ungranted_redirect_after_provider_contact_is_not_a_witness`
+   and `caught_unbound_redirect_after_provider_contact_is_not_a_witness` assert a
+   passing refusal journey, `effects:no-witness`, exactly one negative row with one
+   substituted request and one refusal, no witness, and zero hits at the reachable
+   denied destination. Unit:
+   `caught_refusals_never_witness_even_after_contact_or_without_declared_grants`.
+   Guide testing says a caught refusal proves nothing, including after a substituted
+   hop; it defines `refused` as terminal rows that are not witnesses.
+2. **FIXED — default-build chat expectation.**
+   `quarry_chat_init_check_and_test_end_to_end` requires exactly the named provider
+   journey's `blocked: effects:no-engine`, all other 16 journeys passing, and the
+   existing `effects` check's `blocked: no engine in this build`. No behavior changed.
+3. **FIXED — unsuccessful runner exit.** The supervisor takes and drops stdin after
+   its single drained-close acknowledgment. Leaving that pipe open kept Node alive
+   until grace cleanup, masking natural nonzero exits and preventing `beforeExit`.
+   Existing real CLI regression
+   `selection::a_passing_body_receipt_cannot_hide_an_unsuccessful_runner_exit` passes
+   with both `exitCode` and `beforeExit`, selected and full-suite modes. New unit
+   `drained_close_ends_stdin_and_preserves_the_runners_unsuccessful_exit` exercises
+   the actual child process/acknowledgment, retains the passing body receipt, and
+   asserts exit codes 7/9 without grace termination. Whole `test_verb` file passes.
+4. **FIXED — idle cleanup waiting.** `runCheck` opens/awaits the stdin handshake only
+   after successfully binding a provider and removes both listeners at acknowledgment.
+   Package regression `a completed journey with no provider exits without an epoch
+   acknowledgment` holds stdin open, sends no acknowledgment, and proves natural
+   exits 0/7/9. Existing `close_effects_epoch` already returned immediately for an
+   empty claim list; new unit
+   `epoch_close_without_outstanding_claims_returns_without_polling` pins that it
+   issues only the initial close action. Active-claim waits remain intact, proven by
+   `epoch_close_waits_for_its_claim_and_post_close_emissions_are_unbound` and
+   `supervisor_close_keeps_a_completed_journeys_provider_alive_until_settlement`.
+   The budget + 2 s receive allowance is a maximum, not a sleep; it did not need
+   changing. Epoch boundaries/round trips remain. Guide testing states the idle rule.
+5. **FIXED — unavailable history.** `observe_rows` retains the trace route's
+   `{ unavailable: reason }`; receipt `detail.history[effect]` records journey, seq,
+   and reason. Missing coverage caused by this becomes `effects:history-unavailable`
+   and names that history instead of `needs: another journey`. Malformed history
+   fails with sited `E_OWNER_TEST_IO`. Tests:
+   `unavailable_history_retains_its_reason_instead_of_requesting_another_witness`
+   and `malformed_trace_history_fails_instead_of_claiming_a_missing_witness`.
+   Both exercise control HTTP replies through `check_effects`, including two rows
+   sharing one cached trace request. Null, object without reason, non-string/empty
+   reason, and string reply are malformed cases. Guide testing states both outcomes.
+6. **FIXED — binding refusal sites.** Epoch/bind routes attach their path through
+   `Refusal::with_site`; epoch-state, stale-token, invalid-origin, and non-loopback
+   refusals also carry the site from the writer. No diagnostic code added.
+   `binding_refusals_report_their_route` covers the writer cases; package
+   `a dev owner refuses provider bindings, and E_EFFECT_UNBOUND is a registered
+   effect-family card` now asserts route sites on malformed epoch/bind requests
+   and dev-owner refusals. Guide testing names the rule and repair.
+7. **FIXED — minor corrections.** RFC §3 names `test_journey_runner.rs` for the
+   supervisor. `a_failing_control_client_fails_instead_of_claiming_engine_absence`
+   asserts the actual `receipt.detail.refusal`: `E_OWNER_TEST_IO`, `/control/status`,
+   owner family, testing page, rerun rewrite, and HTTP 500 message.
+8. **FIXED — records.** This section appended to the worktree's
+   `reports/final-witness.md`; standalone `REPORT-witness.md` written; r2 line
+   appended under LLP 1021's Implementation record. RFC Status unchanged.
+
+### Before / after evidence
+
+Logs retained in `/tmp/witness-r2-*.log`.
+
+- Redirect regressions against base behavior (`redirect-before.log`):
+  `test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 16 filtered out; finished in 15.65s`.
+  Both wrongly selected a `sent` witness with `requests: 1` and
+  `refused: { E_EFFECT_GRANT: 1 }` / `{ E_EFFECT_UNBOUND: 1 }`. After: both assert
+  `blocked: effects:no-witness`, retained negative evidence, zero denied hits.
+- Init (`init-before.log`):
+  `test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 16 filtered out; finished in 22.93s`.
+  The named provider journey was correctly blocked; the all-pass expectation was wrong.
+- Runner (`exit-before.log`): `left: Some(0)`, `right: Some(1)`, receipt `verdict: pass`;
+  `test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 33 filtered out; finished in 3.06s`.
+  Isolated real Node pipe reproduction: pipe left open → SIGKILL at 506 ms;
+  pipe ended → natural exit 7 at 25 ms. After: the CLI exits 1 with a fail receipt
+  retaining the passing body and the runner's actual unsuccessful status.
+- Provider-free runner (`handshake-before.log`): `ℹ tests 1`, `ℹ pass 0`, `ℹ fail 1`;
+  timeout killed it (`null !== 0`). After: natural exit without any acknowledgment.
+- History (`history-before.log`): unavailable reason became `effects:no-witness`;
+  malformed reply became `blocked` instead of `fail`; each new test failed 0/1.
+  After: reason retained; malformed reply fails at `/control/trace?seq=3`.
+- Sites (`sites-before.log`, `route-sites-before.log`): writer `site: None` and
+  HTTP `site: undefined` instead of `/control/effects/epoch`; both tests failed.
+  After: epoch/bind/stale refusals carry the applicable route.
+
+### Verification and loop measurements
+
+- `scripts/hermes test -p snapback2-effects`:
+  `test result: ok. 73 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.77s`.
+- `scripts/hermes test -p snapback2 --test effects -- --test-threads=2`:
+  `test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 121.57s`.
+- `cargo test -p snapback2 --test init quarry_chat_init_check_and_test_end_to_end`:
+  `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 20.08s`.
+- `cargo test -p snapback2 --test test_verb`:
+  `test result: ok. 34 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 49.62s`.
+- `cargo test -p snapback2 --bin snapback2 test_effects`:
+  `test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 210 filtered out; finished in 0.01s`.
+- `cargo test -p snapback2 --bin snapback2 writer_bindings`:
+  `test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 213 filtered out; finished in 0.07s`.
+- `cargo test -p snapback2 --bin snapback2 control::`:
+  `test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 213 filtered out; finished in 0.14s`.
+- `cargo test -p snapback2 --bin snapback2 test_journey_runner`:
+  `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 219 filtered out; finished in 0.05s`.
+- `node --test tests/effects-visibility.test.ts` (final serial run):
+  `ℹ tests 8; ℹ suites 0; ℹ pass 8; ℹ fail 0; ℹ cancelled 0; ℹ skipped 0; ℹ todo 0; ℹ duration_ms 32280.124375`.
+- `cargo build`, `cargo build -p snapback2-media`: exit 0.
+- `node build.mjs`: exit 0; `guide: 31 cards, 84472/98304 bytes (14% headroom)`.
+  Testing page: 7,130 / existing 8,192-byte cap; no budget raised.
+- `./ref-check --verbose`: `ref-check: ok — 439 LLP docs, 8599 refs in 22365 files, 0 errors, 0 unchecked`.
+- `git diff --check`: pass. Every changed file is below 1,500 lines; largest
+  changed source is `tests/init.rs`, 1,069 lines.
+- `node scripts/caps.mjs`: only the two pre-existing Snapback 1 violations:
+  `crates/snapback-tools/src/bin/snapback-agent-safe-paired.rs` (1,504),
+  `packages/snapback-contract/agent-authority-contract.test.mjs` (1,508).
+  No Snapback 2 violation. No owner-stop sandbox artifact in the passing Hermes run.
+
+Local `node scripts/measure.mjs --check`, pinned Node 24.18.0:
+
+| Step | Before | First fixed run | Final fixed run |
+|---|---:|---:|---:|
+| Chat `test` | 13.918 s | 9.760 s | 10.195 s |
+| Todos `test` | 1.241 s | 0.867 s | 0.964 s |
+| Install tarballs | 12.811 s | 0.991 s | 1.086 s |
+| Entire consumer smoke (30 s budget) | 35.41 s | 18.66 s | 20.08 s |
+
+The first cache was cold: the entire smoke improvement includes npm warming.
+Chat's own reduction is 3.723 s in the final run (4.158 s in the first fixed run),
+consistent with removing the 17 unnecessary 250 ms grace waits. The host's supplied
+baseline is 32.56 s overall / 18.5 s chat; no host-after timing is claimed.
+All final measured latency budgets pass. `measure --check` exits 1 solely on the
+same three package-size comparisons as the before run and supplied host log:
+
+```
+measure: client_gzip_bytes: 138714 bytes exceeds 136547 by more than 1%
+measure: react_gzip_bytes: 148334 bytes exceeds 146166 by more than 1%
+measure: expo_gzip_bytes: 152004 bytes exceeds 149836 by more than 1%
+ok runtime_gzip_bytes: 84986 bytes ≤ 84580 + 1%
+ok Test what you just changed: 20.08s ≤ 30s
+measure: failed steps: client_gzip_bytes, react_gzip_bytes, expo_gzip_bytes
+```
+
+All four measured byte values are identical before and after this round. Those
+inherited byte regressions are outside this lane; no baseline/ceiling changed.
+
+Intermediate verification: the concurrent package run was 6 passed / 2 failed,
+with compiler `Cannot find module 'snapback2/internal'` / missing declarations
+while the Rust fixture was rebuilding the shared package. The final serial run
+passes 8/8. Initial redirect fixtures were corrected for the declared `unknown`
+result type and for grant error codes living on `error.code`; the retained
+`redirect-before.log` is the corrected fixture against base behavior, failing
+both witness assertions (not TypeScript compilation).
+
+
+### Files and scope
+
+- Owner: `snapback2/crates/snapback2/src/{test_effects,test_journey_runner,writer_bindings,control}.rs`.
+- Rust tests: `snapback2/crates/snapback2/tests/init.rs`, `tests/effects_cases/witness.rs`.
+- Package: `snapback2/packages/snapback2/src/test.ts`, `tests/effects-visibility.test.ts`, `guide/testing.md`.
+- Records: `llp/1021-effects-in-the-loop.rfc.md`, `reports/final-witness.md`, `REPORT-witness.md`.
+- Measurement-generated additions outside the lane's literal source list:
+  `snapback2/metrics/{loop,twin}.jsonl`; retained append-only. No budgets changed.
+- `tests/common/mod.rs` was reformatted transitively by rustfmt, then restored byte-for-byte;
+  no remaining diff. Other formatting changes are limited to touched files.
+- Pre-existing `vendor/llp` change was left untouched. Nothing under the shared
+  `/Users/ccheever/projects/snapback-ri-20260910` program directory was modified;
+  it is outside the writable roots. The orchestrator can copy the local report back.
+
+### Deviations / remaining work
+
+- No r2 item refused and no design ruling reopened. Exact blocked-history receipt
+  spelling was not prescribed; `effects:history-unavailable` plus `detail.history`
+  makes the requested distinction without adding a diagnostic family or code.
+- Empty epoch close already had the required immediate return on this base;
+  the wasted time was the stdin lifetime and unconditional handshake, not the
+  active-claim drain or its receive timeout.
+- R1 item 10 remains ticketed as ruled:
+  `issues/20260910-snapback2-crash-after-provider-before-settlement-witness-seam.md`.
+  No claim of a post-provider/pre-durable-settlement crash proof.
+- Grok's additional nonblocking coverage suggestions (bind-after-emit journey,
+  engine-bearing derived-only run, https Host-built redirect, production response URL)
+  were read; they are not new implementation items in this fix brief. Its `refused`
+  terminology and two overlapping minor comments are covered here.
+- No full suite run: the fix-round instruction assigns that to the orchestrator.
+- Node on the initial PATH was the Volta shim/v25.9.0; every build/test/measurement
+  used the real `/Users/ccheever/.volta/tools/image/node/24.18.0/bin` first on PATH.
+  Initial measurement hit EPERM writing the default npm cache; reruns used
+  `npm_config_cache=/tmp/witness-r2-npm-cache`, without changing configuration.

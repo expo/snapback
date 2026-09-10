@@ -50,6 +50,10 @@ journey; bind before emitting. A row claimed between emit and bind fails
 `response.url` (including redirects), stay logical. The supervisor closes the
 epoch on every exit, waiting for its in-flight claims for at most the effect
 budget + 1 s. A still-running row fails the journey before another epoch opens.
+Close returns at once with no outstanding claims; a journey with no provider
+needs no cleanup acknowledgment.
+Malformed bindings and stale epochs return `E_INPUT` with the control route
+as the site; bind through `effects.provider` in the current journey.
 `provider.requests` captures method, path, headers and UTF-8 body text: at most
 200 requests and 16 KiB per body, cut at a character boundary. `bodyBytes`
 reports original bytes; `bodyCapped: { bytes, limit }` reports truncation;
@@ -59,15 +63,19 @@ With an engine, each declared effect needs one journey emission whose row is
 `sent` and whose declared `then` committed. An effect with grants also needs
 at least one request the bound transport substituted in that attempt, recorded
 as `provider: { origins, requests, refused }` on its transition. Returning
-without fetching or catching an unbound/grant refusal proves no provider
-contact. An effect with no grants records `provider: { declared: false }`;
+without fetching proves no provider contact. A caught unbound/grant refusal
+proves nothing, even after a substituted hop: that attempt is negative evidence
+and cannot witness. An effect with no grants records `provider: { declared: false }`;
 no `then` records `then: { declared: false }`. The witness receipt lists
 `{ journey, id, seq, attempts, state, ms, provider, then }`. Timing matches the
 outbox id and attempt; unavailable timing is `ms: null, timing: "unavailable"`.
-Negative evidence is `refused[effect]: { rows, dropped }`, capped at 20 rows.
+Negative evidence is `refused[effect]: { rows, dropped }`: terminal rows that
+are not witnesses, capped at 20 rows.
 Missing witnesses block `effects:no-witness`, naming the effect and journey
-needed. A control-client failure fails the check; only an observed engine
-absence blocks it. A selected journey run skips the check with `scope.journey`.
+needed. Unavailable trace history blocks `effects:history-unavailable` with its
+reason in `detail.history`, instead of asking for another witness. Malformed
+history or a control-client failure fails the check. A selected journey run
+skips the check with `scope.journey`.
 `E_OWNER_TEST_IO` names the failed supervisor control route; rerun `snapback2 test`.
 
 Projects with scoped memberships also run the canonical `live-revocation`,

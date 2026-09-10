@@ -566,6 +566,90 @@ fn caught_unbound_refusal_returning_success_is_not_a_witness() {
     successful_return_without_contact(true, false);
 }
 
+fn caught_redirect_refusal(granted: bool) {
+    let denied = Provider::start();
+    let destination = denied.origin();
+    let code = if granted {
+        "E_EFFECT_UNBOUND"
+    } else {
+        "E_EFFECT_GRANT"
+    };
+    let project = scaffold_chat();
+    let grants = if granted {
+        format!("\"https://api.example.com\", {destination:?}")
+    } else {
+        "\"https://api.example.com\"".into()
+    };
+    fs::write(
+        project.path.join("snapback/delivery.ts"),
+        format!(
+            r#"
+import {{ effect }} from "snapback2";
+export const notify = effect({{
+  grants: [{grants}],
+  run: async (_payload, {{ fetch }}) => {{
+    try {{ await fetch("https://api.example.com/send"); }}
+    catch (error) {{ return {{ refusal: (error as {{ code?: string }}).code ?? String(error) }}; }}
+    throw new Error("redirect should refuse");
+  }},
+}});
+"#
+        ),
+    )
+    .unwrap();
+    fs::write(project.path.join("snapback/tests/chat.test.ts"), format!(r#"
+import {{ journey }} from "snapback2/test";
+import {{ api }} from "snapback2/client";
+journey("caught redirect refusal", async ({{ as, effects }}) => {{
+  const provider = await effects.provider("https://api.example.com", () =>
+    new Response(null, {{ status: 302, headers: {{ location: "{destination}/denied" }} }}));
+  const sent = await as("alice").mutation(api.messages.send, {{ conversationId: "conversation-1", body: "redirect" }});
+  if (sent.state !== "committed") throw new Error(JSON.stringify(sent));
+  const result = await effects.settle({{ upTo: sent.seq, budgetMs: 3000 }});
+  const row = result.rows.find(row => row.seq === sent.seq);
+  if (!result.settled || row?.state !== "sent" || !JSON.stringify(row.result).includes("{code}")) throw new Error(JSON.stringify(result));
+  if (provider.requests.length !== 1) throw new Error(JSON.stringify(provider.requests));
+}});
+"#)).unwrap();
+    let receipt = run_test(&project, &[]);
+    assert_eq!(
+        check(&receipt, "caught redirect refusal")["verdict"],
+        "pass",
+        "{receipt}"
+    );
+    assert_eq!(
+        denied.hits(),
+        0,
+        "no request reached the denied destination"
+    );
+    let effects = check(&receipt, "effects");
+    assert_eq!(effects["verdict"], "blocked", "{effects}");
+    assert_eq!(
+        effects["detail"]["reason"], "effects:no-witness",
+        "{effects}"
+    );
+    assert_eq!(effects["detail"]["witnesses"], json!({}), "{effects}");
+    let refused = &effects["detail"]["refused"]["delivery.notify"]["rows"];
+    assert_eq!(refused.as_array().unwrap().len(), 1, "{effects}");
+    assert_eq!(refused[0]["state"], "sent");
+    assert_eq!(
+        refused[0]["provider"],
+        json!({
+            "origins": ["https://api.example.com"], "requests": 1, "refused": {code: 1}
+        })
+    );
+}
+
+#[test]
+fn caught_ungranted_redirect_after_provider_contact_is_not_a_witness() {
+    caught_redirect_refusal(false);
+}
+
+#[test]
+fn caught_unbound_redirect_after_provider_contact_is_not_a_witness() {
+    caught_redirect_refusal(true);
+}
+
 #[test]
 fn supervisor_close_keeps_a_completed_journeys_provider_alive_until_settlement() {
     let project = scaffold_chat();

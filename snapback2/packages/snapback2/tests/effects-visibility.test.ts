@@ -115,18 +115,28 @@ test("a dev owner refuses provider bindings, and E_EFFECT_UNBOUND is a registere
       return { status: response.status, body: await response.json() };
     };
     for (const [path, body] of [
+      ["/control/effects/epoch", { epoch: 1 }],
+      ["/control/effects/bind", { origin: "https://api.example.com" }],
+    ] as const) {
+      const refused = await post(path, body);
+      assert.equal(refused.status, 400, JSON.stringify(refused));
+      assert.equal(refused.body.code, "E_INPUT");
+      assert.equal(refused.body.family, "input");
+      assert.equal(refused.body.site, path);
+      assert.equal(typeof refused.body.rewrite, "string");
+      assert.equal(typeof refused.body.guide, "string");
+    }
+    for (const [path, body] of [
       ["/control/effects/epoch", { epoch: "j1" }],
       ["/control/effects/bind", { origin: "https://api.example.com", to: "http://127.0.0.1:1", epoch: "j1" }],
     ] as const) {
       const refused = await post(path, body);
       assert.equal(refused.status, 400, JSON.stringify(refused));
       assert.equal(refused.body.code, "E_INPUT");
+      assert.equal(refused.body.site, path);
       assert.match(refused.body.message, /journey epoch; this owner serves dev/);
       assert.match(refused.body.rewrite, /effects\.provider\(origin, handler\) in a journey and run snapback2 test/);
     }
-    const malformed = await post("/control/effects/bind", { origin: "https://api.example.com" });
-    assert.equal(malformed.status, 400);
-    assert.match(malformed.body.message, /bind requires origin, to, and epoch/);
     await post("/control/stop", {});
     await new Promise<void>(resolve => owner.exitCode !== null ? resolve() : owner.once("exit", () => resolve()));
   } finally {
@@ -228,4 +238,29 @@ test("manual dev cannot opt into test-owner bindings", () => {
   const refused = JSON.parse(result.stdout || result.stderr);
   assert.equal(refused.code, "E_INPUT", result.stdout + result.stderr);
   assert.match(refused.message, /snapback2 test/);
+});
+
+test("a completed journey with no provider exits without an epoch acknowledgment", async () => {
+  const file = join(root, "no-provider.mjs");
+  for (const [body, status] of [
+    ["", 0],
+    ["process.exitCode = 7;", 7],
+    ["process.once('beforeExit', () => { process.exitCode = 9; });", 9],
+  ] as const) {
+    await writeFile(file, `import { journey } from ${JSON.stringify(join(packageRoot, "dist/test.mjs"))};
+journey("no provider", async () => { ${body} });`);
+    // Hold stdin open without sending an acknowledgment. A provider-free
+    // body must exit naturally without the supervisor's grace cleanup.
+    const child = spawn(process.execPath, [env.SNAPBACK2_TEST_RUNNER,
+      "--url", "http://127.0.0.1:1", "--secret", "unused", "--epoch", "no-provider",
+      "--journey-index", "0", "--", file], { stdio: ["pipe", "pipe", "pipe"] });
+    let stdout = "", stderr = "";
+    child.stdout.on("data", chunk => { stdout += chunk; });
+    child.stderr.on("data", chunk => { stderr += chunk; });
+    const timeout = setTimeout(() => child.kill("SIGKILL"), 1500);
+    const code = await new Promise<number | null>(resolve => child.once("close", resolve));
+    clearTimeout(timeout);
+    assert.equal(code, status, stdout + stderr);
+    assert.equal(JSON.parse(stdout.trim().split("\n").at(-1)!).verdict, "pass");
+  }
 });

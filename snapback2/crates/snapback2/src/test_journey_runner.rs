@@ -115,7 +115,10 @@ fn supervise(
                         if event["kind"] == "journey" {
                             if let Some(close) = on_receipt.take() {
                                 close();
-                                if let Some(stdin) = child.stdin.as_mut() {
+                                // End stdin after the one acknowledgment. An open
+                                // pipe keeps Node alive past grace, hiding its
+                                // natural exit (including beforeExit failures).
+                                if let Some(mut stdin) = child.stdin.take() {
                                     let _ = stdin.write_all(b"closed\n");
                                 }
                             }
@@ -160,4 +163,40 @@ fn terminate_journey_runner(child: &mut Child) {
     }
     #[cfg(not(unix))]
     let _ = child.kill();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn drained_close_ends_stdin_and_preserves_the_runners_unsuccessful_exit() {
+        for (body, status) in [
+            ("process.exitCode = 7;", 7),
+            (
+                "process.once('beforeExit', () => { process.exitCode = 9; });",
+                9,
+            ),
+        ] {
+            let mut command = Command::new("node");
+            command.args(["--input-type=module", "-e", &format!(r#"
+                const closed = new Promise(resolve => {{
+                    const done = () => {{ process.stdin.pause(); resolve(); }};
+                    process.stdin.once('data', done);
+                    process.stdin.once('end', done);
+                    process.stdin.resume();
+                }});
+                {body}
+                console.log(JSON.stringify({{name:'target',kind:'journey',verdict:'pass',ms:0,detail:{{}}}}));
+                await closed;
+            "#)]);
+            let mut closed = false;
+            let output = supervise(command, Some(&mut || closed = true)).unwrap();
+            assert!(closed);
+            assert_eq!(output.status, Some(status), "{}", output.stderr);
+            assert!(output.failed_exit());
+            assert!(!output.grace_terminated);
+            assert_eq!(journey_receipts(&output)[0].verdict, "pass");
+        }
+    }
 }

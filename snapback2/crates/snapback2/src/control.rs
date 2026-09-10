@@ -131,7 +131,7 @@ pub fn route(
             settle_effects(&context.handle, &body).map_err(|e| (400, e))
         }
         // @ref LLP 1021#3-a-provider-stand-in-and-nothing-else-answers — the supervisor opens and closes epochs; journeys bind inside one; a dev owner refuses both.
-        ("POST", "/control/effects/epoch") => match body.get("epoch") {
+        ("POST", "/control/effects/epoch") => (match body.get("epoch") {
             None | Some(Json::Null) => crate::writer::close_effects_epoch(
                 &context.handle,
                 snapback2_effects::DEFAULT_BUDGET + Duration::from_secs(1),
@@ -147,7 +147,8 @@ pub fn route(
                     "POST { epoch: token } to open a journey epoch, { epoch: null } to close it",
                 ),
             )),
-        },
+        })
+        .map_err(|(status, error)| (status, error.with_site(path))),
         ("POST", "/control/effects/bind") => {
             let field = |key: &str| body.get(key).and_then(Json::as_str).map(str::to_owned);
             match (field("origin"), field("to"), field("epoch")) {
@@ -162,6 +163,7 @@ pub fn route(
                     ),
                 )),
             }
+            .map_err(|(status, error)| (status, error.with_site(path)))
         }
         ("GET", "/control/timers") => call(Action::Timers),
         ("GET", "/control/jobs") => call(Action::Jobs),

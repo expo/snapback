@@ -50,13 +50,14 @@ impl State {
                     return Err(Refusal::input(
                         "epoch must be 1 to 200 characters",
                         "pass the supervisor's epoch token",
-                    ));
+                    )
+                    .with_site("/control/effects/epoch"));
                 }
                 if bindings.epoch.is_some() || !running.is_empty() {
                     return Err(Refusal::input(
                         "the previous journey epoch has not closed",
                         "close the previous epoch and await its running claims before opening another",
-                    ));
+                    ).with_site("/control/effects/epoch"));
                 }
                 bindings.epoch = Some(Epoch {
                     id: id.clone(),
@@ -124,9 +125,10 @@ impl State {
         to: &str,
         epoch: &str,
     ) -> Result<Json, Refusal> {
-        let origin = logical_origin(origin)?;
-        let to = loopback_origin(to)?;
-        let bindings = self.bindings_mut()?;
+        let site = "/control/effects/bind";
+        let origin = logical_origin(origin).map_err(|error| error.with_site(site))?;
+        let to = loopback_origin(to).map_err(|error| error.with_site(site))?;
+        let bindings = self.bindings_mut().map_err(|error| error.with_site(site))?;
         let live = bindings
             .epoch
             .as_mut()
@@ -135,7 +137,7 @@ impl State {
                 Refusal::input(
                     format!("epoch {epoch:?} is not the live journey epoch"),
                     "bind from the journey the supervisor is running: effects.provider(origin, handler)",
-                )
+                ).with_site(site)
             })?;
         live.origins.insert(origin.clone(), to.clone());
         Ok(json!({ "origin": origin, "to": to, "epoch": epoch }))
@@ -304,6 +306,33 @@ mod tests {
     }
 
     #[test]
+    fn binding_refusals_report_their_route() {
+        let mut state = test_owner_state("bindings-refusal-sites");
+        let invalid = state.effects_epoch(Some(String::new())).unwrap_err();
+        assert_eq!(invalid.site.as_deref(), Some("/control/effects/epoch"));
+        state.effects_epoch(Some("current".into())).unwrap();
+        let not_closed = state.effects_epoch(Some("next".into())).unwrap_err();
+        assert_eq!(not_closed.site.as_deref(), Some("/control/effects/epoch"));
+        for (origin, to, epoch) in [
+            ("not an origin", "http://127.0.0.1:1", "current"),
+            (
+                "https://api.example.com",
+                "https://not-loopback.example.com",
+                "current",
+            ),
+            ("https://api.example.com", "http://127.0.0.1:1", "stale"),
+        ] {
+            let refusal = state.bind_effect(origin, to, epoch).unwrap_err();
+            assert_eq!(refusal.code, "E_INPUT");
+            assert_eq!(refusal.family, "input");
+            assert_eq!(refusal.site.as_deref(), Some("/control/effects/bind"));
+            assert!(refusal.rewrite.is_some());
+            assert!(!refusal.guide.is_empty());
+        }
+        std::fs::remove_dir_all(&state.root).unwrap();
+    }
+
+    #[test]
     fn a_dev_owner_has_no_binding_route_and_claims_with_no_table() {
         let mut state = super::super::writer_live_tests::state("bindings-dev");
         let refusal = state
@@ -439,6 +468,29 @@ mod tests {
             Json::Null
         );
         std::fs::remove_dir_all(&state.root).unwrap();
+    }
+
+    #[test]
+    fn epoch_close_without_outstanding_claims_returns_without_polling() {
+        let mut state = test_owner_state("empty-epoch-close");
+        state.effects_epoch(Some("empty".into())).unwrap();
+        let (tx, rx) = mpsc::channel();
+        let handle = OwnerHandle { tx };
+        let writer = thread::spawn(move || {
+            let request = rx.recv().unwrap();
+            assert!(matches!(
+                request.action,
+                Action::EffectsEpoch { epoch: None }
+            ));
+            request.reply.send(state.handle(request.action)).unwrap();
+            // No polling action is needed after the empty close reply. Keep
+            // the writer available to fail any unnecessary follow-up request.
+            assert!(rx.recv_timeout(Duration::from_millis(100)).is_err());
+        });
+        let closed = close_effects_epoch(&handle, Duration::from_secs(30)).unwrap();
+        assert_eq!(closed["running"], json!([]));
+        drop(handle);
+        writer.join().unwrap();
     }
 
     #[test]
