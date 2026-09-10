@@ -272,21 +272,50 @@ pub fn reset(args: &[String]) -> ExitCode {
     if options.positionals().len() != 1 {
         return usage("usage: snapback2 reset [--empty] [--json]");
     }
-    control(
+    control_with(
         &options,
         "POST",
         "/control/reset",
         json!({"empty":options.has("--empty")}),
+        Some(reset_summary),
     )
 }
 
+fn reset_summary(body: &Json) -> String {
+    let seed = &body["seed"];
+    let summary = if seed == "skipped" {
+        "skipped".to_owned()
+    } else {
+        format!("{} rows, {} personas", seed["rows"], seed["personas"])
+    };
+    format!("reset: cleared application data; seed: {summary}")
+}
+
 fn control(options: &ParsedOptions<'_>, method: &str, path: &str, body: Json) -> ExitCode {
+    control_with(options, method, path, body, None)
+}
+
+/// `human` formats a successful body for the non-JSON path of one verb; every
+/// other verb prints the body itself.
+fn control_with(
+    options: &ParsedOptions<'_>,
+    method: &str,
+    path: &str,
+    body: Json,
+    human: Option<fn(&Json) -> String>,
+) -> ExitCode {
     let (_, owner) = match attached(options) {
         Ok(value) => value,
         Err(error) => return refused(error, options.has("--json"), 1),
     };
     match client::control(&owner, method, path, body) {
-        Ok(response) => print_response(response.status, response.body, options.has("--json")),
+        Ok(response) => match human {
+            Some(human) if !options.has("--json") && response.status < 400 => {
+                println!("{}", human(&response.body));
+                ExitCode::SUCCESS
+            }
+            _ => print_response(response.status, response.body, options.has("--json")),
+        },
         Err(error) => refused(error, options.has("--json"), 1),
     }
 }
@@ -302,14 +331,6 @@ pub(crate) fn attached(
 pub(crate) fn print_response(status: u16, body: Json, json_output: bool) -> ExitCode {
     if json_output {
         println!("{}", serde_json::to_string(&body).unwrap_or_default());
-    } else if body.get("seed").is_some() && body.get("assetIds").is_some() && status < 400 {
-        let seed = &body["seed"];
-        let summary = if seed == "skipped" {
-            "skipped".to_owned()
-        } else {
-            format!("{} rows, {} personas", seed["rows"], seed["personas"])
-        };
-        println!("reset: cleared application data; seed: {summary}");
     } else {
         println!(
             "{}",

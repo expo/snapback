@@ -557,10 +557,6 @@ fn dev_stop_observes_owner_process_exit_while_a_well_behaved_effect_runs() {
         String::from_utf8_lossy(&stopped.stderr)
     );
     assert!(started.elapsed() <= snapback2_effects::DEFAULT_BUDGET + Duration::from_secs(1));
-    eprintln!(
-        "dev --stop owner process exited after {:?}",
-        started.elapsed()
-    );
     provider_finish.join().unwrap();
     fs::remove_dir_all(root).unwrap();
 }

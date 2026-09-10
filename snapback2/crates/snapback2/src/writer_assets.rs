@@ -15,10 +15,12 @@ impl State {
             seed_rows(&seed, &self.compiled)?
         };
         let now = self.now();
-        for persona in seed.personas.iter().filter(|_| !empty) {
-            self.runtime_mut()
-                .ensure_persona(persona, now)
-                .map_err(|error| Refusal::from_identity(&error))?;
+        if !empty {
+            for persona in &seed.personas {
+                self.runtime_mut()
+                    .ensure_persona(persona, now)
+                    .map_err(|error| Refusal::from_identity(&error))?;
+            }
         }
         let reset = if empty {
             self.runtime_mut().reset_empty_at(now)

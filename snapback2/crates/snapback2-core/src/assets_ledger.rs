@@ -660,7 +660,7 @@ pub(crate) fn validate_asset_inputs(
     Ok(staged)
 }
 
-// @ref LLP 1006#6a-discard-unused-arguments-at-commit — only validated staged arguments of this call may bypass release grace.
+// @ref LLP 1006#6a-discard-unused-arguments-at-commit — only never-released staged arguments of this call bypass release grace; a row released inside the body or reused while in grace keeps it.
 pub(crate) fn discard_unused_arguments(
     transaction: &Transaction<'_>,
     creator: &str,
@@ -670,7 +670,8 @@ pub(crate) fn discard_unused_arguments(
         transaction.execute(
             "UPDATE _assets SET reclaiming = 1
              WHERE id = ?1 AND created_by = ?2 AND state = 'ready'
-               AND reclaiming = 0 AND locator_table IS NULL",
+               AND reclaiming = 0 AND locator_table IS NULL
+               AND released_at IS NULL",
             params![id, creator],
         )?;
     }

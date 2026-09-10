@@ -561,7 +561,6 @@ fn measure_row_timer_lateness_p99_while_the_owner_serves_sends() {
     fs::remove_dir_all(root).unwrap();
 }
 
-#[cfg(not(feature = "hermes"))]
 #[test]
 fn reset_reports_seed_and_empty_survives_restart_with_schedules() {
     fn restart(root: &Path, compiler: &Path) -> (ChildGuard, u16, String) {
@@ -588,8 +587,7 @@ fn reset_reports_seed_and_empty_survives_restart_with_schedules() {
     assert_eq!(signup.status, 200, "{}", signup.body);
     let token = format!("Bearer {}", signup.body["token"].as_str().unwrap());
     let reset = cli(&root, &compiler, &["reset"]);
-    eprintln!("reset before/after: {:?}", reset);
-    assert_eq!(reset.0, 0);
+    assert_eq!(reset.0, 0, "{reset:?}");
     assert_eq!(reset.1[0]["seed"], json!({"rows":18,"personas":3}));
     stop_owner(port, &secret, &mut owner, "reset restart");
     (owner, port, secret) = restart(&root, &compiler);
@@ -613,9 +611,22 @@ fn reset_reports_seed_and_empty_survives_restart_with_schedules() {
         "/control/clock",
         json!({"advanceMs": DAY + 1_000}),
     );
+    // The digest schedule emitted two rows; the Hermes build may already have
+    // claimed or retried them, so count every outbox state rather than `queued`.
     wait_for(Duration::from_secs(5), || {
         let status = control(port, &secret, "GET", "/control/status", json!({}));
-        (status["effects"]["queued"].as_u64().unwrap_or(0) >= 2).then_some(())
+        let rows = [
+            "queued",
+            "running",
+            "thenPending",
+            "sent",
+            "failed",
+            "sentUnknown",
+        ]
+        .iter()
+        .map(|state| status["effects"][state].as_u64().unwrap_or(0))
+        .sum::<u64>();
+        (rows >= 2).then_some(())
     });
     let empty = cli(&root, &compiler, &["reset", "--empty"]);
     assert_eq!(empty.0, 0, "{empty:?}");
@@ -642,8 +653,7 @@ fn reset_reports_seed_and_empty_survives_restart_with_schedules() {
         json!([])
     );
     let data = cli(&root, &compiler, &["data", "profiles", "--as", "system"]);
-    eprintln!("empty restarted profiles: {data:?}");
-    assert_eq!(data.0, 0);
+    assert_eq!(data.0, 0, "{data:?}");
     assert_eq!(data.1[0]["data"], json!([]));
     let mine = request(
         port,

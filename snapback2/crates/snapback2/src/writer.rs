@@ -1218,4 +1218,4 @@ impl State {
 
 #[cfg(test)]
 #[path = "writer_effects_tests.rs"]
-mod effects_tests;
+pub(crate) mod effects_tests;

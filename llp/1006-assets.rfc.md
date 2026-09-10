@@ -678,7 +678,7 @@ forged-string property is preserved.
 
 ### 6a. Discard unused arguments at commit
 
-Amendment, 2026-09-10 (LLP 1021 §6): a successful mutation discards its validated staged asset arguments that remain unattached, including idempotent early returns and offline-replay settlement. The same transaction tombstones the ready ledger rows, releasing both pending object slots and original-byte admission charges. The candidate set contains only this call's typed arguments, recursively through optionals/lists, validated as owned by the caller and staged at entry; work is bounded by that argument set. Already-attached arguments retain ordinary release semantics. A rejection or replay conflict rolls back the tentative discard; a committed discard leaves no attachment for later rollback to restore.
+Amendment, 2026-09-10 (LLP 1021 §6): a successful mutation discards its validated staged asset arguments that remain unattached, including idempotent early returns and offline-replay settlement. The same transaction tombstones the ready ledger rows, releasing both pending object slots and original-byte admission charges. The candidate set contains only this call's typed arguments, recursively through optionals/lists, validated as owned by the caller and staged at entry; work is bounded by the call's argument asset-use count (a list argument holds several ids). Already-attached arguments retain ordinary release semantics, and so does any released row: an argument attached and released inside the same body, or a released in-grace id passed again, is never discarded. A rejection or replay conflict rolls back the tentative discard; a committed discard leaves no attachment for later rollback to restore.
 
 This is not release: release's 24-hour grace and byte charge remain unchanged. Physical deletion still uses the fork-aware sweep and durable tombstones, so restarts or cleanup failure cannot resurrect admission charge. Receiving-byte custody and the operator upload recovery verbs are unchanged.
 
@@ -895,6 +895,7 @@ covers failure progress, reset ordering, scratch custody and late physical work.
 - **Existing fork snapshots** under `.snapback/forks/<name>.sqlite` share immutable
   blobs. Their ledgers remain referrers for GC. The `fork` CLI was removed by
   LLP 1016; a future writable restore must rotate its namespace before minting ids.
+
 
 ### 9b. Bytes on the device (author ruling, 2026-09-04)
 
@@ -1494,4 +1495,9 @@ The author settled 1–4 on 2026-09-01, 5–11 on 2026-09-03, and 12 on
 
 ## What promotion to a Spec requires
 
-`rules/RULES.md` requires an implementer, a date, and running code. The author assigned codex gpt-5.6-sol under the standing arrangement on 2026-09-03 (§15). This **Accepted** document binds lane by lane as code lands; its RFC type and number never change.
+`rules/RULES.md`: *"A spec needs an implementer and a date, or it isn't
+written,"* and *"only implemented specs bind."* On 2026-09-03 the author
+assigned both (§15): implementer codex gpt-5.6-sol under the standing
+arrangement, date 2026-09-03. The document is **Accepted**; it binds lane by
+lane as each lane's code lands, and the file keeps its RFC type and number,
+which never change.

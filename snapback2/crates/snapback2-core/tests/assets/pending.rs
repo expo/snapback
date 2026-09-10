@@ -450,9 +450,10 @@ fn seven_retried_photo_sends_discard_both_charges_at_commit() {
                 )
                 .unwrap(),
         );
-        eprintln!(
-            "photo send {attempt}: {:?}",
-            runtime.asset_staging_usage(&alice).unwrap().creator
+        assert_eq!(
+            runtime.asset_staging_usage(&alice).unwrap().creator,
+            AssetStagingUsage::default(),
+            "photo send {attempt}"
         );
     }
     assert_eq!(
@@ -651,5 +652,166 @@ fn an_already_attached_argument_uses_ordinary_release_grace() {
             .reclaim_assets(2 + ASSET_RECLAIM_GRACE_MS - 1)
             .unwrap()
             .is_empty()
+    );
+}
+
+#[test]
+fn insert_then_delete_in_one_commit_keeps_release_grace() {
+    let mut churn = insert_program("photo", ArgType::Image { max: 1_000 });
+    churn.name = "media.churn".into();
+    churn.body.push(Stmt::Delete {
+        table: "media".to_owned(),
+        key: var("rowId"),
+    });
+    let mut retry = insert_program("photo", ArgType::Image { max: 1_000 });
+    retry.name = "media.retry".into();
+    retry.body = vec![Stmt::Return(var("rowId"))];
+    let project_generation = generation(
+        schema_with(table_with(
+            "photo",
+            ColumnType::Image {
+                max: 1_000,
+                once: false,
+            },
+        )),
+        vec![churn, retry],
+    );
+    let mut runtime = Runtime::open(Store::memory().unwrap(), project_generation).unwrap();
+    let alice = user("alice");
+    let photo = image(&mut runtime, &alice, 7, 1, 1);
+    let mut context = Context::mutation(alice.clone(), args("churned", photo.clone()));
+    context.now = Some(2);
+    assert_committed(&runtime.execute("media.churn", context).unwrap());
+    let released = runtime.store().asset(&asset_id(&photo)).unwrap().unwrap();
+    assert!(!released.reclaiming);
+    assert_eq!(released.released_at, Some(2));
+    assert!(released.locator.is_none());
+    let in_grace = AssetStagingUsage {
+        objects: 0,
+        bytes: 7,
+    };
+    assert_eq!(
+        runtime.asset_staging_usage(&alice).unwrap().creator,
+        in_grace
+    );
+    // A released in-grace id passed again as an unused argument keeps that grace too.
+    let mut context = Context::mutation(alice.clone(), args("again", photo.clone()));
+    context.now = Some(3);
+    assert_committed(&runtime.execute("media.retry", context).unwrap());
+    let still_released = runtime.store().asset(&asset_id(&photo)).unwrap().unwrap();
+    assert!(!still_released.reclaiming);
+    assert_eq!(still_released.released_at, Some(2));
+    assert_eq!(
+        runtime.asset_staging_usage(&alice).unwrap().creator,
+        in_grace
+    );
+    assert!(
+        runtime
+            .reclaim_assets(2 + ASSET_RECLAIM_GRACE_MS - 1)
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(
+        runtime.reclaim_assets(2 + ASSET_RECLAIM_GRACE_MS).unwrap(),
+        vec![asset_id(&photo)]
+    );
+}
+
+#[test]
+fn only_unattached_list_and_optional_arguments_are_discarded() {
+    let image_arg = || ArgType::Image { max: 1_000 };
+    let attach_first = Program {
+        name: "media.attachFirst".to_owned(),
+        kind: ProgramKind::Mutation,
+        args: BTreeMap::from([
+            ("rowId".to_owned(), ArgType::Id),
+            (
+                "photos".to_owned(),
+                ArgType::List {
+                    of: Some(Box::new(image_arg())),
+                    max: 4,
+                },
+            ),
+            (
+                "extra".to_owned(),
+                ArgType::Optional(Box::new(image_arg())),
+            ),
+        ]),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Insert {
+            table: "media".to_owned(),
+            row: Expr::Object(BTreeMap::from([
+                ("id".to_owned(), var("rowId")),
+                (
+                    "photos".to_owned(),
+                    Expr::Builtin {
+                        builtin: Builtin::Slice,
+                        args: vec![
+                            var("photos"),
+                            Expr::Literal(Value::Int(0)),
+                            Expr::Literal(Value::Int(1)),
+                        ],
+                    },
+                ),
+            ])),
+        }],
+    };
+    let project_generation = generation(
+        schema_with(table_with(
+            "photos",
+            ColumnType::List {
+                of: Box::new(ColumnType::Image {
+                    max: 1_000,
+                    once: false,
+                }),
+                max: 4,
+            },
+        )),
+        vec![attach_first],
+    );
+    let mut runtime = Runtime::open(Store::memory().unwrap(), project_generation).unwrap();
+    let alice = user("alice");
+    let kept = image(&mut runtime, &alice, 3, 1, 1);
+    let dropped = image(&mut runtime, &alice, 5, 1, 1);
+    let extra = image(&mut runtime, &alice, 7, 1, 1);
+    let unrelated = image(&mut runtime, &alice, 11, 1, 1);
+    assert_eq!(
+        runtime.asset_staging_usage(&alice).unwrap().creator,
+        AssetStagingUsage {
+            objects: 4,
+            bytes: 26
+        }
+    );
+    assert_committed(
+        &runtime
+            .execute(
+                "media.attachFirst",
+                Context::mutation(
+                    alice.clone(),
+                    BTreeMap::from([
+                        ("rowId".to_owned(), Value::Id("row".to_owned())),
+                        (
+                            "photos".to_owned(),
+                            Value::Array(vec![kept.clone(), dropped.clone()]),
+                        ),
+                        ("extra".to_owned(), extra.clone()),
+                    ]),
+                ),
+            )
+            .unwrap(),
+    );
+    let row = |value: &Value| runtime.store().asset(&asset_id(value)).unwrap().unwrap();
+    assert!(row(&kept).locator.is_some());
+    assert!(!row(&kept).reclaiming);
+    assert!(row(&dropped).reclaiming);
+    assert!(row(&extra).reclaiming);
+    assert!(!row(&unrelated).reclaiming);
+    assert!(row(&unrelated).locator.is_none());
+    assert_eq!(
+        runtime.asset_staging_usage(&alice).unwrap().creator,
+        AssetStagingUsage {
+            objects: 1,
+            bytes: 11
+        }
     );
 }
