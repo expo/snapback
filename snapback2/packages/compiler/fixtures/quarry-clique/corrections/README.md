@@ -171,5 +171,18 @@ view-once is
 An earlier source-copy race failed project-root discovery before execution.
 The response-loss case writes a successful equality receipt but then fails
 cleanup with `client is closed`; its journey is still **failed**, and a
-corrected lifecycle rerun remains required. Its preserved raw hash is
+corrected lifecycle rerun was required. Its preserved raw hash is
 `44fa99140bcde06d18996f1c42c908b3965aab8fa175fc9a10af99d477ae1b45`.
+
+The first lifecycle revision still closed the current durable client before
+the harness's automatic offline-derived check, so it also failed after writing
+its equality receipt. The retained correction leaves that client to the runner.
+Source SHA-256
+`81a149146b55ec7da1872f558d6d8e9f5a9011d6c83d093940ab84994c4e2b2f`
+then passes the response-loss/restart journey in 692 ms and the mandatory
+one-query offline-derived check in 52 ms. The effect has one stored row and
+one executed attempt despite the injected post-commit 503. Raw
+`/tmp/clique-20260909-preview-retry-derived.json` has SHA-256
+`62091123eb969457e88c1a793b4891bd175b946fa4691e7780d4cc7a045238a8`.
+All ten named actual-effect cases have now passed; the earlier failures remain
+retained and are not included in a manufactured all-attempts-green claim.
