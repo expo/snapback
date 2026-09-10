@@ -88,18 +88,16 @@ separately below; the preceding 3+20 cohort predates them.
 
 `grok-live-proof-instrumentation.patch` is browser-proof instrumentation, not
 application behavior. It exposes only operation/state, row-count, target-id,
-conversation-match, and projection facts; it never exposes credentials,
-tokens, or message text. Its SHA-256 is
-`f7082cf9e68ef301f5174136605008d38ae26c1e0ec148e48a808e497100a7a7`.
-Applying all three frontend patches in order reproduced its retained source
-byte-for-byte. The production `app/` + `lib/` composite SHA-256 is
-`307c46886dd1c54c15e84345c112630727d75484b9e83d67ad4f0bfa2cdf0332`;
-the instrumented composite is
-`a62eec9d6f1306ff22173e349e617829b4f72664ab6576180765bcdb3918b807`.
-The exact production and instrumented `lib/thread-view.tsx` SHA-256 values are
-`5e4c1aeb10a433d618dc2e2e7f878d0f9e8d7d115fbdbc41ff2d0376cf20263c`
+conversation-match, scalar-count/limit, and projection facts; it never exposes
+credentials, tokens, or message text. Its explicit-expiry hook is used only by
+the retained browser expiry case. Apply it after
+`grok-message-draft-validation.patch`. Its current SHA-256 is
+`6448245e222bcad1ce586dc0cf210e06d0c1e9008efbe59cd0b0553cfdc67c92`.
+The exact current production and instrumented `lib/thread-view.tsx` SHA-256
+values are
+`8e4c7e0bbc1fc0ce0aabb7cc78cb43fdc42c21eed18d1c723cbf6202ddf26371`
 and
-`3f412752daa038a9676d8f18245cc1f1f0d65e49c3cc5d7f757c027ea69e35c4`.
+`55fa2a77fd5d7d03937c7ae78c1ddd431ff0cda3a41c21ef6d92ba63bae7fa54`.
 
 `syntax-adapter.patch` is only the raw snapshot's mechanical move to current V2
 declaration spelling (`fn`/`maintain` colon headers, job parentheses, and inline
