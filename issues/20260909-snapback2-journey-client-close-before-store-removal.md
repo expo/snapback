@@ -1,0 +1,22 @@
+# Await journey client closure before removing durable store files
+
+Status: Open
+Systems: Snapback 2 test runner
+Related: LLP 1002, LLP 1018.007
+Reported: 2026-09-09, independent Sol xhigh proof-source review
+
+`snapback2/packages/snapback2/src/test.ts` finally starts each asynchronous
+`client.close()` without awaiting it, then removes the durable store root.
+An in-flight carrier close can race that removal. This line predates the Clique
+correction; the focused completed proofs have clean owner exits and no observed
+teardown failure attributable to this race. Do not turn that observation into a
+claim that the race is safe.
+
+Await completion of all owned client closures before removing the root, preserve
+cleanup errors appropriately, and add a deterministic delayed-close regression
+that proves removal cannot overtake closure. Keep cleanup scoped to the runner's
+owned temporary directory and preserve the original test failure if cleanup
+also fails. Do not raise journey deadlines or alter offline-derived assertions.
+
+Evidence: `llp/reviews/1018.007-clique-correction-program.code-sol-final.md`,
+2026-09-09 retained proof-source re-review of `4f0d35467`.
