@@ -46,6 +46,13 @@ outbox status, connection and queue. Actions share `sign-in | connect | other-ta
 | wait | none`. `useOutbox().detail.status.draining` means active replay:
 wait; paused work offers Sync, even after a connected read. Followers use
 inbox readiness; `detail.writer` holds announced status.
+Use the selected mutation's `can` for a composer: text, edit and media can
+need different ID slices. Render its reason; `can.action === "connect"`
+offers a visible **Sync now** button that awaits `client.online()` and surfaces
+failure without clearing the draft or attachment. A connected transport does
+not replenish an exhausted grant by itself. After recovery, let the user
+submit normally; do not automatically resubmit a refused write or add a
+periodic `online()` loop. Generic `useOutbox().can` cannot price a specific op.
 `outbox.observe(op?)` feeds hooks; `intentLabel` labels entries.
 Discharged successes compact automatically. Unresolved successes and failures
 remain dismissible; queued work cannot be dismissed. Older snapshots expose
