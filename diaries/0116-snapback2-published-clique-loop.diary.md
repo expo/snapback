@@ -1879,3 +1879,31 @@ later chunk of the same job. Testing also exposed the install-phase timer
 model: advancing a fake clock by a whole duration may coalesce an occurrence,
 so the retained app journeys advance in smaller steps when they must observe
 every logical cutoff.
+
+The executed effect proof needed a real Hermes owner: the default no-engine
+binary could validate stored rows but could not prove that the effect ran.
+All ten scalar/media/retry cases now compare the stored preview, emitted
+arguments and settled local result, without contacting a provider. The retry
+journey initially closed its durable client too early: Snapback's runner does
+the automatic offline-derived check after the journey body, so that current
+client belongs to runner cleanup. Keeping those failures distinct from the
+passing equality assertion made the eventual 692 ms journey/52 ms offline
+check meaningful.
+
+The real follower setup was also more useful than a large seed: 899 actual
+follow mutations took about 4.3 seconds outside timing, then twenty measured
+post writes at 900 followers had 11.66 ms p95 versus 13.22 ms at five followers.
+The last sorted edge in a separate 500-follow account contributed its post to
+the correct digest period. The retained driver checks the compiler's actual
+typed read/write bounds, including its two-row timer site; a first draft had
+incorrectly treated write sites as read sites and refused before execution.
+These are scoped owner/recipe results, not a new benchmark score.
+
+Browser evidence required its own scrutiny. A feed that initially mounts ten
+rows and later mounts twenty has not necessarily crossed a twenty-row query
+page. Root rejected that apparent Following/Global success after reading the
+raw IDs; only the profile had actually exposed created posts older than the
+first twenty. The two remaining feeds are still being traced. Both copied apps
+also need a separately recorded flat-auth-to-session/actions compatibility
+bridge to use the current SDK; that version adjustment must not become a
+reload/login workaround for the signup first-write bug.
