@@ -1265,6 +1265,9 @@ impl State {
                 .apply_successor_at(compiled.generation.clone(), now)
                 .map_err(|error| crate::protocol::successor_site(Refusal::from_successor(&error), &compiled, Some(&self.compiled)))?
         };
+        // The successor is installed: its report — the regroup line included — is logged
+        // before the build cache is published, so a publication failure never hides it.
+        crate::watch::log(&self.root, json!({ "successor": "applied", "report": report }));
         if let Some(cache) = cache
             && let Err(error) = cache.publish()
         {
@@ -1273,7 +1276,6 @@ impl State {
                 .with_detail("applied", json!(true))
                 .with_detail("activeGeneration", json!(compiled.generation.hash())));
         }
-        crate::watch::log(&self.root, json!({ "successor": "applied", "report": report }));
         self.compiled = compiled;
         if let Some(seed) = seed {
             self.seed = seed;

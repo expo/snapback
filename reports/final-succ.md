@@ -696,3 +696,16 @@ declaration"; the mixed-enum paste is pinned to the compiler-lowered fixture (th
 in the fixture test is now mixed: `pro` removed, `team` added, required), so `repairs.q` unchanged
 proves the intersection-typed fill compiles under the predecessor `schema.q`. Residual (ticket at
 landing): the Rust positional-Get test does not run the checker; the owner test does.
+
+## Fix round r9 (orchestrator)
+
+Codex r8 (`reviews/succ-r8-codex.md`): two more shapes of the fill-type hole — image/video maxima
+were not intersected, and a staged (disjoint-enum) paste inside a list lost the smaller list
+bound. `fill_type` now returns the type and a `staged` flag: every bound is the smaller of the
+two (text, bytes, json, image with the predecessor's `once`, video, list), enum cases are those
+in both, and when none survive the successor's cases are kept with `staged` set, so wrappers keep
+their bounds. Tests: `image <=10 ? → image <=20` fills `image <=10`; `[enum('a')] <=2 ? →
+[enum('c')] <=3` is staged with `[enum('c')] <=2`. Material: the successor report is logged
+before the build cache is published, so a publication failure never hides the regroup line.
+Narrowing/evolution 24/24, writer units 43/43. The remaining answer to this class is a ticket:
+every generated paste should be bound by the compiler in the engine's own test, not string-matched.

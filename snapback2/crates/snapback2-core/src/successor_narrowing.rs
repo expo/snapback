@@ -248,26 +248,37 @@ fn scalar_text_max(kind: &ColumnType) -> Option<u32> {
 }
 
 /// The fill argument's type: the successor's domain restricted to what the predecessor
-/// schema — which the pasted job runs under — also accepts. Enum cases in both survive
-/// (a smaller maximum is already accepted there); `None` when no case survives, so the
-/// job needs the widening applied first.
-fn fill_type(predecessor: &ColumnType, successor: &ColumnType) -> Option<String> {
+/// schema — which the pasted job runs under — also accepts. Every bound is the smaller of
+/// the two (text, bytes, json, image, video, list; a media column keeps the predecessor's
+/// `once`), and enum cases are those in both. When no enum case survives, the successor's
+/// cases are kept and `staged` is set: the paste then says to apply that widening first.
+fn fill_type(predecessor: &ColumnType, successor: &ColumnType) -> (String, bool) {
     match (predecessor, successor) {
         (ColumnType::Optional(a), b) => fill_type(a, b),
-        (a, ColumnType::Optional(b)) => fill_type(a, b).map(|t| format!("{t} ?")),
+        (a, ColumnType::Optional(b)) => {
+            let (t, staged) = fill_type(a, b);
+            (format!("{t} ?"), staged)
+        }
         (ColumnType::Enum { variants: a }, ColumnType::Enum { variants: b }) => {
             let kept = b.iter().filter(|v| a.contains(v)).cloned().collect::<Vec<_>>();
-            (!kept.is_empty()).then(|| crate::jobs::quarry_enum(&kept))
+            if kept.is_empty() {
+                (crate::jobs::quarry_enum(b), true)
+            } else {
+                (crate::jobs::quarry_enum(&kept), false)
+            }
         }
-        // A raised maximum beside a narrowing is not accepted by the predecessor: the
-        // argument takes the smaller bound of the two.
         (ColumnType::List { of: a, max: m }, ColumnType::List { of: b, max: n }) => {
-            fill_type(a, b).map(|t| format!("[{t}] <={}", (*m).min(*n)))
+            let (t, staged) = fill_type(a, b);
+            (format!("[{t}] <={}", (*m).min(*n)), staged)
         }
-        (ColumnType::Text { max: m }, ColumnType::Text { max: n }) => Some(format!("text <={}", (*m).min(*n))),
-        (ColumnType::Bytes { max: m }, ColumnType::Bytes { max: n }) => Some(format!("bytes <={}", (*m).min(*n))),
-        (ColumnType::Json { max_bytes: m }, ColumnType::Json { max_bytes: n }) => Some(format!("json <={}", (*m).min(*n))),
-        (_, b) => Some(quarry_type(b)),
+        (ColumnType::Text { max: m }, ColumnType::Text { max: n }) => (format!("text <={}", (*m).min(*n)), false),
+        (ColumnType::Bytes { max: m }, ColumnType::Bytes { max: n }) => (format!("bytes <={}", (*m).min(*n)), false),
+        (ColumnType::Json { max_bytes: m }, ColumnType::Json { max_bytes: n }) => (format!("json <={}", (*m).min(*n)), false),
+        (ColumnType::Image { max: m, once }, ColumnType::Image { max: n, .. }) => {
+            (format!("image <={}{}", (*m).min(*n), if *once { " once" } else { "" }), false)
+        }
+        (ColumnType::Video { max: m }, ColumnType::Video { max: n }) => (format!("video <={}", (*m).min(*n)), false),
+        (_, b) => (quarry_type(b), false),
     }
 }
 
@@ -285,13 +296,14 @@ fn repair_job(c: &NarrowingConflict, predecessor: &ColumnType, successor: &Colum
     // @ref LLP 1020#a2-enum-case-removal-is-checked-narrowing — the argument is typed by
     // what BOTH schemas accept: the job runs under the predecessor. When no case survives
     // both, the paste says to apply the widening first, so it compiles where it runs.
-    let (ty, stage, keep) = match fill_type(predecessor, successor) {
-        Some(ty) => (ty, "", "keep the predecessor schema"),
-        None => (
-            quarry_type(successor),
+    let (ty, staged) = fill_type(predecessor, successor);
+    let (stage, keep) = if staged {
+        (
             "-- first add the successor's cases to this declaration and apply (a widening), so this job compiles there.\n",
             "keep that widened declaration",
-        ),
+        )
+    } else {
+        ("", "keep the predecessor schema")
     };
     if c.removed_cases.is_empty() && !lowered {
         // @ref LLP 1016#d4--expand-fill-contract — the replacement is a typed job argument.
@@ -580,6 +592,17 @@ mod tests {
         // text <=10 ? -> text <=20: a widening that becomes required fills within the predecessor's bound.
         let paste = repair_job(&conflict(vec![]), &optional(ColumnType::Text { max: 10 }), &ColumnType::Text { max: 20 });
         assert!(paste.contains("job fill_items_value(value: text <=10):"), "{paste}");
+        // image <=10 ? -> image <=20: a media bound is the predecessor's too (review succ-r8-codex B1).
+        let paste = repair_job(&conflict(vec![]), &optional(ColumnType::Image { max: 10, once: false }), &ColumnType::Image { max: 20, once: false });
+        assert!(paste.contains("job fill_items_value(value: image <=10):"), "{paste}");
+        // [enum('a')] <=2 ? -> [enum('c')] <=3: staged, and the list bound stays the predecessor's (B2).
+        let paste = repair_job(
+            &conflict(vec!["a"]),
+            &optional(ColumnType::List { of: Box::new(enum_of(&["a"])), max: 2 }),
+            &ColumnType::List { of: Box::new(enum_of(&["c"])), max: 3 },
+        );
+        assert!(paste.starts_with("-- first add the successor's cases"), "{paste}");
+        assert!(paste.contains("(value: [enum('c')] <=2):"), "{paste}");
         // A widening that also becomes required fills with the cases the predecessor knows.
         let paste = repair_job(&conflict(vec![]), &optional(enum_of(&["a"])), &enum_of(&["a", "b"]));
         assert!(paste.contains("job fill_items_value(value: enum('a')):"), "{paste}");
