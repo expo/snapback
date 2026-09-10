@@ -504,6 +504,27 @@ const expectCode = (run: () => unknown, code: string, label: string) => {
   assert(message.startsWith(`${code}:`), `${label}: expected ${code}, got ${message || "success"}`);
 };
 
+// Native stable sorting replaces the private recursive sorter without changing
+// tie order or mutating caller/held values (including the empty/singleton cases).
+for (const length of [0, 1, 32, 1024]) {
+  const rows: Value[] = Array.from({ length }, (_, i) => ({ Row: {
+    key: { Int: i % 7 }, position: { Int: i },
+  } }));
+  const before = canonicalValue({ Array: rows });
+  const store = new ClientStore({ tables: {}, maintains: [] }, emptyReceipt());
+  for (const order of ["Asc", "Desc"]) {
+    const result = store.reexecute(query(builtin({ Sort: { keys: [{ field: "key", order }] } },
+      [literal({ Array: rows })])), context()).execution.result;
+    const expected: Value[] = [];
+    for (let j = 0; j < 7; j++) {
+      const key = order === "Asc" ? j : 6 - j;
+      rows.forEach((row, i) => { if (i % 7 === key) expected.push(row); });
+    }
+    assert(canonicalValue(result) === canonicalValue({ Array: expected }), `stable sort ${length}/${order}`);
+    assert(canonicalValue({ Array: rows }) === before, `sort mutated source ${length}/${order}`);
+  }
+}
+
 {
   const schema = { tables: { users: table({ id: "Id" }) }, maintains: [] };
   const store = new ClientStore(schema, emptyReceipt());
