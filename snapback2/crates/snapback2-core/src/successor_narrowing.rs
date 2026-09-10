@@ -1,6 +1,6 @@
 use super::*;
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NarrowingConflict {
     pub table: String,
@@ -247,6 +247,25 @@ fn scalar_text_max(kind: &ColumnType) -> Option<u32> {
     }
 }
 
+/// The fill argument's type: the successor's domain restricted to what the predecessor
+/// schema — which the pasted job runs under — also accepts. Enum cases in both survive
+/// (a smaller maximum is already accepted there); `None` when no case survives, so the
+/// job needs the widening applied first.
+fn fill_type(predecessor: &ColumnType, successor: &ColumnType) -> Option<String> {
+    match (predecessor, successor) {
+        (ColumnType::Optional(a), b) => fill_type(a, b),
+        (a, ColumnType::Optional(b)) => fill_type(a, b).map(|t| format!("{t} ?")),
+        (ColumnType::Enum { variants: a }, ColumnType::Enum { variants: b }) => {
+            let kept = b.iter().filter(|v| a.contains(v)).cloned().collect::<Vec<_>>();
+            (!kept.is_empty()).then(|| crate::jobs::quarry_enum(&kept))
+        }
+        (ColumnType::List { of: a, .. }, ColumnType::List { of: b, max }) => {
+            fill_type(a, b).map(|t| format!("[{t}] <={max}"))
+        }
+        (_, b) => Some(quarry_type(b)),
+    }
+}
+
 /// The pasted repair for one conflict, written against the predecessor schema. It is one
 /// whole-table sweep whenever the check is one statement per row (`=` on a scalar case,
 /// one `.length` on the outer list, `slice` on scalar text). Values inside lists would
@@ -258,11 +277,20 @@ fn repair_job(c: &NarrowingConflict, predecessor: &ColumnType, successor: &Colum
     let required = matches!(predecessor, ColumnType::Optional(_))
         && !matches!(successor, ColumnType::Optional(_));
     let lowered = lowers_maximum(predecessor, successor);
-    let ty = quarry_type(successor);
+    // @ref LLP 1020#a2-enum-case-removal-is-checked-narrowing — the argument is typed by
+    // what BOTH schemas accept: the job runs under the predecessor. When no case survives
+    // both, the paste says to apply the widening first, so it compiles where it runs.
+    let (ty, stage) = match fill_type(predecessor, successor) {
+        Some(ty) => (ty, ""),
+        None => (
+            quarry_type(successor),
+            "-- first add the successor's cases to this declaration and apply (a widening), so this job compiles there.\n",
+        ),
+    };
     if c.removed_cases.is_empty() && !lowered {
         // @ref LLP 1016#d4--expand-fill-contract — the replacement is a typed job argument.
         return format!(
-            "-- keep {table}.{column} optional and apply, then fill it:\njob fill_{table}_{column}(value: {ty}):\n  chunk p in {table} first 100 by byId:\n    update {table}[p.id] {{ {column}: p.{column} ?? value }}"
+            "{stage}-- keep {table}.{column} optional and apply, then fill it:\njob fill_{table}_{column}(value: {ty}):\n  chunk p in {table} first 100 by byId:\n    update {table}[p.id] {{ {column}: p.{column} ?? value }}"
         );
     }
     let argument = if required { format!("value: {ty}") } else { String::new() };
@@ -314,7 +342,7 @@ fn repair_job(c: &NarrowingConflict, predecessor: &ColumnType, successor: &Colum
             .collect::<Vec<_>>()
             .join("\n");
         return format!(
-            "-- keep the predecessor schema; this deletes every row {what}{fills}.\n-- To map instead, replace each delete with: update {table}[p.id] {{ {column}: {kept} }}\njob {name}_{table}_{column}({argument}):\n  chunk p in {table} first 100 by byId:\n{fill}{body}"
+            "{stage}-- keep the predecessor schema; this deletes every row {what}{fills}.\n-- To map instead, replace each delete with: update {table}[p.id] {{ {column}: {kept} }}\njob {name}_{table}_{column}({argument}):\n  chunk p in {table} first 100 by byId:\n{fill}{body}"
         );
     }
     // No single statement can check this value, so each sampled id gets its own exact,
@@ -332,7 +360,7 @@ fn repair_job(c: &NarrowingConflict, predecessor: &ColumnType, successor: &Colum
         .collect::<Vec<_>>()
         .join("\n");
     format!(
-        "-- keep the predecessor schema; this deletes the sampled rows (no one sweep can check values inside lists or bytes).\n-- Apply again after this job: the refusal counts the rows that remain; rerun its next sample job until that count is zero.\njob {name}_{table}_{column}({argument}):\n{fill}{sweeps}"
+        "{stage}-- keep the predecessor schema; this deletes the sampled rows (no one sweep can check values inside lists or bytes).\n-- Apply again after this job: the refusal counts the rows that remain; rerun its next sample job until that count is zero.\njob {name}_{table}_{column}({argument}):\n{fill}{sweeps}"
     )
 }
 
@@ -506,6 +534,37 @@ mod tests {
                     .contains("repair or remove stored row items.bad")
             );
         }
+    }
+    /// The fill argument is typed by the cases both schemas accept: the job runs under the
+    /// predecessor, which does not know the successor's new cases (review `succ-r6-codex`).
+    #[test]
+    fn a_mixed_enum_change_types_its_fill_by_the_cases_both_schemas_accept() {
+        let conflict = |removed: Vec<&str>| NarrowingConflict {
+            table: "items".into(),
+            column: "value".into(),
+            removed_cases: removed.into_iter().map(String::from).collect(),
+            ..NarrowingConflict::default()
+        };
+        let enum_of = |cases: &[&str]| ColumnType::Enum { variants: cases.iter().map(|c| (*c).to_owned()).collect() };
+        let optional = |inner: ColumnType| ColumnType::Optional(Box::new(inner));
+        // enum('a','b')? -> enum('b','c'): 'b' is in both; the paste compiles under the predecessor.
+        let paste = repair_job(&conflict(vec!["a"]), &optional(enum_of(&["a", "b"])), &enum_of(&["b", "c"]));
+        assert!(paste.contains("job remove_items_value(value: enum('b')):"), "{paste}");
+        assert!(!paste.contains("first add the successor's cases"), "{paste}");
+        // enum('a')? -> enum('c'): nothing survives both; the paste says to widen first.
+        let paste = repair_job(&conflict(vec!["a"]), &optional(enum_of(&["a"])), &enum_of(&["c"]));
+        assert!(paste.starts_with("-- first add the successor's cases to this declaration and apply (a widening)"), "{paste}");
+        assert!(paste.contains("job remove_items_value(value: enum('c')):"), "{paste}");
+        // [enum('a','b')] <=3 ? -> [enum('b','c')] <=3: the list fill keeps the shared case.
+        let paste = repair_job(
+            &conflict(vec!["a"]),
+            &optional(ColumnType::List { of: Box::new(enum_of(&["a", "b"])), max: 3 }),
+            &ColumnType::List { of: Box::new(enum_of(&["b", "c"])), max: 3 },
+        );
+        assert!(paste.contains("(value: [enum('b')] <=3):"), "{paste}");
+        // A widening that also becomes required fills with the cases the predecessor knows.
+        let paste = repair_job(&conflict(vec![]), &optional(enum_of(&["a"])), &enum_of(&["a", "b"]));
+        assert!(paste.contains("job fill_items_value(value: enum('a')):"), "{paste}");
     }
     /// One conflict may need two repairs (nulls and a removed case) or a truncation; both
     /// pastes are pinned to the fixture the compiler lowers (`repairs.q`).

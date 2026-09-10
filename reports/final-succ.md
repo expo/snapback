@@ -664,3 +664,17 @@ consumed; the follower (`OfflineRuntime.takeInboxRow`) and the writer's recovery
 and the follower's consumption return one result between them`; the takeover and overlap tests
 from r4 rehooked onto the take. Inbox, outbox, custody, recovery, and local-data files 85/85;
 runtime 84832 gzip.
+
+## Fix round r6 (orchestrator)
+
+Codex r6 (`reviews/succ-r6-codex.md`) found a new defect in the A2 repair paste: the fill
+argument was typed by the successor's domain, so a mixed change such as `enum('a','b')?` →
+`enum('b','c')` pasted `value: enum('b','c')`, which the predecessor schema the job runs under
+refuses. Fixed: `fill_type` types the argument by the cases both schemas accept (through
+optional and list wrappers; a smaller maximum is already accepted), and when no case survives
+both the paste says to apply the widening first. Test
+`a_mixed_enum_change_types_its_fill_by_the_cases_both_schemas_accept` (mixed enum, no
+overlap, list of enums, widening that becomes required). The overlap test now barriers both
+callers at the take for the same command (codex/grok material); LLP 1018.004's amendment says
+the carrier transaction decides consumption. Narrowing/evolution units 24/24, inbox 14/14,
+compiler 295/295; runtime 84832 gzip.

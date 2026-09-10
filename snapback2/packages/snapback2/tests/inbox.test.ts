@@ -217,10 +217,18 @@ test("overlapping follower dismissals consume a completed result once", async ()
     await writer.offline();
     const head = (await writer.outbox.entries())[0]!;
     const runtime = (follower as any).offlineRuntime;
-    // Both calls observe the completed command before either deletion lands.
-    const remove = runtime.removeInboxRow.bind(runtime);
-    runtime.removeInboxRow = async (key: number) => { await new Promise(resolve => setTimeout(resolve, 50)); await remove(key); };
-    const results = await Promise.all([follower.outbox.dismiss(first.intent!), follower.outbox.dismiss(first.intent!)]);
+    // A barrier: both calls reach the take for the same completed command before either lands.
+    const take = runtime.takeInboxRow.bind(runtime);
+    const reached: number[] = [];
+    let open!: () => void;
+    const barrier = new Promise<void>(resolve => { open = resolve; });
+    runtime.takeInboxRow = async (key: number) => { reached.push(key); if (reached.length === 2) open(); await barrier; return take(key); };
+    const one = follower.outbox.dismiss(first.intent!);
+    await until(() => runtime.inboxRows.some((row: any) => row.kind === "dismiss"), "the first command is durable");
+    const two = follower.outbox.dismiss(first.intent!); // finds the existing command
+    const results = await Promise.all([one, two]);
+    assert.equal(reached.length, 2, "both callers reached the take");
+    assert.equal(reached[0], reached[1], "for the same command");
     const returned = results.filter(value => value !== undefined);
     assert.equal(returned.length, 1, `exactly one caller gets the bytes: ${JSON.stringify(results)}`);
     assert.deepEqual(returned[0], { intent: head.intent, op: head.op, args, refusal });
