@@ -23,8 +23,6 @@ pub(super) struct CommitLedger {
 impl State {
     pub(super) fn after_commit(&mut self, seq: u64) -> Result<(), Refusal> {
         self.operator_rejection = None;
-        self.sweep_expired_sessions()?;
-        self.sweep_offline_now()?;
         let commit = self
             .runtime()
             .store()
@@ -39,6 +37,26 @@ impl State {
                     "inspect the store and restart the owner",
                 )
             })?;
+        // @ref LLP 1021#1-the-lifecycle-is-in-the-log — record the emission before any post-commit maintenance or runner wake.
+        if commit.emits > 0 {
+            for row in self
+                .runtime()
+                .store()
+                .outbox_rows_for_seq(seq)
+                .map_err(|e| Refusal::from_runtime(&e))?
+            {
+                writer_effects::transition(
+                    &self.root,
+                    &row,
+                    None,
+                    "queued",
+                    json!({"by":commit.program}),
+                );
+            }
+        }
+        self.log_unavailable()?;
+        self.sweep_expired_sessions()?;
+        self.sweep_offline_now()?;
         let invalidated = self.runtime().invalidated(&commit);
         let deliveries = self.rerun_live(&invalidated, false);
         self.ledger.push_back(CommitLedger {
@@ -163,7 +181,14 @@ impl State {
             .get(&op)
             .map(|(program, _)| program.kind)
             .ok_or_else(|| {
-                Refusal::unknown_operation(op.as_ref(), self.runtime().generation().programs().keys().map(String::as_str))
+                Refusal::unknown_operation(
+                    op.as_ref(),
+                    self.runtime()
+                        .generation()
+                        .programs()
+                        .keys()
+                        .map(String::as_str),
+                )
             })?;
         // The CLI is read-only even across a hot successor; the protected
         // harness still executes mutations to harvest authoritative replay traces.
@@ -199,7 +224,14 @@ impl State {
                 )
             })
             .ok_or_else(|| {
-                Refusal::unknown_operation(op.as_ref(), self.runtime().generation().programs().keys().map(String::as_str))
+                Refusal::unknown_operation(
+                    op.as_ref(),
+                    self.runtime()
+                        .generation()
+                        .programs()
+                        .keys()
+                        .map(String::as_str),
+                )
             })?;
         let runtime_subscriptions = self
             .runtime()
@@ -276,21 +308,15 @@ impl State {
             .map_err(|error| Refusal::from_runtime(&error))?
             .into_iter()
             .map(|row| {
-                json!({
-                    "id": row.id,
-                    "seq": row.seq,
-                    "effect": row.effect,
-                    "payload": value_to_json(&row.payload),
-                    "state": row.state,
-                    "attempts": row.attempts,
-                    "nextAt": row.next_at,
-                    "lastError": row.last_error,
-                    "result": row.result.clone(),
-                    "createdAt": row.created_at,
-                    "updatedAt": row.updated_at,
-                })
+                let mut value = writer_effects::row_json(&row);
+                value["payload"] = value_to_json(&row.payload);
+                value["createdAt"] = json!(row.created_at);
+                value["updatedAt"] = json!(row.updated_at);
+                value
             })
             .collect::<Vec<_>>();
+        let history =
+            crate::control::outbox_history(&self.root.join(".snapback/log.jsonl"), wanted);
         let ledger = self.ledger.iter().find(|entry| entry.seq == wanted);
         let mut output = json!({
             "commit": commit,
@@ -301,6 +327,14 @@ impl State {
             },
             "outboxRows": outbox_rows,
         });
+        match history {
+            Ok(lines) => {
+                output["outbox"]["history"] = json!(lines);
+            }
+            Err(error) => {
+                output["outbox"]["history"] = json!({"unavailable":error.message});
+            }
+        }
         let object = output.as_object_mut().expect("trace output is an object");
         if let Some(ledger) = ledger {
             object.insert("invalidated".to_owned(), json!(ledger.invalidated));
@@ -324,6 +358,7 @@ impl State {
         let outbox = self.outbox_counts()?;
         Ok(json!({
             "project": self.root,
+            "log": crate::watch::log_status(&self.root),
             "status": self.phase,
             "generation": self.runtime().generation().hash(),
             "seq": self.runtime().store().commit_seq().map_err(|error| Refusal::from_runtime(&error))?,
@@ -354,7 +389,7 @@ impl State {
             .schema()
             .tables
             .iter()
-            .map(|(name, table)| Ok((name.clone(), manifest_table(table, runtime.store())?)))
+            .map(|(name, table)| Ok((name.clone(), manifest_table(name, table, runtime.store())?)))
             .collect::<Result<Map<_, _>, Refusal>>()?;
         let ops = self
             .runtime()
@@ -385,7 +420,7 @@ impl State {
         }))
     }
 
-    fn outbox_counts(&self) -> Result<OutboxCounts, Refusal> {
+    pub(super) fn outbox_counts(&self) -> Result<OutboxCounts, Refusal> {
         self.runtime()
             .store()
             .outbox_counts()
@@ -399,7 +434,7 @@ impl State {
 // recorded fact, disclosed beside the declaration; D2 reserves against it, so
 // the manifest never publishes `deliver` without it: an unreadable or missing
 // record refuses the manifest instead of dropping the bound.
-fn manifest_table(table: &snapback2_core::Table, store: &snapback2_core::Store) -> Result<Json, Refusal> {
+fn manifest_table(name: &str, table: &snapback2_core::Table, store: &snapback2_core::Store) -> Result<Json, Refusal> {
     let mut entry = json!({ "retain": table.retain, "columns": table.columns });
     if let Some(deliver) = &table.deliver {
         let audience = snapback2_core::delivery::audience_bound(store, &deliver.log)
@@ -408,7 +443,17 @@ fn manifest_table(table: &snapback2_core::Table, store: &snapback2_core::Store) 
                     detail: format!("custody log {} has no recorded audience bound", deliver.log),
                 })
             })
-            .map_err(|error| Refusal::from_runtime(&error))?;
+            .map_err(|error| {
+                // A missing or unparsable audience record is re-recorded by the
+                // next open; the store must not be deleted for it (LLP 1019 §2).
+                let mut refusal = Refusal::from_runtime(&error);
+                refusal.site = Some(format!("schema.tables.{name}.deliver"));
+                refusal.rewrite = Some(
+                    "stop snapback2 dev and restart the owner: the audience bound is re-recorded on open; keep .snapback/store.sqlite"
+                        .to_owned(),
+                );
+                refusal
+            })?;
         entry["deliver"] = json!(deliver);
         entry["deliver"]["audience"] = json!(audience);
     }
@@ -502,17 +547,19 @@ mod tests {
         let project = custody_project(1, true);
         let messages = &project.schema.tables["messages"];
         let mut store = snapback2_core::Store::memory().unwrap();
-        let refusal = super::manifest_table(messages, &store).unwrap_err();
+        let refusal = super::manifest_table("messages", messages, &store).unwrap_err();
         assert_eq!(refusal.code, "E_STORE_VERSION");
         assert!(refusal.message.contains("custody log deliveries has no recorded audience bound"), "{}", refusal.message);
+        assert_eq!(refusal.site.as_deref(), Some("schema.tables.messages.deliver"));
+        assert!(refusal.rewrite.as_deref().unwrap_or("").contains("keep .snapback/store.sqlite"), "{:?}", refusal.rewrite);
         store.set_meta("custody_audience:deliveries", "nope").unwrap();
-        let refusal = super::manifest_table(messages, &store).unwrap_err();
+        let refusal = super::manifest_table("messages", messages, &store).unwrap_err();
         assert_eq!(refusal.code, "E_STORE_VERSION");
         assert!(refusal.message.contains("custody_audience:deliveries is not an unsigned integer"), "{}", refusal.message);
         store.set_meta("custody_audience:deliveries", "7").unwrap();
-        let entry = super::manifest_table(messages, &store).unwrap();
+        let entry = super::manifest_table("messages", messages, &store).unwrap();
         assert_eq!(entry["deliver"]["audience"], json!(7));
-        let plain = super::manifest_table(&project.schema.tables["memberships"], &store).unwrap();
+        let plain = super::manifest_table("memberships", &project.schema.tables["memberships"], &store).unwrap();
         assert!(plain.get("deliver").is_none());
     }
 

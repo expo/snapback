@@ -33,7 +33,8 @@ make a computed offline page partial without `next`, even for another operation.
 Do not invent offsets or reuse an old cursor on changed data.
 
 `defineItems(query, { table, select, order, create, update, remove })` binds
-items; composites name `rows`. `select` returns an original row or null.
+items; composites name `rows`. `select` returns an original row or null; omit it
+for typed row sources (identity). Wrappers still need it; `table` stays explicit.
 Actions: `target: mutationTarget(op, "messages")`.
 Items: `key`, `data`, `draft`, `predicted`, FIFO `pending`.
 `withHistory(items, { items: threadItems, args: q => q })` adds fallback:

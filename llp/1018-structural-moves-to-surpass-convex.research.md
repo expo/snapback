@@ -9,12 +9,12 @@ Clique benchmark
 2026-09-06); revised by Claude Fable 5.1 after the five-model panel of
 2026-09-06/07 (§9), which the author convened
 **Date:** 2026-09-06
-**Revised:** 2026-09-09 (0.0.20 record review: full assertion scope, Muse O1 adjudication, sampling and attribution corrections, §2); 2026-09-09 (published 0.0.20 cold treatment and working-set reconciliation, §§2 and 11); 2026-09-08 (LLP 1018.000 implemented; separate cold-run obligations retained); 2026-09-07 (bounded lifecycle/consumer closeout and zero-proof integration audit); 2026-09-07 (public zero-count proof repair and cold prediction witness); 2026-09-07 (implemented finite compiler/declaration reconciliation); 2026-09-07 (follow-on LLP 1018.000 linked; closed-ticket links repaired); 2026-09-07 (focused panel: witness-first sequence and finite compiler closeout, §13); 2026-09-07 (two focused draft RFCs and three bounded architecture investigations, §12); 2026-09-07 (pending-client schema conflict exercise and formal M7 handoff); 2026-09-07 (surviving-row uniqueness checked against each actual rebuild); 2026-09-07 (panel revision: a second measure, move one rewritten
+**Revised:** 2026-09-10 (LLP 1018.008 residual assessment and proposals linked); 2026-09-09 (0.0.20 record review: full assertion scope, Muse O1 adjudication, sampling and attribution corrections, §2); 2026-09-09 (published 0.0.20 cold treatment and working-set reconciliation, §§2 and 11); 2026-09-08 (LLP 1018.000 implemented; separate cold-run obligations retained); 2026-09-07 (bounded lifecycle/consumer closeout and zero-proof integration audit); 2026-09-07 (public zero-count proof repair and cold prediction witness); 2026-09-07 (implemented finite compiler/declaration reconciliation); 2026-09-07 (follow-on LLP 1018.000 linked; closed-ticket links repaired); 2026-09-07 (focused panel: witness-first sequence and finite compiler closeout, §13); 2026-09-07 (two focused draft RFCs and three bounded architecture investigations, §12); 2026-09-07 (pending-client schema conflict exercise and formal M7 handoff); 2026-09-07 (surviving-row uniqueness checked against each actual rebuild); 2026-09-07 (panel revision: a second measure, move one rewritten
 around what already exists, the browser-tab policy decided, count-backed cap
 probes decided, the typed IR cut, move four evidence-led, move zero added, the
 Muse scores cited, the clock repair marked landed; implementation record §10);
 2026-09-06 (initial evidence-backed assessment)
-**Related:** LLP 1018.000 (further architectural directions), LLP 1000, LLP 1001, LLP 1002, LLP 1004, LLP 1010, LLP 1011,
+**Related:** LLP 1018.008 (2026-09-10 elegance assessment and residual proposals), LLP 1018.000 (further architectural directions), LLP 1000, LLP 1001, LLP 1002, LLP 1004, LLP 1010, LLP 1011,
 LLP 1012, LLP 1013, LLP 1015, LLP 1016, LLP 1017, LLP 1018.001, LLP 1018.002, LLP 0329.014.007;
 `benchmarks/briefs/social-messenger.md`,
 `benchmarks/runs/2026-09-06-clique-improvement/README.md`,
@@ -24,6 +24,13 @@ LLP 1012, LLP 1013, LLP 1015, LLP 1016, LLP 1017, LLP 1018.001, LLP 1018.002, LL
 `llp/reviews/1018-panel.*.md`
 
 ## 1. Thesis and scope
+
+**Follow-on assessment (2026-09-10):** [LLP 1018.008](./1018.008-elegance-after-the-corrections.research.md)
+records the remaining application-work costs after the completed correction
+program. Its five child Draft RFCs cover residual mechanisms; LLPs 1019–1021
+remain with their already commissioned implementer. The existing evidence-
+invalidation RFC, LLP 1018.002, receives the bounded experimental follow-up.
+This pointer accepts none of those proposals or changes this document's scores.
 
 Snapback's best primitives are increasingly competitive. Its remaining
 disadvantage is how much application code connects those primitives into a

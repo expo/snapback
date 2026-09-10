@@ -667,6 +667,9 @@ fn fetch_releases_only_its_own_header_snapshots_on_every_exit() {
       const free = __sb_saved.freeHeaders;
       __sb_saved.freeHeaders = function (handle) { released.push(handle); free(handle); };
       globalThis.__ibex2_text_decode = __sb_saved.decode;
+      let tokens = 0;
+      globalThis.__ibex2_fetch_control = function (action) { return action === 0 ? ++tokens : undefined; };
+      globalThis.__ibex2_response_read = function () { return Promise.resolve(null); };
       globalThis.__ibex2_response_field = function (handle, field) {
         if (field === 0) return handle === 307 ? 307 : 200;
         if (field === 1) return handle !== 307;
@@ -707,12 +710,61 @@ fn fetch_releases_only_its_own_header_snapshots_on_every_exit() {
         return { calls, releases: released.length, caller: caller.get('authorization') };
       })().then(function (value) { result = JSON.stringify(value); }, function (error) { result = String(error); });
     "#).unwrap();
-    runtime.pump();
+    runtime.pump().unwrap();
     let result = runtime.eval("result").unwrap();
     assert_eq!(
         serde_json::from_str::<Value>(&result).unwrap(),
         json!({ "calls": 5, "releases": 5, "caller": "Bearer caller" })
     );
+}
+
+#[test]
+fn empty_grants_allow_an_effect_without_network() {
+    let decl = declaration(
+        "async (payload, { meta }) => ({ body: payload.body, id: meta.id })",
+        vec![],
+    );
+    let mut host = Ibex2Host::new().unwrap();
+    for id in ["no-network-1", "no-network-2"] {
+        assert_eq!(
+            host.run(
+                &decl,
+                &job(id, json!({ "body": id })),
+                Duration::from_secs(2),
+            ),
+            sent(json!({ "body": id, "id": id }))
+        );
+    }
+}
+
+// @ref LLP 1018.008.003#4-empty-grants-mean-no-network-authority — aliases and helpers cannot bypass host admission, before any socket.
+#[test]
+fn empty_grants_refuse_global_aliased_and_helper_fetch_before_transport() {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    listener.set_nonblocking(true).unwrap();
+    let origin = format!("http://{}", listener.local_addr().unwrap());
+    let mut host = Ibex2Host::new().unwrap();
+    for source in [
+        "async (payload) => (await fetch(payload.url)).text()",
+        "async (payload, { fetch }) => (await fetch(payload.url)).text()",
+        "async (payload, tools) => { const request = tools.fetch; return (await request(payload.url)).text(); }",
+        "async (payload, tools) => { async function request(url) { return (await tools.fetch(url)).text(); } return request(payload.url); }",
+    ] {
+        let outcome = host.run(
+            &declaration(source, vec![]),
+            &job("empty-grant-denial", json!({ "url": format!("{origin}/secret") })),
+            Duration::from_secs(2),
+        );
+        assert!(
+            matches!(&outcome, Outcome::Failed { error, retry: false }
+                if error.contains(&format!("denied: net.fetch {origin}"))),
+            "{source}: {outcome:?}"
+        );
+        assert!(
+            matches!(listener.accept(), Err(error) if error.kind() == std::io::ErrorKind::WouldBlock),
+            "an empty-grant fetch reached transport: {source}"
+        );
+    }
 }
 
 #[test]
@@ -804,7 +856,7 @@ fn throw_retries_and_never_resolving_promise_times_out() {
     let outcome = host.run(
         &throws,
         &job("throw-1", Value::Null),
-        Duration::from_millis(50),
+        Duration::from_secs(1),
     );
     assert!(
         matches!(outcome, Outcome::Failed { retry: true, ref error } if error.contains("provider broke"))
@@ -818,7 +870,7 @@ fn throw_retries_and_never_resolving_promise_times_out() {
         host.run(
             &mimics_denial,
             &job("throw-denial-text", Value::Null),
-            Duration::from_millis(50),
+            Duration::from_secs(1),
         ),
         Outcome::Failed { retry: true, ref error }
             if error.contains("denied: net.fetch provider overloaded")
@@ -1211,7 +1263,7 @@ fn resolved_job_with_leftover_timer_discards_runtime() {
         host.run(
             &decl,
             &job("timer-1", json!({ "schedule": true, "value": "first" })),
-            Duration::from_millis(5),
+            Duration::from_millis(100),
         ),
         Outcome::Sent {
             result: json!("first"),
@@ -1286,7 +1338,7 @@ fn host_refuses_a_result_for_another_job_token() {
         .next()
         .expect("one cached runtime");
     let error = read_job_snapshot(cached, "wrong-job").unwrap_err();
-    assert_eq!(error, "E_EFFECT_RESULT");
+    assert_eq!(error, HostFailure::Message("E_EFFECT_RESULT".to_owned()));
 }
 
 #[test]
@@ -1310,7 +1362,8 @@ fn payload_json_parse_preserves_an_own_proto_key() {
 #[test]
 fn effect_global_surface_is_exact_allowlist() {
     let decl = declaration("async () => true", vec!["http://127.0.0.1:1".to_owned()]);
-    let mut runtime = build_runtime(&decl).expect("build effect runtime");
+    let mut runtime = build_runtime(&decl, Instant::now() + Duration::from_secs(10))
+        .expect("build effect runtime");
     assert_eq!(
         runtime.runtime.global_names(),
         EFFECT_GLOBALS

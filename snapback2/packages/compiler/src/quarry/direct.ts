@@ -10,6 +10,7 @@ type Lowering = {
   operandOrdinal: number;
   usesReadTime: boolean;
   sources: Array<[string, SourceSite]>;
+  statementSources: WeakMap<object, BoundSourceStack>; // keyed by object statements; `Break`/`Continue` are strings
   loopOrdinals: Map<string, number>;
   writeSources: Map<Stmt, SourceSite>;
   reservedNames: Set<string>;
@@ -28,7 +29,7 @@ export function lowerBoundQuarryArtifact(program: BoundQuarryProgram): {
 } {
   const lowering: Lowering = {
     program: program.name, accessOrdinal: 0, temporaryOrdinal: 0, operandOrdinal: 0, usesReadTime: false,
-    sources: [], loopOrdinals: new Map(), writeSources: new Map(),
+    sources: [], statementSources: new WeakMap(), loopOrdinals: new Map(), writeSources: new Map(),
     reservedNames: new Set([...program.args.map((arg) => arg.name), ...boundLocalNames(program.body)]),
     focals: new Map(), bindings: new Map(),
   };
@@ -37,6 +38,19 @@ export function lowerBoundQuarryArtifact(program: BoundQuarryProgram): {
     .sort(([left], [right]) => left.localeCompare(right))) });
   const body = lowerStatements(program.body, lowering);
   if (program.kind !== "job" && statementsFallThrough(program.body)) body.push({ Return: { Literal: "Null" } });
+  // @ref LLP 1020#a4-check---cost — each priced statement keeps its authored source after lowering.
+  function locate(statements: Stmt[], parent: string, inherited?: BoundSourceStack): void {
+    statements.forEach((statement, index) => {
+      const site = `${parent}:statement:${index + 1}`;
+      // A statement the lowering synthesized inside a shape or loop keeps the authored statement's source.
+      const source = (typeof statement === "object" ? lowering.statementSources.get(statement) : undefined) ?? inherited;
+      if (source) lowering.sources.push([site, { ...source.definition, ...(source.use ? { use: source.use } : {}) }]);
+      if (typeof statement !== "object") return;
+      if ("For" in statement) locate(statement.For.body, site, source);
+      if ("If" in statement) { locate(statement.If.then_body, `${site}:then`, source); locate(statement.If.else_body, `${site}:else`, source); }
+    });
+  }
+  locate(body, program.name);
   const locateWrites = (statements: Stmt[], prefix = "") => statements.forEach((statement, index) => {
     const path = `${prefix}${index}`;
     const source = lowering.writeSources.get(statement);
@@ -143,6 +157,8 @@ function requirement(lowering: Lowering, source: BoundSourceStack, code: string,
 function lowerStatements(statements: BoundStatement[], lowering: Lowering): Stmt[] {
   const body: Stmt[] = [];
   for (const statement of statements) {
+    const start = body.length;
+    try {
     if (statement.kind === "return") {
       const value = lowerExpression(statement.value, lowering);
       body.push(...value.setup, { Return: value.value });
@@ -249,6 +265,11 @@ function lowerStatements(statements: BoundStatement[], lowering: Lowering): Stmt
       recordLoopSource(lowering, binding, statement.source);
       body.push(...domain.setup, { For: { binding, domain: loopDomain, body: loopBody } });
       continue;
+    }
+    } finally {
+      for (const emitted of body.slice(start)) {
+        if (typeof emitted === "object" && !lowering.statementSources.has(emitted)) lowering.statementSources.set(emitted, statement.source);
+      }
     }
   }
   return body;

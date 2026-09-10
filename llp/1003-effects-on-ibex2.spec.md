@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2-effects` (the host and runner), `snapback2/crates/snapback2` (the runner thread in the owner; `doctor`), `snapback2/packages/compiler` (lowering `effect()` and `emit()`), `snapback2/scripts/{hermes,publish.mjs}`
 **Author:** Claude Fable 5 (orchestrator) — implementer: codex gpt-5.6-sol, lane C (compiler lowering: lane B0)
 **Date:** 2026-08-29
-**Revised:** 2026-09-05 (Clique F1: authored fetch headers are delivered and redirects obey Fetch; implementer GPT-6 Astra, L6; F2: ES2020 authored-file libraries and witnessed globals/members, L5); 2026-08-30
+**Revised:** 2026-09-10 (LLP 1018.008.003: explicit empty grants give no network authority; implementer Codex); 2026-09-05 (Clique F1: authored fetch headers are delivered and redirects obey Fetch; implementer GPT-6 Astra, L6; F2: ES2020 authored-file libraries and witnessed globals/members, L5); 2026-08-30
 **Related:** LLP 1000 decision 3 (Ibex 2 embedded now, effects only), LLP 1001 §8 (the outbox), LLP 1002 §5 (the owner that hosts the runner), LLP 0329.014.004 §6 (`effect` kind: "JavaScript with I/O outside the data plane; reads only through named queries as a service principal; writes only through named mutations; transactional outbox"), LLP 0329.016 §9 decision 7, expo/ibex LLP 0057/0058/0067/0068 (the engine, its bindings, and its grant model)
 
 ## Summary
@@ -68,8 +68,10 @@ Rules the compiler enforces (family `effect`, each with a rewrite):
   `headers: Headers`, `bodyUsed`, `text()`, `json()`, `arrayBuffer()`), never
   a constructible global `Response`; `setTimeout` retains the single-use
   host delivery permit.
-- `grants` is a non-empty list of `https://` or `http://127.0.0.1` origins
-  (`E_EFFECT_GRANT`).
+- `grants` is an explicit list of `https://` or `http://127.0.0.1` origins
+  (`E_EFFECT_GRANT`); `[]` gives no network authority. The host checks every
+  fetch, including aliases and local helpers, before transport. A no-fetch
+  body needs no placeholder grant (LLP 1018.008.003 §4).
 - `then`, if given, names a `mutation` in this project whose args are
   `{ outboxId: string, effect: string, result: <run's return type> }` — the
   compiler infers the return type and checks it (`E_EFFECT_THEN_ARGS`).

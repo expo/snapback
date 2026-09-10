@@ -16,7 +16,7 @@ fn chat_count_journey_refuses_matching_unusable_inboxes() {
     ]));
     let journey = check(&receipt, "conversation metadata stays inside membership");
     assert_eq!(journey["verdict"], "fail", "matching null inboxes were accepted: {journey}");
-    assert!(journey["detail"].as_str().unwrap().contains("inbox was not a usable array"), "{journey}");
+    assert!(journey["detail"]["error"].as_str().unwrap().contains("inbox was not a usable array"), "{journey}");
 }
 
 #[test]

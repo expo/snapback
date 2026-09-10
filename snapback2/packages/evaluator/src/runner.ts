@@ -30,7 +30,6 @@ import {
   safeNumber,
   sameValueZero,
   scopedRuleHash,
-  stableSort,
   startsWith,
   totalCompare,
   validHttpUrl,
@@ -457,12 +456,14 @@ export class Runner {
         });
       }
       case "Sort": {
+        // @ref LLP 1018.008.004#implementation-selection-2026-09-10 — ES2019
+        // stable sort operates on an owned copy, never the held argument array.
         const values = asArray(args[0]).slice();
         for (const value of values) {
           for (const key of data.keys) field(value, key.field);
         }
         return {
-          Array: stableSort(values, (left, right) => {
+          Array: values.sort((left, right) => {
             for (const key of data.keys) {
               let compared = totalCompare(field(left, key.field), field(right, key.field));
               if (key.order === "Desc") compared = -compared;
@@ -494,7 +495,7 @@ export class Runner {
       }
       case "DeterministicShare": {
         const amount = asInt(args[0]);
-        const recipients = stableSort(asArray(args[1]).slice(), totalCompare);
+        const recipients = asArray(args[1]).slice().sort(totalCompare);
         if (recipients.length === 0) throw new EvalError("E_DIV_ZERO", "no recipients");
         if (new Set(recipients.map(canonicalValue)).size !== recipients.length)
           throw new EvalError("E_INPUT", "share recipients must be unique");

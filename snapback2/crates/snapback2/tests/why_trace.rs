@@ -56,6 +56,17 @@ mutation maybeNotify(shouldNotify: bool):
     ]);
     assert!(why.status.success());
     let why = json_stdout(&why);
+    let meters = why["meters"].as_array().expect("measured/certified columns");
+    for (name, field) in [("examined", "examined"), ("probes", "rule_probes"), ("steps", "steps"), ("derived scratch", "derived_scratch_bytes")] {
+        let meter = meters.iter().find(|meter| meter["meter"] == name).unwrap();
+        assert_eq!(meter["measured"], why["authoritativeTrace"][field]);
+        assert!(meter["certified"].as_u64().unwrap() >= meter["measured"].as_u64().unwrap());
+    }
+    for name in ["heap peak", "closure bytes"] {
+        assert_eq!(meters.iter().find(|meter| meter["meter"] == name).unwrap()["measured"], "unavailable");
+    }
+    assert_eq!(meters.iter().find(|meter| meter["meter"] == "writes").unwrap()["measured"], 0);
+
     assert!(
         why["rowVerdicts"]
             .as_array()
@@ -406,6 +417,16 @@ fn why_prose_explains_denied_chat_guard_at_its_call_site() {
         String::from_utf8(why.stdout.clone()).unwrap(),
         concat!(
             "explain.thread as charlie — denied (MEMBERSHIP_REQUIRED)\n",
+            "  meter            certified     measured\n",
+            "  examined                53            0\n",
+            "  index entries           53  unavailable\n",
+            "  probes                   2            0\n",
+            "  steps                  279           10\n",
+            "  derived scratch          0            0\n",
+            "  writes                   0            0\n",
+            "  heap peak             8928  unavailable\n",
+            "  output bytes         35312  unavailable\n",
+            "  closure bytes        35250  unavailable\n",
             "  explain.q:4   require isMember(conversationId, viewer) else MEMBERSHIP_REQUIRED\n",
             "    memberships[conversation-1, dev:charlie]   absent   (byConversationPrincipal)\n",
         )
@@ -448,6 +469,16 @@ fn why_prose_explains_admitted_chat_reads_bounds_rules_and_subscriptions() {
         String::from_utf8(why.stdout).unwrap(),
         concat!(
             "explain.thread as alice — complete\n",
+            "  meter            certified     measured\n",
+            "  examined                53            2\n",
+            "  index entries           53  unavailable\n",
+            "  probes                   2            2\n",
+            "  steps                  279           15\n",
+            "  derived scratch          0            0\n",
+            "  writes                   0            0\n",
+            "  heap peak             8928  unavailable\n",
+            "  output bytes         35312  unavailable\n",
+            "  closure bytes        35250  unavailable\n",
             "  explain.q:4   require isMember(conversationId, viewer) else MEMBERSHIP_REQUIRED\n",
             "    memberships[conversation-1, dev:alice]   1 row examined, 1 visible\n",
             "    point by byConversationPrincipal — complete\n",

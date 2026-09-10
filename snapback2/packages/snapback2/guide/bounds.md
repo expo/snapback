@@ -25,4 +25,16 @@ row-dependent predicates refuse. After changing an index, restart pagination.
 Index-selection refusals list catalog keys and types, with an executable
 replacement when one unique correction exists.
 
+`check --cost [<op>]` prints the priced plan on admission or refusal: examined,
+index entries, rule probes, steps, heap, output, closure and write rows, with source
+lines, totals and ceilings. `--json` retains terms and partial certificates;
+these diagnostics do not authorize execution. Branches select each meter's
+maximum; jobs are priced per chunk, including the progress write.
+Loop-carried scalar/object/collection values include repeated growth, aliases,
+nested loops, branches and retained intermediates; bounds can exceed measured bytes.
+A maintained point read inside a page shape is allowed. Counting the outer
+non-uniform page still refuses `E_STRUCTURAL_COUNT`; pin the authorization
+scope in the index prefix. An unreadable maintained group has no absence
+authority: receipt-only replay remains `partial`, including a server zero.
+
 See `guide quarry` for related topics.

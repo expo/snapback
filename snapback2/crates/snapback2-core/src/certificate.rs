@@ -13,8 +13,11 @@ use thiserror::Error;
 
 mod diagnostic;
 mod delivery;
+mod inspection;
+pub use inspection::{CheckAnalysis, CostTerm};
 mod merge;
 mod output;
+mod recurrence;
 mod page;
 pub(crate) mod search;
 mod summary;
@@ -123,6 +126,8 @@ pub struct Certificate {
     pub indexes_required: Vec<String>,
     pub disclosures: Vec<String>,
     pub bound_product: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub cost_terms: Vec<CostTerm>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -268,60 +273,6 @@ impl<'a> Checker<'a> {
         })
     }
 
-    pub fn check_all(&self, program: &Program) -> Result<Certificate, Vec<CheckError>> {
-        let mut errors: Vec<_> = program
-            .args
-            .iter()
-            .chain(self.schema.channels.values().flat_map(|c| c.args.iter()))
-            .filter(|(_, kind)| !kind.bounds_valid())
-            .map(|(name, _)| CheckError {
-                site: Some(name.clone()),
-                code: "E_INPUT".into(),
-                message: "text min exceeds max".into(),
-                rewrite: "use a text minimum no greater than its maximum".into(),
-            })
-            .collect();
-        if program.read_time_granularity_ms.is_some_and(|g| {
-            program.kind != ProgramKind::Query || g == 0 || g > crate::value::I53_MAX as u64
-        }) {
-            errors.push(CheckError {
-                site: None,
-                code: "E_INPUT".into(),
-                message: "invalid query clock declaration".into(),
-                rewrite: "declare a positive safe-integer readTime granularity on a query".into(),
-            });
-        }
-        fn contains_check(body: &[Stmt]) -> bool { body.iter().any(|stmt| match stmt {
-            Stmt::Check { .. } => true,
-            Stmt::If { then_body, else_body, .. } => contains_check(then_body) || contains_check(else_body),
-            Stmt::For { body, .. } => contains_check(body), _ => false,
-        }) }
-        if program.kind == ProgramKind::Query && contains_check(&program.body) {
-            errors.push(CheckError { site: None, code: "E_OP_KIND".into(),
-                message: "conditional writes require a mutation".into(), rewrite: "use a mutation for update ... if".into() });
-        }
-        if !errors.is_empty() { return Err(errors); }
-
-        if program.kind == ProgramKind::Job {
-            return crate::jobs::certify(self.schema, program, &self.ceilings);
-        }
-        let (mut errors, complete) = self.structural_errors(program);
-        errors.extend(search::validate(self.schema, program));
-        match self.analyze(program) {
-            Ok(mut certificate) if errors.is_empty() => {
-                for site in &mut certificate.read_sites {
-                    site.complete = complete.contains(&site.site);
-                }
-                Ok(certificate)
-            }
-            Ok(_) => Err(errors),
-            Err(mut analysis_errors) => {
-                errors.append(&mut analysis_errors);
-                Err(errors)
-            }
-        }
-    }
-
     // @ref LLP 1001#7-channels-schemachannels — channel admission is a
     // certified rule site with transitive visibility-probe and step bounds.
     pub fn check_rule(&self, rule: &RuleExpr) -> Result<RuleCertificate, Vec<CheckError>> {
@@ -356,8 +307,9 @@ impl<'a> Checker<'a> {
         }
     }
 
-    fn analyze(&self, program: &Program) -> Result<Certificate, Vec<CheckError>> {
+    fn analyze(&self, program: &Program) -> Result<(Certificate, Vec<CheckError>), Vec<CheckError>> {
         let mut analyzer = Analyzer::new(self.schema);
+        analyzer.site = program.name.clone();
         let mut summary = analyzer
             .statements(&program.body, 1, &[])
             .map_err(|error| vec![error])?;
@@ -476,18 +428,28 @@ impl<'a> Checker<'a> {
         } else {
             summary.steps
         };
-        let mut derived = search::derivation_bound(
+        let (mut derived, mut derived_terms) = search::derivation_bound(
             self.schema,
             program,
             &summary.writes,
             &maintained_writes,
             &summary.reads,
+            &summary.write_origins,
         );
         let search_closure =
             search::closure::estimate(self.schema, program, &summary.reads, &analyzer.merge_sites);
         if let Some(closure) = &search_closure {
             derived.scratch = derived.scratch.saturating_add(closure.bytes);
+            derived_terms.push(search::DerivedTerm {
+                site: analyzer.merge_sites.keys().next().cloned(),
+                source: "search closure scratch".into(),
+                steps: 0,
+                scratch: closure.bytes,
+            });
         }
+        summary.derived_steps = derived.steps;
+        summary.derived_scratch = derived.scratch;
+        summary.derived_terms = derived_terms;
         let max_heap_bytes = max_steps
             .saturating_mul(HEAP_BYTES_PER_STEP)
             .saturating_add(derived.scratch)
@@ -533,6 +495,9 @@ impl<'a> Checker<'a> {
                 summary.count_absence_bytes,
                 "public count absence evidence",
             ));
+        }
+        if output.retained_bytes > closure.bytes {
+            closure = ByteShape::leaf(output.retained_bytes, "coupled loop-carried values at peak retention");
         }
         let max_closure_bytes = closure.bytes;
         let mut bound_errors = Vec::new();
@@ -591,9 +556,11 @@ impl<'a> Checker<'a> {
                     .to_owned(),
             });
         }
-        if !bound_errors.is_empty() {
-            return Err(bound_errors);
-        }
+        let cost_terms = diagnostic::priced_terms(&summary, &[
+            ("examined entries", max_examined), ("index entries", max_index_entries),
+            ("rule probes", max_rule_probes), ("steps", max_steps), ("heap bytes", max_heap_bytes),
+        ], &output.shape, &closure, &maintained_writes);
+
 
         let mut read_sites: Vec<_> = summary.reads.into_values().collect();
         read_sites.sort_by(|a, b| a.site.cmp(&b.site));
@@ -769,7 +736,7 @@ impl<'a> Checker<'a> {
             })
             .collect();
 
-        Ok(Certificate {
+        Ok((Certificate {
             job: None,
             program: program.name.clone(),
             plan_hash: digest(program),
@@ -819,7 +786,8 @@ impl<'a> Checker<'a> {
             indexes_required,
             disclosures,
             bound_product: summary.costs.product(),
-        })
+            cost_terms,
+        }, bound_errors))
     }
 
     pub fn check_pair(
@@ -867,6 +835,7 @@ impl<'a> Checker<'a> {
 }
 
 struct Analyzer<'a> {
+    site: String,
     schema: &'a Schema,
     completeness: Completeness,
     merge_sites: BTreeMap<String, MergeSite>,
@@ -877,6 +846,7 @@ impl<'a> Analyzer<'a> {
         Self {
             schema,
             completeness: Completeness::Page,
+            site: String::new(),
             merge_sites: BTreeMap::new(),
         }
     }
@@ -888,8 +858,10 @@ impl<'a> Analyzer<'a> {
         factors: &[(String, u64)],
     ) -> Result<Summary, CheckError> {
         let mut summary = Summary::default();
-        for statement in statements {
-            let next =
+        let parent = self.site.clone();
+        for (position, statement) in statements.iter().enumerate() {
+            self.site = format!("{parent}:statement:{}", position + 1);
+            let mut next =
                 match statement {
                     Stmt::Const { value, .. }
                     | Stmt::Let { value, .. }
@@ -904,8 +876,8 @@ impl<'a> Analyzer<'a> {
                         then_body,
                         else_body,
                     } => self.expr(condition, calls, factors)?.add(
-                        self.statements(then_body, calls, factors)?
-                            .branch(self.statements(else_body, calls, factors)?),
+                        self.arm(then_body, calls, factors, "then")?
+                            .branch(self.arm(else_body, calls, factors, "else")?),
                     ),
                     Stmt::For { domain, body, .. } => {
                         let (domain_summary, bound, factor) =
@@ -945,11 +917,26 @@ impl<'a> Analyzer<'a> {
                         .add(self.write("_outbox", WriteKind::Emit, None, calls, factors)),
                     Stmt::Break | Stmt::Continue => Summary::default(),
                 };
+            next.costs.step(calls, "statements", factors);
+            next.costs.locate(&self.site);
+            for write in &next.writes {
+                next.write_origins
+                    .entry(format!("{} {:?}", write.table, write.kind))
+                    .or_insert_with(|| self.site.clone());
+            }
             summary = summary.add(next);
             summary.steps = summary.steps.saturating_add(calls);
-            summary.costs.step(calls, "statements", factors);
         }
+        self.site = parent;
         Ok(summary)
+    }
+
+    fn arm(&mut self, body: &[Stmt], calls: u64, factors: &[(String, u64)], arm: &str) -> Result<Summary, CheckError> {
+        let parent = self.site.clone();
+        self.site = format!("{parent}:{arm}");
+        let result = self.statements(body, calls, factors);
+        self.site = parent;
+        result
     }
 
     fn domain(

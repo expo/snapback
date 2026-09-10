@@ -22,6 +22,7 @@ pub(super) enum Repair {
 #[derive(Clone)]
 pub(super) struct Cost {
     pub value: u64,
+    pub site: Option<String>,
     pub source: String,
     pub repair: Repair,
 }
@@ -72,6 +73,7 @@ impl Cost {
             )
         };
         Self {
+            site: Some(scan.site.clone()),
             value: calls.saturating_mul(reserve),
             source,
             repair,
@@ -103,6 +105,7 @@ impl Cost {
             },
         );
         Self {
+            site: Some(format!("schema.tables.{table}")),
             value: calls.saturating_mul(per_call),
             source,
             repair: Repair::Cap {
@@ -167,6 +170,12 @@ impl Cost {
 #[derive(Clone, Default)]
 pub(super) struct WorkTerms([Vec<Cost>; 4]);
 impl WorkTerms {
+    pub fn locate(&mut self, site: &str) {
+        for term in self.0.iter_mut().flatten() {
+            if term.site.is_none() { term.site = Some(site.into()); }
+        }
+    }
+
     pub fn add(&mut self, other: Self) {
         for (target, source) in self.0.iter_mut().zip(other.0) {
             target.extend(source);
@@ -186,6 +195,7 @@ impl WorkTerms {
     }
     pub fn read(&mut self, read: &Read, calls: u64, factors: &[(String, u64)]) {
         let cost = Cost {
+            site: Some(read.site.clone()),
             value: calls,
             source: format!(
                 "{} point read on {} × {calls} calls{}",
@@ -204,12 +214,14 @@ impl WorkTerms {
     pub fn step(&mut self, value: u64, label: &str, factors: &[(String, u64)]) {
         self.0[3].push(Cost {
             value,
+            site: None,
             source: format!("{label}{}", context(factors)),
             repair: Repair::Work,
         });
     }
     pub fn probes(&mut self, site: &str, calls: u64, per_call: u64, factors: &[(String, u64)]) {
         self.0[2].push(Cost {
+            site: Some(site.into()),
             value: calls.saturating_mul(per_call),
             source: format!(
                 "{site}: {calls} calls × {per_call} rule probes{}",
@@ -245,12 +257,12 @@ impl WorkTerms {
 }
 
 pub(super) fn sorted_terms(terms: Vec<Cost>) -> Vec<Cost> {
-    let mut combined = BTreeMap::<String, Cost>::new();
+    let mut combined = BTreeMap::<(Option<String>, String), Cost>::new();
     let mut terms_out = Vec::new();
     for term in terms.into_iter().filter(|term| term.value > 0) {
         if matches!(term.repair, Repair::Work) {
             combined
-                .entry(term.source.clone())
+                .entry((term.site.clone(), term.source.clone()))
                 .and_modify(|old| old.value = old.value.saturating_add(term.value))
                 .or_insert(term);
         } else {
@@ -278,19 +290,7 @@ impl Checker<'_> {
         let (product, rewrite) = if let Some(shape) = bytes {
             (shape.render(), shape.rewrite())
         } else {
-            let mut terms = summary.costs.for_meter(name);
-            if name == "heap bytes" && summary.delivery_heap_bytes > 0 {
-                terms.push(Cost { value: summary.delivery_heap_bytes, source: "deliver: candidate images, recipient map and event construction".into(), repair: Repair::Work });
-            }
-            let total = terms.iter().fold(0_u64, |n, c| n.saturating_add(c.value));
-            if actual > total {
-                terms.push(Cost {
-                    value: actual - total,
-                    source: "rule evaluation / non-uniform budget reserve".into(),
-                    repair: Repair::Uniformity,
-                });
-            }
-            let terms = sorted_terms(terms);
+            let terms = meter_terms(summary, name, actual);
             let maintain_line = terms.iter().find_map(|term| match &term.repair {
                 Repair::Cap {
                     maintain_line: Some(line),
@@ -331,4 +331,65 @@ impl Checker<'_> {
             rewrite,
         })
     }
+}
+
+fn meter_terms(summary: &Summary, name: &str, actual: u64) -> Vec<Cost> {
+    let mut terms = summary.costs.for_meter(name);
+    for term in &summary.derived_terms {
+        let value = match name { "steps" => term.steps, "heap bytes" => term.scratch, _ => 0 };
+        if value > 0 {
+            terms.push(Cost { value, source: term.source.clone(), site: term.site.clone(), repair: Repair::Work });
+        }
+    }
+    if name == "heap bytes" && summary.delivery_heap_bytes > 0 {
+        terms.push(Cost {
+            value: summary.delivery_heap_bytes, site: None,
+            source: "deliver: candidate images, recipient map and event construction".into(),
+            repair: Repair::Work,
+        });
+    }
+    let total = terms.iter().fold(0_u64, |n, c| n.saturating_add(c.value));
+    if actual > total {
+        terms.push(Cost {
+            value: actual - total, site: None,
+            source: "rule evaluation / non-uniform budget reserve".into(),
+            repair: Repair::Uniformity,
+        });
+    }
+    sorted_terms(terms)
+}
+
+pub(super) fn priced_terms(
+    summary: &Summary, meters: &[(&str, u64)], output: &ByteShape, closure: &ByteShape,
+    maintained: &BTreeMap<String, u64>,
+) -> Vec<CostTerm> {
+    let mut result = Vec::new();
+    for &(meter, actual) in meters {
+        for cost in meter_terms(summary, meter, actual) {
+            result.push(CostTerm { meter: meter.into(), value: cost.value.into(), source: cost.source, site: cost.site });
+        }
+    }
+    fn bytes(result: &mut Vec<CostTerm>, meter: &str, shape: &ByteShape, scale: u64, summary: &Summary, parent: Option<String>) {
+        let site = summary.reads.keys().filter(|site| shape.label.contains(site.as_str())).max_by_key(|site| site.len()).cloned().or(parent);
+        if shape.children.is_empty() {
+            result.push(CostTerm { meter: meter.into(), value: i128::from(shape.bytes.saturating_mul(scale)), source: shape.label.clone(), site: site.clone() });
+        } else {
+            let child_scale = scale.saturating_mul(shape.repeat.unwrap_or(1));
+            for child in &shape.children { bytes(result, meter, child, child_scale, summary, site.clone()); }
+            let sum = shape.children.iter().fold(0u64, |n, c| n.saturating_add(c.bytes.saturating_mul(child_scale)));
+            let delta = i128::from(shape.bytes.saturating_mul(scale)) - i128::from(sum);
+            if delta != 0 { result.push(CostTerm { meter: meter.into(), value: delta, source: format!("{}: framing/shared encoding/growth adjustment", shape.label), site }); }
+        }
+    }
+    bytes(&mut result, "output bytes", output, 1, summary, None);
+    bytes(&mut result, "closure bytes", closure, 1, summary, None);
+    for write in &summary.writes {
+        let key = format!("{} {:?}", write.table, write.kind);
+        let site = summary.write_origins.get(&key).cloned().unwrap_or_else(|| format!("schema.tables.{}", write.table));
+        result.push(CostTerm { meter: "write rows".into(), value: write.max_rows.into(), source: key, site: Some(site) });
+    }
+    for (table, rows) in maintained {
+        result.push(CostTerm { meter: "write rows".into(), value: (*rows).into(), source: format!("{table} maintained applications"), site: Some(format!("schema.tables.{table}")) });
+    }
+    result
 }

@@ -65,6 +65,7 @@ pub(super) fn reserve(schema: &Schema, summary: &mut Summary) {
         summary.index_entries = summary.index_entries.saturating_add(rows);
         summary.costs.scan(Cost {
             value: rows,
+            site: None,
             source: label.clone(),
             repair: diagnostic::Repair::Work,
         });

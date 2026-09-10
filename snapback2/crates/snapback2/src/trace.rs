@@ -96,6 +96,10 @@ fn enrich(trace: Json) -> Json {
     output.insert("intent".to_owned(), Json::String(program.to_owned()));
     output.insert("commit".to_owned(), commit);
     output.insert("outboxRows".to_owned(), Json::Array(outbox_rows));
+    output.insert(
+        "outboxHistory".to_owned(),
+        trace["outbox"]["history"].clone(),
+    );
     if let Some(ledger) = trace.get("ledger") {
         output.insert("ledger".to_owned(), ledger.clone());
     } else {

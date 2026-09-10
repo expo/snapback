@@ -99,6 +99,7 @@ pub(crate) fn append_commit(
     transaction: &Transaction<'_>,
     record: &CommitRecord,
 ) -> Result<(), RuntimeError> {
+    crate::store_timers::resume_after_empty(transaction, record.at)?;
     transaction.execute(
         "INSERT INTO _commits(seq, at, program, principal, kind, touched, writes, emits, by, job, job_chunk, schedule, scope_touches)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",

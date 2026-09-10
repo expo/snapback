@@ -62,6 +62,21 @@ interface ItemSpec<Args, Source, Row, CreateArgs, UpdateArgs, RemoveArgs, Draft>
   update?: Target<UpdateArgs, "update">;
   remove?: Target<RemoveArgs, "remove">;
 }
+type IdentityItemSpec<Args, Row extends ItemRow, CreateArgs, UpdateArgs, RemoveArgs, Draft> =
+  Omit<ItemSpec<Args, Row, Row, CreateArgs, UpdateArgs, RemoveArgs, Draft>, "select"> & { select?: undefined };
+// @ref LLP 1018.008.001#implementation-selection-2026-09-10 — only typed row sources can omit their identity selector; provenance still belongs to the query image.
+export function defineItems<Args, Result extends readonly ItemRow[],
+  CreateArgs = never, UpdateArgs = never, RemoveArgs = never, Draft = never>(
+  query: Op<Args, Result>,
+  spec: IdentityItemSpec<NoInfer<Args>, Element<NoInfer<Result>>, CreateArgs, UpdateArgs, RemoveArgs, Draft>,
+): Items<Args, Result, Element<Result>, Draft>;
+export function defineItems<Args, Result, Source extends ItemRow,
+  CreateArgs = never, UpdateArgs = never, RemoveArgs = never, Draft = never>(
+  query: Op<Args, Result>,
+  spec: IdentityItemSpec<NoInfer<Args>, NoInfer<Source>, CreateArgs, UpdateArgs, RemoveArgs, Draft> & {
+    rows(data: NoInfer<Result>): readonly Source[];
+  },
+): Items<Args, Result, Source, Draft>;
 export function defineItems<Args, Result extends readonly unknown[], Row extends ItemRow,
   CreateArgs = never, UpdateArgs = never, RemoveArgs = never, Draft = never>(
   query: Op<Args, Result>,
@@ -77,7 +92,10 @@ export function defineItems<Args, Result, Source, Row extends ItemRow,
 export function defineItems<Args, Result, Source, Row extends ItemRow,
   CreateArgs, UpdateArgs, RemoveArgs, Draft>(
   query: Op<Args, Result>,
-  spec: ItemSpec<Args, Source, Row, CreateArgs, UpdateArgs, RemoveArgs, Draft> & { rows?(data: Result): readonly Source[] },
+  spec: Omit<ItemSpec<Args, Source, Row, CreateArgs, UpdateArgs, RemoveArgs, Draft>, "select"> & {
+    select?(row: Source): Row | null | undefined;
+    rows?(data: Result): readonly Source[];
+  },
 ): Items<Args, Result, Row, Draft> {
   const bindings: Binding<Args, Draft>[] = [];
   const address = (target: MutationTargetRef<any>, kind: ItemActionKind) => (entry: OutboxEntry) => {
@@ -97,7 +115,7 @@ export function defineItems<Args, Result, Source, Row extends ItemRow,
   target("remove", spec.remove);
   return Object.freeze({ query: referenceName(query), table: spec.table,
     rows: spec.rows ?? ((data: Result) => Array.isArray(data) ? data : []),
-    select: spec.select as Items<Args, Result, Row, Draft>["select"],
+    select: (spec.select ?? (row => row)) as Items<Args, Result, Row, Draft>["select"],
     ...(spec.order ? { order: spec.order } : {}), bindings: Object.freeze(bindings) });
 }
 
