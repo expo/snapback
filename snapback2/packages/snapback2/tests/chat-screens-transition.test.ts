@@ -251,6 +251,7 @@ test("the cold chat keeps both intents queued after a committed replay loses its
         if (fault && path === "/api/mutation") {
           fault = false;
           assert.equal((await response.json()).state, "committed", "the 503 replaces a real commit receipt");
+          cut = true; // No genuine reconnect opportunity until the manual fallback below.
           return json({ message: "injected 503" }, 503);
         }
         return response;
@@ -276,12 +277,15 @@ test("the cold chat keeps both intents queued after a committed replay loses its
     assert.equal(client.snapshot.auth.viewer, principal);
     const custody = (entries: any[]) => entries.map(({ intent, state, ids, args }) => ({ intent, state, ids, args }));
     assert.deepEqual(custody(await client.outbox.entries()), custody(queued), "neither intent settled or changed after the lost receipt");
-    await waitFor(() => document.querySelector("ol.bubbles")?.getAttribute("data-view-source") === "composite"
-      && document.querySelectorAll("li[data-state=queued]").length === 2, "composite with both queued bubbles after the lost response");
+    await waitFor(() => document.querySelectorAll("li[data-state=queued]").length === 2,
+      "both queued bubbles through the continuing outage after the lost response");
     assert.equal(document.querySelector(`li[data-message="${first.ids[0]}"]`) === pending, true, "auth confirmation must not remount the pinned bubble");
     assert.equal(replays.length, 1, "mounting and confirming auth must not start an additional replay");
+    await waitFor(() => [...document.querySelectorAll<HTMLButtonElement>("form button")].some(button => text(button) === "Sync now" && !button.disabled),
+      "manual recovery after the bounded automatic flight stops");
     const sync = [...document.querySelectorAll<HTMLButtonElement>("form button")].find(button => text(button) === "Sync now");
     assert.ok(sync && !sync.disabled, "the stopped queue exposes usable recovery");
+    cut = false;
     await act(async () => { sync.click(); });
     await waitFor(async () => (await client.outbox.entries()).every((e: any) => e.state === "committed")
       && queued.every((e: any) => document.querySelector(`li[data-message="${e.ids[0]}"]`)?.getAttribute("data-state") === "row"), "both sends settle through Sync");

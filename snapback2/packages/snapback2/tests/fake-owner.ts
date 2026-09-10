@@ -136,6 +136,8 @@ export interface FakeOwnerOptions {
   /** Seed alice's log with `message-1` ("Welcome", conversation-1) and a delivery in conversation-2. */
   seed?: boolean;
   grantCount?: number;
+  /** Certified reservation, including the intent ID, for capacity tests. */
+  writeAllocation?: number;
   grantMintedAt?: () => number;
   /** Executes the intent, then answers 503 this many times (a 503 after a commit). */
   failAfterCommit?: number;
@@ -275,6 +277,8 @@ export function fakeOwner(options: FakeOwnerOptions = {}) {
       const threadCert = queryCertificate(threadIr);
       const alternateIr = scanIr("messages.inboxAlternate", "c");
       const alternateCert = queryCertificate(alternateIr);
+      const sendCertificate = certificate(postIr, 'Insert');
+      sendCertificate.write_sites[1]!.max_rows = (options.writeAllocation ?? 52) - 2;
       return json({
         generation, schemaHash,
         schema,
@@ -282,15 +286,18 @@ export function fakeOwner(options: FakeOwnerOptions = {}) {
           "messages.inbox": { kind: "query", cursor, planHash: inboxCert.plan_hash, drain: drainFrom(inboxCert, cursor), ir: inboxIr, certificate: inboxCert },
           "messages.inboxAlternate": { kind: "query", cursor: "c", planHash: alternateCert.plan_hash, drain: drainFrom(alternateCert, "c"), ir: alternateIr, certificate: alternateCert },
           "messages.thread": { kind: "query", cursor: "c", planHash: threadCert.plan_hash, drain: drainFrom(threadCert, "c"), ir: threadIr, certificate: threadCert },
-          "messages.send": { kind: "mutation", planHash: certificate(postIr, 'Insert').plan_hash, ir: postIr, certificate: certificate(postIr, 'Insert') },
+          "messages.send": { kind: "mutation", planHash: sendCertificate.plan_hash, ir: postIr, certificate: sendCertificate },
           "messages.edit": { kind: "mutation", planHash: certificate(editIr, 'Update').plan_hash, ir: editIr, certificate: certificate(editIr, 'Update') },
         },
       });
     }
     if (url.pathname === "/api/resume") {
+      const body = JSON.parse(String(init?.body));
+      const demand = body.demand === "messages.send" ? options.writeAllocation ?? 52 : body.demand === "messages.edit" ? 51 : 0;
+      const low = body.remaining == null || body.remaining < 1024 || body.remaining < demand;
       return json({
         seq, generation, schemaHash, authority: { principal: "dev:alice", authEpoch: 7 },
-        log: { unchanged: true }, mounted: [], grant: mint(),
+        log: body.log ? { unchanged: true } : null, mounted: [], ...(low ? { grant: mint() } : {}),
       });
     }
     // A login mints a grant like a resume does; the bearer flow is otherwise unchecked here.

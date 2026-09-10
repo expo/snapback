@@ -685,7 +685,7 @@ impl State {
                     .runtime_mut()
                     .signup(&email, &password, now)
                     .map_err(|error| Refusal::from_identity(&error))?;
-                let grant = self.grant_if_low(session.principal.id.as_str(), None)?;
+                let grant = self.grant_if_low(session.principal.id.as_str(), None, 0)?;
                 Ok(session_json(
                     &session.token,
                     session.principal.id.as_str(),
@@ -704,7 +704,7 @@ impl State {
                     .runtime_mut()
                     .login(&email, &password, now)
                     .map_err(|error| Refusal::from_identity(&error))?;
-                let grant = self.grant_if_low(session.principal.id.as_str(), remaining.as_ref())?;
+                let grant = self.grant_if_low(session.principal.id.as_str(), remaining.as_ref(), 0)?;
                 Ok(session_json(
                     &session.token,
                     session.principal.id.as_str(),
@@ -719,7 +719,7 @@ impl State {
                     .runtime_mut()
                     .guest(now)
                     .map_err(|error| Refusal::from_identity(&error))?;
-                let grant = self.grant_if_low(session.principal.id.as_str(), remaining.as_ref())?;
+                let grant = self.grant_if_low(session.principal.id.as_str(), remaining.as_ref(), 0)?;
                 Ok(session_json(
                     &session.token,
                     session.principal.id.as_str(),

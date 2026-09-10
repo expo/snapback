@@ -17,7 +17,7 @@ import {
   goOnline,
   offlineNetworkRefusal,
   offlineRefusal as makeOfflineRefusal,
-  performOfflineResume,
+  resumeClient, type ResumeClient,
   restartOffline,
   settleSubscription,
   validateOfflineOptions,
@@ -49,6 +49,7 @@ import { TabFollower } from "./client-sessions.js";
 import { ClientQueries } from "./client-observed.js";
 import type { HistorySnapshot, ItemRow, Items, ItemSnapshot, ItemsWithHistory } from "./client-items.js";
 import { ClientInbox } from "./client-inbox.js";
+import { blockedRecovery, observeRecovery, recoveryConnection, recoveryOpportunity, type RecoveryClient, type RecoveryDemand } from "./client-recovery.js";
 import { performMutation, type MutationClient } from "./client-mutations.js";
 import { createChannel, type ChannelHost } from "./client-channels.js";
 import { ReconnectingSse } from "./sse.js";
@@ -116,6 +117,11 @@ class Client implements SnapbackClient {
   private resumeTail: Promise<void> = Promise.resolve();
   private resumeFlight?: Promise<void>;
   private resumeController?: AbortController;
+  private resumeDemand?: string;
+  private recoveryRevision = 0;
+  private recoveryReachable = false;
+  private blockedRecovery?: { op: string; demand: RecoveryDemand };
+  private get recoveryHost(): RecoveryClient { return this as unknown as RecoveryClient; }
   private readonly drainControllers = new Set<AbortController>();
   private resetRefusal?: Refusal;
   // Pending reads, never buffered authority-bearing responses. Custody is per principal.
@@ -171,9 +177,10 @@ class Client implements SnapbackClient {
       url: this.url, runtime: this.offlineRuntime, closed: () => this.closed, fence: () => this.operationFence,
       failure: (error, site) => this.offlineRefusal(error, site).envelope,
       superseded: () => supersededRefusal(),
-      writerStatus: () => this.offlineRuntime!.outbox.status(),
+      writerStatus: async () => ({ ...await this.offlineRuntime!.outbox.status(), ...(this.resumeFlight ? { recovering: true as const } : {}) }),
       subscribeLedger: (listener) => this.offlineRuntime?.outbox.subscribe(listener) ?? (() => undefined),
       admitted: () => { void this.drainNow().catch(() => undefined); },
+      blocked: op => blockedRecovery(this.recoveryHost, op),
     });
     this.follower = new TabFollower<Authority>({
       runtime: () => this.offlineRuntime!, closed: () => this.closed,
@@ -216,7 +223,8 @@ class Client implements SnapbackClient {
     });
     this.offlineRuntime?.subscribeInputs(() => this.queries.refresh());
     this.outbox = createOutboxApi(this.offlineRuntime, () => this.drainNow(), () => this.localReady,
-      () => this.forcedOffline, this.inbox, () => `${this.authGeneration}:${this.operationFence}`);
+      () => this.forcedOffline, this.inbox, () => `${this.authGeneration}:${this.operationFence}`,
+      op => observeRecovery(this.recoveryHost, op), () => !!this.resumeFlight);
     this.auth = {
       signup: (input: { email: string; password: string }) => this.session("/api/auth/signup", input),
       login: (input: { email: string; password: string }) => this.session("/api/auth/login", input),
@@ -575,7 +583,7 @@ class Client implements SnapbackClient {
     return goOnline({
       ready: this.ready,
       ensureOpen: () => this.ensureOpen(),
-      force: (value) => { this.forcedOffline = value; },
+      force: (value) => { this.forcedOffline = value; if (!value) recoveryOpportunity(this.recoveryHost); },
       connection: (value) => { this.patchSnapshot({ connection: value }); },
       authority: () => this.operationAuthority(),
       resume: (authority) => this.performResume(authority),
@@ -881,6 +889,7 @@ class Client implements SnapbackClient {
     else this.ensureOpen();
     throwIfAborted(init.signal);
     this.patchSnapshot({ connection: "connected" });
+    recoveryConnection(this.recoveryHost, true);
     return value;
   }
   // @ref LLP 1012#7-writes-offline — typed session terminals and HTTP refusals stop before settlement; cancellation preserves the exact queued envelope.
@@ -917,6 +926,7 @@ class Client implements SnapbackClient {
       this.ensureAuthority(authority);
       throwIfAborted(signal);
       this.patchSnapshot({ connection: "connected" });
+      recoveryConnection(this.recoveryHost, true);
       return response;
     } catch (error) {
       if (isRefusalError(error) && isTerminalSession(error.envelope)) throw error;
@@ -1076,117 +1086,42 @@ class Client implements SnapbackClient {
     void this.performResume(authority).catch(() => undefined);
   }
 
-  private performResume(authority: Authority): Promise<void> {
+  private performResume(authority: Authority, demand?: string, follow = true): Promise<void> {
     if (!this.offlineRuntime || this.forcedOffline) return Promise.resolve();
-    if (this.resumeFlight) return this.resumeFlight;
+    if (this.resumeFlight) {
+      if (!demand && this.resumeDemand && !this.offlineRuntime.hasCoverageFacts) {
+        if (!follow) return Promise.reject(new RefusalError(fallbackRefusal("E_OFFLINE_RESUME", "capacity changed during recovery; retry Sync")));
+        return this.resumeFlight.then(() => this.performResume(authority, undefined, false));
+      }
+      return this.resumeFlight;
+    }
     const controller = new AbortController();
-    this.resumeController = controller;
-    const run = withAbort(controller.signal, () => this.resumeOffline(authority, controller.signal)).then(() => {
-      throwIfAborted(controller.signal);
-      this.ensureAuthority(authority);
-      this.offlineStartupPending = false;
-      this.resetRefusal = undefined;
-      this.validated(authority);
-    }, (error) => {
-      // Local no-facts refusals never pass through json(): offlineRefusal()
-      // publishes them on cold initialization as well as online().
-      if (!controller.signal.aborted && this.authorityCurrent(authority)) {
-        const refusal = this.offlineRefusal(error);
-        this.resetRefusal = refusal.envelope;
-        refuseDrains(this.mounted, refusal.envelope);
+    this.resumeController = controller; this.resumeDemand = demand;
+    const deadline = setTimeout(() => controller.abort(new RefusalError(
+      fallbackRefusal("E_TRANSPORT", "recovery timed out; retry Sync"), true)), 10_000);
+    const run = withAbort(controller.signal, () => resumeClient(this as unknown as ResumeClient, authority, controller.signal, demand)).then(capacityOnly => {
+      throwIfAborted(controller.signal); this.ensureAuthority(authority);
+      if (!capacityOnly) { this.offlineStartupPending = false; this.resetRefusal = undefined; this.validated(authority); }
+    }, error => {
+      if ((!controller.signal.aborted || controller.signal.reason instanceof RefusalError) && this.authorityCurrent(authority)) {
+        const refusal = this.offlineRefusal(error); this.resetRefusal = refusal.envelope; refuseDrains(this.mounted, refusal.envelope);
       }
       throw error;
     });
-    this.resumeFlight = run;
-    void run.then(() => {
-      if (this.resumeFlight !== run) return;
-      this.resumeFlight = undefined;
-      this.resumeController = undefined;
-      this.scheduleSupersessionReset(authority);
-    }, () => {
-      if (this.resumeFlight === run) { this.resumeFlight = undefined; this.resumeController = undefined; }
-    });
+    this.resumeFlight = run; this.offlineRuntime.outbox.notify();
+    const finish = () => {
+      clearTimeout(deadline);
+      if (this.resumeFlight === run) { this.resumeFlight = undefined; this.resumeController = undefined; this.offlineRuntime?.outbox.notify(); }
+    };
+    void run.then(() => { finish(); this.scheduleSupersessionReset(authority); }, finish);
     return run;
   }
 
   private abortSync(except?: AbortSignal | null): void {
-    if (this.resumeController?.signal !== except) {
-      this.resumeController?.abort(); this.resumeController = undefined; this.resumeFlight = undefined;
-    }
+    this.recoveryRevision += 1; this.recoveryReachable = false;
+    blockedRecovery(this.recoveryHost);
+    if (this.resumeController?.signal !== except) { this.resumeController?.abort(); this.resumeController = undefined; this.resumeFlight = undefined; }
     for (const controller of this.drainControllers) if (controller.signal !== except) controller.abort();
-  }
-
-  private async resumeOffline(authority: Authority, signal: AbortSignal): Promise<void> {
-    const runtime = this.offlineRuntime!;
-    const check = () => { throwIfAborted(signal); this.ensureAuthority(authority); };
-    const json = async (path: string, init: RequestInit) => {
-      check();
-      // @ref LLP 1012#7-writes-offline — release the serialized drain even if replay or its tail ignores abort.
-      const value = await withAbort(signal, () => this.json(path, { ...init, signal }, authority));
-      check();
-      return value;
-    };
-    await this.ensureOfflineMetadata(authority, false, true, signal);
-    check();
-    // One flight owns bounded convergence, including successors found by cold
-    // subscription opens. Keep all pending keys until an entire round commits.
-    for (let round = 0; round < 3; round++) {
-      const reset = await performOfflineResume({
-        runtime, mounted: this.mounted, authority, signal,
-        bearerConfirmed: authority.token !== undefined, json,
-        validated: (current) => { check(); this.validated(current); },
-        shape: wireShape, failure: (error) => this.offlineRefusal(error),
-        subscriptions: this.subscriptions,
-        reload: (current) => this.ensureOfflineMetadata(current, true, true, signal),
-      });
-      check();
-      if (reset) for (const item of [...this.mounted.values()].filter(item => !item.drain)) {
-        const principal = runtime.principal!;
-        const key = `${principal}\u0000${item.op}\u0000${stableSerialize(item.args)}`;
-        if (!this.supersessionQueries.has(key)) this.supersessionQueries.set(key, { principal, op: item.op, args: item.args });
-      }
-      const pending = [...this.supersessionQueries];
-      const revision = runtime.coverageRevision;
-      let superseded = false;
-      // Fresh authenticated reads, never buffered envelopes. The epoch remains
-      // the session epoch authenticated by the resume, even for first facts.
-      for (const [, item] of pending) {
-        check();
-        if (item.principal !== runtime.principal) continue;
-        const raw = await json("/api/query?receipt=1", {
-          method: "POST", body: JSON.stringify({ op: item.op, args: runtime.serverArguments(item.op, item.args) }),
-        });
-        check();
-        const accepted = await acceptOffline(runtime, item.op, item.args, raw, wireShape,
-          () => json("/api/query?receipt=1", { method: "POST", body: JSON.stringify({ op: item.op, args: runtime.serverArguments(item.op, item.args) }) }));
-        check();
-        wireQuery(accepted.result);
-        superseded = await commitOffline(runtime, item.op, item.args, accepted,
-          (error) => this.offlineRefusal(error), revision, () => !signal.aborted);
-        check();
-        if (superseded || revision !== runtime.coverageRevision) break;
-      }
-      if (superseded || revision !== runtime.coverageRevision) continue;
-      let fenced = false;
-      if (reset) {
-        // @ref LLP 1012#7-writes-offline — the rebuild cleared the fence's trust
-        // anchor (resetCoverage resets trust), so this drain releases only
-        // intents inside the fence; a fence stop is answered by the resume the
-        // next round completes, never by the rebuild alone.
-        const drained = await drainOutbox({ runtime, json, signal, shape: wireShape, failure: (error) => this.offlineRefusal(error) });
-        check();
-        fenced = drained.reason === "fence";
-      }
-      const complete = await runtime.completeReset(revision, signal);
-      check();
-      if (!complete) continue;
-      for (const [key, item] of pending) if (this.supersessionQueries.get(key) === item) this.supersessionQueries.delete(key);
-      if (this.supersessionQueries.size === 0 && !runtime.resetNeeded && !fenced) return;
-    }
-    throw new RefusalError({
-      code: "E_OFFLINE_RESET", family: "offline", message: "the program changed during three coverage rebuild attempts",
-      site: "client.resume", rewrite: "retry online() after the program stops rotating", guide: "offline",
-    });
   }
 
   private async drainNow(captured?: Authority): Promise<DrainResult> {
@@ -1465,6 +1400,7 @@ class Client implements SnapbackClient {
 
   private publishAuthSnapshot(): void {
     this.queries.retireInactive();
+    if (this.currentSnapshot.auth.state !== "authenticated" && this.authState.value.state === "authenticated") recoveryOpportunity(this.recoveryHost);
     this.patchSnapshot({ authGeneration: this.authGeneration, token: this.currentToken, auth: this.authState.value });
   }
 
@@ -1474,6 +1410,7 @@ class Client implements SnapbackClient {
   }
 
   private patchSnapshot(patch: Partial<ClientSnapshot>): ClientSnapshot {
+    if (patch.connection && patch.connection !== "connected") recoveryConnection(this.recoveryHost, false);
     const next = { ...this.currentSnapshot, ...patch };
     if (patch.token === undefined && "token" in patch) delete next.token;
     if (patch.lastRefusal === undefined && "lastRefusal" in patch) delete next.lastRefusal;

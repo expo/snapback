@@ -1,6 +1,7 @@
 // @ref LLP 1018.003.000#4-observation-and-retention —
 // one read model per client, no settlement effects in mounted hooks.
 import { referenceName, type Op } from "./api.js";
+import type { RecoveryDemand } from "./client-recovery.js";
 import type { ObservedOutbox, OutboxEntry, OutboxSnapshot, OutboxStatus } from "./types.js";
 
 const initial: OutboxSnapshot = Object.freeze({ entries: Object.freeze([]) as unknown as OutboxEntry[],
@@ -10,6 +11,7 @@ interface Slot {
   identity?: string;
   snapshot: OutboxSnapshot;
   listeners: Set<() => void>;
+  demand?: RecoveryDemand;
 }
 
 function immutable<T>(value: T): T {
@@ -24,6 +26,7 @@ export function observeOutbox(
   entries: () => Promise<OutboxEntry[]>, status: (op?: Op<any, any>) => Promise<OutboxStatus>,
   subscribe: (notify: () => void) => () => void, identity: () => string,
   writer: () => OutboxStatus | undefined = () => undefined,
+  prepare?: (op: string) => RecoveryDemand,
 ): <Args, Result>(op?: Op<Args, Result>) => ObservedOutbox {
   const slots = new Map<string, Slot>();
   let unsubscribe: (() => void) | undefined, version = 0, scheduled = false;
@@ -46,6 +49,7 @@ export function observeOutbox(
         const announced = writer();
         for (const [at, slot] of active.entries()) {
           if (slot.listeners.size === 0) continue;
+          slot.demand?.update(statuses[at]!);
           // @ref LLP 1018.004#3-readiness-on-a-follower — the writer's announced grant state rides beside a follower's own status.
           const next: OutboxSnapshot = { entries: history, status: Object.freeze(statuses[at]!),
             ...(announced === undefined ? {} : { writer: Object.freeze({ ...announced }) }) };
@@ -67,7 +71,7 @@ export function observeOutbox(
       },
       subscribe: notify => {
         let slot = slots.get(key);
-        if (!slot) { slot = { op, snapshot: initial, listeners: new Set() }; slots.set(key, slot); }
+        if (!slot) { slot = { op, snapshot: initial, listeners: new Set() }; slots.set(key, slot); if (op !== undefined) slot.demand = prepare?.(key); }
         // Each attachment has its own identity even when callbacks are equal.
         const listener = () => notify();
         slot.listeners.add(listener);
@@ -78,7 +82,7 @@ export function observeOutbox(
           if (closed) return;
           closed = true;
           slot!.listeners.delete(listener);
-          if (slot!.listeners.size === 0) slots.delete(key);
+          if (slot!.listeners.size === 0) { slot!.demand?.close(); slots.delete(key); }
           if (slots.size === 0) { version += 1; unsubscribe?.(); unsubscribe = undefined; history = initial.entries; historyKey = ""; historyAccount = undefined; }
         };
       },
