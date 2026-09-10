@@ -70,7 +70,7 @@ pub use registry::{
     ProjectJson, ResetResult, RowRuleVerdict, Runtime,
 };
 pub use schema::*;
-pub use store::{CommitRecord, OutboxCounts, OutboxRow, ScopeTouch, Store, TouchedKey};
+pub use store::{CommitRecord, OutboxClaim, OutboxCounts, OutboxRow, ScopeTouch, Store, TouchedKey};
 pub use successor::{Drop, MigrationPlan, SuccessorRefusal, SuccessorReport, UniqueConflict};
 pub use value::*;
 

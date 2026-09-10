@@ -61,6 +61,7 @@ mod writer_values;
 use writer_assets::asset_record;
 use writer_auth::{SessionFence, actor};
 use writer_channels::ChannelClient;
+pub(crate) use writer_effects::transition;
 use writer_ledger::CommitLedger;
 pub(crate) use writer_offline::OfflineOptions;
 pub(crate) use writer_rehearsal::rehearsal_args;
@@ -257,7 +258,9 @@ pub enum Action {
     Fork {
         path: PathBuf,
     },
-    Reset,
+    Reset {
+        empty: bool,
+    },
     // The periodic sweep reclaims in place; this variant is the owner's
     // on-demand reclamation entry point and is exercised by tests.
     #[allow(dead_code)]
@@ -333,6 +336,14 @@ pub enum Action {
         generation: Option<String>,
     },
     EffectsNow,
+    OutboxPage {
+        state: Option<String>,
+        after: Option<String>,
+        up_to: u64,
+        limit: usize,
+    },
+    EffectsTurn,
+    EffectsWake,
     OutboxClaim {
         now: i64,
     },
@@ -409,6 +420,7 @@ struct State {
     owner: OwnerInfo,
     exited: bool,
     effects_wake: Option<SyncSender<()>>,
+    outbox_observation: writer_effects::Observation,
     asset_carriers: BTreeMap<String, writer_auth::AssetCarrier>,
     blobs: Arc<dyn BlobStore>,
     staging: Arc<LocalStaging>,
@@ -459,6 +471,7 @@ pub fn spawn_writer(
                     owner,
                     exited: false,
                     effects_wake: None,
+                    outbox_observation: Default::default(),
                     asset_carriers: BTreeMap::new(),
                     blobs,
                     staging,
@@ -769,7 +782,7 @@ impl State {
                     .map_err(|error| Refusal::from_runtime(&error))?;
                 Ok(json!({ "ok": true, "path": path }))
             }
-            Action::Reset => self.reset(),
+            Action::Reset { empty } => self.reset(empty),
             Action::ReclaimAssets => self.reclaim_assets(),
             Action::ListUploads { identity, after } => self.list_uploads(identity, &after),
             Action::DiscardUpload { identity, id } => self.discard_upload(identity, &id),
@@ -861,10 +874,45 @@ impl State {
             Action::EffectsResolve { effect, generation } => {
                 self.effect_declarations(&effect, generation.as_deref())
             }
+            Action::OutboxPage {
+                state,
+                after,
+                up_to,
+                limit,
+            } => self.outbox_page(
+                state.as_deref(),
+                after.as_deref(),
+                up_to,
+                limit.clamp(1, 200),
+            ),
+            Action::EffectsWake => {
+                self.outbox_dev()?;
+                self.wake_effects();
+                Ok(json!({"ok":true}))
+            }
+            Action::EffectsTurn => {
+                self.outbox_dev()?;
+                self.background_turn()?;
+                self.wake_effects();
+                self.log_unavailable()?;
+                Ok(
+                    json!({"seq":self.runtime().store().commit_seq().map_err(|e| Refusal::from_runtime(&e))?}),
+                )
+            }
             Action::EffectsNow => Ok(json!({ "now": self.now() })),
             Action::OutboxClaim { now } => {
+                if self.stop.load(AtomicOrdering::SeqCst) {
+                    return Ok(Json::Null);
+                }
                 let root = self.root.clone();
-                crate::effects::claim_outbox(self.runtime(), &root, now)
+                let claimed = crate::effects::claim_outbox(self.runtime(), &root, now)?;
+                if let Some(id) = claimed["id"].as_str() {
+                    self.outbox_observation
+                        .started
+                        .insert(id.to_owned(), Instant::now());
+                }
+                self.log_unavailable()?;
+                Ok(claimed)
             }
             Action::OutboxSettle {
                 id,
@@ -872,14 +920,7 @@ impl State {
                 result,
                 last_error,
                 next_at,
-            } => writer_effects::settle_outbox(
-                self.runtime(),
-                &id,
-                &state,
-                result.as_ref(),
-                last_error.as_deref(),
-                next_at,
-            ),
+            } => self.settle_outbox(&id, &state, result.as_ref(), last_error.as_deref(), next_at),
             Action::OutboxThenPending { limit } => Ok(serde_json::to_value(
                 self.runtime()
                     .store()
@@ -892,11 +933,39 @@ impl State {
                 ))
             })?),
             Action::OutboxMarkUnknown => {
+                let mut rows = Vec::new();
+                let mut after: Option<(u64, String)> = None;
+                loop {
+                    let page = self
+                        .runtime()
+                        .store()
+                        .outbox_page(
+                            Some("running"),
+                            after.as_ref().map(|(s, id)| (*s, id.as_str())),
+                            u64::MAX,
+                            200,
+                        )
+                        .map_err(|e| Refusal::from_runtime(&e))?;
+                    if page.is_empty() {
+                        break;
+                    }
+                    after = page.last().map(|r| (r.seq, r.id.clone()));
+                    rows.extend(page);
+                }
                 let changed = self
                     .runtime()
                     .store()
                     .outbox_mark_unknown_running()
                     .map_err(|error| Refusal::from_runtime(&error))?;
+                for row in rows {
+                    writer_effects::transition(
+                        &self.root,
+                        &row,
+                        Some("running"),
+                        "sent_unknown",
+                        json!({}),
+                    );
+                }
                 Ok(json!({ "changed": changed }))
             }
             Action::OutboxMarkQueuedUnavailable { error } => {
@@ -905,6 +974,7 @@ impl State {
                     .store()
                     .outbox_mark_queued_error(&error)
                     .map_err(|error| Refusal::from_runtime(&error))?;
+                self.log_unavailable()?;
                 Ok(json!({ "changed": changed }))
             }
             Action::OutboxExecuteThen {
@@ -953,11 +1023,20 @@ impl State {
                         "effects/requeue",
                     ));
                 }
+                writer_effects::transition(
+                    &self.root,
+                    &row,
+                    Some(&row.state),
+                    "queued",
+                    json!({"by":"requeue"}),
+                );
+                self.log_unavailable()?;
                 self.wake_effects();
                 Ok(json!({ "ok": true, "id": id, "state": "queued" }))
             }
             Action::InstallEffectsWake { wake } => {
                 self.effects_wake = Some(wake);
+                self.log_unavailable()?;
                 Ok(json!({ "ok": true }))
             }
             Action::EffectsLog { lines } => {
@@ -990,11 +1069,27 @@ impl State {
         }
     }
 
-    pub(super) fn generation_rejection(&self, expected: Option<&Json>) -> Result<Option<Json>, Refusal> {
-        let Some(expected) = expected else { return Ok(None); };
-        let generation = expected.as_str().filter(|value| value.len() == 64
-            && value.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()))
-            .ok_or_else(|| Refusal::input("expectedGeneration must be a generation hash", "copy programGeneration from /api/manifest"))?;
+    pub(super) fn generation_rejection(
+        &self,
+        expected: Option<&Json>,
+    ) -> Result<Option<Json>, Refusal> {
+        let Some(expected) = expected else {
+            return Ok(None);
+        };
+        let generation = expected
+            .as_str()
+            .filter(|value| {
+                value.len() == 64
+                    && value
+                        .bytes()
+                        .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+            })
+            .ok_or_else(|| {
+                Refusal::input(
+                    "expectedGeneration must be a generation hash",
+                    "copy programGeneration from /api/manifest",
+                )
+            })?;
         Ok((generation != self.runtime().generation().program_hash()).then(|| json!({
             "state":"rejected", "reason":"generation_changed", "code":"E_GENERATION_CHANGED", "family":"successor",
             "message":"the mutation's expected generation is no longer active", "site":"/api/mutation.expectedGeneration",
@@ -1067,7 +1162,14 @@ impl State {
             .get(op)
             .map(|entry| entry.0.kind)
             .ok_or_else(|| {
-                Refusal::unknown_operation(op.as_ref(), self.runtime().generation().programs().keys().map(String::as_str))
+                Refusal::unknown_operation(
+                    op.as_ref(),
+                    self.runtime()
+                        .generation()
+                        .programs()
+                        .keys()
+                        .map(String::as_str),
+                )
             })?;
         if kind == ProgramKind::Job {
             return Err(Refusal::operator_required());
@@ -1213,4 +1315,4 @@ impl State {
 
 #[cfg(test)]
 #[path = "writer_effects_tests.rs"]
-mod effects_tests;
+pub(crate) mod effects_tests;

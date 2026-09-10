@@ -236,6 +236,22 @@ fn enrich(op: &str, response: Json, latest: Json, certificate: Certificate) -> J
             .cloned()
             .unwrap_or_else(|| json!([])),
     );
+    // @ref LLP 1020#a4-check---cost — only recorded counters are measured; no allocator/closure measurement is inferred.
+    let write_bound = certificate.write_sites.iter().fold(certificate.maintained_amplification, |n, w| n.saturating_add(w.max_rows));
+    let writes = trace.get("writes").and_then(Json::as_object).map(|rows| rows.values().filter_map(Json::as_u64).fold(0u64, u64::saturating_add));
+    let meters: Vec<_> = [
+        ("examined", certificate.max_examined, trace.get("examined").cloned()),
+        ("index entries", certificate.max_index_entries, None),
+        ("probes", certificate.max_rule_probes, trace.get("rule_probes").cloned()),
+        ("steps", certificate.max_steps, trace.get("steps").cloned()),
+        ("derived scratch", certificate.derived_scratch_bytes, trace.get("derived_scratch_bytes").cloned()),
+        ("writes", write_bound, writes.map(|n| json!(n))),
+        ("heap peak", certificate.max_heap_bytes, None),
+        ("output bytes", certificate.max_output_bytes, None),
+        ("closure bytes", certificate.max_closure_bytes, None),
+    ].into_iter().map(|(meter, bound, measured)| json!({"meter": meter, "certified": bound,
+        "measured": measured.unwrap_or(json!("unavailable"))})).collect();
+    output.insert("meters".into(), json!(meters));
     output.insert("readSites".to_owned(), json!(certificate.read_sites));
     output.insert("authoritativeTrace".to_owned(), trace);
     output.insert("subscriptions".to_owned(), Json::Array(subscriptions));
@@ -268,6 +284,13 @@ fn prose(op: &str, persona: &str, output: &Json, sources: &BTreeMap<String, Sour
         "{op} as {persona} — {state}{}\n",
         rule.map(|rule| format!(" ({rule})")).unwrap_or_default()
     );
+    if let Some(meters) = output["meters"].as_array() {
+        text.push_str(&format!("  {:<15} {:>10} {:>12}\n", "meter", "certified", "measured"));
+        for meter in meters {
+            let measured = meter["measured"].as_str().map(str::to_owned).unwrap_or_else(|| meter["measured"].to_string());
+            text.push_str(&format!("  {:<15} {:>10} {:>12}\n", meter["meter"].as_str().unwrap_or("?"), meter["certified"].to_string(), measured));
+        }
+    }
     let trace = &output["authoritativeTrace"];
     let points = entries(&trace["points"]);
     let ranges = entries(&trace["ranges"]);
@@ -519,4 +542,20 @@ fn denied_range_fallback_reports_visibility_without_claiming_absence() {
             )
         );
     }
+}
+
+// @ref LLP 1020#a4-check---cost — a counter the trace does not carry is `unavailable`, never inferred.
+#[cfg(test)]
+#[test]
+fn meters_mark_a_missing_writes_map_unavailable_and_sum_a_present_one() {
+    use snapback2_core::{Ceilings, Checker, spike_schema, thread_program};
+    let certificate = Checker::new(&spike_schema(), Ceilings::default()).check(&thread_program(20)).unwrap();
+    let meter = |output: &Json, name: &str| output["meters"].as_array().unwrap().iter().find(|m| m["meter"] == name).unwrap()["measured"].clone();
+    let without = enrich("messages.thread", json!({ "trace": { "examined": 3, "steps": 9 } }), json!({}), certificate.clone());
+    assert_eq!(meter(&without, "writes"), "unavailable");
+    assert_eq!(meter(&without, "examined"), 3);
+    assert_eq!(meter(&without, "probes"), "unavailable");
+    assert_eq!(meter(&without, "heap peak"), "unavailable");
+    let with = enrich("messages.thread", json!({ "trace": { "writes": { "messages": 2, "_outbox": 3 } } }), json!({}), certificate);
+    assert_eq!(meter(&with, "writes"), 5);
 }

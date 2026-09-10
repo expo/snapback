@@ -328,3 +328,17 @@ fn merge_origins(
             .or_insert(count);
     }
 }
+
+// @ref LLP 1020#a5-recurrence-pricing-is-a-bound — scalar projections may carry an unbounded prior value; only these operators erase its width.
+pub(crate) fn fixed_width_from<T>(value: &Expr, variables: &BTreeMap<String, T>, expression: fn(&T) -> &Expr) -> bool {
+    fn visit<T>(value: &Expr, variables: &BTreeMap<String, T>, expression: fn(&T) -> &Expr, seen: &mut std::collections::BTreeSet<String>) -> bool {
+        match value {
+            Expr::Binary { .. } | Expr::Unary { .. } | Expr::Exists(_) => true,
+            Expr::Builtin { builtin: Builtin::Len | Builtin::Count | Builtin::Sum | Builtin::CountCapped | Builtin::Divmod { .. } | Builtin::DeterministicShare, .. } => true,
+            Expr::Literal(Value::Null | Value::Bool(_) | Value::Int(_)) => true,
+            Expr::Variable(name) if seen.insert(name.clone()) => variables.get(name).is_some_and(|bound| visit(expression(bound), variables, expression, seen)),
+            _ => false,
+        }
+    }
+    visit(value, variables, expression, &mut std::collections::BTreeSet::new())
+}

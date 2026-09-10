@@ -11,17 +11,33 @@ use snapback2_effects::{
     EffectDeclarations, EffectLog, OutboxAccess, OutboxError, OutboxSettlement, PendingThen,
     Runner, ThenOutcome,
 };
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc::{Receiver, RecvTimeoutError, SyncSender, sync_channel};
-use std::sync::{Arc, atomic};
+use std::sync::{Arc, Mutex, atomic};
 use std::thread::{self, JoinHandle};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 struct WriterAccess {
     handle: OwnerHandle,
+    running: Arc<Mutex<Vec<String>>>,
 }
 
 impl WriterAccess {
+    // @ref LLP 1021#5-a-running-effect-can-be-stopped — `running` names every row the thread may still be inside at detachment: claimed, or in a `then`, until the writer settles it terminally.
+    fn track(&self, id: &str) {
+        let mut running = self.running.lock().unwrap_or_else(|e| e.into_inner());
+        if !running.iter().any(|running| running == id) {
+            running.push(id.to_owned());
+        }
+    }
+
+    fn untrack(&self, id: &str) {
+        self.running
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .retain(|running| running != id);
+    }
+
     fn write_logs(&self, logs: Vec<EffectLog>) {
         if !logs.is_empty() {
             let _ = self.handle.call(Action::EffectsLog {
@@ -65,6 +81,9 @@ impl OutboxAccess for WriterAccess {
         now: i64,
     ) -> Result<Option<snapback2_effects::EffectJob>, OutboxError> {
         let row: Option<OutboxRow> = decode(self.handle.call(Action::OutboxClaim { now }))?;
+        if let Some(row) = &row {
+            self.track(&row.id);
+        }
         Ok(row.map(|row| snapback2_effects::EffectJob {
             id: row.id,
             effect: row.effect,
@@ -97,6 +116,7 @@ impl OutboxAccess for WriterAccess {
     }
 
     fn settle(&mut self, id: &str, settlement: OutboxSettlement) -> Result<(), OutboxError> {
+        let terminal = !matches!(settlement, OutboxSettlement::ThenPending { .. });
         let (state, result, last_error, next_at) = match settlement {
             OutboxSettlement::ThenPending { result, .. } => {
                 ("then_pending", Some(result), None, None)
@@ -118,8 +138,11 @@ impl OutboxAccess for WriterAccess {
                 last_error,
                 next_at,
             })
-            .map(|_| ())
-            .map_err(outbox_error)
+            .map_err(outbox_error)?;
+        if terminal {
+            self.untrack(id);
+        }
+        Ok(())
     }
 
     fn pending_then(&mut self, limit: usize) -> Result<Vec<PendingThen>, OutboxError> {
@@ -168,6 +191,7 @@ impl OutboxAccess for WriterAccess {
         args: Json,
         outbox_id: &str,
     ) -> Result<ThenOutcome, OutboxError> {
+        self.track(outbox_id);
         let execution = self
             .handle
             .call(Action::OutboxExecuteThen {
@@ -176,6 +200,8 @@ impl OutboxAccess for WriterAccess {
                 outbox_id: outbox_id.to_owned(),
             })
             .map_err(outbox_error)?;
+        // The writer settled the row inside that call; a protocol error above keeps it listed.
+        self.untrack(outbox_id);
         if execution.get("state") != Some(&Json::String("rejected".to_owned())) {
             return Ok(ThenOutcome::Sent);
         }
@@ -205,15 +231,44 @@ pub(crate) fn claim_outbox(runtime: &Runtime, root: &Path, now: i64) -> Result<J
         .keys()
         .cloned()
         .collect::<Vec<_>>();
-    let claimed = runtime
+    // Claims also atomically fail declarations removed by a successor; the
+    // claim transaction reports the rows it failed, logged only after it commits.
+    let snapback2_core::OutboxClaim { failed, claimed } = runtime
         .store()
         .outbox_claim_next(now, &declared_names)
         .map_err(|error| Refusal::from_runtime(&error))?;
+    for row in failed {
+        crate::writer::transition(
+            root,
+            &row,
+            Some("queued"),
+            "failed",
+            json!({"error":"E_EFFECT_UNKNOWN"}),
+        );
+    }
+    if let Some(row) = &claimed {
+        crate::writer::transition(
+            root,
+            row,
+            Some("queued"),
+            "running",
+            json!({"attempt":row.attempts}),
+        );
+    }
     serialize_claimed_outbox(
         runtime,
         claimed,
         |row| serde_json::to_value(row).map_err(|error| error.to_string()),
         |outbox_id, message| {
+            if let Ok(Some(row)) = runtime.store().outbox_get(outbox_id) {
+                crate::writer::transition(
+                    root,
+                    &row,
+                    Some("running"),
+                    "queued",
+                    json!({"error":message}),
+                );
+            }
             crate::watch::log(
                 root,
                 json!({
@@ -260,6 +315,9 @@ pub struct EffectsStatus {
     wake: SyncSender<()>,
     stop: Arc<atomic::AtomicBool>,
     thread: Option<JoinHandle<()>>,
+    root: PathBuf,
+    running: Arc<Mutex<Vec<String>>>,
+    budget: Duration,
 }
 
 impl Drop for EffectsStatus {
@@ -267,14 +325,34 @@ impl Drop for EffectsStatus {
         self.stop.store(true, atomic::Ordering::SeqCst);
         let _ = self.wake.try_send(());
         if let Some(thread) = self.thread.take() {
-            let _ = thread.join();
+            // @ref LLP 1021#5-a-running-effect-can-be-stopped — detachment reports uncertainty; only the host deadline stops execution.
+            let deadline = Instant::now() + self.budget + Duration::from_secs(1);
+            while !thread.is_finished() && Instant::now() < deadline {
+                thread::sleep(
+                    Duration::from_millis(5)
+                        .min(deadline.saturating_duration_since(Instant::now())),
+                );
+            }
+            if thread.is_finished() {
+                let _ = thread.join();
+            } else {
+                let running = self
+                    .running
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .clone();
+                crate::watch::log(
+                    &self.root,
+                    json!({"outbox":{"engine":"detached", "running":running}}),
+                );
+            }
         }
     }
 }
 
-pub fn spawn(handle: OwnerHandle) -> EffectsStatus {
+pub fn spawn(handle: OwnerHandle, root: &Path, stop: Arc<atomic::AtomicBool>) -> EffectsStatus {
     let (wake, receiver) = sync_channel(1);
-    let stop = Arc::new(atomic::AtomicBool::new(false));
+    let running = Arc::new(Mutex::new(Vec::new()));
     handle
         .call(Action::InstallEffectsWake { wake: wake.clone() })
         .expect("effects runner must install its writer wake channel");
@@ -282,24 +360,33 @@ pub fn spawn(handle: OwnerHandle) -> EffectsStatus {
         .name("snapback2-effects".to_owned())
         .spawn({
             let stop = stop.clone();
-            move || run(handle, receiver, stop)
+            let running = running.clone();
+            move || run(handle, receiver, stop, running)
         })
         .expect("effects runner thread must start");
     EffectsStatus {
         wake,
         stop,
         thread: Some(thread),
+        root: root.to_owned(),
+        running,
+        budget: snapback2_effects::DEFAULT_BUDGET,
     }
 }
 
-fn run(handle: OwnerHandle, receiver: Receiver<()>, stop: Arc<atomic::AtomicBool>) {
+fn run(
+    handle: OwnerHandle,
+    receiver: Receiver<()>,
+    stop: Arc<atomic::AtomicBool>,
+    running: Arc<Mutex<Vec<String>>>,
+) {
     #[cfg(feature = "hermes")]
     let runner = Runner::new(
         snapback2_effects::Ibex2Host::new().expect("Hermes effect host must initialize"),
     );
     #[cfg(not(feature = "hermes"))]
     let runner = Runner::new(snapback2_effects::NoEngine);
-    run_with(runner, WriterAccess { handle }, receiver, stop);
+    run_with(runner, WriterAccess { handle, running }, receiver, stop);
 }
 
 fn run_with<H: snapback2_effects::EffectHost, A: RunnerAccess>(
@@ -308,6 +395,7 @@ fn run_with<H: snapback2_effects::EffectHost, A: RunnerAccess>(
     receiver: Receiver<()>,
     stop: Arc<atomic::AtomicBool>,
 ) {
+    runner.set_stop_flag(stop.clone());
     let mut initialized = false;
     loop {
         if stop.load(atomic::Ordering::SeqCst) {
@@ -430,6 +518,185 @@ mod tests {
         ) -> Result<ThenOutcome, OutboxError> {
             unreachable!("there are no pending rows")
         }
+    }
+
+    fn detach_root(label: &str) -> PathBuf {
+        let root = std::env::temp_dir().join(format!(
+            "snapback2-detach-{label}-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(root.join(".snapback")).unwrap();
+        root
+    }
+
+    fn running_ids(running: &Arc<Mutex<Vec<String>>>) -> Vec<String> {
+        running.lock().unwrap().clone()
+    }
+
+    #[test]
+    fn shutdown_detaches_with_a_durable_running_id_after_budget_plus_one_second() {
+        let root = detach_root("running");
+        let (release, wait) = std::sync::mpsc::channel::<()>();
+        let (wake, _) = sync_channel(1);
+        let stop = Arc::new(atomic::AtomicBool::new(false));
+        let budget = Duration::from_millis(25);
+        let started = Instant::now();
+        drop(EffectsStatus {
+            wake,
+            stop: stop.clone(),
+            root: root.clone(),
+            budget,
+            running: Arc::new(Mutex::new(vec!["running-1".into()])),
+            thread: Some(thread::spawn(move || {
+                let _ = wait.recv();
+            })),
+        });
+        assert!(stop.load(atomic::Ordering::SeqCst));
+        assert!(started.elapsed() >= budget + Duration::from_secs(1));
+        assert!(started.elapsed() < budget + Duration::from_millis(1_200));
+        let log = std::fs::read_to_string(root.join(".snapback/log.jsonl")).unwrap();
+        let line: Json = serde_json::from_str(log.trim()).unwrap();
+        assert_eq!(
+            line["outbox"],
+            json!({"engine":"detached","running":["running-1"]})
+        );
+        release.send(()).unwrap();
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn a_thread_that_stops_in_time_writes_no_detach_line() {
+        let root = detach_root("clean");
+        let (wake, _) = sync_channel(1);
+        let stop = Arc::new(atomic::AtomicBool::new(false));
+        let started = Instant::now();
+        drop(EffectsStatus {
+            wake,
+            stop: stop.clone(),
+            root: root.clone(),
+            budget: Duration::from_millis(25),
+            running: Arc::new(Mutex::new(vec!["idle-1".into()])),
+            thread: Some(thread::spawn({
+                let stop = stop.clone();
+                move || {
+                    while !stop.load(atomic::Ordering::SeqCst) {
+                        thread::sleep(Duration::from_millis(1));
+                    }
+                }
+            })),
+        });
+        assert!(
+            started.elapsed() < Duration::from_secs(1),
+            "{:?}",
+            started.elapsed()
+        );
+        assert!(!root.join(".snapback/log.jsonl").exists());
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn claims_track_running_ids_until_a_terminal_settlement() {
+        let running = Arc::new(Mutex::new(Vec::new()));
+        let mut access = WriterAccess {
+            handle: crate::writer::effects_tests::spawn_effects_writer("running-ids", 3),
+            running: running.clone(),
+        };
+        let first = access.claim_next(1).unwrap().unwrap();
+        let second = access.claim_next(1).unwrap().unwrap();
+        let third = access.claim_next(1).unwrap().unwrap();
+        let all = vec![first.id.clone(), second.id.clone(), third.id.clone()];
+        assert_eq!(running_ids(&running), all);
+        access
+            .settle(
+                &first.id,
+                OutboxSettlement::ThenPending {
+                    result: json!(true),
+                    then_op: "effects.then".to_owned(),
+                },
+            )
+            .unwrap();
+        assert_eq!(running_ids(&running), all, "then_pending keeps the slot");
+        access
+            .settle(
+                &second.id,
+                OutboxSettlement::Sent {
+                    result: json!(true),
+                    last_error: None,
+                },
+            )
+            .unwrap();
+        assert_eq!(
+            running_ids(&running),
+            vec![first.id.clone(), third.id.clone()]
+        );
+        access
+            .settle(
+                &third.id,
+                OutboxSettlement::Failed {
+                    error: "E_TEST".to_owned(),
+                },
+            )
+            .unwrap();
+        assert_eq!(running_ids(&running), vec![first.id.clone()]);
+        // The writer settles the row inside `execute_then`; its return is terminal.
+        let outcome = access
+            .execute_then(
+                "effects.then",
+                json!({"outboxId": first.id, "effect": "effects.run", "result": true}),
+                &first.id,
+            )
+            .unwrap();
+        assert!(
+            matches!(outcome, ThenOutcome::Rejected(_) | ThenOutcome::Failed(_)),
+            "{outcome:?}"
+        );
+        assert!(running_ids(&running).is_empty());
+        assert!(access.claim_next(2).unwrap().is_none());
+    }
+
+    #[test]
+    fn detach_while_a_job_is_inside_then_logs_its_outbox_id() {
+        let root = detach_root("then");
+        let running = Arc::new(Mutex::new(Vec::new()));
+        let mut access = WriterAccess {
+            handle: crate::writer::effects_tests::spawn_effects_writer("detach-then", 1),
+            running: running.clone(),
+        };
+        let job = access.claim_next(1).unwrap().unwrap();
+        access
+            .settle(
+                &job.id,
+                OutboxSettlement::ThenPending {
+                    result: json!(true),
+                    then_op: "effects.then".to_owned(),
+                },
+            )
+            .unwrap();
+        // The parked thread stands in for the runner still inside `execute_then`.
+        let (release, wait) = std::sync::mpsc::channel::<()>();
+        let (wake, _) = sync_channel(1);
+        drop(EffectsStatus {
+            wake,
+            stop: Arc::new(atomic::AtomicBool::new(false)),
+            root: root.clone(),
+            budget: Duration::from_millis(25),
+            running: running.clone(),
+            thread: Some(thread::spawn(move || {
+                let _ = wait.recv();
+            })),
+        });
+        let log = std::fs::read_to_string(root.join(".snapback/log.jsonl")).unwrap();
+        let line: Json = serde_json::from_str(log.trim()).unwrap();
+        assert_eq!(
+            line["outbox"],
+            json!({"engine":"detached","running":[job.id]})
+        );
+        release.send(()).unwrap();
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

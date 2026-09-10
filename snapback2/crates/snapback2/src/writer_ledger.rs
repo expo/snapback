@@ -23,8 +23,6 @@ pub(super) struct CommitLedger {
 impl State {
     pub(super) fn after_commit(&mut self, seq: u64) -> Result<(), Refusal> {
         self.operator_rejection = None;
-        self.sweep_expired_sessions()?;
-        self.sweep_offline_now()?;
         let commit = self
             .runtime()
             .store()
@@ -39,6 +37,26 @@ impl State {
                     "inspect the store and restart the owner",
                 )
             })?;
+        // @ref LLP 1021#1-the-lifecycle-is-in-the-log — record the emission before any post-commit maintenance or runner wake.
+        if commit.emits > 0 {
+            for row in self
+                .runtime()
+                .store()
+                .outbox_rows_for_seq(seq)
+                .map_err(|e| Refusal::from_runtime(&e))?
+            {
+                writer_effects::transition(
+                    &self.root,
+                    &row,
+                    None,
+                    "queued",
+                    json!({"by":commit.program}),
+                );
+            }
+        }
+        self.log_unavailable()?;
+        self.sweep_expired_sessions()?;
+        self.sweep_offline_now()?;
         let invalidated = self.runtime().invalidated(&commit);
         let deliveries = self.rerun_live(&invalidated, false);
         self.ledger.push_back(CommitLedger {
@@ -163,7 +181,14 @@ impl State {
             .get(&op)
             .map(|(program, _)| program.kind)
             .ok_or_else(|| {
-                Refusal::unknown_operation(op.as_ref(), self.runtime().generation().programs().keys().map(String::as_str))
+                Refusal::unknown_operation(
+                    op.as_ref(),
+                    self.runtime()
+                        .generation()
+                        .programs()
+                        .keys()
+                        .map(String::as_str),
+                )
             })?;
         // The CLI is read-only even across a hot successor; the protected
         // harness still executes mutations to harvest authoritative replay traces.
@@ -199,7 +224,14 @@ impl State {
                 )
             })
             .ok_or_else(|| {
-                Refusal::unknown_operation(op.as_ref(), self.runtime().generation().programs().keys().map(String::as_str))
+                Refusal::unknown_operation(
+                    op.as_ref(),
+                    self.runtime()
+                        .generation()
+                        .programs()
+                        .keys()
+                        .map(String::as_str),
+                )
             })?;
         let runtime_subscriptions = self
             .runtime()
@@ -276,21 +308,15 @@ impl State {
             .map_err(|error| Refusal::from_runtime(&error))?
             .into_iter()
             .map(|row| {
-                json!({
-                    "id": row.id,
-                    "seq": row.seq,
-                    "effect": row.effect,
-                    "payload": value_to_json(&row.payload),
-                    "state": row.state,
-                    "attempts": row.attempts,
-                    "nextAt": row.next_at,
-                    "lastError": row.last_error,
-                    "result": row.result.clone(),
-                    "createdAt": row.created_at,
-                    "updatedAt": row.updated_at,
-                })
+                let mut value = writer_effects::row_json(&row);
+                value["payload"] = value_to_json(&row.payload);
+                value["createdAt"] = json!(row.created_at);
+                value["updatedAt"] = json!(row.updated_at);
+                value
             })
             .collect::<Vec<_>>();
+        let history =
+            crate::control::outbox_history(&self.root.join(".snapback/log.jsonl"), wanted);
         let ledger = self.ledger.iter().find(|entry| entry.seq == wanted);
         let mut output = json!({
             "commit": commit,
@@ -301,6 +327,14 @@ impl State {
             },
             "outboxRows": outbox_rows,
         });
+        match history {
+            Ok(lines) => {
+                output["outbox"]["history"] = json!(lines);
+            }
+            Err(error) => {
+                output["outbox"]["history"] = json!({"unavailable":error.message});
+            }
+        }
         let object = output.as_object_mut().expect("trace output is an object");
         if let Some(ledger) = ledger {
             object.insert("invalidated".to_owned(), json!(ledger.invalidated));
@@ -324,6 +358,7 @@ impl State {
         let outbox = self.outbox_counts()?;
         Ok(json!({
             "project": self.root,
+            "log": crate::watch::log_status(&self.root),
             "status": self.phase,
             "generation": self.runtime().generation().hash(),
             "seq": self.runtime().store().commit_seq().map_err(|error| Refusal::from_runtime(&error))?,
@@ -390,7 +425,7 @@ impl State {
         })
     }
 
-    fn outbox_counts(&self) -> Result<OutboxCounts, Refusal> {
+    pub(super) fn outbox_counts(&self) -> Result<OutboxCounts, Refusal> {
         self.runtime()
             .store()
             .outbox_counts()
