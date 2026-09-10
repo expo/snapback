@@ -83,10 +83,13 @@ Connection promises no foreground/idle or delivery guarantee or channel/subscrib
 For an application-level delivery acknowledgement loop, expose a private,
 indexed `first 1` query over the viewer's pending receipt rows. A mounted
 watcher acknowledges that exact row; its deletion advances the query to the
-next row. Do not rescan a capped message page as a work queue: unrelated
+next row. Authorize cleanup from that private receipt; requiring its message
+to remain present can strand the queue after unsend or expiry.
+Do not rescan a capped message page as a work queue: unrelated
 rerenders repeat every acknowledgement, and the page stops changing length at
 its cap. Drive an open-thread read acknowledgement from a certified
-viewer-specific unread value instead. The write's readiness belongs in the
+viewer-specific unread value and latest activity identity instead: equal
+counts can hide an intervening read/new-message cycle. The write's readiness belongs in the
 effect dependency so a watcher mounted before its grant becomes ready later.
 
 ## Unicode word-prefix search
