@@ -536,13 +536,16 @@ authorized by this optimization.
 observed page keeps a receipt-backed capped owner answer whole when its local
 rerun has that same owner's selection proof but cannot reconstruct the
 computed projection or owner continuation. It does not attach an old cursor
-to a different local result. Newer local sequence, active overlay custody
-(including a committed removal awaiting retirement), denied or invalidated
-custody, and maintained-sibling incoherence must
-still win over that fallback. Drain observations retain their independent
-page/tail lifecycle. The 45-row real owner/carrier/React witness exercises
-Global, Following and author pages across refresh, moving boundaries and
-cold reopen; local cursor tokens remain forbidden on the transport.
+to a different local result. A successor or unrelated checked delivery may
+advance the store-wide local sequence without changing the head page. That
+sequence alone cannot revoke the head: the local rerun must carry the head's
+exact qualified membership observation `{ through, order }`. A missing or
+different selection, active overlay custody (including a committed removal
+awaiting retirement), denied or invalidated custody, and maintained-sibling
+incoherence still win over that fallback. Drain observations retain their
+independent page/tail lifecycle. The 45-row real owner/carrier/React witness
+exercises Global, Following and author pages across refresh, moving boundaries
+and cold reopen; local cursor tokens remain forbidden on the transport.
 
 The current overlay guard is deliberately partition-wide, not a row-key or
 operation-name dependency guess. An apparently unrelated prediction can

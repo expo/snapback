@@ -26,20 +26,21 @@ test("an exact cached scalar survives an uncovered cold rerun but not a newer lo
 });
 
 test("an exact receipt-backed owner page keeps its whole continuation across an uncovered projection", () => {
-  const held = {
+  const held = withItemInputs({
     op: "social.feed", args: { c: null }, state: "capped" as const,
     data: [{ id: "post-1", likes: 0, liked: false }], next: "server-page-2", seq: 7, deliveredAt: 100,
     receipt: { ranges: [], absences: [], verdicts: [] },
-  };
-  const ownerRerun = (value: any, through = 7, overlay = false) => withItemInputs(value,
-    { ...emptyItemInputs, ...(overlay ? { entries: [{ predicted: true } as any] } : {}), selection: { through } });
+  }, { ...emptyItemInputs, selection: { through: 7, order: 3 } });
+  const ownerRerun = (value: any, through = 7, overlay = false, order = 3) => withItemInputs(value,
+    { ...emptyItemInputs, ...(overlay ? { entries: [{ predicted: true } as any] } : {}), selection: { through, order } });
   const view = offlineView(held, ownerRerun({
-    state: "partial", reason: "computed-key", site: "social.feed.likes", seq: 7,
+    state: "partial", reason: "computed-key", site: "social.feed.likes", seq: 9,
     data: [{ id: "post-1", likes: 0, liked: false }],
   }));
   assert.equal(view.state, "capped");
   assert.deepEqual(view.data, held.data);
-  assert.equal(view.next, "server-page-2", "the owner answer keeps its own certified boundary");
+  assert.equal(view.next, "server-page-2",
+    "a successor's newer global sequence cannot erase the head's unchanged owner selection");
 
   const completeRerun = offlineView(held, ownerRerun({
     state: "complete", seq: 7, next: null,
@@ -49,14 +50,33 @@ test("an exact receipt-backed owner page keeps its whole continuation across an 
   assert.equal(completeRerun.next, "server-page-2",
     "the same owner selection cannot erase its opaque continuation");
 
+  const coldRerun = offlineView(held, ownerRerun({
+    state: "partial", reason: "computed-key", site: "social.feed.likes", seq: 0,
+    data: [{ id: "post-1", likes: 0, liked: false }],
+  }));
+  assert.equal(coldRerun.next, "server-page-2", "cold sequence zero retains the durable selection order");
+
   const newerComplete = offlineView(held, ownerRerun({
     state: "complete", seq: 8, next: null,
     data: [{ id: "post-new", likes: 1, liked: true }],
-  }, 8));
+  }, 8, false, 4));
   assert.equal(newerComplete.state, "complete");
   assert.deepEqual(newerComplete.data, [{ id: "post-new", likes: 1, liked: true }],
     "a newer exact local result is not concealed by the older owner page");
   assert.equal(newerComplete.next, null);
+
+  const differentSelection = offlineView(held, ownerRerun({
+    state: "partial", reason: "computed-key", site: "social.feed.likes", seq: 9, data: [],
+  }, 7, false, 4));
+  assert.equal(differentSelection.state, "partial", "a different observation order cannot inherit the old cursor");
+  const missingOrder = offlineView(held, withItemInputs({
+    state: "partial", reason: "computed-key", site: "social.feed.likes", seq: 9, data: [],
+  }, { ...emptyItemInputs, selection: { through: 7 } }));
+  assert.equal(missingOrder.state, "partial", "selection evidence without durable order remains blocking");
+  const unqualifiedOwner = withItemInputs({ ...held }, { ...emptyItemInputs, selection: { through: 7 } });
+  assert.equal(offlineView(unqualifiedOwner, ownerRerun({
+    state: "partial", reason: "computed-key", site: "social.feed.likes", seq: 9, data: [],
+  })).state, "partial", "an owner page without durable selection order cannot confer a cursor");
 
   const queuedRemoval = offlineView(held, ownerRerun({
     state: "partial", reason: "computed-key", site: "social.feed.likes", seq: 7,

@@ -1141,14 +1141,16 @@ export function offlineView<Result>(held: HeldAnswer<Result> | undefined, local?
     && (held.data === null || typeof held.data !== "object");
   const cachedAnswerOnly = cachedScalar && local?.state === "partial" && !(local.predicted?.length);
   // @ref LLP 1012#6-reads-offline — an exact held capped owner page keeps its
-  // whole receipt-time page boundary when the twin cannot reconstruct a
-  // computed projection. Never graft that boundary onto the partial rerun:
-  // queued work, revocation and maintained-coherence still select local or
-  // invalidated custody instead.
+  // whole receipt-time page boundary while the twin carries that owner's
+  // qualified membership observation. Never graft that boundary onto the
+  // partial rerun: queued work, revocation and maintained-coherence still
+  // select local or invalidated custody instead.
   const localInputs = itemInputs(local);
+  const ownerOrder = itemInputs(held)?.selection?.order;
   const exactOwnerAnswer = preserveOwner && held?.receipt !== undefined
-    && held.state === "capped" && typeof held.next === "string"
-    && (local?.seq === 0 || local?.seq === held.seq) && localInputs?.selection?.through === held.seq
+    && held.state === "capped" && typeof held.next === "string" && local !== undefined
+    && localInputs?.selection?.through === held.seq
+    && ownerOrder !== undefined && localInputs.selection.order === ownerOrder
     && local.state !== "held" && local.state !== "denied"
     && (local.state !== "partial" || (local.sites?.length
       ? local.sites.every((site) => site.reason === "computed-key")

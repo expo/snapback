@@ -294,10 +294,33 @@ mutation remove(entry: astraFeedEntries):
   const writer = createClient({ url: owner.url, persona: 'alice' });
   const bobWriter = createClient({ url: owner.url, persona: 'bob' });
   const cursors: unknown[] = [];
+  const advancedCursors = new Set<string>();
+  let advanceCursorSequence = false;
   const observingFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input));
-    if (url.pathname === '/api/subscribe') cursors.push(JSON.parse(url.searchParams.get('args')!).c);
-    else if (url.pathname === '/api/query') cursors.push(JSON.parse(String(init?.body)).args.c);
+    const requests: any[] = [];
+    if (url.pathname.endsWith('/api/subscribe'))
+      requests.push({ op: url.searchParams.get('op'), args: JSON.parse(url.searchParams.get('args')!) });
+    else if (url.pathname.endsWith('/api/query')) requests.push(JSON.parse(String(init?.body)));
+    else if (url.pathname.endsWith('/api/live/control')) {
+      const control = JSON.parse(String(init?.body));
+      for (const addition of control.add ?? []) {
+        const path = new URL(addition.path, url);
+        requests.push({ op: path.searchParams.get('op'), args: JSON.parse(path.searchParams.get('args')!) });
+      }
+    }
+    for (const request of requests) {
+      const cursor = request.args.c;
+      cursors.push(cursor);
+      if (advanceCursorSequence && typeof cursor === 'string') {
+        const key = `${request.op}:${cursor}`;
+        if (advancedCursors.has(key)) continue;
+        advancedCursors.add(key);
+        const advanced = await writer.mutation(api.messages.send,
+          { conversationId: 'conversation-1', body: `feed cursor ${advancedCursors.size}` });
+        assert.equal(advanced.state, 'committed', JSON.stringify(advanced));
+      }
+    }
     return fetch(input, init);
   };
   let client: any = createClient({ url: owner.url, persona: 'alice', fetch: observingFetch, offline: { store: aliceStore } });
@@ -330,16 +353,41 @@ mutation remove(entry: astraFeedEntries):
     }
     assert.fail('feed did not terminate within ten pages');
   };
-  const loadAll = async (view: Awaited<ReturnType<typeof mount>>, expected: string[]) => {
+  const loadAll = async (view: Awaited<ReturnType<typeof mount>>, expected: string[],
+    witness?: { reader: any; op: string; args: any }) => {
+    const settleSuccessor = async (advances: number, pages: number) => {
+      if (!witness) {
+        await waitFor(() => view.current.status === 'ready' && view.current.pages.length === pages);
+        return;
+      }
+      await waitFor(() => advancedCursors.size > advances);
+      let held: any, local: any;
+      for (let n = 0; n < 200; n++) {
+        held = await witness.reader.offlineRuntime.store.answer(witness.op, { ...witness.args, c: null });
+        local = await witness.reader.offlineRuntime.twin.evaluate(witness.op, { ...witness.args, c: null });
+        if (local?.seq > held?.seq) break;
+        await act(async () => { await new Promise(resolve => setTimeout(resolve, 10)); });
+      }
+      assert.ok(local.seq > held.seq,
+        `the successor response advances only the store-wide sequence (${held.seq}->${local.seq}; requests ${JSON.stringify(cursors.slice(-4))})`);
+      assert.deepEqual(itemInputs(local)?.selection, itemInputs(held)?.selection,
+        'the head still names its exact qualified owner selection');
+      assert.deepEqual(await witness.reader.offlineRuntime.store.outbox.all(), []);
+      await act(async () => { await new Promise(resolve => setTimeout(resolve, 50)); });
+      await waitFor(() => view.current.status === 'ready' && view.current.pages.length === pages
+        && view.current.pages[pages - 1].data !== undefined);
+    };
     await waitFor(() => view.current.status === 'ready');
     assert.deepEqual(view.current.pages.map((page: any) => page.data?.length), [20]);
     assert.equal(view.current.hasMore, true);
+    let advances = advancedCursors.size;
     await act(async () => { view.current.loadMore(); });
-    await waitFor(() => view.current.status === 'ready' && view.current.pages.length === 2);
+    await settleSuccessor(advances, 2);
     assert.deepEqual(view.current.pages.map((page: any) => page.data?.length), [20, 20]);
     assert.equal(view.current.hasMore, true);
+    advances = advancedCursors.size;
     await act(async () => { view.current.loadMore(); });
-    await waitFor(() => view.current.status === 'ready' && view.current.pages.length === 3);
+    await settleSuccessor(advances, 3);
     assert.deepEqual(view.current.pages.map((page: any) => page.data?.length), [20, 20, 5]);
     assert.equal(view.current.hasMore, false);
     assert.deepEqual(view.current.items.map((row: any) => row.entry?.id ?? row.post?.id ?? row.id), expected);
@@ -392,13 +440,14 @@ mutation remove(entry: astraFeedEntries):
       outbox: { remove: [unrelated.intent] },overlay: { remove: [unrelated.intent] },
     }); });
     await waitFor(() => global.current.pages[0].receipt?.state === 'capped' && global.current.hasMore);
-    await loadAll(global, expectedGlobal);
+    advanceCursorSequence = true;
+    await loadAll(global, expectedGlobal, { reader: client, op: 'carrier.global', args: {} });
 
     const following = await mount(bob, api.carrier.following, { c: null });
-    await loadAll(following, expectedFollowing);
+    await loadAll(following, expectedFollowing, { reader: bob, op: 'carrier.following', args: {} });
     await following.close();
     const own = await mount(client, api.carrier.own, { author: 'dev:alice' });
-    await loadAll(own, expectedOwn);
+    await loadAll(own, expectedOwn, { reader: client, op: 'carrier.own', args: { author: 'dev:alice' } });
     await own.update({ author: 'dev:bob' });
     await waitFor(() => own.current.status === 'ready' && own.current.items.length === 0);
     assert.equal(own.current.pages.length, 1, 'changing author resets the old continuation chain');
