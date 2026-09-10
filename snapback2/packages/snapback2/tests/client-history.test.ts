@@ -227,7 +227,7 @@ test("retained projections stay partial while their certified page boundary and 
   const stop = observed.subscribe(() => undefined);
   try {
     await store.open("alice");
-    for (const hidden of [false, true]) await store.commit({ retention: { messages: "delivered-history" }, deliveries: [{
+    for (const hidden of [false, true]) await store.commit({ schema: { tables: { messages: { retain: "delivered-history" } } }, deliveries: [{
       op: "messages.conversationView", args: viewArgs, state: "capped", seq: hidden ? 11 : 10,
       data: { messages: data(hidden), count: hidden ? 1 : 2, preview: [data(hidden)[1]] },
       next: "composite-page-2", rows: hidden ? [image("m1")] : [image("m1"), image("m2")], receipt,

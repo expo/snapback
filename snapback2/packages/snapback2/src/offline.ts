@@ -29,7 +29,6 @@ import {
   type OutboxEntry,
   type OutboxGrant,
   type RangeStore,
-  type RetentionPolicy,
   type RowRef,
   type StoreDelivery,
   type StoreSwap,
@@ -183,7 +182,6 @@ export class OfflineRuntime {
   private inboxCompactedThrough = 0;
   /** Per wait: the route's first durable read, so a client can order it before any network work (LLP 1018.004 §2). */
   private readonly routeReady = new Map<object, Promise<void>>();
-  private retention: Record<string, RetentionPolicy> = {};
   private operations: Manifest["ops"] = {};
   private schema?: OfflineSchema;
   private facts?: ResumeFacts;
@@ -386,13 +384,17 @@ export class OfflineRuntime {
 
   /** A follower's write: durable in the partition's inbox before this resolves; the key names it as `inbox:<key>`. */
   async insertInbox(row: InboxInsert): Promise<number> {
+    return this.writeInbox(connection => connection.insert({ ...row, ...(row.kind === "mutation" ? { args: jsonArguments(row.args) } : {}) }));
+  }
+
+  private async writeInbox<T>(write: (connection: InboxConnection) => Promise<T>): Promise<T> {
     const connection = this.inboxConnection;
     if (!connection || connection.ended) {
       throw new OfflineStoreFailure("E_OFFLINE_LOCK", "this tab has no route to the account's partition");
     }
-    const key = await connection.insert({ ...row, ...(row.kind === "mutation" ? { args: jsonArguments(row.args) } : {}) });
+    const result = await write(connection);
     await this.refreshInbox().catch(() => undefined);
-    return key;
+    return result;
   }
 
   /**
@@ -424,18 +426,11 @@ export class OfflineRuntime {
 
   /** A follower deletes a row its partition rejected at admission; every other row is the writer's to delete. */
   async removeInboxRow(key: number): Promise<void> {
-    const connection = this.inboxConnection;
-    if (!connection || connection.ended) throw new OfflineStoreFailure("E_OFFLINE_LOCK", "this tab has no route to the account's partition");
-    await connection.remove(key);
-    await this.refreshInbox().catch(() => undefined);
+    await this.writeInbox(connection => connection.remove(key));
   }
   /** A follower consumes its completed dismissal command: read and deleted in one carrier transaction, so one tab gets the bytes whatever other tab raced. */
   async takeInboxRow(key: number): Promise<InboxRow | undefined> {
-    const connection = this.inboxConnection;
-    if (!connection || connection.ended) throw new OfflineStoreFailure("E_OFFLINE_LOCK", "this tab has no route to the account's partition");
-    const row = await connection.take(key);
-    await this.refreshInbox().catch(() => undefined);
-    return row;
+    return this.writeInbox(connection => connection.take(key));
   }
   /** Queued rows awaiting the writer: what a follower's status counts as remaining. */
   get inboxPending(): number { return this.inboxRowsCache.filter((row) => row.kind === "mutation" && row.state === "queued" && row.admitted === undefined).length; }
@@ -634,24 +629,16 @@ export class OfflineRuntime {
   }
 
   manifest(value: Manifest): void {
-    const tables = value.tables ?? value.schema?.tables ?? {};
-    const retention: Record<string, RetentionPolicy> = {};
-    for (const [name, table] of Object.entries(tables)) {
-      if (!object(table)) continue;
-      const word = (table as { retain?: unknown }).retain;
-      if (word === "until-revoked" || word === "delivered-history") retention[name] = word;
-    }
-    this.retention = retention;
     this.operations = value.ops ?? {};
     // A fresh login has no receipt/auth epoch. A parameter-free query (including
     // optional cursor arguments) can earn those facts before a logless resume.
-    this.resumeQueries = Object.entries(value.ops ?? {}).flatMap(([op, operation]) => {
+    this.resumeQueries = Object.entries(this.operations).flatMap(([op, operation]) => {
       if (operation.kind !== "query" || !object(operation.args)) return [];
       if (!Object.values(operation.args).every((arg) => object(arg) && "Optional" in arg)) return [];
       return [{ op, args: Object.fromEntries(Object.keys(operation.args).map((key) => [key, null])), drain: false }];
     });
     // Manifest tables carry current columns: replace stale schema custody even without a full schema.
-    this.schema = (value.schema?.tables ? value.schema : { tables }) as OfflineSchema;
+    this.schema = (value.schema?.tables ? value.schema : { tables: value.tables ?? {} }) as OfflineSchema;
   }
 
   /** Native returned-page metadata; formal argument order never selects a cursor. */
@@ -710,14 +697,14 @@ export class OfflineRuntime {
         throw error;
       }
       const accepted = await this.accept<Result>(op, args, raw);
-      if (!accepted.envelope) throw new DeliveryEnvelopeDecodeError('$', 'full revalidation requires a delivery envelope');
+      if (!accepted.envelope) throw new DeliveryEnvelopeDecodeError('$', 'full revalidation needs an envelope');
       return accepted;
     });
     if (object(raw) && raw.state === "unchanged") {
       if (Object.keys(raw).sort().join(",") !== "seq,state,validator"
         || !Number.isSafeInteger(raw.seq) || Number(raw.seq) < 0
         || !isSha256(raw.validator)) {
-        throw new DeliveryEnvelopeDecodeError("$", "conditional delivery must be { state, seq, validator }");
+        throw new DeliveryEnvelopeDecodeError("$", "conditional shape: { state, seq, validator }");
       }
       const held = await this.answer<Result>(op, args);
       if (!held || held.validator !== raw.validator) {
@@ -761,7 +748,7 @@ export class OfflineRuntime {
       if (this.partition === undefined) {
         // A follower tab's live deliveries are shown, not held: the writer tab owns the partition.
         if (this.followingPrincipal !== undefined) return false;
-        throw new OfflineAuthorityError("open an offline partition before committing a delivery");
+        throw new OfflineAuthorityError("delivery requires an open offline partition");
       }
       const deliveries: StoreDelivery[] = [];
       const refreshes: StoreRefresh[] = [];
@@ -785,7 +772,7 @@ export class OfflineRuntime {
           // program reset keeps that epoch: the owner's 409 checked it before
           // checking generation. A successor envelope cannot choose a new epoch.
           if (this.sessionEpoch !== undefined && envelope.authority.authEpoch !== this.sessionEpoch) {
-            throw new OfflineAuthorityError("delivery auth epoch does not match the authenticated session");
+            throw new OfflineAuthorityError("delivery/session auth epoch mismatch");
           }
           if (!nextFacts && this.held) nextFacts = {
             generation: this.held.generation, schemaHash: this.held.schemaHash,
@@ -807,7 +794,7 @@ export class OfflineRuntime {
           // Another auth epoch under the same program is a local authority
           // violation: refused, and the coverage kept (LLP 1012 §15).
           if (nextFacts && envelope.authority.authEpoch !== nextFacts.authEpoch) {
-            throw new OfflineAuthorityError("delivery auth epoch does not match the open coverage");
+            throw new OfflineAuthorityError("delivery/coverage auth epoch mismatch");
           }
           nextFacts = received;
         }
@@ -819,8 +806,8 @@ export class OfflineRuntime {
         const checked = envelope && operation && this.held?.schemaHash === envelope.schemaHash;
         let prepared: ReturnType<typeof prepareClosureReceipt> | undefined;
         if (checked) {
-          if (operation.planHash !== envelope.planHash) throw new TypeError('delivery operation identity mismatch');
-          if (queryClock(operation) !== (envelope.readTime !== undefined)) throw new TypeError('delivery query clock identity mismatch');
+          if (operation.planHash !== envelope.planHash) throw new TypeError('delivery plan identity mismatch');
+          if (queryClock(operation) !== (envelope.readTime !== undefined)) throw new TypeError('query clock identity mismatch');
           prepared = prepareClosureReceipt(envelope, this.held!.schema, operation.ir);
         }
         deliveries.push({
@@ -858,7 +845,6 @@ export class OfflineRuntime {
         deliveries,
         refreshes,
         tombstones,
-        retention: this.retention,
         schema: this.schema,
         ...(watermarkRecord ? { watermark: watermarkRecord } : {}),
         ...(settlement ? { outbox: settlement } : {}),
@@ -979,10 +965,9 @@ export class OfflineRuntime {
       // resume even before any fresh query has committed.
       const superseded = facts ?? this.superseded ?? this.facts;
       await this.store.commit({ resetCoverage: true, schema: this.schema, facts, superseded });
-      this.coverageRevision += 1;
-      this.facts = facts;
+      this.coverageRevision++;
+      this.facts = facts; this.superseded = superseded;
       this.sessionEpoch = epoch;
-      this.superseded = superseded;
     });
   }
 

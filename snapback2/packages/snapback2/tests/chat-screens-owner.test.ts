@@ -1,4 +1,4 @@
-import { sharedConsumers } from "../src/internal.js";
+import { sharedConsumers, subscribe } from "../src/internal.js";
 import assert from "node:assert/strict";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -26,6 +26,7 @@ const bundlePath = resolve(packageRoot, "dist/.chat-screens-owner.test-bundle.mj
 let App: (props: Record<string, never>) => React.ReactElement;
 let Composer: (props: { conversationId: string }) => React.ReactElement;
 let Thread: (props: { conversationId: string }) => React.ReactElement;
+let conversationItems: any;
 let screenOwner: RealOwnerHarness;
 
 before(async () => {
@@ -37,6 +38,7 @@ before(async () => {
         'export { App } from "./App";',
         'export { Composer } from "./Composer";',
         'export { Thread } from "./Thread";',
+        'export { conversationItems } from "../../shared/thread";',
       ].join("\n"),
       resolveDir: resolve(packageRoot, "templates/chat/react/src"),
       sourcefile: "screens.tsx",
@@ -57,13 +59,60 @@ before(async () => {
     }],
   });
   await writeFile(bundlePath, bundled.outputFiles[0]!.text);
-  ({ App, Composer, Thread } = await import(pathToFileURL(bundlePath).href));
+  ({ App, Composer, Thread, conversationItems } = await import(pathToFileURL(bundlePath).href));
   // The harness starts the production chat fixture when this file runs alone,
   // or uses the suite's already-qualified full-chat owner.
   screenOwner = await RealOwnerHarness.create({ fullChat: true });
 });
 
 after(async () => { await screenOwner?.close(); await rm(bundlePath, { force: true }); });
+
+// Both Thread screens import this exact conversationView → withHistory → threadItems binding.
+test("never-opened Thread binding renders a cold drained chat and predicts one offline send", async () => {
+  const root = await mkdtemp(join(tmpdir(), "s2-never-opened-screen-"));
+  const reads: string[] = [];
+  const options = { url: screenOwner.url, persona: "never-opened-bob", offline: { store: fileRangeStore(root) },
+    fetch: async (input: any, init?: RequestInit) => {
+      const body = requestBody(init);
+      if (body?.op) reads.push(body.op);
+      return globalThis.fetch(input, init);
+    } };
+  const alice = createClient({ url: screenOwner.url, persona: "never-opened-alice" });
+  let bob: any = createClient(options), drain: any, stop: (() => void) | undefined;
+  try {
+    await Promise.all([alice.ready, bob.ready]);
+    const created: any = await alice.mutation(api.groups.groupCreate, { title: "Never opened", members: [(await bob.auth.me()).viewer] });
+    assert.equal(created.state, "committed");
+    const conversationId = created.data.id;
+    const first: any = await alice.mutation(api.messages.send, { conversationId, body: "only the log was drained" });
+    assert.equal(first.state, "committed");
+    drain = subscribe(bob, api.messages.inbox, { c: null }, () => {}, { drain: true });
+    await drain.until((value: any) => value.live && value.caughtUp, 10000);
+    drain.close(); drain = undefined;
+    await bob.outbox.drain(); await bob.offline(); bob = await bob.restart();
+    assert(!reads.includes("messages.conversationView") && !reads.includes("messages.thread"), "neither screen query was opened online");
+    const before = reads.length;
+    const observed = bob.observe(api.messages.conversationView, { conversationId }, { items: conversationItems });
+    stop = observed.subscribe(() => {});
+    await waitFor(() => observed.getSnapshot().itemsFrom === "history", "the screen's declared history");
+    assert.deepEqual(observed.getSnapshot().items.map((item: any) => item.data?.body), ["only the log was drained"]);
+    const queued = await bob.mutation(api.messages.send, { conversationId, body: "predicted into the screen" });
+    assert.equal(queued.state, "queued");
+    const entry = (await bob.outbox.entries()).find((item: any) => item.intent === queued.intent);
+    assert.equal(entry?.predicted, true);
+    const id = mutationTarget(api.messages.send, "messages").id(entry);
+    await waitFor(() => observed.getSnapshot().items.some((item: any) => item.data?.id === id), "the predicted screen item");
+    const snapshot = observed.getSnapshot();
+    assert.equal(snapshot.itemsFrom, "history");
+    assert.deepEqual(snapshot.items.map((item: any) => item.data?.body), ["only the log was drained", "predicted into the screen"]);
+    assert.equal(snapshot.items.filter((item: any) => item.data?.id === id).length, 1);
+    assert.equal(snapshot.items.find((item: any) => item.data?.id === id).predicted, true);
+    assert.equal(reads.length, before, "the screen binding and send use held custody without transport");
+  } finally {
+    stop?.(); drain?.close(); await Promise.all([alice.close(), bob.close()]);
+    await rm(root, { recursive: true, force: true });
+  }
+});
 
 function json(value: unknown, status = 200): Response {
   return new Response(JSON.stringify(value), { status, headers: { "content-type": "application/json" } });

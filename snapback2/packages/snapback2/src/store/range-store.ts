@@ -20,7 +20,7 @@ import {
   applyByteSwap, assetIdsIn, byteKey, leasedAssets, viewedOnlyAssets, fullyViewed,
   type ByteCacheEntry, type ByteCacheStatus, type ByteDelta, type ByteSwapRequest, type ViewedRecord,
 } from "./byte-cache.js";
-import { admitOverlayAuthority, markDeliveredArrivals, pagePosition, recordOverlayAuthorityEvidence, retireOverlays,
+import { admitOverlayAuthority, dropOverlay, markDeliveredArrivals, pagePosition, recordOverlayAuthorityEvidence, retireOverlays,
   type OverlayAuthorityEvidence, type OverlayWatermark } from "./overlay-retirement.js";
 import { canonical, canonicalAnswerKey, jsonState, queryArgs, storedAnswerKey, storedProgram } from "./canonical.js";
 export { canonicalAnswerKey, jsonState } from "./canonical.js";
@@ -315,7 +315,6 @@ export interface StoreSwap {
   deliveries?: StoreDelivery[];
   refreshes?: StoreRefresh[];
   tombstones?: StoreTombstone[];
-  retention?: Record<string, RetentionPolicy>;
   schema?: OfflineSchema;
   watermark?: WatermarkRecord;
   resetCoverage?: boolean;
@@ -487,7 +486,7 @@ function normalizeState(value: PersistedRangeState | undefined): PersistedRangeS
   for (const answer of Object.values(value.answers ?? {})) validateClock(answer);
   value = jsonState(value);
   if (value.version !== 1 || !object(value.rows) || !object(value.answers)) {
-    throw new OfflineStoreFailure("E_OFFLINE_CARRIER", "range store contains an unsupported format");
+    throw new OfflineStoreFailure("E_OFFLINE_CARRIER", "unsupported range store format");
   }
   // Older snapshots used the canonical delivery itself as the fingerprint.
   // Hash that value before any subsequent persistence can retain its row bodies.
@@ -505,10 +504,11 @@ function normalizeState(value: PersistedRangeState | undefined): PersistedRangeS
   }
   return {
     ...current, factFormat,
-    factSlots: factFormat !== FACT_FORMAT ? 0 : Object.keys(value.rowFacts ?? {}).length + Object.keys(value.verdictFacts ?? {}).length
-      + Object.values(value.factImages ?? {}).reduce((sum,image) => sum + imageSlots(image.keys),0)
-      + Object.values(value.factExtents ?? {}).reduce((sum, extent) => sum + extentSlots(extent.condition), 0) + Object.keys(value.extentGuards ?? {}).length
-      + Object.keys(value.extentNegative ?? {}).length + Object.values(value.answers).reduce((sum, a) => sum + proofSlots(a), 0),
+    factSlots: factFormat !== FACT_FORMAT ? 0 : (['rowFacts', 'verdictFacts', 'extentGuards', 'extentNegative'] as const)
+      .reduce((sum, key) => sum + Object.keys(current[key]).length, 0)
+      + Object.values(current.factImages).reduce((sum,image) => sum + imageSlots(image.keys),0)
+      + Object.values(current.factExtents).reduce((sum, extent) => sum + extentSlots(extent.condition), 0)
+      + Object.values(current.answers).reduce((sum, a) => sum + proofSlots(a), 0),
   };
 }
 
@@ -582,7 +582,7 @@ export class PersistentRangeStore implements RangeStore {
 
   async open(partition: PrincipalPartition): Promise<void> {
     if (typeof partition !== "string" || partition.length === 0) {
-      throw new OfflineStoreFailure("E_OFFLINE_CARRIER", "range store partition must be a principal id");
+      throw new OfflineStoreFailure("E_OFFLINE_CARRIER", "partition must be a principal id");
     }
     await this.enqueue(async () => {
       if (this.partition === partition) return;
@@ -772,13 +772,13 @@ export class PersistentRangeStore implements RangeStore {
         const images = swap.deliveries![i][preparedDeliveryRows];
         if (images) {
           if (!images.every(r => RowImage.is(r.row)) || canonical(images) !== canonical(normalized.deliveries![i].rows))
-            throw new TypeError('prepared delivery does not match its wire pool');
+            throw new TypeError('prepared/wire row pool mismatch');
           normalized.deliveries![i].rows = images.map(r => ({ ...r }));
         }
         const ranges = swap.deliveries![i][preparedDeliveryRanges], receipt = normalized.deliveries![i].receipt;
         if (ranges) {
           if (!receipt || !ranges.every(r => RangeReceipt.get(r,true)) || canonical(ranges) !== canonical(receipt.ranges))
-            throw new TypeError('prepared delivery does not match its wire ranges');
+            throw new TypeError('prepared/wire ranges mismatch');
           receipt.ranges = ranges;
         }
       }
@@ -887,17 +887,16 @@ export class PersistentRangeStore implements RangeStore {
     if (swap.resumeSeq !== undefined && (!Number.isSafeInteger(swap.resumeSeq) || swap.resumeSeq < 0)) {
       throw new TypeError("store resume seq must be a non-negative safe integer");
     }
-    if (swap.facts && state.facts && swap.facts.authEpoch !== state.facts.authEpoch) {
+    if (swap.resetCoverage || (swap.facts && state.facts && swap.facts.authEpoch !== state.facts.authEpoch)) {
       // @ref LLP 1012#4-the-range-store — owner-confirmed reauthentication
       // preserves history, but epoch-bound validators/cursors make the next
       // delivery new even when its data sequence has not changed. The old
       // validator still goes to resume; the next full answer establishes the
       // new epoch's duplicate guard. No guard is relaxed within an epoch.
-      state.answers = Object.fromEntries(Object.entries(state.answers).map(([key, answer]) => {
-        const { fingerprint: _fingerprint, rowProofs: _rows, verdictProofs: _verdicts, extentProofs: _extents, needsFactProofs: _missing, ...held } = answer;
-        return [key, held];
-      }));
-      state.rowFacts = {}; state.verdictFacts = {}; state.factSlots = 0;
+      if (!swap.resetCoverage) for (const answer of Object.values(state.answers)) {
+        for (const field of ['fingerprint', 'rowProofs', 'verdictProofs', 'extentProofs', 'needsFactProofs'] as const) delete answer[field];
+      }
+      state.rowFacts = {}; state.verdictFacts = {};
       state.factImages = {}; state.factExtents = {}; state.extentGuards = {}; state.factSlots = Object.keys(state.extentNegative).length;
       this.referenceIndex = undefined;
     }
@@ -908,13 +907,13 @@ export class PersistentRangeStore implements RangeStore {
     if (custody && !swap.resetCoverage) for (const answer of Object.values(state.answers)) {
       const op = custody.programs[answer.op]; if (!op) continue;
       if (queryClock(op) && answer.readTime === undefined) throw new ClockCoverageReset();
-      if (answer.readTime !== undefined && (!queryClock(op) || answer.clockPlanHash !== op.planHash)) throw new TypeError('held execution clock identity mismatch');
+      if (answer.readTime !== undefined && (!queryClock(op) || answer.clockPlanHash !== op.planHash)) throw new TypeError('held clock identity mismatch');
     }
     if (swap.factLimitReset !== undefined) state.factLimitReset = swap.factLimitReset;
     const schema = swap.schema ?? (swap.programs && Object.values(swap.programs)[0]?.schema);
     if (schema) { const columns = onceColumns(schema); if (canonical(columns) !== canonical(state.onceColumns)) state.onceColumns = columns; }
     const clockOnly = new Set<string>(), deliveredIds = new Set<string>();
-    const authoritativeEvidence = changesCoverage(swap) ? this.applyCoverage(state, swap, bytes, clockOnly, deliveredIds) : new Map<string, OverlayAuthorityEvidence>();
+    const authoritativeEvidence = changesCoverage(swap) ? this.applyCoverage(state, swap, bytes, clockOnly, deliveredIds, program, answerKey) : new Map<string, OverlayAuthorityEvidence>();
     if (swap.facts && canonical(state.facts) !== canonical(swap.facts)) state.facts = clone(swap.facts);
     if (swap.superseded === null) delete state.superseded;
     else if (swap.superseded) state.superseded = clone(swap.superseded);
@@ -931,12 +930,7 @@ export class PersistentRangeStore implements RangeStore {
     const tail = tailWatermark(Object.values(state.watermarks));
     const committedNow = applyOutboxSwap(state, swap, clone);
     markDeliveredArrivals(state, deliveredIds);
-    for (const intent of swap.overlay?.remove ?? []) {
-      delete state.overlay[intent];
-      delete state.overlayMisses[intent];
-      delete state.overlayWatermarks[intent];
-      delete state.overlayNegatives[intent];
-    }
+    for (const intent of swap.overlay?.remove ?? []) dropOverlay(state, intent);
     for (const [intent, rows] of Object.entries(swap.overlay?.put ?? {})) {
       state.overlay[intent] = clone(rows);
       delete state.overlayMisses[intent];
@@ -951,37 +945,30 @@ export class PersistentRangeStore implements RangeStore {
     return state;
   }
 
-  private applyCoverage(state: PersistedRangeState, swap: StoreSwap, bytes: ByteDelta, clockOnly: Set<string>, deliveredIds: Set<string>) {
+  private applyCoverage(state: PersistedRangeState, swap: StoreSwap, bytes: ByteDelta, clockOnly: Set<string>, deliveredIds: Set<string>,
+    program: HeldProgram | undefined, answerKey: (op: string, args: unknown, cursor?: string) => string) {
+    const schema = swap.schema ?? (swap.resetCoverage ? storedProgram(state) : program)?.schema ?? this.referenceSchema;
+    const retains = (table: string) => schema?.tables?.[table]?.retain === 'delivered-history';
     if (swap.resetCoverage) {
       // @ref LLP 1019#5-reads — reset coverage, never the recipient's delivered custody.
-      const schema = swap.schema ?? storedProgram(state)?.schema ?? this.referenceSchema;
-      const kept = new Set<string>();
+      const kept: Record<string, boolean> = Object.create(null);
       for (const [table, declaration] of Object.entries(schema?.tables ?? {})) {
-        if (declaration.retain !== 'delivered-history' || !declaration.deliver) continue;
-        const delivered = new Set<string>(), removed = new Set<string>();
+        if (!retains(table) || !declaration.deliver) continue;
         for (const [key, event] of Object.entries(state.rows)) {
           if (event.table !== declaration.deliver.log) continue;
-          kept.add(key);
+          kept[key] = true;
           if (typeof event.row.row !== 'string') continue;
           const target = rowKey({ table, id: event.row.row });
-          if (event.row.kind === 'delivered') delivered.add(target);
-          if (event.row.kind === 'removed') removed.add(target);
+          if (event.row.kind === 'removed' || event.row.kind === 'delivered') kept[target] = kept[target] !== false && event.row.kind === 'delivered';
         }
-        for (const key of delivered) if (!removed.has(key)) kept.add(key);
       }
-      state.rows = Object.fromEntries(Object.entries(state.rows).filter(([key]) => kept.has(key)));
+      for (const key of Object.keys(state.rows)) if (!kept[key]) delete state.rows[key];
       // Sequence guards belong to this generation's coverage.
       // A query-only successor can deliver the same row at the same data seq.
-      state.rowSeq = {};
-      state.negative = {};
-      state.rowFacts = {}; state.verdictFacts = {}; state.factSlots = 0;
-      state.factFormat = FACT_FORMAT; state.factImages = {}; state.factExtents = {}; state.extentGuards = {}; state.extentNegative = {};
-      state.overlayNegatives = {};
-      state.answers = {};
-      state.watermarks = {};
+      for (const field of ['rowSeq', 'negative', 'extentNegative', 'overlayNegatives', 'answers', 'watermarks', 'overlayMisses'] as const) state[field] = {};
+      state.factFormat = FACT_FORMAT; state.factSlots = 0;
       // These describe coverage, unlike the overlay and its replay entry.
       state.overlayWatermarks = Object.fromEntries(Object.keys(state.overlay).map((intent) => [intent, null]));
-      state.overlayMisses = {};
       delete state.facts;
     }
     if (swap.resetCoverage || swap.programs || (swap.schema && !this.referenceSchema)) this.referenceIndex = undefined;
@@ -991,9 +978,7 @@ export class PersistentRangeStore implements RangeStore {
     const base = raw(state);
     const index = this.referenceIndex ??= new CarrierIndex({ ...base,
       programs: swap.programs ?? base.programs, facts: swap.facts ?? base.facts }, this.referenceSchema, (key,answer) => { state.answers[key] = answer; });
-    const program = storedProgram(state, swap);
-    const answerKey = (op: string, args: unknown, cursor = cursorArgument(program?.programs[op])) => canonicalAnswerKey(op, args, cursor);
-    const maintained = new MaintainedTransitions(swap.schema ?? program?.schema ?? this.referenceSchema);
+    const maintained = new MaintainedTransitions(schema);
     const authorityEvictions = new Map<string, StoreTombstone>();
     for (const eviction of maintained.committed(swap.outbox?.put ?? [], state.overlay, swap.overlay?.put)) {
       recordEviction(authorityEvictions, eviction);
@@ -1038,7 +1023,7 @@ export class PersistentRangeStore implements RangeStore {
     const recordAbsences = (answer: Pick<StoredAnswer, "receipt" | "seq">) => {
       for (const [table, index, key] of answer.receipt?.absences ?? []) {
         if (index !== "byId" || key.length !== 1) {
-          throw new TypeError("store receipts may evict only a primary byId absence");
+          throw new TypeError("eviction requires a primary byId absence");
         }
         if (typeof key[0] === "string") recordNegative({ table, id: key[0], seq: answer.seq }, "absence");
       }
@@ -1159,7 +1144,7 @@ export class PersistentRangeStore implements RangeStore {
       for (const [offset,row] of (delivery.rows ?? []).entries()) {
         const image = frameImages(frame)[offset];
         if (!row.table || !row.id || !object(row.row)) {
-          throw new TypeError("store delivery row is malformed");
+          throw new TypeError("malformed delivery row");
         }
         const storageKey = rowKey(row);
         versions(storageKey).push({ seq: delivery.seq, image });
@@ -1199,7 +1184,7 @@ export class PersistentRangeStore implements RangeStore {
       const retainedRefs = new Set<string>();
       for (const ref of hidden) {
         if (present.has(rowKey(ref))) continue;
-        if ((swap.retention?.[ref.table] ?? "until-revoked") === "delivered-history") {
+        if (retains(ref.table)) {
           retainedRefs.add(rowKey(ref));
           retained = true;
         } else recordEviction(explicitEvictions, { ...ref, seq: delivery.seq });

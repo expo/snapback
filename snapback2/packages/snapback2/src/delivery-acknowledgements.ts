@@ -3,6 +3,7 @@
 import { imageRecord } from '../../evaluator/src/row-image.js';
 import { collectRefs, rowKey } from './store/row-values.js';
 import { storedProgram } from './store/canonical.js';
+import { dropOverlay } from './store/overlay-retirement.js';
 import type { PersistedRangeState, StoreSwap } from './store/range-store.js';
 
 /** The engine-owned acknowledgement mutation of one custody log (`receipts.rs::ack_name`). */
@@ -60,10 +61,7 @@ export function applyOutboxSwap(state: PersistedRangeState, swap: StoreSwap, clo
   // Coverage resets never touch unsent outbox/grant/bound/overlay custody.
   for (const intent of swap.outbox?.remove ?? []) {
     delete state.outbox[intent];
-    delete state.overlayMisses[intent];
-    delete state.overlay[intent];
-    delete state.overlayWatermarks[intent];
-    delete state.overlayNegatives[intent];
+    dropOverlay(state, intent);
   }
   const committedNow = new Set<string>();
   for (const entry of swap.outbox?.put ?? []) {

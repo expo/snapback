@@ -147,3 +147,82 @@ Final passing evidence:
 Every changed source is ≤1500 lines (largest 1497). LLP 1012 was already 1855 and is now 1861; the scoped amendment does not delete unrelated corpus to satisfy a literal all-file limit. Root caps retains its unchanged Snapback 1 1504-line violation. Additional scope is fully enumerated in the root report: SDK reset path (authorized), CLI proof helpers, wire/job/timer labels, compiler/evaluator type checks, test expectations and watcher synchronization, guide/corpus amendments and measurement records. No new check, script, registry, configuration or design document.
 
 The canonical program report was read outside writable roots; this local mirror preserves that report and appends the requested section for the orchestrator to collect.
+
+
+## Fix round r2
+
+**FIXED.** Client / React / Expo closures are **140,680 / 150,416 / 154,019 gzip bytes**, **−181 each** from r1. This pays the requested 168 bytes plus 13 bytes; headroom below the custody maxima is **20 / 84 / 81 bytes**. **D1–D6 are all landed or landing:** D1–D5 landed; D6 is ready for the orchestrator's commit and landing. This supersedes r1's byte hold; no commit or landing is claimed for this worktree.
+
+Base `dfac9e92d14d3b146b1bb2bcb1b8de1e847762fe`; no merge, commit, stash, branch change, publication, budget/scorer change, or RFC Status change. Only the named/affected checks ran; no whole suite.
+
+| Measured object | r1 / before | r2 / after | Delta | Ceiling / maximum |
+|---|---:|---:|---:|---:|
+| client closure | 140,861 | 140,680 | −181 | 140,700 |
+| React closure | 150,597 | 150,416 | −181 | 150,500 |
+| Expo closure | 154,200 | 154,019 | −181 | 154,100 |
+| complete runtime | 86,538 | 86,455 | −83 | 90,000 |
+| shared client-runtime leaf, minified | 301,578 | 300,292 | −1,286 | unchanged |
+| shared client-runtime leaf, gzip | 96,022 | 95,841 | −181 | included above |
+
+### Construction and input evidence
+
+- `src/offline.ts` sends the schema once; the duplicate runtime retention map and `StoreSwap.retention` are deleted. One schema predicate in `range-store.ts` governs both ordinary retention and reset custody. Reset uses the predecessor's held schema when no explicit schema is supplied.
+- Reset uses one null-prototype dictionary for log anchors and body dispositions; `removed` wins regardless of traversal order. It removes unretained rows in place and still clears answers, sequence guards, facts and slots. Reauthentication/reset share fact clearing; answer-key/program resolution and normalized fact-slot counting stop repeating work.
+- `dropOverlay` centralizes the identical four-field cleanup used by retirement, explicit overlay removal and outbox removal. Receipt admission is unchanged. Provisional log recognition is lazy; ordinary rows need no schema scan. The reset anchor walk cannot consume retirement's incoming-page scan: reset uses predecessor custody before new pages, while retirement considers accepted arrivals after the swap.
+- Follower inbox insert/remove/take share their existing connection check, durable action and refresh. Validation prose is shorter; refusal classes/codes, checks, factory repair wording and actionable rewrites remain. No diagnostic or implementation bytes moved behind another entry.
+
+Esbuild metafile **bytesInOutput** for the shared client-runtime leaf (minified contribution, not an additive gzip attribution):
+
+| Input | Before | After | Delta |
+|---|---:|---:|---:|
+| `src/assets.ts` | 6,682 | 6,659 | -23 |
+| `src/client-assets.ts` | 2,301 | 2,298 | -3 |
+| `src/delivery-acknowledgements.ts` | 2,193 | 2,096 | -97 |
+| `src/offline.ts` | 23,311 | 22,771 | -540 |
+| `src/store/overlay-retirement.ts` | 6,175 | 5,974 | -201 |
+| `src/store/range-store.ts` | 26,904 | 26,483 | -421 |
+
+The asset sources are unchanged; their −26 attributed bytes are esbuild binding-name changes. The remaining one-byte difference is bundle glue. `client.mjs`, `image-runtime.mjs`, `internal.mjs`, `react.mjs`, `react-core.mjs`, and `expo.mjs` have identical minified byte counts and input contributions before/after. Every closure still includes its original dependency graph; nothing was transferred to another entry.
+
+Evidence: `/tmp/custody-c2-r2-{before,after}/` holds each esbuild metafile and packaged closure inventory; `/tmp/custody-c2-r2-input-diff.json` holds the full diff. Instrumentation was a temporary stdin copy of unchanged `build.mjs`, adding only metafile capture. The ordinary build and canonical measurement confirm the same artifacts. Toolchain: **Node 24.18.0 / esbuild 0.25.9 / gzip level 9**.
+
+### Stub audit
+
+| Item | Tree finding / disposition |
+|---|---|
+| Empty generated-table policy coverage | **Already paid in r1:** `test_policy.rs` requires actual probes and returns blocked for no stored rows; the empty-audience regression remains. No change in r2. |
+| Dead `fn conversation(Log\|Preview)` strip | **Already removed in r1** from `real-owner-chat-custody.test.ts`. No change in r2. |
+| `expiry.md` composite sentence | **Already corrected in r1** to live content history/count/preview for joiners. R2 adds the precise screen/fallback sentence. |
+| LLP 1018.003 later index | **Already corrected in r1:** §5 names generated `byRecipientGroup: recipient, conversationId, kind, seq, id`. No change in r2. |
+| LLP 1012 §5 rule 3 | **Already marked superseded in r1**, naming generated `removed` tombstones. No change in r2. |
+| Acceptance 2 on the screen's query | **Added in r2:** `never-opened Thread binding renders a cold drained chat and predicts one offline send` bundles the actual shared `conversationItems` imported by both Thread screens. Only the inbox is drained online; after cold offline restart it observes `conversationView` through `withHistory` → `threadItems`, renders the held message and exactly one predicted send, and asserts no query/transport was used to prime or serve the screen. Both participants are isolated from existing screen fixtures. The original template journey is retained. |
+
+### Verification and before/after controls
+
+| Command / scope | Exact result | Log |
+|---|---|---|
+| `cargo build`; media build; `scripts/hermes build -p snapback2` | exit 0 | `/tmp/custody-c2-r2-{cargo-build,media-build,hermes-build-final}.log` |
+| `node build.mjs` (ordinary build and canonical measure build) | exit 0; **32 cards, 90996/98304 bytes** | `/tmp/custody-c2-r2-build-final.log`, `/tmp/custody-c2-r2-measure-final.log` |
+| `node build.mjs --measure-twin` | exit 0; **86455 gzip**, **262856 minified** | `/tmp/custody-c2-r2-twin.log` |
+| All six requested package files, serial | **tests 89, pass 87, fail 2, cancelled 0, skipped 0, todo 0**. Both failures were owner readiness timeouts before the successor test bodies. | `/tmp/custody-c2-r2-targeted-final.log` |
+| Those two successor cases in isolation, final source | **tests 2, pass 2, fail 0, cancelled 0, skipped 0, todo 0** | `/tmp/custody-c2-r2-successors-final.log` |
+| All three real-owner/screen files on the warm M1 Max snapshot, final source | **tests 15, pass 15, fail 0, cancelled 0, skipped 0, todo 0** | `/tmp/custody-c2-r2-m1-owners-qualified.log` |
+| Affected store, history, overlay, inbox and fact-custody files | **tests 312, pass 312, fail 0, cancelled 0, skipped 0, todo 0** | `/tmp/custody-c2-r2-stores-final.log` |
+| Final reset-store file after null-prototype hardening | **tests 101, pass 101, fail 0, cancelled 0, skipped 0, todo 0** | `/tmp/custody-c2-r2-reset-final.log` |
+| Compiler `bun run check`; `bun src/test.ts` | typecheck exit 0; **Compiler checks: 298 passed, 0 failed** | `/tmp/custody-c2-r2-compiler-{check-final,final}.log` |
+| Template `target/hermes/debug/snapback2 test --json`, `SNAPBACK2_MEDIA=target/debug/snapback2-media` | **32 checks, 32 pass, 0 fail, 0 blocked**; schedules **fired 1, late 1, rejected 0** | `/tmp/custody-c2-r2-hermes-final.json` |
+| Original runtime sources at the base, with the schema-only retention probes | **tests 2, pass 0, fail 2**: `retained` was **undefined**, expected **true**. Both probes pass in the 312-test run. | `/tmp/custody-c2-r2-before-control.log` |
+
+The before control substitutes the four original runtime modules during esbuild; it does not checkout, reset or change branches. The new screen check fills a coverage gap, rather than claiming its existing binding was broken. The r1 reset and historical-custody assertions remain intact. Existing low-level retention fixtures now supply schema metadata; no assertion or tolerance was removed. The paginated fixture supplies its real index components along with retention.
+
+`npm_config_cache=/tmp/custody-c2-r2-npm-cache node scripts/measure.mjs --check` confirms all four byte values above. **Every functional and timing step passes in the final run**: consumer smoke **19.49s ≤30s**, chat test **6.296744959000003s**, incremental build **4.76s ≤15s**, check **0.807s ≤1s**, doctor **0.2 /0.052s ≤0.5s**, init→dev **1.645s ≤10s**. **The command exits 1 only for the four unchanged historical byte comparisons.** The custody maxima and runtime ceiling pass; no accepted baseline or synthetic passing record was created. Log: `/tmp/custody-c2-r2-measure-final.log`; original attempts remain in `metrics/{loop,twin}.jsonl`.
+
+Discarded attempts remain visible: an overly broad callback type stopped the declaration build, and an unsuccessful before-control bundle left checker declarations missing (initial compiler run **257 passed, 41 failed**); both were repaired before final verification. Early local runs also overlapped package replacement. The new screen fixture initially shared a seeded participant and changed that participant's inbox count; both accounts are now isolated, with the original count assertion unchanged. A broad fleet run was **87/89** because of that fixture plus the snapshot's lack of Git metadata for the literal-NUL test; the latter passes in the full local named run. The first Hermes invocation used the default binary (**30 pass, 2 blocked**), then the Hermes invocation needed its media helper configured; the correct final engine/helper run is **32/32**. The initial measurement was **40.24s** with a **16.44s** first cache installation and a **0.697s** first doctor boot; the next was **31.75s**, including a **9.26s** Vite bundle. The final unchanged-source warm run above clears both timing issues. These attempts are not claimed as passing invocations.
+
+### Scope, caps and disposition
+
+Changed implementation: `src/{offline.ts,delivery-acknowledgements.ts,store/range-store.ts,store/overlay-retirement.ts}`. The helper reuse touches the acknowledgement file only for outbox-removal cleanup; the inbox-method consolidation stays in the named offline module. Additional affected tests: `tests/{offline-store,client-history,overlay-retirement,chat-screens-owner}.test.ts`. Documentation/evidence: `guide/expiry.md`, LLP 1019's record, both custody-c2 reports, and existing measurement logs. All paths in this paragraph are under `snapback2/packages/snapback2/` unless explicitly named otherwise. No compiler, Rust, template, other LLP, scorer, configuration, registry or check source changed.
+
+All changed files are **≤1500 lines**; largest is `offline-store.test.ts`, **1483**. Root caps retains only the unchanged Snapback 1 1504-line violation (**205/204** baseline). The existing oversized LLP 1012 is untouched in r2. Reference audit and whitespace validation pass; the final audit log is `/tmp/custody-c2-r2-refs-final.log`.
+
+**Open semantic/allocation questions: none.** The generic scorer still reflects historical accepted baselines, as it did for the author's custody allocation; its policy remains unchanged. This writable `reports/final-custody-c2.md` mirror is the program report for the orchestrator to collect. Local writes stay in the allowed roots; fleet verification reuses r1's isolated `/tmp/s2-custody-c2-r1.dc7UEr` snapshot. No other checkout or branch was changed. No commit and no whole-suite run.

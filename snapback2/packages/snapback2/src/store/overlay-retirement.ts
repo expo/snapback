@@ -83,6 +83,12 @@ export function advanceOverlay(mark: OverlayWatermark, tail: WatermarkRecord | u
 /** Two post-commit resumes or proven tail advances retire a stranded prediction. */
 const OVERLAY_PATIENCE = 2;
 
+/** Drop one prediction and its coverage evidence together; queued bytes stay. */
+export function dropOverlay(state: PersistedRangeState, intent: string): void {
+  delete state.overlay[intent]; delete state.overlayMisses[intent];
+  delete state.overlayWatermarks[intent]; delete state.overlayNegatives[intent];
+}
+
 export interface OverlayAuthorityEvidence {
   seq: number;
   source: "absence" | "tombstone" | "row";
@@ -146,9 +152,8 @@ export function retireOverlays(
     const maintains = (program.schema as { maintains?: Array<{ target?: unknown }> }).maintains ?? [];
     return maintains.flatMap((maintain) => typeof maintain.target === "string" ? [maintain.target] : []);
   }));
-  const deliveryLogs = new Set(Object.values(state.programs).flatMap(program =>
-    Object.values((program.schema as any).tables).flatMap((t: any) => t.deliver ? [t.deliver.log] : [])));
-  const provisional = (row: OverlayRow) => deliveryLogs.has(row.table) && row.id.startsWith('own:');
+  const provisional = (row: OverlayRow) => row.id.startsWith('own:') && Object.values(state.programs).some(program =>
+    Object.values(program.schema.tables ?? {}).some(table => table.deliver?.log === row.table));
   const pages = answers.filter((answer) => {
     const nonempty = Array.isArray(answer.data) ? answer.data.length > 0 : collectRefs(answer.data).length > 0;
     return !answer.clockOnly && !answer.retained && (answer.state === "complete" || answer.state === "capped") && answer.receipt !== undefined
@@ -159,8 +164,7 @@ export function retireOverlays(
   for (const intent of Object.keys(state.overlay)) {
     const entry = state.outbox[intent];
     if (entry === undefined || entry.state === "rejected" || entry.state === "expired") {
-      delete state.overlay[intent]; delete state.overlayMisses[intent]; delete state.overlayWatermarks[intent];
-      delete state.overlayNegatives[intent]; if (entry) delete entry.predicted; continue;
+      dropOverlay(state, intent); if (entry) delete entry.predicted; continue;
     }
     // @ref LLP 1019#7-the-twin — a provisional sender event has no commit seq
     // or server ordinal. The received delivered identity replaces it even if
@@ -205,8 +209,7 @@ export function retireOverlays(
     }
     const committedSeq = (entry.response as { seq?: unknown } | undefined)?.seq;
     if (!Number.isSafeInteger(committedSeq)) {
-      delete state.overlay[intent]; delete state.overlayMisses[intent]; delete state.overlayWatermarks[intent];
-      delete state.overlayNegatives[intent]; delete entry.predicted; continue;
+      dropOverlay(state, intent); delete entry.predicted; continue;
     }
     const overlay = state.overlay[intent]!, seq = Number(committedSeq);
     const predicted = new Set(overlay.filter((row) => !row.removed).map(rowKey));
@@ -258,7 +261,6 @@ export function retireOverlays(
     }
     if (!arrived && misses < OVERLAY_PATIENCE) { if (misses > 0) state.overlayMisses[intent] = misses; continue; }
     if (arrived) entry.arrived = true;
-    delete state.overlay[intent]; delete state.overlayMisses[intent]; delete state.overlayWatermarks[intent];
-    delete state.overlayNegatives[intent]; delete entry.predicted;
+    dropOverlay(state, intent); delete entry.predicted;
   }
 }

@@ -21,7 +21,9 @@ See `snapback2 guide effects` for the executable TypeScript recipe.
 
 `messages.thread` reads delivered events; `conversationView` reads live content
 history with count/preview, including prior messages for joiners.
-Use `withHistory` for declared partial history.
+Both Thread screens bind `conversationView` through `withHistory` to delivered
+`thread` items: a never-opened chat and a predicted send render from the drained
+log when the offline composite lacks count/preview authority.
 `snapback/messages.q`:
 
 ```q
