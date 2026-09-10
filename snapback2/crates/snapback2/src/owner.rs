@@ -672,19 +672,24 @@ fn print_url(info: &OwnerInfo, json_output: bool, effects: &Json) -> Result<(), 
         );
     } else {
         println!("SNAPBACK_URL={}", info.url);
-        if effects["engine"] == "none" {
-            println!(
-                "effects: no engine in this build — {} queued (build one: scripts/hermes build -p snapback2)",
-                effects["queued"]
-            );
-        } else {
-            println!(
-                "effects: {}",
-                effects["engine"].as_str().unwrap_or("unavailable")
-            );
-        }
+        println!("{}", effects_line(effects));
     }
     Ok(())
+}
+
+// @ref LLP 1021#1-the-lifecycle-is-in-the-log — the boot line carries the queued count in both engine arms.
+fn effects_line(effects: &Json) -> String {
+    let queued = &effects["queued"];
+    if effects["engine"] == "none" {
+        format!(
+            "effects: no engine in this build — {queued} queued (build one: scripts/hermes build -p snapback2)"
+        )
+    } else {
+        format!(
+            "effects: {} — {queued} queued",
+            effects["engine"].as_str().unwrap_or("unavailable")
+        )
+    }
 }
 
 fn owner_running(info: &OwnerInfo) -> Refusal {
@@ -877,6 +882,18 @@ mod tests {
         ));
         fs::create_dir_all(root.join(".snapback")).unwrap();
         root
+    }
+
+    #[test]
+    fn dev_boot_line_carries_the_queued_count_in_both_engine_arms() {
+        assert_eq!(
+            effects_line(&json!({"engine":"none","queued":3})),
+            "effects: no engine in this build — 3 queued (build one: scripts/hermes build -p snapback2)"
+        );
+        assert_eq!(
+            effects_line(&json!({"engine":"ibex2 + vanilla hermes","queued":3})),
+            "effects: ibex2 + vanilla hermes — 3 queued"
+        );
     }
 
     #[test]

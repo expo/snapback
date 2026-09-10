@@ -207,171 +207,310 @@ fn doctor_counts_queued_rows_from_store_without_an_owner() {
     fs::remove_dir_all(root).unwrap();
 }
 
-#[test]
-fn outbox_pages_over_two_hundred_rows_and_settle_reports_every_engine_block() {
-    let root = temp_root();
-    copy_tree(&fixture().join("snapback"), &root.join("snapback"));
-    let binary = env!("CARGO_BIN_EXE_snapback2");
-    let compiler = compiler(&root);
-    seed_effect_row(&root, binary, &compiler, None);
-    let conn = rusqlite::Connection::open(root.join(".snapback/store.sqlite")).unwrap();
-    conn.execute("DELETE FROM _outbox", []).unwrap();
-    for i in 0..405 {
-        conn.execute("INSERT INTO _outbox (id,seq,effect,payload,state,attempts,next_at,created_at,updated_at,result)
-            VALUES (?1,?2,'delivery.notify','\"Null\"',?3,0,0,0,0,?4)", rusqlite::params![
-                format!("paged-{i:04}"), 1 + i / 203, if i == 404 { "sent" } else { "queued" },
-                if i == 404 { Some(json!("x".repeat(17000)).to_string()) } else { None }
-            ]).unwrap();
-    }
-    drop(conn);
-    let mut owner = ChildGuard::spawn(binary, &compiler, &root);
-    let ready = owner.ready_line();
-    let port = ready
-        .trim()
-        .strip_prefix("SNAPBACK_URL=http://127.0.0.1:")
-        .unwrap()
-        .parse()
-        .unwrap();
-    assert!(
-        owner
-            .ready_line()
-            .contains("effects: no engine in this build — 404 queued")
-    );
-    let info: Value =
-        serde_json::from_slice(&fs::read(root.join(".snapback/owner.json")).unwrap()).unwrap();
-    let secret = info["secret"].as_str().unwrap();
-    let headers = [("X-Snapback-Control", secret)];
-    assert_eq!(
-        request(port, "GET", "/control/outbox", &[], json!({})).status,
-        403
-    );
-    for path in [
-        "/control/outbox?limit=201",
-        "/control/outbox?limit=0",
-        "/control/outbox?limit=oops",
-        "/control/outbox?state=oops",
-        "/control/outbox?after=oops",
-    ] {
-        assert_eq!(
-            request(port, "GET", path, &headers, json!({})).status,
-            400,
-            "{path}"
-        );
-    }
-    let mut all = Vec::new();
-    let mut after = String::new();
-    let mut lengths = Vec::new();
-    loop {
-        let response = request(
-            port,
-            "GET",
-            &format!("/control/outbox?limit=200{after}"),
-            &headers,
-            json!({}),
-        );
-        assert_eq!(response.status, 200, "{}", response.body);
-        let rows = response.body["rows"].as_array().unwrap();
-        lengths.push(rows.len());
-        all.extend(rows.iter().cloned());
-        let Some(cursor) = response.body["after"].as_str() else {
-            break;
-        };
-        after = format!(
-            "&after={}",
-            cursor
-                .bytes()
-                .map(|b| format!("%{b:02X}"))
-                .collect::<String>()
-        );
-    }
-    assert_eq!(lengths, vec![200, 200, 5]);
-    assert_eq!(
-        all.iter()
-            .map(|r| r["id"].as_str().unwrap())
-            .collect::<Vec<_>>(),
-        (0..405)
-            .map(|i| format!("paged-{i:04}"))
-            .collect::<Vec<_>>()
-    );
-    assert_eq!(all[404]["result"], Value::Null);
-    assert_eq!(
-        all[404]["resultCapped"],
-        json!({"bytes":17002,"limit":16384})
-    );
-    let started = Instant::now();
-    let settled = request(
-        port,
-        "POST",
-        "/control/effects/settle",
-        &headers,
-        json!({"upTo":2,"budgetMs":4000}),
-    );
-    assert_eq!(settled.status, 200, "{}", settled.body);
-    assert_eq!(settled.body["settled"], false);
-    assert_eq!(settled.body["rows"].as_array().unwrap().len(), 405);
-    assert_eq!(settled.body["remaining"].as_array().unwrap().len(), 404);
-    assert!(
-        settled.body["remaining"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .all(|r| r["reason"] == "engine:none")
-    );
-    assert!(
-        started.elapsed() < Duration::from_secs(1),
-        "no engine must return at once"
-    );
-    let limited = request(
-        port,
-        "POST",
-        "/control/effects/settle",
-        &headers,
-        json!({"upTo":1,"budgetMs":0}),
-    );
-    assert_eq!(limited.body["rows"].as_array().unwrap().len(), 203);
-    for body in [
-        json!({"upTo":-1}),
-        json!({"budgetMs":4001}),
-        json!({"upTo":"2"}),
-    ] {
-        assert_eq!(
-            request(port, "POST", "/control/effects/settle", &headers, body).status,
-            400
-        );
-    }
-    let empty = request(
-        port,
-        "POST",
-        "/control/effects/settle",
-        &headers,
-        json!({"upTo":0}),
-    );
-    assert_eq!(empty.body["settled"], true);
-    stop_owner(port, secret, &mut owner, "outbox paging complete");
-    let mut served = ChildGuard::spawn_with(binary, &compiler, &root, true);
-    let port = served
+fn boot(root: &Path, binary: &str, compiler: &Path) -> (ChildGuard, u16, String, String) {
+    let mut owner = ChildGuard::spawn(binary, compiler, root);
+    let port = owner
         .ready_line()
         .trim()
         .strip_prefix("SNAPBACK_URL=http://127.0.0.1:")
         .unwrap()
         .parse()
         .unwrap();
+    let engine_line = owner.ready_line();
     let info: Value =
         serde_json::from_slice(&fs::read(root.join(".snapback/owner.json")).unwrap()).unwrap();
-    let secret = info["secret"].as_str().unwrap();
-    for (method, path) in [
-        ("GET", "/control/outbox"),
-        ("POST", "/control/effects/settle"),
+    let secret = info["secret"].as_str().unwrap().to_owned();
+    (owner, port, secret, engine_line)
+}
+
+fn insert_outbox_row(root: &Path, id: &str, state: &str, attempts: u32) {
+    let conn = rusqlite::Connection::open(root.join(".snapback/store.sqlite")).unwrap();
+    conn.execute(
+        "INSERT INTO _outbox (id,seq,effect,payload,state,attempts,next_at,created_at,updated_at)
+         VALUES (?1,1,'delivery.notify','\"Null\"',?2,?3,0,0,0)",
+        rusqlite::params![id, state, attempts],
+    )
+    .unwrap();
+}
+
+fn settle(port: u16, secret: &str, body: Value) -> Value {
+    let response = request(
+        port,
+        "POST",
+        "/control/effects/settle",
+        &[("X-Snapback-Control", secret)],
+        body,
+    );
+    assert_eq!(response.status, 200, "{}", response.body);
+    response.body
+}
+
+fn cli_json(binary: &str, root: &Path, args: &[&str]) -> Value {
+    let output = Command::new(binary)
+        .args(args)
+        .args(["--json", "--project"])
+        .arg(root)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{} {}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    serde_json::from_slice(&output.stdout).unwrap()
+}
+
+#[cfg(not(feature = "hermes"))]
+#[test]
+fn settle_reports_engine_none_for_every_queued_row_at_once() {
+    let root = temp_root();
+    copy_tree(&fixture().join("snapback"), &root.join("snapback"));
+    let binary = env!("CARGO_BIN_EXE_snapback2");
+    let compiler = compiler(&root);
+    seed_paged_outbox(&root, binary, &compiler);
+    let (mut owner, port, secret, engine_line) = boot(&root, binary, &compiler);
+    assert!(
+        engine_line.contains("effects: no engine in this build — 404 queued"),
+        "{engine_line}"
+    );
+    let started = Instant::now();
+    let settled = settle(port, &secret, json!({"upTo":2,"budgetMs":4000}));
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "no engine must return at once"
+    );
+    assert_eq!(settled["settled"], false);
+    assert_eq!(settled["rows"].as_array().unwrap().len(), 405);
+    let remaining = settled["remaining"].as_array().unwrap();
+    assert_eq!(remaining.len(), 404);
+    assert!(remaining.iter().all(|r| r["reason"] == "engine:none"));
+    let limited = settle(port, &secret, json!({"upTo":1,"budgetMs":0}));
+    assert_eq!(limited["rows"].as_array().unwrap().len(), 203);
+    for body in [
+        json!({"upTo":-1}),
+        json!({"budgetMs":4001}),
+        json!({"upTo":"2"}),
     ] {
-        let response = request(
-            port,
-            method,
-            path,
-            &[("X-Snapback-Control", secret)],
-            json!({}),
+        assert_eq!(
+            request(
+                port,
+                "POST",
+                "/control/effects/settle",
+                &[("X-Snapback-Control", &secret)],
+                body
+            )
+            .status,
+            400
         );
-        assert_ne!(response.status, 200, "{path}");
     }
-    stop_owner(port, secret, &mut served, "serve admission complete");
+    assert_eq!(settle(port, &secret, json!({"upTo":0}))["settled"], true);
+    stop_owner(port, &secret, &mut owner, "engine-none settle complete");
+    fs::remove_dir_all(root).unwrap();
+}
+
+// @ref LLP 1021#2-journeys-see-and-settle-the-outbox — an engine-less owner still settles a pending `then`; only the queued row is reported `engine:none`.
+#[cfg(not(feature = "hermes"))]
+#[test]
+fn settle_pumps_a_pending_then_beside_an_engineless_queued_row() {
+    let root = temp_root();
+    copy_tree(&fixture().join("snapback"), &root.join("snapback"));
+    let binary = env!("CARGO_BIN_EXE_snapback2");
+    let compiler = compiler(&root);
+    seed_effect_row(
+        &root,
+        binary,
+        &compiler,
+        Some(json!({ "providerId": "mixed-provider" })),
+    );
+    insert_outbox_row(&root, "queued-beside", "queued", 0);
+    let (mut owner, port, secret, _) = boot(&root, binary, &compiler);
+    let settled = settle(port, &secret, json!({"upTo":2,"budgetMs":1000}));
+    assert_eq!(settled["settled"], false, "{settled}");
+    let rows = settled["rows"].as_array().unwrap();
+    let replayed = rows.iter().find(|r| r["id"] == "seeded-outbox").unwrap();
+    assert_eq!(replayed["state"], "sent", "{settled}");
+    assert_eq!(
+        replayed["then"],
+        json!({"op":"notifications.recordNotified","state":"committed","seq":2})
+    );
+    assert_eq!(
+        settled["remaining"],
+        json!([{"id":"queued-beside","reason":"engine:none"}])
+    );
+    stop_owner(port, &secret, &mut owner, "mixed settle complete");
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[cfg(not(feature = "hermes"))]
+#[test]
+fn settle_reports_backoff_without_spinning_and_engine_none_once_the_clock_passes_next_at() {
+    let root = temp_root();
+    copy_tree(&fixture().join("snapback"), &root.join("snapback"));
+    let binary = env!("CARGO_BIN_EXE_snapback2");
+    let compiler = compiler(&root);
+    seed_effect_row(&root, binary, &compiler, None);
+    let next_at = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as i64
+        + 60_000;
+    let conn = rusqlite::Connection::open(root.join(".snapback/store.sqlite")).unwrap();
+    conn.execute(
+        "UPDATE _outbox SET next_at = ?1 WHERE id = 'seeded-outbox'",
+        [next_at],
+    )
+    .unwrap();
+    drop(conn);
+    let (mut owner, port, secret, _) = boot(&root, binary, &compiler);
+    let started = Instant::now();
+    let backoff = settle(port, &secret, json!({"upTo":1,"budgetMs":50}));
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "a backoff beyond the budget must not be waited on"
+    );
+    assert_eq!(backoff["settled"], false);
+    assert_eq!(
+        backoff["remaining"],
+        json!([{"id":"seeded-outbox","reason":"backoff","nextAt":next_at}])
+    );
+    let ticked = request(
+        port,
+        "POST",
+        "/control/clock",
+        &[("X-Snapback-Control", &secret)],
+        json!({"advanceMs":60_001}),
+    );
+    assert_eq!(ticked.status, 200, "{}", ticked.body);
+    let due = settle(port, &secret, json!({"upTo":1,"budgetMs":50}));
+    assert_eq!(
+        due["remaining"],
+        json!([{"id":"seeded-outbox","reason":"engine:none"}])
+    );
+    stop_owner(port, &secret, &mut owner, "backoff settle complete");
+    fs::remove_dir_all(root).unwrap();
+}
+
+// @ref LLP 1021#1-the-lifecycle-is-in-the-log — acceptance 9: every transition, in order, and nothing else.
+#[cfg(not(feature = "hermes"))]
+#[test]
+fn logs_effects_lists_every_transition_in_order_and_nothing_else() {
+    let root = temp_root();
+    copy_tree(&fixture().join("snapback"), &root.join("snapback"));
+    let binary = env!("CARGO_BIN_EXE_snapback2");
+    let compiler = compiler(&root);
+    seed_effect_row(
+        &root,
+        binary,
+        &compiler,
+        Some(json!({ "providerId": "logged-provider" })),
+    );
+    insert_outbox_row(&root, "stale-running", "running", 1);
+    let (mut owner, port, secret, _) = boot(&root, binary, &compiler);
+    wait_for(Duration::from_secs(5), || {
+        let status = status(port, &secret);
+        (status["effects"]["sent"] == 1 && status["effects"]["sentUnknown"] == 1).then_some(())
+    });
+    let requeued = request(
+        port,
+        "POST",
+        "/control/outbox/stale-running/requeue",
+        &[("X-Snapback-Control", &secret)],
+        json!({}),
+    );
+    assert_eq!(requeued.status, 200, "{}", requeued.body);
+    let logs = cli_json(binary, &root, &["logs", "--effects"]);
+    assert_eq!(logs["commits"], json!([]));
+    let lines = logs["lines"].as_array().unwrap();
+    assert!(lines.iter().all(|line| line["outbox"].is_object()), "{logs}");
+    let transitions = lines
+        .iter()
+        .filter(|line| line["outbox"]["to"].is_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        transitions
+            .iter()
+            .map(|line| (
+                line["outbox"]["id"].as_str().unwrap(),
+                line["outbox"]["from"].as_str().unwrap(),
+                line["outbox"]["to"].as_str().unwrap(),
+            ))
+            .collect::<Vec<_>>(),
+        vec![
+            ("stale-running", "running", "sent_unknown"),
+            ("seeded-outbox", "then_pending", "sent"),
+            ("stale-running", "sent_unknown", "queued"),
+        ],
+        "{logs}"
+    );
+    assert!(
+        transitions
+            .iter()
+            .all(|line| line["outbox"]["effect"] == "delivery.notify" && line["outbox"]["seq"] == 1)
+    );
+    assert_eq!(
+        transitions[1]["outbox"]["then"],
+        json!({"op":"notifications.recordNotified","state":"committed","seq":2})
+    );
+    assert_eq!(transitions[2]["outbox"]["by"], "requeue");
+    assert_eq!(
+        lines
+            .iter()
+            .filter(|line| line["outbox"]["engine"] == "none")
+            .map(|line| line["outbox"]["queued"].clone())
+            .collect::<Vec<_>>(),
+        vec![json!(0), json!(1)]
+    );
+    assert_eq!(lines.len(), transitions.len() + 2, "{logs}");
+    stop_owner(port, &secret, &mut owner, "effects log complete");
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[cfg(not(feature = "hermes"))]
+#[test]
+fn trace_reports_unavailable_history_when_the_log_tail_is_malformed_or_oversized() {
+    let root = temp_root();
+    copy_tree(&fixture().join("snapback"), &root.join("snapback"));
+    let binary = env!("CARGO_BIN_EXE_snapback2");
+    let compiler = compiler(&root);
+    let seq = seed_effect_row(&root, binary, &compiler, None);
+    let (mut owner, port, secret, _) = boot(&root, binary, &compiler);
+    let headers = [("X-Snapback-Control", secret.as_str())];
+    let path = format!("/control/trace?seq={seq}");
+    let trace = request(port, "GET", &path, &headers, json!({}));
+    assert!(trace.body["outbox"]["history"].is_array(), "{}", trace.body);
+    let log = root.join(".snapback/log.jsonl");
+    let mut file = fs::OpenOptions::new().append(true).open(&log).unwrap();
+    file.write_all(b"not json\n").unwrap();
+    drop(file);
+    let malformed = request(port, "GET", &path, &headers, json!({}));
+    assert!(
+        malformed.body["outbox"]["history"]["unavailable"]
+            .as_str()
+            .is_some_and(|reason| reason.contains("malformed")),
+        "{}",
+        malformed.body
+    );
+    let cli = cli_json(binary, &root, &["trace", &seq.to_string()]);
+    assert_eq!(
+        cli["outboxHistory"],
+        malformed.body["outbox"]["history"],
+        "{cli}"
+    );
+    fs::OpenOptions::new()
+        .write(true)
+        .open(&log)
+        .unwrap()
+        .set_len(5 * 1024 * 1024)
+        .unwrap();
+    let oversized = request(port, "GET", &path, &headers, json!({}));
+    assert!(
+        oversized.body["outbox"]["history"]["unavailable"]
+            .as_str()
+            .is_some_and(|reason| reason.contains("bounded log read")),
+        "{}",
+        oversized.body
+    );
+    stop_owner(port, &secret, &mut owner, "history unavailable complete");
     fs::remove_dir_all(root).unwrap();
 }

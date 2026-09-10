@@ -36,10 +36,10 @@ Journey `effects.rows({ state, after, limit })` pages the server outbox by
 and waits for those emissions, including `then`. Check `settled`, `rows`, and
 `remaining`: backoff (with `nextAt`), then_pending, running, engine:none, budget.
 `tick(ms)` advances retry eligibility. Results over 16 KiB carry `resultCapped`;
-`guide effects` defines receipts and limits. No engine returns at once and
-records `blocked: effects:no-engine`, even if the journey throws on unsettled
-work; it cannot pass on a queued row. The derived effects check also remains
-`blocked: no engine in this build`.
+`guide effects` defines receipts and limits. Without an engine `effects.settle`
+returns at once and the run is `blocked: effects:no-engine`, even if the
+journey throws on unsettled work; after `effects.settle` a queued row cannot
+pass. The derived effects check also remains `blocked: no engine in this build`.
 
 Projects with scoped memberships also run the canonical `live-revocation`,
 `successor-policy-fence`, and `grant-incarnation-aba` authorization proofs.

@@ -10,6 +10,7 @@ use snapback2_core::MigrationPlan;
 use std::fs;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
+use std::time::{Duration, Instant};
 
 const MAX_LOG_TAIL_BYTES: u64 = 4 * 1024 * 1024;
 
@@ -350,58 +351,102 @@ pub(crate) fn settle_effects(handle: &OwnerHandle, body: &Json) -> Result<Json, 
             "pass budgetMs between 0 and 4000",
         ));
     }
-    let deadline = std::time::Instant::now() + std::time::Duration::from_millis(budget);
+    let deadline = Instant::now() + Duration::from_millis(budget);
     let turn = handle.call(Action::EffectsTurn)?;
     let up_to = up_to.unwrap_or_else(|| turn["seq"].as_u64().unwrap_or(0));
-    loop {
-        let mut rows = Vec::new();
-        let mut remaining = Vec::new();
-        let mut after = None;
-        loop {
-            let page = handle.call(Action::OutboxPage {
-                state: None,
-                after,
-                up_to,
-                limit: 200,
-            })?;
-            let now = page["now"].as_i64().unwrap_or(0);
-            let engine = page["engine"].as_str().unwrap_or("none");
-            for row in page["rows"].as_array().expect("outbox page rows") {
-                if let Some(reason) = remaining_reason(row, engine, now) {
-                    remaining.push(reason);
-                }
-                rows.push(row.clone());
-            }
-            after = page["after"].as_str().map(str::to_owned);
-            if after.is_none() {
-                break;
-            }
-        }
-        let settled = remaining.is_empty();
-        let expired = std::time::Instant::now() >= deadline;
-        // No runnable work is an explicit result, never proof of settlement.
-        let unavailable = remaining.iter().any(|r| r["reason"] == "engine:none");
-        if settled || expired || unavailable {
-            return Ok(json!({"settled":settled,"rows":rows,"remaining":remaining}));
-        }
+    // Pump while some row ≤ upTo can still settle inside the budget: an in-flight
+    // then or claim, a due row the runner has not reached, or a backoff ending
+    // before the deadline. Rows only an engine or a later clock can move are
+    // reported at once, never waited on; no runnable work is `remaining`, not settled.
+    while Instant::now() < deadline && settling_work(handle, up_to, deadline)? {
         // The single real runner owns execution. Waking it pumps another bounded
         // drain; polling snapshots yields the writer to clock, then, and clients.
         handle.call(Action::EffectsWake)?;
         std::thread::sleep(
-            std::time::Duration::from_millis(10)
-                .min(deadline.saturating_duration_since(std::time::Instant::now())),
+            Duration::from_millis(10).min(deadline.saturating_duration_since(Instant::now())),
         );
+    }
+    let mut rows = Vec::new();
+    let mut remaining = Vec::new();
+    let mut after = None;
+    loop {
+        let page = outbox_page(handle, None, after, up_to, 200)?;
+        let now = page["now"].as_i64().unwrap_or(0);
+        let engine = page["engine"].as_str().unwrap_or("none");
+        for row in page_rows(&page)? {
+            remaining.extend(remaining_reason(row, engine, now));
+            rows.push(row.clone());
+        }
+        after = page["after"].as_str().map(str::to_owned);
+        if after.is_none() {
+            break;
+        }
+    }
+    Ok(json!({"settled":remaining.is_empty(),"rows":rows,"remaining":remaining}))
+}
+
+/// Whether any row ≤ `up_to` could still settle before `deadline`. Pages only
+/// the states the decision needs and stops at the first such row.
+fn settling_work(handle: &OwnerHandle, up_to: u64, deadline: Instant) -> Result<bool, Refusal> {
+    for state in ["then_pending", "running"] {
+        if !page_rows(&outbox_page(handle, Some(state), None, up_to, 1)?)?.is_empty() {
+            return Ok(true);
+        }
+    }
+    let mut after = None;
+    loop {
+        let page = outbox_page(handle, Some("queued"), after, up_to, 200)?;
+        let now = page["now"].as_i64().unwrap_or(0);
+        let engine = page["engine"].as_str().unwrap_or("none");
+        let left = deadline.saturating_duration_since(Instant::now()).as_millis() as i64;
+        for row in page_rows(&page)? {
+            let reason = remaining_reason(row, engine, now);
+            let reason = reason.as_ref().and_then(|reason| reason["reason"].as_str());
+            let due_in_budget = row["nextAt"].as_i64().is_some_and(|at| at - now <= left);
+            if reason == Some("budget") || (reason == Some("backoff") && due_in_budget) {
+                return Ok(true);
+            }
+        }
+        after = page["after"].as_str().map(str::to_owned);
+        if after.is_none() || Instant::now() >= deadline {
+            return Ok(false);
+        }
     }
 }
 
+fn outbox_page(
+    handle: &OwnerHandle,
+    state: Option<&str>,
+    after: Option<String>,
+    up_to: u64,
+    limit: usize,
+) -> Result<Json, Refusal> {
+    handle.call(Action::OutboxPage {
+        state: state.map(str::to_owned),
+        after,
+        up_to,
+        limit,
+    })
+}
+
+fn page_rows(page: &Json) -> Result<&Vec<Json>, Refusal> {
+    page["rows"].as_array().ok_or_else(|| {
+        Refusal::from_runtime(&snapback2_core::RuntimeError::Serialization(
+            "outbox page omitted its rows".to_owned(),
+        ))
+    })
+}
+
+// A row not yet due is `backoff` whatever the build; `engine:none` names a due
+// row nothing can run, so `tick` past `nextAt` turns one into the other.
 fn remaining_reason(row: &Json, engine: &str, now: i64) -> Option<Json> {
     let reason = match row["state"].as_str() {
         Some("failed" | "sent_unknown") => return None,
         Some("sent") => return None,
         Some("then_pending") => "then_pending",
         Some("running") => "running",
-        Some("queued") if engine == "none" => "engine:none",
         Some("queued") if row["nextAt"].as_i64().is_some_and(|at| at > now) => "backoff",
+        Some("queued") if engine == "none" => "engine:none",
         _ => "budget",
     };
     let mut value = json!({"id":row["id"],"reason":reason});
@@ -662,7 +707,8 @@ mod tests {
     #[test]
     fn remaining_reasons_preserve_backoff_and_pending_then() {
         for (state, engine, next_at, expected) in [
-            ("queued", "none", 30, Some("engine:none")),
+            ("queued", "none", 30, Some("backoff")),
+            ("queued", "none", 10, Some("engine:none")),
             ("queued", "hermes", 30, Some("backoff")),
             ("queued", "hermes", 10, Some("budget")),
             ("running", "hermes", 10, Some("running")),

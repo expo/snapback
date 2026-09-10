@@ -1,8 +1,9 @@
 # Effects
 
-Effects run outside the data transaction. A mutation emits a durable outbox row;
-Ibex 2 performs I/O and an optional Quarry `then` mutation records the result.
-The provider must honor `meta.id` as its idempotency key for safe retries.
+Effects run outside the data transaction. A mutation emits a durable outbox row.
+The default repo build has no engine, so rows stay queued; published binaries
+carry Ibex 2, which does the I/O, then an optional Quarry `then` mutation
+records the result. Providers must honor `meta.id` as the idempotency key.
 
 ```ts
 import { effect } from "snapback2";
@@ -35,32 +36,32 @@ refuse. Captures must be module JSON constants, not imported helpers.
 Every redirect checks grants and strips cross-origin credentials.
 Both `meta` and `tools.meta` carry `id`, `effect`, and `attempt`.
 
-`dev` reports engine and queued count at boot (`effects` in JSON). Published
-binaries carry Ibex 2 + vanilla Hermes; default repo builds have no engine.
-Build one: `scripts/hermes build -p snapback2`. No engine leaves rows queued
-and logs its count once per change.
+`dev` reports engine and queued count at boot (`effects` in JSON). Build an
+engine: `scripts/hermes build -p snapback2`. No engine leaves rows queued and
+logs its count once per change.
 
-`logs --effects` filters lifecycle lines: emission, claim, retry, restart
-recovery, requeue, and `then` settlement, with qualified names (`delivery.notify`).
-`trace <seq>` adds transition history beneath the snapshot; unreadable or
-oversized history says unavailable. Status reports `log: unavailable(reason)`
-if writing fails.
+`logs --effects` keeps lifecycle lines: emission, claim, retry, restart
+recovery, requeue, `then` settlement, qualified names (`delivery.notify`);
+`--since seq` bounds transitions, count lines always pass. `trace <seq>` adds
+transition history beneath the snapshot; unreadable or oversized history says
+unavailable. Status reports `log: unavailable(reason)` if writes fail.
 
-Journey `effects.rows({ state, after, limit })` returns `{ rows, after }`, ordered
-by `(seq, id)`. Limit is 1–200; pass `after` until null. Results over 16,384 bytes
+Journey `effects.rows({ state, after, limit })` returns `{ rows, after }` ordered
+by `(seq, id)`; limit 1–200; pass `after` until null. Results over 16,384 bytes
 become null with `resultCapped: { bytes, limit }`.
-`effects.settle({ upTo, budgetMs })` first runs one bounded background turn for
-due schedules/jobs, then wakes the real runner and waits off the writer.
-`upTo` defaults to the sequence after that turn; `budgetMs` defaults to 1000,
-maximum 4000. It returns `{ settled, rows, remaining }`. `failed` and
-`sent_unknown` are terminal; `then_pending` stays unsettled. Sent rows with
-bookkeeping carry `then: { op, state: "committed", seq }` or
-`{ op, state: "rejected", code }`; rejection does not undo delivery.
-Remaining reasons: `backoff` (with `nextAt`), `then_pending`, `running`,
-`engine:none`, `budget`. Use `tick(ms)` to advance retry eligibility.
-Nothing runnable never means settled. Both routes need the dev secret, like
-`tick`, and refuse in serve mode. No engine returns immediately; the
-supervisor records `blocked: effects:no-engine`. See `guide testing`.
+`effects.settle({ upTo, budgetMs })` runs one bounded background turn for due
+schedules/jobs, then wakes the runner and waits off the writer. `upTo` defaults
+to the seq after that turn; `budgetMs` to 1000, at most 4000. It returns
+`{ settled, rows, remaining }`; `failed` and `sent_unknown` are terminal,
+`then_pending` stays unsettled. Sent rows with bookkeeping carry
+`then: { op, state: "committed", seq }` or `{ op, state: "rejected", code }`;
+rejection undoes no delivery. Remaining reasons: `backoff` (with `nextAt`; not
+yet due, any build), `then_pending`, `running`, `engine:none` (due, no engine),
+`budget`. `tick(ms)` advances retry eligibility; a backoff ending inside the
+budget is waited for. No runnable work still reports `remaining` and
+`settled: false`. Both routes need the dev secret, like `tick`, and refuse in
+serve mode. Without an engine `settle` still pumps a pending `then`, then
+returns; the supervisor records `blocked: effects:no-engine`. See `guide testing`.
 
 The example origin is a placeholder. Locally, return `{ providerId: meta.id }`
 from `run`, retaining the required grant even without fetch. Restore a real

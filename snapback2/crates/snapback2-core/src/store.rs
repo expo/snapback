@@ -79,6 +79,14 @@ pub struct OutboxCounts {
     pub sent_unknown: u64,
 }
 
+/// One claim transaction's outcome: the queued rows it failed because their
+/// declaration is gone, and the row it moved to `running`, if any.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct OutboxClaim {
+    pub failed: Vec<OutboxRow>,
+    pub claimed: Option<OutboxRow>,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OutboxRow {
@@ -208,6 +216,7 @@ impl Store {
                 result TEXT,
                 then_op TEXT,
                 generation TEXT,
+                then_seq INTEGER,
                 created_at INTEGER NOT NULL,
                 updated_at INTEGER NOT NULL
              );
@@ -652,13 +661,14 @@ impl Store {
     /// Fail queued rows outside `declared_names`, then claim the oldest ready
     /// declared row and bind it to the current effect declaration. Unknown
     /// settlement, selection, `running`, the attempt increment, and the binding
-    /// are committed together before any row leaves the writer.
+    /// are committed together before any row leaves the writer; the failed rows
+    /// are read inside that transaction so the report matches what committed.
     // @ref LLP 1003#2-the-outbox-lifecycle — a claim is atomic and binds restart replay to its declaration.
     pub fn outbox_claim_next(
         &self,
         now: i64,
         declared_names: &[String],
-    ) -> Result<Option<OutboxRow>, RuntimeError> {
+    ) -> Result<OutboxClaim, RuntimeError> {
         let transaction = self.conn.unchecked_transaction()?;
         let placeholders = (0..declared_names.len())
             .map(|index| format!("?{}", index + 2))
@@ -669,24 +679,41 @@ impl Store {
         } else {
             format!(" AND effect NOT IN ({placeholders})")
         };
-        let unknown_sql = format!(
-            "UPDATE _outbox
-             SET state = 'failed', last_error = 'E_EFFECT_UNKNOWN', updated_at = ?1
-             WHERE state = 'queued'{unknown_predicate}"
-        );
-        transaction.execute(
-            &unknown_sql,
+        let unknown_params = || {
             params_from_iter(
                 std::iter::once(&now as &dyn rusqlite::ToSql).chain(
                     declared_names
                         .iter()
                         .map(|name| name as &dyn rusqlite::ToSql),
                 ),
-            ),
-        )?;
+            )
+        };
+        // `?1 IS NOT NULL` keeps the shared parameter list valid with no declarations.
+        let failed_sql = format!(
+            "SELECT id, seq, effect, payload, state, attempts, next_at,
+                    last_error, result, then_op, generation, created_at, updated_at, then_seq
+             FROM _outbox WHERE state = 'queued'{unknown_predicate} AND ?1 IS NOT NULL
+             ORDER BY seq, id"
+        );
+        let mut statement = transaction.prepare(&failed_sql)?;
+        let failed = statement
+            .query_map(unknown_params(), raw_outbox_row)?
+            .map(|row| decode_outbox_row(row?))
+            .collect::<Result<Vec<_>, _>>()?;
+        drop(statement);
+        let unknown_sql = format!(
+            "UPDATE _outbox
+             SET state = 'failed', last_error = 'E_EFFECT_UNKNOWN', updated_at = ?1
+             WHERE state = 'queued'{unknown_predicate}"
+        );
+        transaction.execute(&unknown_sql, unknown_params())?;
+        let mut claim = OutboxClaim {
+            failed,
+            claimed: None,
+        };
         if declared_names.is_empty() {
             transaction.commit()?;
-            return Ok(None);
+            return Ok(claim);
         }
         let candidate_sql = format!(
             "SELECT id, effect FROM _outbox
@@ -708,7 +735,7 @@ impl Store {
             .optional()?;
         let Some((id, effect)) = candidate else {
             transaction.commit()?;
-            return Ok(None);
+            return Ok(claim);
         };
         let effects = transaction
             .query_row(
@@ -745,11 +772,11 @@ impl Store {
         )?;
         if changed != 1 {
             transaction.commit()?;
-            return Ok(None);
+            return Ok(claim);
         }
-        let claimed = outbox_get_connection(&transaction, &id)?;
+        claim.claimed = outbox_get_connection(&transaction, &id)?;
         transaction.commit()?;
-        Ok(claimed)
+        Ok(claim)
     }
 
     pub fn outbox_settle(
@@ -797,17 +824,19 @@ impl Store {
         }
     }
 
+    /// `then_seq` is the bookkeeping commit's own seq, bound by the caller that
+    /// appended it; a rejected `then` has no commit and passes `None`.
     pub(crate) fn settle_then_transaction(
         transaction: &rusqlite::Transaction<'_>,
         id: &str,
         last_error: Option<&str>,
+        then_seq: Option<u64>,
         updated_at: i64,
     ) -> Result<(), RuntimeError> {
         let changed = transaction.execute(
-            "UPDATE _outbox SET state = 'sent', last_error = ?1, updated_at = ?2,
-                then_seq = CASE WHEN ?1 IS NULL THEN (SELECT MAX(seq) FROM _commits) ELSE NULL END
+            "UPDATE _outbox SET state = 'sent', last_error = ?1, updated_at = ?2, then_seq = ?4
              WHERE id = ?3 AND state = 'then_pending'",
-            params![last_error, updated_at, id],
+            params![last_error, updated_at, id, then_seq.map(|seq| seq as i64)],
         )?;
         if changed == 1 {
             Ok(())
@@ -872,18 +901,6 @@ impl Store {
             ],
             raw_outbox_row,
         )?;
-        rows.map(|row| decode_outbox_row(row?)).collect()
-    }
-
-    pub fn outbox_undeclared(&self, names: &[String]) -> Result<Vec<OutboxRow>, RuntimeError> {
-        let mut statement = self.conn.prepare(
-            "SELECT id, seq, effect, payload, state, attempts, next_at,
-                    last_error, result, then_op, generation, created_at, updated_at, then_seq
-             FROM _outbox WHERE state = 'queued' AND effect NOT IN (SELECT value FROM json_each(?1))
-             ORDER BY seq, id",
-        )?;
-        let names = serde_json::to_string(names).map_err(|e| RuntimeError::Serialization(e.to_string()))?;
-        let rows = statement.query_map([names], raw_outbox_row)?;
         rows.map(|row| decode_outbox_row(row?)).collect()
     }
 
@@ -1470,8 +1487,6 @@ mod tests {
         let queued = rows.iter().find(|row| row.id == "queued").unwrap();
         assert_eq!(queued.payload, Value::String("queued".to_owned()));
         assert_eq!(queued.result, Some(serde_json::json!(true)));
-        assert!(store.outbox_undeclared(&["notify".into()]).unwrap().is_empty());
-        assert_eq!(store.outbox_undeclared(&[]).unwrap().iter().map(|r|r.id.as_str()).collect::<Vec<_>>(),vec!["queued"]);
     }
 }
 

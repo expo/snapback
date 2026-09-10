@@ -49,7 +49,7 @@ fn fractional_json_result_settles_running_before_then_conversion() {
     runtime
         .store()
         .outbox_claim_next(1, &["effects.run".to_owned()])
-        .unwrap()
+        .unwrap().claimed
         .unwrap();
 
     let mut state = super::writer_live_tests::state("fractional-effect");
@@ -118,7 +118,7 @@ fn claim_serialization_failure_requeues_and_logs_the_claimed_row() {
     let claimed = runtime
         .store()
         .outbox_claim_next(1, &["effects.run".to_owned()])
-        .unwrap();
+        .unwrap().claimed;
     let mut logs = Vec::new();
 
     let error = serialize_claimed_outbox(

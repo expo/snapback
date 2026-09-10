@@ -46,7 +46,7 @@ fn rejected_then_fault_after_commit_cannot_replay_after_time_changes() {
         runtime
             .store()
             .outbox_claim_next(1, &["clock.effect".to_owned()])
-            .unwrap()
+            .unwrap().claimed
             .unwrap();
         runtime
             .store()
@@ -161,7 +161,7 @@ fn pending_then_runtime(outbox_id: &str) -> Runtime {
     runtime
         .store()
         .outbox_claim_next(1, &["clock.effect".to_owned()])
-        .unwrap()
+        .unwrap().claimed
         .unwrap();
     runtime
         .store()

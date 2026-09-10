@@ -577,6 +577,7 @@ impl Engine {
             &transaction,
             outbox_id,
             Some(&format!("{code}: {message}")),
+            None,
             unix_millis(),
         )?;
         let seq =
@@ -790,6 +791,7 @@ impl Engine {
                     &transaction,
                     then_outbox_id.expect("checked above"),
                     Some(&format!("{code}: {error}")),
+                    None,
                     commit_at,
                 )?;
                 transaction.commit()?;
@@ -883,7 +885,7 @@ impl Engine {
         }
         if let Some(outbox_id) = then_outbox_id {
             transaction.execute_batch("RELEASE snapback2_effect_then")?;
-            Store::settle_then_transaction(&transaction, outbox_id, None, commit_at)?;
+            Store::settle_then_transaction(&transaction, outbox_id, None, Some(seq), commit_at)?;
         }
         transaction.commit()?;
         Ok(execution)

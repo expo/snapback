@@ -11,6 +11,8 @@ import {
 } from "./client.js";
 import { fileRangeStore } from "./store/file.js";
 import { canonicalAnswerKey } from "./store/canonical.js";
+// The journey effects contract is declared once, in the shipped types.
+import type { EffectsPage, EffectsSettlement, JourneyEffects } from "../types/test.js";
 
 export { fileRangeStore };
 
@@ -37,29 +39,6 @@ type JourneyDevice = SnapbackClient & {
   failNextResponse(path: string, status: number): void;
   settled(): ReturnType<SnapbackClient["outbox"]["settled"]>;
 };
-export type EffectRow = {
-  id: string;
-  seq: number;
-  effect: string;
-  state: "queued" | "running" | "then_pending" | "sent" | "failed" | "sent_unknown";
-  attempts: number;
-  nextAt: number;
-  lastError: string | null;
-  result: unknown;
-  resultCapped?: { bytes: number; limit: number };
-  then?: { op: string; state: "committed" | "rejected"; seq?: number; code?: string };
-};
-export type EffectsPage = { rows: EffectRow[]; after: string | null };
-export type EffectsSettlement = {
-  settled: boolean;
-  rows: EffectRow[];
-  remaining: { id: string; reason: "backoff" | "then_pending" | "running" | "engine:none" | "budget"; nextAt?: number }[];
-};
-export type JourneyEffects = {
-  rows(options?: { state?: EffectRow["state"]; after?: string; limit?: number }): Promise<EffectsPage>;
-  settle(options?: { upTo?: number; budgetMs?: number }): Promise<EffectsSettlement>;
-};
-
 type JourneyContext = {
   effects: JourneyEffects;
   as(name: string, options?: {
@@ -108,11 +87,10 @@ async function loadJourneyFile(path: string): Promise<RegisteredJourney[]> {
 }
 
 async function control(url: string, secret: string, path: string, body?: unknown): Promise<Record<string, unknown>> {
-  const response = await fetch(`${url}${path}`, {
-    method: body === undefined ? "GET" : "POST",
-    headers: { "content-type": "application/json", "x-snapback-control": secret },
-    body: JSON.stringify(body),
-  });
+  // A GET carries neither a body nor a JSON content-type.
+  const response = await fetch(`${url}${path}`, body === undefined
+    ? { method: "GET", headers: { "x-snapback-control": secret } }
+    : { method: "POST", headers: { "content-type": "application/json", "x-snapback-control": secret }, body: JSON.stringify(body) });
   const value = await response.json() as Record<string, unknown>;
   if (!response.ok) throw Object.assign(new Error(String(value.message ?? `control HTTP ${response.status}`)), value);
   return value;
@@ -342,7 +320,7 @@ async function runCheck(
     process.stdout.write(`${JSON.stringify({ name: check.name, kind: "journey", verdict: "pass", ms: Math.round(performance.now() - started), detail: { file } })}\n`);
     return true;
   } catch (error) {
-    process.stdout.write(`${JSON.stringify({ name: check.name, kind: "journey", verdict: "fail", ms: Math.round(performance.now() - started), detail: error instanceof Error ? error.message : String(error) })}\n`);
+    process.stdout.write(`${JSON.stringify({ name: check.name, kind: "journey", verdict: "fail", ms: Math.round(performance.now() - started), detail: { file, error: error instanceof Error ? error.message : String(error) } })}\n`);
     return false;
   } finally {
     for (const client of clients) client.close();

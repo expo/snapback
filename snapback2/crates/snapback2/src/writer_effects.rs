@@ -140,7 +140,15 @@ impl State {
             .store()
             .outbox_get(&row.id)
             .map_err(|e| Refusal::from_runtime(&e))?
-            .expect("settled row exists");
+            .ok_or_else(|| {
+                Refusal::new(
+                    "E_EFFECT_NOT_FOUND",
+                    "effect",
+                    format!("outbox row {} vanished during its then settlement", row.id),
+                    "inspect the outbox with snapback2 trace and restart the owner",
+                    "effects/requeue",
+                )
+            })?;
         let mut outcome = json!({"op":row.then_op,"state":execution["state"]});
         if execution["state"] == "committed" {
             outcome["seq"] = execution["seq"].clone();
@@ -447,6 +455,103 @@ mod tests {
             })
             .unwrap();
         assert_eq!(state.status().unwrap()["log"], "available");
+        std::fs::remove_dir_all(&state.root).unwrap();
+    }
+
+    // @ref LLP 1021#2-journeys-see-and-settle-the-outbox — a pending `then` keeps `settle` pumping to the budget even beside rows no engine can move.
+    #[cfg(not(feature = "hermes"))]
+    #[test]
+    fn settlement_pumps_a_pending_then_beside_engineless_queued_rows_and_honors_the_budget() {
+        let mut state = effect_state();
+        state.handle(Action::OutboxClaim { now: 1 }).unwrap();
+        state
+            .settle_outbox("one", "then_pending", Some(&json!(true)), None, None)
+            .unwrap();
+        for index in 0..405 {
+            let mut context = Context::mutation(Actor::user("test").unwrap(), BTreeMap::new());
+            context.now = Some(1);
+            context.new_ids = VecDeque::from([format!("queued-{index:03}")]);
+            let execution = state
+                .runtime_mut()
+                .execute("messages.send", context)
+                .unwrap();
+            state.after_commit(execution.seq).unwrap();
+        }
+        let root = state.root.clone();
+        let (wake, _wakes) = mpsc::sync_channel(1);
+        state.effects_wake = Some(wake);
+        let (tx, rx) = mpsc::channel();
+        let handle = OwnerHandle { tx };
+        let writer = thread::spawn(move || run_writer(state, rx));
+        let started = Instant::now();
+        let response =
+            crate::control::settle_effects(&handle, &json!({"upTo":406,"budgetMs":400})).unwrap();
+        let elapsed = started.elapsed();
+        assert!(
+            elapsed >= Duration::from_millis(400),
+            "returned at {elapsed:?} with a then still pending"
+        );
+        assert!(
+            elapsed < Duration::from_millis(1000),
+            "overran the 400 ms budget: {elapsed:?}"
+        );
+        assert_eq!(response["settled"], false);
+        assert_eq!(response["rows"].as_array().unwrap().len(), 406);
+        let remaining = response["remaining"].as_array().unwrap();
+        assert_eq!(remaining.len(), 406);
+        assert_eq!(remaining[0], json!({"id":"one","reason":"then_pending"}));
+        assert!(remaining[1..].iter().all(|r| r["reason"] == "engine:none"));
+        handle
+            .call(Action::Stop {
+                cause: "budget test complete".into(),
+            })
+            .unwrap();
+        writer.join().unwrap();
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn deleted_declaration_fails_the_queued_row_at_claim_and_logs_e_effect_unknown() {
+        let mut state = effect_state();
+        let mut project = state.compiled.project.clone();
+        project.schema.effects.clear();
+        project.effects.clear();
+        project
+            .programs
+            .retain(|program| program.name != "messages.send");
+        let generation = Generation::certify(&project, Ceilings::default()).unwrap();
+        state
+            .handle(Action::Apply {
+                compiled: CompiledProject {
+                    project,
+                    generation,
+                    api_dts: String::new(),
+                    compiler_ms: 0.0,
+                    quarry: Vec::new(),
+                    sources: Default::default(),
+                },
+                migration: None,
+                seed: None,
+                cache: None,
+            })
+            .unwrap();
+        assert!(state.handle(Action::OutboxClaim { now: 1 }).unwrap().is_null());
+        let row = state.runtime().store().outbox_get("one").unwrap().unwrap();
+        assert_eq!(
+            (row.state.as_str(), row.last_error.as_deref()),
+            ("failed", Some("E_EFFECT_UNKNOWN"))
+        );
+        let log = std::fs::read_to_string(state.root.join(".snapback/log.jsonl")).unwrap();
+        let failed = log
+            .lines()
+            .map(|line| serde_json::from_str::<Json>(line).unwrap())
+            .filter(|line| line["outbox"]["to"] == "failed")
+            .collect::<Vec<_>>();
+        assert_eq!(
+            failed,
+            vec![json!({"outbox":{"id":"one","seq":1,"effect":"delivery.notify",
+                "from":"queued","to":"failed","error":"E_EFFECT_UNKNOWN"}})]
+        );
         std::fs::remove_dir_all(&state.root).unwrap();
     }
 

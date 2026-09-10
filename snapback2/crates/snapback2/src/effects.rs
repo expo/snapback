@@ -205,17 +205,13 @@ pub(crate) fn claim_outbox(runtime: &Runtime, root: &Path, now: i64) -> Result<J
         .keys()
         .cloned()
         .collect::<Vec<_>>();
-    // Claims also atomically fail declarations removed by a successor. Capture
-    // their identities before that transaction; report only after it commits.
-    let removed = runtime
-        .store()
-        .outbox_undeclared(&declared_names)
-        .map_err(|e| Refusal::from_runtime(&e))?;
-    let claimed = runtime
+    // Claims also atomically fail declarations removed by a successor; the
+    // claim transaction reports the rows it failed, logged only after it commits.
+    let snapback2_core::OutboxClaim { failed, claimed } = runtime
         .store()
         .outbox_claim_next(now, &declared_names)
         .map_err(|error| Refusal::from_runtime(&error))?;
-    for row in removed {
+    for row in failed {
         crate::writer::transition(
             root,
             &row,

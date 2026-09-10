@@ -1071,11 +1071,17 @@ fn journey_receipts(output: &JourneyRunnerOutput) -> Vec<CheckReceipt> {
         .filter_map(|line| serde_json::from_str::<CheckReceipt>(line).ok())
         .map(|check| {
             if check.kind == "journey" && no_engine.contains(&check.name) {
+                // Both journey outcomes wrap as `{ file?, error? }`; a bare message
+                // (a runner-level failure) becomes `{ error }` rather than a string.
+                let journey = match &check.detail {
+                    Json::String(error) => json!({"error": error}),
+                    detail => detail.clone(),
+                };
                 CheckReceipt::blocked(
                     &check.name,
                     "journey",
                     check.ms,
-                    json!({"reason":"effects:no-engine","journey":check.detail}),
+                    json!({"reason":"effects:no-engine","journey":journey}),
                 )
             } else {
                 check

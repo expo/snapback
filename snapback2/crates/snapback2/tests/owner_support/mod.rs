@@ -181,7 +181,7 @@ pub(super) fn seed_effect_row(
         runtime
             .store()
             .outbox_claim_next(1, &["delivery.notify".to_owned()])
-            .unwrap()
+            .unwrap().claimed
             .expect("seeded outbox claim");
         runtime
             .store()
@@ -202,6 +202,44 @@ pub(super) fn stop_owner(port: u16, secret: &str, owner: &mut ChildGuard, cause:
     );
     assert_eq!(stopped.status, 200, "{}", stopped.body);
     owner.wait();
+}
+
+/// Seeds 405 outbox rows across two seqs without an owner: 404 queued and one
+/// `sent` row whose result exceeds the 16 KiB cap. `check` writes the project;
+/// `Store::open` lays the schema the owner will adopt at boot.
+pub(super) fn seed_paged_outbox(root: &Path, binary: &str, compiler: &Path) {
+    let checked = Command::new(binary)
+        .args(["check", "--project"])
+        .arg(root)
+        .env("SNAPBACK2_COMPILER", compiler)
+        .output()
+        .unwrap();
+    assert!(
+        checked.status.success(),
+        "{} {}",
+        String::from_utf8_lossy(&checked.stdout),
+        String::from_utf8_lossy(&checked.stderr)
+    );
+    let store = root.join(".snapback/store.sqlite");
+    drop(snapback2_core::Store::open(&store).unwrap());
+    let conn = rusqlite::Connection::open(&store).unwrap();
+    for i in 0..405 {
+        conn.execute(
+            "INSERT INTO _outbox (id,seq,effect,payload,state,attempts,next_at,created_at,updated_at,result)
+             VALUES (?1,?2,'delivery.notify','\"Null\"',?3,0,0,0,0,?4)",
+            rusqlite::params![
+                format!("paged-{i:04}"),
+                1 + i / 203,
+                if i == 404 { "sent" } else { "queued" },
+                if i == 404 {
+                    Some(json!("x".repeat(17000)).to_string())
+                } else {
+                    None
+                }
+            ],
+        )
+        .unwrap();
+    }
 }
 
 pub(super) fn fixture() -> PathBuf {
