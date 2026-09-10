@@ -15,6 +15,7 @@ patch -p1 < grok-current-sdk-auth.patch
 patch -p1 < grok-sender-pending.patch
 patch -p1 < grok-message-tombstone.patch
 patch -p1 < grok-receipt-scheduling.patch
+patch -p1 < grok-message-draft-validation.patch
 patch -p1 < grok-browser-online-events.patch
 patch -p1 < owner-inspection.patch
 cp owner-cases.test.ts snapback/tests/recipes.test.ts
@@ -35,14 +36,12 @@ that intent; a raw committed ledger row plus absence from the current page is
 not enough, because it would resurrect an observed message after pagination,
 expiry, remount, or reopen. The generated mutation target is used when it
 resolves; this copied app also supplies the id explicitly because this app's
-helper-shaped operations certify with ambiguous presentation targets.
-Oversize message text is rejected locally at the schema's
-2,000-Unicode-scalar limit before outbox custody. Finally, all `ThreadBubble`
-hooks run before the nullable-row return, so a mounted expiry cannot change
-hook order. The patch's SHA-256 is
+helper-shaped operations certify with ambiguous presentation targets. Finally,
+all `ThreadBubble` hooks run before the nullable-row return, so a mounted
+expiry cannot change hook order. The patch's SHA-256 is
 `e733e5cffa9d6bb75b41c017e651a6847628c61a0e7abe5f16c54b7b439f02c7`.
 
-Three final patches keep message removal and acknowledgement work aligned with
+Four final patches keep message removal and acknowledgement work aligned with
 the certified application state. `grok-message-tombstone.patch` deletes the
 message after writing its removed/expired delivery and deletes a companion poll
 before either removal; retaining a positive row with `status: expired` would
@@ -52,23 +51,40 @@ an ordinary current member is refused by the table rule. Its SHA-256 is
 `459c67c6362b54ec56a1e3b62687a33a163c9bb1d54987e9ee349ce90a8a3eff`.
 `grok-receipt-scheduling.patch` adds the private, indexed
 `pendingDelivered[viewer] first 1` query. The global watcher acknowledges only
-that exact row and advances by deletion. The thread no longer acknowledges all
-50 visible deliveries on every rerender; it runs the existing bounded
-`markRead` only while the viewer-specific unread count is positive. Its
-SHA-256 is
-`9d9da2dfa889db7a9dbdcdd4eaa921d048e0e447d0b9d898f6173a20c3eee500`.
+that exact row and advances by deletion. Its recipient-owned acknowledgement
+accepts an id, returns success when that recipient has no row, and checks the
+row's current conversation membership before deletion; it therefore also
+dismisses a row whose message has already been tombstoned without widening
+receipt visibility. The thread no longer acknowledges all 50 visible
+deliveries on every rerender; it runs the existing bounded `markRead` only
+while the viewer-specific unread count is positive. The certified first
+pending-read id is also an effect dependency so an unread `1 → 0 → 1` cycle
+cannot be lost when React coalesces the unobserved zero, including when the
+history preview's `(at, id)` ordering stays unchanged. Its SHA-256 is
+`27bad354081e99d01990cee4da71af9d43fd2a8905966a9ba3e6d38fe4673b40`.
+`grok-message-draft-validation.patch` makes the mounted web input use its
+existing draft state and shares one Unicode-scalar validation boundary:
+ordinary text and edits admit at most 2,000 scalars, while media captions admit
+at most 500. A local refusal or terminal rejection retains the exact draft and
+attachment. A queued or committed send clears only the captured draft, never
+text typed while that send was settling. Its SHA-256 is
+`37a22238197b4dc71126f3c857802216831544db3857b530b7ddd55d0dadce22`.
 `grok-browser-online-events.patch` removes the redundant 400 ms `online()`
 poll while preserving the initial sync and the browser's online/offline event
 listeners. Its SHA-256 is
 `b76fbb425cb97c579445bce071734f91e8bc1369284e961af2a6b9e8aa33f144`.
 
-All three patches apply after the auth and sender-pending stages above. Their
-round trip matches the ignored, credential-free five-file reviewer snapshot at
-`.snapback/clique-final-review-snapshot`; its `SHA256SUMS` binds
+All four patches apply after the auth and sender-pending stages above. The
+preceding `c8e95f47f` source remains bound separately at
+`.snapback/clique-final-review-snapshot`. The current chain round-trips to the
+credential-free eight-file snapshot at
+`.snapback/clique-ack-final-review-snapshot`; its `SHA256SUMS` binds
 `messages.q`, `schema.q`, `delivery-watcher.tsx`, `thread-view.tsx`, and
-`snapback-provider.web.tsx`. The copied source compiles with the new bounded
-query. Browser/owner scale and reconnect qualification for these final patches
-is tracked separately below; the preceding 3+20 cohort predates them.
+`snapback-provider.web.tsx`, plus the unchanged full `groups.q`, root layout,
+and settings screen needed to review receipt cleanup and watcher/auth context.
+The copied source compiles with the new bounded queries. Browser/owner scale,
+draft, and reconnect qualification for these final patches is tracked
+separately below; the preceding 3+20 cohort predates them.
 
 `grok-live-proof-instrumentation.patch` is browser-proof instrumentation, not
 application behavior. It exposes only operation/state, row-count, target-id,
@@ -103,13 +119,16 @@ Both patch stages pass `patch --dry-run -p1` against their respective inputs.
 `owner-inspection.patch` is test instrumentation, not application behavior.
 After the behavioral patch it grants profiles a test-only replay-mode toggle,
 adds two period-unread inspection queries, and adds the total-order index suffix
-one of them requires. Its SHA-256 is
-`7557f8b8ddcf04e8a9c51514b98588e1a1f95963de69a1367bde7d46dab13220`.
+one of them requires. It also has one adversarial helper that inserts the real
+message, delivery, pending-receipt, and unread rows with an explicit delivery
+id and time; this forces a `(at, delivery-id)` tie without claiming that two
+ordinary production sends happened to share that order. Its SHA-256 is
+`db7bfda372dfbe55f1cbe8b1574475610f93fbe2d5f475de0acf79e749fb8b99`.
 The test-only inspection also exposes one poll delete solely to prove that a
 current non-author member receives `E_RULE`/`rule`; production exposes no such
 operation. Do not ship this instrumentation as part of the application
 correction. The retained `owner-cases.test.ts` has SHA-256
-`76811afc737f85ab1dc92beb006ba4c9f00fb9ea52a200c9f05a9aca925cd7ba`.
+`0663b541f1bdb5096fd4b203a11964a1607bb3fdd41ec5246fa56f22caf845e7`.
 
 The first faithful atomic digest at 500 follows and 100 current memberships
 needed 4,516,191 closure bytes, 321,887 above the 4 MiB ceiling. Persisting
@@ -224,6 +243,49 @@ in 1,284 ms and its receipt SHA-256 is
 `c85f0264f2d7f565c3380cf6a48682cf2ac96fea0fc37a8b450fd5411a5bafc3`.
 These are backend state-contract witnesses; the browser watcher qualification
 is separate.
+
+The ordinary-author-unsend-before-ack control failed on the preceding source
+in 106 ms: the recipient's exact first row remained after the hard delete, and
+`markDelivered` rejected `NOT_FOUND` at the old message lookup. Its receipt
+SHA-256 is
+`5c9591a51b773872188f418419c1aaf89156521a8c283cbf1423a00240f8a402`.
+The recipient-owned version first passed the extended case in 151 ms; the
+retained final run additionally asserts the hard-deleted message is an explicit
+successful null before acknowledging its orphaned recipient row. It passed in
+159 ms, including an outsider no-op that did not clear the recipient's row,
+exact recipient cleanup, duplicate and missing-id idempotency, a reopened
+client advancing to a successor from another chat, and member-removal cleanup
+followed by a former recipient no-op. The last item proves cleanup/idempotency,
+not an otherwise unreachable stale-row `NOT_MEMBER` branch. The initial and
+final passing receipt SHA-256 values are
+`b7faae1a287afa246c58b5e09b35cd17c4c3414b43441b4cc0d8b3fced58920e`
+and
+`a1198d3b79f8a948d9f88dca966cff8b0c04ec27540ffe31eb9017246f092d07`.
+The simpler owner observation around a deliberately unobserved intermediate
+zero saw both snapshots at unread count one while the exact preview message id
+changed; that superseded preview-only seam passed in 172 ms. Its receipt
+SHA-256 is
+`6149b902627769853a9f84ff9ae1be10da594456bc2915c07a7e721158ef49cf`.
+The stronger adversarial ordering witness held delivery time equal, made the
+second delivery id sort below the first, and observed unchanged unread count
+and preview id but a changed first pending-read id. It passed in 181 ms; its
+receipt SHA-256 is
+`57ec4492f83e85b9943fb1c1a598ef717189b28756b41ea8801983c2ec4dcb9e`.
+
+The JSON test receipts' `generation` field is the schema-only
+`Generation.hash()`, so it intentionally stays constant when only operation
+bodies or test-only operations change. The non-overwriting binding at
+`.snapback/clique-final-proofs/program-binding/receipt-program-binding.json`
+(SHA-256
+`a4efa6255c0ab244b922398b20f840c7745477fefa9ccfae621b041a09a4120e`)
+records the exact source, compiled project/IR/test, compiler, binary, manifest,
+and full `programGeneration` hashes. The final production program generation
+is `6f7b82ef54cb7beca68eba9c79509e759e84cf1fc63c28abe5bc7604e831b672`;
+the test-instrumented program generation is
+`15c43fb41996e86e3d43e6f3034535dd516410f1fa209ccbef452f0581f2a7f8`.
+The older failing receipt remains bound to its reported schema generation,
+the preceding `c8e95f47f` source snapshot, and its literal `NOT_FOUND` site; a
+full program manifest was not captured during that already-preserved run.
 
 The local effect returns a deterministic result without `fetch`; no provider
 request was made.

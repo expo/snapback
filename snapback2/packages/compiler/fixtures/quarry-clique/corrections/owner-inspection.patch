@@ -20,7 +20,10 @@
    cap 50 by messageId
 --- /dev/null
 +++ b/snapback/owner-inspection.q
-@@ -0,0 +1,17 @@
+@@ -0,0 +1,30 @@
++fn isMember from access
++proc bumpUnread from access
++
 +query periodUnreadRow(messageId: messages, recipient: principal):
 +  return periodUnread[messageId, recipient]
 +
@@ -38,3 +41,13 @@
 +query myPeriodUnread(conversationId: conversations, c: cursor ?):
 +  require exists memberships[conversationId, viewer] else MEMBERSHIP_REQUIRED
 +  return periodUnread[viewer, conversationId] after c first 50 by byRecipientConversationMembership
++
++mutation sendAtForTest(conversationId: conversations, recipient: principal, messageId: id, deliveryId: id, body: text <=2000, at: time):
++  require isMember(conversationId, viewer) else NOT_MEMBER
++  require exists memberships[conversationId, recipient] else RECIPIENT_REQUIRED
++  insert messages { id: messageId, conversationId, authorId: viewer, body, expiresAt: null, status: 'ok', at }
++  insert deliveries { id: deliveryId, recipient, conversationId, messageId, kind: 'message', at }
++  insert pendingDelivered { messageId, recipient, conversationId }
++  insert pendingRead { messageId, recipient, conversationId, periodStart: null }
++  bumpUnread(conversationId, recipient)
++  return { id: messageId }

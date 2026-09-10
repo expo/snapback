@@ -11,6 +11,33 @@ diff --git a/snapback/messages.q b/snapback/messages.q
  query thread(conversationId: conversations, c: cursor ?):
    page = deliveries[viewer, conversationId, 'message'] after c last 50 by byRecipientConversationKindAt
    return page {
+@@ -33,6 +36,7 @@ query conversationView(conversationId: conversations, c: cursor ?):
+   require isMember(conversationId, viewer) else MEMBERSHIP_REQUIRED
+   page = conversationLog(conversationId, viewer, c)
+   latest = conversationPreview(conversationId, viewer)
++  nextUnread = pendingRead[viewer, conversationId] first 1 by byRecipientConversation
+   conv = conversations[conversationId] ! else NOT_FOUND
+   return {
+     messages: page { *, message: messages[.messageId] },
+@@ -40,4 +44,5 @@ query conversationView(conversationId: conversations, c: cursor ?):
+     preview: latest { *, message: messages[.messageId] },
+     conversation: conv,
+     unread: unreadCounts[conversationId, viewer],
++    nextUnread,
+   }
+@@ -174,7 +179,7 @@ mutation purgeMessage(messageId: messages):
+-mutation markDelivered(messageId: messages):
+-  msg = messages[messageId] ! else NOT_FOUND
+-  require isMember(msg.conversationId, viewer) else NOT_MEMBER
++mutation markDelivered(messageId: id):
+   pending = pendingDelivered[messageId, viewer]
+-  if pending != null:
+-    delete pendingDelivered[pending]
++  if pending = null:
++    return null
++  require exists memberships[pending.conversationId, viewer] else NOT_MEMBER
++  delete pendingDelivered[pending]
+   return null
 diff --git a/lib/delivery-watcher.tsx b/lib/delivery-watcher.tsx
 --- a/lib/delivery-watcher.tsx
 +++ b/lib/delivery-watcher.tsx
@@ -45,11 +72,12 @@ diff --git a/lib/thread-view.tsx b/lib/thread-view.tsx
    const thread = useQuery(api.messages.thread, { conversationId, c: null }, { items: textMessageItems });
    const photoThread = useQuery(api.messages.thread, { conversationId, c: null }, { items: photoMessageItems });
    const clipThread = useQuery(api.messages.thread, { conversationId, c: null }, { items: clipMessageItems });
-@@ -135,6 +134,7 @@ export function ThreadView({
+@@ -135,6 +134,8 @@ export function ThreadView({
    const inputRef = useRef<HTMLTextAreaElement | null>(null);
    const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
    const conv = view.data?.conversation;
 +  const unreadCount = view.data?.unread?.count ?? 0;
++  const unreadActivityId = view.data?.nextUnread?.[0]?.messageId;
    function pulseTyping() {
      void typing.set({ typing: true });
      if (typingTimer.current) clearTimeout(typingTimer.current);
@@ -65,7 +93,7 @@ diff --git a/lib/thread-view.tsx b/lib/thread-view.tsx
 -      }
 -    }
 -  }, [conversationId, thread.data?.length, viewer]);
-+  }, [conversationId, unreadCount, markRead.can.send]);
++  }, [conversationId, unreadCount, unreadActivityId, markRead.can.send]);
  
    const projectedIntents = new Set(
      [thread, photoThread, clipThread, oncePhotoThread].flatMap((snapshot) =>

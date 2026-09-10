@@ -827,6 +827,165 @@ journey("only a current message author can remove a poll while unsending", async
   }
 });
 
+journey("a recipient acknowledges an unsent first row before the next live delivery", async ({ as }) => {
+  let alice = as("alice");
+  const bob = as("bob");
+  const charlie = as("charlie");
+  const conversationId = "unsent-before-ack";
+  try {
+    const group = await alice.mutation(api.groups.groupCreate, {
+      title: "Unsent before acknowledgement",
+      members: ["dev:bob"],
+      conversationId,
+    });
+    if (group.state !== "committed") throw new Error(`group was ${JSON.stringify(group)}`);
+    const removedId = "ack-cursor-00-removed";
+    const removed = await bob.mutation(api.messages.send, {
+      conversationId,
+      body: "remove before recipient acknowledgement",
+      messageId: removedId,
+    });
+    if (removed.state !== "committed") throw new Error(`removed send was ${JSON.stringify(removed)}`);
+    const unsent = await bob.mutation(api.messages.unsend, { messageId: removedId });
+    if (unsent.state !== "committed") throw new Error(`unsend was ${JSON.stringify(unsent)}`);
+    const removedMessage = await alice.query(api["owner-inspection"].messageRow, { messageId: removedId });
+    if (removedMessage.state !== "complete" || !("data" in removedMessage) || removedMessage.data !== null) {
+      throw new Error(`unsent message was not an explicit absence: ${JSON.stringify(removedMessage)}`);
+    }
+    const stale = await alice.query(api.messages.nextPendingDelivery, {});
+    if (!("data" in stale) || !Array.isArray(stale.data) || stale.data[0]?.messageId !== removedId) {
+      throw new Error(`removed row was not first: ${JSON.stringify(stale)}`);
+    }
+    const outsider = await charlie.mutation(api.messages.markDelivered, { messageId: removedId });
+    if (outsider.state !== "committed") throw new Error(`outsider no-op was ${JSON.stringify(outsider)}`);
+    const afterOutsider = await alice.query(api.messages.nextPendingDelivery, {});
+    if (!("data" in afterOutsider) || afterOutsider.data?.[0]?.messageId !== removedId) {
+      throw new Error(`outsider cleared the recipient's row: ${JSON.stringify(afterOutsider)}`);
+    }
+    const dismissed = await alice.mutation(api.messages.markDelivered, { messageId: removedId });
+    if (dismissed.state !== "committed") {
+      throw new Error(`recipient could not dismiss removed row: ${JSON.stringify(dismissed)}`);
+    }
+    const duplicate = await alice.mutation(api.messages.markDelivered, { messageId: removedId });
+    if (duplicate.state !== "committed") throw new Error(`duplicate ack was ${JSON.stringify(duplicate)}`);
+    const missing = await alice.mutation(api.messages.markDelivered, { messageId: "ack-cursor-never-present" });
+    if (missing.state !== "committed") throw new Error(`missing ack was ${JSON.stringify(missing)}`);
+
+    await alice.close();
+    alice = as("alice");
+    const successorGroup = await alice.mutation(api.groups.groupCreate, {
+      title: "Delivery after reopen",
+      members: ["dev:bob"],
+      conversationId: "delivery-after-reopen",
+    });
+    if (successorGroup.state !== "committed") {
+      throw new Error(`successor group was ${JSON.stringify(successorGroup)}`);
+    }
+
+    const liveId = "ack-cursor-01-live";
+    const live = await bob.mutation(api.messages.send, {
+      conversationId: "delivery-after-reopen",
+      body: "live after removed pending row",
+      messageId: liveId,
+    });
+    if (live.state !== "committed") throw new Error(`live send was ${JSON.stringify(live)}`);
+    const pending = await alice.query(api.messages.nextPendingDelivery, {});
+    if (!("data" in pending) || !Array.isArray(pending.data) || pending.data[0]?.messageId !== liveId) {
+      throw new Error(`live row was stranded: ${JSON.stringify(pending)}`);
+    }
+    const acknowledged = await alice.mutation(api.messages.markDelivered, { messageId: liveId });
+    if (acknowledged.state !== "committed") throw new Error(`live ack was ${JSON.stringify(acknowledged)}`);
+    const empty = await alice.query(api.messages.nextPendingDelivery, {});
+    if (empty.state !== "complete" || !Array.isArray(empty.data) || empty.data.length !== 0) {
+      throw new Error(`delivery cursor did not empty: ${JSON.stringify(empty)}`);
+    }
+
+    const formerGroup = await bob.mutation(api.groups.groupCreate, {
+      title: "Former recipient boundary",
+      members: ["dev:alice"],
+      conversationId: "former-recipient-boundary",
+    });
+    if (formerGroup.state !== "committed") throw new Error(`former group was ${JSON.stringify(formerGroup)}`);
+    const formerId = "ack-cursor-02-former";
+    const former = await bob.mutation(api.messages.send, {
+      conversationId: "former-recipient-boundary",
+      body: "remove recipient before acknowledgement",
+      messageId: formerId,
+    });
+    if (former.state !== "committed") throw new Error(`former send was ${JSON.stringify(former)}`);
+    const members = await bob.query(api.groups.membershipsFor, { conversationId: "former-recipient-boundary" });
+    const aliceMembership = "data" in members && Array.isArray(members.data)
+      ? members.data.find((row) => row.principal === "dev:alice")
+      : undefined;
+    if (!aliceMembership?.id) throw new Error(`Alice membership was absent: ${JSON.stringify(members)}`);
+    const removedMember = await bob.mutation(api.groups.memberRemove, {
+      conversationId: "former-recipient-boundary",
+      membershipId: aliceMembership.id,
+    });
+    if (removedMember.state !== "committed") {
+      throw new Error(`recipient removal was ${JSON.stringify(removedMember)}`);
+    }
+    const formerAck = await alice.mutation(api.messages.markDelivered, { messageId: formerId });
+    if (formerAck.state !== "committed") throw new Error(`former recipient ack was ${JSON.stringify(formerAck)}`);
+    const afterRemoval = await alice.query(api.messages.nextPendingDelivery, {});
+    if (afterRemoval.state !== "complete" || !Array.isArray(afterRemoval.data) || afterRemoval.data.length !== 0) {
+      throw new Error(`former recipient retained a row: ${JSON.stringify(afterRemoval)}`);
+    }
+  } finally {
+    await Promise.all([alice.close(), bob.close(), charlie.close()]);
+  }
+});
+
+journey("the pending-read head distinguishes equal-time coalesced unread-one snapshots", async ({ as, tick }) => {
+  await tick(0);
+  const alice = as("alice");
+  const bob = as("bob");
+  const conversationId = "coalesced-unread-one";
+  try {
+    const group = await alice.mutation(api.groups.groupCreate, {
+      title: "Coalesced unread one",
+      members: ["dev:bob"],
+      conversationId,
+    });
+    if (group.state !== "committed") throw new Error(`group was ${JSON.stringify(group)}`);
+    const fixedAt = 1_789_017_600_000;
+    const first = await alice.mutation(api["owner-inspection"].sendAtForTest, {
+      conversationId,
+      recipient: "dev:bob",
+      body: "first unread one",
+      messageId: "coalesced-unread-z",
+      deliveryId: "coalesced-delivery-z",
+      at: fixedAt,
+    });
+    if (first.state !== "committed") throw new Error(`first send was ${JSON.stringify(first)}`);
+    const before = await bob.query(api.messages.conversationView, { conversationId, c: null });
+    if (!("data" in before) || before.data?.unread?.count !== 1
+      || before.data.preview?.[0]?.messageId !== first.data.id
+      || before.data.nextUnread?.[0]?.messageId !== first.data.id) {
+      throw new Error(`first unread snapshot was ${JSON.stringify(before)}`);
+    }
+    const read = await bob.mutation(api.messages.markRead, { conversationId });
+    if (read.state !== "committed") throw new Error(`read was ${JSON.stringify(read)}`);
+    const second = await alice.mutation(api["owner-inspection"].sendAtForTest, {
+      conversationId,
+      recipient: "dev:bob",
+      body: "second unread one without observing zero",
+      messageId: "coalesced-unread-a",
+      deliveryId: "coalesced-delivery-a",
+      at: fixedAt,
+    });
+    if (second.state !== "committed") throw new Error(`second send was ${JSON.stringify(second)}`);
+    const after = await bob.query(api.messages.conversationView, { conversationId, c: null });
+    if (!("data" in after) || after.data?.unread?.count !== 1
+      || after.data.preview?.[0]?.messageId !== first.data.id
+      || after.data.nextUnread?.[0]?.messageId !== second.data.id) {
+      throw new Error(`second unread snapshot was ${JSON.stringify(after)}`);
+    }
+  } finally {
+    await Promise.all([alice.close(), bob.close()]);
+  }
+});
+
 journey("the private delivery cursor drains more than 50 chats", async ({ as }) => {
   const alice = as("alice");
   const bob = as("bob");
