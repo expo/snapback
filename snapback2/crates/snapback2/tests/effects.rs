@@ -649,3 +649,58 @@ fn copy_tree(from: &Path, to: &Path) {
         }
     }
 }
+
+#[test]
+fn dev_stop_observes_owner_process_exit_while_a_well_behaved_effect_runs() {
+    let provider = Provider::start();
+    let root = temp_root();
+    copy_tree(&fixture().join("snapback"), &root.join("snapback"));
+    prepare_effect_fixture(&root, &provider.origin());
+    let binary = env!("CARGO_BIN_EXE_snapback2");
+    let compiler = compiler(&root);
+    let mut owner = ChildGuard::spawn(binary, &compiler, &root);
+    let (port, secret) = owner.ready(&root);
+    let sent = request(
+        port,
+        "POST",
+        "/api/mutation",
+        &[("X-Snapback-As", "alice")],
+        json!({"op":"messages.send", "args":{"conversationId":"conversation-1", "recipientId":"profile-bob", "body":"stop during provider"}}),
+    );
+    assert_eq!(sent.body["state"], "committed", "{}", sent.body);
+    wait_for(Duration::from_secs(5), || {
+        (provider.hits() == 1).then_some(())
+    });
+    assert_eq!(status(port, &secret)["effects"]["running"], 1);
+    let release = provider.first_release.clone();
+    let provider_finish = thread::spawn(move || {
+        thread::sleep(Duration::from_millis(400));
+        let (released, wake) = &*release;
+        *released.lock().unwrap() = true;
+        wake.notify_all();
+    });
+    let started = Instant::now();
+    let stopping = Command::new(binary)
+        .args(["dev", "--stop", "--json", "--project"])
+        .arg(&root)
+        .env("SNAPBACK2_COMPILER", &compiler)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let exit = wait_for(
+        snapback2_effects::DEFAULT_BUDGET + Duration::from_secs(1),
+        || owner.child.try_wait().unwrap(),
+    );
+    assert!(exit.success(), "owner exit: {exit}");
+    let stopped = stopping.wait_with_output().unwrap();
+    assert!(
+        stopped.status.success(),
+        "{} {}",
+        String::from_utf8_lossy(&stopped.stdout),
+        String::from_utf8_lossy(&stopped.stderr)
+    );
+    assert!(started.elapsed() <= snapback2_effects::DEFAULT_BUDGET + Duration::from_secs(1));
+    provider_finish.join().unwrap();
+    fs::remove_dir_all(root).unwrap();
+}

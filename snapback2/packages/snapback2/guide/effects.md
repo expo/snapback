@@ -1,12 +1,11 @@
 # Effects
 
-Effects are outside the data transaction. A mutation durably emits an outbox
-row; the optional Ibex 2 runner performs I/O and may invoke a named Quarry
-`then` mutation. Declare an effect in a TypeScript module:
+Effects run outside the data transaction. A mutation emits a durable outbox row.
+The default repo build has no engine, so rows stay queued; published binaries
+carry Ibex 2, which does the I/O, then an optional Quarry `then` mutation
+records the result. Providers must honor `meta.id` as the idempotency key.
 
 ```ts
-// The grant names your notification provider; replace this example origin.
-// The provider must honor meta.id as the idempotency key to make retries safe.
 import { effect } from "snapback2";
 import { recordNotified } from "./notifications";
 
@@ -27,57 +26,43 @@ export const notify = effect({
 ```
 
 `emit name { payload }` durably queues an effect in the mutation's transaction.
-Chat sends first deliver the message, then notify every other current member.
-The effect returns `{ providerId }`; `then: recordNotified` records it.
-For a bounded push preview, compute `preview = slice(body, 0, 80)` before both
-the application log insert and `emit`; truncating only inside the provider
-effect leaves the durable application row inconsistent.
+Bind it with `effect notify from delivery`. For previews, store and emit the same
+`slice(body, 0, 80)`; truncating only inside the effect leaves stored text longer.
 
-```q
-effect notify from delivery
-```
+Authored `.ts` uses ES2020 types. The globals in `run` are exactly `Array, ArrayBuffer, BigInt, BigInt64Array, BigUint64Array, Boolean, DataView, Date, Error, EvalError, Float32Array, Float64Array, Headers, Infinity, Int16Array, Int32Array, Int8Array, Intl, JSON, Map, Math, NaN, Number, Object, Promise, Proxy, RangeError, ReferenceError, Reflect, RegExp, Set, String, Symbol, SyntaxError, TextDecoder, TextEncoder, TypeError, URIError, URL, URLSearchParams, Uint16Array, Uint32Array, Uint8Array, Uint8ClampedArray, WeakMap, WeakSet, atob, btoa, console, decodeURI, decodeURIComponent, encodeURI, encodeURIComponent, escape, fetch, isFinite, isNaN, meta, parseFloat, parseInt, setTimeout, undefined, unescape`.
+Other globals, DOM types, imports inside `run`, `require`, `eval`, and `Function`
+refuse. Captures must be module JSON constants, not imported helpers.
+`fetch` has text/JSON/arrayBuffer readers; `Response` has no constructor.
+Every redirect checks grants and strips cross-origin credentials.
+Both `meta` and `tools.meta` carry `id`, `effect`, and `attempt`.
 
-```q
-  for member in conversationMembers(conversationId):
-    if member.principal != viewer:
-      emit notify { to: member.principal, body }
-```
+`dev` reports engine and queued count at boot (`effects` in JSON). Build an
+engine: `scripts/hermes build -p snapback2`. No engine leaves rows queued and
+logs its count once per change.
 
-Authored `.ts` files, including helpers without effect exports, are checked with
-ES2020 types; Quarry-generated modules retain the data-plane subset.
-Inside `run`, the globals in scope are exactly `Array, ArrayBuffer, BigInt, BigInt64Array, BigUint64Array, Boolean, DataView, Date, Error, EvalError, Float32Array, Float64Array, Headers, Infinity, Int16Array, Int32Array, Int8Array, Intl, JSON, Map, Math, NaN, Number, Object, Promise, Proxy, RangeError, ReferenceError, Reflect, RegExp, Set, String, Symbol, SyntaxError, TextDecoder, TextEncoder, TypeError, URIError, URL, URLSearchParams, Uint16Array, Uint32Array, Uint8Array, Uint8ClampedArray, WeakMap, WeakSet, atob, btoa, console, decodeURI, decodeURIComponent, encodeURI, encodeURIComponent, escape, fetch, isFinite, isNaN, meta, parseFloat, parseInt, setTimeout, undefined, unescape`.
-Other globals (including `crypto`, which this Ibex revision lacks), DOM names,
-`import`/`require` inside `run` (static or dynamic), `eval`, and `Function`
-refuse at `check`; captures must be module JSON constants, so imported helper
-functions cannot be captured. No DOM or Web Worker types are packaged. `fetch` returns `status`, `ok`, `url`, `redirected`, `headers: Headers`,
-`bodyUsed`, and `text()`/`json()`/`arrayBuffer()`; `Response` has no constructor.
-`URL.canParse`/`parse` and `URLSearchParams.size`/`sort` are witnessed Ibex members.
-`TextDecoder` accepts no encoding or streaming options. `setTimeout` forwards
-extra arguments to its callback; delivery consumes one host permit per pump.
-Both global `meta` and `tools.meta` carry `id`, `effect`, and `attempt`.
+`logs --effects` keeps lifecycle lines: emission, claim, retry, restart
+recovery, requeue, `then` settlement, qualified names (`delivery.notify`);
+`--since seq` bounds transitions, count lines always pass. `trace <seq>` adds
+transition history beneath the snapshot; unreadable or oversized history says
+unavailable. Status reports `log: unavailable(reason)` if writes fail.
 
-`fetch` snapshots headers from records, pair iterables, or `Headers` and sends
-them; invalid names/values reject before I/O. String bodies default to
-`text/plain;charset=UTF-8` unless `content-type` is authored. Redirects 301/302
-rewrite only POST to GET; 303 rewrites all except GET/HEAD; 307/308 preserve
-method/body. A dropped body drops `content-type`, `content-length`,
-`content-encoding`, `content-language`, and `content-location`. Cross-origin
-hops drop `authorization`, `proxy-authorization`, and `cookie`; every hop
-requires its declared grant. Invalid redirect modes reject before I/O.
+Journey `effects.rows({ state, after, limit })` returns `{ rows, after }` ordered
+by `(seq, id)`; limit 1–200; pass `after` until null. Results over 16,384 bytes
+become null with `resultCapped: { bytes, limit }`.
+`effects.settle({ upTo, budgetMs })` runs one bounded background turn for due
+schedules/jobs, then wakes the runner and waits off the writer. `upTo` defaults
+to the seq after that turn; `budgetMs` to 1000, at most 4000. It returns
+`{ settled, rows, remaining }`; `failed` and `sent_unknown` are terminal,
+`then_pending` stays unsettled. Sent rows with bookkeeping carry
+`then: { op, state: "committed", seq }` or `{ op, state: "rejected", code }`;
+rejection undoes no delivery. Remaining reasons: `backoff` (with `nextAt`; not
+yet due, any build), `then_pending`, `running`, `engine:none` (due, no engine),
+`budget`. `tick(ms)` advances retry eligibility; a backoff ending inside the
+budget is waited for. No runnable work still reports `remaining` and
+`settled: false`. Both routes need the dev secret, like `tick`, and refuse in
+serve mode. Without an engine `settle` still pumps a pending `then`, then
+returns; the supervisor records `blocked: effects:no-engine`. See `guide testing`.
 
-The default development binary has no engine. `snapback2 test` records the
-derived effects check as `blocked: no engine in this build`; it never claims
-the queued row was sent. Use `snapback2 trace <seq>` to see the outbox row.
-
-## Development without a provider
-
-Use the template's declared effect and inspect the queued outbox row with
-`trace`; an engine-less development build reports delivery as blocked.
-The example `https://api.example.com` grant is a placeholder, not a working
-notification service. Do not interpret successful message insertion as delivery.
-When testing an engine-enabled build without a provider, replace the effect's
-`run` with an async function returning `{ providerId: meta.id }`; `then` can
-record that deterministic local result. Keep the example URL grant: current
-effect declarations require at least one grant, even when the body never calls
-`fetch`. A grant alone sends no network request. Restore your provider origin and idempotent fetch before
-claiming external delivery; `guide testing` explains effect verification.
+The example origin is a placeholder. Locally, return `{ providerId: meta.id }`
+from `run`, retaining the required grant even without fetch. Restore a real
+provider before claiming delivery.

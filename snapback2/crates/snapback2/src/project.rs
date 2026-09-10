@@ -1,6 +1,8 @@
 //! Project discovery, compiler-worker custody, certification, and the build cache.
 // @ref LLP 1002#1-decisions — the binary owns compilation through one worker.
 
+mod lowering;
+
 use crate::protocol::{Refusal, certification_family_guide};
 use serde_json::{Value as Json, json};
 use snapback2_core::{Auth, Ceilings, Generation, ProjectJson, Value};
@@ -96,11 +98,11 @@ pub struct SeedData {
 
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct CompileSuccess {
+pub(crate) struct CompileSuccess {
     id: u64,
     ok: bool,
     project: Json,
-    sources: BTreeMap<String, SourceSite>,
+    pub(crate) sources: BTreeMap<String, SourceSite>,
     api_dts: String,
     quarry: Vec<QuarryGenerated>,
     ms: f64,
@@ -225,25 +227,7 @@ impl CompilerWorker {
         root: &Path,
         source: Option<&str>,
     ) -> Result<CompiledProject, Vec<Refusal>> {
-        let response = self.request_body("compile", root, source)?;
-        if !response.get("ok").and_then(Json::as_bool).unwrap_or(false) {
-            return Err(response_refusals(&response));
-        }
-        let success: CompileSuccess = success_response(response, "compile")?;
-        debug_assert!(success.ok);
-        debug_assert_eq!(success.id, self.next_id);
-        validate_quarry_outputs(&success.quarry).map_err(|error| vec![error])?;
-        let mut project_value = success.project;
-        normalize_project_json(&mut project_value);
-        let project: ProjectJson = serde_json::from_value(project_value).map_err(|error| {
-            vec![Refusal::new(
-                "E_OWNER_COMPILER_PROTOCOL",
-                "owner",
-                format!("compiler project does not match the landed engine API: {error}"),
-                "rebuild the bundled compiler against this snapback2-core",
-                "owner/compiler",
-            )]
-        })?;
+        let (project, success) = self.lower_source(root, source)?;
         let sources = success.sources;
         let generation = Generation::certify(&project, Ceilings::default()).map_err(|errors| {
             errors
