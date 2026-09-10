@@ -28,4 +28,3 @@ not status alone. Settle only a verified terminal refusal; keep an intent
 queued when the response is malformed or transport outcome remains uncertain.
 Retain the original intent identity across retries, and add ordinary,
 malformed-body, terminal-refusal, and restart cases before changing custody.
-
