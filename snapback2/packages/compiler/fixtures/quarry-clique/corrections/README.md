@@ -17,6 +17,7 @@ patch -p1 < grok-message-tombstone.patch
 patch -p1 < grok-receipt-scheduling.patch
 patch -p1 < grok-message-draft-validation.patch
 patch -p1 < grok-browser-online-events.patch
+patch -p1 < grok-composer-readiness.patch
 patch -p1 < owner-inspection.patch
 cp owner-cases.test.ts snapback/tests/recipes.test.ts
 ```
@@ -73,12 +74,21 @@ text typed while that send was settling. Its SHA-256 is
 poll while preserving the initial sync and the browser's online/offline event
 listeners. Its SHA-256 is
 `b76fbb425cb97c579445bce071734f91e8bc1369284e961af2a6b9e8aa33f144`.
+`grok-composer-readiness.patch` selects the exact text, edit, photo, clip, or
+view-once mutation for the current composer branch. Its certified readiness
+reason stays visible, and `action: "connect"` renders a single disabled-while-
+active **Sync now** action that awaits `client.online()` and surfaces a caught
+error. The send action is disabled while that selected mutation is refused or
+in flight. Sync never polls or automatically resubmits; it preserves the draft
+and attachment so the user's later send remains an ordinary explicit action.
+The patch's SHA-256 is
+`04f5d17426ec69c6a15baf57c604efdaa3097bf889c396a58c44c512106920ea`.
 
-All four patches apply after the auth and sender-pending stages above. The
+All five patches apply after the auth and sender-pending stages above. The
 preceding `c8e95f47f` source remains bound separately at
 `.snapback/clique-final-review-snapshot`. The current chain round-trips to the
 credential-free eight-file snapshot at
-`.snapback/clique-ack-final-review-snapshot`; its `SHA256SUMS` binds
+`.snapback/clique-readiness-final-review-snapshot`; its `SHA256SUMS` binds
 `messages.q`, `schema.q`, `delivery-watcher.tsx`, `thread-view.tsx`, and
 `snapback-provider.web.tsx`, plus the unchanged full `groups.q`, root layout,
 and settings screen needed to review receipt cleanup and watcher/auth context.
