@@ -80,12 +80,15 @@ export interface ResumeRequestV1 {
   generation: string;
   schemaHash: string;
   authEpoch: number;
+  remaining?: number;
+  demand?: string;
   log?: { op: string; args: unknown; watermark: string | null; validator?: string };
   mounted: Array<{ op: string; args: unknown; validator: string }>;
 }
 
 export interface ResumeAdjustment {
   cap?: number;
+  demand?: string;
 }
 
 export interface AcceptedDelivery<Result> {
@@ -268,6 +271,7 @@ export class OfflineRuntime {
     }
   }
   get authEpoch(): number | undefined { return this.sessionEpoch ?? this.facts?.authEpoch; }
+  get hasCoverageFacts(): boolean { return this.facts !== undefined; }
   get coordinationScope(): string | undefined { return this.store.coordinationScope; }
 
   /** The generation of the certified program this partition holds, if any. */
@@ -568,8 +572,9 @@ export class OfflineRuntime {
     if (grant) this.pendingGrant = [principal, grant];
   }
 
-  async adoptPendingGrant(): Promise<void> {
-    await this.serial(() => this.flushGrant());
+  async adoptPendingGrant(check?: () => void): Promise<void> {
+    const pending = this.pendingGrant;
+    await this.serial(async () => { if (pending === this.pendingGrant) await this.flushGrant(check); });
   }
 
   async queuedIntents(): Promise<OutboxEntry[]> {
@@ -937,7 +942,7 @@ export class OfflineRuntime {
       typeof item.answer?.validator === "string");
     if (!this.facts) return undefined;
     if (!this.coverageCurrent()) return { protocol: 1, ...this.facts, mounted: [] };
-    if (!watermark && answers.length === 0 && (await this.queuedIntents()).length === 0) return undefined;
+    if (!adjustment.demand && !watermark && answers.length === 0 && (await this.queuedIntents()).length === 0) return undefined;
     return { protocol: 1, ...this.facts,
       ...(watermark ? { log: { op: watermark.op, args: watermark.args, watermark: watermark.watermark,
         ...(watermark.validator === undefined ? {} : { validator: watermark.validator }) } } : {}),
@@ -1007,7 +1012,7 @@ export class OfflineRuntime {
     return this.resumeQueries[0] ?? mounted[0];
   }
 
-  private async flushGrant(): Promise<void> {
+  private async flushGrant(check?: () => void): Promise<void> {
     const pending = this.pendingGrant;
     if (!pending || this.partition === undefined) return;
     this.pendingGrant = undefined;
@@ -1015,8 +1020,10 @@ export class OfflineRuntime {
     // their validated principal's custody even when opening that partition fails.
     if (pending[0] !== this.partition) return;
     try {
-      await this.outbox.adopt(pending[1]);
+      check?.();
+      await this.outbox.adopt(pending[1], check);
     } catch (error) {
+      check?.();
       this.pendingGrant ??= pending;
       throw error;
     }

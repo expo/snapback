@@ -2,7 +2,8 @@ import { isLocalCursor } from "./local-cursor.js";
 import { emptyItemInputs, itemInputs, withItemInputs } from "./query-frame.js";
 import { FullRevalidationRequired } from './store/fact-integrity.js';
 // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — offline transport coordination is isolated from auth custody and asset methods.
-import { throwIfAborted } from "./client-wire.js";
+import { throwIfAborted, withAbort, wireShape } from "./client-wire.js";
+import type { Authority as ClientAuthority } from "./client-upload.js";
 import { drainOutbox } from "./client-outbox.js";
 import { DrainSubscription } from "./drain.js";
 import { DeliveryEnvelopeDecodeError } from "./offline-protocol.js";
@@ -13,6 +14,7 @@ import {
   isTerminalSession,
   sseObject,
   wireQuery,
+  wireAuthMe,
   wireSubscription,
 } from "./client-wire.js";
 import {
@@ -21,6 +23,7 @@ import {
   type AcceptedDelivery,
   type MountedQuery,
   type ResumeAdjustment,
+  type ResumeRequestV1,
 } from "./offline.js";
 import {
   stableSerialize,
@@ -363,6 +366,7 @@ export function refuseDrains(mounted: Map<string, MountedQuery>, envelope: Refus
 
 export async function performOfflineResume<Authority>(options: {
   signal?: AbortSignal;
+  demand?: string;
   runtime: OfflineRuntime | undefined;
   mounted: Map<string, MountedQuery>;
   authority: Authority;
@@ -374,7 +378,7 @@ export async function performOfflineResume<Authority>(options: {
   subscriptions: Iterable<Subscription<unknown>>;
   /** Re-fetches `/api/program` for the live generation after `E_OFFLINE_RESET`. */
   reload?(authority: Authority): Promise<void>;
-}, adjustment: ResumeAdjustment = {}, retry = true): Promise<boolean> {
+}, adjustment: ResumeAdjustment = {}, retry = true): Promise<boolean | "capacity"> {
   const check = () => throwIfAborted(options.signal);
   check();
   if (!options.runtime) return false;
@@ -385,8 +389,28 @@ export async function performOfflineResume<Authority>(options: {
   }, options.authority);
   const revision = options.runtime.coverageRevision;
   const generation = options.runtime.outbox.generation;
-  let request = await options.runtime.resumeRequest([...options.mounted.values()], adjustment);
+  let request = await options.runtime.resumeRequest([...options.mounted.values()], { ...adjustment, demand: options.demand });
   check();
+  let capacityOnly = false;
+  if (!request && options.demand && !options.runtime.hasCoverageFacts) {
+    // @ref LLP 1018.008.000#capacity-acquisition — a write-only account has no
+    // query facts. Authenticate its epoch, then use the existing logless route
+    // solely for capacity; never manufacture coverage or a successful resume.
+    if (options.runtime.authEpoch === undefined) {
+      const me = wireAuthMe(await options.json("/api/auth/me", { signal: options.signal }, options.authority));
+      check();
+      if (me.viewer !== grantPrincipal || me.authEpoch === undefined) throw resumeUnavailable("capacity acquisition needs an authenticated account epoch");
+      await options.runtime.reauthenticate(me.viewer, me.authEpoch);
+      check();
+    }
+    const program = (await options.runtime.store.outbox.programs())[options.runtime.programGeneration!];
+    check();
+    if (program && !options.runtime.hasCoverageFacts && !options.runtime.resetNeeded) {
+      request = { protocol: 1, generation: program.generation, schemaHash: program.schemaHash,
+        authEpoch: options.runtime.authEpoch!, mounted: [] };
+      capacityOnly = true;
+    } else request = await options.runtime.resumeRequest([...options.mounted.values()], { ...adjustment, demand: options.demand });
+  }
   if (!request) {
     // @ref LLP 1012#7-writes-offline — no resume can be built without facts (a
     // login grant with nothing delivered yet), but the queue must never sit:
@@ -416,17 +440,18 @@ export async function performOfflineResume<Authority>(options: {
     await commitOffline(options.runtime, seed.op, seed.args, accepted, options.failure ?? ((error) => error as Error),
       revision, () => !options.signal?.aborted);
     check();
-    request = await options.runtime.resumeRequest([...options.mounted.values()], adjustment);
+    request = await options.runtime.resumeRequest([...options.mounted.values()], { ...adjustment, demand: options.demand });
     check();
     if (!request) throw resumeUnavailable("the owner query did not deliver the facts required for resume");
   }
+  const requestedEpoch = request.authEpoch;
   const rebuild = async () => {
     check();
     await options.reload?.(options.authority);
     check();
     // A 409 authenticated request.authEpoch before checking the program; a
     // successful probe below verifies the same epoch explicitly.
-    await options.runtime!.resetCoverage(request.authEpoch, options.signal);
+    await options.runtime!.resetCoverage(requestedEpoch, options.signal);
     check();
     for (const subscription of [...options.subscriptions]) {
       (subscription as Subscription<unknown> & { reset?: () => void }).reset?.();
@@ -435,12 +460,18 @@ export async function performOfflineResume<Authority>(options: {
   };
   let value: unknown;
   try {
+    const grant = await options.runtime.outbox.grant();
+    check();
+    // The absent-field compatibility behavior mints. Send usable capacity on
+    // every resume, including zero for an expired grant with unused IDs.
+    request = { ...request, remaining: grant && !options.runtime.outbox.expired(grant) ? Math.max(0, grant.count - grant.used) : 0,
+      ...(options.demand === undefined ? {} : { demand: options.demand }) } as ResumeRequestV1;
     value = await options.json("/api/resume", { method: "POST", body: JSON.stringify(request), signal: options.signal }, options.authority);
     check();
   } catch (error) {
     check();
     const candidate = refusal(error);
-    if (candidate?.code === "E_OFFLINE_RESET") return rebuild();
+    if (candidate?.code === "E_OFFLINE_RESET" && !capacityOnly) return rebuild();
     if (candidate?.status === 404) {
       if ((await options.runtime.queuedIntents()).length > 0) throw error;
       return false;
@@ -463,6 +494,18 @@ export async function performOfflineResume<Authority>(options: {
   if (!Array.isArray(response.mounted)) throw options.shape("resume response.mounted must be an array");
   if (request.log && (!response.log || typeof response.log !== "object" || Array.isArray(response.log))) {
     throw options.shape("resume response omitted the requested log");
+  }
+  if (capacityOnly) {
+    if (response.mounted.length || response.log != null) throw options.shape("capacity response returned unrequested coverage");
+    options.runtime.noteGrant(response, grantPrincipal);
+    await options.runtime.adoptPendingGrant(() => {
+      check();
+      if (options.runtime!.principal !== grantPrincipal || options.runtime!.hasCoverageFacts || options.runtime!.resetNeeded) {
+        throw resumeUnavailable("coverage changed during capacity acquisition; resume before sending");
+      }
+    });
+    check();
+    return "capacity";
   }
   // A cold reopen mid-rebuild can already name the current program. A 200
   // authenticates it, but the durable marker still requires the cold rebuild.
@@ -518,7 +561,7 @@ export async function performOfflineResume<Authority>(options: {
   // successful re-authorization itself renews trust, then replay is FIFO.
   options.runtime.noteGrant(response, grantPrincipal);
   try {
-    await options.runtime.adoptPendingGrant();
+    await options.runtime.adoptPendingGrant(check);
     check();
   } catch (error) {
     throw options.failure ? options.failure(error) : error;
@@ -552,4 +595,90 @@ function drainOptions<Authority>(options: {
     shape: options.shape,
     failure: options.failure ?? ((error) => (error instanceof Error ? error : new Error(String(error)))),
   };
+}
+
+export interface ResumeClient {
+  offlineRuntime?: OfflineRuntime;
+  mounted: Map<string, MountedQuery>;
+  supersessionQueries: Map<string, { principal: string; op: string; args: unknown }>;
+  subscriptions: Set<Subscription<unknown>>;
+  ensureAuthority(authority: ClientAuthority): void;
+  ensureOfflineMetadata(authority: ClientAuthority, force: boolean, startup: boolean, signal: AbortSignal): Promise<void>;
+  json(path: string, init: RequestInit, authority: ClientAuthority): Promise<unknown>;
+  offlineRefusal(error: unknown): RefusalError;
+  validated(authority: ClientAuthority): void;
+}
+
+export async function resumeClient(host: ResumeClient, authority: ClientAuthority, signal: AbortSignal, demand?: string): Promise<boolean> {
+  const runtime = host.offlineRuntime!;
+  const check = () => { throwIfAborted(signal); host.ensureAuthority(authority); };
+  const json = async (path: string, init: RequestInit) => {
+    check();
+    // @ref LLP 1012#7-writes-offline — release the serialized drain even if replay or its tail ignores abort.
+    const value = await withAbort(signal, () => host.json(path, { ...init, signal }, authority));
+    check();
+    return value;
+  };
+  await host.ensureOfflineMetadata(authority, false, true, signal);
+  check();
+  // One flight owns bounded convergence, including successors found by cold
+  // subscription opens. Keep all pending keys until an entire round commits.
+  for (let round = 0; round < 3; round++) {
+    const reset = await performOfflineResume({
+      runtime, mounted: host.mounted, authority, signal, demand,
+      bearerConfirmed: authority.token !== undefined, json,
+      validated: (current) => { check(); host.validated(current); },
+      shape: wireShape, failure: (error) => host.offlineRefusal(error),
+      subscriptions: host.subscriptions,
+      reload: (current) => host.ensureOfflineMetadata(current, true, true, signal),
+    });
+    check();
+    if (reset === "capacity") return true;
+    if (reset) for (const item of [...host.mounted.values()].filter(item => !item.drain)) {
+      const principal = runtime.principal!;
+      const key = `${principal}\u0000${item.op}\u0000${stableSerialize(item.args)}`;
+      if (!host.supersessionQueries.has(key)) host.supersessionQueries.set(key, { principal, op: item.op, args: item.args });
+    }
+    const pending = [...host.supersessionQueries];
+    const revision = runtime.coverageRevision;
+    let superseded = false;
+    // Fresh authenticated reads, never buffered envelopes. The epoch remains
+    // the session epoch authenticated by the resume, even for first facts.
+    for (const [, item] of pending) {
+      check();
+      if (item.principal !== runtime.principal) continue;
+      const raw = await json("/api/query?receipt=1", {
+        method: "POST", body: JSON.stringify({ op: item.op, args: runtime.serverArguments(item.op, item.args) }),
+      });
+      check();
+      const accepted = await acceptOffline(runtime, item.op, item.args, raw, wireShape,
+        () => json("/api/query?receipt=1", { method: "POST", body: JSON.stringify({ op: item.op, args: runtime.serverArguments(item.op, item.args) }) }));
+      check();
+      wireQuery(accepted.result);
+      superseded = await commitOffline(runtime, item.op, item.args, accepted,
+        (error) => host.offlineRefusal(error), revision, () => !signal.aborted);
+      check();
+      if (superseded || revision !== runtime.coverageRevision) break;
+    }
+    if (superseded || revision !== runtime.coverageRevision) continue;
+    let fenced = false;
+    if (reset) {
+      // @ref LLP 1012#7-writes-offline — the rebuild cleared the fence's trust
+      // anchor (resetCoverage resets trust), so this drain releases only
+      // intents inside the fence; a fence stop is answered by the resume the
+      // next round completes, never by the rebuild alone.
+      const drained = await drainOutbox({ runtime, json, signal, shape: wireShape, failure: (error) => host.offlineRefusal(error) });
+      check();
+      fenced = drained.reason === "fence";
+    }
+    const complete = await runtime.completeReset(revision, signal);
+    check();
+    if (!complete) continue;
+    for (const [key, item] of pending) if (host.supersessionQueries.get(key) === item) host.supersessionQueries.delete(key);
+    if (host.supersessionQueries.size === 0 && !runtime.resetNeeded && !fenced) return false;
+  }
+  throw new RefusalError({
+    code: "E_OFFLINE_RESET", family: "offline", message: "the program changed during three coverage rebuild attempts",
+    site: "client.resume", rewrite: "retry online() after the program stops rotating", guide: "offline",
+  });
 }

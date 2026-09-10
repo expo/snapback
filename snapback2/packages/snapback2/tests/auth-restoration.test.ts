@@ -1507,7 +1507,7 @@ test("typed HTTP 200 resume expiry seals queued custody and retries the exact en
     assert.deepEqual(await client.outbox.settled(), { stopped: false, remaining: 0 });
     assert.equal(replays.length, 1);
     const replay = JSON.parse(replays[0]);
-    assert.deepEqual(replay, { op: before[0].op, args: before[0].args, replay: {
+    assert.deepEqual(replay, { op: before[0].op, args: before[0].args, expectedGeneration: before[0].expectedGeneration, replay: {
       grant: before[0].grant, offset: before[0].offset, count: before[0].count,
       intent: before[0].intent, trace: before[0].trace,
     } }, "resume retries the unchanged durable envelope");
