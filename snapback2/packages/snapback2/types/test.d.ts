@@ -20,7 +20,31 @@ export type JourneyDevice = Omit<SnapbackClient, "restart"> & {
   settled(): ReturnType<SnapbackClient["outbox"]["settled"]>;
 };
 
+export type EffectRow = {
+  id: string;
+  seq: number;
+  effect: string;
+  state: "queued" | "running" | "then_pending" | "sent" | "failed" | "sent_unknown";
+  attempts: number;
+  nextAt: number;
+  lastError: string | null;
+  result: unknown;
+  resultCapped?: { bytes: number; limit: number };
+  then?: { op: string; state: "committed" | "rejected"; seq?: number; code?: string };
+};
+export type EffectsPage = { rows: EffectRow[]; after: string | null };
+export type EffectsSettlement = {
+  settled: boolean;
+  rows: EffectRow[];
+  remaining: { id: string; reason: "backoff" | "then_pending" | "running" | "engine:none" | "budget"; nextAt?: number }[];
+};
+export type JourneyEffects = {
+  rows(options?: { state?: EffectRow["state"]; after?: string; limit?: number }): Promise<EffectsPage>;
+  settle(options?: { upTo?: number; budgetMs?: number }): Promise<EffectsSettlement>;
+};
+
 export declare function journey(name: string, body: (context: {
+  effects: JourneyEffects;
   as(name: string, options?: {
     store?: "file";
   }): JourneyDevice;

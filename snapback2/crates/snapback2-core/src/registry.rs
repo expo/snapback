@@ -959,7 +959,22 @@ impl Runtime {
         now: i64,
     ) -> Result<ResetResult, RuntimeError> {
         let (program, certificate) = seed_program(&self.generation.schema, rows)?;
-        let (execution, asset_ids) = self.engine.reset_and_seed(&program, &certificate, now)?;
+        let (execution, asset_ids) =
+            self.engine
+                .reset_and_seed(&program, &certificate, now, false)?;
+        self.rerun_all_subscriptions();
+        Ok(ResetResult {
+            seq: execution.seq,
+            asset_ids,
+        })
+    }
+
+    /// Clear application state without a seed commit; restart must preserve the empty store.
+    pub fn reset_empty_at(&mut self, now: i64) -> Result<ResetResult, RuntimeError> {
+        let (program, certificate) = seed_program(&self.generation.schema, &[])?;
+        let (execution, asset_ids) =
+            self.engine
+                .reset_and_seed(&program, &certificate, now, true)?;
         self.rerun_all_subscriptions();
         Ok(ResetResult {
             seq: execution.seq,

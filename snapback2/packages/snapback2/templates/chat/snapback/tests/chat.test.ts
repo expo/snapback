@@ -162,7 +162,7 @@ journey("profile ownership, uniqueness, and live public reads", async ({ as }) =
   const alice = as("alice");
   const bob = as("bob");
   const charlie = as("charlie");
-  const profile = subscribe(bob, api.profiles.byHandle, { handle: "alice" }, () => {});
+  const profile = subscribe(bob, api.profiles.byHandle, { handle: "alice_dev" }, () => {});
   try {
     await profile.until((delivery) =>
       delivery.state === "complete"
@@ -171,7 +171,7 @@ journey("profile ownership, uniqueness, and live public reads", async ({ as }) =
     );
     const updated = await alice.mutation(api.profiles.updateMyProfile, {
       displayName: "Alice Updated",
-      handle: "alice",
+      handle: "alice_dev",
       avatarUrl: "https://example.com/alice.png",
       bio: "building with Snapback",
       location: "",
@@ -185,7 +185,7 @@ journey("profile ownership, uniqueness, and live public reads", async ({ as }) =
     );
     const duplicate = await charlie.mutation(api.profiles.createMyProfile, {
       displayName: "Charlie",
-      handle: "bob",
+      handle: "bob_dev",
       bio: "",
       location: "",
     });

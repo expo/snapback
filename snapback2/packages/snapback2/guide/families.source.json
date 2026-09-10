@@ -56,6 +56,13 @@
     "guide": "effects"
   },
   {
+    "family": "effect",
+    "code": "E_EFFECT_ENGINE",
+    "wrong": "snapback2 dev --stop && snapback2 dev\n# a restart alone: the failed row stays failed and the engine goes unchecked",
+    "right": "snapback2 doctor\n# effects must read \"ibex2 + vanilla hermes\"; the effect's compartment failed, not its code\nsnapback2 trace <seq>\n# then requeue the failed row: POST /control/outbox/<id>/requeue with the control secret",
+    "guide": "effects"
+  },
+  {
     "family": "input",
     "code": "E_INPUT_TRACE_UNKNOWN",
     "wrong": "snapback2 trace 999999",

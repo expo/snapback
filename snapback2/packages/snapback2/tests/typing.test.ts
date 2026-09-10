@@ -160,7 +160,7 @@ test("generated Api rejects typos, extra query args, and wrong channel args", as
     const sample = join(root, "sample.ts");
     const apiDts = join(root, "api.d.ts");
     await writeFile(sample, `
-      import { api, browserTokenStore, createClient, defineItems, withHistory, type AuthTokenStore, type HistorySnapshot, type ItemSnapshot, type QueryView, type Snapshot, type SnapbackClient } from "snapback2/client";
+      import { api, browserTokenStore, createClient, defineItems, mutationTarget, withHistory, type AuthTokenStore, type HistorySnapshot, type ItemSnapshot, type QueryView, type Snapshot, type SnapbackClient } from "snapback2/client";
       // @ts-expect-error carrier internals are absent from the client entry
       import type { Coverage } from "snapback2/client";
       // @ts-expect-error carrier internals are absent from the client entry
@@ -193,6 +193,33 @@ test("generated Api rejects typos, extra query args, and wrong channel args", as
       void ready; void authGeneration; void browserStore; void observedView; void stopObserved;
       const threadItems = defineItems(api.messages.thread, { table: "messages", select: (delivery) => delivery.message });
       const viewItems = defineItems(api.messages.view, { table: "messages", rows: (view) => view.messages, select: (delivery) => delivery.message });
+      const rawItems = defineItems(api.messages.raw, { table: "messages", create: {
+        target: mutationTarget(api.messages.send, "messages"),
+        belongs: (args, query) => args.conversationId === query.conversationId,
+        draft: args => ({ body: args.body }),
+      } });
+      const rawViewItems = defineItems(api.messages.rawView, { table: "messages", rows: view => view.messages });
+      const rawData = client.observe(api.messages.raw, { conversationId: "general" }, { items: rawItems }).getSnapshot().items[0];
+      const rowBody: string | undefined = rawData?.data?.body;
+      const draftBody: string | undefined = rawData?.draft?.body;
+      const nestedBody: string | undefined = client.observe(api.messages.rawView, { conversationId: "general" }, { items: rawViewItems }).getSnapshot().items[0]?.data?.body;
+      // @ts-expect-error identity selection keeps the exact row's field types
+      const wrongBody: number | undefined = rawData?.data?.body;
+      // @ts-expect-error identity selection does not widen rows with made-up fields
+      const guessed = rawData?.data?.notAColumn;
+      // @ts-expect-error an explicit table is required even for typed original rows
+      defineItems(api.messages.raw, {});
+      // @ts-expect-error wrapped rows still need their explicit selector
+      defineItems(api.messages.thread, { table: "messages" });
+      // @ts-expect-error a composite's wrapped row source still needs a selector
+      defineItems(api.messages.view, { table: "messages", rows: view => view.messages });
+      // @ts-expect-error nullable row elements need an explicit selector to drop null
+      defineItems(api.messages.nullable, { table: "messages" });
+      // @ts-expect-error composite results still need an explicit rows path
+      defineItems(api.messages.rawView, { table: "messages" });
+      const rawHistory = withHistory(rawViewItems, { items: defineItems(api.messages.raw, { table: "messages" }), args: query => query });
+      const retainedBody: string | undefined = client.observe(api.messages.rawView, { conversationId: "general" }, { items: rawHistory }).getSnapshot().items[0]?.data?.body;
+      void [rowBody, draftBody, nestedBody, wrongBody, guessed, retainedBody];
       const declared = withHistory(viewItems, { items: threadItems, args: ({ conversationId }) => ({ conversationId }) });
       const custody: HistorySnapshot<{ messages: { message: { id: string; body: string } | null }[]; count: number }, { id: string; body: string }, never, { message: { id: string; body: string } | null }[]>
         = client.observe(api.messages.view, { conversationId: "general" }, { items: declared }).getSnapshot();
@@ -283,6 +310,10 @@ test("generated Api rejects typos, extra query args, and wrong channel args", as
             thread: Op<{ conversationId: string }, { message: { id: string; body: string } | null }[]>;
             view: Op<{ conversationId: string }, { messages: { message: { id: string; body: string } | null }[]; count: number }>;
             others: Op<{ conversationId: string }, { other: { id: string } | null }[]>;
+            raw: Op<{ conversationId: string }, { id: string; body: string }[]>;
+            rawView: Op<{ conversationId: string }, { messages: { id: string; body: string }[]; count: number }>;
+            nullable: Op<{ conversationId: string }, ({ id: string; body: string } | null)[]>;
+            send: Op<{ conversationId: string; body: string }, null, { messages: "create" }>;
           };
           assets: { send: Op<{
             photo: File | ImageAsset;

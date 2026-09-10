@@ -160,7 +160,7 @@ impl<'a> Runner<'a> {
             "UPDATE rows SET data = ?3 WHERE table_name = ?1 AND row_id = ?2",
             params![table, key_id, canonical_json(&new)],
         )?;
-        let work = reindex_row(self.tx, self.schema, table, &new)?;
+        let work = reindex_replaced_row(self.tx, self.schema, table, &old, &new)?;
         self.finish_row_change(table, Some(&old), Some(&new), work, RowChangeOrigin::Source)
     }
 
