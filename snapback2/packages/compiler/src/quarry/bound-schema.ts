@@ -109,14 +109,13 @@ function bindTable(
 function bindDeliver(declaration: TableDecl, catalog: TableCatalog): DeliverJson | undefined {
   const deliver = declaration.deliver;
   if (!deliver) return undefined;
-  if (deliver.principal === undefined || deliver.audience === undefined) refuse(deliver.site, `deliver on ${declaration.name} was not resolved before binding`);
+  if (deliver.principal === undefined) refuse(deliver.site, `deliver on ${declaration.name} was not resolved before binding`);
   return {
     target: tableName(catalog, deliver.target, deliver.site),
     prefix: [...deliver.prefix],
     principal: deliver.principal,
     log: deliver.name,
     ...(deliver.receipts ? { receipts: true as const } : {}),
-    audience: deliver.audience,
     ...(deliver.bootstrap ? { bootstrap: true as const } : {}),
   };
 }

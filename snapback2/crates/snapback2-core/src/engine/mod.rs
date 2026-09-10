@@ -151,6 +151,15 @@ pub enum RuntimeError {
     SchemaConstraint { message: String, rewrite: String },
     #[error("E_SCHEMA_MAINTAIN: {0}")]
     SchemaMaintain(String),
+    /// A `deliver` declaration or generated table refused under its own code
+    /// (`E_DELIVER_UNBOUNDED`, `E_DELIVER_PRINCIPAL`, `E_SCHEMA_DELIVER`), so
+    /// `check --ir` reports the family and page the compiler would.
+    #[error("{code}: {message}")]
+    SchemaDeliver {
+        code: String,
+        message: String,
+        rewrite: String,
+    },
     #[error("E_SERIALIZATION: {0}")]
     Serialization(String),
     #[error("E_REQUIRE:{code}: program requirement failed")]
@@ -224,6 +233,7 @@ impl RuntimeError {
             Self::SchemaReserved(_) => "E_SCHEMA_RESERVED",
             Self::SchemaIndexColumn { .. } => "E_SCHEMA_INDEX_COLUMN",
             Self::SchemaMaintain(_) => "E_SCHEMA_MAINTAIN",
+            Self::SchemaDeliver { code, .. } => code,
             Self::SchemaConstraint { .. } => "E_SCHEMA_CONSTRAINT",
             Self::Serialization(_) => "E_SERIALIZATION",
             Self::Require { code, .. } => code,
@@ -1378,11 +1388,10 @@ pub fn validate_schema(schema: &Schema) -> Result<(), Vec<RuntimeError>> {
     errors.extend(
         crate::delivery::delivery_issues(schema)
             .into_iter()
-            .map(|issue| {
-                RuntimeError::Schema(format!(
-                    "schema.tables.{}.deliver: {}: {}",
-                    issue.table, issue.code, issue.message
-                ))
+            .map(|issue| RuntimeError::SchemaDeliver {
+                code: issue.code.to_owned(),
+                message: format!("schema.tables.{}.deliver: {}", issue.table, issue.message),
+                rewrite: issue.rewrite,
             }),
     );
     if errors.is_empty() {

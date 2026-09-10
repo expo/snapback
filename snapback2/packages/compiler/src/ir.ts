@@ -223,7 +223,6 @@ export type DeliverJson = {
   principal: string;
   log: string;
   receipts?: true;
-  audience: number;
   bootstrap?: true;
 };
 

@@ -299,8 +299,7 @@
             "conversationId"
           ],
           "principal": "principal",
-          "log": "deliveries",
-          "audience": 3
+          "log": "deliveries"
         }
       }
     },
@@ -342,7 +341,7 @@
   "certificate": {
     "program": "deliver-log-schema-identity",
     "plan_hash": "b6f399b71fd6e1137766ec404db434d054b091b7da3c4d99e34b371343dc03ac",
-    "schema_hash": "7be6e0fd0d1c3337c0b328f89954c806666b9992c8c1c6509e2c482219fe1557",
+    "schema_hash": "61348a763b331c12b1a9e6b63d4e3ca389bb1c44e0d6f3177cd73f687b9a5f2a",
     "tables": {
       "conversations": {
         "retain": "until-revoked"
@@ -358,7 +357,7 @@
       }
     },
     "rule_hashes": {
-      "deliveries.read": "9eff843193518081e3e30a647b79ac9ba6ce95c1cafe212df09bd9f01ee83ac4"
+      "deliveries.read": "5d628128a0dd49b60767e1f7aada3ddf71210ac15a603cdaf6f6ad880b11cc38"
     },
     "evaluator_version": "bounded-spike-rust-search-text-refinements-5",
     "value_model_version": "i53-codepoint-bytes-unicode-search-text-refinements-v5",
@@ -408,7 +407,7 @@
     "read_time": null
   },
   "receipt": {
-    "schema_hash": "7be6e0fd0d1c3337c0b328f89954c806666b9992c8c1c6509e2c482219fe1557",
+    "schema_hash": "61348a763b331c12b1a9e6b63d4e3ca389bb1c44e0d6f3177cd73f687b9a5f2a",
     "rows": [],
     "ranges": [],
     "absences": [],

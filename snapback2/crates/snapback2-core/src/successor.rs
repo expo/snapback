@@ -157,6 +157,9 @@ pub struct SuccessorReport {
     /// One line per custody log bootstrapped at this installation (LLP 1019 §2).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub bootstrapped_deliveries: Vec<String>,
+    /// The audience bound `A` the engine recorded for each installed log (LLP 1019 §4).
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub audience_bounds: BTreeMap<String, u32>,
 }
 
 pub(crate) fn plan(
@@ -238,7 +241,7 @@ pub(crate) fn additive_refusal(
     if let Some(refusal) = narrowing_refusal(connection, current, next)? {
         return Ok(Some(refusal));
     }
-    if let Some(refusal) = delivery::audience_refusal(connection, current, next)? {
+    if let Some(refusal) = delivery::bootstrap_refusal(connection, current, next)? {
         return Ok(Some(refusal));
     }
     for (table_name, current_table) in &current.tables {
@@ -629,6 +632,9 @@ fn clear_search_indexes(
     }
     Ok(())
 }
+/// Rows one successor batch reads at a time.
+pub(crate) const ROW_BATCH: usize = 128;
+
 fn for_row_batches(
     c: &Connection,
     table: &str,
@@ -636,7 +642,9 @@ fn for_row_batches(
 ) -> Result<(), RuntimeError> {
     let mut after: Option<String> = None;
     loop {
-        let mut stmt=c.prepare_cached("SELECT row_id,data FROM rows WHERE table_name=?1 AND (?2 IS NULL OR row_id>?2) ORDER BY row_id LIMIT 128")?;
+        let mut stmt = c.prepare_cached(&format!(
+            "SELECT row_id,data FROM rows WHERE table_name=?1 AND (?2 IS NULL OR row_id>?2) ORDER BY row_id LIMIT {ROW_BATCH}"
+        ))?;
         let batch = stmt
             .query_map(params![table, after], |r| {
                 Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
@@ -966,7 +974,7 @@ fn projected_backfill_rows(
 mod caps;
 pub use caps::CapConflict;
 #[path = "successor/delivery.rs"]
-mod delivery;
+pub mod delivery;
 #[path = "successor_narrowing.rs"]
 mod narrowing;
 pub use narrowing::NarrowingConflict;

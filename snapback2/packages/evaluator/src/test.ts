@@ -1095,7 +1095,7 @@ const expectCode = (run: () => unknown, code: string, label: string) => {
   const declared = golden.schema.tables.messages.deliver;
   assert(declared && declared.log === "deliveries" && golden.schema.tables.deliveries.tombstones.length === 1, "the golden lost its declaration or the log's tombstone");
   const declaredJson = canonicalSchemaJson(golden.schema);
-  assert(declaredJson.includes('"deliver":{"target":"memberships","prefix":["conversationId"],"principal":"principal","log":"deliveries","audience":3}'),
+  assert(declaredJson.includes('"deliver":{"target":"memberships","prefix":["conversationId"],"principal":"principal","log":"deliveries"}'),
     `deliver did not canonicalize in serde order: ${declaredJson}`);
   assert(golden.certificate.schema_hash === sha256(declaredJson), "the evaluator's deliver hash differs from Rust's Schema::hash()");
   const bare = structuredClone(golden.schema) as any;
@@ -1104,11 +1104,14 @@ const expectCode = (run: () => unknown, code: string, label: string) => {
   const flagged = structuredClone(golden.schema) as any;
   flagged.tables.messages.deliver = { ...declared, receipts: false, bootstrap: false };
   assert(sha256(canonicalSchemaJson(flagged)) === golden.certificate.schema_hash, "false flags must be absent from the bytes, as serde skips them");
-  const novel = structuredClone(golden.schema) as any;
-  novel.tables.messages.deliver.shard = 1;
-  let refusedDeliver: unknown;
-  try { canonicalSchemaJson(novel); } catch (error) { refusedDeliver = error; }
-  assert(refusedDeliver instanceof EvalError && refusedDeliver.code === "E_SCHEMA" && /deliver field shard/.test(refusedDeliver.message), "a novel deliver field was hashed instead of refused");
+  // The audience bound `A` is an engine fact, never a descriptor field: spelled, it is refused like any unknown field.
+  for (const field of ["shard", "audience"]) {
+    const novel = structuredClone(golden.schema) as any;
+    novel.tables.messages.deliver[field] = 1;
+    let refusedDeliver: unknown;
+    try { canonicalSchemaJson(novel); } catch (error) { refusedDeliver = error; }
+    assert(refusedDeliver instanceof EvalError && refusedDeliver.code === "E_SCHEMA" && new RegExp(`deliver field ${field}`).test(refusedDeliver.message), `a novel deliver field ${field} was hashed instead of refused`);
+  }
 }
 
 console.log(

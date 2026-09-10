@@ -59,7 +59,6 @@ fn schema() -> Schema {
         principal: "principal".to_owned(),
         log: "deliveries".to_owned(),
         receipts: false,
-        audience: 3,
         bootstrap: false,
     };
     messages.deliver = Some(deliver.clone());

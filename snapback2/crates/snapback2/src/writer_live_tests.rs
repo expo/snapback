@@ -109,10 +109,11 @@ fn compiled(project: &ProjectJson, generation: Generation) -> CompiledProject {
 }
 
 pub(super) fn state(label: &str) -> State {
-    let project = project(programs());
-    let generation = Generation::certify(&project, Ceilings::default()).unwrap();
-    let mut runtime = Runtime::open(Store::memory().unwrap(), generation.clone()).unwrap();
-    runtime
+    let mut state = state_with(label, project(programs()));
+    state
+        .runtime
+        .as_mut()
+        .unwrap()
         .seed(&[(
             "items".to_owned(),
             snapback2_core::object([
@@ -121,6 +122,13 @@ pub(super) fn state(label: &str) -> State {
             ]),
         )])
         .unwrap();
+    state
+}
+
+/// An in-process writer over `project`, on a fresh in-memory store.
+pub(super) fn state_with(label: &str, project: ProjectJson) -> State {
+    let generation = Generation::certify(&project, Ceilings::default()).unwrap();
+    let runtime = Runtime::open(Store::memory().unwrap(), generation.clone()).unwrap();
     let nonce = NEXT_ROOT.fetch_add(1, AtomicOrdering::Relaxed);
     let root = std::env::temp_dir().join(format!(
         "snapback2-writer-live-{label}-{}-{nonce}",

@@ -133,7 +133,7 @@ function normalizeTable(table: any): any {
 }
 
 function normalizeDeliver(deliver: any): any {
-  const out = pick(deliver, ["target", "prefix", "principal", "log", "receipts", "audience", "bootstrap"], "deliver");
+  const out = pick(deliver, ["target", "prefix", "principal", "log", "receipts", "bootstrap"], "deliver");
   if (out.receipts === false) delete out.receipts;
   if (out.bootstrap === false) delete out.bootstrap;
   return out;

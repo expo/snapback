@@ -300,8 +300,7 @@
             "conversationId"
           ],
           "principal": "principal",
-          "log": "deliveries",
-          "audience": 3
+          "log": "deliveries"
         }
       }
     },

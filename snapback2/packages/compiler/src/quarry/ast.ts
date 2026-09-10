@@ -110,9 +110,8 @@ export type DeliverDecl = {
   receipts: boolean;
   bootstrap: boolean;
   site: Site;
-  /** Resolved at materialization: the target's principal column and its cap, the audience bound. */
+  /** Resolved at materialization: the target's principal column. The audience bound is the engine's fact, never spelled. */
   principal?: string;
-  audience?: number;
 };
 export type TableDecl = {
   /** Materialized maintain: program point reads yield its value; rules still inspect rows. */

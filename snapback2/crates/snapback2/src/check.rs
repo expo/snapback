@@ -264,16 +264,15 @@ fn check_request(request: Request) -> Vec<ResultItem> {
         let mut results = errors
             .into_iter()
             .map(|error| {
-                let located_cap = if let snapback2_core::RuntimeError::SchemaConstraint {
-                    message,
-                    ..
-                } = &error
-                {
-                    located
+                // A cap or `deliver` refusal keeps its own code, site, family, and page.
+                let located_cap = match &error {
+                    snapback2_core::RuntimeError::SchemaConstraint { message, .. } => located
                         .iter()
-                        .find(|(_, e)| e.code == "E_SCHEMA_CONSTRAINT" && &e.message == message)
-                } else {
-                    None
+                        .find(|(_, e)| e.code == "E_SCHEMA_CONSTRAINT" && &e.message == message),
+                    snapback2_core::RuntimeError::SchemaDeliver { code, message, .. } => located
+                        .iter()
+                        .find(|(_, e)| &e.code == code && message.ends_with(&e.message)),
+                    _ => None,
                 };
                 let error = match located_cap {
                     Some((site, error)) => {
@@ -698,6 +697,100 @@ mod tests {
                 .message
                 .contains("program JSON")
         );
+    }
+
+    /// The chat shape with `deliver` on messages and its generated log; `capped`
+    /// false leaves memberships without the cap the prefix must pin.
+    fn custody_schema(capped: bool) -> Schema {
+        use snapback2_core::{ColumnType, Constraint, delivery, public_table};
+        let column = |name: &str| snapback2_core::search_key::IndexComponent::Column(name.to_owned());
+        let index = |columns: &[&str], unique: bool| Index {
+            components: columns.iter().map(|name| column(name)).collect(),
+            unique,
+        };
+        let by_id = BTreeMap::from([("byId".to_owned(), index(&["id"], true))]);
+        let conversations = public_table(BTreeMap::from([("id".to_owned(), ColumnType::Id)]), by_id.clone());
+        let mut memberships = public_table(
+            BTreeMap::from([
+                ("id".to_owned(), ColumnType::Id),
+                ("conversationId".to_owned(), ColumnType::Ref { table: "conversations".to_owned() }),
+                ("principal".to_owned(), ColumnType::Principal),
+            ]),
+            BTreeMap::from([
+                ("byId".to_owned(), index(&["id"], true)),
+                ("byConversationPrincipal".to_owned(), index(&["conversationId", "principal"], false)),
+            ]),
+        );
+        if capped {
+            memberships.constraints.push(Constraint::Cap { by: vec!["conversationId".to_owned()], max: 50 });
+        }
+        let deliver = delivery::Deliver {
+            target: "memberships".to_owned(),
+            prefix: vec!["conversationId".to_owned()],
+            principal: "principal".to_owned(),
+            log: "deliveries".to_owned(),
+            receipts: false,
+            bootstrap: false,
+        };
+        let mut messages = public_table(
+            BTreeMap::from([
+                ("id".to_owned(), ColumnType::Id),
+                ("conversationId".to_owned(), ColumnType::Ref { table: "conversations".to_owned() }),
+            ]),
+            by_id,
+        );
+        messages.deliver = Some(deliver.clone());
+        let mut schema = Schema::default();
+        schema.tables.insert("conversations".to_owned(), conversations);
+        schema.tables.insert("memberships".to_owned(), memberships);
+        schema.tables.insert("messages".to_owned(), messages);
+        let log = delivery::log_table(&schema, "messages", &deliver).expect("log shape");
+        schema.tables.insert("deliveries".to_owned(), log);
+        schema
+    }
+
+    fn check_schema(schema: Schema, programs: Vec<Value>) -> Vec<ResultItem> {
+        check_request(Request {
+            programs,
+            schema: Some(serde_json::to_value(schema).unwrap()),
+            schema_mode: SchemaMode::Spike,
+            effects: Vec::new(),
+            auth: None,
+            version: None,
+            ceilings: None,
+        })
+    }
+
+    // @ref LLP 1019#1-the-declaration — the raw-schema form refuses under the
+    // compiler's codes, families, and page, at the declaration's site.
+    #[test]
+    fn deliver_refusals_keep_their_codes_families_and_pages_on_the_ir_path() {
+        let results = check_schema(custody_schema(false), Vec::new());
+        let error = results[0].error.as_ref().unwrap();
+        assert_eq!(results[0].program, "<schema>");
+        assert_eq!(
+            (error.code.as_str(), error.family.as_str(), error.guide.as_str(), error.site.as_str()),
+            ("E_DELIVER_UNBOUNDED", "bound", "offline/deliver", "schema.tables.messages.deliver")
+        );
+        assert_eq!(error.rewrite, "cap 50 by conversationId");
+        assert_eq!(
+            error.message,
+            "deliver to memberships[.conversationId] pins no capped group: memberships has no cap N by conversationId"
+        );
+
+        let forged = json!({
+            "name": "ops.forge", "kind": "Mutation", "args": {}, "read_time_granularity_ms": null,
+            "body": [{ "Insert": { "table": "deliveries", "row": { "Object": { "id": { "Input": "NewId" } } } } }, { "Return": { "Literal": "Null" } }]
+        });
+        let results = check_schema(custody_schema(true), vec![forged]);
+        let error = results[0].error.as_ref().unwrap();
+        assert_eq!(results[0].program, "ops.forge");
+        assert_eq!(
+            (error.code.as_str(), error.family.as_str(), error.guide.as_str()),
+            ("E_SCHEMA_DELIVER", "schema", "offline")
+        );
+        assert!(error.message.contains("engine-owned table deliveries"), "{}", error.message);
+        assert!(check_schema(custody_schema(true), Vec::new()).iter().all(|item| item.error.is_none()));
     }
 
     #[test]

@@ -127,8 +127,11 @@ read it and never write it. The keys must pin a `cap N by` group of the
 target (else E_DELIVER_UNBOUNDED, rewrite the cap); the target needs one
 principal column or `by .column` (else E_DELIVER_PRINCIPAL); `as` needs a
 free name. `with receipts` adds `<name>Receipts` (`row`, `recipient`,
-`received`, `seq`) under the content read rule. Adding the line installs an
-empty log; `bootstrap` fills it from current members once. Removing or
-retargeting the line is a destructive plan; the audience bound starts at
-the cap and lowers only when no stored audience exceeds it
-(E_SUCCESSOR_AUDIENCE).
+`received`, `seq`, plus the columns the content read rule reads) under that
+rule. Adding the line installs an empty log; `bootstrap` fills it from
+current members once, within 8,192 events (cap × rows; above it
+E_SUCCESSOR_BOOTSTRAP: drop the word). Removing or retargeting the line is a
+destructive plan. The audience bound `A` is engine-recorded, never spelled:
+max(cap, largest stored audience), recomputed at each successor and shown in
+the manifest; lowering the cap is admitted, and history keeps its pricing
+until those rows are gone.

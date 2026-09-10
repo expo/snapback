@@ -68,8 +68,8 @@ export function registerDeliveryChecks(test: Test): void {
       assert(lowered.ok, `deliver project refused: ${lowered.ok ? "" : JSON.stringify(lowered.diagnostics)}`);
       const tables = lowered.project.schema.tables;
       deepStrictEqual(plain(tables.messages?.deliver), {
-        target: "memberships", prefix: ["conversationId"], principal: "principal", log: "deliveries", receipts: true, audience: 50,
-      });
+        target: "memberships", prefix: ["conversationId"], principal: "principal", log: "deliveries", receipts: true,
+      }, "the audience bound is the engine's fact, never emitted");
       deepStrictEqual(plain(tables.deliveries), {
         columns: {
           id: "Id", recipient: "Principal", row: { Ref: { table: "messages" } }, incarnation: "Int",
@@ -119,7 +119,9 @@ export function registerDeliveryChecks(test: Test): void {
       { name: "uncapped target", deliver: line, cap: "", code: "E_DELIVER_UNBOUNDED", family: "bound", guide: "offline/deliver",
         message: "pins no capped group", rewrite: /^cap 50 by conversationId$/ },
       { name: "cap arity", deliver: line, cap: "cap 50 by conversationId, principal", code: "E_DELIVER_UNBOUNDED", family: "bound", guide: "offline/deliver",
-        message: "has no cap N by 1 column", rewrite: /^cap 50 by conversationId$/ },
+        message: "memberships has no cap N by conversationId", rewrite: /^cap 50 by conversationId$/ },
+      { name: "cap by another column", deliver: line, cap: "cap 50 by principal", member: "by byPrincipal: principal", code: "E_DELIVER_UNBOUNDED", family: "bound", guide: "offline/deliver",
+        message: "memberships has no cap N by conversationId", rewrite: /^cap 50 by conversationId$/ },
       { name: "two principals", deliver: line, member: "invitedBy: principal", code: "E_DELIVER_PRINCIPAL", family: "schema", guide: "offline/deliver",
         message: "has 2 principal columns (principal, invitedBy)", rewrite: /^deliver to memberships\[\.conversationId\] by \.principal as deliveries$/ },
       { name: "by names text", deliver: "deliver to memberships[.conversationId] by .role as deliveries", member: "role: text <=10", code: "E_DELIVER_PRINCIPAL", family: "schema", guide: "offline/deliver",
@@ -156,6 +158,40 @@ export function registerDeliveryChecks(test: Test): void {
       source: schemaWith(line).replace("table messages:\n  conversationId: conversations", "table messages:\n  conversationId: text <=40") }]);
     assert(!mismatch.ok && mismatch.diagnostics[0]?.code === "E_QUARRY_TYPE"
       && mismatch.diagnostics[0].message.includes("does not match memberships.conversationId"), JSON.stringify(mismatch));
+    // The cap needs its enforcement index before Rust sees the schema: the same refusal and rewrite the engine gives.
+    const indexless = compileInline([{ fileName: "snapback/schema.q", source: schemaWith(line)
+      .replace("by byConversationPrincipal: conversationId, principal", "by byPrincipalConversation: principal, conversationId")
+      .replace(/memberships\[\.conversationId, viewer\]/g, "memberships[viewer, .conversationId]") }]);
+    assert(!indexless.ok, "a cap without an index led by its columns was admitted");
+    const unenforced = indexless.diagnostics.find((diagnostic) => diagnostic.code === "E_DELIVER_UNBOUNDED");
+    assert(unenforced?.message.includes("cap 50 by conversationId on memberships has no index whose leading columns are conversationId")
+      && unenforced.rewrite === "by byGroup: conversationId, principal" && unenforced.family === "bound" && unenforced.guide === "offline/deliver"
+      && unenforced.site === `snapback/schema.q:${LINE}:3`, JSON.stringify(indexless.diagnostics));
+  });
+
+  // @ref LLP 1019#1-the-declaration — the pinned group is the cap whose `by` equals the prefix, never the first same-arity cap.
+  test("Quarry deliver binds the cap whose by equals the prefix, past same-arity caps of either type", async () => {
+    const cases = [
+      { name: "another type first", cap: "cap 1 by principal\n  cap 50 by conversationId", member: "by byPrincipal: principal" },
+      { name: "the same stored type first", cap: "cap 8 by teamId\n  cap 50 by conversationId", member: "teamId: conversations\n  by byTeam: teamId" },
+    ];
+    for (const item of cases) {
+      const compiled = compileInline([{ fileName: "snapback/schema.q", source: schemaWith("deliver to memberships[.conversationId] as deliveries", item.cap, item.member) }]);
+      assert(compiled.ok, `${item.name}: ${compiled.ok ? "" : JSON.stringify(compiled.diagnostics)}`);
+      deepStrictEqual(plain(compiled.project.schema.tables.messages?.deliver), { target: "memberships", prefix: ["conversationId"], principal: "principal", log: "deliveries" }, item.name);
+      const checked = rustCheck([], "synthetic", compiled.project.schema, undefined, compiled.project.effects);
+      assert(checked.every((result) => !result.error), `${item.name}: Rust refused the generated shapes: ${JSON.stringify(checked.filter((result) => result.error))}`);
+    }
+  });
+
+  // @ref LLP 1019#2-the-custody-log — the log is an ordinary row table, so a maintain may count it.
+  test("Quarry maintains count a custody log", () => {
+    const compiled = compileInline([{ fileName: "snapback/schema.q",
+      source: `${schemaWith("deliver to memberships[.conversationId] as deliveries")}\nmaintain unread: count deliveries by recipient\n  read <- .recipient = viewer\n` }]);
+    assert(compiled.ok, `a maintain over the log refused: ${compiled.ok ? "" : JSON.stringify(compiled.diagnostics)}`);
+    const unread = compiled.project.schema.maintains.find((maintain) => (maintain as { target?: string }).target === "unread");
+    assert(unread && (unread as { source?: string }).source === "deliveries", JSON.stringify(compiled.project.schema.maintains));
+    assert(Object.hasOwn(compiled.project.schema.tables, "unread") && Object.hasOwn(compiled.project.schema.tables, "deliveries"), Object.keys(compiled.project.schema.tables).join(","));
   });
 
   test("programs read a generated custody table and never write it", async () => {
@@ -177,8 +213,18 @@ export function registerDeliveryChecks(test: Test): void {
       const forged: typeof lowered.project.programs[number] = { name: "ops.forge", kind: "Mutation", args: {}, read_time_granularity_ms: null,
         body: [{ Insert: { table: "deliveries", row: { Object: { id: { Input: "NewId" } } } } }, { Return: { Literal: "Null" } }] };
       const refused = rustCheck([forged], "synthetic", lowered.project.schema, undefined, lowered.project.effects);
-      assert(refused[0]?.error?.code === "E_SCHEMA_DELIVER" && refused[0].error.message.includes("engine-owned table deliveries"),
+      assert(refused[0]?.error?.code === "E_SCHEMA_DELIVER" && refused[0].error.message.includes("engine-owned table deliveries")
+        && refused[0].error.family === "schema" && refused[0].error.guide === "offline",
         `raw IR wrote the log: ${JSON.stringify(refused)}`);
+      // A raw-schema refusal leaves check --ir as itself: code, family, page, and the declaration's site.
+      const uncapped = structuredClone(lowered.project.schema) as typeof lowered.project.schema & { tables: Record<string, { constraints?: unknown[] }> };
+      uncapped.tables.memberships!.constraints = [];
+      const [schemaResult] = rustCheck([], "synthetic", uncapped, undefined, lowered.project.effects);
+      deepStrictEqual(
+        schemaResult && { program: schemaResult.program, ...schemaResult.error },
+        { program: "<schema>", code: "E_DELIVER_UNBOUNDED", family: "bound", guide: "offline/deliver", site: "schema.tables.messages.deliver",
+          message: "deliver to memberships[.conversationId] pins no capped group: memberships has no cap N by conversationId", rewrite: "cap 50 by conversationId" },
+        `check --ir relabeled the raw refusal: ${JSON.stringify(schemaResult)}`);
     });
   });
 }

@@ -38,8 +38,10 @@ export function prepareQuarry(inputs: QuarryInput[]): QuarryPrepareResult {
 
   let catalog: TableCatalog;
   try {
-    materializeMaintains(documents);
+    // @ref LLP 1019#2-the-custody-log — the log is an ordinary row table: it
+    // exists before maintains resolve their sources, so a maintain may count it.
     materializeDeliveries(documents);
+    materializeMaintains(documents);
     catalog = buildCatalog(documents);
   } catch (error) {
     return { ok: false, diagnostics: [frontendQuarryDiagnostic(caughtDiagnostic(error, inputs[0]?.fileName))] };

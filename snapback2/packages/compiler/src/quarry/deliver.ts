@@ -32,17 +32,21 @@ export function materializeDeliveries(documents: Document[]): void {
       return column;
     });
     const keys = deliver.prefix.map((name) => `.${name}`).join(", ");
-    const cap = target.caps.find((candidate) => candidate.by.length === prefix.length);
+    const by = deliver.prefix.join(", ");
+    // @ref LLP 1019#1-the-declaration — the pinned group is the cap whose `by`
+    // tuple equals the prefix names, never the first cap of the same arity.
+    const cap = target.caps.find((candidate) => candidate.by.length === deliver.prefix.length
+      && candidate.by.every((name, offset) => name === deliver.prefix[offset]));
     if (!cap) {
       throw new QuarryError(site,
-        `deliver to ${deliver.target}[${keys}] pins no capped group: ${deliver.target} has no cap N by ${prefix.length} column${prefix.length === 1 ? "" : "s"}`,
-        "E_DELIVER_UNBOUNDED", `cap 50 by ${deliver.prefix.join(", ")}`, "offline/deliver", true);
+        `deliver to ${deliver.target}[${keys}] pins no capped group: ${deliver.target} has no cap N by ${by}`,
+        "E_DELIVER_UNBOUNDED", `cap 50 by ${by}`, "offline/deliver", true);
     }
-    for (const [offset, column] of prefix.entries()) {
-      const groupColumn = target.columns.find((candidate) => candidate.name === cap.by[offset]);
+    for (const column of prefix) {
+      const groupColumn = target.columns.find((candidate) => candidate.name === column.name);
       if (!groupColumn || !sameStoredType(groupColumn.type, column.type)) {
         typeError(site,
-          `deliver prefix key .${column.name} (${column.type.kind}) does not match ${deliver.target}.${cap.by[offset]} (${groupColumn?.type.kind ?? "missing"}) in cap ${cap.max} by ${cap.by.join(", ")}`,
+          `deliver prefix key .${column.name} (${column.type.kind}) does not match ${deliver.target}.${column.name} (${groupColumn?.type.kind ?? "missing"}) in cap ${cap.max} by ${by}`,
           `pin the cap's columns with ${table.name} columns of the same type`);
       }
     }
@@ -67,6 +71,15 @@ export function materializeDeliveries(documents: Document[]): void {
         "E_DELIVER_PRINCIPAL", principals[0] ? deliverLine(deliver, principals[0].name) : `add a principal column to ${deliver.target}`,
         "offline/deliver", principals.length > 0);
     }
+    // The engine enforces the cap through an index led by its columns; the fan-out reads the same index.
+    const enforced = target.indexes.some((index) => deliver.prefix.every((name, offset) => {
+      const component = index.components[offset];
+      return component !== undefined && "Column" in component && component.Column === name;
+    }));
+    if (!enforced) {
+      throw new QuarryError(site, `cap ${cap.max} by ${by} on ${deliver.target} has no index whose leading columns are ${by}`,
+        "E_DELIVER_UNBOUNDED", `by byGroup: ${by}, ${principal}`, "offline/deliver", true);
+    }
     const taken = new Set([...declared, ...schema.maintains.map((maintain) => maintain.name), ...generated.map((candidate) => candidate.name)]);
     for (const name of [deliver.name, ...(deliver.receipts ? [`${deliver.name}Receipts`] : [])]) {
       if (taken.has(name)) {
@@ -75,7 +88,6 @@ export function materializeDeliveries(documents: Document[]): void {
       }
     }
     deliver.principal = principal;
-    deliver.audience = cap.max;
     generated.push(logTable(table, deliver, prefix));
     if (deliver.receipts) generated.push(receiptsTable(table, deliver));
   }

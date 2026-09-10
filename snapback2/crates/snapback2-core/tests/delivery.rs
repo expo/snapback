@@ -1,7 +1,8 @@
 //! `deliver` at the trust boundary and through succession (LLP 1019 D1):
 //! schema identity, the generated shapes, raw-schema admission, the static
-//! refusal of program writes to a generated table, install-empty, bootstrap,
-//! destructive removal and retarget, and the audience bound's rule.
+//! refusal of program writes to a generated table, install-empty, bounded
+//! bootstrap, destructive removal and retarget, the cap that pins the group,
+//! and the engine-recorded audience bound `A`.
 use snapback2_core::delivery::{self, Deliver};
 use snapback2_core::ir::IndexKeyExpr;
 use snapback2_core::*;
@@ -36,14 +37,13 @@ fn reference(table: &str) -> ColumnType {
     }
 }
 
-fn deliver(cap: u32, bootstrap: bool) -> Deliver {
+fn deliver(bootstrap: bool) -> Deliver {
     Deliver {
         target: "memberships".to_owned(),
         prefix: vec!["conversationId".to_owned()],
         principal: "principal".to_owned(),
         log: "deliveries".to_owned(),
         receipts: false,
-        audience: cap,
         bootstrap,
     }
 }
@@ -151,7 +151,8 @@ fn message(id_value: &str, conversation: &str) -> (String, Value) {
 }
 
 /// A populated runtime without custody: two members of `c1`, one of `c2`,
-/// one message in each conversation, and a bob duplicate row to deduplicate.
+/// one message in each conversation (written in two commits, seq 1 and 2),
+/// and a bob duplicate row to deduplicate.
 fn populated(cap: u32) -> Runtime {
     let mut runtime = Runtime::open(Store::memory().unwrap(), generation(schema(cap, None))).unwrap();
     runtime
@@ -163,10 +164,14 @@ fn populated(cap: u32) -> Runtime {
             member("m-bob-again", "c1", "bob"),
             member("m-carol", "c2", "carol"),
             message("msg-1", "c1"),
-            message("msg-2", "c2"),
         ])
         .unwrap();
+    assert_eq!(runtime.seed(&[message("msg-2", "c2")]).unwrap(), 2);
     runtime
+}
+
+fn audience_bound(runtime: &Runtime) -> Option<u32> {
+    delivery::audience_bound(runtime.store(), "deliveries").unwrap()
 }
 
 fn scan(table: &str) -> Program {
@@ -192,7 +197,7 @@ fn scan(table: &str) -> Program {
     }
 }
 
-fn rows(runtime: &mut Runtime, table: &str) -> Vec<Value> {
+fn rows_of(runtime: &mut Runtime, table: &str) -> Vec<Value> {
     let result = runtime
         .read_operator(&scan(table), BTreeMap::new(), OperatorId("op".into()), 10)
         .unwrap()
@@ -219,7 +224,7 @@ fn deliver_is_part_of_schema_identity_and_absent_bytes_are_unchanged() {
         json["tables"]["messages"].get("deliver").is_none(),
         "a table without the declaration must not carry the key"
     );
-    let declared = schema(3, Some(deliver(3, false)));
+    let declared = schema(3, Some(deliver(false)));
     assert_ne!(bare.hash(), declared.hash());
     let round_trip: Schema =
         serde_json::from_str(&serde_json::to_string(&declared).unwrap()).unwrap();
@@ -230,20 +235,22 @@ fn deliver_is_part_of_schema_identity_and_absent_bytes_are_unchanged() {
         declared_json["tables"]["messages"]["deliver"],
         serde_json::json!({
             "target": "memberships", "prefix": ["conversationId"], "principal": "principal",
-            "log": "deliveries", "audience": 3,
+            "log": "deliveries",
         }),
         "false flags are absent from the bytes"
     );
-    let novel: Result<Deliver, _> = serde_json::from_value(serde_json::json!({
-        "target": "memberships", "prefix": ["conversationId"], "principal": "principal",
-        "log": "deliveries", "audience": 3, "shard": 1,
-    }));
-    assert!(novel.is_err(), "an unknown descriptor field is refused, not hashed");
+    for (name, field) in [("an unknown descriptor field", "shard"), ("the audience bound", "audience")] {
+        let novel: Result<Deliver, _> = serde_json::from_value(serde_json::json!({
+            "target": "memberships", "prefix": ["conversationId"], "principal": "principal",
+            "log": "deliveries", field: 3,
+        }));
+        assert!(novel.is_err(), "{name} is refused, not hashed: A is engine-recorded, never spelled");
+    }
 }
 
 #[test]
 fn generated_log_has_the_canonical_shape() {
-    let schema = schema(3, Some(deliver(3, false)));
+    let schema = schema(3, Some(deliver(false)));
     let log = &schema.tables["deliveries"];
     assert_eq!(
         log.columns.keys().cloned().collect::<Vec<_>>(),
@@ -308,7 +315,7 @@ fn generated_log_has_the_canonical_shape() {
 
 #[test]
 fn receipts_table_inherits_the_content_read_rule_over_row() {
-    let mut declared = deliver(3, false);
+    let mut declared = deliver(false);
     declared.receipts = true;
     let mut schema = schema(3, Some(declared.clone()));
     let read = RuleExpr::And(vec![
@@ -397,10 +404,13 @@ fn raw_schema_admission_refuses_each_declaration_fault() {
             "memberships has no such column",
         ),
         (
-            "audience below cap",
-            Box::new(|schema| schema.tables.get_mut("messages").unwrap().deliver.as_mut().unwrap().audience = 2),
-            delivery::SHAPE,
-            "audience bound 2 is below cap 3",
+            "only a non-matching cap",
+            Box::new(|schema| {
+                let memberships = schema.tables.get_mut("memberships").unwrap();
+                memberships.constraints = vec![Constraint::Cap { by: vec!["principal".into()], max: 3 }];
+            }),
+            delivery::UNBOUNDED,
+            "memberships has no cap N by conversationId",
         ),
         (
             "missing log",
@@ -440,7 +450,7 @@ fn raw_schema_admission_refuses_each_declaration_fault() {
             "two declarations sharing one log",
             Box::new(|schema| {
                 let mut posts = schema.tables["messages"].clone();
-                posts.deliver = Some(deliver(3, false));
+                posts.deliver = Some(deliver(false));
                 schema.tables.insert("posts".into(), posts);
             }),
             delivery::SHAPE,
@@ -448,7 +458,7 @@ fn raw_schema_admission_refuses_each_declaration_fault() {
         ),
     ];
     for (name, fault, code, fragment) in faults {
-        let mut schema = schema(3, Some(deliver(3, false)));
+        let mut schema = schema(3, Some(deliver(false)));
         fault(&mut schema);
         let errors = certify_errors(schema.clone(), Vec::new());
         let matched = errors.iter().find(|(site, error)| {
@@ -474,12 +484,12 @@ fn raw_schema_admission_refuses_each_declaration_fault() {
 
 #[test]
 fn unbounded_refusal_pastes_the_cap_and_principal_refusal_pastes_the_line() {
-    let mut uncapped = schema(3, Some(deliver(3, false)));
+    let mut uncapped = schema(3, Some(deliver(false)));
     uncapped.tables.get_mut("memberships").unwrap().constraints.clear();
     let (_, error) = certify_errors(uncapped, Vec::new()).remove(0);
     assert_eq!(error.code, delivery::UNBOUNDED);
     assert_eq!(error.rewrite, "cap 50 by conversationId");
-    let mut ambiguous = schema(3, Some(deliver(3, false)));
+    let mut ambiguous = schema(3, Some(deliver(false)));
     ambiguous.tables.get_mut("messages").unwrap().deliver.as_mut().unwrap().principal = "who".into();
     let (_, error) = certify_errors(ambiguous, Vec::new()).remove(0);
     assert_eq!(error.code, delivery::PRINCIPAL);
@@ -491,7 +501,7 @@ fn unbounded_refusal_pastes_the_cap_and_principal_refusal_pastes_the_line() {
 
 #[test]
 fn programs_cannot_write_a_generated_table_whatever_their_kind() {
-    let schema = schema(3, Some(deliver(3, false)));
+    let schema = schema(3, Some(deliver(false)));
     let event = || {
         Expr::Literal(row([
             ("id", id("e1")),
@@ -576,25 +586,25 @@ fn programs_cannot_write_a_generated_table_whatever_their_kind() {
 fn deliver_installs_an_empty_log_over_existing_rows() {
     let mut runtime = populated(3);
     let report = runtime
-        .apply_successor(generation(schema(3, Some(deliver(3, false)))))
+        .apply_successor(generation(schema(3, Some(deliver(false)))))
         .unwrap();
     assert_eq!(report.added_tables, ["deliveries"]);
     assert!(report.bootstrapped_deliveries.is_empty());
-    assert!(rows(&mut runtime, "deliveries").is_empty());
-    assert_eq!(rows(&mut runtime, "messages").len(), 2);
+    assert!(rows_of(&mut runtime, "deliveries").is_empty());
+    assert_eq!(rows_of(&mut runtime, "messages").len(), 2);
 }
 
 #[test]
 fn bootstrap_fans_out_to_current_members_once_and_says_so() {
     let mut runtime = populated(3);
     let report = runtime
-        .apply_successor(generation(schema(3, Some(deliver(3, true)))))
+        .apply_successor(generation(schema(3, Some(deliver(true)))))
         .unwrap();
     assert_eq!(
         report.bootstrapped_deliveries,
         ["deliveries: 3 delivered event(s) over 2 messages row(s) to current memberships members; bootstrap approximates send-time audiences"]
     );
-    let events = rows(&mut runtime, "deliveries");
+    let events = rows_of(&mut runtime, "deliveries");
     assert_eq!(events.len(), 3, "{events:?}");
     let recipients = events
         .iter()
@@ -620,10 +630,17 @@ fn bootstrap_fans_out_to_current_members_once_and_says_so() {
         assert_eq!(field(event, "conversationId"), &id(conversation));
         assert_eq!(field(event, "kind"), &Value::String("delivered".into()));
         assert_eq!(field(event, "audience"), &Value::Int(audience));
-        assert_eq!(field(event, "seq"), field(event, "incarnation"));
+        // The convention D2 reads: a bootstrapped event's incarnation is the
+        // installation's commit seq (msg-1 was written at seq 1, msg-2 at seq 2;
+        // the store keeps no per-row insert seq), and the log is the row's
+        // incarnation of record.
+        assert_eq!(field(event, "incarnation"), &Value::Int(2));
+        assert_eq!(field(event, "seq"), &Value::Int(2));
     }
+    assert_eq!(report.audience_bounds, BTreeMap::from([("deliveries".to_owned(), 3)]));
+    assert_eq!(audience_bound(&runtime), Some(3));
     // The word acts once, when the log is installed; a later successor leaves history alone.
-    let mut later = schema(3, Some(deliver(3, true)));
+    let mut later = schema(3, Some(deliver(true)));
     later
         .tables
         .get_mut("messages")
@@ -632,7 +649,7 @@ fn bootstrap_fans_out_to_current_members_once_and_says_so() {
         .insert("editedAt".into(), ColumnType::Optional(Box::new(ColumnType::Time)));
     let report = runtime.apply_successor(generation(later)).unwrap();
     assert!(report.bootstrapped_deliveries.is_empty());
-    assert_eq!(rows(&mut runtime, "deliveries").len(), 3);
+    assert_eq!(rows_of(&mut runtime, "deliveries").len(), 3);
 }
 
 #[test]
@@ -640,11 +657,11 @@ fn removing_deliver_is_a_destructive_plan_even_when_the_log_table_survives() {
     for keep_table in [false, true] {
         let mut runtime = populated(3);
         runtime
-            .apply_successor(generation(schema(3, Some(deliver(3, true)))))
+            .apply_successor(generation(schema(3, Some(deliver(true)))))
             .unwrap();
         let mut next = schema(3, None);
         if keep_table {
-            let log = delivery::log_table(&schema(3, Some(deliver(3, false))), "messages", &deliver(3, false)).unwrap();
+            let log = delivery::log_table(&schema(3, Some(deliver(false))), "messages", &deliver(false)).unwrap();
             next.tables.insert("deliveries".into(), log);
         }
         let refusal = runtime.apply_successor(generation(next.clone())).unwrap_err();
@@ -660,9 +677,9 @@ fn removing_deliver_is_a_destructive_plan_even_when_the_log_table_survives() {
         runtime
             .apply_migration(generation(next), &refusal.plan, 0)
             .unwrap();
-        assert_eq!(rows(&mut runtime, "messages").len(), 2);
+        assert_eq!(rows_of(&mut runtime, "messages").len(), 2);
         if keep_table {
-            assert!(rows(&mut runtime, "deliveries").is_empty());
+            assert!(rows_of(&mut runtime, "deliveries").is_empty());
         }
     }
 }
@@ -671,14 +688,14 @@ fn removing_deliver_is_a_destructive_plan_even_when_the_log_table_survives() {
 fn retargeting_deliver_is_a_destructive_plan_even_when_the_shape_matches() {
     let mut runtime = populated(3);
     runtime
-        .apply_successor(generation(schema(3, Some(deliver(3, true)))))
+        .apply_successor(generation(schema(3, Some(deliver(true)))))
         .unwrap();
-    let mut retargeted = deliver(3, false);
+    let mut retargeted = deliver(false);
     retargeted.principal = "invitedBy".into();
     let next = schema(3, Some(retargeted));
     assert_eq!(
         next.tables["deliveries"],
-        schema(3, Some(deliver(3, false))).tables["deliveries"],
+        schema(3, Some(deliver(false))).tables["deliveries"],
         "the log's shape is unchanged by the principal column"
     );
     let refusal = runtime.apply_successor(generation(next.clone())).unwrap_err();
@@ -693,9 +710,9 @@ fn retargeting_deliver_is_a_destructive_plan_even_when_the_shape_matches() {
     runtime
         .apply_migration(generation(next), &refusal.plan, 0)
         .unwrap();
-    assert!(rows(&mut runtime, "deliveries").is_empty());
+    assert!(rows_of(&mut runtime, "deliveries").is_empty());
 
-    let mut renamed = deliver(3, false);
+    let mut renamed = deliver(false);
     renamed.log = "custody".into();
     let refusal = runtime
         .apply_successor(generation(schema(3, Some(renamed.clone()))))
@@ -710,46 +727,179 @@ fn retargeting_deliver_is_a_destructive_plan_even_when_the_shape_matches() {
     runtime
         .apply_migration(generation(schema(3, Some(renamed))), &refusal.plan, 0)
         .unwrap();
-    assert!(rows(&mut runtime, "custody").is_empty());
+    assert!(rows_of(&mut runtime, "custody").is_empty());
 }
 
 #[test]
-fn audience_may_only_rise_while_a_stored_audience_exceeds_it() {
-    let mut runtime = populated(3);
+fn audience_bound_is_engine_recorded_and_lowering_the_cap_is_admitted() {
+    // Cap 50; send to 50: alice and 49 others hold msg-1 in c1.
+    let mut runtime = Runtime::open(Store::memory().unwrap(), generation(schema(50, None))).unwrap();
+    let members = (0..50)
+        .map(|n| if n == 0 { "alice".to_owned() } else { format!("user-{n}") })
+        .collect::<Vec<_>>();
+    let mut rows = vec![("conversations".to_owned(), row([("id", id("c1"))])), message("msg-1", "c1")];
+    rows.extend(members.iter().map(|who| member(&format!("m-{who}"), "c1", who)));
+    runtime.seed(&rows).unwrap();
+    let report = runtime.apply_successor(generation(schema(50, Some(deliver(true))))).unwrap();
+    assert_eq!(rows_of(&mut runtime, "deliveries").len(), 50);
+    assert_eq!(report.audience_bounds["deliveries"], 50);
+    assert_eq!(audience_bound(&runtime), Some(50));
+
+    // 48 members leave; the cap is lowered to 2: admitted, and `A` stays 50
+    // because 50 stored audiences still need it.
+    for who in &members[2..] {
+        leave(&mut runtime, &format!("m-{who}"));
+    }
+    let lowered = generation(schema(2, Some(deliver(true))));
+    let report = runtime.apply_successor(lowered.clone()).unwrap();
+    assert_eq!(report.audience_bounds["deliveries"], 50, "history keeps the bound");
+    assert_eq!(audience_bound(&runtime), Some(50));
+    assert_eq!(rows_of(&mut runtime, "deliveries").len(), 50);
+
+    // Every 50-audience row gone (a reset empties the log), the recorded fact
+    // stands until the next installation; re-applying follows the cap.
     runtime
-        .apply_successor(generation(schema(3, Some(deliver(3, true)))))
+        .reset_and_seed(&[
+            ("conversations".to_owned(), row([("id", id("c1"))])),
+            member("m-alice", "c1", "alice"),
+            member("m-user-1", "c1", "user-1"),
+            message("msg-2", "c1"),
+        ])
         .unwrap();
-    let lowered = |cap: u32| generation(schema(cap, Some(deliver(cap, true))));
-    let refusal = runtime.apply_successor(lowered(1)).unwrap_err();
-    assert_eq!(refusal.code, "E_SUCCESSOR_AUDIENCE");
+    assert!(rows_of(&mut runtime, "deliveries").is_empty());
+    assert_eq!(audience_bound(&runtime), Some(50));
+    let report = runtime.apply_successor(lowered).unwrap();
+    assert_eq!(report.audience_bounds["deliveries"], 2);
+    assert_eq!(audience_bound(&runtime), Some(2));
+
+    // Removing the line forgets the bound with the log.
+    let refusal = runtime.apply_successor(generation(schema(2, None))).unwrap_err();
+    runtime.apply_migration(generation(schema(2, None)), &refusal.plan, 0).unwrap();
+    assert_eq!(audience_bound(&runtime), None);
+}
+
+/// Memberships with `teamId` beside `conversationId` (both references to
+/// conversations, so two caps of arity one can share a stored type) and the
+/// caps given, in order.
+fn schema_with_caps(caps: &[(&str, u32)], deliver: Option<Deliver>) -> Schema {
+    let mut schema = schema(50, deliver);
+    let memberships = schema.tables.get_mut("memberships").unwrap();
+    memberships.columns.insert("teamId".into(), reference("conversations"));
+    memberships.indexes.insert("byTeam".into(), index(&["teamId", "principal"], false));
+    memberships.indexes.insert("byPrincipal".into(), index(&["principal"], false));
+    memberships.constraints = caps
+        .iter()
+        .map(|(by, max)| Constraint::Cap { by: vec![(*by).to_owned()], max: *max })
+        .collect();
+    schema
+}
+
+fn team_member(id_value: &str, conversation: &str, team: &str, principal: &str) -> (String, Value) {
+    (
+        "memberships".to_owned(),
+        row([
+            ("id", id(id_value)),
+            ("conversationId", id(conversation)),
+            ("teamId", id(team)),
+            ("principal", id(principal)),
+            ("invitedBy", id("alice")),
+        ]),
+    )
+}
+
+#[test]
+fn the_pinned_group_is_the_cap_whose_by_equals_the_prefix() {
+    // A cap of the same arity but another type first: the matching cap binds.
+    // A cap of the same arity and the same stored type first: the matching cap binds.
+    for caps in [[("principal", 1), ("conversationId", 50)], [("teamId", 8), ("conversationId", 50)]] {
+        let mut runtime =
+            Runtime::open(Store::memory().unwrap(), generation(schema_with_caps(&caps, None))).unwrap();
+        runtime
+            .seed(&[
+                ("conversations".to_owned(), row([("id", id("c1"))])),
+                ("conversations".to_owned(), row([("id", id("t1"))])),
+                ("conversations".to_owned(), row([("id", id("t2"))])),
+                team_member("m-alice", "c1", "t1", "alice"),
+                team_member("m-bob", "c1", "t2", "bob"),
+                message("msg-1", "c1"),
+            ])
+            .unwrap();
+        let report = runtime
+            .apply_successor(generation(schema_with_caps(&caps, Some(deliver(true)))))
+            .unwrap();
+        assert_eq!(report.audience_bounds["deliveries"], 50, "{caps:?}");
+        assert_eq!(audience_bound(&runtime), Some(50), "{caps:?}");
+        let events = rows_of(&mut runtime, "deliveries");
+        assert_eq!(events.len(), 2, "grouped by conversationId, not by the first cap: {events:?}");
+        for event in &events {
+            assert_eq!(field(event, "audience"), &Value::Int(2), "{caps:?}");
+        }
+    }
+    // Only a non-matching cap of the right arity: refused, with the cap to declare.
+    let (site, error) = certify_errors(schema_with_caps(&[("principal", 50)], Some(deliver(false))), Vec::new()).remove(0);
+    assert_eq!(site, "schema.tables.messages.deliver");
+    assert_eq!(error.code, delivery::UNBOUNDED);
+    assert!(error.message.contains("memberships has no cap N by conversationId"), "{error:?}");
+    assert_eq!(error.rewrite, "cap 50 by conversationId");
+}
+
+#[test]
+fn bootstrap_is_refused_above_the_installation_bound() {
+    assert_eq!(snapback2_core::successor::delivery::bootstrap_bound(), 8_192);
+    let mut runtime = Runtime::open(Store::memory().unwrap(), generation(schema(50, None))).unwrap();
+    runtime
+        .seed(&[
+            ("conversations".to_owned(), row([("id", id("c1"))])),
+            member("m-alice", "c1", "alice"),
+            member("m-bob", "c1", "bob"),
+        ])
+        .unwrap();
+    // 164 rows under cap 50: up to 8,200 events, one above the bound.
+    for chunk in (0..164).collect::<Vec<_>>().chunks(41) {
+        let rows = chunk.iter().map(|n| message(&format!("msg-{n}"), "c1")).collect::<Vec<_>>();
+        runtime.seed(&rows).unwrap();
+    }
+    let refusal = runtime
+        .apply_successor(generation(schema(50, Some(deliver(true)))))
+        .unwrap_err();
+    assert_eq!(refusal.code, "E_SUCCESSOR_BOOTSTRAP");
     assert!(
-        refusal.message.contains("stored audience of 2")
-            && refusal.message.contains("declared 1, installed 3"),
+        refusal.message.contains("up to 8200 delivered events")
+            && refusal.message.contains("cap 50 by conversationId over 164 messages rows")
+            && refusal.message.contains("installation bound of 8192"),
         "{refusal}"
     );
     assert_eq!(refusal.site.as_deref(), Some("schema.tables.messages.deliver"));
-    assert!(refusal.rewrite.contains("keep cap 3 by conversationId on memberships"));
-    // Departed members do not shrink the history: bob leaves, the bound still holds.
-    bob_leaves(&mut runtime);
-    assert_eq!(
-        runtime.apply_successor(lowered(1)).unwrap_err().code,
-        "E_SUCCESSOR_AUDIENCE"
+    assert!(
+        refusal.rewrite.ends_with("deliver to memberships[.conversationId] by .principal as deliveries"),
+        "{refusal}"
     );
-    // Down to the largest stored audience, and up, are ordinary successors.
-    runtime.apply_successor(lowered(2)).unwrap();
-    runtime.apply_successor(lowered(5)).unwrap();
-    assert_eq!(rows(&mut runtime, "deliveries").len(), 3);
-
-    // An empty log has no stored audience: the same lowering is ordinary.
-    let mut empty = populated(3);
-    empty
-        .apply_successor(generation(schema(3, Some(deliver(3, false)))))
+    // The rewrite: the same line without the word installs the log empty.
+    let report = runtime
+        .apply_successor(generation(schema(50, Some(deliver(false)))))
         .unwrap();
-    bob_leaves(&mut empty);
-    empty.apply_successor(lowered(1)).unwrap();
+    assert!(report.bootstrapped_deliveries.is_empty());
+    assert!(rows_of(&mut runtime, "deliveries").is_empty());
+    assert_eq!(audience_bound(&runtime), Some(50));
 }
 
-fn bob_leaves(runtime: &mut Runtime) {
+#[test]
+fn event_identity_is_distinct_per_commit_ordinal() {
+    let (_, content) = message("msg-1", "c1");
+    let event = |kind: &str, seq: i64, ordinal: u32| {
+        delivery::event_row(&content, &deliver(false), "alice", kind, 1, 2, seq, ordinal, 9)
+            .unwrap()
+            .field("id")
+            .unwrap()
+            .clone()
+    };
+    assert_eq!(event("changed", 7, 0), event("changed", 7, 0));
+    assert_ne!(event("changed", 7, 0), event("changed", 7, 1), "two changed events in one commit");
+    assert_ne!(event("changed", 7, 0), event("changed", 8, 0), "the same edit in the next commit");
+    assert_ne!(event("changed", 7, 0), event("removed", 7, 0));
+}
+
+fn leave(runtime: &mut Runtime, membership: &str) {
     let leave = Program {
         name: "ops.leave".into(),
         kind: ProgramKind::Mutation,
@@ -758,11 +908,7 @@ fn bob_leaves(runtime: &mut Runtime) {
         body: vec![
             Stmt::Delete {
                 table: "memberships".into(),
-                key: Expr::Literal(id("m-bob")),
-            },
-            Stmt::Delete {
-                table: "memberships".into(),
-                key: Expr::Literal(id("m-bob-again")),
+                key: Expr::Literal(id(membership)),
             },
             Stmt::Return(Expr::Literal(Value::Null)),
         ],

@@ -37,8 +37,9 @@ pub const PRINCIPAL: &str = "E_DELIVER_PRINCIPAL";
 pub const SHAPE: &str = "E_SCHEMA_DELIVER";
 
 /// `deliver to <target>[<prefix>] [by .<principal>] as <log> [with receipts] [bootstrap]`
-/// on a content table, resolved: the compiler picks the principal column and
-/// the audience bound; raw IR names both.
+/// on a content table, resolved: the compiler picks the principal column; raw
+/// IR names it. The audience bound `A` is not here: it is an engine fact
+/// (`audience_bound`), never spelled and never hashed.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Deliver {
@@ -53,11 +54,6 @@ pub struct Deliver {
     pub log: String,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub receipts: bool,
-    // @ref LLP 1019#4-certification — update and delete sites reserve against
-    // this bound, not the target's current cap: stored audiences outlive a
-    // lowered cap, and a successor may lower `A` only when none exceeds it.
-    /// The audience bound `A`: at least the target's cap when installed.
-    pub audience: u32,
     /// Fan out `delivered` events to current members when the log is
     /// installed over existing content rows; inert afterwards.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
@@ -125,12 +121,29 @@ pub fn owner<'a>(schema: &'a Schema, table: &str) -> Option<(&'a str, &'a Delive
     })
 }
 
-/// The target's `cap N by <columns>` whose arity matches the prefix.
-pub fn group_cap(target: &Table, arity: usize) -> Option<(&[String], u32)> {
+// @ref LLP 1019#1-the-declaration — the pinned group is the cap whose `by`
+// tuple equals the prefix column names, never the first cap of the same
+// arity: two same-typed caps would otherwise bind an unrelated `N`.
+/// The `N` of the target's `cap N by <the prefix columns>`.
+pub fn group_cap(target: &Table, prefix: &[String]) -> Option<u32> {
     target.constraints.iter().find_map(|constraint| match constraint {
-        Constraint::Cap { by, max } if by.len() == arity => Some((by.as_slice(), *max)),
+        Constraint::Cap { by, max } if by == prefix => Some(*max),
         _ => None,
     })
+}
+
+/// The `_meta` key prefix under which the engine records each log's audience bound.
+pub const AUDIENCE_META_PREFIX: &str = "custody_audience:";
+
+// @ref LLP 1019#4-certification — `A = max(target cap, largest stored delivered
+// audience)` is recomputed at every installation and persisted as an engine
+// fact: it is not in the schema, so lowering the cap is an ordinary successor
+// and the certificate's schema hash stays the compiler's.
+/// The audience bound `A` the engine recorded for `log`, if the log is installed.
+pub fn audience_bound(store: &crate::store::Store, log: &str) -> Result<Option<u32>, crate::RuntimeError> {
+    Ok(store
+        .meta(&format!("{AUDIENCE_META_PREFIX}{log}"))?
+        .and_then(|value| value.parse().ok()))
 }
 
 fn index(columns: &[&str], unique: bool) -> Index {
@@ -341,9 +354,13 @@ fn rewrite_id_to_row(rule: &RuleExpr) -> RuleExpr {
     }
 }
 
+// @ref LLP 1019#7-the-twin — repeated events for one row in one commit need
+// distinct identities: the digest takes the commit's per-event ordinal.
 /// One event row of a log: the identity is a digest of the content row, the
-/// recipient, the kind, and the commit, so repeated changes in later commits
-/// never collide and the twin can derive the sender's own event.
+/// recipient, the kind, the commit, and the event's ordinal within that
+/// commit, so repeated changes in one commit or across commits never collide
+/// and the twin can derive the sender's own event.
+#[allow(clippy::too_many_arguments)]
 pub fn event_row(
     content_row: &Value,
     deliver: &Deliver,
@@ -352,13 +369,14 @@ pub fn event_row(
     incarnation: i64,
     audience: i64,
     seq: i64,
+    ordinal: u32,
     at: i64,
 ) -> Result<Value, crate::RuntimeError> {
     let row_id = content_row.field("id")?.clone();
     let mut fields: Vec<(String, Value)> = vec![
         (
             "id".to_owned(),
-            Value::Id(digest(&(&row_id, recipient, kind, seq))),
+            Value::Id(digest(&(&row_id, recipient, kind, seq, ordinal))),
         ),
         ("recipient".to_owned(), Value::Id(recipient.to_owned())),
         ("row".to_owned(), row_id),
@@ -484,12 +502,12 @@ pub fn delivery_issues(schema: &Schema) -> Vec<DeliveryIssue> {
                 );
             }
         }
-        let group = group_cap(target, deliver.prefix.len());
-        let Some((by, max)) = group else {
+        let by = deliver.prefix.join(", ");
+        let Some(max) = group_cap(target, &deliver.prefix) else {
             refuse(
                 UNBOUNDED,
                 format!(
-                    "deliver to {}[{}] pins no capped group: {} has no cap N by {} columns",
+                    "deliver to {}[{}] pins no capped group: {} has no cap N by {by}",
                     deliver.target,
                     deliver
                         .prefix
@@ -498,42 +516,38 @@ pub fn delivery_issues(schema: &Schema) -> Vec<DeliveryIssue> {
                         .collect::<Vec<_>>()
                         .join(", "),
                     deliver.target,
-                    deliver.prefix.len()
                 ),
-                format!("cap 50 by {}", deliver.prefix.join(", ")),
+                format!("cap 50 by {by}"),
             );
             continue;
         };
         if prefix_ok {
-            for (column, group_column) in deliver.prefix.iter().zip(by) {
+            for column in &deliver.prefix {
                 let content_type = &content_table.columns[column];
-                let target_type = target.columns.get(group_column);
+                let target_type = target.columns.get(column);
                 if target_type != Some(content_type) {
                     refuse(
                         SHAPE,
                         format!(
-                            "prefix key .{column} ({content_type}) does not match {}.{group_column} ({}) in cap {max} by {}",
+                            "prefix key .{column} ({content_type}) does not match {}.{column} ({}) in cap {max} by {by}",
                             deliver.target,
                             target_type
                                 .map(ToString::to_string)
                                 .unwrap_or_else(|| "missing".to_owned()),
-                            by.join(", ")
                         ),
                         format!("pin the cap's columns with content columns of the same type: {line}"),
                     );
                 }
             }
         }
-        if crate::cap::enforcement_index(target, by).is_none() {
+        if crate::cap::enforcement_index(target, &deliver.prefix).is_none() {
             refuse(
                 UNBOUNDED,
                 format!(
-                    "cap {max} by {} on {} has no index whose leading columns are {}",
-                    by.join(", "),
+                    "cap {max} by {by} on {} has no index whose leading columns are {by}",
                     deliver.target,
-                    by.join(", ")
                 ),
-                format!("by byGroup: {}, {}", by.join(", "), deliver.principal),
+                format!("by byGroup: {by}, {}", deliver.principal),
             );
         }
         let principals = target
@@ -563,18 +577,6 @@ pub fn delivery_issues(schema: &Schema) -> Vec<DeliveryIssue> {
                         deliver.line(Some("principal"))
                     ),
                 },
-            );
-        }
-        if deliver.audience < max {
-            refuse(
-                SHAPE,
-                format!(
-                    "audience bound {} is below cap {max} by {} on {}",
-                    deliver.audience,
-                    by.join(", "),
-                    deliver.target
-                ),
-                format!("set deliver.audience to at least {max}"),
             );
         }
         let expected = [
