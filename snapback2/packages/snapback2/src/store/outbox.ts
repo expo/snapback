@@ -430,12 +430,20 @@ export class OutboxLedger {
    * A completed command retains the result until its follower reads it, including
    * across a lost nudge or takeover; replay and dismissal race only on this lock.
    */
-  dismiss(intent: string, command?: number): Promise<OutboxEntry | undefined> {
+  dismiss(intent: string, command?: number, identity?: Pick<InboxRow, "scope" | "principal" | "authEpoch">): Promise<OutboxEntry | undefined> {
     return this.write(async () => {
       const rows = (await this.store.inboxRows?.()) ?? [];
+      const key = inboxKeyOf(intent);
+      const completed = command === undefined && identity && rows.find(row => row.kind === "dismiss" && row.state === "done"
+        && row.scope === identity.scope && row.principal === identity.principal && (row.authEpoch === undefined || row.authEpoch === identity.authEpoch)
+        && (row.target === intent || (row.response as OutboxEntry | null)?.intent === intent
+          || key !== undefined && (row.response as OutboxEntry | null)?.inbox === key));
+      if (completed) {
+        await this.commit({ inbox: { remove: [completed.key] } });
+        return (completed.response ?? undefined) as OutboxEntry | undefined;
+      }
       const receipt = rows.find(row => row.key === command);
       if (command !== undefined && (!receipt || receipt.state !== "queued")) return;
-      const key = inboxKeyOf(intent);
       const row = rows.find(row => row.key === key);
       const entry = key === undefined || row?.admitted !== undefined
         ? await this.store.outbox.get(row?.admitted ?? intent)

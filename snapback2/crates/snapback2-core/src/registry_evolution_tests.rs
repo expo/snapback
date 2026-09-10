@@ -198,6 +198,21 @@ fn regroup_replaces_only_the_owned_projection_without_a_plan() {
     let result = rt.apply_successor(certified(regroup_schema("recipient")));
     eprintln!("maintain regroup: {result:?}");
     assert!(result.is_ok());
+    // Quarry's positional counts[who] lowers to a keyed Get and a typed zero.
+    let query = Program {
+        name: "counts.get".into(), kind: ProgramKind::Query,
+        args: BTreeMap::from([("who".into(), ArgType::Principal)]), read_time_granularity_ms: None,
+        body: vec![
+            Stmt::Let { name: "row".into(), value: Expr::Get(Read { site: "counts[who]".into(), table: "counts".into(), index: "by_recipient".into(), key: vec![var("who")], provenance: KeyProvenance::Arg }) },
+            Stmt::Let { name: "result".into(), value: lit(Value::Int(0)) },
+            Stmt::If { condition: Expr::Binary { op: BinaryOp::Ne, left: Box::new(var("row")), right: Box::new(lit(Value::Null)) }, then_body: vec![Stmt::Assign { name: "result".into(), value: field(var("row"), "value") }], else_body: vec![] },
+            Stmt::Return(var("result")),
+        ],
+    };
+    for (who, expected) in [("dev:bob", 1), ("dev:alice", 0)] {
+        let read = rt.read_operator(&query, BTreeMap::from([("who".into(), Value::Id(who.into()))]), OperatorId("alice".into()), 10).unwrap();
+        assert_eq!(read.result, Value::Int(expected));
+    }
 }
 
 struct Disk(std::path::PathBuf);
@@ -784,10 +799,12 @@ fn zero_enum_removal_still_checks_uniqueness_caps_and_required_columns() {
                 "E_SUCCESSOR_COLUMN_REQUIRED"
             }
         };
-        assert_eq!(
-            rt.apply_successor(certified(schema)).unwrap_err().code,
-            code
-        );
+        let error = rt.apply_successor(certified(schema)).unwrap_err();
+        assert_eq!(error.code, code);
+        if code == "E_SUCCESSOR_COLUMN_REQUIRED" {
+            assert!(error.rewrite.contains("see guide successor"));
+            assert!(!error.rewrite.contains("see guide job"));
+        }
     }
 }
 
@@ -1130,4 +1147,95 @@ fn sampled_required_list_repair_fills_null_without_deleting_it() {
     assert_eq!(rt.apply_successor(generation(new)).unwrap().narrowings[0].affected_rows, 0);
     assert_eq!(table_rows(&rt, "items").len(), 1);
     assert_eq!(table_rows(&rt, "items")[0].0, "id-00");
+}
+
+#[test]
+fn completed_successor_report_is_persisted_once_with_audience_bounds_on_every_route() {
+    let mut old = regroup_schema("sender");
+    old.tables.insert("audience".into(), public_table(
+        BTreeMap::from([("id".into(), ColumnType::Id), ("sender".into(), ColumnType::Principal), ("member".into(), ColumnType::Principal)]),
+        BTreeMap::from([("bySender".into(), Index { components: vec![IndexComponent::Column("sender".into()), IndexComponent::Column("member".into())], unique: false })]),
+    ));
+    old.tables.get_mut("audience").unwrap().constraints.push(Constraint::Cap { by: vec!["sender".into()], max: 10 });
+    let mut next = old.clone();
+    let deliver = crate::delivery::Deliver { target: "audience".into(), prefix: vec!["sender".into()], principal: "member".into(), log: "deliveries".into(), receipts: false, bootstrap: false };
+    next.tables.get_mut("items").unwrap().deliver = Some(deliver.clone());
+    next.tables.insert("deliveries".into(), crate::delivery::log_table(&next, "items", &deliver).unwrap());
+    for route in ["install", "migration", "reopen"] {
+        let disk = Disk::new();
+        let mut rt = Runtime::open(Store::open(&disk.db()).unwrap(), certified(old.clone())).unwrap();
+        // A second write to the report in one installation must abort the transaction.
+        rt.store().conn.execute_batch("CREATE TRIGGER one_successor_report BEFORE UPDATE OF value ON _meta WHEN OLD.key='last_successor' BEGIN SELECT RAISE(ABORT, 'report written twice'); END;").unwrap();
+        let next = certified(next.clone());
+        let report = match route {
+            "install" => rt.apply_successor(next).unwrap(),
+            "migration" => rt.apply_migration(next, &MigrationPlan::default(), 10).unwrap(),
+            _ => { drop(rt); rt = Runtime::open(Store::open(&disk.db()).unwrap(), next).unwrap(); rt.take_opened_successor().unwrap() }
+        };
+        assert_eq!(report.audience_bounds, BTreeMap::from([("deliveries".into(), 10)]), "{route}");
+        assert_eq!(rt.store().meta("last_successor").unwrap().unwrap(), canonical_json(&report), "{route}");
+    }
+}
+
+#[test]
+fn maximum_narrowing_preserves_rows_indexes_and_generation_on_all_three_routes() {
+    let cases = [
+        (ColumnType::Text { max: 6 }, ColumnType::Text { max: 3 }, Value::String("☺☺".into()), Value::String("☺☺☺☺".into())),
+        (ColumnType::Bytes { max: 6 }, ColumnType::Bytes { max: 3 }, Value::Bytes(vec![1, 2]), Value::Bytes(vec![1, 2, 3, 4])),
+        (list(ColumnType::Int, 6), list(ColumnType::Int, 3), Value::Array(vec![Value::Int(1); 2]), Value::Array(vec![Value::Int(1); 4])),
+    ];
+    for (from, to, fitting, oversized) in cases {
+        for nested in [false, true] {
+            let wrap_type = |t| if nested { optional(list(optional(t), 3)) } else { t };
+            let wrap_value = |v| if nested { Value::Array(vec![Value::Null, v]) } else { v };
+            for oversize in [false, true] {
+                for route in ["install", "migration", "reopen"] {
+                    let disk = Disk::new();
+                    let old = generation(wrap_type(from.clone()));
+                    let next = generation(wrap_type(to.clone()));
+                    let mut rt = Runtime::open(Store::open(&disk.db()).unwrap(), old.clone()).unwrap();
+                    let mut rows = vec![("items".into(), object([("id", Value::Id("fit".into())), ("value", wrap_value(fitting.clone()))]))];
+                    if oversize { rows.push(("items".into(), object([("id", Value::Id("oversize".into())), ("value", wrap_value(oversized.clone()))]))); }
+                    rt.seed(&rows).unwrap();
+                    let tables = ["rows", "index_entries", "_meta"];
+                    let before = tables.map(|table| snapshot_sql(&rt.store().conn, table));
+                    let seq = rt.store().commit_seq().unwrap();
+                    let result = match route {
+                        "install" => rt.apply_successor(next.clone()),
+                        "migration" => rt.apply_migration(next.clone(), &MigrationPlan::default(), 10).map_err(|error| match error { RuntimeError::Successor(e) => *e, e => panic!("{e}") }),
+                        _ => {
+                            drop(rt);
+                            match Runtime::open(Store::open(&disk.db()).unwrap(), next.clone()) {
+                                Ok(opened) => { rt = opened; Ok(rt.take_opened_successor().unwrap()) }
+                                Err(error) => {
+                                    let raw = rusqlite::Connection::open(disk.db()).unwrap();
+                                    for (table, snapshot) in tables.iter().zip(&before) { assert_eq!(snapshot_sql(&raw, table), *snapshot, "cold refusal: {table}"); }
+                                    drop(raw);
+                                    rt = Runtime::open(Store::open(&disk.db()).unwrap(), old.clone()).unwrap();
+                                    Err(error)
+                                }
+                            }
+                        }
+                    };
+                    let label = format!("{from:?} nested={nested} oversize={oversize} {route}");
+                    let checks = if oversize {
+                        let error = result.unwrap_err();
+                        assert_eq!(error.code, "E_SUCCESSOR_NARROWING", "{label}");
+                        assert_eq!((&error.from, &error.to), (&old.hash(), &next.hash()), "{label}");
+                        assert_eq!(rt.generation().hash(), old.hash(), "{label}");
+                        assert_eq!(snapshot_sql(&rt.store().conn, "_meta"), before[2], "{label}");
+                        error.narrowings
+                    } else {
+                        assert_eq!(rt.generation().hash(), next.hash(), "{label}");
+                        result.unwrap().narrowings
+                    };
+                    assert_eq!(checks.len(), 1, "{label}");
+                    assert_eq!((checks[0].affected_rows, checks[0].oversize_rows, checks[0].null_rows), (u64::from(oversize), u64::from(oversize), 0), "{label}");
+                    assert_eq!(checks[0].sample, if oversize { vec!["oversize".to_owned()] } else { vec![] }, "{label}");
+                    for (i, table) in tables[..2].iter().enumerate() { assert_eq!(snapshot_sql(&rt.store().conn, table), before[i], "{label}: {table}"); }
+                    assert_eq!(rt.store().commit_seq().unwrap(), seq, "{label}");
+                }
+            }
+        }
+    }
 }

@@ -758,3 +758,119 @@ test("text repair truncates scalars or deletes only over-long rows, preserving s
     }
   }
 });
+
+test("dev status retains the completed install report including delivery audience bounds", async () => {
+  const { directory, source } = await fixture();
+  const previousUrl = process.env.SNAPBACK_URL;
+  let owner: RealOwnerHarness | undefined;
+  const audience = `\ntable audience:\n  sender: principal\n  member: principal\n  by bySender: sender, member\n  cap 10 by sender\n  read <- allow\n`;
+  try {
+    await writeFile(join(source, "schema.q"), schema() + audience);
+    delete process.env.SNAPBACK_URL;
+    owner = await RealOwnerHarness.create({ fixture: source });
+    await mkdir(join(directory, "snapback"));
+    await writeFile(join(directory, "snapback/schema.q"), schema().replace("  body: text <=100", "  body: text <=100\n  deliver to audience[.sender] by .member as deliveries") + audience);
+    await writeFile(join(directory, "snapback/ops.q"), operations());
+    cli(directory, ["check"]);
+    const project = JSON.parse(await readFile(join(directory, ".snapback/build/project.json"), "utf8"));
+    const info = JSON.parse(await readFile(join(owner.root!, ".snapback/owner.json"), "utf8"));
+    const response = await fetch(`${owner.url}/control/apply`, { method: "POST", headers: { "content-type": "application/json", "x-snapback-control": info.secret }, body: JSON.stringify({ project }) });
+    const report = await response.json();
+    assert.equal(response.status, 200, JSON.stringify(report));
+    assert.deepEqual(report.audienceBounds, { deliveries: 10 });
+    assert.deepEqual(cli(owner.root!, ["dev", "--status"]).successor, report);
+  } finally { await owner?.close(); await rm(directory, { recursive: true, force: true }); if (previousUrl === undefined) delete process.env.SNAPBACK_URL; else process.env.SNAPBACK_URL = previousUrl; }
+});
+
+test("cold owner regroup logs the old and new keys and serves the successor positional value", async () => {
+  const { directory, source } = await fixture();
+  const previousUrl = process.env.SNAPBACK_URL;
+  let owner: RealOwnerHarness | undefined;
+  try {
+    owner = await RealOwnerHarness.create({ forceOwned: true, fixture: source });
+    assert.equal(cli(owner.root!, ["run", "ops.count", '{"who":"dev:alice"}', "--as", "bob"]).data, 1);
+    await owner.stop();
+    await writeFile(join(owner.root!, "snapback/schema.q"), schema("'text', 'image'", "recipient"));
+    await owner.start(false);
+    const line = "maintain counts: by sender → by recipient";
+    const report = cli(owner.root!, ["dev", "--status"]).successor;
+    assert.deepEqual(report.maintains, [line]);
+    const logs = (await readFile(join(owner.root!, ".snapback/log.jsonl"), "utf8")).split("\n").flatMap(line => { try { return [JSON.parse(line)]; } catch { return []; } });
+    assert.deepEqual(logs.filter(row => row.successor === "applied" && row.report.to === report.to).map(row => row.report.maintains), [[line]]);
+    cli(owner.root!, ["check"]);
+    assert.equal(cli(owner.root!, ["run", "ops.count", '{"who":"dev:bob"}', "--as", "bob"]).data, 1);
+    assert.equal(cli(owner.root!, ["run", "ops.count", '{"who":"dev:alice"}', "--as", "bob"]).data, 0);
+  } finally { await owner?.close(); await rm(directory, { recursive: true, force: true }); if (previousUrl === undefined) delete process.env.SNAPBACK_URL; else process.env.SNAPBACK_URL = previousUrl; }
+});
+
+test("real owner input refusal exposes the head and dismissal returns args before the next queued send commits", async () => {
+  const { directory, source } = await fixture();
+  const previousUrl = process.env.SNAPBACK_URL;
+  let owner: RealOwnerHarness | undefined, client: ReturnType<typeof createClient> | undefined;
+  try {
+    owner = await RealOwnerHarness.create({ forceOwned: true, fixture: source });
+    client = createClient({ url: owner.url, persona: "alice", offline: { store: fileRangeStore(join(directory, "client")) } });
+    await client.ready;
+    const drain = subscribe(client, api.ops.all, {}, () => {}, { drain: true });
+    try { await drain.until((event: any) => event.live === true, 3_000); } finally { drain.close(); }
+    await client.online(); await client.offline();
+    const args = { kind: "image", body: 'dismiss these original bytes: " \\ ☺' };
+    const first = await client.mutation(api.ops.send, args);
+    const second = await client.mutation(api.ops.send, { kind: "text", body: "after dismissal" });
+    assert.equal(first.state, "queued"); assert.equal(second.state, "queued");
+    await install(owner, "'text'");
+    await assert.rejects(client.online(), { code: "E_INPUT" });
+    assert.deepEqual((await client.outbox.status()).blocked, { intent: first.intent, code: "E_INPUT" });
+    const entry = (await client.outbox.entries()).find(e => e.intent === first.intent)!;
+    assert.deepEqual(await client.outbox.dismiss(first.intent!), { intent: first.intent, op: "ops.send", args, refusal: entry.refusal });
+    assert.deepEqual(await client.outbox.drain(), { stopped: false, remaining: 0 });
+    assert.equal((await client.outbox.status()).blocked, undefined);
+    const entries = await client.outbox.entries();
+    assert.equal(entries.some(e => e.intent === first.intent), false);
+    assert.equal(entries.find(e => e.intent === second.intent)?.state, "committed");
+    const rows: any = await client.query(api.ops.all, {});
+    assert.equal(rows.data.some((row: any) => row.body === args.body), false);
+    assert.equal(rows.data.filter((row: any) => row.body === "after dismissal").length, 1);
+  } finally { await client?.close(); await owner?.close(); await rm(directory, { recursive: true, force: true }); if (previousUrl === undefined) delete process.env.SNAPBACK_URL; else process.env.SNAPBACK_URL = previousUrl; }
+});
+
+test("owner source changes rebuild distinct totals and report hot install, migration and cold open", async () => {
+  const { directory, source } = await fixture();
+  const previousUrl = process.env.SNAPBACK_URL;
+  let owner: RealOwnerHarness | undefined;
+  const posts = `\ntable posts:\n  sender: principal\n  read <- allow\n`;
+  const sourceSchema = (table: string) => (schema() + posts).replace("maintain counts: count messages", `maintain counts: count ${table}`);
+  try {
+    await writeFile(join(source, "schema.q"), sourceSchema("messages"));
+    const seedPath = join(source, "seed.ts");
+    await writeFile(seedPath, (await readFile(seedPath, "utf8")).replace("] } });", "], posts: [{ id: 'post-1', sender: 'dev:alice' }, { id: 'post-2', sender: 'dev:alice' }, { id: 'post-3', sender: 'dev:alice' }] } });"));
+    owner = await RealOwnerHarness.create({ forceOwned: true, fixture: source });
+    const count = () => cli(owner!.root!, ["run", "ops.count", '{"who":"dev:alice"}', "--as", "bob"]).data;
+    assert.equal(count(), 1);
+    await mkdir(join(directory, "snapback"));
+    await writeFile(join(directory, "snapback/ops.q"), operations());
+    for (const [route, from, to, expected] of [["apply", "messages", "posts", 3], ["migrate", "posts", "messages", 1], ["reopen", "messages", "posts", 3]] as const) {
+      let report: any;
+      if (route === "reopen") {
+        await owner.stop();
+        await writeFile(join(owner.root!, "snapback/schema.q"), sourceSchema(to));
+        await owner.start(false);
+        report = cli(owner.root!, ["dev", "--status"]).successor;
+      } else {
+        await writeFile(join(directory, "snapback/schema.q"), sourceSchema(to));
+        cli(directory, ["check"]);
+        const project = JSON.parse(await readFile(join(directory, ".snapback/build/project.json"), "utf8"));
+        const info = JSON.parse(await readFile(join(owner.root!, ".snapback/owner.json"), "utf8"));
+        const response = await fetch(`${owner.url}/control/${route}`, { method: "POST", headers: { "content-type": "application/json", "x-snapback-control": info.secret }, body: JSON.stringify({ project, plan: { drops: [] } }) });
+        report = await response.json();
+        assert.equal(response.status, 200, JSON.stringify(report));
+      }
+      const line = `maintain counts: from ${from} → from ${to}`;
+      assert.deepEqual(report.maintains, [line], route);
+      assert.equal(count(), expected, route);
+      assert.deepEqual(cli(owner.root!, ["dev", "--status"]).successor, report, route);
+      const logs = (await readFile(join(owner.root!, ".snapback/log.jsonl"), "utf8")).split("\n").flatMap(line => { try { return [JSON.parse(line)]; } catch { return []; } });
+      assert.ok(logs.some(row => row.successor === "applied" && row.report.to === report.to && row.report.maintains.includes(line)), route);
+    }
+  } finally { await owner?.close(); await rm(directory, { recursive: true, force: true }); if (previousUrl === undefined) delete process.env.SNAPBACK_URL; else process.env.SNAPBACK_URL = previousUrl; }
+});

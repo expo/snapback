@@ -611,20 +611,20 @@ impl Runtime {
                     return Err(refusal);
                 }
                 let now = unix_millis();
-                opened_successor = Some(
-                    apply_additive(
-                        &transaction,
-                        &current,
-                        &generation.schema,
-                        hash,
-                        generation_hash,
-                        owned,
-                        now,
-                    )
-                    .map_err(store_refusal)?,
-                );
-                persist_generation_transaction(&transaction, &generation, now)
+                let mut report = apply_additive(
+                    &transaction,
+                    &current,
+                    &generation.schema,
+                    hash,
+                    generation_hash,
+                    owned,
+                    now,
+                )
+                .map_err(store_refusal)?;
+                report.audience_bounds = persist_generation_transaction(&transaction, &generation, now)
                     .map_err(store_refusal)?;
+                report.persist(&transaction).map_err(store_refusal)?;
+                opened_successor = Some(report);
                 transaction
                     .commit()
                     .map_err(|error| store_refusal(RuntimeError::Sql(error)))?;
@@ -1067,6 +1067,7 @@ impl Runtime {
         crate::store_jobs::reconcile(&transaction, &next, true).map_err(store_refusal)?;
         report.audience_bounds =
             persist_generation_transaction(&transaction, &next, now).map_err(store_refusal)?;
+        report.persist(&transaction).map_err(store_refusal)?;
         transaction
             .commit()
             .map_err(|error| store_refusal(RuntimeError::Sql(error)))?;
@@ -1141,6 +1142,7 @@ impl Runtime {
         )?;
         crate::store_jobs::reconcile(&transaction, &next, true)?;
         report.audience_bounds = persist_generation_transaction(&transaction, &next, released_at)?;
+        report.persist(&transaction)?;
         transaction.commit()?;
         self.engine.set_schema(next.schema.clone())?;
         self.generation = next;

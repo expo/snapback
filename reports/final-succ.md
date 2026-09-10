@@ -535,3 +535,106 @@ No r2 item refused. No unresolved product question. Inbox consumption now retain
 Scope extension note: follower transport/status, item labels/actions, and both template panels are outside the original core-only A1/A2/A3/A6 path list but expressly required by r2 B1/B2/presentation. The compiler fixture change is necessary to keep the emitted text repair executable. No unrelated source was modified.
 
 Report location: the prior report supplied for reading is `/Users/ccheever/projects/snapback-ri-20260910/reports/final-succ.md`, outside this session's writable roots. Its contents, including Fix round r1, are preserved in the worktree-local `reports/final-succ.md` with this r2 section appended. The external source was not modified. The root `REPORT-succ.md` contains this r2 report for the lane hand-off.
+
+## Fix round r3
+
+Base and unchanged HEAD: `36ae7687fd4f3168b50e80fc1e24eceb0b718adb` (`s2/ri-succ`, `/Users/ccheever/projects/snapback-s2y`). All changes below are uncommitted. Read both r3 reviews and the prior report through r2. Scope: the final eight-item brief; LLP 1020 Part A (A1–A3, A6; A8.1/A8.2).
+
+### Item verdicts and evidence
+
+1. **FIXED — dismissal result survives takeover.** The writer's locked `OutboxLedger.dismiss` finds a retained `done` command by backend/principal/session scope and either submitted target, ledger intent, or original inbox alias. It returns the retained entry and deletes the command atomically. Public writer dismissal supplies that scope through `ClientInbox`. Dev commands without an auth epoch use the existing inbox admission convention. `guide offline` documents recovery after takeover/reopening.
+
+   Tests: `inbox.test.ts` — **completed dismissal returns its bytes once after takeover (alias command)**; **… cold reopen (alias command)**; **… cold reopen (intent command)**. The follower pauses before consuming `done`, the writer closes, and the retry uses the original alias. Assertions: exact `{ intent, op, args, refusal }`, wrong backend/principal cannot recover it, one return, command removed, dismissed intent never executes, next intent executes exactly once. The third case proves a command submitted with the ledger intent is recoverable through its original alias.
+
+2. **FIXED — one truthful E_STEPS card and wire label.** The executable search-chunk pair remains; its comment says the **certificate charges** derivation for a patch naming the indexed text, even though equal components skip derivation at runtime. Runtime `Refusal::from_runtime` uses `bound`/`bounds`, matching check and the family card. `guide bounds` names `E_STEPS` and the conservative charge.
+
+   Tests: `protocol::tests::runtime_steps_uses_the_check_family_and_bounds_page_on_the_wire`; existing `engine::search_tests::update_naming_a_derived_column_with_an_equal_value_is_priced_but_performs_no_derivation`; both E_STEPS examples in **successor guide aliases and Quarry diagnostic rewrites compile** and the compiler's final-gate pair.
+
+3. **FIXED — persist the completed report once.** Removed persistence from `apply_additive`. Hot installation, explicit migration, and cold open populate `audience_bounds`, then persist the completed report inside the same transaction. Cold open also returns those bounds in `take_opened_successor`. `guide successor` says status retains the same completed report on all three routes.
+
+   Tests: `registry::evolution_tests::completed_successor_report_is_persisted_once_with_audience_bounds_on_every_route` compares the full persisted report with the returned report on all three routes and installs a trigger that refuses a second report write. **dev status retains the completed install report including delivery audience bounds** installs an authored `deliver` line over `/control/apply` and compares the entire `dev --status --json.successor` with the install response, including `{ deliveries: 10 }`.
+
+4. **FIXED — E_SUCCESSOR_STORE has a wire site.** `SuccessorRefusal::store` supplies `site: "store"`. The guide sentence includes store-wide refusal sites. `protocol::tests::successor_store_failure_names_the_store_on_the_wire` opens an actually corrupt persisted schema and asserts code, family, page, site, rewrite and predecessor/successor hashes in the serialized refusal envelope.
+
+5. **FIXED — narrowing route coverage.** `registry::evolution_tests::maximum_narrowing_preserves_rows_indexes_and_generation_on_all_three_routes` covers **36 scenarios**: text/bytes/list × direct/nested optional-list wrappers × fitting-only/fitting-plus-oversize × install/migration/reopen. The refusal counts exactly one oversized row and samples its ID, preserves predecessor hashes and all `_meta` state; cold refusal is checked on the raw database before reopening the predecessor. Both outcomes preserve serialized rows, all index entries and commit sequence. Zero-conflict admission records zero counts and advances to the successor. Existing guide sentences cover maxima, recursive wrappers, counts and rollback. This item adds coverage; the narrowing implementation already satisfied these cases.
+
+6. **FIXED — owner-route regroup/source/dismissal coverage.**
+
+   - **cold owner regroup logs the old and new keys and serves the successor positional value** stops the owner, changes `by sender` to `by recipient` on disk, restarts, asserts exactly one matching `maintain counts: by sender → by recipient` log record and the status report, then checks old-key zero and successor-key one.
+   - `registry::evolution_tests::regroup_replaces_only_the_owned_projection_without_a_plan` now certifies and runs the Quarry-shaped Get/typed-zero positional read through `read_operator`: successor key → 1, predecessor key → 0.
+   - **real owner input refusal exposes the head and dismissal returns args before the next queued send commits** queues both writes before enum removal, observes real `E_INPUT`, asserts `status.blocked`, exact dismissal args/refusal, no dismissed message, and one committed second send.
+   - **owner source changes rebuild distinct totals and report hot install, migration and cold open** seeds one message and three posts. Hot install switches messages → posts (count 3); explicit migration switches posts → messages (1); cold open switches messages → posts (3). Every route checks the positional query, full status/install report equality and the matching source-change log line. The existing successor guide describes count/sum source replacement and reporting. No additional projection behavior change was needed.
+
+7. **FIXED — text and records.** The required-column rewrite names `guide successor`; `zero_enum_removal_still_checks_uniqueness_caps_and_required_columns` asserts that pointer and rejects the old `guide job` pointer. Corrected the first successor implementation bullet to union ownership. Added the dated amendment under LLP 1018.004 §2 for `done`, one-time recovery and eligible queued dismissal, preserving the historical text. The drain comment now says input/schema refusals persist eligibility and stop the drain. Runtime refusal/drain behavior is exercised by both custody and owner tests above.
+
+8. **FIXED — measurement and records.** Appended this section and the LLP 1020 r3 implementation line; Status unchanged. `REPORT-succ.md` contains this completed r3 report. Final five-root measurement is **84,736 gzip / 258,390 minified**, ceiling **85,000**, headroom **264**; Node **24.18.0**, esbuild **0.25.9**, gzip level **9**. The measurement records HEAD **36ae7687fd4f3168b50e80fc1e24eceb0b718adb**, with this uncommitted delta. The brief supplied a host baseline of **84,514**; final growth is **222** bytes. No ceiling, root, dependency, build configuration, or required runtime placement changed. Both local measurements (84,725 intermediate; 84,736 final) remain appended in `metrics/twin.jsonl`.
+
+### Before → after outputs
+
+Reproductions used the new assertions before changing their corresponding implementation; raw logs are `/tmp/succ-r3-{inbox,steps,report,owner-report,site}-before.log`.
+
+```text
+inbox takeover and cold reopen:
+  before: actual undefined; expected { intent: 's2id-0000000000000000000000000000000a-0000000000000064:0', op: 'messages.send', args: { conversationId: 'conversation-1', body: 'removed' }, refusal: { code: 'E_INPUT', family: 'input', message: 'enum case removed', guide: 'input/runtime' } }
+  before: tests 2 / pass 0 / fail 2
+  after: all three takeover/reopen/alias variants pass; exact result, one return, command cleaned, executions ['after']
+E_STEPS wire:
+  before: left String("bound/runtime"), right "bounds"
+  after: code E_STEPS, family bound, guide bounds
+completed report:
+  before: install audienceBounds { deliveries: 10 }; dev status omitted audienceBounds
+  before: persisted last_successor lacked audienceBounds in the core install test
+  after: full status/persisted report equals install return; audienceBounds { deliveries: 10 }; all three core routes pass
+E_SUCCESSOR_STORE wire:
+  before: left Null, right "store"
+  after: site "store", family/page successor/successor, both compared generations
+```
+
+Coverage-only items 5/6 exercise existing projection/narrowing behavior; they do not claim a newly repaired engine defect. Initial fixture drafting had a Rust borrow/mutability compilation error and a computed seed expression refused as `E_SEED_INVALID`; both were corrected before final verification. An initial concurrent owner run hit two `owner readiness timed out` failures; the final serial full-file run below passed every test without changing the harness or timeouts. No final owner-stop sandbox artifact occurred.
+
+### Verbatim final verification
+
+From `snapback2/`:
+
+```sh
+NEXTEST_TEST_THREADS=8 cargo nextest run --config-file ../.config/nextest.toml --profile local-proof -p snapback2-core -p snapback2 -E 'test(registry::evolution_tests::) | binary(successor_narrowing) | test(successor::narrowing::) | test(protocol::) | test(check::) | test(update_naming_a_derived_column_with_an_equal_value)' --no-fail-fast
+```
+
+```text
+Summary [   0.349s] 44 tests run: 44 passed, 939 skipped
+```
+
+From `snapback2/packages/snapback2/`:
+
+```sh
+node --test --test-concurrency=1 tests/inbox.test.ts tests/outbox-custody.test.ts
+node --test --test-concurrency=1 tests/real-owner-successor.test.ts
+node build.mjs --measure-twin
+node build.mjs
+```
+
+```text
+inbox + outbox-custody: ℹ tests 19 / ℹ pass 19 / ℹ fail 0 / ℹ cancelled 0
+real-owner-successor:  ℹ tests 14 / ℹ pass 14 / ℹ fail 0 / ℹ cancelled 0
+guide: 31 cards, 81670/98304 bytes (16% headroom)
+```
+
+`cargo build` and the final package build exited 0. Compiler (`snapback2/packages/compiler`, `bun src/test.ts`): **Compiler checks: 295 passed, 0 failed**. Final logs: `/tmp/succ-r3-{rust-final,client-final,owner-final,compiler-final,measure-final,package-final}.log`.
+
+`ref-check: ok — 439 LLP docs, 7975 refs in 19111 files, 0 errors, 0 unchecked`.
+`git diff --check`: exit 0. `caps`: **2 violations**, both inherited Snapback 1 files (`crates/snapback-tools/src/bin/snapback-agent-safe-paired.rs`, 1504; `packages/snapback-contract/agent-authority-contract.test.mjs`, 1508). No changed source exceeds 1,500 lines; largest touched file `registry.rs` is 1,405, `registry_evolution_tests.rs` 1,241. Guide bytes: successor **4,584 / 4,608 pin**, offline **7,861**, bounds **2,534**; no budget raised. The builder retains its existing offline-card headroom advisory.
+
+### Files, constraints, deviations and open questions
+
+Changed paths relative to the repository root:
+
+- `snapback2/crates/snapback2-core/src/{registry,registry_evolution_tests,successor}.rs`.
+- `snapback2/crates/snapback2/src/protocol.rs`.
+- `snapback2/packages/snapback2/src/{client-inbox,client-outbox}.ts`, `src/store/outbox.ts`.
+- `snapback2/packages/snapback2/tests/{inbox,real-owner-successor}.test.ts`.
+- `snapback2/packages/snapback2/guide/{bounds,offline,successor}.md`, `guide/families.source.json`.
+- `snapback2/metrics/twin.jsonl`; `llp/1018.004-truthful-and-composed-writes.decision.md`; `llp/1020-day-two-evolution-and-legible-ceilings.rfc.md`; `reports/final-succ.md`; `REPORT-succ.md`.
+
+Governing constraints: LLP 1000's Snapback 2 fence; LLP 1001 §4 transaction/ownership; LLP 1012 §7 durable unspent replay; LLP 1018.004 §2 serial inbox custody; LLP 1016 D4 repair under the predecessor; LLP 1020 A1/A2 recursive domain narrowing, A3 exact owned projections/reporting, A6 diagnostic family/site/rewrite/page. No new apparatus, generated source, corpus case, design document or compatibility path. Hand-off: none.
+
+No numbered item refused. No RFC design deviation and no new open product question. Explicit migration source reporting and ledger-intent-command → original-alias recovery received additional coverage within the requested surfaces. All files are within the final brief's named areas, including its explicitly requested LLP 1018.004 amendment. The pre-existing online-client hot-regroup transition issue (`issues/20260910-snapback2-online-client-query-during-hot-regroup.md`) remains outside these eight fixes; this report makes no claim to fix that separate race. No commits, stashes, branch changes or whole-suite run; the orchestrator owns remote full-suite verification and landing.

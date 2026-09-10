@@ -232,6 +232,8 @@ export class ClientInbox {
   /** A follower's dismissal is a durable command row the writer consumes; a rejected row of its own is deleted directly. */
   async dismiss(intent: string): Promise<OutboxEntry | undefined> {
     const follower = this.follower, runtime = this.host.runtime;
+    if (runtime?.principal && !runtime.following) return runtime.outbox.dismiss(intent, undefined,
+      runtime.coordinationScope ? { scope: this.scope(runtime.principal), principal: runtime.principal, authEpoch: runtime.authEpoch } : undefined);
     if (!follower || !runtime || !runtime.inboxAvailable) throw followerRefusal("client.outbox.dismiss");
     const key = inboxKeyOf(intent);
     const row = key === undefined ? undefined : runtime.inboxRows.find((candidate) => candidate.key === key);

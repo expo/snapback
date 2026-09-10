@@ -232,7 +232,7 @@ impl Refusal {
             family,
             error.to_string(),
             rewrite,
-            format!("{family}/runtime"),
+            if code == "E_STEPS" { "bounds".to_owned() } else { format!("{family}/runtime") },
         )
     }
 
@@ -447,6 +447,37 @@ mod tests {
     use super::*;
 
     #[test]
+    fn runtime_steps_uses_the_check_family_and_bounds_page_on_the_wire() {
+        let wire = serde_json::to_value(Refusal::from_runtime(&RuntimeError::Steps(1_000_001))).unwrap();
+        assert_eq!(wire["code"], "E_STEPS");
+        let (family, guide) = certification_family_guide("E_STEPS");
+        assert_eq!(wire["family"], family);
+        assert_eq!(wire["guide"], guide);
+        assert!(include_str!("../../../packages/snapback2/guide/bounds.md").contains("E_STEPS"));
+        let cards: Json = serde_json::from_str(include_str!("../../../packages/snapback2/guide/families.source.json")).unwrap();
+        let card = cards.as_array().unwrap().iter().find(|c| c["code"] == "E_STEPS").unwrap();
+        assert!(card["right"].as_str().unwrap().contains("certificate charges"));
+    }
+
+    #[test]
+    fn successor_store_failure_names_the_store_on_the_wire() {
+        use snapback2_core::{Auth, Ceilings, Generation, ProjectJson, Runtime, Schema, Store};
+        let mut store = Store::memory().unwrap();
+        store.set_meta("generation", "predecessor").unwrap();
+        store.set_meta("schema_json", "invalid stored schema").unwrap();
+        let next = Generation::certify(&ProjectJson { version: 1, auth: Auth::default(), schema: Schema::default(), programs: vec![], effects: vec![] }, Ceilings::default()).unwrap();
+        let error = Runtime::open(store, next.clone()).err().expect("corrupt schema must refuse open");
+        let wire = serde_json::to_value(Refusal::from_successor(&error)).unwrap();
+        assert_eq!(wire["code"], "E_SUCCESSOR_STORE");
+        assert_eq!(wire["family"], "successor");
+        assert_eq!(wire["guide"], "successor");
+        assert_eq!(wire["site"], "store");
+        assert_eq!(wire["from"], "predecessor");
+        assert_eq!(wire["to"], next.hash());
+        assert!(wire["rewrite"].as_str().unwrap().contains("repair the store error"));
+    }
+
+    #[test]
     fn authored_require_uses_the_first_class_rule_field() {
         let refusal = Refusal::from_runtime(&RuntimeError::Require { code: "conflict".into(), site: Some("snapback/rules.q:8:3".into()) });
         assert_eq!(refusal.rule.as_deref(), Some("conflict"));
@@ -599,4 +630,3 @@ pub(crate) fn successor_site(mut refusal: Refusal, next: &crate::project::Compil
     }
     refusal
 }
-

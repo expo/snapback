@@ -33,6 +33,60 @@ function tabs(options: { grant?: boolean; refuse?: NonNullable<Parameters<typeof
   return { database, locks, store, owner, open, grant: options.grant ?? true };
 }
 
+for (const [cold, target] of [[false, "alias"], [true, "alias"], [true, "intent"]] as const) test(`completed dismissal returns its bytes once after ${cold ? "cold reopen" : "takeover"} (${target} command)`, async () => {
+  const refusal = { code: "E_INPUT", family: "input", message: "enum case removed", guide: "input/runtime" };
+  const { owner, open } = tabs({ refuse: (_intent, body) => body.args.body === "removed" ? { status: 400, envelope: refusal } : undefined });
+  const writer = open(); await writer.ready;
+  const closeDrain = await earnGrant(writer);
+  await writer.offline();
+  const follower = open(); await follower.ready;
+  let successor = follower;
+  let release!: () => void;
+  const paused = new Promise<void>(resolve => { release = resolve; });
+  try {
+    await until(async () => (await follower.outbox.status()).reason === "forwarding", "follower route");
+    const args = { conversationId: "conversation-1", body: "removed" };
+    const first = await follower.mutation(api.messages.send, args);
+    await follower.mutation(api.messages.send, { ...args, body: "after" });
+    await until(async () => (await writer.outbox.entries()).filter(e => e.grant).length === 2, "writer admission");
+    await assert.rejects(writer.online(), { code: "E_INPUT" });
+    await writer.offline();
+    const head = (await writer.outbox.entries())[0]!;
+    const inbox = (follower as any).inbox;
+    const runtime = (follower as any).offlineRuntime;
+    const refresh = inbox.refresh.bind(inbox);
+    let waiting = false;
+    inbox.refresh = async () => {
+      await refresh();
+      if (runtime.inboxRows.some((row: any) => row.kind === "dismiss" && row.state === "done")) {
+        waiting = true;
+        await paused;
+      }
+    };
+    const pending = follower.outbox.dismiss(target === "alias" ? first.intent! : head.intent).then(value => ({ value }), error => ({ error }));
+    await until(() => waiting, "follower paused before consuming completed result");
+    const writerRuntime = (writer as any).offlineRuntime;
+    const identity = { scope: (writer as any).inbox.scope("dev:alice"), principal: "dev:alice", authEpoch: writerRuntime.authEpoch };
+    for (const foreign of [{ ...identity, scope: "another backend" }, { ...identity, principal: "dev:bob" }]) {
+      assert.equal(await writerRuntime.outbox.dismiss(first.intent!, undefined, foreign), undefined, "completed results are scoped");
+    }
+    if (cold) await follower.close();
+    await writer.close();
+    if (cold) { successor = open(); await successor.ready; }
+    await until(() => !(successor as any).offlineRuntime.following, "new writer");
+    release();
+    assert.ok("error" in await pending, "the old role cannot publish the result");
+    const recovered = await successor.outbox.dismiss(first.intent!);
+    assert.deepEqual(recovered, { intent: head.intent, op: head.op, args, refusal });
+    assert.equal(await successor.outbox.dismiss(first.intent!), undefined, "returned only once");
+    const rows = await (successor as any).offlineRuntime.store.inboxRows();
+    assert.equal(rows.some((row: any) => row.kind === "dismiss"), false, "completed command cleaned up");
+    await successor.online();
+    await successor.outbox.drain();
+    assert.deepEqual(owner.executions.map(e => (e.args as any).body), ["after"], "only the next intent replays");
+  } finally { release(); closeDrain(); await successor.close(); await follower.close(); await writer.close(); }
+});
+
 /** The writer earns its replay grant through the recipe's drain. */
 async function earnGrant(writer: any): Promise<() => void> {
   const inbox = subscribe(writer, api.messages.inbox, { c: null }, () => undefined, { drain: true });

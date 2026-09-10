@@ -706,6 +706,6 @@
     "site": "snapback/ops.q:1:1",
     "guide": "bounds",
     "wrong": "```q\n-- snapback/schema.q\ntable items:\n  body: text <=100\n  by bySearch: wordPrefixes(body), id\n  read <- public\n  update <- allow\n\n-- snapback/ops.q\njob reindex():\n  chunk p in items first 100 by byId:\n    update items[p.id] { body: p.body }\n```",
-    "right": "```q\n-- Each chunk row of a search-indexed text column re-derives its search terms,\n-- priced as steps per row for the whole chunk; the chunk size is the bound,\n-- so shrink it (or the text maximum).\n-- snapback/schema.q\ntable items:\n  body: text <=100\n  by bySearch: wordPrefixes(body), id\n  read <- public\n  update <- allow\n\n-- snapback/ops.q\njob reindex():\n  chunk p in items first 10 by byId:\n    update items[p.id] { body: p.body }\n```"
+    "right": "```q\n-- The certificate charges search derivation for every row whose patch names\n-- the indexed text, even when equal values skip derivation at runtime.\n-- Shrink the chunk size (or the text maximum) to bound that charge.\n-- snapback/schema.q\ntable items:\n  body: text <=100\n  by bySearch: wordPrefixes(body), id\n  read <- public\n  update <- allow\n\n-- snapback/ops.q\njob reindex():\n  chunk p in items first 10 by byId:\n    update items[p.id] { body: p.body }\n```"
   }
 ]

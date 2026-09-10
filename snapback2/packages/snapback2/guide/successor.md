@@ -3,7 +3,9 @@
 `check` certifies; on save, `dev` installs transactionally. Refusal keeps the
 old generation and data. `dev --status --json` shows the generation, refusal,
 and last `successor` report; `.snapback/log.jsonl` records them too.
-Reports carry `from`/`to`; refusal sites name the declaration.
+Reports carry `from`/`to` and recorded audience bounds on install, migration
+and cold open; status retains the same completed report.
+Refusal sites name the declaration or store.
 
 ## Additive changes preserve values
 

@@ -209,8 +209,9 @@ export interface DrainOptions {
 
 /**
  * Replays queued intents in order. A transport failure leaves the intent
- * queued and stops; a rejection, conflict, or refusal settles only that intent
- * and the drain continues. Past the fence, replay waits for a successful
+ * queued and stops. Non-retryable input/schema refusals persist dismissal
+ * eligibility and stop the drain; terminal rejections/conflicts settle and
+ * continue. Past the fence, replay waits for a successful
  * resume; only the owner's `E_OFFLINE_INTENT_EXPIRED` refusal settles expired.
  */
 export function drainOutbox(options: DrainOptions): Promise<DrainResult> {
@@ -449,7 +450,7 @@ export function createOutboxApi(
     }, identity, () => (runtime?.following ? inbox?.writer : undefined)),
     // @ref LLP 1018.004#2-the-inbox — a follower's dismissal is a durable command row the writer consumes.
     dismiss: async (intent) => {
-      const entry = runtime?.following ? await inbox?.dismiss(intent)
+      const entry = (runtime?.following || runtime?.principal !== undefined) && inbox ? await inbox.dismiss(intent)
         : runtime?.principal !== undefined ? await runtime.outbox.dismiss(intent) : undefined;
       return entry?.state === "queued" && entry.refusal
         ? { intent: entry.intent, op: entry.op, args: entry.args, refusal: entry.refusal } : undefined;

@@ -107,7 +107,7 @@ impl SuccessorRefusal {
             code: "E_SUCCESSOR_STORE".to_owned(),
             message: error.to_string(),
             rewrite: "repair the store error and retry the successor".to_owned(),
-            site: None,
+            site: Some("store".to_owned()),
             plan: MigrationPlan::default(),
             conflicts: Vec::new(),
             cap_conflicts: Vec::new(),
@@ -124,7 +124,7 @@ impl SuccessorRefusal {
                 "successor leaves required column {table}.{column} absent on stored rows"
             ),
             rewrite: format!(
-                "declare {table}.{column} as T?, apply; fill it with a bounded job (`run fill_{table}_{column} --as system --wait`; see guide job); then declare T and apply again"
+                "declare {table}.{column} as T?, apply; fill it with a bounded job (`run fill_{table}_{column} --as system --wait`; see guide successor); then declare T and apply again"
             ),
             site: Some(format!("schema.tables.{table}.columns.{column}")),
             plan: MigrationPlan::default(),
@@ -191,6 +191,16 @@ pub struct SuccessorReport {
     /// The audience bound `A` the engine recorded for each installed log (LLP 1019 §4).
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub audience_bounds: BTreeMap<String, u32>,
+}
+
+impl SuccessorReport {
+    pub(crate) fn persist(&self, transaction: &Transaction<'_>) -> Result<(), RuntimeError> {
+        transaction.execute(
+            "INSERT INTO _meta(key, value) VALUES ('last_successor', ?1) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+            [canonical_json(self)],
+        )?;
+        Ok(())
+    }
 }
 
 /// `owned` is `projected_owned_ids` taken before any migration drop (the same set the
@@ -603,10 +613,6 @@ pub(crate) fn apply_additive(
             predecessor_maintain_ids.remove(&target).unwrap_or_default(),
         )?;
     }
-    transaction.execute(
-        "INSERT INTO _meta(key, value) VALUES ('last_successor', ?1) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-        [canonical_json(&report)],
-    )?;
     Ok(report)
 }
 

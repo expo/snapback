@@ -60,7 +60,8 @@ last replay as bad input or schema. Starting another replay durably clears that
 eligibility before sending; in-flight or unknown outcomes cannot be dismissed.
 `status.blocked` names the refused head; its label and item Dismiss action agree.
 `dismiss` returns its bytes to re-author and FIFO continues on either tab;
-a follower awaits the writer's durable result. Older snapshots expose
+a follower awaits the durable result, recoverable once by its original alias
+after takeover or reopening. Older snapshots expose
 `reason.code: "changed"` and `freshness.compactedThrough`; refresh their query.
 Committed does not mean shown: query `items` need the target's observation
 through commit. `arrived`/global sequence cannot substitute. Expose failures.
