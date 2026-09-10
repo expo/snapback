@@ -786,3 +786,12 @@ for the orchestrator to update from this worktree. No edit to `writer.rs`
   to be called `provider.refused`.
 - The prior post-provider/pre-durable-settlement crash-seam issue stays open;
   r3 neither changes it nor claims that boundary.
+
+## Fix round r4 (orchestrator)
+
+Codex r3 (`reviews/witness-r3-codex.md`): with the trace history unavailable, a row carries no
+provider evidence, and the aggregator read a missing `provider.refused` as zero refusals for a
+grant-less effect — a caught denial became a witness once its record was lost. Fixed: zero
+refusals is evidence the row must carry; a row without provider evidence never witnesses, grants
+or not, and the check blocks with the retained history reason. Test: the caught-refusal unit
+now also removes the evidence and asserts no witness for both grant shapes. `test_effects` 11/11.

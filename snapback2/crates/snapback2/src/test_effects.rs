@@ -387,10 +387,13 @@ fn witness_evidence(
             Some(_) => row["then"].clone(),
         };
         let committed = decl.then.is_none() || then["state"] == "committed";
-        let no_refusals = match row["provider"].get("refused") {
-            Some(refusals) => refusals.as_object().is_some_and(Map::is_empty),
-            None => decl.grants.is_empty(),
-        };
+        // Zero refusals is evidence, never an absence of it: a row whose provider
+        // evidence is missing (history unavailable) cannot witness, grants or not —
+        // a grant-less effect that caught a denial recorded it, and losing the record
+        // must not turn that refusal into a witness (review witness-r3-codex).
+        let no_refusals = row["provider"]
+            .get("refused")
+            .is_some_and(|refusals| refusals.as_object().is_some_and(Map::is_empty));
         let provider = if decl.grants.is_empty() {
             json!({"declared":false})
         } else {
@@ -603,6 +606,12 @@ mod tests {
                     found["delivery.notify"].not_witnessed[0]["provider"],
                     sent["provider"]
                 );
+                // Missing evidence (history unavailable) is not zero refusals: no witness either,
+                // for a grant-less effect too (review witness-r3-codex B1).
+                let mut missing = sent.clone();
+                missing.as_object_mut().unwrap().remove("provider");
+                let found = witness_evidence(&[missing], &[window("caught", 2, 4)], &effects);
+                assert!(found["delivery.notify"].witness.is_none(), "grants={grants}: missing evidence witnessed");
             }
         }
     }
