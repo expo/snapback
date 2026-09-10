@@ -9,7 +9,7 @@ Clique benchmark
 2026-09-06); revised by Claude Fable 5.1 after the five-model panel of
 2026-09-06/07 (§9), which the author convened
 **Date:** 2026-09-06
-**Revised:** 2026-09-08 (LLP 1018.000 implemented; separate cold-run obligations retained); 2026-09-07 (bounded lifecycle/consumer closeout and zero-proof integration audit); 2026-09-07 (public zero-count proof repair and cold prediction witness); 2026-09-07 (implemented finite compiler/declaration reconciliation); 2026-09-07 (follow-on LLP 1018.000 linked; closed-ticket links repaired); 2026-09-07 (focused panel: witness-first sequence and finite compiler closeout, §13); 2026-09-07 (two focused draft RFCs and three bounded architecture investigations, §12); 2026-09-07 (pending-client schema conflict exercise and formal M7 handoff); 2026-09-07 (surviving-row uniqueness checked against each actual rebuild); 2026-09-07 (panel revision: a second measure, move one rewritten
+**Revised:** 2026-09-09 (published 0.0.20 cold treatment and working-set reconciliation, §§2 and 11); 2026-09-08 (LLP 1018.000 implemented; separate cold-run obligations retained); 2026-09-07 (bounded lifecycle/consumer closeout and zero-proof integration audit); 2026-09-07 (public zero-count proof repair and cold prediction witness); 2026-09-07 (implemented finite compiler/declaration reconciliation); 2026-09-07 (follow-on LLP 1018.000 linked; closed-ticket links repaired); 2026-09-07 (focused panel: witness-first sequence and finite compiler closeout, §13); 2026-09-07 (two focused draft RFCs and three bounded architecture investigations, §12); 2026-09-07 (pending-client schema conflict exercise and formal M7 handoff); 2026-09-07 (surviving-row uniqueness checked against each actual rebuild); 2026-09-07 (panel revision: a second measure, move one rewritten
 around what already exists, the browser-tab policy decided, count-backed cap
 probes decided, the typed IR cut, move four evidence-led, move zero added, the
 Muse scores cited, the clock repair marked landed; implementation record §10);
@@ -18,7 +18,9 @@ Muse scores cited, the clock repair marked landed; implementation record §10);
 LLP 1012, LLP 1013, LLP 1015, LLP 1016, LLP 1017, LLP 1018.001, LLP 1018.002, LLP 0329.014.007;
 `benchmarks/briefs/social-messenger.md`,
 `benchmarks/runs/2026-09-06-clique-improvement/README.md`,
-`benchmarks/runs/2026-09-05-clique-full-3x3/holistic-scores.md`;
+`benchmarks/runs/2026-09-05-clique-full-3x3/holistic-scores.md`,
+`benchmarks/runs/2026-09-09-clique-snapback2-0.0.20-treatment/README.md`,
+`diaries/0118-snapback2-0020-clique-treatment.diary.md`;
 `llp/reviews/1018-panel.*.md`
 
 ## 1. Thesis and scope
@@ -106,6 +108,34 @@ The [retained checkpoint](../benchmarks/runs/2026-09-06-clique-improvement/READM
 at 2026-09-07 00:33Z records publication of 0.0.13, an incomplete cold run,
 and no new holistic score or three-family win. Nothing here claims that
 0.0.13 has the same defects or scores as 0.0.8.
+
+The [published 0.0.20 cold treatment](../benchmarks/runs/2026-09-09-clique-snapback2-0.0.20-treatment/README.md)
+now supplies the missing three-family evidence. Fresh same-family scorers put
+Snapback / Convex / Supabase at 80 / 82 / 76 for Astra, 67 / 80 / 49 for
+Grok, and 48 / 82 / 72 for Muse: means 65 / 81 / 66. Relative to the 0.0.4
+Snapback observations, Astra rose 16 and Grok 10 while Muse fell 30, leaving
+the three-family mean one point lower. Category means retain the thesis's
+shape: Snapback leads Convex in authorization (87 / 74) and offline sync
+(63 / 46), but trails in setup/docs (71 / 77), queries/live (67 / 87), client
+integration (66 / 81), and scale/limits (44 / 80).
+
+Independent pre-M7 grading counted Astra 83 / 9 / 9, Grok 68 / 9 / 24, and
+Muse 80 / 5 / 16 pass / fail / not-run entries in the frozen 101-key report
+schema. Astra alone completed the scale replay: all 167,157 actions and 225
+invariants passed, while cold browser sync and group send/render exceeded
+thirty seconds. Astra and Grok's fresh M7 sessions ended capability-failure;
+Muse's passed its 6/6 feature suite, frozen live/offline choreography, and
+48-view preservation comparison. These are N=1 calibration observations, not
+a causal estimate or promotion claim. They establish that 0.0.20 did not
+surpass the retained Convex comparison and that client delivery, hydration,
+pagination, and first-write custody remain the dominant residual seams.
+
+The [treatment diary](../diaries/0118-snapback2-0020-clique-treatment.diary.md#llp-1018-measure-count)
+counts §1's measures conservatively across the three lanes: seven categories
+of application-owned infrastructure avoided, six application-owned
+integration mechanisms still added, and seven contracts still derived from
+behavior. Repeated observations are deduplicated and purely application or
+harness mistakes are excluded.
 
 Two features of the [canonical rubric](../benchmarks/briefs/social-messenger.md#scoring)
 matter to prioritization. Offline behavior O4 and offline authoring B4
@@ -538,11 +568,18 @@ LLP 1016, keeping the working set at 59. LLP 1016 stays at its original path,
 its implementation constraints still apply, and this document links it
 directly. Its outstanding hosted admission and MCP work remain owned by
 LLP 1015. That archive operation removed only the current link; it does not
-close residual issues or change either document's status. This document
-leaves the working set when §10's slices have landed and the next cold run's
-diaries have been counted against §1's two measures, and §12's follow-ups have
-an explicit disposition or another active owner. New architecture work does
-not replace the cold-run requirement.
+close residual issues or change either document's status.
+
+The 0.0.20 treatment and Diary 0118 now satisfy the separate cold-run and
+measure-count obligations. They do not satisfy this research program's
+comparative aim: the mean remained 65 against Convex's 81, and all three
+grades converge on client delivery/preparation/hydration as unfinished work.
+Keep this document Active and in `llp/current/` while the accepted
+[client follow-up plan](./1018.003.001-client-follow-ups.plan.md) owns that
+residual surface and [LLP 1018.002](./1018.002-dependency-scoped-invalidation.rfc.md)
+retains its explicit Draft disposition. A later curation pass may archive this
+link when those active owners either close the findings or record a deliberate
+non-implementation; another full Clique run is evidence, not an ambient gate.
 
 The two focused draft RFCs added on 2026-09-07 replace the current links to
 LLP 0329.017 and LLP 0329.018, keeping the working set at 59. Those prototype

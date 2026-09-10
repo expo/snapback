@@ -1,0 +1,706 @@
+{
+  "schemaVersion": 1,
+  "lane": "snapback",
+  "laneVariant": "bare",
+  "carrier": "web",
+  "brief": "social-messenger",
+  "harness": {
+    "name": "Codex",
+    "model": "gpt-6-astra",
+    "effort": "medium",
+    "environment": {
+      "backend": "snapback2@0.0.20",
+      "node": "24.18.0",
+      "os": "macOS arm64",
+      "deploymentPosture": "local dev binary, Hermes engine"
+    }
+  },
+  "timestamps": {
+    "startedAt": "2026-09-09T13:31:27Z",
+    "finishedAt": "2026-09-09T17:11:58Z"
+  },
+  "firstGreenProofAt": "2026-09-09T13:40:27Z",
+  "wallClock": {
+    "totalSeconds": 13231,
+    "phases": {
+      "orientation": null,
+      "authoring": null,
+      "verification": null,
+      "diagnosis": null,
+      "replay": 1042.251,
+      "m7Session": null
+    }
+  },
+  "tokens": {
+    "input": null,
+    "output": null,
+    "source": null,
+    "phases": {
+      "orientation": null,
+      "authoring": null,
+      "verification": null,
+      "diagnosis": null
+    }
+  },
+  "correctionLoops": [
+    {
+      "attribution": "agent-error",
+      "summary": "1788960851 error attribution=agent-error source=diagnostic evidence=evidence/m1-check.json; removed scaffold journeys referencing replaced avatarUrl.",
+      "evidence": "run-log.md:12"
+    },
+    {
+      "attribution": "environment",
+      "summary": "1788960925 error attribution=environment source=diagnostic evidence=run-log.md; login shell Node v25.9.0 differs from overlay; absolute /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node selected; bun absent on nonlogin PATH.",
+      "evidence": "run-log.md:17"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788960925 error attribution=agent-error source=diagnostic; quoted catchall filename and scripts module scope fixed; corrected UI props/imports and IndexedDB options against types.",
+      "evidence": "run-log.md:18"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788961102 correction-loop attribution=agent-error evidence=evidence/acceptance-m1-1.log; replaced unsupported optional catchall with explicit root and catchall.",
+      "evidence": "run-log.md:22"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "1788961102 correction-loop attribution=ambiguous evidence=scripts/debug-signup.mjs; browser CORS refusal under serve mode, no setting found in guides dev/operator; same-origin gateway workaround.",
+      "evidence": "run-log.md:23"
+    },
+    {
+      "attribution": "environment",
+      "summary": "1788961216 error attribution=environment evidence=evidence/choreo-m1-startup{,-2}.log; copied metering dependencies; missing external JSON-schema helper mapped to lane-local AJV validator via loader, frozen choreography checks untouched.",
+      "evidence": "run-log.md:27"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788961471 error attribution=agent-error evidence=evidence/m2-check-{1,2}.json; grammar repairs before completion.",
+      "evidence": "run-log.md:32"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "1788961471 workaround attribution=ambiguous evidence=evidence/m2-check-3.json; compiler closure cap refuses 1000-follow merge; 500-follow bound compiles and meets named probe, beyond 500 remains capped.",
+      "evidence": "run-log.md:33"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788961566 correction-loop attribution=agent-error evidence=evidence/acceptance-m2-{1,2}.log; virtualization invalidated DOM-count assertion; assert exact second-page row instead.",
+      "evidence": "run-log.md:35"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788961566 correction-loop attribution=agent-error evidence=evidence/m2-owner-status.json; separate own original/repost identity, reviewed and applied index-only migration.",
+      "evidence": "run-log.md:36"
+    },
+    {
+      "attribution": "environment",
+      "summary": "1788961710 correction-loop attribution=environment evidence=scripts/debug-media.mjs; RN web omits accessibilityValue.text, copied UI kit now additionally emits equivalent aria-valuetext with unchanged visuals/semantics.",
+      "evidence": "run-log.md:38"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788961710 correction-loop attribution=agent-error evidence=evidence/choreo-m2-1.log; persistent feed navigation added on profile routes; video attachment uses a fixture-image poster for the kit preview.",
+      "evidence": "run-log.md:39"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788961784 retry attribution=agent-error evidence=evidence/choreo-m2-1.log; stopped known runner pid=10388 after parallel suite writes buried its retained post. Future suite/choreography runs are sequential.",
+      "evidence": "run-log.md:41"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788962180 error attribution=agent-error evidence=evidence/m3-check-{1,2,3}.json; time/int fallback, fn body, list concatenation, nested roster bounds corrected.",
+      "evidence": "run-log.md:46"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788962180 workaround attribution=agent-error evidence=evidence/m3-check-4.json; narrower message cards and 30-row history; chat list only previews two members and settings reads full roster.",
+      "evidence": "run-log.md:47"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788962276 correction-loop attribution=agent-error evidence=evidence/acceptance-m3-{1,2}.log; required create keys and early-return receipt aggregation replace nullable-key collision and lexical-loop shadowing.",
+      "evidence": "run-log.md:49"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788962276 error attribution=agent-error evidence=evidence/m3-check-6.json; receipt scan now includes conversation in index prefix with 50-recipient cap, making authority uniform.",
+      "evidence": "run-log.md:50"
+    },
+    {
+      "attribution": "environment",
+      "summary": "1788962419 fixture workaround attribution=environment evidence=scripts/fixture-observer.mjs,evidence/erin-observer.png; real Erin browser pid=41750 reads seeded four-member group during choreography; no membership or receipt API shortcuts.",
+      "evidence": "run-log.md:52"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "1788962485 correction-loop attribution=ambiguous evidence=scripts/debug-membership.ts,scripts/debug-transport.ts,evidence/choreo-m3-1.log; removal succeeds headlessly but browser navigation canceled unsettled write; mutation transport uses keepalive and survives component lifetime. Restored Dave absent through actual admin removal before retry.",
+      "evidence": "run-log.md:54"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788962567 correction-loop attribution=agent-error evidence=evidence/choreo-m3-2.log; route resolver cleared established conversation on membership revocation, unmounting retained history; retain route identity and last synchronized rows after removal.",
+      "evidence": "run-log.md:56"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788962845 error attribution=agent-error evidence=evidence/m4-check-1.json; text has no count builtin; separate typed caption edit from text edit.",
+      "evidence": "run-log.md:61"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788963041 correction-loop attribution=agent-error evidence=scripts/debug-m4.ts,evidence/acceptance-m4-1.log; plain image URLs replaced with authenticated byte rendering.",
+      "evidence": "run-log.md:64"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788963041 correction-loop attribution=agent-error evidence=scripts/gateway.mjs; gateway failed to close upstream SSE on browser disconnect, causing retained subscriptions; added response-close cleanup, stopped pid=94032, restarted gateway pid=67226 port=50102.",
+      "evidence": "run-log.md:65"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788963455 error attribution=agent-error evidence=evidence/m5-check-{1,2}.json; duplicated fan-out and update probes exceeded certified steps; allocate ID once, branch only on inserts, then fan out once.",
+      "evidence": "run-log.md:70"
+    },
+    {
+      "attribution": "environment",
+      "summary": "1788963596 correction-loop attribution=environment evidence=evidence/m5-debug.log; RN web omits selected accessibility state; copied kit emits matching aria-selected.",
+      "evidence": "run-log.md:73"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788963596 correction-loop attribution=agent-error evidence=evidence/choreo-m5-1.log; DM navigation observed mutation result only after durable carrier enabled; use live direct-pair query and handle lookup.",
+      "evidence": "run-log.md:74"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788963954 correction-loop attribution=agent-error evidence=evidence/m5-debug-4.log,evidence/m5-debug-no-drain.log,evidence/m5-debug-fixed-tombstone.log; E_OFFLINE_DELIVERY conflicting durable fact caused by unsend row retained while its delivery declared physical deletion; tombstones now expire-only. Restored full delivery sync.",
+      "evidence": "run-log.md:76"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788964339 correction-loop attribution=agent-error evidence=evidence/m5-outbox-debug.log; coalesced received-message acknowledgments by chat to avoid replay backlog, guarded redundant membership writes, explicit online drain.",
+      "evidence": "run-log.md:78"
+    },
+    {
+      "attribution": "environment",
+      "summary": "1788964339 correction-loop attribution=environment evidence=evidence/m5-sync-debug.log; uploaded backgrounds synchronized correctly but RN Image root exposes no changed src/style; mirror image URI in aria-valuetext, plus disappearing selected state.",
+      "evidence": "run-log.md:79"
+    },
+    {
+      "attribution": "snapback-defect",
+      "summary": "1788964454 error attribution=snapback2-defect source=diagnostic evidence=evidence/m5-navrace-debug.log:1; concurrent navigation/resume rejected with conditional reply requires immutable full-envelope facts; did not inspect source text included by Expo overlay.",
+      "evidence": "run-log.md:81",
+      "subAttribution": "defect"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788964454 correction-loop attribution=agent-error evidence=src/Network.web.tsx; catch resume/drain rejection and present real Retry sync control instead of unhandled rejection overlay. M5 attempt6 already failed; subsequent hot reload invalidates remaining checks, will rerun clean.",
+      "evidence": "run-log.md:82"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788964513 correction-loop attribution=agent-error evidence=evidence/m5-navrace-fixed.log:40; durable partial group query can contain seat with profile null; settings now waits for profile before rendering member actions.",
+      "evidence": "run-log.md:84"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788964641 correction-loop attribution=agent-error evidence=evidence/m5-once-debug.log,src/Network.web.tsx; replay requests repeated while already draining; automatic recovery now respects outbox draining state. Composer also waits for picker completion and once-photo upload admission.",
+      "evidence": "run-log.md:87"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788964802 correction-loop attribution=agent-error evidence=src/Clique.tsx,evidence/m5-once-open.log; isolated once open/close state correct, but profile query loading unmounted the full Home tree during durable refresh. Retain established profile through transient loading; guard missing conversation in settings.",
+      "evidence": "run-log.md:89"
+    },
+    {
+      "attribution": "environment",
+      "summary": "1788964960 correction-loop attribution=environment source=diagnostic evidence=evidence/m5-fullflow.log; Expo web chooser fails after prior background-picker navigation; persistent HTML file input now provides web attachment selection. Native retains Expo picker.",
+      "evidence": "run-log.md:91"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "1788965295 correction-loop attribution=ambiguous source=diagnostic evidence=evidence/m5-once-long.log; live durable page temporarily omitted newly received row while server still retained it. Conversation previously retained only when entire page empty; now merges observed IDs across partial pages and purges explicit expiry IDs.",
+      "evidence": "run-log.md:93"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788965351 workaround attribution=agent-error evidence=evidence/m5-once-long.log,src/useReceiptWriter.ts; automatic receipt acknowledgments conflicted under prediction and delayed user writes. Receipt-only client uses same authenticated public mutation online; offline receipts retry on reconnect. User messages/likes/reactions retain durable carrier.",
+      "evidence": "run-log.md:96"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788965568 correction-loop attribution=agent-error evidence=evidence/m5-fullflow2.log,evidence/m5-toggle.log; immediate selection/toggle/send could use stale rendered draft (ordinary photo instead of once). Draft reference updates synchronously on input and toggle; durable admission clears composer.",
+      "evidence": "run-log.md:98"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788965682 correction-loop attribution=agent-error source=package README/guide evidence=evidence/guide-offline.txt,src/Messaging.tsx,snapback/schema.q; offline media fields may be null, so view-once identity is now durable metadata independent of asset presence. Retain already-delivered display fields across partial refreshes; tombstone and expiry override retention.",
+      "evidence": "run-log.md:100"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "1788966116 correction-loop attribution=ambiguous source=diagnostic evidence=evidence/m5-expiry-flow.log; send committed and Bob showed message, sender projection omitted it. Reduced initial history page 30 to 10 (pagination retained) to reduce durable subscription work.",
+      "evidence": "run-log.md:102"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788966559 correction-loop attribution=agent-error evidence=evidence/choreo-m5-16.log,evidence/m5-expiry-fired.json; server purge succeeded but relaunch rendered cached rows before authenticated resume; gate online startup on resume, preserve offline access.",
+      "evidence": "run-log.md:104"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788966654 correction-loop attribution=agent-error evidence=evidence/m5-boot.log,evidence/m5-boot-fixed.log; gating Expo Slot reset deep links to Feed; Slot remains mounted, application content is gated through NetworkContext instead.",
+      "evidence": "run-log.md:106"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788967640 error attribution=agent-error evidence=evidence/m6-sample-1.log; Node strip-only TypeScript rejects parameter properties; replaced with ordinary constructor assignment. Sample replay then settled all 50 actions.",
+      "evidence": "run-log.md:112"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788968433 M6 correction-loop agent-error: native had no reconnect coordinator; added cold-offline startup and foreground reachability per package guide offline.md/expo generated declarations. Web suite and choreography green (evidence/suite-m6-1788967997863.json, evidence/choreo-m6-1.log). Native Release build started; own simulator 38D7F181-90A8-4C24-B4D1-B70A1EBD7925. knowledge lookup source: package README/guide; evidence/m6-native-build.log.",
+      "evidence": "run-log.md:115"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788968610 M6 correction-loop agent-error: paginated follow index lacked total order; diagnostic E_QUARRY_TYPE evidence/m6-check-final.json; use existing unique byFollowerFollowed, check green evidence/m6-check-final2.json. Adapter verifier and probe authoring complete, scale execution after M8 to include its checkpoint probes. Native XCTest driver uses own simulator, source:model knowledge.",
+      "evidence": "run-log.md:117"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788968802 M6 native correction-loop agent-error: initial XCTest target PRODUCT_NAME missing; fixed scripts/native-target.rb. Release app launched but SecureStore returned required entitlement missing after unsigned build; add simulator application/keychain entitlements and adhoc signing. Evidence artifacts/m6-native/signin.png, evidence/m6-native-test2.log.",
+      "evidence": "run-log.md:123"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788968892 M6 correction-loop agent-error: Hermes lacks AbortSignal.timeout used by my native reachability probe; exact UI diagnostic undefined is not a function, evidence artifacts/m6-native/signin-signed.png. Replaced with AbortController plus timer. Signed build cleared SecureStore entitlement failure.",
+      "evidence": "run-log.md:127"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "1788968981 M6 native correction-loop environment/agent-error: signed Hermes app authenticates, XCTest route interrupted by iOS Save Password/Open dialogs; add explicit UI interruption handling; evidence artifacts/m6-native/probe4.png and route4.png, ios/CliqueUITests/CliqueUITests.swift.",
+      "evidence": "run-log.md:129"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788969165 M6 native correction-loop agent-error: cold SQLite session remains hydrating with restoringViewer by documented design; my unconditional auth gate prevented held reads from mounting. Auth guide and live-query guide explain this. Gate now permits restoringViewer display through carrier authorization. Evidence artifacts/m6-native/attachments5/B8AB85B6-B3C5-48BA-A257-85DF0C1A1E9C.txt. Native attempt5 failed cold history; resumed exact PID78624 and stopped recording80388. Browser offline-like test initial selector wrong (sm-feed-like vs sm-post-like); corrected, pass evidence/m6-offline-like.json. Guide expo lookup E_GUIDE_UNKNOWN; used installed auth/live-query pages.",
+      "evidence": "run-log.md:139"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788969433 M6 correction-loop agent-error: native cold history actually rendered (screenshot F259573A in attachments6); XCTest looked for text hidden by kit parent accessibility label. Include message text in existing accessibility label and query that. Ordinary media was never fetched because useAssetFile is documented cached-only; add public assetBlob prefetch while connected. Evidence installed react-native/source.d.ts; src/images.ts. Corrected one invalid local image evidence path lookup (agent-error).",
+      "evidence": "run-log.md:149"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "1788969516 M6 error attribution=ambiguous: original owner PID78624 exited after native pause/resume; exact diagnostic E_OWNER_NOT_RUNNING evidence/m6-owner-stopped.json. Restarted same durable instance PID93488 port50100 evidence/m6-owner-restart.json. Native attempt7 prepare failed HTTP500 while backend absent; update native-control to exact new owner PID, stopped control74974. Offline reaction attempt1 E_TRANSPORT fetch failed from absent owner; Node unhandled-error renderer dumped installed minified runtime into log (not used as knowledge; subsequent reads limited to diagnostic lines).",
+      "evidence": "run-log.md:153"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788969653 M6 correction-loop agent-error: native media prefetch passed AssetRecord to assetBlob, whose public declaration requires a URL string. Fix assetBlob(assetUrl(asset)); evidence types.d.ts:480, src/images.ts, native attempt8 ordinary-media assertion failure. No platform gap claimed for this integration error.",
+      "evidence": "run-log.md:155"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "1788969665 M6 same correction loop: public declarations also specify assetUrl is asynchronous and native assetBytes avoids Blob. Corrected to await URL then assetBytes before native bundle phase.",
+      "evidence": "run-log.md:157"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788969777 M6 native retry: custom cached URI helper still did not display ordinary media (attempt9), no refusal logged. Use documented native AssetImage with source/refusal callbacks for actual conversation image rendering; pending source is distinct from rendered media. Evidence src/Messaging.tsx, evidence/m6-native-test9.log. Attribution=agent-error pending verification.",
+      "evidence": "run-log.md:159"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788970035 M6 correction-loop agent-error: repeated sample media actions uploaded bytes before idempotent early returns, filling pending-object ceiling 20/20 (E_ASSET_TOO_LARGE, acceptance-m6-final.log). Discarded only abandoned ready uploads for sample actors via public listUploads/discardUpload, evidence/sample-abandoned-upload-cleanup.json. Adapter reuses existing keyed media mutation returns without uploading duplicates. Initial edit omitted duplicate binding (ReferenceError, acceptance-m6-final2.log), corrected. Native attempt10 remains failed; candid supplemental status artifacts/m6-native/m6-ios-run.json, simulator-status.json.",
+      "evidence": "run-log.md:161"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "1788970099 M6 green evidence=evidence/suite-m6-1788970036389.json,evidence/choreo-m6.jsonl,artifacts/m6-ios-green; native supplemental failed evidence=artifacts/m6-native/m6-ios-run.json. M8 start; source=fixture instrument/social-messenger.md M8 and assertion manifest, UI kit Insights/Trending components, choreography m8. Scale adapter/probe authored inside M6; execution after M8 on its own clock to measure M8 checkpoint curves.",
+      "evidence": "run-log.md:163"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788970535 M8 correction loops agent-error: object array literals unsupported, changed seven day objects to keyed record; rule nested lookup unsupported, used existing-key existence and authenticated score-update operation; optional time comparisons corrected; effect import added. Diagnostics evidence/m8-check1.json,m8-check2.json; check3 passes. Operator E_OPERATOR_REQUIRED in serve mode; stopped control95010/owner93488 and restarted local dev PID23344 on50100. Backfill job done evidence/m8-backfill2.jsonl. Knowledge source=package guide quarry/job/schedule and generated types.",
+      "evidence": "run-log.md:165"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "1788970954 M8 knowledge lookup source=diagnostic: isolated control clock accepts x-snapback-control and advanceMs (evidence/m8-clock-discovery.json), test owner PID29533 port50106. No main-instance clock changes. Correction-loop agent-error: reverse follow index made setFollow ambiguous, explicitly selected byFollowerFollowed; first suite saw E_OP_UNKNOWN while invalid successor remained (m8-check4, acceptance-m8-1). UI then briefly mounted held partial counters during auth restore, causing tile race/zero values; web bootstrap now keys restoringViewer too and Insights refuses incomplete counters. Suite passed evidence/suite-m8-1788970819754.json.",
+      "evidence": "run-log.md:173"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788971312 M8 choreography attempt1 failed live same-account delivery and root chat-row lookup (structured misses evidence/choreo-m8-1.log); dual-offline convergence/receipts passed. Independent same-account reproduction passed evidence/m8-live-debug.log. Added conversations to home so its unread state is available there, guarded partial chat rows, and native keyboard tap handling. Attribution=agent-error. Digest isolated closed-client/restart/authorization proof passed evidence/m8-digest-proof.json.",
+      "evidence": "run-log.md:175"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788971886 M8 correction loop agent-error: native screenshot revealed iOS Save Password alert obscuring composer; dismiss actual alert after deep link. evidence/artifacts/m8-native/attachments1/1C680C13-6232-4B18-A03A-DD79BA3C7292.png; retry attempt2.",
+      "evidence": "run-log.md:193"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788971946 M8 lookup source=package generated/public declarations dist/snapshot.d.ts local.caughtUp; added user-visible sync progress for actual cold browser probe. Correction agent-error: direct-message membership operations now enforce group kind server-side. evidence/m8-check-final.json.",
+      "evidence": "run-log.md:199"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "1788972035 M8 native attempt2 still failed composer hittability after dialog cleared; screenshot confirms visible composer. Retry3 adds offline snapshot and coordinate tap on observed TextView frame. attribution=ambiguous evidence/m8-native-test2.log.",
+      "evidence": "run-log.md:209"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "1788972079 M8 native attempt3 build failed ENOTEMPTY Metro shared temporary-cache reset, attribution=environment; retry4 isolated TMPDIR. Control recording retry reused an existing file and exited; fixed unique output paths and exit-state guard (agent-error). Stopped exact controller53062. evidence/m8-native-test3.log.",
+      "evidence": "run-log.md:211"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "1788972115 M8 native-control error fetch failed",
+      "evidence": "run-log.md:217"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "1788972138 M8 native attempt4 prepare fetch failed: native owner50034 exited following pause/resume, same ambiguous behavior as M6. Restarted same native database owner PID75964 port50108; stopped controller74375 and rebound it. Retry5 evidence/m8-native-restart.json.",
+      "evidence": "run-log.md:219"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "1788972168 M8 native network workaround: stop owned native owner75964, restart50109; app50108 proxy will sever sockets rather than SIGSTOP owner. source=model knowledge attribution=ambiguous.",
+      "evidence": "run-log.md:223"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "1788972254 M8 native supplemental failed after five attempts, no passing assertions fabricated; attribution=ambiguous integration. evidence/artifacts/m8-native/m8-ios-run.json. Final choreography rerun binds failed native status.",
+      "evidence": "run-log.md:229"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "1788972311 M8 green evidence=evidence/suite-m8-1788972012374.json,evidence/choreo-m8.jsonl,artifacts/m8-ios-green; native supplemental failed artifacts/m8-native/m8-ios-run.json. Authoring boundaries complete; M7 not-run by instruction. Stopping exact dev owner23344; its database remains intact in root .snapback. Fresh scale-instance will own50100.",
+      "evidence": "run-log.md:231"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "1788973388 scale-replay error attribution=ambiguous evidence/evidence-scale-run.log sp0001 author",
+      "evidence": "run-log.md:245"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788973435 Scale correction loop agent-error: all167157 actions committed; final verifier expected starter post author via scale-only identity map (undefined). Resolve starter identity through public profile handle. Preserve original clock/receipt before-verifier-fix; reverify same unchanged database, no replay restart. evidence/scale-replay-receipt-before-verifier-fix.json.",
+      "evidence": "run-log.md:254"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "1788973654 Scale verification continuation end=1788973654.177 verified=true; original replay wall unchanged; verification/correction excluded. evidence/scale-replay-receipt.json",
+      "evidence": "run-log.md:256"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "1788973713 Scale full invariant225 checks passed and all read/celebrity-write degradation predicates passed, but browser cold sync30s and groupSendRender30s timed out. Own renderer diagnostic ~1.15GB RSS/102% CPU; attempted parent14985 SIGTERM found it already exited, no kill occurred. attribution=ambiguous application/offline integration. evidence/scale-probes-full.json,evidence/scale-browser-stall-processes.json. Separate strictly bounded cold batch follows; first failure ends batch honestly.",
+      "evidence": "run-log.md:258"
+    },
+    {
+      "attribution": "ambiguous",
+      "summary": "1788973815 Scale final verification: invariant pass=true; all167157 action hashes/checkpoint prefixes audited; full225 actual checks passed. Performance safety=false: cold sync and group send/render30s timeouts; repeat cold batch first warm-up failed so no k20 p95 fabricated. source=diagnostic attribution=ambiguous evidence/scale-cold-browser.json,evidence/scale-probes-full.json. Essay postscript and diary updated before final tally.",
+      "evidence": "run-log.md:260"
+    },
+    {
+      "attribution": "agent-error",
+      "summary": "1788973863 Final report validation correction agent-error: ajv-formats was not installed (ERR_MODULE_NOT_FOUND); used existing AJV2020 plus explicit ISO date-time format validation without changing dependencies. Frozen run-record schema passes. evidence/run-record-validation.json.",
+      "evidence": "run-log.md:262"
+    }
+  ],
+  "handAuthoredLoc": {
+    "lines": 1620,
+    "files": 121,
+    "sharedUiLines": 3618
+  },
+  "diary": "diary.md",
+  "socialMessenger": {
+    "milestones": {
+      "m1": {
+        "status": "green",
+        "startEpoch": 1788960729,
+        "endEpoch": 1788961227,
+        "wallSeconds": 498,
+        "firstRecordedGreenEpoch": 1788961227,
+        "suite": {
+          "pass": true,
+          "assertions": 7,
+          "receipt": "evidence/suite-m1.json"
+        },
+        "choreography": {
+          "pass": true,
+          "assertions": {
+            "total": 3,
+            "required": 3,
+            "implemented": 3,
+            "passed": 3,
+            "failed": 0,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "receipt": "evidence/choreo-m1.jsonl",
+          "recordedAt": "2026-09-09T13:40:01.048Z",
+          "boundSuiteReceipt": "evidence/suite-m1.json"
+        },
+        "iosHermesExport": "artifacts/m1-ios"
+      },
+      "m2": {
+        "status": "green",
+        "startEpoch": 1788961227,
+        "endEpoch": 1788961835,
+        "wallSeconds": 608,
+        "firstRecordedGreenEpoch": 1788961835,
+        "suite": {
+          "pass": true,
+          "assertions": 22,
+          "receipt": "evidence/suite-m2.json"
+        },
+        "choreography": {
+          "pass": true,
+          "assertions": {
+            "total": 9,
+            "required": 9,
+            "implemented": 9,
+            "passed": 9,
+            "failed": 0,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "receipt": "evidence/choreo-m2.jsonl",
+          "recordedAt": "2026-09-09T13:50:04.939Z",
+          "boundSuiteReceipt": "evidence/suite-m2.json"
+        },
+        "iosHermesExport": "artifacts/m2-ios-final"
+      },
+      "m3": {
+        "status": "green",
+        "startEpoch": 1788961835,
+        "endEpoch": 1788962691,
+        "wallSeconds": 856,
+        "firstRecordedGreenEpoch": 1788962691,
+        "suite": {
+          "pass": true,
+          "assertions": 7,
+          "receipt": "evidence/suite-m3.json"
+        },
+        "choreography": {
+          "pass": true,
+          "assertions": {
+            "total": 7,
+            "required": 5,
+            "implemented": 7,
+            "passed": 7,
+            "failed": 0,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "receipt": "evidence/choreo-m3.jsonl",
+          "recordedAt": "2026-09-09T14:03:59.363Z",
+          "boundSuiteReceipt": "evidence/suite-m3.json"
+        },
+        "iosHermesExport": "artifacts/m3-ios-retention"
+      },
+      "m4": {
+        "status": "green",
+        "startEpoch": 1788962691,
+        "endEpoch": 1788963136,
+        "wallSeconds": 445,
+        "firstRecordedGreenEpoch": 1788963136,
+        "suite": {
+          "pass": true,
+          "assertions": 5,
+          "receipt": "evidence/suite-m4-1788963067055.json"
+        },
+        "choreography": {
+          "pass": true,
+          "assertions": {
+            "total": 5,
+            "required": 5,
+            "implemented": 5,
+            "passed": 5,
+            "failed": 0,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "receipt": "evidence/choreo-m4.jsonl",
+          "recordedAt": "2026-09-09T14:11:44.447Z",
+          "boundSuiteReceipt": "evidence/suite-m4-1788963067055.json"
+        },
+        "iosHermesExport": "artifacts/m4-ios-final"
+      },
+      "m5": {
+        "status": "green",
+        "startEpoch": 1788963136,
+        "endEpoch": 1788967064,
+        "wallSeconds": 3928,
+        "firstRecordedGreenEpoch": 1788967064,
+        "suite": {
+          "pass": true,
+          "assertions": 6,
+          "receipt": "evidence/suite-m5-1788967036646.json"
+        },
+        "choreography": {
+          "pass": true,
+          "assertions": {
+            "total": 4,
+            "required": 2,
+            "implemented": 4,
+            "passed": 4,
+            "failed": 0,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "receipt": "evidence/choreo-m5.jsonl",
+          "recordedAt": "2026-09-09T15:16:38.149Z",
+          "boundSuiteReceipt": "evidence/suite-m5-1788963427986.json"
+        },
+        "iosHermesExport": "artifacts/m5-ios-green"
+      },
+      "m6": {
+        "status": "green",
+        "startEpoch": 1788967064,
+        "endEpoch": 1788970099,
+        "wallSeconds": 3035,
+        "firstRecordedGreenEpoch": 1788970099,
+        "suite": {
+          "pass": true,
+          "assertions": 5,
+          "receipt": "evidence/suite-m6-1788970036389.json"
+        },
+        "choreography": {
+          "pass": true,
+          "assertions": {
+            "total": 1,
+            "required": 1,
+            "implemented": 1,
+            "passed": 1,
+            "failed": 0,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "receipt": "evidence/choreo-m6.jsonl",
+          "recordedAt": "2026-09-09T16:07:42.065Z",
+          "boundSuiteReceipt": "evidence/suite-m6-1788970036389.json"
+        },
+        "iosHermesExport": "artifacts/m6-ios-green"
+      },
+      "m8": {
+        "status": "green",
+        "startEpoch": 1788970099,
+        "endEpoch": 1788972311,
+        "wallSeconds": 2212,
+        "firstRecordedGreenEpoch": 1788972311,
+        "suite": {
+          "pass": true,
+          "assertions": 6,
+          "receipt": "evidence/suite-m8-1788972012374.json"
+        },
+        "choreography": {
+          "pass": true,
+          "assertions": {
+            "total": 5,
+            "required": 5,
+            "implemented": 5,
+            "passed": 5,
+            "failed": 0,
+            "skipped": 0,
+            "notImplemented": 0,
+            "requiredUnimplemented": 0
+          },
+          "receipt": "evidence/choreo-m8.jsonl",
+          "recordedAt": "2026-09-09T16:44:36.184Z",
+          "boundSuiteReceipt": "evidence/suite-m8-1788972012374.json"
+        },
+        "iosHermesExport": "artifacts/m8-ios-green"
+      },
+      "m7": {
+        "status": "not-run",
+        "reason": "Separate fresh session explicitly excluded."
+      }
+    },
+    "replay": {
+      "schemaVersion": "snapback.full-journey-scale-replay.v1",
+      "attempted": true,
+      "capSeconds": 14400,
+      "capBasis": "user four-hour safety limit; instrument pilot cap uncalibrated",
+      "probeWallSecondsExcluded": 280.6079999656677,
+      "attempts": [
+        {
+          "attempt": 1,
+          "startedAt": "2026-09-09T16:45:31.318Z",
+          "finishedAt": "2026-09-09T17:07:34.177Z",
+          "startEpoch": 1788972331.318,
+          "endEpoch": 1788973654.177,
+          "settledPrefix": 167157,
+          "continuationOf": null,
+          "disposition": "completed"
+        }
+      ],
+      "receipt": {
+        "path": "evidence/scale-replay-receipt.json",
+        "sha256": "sha256:7e85c8b6bd1ceb9a1619ad57673c688b7b51b4445ebdc6819be5766e687ce254"
+      },
+      "derived": {
+        "wallSeconds": 1042.251,
+        "capFraction": 0.07237854166666667,
+        "capExhausted": false
+      },
+      "verificationContinuation": {
+        "attribution": "agent-error",
+        "originalEvidence": "evidence/scale-replay-receipt-before-verifier-fix.json",
+        "startEpoch": 1788973436.212,
+        "endEpoch": 1788973654.177,
+        "pass": true
+      },
+      "additionalProbeRuns": [
+        {
+          "startedEpoch": 1788973714.009,
+          "finishedEpoch": 1788973744.171,
+          "wallSeconds": 30.162,
+          "pass": false,
+          "receipt": "evidence/scale-cold-browser.json",
+          "outsideReplayAttempt": true
+        }
+      ]
+    },
+    "native": {
+      "m6": {
+        "id": "ios-simulator-m6",
+        "pass": false,
+        "receipt": "artifacts/m6-native/m6-ios-run.json",
+        "reason": "Release Hermes XCTest attempts captured cold history, but complete ordinary-media/search/ordered-flush proof did not pass."
+      },
+      "m8": {
+        "id": "ios-simulator-m8",
+        "pass": false,
+        "receipt": "artifacts/m8-native/m8-ios-run.json",
+        "reason": "No qualifying passing assertion JSONL. Native warm screen captured; full cold offline queue and ordered read receipt sequence did not pass. Last proxy-backed attempt failed to render fresh fixture after restart."
+      }
+    },
+    "scalePerformance": {
+      "pass": false,
+      "failedPaths": [
+        "cold-browser-sync",
+        "group-send-render"
+      ],
+      "evidence": [
+        "evidence/scale-probes-full.json",
+        "evidence/scale-cold-browser.json"
+      ]
+    }
+  },
+  "notes": "Phase and token counts unavailable from a trustworthy harness meter; no estimates invented. First-green epochs are first explicit milestone green declarations; passing component receipts can predate them. Mixed-attribution logged events remain ambiguous. Essay written before tally. No M7 attempt."
+}
