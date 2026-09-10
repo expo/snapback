@@ -152,10 +152,20 @@ fn owner_runs_effect_then_delivery_and_honest_restart_requeue() {
 }
 
 /// Acceptance 5's spinning half (LLP 1021 §5): with `while (true) {}` running
-/// in the effect, `dev --stop` returns and the owner process is observed to
-/// exit within the budget plus one second. The engine's deadline is what ends
-/// the job; the CLI's own two-second `E_OWNER_STOP_TIMEOUT` is not the
-/// observation. This takes the whole default budget, by design.
+/// in the effect, the engine's deadline is what ends the job — observed while
+/// the owner is alive, as the outbox row's transition from `running` to
+/// `queued` with `E_EFFECT_TIMEOUT` as its error and its retry scheduled —
+/// and then, with the retried attempt spinning, `dev --stop` returns and the
+/// owner process is observed to exit within the budget plus one second. The
+/// CLI's own two-second `E_OWNER_STOP_TIMEOUT` is not the observation. This
+/// takes two default budgets, by design.
+///
+/// The attempt that is spinning at the stop is ended by the same deadline,
+/// but its settlement does not reach the store — the writer leaves on the
+/// stop before the runner is joined (`issues/20260910-snapback2-dev-stop-
+/// drops-the-settlement-of-a-job-the-deadline-ended.md`) — so the row after
+/// the exit is printed here, not asserted; the transition above is the
+/// evidence that the deadline fires in the owner.
 #[test]
 fn dev_stop_observes_owner_process_exit_while_a_spinning_effect_runs() {
     let root = temp_root();
@@ -180,9 +190,43 @@ fn dev_stop_observes_owner_process_exit_while_a_spinning_effect_runs() {
         }),
     );
     assert_eq!(sent.body["state"], "committed", "{}", sent.body);
+    let seq = sent.body["seq"].as_u64().unwrap();
+    let row = |port: u16, secret: &str| trace(port, secret, seq)["outbox"]["rows"][0].clone();
     wait_for(Duration::from_secs(8), || {
         (status(port, &secret)["effects"]["running"] == 1).then_some(())
     });
+    let outbox_id = row(port, &secret)["id"].as_str().unwrap().to_owned();
+
+    // The first attempt runs to the deadline: the row is requeued with the
+    // timeout as its error and its retry a second out.
+    let claimed_at = Instant::now();
+    let requeued = wait_for(
+        snapback2_effects::DEFAULT_BUDGET + Duration::from_secs(5),
+        || {
+            let row = row(port, &secret);
+            (row["state"] == "queued").then_some(row)
+        },
+    );
+    assert!(
+        claimed_at.elapsed() >= snapback2_effects::DEFAULT_BUDGET - Duration::from_secs(1),
+        "the row was requeued before the budget: {:?}",
+        claimed_at.elapsed()
+    );
+    assert_eq!(requeued["attempts"], 1, "{requeued}");
+    assert_eq!(
+        requeued["lastError"],
+        format!(
+            "E_EFFECT_TIMEOUT: budget {} ms",
+            snapback2_effects::DEFAULT_BUDGET.as_millis()
+        ),
+        "{requeued}"
+    );
+    // The second attempt is claimed at the backoff instant and spins again.
+    wait_for(Duration::from_secs(8), || {
+        let row = row(port, &secret);
+        (row["state"] == "running" && row["attempts"] == 2).then_some(())
+    });
+
     let started = Instant::now();
     let stopping = Command::new(binary)
         .args(["dev", "--stop", "--json", "--project"])
@@ -209,9 +253,10 @@ fn dev_stop_observes_owner_process_exit_while_a_spinning_effect_runs() {
         "{cli}"
     );
     eprintln!(
-        "dev --stop returned {}; the owner process exited {elapsed:?} after the stop (budget {:?})",
+        "dev --stop returned {}; the owner process exited {elapsed:?} after the stop (budget {:?}); the row after the exit reads {:?}",
         stopped.status,
-        snapback2_effects::DEFAULT_BUDGET
+        snapback2_effects::DEFAULT_BUDGET,
+        outbox_row(&root, &outbox_id)
     );
     fs::remove_dir_all(root).unwrap();
 }
@@ -231,6 +276,24 @@ export const notify = effect({
 });
 "#;
 
+
+/// The outbox row's state and last error, read from the store after the
+/// owner has exited (printed by the spinning journey; see the ticket it
+/// names for why it is not yet asserted).
+fn outbox_row(root: &Path, outbox_id: &str) -> (String, Option<String>) {
+    let store = rusqlite::Connection::open_with_flags(
+        root.join(".snapback/store.sqlite"),
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+    )
+    .unwrap();
+    store
+        .query_row(
+            "SELECT state, last_error FROM _outbox WHERE id = ?1",
+            [outbox_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .unwrap()
+}
 
 fn prepare_effect_fixture(root: &Path, origin: &str) {
     let delivery = root.join("snapback/delivery.ts");

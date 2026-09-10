@@ -150,12 +150,17 @@ impl Ibex2Host {
                     && runtime.jobs < MAX_JOBS_PER_RUNTIME)
         });
 
+        // One deadline per job, from here: the runtime it may have to build,
+        // the authored module's top level, and every entrance after are held
+        // to the same instant.
+        let deadline = Instant::now() + budget;
         if !self.runtimes.contains_key(&key) {
-            match build_runtime(decl) {
+            match build_runtime(decl, deadline) {
                 Ok(runtime) => {
                     self.runtimes.insert(key.clone(), runtime);
                 }
                 Err(BuildFailure::Unavailable(message)) => return Outcome::Unavailable(message),
+                Err(BuildFailure::Deadline) => return timeout_outcome(budget),
                 Err(BuildFailure::Invalid(message)) => {
                     return Outcome::Failed {
                         error: format!("E_EFFECT_ENGINE: {message}"),
@@ -167,7 +172,7 @@ impl Ibex2Host {
 
         let runtime = self.runtimes.get_mut(&key).expect("runtime was inserted");
         runtime.jobs += 1;
-        let (outcome, logs, contaminated, quiescent) = run_job(runtime, job, budget);
+        let (outcome, logs, contaminated, quiescent) = run_job(runtime, job, budget, deadline);
         self.logs = logs;
         if contaminated
             || !quiescent
@@ -212,6 +217,8 @@ impl EffectHost for Ibex2Host {
 enum BuildFailure {
     Unavailable(&'static str),
     Invalid(String),
+    /// The job's deadline ended the authored module's top-level evaluation.
+    Deadline,
 }
 
 static HOST_CHANNEL_NONCE: AtomicU64 = AtomicU64::new(0);
@@ -292,7 +299,7 @@ fn freeze_compiler_embedded_constants(source: &str) -> String {
     output
 }
 
-fn build_runtime(decl: &EffectDecl) -> Result<EffectRuntime, BuildFailure> {
+fn build_runtime(decl: &EffectDecl, deadline: Instant) -> Result<EffectRuntime, BuildFailure> {
     let mut runtime = Hermes::new(DynamicCode::Closed)
         .ok_or(BuildFailure::Unavailable("Hermes::new returned None"))?;
     if !runtime.install_stdlib() {
@@ -359,11 +366,19 @@ fn build_runtime(decl: &EffectDecl) -> Result<EffectRuntime, BuildFailure> {
     // hardened global. Argument evaluation obtains the function value there;
     // the token-gated call then transfers only that value into the prelude.
     let isolated_source = freeze_compiler_embedded_constants(&decl.source);
+    // The module's top level is the first authored code the runtime runs,
+    // and it is held to the job's deadline like every entrance after it: a
+    // spin here is stopped by the same budget, and construction is charged
+    // to the attempt that needed it.
+    runtime.set_deadline(deadline);
     runtime
         .eval(&format!(
             "__ibex2_fire_timer({token}, 'installEffect', ({isolated_source}))"
         ))
-        .map_err(|error| BuildFailure::Invalid(format!("install isolated effect: {error}")))?;
+        .map_err(|error| match error {
+            JsError::Deadline => BuildFailure::Deadline,
+            error => BuildFailure::Invalid(format!("install isolated effect: {error}")),
+        })?;
 
     Ok(EffectRuntime {
         runtime,
@@ -408,9 +423,28 @@ fn verify_globals(runtime: &mut Hermes) -> Result<(), BuildFailure> {
     Ok(())
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum FailureKind {
+    Grant,
+    Result,
+    Retryable,
+}
+
+/// Where the job stands, as the prelude reports it. A failure carries its
+/// classification: the prelude makes it once, at settlement, from
+/// closure-held error identity — application-owned error fields are
+/// diagnostic data only — and the snapshot that reports the failure carries
+/// it, so learning it needs no entrance of its own.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum JobStatus {
+    Running,
+    Sent,
+    Failed(FailureKind),
+}
+
 #[derive(Debug)]
 struct JobSnapshot {
-    status: String,
+    status: JobStatus,
     result: Option<String>,
     error: Option<String>,
     contaminated: bool,
@@ -490,11 +524,25 @@ fn read_job_snapshot(
     if token != job_token {
         return Err("E_EFFECT_RESULT".to_owned().into());
     }
+    let status = match field("status")?
+        .as_str()
+        .ok_or_else(|| "host snapshot status is not a string".to_owned())?
+    {
+        "sent" => JobStatus::Sent,
+        "failed" => JobStatus::Failed(match field("failureKind")?.as_str() {
+            Some("grant") => FailureKind::Grant,
+            Some("result") => FailureKind::Result,
+            Some("retryable") => FailureKind::Retryable,
+            other => {
+                return Err(
+                    format!("host snapshot failureKind is not a classification: {other:?}").into(),
+                );
+            }
+        }),
+        _ => JobStatus::Running,
+    };
     Ok(JobSnapshot {
-        status: field("status")?
-            .as_str()
-            .ok_or_else(|| "host snapshot status is not a string".to_owned())?
-            .to_owned(),
+        status,
         result: field("result")?.as_str().map(str::to_owned),
         error: field("error")?.as_str().map(str::to_owned),
         contaminated: field("contaminated")?
@@ -516,26 +564,6 @@ fn read_job_snapshot(
     })
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum FailureKind {
-    Grant,
-    Result,
-    Retryable,
-}
-
-fn classify_job_failure(
-    effect_runtime: &mut EffectRuntime,
-    job_token: &str,
-) -> Result<FailureKind, HostFailure> {
-    let token_json = serde_json::to_string(job_token).expect("job token is JSON");
-    match call_host(effect_runtime, "classifyFailure", &[token_json])?.as_str() {
-        "grant" => Ok(FailureKind::Grant),
-        "result" => Ok(FailureKind::Result),
-        "retryable" => Ok(FailureKind::Retryable),
-        other => Err(format!("unknown effect failure classification: {other}").into()),
-    }
-}
-
 type JobResult = (Outcome, Vec<EffectLog>, bool, bool);
 
 /// The budget's failure is retryable: a timeout can be transient, and an
@@ -554,68 +582,93 @@ fn timed_out(effect_runtime: &EffectRuntime, job: &EffectJob, budget: Duration) 
     (timeout_outcome(budget), logs, false, false)
 }
 
-/// An entrance the engine refused or stopped. The deadline is the job's
-/// timeout. Anything else thrown out of a drain or a pump is engine-raised —
-/// Promise reactions and `queueMicrotask` catch their own — and leaves the
-/// runtime's state unknown.
+/// Why the drive between entrances ended before quiescence.
+enum Exit {
+    /// The deadline ended an entrance. Whether that is the job's timeout
+    /// depends on what the host had observed by then.
+    Deadline,
+    /// Anything else, already reported.
+    Result(JobResult),
+}
+
+/// An entrance the engine refused or stopped. Anything but the deadline
+/// thrown out of a drain or a pump is engine-raised — Promise reactions and
+/// `queueMicrotask` catch their own — and leaves the runtime's state unknown.
 fn entrance_failed(
     effect_runtime: &EffectRuntime,
     job: &EffectJob,
-    budget: Duration,
     entrance: &str,
     error: JsError,
-) -> JobResult {
+) -> Exit {
     match error {
-        JsError::Deadline => timed_out(effect_runtime, job, budget),
-        JsError::Thrown(text) => {
-            let logs = drain_logs(&effect_runtime.runtime, job);
-            (
-                Outcome::Failed {
-                    error: format!("E_EFFECT_ENGINE: {entrance} threw: {text}"),
-                    retry: false,
-                },
-                logs,
-                true,
-                false,
-            )
-        }
+        JsError::Deadline => Exit::Deadline,
+        JsError::Thrown(text) => Exit::Result((
+            Outcome::Failed {
+                error: format!("E_EFFECT_ENGINE: {entrance} threw: {text}"),
+                retry: false,
+            },
+            drain_logs(&effect_runtime.runtime, job),
+            true,
+            false,
+        )),
     }
 }
 
 fn host_channel_failed(
     effect_runtime: &EffectRuntime,
     job: &EffectJob,
-    budget: Duration,
     what: &str,
     failure: HostFailure,
-) -> JobResult {
+) -> Exit {
     match failure {
-        HostFailure::Deadline => timed_out(effect_runtime, job, budget),
-        HostFailure::Message(error) => {
-            let logs = drain_logs(&effect_runtime.runtime, job);
-            (
-                Outcome::Failed {
-                    error: format!("E_EFFECT_HOST_CHANNEL: {what}: {error}"),
-                    retry: false,
+        HostFailure::Deadline => Exit::Deadline,
+        HostFailure::Message(error) => Exit::Result((
+            Outcome::Failed {
+                error: format!("E_EFFECT_HOST_CHANNEL: {what}: {error}"),
+                retry: false,
+            },
+            drain_logs(&effect_runtime.runtime, job),
+            true,
+            false,
+        )),
+    }
+}
+
+fn snapshot_failed(effect_runtime: &EffectRuntime, job: &EffectJob, failure: HostFailure) -> Exit {
+    match failure {
+        HostFailure::Deadline => Exit::Deadline,
+        HostFailure::Message(error) => Exit::Result((
+            Outcome::Failed {
+                error: if error.contains("E_EFFECT_RESULT") {
+                    "E_EFFECT_RESULT".to_owned()
+                } else {
+                    format!("E_EFFECT_RESULT_READ: {error}")
                 },
-                logs,
-                true,
-                false,
-            )
-        }
+                retry: false,
+            },
+            drain_logs(&effect_runtime.runtime, job),
+            true,
+            false,
+        )),
     }
 }
 
 /// One job, one deadline.
 ///
-/// The deadline is the declared budget measured from just before the first
-/// entrance into authored code, and every entrance after it — the synchronous
-/// `run`, each microtask drain, each timer pump, and the host reads between
-/// them — is held to that same instant; nothing renews it per entrance or per
-/// iteration. The engine stops JavaScript at it and reports the stop by kind;
-/// the host maps that to the timeout, and the runtime is discarded.
-// @ref LLP 1021#5-a-running-effect-can-be-stopped — armed before the first `call_host`; the stop is the engine's, not a check between entrances.
-fn run_job(effect_runtime: &mut EffectRuntime, job: &EffectJob, budget: Duration) -> JobResult {
+/// The deadline is the declared budget measured from before the runtime was
+/// built, and every entrance into authored code — the module's top-level
+/// evaluation, the synchronous `run`, each microtask drain, each timer pump,
+/// and the host reads between them — is held to that same instant; nothing
+/// renews it per entrance or per iteration. The engine stops JavaScript at
+/// it and reports the stop by kind; the host maps that to the timeout, and
+/// the runtime is discarded.
+// @ref LLP 1021#5-a-running-effect-can-be-stopped — armed before the module's top-level evaluation and the first `call_host`; the stop is the engine's, not a check between entrances.
+fn run_job(
+    effect_runtime: &mut EffectRuntime,
+    job: &EffectJob,
+    budget: Duration,
+    deadline: Instant,
+) -> JobResult {
     let _ = effect_runtime.runtime.drain_console();
     let payload = match serde_json::to_string(&job.payload) {
         Ok(payload) => payload,
@@ -642,7 +695,8 @@ fn run_job(effect_runtime: &mut EffectRuntime, job: &EffectJob, budget: Duration
             .expect("encoded effect metadata is JSON");
     let job_token_json = serde_json::to_string(&job.id).expect("job token is JSON");
 
-    let deadline = Instant::now() + budget;
+    // A fresh runtime was armed with this same instant for its top-level
+    // evaluation; a retained one is armed here, before its first entrance.
     effect_runtime.runtime.set_deadline(deadline);
     let result = run_job_until(
         effect_runtime,
@@ -652,7 +706,7 @@ fn run_job(effect_runtime: &mut EffectRuntime, job: &EffectJob, budget: Duration
         &[job_token_json, payload_json, meta_json],
     );
     // The deadline was this job's. A retained runtime is armed again, with the
-    // next job's budget, before that job's first entrance.
+    // next job's, before that job's first entrance.
     effect_runtime.runtime.clear_deadline();
     result
 }
@@ -672,70 +726,18 @@ fn run_job_until(
             return (Outcome::Failed { error, retry: true }, logs, false, true);
         }
     }
-    let (snapshot, quiescent) = loop {
-        // Isolation boundary: drain application microtasks while no timer
-        // permit exists. Then arm exactly one permit immediately before one
-        // Ibex pump; a real timer consumes it before its callback microtasks.
-        if let Err(error) = effect_runtime.runtime.drain_microtasks() {
-            return entrance_failed(effect_runtime, job, budget, "microtask drain", error);
-        }
-        let snapshot = match read_job_snapshot(effect_runtime, &job.id) {
-            Ok(snapshot) => snapshot,
-            Err(HostFailure::Deadline) => return timed_out(effect_runtime, job, budget),
-            Err(HostFailure::Message(error)) => {
-                let logs = drain_logs(&effect_runtime.runtime, job);
-                return (
-                    Outcome::Failed {
-                        error: if error.contains("E_EFFECT_RESULT") {
-                            "E_EFFECT_RESULT".to_owned()
-                        } else {
-                            format!("E_EFFECT_RESULT_READ: {error}")
-                        },
-                        retry: false,
-                    },
-                    logs,
-                    true,
-                    false,
-                );
-            }
-        };
-        let settled = matches!(snapshot.status.as_str(), "sent" | "failed");
-        if settled && snapshot.pending_fetches == 0 {
-            if snapshot.pending_timers == 0 {
-                break (snapshot, true);
-            }
-            if snapshot.next_timer_delay.is_none_or(|millis| millis > 0.0) {
-                break (snapshot, false);
-            }
-        }
-        let now = Instant::now();
-        if now >= deadline {
-            break (snapshot, false);
-        }
-
-        let remaining = deadline.saturating_duration_since(now);
-        let wait = if snapshot.pending_fetches == 0 {
-            snapshot
-                .next_timer_delay
-                .map(|millis| Duration::from_secs_f64((millis.max(0.0)) / 1000.0))
-                .unwrap_or(Duration::from_millis(1))
-        } else {
-            Duration::from_millis(1)
-        }
-        .min(remaining);
-        if !wait.is_zero() {
-            std::thread::sleep(wait);
-        }
-
-        if let Err(failure) = call_host(effect_runtime, "armTimers", &[]) {
-            return host_channel_failed(effect_runtime, job, budget, "arm timers", failure);
-        }
-        if let Err(error) = effect_runtime.runtime.pump() {
-            return entrance_failed(effect_runtime, job, budget, "timer pump", error);
-        }
-        if let Err(failure) = call_host(effect_runtime, "disarmTimers", &[]) {
-            return host_channel_failed(effect_runtime, job, budget, "disarm timers", failure);
-        }
+    let mut settled = None;
+    let (snapshot, quiescent) = match drive(effect_runtime, job, deadline, &mut settled) {
+        Ok(end) => end,
+        // The deadline reached after the job was observed settled ends the
+        // drive with that settlement — a result stands, a failure keeps the
+        // classification made when it settled — and the leftover work goes
+        // with the runtime. The timeout is for a job still running.
+        Err(Exit::Deadline) => match settled {
+            Some(snapshot) => (snapshot, false),
+            None => return timed_out(effect_runtime, job, budget),
+        },
+        Err(Exit::Result(result)) => return result,
     };
     let logs = drain_logs(&effect_runtime.runtime, job);
     if snapshot.source_evaluations != 1 || !snapshot.effect_frozen {
@@ -751,8 +753,8 @@ fn run_job_until(
         );
     }
     let contaminated = snapshot.contaminated;
-    let outcome = match snapshot.status.as_str() {
-        "sent" => match snapshot.result {
+    let outcome = match snapshot.status {
+        JobStatus::Sent => match snapshot.result {
             Some(result) => match serde_json::from_str(&result) {
                 Ok(value) => Outcome::Sent {
                     result: value,
@@ -768,43 +770,81 @@ fn run_job_until(
                 retry: false,
             },
         },
-        "failed" => {
-            // Isolation boundary: application-owned error fields are diagnostic
-            // data only. Retry policy comes from closure-held error identity.
-            let failure_kind = match classify_job_failure(effect_runtime, &job.id) {
-                Ok(failure_kind) => failure_kind,
-                Err(HostFailure::Deadline) => {
-                    return (timeout_outcome(budget), logs, false, quiescent);
+        JobStatus::Failed(kind) => Outcome::Failed {
+            error: snapshot.error.unwrap_or_else(|| {
+                if kind == FailureKind::Result {
+                    "E_EFFECT_RESULT".to_owned()
+                } else {
+                    "effect failed without an error".to_owned()
                 }
-                Err(HostFailure::Message(error)) => {
-                    return (
-                        Outcome::Failed {
-                            error: format!("E_EFFECT_RESULT_READ: {error}"),
-                            retry: false,
-                        },
-                        logs,
-                        true,
-                        quiescent,
-                    );
-                }
-            };
-            let error = if failure_kind == FailureKind::Result {
-                snapshot
-                    .error
-                    .unwrap_or_else(|| "E_EFFECT_RESULT".to_owned())
-            } else {
-                snapshot
-                    .error
-                    .unwrap_or_else(|| "effect failed without an error".to_owned())
-            };
-            Outcome::Failed {
-                error,
-                retry: failure_kind == FailureKind::Retryable,
-            }
-        }
-        _ => timeout_outcome(budget),
+            }),
+            retry: kind == FailureKind::Retryable,
+        },
+        JobStatus::Running => timeout_outcome(budget),
     };
     (outcome, logs, contaminated, quiescent)
+}
+
+/// Drain, read, wait, pump — until the job is quiescent, or settled with
+/// only timers left, or the deadline is reached. Isolation boundary:
+/// application microtasks drain while no timer permit exists; then exactly
+/// one permit is armed immediately before one Ibex pump, and a real timer
+/// consumes it before its callback microtasks. The last snapshot that
+/// reported the job settled is left in `settled`: it is what stands when
+/// the deadline ends an entrance after it.
+fn drive(
+    effect_runtime: &mut EffectRuntime,
+    job: &EffectJob,
+    deadline: Instant,
+    settled: &mut Option<JobSnapshot>,
+) -> Result<(JobSnapshot, bool), Exit> {
+    loop {
+        effect_runtime
+            .runtime
+            .drain_microtasks()
+            .map_err(|error| entrance_failed(effect_runtime, job, "microtask drain", error))?;
+        let snapshot = read_job_snapshot(effect_runtime, &job.id)
+            .map_err(|failure| snapshot_failed(effect_runtime, job, failure))?;
+        let is_settled = snapshot.status != JobStatus::Running;
+        if is_settled && snapshot.pending_fetches == 0 {
+            if snapshot.pending_timers == 0 {
+                return Ok((snapshot, true));
+            }
+            if snapshot.next_timer_delay.is_none_or(|millis| millis > 0.0) {
+                return Ok((snapshot, false));
+            }
+        }
+        let now = Instant::now();
+        if now >= deadline {
+            return Ok((snapshot, false));
+        }
+
+        let remaining = deadline.saturating_duration_since(now);
+        let wait = if snapshot.pending_fetches == 0 {
+            snapshot
+                .next_timer_delay
+                .map(|millis| Duration::from_secs_f64((millis.max(0.0)) / 1000.0))
+                .unwrap_or(Duration::from_millis(1))
+        } else {
+            Duration::from_millis(1)
+        }
+        .min(remaining);
+        if is_settled {
+            *settled = Some(snapshot);
+        }
+        if !wait.is_zero() {
+            std::thread::sleep(wait);
+        }
+
+        call_host(effect_runtime, "armTimers", &[])
+            .map_err(|failure| host_channel_failed(effect_runtime, job, "arm timers", failure))?;
+        effect_runtime
+            .runtime
+            .pump()
+            .map_err(|error| entrance_failed(effect_runtime, job, "timer pump", error))?;
+        call_host(effect_runtime, "disarmTimers", &[])
+            .map_err(|failure| host_channel_failed(effect_runtime, job, "disarm timers", failure))?;
+    }
 }
 
 fn drain_logs(runtime: &Hermes, job: &EffectJob) -> Vec<EffectLog> {
@@ -826,3 +866,7 @@ mod tests;
 #[cfg(test)]
 #[path = "ibex_deadline_tests.rs"]
 mod deadline_tests;
+
+#[cfg(test)]
+#[path = "ibex_fetch_tests.rs"]
+mod fetch_tests;

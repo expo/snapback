@@ -40,6 +40,7 @@
     result: null,
     error: null,
     errorCode: null,
+    failureKind: null,
     thrownError: null,
     contaminated: false,
     sourceEvaluations: 0,
@@ -281,6 +282,7 @@
     state.result = null;
     state.error = null;
     state.errorCode = null;
+    state.failureKind = null;
     state.thrownError = null;
     state.contaminated = false;
     state.pendingFetches = 0;
@@ -330,6 +332,13 @@
         jobMetaBinding = undefined;
         const referenceFailure = isReferenceFailure(error);
         const resultFailure = recordedBy(resultErrors, error);
+        // Classified once, here, from closure-held identity, and carried by
+        // the snapshot that reports the failure: the host learns it with the
+        // settlement and needs no entrance of its own — none the deadline
+        // could refuse after the job has already failed.
+        state.failureKind = recordedBy(deniedErrors, error) ? "grant"
+          : (resultFailure || referenceFailure) ? "result"
+          : "retryable";
         state.errorCode = errorCode(error)
           || (referenceFailure ? "E_EFFECT_RESULT" : null);
         if (resultFailure || referenceFailure) {
@@ -341,18 +350,6 @@
         }
         cleanJobGlobals();
       });
-  }
-
-  function classifyFailure(jobToken) {
-    if (String(jobToken) !== state.token || state.status !== "failed") {
-      throw resultError();
-    }
-    if (recordedBy(deniedErrors, state.thrownError)) return "grant";
-    if (recordedBy(resultErrors, state.thrownError)
-        || isReferenceFailure(state.thrownError)) {
-      return "result";
-    }
-    return "retryable";
   }
 
   function timerSnapshot() {
@@ -380,6 +377,7 @@
       result: state.result,
       error: state.error,
       errorCode: state.errorCode,
+      failureKind: state.failureKind,
       contaminated: state.contaminated,
       sourceEvaluations: state.sourceEvaluations,
       effectFrozen: compiledEffect !== null && Object.isFrozen(compiledEffect),
@@ -407,7 +405,6 @@
   Object.freeze(installEffect);
   Object.freeze(run);
   Object.freeze(read);
-  Object.freeze(classifyFailure);
   Object.freeze(armTimers);
   Object.freeze(disarmTimers);
   const hostEntry = Object.freeze(function hostEntry(command) {
@@ -416,7 +413,6 @@
       case "installEffect": return installEffect.apply(undefined, args);
       case "run": return run.apply(undefined, args);
       case "read": return read.apply(undefined, args);
-      case "classifyFailure": return classifyFailure.apply(undefined, args);
       case "armTimers": return armTimers();
       case "disarmTimers": return disarmTimers();
       default: throw new Error("E_EFFECT_HOST_CHANNEL: unknown host command");

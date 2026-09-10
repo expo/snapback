@@ -293,7 +293,9 @@ concession for asset arguments, which need an upload journey.
   time is not reset at an entrance or a drain iteration. The pin in
   `snapback2-effects/Cargo.toml` moves when it lands.
 - **Runner:** the deadline is armed from the declared budget before the
-  first `call_host`; a timed-out job reports `E_EFFECT_TIMEOUT` with
+  runtime's top-level evaluation of the authored module and before the
+  first `call_host`, so a spin at a module's top level is stopped by the
+  same budget; a timed-out job reports `E_EFFECT_TIMEOUT` with
   **`retry: true`** exactly as LLP 1003 §3 and `ibex.rs:695` specify today
   (a timeout can be transient; an effect that reached its provider before
   timing out is retried under `meta.id` idempotency), so a program that
@@ -434,3 +436,5 @@ evidence, never as a prerequisite for obtaining it.
 - 2026-09-10 — commissioned; lanes and landings are appended here as each lands (the orchestrator, program `~/projects/snapback-ri-20260910/plan.md`).
 
 - 2026-09-10 — deadline (the snapback half of F5, §5): `ibex2` pinned at `90229cbe0` — the upstream deadline, and with it the streaming-body fetch ABI (`prelude/fetch.js` reads bodies through `__ibex2_response_read` under a control token and counts the reads as the job's pending I/O); `Ibex2Host` arms one deadline from the budget before the first `call_host` and holds it across every entrance, and the engine's `JsError::Deadline` is `E_EFFECT_TIMEOUT` with `retry: true`; tests: `ibex_deadline_tests.rs` (synchronous loop, recursive microtask chain, never-answering provider, well-behaved control, one deadline not renewed per entrance, five attempts across the backoff schedule to `failed`) and the Hermes `dev --stop` spinning-effect owner-exit journey in `tests/effects.rs`.
+
+- 2026-09-10 — deadline, fix round r1 (§5): `ibex2` re-pinned at `9cbf9e62d` (the reviewed upstream fix round); the deadline is armed before the runtime's top-level evaluation of the authored module, so a spin at a module's top level is the same timeout (`a_spin_at_the_module_top_level_is_stopped_at_the_budget`); a job the host observed settled before the deadline keeps its settlement when the deadline ends its leftover I/O — the failure classification is made at settlement and carried by the snapshot, so a grant denial at the budget edge stays `retry: false` (`a_job_settled_before_the_deadline_keeps_its_settlement_when_leftover_io_reaches_it`); `prelude/fetch.js` releases a bodiless redirect hop once and settles the pending-I/O count when a body read throws (`ibex_fetch_tests.rs`); `E_EFFECT_ENGINE` has its families entry; the deadline tests warm the runtime before the clock, the `dev --stop` journey observes the first attempt's `running → queued` / `E_EFFECT_TIMEOUT` transition in the owner before stopping during the second attempt's spin (the settlement of the attempt spinning at the stop is lost to the writer's exit — `issues/20260910-snapback2-dev-stop-drops-the-settlement-of-a-job-the-deadline-ended.md`), and the holding provider closes its listener.

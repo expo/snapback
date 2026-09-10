@@ -35,7 +35,7 @@
   delete global.__ibex2_text_decode;
   delete global.__ibex2_text_encode_into;
 
-  var handles = new WeakMap(); // Response -> { handle, used, empty, track, status, ok, url, redirected, headers }
+  var handles = new WeakMap(); // Response -> { handle, used, empty, released, track, status, ok, url, redirected, headers }
 
   function own(response) {
     var r = handles.get(response);
@@ -48,10 +48,13 @@
   }
 
   // Forget the record on the Rust side, aborting its native request if the
-  // body is still open. Every handle is released exactly once: after its
-  // body is read, when it has no body, or when a redirect hop is left behind.
-  function release(handle) {
-    field(handle, 8);
+  // body is still open. Every record is released exactly once — after its
+  // body is read, when it has no body, or when a redirect hop is left behind
+  // — and a bodiless hop meets two of those, so the record remembers.
+  function release(r) {
+    if (r.released) return;
+    r.released = true;
+    field(r.handle, 8);
   }
 
   // The metadata is read once here, because the record is released when the
@@ -62,18 +65,20 @@
     var r = Object.create(Response.prototype);
     var status = field(handle, 0);
     var empty = method === "HEAD" || status === 204 || status === 205 || status === 304;
-    handles.set(r, {
+    var record = {
       handle: handle,
       used: false,
       empty: empty,
+      released: false,
       track: track,
       status: status,
       ok: field(handle, 1),
       url: field(handle, 2),
       redirected: redirected === undefined ? field(handle, 5) : redirected,
       headers: new Headers(JSON.parse(field(handle, 7))),
-    });
-    if (empty) release(handle);
+    };
+    handles.set(r, record);
+    if (empty) release(record);
     return r;
   }
 
@@ -98,7 +103,9 @@
     var chunks = [];
     var length = 0;
     function next() {
-      return readBody(r.handle).then(function (bytes) {
+      // A read that throws, synchronously or not, rejects here, so the count
+      // below always comes back down and the record is always released.
+      return new Promise(function (resolve) { resolve(readBody(r.handle)); }).then(function (bytes) {
         if (bytes !== null) {
           var chunk = new Uint8Array(bytes);
           chunks.push(chunk);
@@ -116,8 +123,8 @@
     }
     r.track(1);
     return next().then(
-      function (bytes) { r.track(-1); release(r.handle); return bytes; },
-      function (error) { r.track(-1); release(r.handle); throw error; }
+      function (bytes) { r.track(-1); release(r); return bytes; },
+      function (error) { r.track(-1); release(r); throw error; }
     );
   }
   Response.prototype.arrayBuffer = function () { return consume(this); };
@@ -214,7 +221,7 @@
           var location = value.headers.get("location");
           if (location === null) return value;
           // The hop's body is never read; let its record go before the next hop.
-          release(handle);
+          release(own(value));
           redirects++;
           if (redirects > 20) throw new TypeError("TypeError: Failed to fetch — too many redirects");
 

@@ -1,12 +1,14 @@
 //! The deadline in the effect host: one per job, armed before the first
-//! entrance into authored code, held at every entrance after, reported as
+//! authored code the runtime runs, held at every entrance after, reported as
 //! `E_EFFECT_TIMEOUT` with `retry: true`.
 //!
 //! Its own file for the reason `ibex_tests.rs` is one: the 1,500-line cap.
 //! Every test here is wall-clock — the deadline is one — with a firm lower
 //! bound (the engine never fires early) and a loose upper bound for a loaded
 //! machine, wide enough to hold there and narrow enough to tell a stop from
-//! a hang.
+//! a hang. Where the bound is the point, a calm job builds the runtime first,
+//! so the clock measures the stopped job alone and a slow construction cannot
+//! stand in for the stop.
 
 use super::*;
 use crate::{
@@ -16,8 +18,10 @@ use crate::{
 use serde_json::Value;
 use std::cell::Cell;
 use std::io::Read;
-use std::net::TcpListener;
+use std::net::{TcpListener, TcpStream};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
+use std::thread::JoinHandle;
 
 const BUDGET: Duration = Duration::from_millis(300);
 /// Past this a stopped program is indistinguishable from a hung one.
@@ -53,6 +57,18 @@ fn unreachable_grant() -> Vec<String> {
     vec!["http://127.0.0.1:1".to_owned()]
 }
 
+/// A host whose runtime for `decl` is already built: one calm job ran on it
+/// and kept it, so a clock started after this measures the next job alone.
+fn warmed(decl: &EffectDecl, calm: Value) -> Ibex2Host {
+    let mut host = Ibex2Host::new().unwrap();
+    assert_eq!(
+        host.run(decl, &job("warm-up", calm), Duration::from_secs(10)),
+        sent(json!("calm"))
+    );
+    assert_eq!(host.cached_runtime_count(), 1, "the warm-up keeps its runtime");
+    host
+}
+
 fn assert_timed_out(outcome: &Outcome, budget: Duration) {
     let expected = format!("E_EFFECT_TIMEOUT: budget {} ms", budget.as_millis());
     assert!(
@@ -72,10 +88,13 @@ fn assert_stopped_at(started: Instant, budget: Duration) {
 /// that entrance can stop it; the host used to start its clock after.
 #[test]
 fn a_synchronous_loop_is_stopped_at_the_budget_and_its_runtime_is_discarded() {
-    let decl = declaration("async () => { while (true) {} }", unreachable_grant());
-    let mut host = Ibex2Host::new().unwrap();
+    let decl = declaration(
+        "async (payload) => { while (payload.spin) {} return 'calm'; }",
+        unreachable_grant(),
+    );
+    let mut host = warmed(&decl, json!({ "spin": false }));
     let started = Instant::now();
-    let outcome = host.run(&decl, &job("spin-1", Value::Null), BUDGET);
+    let outcome = host.run(&decl, &job("spin-1", json!({ "spin": true })), BUDGET);
     assert_timed_out(&outcome, BUDGET);
     assert_stopped_at(started, BUDGET);
     assert_eq!(
@@ -84,9 +103,8 @@ fn a_synchronous_loop_is_stopped_at_the_budget_and_its_runtime_is_discarded() {
         "a runtime the deadline stopped is not reused"
     );
     // The host is unharmed: the next job builds a fresh runtime and completes.
-    let calm = declaration("async () => 'calm'", unreachable_grant());
     assert_eq!(
-        host.run(&calm, &job("calm-1", Value::Null), BUDGET),
+        host.run(&decl, &job("calm-1", json!({ "spin": false })), BUDGET),
         sent(json!("calm"))
     );
     assert_eq!(host.cached_runtime_count(), 1);
@@ -98,23 +116,59 @@ fn a_synchronous_loop_is_stopped_at_the_budget_and_its_runtime_is_discarded() {
 #[test]
 fn a_recursive_microtask_chain_is_stopped_at_the_budget() {
     let decl = declaration(
-        "async () => { const again = () => { Promise.resolve().then(again); }; again(); return 'settled behind the chain'; }",
+        r#"async (payload) => {
+              if (!payload.chain) return 'calm';
+              const again = () => { Promise.resolve().then(again); };
+              again();
+              return 'settled behind the chain';
+            }"#,
         unreachable_grant(),
     );
-    let mut host = Ibex2Host::new().unwrap();
+    let mut host = warmed(&decl, json!({ "chain": false }));
     let started = Instant::now();
-    let outcome = host.run(&decl, &job("chain-1", Value::Null), BUDGET);
+    let outcome = host.run(&decl, &job("chain-1", json!({ "chain": true })), BUDGET);
     assert_timed_out(&outcome, BUDGET);
     assert_stopped_at(started, BUDGET);
     assert_eq!(host.cached_runtime_count(), 0);
 }
 
-/// A loopback provider that reads each request and then holds the connection
-/// open, never writing a byte, until it is dropped.
+/// The module's top level is the first authored code the runtime runs — the
+/// compiler's IIFE around `run`, or any expression there — and it runs
+/// before any host call. It is held to the same budget: a spin there is
+/// stopped, reported as the timeout, and no runtime is kept. This one cannot
+/// be warmed — the build is what spins — so the deadline's own clock, which
+/// starts before the build, is the bound.
+#[test]
+fn a_spin_at_the_module_top_level_is_stopped_at_the_budget() {
+    let decl = declaration("(() => { while (true) {} })()", unreachable_grant());
+    let mut host = Ibex2Host::new().unwrap();
+    let started = Instant::now();
+    let outcome = host.run(&decl, &job("top-1", Value::Null), BUDGET);
+    assert_timed_out(&outcome, BUDGET);
+    assert_stopped_at(started, BUDGET);
+    assert_eq!(
+        host.cached_runtime_count(),
+        0,
+        "a build the deadline ended leaves no runtime"
+    );
+    let calm = declaration("(() => { return async () => 'calm'; })()", unreachable_grant());
+    assert_eq!(
+        host.run(&calm, &job("calm-1", Value::Null), BUDGET),
+        sent(json!("calm"))
+    );
+    assert_eq!(host.cached_runtime_count(), 1);
+}
+
+/// A loopback provider that reads each request and then holds its connection
+/// open, never writing a byte, until the provider is dropped — which also
+/// closes the listener, so the port does not outlive the test. Each
+/// connection is held on its own thread, so a second request is read too.
 struct HoldingProvider {
     port: u16,
     requests: Arc<Mutex<usize>>,
     release: Arc<(Mutex<bool>, Condvar)>,
+    closing: Arc<AtomicBool>,
+    thread: Option<JoinHandle<()>>,
 }
 
 impl HoldingProvider {
@@ -123,35 +177,28 @@ impl HoldingProvider {
         let port = listener.local_addr().unwrap().port();
         let requests = Arc::new(Mutex::new(0));
         let release = Arc::new((Mutex::new(false), Condvar::new()));
+        let closing = Arc::new(AtomicBool::new(false));
         let counted = Arc::clone(&requests);
         let gate = Arc::clone(&release);
-        std::thread::spawn(move || {
+        let closed = Arc::clone(&closing);
+        let thread = std::thread::spawn(move || {
             for stream in listener.incoming() {
-                let Ok(mut stream) = stream else { break };
-                let mut raw = Vec::new();
-                let mut buffer = [0_u8; 4096];
-                while let Ok(read) = stream.read(&mut buffer) {
-                    if read == 0 {
-                        break;
-                    }
-                    raw.extend_from_slice(&buffer[..read]);
-                    if raw.windows(4).any(|window| window == b"\r\n\r\n") {
-                        break;
-                    }
+                if closed.load(Ordering::SeqCst) {
+                    break;
                 }
-                *counted.lock().unwrap() += 1;
-                let (released, wake) = &*gate;
-                let mut released = released.lock().unwrap();
-                while !*released {
-                    released = wake.wait(released).unwrap();
-                }
-                // Dropping the stream closes the connection, still unanswered.
+                let Ok(stream) = stream else { break };
+                let counted = Arc::clone(&counted);
+                let gate = Arc::clone(&gate);
+                std::thread::spawn(move || hold(stream, &counted, &gate));
             }
+            // The listener goes with the thread.
         });
         Self {
             port,
             requests,
             release,
+            closing,
+            thread: Some(thread),
         }
     }
 
@@ -164,11 +211,39 @@ impl HoldingProvider {
     }
 }
 
+/// Read one request's headers, count it, and hold the connection until the
+/// provider releases it; dropping the stream then closes it, unanswered.
+fn hold(mut stream: TcpStream, counted: &Mutex<usize>, gate: &(Mutex<bool>, Condvar)) {
+    let mut raw = Vec::new();
+    let mut buffer = [0_u8; 4096];
+    while let Ok(read) = stream.read(&mut buffer) {
+        if read == 0 {
+            break;
+        }
+        raw.extend_from_slice(&buffer[..read]);
+        if raw.windows(4).any(|window| window == b"\r\n\r\n") {
+            break;
+        }
+    }
+    *counted.lock().unwrap() += 1;
+    let (released, wake) = gate;
+    let mut released = released.lock().unwrap();
+    while !*released {
+        released = wake.wait(released).unwrap();
+    }
+}
+
 impl Drop for HoldingProvider {
     fn drop(&mut self) {
         let (released, wake) = &*self.release;
         *released.lock().unwrap() = true;
         wake.notify_all();
+        self.closing.store(true, Ordering::SeqCst);
+        // One more connection wakes the accept loop so it can see `closing`.
+        let _ = TcpStream::connect(("127.0.0.1", self.port));
+        if let Some(thread) = self.thread.take() {
+            let _ = thread.join();
+        }
     }
 }
 
@@ -179,10 +254,10 @@ impl Drop for HoldingProvider {
 fn a_provider_that_never_answers_is_stopped_at_the_budget() {
     let provider = HoldingProvider::start();
     let decl = declaration(
-        "async (payload, { fetch }) => (await fetch(payload.url, { method: 'POST', body: 'hello' })).text()",
+        "async (payload, { fetch }) => payload.url === null ? 'calm' : (await fetch(payload.url, { method: 'POST', body: 'hello' })).text()",
         vec![provider.origin()],
     );
-    let mut host = Ibex2Host::new().unwrap();
+    let mut host = warmed(&decl, json!({ "url": null }));
     let started = Instant::now();
     let outcome = host.run(
         &decl,
@@ -193,6 +268,59 @@ fn a_provider_that_never_answers_is_stopped_at_the_budget() {
     assert_stopped_at(started, BUDGET);
     assert_eq!(provider.requests(), 1, "the request reached the provider once");
     assert_eq!(host.cached_runtime_count(), 0);
+}
+
+/// A job that settled before the deadline keeps its settlement when the
+/// deadline ends leftover I/O it abandoned: a failure keeps the
+/// classification made when it settled — a grant denial is not turned into
+/// a retryable timeout — and a result stands. The timeout is for a job still
+/// running. The held request is what carries the job to the deadline.
+#[test]
+fn a_job_settled_before_the_deadline_keeps_its_settlement_when_leftover_io_reaches_it() {
+    let provider = HoldingProvider::start();
+    let decl = declaration(
+        r#"async (payload, { fetch }) => {
+              fetch(payload.hold, { method: 'POST', body: 'abandoned' }).catch(function () {});
+              if (payload.deny) return fetch('http://undeclared.invalid/');
+              return 'sent beside a held request';
+            }"#,
+        vec![provider.origin()],
+    );
+    let hold = provider.origin() + "/hold";
+    let mut host = Ibex2Host::new().unwrap();
+    let started = Instant::now();
+    let outcome = host.run(
+        &decl,
+        &job("deny-1", json!({ "hold": hold, "deny": true })),
+        BUDGET,
+    );
+    assert!(
+        matches!(&outcome, Outcome::Failed { retry: false, error }
+            if error.contains("denied: net.fetch http://undeclared.invalid")),
+        "a grant denial at the deadline stays non-retryable: {outcome:?}"
+    );
+    assert_stopped_at(started, BUDGET);
+    assert_eq!(
+        host.cached_runtime_count(),
+        0,
+        "the held request goes with the runtime"
+    );
+
+    let started = Instant::now();
+    assert_eq!(
+        host.run(
+            &decl,
+            &job("sent-1", json!({ "hold": hold, "deny": false })),
+            BUDGET
+        ),
+        Outcome::Sent {
+            result: json!("sent beside a held request"),
+            leftover: true,
+        }
+    );
+    assert_stopped_at(started, BUDGET);
+    assert_eq!(host.cached_runtime_count(), 0);
+    assert_eq!(provider.requests(), 2);
 }
 
 /// The control: an effect that awaits a chain of microtasks, a timer, and
@@ -234,7 +362,9 @@ fn a_well_behaved_effect_completes_under_the_deadline_and_keeps_its_runtime() {
 
 /// The budget is one deadline, not one renewed at each entrance: three timer
 /// callbacks that each spin for half the budget are stopped where the deadline
-/// falls. A budget renewed per pump would let all three finish.
+/// falls. A budget renewed per pump would let all three finish. The same
+/// program spinning for a tenth of the budget each time completes — and runs
+/// first, so it is also what builds the runtime the stopped job runs on.
 #[test]
 fn the_budget_is_one_deadline_not_renewed_at_each_entrance() {
     let decl = declaration(
@@ -249,15 +379,16 @@ fn the_budget_is_one_deadline_not_renewed_at_each_entrance() {
         unreachable_grant(),
     );
     let mut host = Ibex2Host::new().unwrap();
-    let started = Instant::now();
-    let outcome = host.run(&decl, &job("spins-1", json!({ "spin": 150 })), BUDGET);
-    assert_timed_out(&outcome, BUDGET);
-    assert_stopped_at(started, BUDGET);
-    // The same program, spinning for a tenth of the budget each time, completes.
     assert_eq!(
-        host.run(&decl, &job("spins-2", json!({ "spin": 10 })), BUDGET),
+        host.run(&decl, &job("spins-1", json!({ "spin": 10 })), BUDGET),
         sent(json!("three spins"))
     );
+    assert_eq!(host.cached_runtime_count(), 1);
+    let started = Instant::now();
+    let outcome = host.run(&decl, &job("spins-2", json!({ "spin": 150 })), BUDGET);
+    assert_timed_out(&outcome, BUDGET);
+    assert_stopped_at(started, BUDGET);
+    assert_eq!(host.cached_runtime_count(), 0);
 }
 
 /// The smallest durable outbox: one row, claimed by the clock, settled by the

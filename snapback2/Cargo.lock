@@ -539,7 +539,7 @@ checksum = "df3b46402a9d5adb4c86a0cf463f42e19994e3ee891101b1841f30a545cb49a9"
 [[package]]
 name = "ibex2"
 version = "0.1.0"
-source = "git+https://github.com/expo/ibex?rev=90229cbe003b47a0534220ac89b5b9754a99f198#90229cbe003b47a0534220ac89b5b9754a99f198"
+source = "git+https://github.com/expo/ibex?rev=9cbf9e62d6434b4e3f4d49eddacb337218d256a3#9cbf9e62d6434b4e3f4d49eddacb337218d256a3"
 dependencies = [
  "base64 0.22.1",
  "cc",
