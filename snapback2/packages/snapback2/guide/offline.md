@@ -54,19 +54,25 @@ failure without clearing the draft or attachment. Admission and a subscribed
 selected operation acquire missing capacity through one bounded resume flight;
 `can`/snapshot reads do no I/O. After recovery, let the user
 submit normally; do not automatically resubmit a refused write or add a
-periodic `online()` loop. Generic `useOutbox().can` cannot price a specific op.
-One automatic attempt per opportunity; the flight has a 10-second deadline.
-Explicit offline cuts forbid automatic networking; only `online()` releases them.
+periodic `online()` loop.
+One automatic attempt per opportunity, with a 10-second deadline; an explicit
+offline cut forbids automatic networking until `online()`.
 `outbox.observe(op?)` feeds hooks; `intentLabel` labels entries.
-Discharged successes compact automatically. Unresolved successes and failures
-remain dismissible; queued work cannot be dismissed. Older snapshots expose
+Discharged successes compact automatically; unresolved successes and failures
+stay dismissible. Queued work is dismissible only after the owner refused its
+last replay as bad input or schema; another replay durably clears that before
+sending, and in-flight or unknown outcomes cannot be dismissed. `status.blocked`
+names the refused head (label and item Dismiss agree). `dismiss` returns the
+bytes to re-author; FIFO continues on either tab, and a follower's result is
+recoverable once by its alias after a takeover or reopen. Older snapshots expose
 `reason.code: "changed"` and `freshness.compactedThrough`; refresh their query.
 Committed does not mean shown: query `items` need the target's observation
-through commit. `arrived`/global sequence cannot substitute. Expose failures.
+through commit; `arrived`/global sequence cannot substitute. Expose failures.
 
 `outbox.drain()`/`settled()`: `{ stopped, remaining }`; false is drained.
 Fence/transport/authority/offline/pending/writer-unresponsive pauses keep
-queued bytes. A real reconnect can start bounded recovery; retry stopped work with `online()` or an online drain.
+queued bytes. A real reconnect can start bounded recovery; retry stopped work
+with `online()` or an online drain.
 
 ## Entry fields
 

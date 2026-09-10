@@ -30,6 +30,8 @@ index entries, rule probes, steps, heap, output, closure and write rows, with so
 lines, totals and ceilings. `--json` retains terms and partial certificates;
 these diagnostics do not authorize execution. Branches select each meter's
 maximum; jobs are priced per chunk, including the progress write.
+`E_STEPS` refuses a step bound above the ceiling. Indexed-column updates
+are charged derivation even when equal component values skip it at runtime.
 Loop-carried scalar/object/collection values include repeated growth, aliases,
 nested loops, branches and retained intermediates; bounds can exceed measured bytes.
 A maintained point read inside a page shape is allowed. Counting the outer

@@ -301,7 +301,9 @@ fn operator_narrowing_apply_refusal_is_in_status_then_fill_and_retry_preserve_ro
     assert_eq!(multi.body["code"], "E_SUCCESSOR_NARROWING");
     assert_eq!(multi.body["narrowings"].as_array().unwrap().len(), 2);
     // BTreeMap column order, independent of which column was narrowed first.
-    assert_eq!(multi.body["site"], "adminNotes.legacy");
+    let source = fs::read_to_string(root.join("snapback/schema.q")).unwrap();
+    let site = |column: &str| format!("snapback/schema.q:{}:3", source.lines().position(|line| line.trim_start().starts_with(&format!("{column}:"))).unwrap() + 1);
+    assert_eq!(multi.body["site"], site("legacy"));
     assert_eq!(multi.body["column"], "legacy");
     assert_eq!(multi.body["narrowings"][0]["column"], "legacy");
     assert_eq!(multi.body["narrowings"][1]["column"], "note");
@@ -317,7 +319,7 @@ fn operator_narrowing_apply_refusal_is_in_status_then_fill_and_retry_preserve_ro
     assert_eq!(refusal.body["nullRows"], 2);
     assert_eq!(refusal.body["sample"], json!(["admin-1", "admin-2"]));
     assert_eq!(refusal.body["family"], "successor");
-    assert_eq!(refusal.body["site"], "adminNotes.note");
+    assert_eq!(refusal.body["site"], site("note"));
     let migration = request(
         port,
         "POST",
@@ -693,7 +695,7 @@ fn operator_narrowing_malformed_row_has_family_site_rewrite_and_guide_on_the_wir
         assert_eq!(refusal.body["code"], "E_SUCCESSOR_ROW_INVALID");
         assert_eq!(refusal.body["family"], "successor");
         assert_eq!(refusal.body["site"], "adminNotes.admin-1");
-        assert_eq!(refusal.body["guide"], "successor/migrations");
+        assert_eq!(refusal.body["guide"], "successor");
         assert!(
             refusal.body["rewrite"]
                 .as_str()

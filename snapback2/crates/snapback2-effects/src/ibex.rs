@@ -21,6 +21,7 @@ globalThis.__sb_saved = {
 "#;
 const PRELUDE: &str = include_str!("prelude.js");
 const FETCH_FACTORY: &str = include_str!("prelude/fetch.js");
+const BOUND_TRANSPORT: &str = include_str!("prelude/bound.js");
 // Public names match the compiler effect allowlist. Engine internals and globalThis
 // remain unnameable in authored source; the host needs them to harden and pump.
 const EFFECT_GLOBALS: &[&str] = &[
@@ -111,7 +112,11 @@ struct EffectRuntime {
     runtime: Hermes,
     _grants: Grants,
     declared_grants: Vec<String>,
+    // A `test` owner's job carries its epoch's bindings; a runtime built for
+    // one binding table never serves a job with another.
+    bindings: Option<BTreeMap<String, String>>,
     jobs: u32,
+    provider: Option<serde_json::Value>,
     host_token: String,
 }
 
@@ -120,6 +125,7 @@ struct EffectRuntime {
 pub struct Ibex2Host {
     runtimes: BTreeMap<RuntimeKey, EffectRuntime>,
     logs: Vec<EffectLog>,
+    provider: Option<serde_json::Value>,
     available: bool,
 }
 
@@ -128,6 +134,7 @@ impl Ibex2Host {
         Ok(Self {
             runtimes: BTreeMap::new(),
             logs: Vec::new(),
+            provider: None,
             available: engine_available(),
         })
     }
@@ -147,6 +154,7 @@ impl Ibex2Host {
             existing.effect != decl.name
                 || (existing == &key
                     && runtime.declared_grants == decl.grants
+                    && runtime.bindings == job.bindings
                     && runtime.jobs < MAX_JOBS_PER_RUNTIME)
         });
 
@@ -155,7 +163,7 @@ impl Ibex2Host {
         // to the same instant.
         let deadline = Instant::now() + budget;
         if !self.runtimes.contains_key(&key) {
-            match build_runtime(decl, deadline) {
+            match build_runtime(decl, job.bindings.as_ref(), deadline) {
                 Ok(runtime) => {
                     self.runtimes.insert(key.clone(), runtime);
                 }
@@ -174,6 +182,7 @@ impl Ibex2Host {
         runtime.jobs += 1;
         let (outcome, logs, contaminated, quiescent) = run_job(runtime, job, budget, deadline);
         self.logs = logs;
+        self.provider = runtime.provider.take();
         if contaminated
             || !quiescent
             || runtime.jobs >= MAX_JOBS_PER_RUNTIME
@@ -193,6 +202,7 @@ impl Ibex2Host {
 impl EffectHost for Ibex2Host {
     fn run(&mut self, decl: &EffectDecl, job: &EffectJob, budget: Duration) -> Outcome {
         self.logs.clear();
+        self.provider = None;
         self.run_inner(decl, job, budget)
     }
 
@@ -206,6 +216,10 @@ impl EffectHost for Ibex2Host {
 
     fn generation_changed(&mut self) {
         Ibex2Host::generation_changed(self);
+    }
+
+    fn take_provider(&mut self) -> Option<serde_json::Value> {
+        self.provider.take()
     }
 
     fn take_logs(&mut self) -> Vec<EffectLog> {
@@ -299,7 +313,11 @@ fn freeze_compiler_embedded_constants(source: &str) -> String {
     output
 }
 
-fn build_runtime(decl: &EffectDecl, deadline: Instant) -> Result<EffectRuntime, BuildFailure> {
+fn build_runtime(
+    decl: &EffectDecl,
+    bindings: Option<&BTreeMap<String, String>>,
+    deadline: Instant,
+) -> Result<EffectRuntime, BuildFailure> {
     let mut runtime = Hermes::new(DynamicCode::Closed)
         .ok_or(BuildFailure::Unavailable("Hermes::new returned None"))?;
     if !runtime.install_stdlib() {
@@ -314,9 +332,7 @@ fn build_runtime(decl: &EffectDecl, deadline: Instant) -> Result<EffectRuntime, 
         .install_bindings()
         .map_err(|error| BuildFailure::Invalid(format!("install bindings: {error}")))?;
 
-    let grant_spec = decl
-        .grants
-        .iter()
+    let grant_spec = transport_origins(decl, bindings)
         .map(|origin| format!("net.fetch {origin}"))
         .collect::<Vec<_>>()
         .join("\n");
@@ -326,6 +342,13 @@ fn build_runtime(decl: &EffectDecl, deadline: Instant) -> Result<EffectRuntime, 
         return Err(BuildFailure::Invalid(
             "install grant-bound raw fetch failed".to_owned(),
         ));
+    }
+    if let Some(bindings) = bindings {
+        runtime
+            .eval(&bound_transport(decl, bindings))
+            .map_err(|error| {
+                BuildFailure::Invalid(format!("install bound transport: {error:?}"))
+            })?;
     }
 
     let host_token = host_channel_token();
@@ -355,9 +378,7 @@ fn build_runtime(decl: &EffectDecl, deadline: Instant) -> Result<EffectRuntime, 
              delete globalThis.__snapback_install; \
              Object.preventExtensions(globalThis)",
         ))
-        .map_err(|error| {
-            BuildFailure::Invalid(format!("capture effect host entry: {error}"))
-        })?;
+        .map_err(|error| BuildFailure::Invalid(format!("capture effect host entry: {error}")))?;
     runtime
         .harden()
         .map_err(|error| BuildFailure::Invalid(format!("harden effect runtime: {error}")))?;
@@ -384,9 +405,42 @@ fn build_runtime(decl: &EffectDecl, deadline: Instant) -> Result<EffectRuntime, 
         runtime,
         _grants: grants,
         declared_grants: decl.grants.clone(),
+        bindings: bindings.cloned(),
         jobs: 0,
+        provider: None,
         host_token,
     })
+}
+
+/// What Ibex's raw binding may reach. Production: the declared grants. A
+/// `test` owner: only the loopback origins the journey bound — the logical
+/// origins are admitted by the bound transport in front of it, so no socket
+/// can leave the loopback whatever the effect asks for.
+// @ref LLP 1021#3-a-provider-stand-in-and-nothing-else-answers — the bound-only transport of the test owner.
+fn transport_origins<'a>(
+    decl: &'a EffectDecl,
+    bindings: Option<&'a BTreeMap<String, String>>,
+) -> Box<dyn Iterator<Item = &'a str> + 'a> {
+    match bindings {
+        Some(bindings) => Box::new(bindings.values().map(String::as_str)),
+        None => Box::new(decl.grants.iter().map(String::as_str)),
+    }
+}
+
+fn bound_transport(decl: &EffectDecl, bindings: &BTreeMap<String, String>) -> String {
+    BOUND_TRANSPORT
+        .replace(
+            "__SNAPBACK_GRANTS__",
+            &serde_json::to_string(&decl.grants).expect("grants are JSON"),
+        )
+        .replace(
+            "__SNAPBACK_BINDINGS__",
+            &serde_json::to_string(bindings).expect("bindings are JSON"),
+        )
+        .replace(
+            "__SNAPBACK_EFFECT_NAME__",
+            &serde_json::to_string(&decl.name).expect("effect name is JSON"),
+        )
 }
 
 fn verify_globals(runtime: &mut Hermes) -> Result<(), BuildFailure> {
@@ -534,13 +588,15 @@ fn read_job_snapshot(
             Some("result") => FailureKind::Result,
             Some("retryable") => FailureKind::Retryable,
             other => {
-                return Err(
-                    format!("host snapshot failureKind is not a classification: {other:?}").into(),
-                );
+                return Err(format!(
+                    "host snapshot failureKind is not a classification: {other:?}"
+                )
+                .into());
             }
         }),
         _ => JobStatus::Running,
     };
+    effect_runtime.provider = value.get("provider").filter(|v| !v.is_null()).cloned();
     Ok(JobSnapshot {
         status,
         result: field("result")?.as_str().map(str::to_owned),
@@ -669,6 +725,10 @@ fn run_job(
     budget: Duration,
     deadline: Instant,
 ) -> JobResult {
+    effect_runtime.provider = job
+        .bindings
+        .as_ref()
+        .map(|_| json!({"origins":[],"requests":0,"refused":{}}));
     let _ = effect_runtime.runtime.drain_console();
     let payload = match serde_json::to_string(&job.payload) {
         Ok(payload) => payload,
@@ -842,8 +902,9 @@ fn drive(
             .runtime
             .pump()
             .map_err(|error| entrance_failed(effect_runtime, job, "timer pump", error))?;
-        call_host(effect_runtime, "disarmTimers", &[])
-            .map_err(|failure| host_channel_failed(effect_runtime, job, "disarm timers", failure))?;
+        call_host(effect_runtime, "disarmTimers", &[]).map_err(|failure| {
+            host_channel_failed(effect_runtime, job, "disarm timers", failure)
+        })?;
     }
 }
 
@@ -862,6 +923,10 @@ fn drain_logs(runtime: &Hermes, job: &EffectJob) -> Vec<EffectLog> {
 #[cfg(test)]
 #[path = "ibex_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "ibex_bound_tests.rs"]
+mod bound_tests;
 
 #[cfg(test)]
 #[path = "ibex_deadline_tests.rs"]

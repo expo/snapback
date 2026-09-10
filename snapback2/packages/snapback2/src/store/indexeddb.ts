@@ -171,6 +171,10 @@ class IndexedDbInbox implements InboxConnection {
     await transactionDone(transaction);
   }
 
+  async take(key: number): Promise<InboxRow | undefined> {
+    return takeInboxRecord(this.open(), key);
+  }
+
   async ledger(): Promise<Record<string, unknown>> {
     const transaction = this.open().transaction(["outbox"], "readonly");
     const entries = await requestResult(transaction.objectStore("outbox").getAll() as IDBRequest<Entry[]>);
@@ -332,6 +336,13 @@ class IndexedDbBackend implements RangeStoreBackend {
     return orderInbox(records.map(inboxRowOf).filter((row): row is InboxRow => row !== undefined));
   }
 
+  /** The writer's consumption of a completed command: read and delete in one transaction (LLP 1018.004 §2). */
+  async inboxTake(key: number): Promise<InboxRow | undefined> {
+    const database = this.database;
+    if (!database) throw new OfflineStoreFailure("E_OFFLINE_CARRIER", "IndexedDB carrier is not open");
+    return takeInboxRecord(database, key);
+  }
+
   /** A follower's own connection, never the field the writer path uses (LLP 1018.004 §2). */
   async inbox(partition: PrincipalPartition): Promise<InboxConnection> {
     const connection = new IndexedDbInbox(undefined);
@@ -444,4 +455,14 @@ export function indexedDbRangeStore(options: IndexedDbRangeStoreOptions = {}): R
   const create = (() => new PersistentRangeStore(new IndexedDbBackend(factory, locks, prefix, options.beforeReplace))) as RangeStoreFactory;
   Object.defineProperty(create, "carrier", { value: "IndexedDB" });
   return create;
+}
+
+/** One readwrite transaction: the row as it was, then its deletion; `undefined` when it was already gone. */
+async function takeInboxRecord(database: IDBDatabase, key: number): Promise<InboxRow | undefined> {
+  const transaction = database.transaction([INBOX_STORE], "readwrite");
+  const store = transaction.objectStore(INBOX_STORE);
+  const record = await requestResult(store.get(key) as IDBRequest<InboxRecord | undefined>);
+  if (record) store.delete(key);
+  await transactionDone(transaction);
+  return record ? inboxRowOf(record) : undefined;
 }

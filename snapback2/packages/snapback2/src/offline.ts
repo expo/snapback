@@ -430,6 +430,14 @@ export class OfflineRuntime {
     await connection.remove(key);
     await this.refreshInbox().catch(() => undefined);
   }
+  /** A follower consumes its completed dismissal command: read and deleted in one carrier transaction, so one tab gets the bytes whatever other tab raced. */
+  async takeInboxRow(key: number): Promise<InboxRow | undefined> {
+    const connection = this.inboxConnection;
+    if (!connection || connection.ended) throw new OfflineStoreFailure("E_OFFLINE_LOCK", "this tab has no route to the account's partition");
+    const row = await connection.take(key);
+    await this.refreshInbox().catch(() => undefined);
+    return row;
+  }
   /** Queued rows awaiting the writer: what a follower's status counts as remaining. */
   get inboxPending(): number { return this.inboxRowsCache.filter((row) => row.kind === "mutation" && row.state === "queued" && row.admitted === undefined).length; }
 
@@ -453,7 +461,7 @@ export class OfflineRuntime {
       const foreign = row.scope !== check.scope || row.principal !== this.partition || epochMismatch;
       if (row.kind === "dismiss") {
         // A dismissal from another backend, principal, or session cannot touch this ledger: the command is discarded.
-        if (foreign) await this.outbox.discardInbox(row.key); else await this.outbox.consumeDismiss(row);
+        if (foreign) await this.outbox.discardInbox(row.key); else await this.outbox.dismiss(row.target!, row.key);
         continue;
       }
       if (row.state !== "queued" || row.admitted !== undefined || row.op === undefined) continue;

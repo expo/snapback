@@ -1,3 +1,4 @@
+import { dismissible } from "./store/outbox.js";
 // @ref LLP 1018.003.000#2-correspondence —
 // the app names correspondence; the shared query publication attaches work.
 import { referenceName, type Op } from "./api.js";
@@ -332,7 +333,7 @@ export function attachItems<Args, Result, Row extends ItemRow, Draft>(
     seen.add(entry.intent);
     attached.set(item.key, seen);
     item.pending.push({ intent: entry.intent, op: entry.op, kind: binding.kind, state: entry.state,
-      label: intentLabel(entry), dismissible: entry.state !== "queued",
+      label: intentLabel(entry), dismissible: dismissible(entry),
       ...(entry.response === undefined ? {} : { response: entry.response }) });
   }
   const prior = new Map(previous.map(item => [item.key, item]));

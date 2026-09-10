@@ -43,6 +43,7 @@ fn job(id: &str, payload: Value) -> EffectJob {
         payload,
         attempt: 1,
         generation: Some("generation-1".to_owned()),
+        bindings: None,
     }
 }
 
@@ -411,6 +412,7 @@ impl OneRowOutbox {
                 payload: Value::Null,
                 attempt: 0,
                 generation: None,
+                bindings: None,
             },
             decl: decl.clone(),
             state: "queued",

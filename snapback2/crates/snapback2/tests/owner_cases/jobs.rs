@@ -345,7 +345,7 @@ fn jobs_350_rows_finish_under_client_load_and_park_resume_through_owner() {
 fn run_file_query_mutation_job_and_deleted_adapters_through_binary() {
     let (root, compiler, mut owner, port, secret) = boot_jobs();
     let page = fs::read_to_string(
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../packages/snapback2/guide/job.md"),
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../packages/snapback2/guide/successor.md"),
     )
     .unwrap();
     let recipe = page

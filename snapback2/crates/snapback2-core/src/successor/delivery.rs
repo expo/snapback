@@ -143,6 +143,8 @@ pub(super) fn bootstrap_refusal(
         (" in one installation", ("logs", "their rules"))
     };
     Ok(Some(SuccessorRefusal {
+        from: String::new(),
+        to: String::new(),
         code: "E_SUCCESSOR_BOOTSTRAP".to_owned(),
         message: format!(
             "bootstrap of {logs} would write up to {total} delivered events{installation} ({groups}), above the installation bound of {}",

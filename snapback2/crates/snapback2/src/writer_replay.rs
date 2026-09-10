@@ -191,6 +191,9 @@ impl State {
         self.refuse_schedule_target(op)?;
         self.operation_kind(op, Some(ProgramKind::Mutation))?;
         let trace = self.decode_replay_trace(&wire.trace)?;
+        // A replay judged by current validation (a removed enum case, a changed
+        // argument type) is refused like any request and never spends the intent:
+        // its bytes stay queued and commit once the declaration accepts them again.
         let mut context = self.context(authority, op, args)?;
         // The grant's reserved ids replace the ordinary 1,024-id reservation.
         context.new_ids = ids;

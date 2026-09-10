@@ -551,10 +551,13 @@ fn refused_destructive_successor_keeps_the_active_build_cache() {
     let before = ["project.json", "certificates.json", "api.d.ts"]
         .map(|name| fs::read(build.join(name)).unwrap());
     thread::sleep(Duration::from_millis(300));
+    // A smaller text maximum is checked narrowing since LLP 1020 (fix round r1 ruling);
+    // changing an index's components is still a destructive `Drop::Index`, and no
+    // program reads `byCreator`, so the successor compiles and is refused at the owner.
     let schema = root.join("snapback/schema.q");
     let source = fs::read_to_string(&schema)
         .unwrap()
-        .replace("title: text <=120", "title: text <=121");
+        .replace("by byCreator: creatorId\n", "by byCreator: creatorId, id\n");
     assert_ne!(
         source,
         fs::read_to_string(&schema).unwrap(),

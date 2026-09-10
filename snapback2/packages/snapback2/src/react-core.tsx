@@ -33,6 +33,7 @@ import {
   type OfflineClientOptions,
   type OutboxEntry,
   type OutboxStatus,
+  type DismissedIntent,
   type Principal,
   type Refusal,
   type SnapbackClient,
@@ -207,13 +208,13 @@ export interface UseMutationResult<Args, Result> {
   last: MutationResult<Result> | undefined;
 }
 
-/** The durable outbox of the open partition, FIFO, with `dismiss` for settled intents. */
+/** The durable outbox of the open partition, FIFO, with `dismiss` for eligible intents. */
 export interface UseOutboxResult {
   entries: OutboxEntry[];
   /** Grant-present readiness: no particular write bound is implied. */
   can: Readiness;
   detail: { status: OutboxStatus; writer?: OutboxStatus };
-  dismiss(intent: string): Promise<void>;
+  dismiss(intent: string): Promise<DismissedIntent | undefined>;
 }
 
 // @ref LLP 1012#7-writes-offline — the outbox opens before the first request,

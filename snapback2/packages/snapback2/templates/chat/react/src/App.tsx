@@ -26,7 +26,7 @@ function Home() {
         </p>
         {outbox.entries.length > 0 ? <details><summary>Changes on this device ({outbox.entries.length})</summary><ul>
           {outbox.entries.map(entry => <li key={entry.intent}>{entry.op} · {intentLabel(entry)}
-            {entry.state !== "queued" ? <button type="button" onClick={() => { void outbox.dismiss(entry.intent); }}>Dismiss</button> : null}
+            {(entry.state !== "queued" || entry.refusal !== undefined) ? <button type="button" onClick={() => { void outbox.dismiss(entry.intent); }}>Dismiss</button> : null}
           </li>)}
         </ul></details> : null}
       </header>

@@ -20,7 +20,7 @@ export function Chat() {
     {outbox.entries.length > 0 ? <Button title={`Changes on this device (${outbox.entries.length})`} onPress={() => setShowChanges(!showChanges)} /> : null}
     {showChanges ? <ScrollView style={{ maxHeight: 200 }}>{outbox.entries.map(entry => <View key={entry.intent}>
       <Text>{entry.op} · {intentLabel(entry)}</Text>
-      {entry.state !== "queued" ? <Button title="Dismiss" onPress={() => { void outbox.dismiss(entry.intent); }} /> : null}
+      {(entry.state !== "queued" || entry.refusal !== undefined) ? <Button title="Dismiss" onPress={() => { void outbox.dismiss(entry.intent); }} /> : null}
     </View>)}</ScrollView> : null}
     {selected ? <><Button title="Inbox" onPress={() => select(undefined)} /><Thread conversationId={selected} /></>
       : <ScrollView contentContainerStyle={{ padding: 16 }}>

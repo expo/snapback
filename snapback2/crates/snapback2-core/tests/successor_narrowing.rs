@@ -135,7 +135,7 @@ fn narrowing_refuses_null_and_absent_rows_with_total_count_and_ten_id_sample_ato
     assert_eq!(read_values(&mut runtime), before);
 }
 #[test]
-fn outer_optional_list_narrows_but_nested_optional_and_retypes_stay_type_changes() {
+fn outer_optional_and_maxima_narrow_but_nested_optional_and_retypes_stay_type_changes() {
     let list = ColumnType::List {
         of: Box::new(optional(ColumnType::Int)),
         max: 3,
@@ -145,6 +145,27 @@ fn outer_optional_list_narrows_but_nested_optional_and_retypes_stay_type_changes
         vec![Some(Value::Array(vec![Value::Null, Value::Int(1)]))],
     );
     allowed.apply_successor(generation(list)).unwrap();
+    for (from, to, small, large) in [
+        (optional(ColumnType::Text { max: 30 }), ColumnType::Text { max: 20 },
+         Value::String("a".into()), Value::String("x".repeat(21))),
+        (optional(ColumnType::Bytes { max: 30 }), ColumnType::Bytes { max: 20 },
+         Value::Bytes(vec![1]), Value::Bytes(vec![1; 21])),
+        (optional(ColumnType::List { of: Box::new(ColumnType::Int), max: 3 }),
+         ColumnType::List { of: Box::new(ColumnType::Int), max: 2 },
+         Value::Array(vec![Value::Int(1)]), Value::Array(vec![Value::Int(1); 3])),
+    ] {
+        let mut fits = runtime(from.clone(), vec![Some(small)]);
+        let before = read_values(&mut fits);
+        let report = fits.apply_successor(generation(to.clone())).unwrap();
+        assert_eq!(report.narrowings[0].affected_rows, 0);
+        assert_eq!(read_values(&mut fits), before);
+        let mut over = runtime(from, vec![Some(large)]);
+        let before = read_values(&mut over);
+        let refusal = over.apply_successor(generation(to)).unwrap_err();
+        assert_eq!(refusal.code, "E_SUCCESSOR_NARROWING");
+        assert_eq!(refusal.narrowings[0].oversize_rows, 1);
+        assert_eq!(read_values(&mut over), before);
+    }
     for (from, to) in [
         (
             optional(optional(ColumnType::Int)),
@@ -161,10 +182,6 @@ fn outer_optional_list_narrows_but_nested_optional_and_retypes_stay_type_changes
             },
         ),
         (optional(ColumnType::Int), ColumnType::Text { max: 30 }),
-        (
-            optional(ColumnType::Text { max: 30 }),
-            ColumnType::Text { max: 20 },
-        ),
     ] {
         let mut runtime = runtime(from.clone(), vec![]);
         let refusal = runtime.apply_successor(generation(to.clone())).unwrap_err();

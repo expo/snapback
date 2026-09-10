@@ -5,7 +5,6 @@ use crate::engine::{
     RuntimeError, materialize_optional_fields, rebuild_owned_aggregate_target, reindex_row,
 };
 use crate::schema::{ColumnType, Maintain, MaintainKind, Schema};
-use crate::store::Store;
 use crate::value::{I53_MAX, I53_MIN, Value, canonical_json};
 use rusqlite::{Connection, Transaction, params};
 use serde::{Deserialize, Serialize};
@@ -55,6 +54,10 @@ pub struct UniqueConflict {
 pub struct SuccessorRefusal {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub cap_conflicts: Vec<CapConflict>,
+    #[serde(default)]
+    pub from: String,
+    #[serde(default)]
+    pub to: String,
     pub code: String,
     pub message: String,
     pub rewrite: String,
@@ -68,12 +71,28 @@ pub struct SuccessorRefusal {
 }
 
 impl SuccessorRefusal {
+    pub(crate) fn compared(mut self, from: &str, to: &str) -> Self {
+        self.from = from.to_owned();
+        self.to = to.to_owned();
+        self.message = format!("{} (generation {from} → {to})", self.message);
+        self
+    }
+
     pub(crate) fn destructive(plan: MigrationPlan) -> Self {
         Self {
+            from: String::new(),
+            to: String::new(),
             code: "E_SUCCESSOR_DESTRUCTIVE".to_owned(),
             message: "destructive successor requires an explicit migration plan".to_owned(),
             rewrite: "apply exactly the returned migration plan".to_owned(),
-            site: None,
+            site: plan.drops.first().map(|drop| match drop {
+                Drop::Table { name, .. } => format!("schema.tables.{name}"),
+                Drop::Column { table, name } => format!("schema.tables.{table}.columns.{name}"),
+                Drop::TypeChange { table, column, .. } => {
+                    format!("schema.tables.{table}.columns.{column}")
+                }
+                Drop::Index { table, name } => format!("schema.tables.{table}.indexes.{name}"),
+            }),
             plan,
             conflicts: Vec::new(),
             cap_conflicts: Vec::new(),
@@ -83,10 +102,12 @@ impl SuccessorRefusal {
 
     pub(crate) fn store(error: &RuntimeError) -> Self {
         Self {
+            from: String::new(),
+            to: String::new(),
             code: "E_SUCCESSOR_STORE".to_owned(),
             message: error.to_string(),
             rewrite: "repair the store error and retry the successor".to_owned(),
-            site: None,
+            site: Some("store".to_owned()),
             plan: MigrationPlan::default(),
             conflicts: Vec::new(),
             cap_conflicts: Vec::new(),
@@ -96,14 +117,16 @@ impl SuccessorRefusal {
 
     fn required_column(table: &str, column: &str) -> Self {
         Self {
+            from: String::new(),
+            to: String::new(),
             code: "E_SUCCESSOR_COLUMN_REQUIRED".to_owned(),
             message: format!(
                 "successor leaves required column {table}.{column} absent on stored rows"
             ),
             rewrite: format!(
-                "declare {table}.{column} as T?, apply; fill it with a bounded job (`run fill_{table}_{column} --as system --wait`; see guide job); then declare T and apply again"
+                "declare {table}.{column} as T?, apply; fill it with a bounded job (`run fill_{table}_{column} --as system --wait`; see guide successor); then declare T and apply again"
             ),
-            site: None,
+            site: Some(format!("schema.tables.{table}.columns.{column}")),
             plan: MigrationPlan::default(),
             conflicts: Vec::new(),
             cap_conflicts: Vec::new(),
@@ -120,10 +143,14 @@ impl SuccessorRefusal {
             .collect::<Vec<_>>()
             .join(", ");
         Self {
+            from: String::new(),
+            to: String::new(),
             code: "E_SUCCESSOR_UNIQUE".to_owned(),
             message: format!("new unique index has conflicting keys in {indexes}"),
             rewrite: "make the index non-unique or fix the rows".to_owned(),
-            site: None,
+            site: conflicts
+                .first()
+                .map(|c| format!("schema.tables.{}.indexes.{}", c.table, c.index)),
             plan: MigrationPlan::default(),
             conflicts,
             cap_conflicts: Vec::new(),
@@ -133,6 +160,8 @@ impl SuccessorRefusal {
 
     fn invalid_row(table: &str, row: &str, error: impl std::fmt::Display) -> Self {
         Self {
+            from: String::new(),
+            to: String::new(),
             code: "E_SUCCESSOR_ROW_INVALID".to_owned(),
             message: format!("successor validation refused stored row {table}.{row}: {error}"),
             rewrite: format!("repair or remove stored row {table}.{row}, then retry the successor"),
@@ -154,6 +183,8 @@ pub struct SuccessorReport {
     pub added_columns: Vec<String>,
     pub added_indexes: Vec<String>,
     pub backfilled_maintains: u64,
+    pub maintains: Vec<String>,
+    pub narrowings: Vec<NarrowingConflict>,
     /// One line per custody log bootstrapped at this installation (LLP 1019 §2).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub bootstrapped_deliveries: Vec<String>,
@@ -162,15 +193,28 @@ pub struct SuccessorReport {
     pub audience_bounds: BTreeMap<String, u32>,
 }
 
+impl SuccessorReport {
+    pub(crate) fn persist(&self, transaction: &Transaction<'_>) -> Result<(), RuntimeError> {
+        transaction.execute(
+            "INSERT INTO _meta(key, value) VALUES ('last_successor', ?1) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+            [canonical_json(self)],
+        )?;
+        Ok(())
+    }
+}
+
+/// `owned` is `projected_owned_ids` taken before any migration drop (the same set the
+/// caller threads through admission and application).
 pub(crate) fn plan(
-    store: &Store,
+    connection: &Connection,
     current: &Schema,
     next: &Schema,
+    owned: &OwnedIds,
 ) -> Result<MigrationPlan, RuntimeError> {
     let mut drops = Vec::new();
     for (table_name, table) in &current.tables {
         let Some(next_table) = next.tables.get(table_name) else {
-            let rows: i64 = store.conn.query_row(
+            let rows: i64 = connection.query_row(
                 "SELECT COUNT(*) FROM rows WHERE table_name = ?1",
                 [table_name],
                 |row| row.get(0),
@@ -181,6 +225,19 @@ pub(crate) fn plan(
             });
             continue;
         };
+        // @ref LLP 1020#a3-exact-projection-ownership — a delta on a target whose
+        // stored rows all lie in the union of the predecessor and successor projected
+        // ids is the transactional replacement; any ordinary survivor keeps the plan.
+        if let Some(ids) = owned.get(table_name) {
+            let mut statement =
+                connection.prepare("SELECT row_id FROM rows WHERE table_name=?1")?;
+            let ids_in_store = statement
+                .query_map([table_name], |row| row.get::<_, String>(0))?
+                .collect::<Result<Vec<_>, _>>()?;
+            if ids_in_store.iter().all(|id| ids.contains(id)) {
+                continue;
+            }
+        }
         for (column, column_type) in &table.columns {
             match next_table.columns.get(column) {
                 None => drops.push(Drop::Column {
@@ -188,9 +245,7 @@ pub(crate) fn plan(
                     name: column.clone(),
                 }),
                 Some(next_type)
-                    if next_type != column_type
-                        && !adding_once(column_type, next_type)
-                        && !is_narrowing(column_type, next_type) =>
+                    if !widens(column_type, next_type) && !is_narrowing(column_type, next_type) =>
                 {
                     drops.push(Drop::TypeChange {
                         table: table_name.clone(),
@@ -215,30 +270,22 @@ pub(crate) fn plan(
             }
         }
     }
-    let custody = delivery::custody_drops(&store.conn, current, next, &drops)?;
+    let custody = delivery::custody_drops(connection, current, next, &drops)?;
     drops.extend(custody);
     Ok(MigrationPlan { drops })
 }
 
-pub(crate) fn successor_refusal(
-    store: &Store,
-    current: &Schema,
-    next: &Schema,
-) -> Result<Option<SuccessorRefusal>, RuntimeError> {
-    let migration = plan(store, current, next)?;
-    if !migration.drops.is_empty() {
-        return Ok(Some(SuccessorRefusal::destructive(migration)));
-    }
-    additive_refusal(&store.conn, current, next)
-}
-
+/// `owned` is `projected_owned_ids` taken before any migration drop; the caller
+/// threads it through so nothing re-derives a projection over rows whose columns
+/// the drops have already cleared.
 pub(crate) fn additive_refusal(
     connection: &Connection,
     current: &Schema,
     next: &Schema,
+    owned: &OwnedIds,
 ) -> Result<Option<SuccessorRefusal>, RuntimeError> {
     let rebuilt_targets = maintained_targets_requiring_rebuild(current, next);
-    if let Some(refusal) = narrowing_refusal(connection, current, next)? {
+    if let Some(refusal) = narrowing_refusal(connection, current, next, owned)? {
         return Ok(Some(refusal));
     }
     if let Some(refusal) = delivery::bootstrap_refusal(connection, current, next)? {
@@ -248,33 +295,32 @@ pub(crate) fn additive_refusal(
         let Some(next_table) = next.tables.get(table_name) else {
             continue;
         };
-        if rebuilt_targets.contains(table_name) {
-            continue;
-        }
         let absent_required = next_table.columns.iter().find(|(column, kind)| {
             current_table
                 .columns
                 .get(*column)
                 .is_none_or(|current_kind| {
-                    current_kind != *kind
-                        && !adding_once(current_kind, kind)
-                        && !is_narrowing(current_kind, kind)
+                    !widens(current_kind, kind) && !is_narrowing(current_kind, kind)
                 })
                 && !matches!(kind, ColumnType::Optional(_))
         });
         if let Some((column, _)) = absent_required {
-            let rows: i64 = connection.query_row(
-                "SELECT COUNT(*) FROM rows WHERE table_name = ?1",
-                [table_name],
-                |row| row.get(0),
-            )?;
-            if rows > 0 {
+            let mut stmt = connection.prepare("SELECT row_id FROM rows WHERE table_name = ?1")?;
+            let rows = stmt
+                .query_map([table_name], |r| r.get::<_, String>(0))?
+                .collect::<Result<Vec<_>, _>>()?;
+            if rows
+                .iter()
+                .any(|id| !owned.get(table_name).is_some_and(|ids| ids.contains(id)))
+            {
                 return Ok(Some(SuccessorRefusal::required_column(table_name, column)));
             }
         }
     }
 
-    if let Some(refusal) = validate_stored_rows(connection, current, next, &rebuilt_targets)? {
+    if let Some(refusal) =
+        validate_stored_rows(connection, current, next, &rebuilt_targets, owned)?
+    {
         return Ok(Some(refusal));
     }
 
@@ -339,11 +385,9 @@ pub(crate) fn validate_stored_rows(
     current: &Schema,
     next: &Schema,
     replaced_tables: &BTreeSet<String>,
+    owned: &OwnedIds,
 ) -> Result<Option<SuccessorRefusal>, RuntimeError> {
     for (table_name, next_table) in &next.tables {
-        if replaced_tables.contains(table_name) {
-            continue;
-        }
         let current_table = current.tables.get(table_name);
         let columns = next_table
             .columns
@@ -365,6 +409,13 @@ pub(crate) fn validate_stored_rows(
         })?;
         for row in rows {
             let (row_id, data) = row?;
+            if replaced_tables.contains(table_name)
+                && owned
+                    .get(table_name)
+                    .is_some_and(|ids| ids.contains(&row_id))
+            {
+                continue;
+            }
             let value = match serde_json::from_str::<Value>(&data) {
                 Ok(value) => value,
                 Err(error) => {
@@ -435,12 +486,25 @@ pub(crate) fn apply_additive(
     next: &Schema,
     from: String,
     to: String,
-    predecessor_maintain_ids: Option<BTreeMap<String, BTreeSet<String>>>,
+    owned: OwnedIds,
     now: i64,
 ) -> Result<SuccessorReport, RuntimeError> {
     let mut report = SuccessorReport {
         from,
         to,
+        narrowings: narrowing::checked_narrowings(transaction, current, next, &owned)?,
+        maintains: next
+            .maintains
+            .iter()
+            .filter(|m| !current.maintains.contains(m))
+            .filter_map(|m| {
+                current
+                    .maintains
+                    .iter()
+                    .find(|old| old.target == m.target && !next.maintains.contains(old))
+                    .and_then(|old| maintain_change_line(old, m))
+            })
+            .collect(),
         ..SuccessorReport::default()
     };
     for table in next.tables.keys() {
@@ -473,9 +537,7 @@ pub(crate) fn apply_additive(
     let changed_maintains = changed_maintains(current, next);
     report.backfilled_maintains = changed_maintains.len() as u64;
 
-    let mut predecessor_maintain_ids = predecessor_maintain_ids
-        .map(Ok)
-        .unwrap_or_else(|| projected_predecessor_ids(transaction, current, next))?;
+    let mut predecessor_maintain_ids = owned;
 
     // A retired projection can be the source of a new maintain. Clear its
     // engine-owned addresses before any active target reads that source;
@@ -685,6 +747,31 @@ fn drop_column_values(
     })
 }
 
+// @ref LLP 1020#a3-exact-projection-ownership — every regroup, kind, or source change
+// of a maintain states itself in the successor report: a positional read can keep
+// compiling after any of them with its meaning changed.
+pub(crate) fn maintain_change_line(old: &Maintain, new: &Maintain) -> Option<String> {
+    let kind = |m: &Maintain| match &m.kind {
+        MaintainKind::Count => "count".to_owned(),
+        MaintainKind::Sum { of } => format!("sum of {of}"),
+    };
+    let mut changes = Vec::new();
+    if old.source != new.source {
+        changes.push(format!("from {} → from {}", old.source, new.source));
+    }
+    if old.kind != new.kind {
+        changes.push(format!("{} → {}", kind(old), kind(new)));
+    }
+    if old.by != new.by {
+        changes.push(format!(
+            "by {} → by {}",
+            old.by.join(", "),
+            new.by.join(", ")
+        ));
+    }
+    (!changes.is_empty()).then(|| format!("maintain {}: {}", new.target, changes.join(", ")))
+}
+
 fn changed_maintains<'a>(current: &'a Schema, next: &'a Schema) -> Vec<&'a Maintain> {
     let mut unmatched_next = next.maintains.iter().collect::<Vec<_>>();
     let mut changed = Vec::new();
@@ -748,17 +835,30 @@ fn maintained_targets_requiring_rebuild(current: &Schema, next: &Schema) -> BTre
     targets
 }
 
-pub(crate) fn projected_predecessor_ids(
+/// Per target, the ids the engine owns: the union of the predecessor projection and
+/// the successor projection — the rows a successor may replace or clear without a
+/// plan (LLP 1001 §4, LLP 1020 A3).
+pub(crate) type OwnedIds = BTreeMap<String, BTreeSet<String>>;
+
+// @ref LLP 1020#a3-exact-projection-ownership — read once, before any migration drop.
+// The successor projection joins the set only when it can be computed over the
+// stored rows; a backfill that cannot (overflow, a group field the successor adds)
+// contributes nothing here and refuses at the rebuild with its own code, so the
+// destructive classification is never pre-empted by `E_SUCCESSOR_STORE`.
+pub(crate) fn projected_owned_ids(
     connection: &Connection,
     current: &Schema,
     next: &Schema,
-) -> Result<BTreeMap<String, BTreeSet<String>>, RuntimeError> {
+) -> Result<OwnedIds, RuntimeError> {
     maintained_targets_requiring_rebuild(current, next)
         .into_iter()
         .map(|target| {
-            let ids = projected_target_rows(connection, current, &target)?
+            let mut ids = projected_target_rows(connection, current, &target)?
                 .into_keys()
-                .collect();
+                .collect::<BTreeSet<_>>();
+            if let Ok(rows) = projected_target_rows(connection, next, &target) {
+                ids.extend(rows.into_keys());
+            }
             Ok((target, ids))
         })
         .collect()
@@ -979,6 +1079,34 @@ pub mod delivery;
 mod narrowing;
 pub use narrowing::NarrowingConflict;
 use narrowing::{is_narrowing, narrowing_refusal};
+
+// @ref LLP 1020#a1-widening-is-additive — compare value domains, not declaration equality.
+// Text minimum/format live in constraints; changing those is write-only admission.
+fn widens(current: &ColumnType, next: &ColumnType) -> bool {
+    if current == next || adding_once(current, next) {
+        return true;
+    }
+    match (current, next) {
+        (ColumnType::Optional(a), ColumnType::Optional(b)) => widens(a, b),
+        (_, ColumnType::Optional(b)) if !matches!(current, ColumnType::Optional(_)) => {
+            widens(current, b)
+        }
+        (ColumnType::List { of: a, max: am }, ColumnType::List { of: b, max: bm }) => {
+            am <= bm && widens(a, b)
+        }
+        (ColumnType::Enum { variants: a }, ColumnType::Enum { variants: b }) => {
+            a.iter().all(|v| b.contains(v))
+        }
+        (ColumnType::Text { max: a }, ColumnType::Text { max: b })
+        | (ColumnType::Bytes { max: a }, ColumnType::Bytes { max: b })
+        | (ColumnType::Video { max: a }, ColumnType::Video { max: b }) => a <= b,
+        (ColumnType::Json { max_bytes: a }, ColumnType::Json { max_bytes: b }) => a <= b,
+        (ColumnType::Image { max: a, once: ao }, ColumnType::Image { max: b, once: bo }) => {
+            a <= b && (!ao || *bo)
+        }
+        _ => false,
+    }
+}
 
 // @ref LLP 1006#2a1-one-use-image-delivery-clique-f3-2026-09-05 — existing images have no recorded prior views.
 fn adding_once(current: &ColumnType, next: &ColumnType) -> bool {

@@ -50,6 +50,9 @@ pub struct DevOptions {
     pub status: bool,
     pub apply_migration: Option<PathBuf>,
     pub json: bool,
+    /// The owner `snapback2 test` starts: effect transport is bound-only and
+    /// the supervisor owns provider-binding epochs (LLP 1021 §3).
+    pub test_owner: bool,
 }
 
 pub fn run(options: DevOptions) -> ExitCode {
@@ -164,7 +167,13 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
         .commit_seq()
         .map_err(|error| Refusal::from_runtime(&error))?;
     let mut runtime = Runtime::open(store, compiled.generation.clone())
-        .map_err(|error| Refusal::from_successor(&error))?;
+        .map_err(|error| crate::protocol::successor_site(Refusal::from_successor(&error), &compiled, None))?;
+    // @ref LLP 1020#a3-exact-projection-ownership — a successor installed at owner start
+    // (the schema changed while the owner was down) reaches the successor log exactly
+    // as a hot installation does, regroup line included.
+    if let Some(report) = runtime.take_opened_successor() {
+        crate::watch::log(&root, json!({ "successor": "applied", "report": report }));
+    }
     let now = unix_millis();
     for persona in &seed.personas {
         runtime
@@ -217,6 +226,7 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
         info.clone(),
         blobs.clone(),
         staging.clone(),
+        options.test_owner,
     )?;
     let _effects = crate::effects::spawn(handle.clone(), &root, stop.clone());
     handle.call(Action::PublishOwner)?;

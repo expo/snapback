@@ -80,7 +80,19 @@ impl OutboxAccess for WriterAccess {
         &mut self,
         now: i64,
     ) -> Result<Option<snapback2_effects::EffectJob>, OutboxError> {
-        let row: Option<OutboxRow> = decode(self.handle.call(Action::OutboxClaim { now }))?;
+        let mut claimed = self
+            .handle
+            .call(Action::OutboxClaim { now })
+            .map_err(outbox_error)?;
+        // The writer attaches the journey epoch's binding table beside the row
+        // in a test owner; a dev owner's claim has none.
+        let bindings = claimed
+            .as_object_mut()
+            .and_then(|row| row.remove("bindings"))
+            .map(serde_json::from_value::<std::collections::BTreeMap<String, String>>)
+            .transpose()
+            .map_err(|error| OutboxError(format!("writer protocol: {error}")))?;
+        let row: Option<OutboxRow> = decode(Ok(claimed))?;
         if let Some(row) = &row {
             self.track(&row.id);
         }
@@ -90,6 +102,7 @@ impl OutboxAccess for WriterAccess {
             payload: value_to_json(&row.payload),
             attempt: row.attempts,
             generation: row.generation,
+            bindings,
         }))
     }
 
@@ -113,6 +126,16 @@ impl OutboxAccess for WriterAccess {
             bound: resolved.bound,
             current: resolved.current,
         })
+    }
+
+    fn observe_provider(&mut self, id: &str, provider: Json) -> Result<(), OutboxError> {
+        self.handle
+            .call(Action::OutboxProvider {
+                id: id.to_owned(),
+                provider,
+            })
+            .map(|_| ())
+            .map_err(outbox_error)
     }
 
     fn settle(&mut self, id: &str, settlement: OutboxSettlement) -> Result<(), OutboxError> {

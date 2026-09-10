@@ -15,6 +15,9 @@ pub(crate) fn certification_family_guide(code: &str) -> (&'static str, &'static 
         // which-shape decision, not the loop-bound mechanics.
         "E_STRUCTURAL_FANOUT" => ("bound", "fanout"),
         "E_STRUCTURAL_COUNT" => ("bound", "bound/count"),
+        // @ref LLP 1020#a6-the-successor-page-and-its-families — the step ceiling is a
+        // bound with its own family pair; `check` files it where the runtime does.
+        "E_STEPS" => ("bound", "bounds"),
         "E_AMBIENT_TIME" => ("opaque", "opaque/time"),
         code if code.starts_with("E_BOUND") || code.starts_with("E_UNBOUND") => {
             ("bound", "bound/ceiling")
@@ -240,7 +243,7 @@ impl Refusal {
             family,
             error.to_string(),
             rewrite,
-            format!("{family}/runtime"),
+            if code == "E_STEPS" { "bounds".to_owned() } else { format!("{family}/runtime") },
         )
     }
 
@@ -299,8 +302,10 @@ impl Refusal {
             "successor",
             &error.message,
             &error.rewrite,
-            "successor/migrations",
+            "successor",
         )
+        .with_detail("from", json!(error.from))
+        .with_detail("to", json!(error.to))
         .with_detail(
             "plan",
             serde_json::to_value(&error.plan).unwrap_or(Json::Null),
@@ -316,12 +321,14 @@ impl Refusal {
         if let Some(site) = &error.site {
             refusal = refusal.with_site(site);
         }
-        if let Some(narrowing) = error.narrowings.first() {
+        if let Some(narrowing) = error.narrowings.iter().find(|c| c.affected_rows > 0) {
             refusal = refusal
-                .with_site(format!("{}.{}", narrowing.table, narrowing.column))
                 .with_detail("table", json!(narrowing.table))
                 .with_detail("column", json!(narrowing.column))
                 .with_detail("nullRows", json!(narrowing.null_rows))
+                .with_detail("oversizeRows", json!(narrowing.oversize_rows))
+                .with_detail("affectedRows", json!(narrowing.affected_rows))
+                .with_detail("removedCases", json!(narrowing.removed_cases))
                 .with_detail("sample", json!(narrowing.sample))
                 .with_detail("narrowings", json!(error.narrowings));
         }
@@ -451,6 +458,37 @@ mod tests {
     use super::*;
 
     #[test]
+    fn runtime_steps_uses_the_check_family_and_bounds_page_on_the_wire() {
+        let wire = serde_json::to_value(Refusal::from_runtime(&RuntimeError::Steps(1_000_001))).unwrap();
+        assert_eq!(wire["code"], "E_STEPS");
+        let (family, guide) = certification_family_guide("E_STEPS");
+        assert_eq!(wire["family"], family);
+        assert_eq!(wire["guide"], guide);
+        assert!(include_str!("../../../packages/snapback2/guide/bounds.md").contains("E_STEPS"));
+        let cards: Json = serde_json::from_str(include_str!("../../../packages/snapback2/guide/families.source.json")).unwrap();
+        let card = cards.as_array().unwrap().iter().find(|c| c["code"] == "E_STEPS").unwrap();
+        assert!(card["right"].as_str().unwrap().contains("certificate charges"));
+    }
+
+    #[test]
+    fn successor_store_failure_names_the_store_on_the_wire() {
+        use snapback2_core::{Auth, Ceilings, Generation, ProjectJson, Runtime, Schema, Store};
+        let mut store = Store::memory().unwrap();
+        store.set_meta("generation", "predecessor").unwrap();
+        store.set_meta("schema_json", "invalid stored schema").unwrap();
+        let next = Generation::certify(&ProjectJson { version: 1, auth: Auth::default(), schema: Schema::default(), programs: vec![], effects: vec![] }, Ceilings::default()).unwrap();
+        let error = Runtime::open(store, next.clone()).err().expect("corrupt schema must refuse open");
+        let wire = serde_json::to_value(Refusal::from_successor(&error)).unwrap();
+        assert_eq!(wire["code"], "E_SUCCESSOR_STORE");
+        assert_eq!(wire["family"], "successor");
+        assert_eq!(wire["guide"], "successor");
+        assert_eq!(wire["site"], "store");
+        assert_eq!(wire["from"], "predecessor");
+        assert_eq!(wire["to"], next.hash());
+        assert!(wire["rewrite"].as_str().unwrap().contains("repair the store error"));
+    }
+
+    #[test]
     fn authored_require_uses_the_first_class_rule_field() {
         let refusal = Refusal::from_runtime(&RuntimeError::Require { code: "conflict".into(), site: Some("snapback/rules.q:8:3".into()) });
         assert_eq!(refusal.rule.as_deref(), Some("conflict"));
@@ -520,10 +558,12 @@ mod tests {
     // @ref LLP 1019#2-the-custody-log — one family and one page for the
     // successor refusal this declaration adds: the wire label is
     // `family/page`, and the families card names that page (the final gates
-    // require a card's guide to be a page file, so the card carries `migrations`).
+    // require a card's guide to be a page file, so the card carries `successor`).
     #[test]
     fn successor_bootstrap_has_one_family_and_page_on_the_wire_and_in_the_guide() {
         let refusal = Refusal::from_successor(&SuccessorRefusal {
+            from: String::new(),
+            to: String::new(),
             code: "E_SUCCESSOR_BOOTSTRAP".to_owned(),
             message: "bootstrap of deliveries would write up to 8200 delivered events".to_owned(),
             rewrite: "install the log empty".to_owned(),
@@ -533,7 +573,7 @@ mod tests {
             cap_conflicts: Vec::new(),
             narrowings: Vec::new(),
         });
-        assert_eq!((refusal.family.as_str(), refusal.guide.as_str()), ("successor", "successor/migrations"));
+        assert_eq!((refusal.family.as_str(), refusal.guide.as_str()), ("successor", "successor"));
         assert_eq!(refusal.site.as_deref(), Some("schema.tables.messages.deliver"));
         let families: Json = serde_json::from_str(include_str!(
             "../../../packages/snapback2/guide/families.source.json"
@@ -546,9 +586,9 @@ mod tests {
             .find(|entry| entry["code"] == "E_SUCCESSOR_BOOTSTRAP")
             .expect("E_SUCCESSOR_BOOTSTRAP has a families card");
         assert_eq!(card["family"], refusal.family);
-        assert_eq!(format!("successor/{}", card["guide"].as_str().unwrap()), refusal.guide);
+        assert_eq!(card["guide"].as_str().unwrap(), refusal.guide);
         assert!(card["right"].as_str().unwrap().contains("summed over every log"));
-        assert!(include_str!("../../../packages/snapback2/guide/migrations.md").starts_with("# Migrations"));
+        assert!(include_str!("../../../packages/snapback2/guide/successor.md").starts_with("# Successor"));
     }
 
     #[test]
@@ -584,6 +624,22 @@ fn runtime_requirement_message_does_not_embed_its_application_code() {
     });
     assert_eq!(refusal.code, "MEMBERSHIP_REQUIRED");
     assert_eq!(refusal.message, "program requirement failed");
+}
+
+pub(crate) fn successor_site(mut refusal: Refusal, next: &crate::project::CompiledProject, previous: Option<&crate::project::CompiledProject>) -> Refusal {
+    if let Some(site) = &refusal.site {
+        let table = site.split(".columns.").next().unwrap_or(site).split(".indexes.").next().unwrap_or(site);
+        if let Some(source) = next.sources.get(site)
+            .or_else(|| previous.and_then(|p| p.sources.get(site)))
+            .or_else(|| next.sources.get(table))
+            .or_else(|| previous.and_then(|p| p.sources.get(table))) {
+            refusal.site = Some(format!("{}:{}:{}", source.file, source.line, source.col));
+        } else if let Some((table, column)) = site.strip_prefix("schema.tables.").and_then(|s| s.split_once(".columns.")) {
+            // Direct IR applications have no authored source map.
+            refusal.site = Some(format!("{table}.{column}"));
+        }
+    }
+    refusal
 }
 
 #[cfg(test)]

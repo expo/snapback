@@ -24,14 +24,228 @@ async function until(condition: () => Promise<boolean> | boolean, what: string, 
   }
 }
 
-function tabs(options: { grant?: boolean } = {}) {
+function tabs(options: { grant?: boolean; refuse?: NonNullable<Parameters<typeof fakeOwner>[0]>["refuse"] } = {}) {
   const database = new FakeIndexedDb();
   const locks = new FakeLocks();
   const store = indexedDbRangeStore({ indexedDB: database as any, locks: locks as any });
-  const owner = fakeOwner({ seed: true, cursorArg: "c" });
+  const owner = fakeOwner({ seed: true, cursorArg: "c", refuse: options.refuse });
   const open = () => createClient({ url: "http://tabs.test", persona: "alice", fetch: owner.fetch, offline: { store } });
   return { database, locks, store, owner, open, grant: options.grant ?? true };
 }
+
+for (const [cold, target] of [[false, "alias"], [true, "alias"], [true, "intent"]] as const) test(`completed dismissal returns its bytes once after ${cold ? "cold reopen" : "takeover"} (${target} command)`, async () => {
+  const refusal = { code: "E_INPUT", family: "input", message: "enum case removed", guide: "input/runtime" };
+  const { owner, open } = tabs({ refuse: (_intent, body) => body.args.body === "removed" ? { status: 400, envelope: refusal } : undefined });
+  const writer = open(); await writer.ready;
+  const closeDrain = await earnGrant(writer);
+  await writer.offline();
+  const follower = open(); await follower.ready;
+  let successor = follower;
+  let release!: () => void;
+  const paused = new Promise<void>(resolve => { release = resolve; });
+  try {
+    await until(async () => (await follower.outbox.status()).reason === "forwarding", "follower route");
+    const args = { conversationId: "conversation-1", body: "removed" };
+    const first = await follower.mutation(api.messages.send, args);
+    await follower.mutation(api.messages.send, { ...args, body: "after" });
+    await until(async () => (await writer.outbox.entries()).filter(e => e.grant).length === 2, "writer admission");
+    await assert.rejects(writer.online(), { code: "E_INPUT" });
+    await writer.offline();
+    const head = (await writer.outbox.entries())[0]!;
+    const inbox = (follower as any).inbox;
+    const runtime = (follower as any).offlineRuntime;
+    const refresh = inbox.refresh.bind(inbox);
+    let waiting = false;
+    inbox.refresh = async () => {
+      await refresh();
+      if (runtime.inboxRows.some((row: any) => row.kind === "dismiss" && row.state === "done")) {
+        waiting = true;
+        await paused;
+      }
+    };
+    const pending = follower.outbox.dismiss(target === "alias" ? first.intent! : head.intent).then(value => ({ value }), error => ({ error }));
+    await until(() => waiting, "follower paused before consuming completed result");
+    const writerRuntime = (writer as any).offlineRuntime;
+    const identity = { scope: (writer as any).inbox.scope("dev:alice"), principal: "dev:alice", authEpoch: writerRuntime.authEpoch };
+    for (const foreign of [{ ...identity, scope: "another backend" }, { ...identity, principal: "dev:bob" }]) {
+      assert.equal(await writerRuntime.outbox.dismiss(first.intent!, undefined, foreign), undefined, "completed results are scoped");
+    }
+    if (cold) await follower.close();
+    await writer.close();
+    if (cold) { successor = open(); await successor.ready; }
+    await until(() => !(successor as any).offlineRuntime.following, "new writer");
+    release();
+    assert.ok("error" in await pending, "the old role cannot publish the result");
+    const recovered = await successor.outbox.dismiss(first.intent!);
+    assert.deepEqual(recovered, { intent: head.intent, op: head.op, args, refusal });
+    assert.equal(await successor.outbox.dismiss(first.intent!), undefined, "returned only once");
+    const rows = await (successor as any).offlineRuntime.store.inboxRows();
+    assert.equal(rows.some((row: any) => row.kind === "dismiss"), false, "completed command cleaned up");
+    await successor.online();
+    await successor.outbox.drain();
+    assert.deepEqual(owner.executions.map(e => (e.args as any).body), ["after"], "only the next intent replays");
+  } finally { release(); closeDrain(); await successor.close(); await follower.close(); await writer.close(); }
+});
+
+// A takeover that lands after the follower consumed its durable result: the bytes are already
+// the caller's (nothing durable remains to recover), so the old role publishes them instead of
+// rejecting; the successor finds nothing and only the next intent replays.
+test("a dismissal consumed before a takeover keeps its bytes with the caller", async () => {
+  const refusal = { code: "E_INPUT", family: "input", message: "enum case removed", guide: "input/runtime" };
+  const { owner, open } = tabs({ refuse: (_intent, body) => body.args.body === "removed" ? { status: 400, envelope: refusal } : undefined });
+  const writer = open(); await writer.ready;
+  const closeDrain = await earnGrant(writer);
+  await writer.offline();
+  const follower = open(); await follower.ready;
+  let release!: () => void;
+  const paused = new Promise<void>(resolve => { release = resolve; });
+  try {
+    await until(async () => (await follower.outbox.status()).reason === "forwarding", "follower route");
+    const args = { conversationId: "conversation-1", body: "removed" };
+    const first = await follower.mutation(api.messages.send, args);
+    await follower.mutation(api.messages.send, { ...args, body: "after" });
+    await until(async () => (await writer.outbox.entries()).filter(e => e.grant).length === 2, "writer admission");
+    await assert.rejects(writer.online(), { code: "E_INPUT" });
+    await writer.offline();
+    const head = (await writer.outbox.entries())[0]!;
+    const runtime = (follower as any).offlineRuntime;
+    const take = runtime.takeInboxRow.bind(runtime);
+    let deleted = false;
+    runtime.takeInboxRow = async (key: number) => { const row = await take(key); deleted = true; await paused; return row; };
+    const pending = follower.outbox.dismiss(first.intent!).then(value => ({ value }), error => ({ error }));
+    await until(() => deleted, "the follower consumed the durable result");
+    await writer.close();
+    await until(() => !runtime.following, "the follower became the writer");
+    release();
+    const outcome = await pending as any;
+    assert.deepEqual(outcome.value, { intent: head.intent, op: head.op, args, refusal }, "the caller keeps the bytes it consumed");
+    assert.equal(await follower.outbox.dismiss(first.intent!), undefined, "nothing durable remains to recover");
+    await follower.online();
+    await follower.outbox.drain();
+    assert.deepEqual(owner.executions.map(e => (e.args as any).body), ["after"], "only the next intent replays");
+  } finally { release(); closeDrain(); await follower.close(); await writer.close(); }
+});
+
+// Two follower TABS racing for one completed command: the carrier's single transaction decides
+// who consumed it, so exactly one returns the bytes and the other finds nothing.
+test("two follower tabs consume a completed dismissal once", async () => {
+  const refusal = { code: "E_INPUT", family: "input", message: "enum case removed", guide: "input/runtime" };
+  const { owner, open } = tabs({ refuse: (_intent, body) => body.args.body === "removed" ? { status: 400, envelope: refusal } : undefined });
+  const writer = open(); await writer.ready;
+  const closeDrain = await earnGrant(writer);
+  await writer.offline();
+  const a = open(); await a.ready;
+  const b = open(); await b.ready;
+  try {
+    for (const follower of [a, b]) await until(async () => (await follower.outbox.status()).reason === "forwarding", "follower route");
+    const args = { conversationId: "conversation-1", body: "removed" };
+    await a.mutation(api.messages.send, args);
+    await a.mutation(api.messages.send, { ...args, body: "after" });
+    await until(async () => (await writer.outbox.entries()).filter(e => e.grant).length === 2, "writer admission");
+    await assert.rejects(writer.online(), { code: "E_INPUT" });
+    await writer.offline();
+    const head = (await writer.outbox.entries())[0]!;
+    // A barrier across the two tabs: both reach the take for the same completed command
+    // before either lands.
+    const reached: number[] = [];
+    let open!: () => void;
+    const barrier = new Promise<void>(resolve => { open = resolve; });
+    for (const follower of [a, b]) {
+      const runtime = (follower as any).offlineRuntime;
+      const take = runtime.takeInboxRow.bind(runtime);
+      runtime.takeInboxRow = async (key: number) => { reached.push(key); if (reached.length === 2) open(); await barrier; return take(key); };
+    }
+    const one = a.outbox.dismiss(head.intent);
+    await until(() => (a as any).offlineRuntime.inboxRows.some((row: any) => row.kind === "dismiss"), "tab a's command is durable");
+    const two = b.outbox.dismiss(head.intent); // finds tab a's command by target and scope
+    const results = await Promise.all([one, two]);
+    assert.equal(reached.length, 2, "both tabs reached the take");
+    assert.equal(reached[0], reached[1], "for the same command");
+    const returned = results.filter(value => value !== undefined);
+    assert.equal(returned.length, 1, `exactly one tab gets the bytes: ${JSON.stringify(results)}`);
+    assert.deepEqual(returned[0], { intent: head.intent, op: head.op, args, refusal });
+    const rows = await (writer as any).offlineRuntime.store.inboxRows();
+    assert.equal(rows.some((row: any) => row.kind === "dismiss"), false, "the completed command is gone");
+    await writer.online();
+    await writer.outbox.drain();
+    assert.deepEqual(owner.executions.map(e => (e.args as any).body), ["after"], "only the next intent replays");
+  } finally { closeDrain(); await a.close(); await b.close(); await writer.close(); }
+});
+
+// The writer's recovery racing the follower's consumption of the same completed command.
+test("a writer's recovery and the follower's consumption return one result between them", async () => {
+  const refusal = { code: "E_INPUT", family: "input", message: "enum case removed", guide: "input/runtime" };
+  const { owner, open } = tabs({ refuse: (_intent, body) => body.args.body === "removed" ? { status: 400, envelope: refusal } : undefined });
+  const writer = open(); await writer.ready;
+  const closeDrain = await earnGrant(writer);
+  await writer.offline();
+  const follower = open(); await follower.ready;
+  let release!: () => void;
+  const paused = new Promise<void>(resolve => { release = resolve; });
+  try {
+    await until(async () => (await follower.outbox.status()).reason === "forwarding", "follower route");
+    const args = { conversationId: "conversation-1", body: "removed" };
+    await follower.mutation(api.messages.send, args);
+    await follower.mutation(api.messages.send, { ...args, body: "after" });
+    await until(async () => (await writer.outbox.entries()).filter(e => e.grant).length === 2, "writer admission");
+    await assert.rejects(writer.online(), { code: "E_INPUT" });
+    await writer.offline();
+    const head = (await writer.outbox.entries())[0]!;
+    const runtime = (follower as any).offlineRuntime;
+    const take = runtime.takeInboxRow.bind(runtime);
+    let reached = false;
+    runtime.takeInboxRow = async (key: number) => { reached = true; await paused; return take(key); };
+    const pending = follower.outbox.dismiss(head.intent);
+    await until(() => reached, "the follower saw the completed command");
+    const recovered = await writer.outbox.dismiss(head.intent);
+    assert.deepEqual(recovered, { intent: head.intent, op: head.op, args, refusal }, "the writer's recovery consumed the result first");
+    release();
+    assert.equal(await pending, undefined, "the follower's take finds nothing");
+    assert.equal(await writer.outbox.dismiss(head.intent), undefined, "returned only once");
+    await writer.online();
+    await writer.outbox.drain();
+    assert.deepEqual(owner.executions.map(e => (e.args as any).body), ["after"], "only the next intent replays");
+  } finally { release(); closeDrain(); await follower.close(); await writer.close(); }
+});
+
+// Two overlapping follower dismissals of one refused intent: exactly one returns the bytes.
+test("overlapping follower dismissals consume a completed result once", async () => {
+  const refusal = { code: "E_INPUT", family: "input", message: "enum case removed", guide: "input/runtime" };
+  const { owner, open } = tabs({ refuse: (_intent, body) => body.args.body === "removed" ? { status: 400, envelope: refusal } : undefined });
+  const writer = open(); await writer.ready;
+  const closeDrain = await earnGrant(writer);
+  await writer.offline();
+  const follower = open(); await follower.ready;
+  try {
+    await until(async () => (await follower.outbox.status()).reason === "forwarding", "follower route");
+    const args = { conversationId: "conversation-1", body: "removed" };
+    const first = await follower.mutation(api.messages.send, args);
+    await follower.mutation(api.messages.send, { ...args, body: "after" });
+    await until(async () => (await writer.outbox.entries()).filter(e => e.grant).length === 2, "writer admission");
+    await assert.rejects(writer.online(), { code: "E_INPUT" });
+    await writer.offline();
+    const head = (await writer.outbox.entries())[0]!;
+    const runtime = (follower as any).offlineRuntime;
+    // A barrier: both calls reach the take for the same completed command before either lands.
+    const take = runtime.takeInboxRow.bind(runtime);
+    const reached: number[] = [];
+    let open!: () => void;
+    const barrier = new Promise<void>(resolve => { open = resolve; });
+    runtime.takeInboxRow = async (key: number) => { reached.push(key); if (reached.length === 2) open(); await barrier; return take(key); };
+    const one = follower.outbox.dismiss(first.intent!);
+    await until(() => runtime.inboxRows.some((row: any) => row.kind === "dismiss"), "the first command is durable");
+    const two = follower.outbox.dismiss(first.intent!); // finds the existing command
+    const results = await Promise.all([one, two]);
+    assert.equal(reached.length, 2, "both callers reached the take");
+    assert.equal(reached[0], reached[1], "for the same command");
+    const returned = results.filter(value => value !== undefined);
+    assert.equal(returned.length, 1, `exactly one caller gets the bytes: ${JSON.stringify(results)}`);
+    assert.deepEqual(returned[0], { intent: head.intent, op: head.op, args, refusal });
+    await writer.online();
+    await writer.outbox.drain();
+    assert.deepEqual(owner.executions.map(e => (e.args as any).body), ["after"], "only the next intent replays");
+  } finally { closeDrain(); await follower.close(); await writer.close(); }
+});
 
 /** The writer earns its replay grant through the recipe's drain. */
 async function earnGrant(writer: any): Promise<() => void> {
@@ -223,4 +437,30 @@ test("the carrier: a follower connection closes on versionchange, and a wipe und
   await assert.rejects(connection.insert({ kind: "mutation", scope: "s", principal: "dev:alice", followerId: "f", op: "messages.send",
     args: { body: "z" }, state: "queued", ids: [], createdAt: now, updatedAt: now }), /inbox connection has ended/);
   await store.close();
+});
+
+test("a follower dismisses a refused queued intent with its original bytes and blocked status; FIFO continues", async () => {
+  const refusal = { code: "E_INPUT", family: "input", message: "enum case removed", guide: "input/runtime" };
+  const { owner, open } = tabs({ refuse: (_intent, body) => body.args.body === "removed" ? { status: 400, envelope: refusal } : undefined });
+  const writer = open(); await writer.ready;
+  const closeDrain = await earnGrant(writer);
+  await writer.offline();
+  const follower = open(); await follower.ready;
+  try {
+    await until(async () => (await follower.outbox.status()).reason === "forwarding", "follower route");
+    const args = { conversationId: "conversation-1", body: "removed" };
+    const first = await follower.mutation(api.messages.send, args);
+    const second = await follower.mutation(api.messages.send, { ...args, body: "after" });
+    await until(async () => (await writer.outbox.entries()).filter(e => e.grant).length === 2, "writer admission");
+    await assert.rejects(writer.online(), { code: "E_INPUT" });
+    await until(async () => (await follower.outbox.entries()).some(e => e.refusal?.code === "E_INPUT"), "durable refusal");
+    const head = (await writer.outbox.entries())[0]!;
+    assert.deepEqual((await follower.outbox.status()).blocked, { intent: head.intent, code: "E_INPUT" });
+    assert.equal(await follower.outbox.dismiss(second.intent!), undefined, "an unrefused queued entry is ineligible through the inbox too");
+    const dismissed = await follower.outbox.dismiss(first.intent!);
+    assert.deepEqual(dismissed, { intent: head.intent, op: head.op, args, refusal });
+    assert.deepEqual(await writer.outbox.drain(), { stopped: false, remaining: 0 });
+    await until(async () => !(await follower.outbox.status()).blocked, "cleared blocked status");
+    assert.deepEqual(owner.executions.map(e => (e.args as any).body), ["after"]);
+  } finally { closeDrain(); await follower.close(); await writer.close(); }
 });

@@ -1,6 +1,10 @@
 #![cfg(feature = "hermes")]
 
 mod common;
+#[path = "effects_cases/epoch.rs"]
+mod epoch;
+#[path = "effects_cases/witness.rs"]
+mod witness;
 
 use serde_json::{Value, json};
 use std::fs;
@@ -138,6 +142,28 @@ fn owner_runs_effect_then_delivery_and_honest_restart_requeue() {
     let final_trace = trace(port, &secret, seq);
     assert_eq!(final_trace["outbox"]["rows"][0]["id"], outbox_id);
     assert_eq!(final_trace["outbox"]["rows"][0]["state"], "sent");
+    // @ref LLP 1021#4-test-counts-witnesses — acceptance 3: one committed `then`, with its seq, after the restart-requeue path.
+    let then = &final_trace["outbox"]["rows"][0]["then"];
+    assert_eq!(then["op"], "notifications.recordNotified", "{final_trace}");
+    assert_eq!(then["state"], "committed");
+    assert!(
+        then["seq"].as_u64().is_some_and(|then| then > seq),
+        "{then}"
+    );
+    let sent_rows = request(
+        port,
+        "GET",
+        "/control/outbox?state=sent",
+        &[("X-Snapback-Control", &secret)],
+        json!({}),
+    );
+    assert_eq!(
+        sent_rows.body["rows"].as_array().unwrap().len(),
+        1,
+        "{}",
+        sent_rows.body
+    );
+    assert_eq!(sent_rows.body["rows"][0]["then"], *then);
 
     let stopped = request(
         port,
@@ -275,7 +301,6 @@ export const notify = effect({
   then: recordNotified,
 });
 "#;
-
 
 /// The outbox row's state and last error, read from the store after the
 /// owner has exited (printed by the spinning journey; see the ticket it
@@ -549,10 +574,19 @@ struct ChildGuard {
 
 impl ChildGuard {
     fn spawn(binary: &str, compiler: &Path, root: &Path) -> Self {
+        Self::spawn_flags(binary, compiler, root, &[])
+    }
+
+    fn spawn_test(binary: &str, compiler: &Path, root: &Path) -> Self {
+        Self::spawn_flags(binary, compiler, root, &["--owner-child", "--test-owner"])
+    }
+
+    fn spawn_flags(binary: &str, compiler: &Path, root: &Path, flags: &[&str]) -> Self {
         let mut child = Command::new(binary)
             .args(["dev", "--project"])
             .arg(root)
             .arg("--foreground")
+            .args(flags)
             .env("SNAPBACK2_COMPILER", compiler)
             .stdin(Stdio::null())
             .stdout(Stdio::piped())

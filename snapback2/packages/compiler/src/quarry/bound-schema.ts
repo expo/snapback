@@ -36,6 +36,10 @@ export function bindQuarrySchemaArtifact(documents: Document[], catalog: TableCa
     if (declaration.name === "connected") continue;
     const bound = bindTable(declaration, catalog);
     tables[declaration.name] = bound.table;
+    const base = `schema.tables.${declaration.name}`;
+    sources.push([base, declaration.site]);
+    for (const column of declaration.columns) sources.push([`${base}.columns.${column.name}`, column.site]);
+    for (const index of declaration.indexes) sources.push([`${base}.indexes.${index.name}`, index.site]);
     const read = declaration.rules.find(rule => rule.effect === "read");
     sources.push([`schema.tables.${declaration.name}.rules.read`, read?.site ?? declaration.public?.site ?? { ...declaration.site, text: "read <- deny" }]);
     for (const [offset, site] of bound.constraintSources.entries()) {

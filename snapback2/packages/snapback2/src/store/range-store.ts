@@ -215,6 +215,13 @@ export interface OutboxEntry {
   arrived?: true;
   /** Prediction and its trace were skipped; the program will check this write on the server. */
   reason?: "fence";
+  /**
+   * The owner's last non-retryable `input`/`schema` refusal of this queued intent's
+   * replay (a removed enum case, LLP 1020 A2). The intent is unspent and still
+   * queued; it is the one kind of queued entry `dismiss` admits. Cleared durably
+   * before another replay can send, and on settlement.
+   */
+  refusal?: import("../types.js").Refusal;
   /** Engine-owned aggregate targets the prediction's overlay omits by design (the server writes them); absent when none. */
   omitted?: string[];
   trace?: OutboxTrace;
@@ -367,6 +374,8 @@ export interface RangeStore {
   readonly coordinationScope?: string;
   /** The writer's inbox read (key order) and a follower's own inbox connection; absent on carriers that cannot follow (LLP 1018.004 §2). */
   inboxRows?(): Promise<InboxRow[]>;
+  /** Consumes one inbox row in one carrier transaction; `undefined` once another connection took it. */
+  inboxTake?(key: number): Promise<InboxRow | undefined>;
   inbox?(partition: PrincipalPartition): Promise<InboxConnection>;
   close?(): Promise<void> | void;
 }
@@ -436,7 +445,7 @@ export interface RangeStoreBackend {
   /** One carrier transaction: the state, the byte payloads to write and the keys to drop, and any inbox rows to mark or delete. */
   replace(state: PersistedRangeState, bytes: ByteDelta, previous?: PersistedRangeState, changed?: ChangedRecords, inbox?: InboxDelta): Promise<void>;
   readBytes?(key: string): Promise<Uint8Array | undefined>;
-  inboxRows?(): Promise<InboxRow[]>; inbox?(partition: PrincipalPartition): Promise<InboxConnection>;
+  inboxRows?(): Promise<InboxRow[]>; inboxTake?(key: number): Promise<InboxRow | undefined>; inbox?(partition: PrincipalPartition): Promise<InboxConnection>;
   wipe(partition: PrincipalPartition): Promise<void>;
   close(): Promise<void> | void;
 }
@@ -561,9 +570,11 @@ export class PersistentRangeStore implements RangeStore {
     if (backend.acquire) this.acquire = (partition, signal) => backend.acquire!(partition, signal);
     if (backend.giveBack) this.giveBack = (partition) => backend.giveBack!(partition);
     if (backend.inboxRows) this.inboxRows = async () => await this.read(() => { this.ensureOpen(); return backend.inboxRows!(); });
+    if (backend.inboxTake) this.inboxTake = async (key) => await this.read(() => { this.ensureOpen(); return backend.inboxTake!(key); });
     if (backend.inbox) this.inbox = (partition) => backend.inbox!(partition);
   }
-  readonly inboxRows?: () => Promise<InboxRow[]>; readonly inbox?: (partition: PrincipalPartition) => Promise<InboxConnection>;
+  readonly inboxRows?: () => Promise<InboxRow[]>; readonly inboxTake?: (key: number) => Promise<InboxRow | undefined>;
+  readonly inbox?: (partition: PrincipalPartition) => Promise<InboxConnection>;
 
   async open(partition: PrincipalPartition): Promise<void> {
     if (typeof partition !== "string" || partition.length === 0) {

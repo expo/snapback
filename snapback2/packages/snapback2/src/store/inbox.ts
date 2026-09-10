@@ -10,7 +10,7 @@ import type { OutboxEntry } from "./range-store.js";
 export const INBOX_LIMIT = 256;
 const ALIAS = /^inbox:([1-9][0-9]*)$/;
 
-export type InboxState = "queued" | "rejected";
+export type InboxState = "queued" | "rejected" | "done";
 
 export interface InboxRow {
   /** Auto-increment; assigned by the database in commit order, so key order is the device's durable insertion order. */
@@ -33,7 +33,7 @@ export interface InboxRow {
   /** The ledger intent this row became, once admitted. */
   admitted?: string;
   ids: string[];
-  /** A rejection at admission (a `MutationRejected` envelope). */
+  /** A rejection at admission, or a completed dismissal result (null when ineligible). */
   response?: unknown;
   createdAt: number;
   updatedAt: number;
@@ -83,7 +83,7 @@ export function isInboxRow(value: unknown): value is InboxRow {
     && (row.kind !== "mutation" || typeof row.op === "string")
     && (row.presentation === undefined || typeof row.presentation === "string")
     && (row.kind !== "dismiss" || typeof row.target === "string")
-    && (row.state === "queued" || row.state === "rejected")
+    && (row.state === "queued" || row.state === "rejected" || row.kind === "dismiss" && row.state === "done")
     && (row.admitted === undefined || typeof row.admitted === "string")
     && Array.isArray(row.ids) && row.ids.every((id) => typeof id === "string")
     && typeof row.createdAt === "number" && typeof row.updatedAt === "number";
@@ -97,7 +97,7 @@ export function isInboxRow(value: unknown): value is InboxRow {
 export function inboxEntry(row: InboxRow): OutboxEntry {
   return {
     intent: inboxAlias(row.key), grant: "", offset: 0, count: 0, ids: [...row.ids],
-    op: row.op ?? "", args: row.args, issuedSeq: 0, state: row.state,
+    op: row.op ?? "", args: row.args, issuedSeq: 0, state: row.state as OutboxEntry["state"],
     ...(row.response === undefined ? {} : { response: row.response }),
     createdAt: row.createdAt, updatedAt: row.updatedAt, inbox: row.key,
     ...(row.presentation === undefined ? {} : { presentation: row.presentation }),
@@ -121,6 +121,12 @@ export interface InboxConnection {
   rows(): Promise<InboxRow[]>;
   /** Deletes one row this partition rejected at admission; the writer deletes every other row. */
   remove(key: number): Promise<void>;
+  /**
+   * Reads and deletes one row in one carrier transaction and returns the row actually
+   * consumed — `undefined` once another connection took it. A completed dismissal
+   * command is consumed this way, so one caller gets its bytes whatever tab raced.
+   */
+  take(key: number): Promise<InboxRow | undefined>;
   /** The persisted ledger entries, as the writer last committed them. */
   ledger(): Promise<Record<string, unknown>>;
   /** Rows and ledger from one readonly transaction over both stores, so a swap between the two reads cannot show a row twice or not at all. */

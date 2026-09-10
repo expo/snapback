@@ -14,15 +14,16 @@ import type {
   OverlayRow,
   RangeStore,
   StoreDelivery,
+  StoreSwap,
 } from "./range-store.js";
 
 export const ENGINE_ID = /^s2id-([0-9a-f]{32})-([0-9a-f]{16})$/;
 
-export type OutboxRefusalCode = "E_OFFLINE_ID_BLOCK";
-
 /** A local custody refusal at enqueue time; the client maps it onto the offline family. */
 export class OutboxRefusal extends Error {
-  constructor(readonly code: OutboxRefusalCode, message: string, readonly site: string, readonly rewrite: string) {
+  readonly code = "E_OFFLINE_ID_BLOCK";
+  readonly site = "client.outbox.enqueue";
+  constructor(message: string, readonly rewrite: string = "resume online for a fresh grant, then send again") {
     super(message);
     this.name = "OutboxRefusal";
   }
@@ -37,7 +38,7 @@ export function decodeGrant(value: unknown): OutboxGrant | undefined {
   if (!plainObject(value) || !plainObject(value.grant)) return undefined;
   const record = value.grant;
   if (typeof record.id !== "string" || typeof record.from !== "string" || !ENGINE_ID.test(record.from)
-    || !Number.isSafeInteger(record.count) || Number(record.count) <= 0
+    || !Number.isSafeInteger(record.count) || (record.count as number) <= 0
     || !Number.isSafeInteger(record.mintedAt) || !Number.isSafeInteger(record.expiresAt)) return undefined;
   return {
     id: record.id,
@@ -53,22 +54,18 @@ export function decodeGrant(value: unknown): OutboxGrant | undefined {
 export function sliceIds(grant: Pick<OutboxGrant, "from" | "count">, offset: number, count: number): string[] {
   const match = ENGINE_ID.exec(grant.from);
   if (!match || count <= 0 || offset < 0 || offset + count > grant.count) return [];
-  const namespace = match[1]!;
   const first = BigInt(`0x${match[2]!}`) + BigInt(offset);
   const ids: string[] = [];
   for (let index = 0; index < count; index += 1) {
-    ids.push(`s2id-${namespace}-${(first + BigInt(index)).toString(16).padStart(16, "0")}`);
+    ids.push(`s2id-${match[1]}-${(first + BigInt(index)).toString(16).padStart(16, "0")}`);
   }
   return ids;
 }
 
-export function intentName(grant: string, offset: number): string {
-  return `${grant}:${offset}`;
-}
-
-export function settledEntry(entry: OutboxEntry, state: OutboxState, response: unknown, now: number): OutboxEntry {
-  const { response: _response, ...rest } = entry;
-  return { ...rest, state, ...(response === undefined ? {} : { response }), updatedAt: now };
+/** A queued entry is eligible only while its last attempt is a known input/schema refusal.
+ * Only drainQueued records that field, after excluding retryable and other refusals. */
+export function dismissible(entry: OutboxEntry): boolean {
+  return entry.state !== "queued" || entry.refusal !== undefined;
 }
 
 export interface EnqueueInput {
@@ -156,7 +153,7 @@ export class OutboxLedger {
       this.fenceTimer = setTimeout(() => this.notify(), Math.min(remaining, 2_147_483_647));
       // A readiness observer must not keep a headless process alive for days.
       (this.fenceTimer as { unref?: () => void }).unref?.();
-    }, () => undefined); // Sealed custody has no usable grant; ready() reports false.
+    }, () => undefined); // Sealed custody has no usable grant; status() reports it.
   }
 
   entries(): Promise<OutboxEntry[]> {
@@ -177,23 +174,14 @@ export class OutboxLedger {
 
   /** A fresh grant replaces the consumption target; older grants stay for the intents that name them. */
   adopt(grant: OutboxGrant, check?: () => void): Promise<void> {
-    return this.serial(async () => {
-      const held = await this.grantById(grant.id);
-      if (held) {
-        check?.();
-        await this.store.commit({ grants: { current: grant.id } });
-        this.notify();
-        return;
-      }
-      const stale = (await this.store.outbox.grants())
-        .filter((item) => item.id !== grant.id)
-        .map((item) => item.id);
-      const queued = new Set((await this.queued()).map((entry) => entry.grant));
+    return this.write(async () => {
+      const grants = await this.store.outbox.grants();
+      const held = grants.some(item => item.id === grant.id);
+      const queued = new Set((await this.queued()).map(entry => entry.grant));
       check?.();
-      await this.store.commit({
-        grants: { put: [grant], current: grant.id, remove: stale.filter((id) => !queued.has(id)) },
-      });
-      this.notify();
+      await this.commit({ grants: { current: grant.id, ...(held ? {} : {
+        put: [grant], remove: grants.filter(item => !queued.has(item.id)).map(item => item.id),
+      }) } });
     });
   }
 
@@ -208,39 +196,19 @@ export class OutboxLedger {
     for (const [op, bound] of Object.entries(bounds)) {
       if (!Number.isSafeInteger(bound) || bound < 0) throw new TypeError(`write bound for ${op} must be a non-negative integer`);
     }
-    return this.serial(async () => {
-      await this.store.commit({ bounds, ...(programs === undefined ? {} : { programs: programs as never }) });
-      this.notify();
+    return this.write(async () => {
+      await this.commit({ bounds, programs: programs as never });
     });
   }
 
   /** The same admission checks enqueue applies, without consuming a slice. */
   async status(op?: string): Promise<OutboxStatus> {
     const grant = await this.grant();
-    const remaining = (await this.queued()).length;
-    const fence = await this.fence();
-    const state = (reason: OutboxStatus["reason"], action: OutboxStatus["action"]): OutboxStatus =>
-      ({ ready: reason === "ready", reason, action, remaining, fence });
-    if (!grant) return state("grant-missing", "connect");
-    if (this.expired(grant)) return state("grant-expired", "connect");
     const bound = op === undefined ? 0 : (await this.store.outbox.bounds())[op];
-    if (bound === undefined) return state("program-missing", "connect");
-    if (grant.used + 1 + bound > grant.count) return state("ids-exhausted", "connect");
-    return state("ready", "none");
-  }
-
-  async ready(op?: string): Promise<boolean> {
-    return (await this.status(op)).ready;
-  }
-
-  /** Admission readiness reported to a follower, including the fixed durable receipt bounds. */
-  /**
-   * Every outbox write shares this tail: enqueue, adoption, bounds, dismiss,
-   * and — through the runtime — settlements and the predictions they drop, so
-   * a settlement never interleaves with the enqueue that reads the grant.
-   */
-  write<T>(action: () => Promise<T>): Promise<T> {
-    return this.serial(action);
+    const reason = !grant ? "grant-missing" : this.expired(grant) ? "grant-expired"
+      : bound === undefined ? "program-missing" : grant.used + 1 + bound > grant.count ? "ids-exhausted" : "ready";
+    return { ready: reason === "ready", reason, action: reason === "ready" ? "none" : "connect",
+      remaining: (await this.queued()).length, fence: await this.fence() };
   }
 
   // @ref LLP 1012#7-writes-offline — the fence bounds trust, never custody: a
@@ -309,7 +277,7 @@ export class OutboxLedger {
   // persisted write bound prices the slice. No bound, or no remaining ids, is a refusal,
   // never a silent reuse or a guessed reservation.
   enqueue(input: EnqueueInput, predict?: (ids: string[]) => Promise<EnqueuePrediction>, beforeCommit?: () => void): Promise<OutboxEntry> {
-    return this.serial(() => this.enqueueNow(input, predict, beforeCommit));
+    return this.write(() => this.enqueueNow(input, predict, beforeCommit));
   }
 
   /** Pending page acknowledgements consume ordinary FIFO slices; each admission
@@ -343,34 +311,22 @@ export class OutboxLedger {
       const grant = await this.grant();
       if (!grant) {
         throw new OutboxRefusal(
-          "E_OFFLINE_ID_BLOCK",
-          "this device holds no replay grant; log in, or drain a query online, before writing",
-          "client.outbox.enqueue",
-          "resume as this principal for a grant (a login, or a query with { drain: true } reaching its watermark), then send again",
+          "no replay grant on this device; log in, or drain a query online, before writing",
+          "resume as this principal (a login, or a query with { drain: true } reaching its watermark), then send again",
         );
       }
-      if (this.expired(grant)) {
-        throw new OutboxRefusal(
-          "E_OFFLINE_ID_BLOCK", "this device's replay grant has expired; existing queued writes are kept",
-          "client.outbox.enqueue", "resume online for a fresh grant, then enqueue a new intent",
-        );
-      }
+      if (this.expired(grant)) throw new OutboxRefusal("replay grant expired; queued writes are kept");
       const maxNewIds = (await this.store.outbox.bounds())[input.op];
       if (maxNewIds === undefined) {
         throw new OutboxRefusal(
-          "E_OFFLINE_ID_BLOCK",
-          `the write bound for ${input.op} is unknown on this device: its certificate was never recorded here, so the slice size cannot be priced`,
-          "client.outbox.enqueue",
-          "reach the owner once so /api/program is recorded, then enqueue a new intent",
+          `write bound for ${input.op} is unknown`,
+          "load /api/program online, then send again",
         );
       }
       const count = 1 + maxNewIds;
       if (grant.used + count > grant.count) {
         throw new OutboxRefusal(
-          "E_OFFLINE_ID_BLOCK",
-          `the replay grant has ${grant.count - grant.used} ids left and this write needs ${count}`,
-          "client.outbox.enqueue",
-          "resume online for a fresh grant, then enqueue a new intent",
+          `replay grant has ${grant.count - grant.used} ids left; this write needs ${count}`,
         );
       }
       const ids = sliceIds(grant, grant.used, count);
@@ -385,37 +341,32 @@ export class OutboxLedger {
       const prediction = predict === undefined || pastFence ? undefined : await predict(ids);
       const now = this.options.now();
       const entry: OutboxEntry = {
-        intent: intentName(grant.id, grant.used),
+        ...input,
+        intent: `${grant.id}:${grant.used}`,
         grant: grant.id,
         offset: grant.used,
         count,
         ids,
         ...(targets ? { targets } : {}),
-        ...(input.presentation === undefined ? {} : { presentation: input.presentation }),
-        op: input.op,
         args,
-        issuedSeq: input.issuedSeq,
-        ...(input.expectedGeneration ? { expectedGeneration: input.expectedGeneration } : {}),
         state: "queued",
         ...(prediction?.predicted ? { predicted: true } : {}),
         ...(pastFence ? { predicted: false, reason: "fence" as const } : {}),
-        ...(prediction?.predicted && prediction.omitted !== undefined && prediction.omitted.length > 0 ? { omitted: [...prediction.omitted] } : {}),
+        ...(prediction?.predicted && prediction.omitted?.length ? { omitted: [...prediction.omitted] } : {}),
         // No trusted prediction means no trace OCC: the program's own
         // requirements (for example baseBody = body) judge this write.
         trace: pastFence ? emptyTrace() : prediction?.trace ?? input.trace ?? emptyTrace(),
         createdAt: now,
         updatedAt: now,
-        ...(input.inbox === undefined ? {} : { inbox: input.inbox }),
       };
       // From this point a storage failure can be ambiguous; before it no intent exists.
       beforeCommit?.();
-      await this.store.commit({
+      await this.commit({
         grants: { put: [{ ...grant, used: grant.used + count }] },
         outbox: { put: [entry] },
         ...(prediction?.predicted ? { overlay: { put: { [entry.intent]: prediction.overlay } } } : {}),
-        ...(extra ? extra(entry, grant) : {}),
+        ...extra?.(entry, grant),
       });
-      this.notify();
       return (await this.store.outbox.get(entry.intent)) ?? entry;
   }
 
@@ -431,7 +382,7 @@ export class OutboxLedger {
     predict?: (ids: string[]) => Promise<EnqueuePrediction>,
     beforeCommit?: () => void,
   ): Promise<InboxAdmission> {
-    return this.serial(async () => {
+    return this.write(async () => {
       const fresh = (await this.store.inboxRows?.())?.find((candidate) => candidate.key === row.key);
       if (!fresh) return { state: "gone" };
       if (fresh.state === "rejected") return { state: "rejected" };
@@ -446,82 +397,94 @@ export class OutboxLedger {
 
   /** Drops a command row this partition will not honor (a dismissal from another backend, principal, or session). */
   discardInbox(key: number): Promise<void> {
-    return this.serial(async () => {
+    return this.write(async () => {
       if (!(await this.store.inboxRows?.())?.some((candidate) => candidate.key === key)) return;
-      await this.store.commit({ inbox: { remove: [key] } });
-      this.notify();
+      await this.commit({ inbox: { remove: [key] } });
     });
   }
 
   /** A terminal refusal at admission: the row keeps its arguments and the reason, creates no entry, and is dismissible. */
   rejectInbox(row: InboxRow, response: unknown): Promise<void> {
-    return this.serial(async () => {
+    return this.write(async () => {
       const fresh = (await this.store.inboxRows?.())?.find((candidate) => candidate.key === row.key);
       if (!fresh || fresh.state !== "queued" || fresh.admitted !== undefined) return;
-      await this.store.commit({ inbox: { put: [{ ...fresh, state: "rejected", response, updatedAt: this.options.now() }] } });
-      this.notify();
+      await this.commit({ inbox: { put: [{ ...fresh, state: "rejected", response, updatedAt: this.options.now() }] } });
     });
+  }
+
+  private async commit(swap: StoreSwap): Promise<void> {
+    await this.store.commit(swap);
+    this.notify();
   }
 
   /**
-   * A follower's dismissal is a durable command row naming its target. The
-   * writer consumes it by dismissing the target's entry (an `inbox:` alias
-   * resolves to the entry admitted from that row) and deleting the command in
-   * one swap; a queued target leaves the command consumed and the entry kept.
+   * Every outbox write shares this tail: enqueue, adoption, bounds, dismiss,
+   * and — through the runtime — settlements and the predictions they drop, so
+   * a settlement never interleaves with the enqueue that reads the grant.
    */
-  consumeDismiss(row: InboxRow): Promise<void> {
-    return this.serial(async () => {
-      const rows = (await this.store.inboxRows?.()) ?? [];
-      const command = rows.find((candidate) => candidate.key === row.key);
-      if (!command || command.kind !== "dismiss" || command.target === undefined) return;
-      const resolved = await this.resolveIntent(command.target, rows);
-      const remove = [command.key];
-      let outbox: { remove: string[] } | undefined;
-      if (resolved.row && resolved.row.state === "rejected") remove.push(resolved.row.key);
-      if (resolved.entry && resolved.entry.state !== "queued") {
-        outbox = { remove: [resolved.entry.intent] };
-        for (const mirrored of rows) if (mirrored.admitted === resolved.entry.intent) remove.push(mirrored.key);
-      }
-      await this.store.commit({ inbox: { remove: [...new Set(remove)] }, ...(outbox ? { outbox } : {}) });
-      this.notify();
-    });
-  }
-
-  /** The entry an intent or `inbox:` alias names, and the inbox row behind an alias. */
-  private async resolveIntent(intent: string, rows?: InboxRow[]): Promise<{ entry?: OutboxEntry; row?: InboxRow }> {
-    const key = inboxKeyOf(intent);
-    if (key === undefined) return { entry: await this.store.outbox.get(intent) };
-    const row = (rows ?? (await this.store.inboxRows?.()) ?? []).find((candidate) => candidate.key === key);
-    const entry = row?.admitted !== undefined ? await this.store.outbox.get(row.admitted)
-      : (await this.store.outbox.all()).find((candidate) => candidate.inbox === key);
-    return { ...(entry ? { entry } : {}), ...(row ? { row } : {}) };
-  }
-
-  private serial<T>(action: () => Promise<T>): Promise<T> {
+  write<T>(action: () => Promise<T>): Promise<T> {
     const run = this.tail.then(action);
     this.tail = run.then(() => undefined, () => undefined);
     return run;
   }
 
   settle(entry: OutboxEntry, state: OutboxState, response?: unknown): OutboxEntry {
-    return settledEntry(entry, state, response, this.options.now());
+    const { response: _response, refusal: _refusal, ...rest } = entry;
+    return { ...rest, state, ...(response === undefined ? {} : { response }), updatedAt: this.options.now() };
   }
 
-  /** Removes a settled entry, or a rejected inbox row, by intent or `inbox:` alias; a queued intent is never dismissed. */
-  dismiss(intent: string): Promise<void> {
-    return this.serial(async () => {
-      const rows = (await this.store.inboxRows?.()) ?? [];
-      const { entry, row } = await this.resolveIntent(intent, rows);
-      if (entry) {
-        if (entry.state === "queued") return;
-        const mirrored = rows.filter((candidate) => candidate.admitted === entry.intent || candidate.key === entry.inbox).map((candidate) => candidate.key);
-        await this.store.commit({ outbox: { remove: [entry.intent] }, ...(mirrored.length ? { inbox: { remove: mirrored } } : {}) });
-      } else if (row && row.state === "rejected") {
-        await this.store.commit({ inbox: { remove: [row.key] } });
-      } else return;
-      this.notify();
+  // @ref LLP 1020#a2-enum-case-removal-is-checked-narrowing — clear the last
+  // refusal durably under the dismissal lock BEFORE replay; absence means an unknown
+  // outcome, including after a crash. Only a known input/schema refusal restores it.
+  attempt(intent: string, refusal?: OutboxEntry["refusal"]): Promise<OutboxEntry | undefined> {
+    return this.write(async () => {
+      const entry = await this.store.outbox.get(intent);
+      if (!entry || entry.state !== "queued") return;
+      if (entry.refusal !== refusal) {
+        entry.refusal = refusal;
+        await this.commit({ outbox: { put: [entry] } });
+      }
+      return entry;
     });
   }
+
+  /** Writer and follower commands share one eligibility check and one atomic removal.
+   * A completed command retains the result until its follower reads it, including
+   * across a lost nudge or takeover; replay and dismissal race only on this lock.
+   */
+  dismiss(intent: string, command?: number, identity?: Pick<InboxRow, "scope" | "principal" | "authEpoch">): Promise<OutboxEntry | undefined> {
+    return this.write(async () => {
+      const rows = (await this.store.inboxRows?.()) ?? [];
+      const key = inboxKeyOf(intent);
+      const completed = command === undefined && identity && rows.find(row => row.kind === "dismiss" && row.state === "done"
+        && row.scope === identity.scope && row.principal === identity.principal && (row.authEpoch === undefined || row.authEpoch === identity.authEpoch)
+        && (row.target === intent || (row.response as OutboxEntry | null)?.intent === intent
+          || key !== undefined && (row.response as OutboxEntry | null)?.inbox === key));
+      if (completed) {
+        // The carrier decides who consumed the result: a follower's take on its own
+        // connection and this recovery cannot both return the same bytes.
+        const taken = await this.store.inboxTake?.(completed.key);
+        return (taken?.response ?? undefined) as OutboxEntry | undefined;
+      }
+      const receipt = rows.find(row => row.key === command);
+      if (command !== undefined && (!receipt || receipt.state !== "queued")) return;
+      const row = rows.find(row => row.key === key);
+      const entry = key === undefined || row?.admitted !== undefined
+        ? await this.store.outbox.get(row?.admitted ?? intent)
+        : (await this.entries()).find(entry => entry.inbox === key);
+      const eligible = entry && dismissible(entry) ? entry : undefined;
+      const remove = rows.filter(candidate => eligible
+        ? candidate.admitted === eligible.intent || candidate.key === eligible.inbox
+        : !entry && row?.state === "rejected" && candidate.key === row.key).map(row => row.key);
+      if (!eligible && !remove.length && !receipt) return;
+      await this.commit({
+        ...(eligible ? { outbox: { remove: [eligible.intent] } } : {}),
+        inbox: { remove, ...(receipt ? { put: [{ ...receipt, state: "done", response: eligible ?? null }] } : {}) },
+      });
+      return eligible;
+    });
+  }
+
 }
 
 /** The replay envelope for one queued intent, byte-stable across retries. */

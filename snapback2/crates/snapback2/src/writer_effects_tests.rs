@@ -10,7 +10,7 @@ use std::sync::atomic::Ordering as AtomicOrdering;
 
 /// A writer state whose store holds `rows` queued `effects.run` jobs
 /// (`outbox-1`, `outbox-2`, …) bound to a declaration with a `then`.
-fn effects_state(label: &str, rows: usize) -> State {
+pub(super) fn effects_state(label: &str, rows: usize) -> State {
     let project = ProjectJson {
         version: 1,
         schema: Schema {
@@ -68,7 +68,12 @@ fn stop_fences_outbox_claims_at_the_writer() {
         state.handle(Action::OutboxClaim { now: 1 }).unwrap(),
         Json::Null
     );
-    let row = state.runtime().store().outbox_get("outbox-1").unwrap().unwrap();
+    let row = state
+        .runtime()
+        .store()
+        .outbox_get("outbox-1")
+        .unwrap()
+        .unwrap();
     assert_eq!((row.state.as_str(), row.attempts), ("queued", 0));
     state.stop.store(false, AtomicOrdering::SeqCst);
     let claimed = state.handle(Action::OutboxClaim { now: 1 }).unwrap();
@@ -88,9 +93,19 @@ fn stop_fences_outbox_claims_at_the_writer() {
         state.handle(Action::OutboxClaim { now: 2 }).unwrap(),
         Json::Null
     );
-    let sent = state.runtime().store().outbox_get("outbox-1").unwrap().unwrap();
+    let sent = state
+        .runtime()
+        .store()
+        .outbox_get("outbox-1")
+        .unwrap()
+        .unwrap();
     assert_eq!((sent.state.as_str(), sent.attempts), ("sent", 1));
-    let waiting = state.runtime().store().outbox_get("outbox-2").unwrap().unwrap();
+    let waiting = state
+        .runtime()
+        .store()
+        .outbox_get("outbox-2")
+        .unwrap()
+        .unwrap();
     assert_eq!((waiting.state.as_str(), waiting.attempts), ("queued", 0));
 }
 
@@ -137,7 +152,8 @@ fn fractional_json_result_settles_running_before_then_conversion() {
     runtime
         .store()
         .outbox_claim_next(1, &["effects.run".to_owned()])
-        .unwrap().claimed
+        .unwrap()
+        .claimed
         .unwrap();
 
     let mut state = super::writer_live_tests::state("fractional-effect");
@@ -206,7 +222,8 @@ fn claim_serialization_failure_requeues_and_logs_the_claimed_row() {
     let claimed = runtime
         .store()
         .outbox_claim_next(1, &["effects.run".to_owned()])
-        .unwrap().claimed;
+        .unwrap()
+        .claimed;
     let mut logs = Vec::new();
 
     let error = serialize_claimed_outbox(

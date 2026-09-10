@@ -189,11 +189,22 @@ fn assert_rendering(template: &str, chat: bool) {
             .iter()
             .filter(|check| check["kind"] == "journey")
             .collect::<Vec<_>>();
-        assert_eq!(journeys.len(), 16, "{receipt}");
-        assert!(
-            journeys.iter().all(|check| check["verdict"] == "pass"),
-            "{receipt}"
+        assert_eq!(journeys.len(), 17, "{receipt}");
+        let provider = journeys
+            .iter()
+            .find(|check| check["name"] == "a sent message notifies the recipient")
+            .expect("chat declares the provider journey");
+        assert_eq!(provider["verdict"], "blocked", "{provider}");
+        assert_eq!(
+            provider["detail"]["reason"], "effects:no-engine",
+            "{provider}"
         );
+        for check in journeys
+            .iter()
+            .filter(|check| check["name"] != provider["name"])
+        {
+            assert_eq!(check["verdict"], "pass", "{check}");
+        }
     } else {
         assert!(
             tested.status.success(),

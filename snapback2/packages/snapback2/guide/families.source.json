@@ -44,9 +44,10 @@
   {
     "family": "successor",
     "code": "E_SUCCESSOR_DESTRUCTIVE",
-    "wrong": "```text\nRemove a column or replace an index, then assume a passing check installed the change.\n```",
+    "wrong": "```text\nRemove a column or replace an index, then assume a passing check installed the change.\n```\n```q\ntable messages:\n  body: text <=40\n  read <- allow\n```",
     "right": "```sh\nsnapback2 dev --status --json\n# Keep the owner running. Under status.refused, inspect migrationFile and\n# review that file's plan and project. Only apply the drops you intend.\n# Replace GENERATION below with the exact generation from migrationFile.\nsnapback2 dev --apply-migration .snapback/migration-GENERATION.json\nsnapback2 dev --status --json\n```\n\nRun these from the project root, or use the refusal's applyCommand, which includes the project and plan's absolute paths. Relative --apply-migration paths resolve from the working directory even with --project. check compiles, certifies, and refreshes the build cache; it does not install a successor. Until migration succeeds, the owner keeps serving its previous generation. The final status must be ready with the plan's generation. E_WHY_STALE also covers missing, malformed or stale certificate caches: inspect status; if a successor is refused, use the reviewed migration recovery above or revert the refused edit first; otherwise go directly to snapback2 check. Run snapback2 check to refresh the cache, then retry why.",
-    "guide": "operator"
+    "guide": "successor",
+    "site": "schema.tables.messages.columns.body"
   },
   {
     "family": "effect",
@@ -67,6 +68,14 @@
     "code": "E_INPUT_TRACE_UNKNOWN",
     "wrong": "snapback2 trace 999999",
     "right": "snapback2 trace latest",
+    "guide": "testing"
+  },
+  {
+    "family": "owner",
+    "code": "E_OWNER_TEST_IO",
+    "site": "the test supervisor's owner control request",
+    "wrong": "A test owner control request failed or its epoch still has running claims after the effect budget + 1 s.",
+    "right": "snapback2 test",
     "guide": "testing"
   },
   {
@@ -302,6 +311,14 @@
   },
   {
     "family": "effect",
+    "code": "E_EFFECT_UNBOUND",
+    "site": "the effect's fetch, in the owner snapback2 test runs",
+    "wrong": "journey(\"a sent message notifies the recipient\", async ({ as, effects }) => {\n  const sent = await as(\"alice\").mutation(api.messages.send, { conversationId: \"conversation-1\", body: \"hi\" });\n  await effects.settle({ upTo: sent.seq });\n});",
+    "right": "journey(\"a sent message notifies the recipient\", async ({ as, effects }) => {\n  await effects.provider(\"https://api.example.com\", async () => Response.json({ id: \"prov-1\" }));\n  const sent = await as(\"alice\").mutation(api.messages.send, { conversationId: \"conversation-1\", body: \"hi\" });\n  await effects.settle({ upTo: sent.seq });\n});",
+    "guide": "effects"
+  },
+  {
+    "family": "effect",
     "code": "E_EMIT_IN_QUERY",
     "wrong": "In a project with these files:\n\n```q\n-- snapback/schema.q\ntable notifications:\n  body: text <=100\n  public\n\n-- snapback/ops.q\nquery notifyNow():\n  emit notify null\n  return null\neffect notify from delivery\n```\n\n```ts\n// snapback/delivery.ts\nimport { effect } from \"snapback2\";\nexport const notify = effect({\n  grants: [\"https://example.com\"],\n  run: async (_payload: null) => null,\n});\n```",
     "right": "In a project with these files:\n\n```q\n-- snapback/schema.q\ntable notifications:\n  body: text <=100\n  public\n\n-- snapback/ops.q\nmutation notifyNow():\n  emit notify null\n  return null\neffect notify from delivery\n```\n\n```ts\n// snapback/delivery.ts\nimport { effect } from \"snapback2\";\nexport const notify = effect({\n  grants: [\"https://example.com\"],\n  run: async (_payload: null) => null,\n});\n```",
@@ -396,7 +413,8 @@
     "code": "E_SUCCESSOR_BOOTSTRAP",
     "wrong": "```text\nAdd `deliver to memberships[.conversationId] as deliveries bootstrap` over a content table whose cap × rows exceeds 8,192 and expect the successor to fan the whole history out inside its transaction.\n```",
     "right": "```text\nInstall the line without `bootstrap`: the log starts empty and readers reach prior history through the content table under its read rule; bootstrap is bounded to 8,192 events per installation (cap × content rows, summed over every log the installation bootstraps), and a priced installation job is LLP 1020 Part B's.\n```",
-    "guide": "migrations"
+    "site": "schema.tables.messages.deliver",
+    "guide": "successor"
   },
   {
     "family": "quarry",
@@ -558,10 +576,10 @@
   {
     "family": "successor",
     "code": "E_SUCCESSOR_NARROWING",
-    "site": "table.column",
-    "guide": "operator",
-    "wrong": "apply a required column while stored rows are null",
-    "right": "keep T?, apply, run the pasted job (`run --file fill.q '{\"value\": ...}' --as system --wait`), then declare T and apply again"
+    "site": "schema.tables.items.columns.kind",
+    "guide": "successor",
+    "wrong": "Install this after enum('text', 'image') while image rows remain:\n```q\ntable items:\n  kind: enum('text')\n  read <- allow\n  insert <- allow\n  update <- allow\n  delete <- allow\n```",
+    "right": "Keep the predecessor declaration and run the pasted job (or map the case with an update); then remove the case and apply again:\n```q\ntable items:\n  kind: enum('text', 'image')\n  read <- allow\n  insert <- allow\n  update <- allow\n  delete <- allow\n\njob remove_items_kind():\n  chunk p in items first 100 by byId:\n    if p.kind = 'image':\n      delete items[p.id]\n```"
   },
   {
     "family": "job",
@@ -656,7 +674,7 @@
     "code": "E_GENERATION_CHANGED",
     "wrong": "A mutation sends expectedGeneration from an older manifest.",
     "right": "Read /api/manifest again, inspect the operation and arguments, then submit a new write using programGeneration as expectedGeneration. The refused request made no application writes; do not blindly retry with a replacement expectation.",
-    "guide": "operator"
+    "guide": "successor"
   },
   {
     "family": "input",
@@ -664,5 +682,53 @@
     "wrong": "An update uses a value read before another writer changed the row.",
     "right": "Inspect rejected.current, which is the readable committed row or null, then submit a new update with an explicit condition on that current value. The refused mutation made no writes.",
     "guide": "quarry"
+  },
+  {
+    "family": "successor",
+    "code": "E_SUCCESSOR_COLUMN_REQUIRED",
+    "site": "schema.tables.profiles.columns.avatarUrl",
+    "guide": "successor",
+    "wrong": "Install on populated rows that violate the new declaration:\n```q\ntable profiles:\n  avatarUrl: text <=2048\n```",
+    "right": "```q\ntable profiles:\n  avatarUrl: text <=2048 ?\n  read <- allow\n  update <- allow\n\njob fill_profiles_avatarUrl(value: text <=2048):\n  chunk p in profiles first 100 by byId:\n    update profiles[p.id] { avatarUrl: p.avatarUrl ?? value }\n```"
+  },
+  {
+    "family": "successor",
+    "code": "E_SUCCESSOR_UNIQUE",
+    "site": "schema.tables.items.indexes.byKind",
+    "guide": "successor",
+    "wrong": "Install on populated rows that violate the new declaration:\n```q\ntable items:\n  kind: text <=20\n  unique byKind: kind\n```",
+    "right": "```q\ntable items:\n  kind: text <=20\n  by byKind: kind, id\n```"
+  },
+  {
+    "family": "successor",
+    "code": "E_SUCCESSOR_CAP",
+    "site": "schema.tables.items.constraints[0]",
+    "guide": "successor",
+    "wrong": "Install on populated rows that violate the new declaration:\n```q\ntable items:\n  owner: principal\n  by byOwner: owner, id\n  cap 1 by owner\n```",
+    "right": "```q\ntable items:\n  owner: principal\n  by byOwner: owner, id\n  cap 100 by owner\n```"
+  },
+  {
+    "family": "successor",
+    "code": "E_SUCCESSOR_ROW_INVALID",
+    "site": "table.row",
+    "guide": "successor",
+    "wrong": "Install a declaration that interprets a malformed legacy stored value.",
+    "right": "Keep the predecessor schema; repair or delete the named row with an operator job, then retry the successor. Preserve a store snapshot before repairing malformed on-disk bytes."
+  },
+  {
+    "family": "successor",
+    "code": "E_SUCCESSOR_STORE",
+    "site": "store",
+    "guide": "successor",
+    "wrong": "Apply a successor while SQLite cannot read or commit the store.",
+    "right": "Repair the reported store error and retry; the installation transaction keeps the previous rows, indexes, timers and generation intact."
+  },
+  {
+    "family": "bound",
+    "code": "E_STEPS",
+    "site": "snapback/ops.q:1:1",
+    "guide": "bounds",
+    "wrong": "```q\n-- snapback/schema.q\ntable items:\n  body: text <=100\n  by bySearch: wordPrefixes(body), id\n  read <- public\n  update <- allow\n\n-- snapback/ops.q\njob reindex():\n  chunk p in items first 100 by byId:\n    update items[p.id] { body: p.body }\n```",
+    "right": "```q\n-- The certificate charges search derivation for every row whose patch names\n-- the indexed text, even when equal values skip derivation at runtime.\n-- Shrink the chunk size (or the text maximum) to bound that charge.\n-- snapback/schema.q\ntable items:\n  body: text <=100\n  by bySearch: wordPrefixes(body), id\n  read <- public\n  update <- allow\n\n-- snapback/ops.q\njob reindex():\n  chunk p in items first 10 by byId:\n    update items[p.id] { body: p.body }\n```"
   }
 ]

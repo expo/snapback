@@ -142,3 +142,24 @@ fn reset_clears_once_views_before_reclamation_with_seed() {
         );
     }
 }
+
+#[test]
+fn widening_an_image_preserves_its_claimed_asset_through_install_and_migration() {
+    for migration in [false, true] {
+        let schema = schema_with(table_with("photo", ColumnType::Image { max: 100, once: false }));
+        let programs = vec![insert_program("photo", ArgType::Image { max: 100 })];
+        let mut runtime = Runtime::open(Store::memory().unwrap(), generation(schema.clone(), programs.clone())).unwrap();
+        let alice = user("alice");
+        let photo = image(&mut runtime, &alice, 50, 4, 4);
+        let id = asset_id(&photo);
+        assert_committed(&runtime.execute("media.insert", Context::mutation(alice.clone(), args("row1", photo))).unwrap());
+        let before = runtime.asset_delivery(&id, Context::mutation(alice.clone(), BTreeMap::new())).unwrap();
+        let mut next = schema;
+        next.tables.get_mut("media").unwrap().columns.insert("photo".into(), ColumnType::Image { max: 200, once: false });
+        let next = generation(next, programs);
+        if migration { runtime.apply_migration(next, &MigrationPlan::default(), 10).unwrap(); }
+        else { runtime.apply_successor(next).unwrap(); }
+        let after = runtime.asset_delivery(&id, Context::mutation(alice, BTreeMap::new())).unwrap();
+        assert_eq!(serde_json::to_value(after).unwrap(), serde_json::to_value(before).unwrap());
+    }
+}

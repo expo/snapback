@@ -29,8 +29,8 @@ export function registerJobChecks(test: Test, frontend: string): void {
       assert(!(await lowerProject(root)).ok, "a chunk binding escaped its block");
     });
   });
-  test("Job guide recipe is the compiled fixture and mutable keys refuse at check", async () => {
-    const page = readFileSync(resolve(frontend, "../snapback2/guide/job.md"), "utf8");
+  test("Successor guide fill recipe is the compiled fixture and mutable keys refuse at check", async () => {
+    const page = readFileSync(resolve(frontend, "../snapback2/guide/successor.md"), "utf8");
     const fixture = readFileSync(resolve(frontend, "fixtures/quarry-jobs/snapback/admin.q"), "utf8");
     const snippet = page.match(/```q\n([\s\S]*?)\n```/)![1]!;
     assert(fixture.includes(snippet), "guide recipe diverged from its fixture");
@@ -55,6 +55,14 @@ export function registerJobChecks(test: Test, frontend: string): void {
     assert(JSON.stringify(tier.args.value) === JSON.stringify({ Enum: { variants: ["free", "pro"] } }), JSON.stringify(tier.args));
     const checked = rustCheck([text, tier], "synthetic", lowered.project.schema);
     assert(checked.every((c) => c.certificate && (c.certificate.sweeps as any[])[0].table === "profiles"), JSON.stringify(checked));
+    // Fix round r1 (LLP 1020 A2): the combined fill-and-delete job and the text truncation
+    // job are pinned by the engine to `repairs.q`; here they lower and certify.
+    const combined = byName.get("repairs.remove_profiles_tier");
+    const truncation = byName.get("repairs.shrink_profiles_avatarUrl");
+    assert(combined?.kind === "job" && truncation?.kind === "job", "the repair pastes did not lower as jobs");
+    assert(JSON.stringify(combined.args.value) === JSON.stringify({ Enum: { variants: ["free"] } }), JSON.stringify(combined.args));
+    const repairs = rustCheck([combined, truncation], "synthetic", lowered.project.schema);
+    assert(repairs.every((c) => c.certificate && (c.certificate.sweeps as any[])[0].table === "profiles"), JSON.stringify(repairs));
   });
   test("A job that is not only chunk blocks refuses as E_JOB_SHAPE in the job family, naming the statement", async () => {
     const lowered = await lowerProject(resolve(frontend, "fixtures/quarry-jobs"));

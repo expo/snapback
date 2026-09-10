@@ -1,11 +1,11 @@
 # LLP 1020: Day two — evolution that stays additive, and ceilings a builder can read
 
 **Type:** RFC
-**Status:** Accepted (author, 2026-09-10: "ok commit those then implement all of the RFCs"; implementer: codex gpt-6-astra lanes under the orchestrator, program directory `~/projects/snapback-ri-20260910`, plan and briefs there; date 2026-09-10; per `rules/RULES.md` it binds lane by lane as each lane's code lands, and the implementation record below names each landing. Part B (`fill`) stays gated on A8.4's measured number as the RFC states.) Written on the author's request of 2026-09-09 ("write up 3 LLPs or sub-LLPs to address 1 and 2 and 3") after the elegance assessment of 2026-09-08.
+**Status:** Implemented — Part A (2026-09-10: cost landed A4, A5, A7, A8.3; succ landed A1, A2, A3, A6, A8.1, A8.2; the implementation record below names each landing); Part B (`fill`) stays gated on the day-two brief's measured migration cost (wave 3, A8.4). Previously: Accepted (author, 2026-09-10: "ok commit those then implement all of the RFCs"; implementer: codex gpt-6-astra lanes under the orchestrator, program directory `~/projects/snapback-ri-20260910`, plan and briefs there; date 2026-09-10; per `rules/RULES.md` it binds lane by lane as each lane's code lands, and the implementation record below names each landing. Part B (`fill`) stays gated on A8.4's measured number as the RFC states.) Written on the author's request of 2026-09-09 ("write up 3 LLPs or sub-LLPs to address 1 and 2 and 3") after the elegance assessment of 2026-09-08.
 **Systems:** successor admission (`snapback2/crates/snapback2-core/src/{successor,successor_narrowing,registry}.rs`), the certificate and its policy (`snapback2/crates/snapback2-core/src/{certificate,certificate_policy}.rs`, `certificate/{merge,output,diagnostic}.rs`, `retention.rs`), the engine's scan and receipt (`engine/{scan,execution_record,receipt}.rs`), the Quarry front end (`snapback2/packages/compiler/src/quarry/{catalog,direct,bound-schema}.ts`), `check` and `why` (`snapback2/crates/snapback2/src/{check,why}.rs`), the guide (`snapback2/packages/snapback2/guide/`, `snapback2/crates/snapback2/src/guide.rs`), `guide/families.source.json`, the briefs (`benchmarks/briefs/messaging-day2-evolution.md`, `benchmarks/briefs/social-messenger.md` M7)
 **Author:** Claude (Fable 5.1), for the author
 **Date:** 2026-09-09
-**Revised:** 2026-09-10 (Accepted; implementer and date assigned); 2026-09-09 (revision (a): a blind gpt-6-astra review at maximum reasoning, `llp/reviews/1020-day-two-evolution-and-legible-ceilings.r1-astra.md`, returned NOT READY: four of revision 0's premises were already false at the pinned commit (uniform reads over an exhausted group already report `complete` by lookahead; maintained point reads lower to `Get`, not `Count`; `E_STEPS` already carries the sourced product; ids are already bounded by `identity_fits`), the regrouping guarantee was impossible as stated, and `fill`'s budget was unsound. Those items are dropped or re-scoped; the increment the code supports today is Part A; `fill` moves to Part B, gated on measured cost; both open questions are resolved by the review's rulings)
+**Revised:** 2026-09-10 (Implemented, Part A: the succ lane landed); 2026-09-10 (Accepted; implementer and date assigned); 2026-09-09 (revision (a): a blind gpt-6-astra review at maximum reasoning, `llp/reviews/1020-day-two-evolution-and-legible-ceilings.r1-astra.md`, returned NOT READY: four of revision 0's premises were already false at the pinned commit (uniform reads over an exhausted group already report `complete` by lookahead; maintained point reads lower to `Get`, not `Count`; `E_STEPS` already carries the sourced product; ids are already bounded by `identity_fits`), the regrouping guarantee was impossible as stated, and `fill`'s budget was unsound. Those items are dropped or re-scoped; the increment the code supports today is Part A; `fill` moves to Part B, gated on measured cost; both open questions are resolved by the review's rulings)
 **Related:** LLP 1001 §4 (successors; the maintain rebuild's exact projected-ID ownership), §"capped-only sites", LLP 1016 D4 and J1a (narrowing, the fill job, the rename ruling), LLP 1017 (cap, complete-by-cap for a mutation's `for`, fan-out), LLP 1010 §A5 and LLP 1011 (the lazy merge; the word inventory), LLP 1012 (the twin's continuity across generations), LLP 1018 (structural moves; "move four, evolution, is evidence-led only"), LLP 1002 §5 (what `dev` does on a schema change), LLP 1019 and LLP 1021 (sibling RFCs of the same day), `issues/20260907-snapback2-quarry-gaps-from-the-m7-migration-legs.md`, `issues/closed/20260903-snapback2-loop-carried-rebind-underpriced.md`, `issues/20260831-certified-output-ceiling-row-max-accounting.md`, `issues/closed/20260906-snapback2-following-feed-merge-ceiling-under-brief-envelope.md`
 
 ## Summary
@@ -146,6 +146,7 @@ value the old type accepted:
 | `T` | `T?` | yes |
 | `T?` | `T` | narrowing (unchanged: `E_SUCCESSOR_NARROWING`, or the job) |
 | `enum(a, b, c)` | `enum(a, b)` | checked narrowing at application (A2) |
+| `text <=N`, `bytes <=N`, `[T] <=N` | smaller `N` | checked narrowing at application (A2; fix-round r1 ruling — never a retype that clears values) |
 | `decimal S` / `money C S` | any change of scale or currency | destructive (values change meaning) |
 | anything else | anything else | destructive, as today |
 
@@ -155,33 +156,57 @@ additive; stored rows are not re-validated, and the successor page says so.
 
 ### A2. Enum-case removal is checked narrowing
 
-Enum removal is not `widens`. At installation the successor transaction
-checks every affected stored value — including inside `Optional` and
-`List` wrappers — against the removed cases, exactly as the
-optional-to-required walker does today (`successor_narrowing.rs:36`,
-LLP 1016 J1a), records the compared generations, the removed cases, and
-the affected-row count including zero, and:
+Enum removal is not `widens`, and neither is a smaller `text`, `bytes`, or
+list maximum (fix-round r1 ruling: shrinking a maximum is checked exactly
+like removing a case, never a `TypeChange` that clears values). At
+installation the successor transaction checks every affected stored value —
+including inside `Optional` and `List` wrappers — against the removed cases
+and the new maxima, exactly as the optional-to-required walker does today
+(`successor_narrowing.rs`, LLP 1016 J1a), records the compared generations,
+the removed cases, and the null, oversize, and affected-row counts including
+zero, and:
 
 - with **zero** affected rows, admits the successor as additive, with the
   zero in the successor log; every other admission check (uniqueness,
   caps, maintained addresses, typed references, generation fencing) still
   runs;
 - with a **nonzero** count, refuses `E_SUCCESSOR_NARROWING` (family
-  `successor`, the declaration's site, at most ten sampled row ids) with a
-  rewrite to an explicit job that maps or deletes the affected rows under
-  the predecessor schema; the page is `successor`.
+  `successor`, the declaration's site, at most ten sampled row ids, the
+  remaining count in the message) with a rewrite to an explicit job that
+  repairs the affected rows under the predecessor schema; the page is
+  `successor`. The pasted job is one whole-table sweep wherever the check
+  is one statement per row — `=` on a scalar case, one `.length` on the
+  outer list, `slice` truncation on scalar text — and a column that also
+  loses its outer `?` gets the null fill in the same job from a typed
+  argument. Values inside lists are not one statement (the `for` sweep
+  deletes one row twice, which the engine refuses as `NOT_FOUND`, and the
+  certificate prices it per item per maintain: 2,700 writes for a 3×3
+  nesting over 100 rows with two maintains) and `bytes` cannot be
+  measured, so those get a sampled-rows job that is rerun until the count
+  in the refusal's message is zero.
 
 Neither this refusal nor Part B's `fill` ever substitutes a value for a
 removed non-null case. Queued client intents that carry a removed case
-keep their bytes and receive the existing conflict/reset behavior (LLP
-1001 §"queued intents across generations"); narrowing does not promise
-that old clients can still write the removed value.
+keep their bytes: the next resume answers `E_OFFLINE_RESET`, the owner
+judges the replay by current validation and refuses it `E_INPUT` without
+spending the intent (LLP 1012 §7; the owner test
+`offline_replay_successor.rs`), so the same bytes commit if the case
+returns. Because that refusal is not retryable, the intent would otherwise
+block the FIFO forever; the fix-round r1 ruling is that `outbox.dismiss`
+admits a queued intent whose last replay refusal is a non-retryable
+`input`/`schema` refusal (never a transport stop), returns the intent's
+bytes so the app can re-author, and the queue continues
+(`outbox.status().blocked` names that head intent). Narrowing does not
+promise that old clients can still write the removed value.
 
 ### A3. Exact projection ownership
 
 `plan()` distinguishes, for a maintained target, the rows the engine owns —
 the union of predecessor and successor projected ids (LLP 1001 §4,
-`successor.rs:754`) — from any other rows of that table. Replacing the
+`successor.rs::projected_owned_ids`, computed once before any migration
+drop; a successor projection that cannot be computed over the stored rows
+contributes nothing there and refuses at the rebuild with its own code) —
+from any other rows of that table. Replacing the
 projection when a maintain's grouping, kind, or source changes is not a
 destructive plan; it is the transactional replacement LLP 1001 already
 specifies. Whole-table removal of a maintain, and any change to non-owned
@@ -191,7 +216,10 @@ Because Quarry resolves a point read positionally by key type and arity
 (`quarry/catalog.ts:241,357`), `counts[viewer]` can keep compiling after
 `counts` is regrouped from `sender` to `recipient` with its meaning
 changed. So the successor log states `maintain counts: by sender →
-by recipient` on every regroup, `dev --status` shows it, and `check`
+by recipient` on every regroup (and `count → sum of amount`, `from
+messages → from posts` for kind and source changes) — on the hot install,
+the explicit migration, and the cold open at owner start alike — `dev
+--status` shows it, and `check`
 refuses only what it can prove — a name, type, or index that no longer
 exists. That is the honest signal; revision 0's "the only signal arrives at
 `check`" was not.
@@ -327,7 +355,8 @@ four-step recipe as a measured cost, and only with these settled first:
    together.
 2. **Client continuity**: two clients and a cold reopen across a widening
    successor, queued old-generation writes carrying a removed enum case
-   (bytes preserved, explicit conflict/reset state), a removed operation
+   (bytes preserved; `E_OFFLINE_RESET` at resume, `E_INPUT` unspent at
+   replay, dismissible with its bytes — LLP 1012 §7 and A2), a removed operation
    with a retained terminal, an absent maintained group and a hidden one
    (typed zero on the server, `partial` on receipt-only replay, no false
    `complete`).
@@ -376,3 +405,14 @@ Each lane lands with its tests and guide sentence under LLP 1002's loop.
 - 2026-09-10 — commissioned; lanes and landings are appended here as each lands (the orchestrator, program `~/projects/snapback-ri-20260910/plan.md`).
 - 2026-09-10 — lane `cost` (worktree `~/projects/snapback-s2v`, `s2/ri-cost`; codex gpt-6-astra to its usage limit, finished by Claude Fable 5.1) landed A4, A5, A7, and A8.3. A4: `Checker::inspect` returns a partial certificate with sourced `cost_terms` on refusal (`certificate/inspection.rs`, `certificate/diagnostic.rs::priced_terms`, `jobs::inspect`); `check --cost [<op>]` prints one row per source line and term across all eight meters with totals and ceilings for admitted and refused programs and per-chunk jobs; `why` prints certified beside measured examined/probes/steps/derived scratch/writes and `unavailable` for heap peak, closure, index entries, and output bytes. A5: a loop-carried scalar/object rebind is priced as growth × iterations across self-occurrences, aliases, branches, nested loops, and retained intermediates (`growth::fixed_width_from`, `certificate/recurrence.rs`, `output.rs`, `retention.rs`); the 68-vs-1,020 program measures 1,020 under its bound. A7: the M7 poll tally was the deleted `#` aggregate spelling (a structural count) — today's `Get` admits, `count(page)` over the capped-only page refuses, no policy change (`issues/20260910-snapback2-m7-poll-shape-capped-authority.md`); the M7 bulk job was `wordPrefixes` re-derivation charged on every updated row — an update now re-derives and is priced only when its patch writes a derived-index column (`engine/index.rs::reindex_replaced_row`, `certificate/search.rs`; LLP 1001 records the rule). Tests: `snapback2-core/tests/certificate_cost.rs` (6), `snapback2/tests/check_cost.rs` (4), `why_trace.rs` meter assertions, `engine/search_tests.rs::update_outside_derived_components_keeps_postings_and_records_no_derivation`. Guide: `bounds.md` (`check --cost`), `operator.md` (`why`), `writes.md` (update derivation).
 - 2026-09-10 — lane `cost` fix round r1 (both blind reviews LAND WITH FIXES): a `let`/`const` overwrite of a bound name is priced as the same recurrence as an assignment (`certificate/output.rs`, `retention.rs`, `certificate/recurrence.rs`; `certificate_cost.rs::ticket_let_rebind_in_a_for_is_priced_as_the_same_recurrence`); the loop-growth family runs every shape at 21 iterations with `let`/`const`, a three-name cycle with a doubling edge, and integer accumulation (overflow is a runtime refusal); derived work is priced per cause with its write or scan site (`certificate/search.rs::DerivedTerm`, `summary.rs::write_origins`) and `check --cost` places terms by site alone; mixed uniform/non-uniform reads are both consumed and the refusal names the reserve term; `first 20` under cap 21 over five rows is `Complete`; an update that names a derived column with an equal value is priced but performs no derivation, and an upsert is priced as an insert's derivation (`engine/search_tests.rs`); `why` marks a missing `writes` map `unavailable`; `--cost` refuses unknown/ambiguous names with exit 2 and reports a job that fails analysis as unavailable. A4's `why` sentence now names all four `unavailable` meters. Tests: `certificate_cost.rs` (8), `check_cost.rs` (7), `search_tests.rs` (+2), `why.rs` (+1).
+- 2026-09-10 — lane `succ` (A1, A2, A3, A6; acceptance A8.1, A8.2): `widens(old, new)` replaces declaration equality in `plan()` and `additive_refusal`, composed through `Optional`/`List`, with the A1 table as a Rust matrix over install, migration, and reopen; enum-case removal is checked narrowing at installation (`successor_narrowing.rs::checked_narrowings` — removed cases, affected rows including zero, ten sampled ids, the zero recorded in the successor report, a nonzero count refusing `E_SUCCESSOR_NARROWING` with a pasted deletion job: one whole-table sweep for scalar enums, per-sampled-id sweeps for list-wrapped ones); `plan()` and admission treat a target whose stored rows are all in the union of predecessor/successor projected IDs as engine-owned (ownership is read once before any migration drop and threaded through; an uncomputable successor projection contributes nothing until rebuild, where its own refusal applies), so a regroup is the transactional replacement with `maintain counts: by sender → by recipient` in the report, `.snapback/log.jsonl`, and `dev --status` (`_meta.last_successor`); every successor refusal carries `from`/`to` generations and a declaration site resolved to `file:line:col`; `guide successor` (+ `migrations` alias) replaces `migrations.md`, `operator.md`/`job.md` defer to it, and `families.source.json` gains `E_SUCCESSOR_COLUMN_REQUIRED`/`UNIQUE`/`CAP`/`ROW_INVALID`/`STORE`, the enum-narrowing pair, and `E_STEPS`; the stale "once J1b lands" rewrite is gone. Tests: `registry_evolution_tests.rs` (11, including the injected rollback of rows, indexes, generation, and timers), `tests/assets/once.rs` widening, and `real-owner-successor.test.ts` (two clients, cold reopen, queued removed-case intent, removed operation's terminal, absent and hidden maintained groups). Deviation recorded in `REPORT-succ.md`: a queued intent carrying a removed case is refused `E_INPUT` by the current validation without being spent (the existing contract of `offline_replay_successor.rs`), not settled as a conflict terminal; it commits when the case returns.
+- 2026-09-10 — lane `succ` fix round r1 (blind reviews `succ-r1-grok.md`, `succ-r1-muse.md`; ten items, two orchestrator rulings): a column that loses its outer `?` and an enum case at once gets one pasted job that fills nulls from a typed argument and deletes the case; A3 ownership in `plan()` is the union of predecessor and successor projected ids (`successor.rs::projected_owned_ids`, read once before any drop, the successor side contributing only when computable so overflow still classifies destructively), and a survivor sitting at a successor group key regroups without a plan; `E_STEPS` is family `bound`, page `bounds` in `protocol.rs::certification_family_guide`, and its family pair is a search-indexed job chunk (`first 100` refuses, `first 10` admits) that the compiler gate `test-final-gates.ts` executes; a smaller `text`, `bytes`, or list maximum is checked narrowing (ruled: `oversizeRows` counted and sampled, never a clearing `TypeChange`); the successor a cold open installs at owner start writes the same `successor: applied` log line (`Runtime::take_opened_successor`); the pasted repair is one whole-table sweep wherever the check is one statement per row (a scalar case, one outer `.length`, `slice` on scalar text), values inside lists and `bytes` keeping the sampled job (a `for` sweep deletes a row twice, refused `NOT_FOUND`, and prices past the write ceiling), and the message carries the remaining count; the report line fires for kind and source changes (`maintain counts: count → sum of value`); `outbox.dismiss` admits a queued intent whose last replay drew a non-retryable `input`/`schema` refusal and returns its bytes, `outbox.status().blocked` names it (ruled); the A2/A8.2 wording above now states the LLP 1012 §7 contract. Tests: `registry_evolution_tests.rs` (+5), `successor_narrowing.rs` (+1, pinned to `fixtures/quarry-jobs/snapback/repairs.q`, which `quarry-job-checks.ts` lowers and certifies), `outbox.test.ts` (+1), `real-owner-successor.test.ts` (+1, plus the cold-open log, `never-held`, and every successor family row with both `E_STEPS` sides through `check`).
+- 2026-09-10 — lane `succ` fix round r2 (A2/A6/A8; reviews `succ-r2-codex.md`, `succ-r2-grok.md`): replay clears a recorded refusal durably before sending under the same write lock as dismissal; an in-flight or unknown outcome cannot be dismissed, and writer/follower dismissal uses one eligibility check with a durable follower result returning original bytes. Public status, labels, item actions and both chat panels expose the refused head. Required fills exclude null-only rows from sampled deletion; the text-delete alternative guards only over-long values; the narrowing integration matrix follows the max-shrink ruling. Tests: both narrowing files and `registry_evolution_tests` 25/25, outbox/custody/inbox/items/snapshot 72/72, real-owner successor 10/10 (including enum-return → committed replay → lost acknowledgment → dismissal refused → one settlement, 13 → 2 → 0 sampled repair preserving filled nulls, and executable text truncate/delete alternatives), compiler 287/287. Five-root runtime: 85,142 → 84,575 gzip bytes on Node 24.18.0/esbuild 0.25.9, below the 84,580 main target; outbox emitted bytes 8,979 → 6,847, offline 22,573 → 22,579, other 58 inputs unchanged; no ceiling or entry changes. Details: `reports/final-succ.md` §Fix round r2.
+- 2026-09-10 — lane `succ` fix round r3 (final; A2/A3/A6/A8.1/A8.2): completed follower dismissals recover once by scoped target/original alias after takeover or cold reopen; E_STEPS describes conservative certified derivation and uses bound/bounds on runtime and check paths; all three successor routes persist one completed report after audience bounds, and E_SUCCESSOR_STORE names the store on the wire. Added the 36-case text/bytes/list narrowing route matrix, certified positional Get after regroup, and real-owner cold-regroup/source-change/dismissal/status-bound coverage; corrected the required-column guide pointer and amended LLP 1018.004's inbox decision. Tests: targeted registry/narrowing/protocol/check/search 44/44, inbox/custody 19/19, real-owner successor 14/14, compiler 295/295; package build passes. Five-root runtime 84,736/85,000 gzip bytes on Node 24.18.0, esbuild 0.25.9, HEAD 36ae7687fd plus uncommitted delta; details in `reports/final-succ.md` §Fix round r3.
+- 2026-09-10 — lane `succ` fix round r4 (orchestrator; review `succ-r4-codex.md`): a follower's dismissal checks its role before consuming the durable result, never after, and a command has one consumer; tests `a dismissal consumed before a takeover keeps its bytes with the caller`, `overlapping follower dismissals consume a completed result once`.
+- 2026-09-10 — lane `succ` fix round r5 (orchestrator; review `succ-r5-codex.md`): a completed dismissal command is consumed by one carrier transaction that reads and deletes it (`InboxConnection.take`, backend `inboxTake`); the follower and the writer's recovery both consume through it, so two tabs cannot both return the bytes; tests `two follower tabs consume a completed dismissal once`, `a writer's recovery and the follower's consumption return one result between them`.
+- 2026-09-10 — lane `succ` fix round r6 (orchestrator; review `succ-r6-codex.md`): the pasted repair's fill argument is typed by the cases both schemas accept (`fill_type`), since the job runs under the predecessor; with no surviving case the paste says to apply the widening first; test `a_mixed_enum_change_types_its_fill_by_the_cases_both_schemas_accept`.
+- 2026-09-10 — lane `succ` fix round r7 (orchestrator; review `succ-r7-codex.md`): the fill argument's list/text/bytes/json maximum is the smaller of the two schemas' bounds; the two-tab consumption test barriers on one command.
+- 2026-09-10 — lane `succ` fix round r8 (orchestrator; review `succ-r7-grok.md`): a staged paste says to keep the widened declaration; the fixture test's enum change is mixed so `repairs.q`'s lowering proves the intersection-typed fill compiles under the predecessor.
+- 2026-09-10 — lane `succ` fix round r9 (orchestrator; review `succ-r8-codex.md`): `fill_type` intersects every bound (image with the predecessor's `once`, video, list, text, bytes, json) and stages inside wrappers without losing their bounds; the successor report is logged before the build cache publishes.
+- 2026-09-10 — A1, A2, A3, A6 (A8.1, A8.2) LANDED (lane `succ`, orchestrator; nine blind review rounds `succ-r1..r8-{grok,muse|codex}`: the dismissal-custody seam ended by the carrier-transaction `take` in r5, the repair fill-type class ended by intersecting every bound in r6–r9 and ticketed as a compile audit in `issues/20260910-snapback2-succ-review-residuals.md`; grok r7/r8 LAND WITH FIXES): merged with main through custody-b and witness; host verify `succ-m11`: 1062 Rust, package 1130/0, compiler 299, evaluator 261, runtime 84,832 (the client-bundle scorer red is main's approved size trade). Open: the hot-regroup twin race ticket (two signatures), the succ residuals ticket, the `migrations`→`successor` page rename (aliases kept).
