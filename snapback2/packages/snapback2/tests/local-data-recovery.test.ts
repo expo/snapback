@@ -44,7 +44,7 @@ test("transport stops and successful retries report their remaining queue and pr
   } finally { await client.close(); await rm(root, { recursive: true, force: true }); }
 });
 
-test("grant expiry and exhausted IDs expose actionable admission without consuming an intent", async () => {
+test("grant expiry and exhausted IDs refuse without custody; explicit online renews before one exact admission", async () => {
   const root = await mkdtemp(join(tmpdir(), "s2-admission-"));
   const owner = fakeOwner();
   const factory = fileRangeStore(root);
@@ -66,6 +66,18 @@ test("grant expiry and exhausted IDs expose actionable admission without consumi
     await store!.commit({ grants: { put: [{ ...grant, used: grant.count - 1 }] } });
     assert.equal((await client.outbox.status(api.messages.send as any)).reason, "ids-exhausted");
     assert.equal((await client.outbox.status(api.missing.write as any)).reason, "program-missing");
+    const before = owner.requests.length;
+    const args = { conversationId: "conversation-1", body: "kept until explicit sync" };
+    await assertRefused(client.mutation(api.messages.send as any, args), (error: any) =>
+      error.code === "E_OFFLINE_ID_BLOCK" && /1 ids left/.test(error.message));
+    assert.equal(owner.requests.length, before, "exhaustion does not poll, enqueue, or send");
+    assert.deepEqual(await client.outbox.entries(), []);
+    await client.online();
+    assert.equal(owner.requests.filter((path) => path === "/api/resume").length, 2, "explicit sync alone renews the finite grant");
+    assert.notEqual((await store!.outbox.grant())!.id, grant.id);
+    const sent = await client.mutation(api.messages.send as any, args);
+    assert.equal(sent.state, "committed");
+    assert.deepEqual(owner.executions.map(({ args }) => args), [args], "the original draft is admitted and executed once");
   } finally { await client.close(); await rm(root, { recursive: true, force: true }); }
 });
 
