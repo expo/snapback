@@ -554,6 +554,19 @@ values, permission reads, absences and ranges; intersecting returned row ids
 alone cannot establish that. No such dependency mechanism is introduced by
 the Clique correction.
 
+**Maintained-group range custody (2026-09-09, LLP 1018.007.003).** A source
+transition for one engine-maintained group does not withdraw an independently
+proved range for a different group merely because both targets share a table.
+The target-table reverse index supplies candidates, not table-wide membership.
+The carrier may retain a candidate range only when its admitted immutable index
+meaning equality-binds a `maintain by` column and the transition's typed group
+value differs there. Same-group ranges, prefixes whose index columns cannot be
+matched to the maintained group, point references and absences, and target
+invalidations without source-transition evidence remain conservative and make
+the owner partial. This is range-membership coherence; it neither pastes an
+owner cursor onto a changed projection nor weakens sequence, revocation,
+overlay, generation or authority fences.
+
 **Retained projections and page boundaries (2026-09-08).** Retention keeps
 authorized row bodies; restoring older bodies into a newer answer or purging
 projection literals does not preserve the exact whole-query result. Such

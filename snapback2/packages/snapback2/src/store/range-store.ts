@@ -458,6 +458,9 @@ function recordEviction(evictions: Map<string, StoreTombstone>, eviction: StoreT
   if ((evictions.get(key)?.seq ?? -1) <= eviction.seq) evictions.set(key, eviction);
 }
 
+const absenceKey = ([table, index, values]: Receipt["absences"][number]): string | undefined =>
+  index === "byId" && typeof values[0] === "string" ? rowKey({ table, id: values[0] }) : undefined;
+
 export function rowReference(table: string, id: string): { $row: RowRef } {
   return { $row: { table, id } };
 }
@@ -1161,14 +1164,13 @@ export class PersistentRangeStore implements RangeStore {
           recordEviction(explicitEvictions, { table: row.table, id: row.id, seq: state.negative[storageKey]! });
           continue;
         }
-        if (state.rowSeq[storageKey] === delivery.seq
-          && canonical(state.rows[storageKey]) !== canonical(row)) {
+        const priorRow = state.rows[storageKey] && raw(state.rows[storageKey]);
+        const rowChanged = !priorRow || canonical(priorRow.row) !== canonical(row.row);
+        if (state.rowSeq[storageKey] === delivery.seq && rowChanged) {
           throw new TypeError(`conflicting row ${row.table}/${row.id} at seq ${delivery.seq}`);
         }
         if ((state.rowSeq[storageKey] ?? -1) > delivery.seq) continue;
-        const priorRow = state.rows[storageKey] && raw(state.rows[storageKey]);
-        maintained.transition(priorRow, row, delivery.seq);
-        if (!priorRow || canonical(priorRow.row) !== canonical(row.row)) maintained.target(row, delivery.seq);
+        if (rowChanged) maintained.transition(priorRow, row, delivery.seq);
         if (state.extentNegative[storageKey]) state.extentNegative[storageKey].active = false;
         state.rows[storageKey] = RowImage.is(row.row) ? { ...row } : clone(row);
         state.rowSeq[storageKey] = delivery.seq;
@@ -1291,10 +1293,8 @@ export class PersistentRangeStore implements RangeStore {
     // changed.
     for (const [key, eviction] of explicitEvictions) {
       const held = state.rows[key];
-      if (held && (state.rowSeq[key] ?? -1) <= eviction.seq && (state.negative[key] ?? -1) <= eviction.seq) {
-        maintained.transition(raw(held), undefined, eviction.seq);
-      }
-      maintained.target(eviction, eviction.seq);
+      maintained.transition(held && (state.rowSeq[key] ?? -1) <= eviction.seq && (state.negative[key] ?? -1) <= eviction.seq
+        ? raw(held) : undefined, undefined, eviction.seq, eviction);
     }
     for (const eviction of maintained.invalidations()) recordEviction(authorityEvictions, eviction);
     // The inverse arrival order is also possible: a maintained target can be
@@ -1376,16 +1376,18 @@ export class PersistentRangeStore implements RangeStore {
         const answer = state.answers[answerKey]; if (!answer) continue;
         remember(answerKey);
         let affected = answer.refs.some(ref => rowKey(ref) === key);
-        if (kind === "authority" && answer.receipt?.absences.some(([table, name, values]) =>
-          name === "byId" && rowKey({ table, id: String(values[0]) }) === key)) {
-          answer.receipt.absences = answer.receipt.absences.filter(([table, name, values]) =>
-            name !== "byId" || rowKey({ table, id: String(values[0]) }) !== key);
-          affected = true;
-        }
-        if (kind === "authority" && answer.receipt?.ranges.some((range) => range.table === eviction.table)) {
-          answer.receipt.ranges = answer.receipt.ranges.filter((range) => range.table !== eviction.table);
-          answer.extentProofs = answer.extentProofs?.filter((id) => state.factExtents[id]?.condition.table !== eviction.table);
-          affected = true;
+        const receipt = kind === "authority" && answer.receipt;
+        if (receipt) {
+          let length = receipt.absences.length;
+          receipt.absences = receipt.absences.filter((absence) => absenceKey(absence) !== key);
+          if (receipt.absences.length !== length) affected = true;
+          length = receipt.ranges.length;
+          receipt.ranges = receipt.ranges.filter((range) => range.table !== eviction.table
+            || maintained.disjoint(key, RangeReceipt.get(range, true)!));
+          if (receipt.ranges.length !== length) {
+            answer.extentProofs = answer.extentProofs?.filter((id) => state.factExtents[id]?.condition.table !== eviction.table);
+            affected = true;
+          }
         }
         if (!affected) continue;
         for (let i = 0; i < (answer.receipt?.ranges.length ?? 0); i++) {
@@ -1418,8 +1420,8 @@ export class PersistentRangeStore implements RangeStore {
     const positive = new Set((swap.deliveries ?? []).flatMap(d => (d.rows ?? []).map(rowKey)));
     for (const key of positive) for (const answerKey of candidates(key, true)) {
       const answer = state.answers[answerKey]; if (!answer?.receipt) continue;
-      const absences = answer.receipt.absences.filter(([table, name, values]) => {
-        const storageKey = name === "byId" && typeof values[0] === "string" ? rowKey({ table, id: values[0] }) : undefined;
+      const absences = answer.receipt.absences.filter((absence) => {
+        const storageKey = absenceKey(absence);
         return storageKey !== key || (state.rowSeq[key] ?? -1) < 0 || appliedEvictions.has(key);
       });
       if (absences.length !== answer.receipt.absences.length) { remember(answerKey); answer.receipt.absences = absences; }

@@ -165,6 +165,45 @@ test("target-first zero-to-one invalidates named point and range absence owners"
   });
 });
 
+test("maintained source changes retain only provably disjoint typed group ranges", async () => {
+  const schema = { tables: {
+    entries: { columns: { id: "Id", post: "Id", repost: "Bool" }, indexes: {
+      byId: { components: [{ Column: "id" }], unique: true },
+    } },
+    repostCounts: { columns: { id: "Id", post: "Id", repost: "Bool", value: "Int" }, indexes: {
+      byId: { components: [{ Column: "id" }], unique: true },
+      byPost: { components: [{ Column: "post" }, { Column: "repost" }, { Column: "id" }] },
+    } },
+  }, maintains: [{ kind: "Count", source: "entries", by: ["post", "repost"], target: "repostCounts", readable: null }] };
+  const groupId = (repost: boolean) => `[{"Id":"p1"},{"Bool":${repost}}]`;
+  const cases = [
+    { name: "disjoint", index: "byPost", prefix: [{ Scalar: "p1" }, { Scalar: true }], source: false, state: "capped", next: "older" },
+    { name: "same group", index: "byPost", prefix: [{ Scalar: "p1" }, { Scalar: true }], source: true, state: "partial", next: undefined },
+    { name: "unmapped byId", index: "byId", prefix: [{ Scalar: groupId(true) }], source: false, state: "partial", next: undefined },
+  ] as const;
+  for (const item of cases) {
+    const root = await mkdtemp(join(tmpdir(), "s2-maintained-groups-"));
+    let store = fileRangeStore(root)();
+    const range = { site: "feed.reposts", table: "repostCounts", index: item.index,
+      prefix: item.prefix, order: "Asc" as const, take: 1,
+      after: null, before: null, gt: null, gte: null, lt: null, lte: null,
+      ruleHash: "a".repeat(64), rowIds: [] as string[], stop: "Exhausted" as const, absence: false };
+    try {
+      await store.open(`dev:alice:${item.name}`);
+      await store.commit({ schema, deliveries: [{ op: "feed", args: {}, state: "capped", seq: 8, next: "older",
+        data: [ref("entries", "e1")], rows: [{ table: "entries", id: "e1", row: { id: "e1", post: "p1", repost: item.source } }],
+        receipt: { ...receipt(), ranges: [range] } }] });
+      const held = await store.answer("feed", {});
+      assert.equal(held?.state, item.state, item.name);
+      assert.equal(held?.next, item.next, item.name);
+      if (item.state === "partial") assert.equal(held?.reason, "missing-authority", item.name);
+      await store.close?.(); store = fileRangeStore(root)(); await store.open(`dev:alice:${item.name}`);
+      assert.equal((await store.answer("feed", {}))?.state, item.state, `${item.name} cold`);
+      assert.equal((await store.answer("feed", {}))?.next, item.next, `${item.name} cold`);
+    } finally { await store.close?.(); await rm(root, { recursive: true, force: true }); }
+  }
+});
+
 test("a source change withdraws wider maintained-target range authority instead of manufacturing zero", async () => {
   await carriers(async (name, create) => {
     const store = create();
