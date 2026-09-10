@@ -382,20 +382,15 @@ impl State {
         }))
     }
 
-    pub(super) fn manifest(&self) -> Json {
-        let tables = self
-            .runtime()
+    pub(super) fn manifest(&self) -> Result<Json, Refusal> {
+        let runtime = self.runtime();
+        let tables = runtime
             .generation()
             .schema()
             .tables
             .iter()
-            .map(|(name, table)| {
-                (
-                    name.clone(),
-                    json!({ "retain": table.retain, "columns": table.columns }),
-                )
-            })
-            .collect::<Map<_, _>>();
+            .map(|(name, table)| Ok((name.clone(), manifest_table(name, table, runtime.store())?)))
+            .collect::<Result<Map<_, _>, Refusal>>()?;
         let ops = self
             .runtime()
             .generation()
@@ -415,14 +410,14 @@ impl State {
                 )
             })
             .collect::<Map<_, _>>();
-        json!({
+        Ok(json!({
             "generation": self.runtime().generation().hash(),
             "programGeneration": self.runtime().generation().program_hash(),
             "tables": tables,
             "ops": ops,
             "channels": self.runtime().generation().schema().channels,
             "auth": self.runtime().generation().schema().auth,
-        })
+        }))
     }
 
     pub(super) fn outbox_counts(&self) -> Result<OutboxCounts, Refusal> {
@@ -430,5 +425,191 @@ impl State {
             .store()
             .outbox_counts()
             .map_err(|error| Refusal::from_runtime(&error))
+    }
+}
+
+// @ref LLP 1019#7-the-twin — the declaration travels with the manifest so a
+// client can tell a custody log from an ordinary table.
+// @ref LLP 1019#4-certification — the audience bound `A` is the engine's
+// recorded fact, disclosed beside the declaration; D2 reserves against it, so
+// the manifest never publishes `deliver` without it: an unreadable or missing
+// record refuses the manifest instead of dropping the bound.
+fn manifest_table(name: &str, table: &snapback2_core::Table, store: &snapback2_core::Store) -> Result<Json, Refusal> {
+    let mut entry = json!({ "retain": table.retain, "columns": table.columns });
+    if let Some(deliver) = &table.deliver {
+        let audience = snapback2_core::delivery::audience_bound(store, &deliver.log)
+            .and_then(|bound| {
+                bound.ok_or_else(|| snapback2_core::RuntimeError::StoreVersion {
+                    detail: format!("custody log {} has no recorded audience bound", deliver.log),
+                })
+            })
+            .map_err(|error| {
+                // A missing or unparsable audience record is re-recorded by the
+                // next open; the store must not be deleted for it (LLP 1019 §2).
+                let mut refusal = Refusal::from_runtime(&error);
+                refusal.site = Some(format!("schema.tables.{name}.deliver"));
+                refusal.rewrite = Some(
+                    "stop snapback2 dev and restart the owner: the audience bound is re-recorded on open; keep .snapback/store.sqlite"
+                        .to_owned(),
+                );
+                refusal
+            })?;
+        entry["deliver"] = json!(deliver);
+        entry["deliver"]["audience"] = json!(audience);
+    }
+    Ok(entry)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::writer_live_tests::state_with;
+    use serde_json::json;
+    use snapback2_core::{
+        Auth, Ceilings, ColumnType, Constraint, Expr, Generation, Index, IndexComponent,
+        OperatorId, Program, ProgramKind, ProjectJson, Schema, Stmt, Value, delivery, object,
+        public_table,
+    };
+    use std::collections::BTreeMap;
+
+    fn index(columns: &[&str], unique: bool) -> Index {
+        Index {
+            components: columns
+                .iter()
+                .map(|name| IndexComponent::Column((*name).to_owned()))
+                .collect(),
+            unique,
+        }
+    }
+
+    /// Conversations, memberships capped at `cap` by conversation, and messages
+    /// carrying `deliver … bootstrap` when `declared`.
+    fn custody_project(cap: u32, declared: bool) -> ProjectJson {
+        let by_id = BTreeMap::from([("byId".to_owned(), index(&["id"], true))]);
+        let mut memberships = public_table(
+            BTreeMap::from([
+                ("id".to_owned(), ColumnType::Id),
+                ("conversationId".to_owned(), ColumnType::Ref { table: "conversations".to_owned() }),
+                ("principal".to_owned(), ColumnType::Principal),
+            ]),
+            BTreeMap::from([
+                ("byId".to_owned(), index(&["id"], true)),
+                ("byConversationPrincipal".to_owned(), index(&["conversationId", "principal"], false)),
+            ]),
+        );
+        memberships.constraints.push(Constraint::Cap { by: vec!["conversationId".to_owned()], max: cap });
+        let mut messages = public_table(
+            BTreeMap::from([
+                ("id".to_owned(), ColumnType::Id),
+                ("conversationId".to_owned(), ColumnType::Ref { table: "conversations".to_owned() }),
+            ]),
+            by_id.clone(),
+        );
+        let mut schema = Schema::default();
+        schema.tables.insert(
+            "conversations".to_owned(),
+            public_table(BTreeMap::from([("id".to_owned(), ColumnType::Id)]), by_id),
+        );
+        schema.tables.insert("memberships".to_owned(), memberships);
+        if declared {
+            let deliver = delivery::Deliver {
+                target: "memberships".to_owned(),
+                prefix: vec!["conversationId".to_owned()],
+                principal: "principal".to_owned(),
+                log: "deliveries".to_owned(),
+                receipts: false,
+                bootstrap: true,
+            };
+            messages.deliver = Some(deliver.clone());
+            schema.tables.insert("messages".to_owned(), messages);
+            let log = delivery::log_table(&schema, "messages", &deliver).expect("log shape");
+            schema.tables.insert("deliveries".to_owned(), log);
+        } else {
+            schema.tables.insert("messages".to_owned(), messages);
+        }
+        ProjectJson { version: 1, schema, programs: Vec::new(), effects: Vec::new(), auth: Auth::default() }
+    }
+
+    fn member(id: &str, principal: &str) -> (String, Value) {
+        (
+            "memberships".to_owned(),
+            object([
+                ("id", Value::Id(id.to_owned())),
+                ("conversationId", Value::Id("c1".to_owned())),
+                ("principal", Value::Id(principal.to_owned())),
+            ]),
+        )
+    }
+
+    // @ref LLP 1019#4-certification — the manifest never publishes `deliver`
+    // without `A`: an unrecorded or unreadable bound refuses the manifest.
+    #[test]
+    fn manifest_refuses_a_custody_log_whose_audience_bound_is_unreadable_or_unrecorded() {
+        let project = custody_project(1, true);
+        let messages = &project.schema.tables["messages"];
+        let mut store = snapback2_core::Store::memory().unwrap();
+        let refusal = super::manifest_table("messages", messages, &store).unwrap_err();
+        assert_eq!(refusal.code, "E_STORE_VERSION");
+        assert!(refusal.message.contains("custody log deliveries has no recorded audience bound"), "{}", refusal.message);
+        assert_eq!(refusal.site.as_deref(), Some("schema.tables.messages.deliver"));
+        assert!(refusal.rewrite.as_deref().unwrap_or("").contains("keep .snapback/store.sqlite"), "{:?}", refusal.rewrite);
+        store.set_meta("custody_audience:deliveries", "nope").unwrap();
+        let refusal = super::manifest_table("messages", messages, &store).unwrap_err();
+        assert_eq!(refusal.code, "E_STORE_VERSION");
+        assert!(refusal.message.contains("custody_audience:deliveries is not an unsigned integer"), "{}", refusal.message);
+        store.set_meta("custody_audience:deliveries", "7").unwrap();
+        let entry = super::manifest_table("messages", messages, &store).unwrap();
+        assert_eq!(entry["deliver"]["audience"], json!(7));
+        let plain = super::manifest_table("memberships", &project.schema.tables["memberships"], &store).unwrap();
+        assert!(plain.get("deliver").is_none());
+    }
+
+    // @ref LLP 1019#4-certification — the manifest discloses the engine-recorded
+    // audience bound beside the declaration, not the target's live cap.
+    #[test]
+    fn manifest_discloses_deliver_with_the_engine_recorded_audience_bound() {
+        let mut state = state_with("manifest-custody", custody_project(3, false));
+        let manifest = state.manifest().unwrap();
+        for (name, entry) in manifest["tables"].as_object().unwrap() {
+            assert!(entry.get("deliver").is_none(), "{name} carries a deliver key without a declaration");
+        }
+        let runtime = state.runtime.as_mut().unwrap();
+        runtime
+            .seed(&[
+                ("conversations".to_owned(), object([("id", Value::Id("c1".to_owned()))])),
+                member("m-alice", "alice"),
+                member("m-bob", "bob"),
+                member("m-carol", "carol"),
+                ("messages".to_owned(), object([("id", Value::Id("msg-1".to_owned())), ("conversationId", Value::Id("c1".to_owned()))])),
+            ])
+            .unwrap();
+        let declared = Generation::certify(&custody_project(3, true), Ceilings::default()).unwrap();
+        runtime.apply_successor(declared).unwrap();
+        for who in ["m-bob", "m-carol"] {
+            let leave = Program {
+                name: "ops.leave".to_owned(),
+                kind: ProgramKind::Mutation,
+                args: BTreeMap::new(),
+                read_time_granularity_ms: None,
+                body: vec![
+                    Stmt::Delete { table: "memberships".to_owned(), key: Expr::Literal(Value::Id(who.to_owned())) },
+                    Stmt::Return(Expr::Literal(Value::Null)),
+                ],
+            };
+            runtime.execute_adhoc_operator(&leave, BTreeMap::new(), OperatorId("op".into()), || 3).unwrap();
+        }
+        let lowered = Generation::certify(&custody_project(1, true), Ceilings::default()).unwrap();
+        runtime.apply_successor(lowered).unwrap();
+
+        let manifest = state.manifest().unwrap();
+        assert_eq!(
+            manifest["tables"]["messages"]["deliver"],
+            json!({ "target": "memberships", "prefix": ["conversationId"], "principal": "principal", "log": "deliveries", "bootstrap": true, "audience": 3 }),
+            "the bound is the recorded 3 while the cap is 1: {}",
+            manifest["tables"]["messages"]
+        );
+        assert_eq!(manifest["tables"]["deliveries"]["retain"], json!("until-revoked"));
+        for name in ["deliveries", "memberships", "conversations"] {
+            assert!(manifest["tables"][name].get("deliver").is_none(), "{name} carries a deliver key");
+        }
     }
 }

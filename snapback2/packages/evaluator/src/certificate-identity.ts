@@ -38,7 +38,7 @@ export function canonicalSchemaJson(schema: any): string {
   if (schema.channels !== undefined && Object.keys(schema.channels).length > 0) {
     canonical.channels = sortedMap(schema.channels, normalizeChannel);
   }
-  if (schema.auth !== undefined && schema.auth !== null) known(schema.auth, ["password", "guests"], "auth");
+  if (schema.auth != null) known(schema.auth, ["password", "guests"], "auth");
   if (schema.auth !== undefined && (schema.auth.password || schema.auth.guests)) {
     canonical.auth = { password: schema.auth.password, guests: schema.auth.guests };
   }
@@ -93,14 +93,10 @@ export function canonicalRuleJson(rule: any): string {
 }
 
 function normalizeMaintain(maintain: any): any {
-  known(maintain, ["kind", "source", "by", "target", "readable"], "maintain");
-  return {
-    kind: normalizeMaintainKind(maintain.kind),
-    source: maintain.source,
-    by: maintain.by,
-    target: maintain.target,
-    readable: maintain.readable === null || maintain.readable === undefined ? null : normalizeRule(maintain.readable),
-  };
+  const out = pick(maintain, ["kind", "source", "by", "target", "readable"], "maintain");
+  out.kind = normalizeMaintainKind(out.kind);
+  out.readable = out.readable == null ? null : normalizeRule(out.readable);
+  return out;
 }
 
 function normalizeMaintainKind(kind: any): any {
@@ -110,7 +106,7 @@ function normalizeMaintainKind(kind: any): any {
 }
 
 function normalizeTable(table: any): any {
-  known(table, ["columns", "indexes", "rules", "constraints", "retain", "tombstones"], "table");
+  known(table, ["columns", "indexes", "rules", "constraints", "retain", "tombstones", "deliver"], "table");
   const canonical: Record<string, any> = {
     columns: sortedMap(table.columns ?? {}, normalizeColumnType),
     indexes: sortedMap(table.indexes ?? {}, normalizeIndex),
@@ -125,6 +121,14 @@ function normalizeTable(table: any): any {
       throw new EvalError("E_SCHEMA", "table tombstones must be an array");
     }
     if (table.tombstones.length > 0) canonical.tombstones = table.tombstones.map(normalizeTombstone);
+  }
+  // @ref LLP 1019#7-the-twin — the declaration is canonicalized in Rust field
+  // order and hashed, never stripped to make prediction work; serde skips a
+  // false flag, so the bytes carry only the words the line said.
+  if (table.deliver != null) {
+    const deliver = pick(table.deliver, ["target", "prefix", "principal", "log", "receipts", "bootstrap"], "deliver");
+    for (const flag in deliver) if (deliver[flag] === false) delete deliver[flag];
+    canonical.deliver = deliver;
   }
   return canonical;
 }
@@ -147,13 +151,13 @@ function normalizeIndex(index: any): any {
 function normalizeChannel(channel: any): any {
   // @ref LLP 1001.000#declaration-and-value — typed latest state participates in the schema identity in Rust field order.
   known(channel, ["args", "value", "publish", "subscribe", "ttl_ms"], "channel");
-  if (channel.value === undefined || channel.value === null || typeof channel.value !== "object"
-    || Array.isArray(channel.value) || Object.keys(channel.value).length === 0) {
+  const value = channel.value;
+  if (value == null || typeof value !== "object" || Array.isArray(value) || Object.keys(value).length === 0) {
     throw new EvalError("E_SCHEMA", "channel value requires a nonempty record declaration");
   }
   return {
     args: sortedMap(channel.args ?? {}, normalizeArgType),
-    value: sortedMap(channel.value, normalizeArgType),
+    value: sortedMap(value, normalizeArgType),
     publish: normalizeRule(channel.publish),
     subscribe: normalizeRule(channel.subscribe),
     ttl_ms: channel.ttl_ms,
@@ -161,14 +165,10 @@ function normalizeChannel(channel: any): any {
 }
 
 function normalizeRules(rules: any): any {
-  if (rules === undefined || rules === null) return rules;
-  known(rules, ["read", "insert", "update", "delete"], "rules");
-  return {
-    read: normalizeRule(rules.read),
-    insert: normalizeRule(rules.insert),
-    update: normalizeRule(rules.update),
-    delete: normalizeRule(rules.delete),
-  };
+  if (rules == null) return rules;
+  const out = pick(rules, ["read", "insert", "update", "delete"], "rules");
+  for (const kind in out) out[kind] = normalizeRule(out[kind]);
+  return out;
 }
 
 export function normalizeRule(rule: any): any {
@@ -214,7 +214,7 @@ function normalizeConstraint(constraint: any): any {
       return { Text: {
         field: data.field,
         min: data.min ?? 0,
-        ...(data.format === undefined || data.format === null ? {} : { format: data.format }),
+        ...(data.format == null ? {} : { format: data.format }),
       } };
     case "FinalExistsOnInsert":
       return { FinalExistsOnInsert: { ...pick(data, ["table", "index", "key"], what), key: data.key.map(normalizeRuleTerm) } };
@@ -239,7 +239,7 @@ function normalizeColumnType(column: any): any {
 
 /** The payload fields of each struct-variant column kind, in serde order. */
 const COLUMN_FIELDS: Record<string, readonly string[]> = {
-  Text: ["max"], Bytes: ["max"], Image: ["max"], Video: ["max"], Enum: ["variants"], Decimal: ["scale"],
+  Text: ["max"], Bytes: ["max"], Video: ["max"], Enum: ["variants"], Decimal: ["scale"],
   Money: ["currency", "scale"], Ref: ["table"], Json: ["max_bytes"],
 };
 
@@ -261,7 +261,7 @@ function normalizeArgType(arg: any): any {
     // struct variant, never rebuilt without it.
     known(data, ["of", "max"], "arg.List");
     return { List: {
-      ...(data.of === null || data.of === undefined ? {} : { of: normalizeArgType(data.of) }),
+      ...(data.of == null ? {} : { of: normalizeArgType(data.of) }),
       max: data.max,
     } };
   }
@@ -301,15 +301,11 @@ function normalizeDomain(domain: any): any {
     : kind === 'LiteralRange' ? ['start','end_exclusive'] : kind === 'ArgList' ? ['name','max'] : undefined;
   const data = fields ? pick(raw, fields, kind) : raw;
   switch (kind) {
-    case "Page":
-      return { Page: normalizeScan(data) };
-    case "DerivedArray":
-      return { DerivedArray: { ...data, value: normalizeExpression(data.value) } };
-    case "Recurse":
-      return { Recurse: { ...data, seed: normalizeExpression(data.seed) } };
-    default:
-      return { [kind]: data };
+    case "Page": return { Page: normalizeScan(data) };
+    case "DerivedArray": data.value = normalizeExpression(data.value); break;
+    case "Recurse": data.seed = normalizeExpression(data.seed); break;
   }
+  return { [kind]: data };
 }
 
 function normalizeExpression(expression: any): any {
@@ -339,14 +335,13 @@ function normalizeExpression(expression: any): any {
 }
 
 function normalizeHeldSearch(d: any): any {
-  known(d, ["table", "index", "term", "scope", "suffix", "order", "take", "after", "discovery"], "held_search");
-  return {
-    table: d.table, index: d.index,
-    term: { source: normalizeExpression(d.term.source), contract: d.term.contract, source_max: d.term.source_max },
-    scope: d.scope.map((s: any) => ({ column: s.column, value: normalizeExpression(s.value) })),
-    suffix: d.suffix, order: d.order, take: normalizeBound(d.take), after: nullableExpression(d.after),
-    discovery: { scan: normalizeScan(d.discovery.scan), binding: d.discovery.binding, authorization_index: d.discovery.authorization_index },
-  };
+  const out = pick(d, ["table", "index", "term", "scope", "suffix", "order", "take", "after", "discovery"], "held_search");
+  out.term = { source: normalizeExpression(d.term.source), contract: d.term.contract, source_max: d.term.source_max };
+  out.scope = d.scope.map((s: any) => ({ column: s.column, value: normalizeExpression(s.value) }));
+  out.take = normalizeBound(d.take);
+  out.after = nullableExpression(d.after);
+  out.discovery = { scan: normalizeScan(d.discovery.scan), binding: d.discovery.binding, authorization_index: d.discovery.authorization_index };
+  return out;
 }
 
 function normalizeRead(read: any): any {

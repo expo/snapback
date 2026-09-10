@@ -355,6 +355,9 @@ class ExpressionBinder {
     if (expression.table === "connected") refuse(this.diagnosticSite(expression.site), "connected is read-only", "use exists connected[viewer] or connected[viewer]");
     const info = this.catalog.get(expression.table);
     if (!info) refuse(this.diagnosticSite(expression.site), `unknown table ${expression.table}`, nameRewrite(expression.table, this.catalog.keys()));
+    // @ref LLP 1019#2-the-custody-log — the engine writes a generated custody table; no program does.
+    if (info.declaration.derived) unsupported(this.diagnosticSite(expression.site), `writing ${expression.table}`,
+      `write ${info.declaration.derived.deliver}; the engine records every ${expression.table} row from its deliver line`);
     const table: BoundTableSymbol = { kind: "table", id: `table:${expression.table}`, name: expression.table,
       declaration: info.declaration, source: sourceStack(info.declaration.site) };
     let index: BoundIndexSymbol | undefined;

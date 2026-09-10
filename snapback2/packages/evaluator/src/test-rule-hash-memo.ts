@@ -3,7 +3,8 @@ import { canonicalProgramJson, canonicalSchemaJson } from './certificate-identit
 import { sha256 } from './hash';
 import { CURRENT_EVALUATOR, CURRENT_VALUE_MODEL_VERSION, Runner } from './runner';
 import { ClientStore } from './store';
-import { scopedRuleHash } from './value-runtime';
+import { prepareSchema, scopedRuleHash } from './value-runtime';
+import { schemaDigest } from '../../snapback2/src/offline-schema';
 import { decodeHeldProgram } from '../../snapback2/src/held-program';
 
 const col = (Column: string) => ({ Column });
@@ -82,6 +83,7 @@ try { for (let index = 0; index < 3; index++) {
   const fresh = new Runner(admittedStore,admitted.schema,context,null);
   assert.equal(fresh.readAuthority('allowed',row),false);
   assert.equal((fresh as any).ruleHashes.get(admittedRule),admittedHash);
+  assert.equal(schemaDigest(admitted.schema),schemaHash);
 } } finally { Object.keys = objectKeys; }
 assert.equal(preparedReads,0,'admitted custody reuses canonical hashes across fresh executions');
 assert.equal(admittedHash,scopedRuleHash(schema,changed),'prepared and public hashers retain byte parity');
@@ -103,3 +105,16 @@ const next = decodeHeldProgram({ generation: 'two',schemaHash: nextSchemaHash,sc
 assert.notEqual(next.schema,admitted.schema,'a successor gets new prepared custody');
 assert.notEqual(scopedRuleHash(next.schema,(next.schema as any).tables.allowed.rules.read),admittedHash,
   'a nested successor rule change invalidates an unchanged outer rule shape');
+assert.equal(schemaDigest(next.schema),nextSchemaHash,'successor custody retains its own validated hash');
+assert.equal(schemaDigest(admitted.schema),schemaHash,'successor does not change previous custody');
+assert.equal(prepareSchema(next.schema,schemaHash),undefined,'a claimed predecessor hash cannot admit a successor');
+
+// Arbitrary caller objects, including shallow-frozen wrappers, have no trusted custody.
+const shallow = Object.freeze(structuredClone(admitted.schema)) as any;
+assert.equal(schemaDigest(shallow),schemaHash);
+shallow.tables.denied.rules.read = 'Allow';
+assert.equal(schemaDigest(shallow),nextSchemaHash,'nested mutation is rehashed even behind a frozen wrapper');
+const mutable = structuredClone(admitted.schema) as any;
+assert.equal(schemaDigest(mutable),schemaHash);
+mutable.tables.denied.rules.read = 'Allow';
+assert.equal(schemaDigest(mutable),nextSchemaHash,'mutable caller schemas are never memoized');

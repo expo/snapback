@@ -119,3 +119,15 @@ predictions. Offline media is null; online bytes stay in its viewing instance.
 Repeats: E_ASSET_VIEWED (assets,410). E_OFFLINE_CARRIER: configure carrier;
 E_OFFLINE_STATE: inspect state; E_OFFLINE_DELIVERY: retry authenticated query;
 E_OFFLINE_LIFECYCLE: sign in/reopen; E_OFFLINE_FOLLOWER: sign in; use writer tab for uploads/channels or no inbox route.
+
+## Custody
+
+`deliver to T[.keys] as name` on a content table derives an engine-owned per-recipient log:
+recipient, row, incarnation, the keys, kind (delivered/changed/removed),
+audience, seq, at; byRecipient/byRecipientGroup/byRow; read `.recipient =
+viewer`; removed tombstones its row; programs never write it. Keys must pin a
+`cap N by` group of T (E_DELIVER_UNBOUNDED); T needs one principal column or
+`by .column` (E_DELIVER_PRINCIPAL); name must be free. `with receipts` adds
+nameReceipts (row, recipient, received, seq, the read rule's columns) under
+that rule. Installing, bootstrapping, removing, and the audience bound `A`:
+`guide migrations`.

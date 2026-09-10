@@ -9,17 +9,23 @@ import { scalarLength } from "./unicode";
 import type { TraceRange, Value } from "./types";
 import { immutable, RowImage } from "./row-image";
 
-const preparedSchemas = new WeakMap<object,Map<unknown,string>>();
+const preparedSchemas = new WeakMap<object,{ hash: string; rules: Map<unknown,string> }>();
 
 // @ref LLP 1012#6-reads-offline — only this isolated, deeply immutable schema
 // custody may reuse canonical schema/rule bytes across fresh Runner executions.
 export function prepareSchema(schema: any, expected: string): any {
   const owned = immutable(structuredClone(schema));
-  if (sha256(canonicalSchemaJson(owned)) !== expected) return;
+  if (schemaDigest(owned) !== expected) return;
   const rules = new Map<unknown,string>();
   for (const table of Object.values<any>(owned.tables)) for (const rule of Object.values(table.rules ?? {}))
     rules.set(rule,sha256(`[${JSON.stringify(expected)},${canonicalRuleJson(rule)}]`));
-  return preparedSchemas.set(owned,rules),owned;
+  return preparedSchemas.set(owned,{ hash: expected,rules }),owned;
+}
+
+// @ref LLP 1018.008.004#implementation-selection-2026-09-10 — reuse only
+// validated immutable custody, never a mutable caller's claimed identity.
+export function schemaDigest(schema: any): string {
+  return preparedSchemas.get(schema)?.hash ?? sha256(canonicalSchemaJson(schema));
 }
 
 const I53_MAX = 9_007_199_254_740_991;
@@ -164,18 +170,6 @@ export function comparePrimitive(left: number | boolean | string, right: number 
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
-export function stableSort<T>(values: T[], compare: (left: T, right: T) => number): T[] {
-  if (values.length <= 1) return values;
-  const middle = Math.floor(values.length / 2);
-  const left = stableSort(values.slice(0, middle), compare);
-  const right = stableSort(values.slice(middle), compare);
-  const result: T[] = [];
-  while (left.length > 0 && right.length > 0) {
-    result.push(compare(left[0], right[0]) <= 0 ? left.shift()! : right.shift()!);
-  }
-  return result.concat(left, right);
-}
-
 export function variant(value: any): [string, any] {
   if (typeof value === "string") return [value, null];
   const keys = Object.keys(value);
@@ -208,7 +202,7 @@ export function rowDigest(row: Value): string {
 
 /** `Schema::rule_hash`: the schema hash beside the rule in serde's field order. */
 export function scopedRuleHash(schema: any, rule: any): string {
-  return preparedSchemas.get(schema)?.get(rule) ?? sha256(`[${JSON.stringify(sha256(canonicalSchemaJson(schema)))},${canonicalRuleJson(rule)}]`);
+  return preparedSchemas.get(schema)?.rules.get(rule) ?? sha256(`[${JSON.stringify(schemaDigest(schema))},${canonicalRuleJson(rule)}]`);
 }
 
 export function kindOf(value: Value): string {

@@ -719,6 +719,55 @@ fn fetch_releases_only_its_own_header_snapshots_on_every_exit() {
 }
 
 #[test]
+fn empty_grants_allow_an_effect_without_network() {
+    let decl = declaration(
+        "async (payload, { meta }) => ({ body: payload.body, id: meta.id })",
+        vec![],
+    );
+    let mut host = Ibex2Host::new().unwrap();
+    for id in ["no-network-1", "no-network-2"] {
+        assert_eq!(
+            host.run(
+                &decl,
+                &job(id, json!({ "body": id })),
+                Duration::from_secs(2),
+            ),
+            sent(json!({ "body": id, "id": id }))
+        );
+    }
+}
+
+// @ref LLP 1018.008.003#4-empty-grants-mean-no-network-authority — aliases and helpers cannot bypass host admission, before any socket.
+#[test]
+fn empty_grants_refuse_global_aliased_and_helper_fetch_before_transport() {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    listener.set_nonblocking(true).unwrap();
+    let origin = format!("http://{}", listener.local_addr().unwrap());
+    let mut host = Ibex2Host::new().unwrap();
+    for source in [
+        "async (payload) => (await fetch(payload.url)).text()",
+        "async (payload, { fetch }) => (await fetch(payload.url)).text()",
+        "async (payload, tools) => { const request = tools.fetch; return (await request(payload.url)).text(); }",
+        "async (payload, tools) => { async function request(url) { return (await tools.fetch(url)).text(); } return request(payload.url); }",
+    ] {
+        let outcome = host.run(
+            &declaration(source, vec![]),
+            &job("empty-grant-denial", json!({ "url": format!("{origin}/secret") })),
+            Duration::from_secs(2),
+        );
+        assert!(
+            matches!(&outcome, Outcome::Failed { error, retry: false }
+                if error.contains(&format!("denied: net.fetch {origin}"))),
+            "{source}: {outcome:?}"
+        );
+        assert!(
+            matches!(listener.accept(), Err(error) if error.kind() == std::io::ErrorKind::WouldBlock),
+            "an empty-grant fetch reached transport: {source}"
+        );
+    }
+}
+
+#[test]
 fn undeclared_origin_is_non_retryable_and_names_the_origin() {
     let server = TestServer::start("must not arrive");
     let decl = declaration(

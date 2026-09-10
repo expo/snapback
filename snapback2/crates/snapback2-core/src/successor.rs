@@ -154,6 +154,12 @@ pub struct SuccessorReport {
     pub added_columns: Vec<String>,
     pub added_indexes: Vec<String>,
     pub backfilled_maintains: u64,
+    /// One line per custody log bootstrapped at this installation (LLP 1019 §2).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub bootstrapped_deliveries: Vec<String>,
+    /// The audience bound `A` the engine recorded for each installed log (LLP 1019 §4).
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub audience_bounds: BTreeMap<String, u32>,
 }
 
 pub(crate) fn plan(
@@ -209,6 +215,8 @@ pub(crate) fn plan(
             }
         }
     }
+    let custody = delivery::custody_drops(&store.conn, current, next, &drops)?;
+    drops.extend(custody);
     Ok(MigrationPlan { drops })
 }
 
@@ -231,6 +239,9 @@ pub(crate) fn additive_refusal(
 ) -> Result<Option<SuccessorRefusal>, RuntimeError> {
     let rebuilt_targets = maintained_targets_requiring_rebuild(current, next);
     if let Some(refusal) = narrowing_refusal(connection, current, next)? {
+        return Ok(Some(refusal));
+    }
+    if let Some(refusal) = delivery::bootstrap_refusal(connection, current, next)? {
         return Ok(Some(refusal));
     }
     for (table_name, current_table) in &current.tables {
@@ -425,6 +436,7 @@ pub(crate) fn apply_additive(
     from: String,
     to: String,
     predecessor_maintain_ids: Option<BTreeMap<String, BTreeSet<String>>>,
+    now: i64,
 ) -> Result<SuccessorReport, RuntimeError> {
     let mut report = SuccessorReport {
         from,
@@ -529,6 +541,8 @@ pub(crate) fn apply_additive(
             })?;
         }
     }
+    // A log is populated before any maintain over it is rebuilt from its rows.
+    report.bootstrapped_deliveries = delivery::bootstrap(transaction, current, next, now)?;
     for target in maintained_targets_requiring_rebuild(current, next) {
         rebuild_target(
             transaction,
@@ -618,6 +632,9 @@ fn clear_search_indexes(
     }
     Ok(())
 }
+/// Rows one successor batch reads at a time.
+pub(crate) const ROW_BATCH: usize = 128;
+
 fn for_row_batches(
     c: &Connection,
     table: &str,
@@ -625,7 +642,9 @@ fn for_row_batches(
 ) -> Result<(), RuntimeError> {
     let mut after: Option<String> = None;
     loop {
-        let mut stmt=c.prepare_cached("SELECT row_id,data FROM rows WHERE table_name=?1 AND (?2 IS NULL OR row_id>?2) ORDER BY row_id LIMIT 128")?;
+        let mut stmt = c.prepare_cached(&format!(
+            "SELECT row_id,data FROM rows WHERE table_name=?1 AND (?2 IS NULL OR row_id>?2) ORDER BY row_id LIMIT {ROW_BATCH}"
+        ))?;
         let batch = stmt
             .query_map(params![table, after], |r| {
                 Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
@@ -954,6 +973,8 @@ fn projected_backfill_rows(
 #[path = "successor/caps.rs"]
 mod caps;
 pub use caps::CapConflict;
+#[path = "successor/delivery.rs"]
+pub mod delivery;
 #[path = "successor_narrowing.rs"]
 mod narrowing;
 pub use narrowing::NarrowingConflict;

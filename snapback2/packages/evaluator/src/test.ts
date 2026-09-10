@@ -504,6 +504,27 @@ const expectCode = (run: () => unknown, code: string, label: string) => {
   assert(message.startsWith(`${code}:`), `${label}: expected ${code}, got ${message || "success"}`);
 };
 
+// Native stable sorting replaces the private recursive sorter without changing
+// tie order or mutating caller/held values (including the empty/singleton cases).
+for (const length of [0, 1, 32, 1024]) {
+  const rows: Value[] = Array.from({ length }, (_, i) => ({ Row: {
+    key: { Int: i % 7 }, position: { Int: i },
+  } }));
+  const before = canonicalValue({ Array: rows });
+  const store = new ClientStore({ tables: {}, maintains: [] }, emptyReceipt());
+  for (const order of ["Asc", "Desc"]) {
+    const result = store.reexecute(query(builtin({ Sort: { keys: [{ field: "key", order }] } },
+      [literal({ Array: rows })])), context()).execution.result;
+    const expected: Value[] = [];
+    for (let j = 0; j < 7; j++) {
+      const key = order === "Asc" ? j : 6 - j;
+      rows.forEach((row, i) => { if (i % 7 === key) expected.push(row); });
+    }
+    assert(canonicalValue(result) === canonicalValue({ Array: expected }), `stable sort ${length}/${order}`);
+    assert(canonicalValue({ Array: rows }) === before, `sort mutated source ${length}/${order}`);
+  }
+}
+
 {
   const schema = { tables: { users: table({ id: "Id" }) }, maintains: [] };
   const store = new ClientStore(schema, emptyReceipt());
@@ -1086,6 +1107,32 @@ const expectCode = (run: () => unknown, code: string, label: string) => {
   let refusedTombstone: unknown;
   try { canonicalSchemaJson(novel); } catch (error) { refusedTombstone = error; }
   assert(refusedTombstone instanceof EvalError && refusedTombstone.code === "E_SCHEMA" && /tombstone field shard/.test(refusedTombstone.message), "a novel tombstone field was hashed instead of refused");
+}
+
+// @ref LLP 1019#7-the-twin — `Table.deliver` is canonicalized in Rust field order and hashed, never stripped.
+{
+  const golden = (manifest as any[]).find((item) => item.name === "deliver-log-schema-identity");
+  assert(golden, "the deliver corpus golden is missing; run export_corpus");
+  const declared = golden.schema.tables.messages.deliver;
+  assert(declared && declared.log === "deliveries" && golden.schema.tables.deliveries.tombstones.length === 1, "the golden lost its declaration or the log's tombstone");
+  const declaredJson = canonicalSchemaJson(golden.schema);
+  assert(declaredJson.includes('"deliver":{"target":"memberships","prefix":["conversationId"],"principal":"principal","log":"deliveries"}'),
+    `deliver did not canonicalize in serde order: ${declaredJson}`);
+  assert(golden.certificate.schema_hash === sha256(declaredJson), "the evaluator's deliver hash differs from Rust's Schema::hash()");
+  const bare = structuredClone(golden.schema) as any;
+  delete bare.tables.messages.deliver;
+  assert(sha256(canonicalSchemaJson(bare)) !== golden.certificate.schema_hash, "a deliver declaration is not part of schema identity");
+  const flagged = structuredClone(golden.schema) as any;
+  flagged.tables.messages.deliver = { ...declared, receipts: false, bootstrap: false };
+  assert(sha256(canonicalSchemaJson(flagged)) === golden.certificate.schema_hash, "false flags must be absent from the bytes, as serde skips them");
+  // The audience bound `A` is an engine fact, never a descriptor field: spelled, it is refused like any unknown field.
+  for (const field of ["shard", "audience"]) {
+    const novel = structuredClone(golden.schema) as any;
+    novel.tables.messages.deliver[field] = 1;
+    let refusedDeliver: unknown;
+    try { canonicalSchemaJson(novel); } catch (error) { refusedDeliver = error; }
+    assert(refusedDeliver instanceof EvalError && refusedDeliver.code === "E_SCHEMA" && new RegExp(`deliver field ${field}`).test(refusedDeliver.message), `a novel deliver field ${field} was hashed instead of refused`);
+  }
 }
 
 console.log(
