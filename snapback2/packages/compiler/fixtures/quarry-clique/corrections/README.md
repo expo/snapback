@@ -109,7 +109,7 @@ The test-only inspection also exposes one poll delete solely to prove that a
 current non-author member receives `E_RULE`/`rule`; production exposes no such
 operation. Do not ship this instrumentation as part of the application
 correction. The retained `owner-cases.test.ts` has SHA-256
-`450b7bfac94d44e5bc7363310a9e338045064078654c9e238423507ac254654b`.
+`76811afc737f85ab1dc92beb006ba4c9f00fb9ea52a200c9f05a9aca925cd7ba`.
 
 The first faithful atomic digest at 500 follows and 100 current memberships
 needed 4,516,191 closure bytes, 321,887 above the 4 MiB ceiling. Persisting
@@ -211,6 +211,19 @@ the current non-author member was refused with `E_RULE`/`rule`, that refusal
 preserved the poll, and the current author then removed both the poll and its
 message. The retained receipt has SHA-256
 `58085962f73423e0a9c44f633e7ddbfcb987d7c5fb17fc7680c9a3afa7a4b50a`.
+
+Two headless receipt-scale journeys passed on the same instrumented
+generation. An exact one-row private cursor acknowledged 51 distinct pending
+deliveries across 51 chats in 1,700 ms and then returned an empty page; its
+receipt SHA-256 is
+`81238fcc6c554da659da9f425fc7a7403be8e45c6b3f5ad3b321f90d9dca1317`.
+After 50 messages in one chat were read, message 51 entered the still-capped
+50-row thread while `conversationView.unread.count` advanced from zero to one;
+the existing bounded mark-read then returned it to zero. That journey passed
+in 1,284 ms and its receipt SHA-256 is
+`c85f0264f2d7f565c3380cf6a48682cf2ac96fea0fc37a8b450fd5411a5bafc3`.
+These are backend state-contract witnesses; the browser watcher qualification
+is separate.
 
 The local effect returns a deterministic result without `fetch`; no provider
 request was made.

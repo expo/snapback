@@ -827,6 +827,109 @@ journey("only a current message author can remove a poll while unsending", async
   }
 });
 
+journey("the private delivery cursor drains more than 50 chats", async ({ as }) => {
+  const alice = as("alice");
+  const bob = as("bob");
+  const expected = new Set<string>();
+  try {
+    for (let index = 0; index < 51; index += 1) {
+      const conversationId = `delivery-cursor-chat-${String(index).padStart(2, "0")}`;
+      const group = await alice.mutation(api.groups.groupCreate, {
+        title: `Delivery cursor ${index}`,
+        members: ["dev:bob"],
+        conversationId,
+      });
+      if (group.state !== "committed") throw new Error(`group ${index} was ${JSON.stringify(group)}`);
+      const messageId = `delivery-cursor-message-${String(index).padStart(2, "0")}`;
+      const sent = await alice.mutation(api.messages.send, {
+        conversationId,
+        body: `delivery cursor ${index}`,
+        messageId,
+      });
+      if (sent.state !== "committed") throw new Error(`send ${index} was ${JSON.stringify(sent)}`);
+      expected.add(messageId);
+    }
+
+    const acknowledged = new Set<string>();
+    while (acknowledged.size < expected.size) {
+      const pending = await bob.query(api.messages.nextPendingDelivery, {});
+      if (
+        (pending.state !== "complete" && pending.state !== "capped")
+        || !Array.isArray(pending.data)
+        || pending.data.length !== 1
+      ) {
+        throw new Error(`delivery cursor stopped at ${acknowledged.size}: ${JSON.stringify(pending)}`);
+      }
+      const messageId = pending.data[0]?.messageId;
+      if (typeof messageId !== "string" || !expected.has(messageId) || acknowledged.has(messageId)) {
+        throw new Error(`delivery cursor returned an unexpected row: ${JSON.stringify(pending)}`);
+      }
+      const result = await bob.mutation(api.messages.markDelivered, { messageId });
+      if (result.state !== "committed") throw new Error(`ack ${messageId} was ${JSON.stringify(result)}`);
+      acknowledged.add(messageId);
+    }
+    const empty = await bob.query(api.messages.nextPendingDelivery, {});
+    if (empty.state !== "complete" || !Array.isArray(empty.data) || empty.data.length !== 0) {
+      throw new Error(`delivery cursor retained a row: ${JSON.stringify(empty)}`);
+    }
+  } finally {
+    await Promise.all([alice.close(), bob.close()]);
+  }
+});
+
+journey("unread state advances a capped 50-row thread after history was acknowledged", async ({ as }) => {
+  const alice = as("alice");
+  const bob = as("bob");
+  const conversationId = "capped-thread-unread";
+  try {
+    const group = await alice.mutation(api.groups.groupCreate, {
+      title: "Capped thread unread",
+      members: ["dev:bob"],
+      conversationId,
+    });
+    if (group.state !== "committed") throw new Error(`group was ${JSON.stringify(group)}`);
+    for (let index = 0; index < 50; index += 1) {
+      const sent = await alice.mutation(api.messages.send, {
+        conversationId,
+        body: `acknowledged history ${index}`,
+        messageId: `capped-history-${String(index).padStart(2, "0")}`,
+      });
+      if (sent.state !== "committed") throw new Error(`history send ${index} was ${JSON.stringify(sent)}`);
+    }
+    const firstRead = await bob.mutation(api.messages.markRead, { conversationId });
+    if (firstRead.state !== "committed") throw new Error(`first read was ${JSON.stringify(firstRead)}`);
+
+    const newestId = "capped-history-50";
+    const newest = await alice.mutation(api.messages.send, {
+      conversationId,
+      body: "new unread after full page",
+      messageId: newestId,
+    });
+    if (newest.state !== "committed") throw new Error(`newest send was ${JSON.stringify(newest)}`);
+    const [thread, before] = await Promise.all([
+      bob.query(api.messages.thread, { conversationId, c: null }),
+      bob.query(api.messages.conversationView, { conversationId, c: null }),
+    ]);
+    if (thread.state !== "capped" || !Array.isArray(thread.data) || thread.data.length !== 50) {
+      throw new Error(`thread was not a capped page: ${JSON.stringify(thread)}`);
+    }
+    if (!thread.data.some((row) => row.messageId === newestId)) {
+      throw new Error(`the 51st message did not enter the capped page: ${JSON.stringify(thread)}`);
+    }
+    if (before.state !== "capped" || before.data?.unread?.count !== 1) {
+      throw new Error(`certified unread state was not one: ${JSON.stringify(before)}`);
+    }
+    const secondRead = await bob.mutation(api.messages.markRead, { conversationId });
+    if (secondRead.state !== "committed") throw new Error(`second read was ${JSON.stringify(secondRead)}`);
+    const after = await bob.query(api.messages.conversationView, { conversationId, c: null });
+    if (after.state !== "capped" || after.data?.unread?.count !== 0) {
+      throw new Error(`unread state did not clear: ${JSON.stringify(after)}`);
+    }
+  } finally {
+    await Promise.all([alice.close(), bob.close()]);
+  }
+});
+
 journey("all six original-post branches feed one follower-independent counter", async ({ as, tick }) => {
   await tick(0);
   const alice = as("alice");
