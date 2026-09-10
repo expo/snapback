@@ -24,3 +24,11 @@
 
 Owner: the custody-c lane (LLP 1019 D4–D6) absorbs 1 and 2 with its D5/D6 work; 3 is a
 one-line rename.
+
+4. **(grok r2) Production jobs certify under total visibility**, so `E_STRUCTURAL_FANOUT` from
+   item 7d does not fire on `enqueue` of a `ProgramKind::Job`: `jobs.rs` sets every rule to
+   `Allow` before `Checker::job_chunk()`, under which `uniform_visibility` is true and the
+   reserve adds nothing; the unit test used a user schema with `.principal = viewer`. Either
+   price the chunk's delivery reserve under the owner's visibility too, or state in the RFC that
+   the job path relies on the chunk's structural page reserve.
+
