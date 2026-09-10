@@ -189,7 +189,7 @@ fn assert_rendering(template: &str, chat: bool) {
             .iter()
             .filter(|check| check["kind"] == "journey")
             .collect::<Vec<_>>();
-        assert_eq!(journeys.len(), 16, "{receipt}");
+        assert_eq!(journeys.len(), 17, "{receipt}");
         assert!(
             journeys.iter().all(|check| check["verdict"] == "pass"),
             "{receipt}"
