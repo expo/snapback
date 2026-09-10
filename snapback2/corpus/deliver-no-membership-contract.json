@@ -1,4 +1,5 @@
 {
+  "predictDelivery": true,
   "corpusVersion": 1,
   "name": "deliver-no-membership-contract",
   "category": "scenario",
@@ -813,6 +814,7 @@
   "prelude": [],
   "replacementReceipt": null,
   "expected": {
+    "deliveryWrites": [],
     "localResult": {
       "Array": []
     },

@@ -10,6 +10,7 @@ import { FakeIndexedDb, FakeLocks } from './fake-indexeddb.ts';
 import { test } from 'node:test';
 import { OfflineRuntime, PersistentRangeStore, drainOutbox } from '../dist/sqlite-test.mjs';
 import { engineId } from './fake-owner.ts';
+import { RefusalError } from '../dist/client-observed-test.mjs';
 
 const corpus = (name: string) => JSON.parse(readFileSync(new URL(`../../../corpus/${name}.json`, import.meta.url), 'utf8'));
 const inbox = corpus('deliver-receipts-inbox'), ack = corpus('deliver-ack-missing-authority');
@@ -42,6 +43,59 @@ async function open(c: ReturnType<typeof carrier>) {
 const grant = (days = 0) => ({ id: engineId(100), from: engineId(100), count: 8192, used: 0,
   mintedAt: Date.now() - days * 86400000, expiresAt: Date.now() + 20 * 86400000 });
 const accept = async (r: any, f = frame(), args = { c:null as any }) => r.commit(op,args,await r.accept(op,args,f));
+
+for (const mode of ['missing', 'exhausted'] as const) test(`${mode} acknowledgement grant is visible and retries after resume without losing product writes`, async () => {
+  const c = carrier(), r = await open(c);
+  const bounds = await r.store.outbox.bounds(); await r.store.commit({ bounds: { ...bounds, 'messages.send': 0 } });
+  await r.outbox.adopt(grant());
+  const product = await r.outbox.enqueue({op:'messages.send',args:{body:'keep'},issuedSeq:1});
+  if (mode === 'missing') await r.store.commit({ grants: { current:null } });
+  else await r.store.commit({ grants:{put:[{...await r.outbox.grant(),used:8192}]} });
+  await accept(r);
+  const status = await r.outbox.status();
+  assert.equal(status.reason, mode === 'missing' ? 'grant-missing' : 'ids-exhausted');
+  assert.equal(status.remaining,2,'product intent plus unadmitted acknowledgement batch');
+  assert.deepEqual((await r.outbox.queued())[0],product);
+  // Hold the product write while verifying the empty-intent admission path independently.
+  await r.store.commit({outbox:{put:[{...product,state:'committed'}]}});
+  const stopped = await drainOutbox({ runtime:r,json:async()=>{throw new Error('no request');},shape:(m:string)=>new Error(m),failure:(e:Error)=>e });
+  assert.deepEqual(stopped,{stopped:true,reason:'pending',remaining:1});
+  assert(await r.resumeRequest([]),'unadmitted acknowledgements can request a logless resume');
+  await r.close(); const resumed = await open(c);
+  await resumed.outbox.adopt({...grant(),id:engineId(200),from:engineId(200)});
+  resumed.outbox.resumeSucceeded(resumed.outbox.generation);
+  await resumed.outbox.admitAcknowledgements();
+  assert.equal((await resumed.outbox.queued())[0].op,ackOp);
+  assert.equal((await resumed.store.outbox.get(product.intent)).args.body,'keep');
+  await resumed.close();
+});
+
+for (const terminal of ['expired','rejected'] as const) test(`owner ${terminal} acknowledgement is retried only on accepted redelivery under a fresh grant`, async () => {
+  const c=carrier(); let r=await open(c); await r.outbox.adopt(grant()); await accept(r);
+  const original=(await r.outbox.queued())[0];
+  await r.store.commit({bounds:{...await r.store.outbox.bounds(),'messages.send':0}});
+  const product=await r.outbox.enqueue({op:'messages.send',args:{body:'keep queued'},issuedSeq:2});
+  await assert.rejects(drainOutbox({runtime:r,json:async(_path:any,init:any)=>{
+    if(JSON.parse(init.body).op==='messages.send') throw new Error('hold product write');
+    if(terminal==='expired') throw new RefusalError({code:'E_OFFLINE_INTENT_EXPIRED',family:'offline',message:'owner expired grant',rewrite:'resume',guide:'offline'});
+    return {state:'rejected',code:'E_RULE',family:'rule',message:'ack authority unavailable',rewrite:'retry',guide:'deliver'};
+  },shape:(m:string)=>new Error(m),failure:(e:Error)=>e}),/hold product write/);
+  assert.equal((await r.store.outbox.get(original.intent)).state,terminal);
+  await r.close();r=await open(c);
+  assert.equal(await r.outbox.admitAcknowledgements(),0,'settlement alone does not spin another intent');
+  const decoded=await r.accept(op,{c:null},frame());
+  assert.equal((await r.outbox.queued()).length,1,'decode is not accepted redelivery');
+  await r.commit(op,{c:null},decoded);
+  assert.equal((await r.outbox.queued()).length,1,'redelivery waits for a fresh grant');
+  assert.equal((await r.outbox.status()).reason,'grant-missing');
+  assert(await r.outbox.grantById(original.grant),'queued product writes retain their original grant');
+  await r.outbox.adopt({...grant(),id:engineId(200),from:engineId(200)});
+  await r.outbox.admitAcknowledgements();
+  const entries=await r.outbox.queued();assert.equal(entries[0].intent,product.intent);assert.deepEqual(entries[0].args,product.args);
+  const retry=entries[1]; assert(retry,'accepted redelivery clears the terminal binding');
+  assert.notEqual(retry.intent,original.intent);assert.notEqual(retry.grant,original.grant);assert.deepEqual(retry.args,original.args);
+  await r.close();
+});
 
 test('receipt acknowledgement requires durable accepted content; dropped, metadata-only and arbitrary cursor requests acknowledge nothing', async () => {
   const c = carrier(), r = await open(c);
@@ -83,9 +137,10 @@ test('pending acknowledgements and their ordinary intent survive a restart and a
   await assert.rejects(drainOutbox({ runtime:r, json: async (_: any, init: any) => { sent.push(JSON.parse(init.body)); throw new Error('dropped response'); }, shape: (m: string) => new Error(m), failure: (e: Error) => e }), /dropped response/);
   assert.equal((await r.outbox.queued())[0].intent,original.intent);
   await r.close(); r = await open(c);
-  const result = await drainOutbox({ runtime:r, json: async (_: any, init: any) => { sent.push(JSON.parse(init.body)); return { state:'committed',seq:3,data:null }; }, shape: (m: string) => new Error(m), failure: (e: Error) => e });
+  const result = await drainOutbox({ runtime:r, json: async (_: any, init: any) => { sent.push(JSON.parse(init.body)); return { state:'committed',seq:3,data:null,effects:[],program:{schemaHash:program.schemaHash,planHash:ack.certificate.plan_hash} }; }, shape: (m: string) => new Error(m), failure: (e: Error) => e });
   assert.equal(result.stopped,false); assert.deepEqual(sent[0],sent[1]);
   assert.equal((await r.outbox.queued()).length,0);
+  assert.equal(await r.store.outbox.get(original.intent),undefined,'settled success actually compacted');
   await accept(r); assert.equal((await r.outbox.queued()).length,0,'independent acknowledgement mark survives compaction');
   await r.close();
 });

@@ -691,7 +691,6 @@
     },
     "maintained_amplification": 0,
     "constraint_checks": [
-      "deliveriesReceipts:DeliveryReceipt",
       "deliveriesReceipts:Immutable([\"recipient\", \"row\"])",
       "deliveriesReceipts:Unique(byId)",
       "deliveriesReceipts:Unique(byRow)",

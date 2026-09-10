@@ -298,7 +298,11 @@ over that target, not a new runtime path.
   sourced product naming the `deliver` line as the term.
 
 With receipts, content writes additionally reserve one receipt upsert and
-private receipt identity probe per reserved recipient. Acknowledgement is
+private receipt identity probe per reserved recipient. Receipt Upsert keeps
+its two maintained applications per row when specializing retained A; each
+native table prices its own maintained final probes, derivation and timers.
+Content writes declare DeliveryReceipt; only acknowledgement declares
+DeliveryAcknowledgement. Acknowledgement is
 the engine-generated `_delivery.<log>.ack` mutation: at most 50 event ids,
 ordinary event/content/receipt point reads and receipt updates, plus the named
 `delivery acknowledgement` reserve of `50 × (N+1)` private membership
@@ -356,15 +360,25 @@ Serving a response or accepting a cursor acknowledges nothing. With
   who were removed before acknowledging stay `received: false`, and the
   brief's aggregate rule ("drop out of the aggregate requirement") is the
   app's `count` over current members, which it can express.
-- **D5 implementation correction:** the query above needs rows for
+- **D5 implementation correction:** the receipt query below needs rows for
   unacknowledged recipients. Delivery initializes them false; content changes
   refresh copied read-rule inputs, preserving received/seq. Only acknowledgement
   changes false to true. Enabling receipts over an existing log initializes
   false rows for live bodies from retained delivered events in the installer's
   existing row batches; it never reconstructs audience from current membership.
+  Backfill counts every retained log row examined (including changed/removed),
+  summed with bootstrapped events across the installation, against the same
+  8,192 bound. Above it E_SUCCESSOR_BOOTSTRAP refuses with the enabling lines
+  without `with receipts` and new bootstrap lines without `bootstrap`.
   Delivered or changed event ids can acknowledge the same original receipt;
   removed events cannot disclose a body. Idempotent retries preserve the first
-  acknowledgement commit seq.
+  acknowledgement commit seq. Missing original events or failed membership
+  probes refuse with a trace; an authoritative departed recipient remains false.
+- Unadmitted acknowledgement batches remain in outbox readiness/remaining work;
+  resume retries admission. A mark bound to an owner-rejected or expired intent
+  becomes pending again only on the next durably accepted page redelivery, which
+  can admit fresh bytes under a fresh grant. Successful marks survive intent
+  compaction; no acknowledgement transition deletes a product write.
 - `received: false` means unacknowledged; missing local authority on
   receipt-only replay remains `partial`, never a fabricated false.
 
@@ -593,3 +607,4 @@ evidence.
 - 2026-09-10 — D2 fix round r1 (lane `custody-b`, merged base `5434af50be`, pending orchestrator commit): §3 optional-row normalization, pre-scan private containment/traces, durable replay/then specialization refusals, table-specific incarnation repair through direct/seed/replay/job/timer envelopes; §4 dominant-meter diagnostics, N+1/max(N+1,A) pricing text, raw chunk reserve protection; §7 receipt exclusion preserved; one statement-site spelling. Tests: affected delivery/cap/timer/job suites 104 passed/1 skipped; custody/certificate units 35 passed; real refusal wire 1 passed; frozen corpus 288 (261 evaluator/27 server-only), compiler 299 passed; runtime 84,946/85,000 gzip at this HEAD. Reports: `REPORT-custody-b.md`, writable `reports/final-custody-b.md` § Fix round r1; external canonical report and newer-main fetch blocked by filesystem sandbox. RFC Status unchanged.
 - 2026-09-10 — D2 LANDED (lane `custody-b`, orchestrator; blind reviews `custody-b-r1-*`, `custody-b-r2-*`: r2 grok and codex both LAND WITH FIXES): the fix-round work merged with main (`5434af50be`, `f4c5546eb9`, `b4a4a8ad3b`); the D2 write rules moved to `guide/deliver.md`, the page `guide quarry` names, because the offline page ran over its 8,192-byte limit beside main's recovery prose (labels unchanged); the E_SUCCESSOR_BOOTSTRAP card's site is the content table's deliver line; host verify `custody-b-m3`: 1038 Rust, package 1108/0, compiler 299, evaluator 261, runtime 84,986 (ceiling now 90,000; the client-bundle scorer red is main's approved size trade). Residuals for custody-c: `issues/20260910-snapback2-custody-b-review-residuals.md` (job plans under a retained `A`, `deliver` on a maintain refused at admission, the compiler check's name, and — grok r2 — production jobs certify under total visibility so a job's nonuniform chunk reserve is not refused at `enqueue`).
 - 2026-09-10 — D4 + D5 (lane `custody-c1`, base `4729319698a1`, ready for orchestrator commit): §5–§7 sender-only membership-proved direct prediction, provisional/server identity reconciliation and cold changed/removed custody; engine-owned false receipt initialization and bounded certified/traced acknowledgement, durable accepted-page marks and ordinary fenced outbox retry on all carriers; §4 named acknowledgement reserve, retained-A job-plan specialization/refusal and owner structural-page pricing; maintained-source admission refusal and compiler repair-test naming resolve all four custody-b residuals. Tests: affected Rust 111 passed/1 skipped plus new full-batch proof 1 passed; compiler delivery 11 passed; corpus 293 (266 evaluator passed/27 server-only), 11 sender prediction checks; SDK additions 8 passed and affected neighbors 24 passed; runtime 86,297/90,000 gzip. RFC corrections: false initialization/copied-rule maintenance and provisional metadata now explicit. Report: `REPORT-custody-c1.md`. Status unchanged; D6 and full remote verification remain with the program.
+- 2026-09-10 — D4 + D5 fix round r1 (lane `custody-c1`, merged base `c1d96a23d4`, pending orchestrator commit): §4 receipt Upsert amplification and every dependent meter, generated-maintain final probes, site-specific receipt/acknowledgement checks; §6 pre-read containment, traced failed acknowledgements, visible admission/readmission after terminal redelivery, shared 8,192 backfill bound; §7 frozen prediction mode and real 51-message/page-loss/two-client plus cold-edit/search acceptances. Tests: delivery/cap/jobs/timers 117 passed/1 skipped; acknowledgement units 3 passed; corpus 293 (266 evaluator passed/27 server-only), prediction checks corrected to 10 passed with injected-failure exit 1; compiler 300 passed; SDK 44 passed; guide names 2 passed. Runtime 86,260/90,000 gzip. Reports: `REPORT-custody-c1.md`, writable `reports/final-custody-c1.md` § Fix round r1 (external program report outside sandbox). RFC Status unchanged; no full suite or commit.

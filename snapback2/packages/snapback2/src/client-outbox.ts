@@ -257,12 +257,12 @@ async function drainQueued(options: DrainOptions): Promise<DrainResult> {
   const { runtime } = options;
   throwIfAborted(options.signal);
   const finish = async (reason?: DrainResult["reason"]): Promise<DrainResult> =>
-    ({ stopped: reason !== undefined, ...(reason ? { reason } : {}), remaining: runtime.principal === undefined ? 0 : (await runtime.outbox.queued()).length });
+    ({ stopped: reason !== undefined, ...(reason ? { reason } : {}), remaining: runtime.principal === undefined ? 0 : (await runtime.outbox.status()).remaining });
   if (runtime.principal === undefined) return finish();
   for (;;) {
     await runtime.outbox.admitAcknowledgements();
     const queued = (await runtime.outbox.queued())[0];
-    if (!queued) break;
+    if (!queued) return finish((await runtime.outbox.pendingAcknowledgements()).length ? "pending" : undefined);
     throwIfAborted(options.signal);
     let entry = await runtime.store.outbox.get(queued.intent);
     throwIfAborted(options.signal);
@@ -527,7 +527,7 @@ export function createOutboxApi(
       if (!runtime || runtime.principal === undefined) return { stopped: false, remaining: 0 };
       const result = await runtime.drainVerdict;
       let remaining: number;
-      try { remaining = (await runtime.outbox.queued()).length; }
+      try { remaining = (await runtime.outbox.status()).remaining; }
       catch (error) {
         if (error instanceof Error && /sealed|not open|closed/.test(error.message)) throw new RefusalError({
           code: "E_OFFLINE_LIFECYCLE", family: "offline", guide: "offline", site: "client.outbox.settled",

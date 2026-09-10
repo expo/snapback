@@ -80,9 +80,9 @@ indexes, generation metadata and timers.
 
 ## Custody logs
 
-`deliver` installs its log empty; `bootstrap` fills it once from current
-members, within 8,192 events per installation (above it,
-`E_SUCCESSOR_BOOTSTRAP`: drop the word; readers reach history through the
-content table under its rule). Removing or retargeting the line is
-destructive. The audience bound is engine-recorded, never spelled: max(cap,
-largest stored audience), shown in the manifest; lowering a cap is admitted.
+`deliver` installs empty; `bootstrap` fills once from current members.
+The 8,192 installation bound sums bootstrap events and receipt-backfill log
+rows. E_SUCCESSOR_BOOTSTRAP: remove `bootstrap` or `with receipts` from the
+refused lines (`guide deliver`). Removing or retargeting is destructive.
+A is engine-recorded max(cap, largest stored audience), shown in the manifest;
+lowering caps is admitted.

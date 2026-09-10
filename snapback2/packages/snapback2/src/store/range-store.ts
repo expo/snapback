@@ -1,4 +1,5 @@
 import { cursorArgument } from "../local-cursor.js";
+import { applyDeliveryAcknowledgements } from "../delivery-acknowledgements.js";
 import { RangeReceipt, preparedDeliveryRanges } from '../../../evaluator/src/range-preparation.js';
 import { RowImage, ImageKeys, imageWire, imageRecord, imageRecords, imageState, preparedChanges, preparedProjection } from '../../../evaluator/src/row-image.js';
 import { CarrierIndex } from "./carrier-index.js";
@@ -932,10 +933,7 @@ export class PersistentRangeStore implements RangeStore {
       delete state.overlayNegatives[intent];
     }
     const committedNow = new Set<string>();
-    for (const [key, ack] of Object.entries(swap.deliveryAcks ?? {})) {
-      const old = state.deliveryAcks[key];
-      if ((!old && ack.rows.every(key => state.rows[key] !== undefined)) || (old && !old.intent && ack.intent)) state.deliveryAcks[key] = clone(ack);
-    }
+    applyDeliveryAcknowledgements(state, swap);
     for (const entry of swap.outbox?.put ?? []) {
       if (typeof entry.intent !== "string" || entry.intent.length === 0) throw new TypeError("outbox entry needs an intent");
       const previous = state.outbox[entry.intent];

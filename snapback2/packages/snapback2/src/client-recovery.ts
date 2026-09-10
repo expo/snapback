@@ -32,7 +32,7 @@ export function recoveryOpportunity(host: RecoveryClient): void {
   runtime.outbox.notify(); host.blockedRecovery?.demand.update();
   void host.operationAuthority(false).then(async authority => {
     if (revision === host.recoveryRevision && available(host) && !runtime.following
-      && runtime.principal && (await runtime.queuedIntents()).length) await host.performResume(authority);
+      && runtime.principal && (await runtime.outbox.status()).remaining) await host.performResume(authority);
   }).catch(() => undefined);
 }
 

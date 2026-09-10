@@ -1,4 +1,5 @@
 {
+  "predictDelivery": true,
   "corpusVersion": 1,
   "name": "deliver-own-membership-contract",
   "category": "scenario",
@@ -896,14 +897,83 @@
   "prelude": [],
   "replacementReceipt": null,
   "expected": {
+    "deliveryWrites": [
+      {
+        "table": "deliveries",
+        "id": "own:a49a4e02e7dd82ed639089ddd0f8b91f2f8883b8678bd80172128dd9687da0b0",
+        "row": {
+          "Row": {
+            "at": {
+              "Int": 0
+            },
+            "audience": {
+              "Int": 0
+            },
+            "conversationId": {
+              "Id": "c1"
+            },
+            "id": {
+              "Id": "own:a49a4e02e7dd82ed639089ddd0f8b91f2f8883b8678bd80172128dd9687da0b0"
+            },
+            "incarnation": {
+              "Int": 0
+            },
+            "kind": {
+              "String": "delivered"
+            },
+            "recipient": {
+              "Id": "u1"
+            },
+            "row": {
+              "Id": "m"
+            },
+            "seq": {
+              "Int": 0
+            }
+          }
+        }
+      }
+    ],
     "localResult": {
-      "Array": []
+      "Array": [
+        {
+          "Row": {
+            "at": {
+              "Int": 0
+            },
+            "audience": {
+              "Int": 0
+            },
+            "conversationId": {
+              "Id": "c1"
+            },
+            "id": {
+              "Id": "own:a49a4e02e7dd82ed639089ddd0f8b91f2f8883b8678bd80172128dd9687da0b0"
+            },
+            "incarnation": {
+              "Int": 0
+            },
+            "kind": {
+              "String": "delivered"
+            },
+            "recipient": {
+              "Id": "u1"
+            },
+            "row": {
+              "Id": "m"
+            },
+            "seq": {
+              "Int": 0
+            }
+          }
+        }
+      ]
     },
     "errorCode": null,
     "localState": "predicted",
     "partialSites": [],
-    "canonicalResult": "{\"Array\":[]}",
-    "digest": "62db520212cc069676ef47ebdcb00c4ab646bb477ec4065963f0f9f9f8ee1c66",
+    "canonicalResult": "{\"Array\":[{\"Row\":{\"at\":{\"Int\":0},\"audience\":{\"Int\":0},\"conversationId\":{\"Id\":\"c1\"},\"id\":{\"Id\":\"own:a49a4e02e7dd82ed639089ddd0f8b91f2f8883b8678bd80172128dd9687da0b0\"},\"incarnation\":{\"Int\":0},\"kind\":{\"String\":\"delivered\"},\"recipient\":{\"Id\":\"u1\"},\"row\":{\"Id\":\"m\"},\"seq\":{\"Int\":0}}}]}",
+    "digest": "bb171fe6ed40c8aeb97ce09fb173f548a3b29fc6b8f8b75069226d7e6bef6d54",
     "rangeStops": {
       "delivery.inbox": [
         "exhausted"

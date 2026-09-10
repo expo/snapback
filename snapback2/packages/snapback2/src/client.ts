@@ -1131,7 +1131,7 @@ class Client implements SnapbackClient {
   private async drainNow(captured?: Authority): Promise<DrainResult> {
     await this.localReady;
     if (this.forcedOffline) {
-      const remaining = (await this.offlineRuntime?.queuedIntents())?.length ?? 0;
+      const remaining = this.offlineRuntime?.principal === undefined ? 0 : (await this.offlineRuntime.outbox.status()).remaining;
       const reason = await this.offlineRuntime?.outbox.fence() === "past" ? "fence" : "offline";
       if (this.offlineRuntime) this.offlineRuntime.drainVerdict = Promise.resolve({ stopped: reason, remaining });
       return { stopped: true, reason, remaining };

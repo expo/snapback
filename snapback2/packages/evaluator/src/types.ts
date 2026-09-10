@@ -88,6 +88,7 @@ export interface PreludeStep {
 }
 
 export interface CorpusExpected {
+  deliveryWrites?: RowRecord[];
   errorReason?: string;
   localResult: Value | null;
   errorCode: string | null;
@@ -101,6 +102,7 @@ export interface CorpusExpected {
 }
 
 export interface CorpusCase {
+  predictDelivery?: boolean;
   serverOnly?: boolean;
   certificationRewrite?: string;
   corpusVersion: number;

@@ -959,7 +959,7 @@ export class OfflineRuntime {
       typeof item.answer?.validator === "string");
     if (!this.facts) return undefined;
     if (!this.coverageCurrent()) return { protocol: 1, ...this.facts, mounted: [] };
-    if (!adjustment.demand && !watermark && answers.length === 0 && (await this.queuedIntents()).length === 0) return undefined;
+    if (!adjustment.demand && !watermark && answers.length === 0 && (await this.outbox.status()).remaining === 0) return undefined;
     return { protocol: 1, ...this.facts,
       ...(watermark ? { log: { op: watermark.op, args: watermark.args, watermark: watermark.watermark,
         ...(watermark.validator === undefined ? {} : { validator: watermark.validator }) } } : {}),

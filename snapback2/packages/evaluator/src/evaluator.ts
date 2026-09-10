@@ -93,7 +93,7 @@ export function evaluateCase(testCase: CorpusCase): ActualResult {
   try {
     const local =
       testCase.program.kind === "Mutation"
-        ? store.applyMutation(testCase.program, testCase.context)
+        ? store.applyMutation(testCase.program, testCase.context, true, testCase.certificate, testCase.predictDelivery === true)
         : store.reexecute(testCase.program, testCase.context, testCase.certificate);
     const canonicalResult = canonicalValue(local.execution.result);
     return {
@@ -106,6 +106,8 @@ export function evaluateCase(testCase: CorpusCase): ActualResult {
       rangeStops: rangeStops(local.execution.trace.ranges),
       evictedRows,
       next: local.execution.next,
+      ...(testCase.predictDelivery ? { deliveryWrites: local.execution.writes.filter(w => w.row !== null
+        && Object.values<any>(testCase.schema.tables).some(t => t.deliver?.log === w.table)) } : {}),
     };
   } catch (error) {
     const internalCode = error instanceof EvalError ? error.code : "E_UNKNOWN";
@@ -168,6 +170,8 @@ export function hydrateCase(testCase: CorpusCase): HydrationResult {
 
 export function compareExpected(actual: ActualResult, expected: CorpusExpected): string[] {
   const differences: string[] = [];
+  if (expected.deliveryWrites !== undefined && JSON.stringify(actual.deliveryWrites) !== JSON.stringify(expected.deliveryWrites))
+    differences.push(`deliveryWrites: ${JSON.stringify(actual.deliveryWrites)} != ${JSON.stringify(expected.deliveryWrites)}`);
   for (const key of [
     "canonicalResult",
     "digest",

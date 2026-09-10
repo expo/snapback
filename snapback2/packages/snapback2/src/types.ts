@@ -321,7 +321,7 @@ export interface OutboxStatus {
   reason: "ready" | "sealed" | "grant-missing" | "grant-expired" | "ids-exhausted" | "program-missing"
     | "follower" | "forwarding" | "inbox-full" | "writer-unresponsive";
   action: Action;
-  /** Number of queued intents, including a follower's unadmitted rows; settled entries are excluded. */
+  /** Queued intents, unadmitted acknowledgement batches and follower rows; excludes settlements. */
   remaining: number;
   fence: "inside" | "past";
   /** The partition writer is actively replaying; a connected read cannot establish this. */

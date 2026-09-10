@@ -30,8 +30,10 @@ pub(super) fn reserve(schema: &Schema, summary: &mut Summary) {
         let rows = per_call.saturating_mul(write.max_rows);
         if let Some(table) = deliver.receipts_table() {
             summary.writes.push(WriteSite { table: table.clone(), kind: WriteKind::Upsert, max_rows: rows });
+            reserve_final_probes(schema, summary, &table, rows, WriteKind::Upsert);
             summary.delivery_indexes.insert(format!("{table}.byId"));
         }
+        reserve_final_probes(schema, summary, &deliver.log, rows, WriteKind::Insert);
         let rows = rows.saturating_mul(if deliver.receipts { 2 } else { 1 });
         let label = format!(
             "{} on {}: {} calls × {per_call} reserved rows",
@@ -50,11 +52,6 @@ pub(super) fn reserve(schema: &Schema, summary: &mut Summary) {
             .saturating_add(write.max_rows.saturating_mul(4));
         summary.steps = summary.steps.saturating_add(steps);
         summary.costs.delivery(rows, steps, &format!("schema.tables.{}.deliver", write.table), &label);
-        let probes = rows.saturating_mul(final_probes(schema, &deliver.log));
-        summary.rule_probes = summary.rule_probes.saturating_add(probes);
-        summary
-            .costs
-            .probes(&label, rows, final_probes(schema, &deliver.log), &[]);
         summary.writes.push(WriteSite {
             table: deliver.log.clone(),
             kind: WriteKind::Insert,
@@ -74,6 +71,12 @@ pub(super) fn reserve(schema: &Schema, summary: &mut Summary) {
     }
 }
 
+fn reserve_final_probes(schema: &Schema, summary: &mut Summary, table: &str, rows: u64, kind: WriteKind) {
+    let per_row = final_probes(schema, table).saturating_mul(kind.maintained_applications());
+    summary.rule_probes = summary.rule_probes.saturating_add(rows.saturating_mul(per_row));
+    summary.costs.probes(&format!("{table} {kind:?} maintained final constraints"), rows, per_row, &[]);
+}
+
 impl Certificate {
     // @ref LLP 1019#4-certification — installation's A is an engine fact,
     // outside schema identity. Specialize the native reserve, preserving every
@@ -86,6 +89,7 @@ impl Certificate {
     ) -> Result<Self, CheckError> {
         let mut next = self.clone();
         let mut additions = BTreeMap::<String, u64>::new();
+        let mut kinds = BTreeMap::<String, WriteKind>::new();
         let mut expected = BTreeMap::<String, u64>::new();
         let mut terms = Vec::new();
         for write in &self.write_sites {
@@ -107,7 +111,9 @@ impl Certificate {
             let extra = actual.saturating_sub(base).saturating_mul(write.max_rows);
             let total = additions.entry(d.log.clone()).or_default();
             *total = total.saturating_add(extra);
+            kinds.insert(d.log.clone(), WriteKind::Insert);
             if let Some(table) = d.receipts_table() {
+                kinds.insert(table.clone(), WriteKind::Upsert);
                 *expected.entry(table.clone()).or_default() += base.saturating_mul(write.max_rows);
                 *additions.entry(table).or_default() += extra;
             }
@@ -147,7 +153,7 @@ impl Certificate {
             let reserved: u64 = next
                 .write_sites
                 .iter()
-                .filter(|w| w.table == *log && matches!(w.kind, WriteKind::Insert | WriteKind::Upsert))
+                .filter(|w| w.table == *log && w.kind == kinds[log])
                 .map(|w| w.max_rows)
                 .fold(0u64, u64::saturating_add);
             if reserved < expected[log] {
@@ -158,13 +164,14 @@ impl Certificate {
             let site = next
                 .write_sites
                 .iter_mut()
-                .find(|w| w.table == *log && matches!(w.kind, WriteKind::Insert | WriteKind::Upsert))
+                .find(|w| w.table == *log && w.kind == kinds[log])
                 .unwrap();
             site.max_rows = site.max_rows.saturating_add(*extra);
         }
         let mut maintained_extra = BTreeMap::<String, u64>::new();
         let mut derived_steps = 0u64;
         for (log, extra) in &additions {
+            let applications = extra.saturating_mul(kinds[log].maintained_applications());
             for m in schema.maintains.iter().filter(|m| m.source == *log) {
                 let work = crate::engine::search_index::table_write_bound(
                     schema,
@@ -173,29 +180,31 @@ impl Certificate {
                     true,
                     true,
                 );
-                derived_steps = derived_steps.saturating_add(work.steps.saturating_mul(*extra));
+                derived_steps = derived_steps.saturating_add(work.steps.saturating_mul(applications));
                 let total = maintained_extra.entry(m.target.clone()).or_default();
-                *total = total.saturating_add(*extra);
+                *total = total.saturating_add(applications);
                 let total = next.maintained_writes.entry(m.target.clone()).or_default();
-                *total = total.saturating_add(*extra);
+                *total = total.saturating_add(applications);
                 next.maintained_amplification =
-                    next.maintained_amplification.saturating_add(*extra);
+                    next.maintained_amplification.saturating_add(applications);
             }
         }
         let probes = additions
             .iter()
-            .map(|(log, extra)| extra.saturating_mul(final_probes(schema, log)))
+            .map(|(log, extra)| extra.saturating_mul(kinds[log].maintained_applications()).saturating_mul(final_probes(schema, log)))
             .fold(0u64, u64::saturating_add);
         next.max_rule_probes = next.max_rule_probes.saturating_add(probes);
         next.derived_steps = next.derived_steps.saturating_add(derived_steps);
         let extra_writes: Vec<_> = additions
             .iter()
-            .chain(&maintained_extra)
             .map(|(table, rows)| WriteSite {
                 table: table.clone(),
-                kind: WriteKind::Insert,
+                kind: kinds[table],
                 max_rows: *rows,
             })
+            .chain(maintained_extra.iter().map(|(table, rows)| WriteSite {
+                table: table.clone(), kind: WriteKind::Update, max_rows: *rows,
+            }))
             .collect();
         let timers = crate::timers::write_bound(schema, &extra_writes);
         if timers > 0 {
@@ -268,8 +277,11 @@ fn final_probes(schema: &Schema, log: &str) -> u64 {
 pub(super) fn constraint_checks(schema: &Schema, writes: &[WriteSite], checks: &mut BTreeSet<String>) {
     for write in writes {
         if let Some((_, d, crate::delivery::Generated::Receipts)) = crate::delivery::owner(schema, &write.table) {
-            checks.insert(format!("{}:DeliveryAcknowledgement", d.target));
-            checks.insert(format!("{}:DeliveryReceipt", write.table));
+            if write.kind == WriteKind::Update {
+                checks.insert(format!("{}:DeliveryAcknowledgement", d.target));
+            } else if write.kind == WriteKind::Upsert {
+                checks.insert(format!("{}:DeliveryReceipt", write.table));
+            }
         }
         if let Some(d) = schema.table(&write.table).and_then(|t| t.deliver.as_ref()) {
             if matches!(write.kind, WriteKind::Insert | WriteKind::Upsert) {

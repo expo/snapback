@@ -25,6 +25,7 @@ export function sqliteState(clock = 1): PersistedRangeState {
       issuedSeq: clock, state: "queued", predicted: true, trace: { points: [], verdicts: [] }, createdAt: 100, updatedAt: 100, order: 1 } },
     grants: { grant: { id: "grant", from: "start", count: 100, mintedAt: 100, expiresAt: 200, used: clock } },
     currentGrant: "grant",
+    deliveryAcks: {},
     overlay: { [intent]: [row] }, overlayMisses: { [intent]: clock },
     // Lane T1's commit-time tail snapshot (null after a reset) and T2's scoped negatives ride the same projection.
     overlayWatermarks: { [intent]: { op: "inbox", args: { c: null }, watermark: `cursor-${clock}`, cursorArg: "c", progress: `cursor-${clock}`, consumed: ["cursor-0"] }, "grant:0": null },

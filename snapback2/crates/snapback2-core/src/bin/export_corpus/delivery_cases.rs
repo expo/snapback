@@ -145,6 +145,7 @@ pub(super) fn add_delivery_cases(cases: &mut Vec<CorpusCase>) {
     );
     let envelope = json!({"Error": code});
     cases.push(CorpusCase {
+        predict_delivery: false,
         server_only: true,
         certification_rewrite: None,
         corpus_version: CORPUS_VERSION,
@@ -159,6 +160,7 @@ pub(super) fn add_delivery_cases(cases: &mut Vec<CorpusCase>) {
         prelude: Vec::new(),
         replacement_receipt: None,
         expected: Expected {
+            delivery_writes: None,
             error_reason: Some(reason.to_owned()),
             local_result: None,
             error_code: Some(code.to_owned()),
@@ -182,7 +184,19 @@ fn add_receipt_and_prediction_cases(cases: &mut Vec<CorpusCase>) {
             site: "required.membership".into(), table: "memberships".into(), index: "byConversationPrincipal".into(),
             key: vec![Expr::Literal(id("c1")), Expr::Input(Input::Viewer)], provenance: KeyProvenance::Viewer,
         }), code: "MEMBERSHIP_REQUIRED".into(), site: None }); }
-        cases.push(case_from_parts(name, "scenario", base.schema.clone(), program, base.context.clone(), base.receipt.clone(), vec![], None, None));
+        let mut case = case_from_parts(name, "scenario", base.schema.clone(), program, base.context.clone(), base.receipt.clone(), vec![], None, None);
+        case.predict_delivery = true;
+        let own = format!("own:{}", digest(&object([("row", id("m")), ("recipient", id("u1"))])));
+        case.expected.delivery_writes = Some(if contract { vec![RowRecord { table: "deliveries".into(), id: own.clone(), row: object([
+            ("id", id(&own)), ("row", id("m")), ("recipient", id("u1")), ("conversationId", id("c1")),
+            ("kind", text("delivered")), ("audience", Value::Int(0)), ("incarnation", Value::Int(0)),
+            ("seq", Value::Int(case.context.now.unwrap())), ("at", Value::Int(case.context.now.unwrap())),
+        ]) }] } else { vec![] });
+        let result = Value::Array(case.expected.delivery_writes.as_ref().unwrap().iter().map(|r| r.row.clone()).collect());
+        case.expected.canonical_result = canonical_json(&result);
+        case.expected.digest = digest(&result);
+        case.expected.local_result = Some(result);
+        cases.push(case);
     }
     let mut s = schema();
     let mut d = s.tables["messages"].deliver.clone().unwrap(); d.receipts = true;
@@ -326,9 +340,9 @@ fn add_bound_case(cases: &mut Vec<CorpusCase>) {
     assert_eq!(error.site.as_deref(), Some("schema.tables.messages.deliver"));
     assert!(error.message.contains("deliver"));
     let envelope = json!({"Error": "E_BOUND"});
-    cases.push(CorpusCase { server_only: true, certification_rewrite: None, corpus_version: CORPUS_VERSION,
+    cases.push(CorpusCase { predict_delivery: false, server_only: true, certification_rewrite: None, corpus_version: CORPUS_VERSION,
         name: name.into(), category: "scenario".into(), random_seed: None, schema, program, certificate: None,
         context: mutation_context([], [] as [&str; 0]), receipt: ClosureReceipt::default(), prelude: vec![], replacement_receipt: None,
-        expected: Expected { error_reason: Some("deliver".into()), local_result: None, error_code: Some("E_BOUND".into()), local_state: "certification-refused".into(),
+        expected: Expected { delivery_writes: None, error_reason: Some("deliver".into()), local_result: None, error_code: Some("E_BOUND".into()), local_state: "certification-refused".into(),
             partial_sites: vec![], canonical_result: serde_json::to_string(&envelope).unwrap(), digest: digest(&envelope), range_stops: BTreeMap::new(), evicted_rows: None, next: None } });
 }

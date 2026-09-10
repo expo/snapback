@@ -2,7 +2,25 @@
 // metadata read proves body receipt. Both identities must be disclosed here.
 import { collectRefs, rowKey } from './store/row-values.js';
 import type { DeliveryEnvelopeV1 } from './offline-protocol.js';
-export interface DeliveryAcknowledgement { op: string; event: string; seq: number; rows: string[]; intent?: string }
+import type { PersistedRangeState, StoreSwap } from './store/range-store.js';
+export interface DeliveryAcknowledgement { op: string; event: string; seq: number; rows: string[]; intent?: string; retry?: true }
+
+export function applyDeliveryAcknowledgements(state: PersistedRangeState, swap: StoreSwap): void {
+  for (const [key, ack] of Object.entries(swap.deliveryAcks ?? {})) {
+    const old = state.deliveryAcks[key];
+    if (((!old || (old.retry && !ack.intent)) && ack.rows.every(key => state.rows[key] !== undefined))
+      || (old && !old.intent && ack.intent)) state.deliveryAcks[key] = structuredClone(ack);
+  }
+  // A failed settlement cannot retry itself. Only a subsequent accepted page
+  // clears its binding; the flag survives dismissal of the terminal entry.
+  for (const entry of swap.outbox?.put ?? []) if (entry.state === 'rejected' || entry.state === 'expired') {
+    for (const [key, ack] of Object.entries(state.deliveryAcks)) if (ack.intent === entry.intent) {
+      state.deliveryAcks[key] = { ...ack, retry: true };
+      // Admission needs a fresh grant; retain the old record for queued writes.
+      if (state.currentGrant === entry.grant) delete state.currentGrant;
+    }
+  }
+}
 export function deliveryAcknowledgements(schema: any, envelope: DeliveryEnvelopeV1): Record<string, DeliveryAcknowledgement> {
   const acks: Record<string, DeliveryAcknowledgement> = {};
   if (envelope.state === 'denied') return acks;

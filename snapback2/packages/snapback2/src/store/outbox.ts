@@ -203,12 +203,16 @@ export class OutboxLedger {
 
   /** The same admission checks enqueue applies, without consuming a slice. */
   async status(op?: string): Promise<OutboxStatus> {
+    const pending = await this.pendingAcknowledgements();
+    op ??= pending[0]?.[1].op;
     const grant = await this.grant();
     const bound = op === undefined ? 0 : (await this.store.outbox.bounds())[op];
     const reason = !grant ? "grant-missing" : this.expired(grant) ? "grant-expired"
       : bound === undefined ? "program-missing" : grant.used + 1 + bound > grant.count ? "ids-exhausted" : "ready";
     return { ready: reason === "ready", reason, action: reason === "ready" ? "none" : "connect",
-      remaining: (await this.queued()).length, fence: await this.fence() };
+      remaining: (await this.queued()).length + Object.values(pending.reduce<Record<string, number>>((counts, [, ack]) => {
+        counts[ack.op] = (counts[ack.op] ?? 0) + 1; return counts;
+      }, {})).reduce((total, count) => total + Math.ceil(count / 50), 0), fence: await this.fence() };
   }
 
   // @ref LLP 1012#7-writes-offline — the fence bounds trust, never custody: a
@@ -280,11 +284,23 @@ export class OutboxLedger {
     return this.write(() => this.enqueueNow(input, predict, beforeCommit));
   }
 
-  /** Pending page acknowledgements consume ordinary FIFO slices; each admission
-   * marks its event identities in the same transaction as its intent. */
+  async pendingAcknowledgements() {
+    let acks: Record<string, import("../delivery-acknowledgements.js").DeliveryAcknowledgement> | undefined;
+    try {
+      acks = await this.store.outbox.deliveryAcks?.();
+    } catch (error) {
+      // A store closed by logout, reset, or close has nothing pending to admit; the
+      // status read that races that lifecycle reports none rather than failing it.
+      if (error instanceof Error && /not open/.test(error.message)) return [];
+      throw error;
+    }
+    return Object.entries(acks ?? {}).filter(([, ack]) => !ack.intent);
+  }
+
+  /** Page acknowledgement admission shares the ordinary FIFO write lock. */
   admitAcknowledgements(): Promise<number> {
     return this.write(async () => {
-      const pending = Object.entries(await this.store.outbox.deliveryAcks?.() ?? {}).filter(([, ack]) => !ack.intent);
+      const pending = await this.pendingAcknowledgements();
       let admitted = 0;
       while (pending.length) {
         const op = pending[0]![1].op;
@@ -293,7 +309,7 @@ export class OutboxLedger {
           await this.enqueueNow({ op, args: { events: batch.map(([, ack]) => ack.event) },
             issuedSeq: Math.max(...batch.map(([, ack]) => ack.seq)) }, undefined, undefined,
             entry => ({ deliveryAcks: Object.fromEntries(batch.map(([key, ack]) => [key, { ...ack, intent: entry.intent }])) }));
-        } catch (error) { if (error instanceof OutboxRefusal) break; throw error; }
+        } catch (error) { if (!(error instanceof OutboxRefusal)) throw error; this.notify(); break; }
         admitted += batch.length;
         for (const item of batch) pending.splice(pending.indexOf(item), 1);
       }

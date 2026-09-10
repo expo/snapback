@@ -750,6 +750,7 @@ fn refused(name: &str, schema: Schema, program: Program, code: &str, reason: &st
     );
     let envelope = json!({"Error": code});
     CorpusCase {
+        predict_delivery: false,
         server_only: true,
         certification_rewrite: None,
         corpus_version: CORPUS_VERSION,
@@ -764,6 +765,7 @@ fn refused(name: &str, schema: Schema, program: Program, code: &str, reason: &st
         prelude: vec![],
         replacement_receipt: None,
         expected: Expected {
+            delivery_writes: None,
             error_reason: Some(reason.into()),
             local_result: None,
             error_code: Some(code.into()),

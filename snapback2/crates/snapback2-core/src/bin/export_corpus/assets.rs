@@ -744,6 +744,7 @@ fn certification_refusal_case(
     );
     let envelope = serde_json::json!({ "Error": error_code });
     CorpusCase {
+        predict_delivery: false,
         server_only: false,
         certification_rewrite: None,
         corpus_version: CORPUS_VERSION,
@@ -758,6 +759,7 @@ fn certification_refusal_case(
         prelude: Vec::new(),
         replacement_receipt: None,
         expected: Expected {
+            delivery_writes: None,
             error_reason: None,
             local_result: None,
             error_code: Some(error_code.to_owned()),

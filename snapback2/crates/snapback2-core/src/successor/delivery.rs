@@ -111,7 +111,29 @@ pub(super) fn bootstrap_refusal(
         let rows = row_count(connection, content)?;
         estimates.push((content, deliver, cap, rows, u64::from(cap) * rows));
     }
-    let total = estimates.iter().map(|estimate| estimate.4).sum::<u64>();
+    // @ref LLP 1019#6-receipts-with-receipts — receipt backfill shares the
+    // installation budget and counts every retained log row it must inspect.
+    let receipts = delivery::declarations(next).filter(|(content, _, d)| installed(current, content, d)
+        && d.receipts && !current.tables[*content].deliver.as_ref().unwrap().receipts)
+        .map(|(content, _, d)| Ok((content, d, row_count(connection, &d.log)?)))
+        .collect::<Result<Vec<_>, RuntimeError>>()?;
+    let total = estimates.iter().map(|estimate| estimate.4).chain(receipts.iter().map(|(_, _, rows)| *rows))
+        .fold(0u64, u64::saturating_add);
+    if !receipts.is_empty() && total > bootstrap_bound() {
+        let details = receipts.iter().map(|(_, d, rows)| format!("{}: {rows} retained log rows", d.log))
+            .chain(estimates.iter().map(|(content, d, cap, rows, events)| format!("{}: cap {cap} × {rows} {content} rows = {events} bootstrap events", d.log)))
+            .collect::<Vec<_>>().join("; ");
+        let lines = receipts.iter().map(|(_, d, _)| { let mut d = (*d).clone(); d.receipts = false; d.line(Some(&d.principal)) })
+            .chain(estimates.iter().map(|(_, d, ..)| { let mut d = (*d).clone(); d.bootstrap = false; d.line(Some(&d.principal)) }))
+            .collect::<Vec<_>>().join("; ");
+        return Ok(Some(SuccessorRefusal {
+            from: String::new(), to: String::new(), code: "E_SUCCESSOR_BOOTSTRAP".into(),
+            message: format!("receipt backfill and bootstrap require {total} log rows/events ({details}), above the installation bound of {}", bootstrap_bound()),
+            rewrite: format!("keep existing custody without receipt backfill and install new logs empty: {lines}"),
+            site: Some(format!("schema.tables.{}.deliver", receipts[0].0)),
+            plan: MigrationPlan::default(), conflicts: Vec::new(), cap_conflicts: Vec::new(), narrowings: Vec::new(),
+        }));
+    }
     if estimates.is_empty() || total <= bootstrap_bound() {
         return Ok(None);
     }
@@ -206,8 +228,7 @@ pub(super) fn bootstrap(
             && !current.tables[content].deliver.as_ref().unwrap().receipts {
             let table = deliver.receipts_table().unwrap();
             let mut count = 0;
-            // Adding receipt state does not reconstruct the audience: reuse
-            // the retained log, in the installer's existing bounded row batches.
+            // Admission bounds this scan together with new bootstrapped events.
             for_row_batches(transaction, &deliver.log, |event| {
                 if event.field("kind")?.as_str()? != "delivered" { return Ok(()); }
                 use rusqlite::OptionalExtension;

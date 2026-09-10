@@ -1,5 +1,175 @@
 use super::*;
 
+fn counted_receipts(cap: u32) -> Schema {
+    let mut d = deliver(false); d.receipts = true;
+    let mut s = schema(cap, Some(d));
+    s.tables.insert("receiptCounts".into(), table(
+        &[("id", ColumnType::Id), ("row", reference("messages")), ("value", ColumnType::Int)],
+        &[("byId", &["id"], true), ("byRow", &["row"], true)],
+    ));
+    s.maintains.push(Maintain { source: "deliveriesReceipts".into(), target: "receiptCounts".into(),
+        by: vec!["row".into()], kind: MaintainKind::Count, readable: None });
+    s
+}
+
+#[test]
+fn retained_receipt_upserts_price_twice_the_audience_and_commit_update_and_job() {
+    let edit = |key, text: &str| Stmt::Update { table: "messages".into(), key,
+        patch: Expr::Literal(object([("body", Value::String(text.into()))])) };
+    let job = Program { name: "editAll".into(), kind: ProgramKind::Job, args: BTreeMap::new(), read_time_granularity_ms: None,
+        body: vec![Stmt::For { binding: "message".into(), domain: LoopDomain::Page(Scan {
+            site: "sweep".into(), table: "messages".into(), index: "byId".into(), prefix: vec![], take: Bound::Literal(1),
+            order: Order::Asc, after: None, before: None, range: None, opaque_cursor: false, merge_site: None, provenance: KeyProvenance::Const }),
+            body: vec![edit(Expr::Field { base: Box::new(Expr::Variable("message".into())), name: "id".into() }, "job")] }] };
+    let make = |cap| Generation::certify(&project(counted_receipts(cap), vec![job.clone()]), Ceilings::default()).unwrap();
+    let mut rt = Runtime::open(Store::memory().unwrap(), make(10)).unwrap();
+    let mut seeds: Vec<_> = (0..10).map(|n| member(&format!("p{n}"), "c1", &format!("p{n}"))).collect();
+    seeds.push(message("m", "c1")); rt.seed(&seeds).unwrap();
+    let update = Program { name: "edit".into(), kind: ProgramKind::Mutation, args: BTreeMap::new(), read_time_granularity_ms: None,
+        body: vec![edit(Expr::Literal(id("m")), "update")] };
+    let remove = Program { body: (3..10).map(|n| Stmt::Delete { table: "memberships".into(), key: Expr::Literal(id(&format!("p{n}"))) }).collect(), ..update.clone() };
+    rt.execute_adhoc_operator(&remove, BTreeMap::new(), OperatorId("test".into()), || 1).unwrap();
+    rt.apply_successor(make(3)).unwrap();
+    let c = rt.certify_operator_program(&update).unwrap().with_delivery_audiences(&counted_receipts(3),
+        &BTreeMap::from([("deliveries".into(), 10)]), &Ceilings::default()).unwrap();
+    assert_eq!(c.maintained_writes["receiptCounts"], 20, "10 receipt upserts × 2 applications");
+    assert_eq!(c.maintained_amplification, 20);
+    assert!(c.write_sites.iter().any(|w| w.table == "deliveriesReceipts" && w.kind == WriteKind::Upsert && w.max_rows == 10));
+    let result = rt.execute_adhoc_operator(&update, BTreeMap::new(), OperatorId("test".into()), || 2).unwrap();
+    assert!(matches!(result.state, ExecutionState::Committed { .. }), "{result:?}");
+    assert_eq!(rows_of(&mut rt, "messages")[0].field("body").unwrap(), &Value::String("update".into()));
+    let portable = rt.certify_operator_program(&job).unwrap();
+    let plan = rt.plan_job(&job, &portable, &BTreeMap::new()).unwrap();
+    assert_eq!(plan["sweeps"][0]["ceilings"]["maintained_writes"]["receiptCounts"], 20);
+    let id = rt.enqueue_job("editAll", BTreeMap::new(), OperatorId("test".into())).unwrap();
+    let chunk = rt.run_chunk(&id).unwrap();
+    assert!(matches!(chunk.execution.unwrap().state, ExecutionState::Committed { .. }));
+    assert_eq!(rows_of(&mut rt, "messages")[0].field("body").unwrap(), &Value::String("job".into()));
+    assert_eq!(rows_of(&mut rt, "receiptCounts")[0].field("value").unwrap(), &Value::Int(10));
+    assert_eq!(rows_of(&mut rt, "deliveries").len(), 30);
+}
+
+#[test]
+fn initial_receipt_maintain_final_exists_is_priced_and_commits() {
+    let mut s = counted_receipts(3);
+    s.tables.get_mut("receiptCounts").unwrap().constraints.push(Constraint::FinalExistsOnInsert {
+        table: "messages".into(), index: "byId".into(), key: vec![RuleTerm::Field("row".into())],
+    });
+    let mut e = Engine::memory(s.clone()).unwrap();
+    let (t, r) = member("a", "c1", "alice"); e.seed(&t, r).unwrap();
+    let p = Program { name: "insert".into(), kind: ProgramKind::Mutation, args: BTreeMap::new(), read_time_granularity_ms: None,
+        body: vec![Stmt::Insert { table: "messages".into(), row: Expr::Literal(message("m", "c1").1) }] };
+    let c = Checker::new(&s, Ceilings::default()).check(&p).unwrap();
+    let result = e.execute(&p, &c, Context::mutation(Actor::user("alice").unwrap(), BTreeMap::new())).unwrap();
+    assert!(matches!(result.state, ExecutionState::Committed { .. }), "{result:?}");
+    assert_eq!(c.max_rule_probes, 8, "4 reserved receipt upserts × 2 final probes");
+    assert_eq!(result.trace.rule_probes, 1);
+    assert_eq!(e.rows("receiptCounts").unwrap()[0].field("value").unwrap(), &Value::Int(1));
+}
+
+#[test]
+fn receipt_and_acknowledgement_checks_are_declared_only_on_their_runtime_sites() {
+    let (s, d) = receipt_schema();
+    let mut e = Engine::memory(s.clone()).unwrap();
+    let (table, row) = member("a", "c1", "alice"); e.seed(&table, row).unwrap();
+    for stmt in [Stmt::Insert { table: "messages".into(), row: Expr::Literal(message("m", "c1").1) },
+        Stmt::Update { table: "messages".into(), key: Expr::Literal(id("m")), patch: Expr::Literal(object([("body", Value::String("edited".into()))])) }] {
+        let p = Program { name: "write".into(), kind: ProgramKind::Mutation, args: BTreeMap::new(), read_time_granularity_ms: None, body: vec![stmt] };
+        let c = Checker::new(&s, Ceilings::default()).check(&p).unwrap();
+        assert!(c.constraint_checks.iter().any(|c| c == "deliveriesReceipts:DeliveryReceipt"));
+        assert!(!c.constraint_checks.iter().any(|c| c.ends_with(":DeliveryAcknowledgement")), "{c:?}");
+        let result = e.execute(&p, &c, Context::mutation(Actor::user("alice").unwrap(), BTreeMap::new())).unwrap();
+        assert!(result.trace.constraint_inputs.iter().any(|p| p.check == "DeliveryReceipt"));
+    }
+    let p = delivery::ack_program("messages", &d);
+    let c = Checker::new(&s, Ceilings::default()).check(&p).unwrap();
+    assert!(c.constraint_checks.iter().any(|c| c == "memberships:DeliveryAcknowledgement"));
+    assert!(!c.constraint_checks.iter().any(|c| c.ends_with(":DeliveryReceipt")));
+    let event = e.rows("deliveries").unwrap()[0].field("id").unwrap().clone();
+    let result = execute_as(&mut e, &p, "alice", BTreeMap::from([("events".into(), Value::Array(vec![event]))]));
+    assert!(result.trace.constraint_inputs.iter().any(|p| p.check == "DeliveryAcknowledgement"));
+}
+
+#[test]
+fn receipt_backfill_admits_the_installation_bound_and_refuses_more_log_work() {
+    for over in [true, false] {
+        let mut rt = Runtime::open(Store::memory().unwrap(), generation(schema(32, Some(deliver(false))))).unwrap();
+        rt.seed(&(0..32).map(|n| member(&format!("p{n}"), "c1", &format!("p{n}"))).collect::<Vec<_>>()).unwrap();
+        for n in 0..256 { rt.seed(&[message(&format!("m{n}"), "c1")]).unwrap(); }
+        if over {
+            let edit = Program { name: "edit".into(), kind: ProgramKind::Mutation, args: BTreeMap::new(), read_time_granularity_ms: None,
+                body: vec![Stmt::Update { table: "messages".into(), key: Expr::Literal(id("m0")), patch: Expr::Literal(object([("body", Value::String("edited".into()))])) }] };
+            rt.execute_adhoc_operator(&edit, BTreeMap::new(), OperatorId("test".into()), || 1).unwrap();
+        }
+        let mut d = deliver(false); d.receipts = true;
+        let result = rt.apply_successor(generation(schema(32, Some(d))));
+        if over {
+            let error = result.unwrap_err();
+            assert_eq!(error.code, "E_SUCCESSOR_BOOTSTRAP");
+            assert!(error.message.contains("8224"), "{error:?}");
+            assert_eq!(error.site.as_deref(), Some("schema.tables.messages.deliver"));
+            assert!(!error.rewrite.contains("with receipts"));
+            assert_eq!(rt.store().index_entry_count("deliveriesReceipts", "byId", &[]).unwrap(), 0);
+            assert_eq!(rt.store().index_entry_count("deliveries", "byId", &[]).unwrap(), 8224);
+        } else {
+            let report = result.unwrap();
+            assert!(report.bootstrapped_deliveries.iter().any(|line| line.contains("8192 unacknowledged")));
+            assert_eq!(rt.store().index_entry_count("deliveriesReceipts", "byId", &[]).unwrap(), 8192);
+        }
+    }
+}
+
+#[test]
+fn retained_receipt_specialization_scales_final_probes_search_work_and_timers() {
+    use snapback2_core::{search_key::{IndexComponent, SearchContract}, timers::{Schedule, Trigger}};
+    let make = |cap| {
+        let mut s = counted_receipts(cap);
+        let messages = s.tables.get_mut("messages").unwrap();
+        messages.columns.insert("at".into(), ColumnType::Optional(Box::new(ColumnType::Time)));
+        messages.columns.insert("body".into(), ColumnType::Text { max: 20 });
+        messages.rules.read = RuleExpr::And(vec![
+            RuleExpr::Eq(RuleTerm::Field("body".into()), RuleTerm::Literal(Value::String("hello".into()))),
+            RuleExpr::Eq(RuleTerm::Field("at".into()), RuleTerm::Literal(Value::Int(1))),
+        ]);
+        let d = s.tables["messages"].deliver.clone().unwrap();
+        s.tables.insert("deliveriesReceipts".into(), delivery::receipts_table(&s, "messages", &d).unwrap());
+        let mut terms = table(&[("id", ColumnType::Id), ("row", reference("messages")), ("body", ColumnType::Text { max: 20 }),
+            ("at", ColumnType::Optional(Box::new(ColumnType::Time))), ("value", ColumnType::Int)],
+            &[("byId", &["id"], true), ("byGroup", &["row", "body", "at"], true)]);
+        terms.indexes.insert("bySearch".into(), Index { unique: false, components: vec![
+            IndexComponent::WordPrefixes { fields: vec!["body".into()], contract: SearchContract::Unicode17 }, IndexComponent::Column("id".into())] });
+        terms.constraints.push(Constraint::FinalExistsOnInsert { table: "messages".into(), index: "byId".into(), key: vec![RuleTerm::Field("row".into())] });
+        s.tables.insert("terms".into(), terms);
+        s.maintains.push(Maintain { source: "deliveriesReceipts".into(), target: "terms".into(), by: vec!["row".into(), "body".into(), "at".into()], kind: MaintainKind::Count, readable: None });
+        s.schedules.push(Schedule { name: "expire".into(), trigger: Trigger::Row { table: "terms".into(), column: "at".into() },
+            binding: "binding".into(), target: "noop".into(), site: "schedule".into() });
+        s
+    };
+    let p = Program { name: "edit".into(), kind: ProgramKind::Mutation, args: BTreeMap::new(), read_time_granularity_ms: None,
+        body: vec![Stmt::Update { table: "messages".into(), key: Expr::Literal(id("m")), patch: Expr::Literal(object([("body", Value::String("edit".into()))])) }] };
+    let s = make(3);
+    let noop = Program { name: "noop".into(), body: vec![Stmt::Return(Expr::Literal(Value::Null))], ..p.clone() };
+    let binding = Program { name: "binding".into(), kind: ProgramKind::Query,
+        args: BTreeMap::from([("id".into(), ArgType::Ref { table: "terms".into() })]),
+        body: vec![Stmt::Return(Expr::Object(BTreeMap::from([
+            ("enabled".into(), Expr::Literal(Value::Bool(true))), ("args".into(), Expr::Object(BTreeMap::new())),
+        ])))], ..p.clone() };
+    Generation::certify(&project(s.clone(), vec![p.clone(), noop, binding]), Ceilings::default()).unwrap();
+    let portable = Checker::new(&s, Ceilings::default()).check(&p).unwrap();
+    let specialized = portable.with_delivery_audiences(&s, &BTreeMap::from([("deliveries".into(), 10)]), &Ceilings::default()).unwrap();
+    let independent = Checker::new(&make(10), Ceilings::default()).check(&p).unwrap();
+    assert_eq!(specialized.maintained_amplification, 40, "two targets × 10 upserts × 2 applications");
+    assert_eq!(specialized.max_rule_probes, 20);
+    assert!(specialized.write_sites.iter().any(|w| w.table == "_timers" && w.max_rows == 20));
+    assert!(independent.derived_steps > 0);
+    assert_eq!(specialized.derived_steps, independent.derived_steps);
+    assert_eq!(specialized.derived_scratch_bytes, independent.derived_scratch_bytes);
+    assert_eq!(specialized.max_steps, independent.max_steps);
+    assert_eq!(specialized.max_heap_bytes, independent.max_heap_bytes);
+    assert_eq!(specialized.max_examined, independent.max_examined);
+    assert_eq!(specialized.max_index_entries, independent.max_index_entries);
+}
+
 #[test]
 fn maintained_content_refuses_deliver_at_admission() {
     let mut s = schema(3, Some(deliver(false)));
