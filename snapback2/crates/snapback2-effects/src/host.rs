@@ -1,5 +1,6 @@
 use serde_json::Value;
 use snapback2_core::EffectDecl;
+use std::collections::BTreeMap;
 use std::time::Duration;
 
 /// One durable outbox job after the writer atomically claims it.
@@ -12,6 +13,13 @@ pub struct EffectJob {
     pub attempt: u32,
     /// The project generation atomically bound by this claim.
     pub generation: Option<String>,
+    /// `Some` only in a `test` owner: the provider bindings of the journey
+    /// epoch this row was emitted in, logical origin → loopback origin. Every
+    /// fetch is admitted on its logical origin first (the grant), then routed
+    /// through this table; an origin absent from it is `E_EFFECT_UNBOUND` and
+    /// reaches no transport. `None` is production transport.
+    // @ref LLP 1021#3-a-provider-stand-in-and-nothing-else-answers — bindings belong to one journey epoch; a row from an earlier epoch carries an empty table, never a later journey's.
+    pub bindings: Option<BTreeMap<String, String>>,
 }
 
 /// A console record attributed to the job that produced it.
@@ -104,6 +112,7 @@ mod tests {
             payload: Value::Null,
             attempt: 1,
             generation: Some("generation-1".to_owned()),
+            bindings: None,
         }
     }
 

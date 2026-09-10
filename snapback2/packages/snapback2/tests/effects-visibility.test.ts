@@ -96,6 +96,79 @@ test("a scaffolded chat exposes queued effects, transition logs, and trace histo
   }
 });
 
+// LLP 1021 §3: provider bindings are journeys-only. A dev owner refuses the epoch and bind routes with the rewrite.
+test("a dev owner refuses provider bindings, and E_EFFECT_UNBOUND is a registered effect-family card", { timeout: 30_000 }, async () => {
+  const owner = spawn(binary, ["dev", "--foreground", "--port", "0", "--json"], { env, cwd: root, stdio: ["ignore", "pipe", "pipe"] });
+  try {
+    let stdout = "", stderr = "";
+    owner.stdout!.on("data", chunk => { stdout += chunk; });
+    owner.stderr!.on("data", chunk => { stderr += chunk; });
+    let info: any;
+    for (let i = 0; i < 2000; i++) {
+      if (stdout.includes("\n")) { info = JSON.parse(await readFile(join(root, ".snapback/owner.json"), "utf8")); break; }
+      if (owner.exitCode !== null) throw new Error(stdout + stderr);
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+    assert.ok(info, stderr);
+    const post = async (path: string, body: any) => {
+      const response = await fetch(info.url + path, { method: "POST", headers: { "x-snapback-control": info.secret, "content-type": "application/json" }, body: JSON.stringify(body) });
+      return { status: response.status, body: await response.json() };
+    };
+    for (const [path, body] of [
+      ["/control/effects/epoch", { epoch: "j1" }],
+      ["/control/effects/bind", { origin: "https://api.example.com", to: "http://127.0.0.1:1", epoch: "j1" }],
+    ] as const) {
+      const refused = await post(path, body);
+      assert.equal(refused.status, 400, JSON.stringify(refused));
+      assert.equal(refused.body.code, "E_INPUT");
+      assert.match(refused.body.message, /journey epoch; this owner serves dev/);
+      assert.match(refused.body.rewrite, /effects\.provider\(origin, handler\) in a journey and run snapback2 test/);
+    }
+    const malformed = await post("/control/effects/bind", { origin: "https://api.example.com" });
+    assert.equal(malformed.status, 400);
+    assert.match(malformed.body.message, /bind requires origin, to, and epoch/);
+    await post("/control/stop", {});
+    await new Promise<void>(resolve => owner.exitCode !== null ? resolve() : owner.once("exit", () => resolve()));
+  } finally {
+    if (owner.exitCode === null) {
+      owner.kill("SIGKILL");
+      await new Promise(resolve => owner.once("exit", resolve));
+    }
+  }
+  const card = cli(["guide", "E_EFFECT_UNBOUND", "--json"]);
+  assert.equal(card.status, 0, card.stdout + card.stderr);
+  const content = String(JSON.parse(card.stdout).content);
+  assert.match(content, /# E_EFFECT_UNBOUND/);
+  assert.match(content, /Family: `effect`/);
+  assert.match(content, /effects\.provider\("https:\/\/api\.example\.com", async \(\) => Response\.json/);
+});
+
+// LLP 1021 §4: without an engine the effects check blocks with `detail.build`, the template's provider
+// journey is `blocked: effects:no-engine` (its binding was accepted by the test owner), and nothing fails.
+test("the engine-less receipt blocks exactly on engine absence: the effects check names the build and the provider journey is blocked, not failed", { timeout: 120_000 }, async () => {
+  const receiptRun = cli(["test", "--json"], 120_000);
+  const receipt = JSON.parse(receiptRun.stdout);
+  assert.equal(receipt.verdict, "blocked", receiptRun.stdout + receiptRun.stderr);
+  const effects = receipt.checks.find((check: any) => check.name === "effects");
+  assert.equal(effects?.verdict, "blocked", JSON.stringify(effects));
+  assert.equal(effects?.detail.reason, "no engine in this build");
+  assert.equal(effects?.detail.build, "scripts/hermes build -p snapback2");
+  assert.deepEqual(effects?.detail.declarations, ["delivery.notify"]);
+  const provider = receipt.checks.find((check: any) => check.name === "a sent message notifies the recipient");
+  assert.equal(provider?.verdict, "blocked", JSON.stringify(provider));
+  assert.equal(provider?.detail.reason, "effects:no-engine");
+  assert.match(provider?.detail.journey.error, /^unsettled: \[\{"id":"[^"]+","reason":"engine:none"\}/, JSON.stringify(provider));
+  // Witnesses come from the journeys: the check is recorded after them.
+  const names = receipt.checks.map((check: any) => check.name);
+  assert.ok(names.indexOf("effects") > names.indexOf("a sent message notifies the recipient"), names.join(", "));
+  assert.equal(receipt.checks.some((check: any) => check.verdict === "fail"), false, receiptRun.stdout);
+  // The scaffold also carries this file's "effect engine absence" journey, blocked for the same reason.
+  assert.deepEqual(
+    receipt.checks.filter((check: any) => check.verdict === "blocked").map((check: any) => check.name),
+    ["a sent message notifies the recipient", "effect engine absence", "effects"],
+  );
+});
+
 // A full `snapback2 test` compiles and boots its own owner: its budget is its own, not the package phase's.
 test("a journey that throws on an engine:none settle is recorded blocked: effects:no-engine, not fail", { timeout: 60_000 }, async () => {
   const receiptRun = cli(["test", "--journey", "effect engine absence", "--json"], 60_000);

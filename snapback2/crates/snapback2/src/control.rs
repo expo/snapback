@@ -130,6 +130,35 @@ pub fn route(
         ("POST", "/control/effects/settle") => {
             settle_effects(&context.handle, &body).map_err(|e| (400, e))
         }
+        // @ref LLP 1021#3-a-provider-stand-in-and-nothing-else-answers — the supervisor opens and closes epochs; journeys bind inside one; a dev owner refuses both.
+        ("POST", "/control/effects/epoch") => match body.get("epoch") {
+            None | Some(Json::Null) => call(Action::EffectsEpoch { epoch: None }),
+            Some(Json::String(epoch)) => call(Action::EffectsEpoch {
+                epoch: Some(epoch.clone()),
+            }),
+            Some(_) => Err((
+                400,
+                Refusal::input(
+                    "epoch must be a string or null",
+                    "POST { epoch: token } to open a journey epoch, { epoch: null } to close it",
+                ),
+            )),
+        },
+        ("POST", "/control/effects/bind") => {
+            let field = |key: &str| body.get(key).and_then(Json::as_str).map(str::to_owned);
+            match (field("origin"), field("to"), field("epoch")) {
+                (Some(origin), Some(to), Some(epoch)) => {
+                    call(Action::EffectsBind { origin, to, epoch })
+                }
+                _ => Err((
+                    400,
+                    Refusal::input(
+                        "bind requires origin, to, and epoch strings",
+                        "POST /control/effects/bind { origin, to, epoch }",
+                    ),
+                )),
+            }
+        }
         ("GET", "/control/timers") => call(Action::Timers),
         ("GET", "/control/jobs") => call(Action::Jobs),
         // `control_run::route` already refused any disagreeing flag; `mode: "plan"` and
@@ -387,25 +416,28 @@ pub(crate) fn settle_effects(handle: &OwnerHandle, body: &Json) -> Result<Json, 
     Ok(json!({"settled":remaining.is_empty(),"rows":rows,"remaining":remaining}))
 }
 
-/// Whether any row ≤ `up_to` could still settle before `deadline`. Pages only
-/// the states the decision needs and stops at the first such row.
+/// Whether any row ≤ `up_to` could still settle before `deadline`: in flight
+/// (`running`, `then_pending`), due with an engine, or in a backoff that ends
+/// inside the budget. One ordered scan over every state, a page per writer
+/// call, stopping at the first such row. Per-state reads are not an option:
+/// a row the runner claims between a `running` read and a `queued` read is
+/// seen by neither, and the wait would end with the row in flight.
 fn settling_work(handle: &OwnerHandle, up_to: u64, deadline: Instant) -> Result<bool, Refusal> {
-    for state in ["then_pending", "running"] {
-        if !page_rows(&outbox_page(handle, Some(state), None, up_to, 1)?)?.is_empty() {
-            return Ok(true);
-        }
-    }
     let mut after = None;
     loop {
-        let page = outbox_page(handle, Some("queued"), after, up_to, 200)?;
+        let page = outbox_page(handle, None, after, up_to, 200)?;
         let now = page["now"].as_i64().unwrap_or(0);
         let engine = page["engine"].as_str().unwrap_or("none");
-        let left = deadline.saturating_duration_since(Instant::now()).as_millis() as i64;
+        let left = deadline
+            .saturating_duration_since(Instant::now())
+            .as_millis() as i64;
         for row in page_rows(&page)? {
             let reason = remaining_reason(row, engine, now);
             let reason = reason.as_ref().and_then(|reason| reason["reason"].as_str());
             let due_in_budget = row["nextAt"].as_i64().is_some_and(|at| at - now <= left);
-            if reason == Some("budget") || (reason == Some("backoff") && due_in_budget) {
+            if matches!(reason, Some("running" | "then_pending" | "budget"))
+                || (reason == Some("backoff") && due_in_budget)
+            {
                 return Ok(true);
             }
         }

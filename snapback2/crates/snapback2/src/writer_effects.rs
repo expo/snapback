@@ -555,6 +555,39 @@ mod tests {
         std::fs::remove_dir_all(&state.root).unwrap();
     }
 
+    // @ref LLP 1021#2-journeys-see-and-settle-the-outbox — a claimed row is in flight; `settle` waits for it to the budget, never reports it at once.
+    #[test]
+    fn settlement_waits_for_a_running_row_to_the_budget() {
+        let mut state = effect_state();
+        state.handle(Action::OutboxClaim { now: 1 }).unwrap();
+        let root = state.root.clone();
+        let (wake, _wakes) = mpsc::sync_channel(1);
+        state.effects_wake = Some(wake);
+        let (tx, rx) = mpsc::channel();
+        let handle = OwnerHandle { tx };
+        let writer = thread::spawn(move || run_writer(state, rx));
+        let started = Instant::now();
+        let response =
+            crate::control::settle_effects(&handle, &json!({"upTo":1,"budgetMs":400})).unwrap();
+        let elapsed = started.elapsed();
+        assert_eq!(
+            response["remaining"],
+            json!([{"id":"one","reason":"running"}]),
+            "{response}"
+        );
+        assert!(
+            elapsed >= Duration::from_millis(400),
+            "returned at {elapsed:?} with a row still running"
+        );
+        handle
+            .call(Action::Stop {
+                cause: "running wait test complete".into(),
+            })
+            .unwrap();
+        writer.join().unwrap();
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
     #[test]
     fn settlement_budget_waits_off_writer_and_pending_then_is_not_settled() {
         let mut state = effect_state();

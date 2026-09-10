@@ -29,6 +29,8 @@ mod test_authority;
 mod test_authority_ir;
 #[path = "test_bounds.rs"]
 mod test_bounds;
+#[path = "test_effects.rs"]
+mod test_effects;
 #[path = "test_invalidation.rs"]
 mod test_invalidation;
 #[path = "test_policy.rs"]
@@ -188,16 +190,19 @@ pub fn run(args: &[String]) -> ExitCode {
         checks.push(test_invalidation::check(&isolated.info, &compiled, &seed));
         checks.push(check_replay(&isolated.info, &compiled, &seed));
         checks.extend(test_authority::checks(&isolated.info, &compiled, &seed));
-        if let Some(effects) = check_effects(&isolated.info, &compiled) {
-            checks.push(effects);
-        }
     }
+    let mut windows = Vec::new();
     if !derived_only {
-        checks.extend(run_journeys(
-            &isolated.info.project,
-            &isolated.info,
-            selected_journey,
-        ));
+        let (journeys, ran) =
+            run_journeys(&isolated.info.project, &isolated.info, selected_journey);
+        checks.extend(journeys);
+        windows = ran;
+    }
+    // Witnesses come from the journeys, so the effects check reads the outbox after them.
+    if !journeys_only
+        && let Some(effects) = test_effects::check_effects(&isolated.info, &compiled, &windows)
+    {
+        checks.push(effects);
     }
     let mut receipt = TestReceipt::new(compiled.generation.hash(), commands, checks);
     if !compiled.generation.schema().schedules.is_empty() {
@@ -295,6 +300,7 @@ impl IsolatedOwner {
                         project.to_str().unwrap_or_default(),
                         "--foreground",
                         "--owner-child",
+                        "--test-owner",
                         "--json",
                     ])
                     .stdin(Stdio::null())
@@ -690,60 +696,43 @@ fn replay_fork(
         })
 }
 
-fn check_effects(owner: &OwnerInfo, compiled: &CompiledProject) -> Option<CheckReceipt> {
-    let started = Instant::now();
-    let status = client::control(owner, "GET", "/control/status", json!({}))
-        .ok()
-        .map(|response| response.body)
-        .unwrap_or_else(|| json!({}));
-    let engine = status
-        .get("effects")
-        .and_then(|effects| effects.get("engine"))
-        .and_then(Json::as_str)
-        .unwrap_or("none");
-    if compiled.generation.effects().is_empty() {
-        None
-    } else if engine == "none" {
-        Some(CheckReceipt::blocked(
-            "effects",
-            "derived",
-            elapsed_ms(started),
-            json!({ "reason": "no engine in this build", "declarations": compiled.generation.effects().keys().collect::<Vec<_>>() }),
-        ))
-    } else {
-        Some(CheckReceipt::pass(
-            "effects",
-            "derived",
-            elapsed_ms(started),
-            json!({ "engine": engine, "declarations": compiled.generation.effects().keys().collect::<Vec<_>>() }),
-        ))
-    }
-}
-
-fn run_journeys(root: &Path, owner: &OwnerInfo, selected: Option<&str>) -> Vec<CheckReceipt> {
+/// Every journey runs inside its own provider-binding epoch on the test
+/// owner; the windows say which outbox rows each journey emitted.
+fn run_journeys(
+    root: &Path,
+    owner: &OwnerInfo,
+    selected: Option<&str>,
+) -> (Vec<CheckReceipt>, Vec<test_effects::JourneyWindow>) {
+    let mut windows = Vec::new();
     let files = match journey_files(root) {
         Ok(files) => files,
         Err(error) => {
-            return vec![CheckReceipt::fail(
-                "journeys",
-                "journey",
-                0,
-                serde_json::to_value(error).unwrap_or(Json::Null),
-            )];
+            return (
+                vec![CheckReceipt::fail(
+                    "journeys",
+                    "journey",
+                    0,
+                    serde_json::to_value(error).unwrap_or(Json::Null),
+                )],
+                windows,
+            );
         }
     };
     if files.is_empty() && selected.is_none() {
-        return Vec::new();
+        return (Vec::new(), windows);
     }
     let runner = match runner_path() {
         Ok(runner) => runner,
         Err(error) => {
-            return vec![CheckReceipt::fail(
-                "journeys",
-                "journey",
-                0,
-                serde_json::to_value(error).unwrap_or(Json::Null),
-            )];
+            return (
+                vec![CheckReceipt::fail(
+                    "journeys",
+                    "journey",
+                    0,
+                    serde_json::to_value(error).unwrap_or(Json::Null),
+                )],
+                windows,
+            );
         }
     };
     let mut checks = Vec::new();
@@ -832,13 +821,47 @@ fn run_journeys(root: &Path, owner: &OwnerInfo, selected: Option<&str>) -> Vec<C
                 continue;
             }
             matched = true;
+            // @ref LLP 1021#3-a-provider-stand-in-and-nothing-else-answers — the epoch opens before the runner and closes after it, whatever the runner did.
+            let epoch = format!(
+                "{}:{index}",
+                file.file_name()
+                    .and_then(|f| f.to_str())
+                    .unwrap_or("journeys")
+            );
+            let since = match test_effects::open_epoch(owner, &epoch) {
+                Ok(since) => since,
+                Err(error) => {
+                    checks.push(CheckReceipt::fail(
+                        &name,
+                        "journey",
+                        0,
+                        json!({ "error": "journey epoch could not be opened", "refusal": error }),
+                    ));
+                    continue;
+                }
+            };
             let mut command = journey_command(&runner, owner);
             command.arg("--journey-index").arg(index.to_string());
+            command.arg("--epoch").arg(&epoch);
             if let Some(expected) = expected_identity {
                 command.arg("--expected-journeys").arg(expected);
             }
             command.arg("--").arg(&file);
-            let output = match supervise_journey_runner(command) {
+            let supervised = supervise_journey_runner(command);
+            match test_effects::close_epoch(owner) {
+                Ok(until) => windows.push(test_effects::JourneyWindow {
+                    journey: name.clone(),
+                    since,
+                    until,
+                }),
+                Err(error) => checks.push(CheckReceipt::fail(
+                    &name,
+                    "journey",
+                    0,
+                    json!({ "error": "journey epoch could not be closed", "refusal": error }),
+                )),
+            }
+            let output = match supervised {
                 Ok(output) => output,
                 Err(error) => {
                     checks.push(CheckReceipt::fail(
@@ -896,7 +919,7 @@ fn run_journeys(root: &Path, owner: &OwnerInfo, selected: Option<&str>) -> Vec<C
                 "rewrite": "use a listed journey name, or run snapback2 test for the full suite" }),
         ));
     }
-    checks
+    (checks, windows)
 }
 
 const JOURNEY_DEADLINE: Duration = Duration::from_secs(5);

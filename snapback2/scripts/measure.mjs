@@ -586,6 +586,39 @@ function selfTest() {
     }, true),
     { accepted: true, verdict: "blocked", blocked: "effects" },
   );
+  // LLP 1021 §4: the engine-absence blocks are exactly the effects check and
+  // the journeys blocked `effects:no-engine`; any other blocked check is refused.
+  assert.deepEqual(
+    testVerdict({
+      status: 1,
+      stdout: JSON.stringify({
+        verdict: "blocked",
+        checks: [
+          { name: "certify", kind: "derived", verdict: "pass" },
+          { name: "effects", kind: "derived", verdict: "blocked", detail: { reason: "no engine in this build", build: "scripts/hermes build -p snapback2" } },
+          { name: "a sent message notifies the recipient", kind: "journey", verdict: "blocked", detail: { reason: "effects:no-engine", journey: { error: "unsettled" } } },
+        ],
+      }),
+    }, true),
+    { accepted: true, verdict: "blocked", blocked: "effects, a sent message notifies the recipient" },
+  );
+  assert.equal(testVerdict({
+    status: 1,
+    stdout: JSON.stringify({
+      verdict: "blocked",
+      checks: [
+        { name: "effects", kind: "derived", verdict: "blocked", detail: { reason: "effects:no-witness" } },
+        { name: "a sent message notifies the recipient", kind: "journey", verdict: "pass" },
+      ],
+    }),
+  }, true).accepted, false, "a missing witness is not engine absence");
+  assert.equal(testVerdict({
+    status: 1,
+    stdout: JSON.stringify({
+      verdict: "blocked",
+      checks: [{ name: "held", kind: "journey", verdict: "blocked", detail: { reason: "effects:no-engine" } }],
+    }),
+  }, false).accepted, false, "engine absence is accepted only where the caller allows it");
   assert.deepEqual(
     testVerdict({
       status: 1,

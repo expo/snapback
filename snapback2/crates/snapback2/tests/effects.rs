@@ -1,6 +1,8 @@
 #![cfg(feature = "hermes")]
 
 mod common;
+#[path = "effects_cases/witness.rs"]
+mod witness;
 
 use serde_json::{Value, json};
 use std::fs;
@@ -138,6 +140,28 @@ fn owner_runs_effect_then_delivery_and_honest_restart_requeue() {
     let final_trace = trace(port, &secret, seq);
     assert_eq!(final_trace["outbox"]["rows"][0]["id"], outbox_id);
     assert_eq!(final_trace["outbox"]["rows"][0]["state"], "sent");
+    // @ref LLP 1021#4-test-counts-witnesses — acceptance 3: one committed `then`, with its seq, after the restart-requeue path.
+    let then = &final_trace["outbox"]["rows"][0]["then"];
+    assert_eq!(then["op"], "notifications.recordNotified", "{final_trace}");
+    assert_eq!(then["state"], "committed");
+    assert!(
+        then["seq"].as_u64().is_some_and(|then| then > seq),
+        "{then}"
+    );
+    let sent_rows = request(
+        port,
+        "GET",
+        "/control/outbox?state=sent",
+        &[("X-Snapback-Control", &secret)],
+        json!({}),
+    );
+    assert_eq!(
+        sent_rows.body["rows"].as_array().unwrap().len(),
+        1,
+        "{}",
+        sent_rows.body
+    );
+    assert_eq!(sent_rows.body["rows"][0]["then"], *then);
 
     let stopped = request(
         port,

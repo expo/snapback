@@ -393,7 +393,7 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
             .iter()
             .filter(|check| check["kind"] == "journey")
             .count(),
-        16
+        17
     );
     for name in [
         "alice posts to the room and a non-member cannot",
@@ -417,21 +417,28 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
         assert_eq!(journey["kind"], "journey", "{name}: {journey}");
         assert_eq!(journey["verdict"], "pass", "{name}: {journey}");
     }
+    // @ref LLP 1021#4-test-counts-witnesses — the provider journey is the witness with an engine and `blocked: effects:no-engine` without one; the check itself names the build.
+    let provider = check(&receipt, "a sent message notifies the recipient");
     if cfg!(feature = "hermes") {
         assert_eq!(output.status.code(), Some(0));
         assert_eq!(receipt["verdict"], "pass");
+        assert_eq!(provider["verdict"], "pass", "{provider}");
         assert!(checks.iter().any(|check| {
             check["name"] == "effects"
                 && check["verdict"] == "pass"
                 && check["detail"]["engine"] == "ibex2 + vanilla hermes"
+                && check["detail"]["witnesses"]["delivery.notify"]["then"]["state"] == "committed"
         }));
     } else {
         assert_eq!(output.status.code(), Some(1));
         assert_eq!(receipt["verdict"], "blocked");
+        assert_eq!(provider["verdict"], "blocked", "{provider}");
+        assert_eq!(provider["detail"]["reason"], "effects:no-engine");
         assert!(checks.iter().any(|check| {
             check["name"] == "effects"
                 && check["verdict"] == "blocked"
                 && check["detail"]["reason"] == "no engine in this build"
+                && check["detail"]["build"] == "scripts/hermes build -p snapback2"
         }));
     }
     let scratch = fs::read_dir(project.path.join(".snapback"))

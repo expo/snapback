@@ -133,6 +133,7 @@ pub fn dev(args: &[String]) -> ExitCode {
         &[
             "--foreground",
             "--owner-child",
+            "--test-owner",
             "--serve",
             "--stop",
             "--status",
@@ -168,6 +169,7 @@ pub fn dev(args: &[String]) -> ExitCode {
         status: options.has("--status"),
         apply_migration: options.value("--apply-migration").map(PathBuf::from),
         json: options.has("--json"),
+        test_owner: options.has("--test-owner"),
     })
 }
 

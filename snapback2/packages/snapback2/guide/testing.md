@@ -41,7 +41,18 @@ still pumps a pending `then` and waits out a backoff that would land inside its
 budget; it returns at once only when nothing ≤ `upTo` can move. The run is
 `blocked: effects:no-engine`, even if the journey throws on unsettled work;
 after `effects.settle` a queued row cannot pass. The derived effects check also
-remains `blocked: no engine in this build`.
+remains `blocked: no engine in this build`, with `detail.build`.
+
+`effects.provider(origin, handler)` starts a loopback stand-in for that
+provider and binds it for this journey only; `handler(request)` returns a
+`Response`. `provider.requests` records method, path, headers, and body up to
+`caps` (200 requests, 16 KiB bodies; `bodyCapped` and `dropped` say so).
+With an engine the `effects` check counts witnesses: each declared effect
+needs one journey that emitted it, executed it against a bound provider, and
+let its `then` commit. The receipt lists `{ journey, id, seq, attempts, state,
+ms, then }` per effect, refusals under `refused`, and blocks
+`effects:no-witness` naming the effect and the journey it needs; a selected
+run skips the check and records `scope.journey`.
 
 Projects with scoped memberships also run the canonical `live-revocation`,
 `successor-policy-fence`, and `grant-incarnation-aba` authorization proofs.

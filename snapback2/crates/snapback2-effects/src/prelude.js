@@ -93,6 +93,18 @@
 
   function tagRawGrantError(error, attemptedUrl) {
     const message = error && error.message ? String(error.message) : String(error);
+    // The test owner's bound transport refuses an unbound origin in front of
+    // the raw binding; tagged here, from this closure, it is terminal like a
+    // grant denial, and application code cannot forge it: only a raw
+    // rejection reaches this function.
+    // @ref LLP 1021#3-a-provider-stand-in-and-nothing-else-answers — `E_EFFECT_UNBOUND` is a terminal failure, never external transport.
+    if (message.indexOf("E_EFFECT_UNBOUND: ") === 0) {
+      const unbound = new Error(message);
+      unbound.code = "E_EFFECT_UNBOUND";
+      try { unbound.origin = new URL(String(attemptedUrl)).origin; } catch (_) {}
+      deniedErrors.add(unbound);
+      return unbound;
+    }
     if (message !== "denied: net.fetch") return error;
     let origin = String(attemptedUrl);
     try { origin = new URL(origin).origin; } catch (_) {}

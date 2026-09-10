@@ -492,6 +492,7 @@ mod tests {
                     payload: json!({ "id": id }),
                     attempt: attempts,
                     generation: None,
+                    bindings: None,
                 },
                 state,
                 next_at: 0,

@@ -752,6 +752,17 @@ read-only in the receipt, never editable):
    **Revision 2026-09-04:** an asset-typed mutation is recorded as `skipped` in both invalidation and replay with reason `E_ASSET_PROBE_NEEDS_UPLOAD` ("asset-typed arguments are proven by an upload journey, not the generic prover"), which is a pass-with-note because only the upload journey can mint the ready ledger row that LLP 1006 §6 requires.
 6. `effects` — every effect declaration has a runner able to run it, or the
    check is `blocked: no engine in this build` (LLP 1003 §4).
+   **Revision 2026-09-10 (LLP 1021 §3–§4):** with an engine, the check counts
+   witnesses, not probes: every declared effect needs one successful authored
+   witness among the journeys that ran — a real emission, executed by the real
+   engine against a provider the journey bound with
+   `effects.provider(origin, handler)` (the test owner's transport is
+   bound-only; an unbound origin is `E_EFFECT_UNBOUND`), its declared `then`
+   committed. The receipt lists `{ journey, id, seq, attempts, state, ms, then }`
+   per effect and the refusals journeys met as `refused`; missing evidence is
+   `blocked: effects:no-witness` naming the effect and the journey it needs.
+   Without an engine the check stays `blocked: no engine in this build` with
+   `detail.build`, and engine-dependent journeys are `blocked: effects:no-engine`.
 
 **Named authorization proofs.** The canonical chat/alignment qualification
 records the following stable proof names in its test receipt; a lower-level
@@ -1399,10 +1410,13 @@ recorded. The installed-consumer rung replaces the duplicate core-test run;
 `test.sh` retains the complete Rust executable tests and doctests.
 
 The whole consumer rung, including packing and installation, is scored against
-30 s. An engine-less development build accepts only an explicit `effects`
-blocked receipt whose other checks all pass; zero checks cannot pass.
-Publication repeats this consumer proof against the actual staged production
-tarballs and requires every check to pass, including effects. The packed
+30 s. An engine-less development build accepts exactly the engine-absence
+blocks — the `effects` check `blocked: no engine in this build` and journeys
+`blocked: effects:no-engine` — when every other check passes (LLP 1021 §4;
+before 2026-09-10 only the single `effects` block was admitted); zero checks
+cannot pass. Publication repeats this consumer proof against the actual staged
+production tarballs and requires every check to pass, including effects, whose
+witness coverage must be complete. The packed
 README travels with the compiler, client, templates, and guide. Gates from
 `rules/RULES.md`: `check` < 1 s, `doctor` < 0.5 s; from LLP 0329.016 §8:
 `init` → `dev` ≤ 10 s. This implements LLP 1007 §5 item 7 (2026-09-05).

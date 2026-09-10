@@ -63,6 +63,15 @@ budget is waited for. No runnable work still reports `remaining` and
 serve mode. Without an engine `settle` still pumps a pending `then`, then
 returns; the supervisor records `blocked: effects:no-engine`. See `guide testing`.
 
+In `snapback2 test` nothing else answers: every effect fetch must match a
+provider the journey bound with `effects.provider(origin, handler)`. The grant
+admits the logical origin first, on every request and redirect hop
+(`E_EFFECT_GRANT` exactly as in production); only then does the loopback stand
+in. An origin with no live binding fails `E_EFFECT_UNBOUND`: terminal, no
+transport reached — derived-check rows, earlier journeys' leftovers, and their
+retries included. Bindings belong to one journey; the supervisor revokes them
+when it ends, however it ends. `dev` has no binding route.
+
 The example origin is a placeholder. Locally, return `{ providerId: meta.id }`
 from `run`, retaining the required grant even without fetch. Restore a real
 provider before claiming delivery.

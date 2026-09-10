@@ -19,6 +19,7 @@ globalThis.__sb_saved = {
 "#;
 const PRELUDE: &str = include_str!("prelude.js");
 const FETCH_FACTORY: &str = include_str!("prelude/fetch.js");
+const BOUND_TRANSPORT: &str = include_str!("prelude/bound.js");
 // Public names match the compiler effect allowlist. Engine internals and globalThis
 // remain unnameable in authored source; the host needs them to harden and pump.
 const EFFECT_GLOBALS: &[&str] = &[
@@ -109,6 +110,9 @@ struct EffectRuntime {
     runtime: Hermes,
     _grants: Grants,
     declared_grants: Vec<String>,
+    // A `test` owner's job carries its epoch's bindings; a runtime built for
+    // one binding table never serves a job with another.
+    bindings: Option<BTreeMap<String, String>>,
     jobs: u32,
     host_token: String,
 }
@@ -145,11 +149,12 @@ impl Ibex2Host {
             existing.effect != decl.name
                 || (existing == &key
                     && runtime.declared_grants == decl.grants
+                    && runtime.bindings == job.bindings
                     && runtime.jobs < MAX_JOBS_PER_RUNTIME)
         });
 
         if !self.runtimes.contains_key(&key) {
-            match build_runtime(decl) {
+            match build_runtime(decl, job.bindings.as_ref()) {
                 Ok(runtime) => {
                     self.runtimes.insert(key.clone(), runtime);
                 }
@@ -290,7 +295,10 @@ fn freeze_compiler_embedded_constants(source: &str) -> String {
     output
 }
 
-fn build_runtime(decl: &EffectDecl) -> Result<EffectRuntime, BuildFailure> {
+fn build_runtime(
+    decl: &EffectDecl,
+    bindings: Option<&BTreeMap<String, String>>,
+) -> Result<EffectRuntime, BuildFailure> {
     let mut runtime = Hermes::new(DynamicCode::Closed)
         .ok_or(BuildFailure::Unavailable("Hermes::new returned None"))?;
     if !runtime.install_stdlib() {
@@ -305,9 +313,7 @@ fn build_runtime(decl: &EffectDecl) -> Result<EffectRuntime, BuildFailure> {
         .install_bindings()
         .map_err(|error| BuildFailure::Invalid(format!("install bindings: {}", error.0)))?;
 
-    let grant_spec = decl
-        .grants
-        .iter()
+    let grant_spec = transport_origins(decl, bindings)
         .map(|origin| format!("net.fetch {origin}"))
         .collect::<Vec<_>>()
         .join("\n");
@@ -317,6 +323,13 @@ fn build_runtime(decl: &EffectDecl) -> Result<EffectRuntime, BuildFailure> {
         return Err(BuildFailure::Invalid(
             "install grant-bound raw fetch failed".to_owned(),
         ));
+    }
+    if let Some(bindings) = bindings {
+        runtime
+            .eval(&bound_transport(decl, bindings))
+            .map_err(|error| {
+                BuildFailure::Invalid(format!("install bound transport: {error:?}"))
+            })?;
     }
 
     let host_token = host_channel_token();
@@ -367,9 +380,41 @@ fn build_runtime(decl: &EffectDecl) -> Result<EffectRuntime, BuildFailure> {
         runtime,
         _grants: grants,
         declared_grants: decl.grants.clone(),
+        bindings: bindings.cloned(),
         jobs: 0,
         host_token,
     })
+}
+
+/// What Ibex's raw binding may reach. Production: the declared grants. A
+/// `test` owner: only the loopback origins the journey bound — the logical
+/// origins are admitted by the bound transport in front of it, so no socket
+/// can leave the loopback whatever the effect asks for.
+// @ref LLP 1021#3-a-provider-stand-in-and-nothing-else-answers — the bound-only transport of the test owner.
+fn transport_origins<'a>(
+    decl: &'a EffectDecl,
+    bindings: Option<&'a BTreeMap<String, String>>,
+) -> Box<dyn Iterator<Item = &'a str> + 'a> {
+    match bindings {
+        Some(bindings) => Box::new(bindings.values().map(String::as_str)),
+        None => Box::new(decl.grants.iter().map(String::as_str)),
+    }
+}
+
+fn bound_transport(decl: &EffectDecl, bindings: &BTreeMap<String, String>) -> String {
+    BOUND_TRANSPORT
+        .replace(
+            "__SNAPBACK_GRANTS__",
+            &serde_json::to_string(&decl.grants).expect("grants are JSON"),
+        )
+        .replace(
+            "__SNAPBACK_BINDINGS__",
+            &serde_json::to_string(bindings).expect("bindings are JSON"),
+        )
+        .replace(
+            "__SNAPBACK_EFFECT_NAME__",
+            &serde_json::to_string(&decl.name).expect("effect name is JSON"),
+        )
 }
 
 fn verify_globals(runtime: &mut Hermes) -> Result<(), BuildFailure> {
@@ -715,3 +760,7 @@ fn drain_logs(runtime: &Hermes, job: &EffectJob) -> Vec<EffectLog> {
 #[cfg(test)]
 #[path = "ibex_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "ibex_bound_tests.rs"]
+mod bound_tests;

@@ -295,6 +295,14 @@
   },
   {
     "family": "effect",
+    "code": "E_EFFECT_UNBOUND",
+    "site": "the effect's fetch, in the owner snapback2 test runs",
+    "wrong": "journey(\"a sent message notifies the recipient\", async ({ as, effects }) => {\n  const sent = await as(\"alice\").mutation(api.messages.send, { conversationId: \"conversation-1\", body: \"hi\" });\n  await effects.settle({ upTo: sent.seq });\n});",
+    "right": "journey(\"a sent message notifies the recipient\", async ({ as, effects }) => {\n  await effects.provider(\"https://api.example.com\", async () => Response.json({ id: \"prov-1\" }));\n  const sent = await as(\"alice\").mutation(api.messages.send, { conversationId: \"conversation-1\", body: \"hi\" });\n  await effects.settle({ upTo: sent.seq });\n});",
+    "guide": "effects"
+  },
+  {
+    "family": "effect",
     "code": "E_EMIT_IN_QUERY",
     "wrong": "In a project with these files:\n\n```q\n-- snapback/schema.q\ntable notifications:\n  body: text <=100\n  public\n\n-- snapback/ops.q\nquery notifyNow():\n  emit notify null\n  return null\neffect notify from delivery\n```\n\n```ts\n// snapback/delivery.ts\nimport { effect } from \"snapback2\";\nexport const notify = effect({\n  grants: [\"https://example.com\"],\n  run: async (_payload: null) => null,\n});\n```",
     "right": "In a project with these files:\n\n```q\n-- snapback/schema.q\ntable notifications:\n  body: text <=100\n  public\n\n-- snapback/ops.q\nmutation notifyNow():\n  emit notify null\n  return null\neffect notify from delivery\n```\n\n```ts\n// snapback/delivery.ts\nimport { effect } from \"snapback2\";\nexport const notify = effect({\n  grants: [\"https://example.com\"],\n  run: async (_payload: null) => null,\n});\n```",

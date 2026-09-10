@@ -50,6 +50,9 @@ pub struct DevOptions {
     pub status: bool,
     pub apply_migration: Option<PathBuf>,
     pub json: bool,
+    /// The owner `snapback2 test` starts: effect transport is bound-only and
+    /// the supervisor owns provider-binding epochs (LLP 1021 §3).
+    pub test_owner: bool,
 }
 
 pub fn run(options: DevOptions) -> ExitCode {
@@ -217,6 +220,7 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
         info.clone(),
         blobs.clone(),
         staging.clone(),
+        options.test_owner,
     )?;
     let _effects = crate::effects::spawn(handle.clone(), &root, stop.clone());
     handle.call(Action::PublishOwner)?;
