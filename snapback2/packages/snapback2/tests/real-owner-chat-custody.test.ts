@@ -121,9 +121,10 @@ test('chat old edit outside the live tail reaches cold thread and search without
   const owner = await RealOwnerHarness.create({ forceOwned: true, fixture });
   const root = await mkdtemp(join(tmpdir(), 'chat-old-edit-'));
   const alice = createClient({ url: owner.url, persona: 'alice' });
-  const reads: string[] = [];
+  const reads: string[] = [], attempts: string[] = [];
   let bob: any = createClient({ url: owner.url, persona: 'bob', offline: { store: fileRangeStore(root) }, fetch: async (input, init) => {
-    if (new URL(String(input)).pathname === '/api/query' && init?.body) reads.push(JSON.parse(String(init.body)).op);
+    const path = new URL(String(input)).pathname; attempts.push(path);
+    if (path === '/api/query' && init?.body) reads.push(JSON.parse(String(init.body)).op);
     return fetch(input, init);
   } });
   let drain: any;
@@ -135,12 +136,12 @@ test('chat old edit outside the live tail reaches cold thread and search without
     const authoritative: any = await alice.query(api.messages.search, { term: 'quasar', c: null });
     assert.equal(typeof authoritative.data[0].editedAt, 'number');
     await bob.online(); drain = await warm(bob); drain.close(); drain = undefined; await bob.offline(); bob = await bob.restart();
-    const before = reads.length, thread = await pages(bob, api.messages.thread, { conversationId: group });
+    const before = attempts.length, thread = await pages(bob, api.messages.thread, { conversationId: group });
     assert.equal(thread.length, 106); const bubble = thread.filter(r => r.row === 'message-1'); assert.equal(bubble.length, 1);
     assert.equal(bubble[0].message.body, 'quasar refreshed'); assert.equal(bubble[0].message.editedAt, authoritative.data[0].editedAt);
     const search: any = await bob.query(api.messages.search, { term: 'quasar', c: null });
     assert.deepEqual(search.data.map((r: any) => r.id), ['message-1']); assert.equal(search.data[0].editedAt, bubble[0].message.editedAt);
-    assert.equal(reads.length, before, 'cold reads issue no transport');
+    assert.equal(attempts.length, before, 'cold reads issue no request of any kind');
   } finally { drain?.close(); await Promise.all([alice.close(), bob.close()]); await owner.close(); await rm(root, { recursive: true, force: true }); }
 });
 

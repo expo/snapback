@@ -89,7 +89,7 @@ fn assert_rendering(template: &str, chat: bool) {
             .iter()
             .filter_map(|program| program["name"].as_str())
             .collect::<BTreeSet<_>>();
-        // 26 operations plus the expiry schedule's binding program (never an API operation).
+        // 29 program names: the template's 28 API operations plus the expiry schedule's binding program (never an API operation).
         assert_eq!(
             operations.len(),
             29,
