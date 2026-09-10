@@ -99,6 +99,17 @@ values are
 and
 `55fa2a77fd5d7d03937c7ae78c1ddd431ff0cda3a41c21ef6d92ba63bae7fa54`.
 
+`grok-connection-proof-instrumentation.patch` is a separate copied-browser
+observer, not production application behavior. It reads the public
+`useConnection()` result and appends only connection state and local time to a
+global proof array. It makes no client call, adds no timer, and changes no
+offline or online policy. The patch SHA-256 is
+`a1c7270f6c7319c6dd9ecd94549b2da7a8451f05a9803b90d386b0b778f95105`;
+the resulting proof-only provider SHA-256 is
+`13fee47e7e3c341dd0af38c6b317b80ce58221ed90944f5c6e7e6d7bb13a9300`,
+while the unchanged production provider remains
+`93e746ca4b882c4999310be35a0f956c18d356fd21c20166583c316ba4c30ddd`.
+
 `syntax-adapter.patch` is only the raw snapshot's mechanical move to current V2
 declaration spelling (`fn`/`maintain` colon headers, job parentheses, and inline
 schedule calls). Its SHA-256 is

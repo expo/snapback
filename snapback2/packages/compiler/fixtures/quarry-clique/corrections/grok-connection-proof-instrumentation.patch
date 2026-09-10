@@ -1,0 +1,25 @@
+--- a/lib/snapback-provider.web.tsx
++++ b/lib/snapback-provider.web.tsx
+@@ -1,11 +1,21 @@
+ import React, { type ReactNode, useEffect, useMemo } from "react";
+-import { SnapbackProvider, indexedDbRangeStore, useSnapbackClient } from "snapback2/react";
++import { SnapbackProvider, indexedDbRangeStore, useConnection, useSnapbackClient } from "snapback2/react";
+ import { browserTokenStore } from "snapback2/client";
+ import { snapbackUrl } from "./url";
+ 
+ function BrowserOfflineBridge() {
+   const client = useSnapbackClient();
++  const connection = useConnection();
+   useEffect(() => {
++    const proof = globalThis as {
++      __grokConnectionEvidence?: { connection: typeof connection; at: number }[];
++    };
++    proof.__grokConnectionEvidence = [
++      ...(proof.__grokConnectionEvidence ?? []),
++      { connection, at: Date.now() },
++    ];
++  }, [connection]);
++  useEffect(() => {
+     const sync = () => {
+       if (navigator.onLine === false) void client.offline();
+       else void client.online();
