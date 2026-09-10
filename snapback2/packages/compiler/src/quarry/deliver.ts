@@ -40,7 +40,7 @@ export function materializeDeliveries(documents: Document[]): void {
     if (!cap) {
       throw new QuarryError(site,
         `deliver to ${deliver.target}[${keys}] pins no capped group: ${deliver.target} has no cap N by ${by}`,
-        "E_DELIVER_UNBOUNDED", `cap 50 by ${by}`, "offline/deliver", true);
+        "E_DELIVER_UNBOUNDED", `cap 50 by ${by}`, "deliver", true);
     }
     for (const column of prefix) {
       const groupColumn = target.columns.find((candidate) => candidate.name === column.name);
@@ -59,7 +59,7 @@ export function materializeDeliveries(documents: Document[]): void {
           named ? `deliver by .${deliver.by}: ${deliver.target}.${deliver.by} is ${named.type.kind}${named.type.optional ? " ?" : ""}, not principal`
             : `deliver by .${deliver.by}: ${deliver.target} has no such column`,
           "E_DELIVER_PRINCIPAL", principals[0] ? deliverLine(deliver, principals[0].name) : `add a principal column to ${deliver.target}`,
-          "offline/deliver", principals.length > 0);
+          "deliver", principals.length > 0);
       }
       principal = named.name;
     } else if (principals.length === 1) {
@@ -69,7 +69,7 @@ export function materializeDeliveries(documents: Document[]): void {
         principals.length === 0 ? `deliver to ${deliver.target}: ${deliver.target} has no principal column`
           : `deliver to ${deliver.target}: ${deliver.target} has ${principals.length} principal columns (${principals.map((column) => column.name).join(", ")}); name one with by .<column>`,
         "E_DELIVER_PRINCIPAL", principals[0] ? deliverLine(deliver, principals[0].name) : `add a principal column to ${deliver.target}`,
-        "offline/deliver", principals.length > 0);
+        "deliver", principals.length > 0);
     }
     // The engine enforces the cap through an index led by its columns; the fan-out reads the same index.
     const enforced = target.indexes.some((index) => deliver.prefix.every((name, offset) => {
@@ -78,7 +78,7 @@ export function materializeDeliveries(documents: Document[]): void {
     }));
     if (!enforced) {
       throw new QuarryError(site, `cap ${cap.max} by ${by} on ${deliver.target} has no index whose leading columns are ${by}`,
-        "E_DELIVER_UNBOUNDED", `by byGroup: ${by}, ${principal}`, "offline/deliver", true);
+        "E_DELIVER_UNBOUNDED", `by byGroup: ${by}, ${principal}`, "deliver", true);
     }
     const taken = new Set([...declared, ...schema.maintains.map((maintain) => maintain.name), ...generated.map((candidate) => candidate.name)]);
     for (const name of [deliver.name, ...(deliver.receipts ? [`${deliver.name}Receipts`] : [])]) {
@@ -136,9 +136,6 @@ function logTable(content: TableDecl, deliver: DeliverDecl, prefix: ColumnDecl[]
     immutable: [{ columns: [...names].sort(), site }],
     caps: [],
     finalExists: [],
-    // @ref LLP 1019#3-what-writes-it — the `removed` event is the tombstone; no authored declaration.
-    tombstones: [{ table: content.name, column: "row", site,
-      predicate: { kind: "binary", op: "=", left: focal("kind"), right: { kind: "literal", value: "removed", site }, site } }],
     derived: { deliver: content.name, kind: "log" },
     site,
   };
@@ -181,7 +178,7 @@ function receiptsTable(content: TableDecl, deliver: DeliverDecl): TableDecl {
     immutable: [{ columns: ["recipient", "row"], site }],
     caps: [],
     finalExists: [],
-    tombstones: [],
+
     ...(content.public && !read ? { public: { ...content.public, site } } : {}),
     derived: { deliver: content.name, kind: "receipts" },
     site,

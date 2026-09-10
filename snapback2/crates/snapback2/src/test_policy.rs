@@ -24,7 +24,15 @@ pub(super) fn check_rules(
             continue;
         }
         let rows = seed.rows.get(table_name).cloned().unwrap_or_default();
-        if !rule_table_has_probe_rows(table_name, seed, &compiled.generation.schema().maintains) {
+        // @ref LLP 1019#3-what-writes-it — seed writes create native logs and receipts without authored seed rows.
+        let derived_bound = snapback2_core::delivery::owner(compiled.generation.schema(), table_name)
+            .and_then(|(content, deliver, _)| {
+                let target = compiled.generation.schema().tables.get(&deliver.target)?;
+                let cap = snapback2_core::delivery::group_cap(target, &deliver.prefix)? as usize;
+                Some(seed.rows.get(content).map_or(0, Vec::len).saturating_mul(cap))
+            });
+        if derived_bound.unwrap_or(0) == 0
+            && !rule_table_has_probe_rows(table_name, seed, &compiled.generation.schema().maintains) {
             blocked.push(json!({
                 "table": table_name,
                 "reason": format!("no seed rows for {table_name}"),
@@ -35,7 +43,9 @@ pub(super) fn check_rules(
             );
             continue;
         }
-        let row_bound = if compiled
+        let row_bound = if let Some(bound) = derived_bound {
+            bound
+        } else if compiled
             .generation
             .schema()
             .maintains
@@ -119,6 +129,9 @@ pub(super) fn check_rules(
                     "actual": actual,
                 }));
             }
+        }
+        if table_probes == 0 {
+            blocked.push(json!({ "table": table_name, "reason": "no stored rows to probe" }));
         }
         tables.insert(
             table_name.clone(),

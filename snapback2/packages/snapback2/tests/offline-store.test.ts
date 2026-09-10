@@ -299,7 +299,7 @@ async function exerciseEvictions(store: any): Promise<void> {
     op: "history", args: {}, state: "complete", data: { message: ref("messages", "m6") }, next: null,
     seq: 8, rows: [row("messages", "m6", "history")], receipt: emptyReceipt(),
   }] });
-  await store.commit({ retention: { messages: "delivered-history" }, deliveries: [{
+  await store.commit({ schema: { tables: { messages: { retain: "delivered-history" } } }, deliveries: [{
     op: "history", args: {}, state: "complete", data: { message: null }, next: null,
     seq: 9, receipt: emptyReceipt(),
   }] });
@@ -404,7 +404,7 @@ test("the O1a whole-answer-null golden is hidden evidence and delivered-history 
   const hidden = await golden("envelope-hidden-point-alternate-key.json");
   await store.commit({
     deliveries: [deliveryFromEnvelope("messages.alternate", {}, hidden)],
-    retention: { messages: "delivered-history" },
+    schema: { tables: { messages: { retain: "delivered-history" } } },
   });
   const answer = await store.answer<any>("messages.alternate", {});
   assert.equal(answer?.retained, true);
@@ -420,7 +420,7 @@ test("retained reconstruction keeps independent pages and falls back when the re
   const message = (id: string, at: number) => ({
     table: "messages", id, row: { id, body: id, conversationId: "c1", at },
   });
-  await store.commit({ retention: { messages: "delivered-history" }, deliveries: [{
+  await store.commit({ schema: { tables: { messages: { ...evictionSchema.tables.messages, retain: "delivered-history" } } }, deliveries: [{
     op: "thread", args: { c: null }, state: "capped",
     data: [
       { position: "first", message: ref("messages", "m1") },
@@ -437,7 +437,7 @@ test("retained reconstruction keeps independent pages and falls back when the re
     next: null, seq: 10, rows: [message("m3", 3), message("m4", 4)],
     receipt: { ranges: [range({ after: [2, "m2"], rowIds: ["m3", "m4"] })], absences: [], verdicts: [] },
   }] });
-  await store.commit({ retention: { messages: "delivered-history" }, deliveries: [{
+  await store.commit({ schema: { tables: { messages: { ...evictionSchema.tables.messages, retain: "delivered-history" } } }, deliveries: [{
     op: "thread", args: { c: null }, state: "capped",
     data: [
       { position: "first", message: ref("messages", "m1") },

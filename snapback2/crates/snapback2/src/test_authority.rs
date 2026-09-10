@@ -186,20 +186,8 @@ fn live_revocation_attempt(
         let mutation_seq = response.body["seq"]
             .as_u64()
             .ok_or_else(|| format!("committed revocation omitted seq: {}", response.body))?;
-        let delivery = stream
-            .event(Duration::from_secs(2))
-            .map_err(|error| format!("post-revocation delivery missing: {error}"))?;
-        if delivery["state"] != "denied" {
-            return Err(format!(
-                "post-revocation delivery was not denied: {delivery}"
-            ));
-        }
-        if delivery["seq"].as_u64() != Some(mutation_seq) {
-            return Err(format!(
-                "denial seq differed from mutation seq {mutation_seq}: {delivery}"
-            ));
-        }
-        require_no_rows(&delivery)?;
+        let delivery = stream.denial(mutation_seq)
+            .map_err(|error| format!("post-revocation delivery failed: {error}"))?;
 
         let protected_response = client::api(
             owner,
@@ -261,7 +249,7 @@ fn live_revocation_attempt(
             ));
         }
         stream
-            .prove_silence(Duration::from_millis(250))
+            .prove_silence(Duration::from_secs(2))
             .map_err(|error| match error.delivery {
                 Some(delivery) => format!(
                     "revoked retained stream delivered after protected write at seq {protected_write_seq}: {delivery}"

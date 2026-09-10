@@ -228,13 +228,13 @@ schedule digest every 2m: sweep(${argument})
     const digest = readFileSync(resolve(fixture, "snapback/digest-recipes.q"), "utf8");
     const messages = readFileSync(resolve(frontend, "../snapback2/templates/chat/snapback/messages.q"), "utf8");
     assert(snippets.length === 4
-      && snippets.slice(0, 2).every((snippet) => admin.includes(snippet))
+      && messages.includes(snippets[0]!) && admin.includes(snippets[1]!)
       && snippets.slice(2).every((snippet) => digest.includes(snippet)), "guide recipe diverged from its fixture");
     assert(messages.includes(snippets[0]!), "the template's expiry schedule diverged from the guide");
     const chat = await lowerProject(resolve(frontend, "../snapback2/templates/chat"));
     assert(chat.ok, JSON.stringify(chat));
     const schedules = chat.project.schema.schedules ?? [];
-    assert(schedules.length === 1 && schedules[0]!.target === "messages.purgeMessage", JSON.stringify(schedules));
+    assert(schedules.length === 1 && schedules[0]!.target === "messages._timerDelete_expireMessage", JSON.stringify(schedules));
     assert(!chat.apiDts.includes("purgeExpired"), "a client-invoked purge survived");
     assert(!chat.apiDts.includes("purgeMessage") && chat.apiDts.includes("unsend"), "the schedule target is not a client operation; unsend still is");
     assert(chat.apiDts.includes("expiresAt"), "post lost its expiry argument");

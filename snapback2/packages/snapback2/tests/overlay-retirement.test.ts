@@ -862,7 +862,7 @@ test("a retained denied tail cannot prove authoritative page arrival", async () 
     try {
       await seed(store, partition, item, { op: "messages.inbox", args: { c: null }, cursorArg: "c", watermark: "a", updatedAt: 1 });
       await store.commit({ deliveries: [page("messages.inbox", { c: "b" }, 29, [row("deliveries", "old")])] });
-      await store.commit({ retention: { deliveries: "delivered-history" }, deliveries: [{
+      await store.commit({ schema: { tables: { deliveries: { retain: "delivered-history" } } }, deliveries: [{
         ...page("messages.inbox", { c: "b" }, 31, []), state: "denied", data: undefined,
       }] });
       store = await reopen(store, create, partition);
@@ -882,7 +882,7 @@ test("a denied delivered-history answer cannot confirm arrival of a committed ed
     try {
       await seed(store, `${name}:retained`, item, { op: "messages.inbox", args: { c: null }, cursorArg: "c", watermark: "a", updatedAt: 1 });
       await store.commit({ deliveries: [page("messages.byId", { id: item.id }, 29, [row("messages", item.id)])] });
-      await store.commit({ retention: { messages: "delivered-history" }, deliveries: [{
+      await store.commit({ schema: { tables: { messages: { retain: "delivered-history" } } }, deliveries: [{
         ...page("messages.byId", { id: item.id }, 31, []), state: "denied", data: undefined,
       }] });
       assert.ok((await store.outbox.overlay())[item.intent], "retained stale content is not an authoritative arrival");

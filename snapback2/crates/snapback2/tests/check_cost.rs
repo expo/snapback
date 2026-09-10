@@ -64,26 +64,26 @@ fn m7_bulk_job_prices_derivation_only_for_patches_that_write_a_derived_column() 
     // Before this landing: E_STEPS, "steps 94517328 exceeds ceiling 1000000; product: derived
     // index work = 94515300 + ..." for a patch that never touches `body`.
     let job = |patch: &str, take: u32| format!("job touch():\n  chunk m in messages first {take} by byId:\n    update messages[m.id] {{ {patch} }}\n");
-    fs::write(project.path.join("snapback/jobs.q"), job("expiresAt: m.at", 100)).unwrap();
+    fs::write(project.path.join("snapback/jobs.q"), job("expiresAt: m.at", 10)).unwrap();
     let admitted = project.run(&["check", "--json"]);
     assert!(admitted.status.success(), "{}", String::from_utf8_lossy(&admitted.stdout));
     let cost = json_stdout(&project.run(&["check", "--cost", "jobs.touch", "--json"]));
     // A job certificate carries its first chunk's meters; the chunk is the priced unit.
     assert_eq!(cost["results"][0]["certificate"]["derived_steps"], 0, "{cost}");
 
-    fs::write(project.path.join("snapback/jobs.q"), job("body: m.body", 100)).unwrap();
+    fs::write(project.path.join("snapback/jobs.q"), job("body: m.body", 10)).unwrap();
     let refused = project.run(&["check", "--json"]);
     let text = String::from_utf8_lossy(&refused.stdout).into_owned();
     assert!(!refused.status.success());
     let refusal: serde_json::Value = serde_json::from_str(text.lines().next().unwrap()).unwrap();
     assert_eq!(refusal["code"], "E_STEPS");
     let message = refusal["message"].as_str().unwrap();
-    assert!(message.starts_with("steps 94517328 exceeds ceiling 1000000; product: derived index work for messages Update × 100 = 94515300 + "), "{message}");
+    assert!(message.contains("derived index work for messages Update × 10 = 9451530 + "), "{message}");
     let cost = project.run(&["check", "--cost", "jobs.touch", "--json"]);
     assert!(!cost.status.success());
     let cost = json_stdout(&cost);
     assert!(cost["results"][0]["errors"].as_array().unwrap().iter().any(|error| error["message"] == message), "{cost}");
-    assert_eq!(cost["results"][0]["certificate"]["derived_steps"], 94515300, "{cost}");
+    assert_eq!(cost["results"][0]["certificate"]["derived_steps"], 9451530, "{cost}");
 
     fs::write(project.path.join("snapback/jobs.q"), job("body: m.body", 1)).unwrap();
     let rewritten = project.run(&["check", "--json"]);

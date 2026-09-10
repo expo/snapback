@@ -12,7 +12,7 @@ function conversations(rows: readonly LogRow[], groups: readonly Group[]) {
   for (const group of groups) if (group.conversation) byConversation.set(group.conversationId, { conversationId: group.conversationId, title: group.conversation.title, latestAt: 0, messages: 0 });
   for (const row of rows) {
     const current = byConversation.get(row.conversationId) ?? { conversationId: row.conversationId, latestAt: row.at, messages: 0 };
-    if (row.kind === "message") current.messages += 1;
+    if (row.kind === "delivered") current.messages += 1;
     if (row.at >= current.latestAt) { current.latestAt = row.at; current.latestBody = row.message?.body ?? current.latestBody; }
     byConversation.set(row.conversationId, current);
   }

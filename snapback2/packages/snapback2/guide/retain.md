@@ -1,9 +1,8 @@
-# Retention: `tombstones`
+# Retention: `retain`
 
-`retain delivered-history` keeps rows that went hidden; the default evicts them.
-`tombstones messages[.messageId] if .kind = 'removed' or .kind = 'expired'`
-declares delivered-row eviction. Its column references the target; its predicate
-uses this table's `enum`/`bool`/`text`, literals, `=`, `!=`, `and`, `or`, `not`,
-and parentheses. Lines union. Schema hash/certificate bind owner and twin.
+`retain delivered-history` keeps rows that went hidden; the default
+`retain until-revoked` evicts them. Authoritative absence and generated removed
+events evict either policy's body and leased bytes. `deliver` derives the
+removal metadata in the schema; see `guide deliver`.
 
-See `guide quarry` for related topics.
+See `guide offline` for held custody and the fence.

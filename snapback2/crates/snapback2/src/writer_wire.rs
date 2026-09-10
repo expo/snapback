@@ -38,7 +38,7 @@ pub fn execution_json(execution: &Execution) -> Json {
                 "guide": format!("{family}/runtime"),
             });
             if code == snapback2_core::delivery::INCARNATION {
-                response["guide"] = json!("offline");
+                response["guide"] = json!("deliver");
             }
             if let Some(rewrite) = rewrite {
                 response["rewrite"] = json!(rewrite);

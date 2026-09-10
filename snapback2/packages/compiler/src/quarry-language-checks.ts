@@ -122,7 +122,7 @@ else emit enum every exists false first fn for format from guests h handle heigh
 image immutable in index insert int job json last length m maintain max merge min money mutation new
 not now null oblivious of on once op or password periodEnd periodStart principal proc public publish query quotient range
 read readable receipts remainder require retain return s schedule shape share slice sorted subscribe sum system
-table text then time to toJSON tokens tombstones true ttl unique until-revoked up update upsert url use
+table text then time to toJSON tokens true ttl unique until-revoked up update upsert url use
 value video viewer walk where while width with wordPrefixes words
 `.split(/\s+/).filter(Boolean);
     deepStrictEqual(recognizedQuarryWords(frontend), expected);

@@ -324,7 +324,7 @@ for (const testCase of roundTripCases) test(`atomic carrier round-trip with pinn
     if (testCase.receipt.absences.some(([, index]: any) => index !== "byId")) {
       await assert.rejects(() => seedCoverage(fileRangeStore(root), testCase.context.viewer, testCase, facts,
         { op: testCase.name, args, data: wire(testCase.expected.localResult), next: null }),
-      /store receipts may evict only a primary byId absence/, testCase.name);
+      /eviction requires a primary byId absence/, testCase.name);
       return;
     }
     await seedCoverage(fileRangeStore(root), testCase.context.viewer, testCase, facts,

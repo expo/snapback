@@ -3,7 +3,7 @@ import { api, createClient, mutationTarget, type ImageAsset } from "snapback2/cl
 import { fixture, journey } from "snapback2/test";
 const postedMessage = mutationTarget(api.messages.send, "messages");
 
-type LogRow = { kind?: string; messageId?: string; message?: { id?: string; body?: string | null } | null };
+type LogRow = { kind?: string; row?: string; message?: { id?: string; body?: string | null } | null };
 
 function bodies(rows: unknown): string[] {
   return Array.isArray(rows)
@@ -138,8 +138,8 @@ journey("alice sends and reads back a JPEG photo and MP4 clip", async ({ as }) =
 
     const thread = await alice.query(api.messages.thread, { conversationId: "conversation-1" });
     if (!("data" in thread) || !Array.isArray(thread.data)) throw new Error("asset thread did not return rows");
-    const photo = thread.data.find((row) => row.messageId === photoSent.data.id)?.message?.photo;
-    const clip = thread.data.find((row) => row.messageId === clipSent.data.id)?.message?.clip;
+    const photo = thread.data.find((row) => row.row === photoSent.data.id)?.message?.photo;
+    const clip = thread.data.find((row) => row.row === clipSent.data.id)?.message?.clip;
     if (!photo || photo.width !== 8 || photo.height !== 8) throw new Error("JPEG record was not readable");
     if (!clip || clip.width !== 2 || clip.height !== 2 || clip.duration !== 2_000) {
       throw new Error("MP4 record was not readable");
@@ -392,8 +392,8 @@ journey("offline drain removes an unsent body and survives a cold restart", asyn
   await alice.online();
   await drain.until((value) => "data" in value
     && Array.isArray(value.data)
-    && value.data.some((row: { kind?: string; messageId?: string }) =>
-      row.kind === "removed" && row.messageId === "message-1"));
+    && value.data.some((row: { kind?: string; row?: string }) =>
+      row.kind === "removed" && row.row === "message-1"));
   // Pin the current head for the derived cold-replay comparison. A local
   // notification may show the tombstone before the tail's decode completes.
   await alice.query(api.messages.inbox, { c: null });
@@ -436,7 +436,7 @@ journey("viewed photos render from the byte cache offline; a view-once photo and
     await thread.until((delivery) => (delivery.state === "complete" || delivery.state === "capped")
       && "data" in delivery
       && Array.isArray(delivery.data)
-      && sent.every((message) => delivery.data.some((row: { messageId?: string; message?: { id?: string } | null }) => row.message?.id === message.id)));
+      && sent.every((message) => delivery.data.some((row: { row?: string; message?: { id?: string } | null }) => row.message?.id === message.id)));
     thread.close();
     const urls: string[] = [];
     for (const message of sent) {
@@ -460,7 +460,7 @@ journey("viewed photos render from the byte cache offline; a view-once photo and
     }
     if (!viewedRefused) throw new Error("a viewed view-once photo rendered again after the restart");
     const held = await cold.query(api.messages.thread, { conversationId: "conversation-1", c: null });
-    if (!("data" in held) || !Array.isArray(held.data) || held.data.some((row: { messageId?: string; message?: { id?: string } | null } | null) => row?.message?.id === viewOnceId)) {
+    if (!("data" in held) || !Array.isArray(held.data) || held.data.some((row: { row?: string; message?: { id?: string } | null } | null) => row?.message?.id === viewOnceId)) {
       throw new Error("a viewed view-once row survived in the held thread");
     }
     const mounted = subscribe(cold, api.messages.thread, { conversationId: "conversation-1", c: null }, () => undefined);
@@ -471,7 +471,7 @@ journey("viewed photos render from the byte cache offline; a view-once photo and
     await mounted.until((delivery) => delivery.live === true
       && "data" in delivery
       && Array.isArray(delivery.data)
-      && !delivery.data.some((row: { messageId?: string; message?: { id?: string } | null } | null) => row?.message?.id === sent[0]!.id));
+      && !delivery.data.some((row: { row?: string; message?: { id?: string } | null } | null) => row?.message?.id === sent[0]!.id));
     mounted.close();
     await cold.offline();
     let gone = false;
@@ -497,17 +497,17 @@ journey("offline sends queue, survive a restart, replay in order, and a 503 afte
   const second = await alice.mutation(api.messages.send, { conversationId: "conversation-1", body: "queued two" });
   if (first.state !== "queued" || second.state !== "queued") throw new Error(`offline sends were ${first.state} and ${second.state}`);
   const cold = await alice.restart();
-  const queued = await cold.outbox.entries();
+  const queued = (await cold.outbox.entries()).filter(entry => entry.intent === first.intent || entry.intent === second.intent);
   if (queued.map((entry) => `${entry.intent}:${entry.state}`).join(" ") !== `${first.intent}:queued ${second.intent}:queued`) {
     throw new Error(`the outbox did not survive the restart in order: ${JSON.stringify(queued.map((entry) => [entry.intent, entry.state]))}`);
   }
   cold.failNextResponse("/api/mutation", 503);
   await cold.online();
   await cold.settled();
-  const afterFault = await cold.outbox.entries();
+  const afterFault = (await cold.outbox.entries()).filter(entry => entry.intent === first.intent || entry.intent === second.intent);
   if (afterFault.some((entry) => entry.state !== "queued")) throw new Error("a 503 after the commit settled an intent");
   await cold.outbox.drain();
-  const settled = await cold.outbox.entries();
+  const settled = (await cold.outbox.entries()).filter(entry => entry.intent === first.intent || entry.intent === second.intent);
   if (settled.map((entry) => entry.state).join() !== "committed,committed") {
     throw new Error(`replay settled as ${settled.map((entry) => entry.state).join()}`);
   }
@@ -608,7 +608,7 @@ journey("a never-opened chat renders offline from the drained log and an offline
   }
   const sent = await bob.mutation(api.messages.send, { conversationId: "conversation-1", body: "from the train" });
   if (sent.state !== "queued") throw new Error(`offline send was ${sent.state}`);
-  const [entry] = await bob.outbox.entries();
+  const entry = (await bob.outbox.entries()).find(entry => entry.intent === sent.intent);
   if (entry?.predicted !== true) throw new Error("the send was queued without a prediction");
   if (!entry.trace?.points.some((point) => point.table === "memberships" && typeof point.digest === "string")) {
     throw new Error(`the trace lacks the membership read: ${JSON.stringify(entry.trace)}`);
@@ -631,8 +631,8 @@ journey("a never-opened chat renders offline from the drained log and an offline
   if (!("data" in online) || !Array.isArray(online.data)) throw new Error("the online thread did not return rows");
   if (online.data[0]?.message?.id !== postedMessage.id(entry)) throw new Error("the server row does not carry the pinned id the prediction used");
   // The offline replay before the send was the server's answer: same rows in the same order, the send aside.
-  const replayed = JSON.stringify(local.data.map((row: LogRow) => [row.messageId, row.message?.body]));
-  const served = JSON.stringify(online.data.slice(1).map((row: LogRow) => [row.messageId, row.message?.body]));
+  const replayed = JSON.stringify(local.data.map((row: LogRow) => [row.row, row.message?.body]));
+  const served = JSON.stringify(online.data.slice(1).map((row: LogRow) => [row.row, row.message?.body]));
   if (replayed !== served) throw new Error(`the offline thread differed from the server's: ${replayed} vs ${served}`);
 });
 
@@ -671,20 +671,20 @@ journey("a send queued offline into a three-member group shows one bubble, keeps
     if (response.data?.id !== postedMessage.id(entry)) throw new Error("the server minted the message under another id than the prediction");
     const served = await bob.query(api.messages.thread, { conversationId, c: null });
     if (!("data" in served) || !Array.isArray(served.data)) throw new Error("the online thread did not return rows");
-    const rows = served.data.filter((row: LogRow) => row.messageId === postedMessage.id(entry));
+    const rows = served.data.filter((row: LogRow) => row.row === postedMessage.id(entry));
     if (rows.length !== 1 || rows[0]?.message?.id !== postedMessage.id(entry)) throw new Error(`expected exactly one delivery row for the send online, saw ${rows.length}`);
     // Offline again: the twin's overlay left with the settlement's tail, so the server's row is the only one.
     await bob.offline();
     const replayed = await bob.query(api.messages.thread, { conversationId, c: null });
     if (!("data" in replayed) || !Array.isArray(replayed.data)) throw new Error("the offline thread did not return rows");
-    const duplicates = replayed.data.filter((row: LogRow) => row.messageId === postedMessage.id(entry));
+    const duplicates = replayed.data.filter((row: LogRow) => row.row === postedMessage.id(entry));
     if (duplicates.length !== 1) throw new Error(`the prediction's delivery row survived beside the server's: ${duplicates.length} rows`);
     if ("predicted" in replayed && replayed.predicted?.some((row) => row.intent === sent.intent)) throw new Error("a settled send is still marked predicted");
     await bob.online();
     for (const [name, member] of [["alice", alice], ["charlie", charlie]] as const) {
       const inbox = await member.query(api.messages.inbox, { c: null });
       if (!("data" in inbox) || !Array.isArray(inbox.data)) throw new Error(`${name}'s inbox did not return rows`);
-      const delivered = inbox.data.filter((row: LogRow) => row.messageId === postedMessage.id(entry));
+      const delivered = inbox.data.filter((row: LogRow) => row.row === postedMessage.id(entry));
       if (delivered.length !== 1 || delivered[0]?.message?.body !== "to the trio") {
         throw new Error(`${name} received ${delivered.length} deliveries of the group send`);
       }
@@ -709,10 +709,10 @@ journey("an expiring message is purged by the owner's schedule with every client
   const thread = subscribe(bob, api.messages.inbox, { c: null }, () => {});
   try {
     const purged = await thread.until((delivery) => "data" in delivery && Array.isArray(delivery.data)
-      && delivery.data.some((row: LogRow) => row.kind === "expired" && row.messageId === sent.data.id));
+      && delivery.data.some((row: LogRow) => row.kind === "removed" && row.row === sent.data.id));
     const rows: LogRow[] = "data" in purged && Array.isArray(purged.data) ? purged.data : [];
     if (bodies(rows).includes("gone in an hour")) throw new Error("expired body survived the purge");
-    if (rows.some((row) => row.messageId === sent.data.id && row.message !== null)) {
+    if (rows.some((row) => row.row === sent.data.id && row.message !== null)) {
       throw new Error("expired message row survived the purge");
     }
   } finally {

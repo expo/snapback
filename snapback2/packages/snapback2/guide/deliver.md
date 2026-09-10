@@ -1,7 +1,20 @@
 # Delivery custody: `deliver`
 
 `deliver to T[.keys] as name` derives an engine-owned per-recipient log.
-Rules: `guide offline`; installation/A: `guide successor`.
+
+The chat line is `deliver to memberships[.conversationId] as deliveries with
+receipts` on `messages`, beside `retain delivered-history`.
+
+The keys pin a target `cap N by` group with a leading enforcement index
+(E_DELIVER_UNBOUNDED: declare the cap and index). The target needs one principal
+column, or name it with `by .column` (E_DELIVER_PRINCIPAL). `as name` is required
+and must be free. One declaration per content table; no authored log or fan-out.
+The generated log has recipient, row, incarnation, prefix keys, kind
+(delivered/changed/removed), audience, seq and at; indexes byRecipient,
+byRecipientGroup and byRow. Every index reads only `.recipient = viewer`;
+programs cannot write it, including system programs (E_SCHEMA_DELIVER).
+Installing empty, trailing `bootstrap`, destructive removal/retargeting and the
+engine-recorded audience bound A: `guide successor`.
 
 Inserts and seeds deliver once per principal in the group at that write.
 Changed updates/upserts and deletes append to original recipients, even departed
@@ -28,9 +41,20 @@ query inbox(c: cursor ?):
 
 Drain every kind with `{ drain: true }`. `changed` refreshes the shared body,
 with authored `editedAt` and held search outside the live tail; `removed`
-tombstones it. Both survive offline restart. A thread selects
+tombstones it. Both survive offline restart. `schedule expireMessage on messages at .expiresAt: delete .` also emits removed events to the original audience, with all clients closed. A thread selects
 `deliveries[viewer, conversationId, 'delivered']` by byRecipientGroup, so edits
-add no bubble. New members read history under the content rule; delivery never rewrites audience.
+add no bubble. `messages.history` reads `messages[conversationId] after c last 50 by byConvTime`
+under `require isMember(conversationId, viewer)`. New members read prior history
+under the content rule without acquiring original-recipient events; delivery
+never rewrites audience. The template's `conversationView` composes live content history, count and
+preview, so a joiner sees prior messages online. Its shared `withHistory` items
+binding falls back to the delivered `thread` under partial offline custody.
+An empty log is complete, so it cannot itself activate a partial-only fallback.
+Coverage resets, including clock resets, preserve delivered custody. When a
+client adopts a different program schema, content images it cannot represent
+leave the store; fitting images and delivery anchors stay. History shows the
+entry with its body absent under the same missing-row rule; current members
+re-read live. Cold preparation still rejects corrupt rows.
 
 A queued insert predicts only the sender's delivered event after successful
 `require exists memberships[conversationId, viewer]`, including a proc or
@@ -52,7 +76,7 @@ remove `with receipts` from the enabling lines and `bootstrap` from new logs.
 ```q
 query receipts(messageId: messages):
   msg = messages[messageId] ! else NOT_FOUND
-  require exists memberships[msg.conversationId, viewer] else MEMBERSHIP_REQUIRED
+  require isMember(msg.conversationId, viewer) else MEMBERSHIP_REQUIRED
   return deliveriesReceipts[messageId] first 50 by byRow { recipient, received }
 ```
 

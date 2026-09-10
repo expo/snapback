@@ -380,7 +380,7 @@ fn assert_incarnation_wire(wire: &serde_json::Value, site: &str) {
     assert_eq!(wire["family"], "rule");
     assert_eq!(wire["site"], site);
     assert_eq!(wire["rewrite"], NOTE_REPAIR);
-    assert_eq!(wire["guide"], "offline");
+    assert_eq!(wire["guide"], "deliver");
 }
 fn retired_notes(programs: Vec<Program>, s: Schema) -> Runtime {
     let mut rt = Runtime::open(

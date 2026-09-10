@@ -413,8 +413,8 @@ test("the shipped composite pages online and after a cold offline reopen", async
     const olderArgs = { ...args, c: first.next };
     const second = await warm.query(api.messages.conversationView, olderArgs);
     assert.ok(second.data.messages.length > 0 && second.data.messages.length < 50);
-    const firstIds = new Set(first.data.messages.map((row: any) => row.id));
-    assert.equal(second.data.messages.some((row: any) => firstIds.has(row.id)), false);
+    const firstIds = new Set(first.data.messages.map((row: any) => row.message.id));
+    assert.equal(second.data.messages.some((row: any) => firstIds.has(row.message.id)), false);
     assert.equal(first.data.count, second.data.count);
     assert.deepEqual(first.data.preview, second.data.preview, "the fixed preview stays at the live head");
     assert.equal(first.seq, second.seq, "no write occurred between the two atomic snapshots");

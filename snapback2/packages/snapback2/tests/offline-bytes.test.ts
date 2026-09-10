@@ -137,13 +137,17 @@ test("byte puts land only under a held row's lease, reads order the LRU, and the
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
+const purgeSchema = { tables: { messages: { columns: { id: "Id", conversationId: "Id", at: "Time" },
+  indexes: { byConvTime: { components: [{ Column: "conversationId" }, { Column: "at" }, { Column: "id" }], unique: false } } } } };
+
 async function exercisePurge(store: any, carrierKeys: () => Promise<string[]>): Promise<void> {
   await store.open("dev:alice");
-  await store.commit({ schema: { tables: { messages: { columns: { id: "Id", conversationId: "Id", at: "Time" },
-    indexes: { byConvTime: { components: [{ Column: "conversationId" }, { Column: "at" }, { Column: "id" }], unique: false } } } } } });
+  await store.commit({ schema: purgeSchema });
   let seq = 0;
-  const hold = async (op: string, data: unknown, rows: unknown[], receipt = emptyReceipt(), retention?: Record<string, string>) => {
-    await store.commit({ deliveries: [{ op, args: {}, state: "complete", data, next: null, seq: ++seq, rows, receipt }], retention });
+  const hold = async (op: string, data: unknown, rows: unknown[], receipt = emptyReceipt(), retain?: "delivered-history") => {
+    // Retention is the declaration's `retain` word, carried by the schema swap, never a per-swap map.
+    const schema = retain ? { tables: { messages: { ...purgeSchema.tables.messages, retain } } } : undefined;
+    await store.commit({ schema, deliveries: [{ op, args: {}, state: "complete", data, next: null, seq: ++seq, rows, receipt }] });
   };
   const cache = async (asset: string) => {
     await store.commit({ bytes: { put: [put(asset, 8, 4, 1)] } });
@@ -180,7 +184,7 @@ async function exercisePurge(store: any, carrierKeys: () => Promise<string[]>): 
 
   await hold("history", { message: ref("messages", "m6") }, [messageRow("m6", B)]);
   await cache(B);
-  await hold("history", { message: null }, [], emptyReceipt(), { messages: "delivered-history" });
+  await hold("history", { message: null }, [], emptyReceipt(), "delivered-history");
   assert.equal((await store.answer("history", {}))?.retained, true);
   assert.notEqual(await store.readBytes(B, 8), undefined, "a retained row keeps its bytes");
 

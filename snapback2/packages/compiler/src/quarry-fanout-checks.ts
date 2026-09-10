@@ -107,6 +107,10 @@ table deliveries:
     const [checked] = rustCheck(chat.project.programs, "synthetic", chat.project.schema, undefined, chat.project.effects).filter((r) => r.program === p.name);
     assert(checked && !checked.error && checked.certificate, `groupCreate refused: ${JSON.stringify(checked)}`);
     const uncapped = structuredClone(chat.project.schema) as any;
+    // The cap-only baseline has no delivery declaration depending on that cap.
+    delete uncapped.tables.messages.deliver;
+    delete uncapped.tables.deliveries;
+    delete uncapped.tables.deliveriesReceipts;
     uncapped.tables.memberships.constraints = uncapped.tables.memberships.constraints.filter((c: any) => !c.Cap);
     // The baseline certifies one program, so the schema's schedule bindings (whose
     // binding programs are not in that list) are dropped alongside the cap.

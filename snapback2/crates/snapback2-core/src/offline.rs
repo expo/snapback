@@ -114,7 +114,7 @@ pub fn replay_mutation_response(
                 "guide": format!("{family}/runtime"),
             });
             if code == crate::delivery::INCARNATION {
-                response["guide"] = json!("offline");
+                response["guide"] = json!("deliver");
             }
             if let Some(rewrite) = rewrite {
                 response["rewrite"] = json!(rewrite);

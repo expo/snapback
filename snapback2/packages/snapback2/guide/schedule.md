@@ -6,11 +6,11 @@ mutation or a declared job of this project, run as the owner.
 
 `schedule expireMessage on messages at .expiresAt: delete .` deletes its trigger
 row through a private mutation. It has the same admission, settlement and
-rejection reporting as a named target; custody tombstones and rollback are
+rejection reporting as a named target; generated removed events reach original recipients; rollback is
 transactional and priced per fired row. Periods cannot use `delete .`.
 
 ```q
-schedule expireMessage on messages at .expiresAt: purgeMessage(.id)
+schedule expireMessage on messages at .expiresAt: delete .
 ```
 
 ```q
@@ -69,8 +69,8 @@ satisfy; `every` exposes only typed `.periodStart` and `.periodEnd`),
 `E_SCHEDULE_DURATION` (`Nm`, `Nh`, or `Nd`, at least one minute; no time-of-day
 or calendar syntax).
 
-Customers: the `chat` template's disappearing messages (`purgeMessage` writes
-the `expired` log rows and deletes the body) and the `periodDigestSweep` fixture.
+Customers: the chat template's `schedule expireMessage on messages at .expiresAt: delete .`
+deletes the body and emits native `removed` events; `periodDigestSweep` runs periodic work.
 For a digest, stamp source rows with `[periodStart, periodEnd)`, read current
 bounded follows and memberships at emission, and combine them with
 transactionally maintained per-author and per-chat period counts. Do not make
@@ -103,4 +103,4 @@ instead of disappearing behind a `first 100` digest read. Its separate
 50-members-per-conversation cap remains.
 
 See `guide expiry` for the complete timer → recipient log → tombstone →
-reconnect drain recipe and its current-member delivery limit.
+reconnect drain recipe, including departed original recipients.

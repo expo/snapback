@@ -95,9 +95,11 @@ client closes.
 Derived checks use a small seed.
 Rules compare every stored row for every seed persona, within a 16,384-probe
 budget; oversized tables block with the counts and a smaller-seed rewrite.
+Empty generated logs/receipts block too: seed content in a group with recipients.
 Invalidation witnesses each query's distinct certificate-intersection groups
 and concrete-disjoint silence, rather than testing every query/mutation pair.
-The receipt names the candidate groups and actual physical attempts. Mutation
+The receipt names groups and physical attempts. SSE silence ends at a fresh
+subscription frame after the write on the same ordered stream. Mutation
 search uses the first two scopes and six personas; if no committing witness is
 found within the limit, the check blocks. Replay still covers every generic
 mutation independently. Put operation-specific behavior and larger scenarios

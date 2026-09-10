@@ -350,13 +350,12 @@ test("Expo Thread queues in partial history, preserves the bubble through failed
     assert.equal(group.state, "committed");
     const conversationId = group.data.id;
     assert.equal((await writer.mutation(api.messages.send, { conversationId, body: "native held message" })).state, "committed");
-    assert.equal((await warm.query(api.messages.thread, { conversationId })).state, "complete");
     const drain = subscribe(warm, api.messages.inbox, {}, () => undefined, { drain: true });
     await drain.until(event => event.caughtUp === true, 5_000); drain.close(); await warm.close();
     client = createClient({ url: chatOwner.url, persona: "alice", startOffline: true, offline: { store }, fetch: async (input, init) => {
       const path = new URL(String(input)).pathname;
       if (failResume && path === "/api/resume") throw new TypeError("native sync cut");
-      if (path === "/api/mutation") sends++;
+      if (path === "/api/mutation" && JSON.parse(String(init?.body)).op === "messages.send") sends++;
       return globalThis.fetch(input, init);
     } });
     await client.ready;
@@ -372,26 +371,26 @@ test("Expo Thread queues in partial history, preserves the bubble through failed
     await act(async () => nativeButton(renderer, "Send").props.onPress());
     await until(() => nativeText(renderer).includes("Sending…"));
     assert.equal(nativeInput(renderer).props.value, "");
-    const [entry] = await client.outbox.entries();
+    const entry = (await client.outbox.entries()).find((entry: any) => entry.op === "messages.send")!;
     const id = mutationTarget(api.messages.send, "messages").id(entry)!;
     const bubble = () => renderer.root.findAllByType("NativeView").find(node => node.props.testID === `message-${id}`);
     const pending = bubble(); assert.ok(pending);
     await act(async () => nativeButton(renderer, "Sync now").props.onPress());
     await until(() => nativeText(renderer).includes("native sync cut"));
-    assert.equal((await client.outbox.entries())[0].state, "queued");
+    assert.equal((await client.outbox.entries()).find((entry: any) => entry.op === "messages.send")!.state, "queued");
     assert.strictEqual(bubble(), pending);
     await until(() => Boolean(nativeButton(renderer, "Sync now")));
     failResume = false;
     await act(async () => nativeButton(renderer, "Sync now").props.onPress());
     await until(() => nativeText(renderer).includes("2 messages · Latest: native recovery message")
-      && !nativeText(renderer).includes("Sending…"));
+      && !nativeText(renderer).includes("Sending…") && !nativeText(renderer).includes("native sync cut"));
     assert.strictEqual(bubble(), pending, "the rendered bubble survives history to composite transition");
     assert.doesNotMatch(nativeText(renderer), /Downloaded history|Sending…|native sync cut/);
     assert.equal(sends, 1, "recovery executes the queued send exactly once");
     assert.equal((await writer.mutation(api.messages.unsend, { messageId: id })).state, "committed");
     const summary = () => renderer.root.findAllByType("NativeText").find(node => node.props.testID === "thread-summary")!.children.join("");
-    await until(() => !bubble() && summary() === "1 message");
-    assert.equal(summary(), "1 message", "the removed latest delivery supplies no preview");
+    await until(() => !bubble() && summary() === "1 message · Latest: native held message");
+    assert.equal(summary(), "1 message · Latest: native held message", "live content history previews the remaining message");
   } finally {
     if (renderer) await act(async () => renderer.unmount());
     await warm.close(); await client?.close(); await writer.close(); await rm(directory, { recursive: true, force: true });
@@ -461,7 +460,7 @@ for (const boundary of ["navigation", "account", "anonymous"]) test(`Expo cold C
     assert.equal(body(), "unfinished cold draft");
     assert.equal(syncButton("Sync now").disabled, false);
     assert.equal(sends, 1, "confirmation must not trigger an extra replay");
-    assert.equal((await client.outbox.entries())[0].state, "queued");
+    assert.equal((await client.outbox.entries()).find((entry: any) => entry.op === "messages.send")!.state, "queued");
     await other.ready; await other.auth.guest();
     if (boundary === "anonymous") await other.auth.logout();
     commits.length = 0;

@@ -38,3 +38,9 @@ export function storedProgram(state: PersistedRangeState, swap: Pick<Partial<Per
 export function storedAnswerKey(state: PersistedRangeState, op: string, args: unknown): string {
   return canonicalAnswerKey(op, args, cursorArgument(storedProgram(state)?.programs[op]));
 }
+
+/** Omit optional fields of a fresh record without cloning its owned values. */
+export function defined<T extends object>(value: T): T {
+  for (const key in value) if (value[key] === undefined) delete value[key];
+  return value;
+}

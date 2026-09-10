@@ -103,7 +103,7 @@ existing trust; write success does not repair a refused resume.
 
 E_OFFLINE_RESUME: rewrite an unsupported log as a direct ascending `after c first N`
 page (N <= 50); `online()` may retry mounted-limit once, not an unsupported log.
-E_OFFLINE_RESET: drop coverage, keep outbox, fetch program, re-resume.
+E_OFFLINE_RESET: reset answers/facts, keep outbox and delivered-history bodies anchored by held delivered events; removed events still evict. Fetch program, re-resume.
 A mounted drain restarts once at null. E_AUTH_SESSION seals; E_OFFLINE_AUTHORITY keeps coverage.
 
 Legacy `{c:null}` keys require a cold store for this pre-release.
@@ -126,17 +126,7 @@ Repeats: E_ASSET_VIEWED (assets,410). E_OFFLINE_CARRIER: configure carrier;
 E_OFFLINE_STATE: inspect state; E_OFFLINE_DELIVERY: retry authenticated query;
 E_OFFLINE_LIFECYCLE: sign in/reopen; E_OFFLINE_FOLLOWER: sign in; use writer tab for uploads/channels or no inbox route.
 
-## Custody
+## Delivery custody
 
-`deliver to T[.keys] as name` on a content table derives an engine-owned
-per-recipient log (recipient, row, incarnation, keys, kind
-delivered/changed/removed, audience, seq, at; byRecipient/byRecipientGroup/byRow;
-read `.recipient = viewer`; removed tombstones its row; programs never write
-it). Keys pin a `cap N by` group of T (E_DELIVER_UNBOUNDED); T needs one
-principal column or `by .column` (E_DELIVER_PRINCIPAL); the name must be free.
-`with receipts` adds nameReceipts (row, recipient, received, seq, the read
-rule's columns) under that rule; durable acknowledgement: `guide deliver`.
-Installing, bootstrapping, removing, and the
-audience bound `A`: `guide successor`.
-
-What each write delivers, the reserve it prices, and id reuse: `guide deliver`.
+Declare `deliver` on the content table; drain its generated log. See `guide
+deliver` for the declaration, original recipients, reads, prediction and receipts.
