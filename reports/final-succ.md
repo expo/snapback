@@ -638,3 +638,16 @@ Changed paths relative to the repository root:
 Governing constraints: LLP 1000's Snapback 2 fence; LLP 1001 §4 transaction/ownership; LLP 1012 §7 durable unspent replay; LLP 1018.004 §2 serial inbox custody; LLP 1016 D4 repair under the predecessor; LLP 1020 A1/A2 recursive domain narrowing, A3 exact owned projections/reporting, A6 diagnostic family/site/rewrite/page. No new apparatus, generated source, corpus case, design document or compatibility path. Hand-off: none.
 
 No numbered item refused. No RFC design deviation and no new open product question. Explicit migration source reporting and ledger-intent-command → original-alias recovery received additional coverage within the requested surfaces. All files are within the final brief's named areas, including its explicitly requested LLP 1018.004 amendment. The pre-existing online-client hot-regroup transition issue (`issues/20260910-snapback2-online-client-query-during-hot-regroup.md`) remains outside these eight fixes; this report makes no claim to fix that separate race. No commits, stashes, branch changes or whole-suite run; the orchestrator owns remote full-suite verification and landing.
+
+## Fix round r4 (orchestrator)
+
+Codex r4 (`reviews/succ-r4-codex.md`) found that a follower's dismissal consumed its durable
+result and then rejected its caller when the role changed during the deletion's refresh, losing
+the bytes; and that two overlapping follower dismissals could both return one result. Fixed in
+`client-inbox.ts`: the role is checked before the row is consumed, never after (a role that
+changed first leaves the row for the new writer; a role that changes after the deletion leaves
+the bytes with the caller), and one consumer per command. Tests (`inbox.test.ts`): `a dismissal
+consumed before a takeover keeps its bytes with the caller` (pause after the deletion commits,
+take over, the original call returns the exact bytes, the successor finds nothing, only the next
+intent replays); `overlapping follower dismissals consume a completed result once`. Inbox,
+outbox, custody, and recovery files 72/72; runtime 84778 gzip (ceiling 85,000).

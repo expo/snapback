@@ -85,6 +85,8 @@ export class ClientInbox {
   private unresponsiveTimer?: ReturnType<typeof setTimeout>;
   private unresponsive = false;
   private admitting?: Promise<{ stopped?: string; op?: string }>;
+  /** Completed dismissal commands one call is consuming: the first caller to see the durable result owns it. */
+  private readonly consuming = new Set<number>();
   private admitAgain = false;
   private unsubscribeLedger?: () => void;
   private retryTimer?: ReturnType<typeof setTimeout>;
@@ -256,8 +258,13 @@ export class ClientInbox {
       const result = runtime.inboxRows.find(row => row.key === command);
       if (!result) return undefined;
       if (result.state === "done") {
-        await runtime.removeInboxRow(command);
-        if (this.generation !== generation || this.host.fence() !== fence || this.host.closed()) throw this.host.superseded();
+        // The role was checked before the row is consumed, never after: once the durable
+        // result is gone its bytes belong to this caller whatever the role became meanwhile,
+        // and a role that changed first leaves the row for the new writer to recover. One
+        // consumer per command, so overlapping calls cannot both return the same bytes.
+        if (this.consuming.has(command)) return undefined;
+        this.consuming.add(command);
+        try { await runtime.removeInboxRow(command); } finally { this.consuming.delete(command); }
         return (result.response ?? undefined) as OutboxEntry | undefined;
       }
       if (Date.now() >= deadline) throw followerRefusal("client.outbox.dismiss");

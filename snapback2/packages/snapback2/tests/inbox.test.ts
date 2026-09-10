@@ -87,6 +87,76 @@ for (const [cold, target] of [[false, "alias"], [true, "alias"], [true, "intent"
   } finally { release(); closeDrain(); await successor.close(); await follower.close(); await writer.close(); }
 });
 
+// A takeover that lands after the follower consumed its durable result: the bytes are already
+// the caller's (nothing durable remains to recover), so the old role publishes them instead of
+// rejecting; the successor finds nothing and only the next intent replays.
+test("a dismissal consumed before a takeover keeps its bytes with the caller", async () => {
+  const refusal = { code: "E_INPUT", family: "input", message: "enum case removed", guide: "input/runtime" };
+  const { owner, open } = tabs({ refuse: (_intent, body) => body.args.body === "removed" ? { status: 400, envelope: refusal } : undefined });
+  const writer = open(); await writer.ready;
+  const closeDrain = await earnGrant(writer);
+  await writer.offline();
+  const follower = open(); await follower.ready;
+  let release!: () => void;
+  const paused = new Promise<void>(resolve => { release = resolve; });
+  try {
+    await until(async () => (await follower.outbox.status()).reason === "forwarding", "follower route");
+    const args = { conversationId: "conversation-1", body: "removed" };
+    const first = await follower.mutation(api.messages.send, args);
+    await follower.mutation(api.messages.send, { ...args, body: "after" });
+    await until(async () => (await writer.outbox.entries()).filter(e => e.grant).length === 2, "writer admission");
+    await assert.rejects(writer.online(), { code: "E_INPUT" });
+    await writer.offline();
+    const head = (await writer.outbox.entries())[0]!;
+    const runtime = (follower as any).offlineRuntime;
+    const remove = runtime.removeInboxRow.bind(runtime);
+    let deleted = false;
+    runtime.removeInboxRow = async (key: number) => { await remove(key); deleted = true; await paused; };
+    const pending = follower.outbox.dismiss(first.intent!).then(value => ({ value }), error => ({ error }));
+    await until(() => deleted, "the follower consumed the durable result");
+    await writer.close();
+    await until(() => !runtime.following, "the follower became the writer");
+    release();
+    const outcome = await pending as any;
+    assert.deepEqual(outcome.value, { intent: head.intent, op: head.op, args, refusal }, "the caller keeps the bytes it consumed");
+    assert.equal(await follower.outbox.dismiss(first.intent!), undefined, "nothing durable remains to recover");
+    await follower.online();
+    await follower.outbox.drain();
+    assert.deepEqual(owner.executions.map(e => (e.args as any).body), ["after"], "only the next intent replays");
+  } finally { release(); closeDrain(); await follower.close(); await writer.close(); }
+});
+
+// Two overlapping follower dismissals of one refused intent: exactly one returns the bytes.
+test("overlapping follower dismissals consume a completed result once", async () => {
+  const refusal = { code: "E_INPUT", family: "input", message: "enum case removed", guide: "input/runtime" };
+  const { owner, open } = tabs({ refuse: (_intent, body) => body.args.body === "removed" ? { status: 400, envelope: refusal } : undefined });
+  const writer = open(); await writer.ready;
+  const closeDrain = await earnGrant(writer);
+  await writer.offline();
+  const follower = open(); await follower.ready;
+  try {
+    await until(async () => (await follower.outbox.status()).reason === "forwarding", "follower route");
+    const args = { conversationId: "conversation-1", body: "removed" };
+    const first = await follower.mutation(api.messages.send, args);
+    await follower.mutation(api.messages.send, { ...args, body: "after" });
+    await until(async () => (await writer.outbox.entries()).filter(e => e.grant).length === 2, "writer admission");
+    await assert.rejects(writer.online(), { code: "E_INPUT" });
+    await writer.offline();
+    const head = (await writer.outbox.entries())[0]!;
+    const runtime = (follower as any).offlineRuntime;
+    // Both calls observe the completed command before either deletion lands.
+    const remove = runtime.removeInboxRow.bind(runtime);
+    runtime.removeInboxRow = async (key: number) => { await new Promise(resolve => setTimeout(resolve, 50)); await remove(key); };
+    const results = await Promise.all([follower.outbox.dismiss(first.intent!), follower.outbox.dismiss(first.intent!)]);
+    const returned = results.filter(value => value !== undefined);
+    assert.equal(returned.length, 1, `exactly one caller gets the bytes: ${JSON.stringify(results)}`);
+    assert.deepEqual(returned[0], { intent: head.intent, op: head.op, args, refusal });
+    await writer.online();
+    await writer.outbox.drain();
+    assert.deepEqual(owner.executions.map(e => (e.args as any).body), ["after"], "only the next intent replays");
+  } finally { closeDrain(); await follower.close(); await writer.close(); }
+});
+
 /** The writer earns its replay grant through the recipe's drain. */
 async function earnGrant(writer: any): Promise<() => void> {
   const inbox = subscribe(writer, api.messages.inbox, { c: null }, () => undefined, { drain: true });
