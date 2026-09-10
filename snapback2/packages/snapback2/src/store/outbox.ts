@@ -287,8 +287,13 @@ export class OutboxLedger {
   ): Promise<OutboxEntry> {
       const args = structuredClone(input.args);
       const grant = await this.grant();
-      if (!grant) throw new OutboxRefusal("no replay grant");
-      if (this.expired(grant)) throw new OutboxRefusal("replay grant expired");
+      if (!grant) {
+        throw new OutboxRefusal(
+          "no replay grant on this device; log in, or drain a query online, before writing",
+          "resume as this principal (a login, or a query with { drain: true } reaching its watermark), then send again",
+        );
+      }
+      if (this.expired(grant)) throw new OutboxRefusal("replay grant expired; queued writes are kept");
       const maxNewIds = (await this.store.outbox.bounds())[input.op];
       if (maxNewIds === undefined) {
         throw new OutboxRefusal(
@@ -299,7 +304,7 @@ export class OutboxLedger {
       const count = 1 + maxNewIds;
       if (grant.used + count > grant.count) {
         throw new OutboxRefusal(
-          `replay grant has ${grant.count - grant.used} ids; write needs ${count}`,
+          `replay grant has ${grant.count - grant.used} ids left; this write needs ${count}`,
         );
       }
       const ids = sliceIds(grant, grant.used, count);

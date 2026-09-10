@@ -476,7 +476,8 @@ test("successor guide aliases and Quarry diagnostic rewrites compile", { timeout
     await mkdir(join(directory, "snapback"));
     const pages = ["successor", "migrations", "migration"].map(name => cli(directory, ["guide", name]).content);
     assert.equal(pages[0], pages[1]); assert.equal(pages[0], pages[2]);
-    assert.ok(Buffer.byteLength(pages[0]) <= 4096);
+    // 4,608 while the page carries the custody-log paragraph (LLP 1019); it moves to `guide deliver`.
+    assert.ok(Buffer.byteLength(pages[0]) <= 4608);
     assert.ok(!pages[0].includes("once J1b lands"));
     const families = JSON.parse(await readFile(resolve(import.meta.dirname, "../guide/families.source.json"), "utf8"));
     // Fix round r1, item 9: every successor family row and the `E_STEPS` pair. A Quarry
@@ -497,7 +498,7 @@ test("successor guide aliases and Quarry diagnostic rewrites compile", { timeout
         : { "snapback/schema.q": source.slice(0, start), "snapback/admin.q": source.slice(start) };
     };
     const rows = families.filter((row: any) => row.code.startsWith("E_SUCCESSOR") || row.code === "E_STEPS");
-    assert.deepEqual(rows.map((row: any) => row.code).sort(), ["E_STEPS", "E_SUCCESSOR_CAP", "E_SUCCESSOR_COLUMN_REQUIRED", "E_SUCCESSOR_DESTRUCTIVE", "E_SUCCESSOR_NARROWING", "E_SUCCESSOR_ROW_INVALID", "E_SUCCESSOR_STORE", "E_SUCCESSOR_UNIQUE"]);
+    assert.deepEqual(rows.map((row: any) => row.code).sort(), ["E_STEPS", "E_SUCCESSOR_BOOTSTRAP", "E_SUCCESSOR_CAP", "E_SUCCESSOR_COLUMN_REQUIRED", "E_SUCCESSOR_DESTRUCTIVE", "E_SUCCESSOR_NARROWING", "E_SUCCESSOR_ROW_INVALID", "E_SUCCESSOR_STORE", "E_SUCCESSOR_UNIQUE"]);
     let compiled = 0;
     for (const example of rows) {
       assert.equal(example.guide, example.code === "E_STEPS" ? "bounds" : "successor", example.code); assert.ok(example.site, example.code);
