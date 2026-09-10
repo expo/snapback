@@ -687,3 +687,12 @@ predecessor refuses; likewise a `text <=10 ?` → `text <=20` fill. Fixed: list,
 json maxima take the smaller of the two bounds; the test covers both shapes. The two-tab
 consumption test now barriers both tabs at the take for one command (codex material). Narrowing
 and evolution units 24/24, inbox 15/15, compiler 295/295.
+
+## Fix round r8 (orchestrator)
+
+Grok r7 (`reviews/succ-r7-grok.md`, LAND WITH FIXES): the staged paste said "keep the predecessor
+schema" right after telling the operator to widen it — it now says "keep that widened
+declaration"; the mixed-enum paste is pinned to the compiler-lowered fixture (the `tier` change
+in the fixture test is now mixed: `pro` removed, `team` added, required), so `repairs.q` unchanged
+proves the intersection-typed fill compiles under the predecessor `schema.q`. Residual (ticket at
+landing): the Rust positional-Get test does not run the checker; the owner test does.

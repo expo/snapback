@@ -285,11 +285,12 @@ fn repair_job(c: &NarrowingConflict, predecessor: &ColumnType, successor: &Colum
     // @ref LLP 1020#a2-enum-case-removal-is-checked-narrowing — the argument is typed by
     // what BOTH schemas accept: the job runs under the predecessor. When no case survives
     // both, the paste says to apply the widening first, so it compiles where it runs.
-    let (ty, stage) = match fill_type(predecessor, successor) {
-        Some(ty) => (ty, ""),
+    let (ty, stage, keep) = match fill_type(predecessor, successor) {
+        Some(ty) => (ty, "", "keep the predecessor schema"),
         None => (
             quarry_type(successor),
             "-- first add the successor's cases to this declaration and apply (a widening), so this job compiles there.\n",
+            "keep that widened declaration",
         ),
     };
     if c.removed_cases.is_empty() && !lowered {
@@ -347,7 +348,7 @@ fn repair_job(c: &NarrowingConflict, predecessor: &ColumnType, successor: &Colum
             .collect::<Vec<_>>()
             .join("\n");
         return format!(
-            "{stage}-- keep the predecessor schema; this deletes every row {what}{fills}.\n-- To map instead, replace each delete with: update {table}[p.id] {{ {column}: {kept} }}\njob {name}_{table}_{column}({argument}):\n  chunk p in {table} first 100 by byId:\n{fill}{body}"
+            "{stage}-- {keep}; this deletes every row {what}{fills}.\n-- To map instead, replace each delete with: update {table}[p.id] {{ {column}: {kept} }}\njob {name}_{table}_{column}({argument}):\n  chunk p in {table} first 100 by byId:\n{fill}{body}"
         );
     }
     // No single statement can check this value, so each sampled id gets its own exact,
@@ -365,7 +366,7 @@ fn repair_job(c: &NarrowingConflict, predecessor: &ColumnType, successor: &Colum
         .collect::<Vec<_>>()
         .join("\n");
     format!(
-        "{stage}-- keep the predecessor schema; this deletes the sampled rows (no one sweep can check values inside lists or bytes).\n-- Apply again after this job: the refusal counts the rows that remain; rerun its next sample job until that count is zero.\njob {name}_{table}_{column}({argument}):\n{fill}{sweeps}"
+        "{stage}-- {keep}; this deletes the sampled rows (no one sweep can check values inside lists or bytes).\n-- Apply again after this job: the refusal counts the rows that remain; rerun its next sample job until that count is zero.\njob {name}_{table}_{column}({argument}):\n{fill}{sweeps}"
     )
 }
 
@@ -559,6 +560,8 @@ mod tests {
         // enum('a')? -> enum('c'): nothing survives both; the paste says to widen first.
         let paste = repair_job(&conflict(vec!["a"]), &optional(enum_of(&["a"])), &enum_of(&["c"]));
         assert!(paste.starts_with("-- first add the successor's cases to this declaration and apply (a widening)"), "{paste}");
+        assert!(paste.contains("-- keep that widened declaration; this deletes"), "{paste}");
+        assert!(!paste.contains("keep the predecessor schema"), "{paste}");
         assert!(paste.contains("job remove_items_value(value: enum('c')):"), "{paste}");
         // [enum('a','b')] <=3 ? -> [enum('b','c')] <=3: the list fill keeps the shared case.
         let paste = repair_job(
@@ -582,7 +585,9 @@ mod tests {
         assert!(paste.contains("job fill_items_value(value: enum('a')):"), "{paste}");
     }
     /// One conflict may need two repairs (nulls and a removed case) or a truncation; both
-    /// pastes are pinned to the fixture the compiler lowers (`repairs.q`).
+    /// pastes are pinned to the fixture the compiler lowers (`repairs.q`), and the enum
+    /// change is mixed (a case removed, a case added, the column required) so the fill's
+    /// type — the cases both schemas accept — is proven to compile under the predecessor.
     #[test]
     fn combined_and_truncating_repairs_are_the_fixture_the_compiler_lowers() {
         let store = Store::memory().unwrap();
@@ -612,10 +617,13 @@ mod tests {
             "avatarUrl".into(),
             ColumnType::Optional(Box::new(ColumnType::Text { max: 100 })),
         );
+        // A mixed change — 'pro' removed, 'team' added, the column now required — pastes a
+        // fill typed by the case both schemas accept (`enum('free')`); the compiler lowers
+        // `repairs.q` under the predecessor `schema.q`, which proves the paste compiles there.
         columns.insert(
             "tier".into(),
             ColumnType::Enum {
-                variants: vec!["free".into()],
+                variants: vec!["free".into(), "team".into()],
             },
         );
         for (id, fields) in [
