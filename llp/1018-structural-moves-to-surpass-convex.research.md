@@ -9,7 +9,7 @@ Clique benchmark
 2026-09-06); revised by Claude Fable 5.1 after the five-model panel of
 2026-09-06/07 (§9), which the author convened
 **Date:** 2026-09-06
-**Revised:** 2026-09-09 (published 0.0.20 cold treatment and working-set reconciliation, §§2 and 11); 2026-09-08 (LLP 1018.000 implemented; separate cold-run obligations retained); 2026-09-07 (bounded lifecycle/consumer closeout and zero-proof integration audit); 2026-09-07 (public zero-count proof repair and cold prediction witness); 2026-09-07 (implemented finite compiler/declaration reconciliation); 2026-09-07 (follow-on LLP 1018.000 linked; closed-ticket links repaired); 2026-09-07 (focused panel: witness-first sequence and finite compiler closeout, §13); 2026-09-07 (two focused draft RFCs and three bounded architecture investigations, §12); 2026-09-07 (pending-client schema conflict exercise and formal M7 handoff); 2026-09-07 (surviving-row uniqueness checked against each actual rebuild); 2026-09-07 (panel revision: a second measure, move one rewritten
+**Revised:** 2026-09-09 (0.0.20 record review: full assertion scope, Muse O1 adjudication, sampling and attribution corrections, §2); 2026-09-09 (published 0.0.20 cold treatment and working-set reconciliation, §§2 and 11); 2026-09-08 (LLP 1018.000 implemented; separate cold-run obligations retained); 2026-09-07 (bounded lifecycle/consumer closeout and zero-proof integration audit); 2026-09-07 (public zero-count proof repair and cold prediction witness); 2026-09-07 (implemented finite compiler/declaration reconciliation); 2026-09-07 (follow-on LLP 1018.000 linked; closed-ticket links repaired); 2026-09-07 (focused panel: witness-first sequence and finite compiler closeout, §13); 2026-09-07 (two focused draft RFCs and three bounded architecture investigations, §12); 2026-09-07 (pending-client schema conflict exercise and formal M7 handoff); 2026-09-07 (surviving-row uniqueness checked against each actual rebuild); 2026-09-07 (panel revision: a second measure, move one rewritten
 around what already exists, the browser-tab policy decided, count-backed cap
 probes decided, the typed IR cut, move four evidence-led, move zero added, the
 Muse scores cited, the clock repair marked landed; implementation record §10);
@@ -120,22 +120,39 @@ shape: Snapback leads Convex in authorization (87 / 74) and offline sync
 integration (66 / 81), and scale/limits (44 / 80).
 
 Independent pre-M7 grading counted Astra 83 / 9 / 9, Grok 68 / 9 / 24, and
-Muse 80 / 5 / 16 pass / fail / not-run entries in the frozen 101-key report
-schema. Astra alone completed the scale replay: all 167,157 actions and 225
+Muse 80 / 5 / 16 pass / fail / not-run as the **101-key M1–M7 serialization
+subtotals**. Including the eighteen M8 assertions retained in each trace, full
+119-assertion O1 scope accounting is **99 / 11 / 9**, **77 / 11 / 31**, and
+**80 / 5 / 34**, respectively. Observed passes are distinct from O1 completeness
+credit: the frozen rule gives non-green milestones none. The fresh Claude
+[Muse O1 addendum](../benchmarks/runs/2026-09-09-clique-snapback2-0.0.20-treatment/grading-muse-snapback2-o1-adjudication.md)
+supersedes the original O1 **62** with **28** (only M1/M4 green, 25/119 credited).
+The original JSON/trace, all observed assertions, and the holistic scores remain
+unchanged. Astra alone completed the scale replay: all 167,157 actions and 225
 invariants passed, while cold browser sync and group send/render exceeded
-thirty seconds. Astra and Grok's fresh M7 sessions ended capability-failure;
-Muse's passed its 6/6 feature suite, frozen live/offline choreography, and
+thirty seconds. Its cold-sync repeat failed in the first warm-up, with zero of
+20 measured samples completed and no p95; O5 is **band 30**. Astra and Grok's
+fresh M7 sessions ended capability-failure; Grok passed 6/6 suite-required
+assertions (11/11 coverage), but offline vote reconciliation remained red.
+Muse's session passed its 6/6 feature suite, frozen live/offline choreography, and
 48-view preservation comparison. These are N=1 calibration observations, not
 a causal estimate or promotion claim. They establish that 0.0.20 did not
-surpass the retained Convex comparison and that client delivery, hydration,
+surpass the retained Convex comparison and that client send/visibility, hydration,
 pagination, and first-write custody remain the dominant residual seams.
+Astra isolated delay in the browser path to the server; Grok verified all six
+commits only afterwards, leaving commit-versus-visibility timing unresolved.
+This evidence does not establish already-server-committed delivery latency.
 
 The [treatment diary](../diaries/0118-snapback2-0020-clique-treatment.diary.md#llp-1018-measure-count)
 counts §1's measures conservatively across the three lanes: seven categories
 of application-owned infrastructure avoided, six application-owned
 integration mechanisms still added, and seven contracts still derived from
 behavior. Repeated observations are deduplicated and purely application or
-harness mistakes are excluded.
+harness mistakes are excluded. The media entry counts only the platform-wide
+blast radius of owner-wide admission quota (one persona's pending uploads can
+refuse every persona's media sends), not the application-local early return
+after upload that caused the leak. The 7/6/7 count therefore does not count
+that app bug as a platform contract.
 
 Two features of the [canonical rubric](../benchmarks/briefs/social-messenger.md#scoring)
 matter to prioritization. Offline behavior O4 and offline authoring B4

@@ -17,7 +17,7 @@ Run start=1788960687; report end=1788973918; elapsed=13231 seconds. Orientation 
 | M8 | green | 1788970099 | 1788972311 | 2212 | 6 passing | 5/5 passing |
 | M7 | not-run | — | — | — | Separate session excluded | — |
 
-First-green values above are the explicit run-log milestone declarations, not reconstructed earlier component-pass times. Exact retained suite/choreography paths, timestamps and bound receipts are in [milestone-status](evidence/milestone-status.json). Coverage is in [coverage-manifest.json](coverage-manifest.json). There were no final required web choreography skips.
+First-green values above are the explicit run-log milestone declarations, not reconstructed earlier component-pass times. Exact retained suite/choreography paths, timestamps and bound receipts are in milestone-status (raw lane: `lanes/astra-snapback2/evidence/milestone-status.json`). Coverage is in coverage-manifest.json (raw lane: `lanes/astra-snapback2/coverage-manifest.json`). There were no final required web choreography skips.
 
 ## Scale replay
 
@@ -25,7 +25,7 @@ Attempted against fresh `scale-instance`, seeded through all three public starte
 Raw clock: `[{"attempt": 1, "startedAt": "2026-09-09T16:45:31.318Z", "finishedAt": "2026-09-09T17:07:34.177Z", "startEpoch": 1788972331.318, "endEpoch": 1788973654.177, "settledPrefix": 167157, "continuationOf": null, "disposition": "completed"}]`.
 Replay-only wall=1042.251s; excluded verification/probe wall=280.608s. Cap=14400s (user safety limit; pilot calibration unavailable).
 Settled prefix=167157/167157; invariant verification pass=True. Failed actions: `[]`.
-[Replay clock](evidence/scale-replay-clock.json), [settle/invariant receipt](evidence/scale-replay-receipt.json), and per-action `evidence/scale-settles.jsonl` preserve the attempt. Corpus counts are receipt accounting; independent verification uses named fixtures and a disclosed deterministic sample, not the hidden grader seed.
+Replay clock (raw lane: `lanes/astra-snapback2/evidence/scale-replay-clock.json`), settle/invariant receipt (raw lane: `lanes/astra-snapback2/evidence/scale-replay-receipt.json`), and per-action `evidence/scale-settles.jsonl` preserve the attempt. Corpus counts are receipt accounting; independent verification uses named fixtures and a disclosed deterministic sample, not the hidden grader seed.
 
 ### 10% measurements
 
@@ -40,7 +40,7 @@ Settled prefix=167157/167157; invariant verification pass=True. Failed actions: 
 | insights | 2.072667000000365 | — | — |
 | trending | 2.926666999992449 | — | — |
 
-Full samples and errors: [receipt](evidence/scale-probes-10pct.json).
+Full samples and errors: receipt (raw lane: `lanes/astra-snapback2/evidence/scale-probes-10pct.json`).
 ### full measurements
 
 | Probe | p95 ms | Within 3× | Mid-curve |
@@ -58,7 +58,7 @@ Full samples and errors: [receipt](evidence/scale-probes-10pct.json).
 | groupSendRender | groupSendRender timeout | — | — |
 
 Cold browser sync: `{"pass": false, "error": "locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('clique-sync-state').filter({ hasText: 'Messages synced' }) to be visible\u001b[22m\n", "wallMs": 30231.683750000004}`. Heap samples remain in the probe receipt.
-Full samples and errors: [receipt](evidence/scale-probes-full.json).
+Full samples and errors: receipt (raw lane: `lanes/astra-snapback2/evidence/scale-probes-full.json`).
 ### 50% measurements
 
 | Probe | p95 ms | Within 3× | Mid-curve |
@@ -72,25 +72,25 @@ Full samples and errors: [receipt](evidence/scale-probes-full.json).
 | insights | 2.0364579999586567 | — | — |
 | trending | 2.934375000069849 | — | — |
 
-Full samples and errors: [receipt](evidence/scale-probes-50pct.json).
+Full samples and errors: receipt (raw lane: `lanes/astra-snapback2/evidence/scale-probes-50pct.json`).
 
-Cold-sync repeat: [strict fresh-storage batch](evidence/scale-cold-browser.json) failed its first warm-up at the 30-second total deadline. No measured k=20 p95 exists. **Overall browser scale safety failed** (cold sync and group send/render), despite invariant success and passing backend degradation ratios. The repeat has its own post-replay timestamps and 30.162 seconds of wall time, outside the recorded replay attempt.
+Cold-sync repeat: strict fresh-storage batch (raw lane: `lanes/astra-snapback2/evidence/scale-cold-browser.json`) failed its first warm-up at the 30-second total deadline. No measured k=20 p95 exists. **Overall browser scale safety failed** (cold sync and group send/render), despite invariant success and passing backend degradation ratios. The repeat has its own post-replay timestamps and 30.162 seconds of wall time, outside the recorded replay attempt.
 
 ## Native artifacts
 
 All seven milestone Hermes exports exist; exact paths are in milestone-status. M6 and M8 simulator proofs both **failed** separately from web green. Signed Release builds, XCTest result bundles, screenshots, and partial videos are retained. No passing native JSONL was fabricated.
-[M6 native record](artifacts/m6-native/m6-ios-run.json); [M8 native record](artifacts/m8-native/m8-ios-run.json).
+M6 native record (raw lane: `lanes/astra-snapback2/artifacts/m6-native/m6-ios-run.json`); M8 native record (raw lane: `lanes/astra-snapback2/artifacts/m8-native/m8-ios-run.json`).
 
 ## Corrections and package pins
 
 74 timestamped correction/error/retry/workaround events retained, including mixed-attribution events. Counts by recorded classification: `{'agent-error': 45, 'environment': 7, 'ambiguous': 21, 'snapback2-defect': 1}`. This counts logged evidence events, not an invented one-to-one measure of individual bugs.
-[Every event with attribution and evidence](evidence/correction-loops.json). Snapback-specific claims are confined to captured diagnostics; unresolved native and transport behavior remains ambiguous.
+Every event with attribution and evidence (raw lane: `lanes/astra-snapback2/evidence/correction-loops.json`). Snapback-specific claims are confined to captured diagnostics; unresolved native and transport behavior remains ambiguous.
 
-Exact direct resolutions include Snapback `0.0.20`, host binary `0.0.20`, Expo `54.0.37`, React `19.1.0`, React Native `0.81.5`. [All resolved top-level pins](evidence/resolved-pins.json); full transitive closure in package-lock.json; binary hashes in setup-identity.json.
+Exact direct resolutions include Snapback `0.0.20`, host binary `0.0.20`, Expo `54.0.37`, React `19.1.0`, React Native `0.81.5`. All resolved top-level pins (raw lane: `lanes/astra-snapback2/evidence/resolved-pins.json`); full transitive closure in package-lock.json; binary hashes in setup-identity.json.
 
 ## Hand-authored lines
 
-1620 physical authored lines across 121 source/test/tool files. Generated and inherited code excluded; diagnostic scripts included. Per-file counts and counting rule: [hand-authored-lines.json](evidence/hand-authored-lines.json).
+1620 physical authored lines across 121 source/test/tool files. Generated and inherited code excluded; diagnostic scripts included. Per-file counts and counting rule: hand-authored-lines.json (raw lane: `lanes/astra-snapback2/evidence/hand-authored-lines.json`).
 
 | File | Lines |
 |---|---:|
@@ -223,13 +223,13 @@ Exact direct resolutions include Snapback `0.0.20`, host binary `0.0.20`, Expo `
 - Following lookup is bounded at 500 follows; global message search at 100 memberships. Scale degradation predicates are reported above without turning a failure into a pass.
 - Digest work scans messages in resumable chunks; maintained counters require a backfill on older rows.
 - Opaque custom-client sessions support logout revocation, but a numeric public token TTL was not available.
-- Durable resume exposed a captured conditional-envelope refusal; retry is visible. See [platform gaps](docs/platform-gaps.md).
+- Durable resume exposed a captured conditional-envelope refusal; retry is visible. See platform gaps (raw lane: `lanes/astra-snapback2/docs/platform-gaps.md`).
 - The frozen choreography omitted a schema helper; a narrow AJV loader redirect preserved its schemas and assertions. Copied UI ARIA fixes mirror native values.
 - No deployment or native release-store submission is claimed. No M7 session was run.
 - Token and fine-grained phase metering unavailable to this agent; recorded null rather than estimated.
 
-All owned servers stopped; no listeners remain on50100–50119. Exact PID and simulator cleanup: [server-cleanup.json](evidence/server-cleanup.json).
+All owned servers stopped; no listeners remain on50100–50119. Exact PID and simulator cleanup: server-cleanup.json (raw lane: `lanes/astra-snapback2/evidence/server-cleanup.json`).
 
-[Diary](diary.md), [comparison essay](essay.md), [machine run record](run-record.json), and [run log](run-log.md).
+Diary (raw lane: `lanes/astra-snapback2/diary.md`), comparison essay (raw lane: `lanes/astra-snapback2/essay.md`), machine run record (raw lane: `lanes/astra-snapback2/run-record.json`), and run log (raw lane: `lanes/astra-snapback2/run-log.md`).
 
 end=1788973918

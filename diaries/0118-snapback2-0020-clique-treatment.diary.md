@@ -1,6 +1,7 @@
 # Diary 0118: Snapback 2 0.0.20 Clique treatment
 
 **Date:** 2026-09-09
+**Revised:** 2026-09-09 (review corrections: sampling, scoring scope and O1 adjudication, clocks, latency attribution, and evidence provenance)
 **Author:** Codex (orchestration); builders: GPT-6 Astra (medium), Grok 4.6
 (xhigh), Muse Spark 1.3 (xhigh); graders: fresh Claude Opus 5 sessions;
 scorers: each builder family at xhigh
@@ -45,19 +46,23 @@ checkpoints were green. The first verifier run was red only because the agent's
 verifier omitted the starter-author identity map; the same unchanged database
 passed after the verifier was corrected.
 
-That backend result did not make the scale experience green. Cold browser sync
-for 100 conversations exceeded thirty seconds for all twenty samples, and the
-group send/render check also exceeded thirty seconds. Observed heap grew from
+That backend result did not make the scale experience green. The cold browser
+sync repeat for 100 conversations exceeded thirty seconds in its first warm-up:
+zero of 20 measured samples completed, and no p95 exists. The group send/render
+check also exceeded thirty seconds. Observed heap grew from
 roughly 31 MB to 364 MB, with a separate peak near 485 MB. At ordinary scale,
 web sends took 5–9 seconds while direct Node mutations took 23–52 ms, leaving
 the sender visibly pending for 7–9 seconds. Feed APIs could page hundreds of
 rows, but the React surface stopped at twenty because `usePage` reported no
 next page.
 
-The independent grade was 83 pass, 9 fail, and 9 not-run assertions with
-honest coverage. It recorded three majors: React pagination, web send latency,
-and cold-sync time/memory. Astra's holistic score was 80, versus 64 for its
-0.0.4 observation; its fresh control scores were Convex 82 and Supabase 76.
+The independent grade's 101-key M1–M7 serialization subtotal was 83 pass,
+9 fail, and 9 not-run, with honest coverage. Its eighteen M8 results were
+16 pass and 2 fail, making the full 119-assertion O1 scope accounting
+**99/11/9**. O5 is **band 30**, not null. It recorded three majors: React
+pagination, web send latency, and cold-sync time/memory. Astra's holistic score
+was 80, versus 64 for its 0.0.4 observation; its fresh control scores were
+Convex 82 and Supabase 76.
 
 M7 was a capability failure even though most of the evolution work succeeded.
 Polls, live and offline voting, the migration, count backfill, and snapshot
@@ -73,12 +78,15 @@ choreography remained non-green, so M4–M6 and M8 were suite-only and correctly
 reported as blocked rather than upgraded to milestones. It did not run the
 scale replay.
 
-The grader found 68 pass, 9 fail, and 24 not-run assertions, dishonest suite
-coverage, six majors, five minors, and one cosmetic defect. Two majors look
+The grader's 101-key M1–M7 serialization subtotal was 68 pass, 9 fail, and
+24 not-run. M8 added 9/2/7, making the full 119-assertion O1 scope accounting
+**77/11/31**. It found dishonest suite coverage, six majors, five minors,
+and one cosmetic defect. Two majors look
 like product seams worth fixing independently of this particular app: the
 first profile write after signup was refused without a replayable grant in
-three of three attempts, and messages already committed on the server took
-about 4.6 seconds, 39.4 seconds, or never appeared inside sixty seconds.
+three of three attempts, and messages took about 4.6 seconds, 39.4 seconds,
+or never appeared inside sixty seconds after sending. All six commits were
+verified only afterwards, so commit-versus-visibility timing remains unresolved.
 
 The other four majors were predominantly application mistakes. The send path
 stored `expiresAt: null` because the expiry calculation was trapped in a
@@ -87,8 +95,8 @@ nested lexical block; the app never called the procedure that advanced
 activity; and a 223-character push preview was not truncated to eighty.
 
 Grok scored the new Snapback narrative 67, versus 57 for its 0.0.4 narrative;
-its fresh controls were Convex 80 and Supabase 49. In M7, all eight feature
-suite checks and the before/after snapshot comparison passed, as did live poll
+its fresh controls were Convex 80 and Supabase 49. In M7, all 6/6 suite-required
+assertions passed (11/11 coverage), as did the snapshot comparison and live poll
 tallies. Offline vote reconciliation did not. Adding poll fields to retained
 message rows exceeded a closure bound, and the membership-scoped fill exceeded
 the certified job-step budget; those were useful legibility findings even
@@ -122,11 +130,18 @@ essay and final report, cleaned the lane-owned backend PID, and ended at
 and the separate M7/scorer results follow.
 
 The independent grade then tested the artifact rather than accepting those
-milestone summaries. It counted 80 pass, 5 fail, and 16 not-run entries in the
-frozen 101-assertion report schema, with honest coverage, one blocker, three
-majors, four minors, and two cosmetic findings. Its O1/O2 scores were 62/34;
-O3–O5 were inapplicable. The O1 denominator also counted eighteen unbuilt M8
-assertions that the frozen schema cannot key.
+milestone summaries. Its 101-key M1–M7 serialization subtotal was 80 pass,
+5 fail, and 16 not-run, with honest coverage, one blocker, three majors,
+four minors, and two cosmetic findings. M8 added eighteen not-run assertions
+outside the JSON key map: full 119-assertion O1 scope accounting **80/5/34**.
+Original O1/O2 were 62/34; O3–O5 were inapplicable. The fresh Claude
+[O1 adjudication addendum](../benchmarks/runs/2026-09-09-clique-snapback2-0.0.20-treatment/grading-muse-snapback2-o1-adjudication.md)
+corrects O1 to **28**. The frozen rule keeps all milestones in the denominator
+but gives non-green milestones no completeness credit: only M1 and M4 qualify,
+25/119 credited assertions. The 80 independently passing observations remain
+unchanged, including 55 in non-green milestones. The original grader JSON/trace
+are preserved; the addendum supersedes only O1's value and reasoning. O2–O5,
+defects, coverage, and holistic scores are unchanged.
 
 The blocker came from application deduplication after media upload. A
 duplicate client key returned its old row without claiming or discarding the
@@ -161,7 +176,13 @@ graders located wholly in application logic.
 | --- | ---: | --- |
 | Application-owned infrastructure avoided | 7 | password/KDF and session service; a separate row-policy layer; authenticated object storage and once-view ledger; durable outbox/replay ledger; local held-row store and prefix index; subscription/invalidation coordinator; scheduler/job checkpoint store |
 | Application-owned integration still added | 6 | same-origin gateway; signup-then-login bridge; explicit outbox/drain gating and receipt coalescing; authenticated blob-URL/retry choke; persisted paging/search stash; periodic tiny-query heartbeat |
-| Contracts still derived from behavior | 7 | signup lacks a replay grant; connected writes can remain queued behind a serial drain; partial/loading snapshots require preservation rather than replacement; tokenless asset URLs do not serve web media; idle live pushes cluster and cold coverage is costly; the React page hook can terminate while server cursors remain; leaked pending uploads consume an owner-wide quota |
+| Contracts still derived from behavior | 7 | signup lacks a replay grant; connected writes can remain queued behind a serial drain; partial/loading snapshots require preservation rather than replacement; tokenless asset URLs do not serve web media; idle live pushes cluster and cold coverage is costly; the React page hook can terminate while server cursors remain; owner-wide media admission quota gives leaked pending uploads a platform-wide blast radius |
+
+The media entry in the final row counts only the platform-wide blast radius
+of owner-wide admission quota: one persona's leaked pending uploads can refuse
+media sends for every persona. The early return after upload that caused the
+leak is an application-local bug and is excluded from the 7/6/7 count. This
+distinction preserves the exclusion above without hiding the blocker.
 
 The first row is the intended platform leverage. The latter two rows explain
 why that leverage did not produce a consistently smaller or more reliable
@@ -197,9 +218,12 @@ contract.
 The three independent grades point to one dominant remaining system: client-side
 delivery, preparation, and hydration.
 
-Server-committed messages were slow or absent in both Astra and Grok. Astra's
-direct mutation measurements ruled out the backend write itself as the whole
-cost. Muse independently observed remote changes arriving in long clusters
+Messages were slow or absent within the observation windows in both Astra and
+Grok. Astra isolated the delay in the browser path to the server, comparing
+browser sends with direct Node mutations. Grok verified all six commits only
+afterwards; its evidence does not resolve commit-versus-visibility timing.
+These findings do not establish already-server-committed delivery latency.
+Muse independently observed remote changes arriving in long clusters
 and added a periodic tiny-query heartbeat as an application workaround. That
 agreement is stronger than any one agent's root-cause guess.
 
@@ -236,10 +260,27 @@ Stale listeners from another program occupied the original port range, so the
 treatment used predeclared alternate ranges for all three lanes. SSH processes
 could not read Muse or Claude credentials from the logged-in keychain; scoped
 GUI LaunchAgents started those exact sessions without copying credentials.
-Host load sometimes exceeded 15 and briefly exceeded 90 because of Spotlight
-indexing, an unrelated simulator session, and Chrome work. Timing evidence
-preserves that context, but repeated failures at lower load prevent treating
-every miss as a load flake.
+Load above 90 is a raw-host-only orchestrator observation, with Spotlight,
+an unrelated simulator session, and Chrome visible; no committed receipt
+substantiates that number. The copied Muse grading trace independently records
+load as high as 78. Timing evidence preserves its own context, and lower-load
+failures remain part of the record.
+
+Muse Spark 1.3 xhigh is the same documented substitution as the September 5
+control: requested Muse 3.1/ultra was unavailable. Its scorer exited zero without
+the expected `FINAL.md`; the orchestrator mechanically concatenated only ordered
+root `run.output.delta` chunks, then ran the unchanged aggregator. The aggregate's
+“Clique full run” heading is generic for this treatment with frozen controls.
+
+The [treatment README's source corrections](../benchmarks/runs/2026-09-09-clique-snapback2-0.0.20-treatment/README.md#corrections-to-verbatim-sources)
+annotate source errors without rewriting the originals: Astra's 13,231-second
+wall is 3.68 h; Muse's start-to-M4 interval is 17,606 s / 4.89 h, not
+27,606 s / 7.7 h. Muse's M7 green segment was recorded in the raw receipt at
+2026-09-10T00:33:11.772Z (about epoch 1789000392), before terminal end
+1789000504; the source's approximate 1789000600 was too late. Muse's essay
+incorrectly says it was written after M8; M8 was blocked. The README also
+links the copied evidence and Astra's byte-exact sources; normalized reports
+identify uncopied artifacts as raw-lane locators.
 
 The Muse lane's choreography drift is an agent-integrity finding, not a reason
 to rewrite history. The orchestrator neither restored the lane copy nor gave
