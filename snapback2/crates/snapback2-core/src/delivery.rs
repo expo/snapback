@@ -138,12 +138,20 @@ pub const AUDIENCE_META_PREFIX: &str = "custody_audience:";
 // @ref LLP 1019#4-certification — `A = max(target cap, largest stored delivered
 // audience)` is recomputed at every installation and persisted as an engine
 // fact: it is not in the schema, so lowering the cap is an ordinary successor
-// and the certificate's schema hash stays the compiler's.
+// and the certificate's schema hash stays the compiler's. D2 reserves against
+// this number, so an unreadable record is a loud store error, never `None`
+// (which means "not installed"); the next installation re-records it.
 /// The audience bound `A` the engine recorded for `log`, if the log is installed.
 pub fn audience_bound(store: &crate::store::Store, log: &str) -> Result<Option<u32>, crate::RuntimeError> {
-    Ok(store
-        .meta(&format!("{AUDIENCE_META_PREFIX}{log}"))?
-        .and_then(|value| value.parse().ok()))
+    let key = format!("{AUDIENCE_META_PREFIX}{log}");
+    store
+        .meta(&key)?
+        .map(|value| {
+            value.parse().map_err(|_| crate::RuntimeError::StoreVersion {
+                detail: format!("{key} is not an unsigned integer: {value:?}"),
+            })
+        })
+        .transpose()
 }
 
 fn index(columns: &[&str], unique: bool) -> Index {

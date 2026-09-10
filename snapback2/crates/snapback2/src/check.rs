@@ -110,24 +110,38 @@ impl SerializableError {
     }
 
     fn schema(error: snapback2_core::RuntimeError) -> Self {
-        let rewrite = if let snapback2_core::RuntimeError::SchemaConstraint { rewrite, .. } = &error
-        {
-            rewrite.clone()
-        } else {
-            "restore the compiler-emitted schema invariants".to_owned()
+        let code = error.code().to_owned();
+        let mut message = error
+            .to_string()
+            .strip_prefix(&format!("{code}:"))
+            .map(|message| message.trim_start().to_owned())
+            .unwrap_or_else(|| error.to_string());
+        let (mut family, mut guide, mut site) = ("schema", "schema/project", "<project>:schema".to_owned());
+        let rewrite = match &error {
+            snapback2_core::RuntimeError::SchemaConstraint { rewrite, .. } => rewrite.clone(),
+            // @ref LLP 1019#1-the-declaration — a `deliver` refusal keeps its own
+            // code, family, page, rewrite, and the declaration's site even when the
+            // certify row is not located: `validate_schema` prefixes the site.
+            snapback2_core::RuntimeError::SchemaDeliver { rewrite, .. } => {
+                (family, guide) = certification_family_guide(&code);
+                if let Some((declaration, rest)) = message.split_once(": ")
+                    && declaration.starts_with("schema.tables.")
+                {
+                    site = declaration.to_owned();
+                    message = rest.to_owned();
+                }
+                rewrite.clone()
+            }
+            _ => "restore the compiler-emitted schema invariants".to_owned(),
         };
         Self {
-            code: error.code().to_owned(),
-            family: "schema".to_owned(),
-            message: error
-                .to_string()
-                .strip_prefix(&format!("{}:", error.code()))
-                .map(|message| message.trim_start().to_owned())
-                .unwrap_or_else(|| error.to_string()),
-            site: "<project>:schema".to_owned(),
+            code,
+            family: family.to_owned(),
+            message,
+            site,
             rule: None,
             rewrite,
-            guide: "schema/project".to_owned(),
+            guide: guide.to_owned(),
         }
     }
 }
@@ -791,6 +805,52 @@ mod tests {
         );
         assert!(error.message.contains("engine-owned table deliveries"), "{}", error.message);
         assert!(check_schema(custody_schema(true), Vec::new()).iter().all(|item| item.error.is_none()));
+
+        let mut misnamed = custody_schema(true);
+        misnamed.tables.get_mut("messages").unwrap().deliver.as_mut().unwrap().principal = "conversationId".to_owned();
+        let results = check_schema(misnamed, Vec::new());
+        let error = results[0].error.as_ref().unwrap();
+        assert_eq!(
+            (error.code.as_str(), error.family.as_str(), error.guide.as_str(), error.site.as_str()),
+            ("E_DELIVER_PRINCIPAL", "schema", "offline/deliver", "schema.tables.messages.deliver")
+        );
+        assert_eq!(error.rewrite, "deliver to memberships[.conversationId] by .principal as deliveries");
+        assert_eq!(
+            error.message,
+            "deliver by .conversationId: memberships.conversationId is Ref(conversations), not principal"
+        );
+    }
+
+    // @ref LLP 1019#1-the-declaration — when the certify row is not located, the
+    // fallback still carries the delivery code's family, page, rewrite, and site.
+    #[test]
+    fn an_unlocated_deliver_refusal_keeps_its_labels_on_the_ir_path() {
+        let error = SerializableError::schema(snapback2_core::RuntimeError::SchemaDeliver {
+            code: "E_DELIVER_PRINCIPAL".to_owned(),
+            message: "schema.tables.messages.deliver: deliver by .nobody: memberships has no such column".to_owned(),
+            rewrite: "deliver to memberships[.conversationId] by .principal as deliveries".to_owned(),
+        });
+        assert_eq!(
+            (error.code.as_str(), error.family.as_str(), error.guide.as_str(), error.site.as_str()),
+            ("E_DELIVER_PRINCIPAL", "schema", "offline/deliver", "schema.tables.messages.deliver")
+        );
+        assert_eq!(error.message, "deliver by .nobody: memberships has no such column");
+        assert_eq!(error.rewrite, "deliver to memberships[.conversationId] by .principal as deliveries");
+        assert!(error.rule.is_none());
+
+        let unbounded = SerializableError::schema(snapback2_core::RuntimeError::SchemaDeliver {
+            code: "E_DELIVER_UNBOUNDED".to_owned(),
+            message: "schema.tables.messages.deliver: pins no capped group".to_owned(),
+            rewrite: "cap 50 by conversationId".to_owned(),
+        });
+        assert_eq!((unbounded.family.as_str(), unbounded.guide.as_str()), ("bound", "offline/deliver"));
+
+        let generic = SerializableError::schema(snapback2_core::RuntimeError::Schema("missing table".to_owned()));
+        assert_eq!(
+            (generic.code.as_str(), generic.family.as_str(), generic.guide.as_str(), generic.site.as_str()),
+            ("E_SCHEMA", "schema", "schema/project", "<project>:schema")
+        );
+        assert_eq!(generic.rewrite, "restore the compiler-emitted schema invariants");
     }
 
     #[test]

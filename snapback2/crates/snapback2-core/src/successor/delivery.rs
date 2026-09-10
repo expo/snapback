@@ -89,47 +89,75 @@ pub(super) fn custody_drops(
 }
 
 // @ref LLP 1019#2-the-custody-log — bootstrap runs inside the installation
-// transaction, so it is bounded: above `bootstrap_bound()` events the word is
-// refused and the log installs empty (the priced installation job is LLP 1020
-// Part B's; no program may write the log, so none can be pasted).
-/// Refuse `bootstrap` whose `cap × content rows` exceeds the installation bound.
+// transaction, so it is bounded per installation: when the estimated events
+// of every log the successor bootstraps sum past `bootstrap_bound()`, the
+// successor is refused and the rewrite installs those logs empty (the priced
+// installation job is LLP 1020 Part B's; no program may write the log, so
+// none can be pasted). The bound is an estimate, `cap × content rows`, taken
+// before any event is written; nothing counts the events actually inserted.
+/// Refuse `bootstrap` whose estimated events, summed over every log this
+/// installation would bootstrap, exceed the installation bound.
 pub(super) fn bootstrap_refusal(
     connection: &Connection,
     current: &Schema,
     next: &Schema,
 ) -> Result<Option<SuccessorRefusal>, RuntimeError> {
+    let mut estimates = Vec::new();
     for (content, _, deliver) in delivery::declarations(next) {
         if !deliver.bootstrap || installed(current, content, deliver) {
             continue;
         }
         let cap = group_cap(next, deliver)?;
         let rows = row_count(connection, content)?;
-        let events = u64::from(cap) * rows;
-        if events <= bootstrap_bound() {
-            continue;
-        }
-        let mut empty = deliver.clone();
-        empty.bootstrap = false;
-        return Ok(Some(SuccessorRefusal {
-            code: "E_SUCCESSOR_BOOTSTRAP".to_owned(),
-            message: format!(
-                "bootstrap of {} would write up to {events} delivered events (cap {cap} by {} over {rows} {content} rows), above the installation bound of {}",
-                deliver.log,
-                deliver.prefix.join(", "),
-                bootstrap_bound()
-            ),
-            rewrite: format!(
-                "install the log empty; readers reach prior history through {content} under its rule: {}",
-                empty.line(Some(&deliver.principal))
-            ),
-            site: Some(format!("schema.tables.{content}.deliver")),
-            plan: MigrationPlan::default(),
-            conflicts: Vec::new(),
-            cap_conflicts: Vec::new(),
-            narrowings: Vec::new(),
-        }));
+        estimates.push((content, deliver, cap, rows, u64::from(cap) * rows));
     }
-    Ok(None)
+    let total = estimates.iter().map(|estimate| estimate.4).sum::<u64>();
+    if estimates.is_empty() || total <= bootstrap_bound() {
+        return Ok(None);
+    }
+    let named = |names: Vec<String>| match names.split_last() {
+        Some((last, rest)) if !rest.is_empty() => format!("{} and {last}", rest.join(", ")),
+        _ => names.concat(),
+    };
+    let logs = named(estimates.iter().map(|(_, deliver, ..)| deliver.log.clone()).collect());
+    let contents = named(estimates.iter().map(|(content, ..)| (*content).to_owned()).collect());
+    let groups = estimates
+        .iter()
+        .map(|(content, deliver, cap, rows, _)| {
+            format!("cap {cap} by {} over {rows} {content} rows", deliver.prefix.join(", "))
+        })
+        .collect::<Vec<_>>()
+        .join("; ");
+    let lines = estimates
+        .iter()
+        .map(|(_, deliver, ..)| {
+            let mut empty = (*deliver).clone();
+            empty.bootstrap = false;
+            empty.line(Some(&deliver.principal))
+        })
+        .collect::<Vec<_>>()
+        .join("; ");
+    let (installation, plural) = if estimates.len() == 1 {
+        ("", ("log", "its rule"))
+    } else {
+        (" in one installation", ("logs", "their rules"))
+    };
+    Ok(Some(SuccessorRefusal {
+        code: "E_SUCCESSOR_BOOTSTRAP".to_owned(),
+        message: format!(
+            "bootstrap of {logs} would write up to {total} delivered events{installation} ({groups}), above the installation bound of {}",
+            bootstrap_bound()
+        ),
+        rewrite: format!(
+            "install the {} empty; readers reach prior history through {contents} under {}: {lines}",
+            plural.0, plural.1
+        ),
+        site: Some(format!("schema.tables.{}.deliver", estimates[0].0)),
+        plan: MigrationPlan::default(),
+        conflicts: Vec::new(),
+        cap_conflicts: Vec::new(),
+        narrowings: Vec::new(),
+    }))
 }
 
 fn commit_seq(transaction: &Transaction<'_>) -> Result<i64, RuntimeError> {

@@ -883,6 +883,131 @@ fn bootstrap_is_refused_above_the_installation_bound() {
     assert_eq!(audience_bound(&runtime), Some(50));
 }
 
+/// `schema(cap, messages)` plus a second content table, `notes`, whose
+/// declaration (if any) delivers to the same memberships group as `noteDeliveries`.
+fn schema_with_notes(cap: u32, messages: Option<Deliver>, notes: Option<Deliver>) -> Schema {
+    let mut schema = schema(cap, messages);
+    let mut notes_table = table(
+        &[
+            ("id", ColumnType::Id),
+            ("conversationId", reference("conversations")),
+            ("body", ColumnType::Text { max: 100 }),
+        ],
+        &[("byId", &["id"], true)],
+    );
+    notes_table.deliver = notes.clone();
+    schema.tables.insert("notes".to_owned(), notes_table);
+    if let Some(deliver) = notes {
+        let log = delivery::log_table(&schema, "notes", &deliver).expect("log shape");
+        schema.tables.insert(deliver.log.clone(), log);
+    }
+    schema
+}
+
+fn note_deliver(bootstrap: bool) -> Deliver {
+    Deliver {
+        log: "noteDeliveries".to_owned(),
+        ..deliver(bootstrap)
+    }
+}
+
+// @ref LLP 1019#2-the-custody-log — the bound is per installation: two logs
+// that each fit are refused together when their estimates sum past it.
+#[test]
+fn bootstrap_bound_is_summed_over_every_log_one_installation_bootstraps() {
+    let mut runtime =
+        Runtime::open(Store::memory().unwrap(), generation(schema_with_notes(50, None, None))).unwrap();
+    runtime
+        .seed(&[
+            ("conversations".to_owned(), row([("id", id("c1"))])),
+            member("m-alice", "c1", "alice"),
+            member("m-bob", "c1", "bob"),
+        ])
+        .unwrap();
+    // 100 rows in each table under cap 50: 5,000 estimated events each, 10,000 together.
+    for chunk in (0..100).collect::<Vec<_>>().chunks(41) {
+        let messages = chunk.iter().map(|n| message(&format!("msg-{n}"), "c1")).collect::<Vec<_>>();
+        runtime.seed(&messages).unwrap();
+        let notes = chunk
+            .iter()
+            .map(|n| {
+                (
+                    "notes".to_owned(),
+                    row([
+                        ("id", id(&format!("note-{n}"))),
+                        ("conversationId", id("c1")),
+                        ("body", Value::String("n".into())),
+                    ]),
+                )
+            })
+            .collect::<Vec<_>>();
+        runtime.seed(&notes).unwrap();
+    }
+    let both = generation(schema_with_notes(50, Some(deliver(true)), Some(note_deliver(true))));
+    let refusal = runtime.apply_successor(both).unwrap_err();
+    assert_eq!(refusal.code, "E_SUCCESSOR_BOOTSTRAP");
+    assert!(
+        refusal.message.contains("bootstrap of deliveries and noteDeliveries would write up to 10000 delivered events in one installation")
+            && refusal.message.contains("cap 50 by conversationId over 100 messages rows; cap 50 by conversationId over 100 notes rows")
+            && refusal.message.contains("installation bound of 8192"),
+        "{refusal}"
+    );
+    assert_eq!(refusal.site.as_deref(), Some("schema.tables.messages.deliver"));
+    assert!(
+        refusal.rewrite.ends_with(
+            "through messages and notes under their rules: deliver to memberships[.conversationId] by .principal as deliveries; deliver to memberships[.conversationId] by .principal as noteDeliveries"
+        ),
+        "{refusal}"
+    );
+    // Each log alone fits: bootstrapping one and installing the other empty is admitted.
+    let report = runtime
+        .apply_successor(generation(schema_with_notes(50, Some(deliver(true)), Some(note_deliver(false)))))
+        .unwrap();
+    assert_eq!(report.bootstrapped_deliveries.len(), 1, "{:?}", report.bootstrapped_deliveries);
+    assert_eq!(report.audience_bounds, BTreeMap::from([("deliveries".to_owned(), 50), ("noteDeliveries".to_owned(), 50)]));
+    assert!(rows_of(&mut runtime, "noteDeliveries").is_empty());
+    // The word acts only when a log is installed: adding it to the installed
+    // (empty) notes log is inert, and an installed log no longer counts toward
+    // the sum, so reinstalling notes' log with the word is admitted on its own.
+    let report = runtime
+        .apply_successor(generation(schema_with_notes(50, Some(deliver(true)), Some(note_deliver(true)))))
+        .unwrap();
+    assert!(report.bootstrapped_deliveries.is_empty(), "{:?}", report.bootstrapped_deliveries);
+    let refusal = runtime
+        .apply_successor(generation(schema_with_notes(50, Some(deliver(true)), None)))
+        .unwrap_err();
+    runtime
+        .apply_migration(generation(schema_with_notes(50, Some(deliver(true)), None)), &refusal.plan, 0)
+        .unwrap();
+    let report = runtime
+        .apply_successor(generation(schema_with_notes(50, Some(deliver(true)), Some(note_deliver(true)))))
+        .unwrap();
+    assert_eq!(
+        report.bootstrapped_deliveries,
+        ["noteDeliveries: 200 delivered event(s) over 100 notes row(s) to current memberships members; bootstrap approximates send-time audiences"]
+    );
+    assert_eq!(rows_of(&mut runtime, "noteDeliveries").len(), 50, "one page of the 200 events");
+}
+
+// @ref LLP 1019#4-certification — D2 reserves against the recorded bound, so
+// the reader never turns an unreadable record into "not installed".
+#[test]
+fn audience_bound_is_loud_when_its_record_is_unreadable() {
+    let mut store = Store::memory().unwrap();
+    assert_eq!(delivery::audience_bound(&store, "deliveries").unwrap(), None);
+    store.set_meta("custody_audience:deliveries", "50").unwrap();
+    assert_eq!(delivery::audience_bound(&store, "deliveries").unwrap(), Some(50));
+    for corrupt in ["nope", "-1", "", "4294967296"] {
+        store.set_meta("custody_audience:deliveries", corrupt).unwrap();
+        let error = delivery::audience_bound(&store, "deliveries").unwrap_err();
+        assert_eq!(error.code(), "E_STORE_VERSION", "{corrupt:?}: {error}");
+        assert!(
+            error.to_string().contains("custody_audience:deliveries is not an unsigned integer"),
+            "{corrupt:?}: {error}"
+        );
+    }
+}
+
 #[test]
 fn event_identity_is_distinct_per_commit_ordinal() {
     let (_, content) = message("msg-1", "c1");

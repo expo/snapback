@@ -347,30 +347,15 @@ impl State {
         }))
     }
 
-    pub(super) fn manifest(&self) -> Json {
+    pub(super) fn manifest(&self) -> Result<Json, Refusal> {
         let runtime = self.runtime();
         let tables = runtime
             .generation()
             .schema()
             .tables
             .iter()
-            .map(|(name, table)| {
-                let mut entry = json!({ "retain": table.retain, "columns": table.columns });
-                // @ref LLP 1019#7-the-twin — the declaration travels with the
-                // manifest so a client can tell a custody log from an ordinary table.
-                // @ref LLP 1019#4-certification — the audience bound `A` is the
-                // engine's recorded fact, disclosed beside the declaration.
-                if let Some(deliver) = &table.deliver {
-                    entry["deliver"] = json!(deliver);
-                    if let Ok(Some(audience)) =
-                        snapback2_core::delivery::audience_bound(runtime.store(), &deliver.log)
-                    {
-                        entry["deliver"]["audience"] = json!(audience);
-                    }
-                }
-                (name.clone(), entry)
-            })
-            .collect::<Map<_, _>>();
+            .map(|(name, table)| Ok((name.clone(), manifest_table(table, runtime.store())?)))
+            .collect::<Result<Map<_, _>, Refusal>>()?;
         let ops = self
             .runtime()
             .generation()
@@ -390,14 +375,14 @@ impl State {
                 )
             })
             .collect::<Map<_, _>>();
-        json!({
+        Ok(json!({
             "generation": self.runtime().generation().hash(),
             "programGeneration": self.runtime().generation().program_hash(),
             "tables": tables,
             "ops": ops,
             "channels": self.runtime().generation().schema().channels,
             "auth": self.runtime().generation().schema().auth,
-        })
+        }))
     }
 
     fn outbox_counts(&self) -> Result<OutboxCounts, Refusal> {
@@ -406,6 +391,28 @@ impl State {
             .outbox_counts()
             .map_err(|error| Refusal::from_runtime(&error))
     }
+}
+
+// @ref LLP 1019#7-the-twin — the declaration travels with the manifest so a
+// client can tell a custody log from an ordinary table.
+// @ref LLP 1019#4-certification — the audience bound `A` is the engine's
+// recorded fact, disclosed beside the declaration; D2 reserves against it, so
+// the manifest never publishes `deliver` without it: an unreadable or missing
+// record refuses the manifest instead of dropping the bound.
+fn manifest_table(table: &snapback2_core::Table, store: &snapback2_core::Store) -> Result<Json, Refusal> {
+    let mut entry = json!({ "retain": table.retain, "columns": table.columns });
+    if let Some(deliver) = &table.deliver {
+        let audience = snapback2_core::delivery::audience_bound(store, &deliver.log)
+            .and_then(|bound| {
+                bound.ok_or_else(|| snapback2_core::RuntimeError::StoreVersion {
+                    detail: format!("custody log {} has no recorded audience bound", deliver.log),
+                })
+            })
+            .map_err(|error| Refusal::from_runtime(&error))?;
+        entry["deliver"] = json!(deliver);
+        entry["deliver"]["audience"] = json!(audience);
+    }
+    Ok(entry)
 }
 
 #[cfg(test)]
@@ -488,12 +495,33 @@ mod tests {
         )
     }
 
+    // @ref LLP 1019#4-certification — the manifest never publishes `deliver`
+    // without `A`: an unrecorded or unreadable bound refuses the manifest.
+    #[test]
+    fn manifest_refuses_a_custody_log_whose_audience_bound_is_unreadable_or_unrecorded() {
+        let project = custody_project(1, true);
+        let messages = &project.schema.tables["messages"];
+        let mut store = snapback2_core::Store::memory().unwrap();
+        let refusal = super::manifest_table(messages, &store).unwrap_err();
+        assert_eq!(refusal.code, "E_STORE_VERSION");
+        assert!(refusal.message.contains("custody log deliveries has no recorded audience bound"), "{}", refusal.message);
+        store.set_meta("custody_audience:deliveries", "nope").unwrap();
+        let refusal = super::manifest_table(messages, &store).unwrap_err();
+        assert_eq!(refusal.code, "E_STORE_VERSION");
+        assert!(refusal.message.contains("custody_audience:deliveries is not an unsigned integer"), "{}", refusal.message);
+        store.set_meta("custody_audience:deliveries", "7").unwrap();
+        let entry = super::manifest_table(messages, &store).unwrap();
+        assert_eq!(entry["deliver"]["audience"], json!(7));
+        let plain = super::manifest_table(&project.schema.tables["memberships"], &store).unwrap();
+        assert!(plain.get("deliver").is_none());
+    }
+
     // @ref LLP 1019#4-certification — the manifest discloses the engine-recorded
     // audience bound beside the declaration, not the target's live cap.
     #[test]
     fn manifest_discloses_deliver_with_the_engine_recorded_audience_bound() {
         let mut state = state_with("manifest-custody", custody_project(3, false));
-        let manifest = state.manifest();
+        let manifest = state.manifest().unwrap();
         for (name, entry) in manifest["tables"].as_object().unwrap() {
             assert!(entry.get("deliver").is_none(), "{name} carries a deliver key without a declaration");
         }
@@ -525,7 +553,7 @@ mod tests {
         let lowered = Generation::certify(&custody_project(1, true), Ceilings::default()).unwrap();
         runtime.apply_successor(lowered).unwrap();
 
-        let manifest = state.manifest();
+        let manifest = state.manifest().unwrap();
         assert_eq!(
             manifest["tables"]["messages"]["deliver"],
             json!({ "target": "memberships", "prefix": ["conversationId"], "principal": "principal", "log": "deliveries", "bootstrap": true, "audience": 3 }),

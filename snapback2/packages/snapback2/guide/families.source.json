@@ -381,7 +381,7 @@
     "family": "successor",
     "code": "E_SUCCESSOR_BOOTSTRAP",
     "wrong": "```text\nAdd `deliver to memberships[.conversationId] as deliveries bootstrap` over a content table whose cap × rows exceeds 8,192 and expect the successor to fan the whole history out inside its transaction.\n```",
-    "right": "```text\nInstall the line without `bootstrap`: the log starts empty and readers reach prior history through the content table under its read rule; bootstrap is bounded to 8,192 events (cap × content rows) per installation, and a priced installation job is LLP 1020 Part B's.\n```",
+    "right": "```text\nInstall the line without `bootstrap`: the log starts empty and readers reach prior history through the content table under its read rule; bootstrap is bounded to 8,192 events per installation (cap × content rows, summed over every log the installation bootstraps), and a priced installation job is LLP 1020 Part B's.\n```",
     "guide": "migrations"
   },
   {

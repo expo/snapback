@@ -506,6 +506,40 @@ mod tests {
         }
     }
 
+    // @ref LLP 1019#2-the-custody-log — one family and one page for the
+    // successor refusal this declaration adds: the wire label is
+    // `family/page`, and the families card names that page (the final gates
+    // require a card's guide to be a page file, so the card carries `migrations`).
+    #[test]
+    fn successor_bootstrap_has_one_family_and_page_on_the_wire_and_in_the_guide() {
+        let refusal = Refusal::from_successor(&SuccessorRefusal {
+            code: "E_SUCCESSOR_BOOTSTRAP".to_owned(),
+            message: "bootstrap of deliveries would write up to 8200 delivered events".to_owned(),
+            rewrite: "install the log empty".to_owned(),
+            site: Some("schema.tables.messages.deliver".to_owned()),
+            plan: Default::default(),
+            conflicts: Vec::new(),
+            cap_conflicts: Vec::new(),
+            narrowings: Vec::new(),
+        });
+        assert_eq!((refusal.family.as_str(), refusal.guide.as_str()), ("successor", "successor/migrations"));
+        assert_eq!(refusal.site.as_deref(), Some("schema.tables.messages.deliver"));
+        let families: Json = serde_json::from_str(include_str!(
+            "../../../packages/snapback2/guide/families.source.json"
+        ))
+        .unwrap();
+        let card = families
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|entry| entry["code"] == "E_SUCCESSOR_BOOTSTRAP")
+            .expect("E_SUCCESSOR_BOOTSTRAP has a families card");
+        assert_eq!(card["family"], refusal.family);
+        assert_eq!(format!("successor/{}", card["guide"].as_str().unwrap()), refusal.guide);
+        assert!(card["right"].as_str().unwrap().contains("summed over every log"));
+        assert!(include_str!("../../../packages/snapback2/guide/migrations.md").starts_with("# Migrations"));
+    }
+
     #[test]
     fn stale_store_version_names_the_recoverable_dev_reset() {
         let refusal = Refusal::from_runtime(&RuntimeError::StoreVersion {

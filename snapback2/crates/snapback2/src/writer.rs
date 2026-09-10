@@ -574,7 +574,7 @@ impl State {
                 plan,
             } => self.adhoc(program, source, args, identity, plan),
             Action::Status => self.status(),
-            Action::Manifest => Ok(self.manifest()),
+            Action::Manifest => self.manifest(),
             Action::Program {
                 generation,
                 identity,
