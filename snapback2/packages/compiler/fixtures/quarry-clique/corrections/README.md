@@ -277,7 +277,7 @@ The JSON test receipts' `generation` field is the schema-only
 bodies or test-only operations change. The non-overwriting binding at
 `.snapback/clique-final-proofs/program-binding/receipt-program-binding.json`
 (SHA-256
-`a4efa6255c0ab244b922398b20f840c7745477fefa9ccfae621b041a09a4120e`)
+`7c4401a33f9fc4d188a246e27211f44b2d5647d7f68477eba91f90c1c69f73c2`)
 records the exact source, compiled project/IR/test, compiler, binary, manifest,
 and full `programGeneration` hashes. The final production program generation
 is `6f7b82ef54cb7beca68eba9c79509e759e84cf1fc63c28abe5bc7604e831b672`;
