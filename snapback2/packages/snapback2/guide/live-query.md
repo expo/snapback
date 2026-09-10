@@ -88,8 +88,9 @@ to remain present can strand the queue after unsend or expiry.
 Do not rescan a capped message page as a work queue: unrelated
 rerenders repeat every acknowledgement, and the page stops changing length at
 its cap. Drive an open-thread read acknowledgement from a certified
-viewer-specific unread value and latest activity identity instead: equal
-counts can hide an intervening read/new-message cycle. The write's readiness belongs in the
+viewer-specific unread value and pending-read identity instead: equal counts
+can hide an intervening read/new-message cycle, and timestamp ties can leave
+the history preview unchanged. The write's readiness belongs in the
 effect dependency so a watcher mounted before its grant becomes ready later.
 
 ## Unicode word-prefix search
