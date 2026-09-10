@@ -139,6 +139,20 @@ pub(super) fn seed_effect_row(
     compiler: &Path,
     result: Option<Value>,
 ) -> u64 {
+    seed_effect_rows(root, binary, compiler, &[("seeded-outbox", result)])[0]
+}
+
+/// Emits one `delivery.notify` per id, each in its own commit, without an
+/// owner. A row given a result is then claimed and settled `then_pending`,
+/// exactly as the runner leaves a row whose provider answered; one without
+/// stays `queued`. Returns each emission's seq, in order.
+#[cfg(not(feature = "hermes"))]
+pub(super) fn seed_effect_rows(
+    root: &Path,
+    binary: &str,
+    compiler: &Path,
+    rows: &[(&str, Option<Value>)],
+) -> Vec<u64> {
     let checked = Command::new(binary)
         .args(["check", "--project"])
         .arg(root)
@@ -170,25 +184,31 @@ pub(super) fn seed_effect_row(
         generation,
     )
     .unwrap();
-    let mut context = CoreContext::mutation(
-        snapback2_core::Actor::persona("test").unwrap(),
-        BTreeMap::new(),
-    );
-    context.now = Some(1);
-    context.new_ids = VecDeque::from(["seeded-outbox".to_owned()]);
-    let execution = runtime.execute("__test.emitEffect", context).unwrap();
-    if let Some(result) = result {
-        runtime
-            .store()
-            .outbox_claim_next(1, &["delivery.notify".to_owned()])
-            .unwrap().claimed
-            .expect("seeded outbox claim");
-        runtime
-            .store()
-            .outbox_settle("seeded-outbox", "then_pending", Some(&result), None, None)
-            .unwrap();
-    }
-    execution.seq
+    rows.iter()
+        .map(|(id, result)| {
+            let mut context = CoreContext::mutation(
+                snapback2_core::Actor::persona("test").unwrap(),
+                BTreeMap::new(),
+            );
+            context.now = Some(1);
+            context.new_ids = VecDeque::from([(*id).to_owned()]);
+            let execution = runtime.execute("__test.emitEffect", context).unwrap();
+            if let Some(result) = result {
+                let claimed = runtime
+                    .store()
+                    .outbox_claim_next(1, &["delivery.notify".to_owned()])
+                    .unwrap()
+                    .claimed
+                    .expect("seeded outbox claim");
+                assert_eq!(claimed.id, *id, "the claim must take the row just emitted");
+                runtime
+                    .store()
+                    .outbox_settle(id, "then_pending", Some(result), None, None)
+                    .unwrap();
+            }
+            execution.seq
+        })
+        .collect()
 }
 
 #[cfg(not(feature = "hermes"))]
@@ -204,10 +224,12 @@ pub(super) fn stop_owner(port: u16, secret: &str, owner: &mut ChildGuard, cause:
     owner.wait();
 }
 
-/// Seeds 405 outbox rows across two seqs without an owner: 404 queued and one
-/// `sent` row whose result exceeds the 16 KiB cap. `check` writes the project;
-/// `Store::open` lays the schema the owner will adopt at boot.
-pub(super) fn seed_paged_outbox(root: &Path, binary: &str, compiler: &Path) {
+/// Seeds 405 outbox rows across two seqs without an owner: 404 rows in `state`
+/// and one `sent` row whose result exceeds the 16 KiB cap. The ungated paging
+/// test passes `failed`, which no engine can claim mid-test; the engine-none
+/// settle test passes `queued`. `check` writes the project; `Store::open` lays
+/// the schema the owner will adopt at boot.
+pub(super) fn seed_paged_outbox(root: &Path, binary: &str, compiler: &Path, state: &str) {
     let checked = Command::new(binary)
         .args(["check", "--project"])
         .arg(root)
@@ -230,7 +252,7 @@ pub(super) fn seed_paged_outbox(root: &Path, binary: &str, compiler: &Path) {
             rusqlite::params![
                 format!("paged-{i:04}"),
                 1 + i / 203,
-                if i == 404 { "sent" } else { "queued" },
+                if i == 404 { "sent" } else { state },
                 if i == 404 {
                     Some(json!("x".repeat(17000)).to_string())
                 } else {

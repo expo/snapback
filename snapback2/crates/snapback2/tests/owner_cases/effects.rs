@@ -268,7 +268,7 @@ fn settle_reports_engine_none_for_every_queued_row_at_once() {
     copy_tree(&fixture().join("snapback"), &root.join("snapback"));
     let binary = env!("CARGO_BIN_EXE_snapback2");
     let compiler = compiler(&root);
-    seed_paged_outbox(&root, binary, &compiler);
+    seed_paged_outbox(&root, binary, &compiler, "queued");
     let (mut owner, port, secret, engine_line) = boot(&root, binary, &compiler);
     assert!(
         engine_line.contains("effects: no engine in this build — 404 queued"),
@@ -309,35 +309,73 @@ fn settle_reports_engine_none_for_every_queued_row_at_once() {
     fs::remove_dir_all(root).unwrap();
 }
 
-// @ref LLP 1021#2-journeys-see-and-settle-the-outbox — an engine-less owner still settles a pending `then`; only the queued row is reported `engine:none`.
+// @ref LLP 1021#2-journeys-see-and-settle-the-outbox — an engine-less owner still settles pending `then`s; only the queued row is reported `engine:none`.
 #[cfg(not(feature = "hermes"))]
 #[test]
-fn settle_pumps_a_pending_then_beside_an_engineless_queued_row() {
+fn settle_pumps_pending_thens_beside_an_engineless_queued_row() {
     let root = temp_root();
     copy_tree(&fixture().join("snapback"), &root.join("snapback"));
     let binary = env!("CARGO_BIN_EXE_snapback2");
     let compiler = compiler(&root);
-    seed_effect_row(
-        &root,
-        binary,
-        &compiler,
-        Some(json!({ "providerId": "mixed-provider" })),
-    );
+    // The runner starts just before the ready line and may drain up to two
+    // passes of pending `then`s at boot (initialize, then the first drain),
+    // then one pass per one-second wait while nothing wakes it, so eight
+    // passes leave rows pending when settle starts. The proof that settle
+    // pumped them is that it moved more than an unwoken runner could have
+    // inside settle's own wall time; a `then` commit emits nothing, so nothing
+    // but settle wakes the runner here.
+    let limit = snapback2_effects::DEFAULT_DRAIN_LIMIT as u64;
+    let ids = (0..8 * limit)
+        .map(|i| format!("pending-{i:03}"))
+        .collect::<Vec<_>>();
+    let rows = ids
+        .iter()
+        .map(|id| (id.as_str(), Some(json!({ "providerId": id }))))
+        .collect::<Vec<_>>();
+    let last_emit = *seed_effect_rows(&root, binary, &compiler, &rows)
+        .last()
+        .unwrap();
     insert_outbox_row(&root, "queued-beside", "queued", 0);
     let (mut owner, port, secret, _) = boot(&root, binary, &compiler);
-    let settled = settle(port, &secret, json!({"upTo":2,"budgetMs":1000}));
+    let started = Instant::now();
+    let pending_before = status(port, &secret)["effects"]["thenPending"]
+        .as_u64()
+        .unwrap();
+    assert!(
+        pending_before > limit,
+        "boot drained the fixture before settle: {pending_before} pending"
+    );
+    let settled = settle(port, &secret, json!({"upTo": last_emit, "budgetMs": 4000}));
+    let elapsed = started.elapsed();
     assert_eq!(settled["settled"], false, "{settled}");
-    let rows = settled["rows"].as_array().unwrap();
-    let replayed = rows.iter().find(|r| r["id"] == "seeded-outbox").unwrap();
-    assert_eq!(replayed["state"], "sent", "{settled}");
-    assert_eq!(
-        replayed["then"],
-        json!({"op":"notifications.recordNotified","state":"committed","seq":2})
+    let remaining = settled["remaining"].as_array().unwrap();
+    assert!(
+        remaining.contains(&json!({"id":"queued-beside","reason":"engine:none"})),
+        "{settled}"
     );
-    assert_eq!(
-        settled["remaining"],
-        json!([{"id":"queued-beside","reason":"engine:none"}])
+    let pending_after = remaining
+        .iter()
+        .filter(|r| r["reason"] == "then_pending")
+        .count() as u64;
+    assert_eq!(remaining.len() as u64, pending_after + 1, "{settled}");
+    let unwoken_ceiling = limit * (elapsed.as_secs() + 1);
+    let pumped = pending_before - pending_after;
+    assert!(
+        pumped > unwoken_ceiling,
+        "settle pumped {pumped} pending thens in {elapsed:?}; an unwoken runner drains at most {unwoken_ceiling}"
     );
+    let sent = settled["rows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|r| r["state"] == "sent")
+        .collect::<Vec<_>>();
+    assert_eq!(sent.len() as u64, 8 * limit - pending_after, "{settled}");
+    for row in sent {
+        assert_eq!(row["then"]["op"], "notifications.recordNotified", "{row}");
+        assert_eq!(row["then"]["state"], "committed", "{row}");
+        assert!(row["then"]["seq"].as_u64().unwrap() > last_emit, "{row}");
+    }
     stop_owner(port, &secret, &mut owner, "mixed settle complete");
     fs::remove_dir_all(root).unwrap();
 }

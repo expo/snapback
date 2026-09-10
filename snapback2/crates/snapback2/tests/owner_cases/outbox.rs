@@ -24,7 +24,7 @@ fn outbox_pages_over_two_hundred_rows_by_seq_and_id_and_caps_results_under_dev_a
     copy_tree(&fixture().join("snapback"), &root.join("snapback"));
     let binary = env!("CARGO_BIN_EXE_snapback2");
     let compiler = compiler(&root);
-    seed_paged_outbox(&root, binary, &compiler);
+    seed_paged_outbox(&root, binary, &compiler, "failed");
     let mut owner = ChildGuard::spawn(binary, &compiler, &root);
     let port = owner
         .ready_line()
@@ -88,6 +88,8 @@ fn outbox_pages_over_two_hundred_rows_by_seq_and_id_and_caps_results_under_dev_a
             .collect::<Vec<_>>()
     );
     assert!(all.iter().all(|r| r["effect"] == "delivery.notify"));
+    // No engine claims a `failed` row, so the page lengths hold on both builds.
+    assert!(all[..404].iter().all(|r| r["state"] == "failed"));
     assert_eq!(all[404]["state"], "sent");
     assert_eq!(all[404]["result"], Value::Null);
     assert_eq!(
