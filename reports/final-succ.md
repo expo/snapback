@@ -678,3 +678,12 @@ overlap, list of enums, widening that becomes required). The overlap test now ba
 callers at the take for the same command (codex/grok material); LLP 1018.004's amendment says
 the carrier transaction decides consumption. Narrowing/evolution units 24/24, inbox 14/14,
 compiler 295/295; runtime 84832 gzip.
+
+## Fix round r7 (orchestrator)
+
+Codex r7 (`reviews/succ-r7-codex.md`): `fill_type` intersected enum cases but kept the successor's
+maximum, so `[enum('a','b')] <=2 ?` → `[enum('b','c')] <=3` pasted `[enum('b')] <=3`, which the
+predecessor refuses; likewise a `text <=10 ?` → `text <=20` fill. Fixed: list, text, bytes, and
+json maxima take the smaller of the two bounds; the test covers both shapes. The two-tab
+consumption test now barriers both tabs at the take for one command (codex material). Narrowing
+and evolution units 24/24, inbox 15/15, compiler 295/295.

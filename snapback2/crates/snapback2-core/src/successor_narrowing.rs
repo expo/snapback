@@ -259,9 +259,14 @@ fn fill_type(predecessor: &ColumnType, successor: &ColumnType) -> Option<String>
             let kept = b.iter().filter(|v| a.contains(v)).cloned().collect::<Vec<_>>();
             (!kept.is_empty()).then(|| crate::jobs::quarry_enum(&kept))
         }
-        (ColumnType::List { of: a, .. }, ColumnType::List { of: b, max }) => {
-            fill_type(a, b).map(|t| format!("[{t}] <={max}"))
+        // A raised maximum beside a narrowing is not accepted by the predecessor: the
+        // argument takes the smaller bound of the two.
+        (ColumnType::List { of: a, max: m }, ColumnType::List { of: b, max: n }) => {
+            fill_type(a, b).map(|t| format!("[{t}] <={}", (*m).min(*n)))
         }
+        (ColumnType::Text { max: m }, ColumnType::Text { max: n }) => Some(format!("text <={}", (*m).min(*n))),
+        (ColumnType::Bytes { max: m }, ColumnType::Bytes { max: n }) => Some(format!("bytes <={}", (*m).min(*n))),
+        (ColumnType::Json { max_bytes: m }, ColumnType::Json { max_bytes: n }) => Some(format!("json <={}", (*m).min(*n))),
         (_, b) => Some(quarry_type(b)),
     }
 }
@@ -562,6 +567,16 @@ mod tests {
             &ColumnType::List { of: Box::new(enum_of(&["b", "c"])), max: 3 },
         );
         assert!(paste.contains("(value: [enum('b')] <=3):"), "{paste}");
+        // [enum('a','b')] <=2 ? -> [enum('b','c')] <=3: the raised maximum is not the predecessor's.
+        let paste = repair_job(
+            &conflict(vec!["a"]),
+            &optional(ColumnType::List { of: Box::new(enum_of(&["a", "b"])), max: 2 }),
+            &ColumnType::List { of: Box::new(enum_of(&["b", "c"])), max: 3 },
+        );
+        assert!(paste.contains("(value: [enum('b')] <=2):"), "{paste}");
+        // text <=10 ? -> text <=20: a widening that becomes required fills within the predecessor's bound.
+        let paste = repair_job(&conflict(vec![]), &optional(ColumnType::Text { max: 10 }), &ColumnType::Text { max: 20 });
+        assert!(paste.contains("job fill_items_value(value: text <=10):"), "{paste}");
         // A widening that also becomes required fills with the cases the predecessor knows.
         let paste = repair_job(&conflict(vec![]), &optional(enum_of(&["a"])), &enum_of(&["a", "b"]));
         assert!(paste.contains("job fill_items_value(value: enum('a')):"), "{paste}");

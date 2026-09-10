@@ -145,13 +145,22 @@ test("two follower tabs consume a completed dismissal once", async () => {
     await assert.rejects(writer.online(), { code: "E_INPUT" });
     await writer.offline();
     const head = (await writer.outbox.entries())[0]!;
-    // Both tabs observe the completed command before either take lands.
+    // A barrier across the two tabs: both reach the take for the same completed command
+    // before either lands.
+    const reached: number[] = [];
+    let open!: () => void;
+    const barrier = new Promise<void>(resolve => { open = resolve; });
     for (const follower of [a, b]) {
       const runtime = (follower as any).offlineRuntime;
       const take = runtime.takeInboxRow.bind(runtime);
-      runtime.takeInboxRow = async (key: number) => { await new Promise(resolve => setTimeout(resolve, 60)); return take(key); };
+      runtime.takeInboxRow = async (key: number) => { reached.push(key); if (reached.length === 2) open(); await barrier; return take(key); };
     }
-    const results = await Promise.all([a.outbox.dismiss(head.intent), b.outbox.dismiss(head.intent)]);
+    const one = a.outbox.dismiss(head.intent);
+    await until(() => (a as any).offlineRuntime.inboxRows.some((row: any) => row.kind === "dismiss"), "tab a's command is durable");
+    const two = b.outbox.dismiss(head.intent); // finds tab a's command by target and scope
+    const results = await Promise.all([one, two]);
+    assert.equal(reached.length, 2, "both tabs reached the take");
+    assert.equal(reached[0], reached[1], "for the same command");
     const returned = results.filter(value => value !== undefined);
     assert.equal(returned.length, 1, `exactly one tab gets the bytes: ${JSON.stringify(results)}`);
     assert.deepEqual(returned[0], { intent: head.intent, op: head.op, args, refusal });
