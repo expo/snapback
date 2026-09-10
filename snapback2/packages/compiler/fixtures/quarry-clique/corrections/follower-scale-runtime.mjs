@@ -69,11 +69,16 @@ async function terminateOwned(child, label) {
   return signals;
 }
 
-async function boundedFetch(url, options) {
+export async function boundedJsonRequest(url, options) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), controlBudgetMs);
-  try { return await fetch(url, { ...options, signal: controller.signal }); }
-  finally { clearTimeout(timer); }
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    const text = await response.text();
+    let value;
+    try { value = text === "" ? null : JSON.parse(text); } catch { value = text; }
+    return { ok: response.ok, status: response.status, value };
+  } finally { clearTimeout(timer); }
 }
 
 export async function capturedCommand({ command, args, cwd, env, label, pids }) {
@@ -163,10 +168,10 @@ async function stopOwner(handle) {
   let forcedSignals = [];
   let streamsDrained = false;
   try {
-    const response = await boundedFetch(`${handle.raw.url}/control/stop`, { method: "POST",
+    const response = await boundedJsonRequest(`${handle.raw.url}/control/stop`, { method: "POST",
       headers: { "content-type": "application/json", "x-snapback-control": handle.raw.secret },
       body: JSON.stringify({ cause: "follower-scale proof complete" }) });
-    if (!response.ok) fail(`owner stop returned ${response.status}`, await response.text());
+    if (!response.ok) fail(`owner stop returned ${response.status}`, response.value);
     await waitExit(handle.child, stopBudgetMs, "owned owner");
   } catch (error) {
     forcedSignals = await terminateOwned(handle.child, "stop-owned owner");

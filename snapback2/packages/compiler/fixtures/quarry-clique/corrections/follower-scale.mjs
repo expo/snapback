@@ -13,7 +13,7 @@ import { cp, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises"
 import { join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { arch, hostname, platform, release } from "node:os";
-import { capturedCommand, withOwnedOwner } from "./follower-scale-runtime.mjs";
+import { boundedJsonRequest, capturedCommand, withOwnedOwner } from "./follower-scale-runtime.mjs";
 
 const warmups = 3, measured = 20, setupBudgetMs = 120_000;
 const setupBatchSize = 25, digestPollBudgetMs = 10_000;
@@ -104,19 +104,42 @@ async function prepareVariant(handoff, root, seedTransform) {
     copyPolicy: "copied handoff/snapback only into a fresh root with an empty .snapback" };
 }
 
-function certificateFacts(certificates, generation) {
+export function certificateFacts(certificates, generation) {
   const generations = [...new Set(Object.values(certificates).map((item) => item.schema_hash))];
   if (generations.length !== 1 || generations[0] !== generation) fail("certificate generation differed", generations);
   const post = certificates["posts.createPost"], digest = certificates["admin.digestSweep"];
   if (!post || !digest) fail("required certificate absent");
-  const sites = [...post.read_sites, ...post.write_sites];
-  if (sites.some((site) => site.max_calls !== 1)
-    || sites.some((site) => site.table === "follows" || site.table === "digestFollows")) {
-    fail("post certificate is not follower-independent", sites);
+  if (!Array.isArray(post.read_sites) || !Array.isArray(post.write_sites)) fail("post certificate sites were not arrays", post);
+  const malformedReads = post.read_sites.filter((site) => typeof site.table !== "string"
+    || !Number.isSafeInteger(site.take) || !Number.isSafeInteger(site.max_calls));
+  const readBounds = post.read_sites.map((site) => `${site.table}:${site.take}:${site.max_calls}`).sort();
+  const expectedReadBounds = ["appSettings:1:1", "dailyStats:1:1", "dailyStats:1:1",
+    "postPeriodCounters:1:1", "postPeriodCounters:1:1", "profiles:1:1"].sort();
+  const malformedWrites = post.write_sites.filter((site) => typeof site.table !== "string"
+    || typeof site.kind !== "string" || !Number.isSafeInteger(site.max_rows));
+  const writeBounds = post.write_sites.map((site) => `${site.table}:${site.kind}:${site.max_rows}`).sort();
+  const expectedWriteBounds = ["posts:Insert:1", "timelineEvents:Insert:1", "trendingPosts:Insert:1",
+    "postPeriodCounters:Update:1", "postPeriodCounters:Insert:1", "dailyStats:Update:1",
+    "dailyStats:Insert:1", "posts:Insert:1", "timelineEvents:Insert:1", "trendingPosts:Insert:1",
+    "postPeriodCounters:Update:1", "postPeriodCounters:Insert:1", "dailyStats:Update:1",
+    "dailyStats:Insert:1", "_timers:Update:2"].sort();
+  if (malformedReads.length > 0 || malformedWrites.length > 0
+    || JSON.stringify(readBounds) !== JSON.stringify(expectedReadBounds)
+    || JSON.stringify(writeBounds) !== JSON.stringify(expectedWriteBounds)) {
+    fail("post certificate exact site bounds differed", { malformedReads, malformedWrites,
+      readBounds, expectedReadBounds, writeBounds, expectedWriteBounds });
   }
-  const digest500Site = digest.read_sites.find((site) => site.table === "digestFollows" && site.take === 500);
-  if (!digest500Site) fail("digest certificate lacks its 500-follow read", digest.read_sites);
-  return { post, digest500Site };
+  const followerReadSites = post.read_sites.filter((site) => site.table === "follows" || site.table === "digestFollows");
+  const followerWriteSites = post.write_sites.filter((site) => site.table === "follows" || site.table === "digestFollows");
+  if (followerReadSites.length > 0 || followerWriteSites.length > 0) {
+    fail("post certificate accesses follower tables", { followerReadSites, followerWriteSites });
+  }
+  const digest500Sites = digest.read_sites.filter((site) => site.table === "digestFollows" && site.take === 500);
+  if (digest500Sites.length !== 1 || digest500Sites[0].max_calls !== 1) {
+    fail("digest certificate lacks its single-call 500-follow read", digest.read_sites);
+  }
+  return { post, digest500Site: digest500Sites[0], followerReadSites, followerWriteSites,
+    readBounds, writeBounds };
 }
 async function auditVariants(variants, binary, compiler, generation, pids) {
   const syntax = [], checks = [], builds = [];
@@ -199,11 +222,10 @@ async function scaleArm(options, followers) {
   return { ...owned, rawSample: await fileIdentity(samplePath) };
 }
 async function control(owner, path, body) {
-  const response = await fetch(`${owner.url}${path}`, { method: "POST",
+  const response = await boundedJsonRequest(`${owner.url}${path}`, { method: "POST",
     headers: { "content-type": "application/json", "x-snapback-control": owner.secret }, body: JSON.stringify(body) });
-  const value = await response.json();
-  if (!response.ok) fail(`control ${path} returned ${response.status}`, value);
-  return value;
+  if (!response.ok) fail(`control ${path} returned ${response.status}`, response.value);
+  return response.value;
 }
 async function pollDigest(reader, api, sourcePeriod, budgetMs) {
   const started = performance.now();
@@ -312,8 +334,10 @@ async function main() {
     metric: { controlP95Ms: fiveRun.value.p95Ms, scaledP95Ms: nineHundredRun.value.p95Ms,
       ratio, ceiling: 3, warmups, measured, samplesPerArm: measured },
     constantWork: { generation, planHash: facts.post.plan_hash, readSites: facts.post.read_sites,
-      writeSites: facts.post.write_sites, followerTableReads: [], followerTableWrites: [],
-      note: "both arms execute the unchanged posts.createPost certificate after setup" },
+      writeSites: facts.post.write_sites, followerTableReads: facts.followerReadSites,
+      followerTableWrites: facts.followerWriteSites, exactReadBounds: facts.readBounds,
+      exactWriteBounds: facts.writeBounds,
+      note: "both arms execute the unchanged posts.createPost certificate after setup; the one _timers Update max_rows 2 certificate site covers its two source branches" },
     envelopes: { retainedSchemaLines: envelopeLines, schema: schemaIdentity,
       assertions: { scaleMaxOutgoingFollowsPerFollower: 1, digestReaderOutgoingFollows: 500,
         membershipsPerPrincipalUnchangedMaximum: 2, membershipsPerConversationUnchangedMaximum: 2 },
@@ -336,7 +360,9 @@ async function main() {
   process.stdout.write(`${JSON.stringify({ verdict: receipt.verdict, metric: receipt.metric, output: await fileIdentity(output) })}\n`);
   if (!passed) process.exitCode = 1;
 }
-main().catch((error) => {
-  process.stderr.write(`${error instanceof Error ? error.stack ?? error.message : String(error)}\n`);
-  process.exitCode = 1;
-});
+if (resolve(process.argv[1] ?? "") === resolve(fileURLToPath(import.meta.url))) {
+  main().catch((error) => {
+    process.stderr.write(`${error instanceof Error ? error.stack ?? error.message : String(error)}\n`);
+    process.exitCode = 1;
+  });
+}
