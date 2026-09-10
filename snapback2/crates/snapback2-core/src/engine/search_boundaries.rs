@@ -361,7 +361,8 @@ fn identity_width_and_seed_failures_leave_source_and_dictionary_unchanged() {
             &engine.store.conn,
             &engine.schema,
             &engine.schema,
-            &BTreeSet::new()
+            &BTreeSet::new(),
+            &Default::default()
         )
         .unwrap()
         .is_some()

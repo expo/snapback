@@ -19,13 +19,8 @@ Rejected operator mutations retain their attempted trace in the log and
 `trace latest` until the next commit or restart. An explicit sequence selects
 its committed ledger row.
 
-For a required column, declare `T?`, apply, run the fill job (`guide job`),
-then declare `T` and apply. `E_SUCCESSOR_NARROWING` lists every null column in
-`narrowings`, null counts and up to ten IDs; absence counts as null. The first
-conflict is the site; the job takes a typed replacement.
-Refusals keep the old generation (`dev --status --json`).
-Update `seed.ts` too: seeds are checked before stored rows, even in populated
-stores. Changing seeds cannot fill existing rows.
+See `guide successor` for additive changes, checked narrowing, fill jobs and
+reviewed destructive plans.
 
 ## Recovering abandoned media uploads
 

@@ -164,7 +164,7 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
         .commit_seq()
         .map_err(|error| Refusal::from_runtime(&error))?;
     let mut runtime = Runtime::open(store, compiled.generation.clone())
-        .map_err(|error| Refusal::from_successor(&error))?;
+        .map_err(|error| crate::protocol::successor_site(Refusal::from_successor(&error), &compiled, None))?;
     let now = unix_millis();
     for persona in &seed.personas {
         runtime

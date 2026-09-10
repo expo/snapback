@@ -283,8 +283,10 @@ impl Refusal {
             "successor",
             &error.message,
             &error.rewrite,
-            "successor/migrations",
+            "successor",
         )
+        .with_detail("from", json!(error.from))
+        .with_detail("to", json!(error.to))
         .with_detail(
             "plan",
             serde_json::to_value(&error.plan).unwrap_or(Json::Null),
@@ -300,12 +302,13 @@ impl Refusal {
         if let Some(site) = &error.site {
             refusal = refusal.with_site(site);
         }
-        if let Some(narrowing) = error.narrowings.first() {
+        if let Some(narrowing) = error.narrowings.iter().find(|c| c.affected_rows > 0) {
             refusal = refusal
-                .with_site(format!("{}.{}", narrowing.table, narrowing.column))
                 .with_detail("table", json!(narrowing.table))
                 .with_detail("column", json!(narrowing.column))
                 .with_detail("nullRows", json!(narrowing.null_rows))
+                .with_detail("affectedRows", json!(narrowing.affected_rows))
+                .with_detail("removedCases", json!(narrowing.removed_cases))
                 .with_detail("sample", json!(narrowing.sample))
                 .with_detail("narrowings", json!(error.narrowings));
         }
@@ -535,3 +538,20 @@ fn runtime_requirement_message_does_not_embed_its_application_code() {
     assert_eq!(refusal.code, "MEMBERSHIP_REQUIRED");
     assert_eq!(refusal.message, "program requirement failed");
 }
+
+pub(crate) fn successor_site(mut refusal: Refusal, next: &crate::project::CompiledProject, previous: Option<&crate::project::CompiledProject>) -> Refusal {
+    if let Some(site) = &refusal.site {
+        let table = site.split(".columns.").next().unwrap_or(site).split(".indexes.").next().unwrap_or(site);
+        if let Some(source) = next.sources.get(site)
+            .or_else(|| previous.and_then(|p| p.sources.get(site)))
+            .or_else(|| next.sources.get(table))
+            .or_else(|| previous.and_then(|p| p.sources.get(table))) {
+            refusal.site = Some(format!("{}:{}:{}", source.file, source.line, source.col));
+        } else if let Some((table, column)) = site.strip_prefix("schema.tables.").and_then(|s| s.split_once(".columns.")) {
+            // Direct IR applications have no authored source map.
+            refusal.site = Some(format!("{table}.{column}"));
+        }
+    }
+    refusal
+}
+

@@ -12,7 +12,7 @@ use crate::schema::{Auth, RuleExpr, Schema, maintain_issues};
 use crate::store::{Store, unix_millis};
 use crate::successor::{
     MigrationPlan, SuccessorRefusal, SuccessorReport, additive_refusal, apply_additive,
-    apply_migration_drops, plan, projected_predecessor_ids, successor_refusal,
+    apply_migration_drops, plan, projected_predecessor_ids,
 };
 use crate::value::{Value, digest};
 use rusqlite::OptionalExtension;
@@ -500,7 +500,15 @@ pub struct Runtime {
     fail_after_then_commit: bool,
 }
 impl Runtime {
-    pub fn open(mut store: Store, generation: Generation) -> Result<Self, SuccessorRefusal> {
+    pub fn open(store: Store, generation: Generation) -> Result<Self, SuccessorRefusal> {
+        let from = store
+            .meta("generation")
+            .map_err(store_refusal)?
+            .unwrap_or_default();
+        let to = generation.hash();
+        Self::open_inner(store, generation).map_err(|e| e.compared(&from, &to))
+    }
+    fn open_inner(mut store: Store, generation: Generation) -> Result<Self, SuccessorRefusal> {
         crate::engine::validate_schema(&generation.schema)
             .map_err(|errors| store_refusal(first_schema_error(errors)))?;
         let generation_hash = generation.hash();
@@ -558,7 +566,7 @@ impl Runtime {
                     store_refusal(RuntimeError::Serialization(error.to_string()))
                 })?;
                 let migration =
-                    plan(&store, &current, &generation.schema).map_err(store_refusal)?;
+                    plan(&store.conn, &current, &generation.schema).map_err(store_refusal)?;
                 if !migration.drops.is_empty() {
                     return Err(SuccessorRefusal::destructive(migration));
                 }
@@ -574,8 +582,11 @@ impl Runtime {
                     evaluator_changed,
                 )
                 .map_err(store_refusal)?;
-                if let Some(refusal) = additive_refusal(&transaction, &current, &generation.schema)
-                    .map_err(store_refusal)?
+                let owned = projected_predecessor_ids(&transaction, &current, &generation.schema)
+                    .map_err(store_refusal)?;
+                if let Some(refusal) =
+                    additive_refusal(&transaction, &current, &generation.schema, &owned)
+                        .map_err(store_refusal)?
                 {
                     return Err(refusal);
                 }
@@ -585,7 +596,7 @@ impl Runtime {
                     &generation.schema,
                     hash,
                     generation_hash,
-                    None,
+                    owned,
                 )
                 .map_err(store_refusal)?;
                 persist_generation_transaction(&transaction, &generation, unix_millis())
@@ -964,14 +975,19 @@ impl Runtime {
         next: Generation,
         now: i64,
     ) -> Result<SuccessorReport, SuccessorRefusal> {
+        let from = self.generation.hash();
+        let to = next.hash();
+        self.install_successor(next, now)
+            .map_err(|e| e.compared(&from, &to))
+    }
+
+    fn install_successor(
+        &mut self,
+        next: Generation,
+        now: i64,
+    ) -> Result<SuccessorReport, SuccessorRefusal> {
         crate::engine::validate_schema(&next.schema)
             .map_err(|errors| store_refusal(first_schema_error(errors)))?;
-        if let Some(refusal) =
-            successor_refusal(self.engine.store(), &self.generation.schema, &next.schema)
-                .map_err(store_refusal)?
-        {
-            return Err(refusal);
-        }
         let current = self.generation.schema.clone();
         let from = self.generation.hash();
         let transaction = self
@@ -980,13 +996,24 @@ impl Runtime {
             .conn
             .transaction()
             .map_err(|error| store_refusal(RuntimeError::Sql(error)))?;
+        let migration = plan(&transaction, &current, &next.schema).map_err(store_refusal)?;
+        if !migration.drops.is_empty() {
+            return Err(SuccessorRefusal::destructive(migration));
+        }
+        let owned = projected_predecessor_ids(&transaction, &current, &next.schema)
+            .map_err(store_refusal)?;
+        if let Some(refusal) = additive_refusal(&transaction, &current, &next.schema, &owned)
+            .map_err(store_refusal)?
+        {
+            return Err(refusal);
+        }
         let report = apply_additive(
             &transaction,
             &current,
             &next.schema,
             from,
             next.hash(),
-            None,
+            owned,
         )
         .map_err(store_refusal)?;
         crate::store_jobs::reconcile(&transaction, &next, true).map_err(store_refusal)?;
@@ -1008,8 +1035,29 @@ impl Runtime {
         migration: &MigrationPlan,
         released_at: i64,
     ) -> Result<SuccessorReport, RuntimeError> {
+        let from = self.generation.hash();
+        let to = next.hash();
+        self.install_migration(next, migration, released_at)
+            .map_err(|error| match error {
+                RuntimeError::Successor(e) => {
+                    RuntimeError::Successor(Box::new(e.compared(&from, &to)))
+                }
+                other => other,
+            })
+    }
+
+    fn install_migration(
+        &mut self,
+        next: Generation,
+        migration: &MigrationPlan,
+        released_at: i64,
+    ) -> Result<SuccessorReport, RuntimeError> {
         crate::engine::validate_schema(&next.schema).map_err(first_schema_error)?;
-        let expected = plan(self.engine.store(), &self.generation.schema, &next.schema)?;
+        let expected = plan(
+            &self.engine.store().conn,
+            &self.generation.schema,
+            &next.schema,
+        )?;
         if &expected != migration {
             return Err(RuntimeError::MigrationPlan(format!(
                 "supplied plan does not match the current destructive delta: expected {:?}",
@@ -1022,7 +1070,10 @@ impl Runtime {
         let predecessor_maintain_ids =
             projected_predecessor_ids(&transaction, &reduced, &next.schema)?;
         apply_migration_drops(&transaction, &mut reduced, migration, released_at)?;
-        if let Some(refusal) = additive_refusal(&transaction, &reduced, &next.schema)? {
+        // Ownership was read above, before the drops cleared the columns it derives from.
+        if let Some(refusal) =
+            additive_refusal(&transaction, &reduced, &next.schema, &predecessor_maintain_ids)?
+        {
             return Err(RuntimeError::Successor(Box::new(refusal)));
         }
         let report = apply_additive(
@@ -1031,7 +1082,7 @@ impl Runtime {
             &next.schema,
             from,
             next.hash(),
-            Some(predecessor_maintain_ids),
+            predecessor_maintain_ids,
         )?;
         crate::store_jobs::reconcile(&transaction, &next, true)?;
         persist_generation_transaction(&transaction, &next, released_at)?;
@@ -1270,159 +1321,8 @@ fn disclose_once_assets(certificate: &mut serde_json::Value, schema: &Schema) {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::Actor;
-    use crate::schema::{ColumnType, Index, RuleTerm, Rules, Table};
-
-    #[test]
-    fn once_disclosures_preserve_existing_schema_disclosures() {
-        let case: serde_json::Value =
-            serde_json::from_str(include_str!("../../../corpus/asset-once-image-insert.json"))
-                .unwrap();
-        let schema: Schema = serde_json::from_value(case["schema"].clone()).unwrap();
-        let mut certificate = serde_json::json!({"disclosures":["existing fact"], "schedules":[]});
-        disclose_once_assets(&mut certificate, &schema);
-        assert_eq!(
-            certificate["disclosures"],
-            serde_json::json!([
-                "existing fact",
-                "media.photo: one image delivery per authenticated principal; owning row read rule; no device byte cache"
-            ])
-        );
-        assert_eq!(certificate["schedules"], serde_json::json!([]));
-    }
-
-    #[test]
-    fn adhoc_execution_does_not_install_a_program_or_change_the_generation() {
-        let generation = Generation::certify(
-            &ProjectJson {
-                version: 1,
-                schema: Schema::default(),
-                programs: Vec::new(),
-                effects: Vec::new(),
-                auth: Auth::default(),
-            },
-            Ceilings::default(),
-        )
-        .unwrap();
-        let before = generation.clone();
-        let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
-        let program = Program {
-            name: "__owner.inspect".to_owned(),
-            kind: ProgramKind::Query,
-            args: BTreeMap::new(),
-            read_time_granularity_ms: None,
-            body: vec![Stmt::Return(Expr::Literal(Value::Int(42)))],
-        };
-
-        let execution = runtime
-            .execute_adhoc(
-                &program,
-                Context::query(Actor::persona("alice").unwrap(), BTreeMap::new()),
-            )
-            .unwrap();
-
-        assert_eq!(execution.result, Value::Int(42));
-        assert_eq!(runtime.generation(), &before);
-        assert_eq!(
-            runtime.store().meta("generation").unwrap(),
-            Some(before.hash())
-        );
-    }
-
-    #[test]
-    fn read_rule_verdicts_are_engine_evaluated_over_every_stored_row() {
-        let schema = Schema {
-            tables: BTreeMap::from([(
-                "todos".to_owned(),
-                Table {
-                    columns: BTreeMap::from([
-                        ("id".to_owned(), ColumnType::Id),
-                        ("ownerId".to_owned(), ColumnType::Principal),
-                    ]),
-                    indexes: BTreeMap::from([(
-                        "byId".to_owned(),
-                        Index {
-                            components: (vec!["id".to_owned()])
-                                .into_iter()
-                                .map(crate::search_key::IndexComponent::Column)
-                                .collect(),
-                            unique: true,
-                        },
-                    )]),
-                    rules: Rules {
-                        read: RuleExpr::Eq(RuleTerm::Field("ownerId".to_owned()), RuleTerm::Viewer),
-                        insert: RuleExpr::Allow,
-                        update: RuleExpr::Allow,
-                        delete: RuleExpr::Allow,
-                    },
-                    constraints: Vec::new(),
-                    retain: Default::default(),
-                    tombstones: Vec::new(),
-                },
-            )]),
-            ..Schema::default()
-        };
-        let generation = Generation::certify(
-            &ProjectJson {
-                version: 1,
-                schema,
-                programs: Vec::new(),
-                effects: Vec::new(),
-                auth: Auth::default(),
-            },
-            Ceilings::default(),
-        )
-        .unwrap();
-        let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
-        runtime
-            .seed(&[
-                (
-                    "todos".to_owned(),
-                    Value::Row(
-                        BTreeMap::from([
-                            ("id".to_owned(), Value::Id("seed".to_owned())),
-                            ("ownerId".to_owned(), Value::Id("dev:alice".to_owned())),
-                        ])
-                        .into(),
-                    ),
-                ),
-                (
-                    "todos".to_owned(),
-                    Value::Row(
-                        BTreeMap::from([
-                            ("id".to_owned(), Value::Id("ghost".to_owned())),
-                            ("ownerId".to_owned(), Value::Id("dev:alice".to_owned())),
-                        ])
-                        .into(),
-                    ),
-                ),
-                (
-                    "todos".to_owned(),
-                    Value::Row(
-                        BTreeMap::from([
-                            ("id".to_owned(), Value::Id("denied".to_owned())),
-                            ("ownerId".to_owned(), Value::Id("dev:bob".to_owned())),
-                        ])
-                        .into(),
-                    ),
-                ),
-            ])
-            .unwrap();
-        let context = Context::query(Actor::persona("alice").unwrap(), BTreeMap::new());
-
-        let verdicts = runtime.read_rule_verdicts("todos", context).unwrap();
-        let admitted = verdicts
-            .iter()
-            .filter(|verdict| verdict.admitted)
-            .map(|verdict| verdict.id.as_str())
-            .collect::<BTreeSet<_>>();
-
-        assert_eq!(verdicts.len(), 3);
-        assert_eq!(admitted, BTreeSet::from(["ghost", "seed"]));
-    }
-}
+#[path = "registry_tests.rs"]
+mod tests;
 
 #[path = "registry_operator.rs"]
 mod operator;
@@ -1435,3 +1335,7 @@ mod registry_timers;
 
 #[path = "channels.rs"]
 pub(crate) mod channels;
+
+#[cfg(test)]
+#[path = "registry_evolution_tests.rs"]
+mod evolution_tests;

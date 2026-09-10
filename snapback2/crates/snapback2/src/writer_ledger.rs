@@ -342,6 +342,8 @@ impl State {
             "personas": personas,
             "timers": self.runtime().store().timer_status(self.now()).map_err(|e| Refusal::from_runtime(&e))?,
             "schedules": self.runtime().store().schedule_receipt().map_err(|e| Refusal::from_runtime(&e))?,
+            "successor": self.runtime().store().meta("last_successor").map_err(|e| Refusal::from_runtime(&e))?
+                .and_then(|report| serde_json::from_str::<Json>(&report).ok()),
             "jobs": self.runtime().store().job_counts().map_err(|e| Refusal::from_runtime(&e))?,
             "mode": self.mode,
         }))

@@ -28,7 +28,9 @@ pub fn run(args: &[String]) -> ExitCode {
         Ok(root) => root,
         Err(error) => return owner::print_refusal(error, json_output, 2),
     };
-    let content = if matches!(page, "init" | "dev" | "check") {
+    let content = if page == "migrations" {
+        read_page(&root.join("successor.md"))
+    } else if matches!(page, "init" | "dev" | "check") {
         Ok(verbs::command_help(page)
             .expect("command guide help")
             .to_owned())

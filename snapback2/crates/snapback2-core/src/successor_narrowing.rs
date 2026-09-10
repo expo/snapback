@@ -6,35 +6,88 @@ pub struct NarrowingConflict {
     pub table: String,
     pub column: String,
     pub null_rows: u64,
+    pub affected_rows: u64,
+    pub removed_cases: Vec<String>,
     pub sample: Vec<String>,
 }
 
-// @ref LLP 1016#d4--expand-fill-contract — only removal of the outer optional wrapper is narrowing; retypes and changes inside lists remain destructive.
+// @ref LLP 1020#a2-enum-case-removal-is-checked-narrowing — enum removals compose
+// through wrappers; optional-to-required keeps LLP 1016's outer-wrapper scope.
 pub(super) fn is_narrowing(current: &ColumnType, next: &ColumnType) -> bool {
-    matches!(current, ColumnType::Optional(inner) if inner.as_ref() == next
-        && !matches!(next, ColumnType::Optional(_)))
+    if widens(current, next) {
+        return false;
+    }
+    match (current, next) {
+        (ColumnType::Optional(a), b) if !matches!(b, ColumnType::Optional(_)) => {
+            widens(a, b) || enum_compatible(a, b)
+        }
+        _ => enum_compatible(current, next),
+    }
 }
 
-pub(super) fn narrowing_refusal(
+fn enum_compatible(current: &ColumnType, next: &ColumnType) -> bool {
+    match (current, next) {
+        (ColumnType::Enum { .. }, ColumnType::Enum { .. }) => true,
+        (ColumnType::Optional(a), ColumnType::Optional(b)) => enum_compatible(a, b),
+        (a, ColumnType::Optional(b)) if !matches!(a, ColumnType::Optional(_)) => {
+            enum_compatible(a, b)
+        }
+        (ColumnType::List { of: a, max: am }, ColumnType::List { of: b, max: bm }) => {
+            am <= bm && enum_compatible(a, b)
+        }
+        _ => false,
+    }
+}
+
+fn removed_cases(current: &ColumnType, next: &ColumnType) -> Vec<String> {
+    match (current, next) {
+        (ColumnType::Optional(a), b) => removed_cases(a, b),
+        (a, ColumnType::Optional(b)) => removed_cases(a, b),
+        (ColumnType::List { of: a, .. }, ColumnType::List { of: b, .. }) => removed_cases(a, b),
+        (ColumnType::Enum { variants: a }, ColumnType::Enum { variants: b }) => {
+            a.iter().filter(|v| !b.contains(v)).cloned().collect()
+        }
+        _ => vec![],
+    }
+}
+
+fn contains_removed(value: &Value, removed: &[String]) -> bool {
+    match value {
+        Value::String(s) => removed.contains(s),
+        Value::Array(items) => items.iter().any(|v| contains_removed(v, removed)),
+        _ => false,
+    }
+}
+
+pub(super) fn checked_narrowings(
     connection: &Connection,
     current: &Schema,
     next: &Schema,
-) -> Result<Option<SuccessorRefusal>, RuntimeError> {
-    let mut conflicts = Vec::new();
+    owned: &OwnedIds,
+) -> Result<Vec<NarrowingConflict>, RuntimeError> {
+    let mut checks = Vec::new();
     for (table, previous) in &current.tables {
         let Some(successor) = next.tables.get(table) else {
             continue;
         };
         for (column, kind) in &previous.columns {
-            if !successor
+            let Some(next_kind) = successor
                 .columns
                 .get(column)
-                .is_some_and(|next| is_narrowing(kind, next))
-            {
+                .filter(|n| is_narrowing(kind, n))
+            else {
                 continue;
-            }
-            let mut null_rows = 0_u64;
-            let mut sample = Vec::new();
+            };
+            let mut check = NarrowingConflict {
+                table: table.clone(),
+                column: column.clone(),
+                null_rows: 0,
+                affected_rows: 0,
+                removed_cases: removed_cases(kind, next_kind),
+                sample: Vec::new(),
+            };
+            let required = matches!(kind, ColumnType::Optional(_))
+                && !matches!(next_kind, ColumnType::Optional(_));
             let mut statement = connection
                 .prepare("SELECT row_id, data FROM rows WHERE table_name = ?1 ORDER BY row_id")?;
             let rows = statement.query_map([table], |row| {
@@ -42,66 +95,130 @@ pub(super) fn narrowing_refusal(
             })?;
             for row in rows {
                 let (id, data) = row?;
-                let value: Value = match serde_json::from_str(&data) {
-                    Ok(value) => value,
-                    Err(error) => {
-                        return Ok(Some(SuccessorRefusal::invalid_row(table, &id, error)));
-                    }
-                };
-                let object = match value.as_object() {
-                    Ok(object) => object,
-                    Err(error) => {
-                        return Ok(Some(SuccessorRefusal::invalid_row(table, &id, error)));
-                    }
-                };
-                if matches!(object.get(column), None | Some(Value::Null)) {
-                    null_rows += 1;
-                    if sample.len() < 10 {
-                        sample.push(id);
+                if owned.get(table).is_some_and(|ids| ids.contains(&id)) {
+                    continue;
+                }
+                let value: Value = serde_json::from_str(&data).map_err(|e| {
+                    RuntimeError::Successor(Box::new(SuccessorRefusal::invalid_row(table, &id, e)))
+                })?;
+                let object = value.as_object().map_err(|e| {
+                    RuntimeError::Successor(Box::new(SuccessorRefusal::invalid_row(table, &id, e)))
+                })?;
+                let value = object.get(column).unwrap_or(&Value::Null);
+                let null = required && *value == Value::Null;
+                if null {
+                    check.null_rows += 1;
+                }
+                if null || contains_removed(value, &check.removed_cases) {
+                    check.affected_rows += 1;
+                    if check.sample.len() < 10 {
+                        check.sample.push(id);
                     }
                 }
             }
-            if null_rows > 0 {
-                conflicts.push(NarrowingConflict {
-                    table: table.clone(),
-                    column: column.clone(),
-                    null_rows,
-                    sample,
-                });
-            }
+            checks.push(check);
         }
     }
-    if conflicts.is_empty() {
+    Ok(checks)
+}
+
+pub(super) fn narrowing_refusal(
+    connection: &Connection,
+    current: &Schema,
+    next: &Schema,
+    owned: &OwnedIds,
+) -> Result<Option<SuccessorRefusal>, RuntimeError> {
+    let checks = match checked_narrowings(connection, current, next, owned) {
+        Ok(checks) => checks,
+        Err(RuntimeError::Successor(e)) => return Ok(Some(*e)),
+        Err(e) => return Err(e),
+    };
+    if checks.iter().all(|c| c.affected_rows == 0) {
         return Ok(None);
     }
+    let conflicts = checks
+        .iter()
+        .filter(|c| c.affected_rows > 0)
+        .collect::<Vec<_>>();
     let message = conflicts
         .iter()
         .map(|c| {
-            format!(
-                "{}.{} cannot become required: {} stored rows are null or absent",
-                c.table, c.column, c.null_rows
-            )
+            if c.removed_cases.is_empty() {
+                format!(
+                    "{}.{} cannot become required: {} stored rows are null or absent",
+                    c.table, c.column, c.null_rows
+                )
+            } else {
+                format!(
+                    "{}.{} removes cases {:?}: {} affected rows ({} null or absent)",
+                    c.table, c.column, c.removed_cases, c.affected_rows, c.null_rows
+                )
+            }
         })
         .collect::<Vec<_>>()
         .join("; ");
     let rewrite = conflicts.iter().map(|c| {
         let (table, column) = (&c.table, &c.column);
+        if !c.removed_cases.is_empty() {
+            return removal_job(c, &current.tables[table].columns[column]);
+        }
         let ty = quarry_type(&next.tables[table].columns[column]);
-        // @ref LLP 1016#d4--expand-fill-contract — the refusal pastes a runnable fill job; the replacement value is its typed argument.
+        // @ref LLP 1016#d4--expand-fill-contract — the replacement is a typed job argument.
         format!("-- keep {table}.{column} optional and apply, then fill it:\njob fill_{table}_{column}(value: {ty}):\n  chunk p in {table} first 100 by byId:\n    update {table}[p.id] {{ {column}: p.{column} ?? value }}")
     }).collect::<Vec<_>>().join("\n\n");
     Ok(Some(SuccessorRefusal {
+        from: String::new(),
+        to: String::new(),
         code: "E_SUCCESSOR_NARROWING".to_owned(),
         message: format!(
-            "{message}; fill the optional column with the pasted job, then declare it required and apply again"
+            "{message}; run the pasted job under the predecessor schema, then apply again"
         ),
         rewrite,
-        site: None,
+        site: conflicts
+            .first()
+            .map(|c| format!("schema.tables.{}.columns.{}", c.table, c.column)),
         plan: MigrationPlan::default(),
         conflicts: Vec::new(),
         cap_conflicts: Vec::new(),
-        narrowings: conflicts,
+        narrowings: checks,
     }))
+}
+
+fn removal_job(c: &NarrowingConflict, predecessor: &ColumnType) -> String {
+    let (table, column) = (&c.table, &c.column);
+    let quote = |text: &str| format!("'{}'", text.replace('\\', "\\\\").replace('\'', "\\'"));
+    if !holds_list(predecessor) {
+        // A scalar case compares directly, so one bounded sweep repairs every affected row.
+        let deletes = c
+            .removed_cases
+            .iter()
+            .map(|case| format!("    if p.{column} = {}:\n      delete {table}[p.id]", quote(case)))
+            .collect::<Vec<_>>()
+            .join("\n");
+        return format!(
+            "-- keep the predecessor schema; this deletes every row holding a removed case.\n-- To map instead, replace each delete with: update {table}[p.id] {{ {column}: <kept case> }}\njob remove_{table}_{column}():\n  chunk p in {table} first 100 by byId:\n{deletes}"
+        );
+    }
+    // Quarry bindings are lexical: a flag set inside nested list loops cannot reach an
+    // outer delete, so each sampled id gets its own exact, independently bounded sweep.
+    let sweeps = c
+        .sample
+        .iter()
+        .enumerate()
+        .map(|(i, id)| format!("  chunk p{i} in {table}[{}] first 1 by byId:\n    delete {table}[p{i}.id]", quote(id)))
+        .collect::<Vec<_>>()
+        .join("\n");
+    format!(
+        "-- keep the predecessor schema; review deletion of these sampled rows.\n-- Retry narrowing after this job; if more affected rows remain, run its next sample job.\njob remove_{table}_{column}():\n{sweeps}"
+    )
+}
+
+fn holds_list(kind: &ColumnType) -> bool {
+    match kind {
+        ColumnType::List { .. } => true,
+        ColumnType::Optional(inner) => holds_list(inner),
+        _ => false,
+    }
 }
 
 #[cfg(test)]
@@ -173,7 +290,7 @@ mod tests {
                 [stored],
             )
             .unwrap();
-        let refusal = narrowing_refusal(&store.conn, &current, &next)
+        let refusal = narrowing_refusal(&store.conn, &current, &next, &OwnedIds::new())
             .unwrap()
             .unwrap();
         assert_eq!(refusal.code, "E_SUCCESSOR_NARROWING");
@@ -216,7 +333,7 @@ mod tests {
             crate::value::canonical_json(&Value::Int(7)),
         ] {
             store.conn.execute("INSERT OR REPLACE INTO rows(table_name, row_id, data) VALUES ('items', 'bad', ?1)", [data]).unwrap();
-            let refusal = narrowing_refusal(&store.conn, &current, &next)
+            let refusal = narrowing_refusal(&store.conn, &current, &next, &OwnedIds::new())
                 .unwrap()
                 .unwrap();
             assert_eq!(refusal.code, "E_SUCCESSOR_ROW_INVALID");

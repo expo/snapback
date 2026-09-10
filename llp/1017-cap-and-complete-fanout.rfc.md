@@ -324,7 +324,7 @@ number of caps and groups), read from the rows table as the unique check
 reads them — never from the index entries, which the migration's drops
 have already deleted for that table when admission runs. Any group above
 `N` refuses `E_SUCCESSOR_CAP` (family
-`successor`, page `successor/migrations`) listing up to ten `{ table, by,
+`successor`, page `successor`) listing up to ten `{ table, by,
 key, count }` entries, rewrite "raise the cap to at least {count}, or remove
 rows from the group, then retry". The entries travel in a new additive
 `cap_conflicts` field on `SuccessorRefusal`, not stuffed into

@@ -66,6 +66,8 @@ pub(super) fn validate_caps(
         }
     }
     Ok((!conflicts.is_empty()).then(|| SuccessorRefusal {
+        from: String::new(),
+        to: String::new(),
         code: "E_SUCCESSOR_CAP".to_owned(),
         message: messages.join("; "),
         rewrite: format!(
@@ -73,8 +75,16 @@ pub(super) fn validate_caps(
         ),
         plan: MigrationPlan::default(),
         conflicts: Vec::new(),
-        cap_conflicts: conflicts,
+        cap_conflicts: conflicts.clone(),
         narrowings: Vec::new(),
-        site: None,
+        site: conflicts.first().and_then(|c| {
+            schema.tables[&c.table]
+                .constraints
+                .iter()
+                .position(
+                    |constraint| matches!(constraint, Constraint::Cap { by, .. } if by == &c.by),
+                )
+                .map(|i| format!("schema.tables.{}.constraints[{i}]", c.table))
+        }),
     }))
 }

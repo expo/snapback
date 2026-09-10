@@ -998,7 +998,7 @@ impl State {
         Ok((generation != self.runtime().generation().program_hash()).then(|| json!({
             "state":"rejected", "reason":"generation_changed", "code":"E_GENERATION_CHANGED", "family":"successor",
             "message":"the mutation's expected generation is no longer active", "site":"/api/mutation.expectedGeneration",
-            "guide":"successor/runtime", "rewrite":"refresh the manifest, review the changed operation, and submit a new write"
+            "guide":"successor", "rewrite":"refresh the manifest, review the changed operation, and submit a new write"
         })))
     }
 
@@ -1156,12 +1156,12 @@ impl State {
             let released_at = self.now();
             self.runtime_mut()
                 .apply_migration(compiled.generation.clone(), &plan, released_at)
-                .map_err(|error| Refusal::from_runtime(&error))?
+                .map_err(|error| crate::protocol::successor_site(Refusal::from_runtime(&error), &compiled, Some(&self.compiled)))?
         } else {
             let now = self.now();
             self.runtime_mut()
                 .apply_successor_at(compiled.generation.clone(), now)
-                .map_err(|error| Refusal::from_successor(&error))?
+                .map_err(|error| crate::protocol::successor_site(Refusal::from_successor(&error), &compiled, Some(&self.compiled)))?
         };
         if let Some(cache) = cache
             && let Err(error) = cache.publish()
@@ -1171,6 +1171,7 @@ impl State {
                 .with_detail("applied", json!(true))
                 .with_detail("activeGeneration", json!(compiled.generation.hash())));
         }
+        crate::watch::log(&self.root, json!({ "successor": "applied", "report": report }));
         self.compiled = compiled;
         if let Some(seed) = seed {
             self.seed = seed;

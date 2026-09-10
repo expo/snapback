@@ -29,8 +29,8 @@ export function registerJobChecks(test: Test, frontend: string): void {
       assert(!(await lowerProject(root)).ok, "a chunk binding escaped its block");
     });
   });
-  test("Job guide recipe is the compiled fixture and mutable keys refuse at check", async () => {
-    const page = readFileSync(resolve(frontend, "../snapback2/guide/job.md"), "utf8");
+  test("Successor guide fill recipe is the compiled fixture and mutable keys refuse at check", async () => {
+    const page = readFileSync(resolve(frontend, "../snapback2/guide/successor.md"), "utf8");
     const fixture = readFileSync(resolve(frontend, "fixtures/quarry-jobs/snapback/admin.q"), "utf8");
     const snippet = page.match(/```q\n([\s\S]*?)\n```/)![1]!;
     assert(fixture.includes(snippet), "guide recipe diverged from its fixture");

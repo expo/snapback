@@ -44,9 +44,10 @@
   {
     "family": "successor",
     "code": "E_SUCCESSOR_DESTRUCTIVE",
-    "wrong": "```text\nRemove a column or replace an index, then assume a passing check installed the change.\n```",
+    "wrong": "```text\nRemove a column or replace an index, then assume a passing check installed the change.\n```\n```q\ntable messages:\n  body: text <=40\n  read <- allow\n```",
     "right": "```sh\nsnapback2 dev --status --json\n# Keep the owner running. Under status.refused, inspect migrationFile and\n# review that file's plan and project. Only apply the drops you intend.\n# Replace GENERATION below with the exact generation from migrationFile.\nsnapback2 dev --apply-migration .snapback/migration-GENERATION.json\nsnapback2 dev --status --json\n```\n\nRun these from the project root, or use the refusal's applyCommand, which includes the project and plan's absolute paths. Relative --apply-migration paths resolve from the working directory even with --project. check compiles, certifies, and refreshes the build cache; it does not install a successor. Until migration succeeds, the owner keeps serving its previous generation. The final status must be ready with the plan's generation. E_WHY_STALE also covers missing, malformed or stale certificate caches: inspect status; if a successor is refused, use the reviewed migration recovery above or revert the refused edit first; otherwise go directly to snapback2 check. Run snapback2 check to refresh the cache, then retry why.",
-    "guide": "operator"
+    "guide": "successor",
+    "site": "schema.tables.messages.columns.body"
   },
   {
     "family": "effect",
@@ -516,10 +517,10 @@
   {
     "family": "successor",
     "code": "E_SUCCESSOR_NARROWING",
-    "site": "table.column",
-    "guide": "operator",
-    "wrong": "apply a required column while stored rows are null",
-    "right": "keep T?, apply, run the pasted job (`run --file fill.q '{\"value\": ...}' --as system --wait`), then declare T and apply again"
+    "site": "schema.tables.items.columns.kind",
+    "guide": "successor",
+    "wrong": "Install this after enum('text', 'image') while image rows remain:\n```q\ntable items:\n  kind: enum('text')\n  read <- allow\n  insert <- allow\n  update <- allow\n  delete <- allow\n```",
+    "right": "Keep the predecessor declaration and run the pasted job (or map the case with an update); then remove the case and apply again:\n```q\ntable items:\n  kind: enum('text', 'image')\n  read <- allow\n  insert <- allow\n  update <- allow\n  delete <- allow\n\njob remove_items_kind():\n  chunk p in items first 100 by byId:\n    if p.kind = 'image':\n      delete items[p.id]\n```"
   },
   {
     "family": "job",
@@ -614,7 +615,7 @@
     "code": "E_GENERATION_CHANGED",
     "wrong": "A mutation sends expectedGeneration from an older manifest.",
     "right": "Read /api/manifest again, inspect the operation and arguments, then submit a new write using programGeneration as expectedGeneration. The refused request made no application writes; do not blindly retry with a replacement expectation.",
-    "guide": "operator"
+    "guide": "successor"
   },
   {
     "family": "input",
@@ -622,5 +623,53 @@
     "wrong": "An update uses a value read before another writer changed the row.",
     "right": "Inspect rejected.current, which is the readable committed row or null, then submit a new update with an explicit condition on that current value. The refused mutation made no writes.",
     "guide": "quarry"
+  },
+  {
+    "family": "successor",
+    "code": "E_SUCCESSOR_COLUMN_REQUIRED",
+    "site": "schema.tables.profiles.columns.avatarUrl",
+    "guide": "successor",
+    "wrong": "Install on populated rows that violate the new declaration:\n```q\ntable profiles:\n  avatarUrl: text <=2048\n```",
+    "right": "```q\ntable profiles:\n  avatarUrl: text <=2048 ?\n  read <- allow\n  update <- allow\n\njob fill_profiles_avatarUrl(value: text <=2048):\n  chunk p in profiles first 100 by byId:\n    update profiles[p.id] { avatarUrl: p.avatarUrl ?? value }\n```"
+  },
+  {
+    "family": "successor",
+    "code": "E_SUCCESSOR_UNIQUE",
+    "site": "schema.tables.items.indexes.byKind",
+    "guide": "successor",
+    "wrong": "Install on populated rows that violate the new declaration:\n```q\ntable items:\n  kind: text <=20\n  unique byKind: kind\n```",
+    "right": "```q\ntable items:\n  kind: text <=20\n  by byKind: kind, id\n```"
+  },
+  {
+    "family": "successor",
+    "code": "E_SUCCESSOR_CAP",
+    "site": "schema.tables.items.constraints[0]",
+    "guide": "successor",
+    "wrong": "Install on populated rows that violate the new declaration:\n```q\ntable items:\n  owner: principal\n  by byOwner: owner, id\n  cap 1 by owner\n```",
+    "right": "```q\ntable items:\n  owner: principal\n  by byOwner: owner, id\n  cap 100 by owner\n```"
+  },
+  {
+    "family": "successor",
+    "code": "E_SUCCESSOR_ROW_INVALID",
+    "site": "table.row",
+    "guide": "successor",
+    "wrong": "Install a declaration that interprets a malformed legacy stored value.",
+    "right": "Keep the predecessor schema; repair or delete the named row with an operator job, then retry the successor. Preserve a store snapshot before repairing malformed on-disk bytes."
+  },
+  {
+    "family": "successor",
+    "code": "E_SUCCESSOR_STORE",
+    "site": "store",
+    "guide": "successor",
+    "wrong": "Apply a successor while SQLite cannot read or commit the store.",
+    "right": "Repair the reported store error and retry; the installation transaction keeps the previous rows, indexes, timers and generation intact."
+  },
+  {
+    "family": "bound",
+    "code": "E_STEPS",
+    "site": "snapback/ops.q:1:1",
+    "guide": "bounds",
+    "wrong": "```q\n-- snapback/schema.q\ntable items:\n  body: text <=1000\n  read <- public\n\n-- snapback/ops.q\nquery work():\n  for n in range(0, 1000000):\n    value = n + 1\n  return true\n```",
+    "right": "```q\n-- Every iteration is priced as steps and the product names the literal range;\n-- shrink that bound, or move the work into a job's chunk loop.\n-- snapback/schema.q\ntable items:\n  body: text <=1000\n  read <- public\n\n-- snapback/ops.q\nquery work():\n  for n in range(0, 1000):\n    value = n + 1\n  return true\n```"
   }
 ]

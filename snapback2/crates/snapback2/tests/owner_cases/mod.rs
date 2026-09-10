@@ -552,13 +552,16 @@ fn refused_destructive_successor_keeps_the_active_build_cache() {
     let schema = root.join("snapback/schema.q");
     let source = fs::read_to_string(&schema)
         .unwrap()
-        .replace("title: text <=120", "title: text <=121");
+        .replace("title: text <=120", "title: text <=119");
     assert_ne!(
         source,
         fs::read_to_string(&schema).unwrap(),
         "chat fixture no longer contains the destructive successor probe"
     );
     fs::write(schema, source).unwrap();
+    let groups = root.join("snapback/groups.q");
+    let source = fs::read_to_string(&groups).unwrap().replace("title: text <=120", "title: text <=119");
+    fs::write(groups, source).unwrap();
 
     wait_for(Duration::from_secs(6), || {
         let current = status(port, secret);

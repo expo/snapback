@@ -1258,7 +1258,7 @@ test("plain mutations bind the observed program generation and preserve generati
     mutations++;
     assert.equal(JSON.parse(String(init?.body)).expectedGeneration, "b".repeat(64));
     return fetchJson({ state: "rejected", reason: "generation_changed", code: "E_GENERATION_CHANGED", family: "successor",
-      message: "the mutation's expected generation is no longer active", guide: "successor/runtime" });
+      message: "the mutation's expected generation is no longer active", guide: "successor" });
   } });
   await value.manifest();
   const result = await value.mutation(api.messages.send, {});

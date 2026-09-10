@@ -67,16 +67,7 @@ pub fn spawn(
                             seed: Some(seed),
                             cache: Some(cache),
                         }) {
-                            Ok(report) => {
-                                log(
-                                    &root,
-                                    json!({
-                                    "successor": "applied",
-                                    "generation": generation,
-                                    "report": report,
-                                    }),
-                                );
-                            }
+                            Ok(_) => {}
                             Err(mut error) => {
                                 if error.code == "E_OWNER_STATE"
                                     && error.detail.get("applied") == Some(&Json::Bool(true))
