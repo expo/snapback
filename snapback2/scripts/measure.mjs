@@ -410,9 +410,9 @@ function selfTest() {
     assert.deepEqual(score(failed, [baseline]), byteFields, "failed current measurement cannot pass");
   }
   const ceilingFailure = {};
-  publishByteMeasurements(ceilingFailure, { ...values(100), runtime_gzip_bytes: 85080 }, byteToolchain, false);
+  publishByteMeasurements(ceilingFailure, { ...values(100), runtime_gzip_bytes: 90080 }, byteToolchain, false);
   assert.equal(ceilingFailure.runtime_gzip_bytes, undefined, "a ceiling refusal publishes no trusted values");
-  assert.equal(ceilingFailure.byte_measurement.values.runtime_gzip_bytes, 85080, "a ceiling refusal retains raw evidence");
+  assert.equal(ceilingFailure.byte_measurement.values.runtime_gzip_bytes, 90080, "a ceiling refusal retains raw evidence");
   assert.deepEqual(score(candidate(102), [baseline, ceilingFailure]), byteFields);
   const legacy = { ...values(110), byte_toolchain: byteToolchain, steps: { package_bytes_s: { ok: false } } };
   assert.deepEqual(score(candidate(102), [baseline, legacy, {}, { ...accepted(110), client_gzip_bytes: null },

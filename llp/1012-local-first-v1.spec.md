@@ -696,7 +696,7 @@ delivery is an image column modifier; video ranges remain unspecified.
 **2026-09-07 integration record.** Under the user's
 explicit delegation, Codex takes engine-owned `wordPrefixes` indexing and the
 persistent indexed twin onto the doing-list. Exact 2 waits until this search
-qualifies on React web and Expo. The **complete local-runtime ceiling is 85,000 bytes gzip,
+qualifies on React web and Expo. The **complete local-runtime ceiling is 90,000 bytes gzip,
 with 80,000 the working target**, per the frozen allocation below; normalization data/decoding, indexing,
 incremental state, prediction and local cursors all participate in the measured
 entry. Relocating required payload is not a saving. No new gate or repository
@@ -800,7 +800,18 @@ integration and review repairs were required to fit 82,000; the explicit merged-
 
 ### Bytes — frozen allocation
 
-**2026-09-09 (author amendment).** After reviewing the integrated six-item candidate at 84,580 bytes gzip, Charlie explicitly approved raising the ceiling to **85,000 bytes** and landing everything. The **80,000 target**, five-root measurement, pinned toolchain and 1% comparable-growth checks remain unchanged. This specific allocation supersedes the 2026-09-08 ceiling below; future features still fit by deletion or descope unless the author rules otherwise.
+**2026-09-10 (author amendment; current allocation).** Charlie explicitly
+approved a **90,000-byte gzip ceiling**, retaining the **80,000-byte target**
+and existing size checks, after recovery landed at 84,986 bytes. This buys
+implementation room beyond 14 bytes of headroom without removing the fixed
+five-root measurement, changing its pinned toolchain, or widening the separate
+1% comparable-growth guard. The earlier one-time 2% public-package allowance
+for recovery remains a separate, scoped decision. No historical measurement
+or accepted baseline is reset. Rationale and authorization: LLP 1018.008 §10.
+This supersedes the 85,000-byte allocation below, not the requirement to
+justify growth or fit future features by deletion/descope.
+
+**2026-09-09 (author amendment; historical, superseded above).** After reviewing the integrated six-item candidate at 84,580 bytes gzip, Charlie explicitly approved raising the ceiling to **85,000 bytes** and landing everything. The **80,000 target**, five-root measurement, pinned toolchain and 1% comparable-growth checks remain unchanged. This specific allocation supersedes the 2026-09-08 ceiling below; future features still fit by deletion or descope unless the author rules otherwise.
 
 **2026-09-08 (author; historical allocation, superseded above).** The complete local-runtime ceiling is frozen at 84,000 bytes gzip, 80,000 the target; a feature that does not fit is descoped or paid for by deletion, superseding every prior allocation increase.
 
@@ -1775,8 +1786,8 @@ it, so every deferral in §11 carries a number:
   30 KB ceiling, recorded in `snapback2/metrics/twin.jsonl` with the
   method; NOT-DOING's 9.7 KB is re-baselined to the measurement.
 
-The 2026-09-09 author amendment sets the complete local-runtime
-ceiling to 85,000 bytes, with 80,000 as the working target (§"Bytes — frozen allocation"). The historical
+The 2026-09-10 author amendment sets the complete local-runtime
+ceiling to 90,000 bytes, with 80,000 as the working target (§"Bytes — frozen allocation"). The historical
 measurements above do not measure the complete search implementation. Record
 its integrated whole-entry size, phone index/cold-build storage and full-engine
 search curve when those lanes execute; no additive-prototype headroom claim.
