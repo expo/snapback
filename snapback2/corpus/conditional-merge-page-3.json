@@ -488,7 +488,363 @@
       "posts.byAuthorAt"
     ],
     "disclosures": [],
-    "bound_product": "merge feed.following: 500 lanes heads + 20 advances + 2 lookahead × 1 calls (feed.following.lane × 500) = 522 + feed.follows take 500 (+2 reserve) × 1 calls on follows = 502"
+    "bound_product": "merge feed.following: 500 lanes heads + 20 advances + 2 lookahead × 1 calls (feed.following.lane × 500) = 522 + feed.follows take 500 (+2 reserve) × 1 calls on follows = 502",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 522,
+        "source": "merge feed.following: 500 lanes heads + 20 advances + 2 lookahead × 1 calls (feed.following.lane × 500)",
+        "site": "feed.following"
+      },
+      {
+        "meter": "examined entries",
+        "value": 502,
+        "source": "feed.follows take 500 (+2 reserve) × 1 calls on follows",
+        "site": "feed.follows"
+      },
+      {
+        "meter": "index entries",
+        "value": 522,
+        "source": "merge feed.following: 500 lanes heads + 20 advances + 2 lookahead × 1 calls (feed.following.lane × 500)",
+        "site": "feed.following"
+      },
+      {
+        "meter": "index entries",
+        "value": 502,
+        "source": "feed.follows take 500 (+2 reserve) × 1 calls on follows",
+        "site": "feed.follows"
+      },
+      {
+        "meter": "steps",
+        "value": 16182,
+        "source": "merge feed.following: heap work",
+        "site": "feed.conditional:statement:2:else:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 2610,
+        "source": "merge feed.following: 500 lanes heads + 20 advances + 2 lookahead × 1 calls (feed.following.lane × 500) × 5",
+        "site": "feed.following"
+      },
+      {
+        "meter": "steps",
+        "value": 2510,
+        "source": "feed.follows take 500 (+2 reserve) × 1 calls on follows × 5",
+        "site": "feed.follows"
+      },
+      {
+        "meter": "steps",
+        "value": 1500,
+        "source": "expressions (calls from feed.follows take 500)",
+        "site": "feed.conditional:statement:2:else:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 60,
+        "source": "expressions (calls from page 20)",
+        "site": "feed.conditional:statement:2:else:statement:4:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 20,
+        "source": "statements (calls from page 20)",
+        "site": "feed.conditional:statement:2:else:statement:4:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "feed.conditional:statement:2:else:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "feed.conditional:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "feed.conditional:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "feed.conditional:statement:2:else:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "feed.conditional:statement:2:else:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "feed.conditional:statement:2:else:statement:4"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "feed.conditional:statement:2:else:statement:5"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "feed.conditional:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "feed.conditional:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "feed.conditional:statement:2:else:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "feed.conditional:statement:2:else:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "feed.conditional:statement:2:else:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "feed.conditional:statement:2:else:statement:4"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "feed.conditional:statement:2:else:statement:5"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 517824,
+        "source": "merge feed.following: heap work × 32",
+        "site": "feed.conditional:statement:2:else:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 83520,
+        "source": "merge feed.following: 500 lanes heads + 20 advances + 2 lookahead × 1 calls (feed.following.lane × 500) × 5 × 32",
+        "site": "feed.following"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 80320,
+        "source": "feed.follows take 500 (+2 reserve) × 1 calls on follows × 5 × 32",
+        "site": "feed.follows"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 48000,
+        "source": "expressions (calls from feed.follows take 500) × 32",
+        "site": "feed.conditional:statement:2:else:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 1920,
+        "source": "expressions (calls from page 20) × 32",
+        "site": "feed.conditional:statement:2:else:statement:4:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 640,
+        "source": "statements (calls from page 20) × 32",
+        "site": "feed.conditional:statement:2:else:statement:4:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "feed.conditional:statement:2:else:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "feed.conditional:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "feed.conditional:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "feed.conditional:statement:2:else:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "feed.conditional:statement:2:else:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "feed.conditional:statement:2:else:statement:4"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "feed.conditional:statement:2:else:statement:5"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "feed.conditional:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "feed.conditional:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "feed.conditional:statement:2:else:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "feed.conditional:statement:2:else:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "feed.conditional:statement:2:else:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "feed.conditional:statement:2:else:statement:4"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "feed.conditional:statement:2:else:statement:5"
+      },
+      {
+        "meter": "output bytes",
+        "value": 12,
+        "source": "array",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 2080,
+        "source": "posts.body",
+        "site": "feed.global"
+      },
+      {
+        "meter": "output bytes",
+        "value": 200,
+        "source": "shape: framing/shared encoding/growth adjustment",
+        "site": "feed.global"
+      },
+      {
+        "meter": "output bytes",
+        "value": 20,
+        "source": "posts last 20 at feed.global (20 repetitions): framing/shared encoding/growth adjustment",
+        "site": "feed.global"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 60192,
+        "source": "posts.at",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 243936,
+        "source": "posts.author",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 164736,
+        "source": "posts.body",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 237600,
+        "source": "posts.id",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 15840,
+        "source": "posts row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": -190080,
+        "source": "merge feed.following: emitted page + heads + lookahead; posts at feed.following: 1584 retained rows: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 237432,
+        "source": "follows.followed",
+        "site": "feed.follows"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 237432,
+        "source": "follows.follower",
+        "site": "feed.follows"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 228300,
+        "source": "follows.id",
+        "site": "feed.follows"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 15220,
+        "source": "follows row width: framing/shared encoding/growth adjustment",
+        "site": "feed.follows"
+      },
+      {
+        "meter": "closure bytes",
+        "value": -191360,
+        "source": "feed.follows take 500 × 1 calls; follows at feed.follows: 1522 retained rows: framing/shared encoding/growth adjustment",
+        "site": "feed.follows"
+      }
+    ]
   },
   "context": {
     "viewer": "u1",

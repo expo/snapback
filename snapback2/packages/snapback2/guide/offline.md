@@ -54,7 +54,7 @@ failure without clearing the draft or attachment. Admission and a subscribed
 selected operation acquire missing capacity through one bounded resume flight;
 `can`/snapshot reads do no I/O. After recovery, let the user
 submit normally; do not automatically resubmit a refused write or add a
-periodic `online()` loop. Generic `useOutbox().can` cannot price a specific op.
+periodic `online()` loop.
 One automatic attempt per opportunity, with a 10-second deadline; an explicit
 offline cut forbids automatic networking until `online()`.
 `outbox.observe(op?)` feeds hooks; `intentLabel` labels entries.
@@ -67,11 +67,12 @@ bytes to re-author; FIFO continues on either tab, and a follower's result is
 recoverable once by its alias after a takeover or reopen. Older snapshots expose
 `reason.code: "changed"` and `freshness.compactedThrough`; refresh their query.
 Committed does not mean shown: query `items` need the target's observation
-through commit. `arrived`/global sequence cannot substitute. Expose failures.
+through commit; `arrived`/global sequence cannot substitute. Expose failures.
 
 `outbox.drain()`/`settled()`: `{ stopped, remaining }`; false is drained.
 Fence/transport/authority/offline/pending/writer-unresponsive pauses keep
-queued bytes. A real reconnect can start bounded recovery; retry stopped work with `online()` or an online drain.
+queued bytes. A real reconnect can start bounded recovery; retry stopped work
+with `online()` or an online drain.
 
 ## Entry fields
 
@@ -127,12 +128,14 @@ E_OFFLINE_LIFECYCLE: sign in/reopen; E_OFFLINE_FOLLOWER: sign in; use writer tab
 
 ## Custody
 
-`deliver to T[.keys] as name` on a content table derives an engine-owned per-recipient log:
-recipient, row, incarnation, the keys, kind (delivered/changed/removed),
-audience, seq, at; byRecipient/byRecipientGroup/byRow; read `.recipient =
-viewer`; removed tombstones its row; programs never write it. Keys must pin a
-`cap N by` group of T (E_DELIVER_UNBOUNDED); T needs one principal column or
-`by .column` (E_DELIVER_PRINCIPAL); name must be free. `with receipts` adds
-nameReceipts (row, recipient, received, seq, the read rule's columns) under
-that rule. Installing, bootstrapping, removing, and the audience bound `A`:
-`guide successor`.
+`deliver to T[.keys] as name` on a content table derives an engine-owned
+per-recipient log (recipient, row, incarnation, keys, kind
+delivered/changed/removed, audience, seq, at; byRecipient/byRecipientGroup/byRow;
+read `.recipient = viewer`; removed tombstones its row; programs never write
+it). Keys pin a `cap N by` group of T (E_DELIVER_UNBOUNDED); T needs one
+principal column or `by .column` (E_DELIVER_PRINCIPAL); the name must be free.
+`with receipts` adds nameReceipts (row, recipient, received, seq, the read
+rule's columns) under that rule. Installing, bootstrapping, removing, and the
+audience bound `A`: `guide successor`.
+
+What each write delivers, the reserve it prices, and id reuse: `guide deliver`.

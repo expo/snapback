@@ -420,7 +420,357 @@
       "shares.byItemViewer"
     ],
     "disclosures": [],
-    "bound_product": "items.page take 50 (+2 reserve) × 1 calls on items = 52 + profiles.byId point read on profiles × 50 calls (calls from items.page take 50) = 50"
+    "bound_product": "items.page take 50 (+2 reserve) × 1 calls on items = 52 + profiles.byId point read on profiles × 50 calls (calls from items.page take 50) = 50",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 10138,
+        "source": "rule evaluation / non-uniform budget reserve",
+        "site": null
+      },
+      {
+        "meter": "examined entries",
+        "value": 52,
+        "source": "items.page take 50 (+2 reserve) × 1 calls on items",
+        "site": "items.page"
+      },
+      {
+        "meter": "examined entries",
+        "value": 50,
+        "source": "profiles.byId point read on profiles × 50 calls (calls from items.page take 50)",
+        "site": "profiles.byId"
+      },
+      {
+        "meter": "index entries",
+        "value": 10138,
+        "source": "rule evaluation / non-uniform budget reserve",
+        "site": null
+      },
+      {
+        "meter": "index entries",
+        "value": 52,
+        "source": "items.page take 50 (+2 reserve) × 1 calls on items",
+        "site": "items.page"
+      },
+      {
+        "meter": "index entries",
+        "value": 50,
+        "source": "profiles.byId point read on profiles × 50 calls (calls from items.page take 50)",
+        "site": "profiles.byId"
+      },
+      {
+        "meter": "rule probes",
+        "value": 10188,
+        "source": "rule evaluation / non-uniform budget reserve",
+        "site": null
+      },
+      {
+        "meter": "rule probes",
+        "value": 52,
+        "source": "items.page: 52 calls × 1 rule probes",
+        "site": "items.page"
+      },
+      {
+        "meter": "steps",
+        "value": 50690,
+        "source": "rule evaluation / non-uniform budget reserve",
+        "site": null
+      },
+      {
+        "meter": "steps",
+        "value": 260,
+        "source": "items.page take 50 (+2 reserve) × 1 calls on items × 5",
+        "site": "items.page"
+      },
+      {
+        "meter": "steps",
+        "value": 200,
+        "source": "expressions (calls from items.page take 50)",
+        "site": "items.enriched:statement:1:then:statement:2:statement:4"
+      },
+      {
+        "meter": "steps",
+        "value": 200,
+        "source": "profiles.byId point read on profiles × 50 calls (calls from items.page take 50) × 4",
+        "site": "profiles.byId"
+      },
+      {
+        "meter": "steps",
+        "value": 150,
+        "source": "expressions (calls from items.page take 50)",
+        "site": "items.enriched:statement:1:then:statement:2:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 150,
+        "source": "expressions (calls from items.page take 50)",
+        "site": "items.enriched:statement:1:then:statement:2:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 150,
+        "source": "expressions (calls from items.page take 50)",
+        "site": "items.enriched:statement:1:then:statement:2:statement:3:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 50,
+        "source": "expressions (calls from items.page take 50)",
+        "site": "items.enriched:statement:1:then:statement:2:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 50,
+        "source": "statements (calls from items.page take 50)",
+        "site": "items.enriched:statement:1:then:statement:2:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 50,
+        "source": "statements (calls from items.page take 50)",
+        "site": "items.enriched:statement:1:then:statement:2:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 50,
+        "source": "statements (calls from items.page take 50)",
+        "site": "items.enriched:statement:1:then:statement:2:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 50,
+        "source": "statements (calls from items.page take 50)",
+        "site": "items.enriched:statement:1:then:statement:2:statement:3:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 50,
+        "source": "statements (calls from items.page take 50)",
+        "site": "items.enriched:statement:1:then:statement:2:statement:4"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "items.enriched:statement:1:then:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "items.enriched:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "items.enriched:statement:1:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "items.enriched:statement:1:then:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "items.enriched:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "items.enriched:statement:1:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "items.enriched:statement:1:then:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "items.enriched:statement:1:then:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 1622080,
+        "source": "rule evaluation / non-uniform budget reserve",
+        "site": null
+      },
+      {
+        "meter": "heap bytes",
+        "value": 8320,
+        "source": "items.page take 50 (+2 reserve) × 1 calls on items × 5 × 32",
+        "site": "items.page"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 6400,
+        "source": "expressions (calls from items.page take 50) × 32",
+        "site": "items.enriched:statement:1:then:statement:2:statement:4"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 6400,
+        "source": "profiles.byId point read on profiles × 50 calls (calls from items.page take 50) × 4 × 32",
+        "site": "profiles.byId"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 4800,
+        "source": "expressions (calls from items.page take 50) × 32",
+        "site": "items.enriched:statement:1:then:statement:2:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 4800,
+        "source": "expressions (calls from items.page take 50) × 32",
+        "site": "items.enriched:statement:1:then:statement:2:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 4800,
+        "source": "expressions (calls from items.page take 50) × 32",
+        "site": "items.enriched:statement:1:then:statement:2:statement:3:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 1600,
+        "source": "expressions (calls from items.page take 50) × 32",
+        "site": "items.enriched:statement:1:then:statement:2:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 1600,
+        "source": "statements (calls from items.page take 50) × 32",
+        "site": "items.enriched:statement:1:then:statement:2:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 1600,
+        "source": "statements (calls from items.page take 50) × 32",
+        "site": "items.enriched:statement:1:then:statement:2:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 1600,
+        "source": "statements (calls from items.page take 50) × 32",
+        "site": "items.enriched:statement:1:then:statement:2:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 1600,
+        "source": "statements (calls from items.page take 50) × 32",
+        "site": "items.enriched:statement:1:then:statement:2:statement:3:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 1600,
+        "source": "statements (calls from items.page take 50) × 32",
+        "site": "items.enriched:statement:1:then:statement:2:statement:4"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "items.enriched:statement:1:then:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "items.enriched:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "items.enriched:statement:1:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "items.enriched:statement:1:then:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "items.enriched:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "items.enriched:statement:1:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "items.enriched:statement:1:then:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "items.enriched:statement:1:then:statement:3"
+      },
+      {
+        "meter": "output bytes",
+        "value": 12,
+        "source": "array",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 7500,
+        "source": "items.id",
+        "site": "items.page"
+      },
+      {
+        "meter": "output bytes",
+        "value": 5200,
+        "source": "profiles.name",
+        "site": "items.page"
+      },
+      {
+        "meter": "output bytes",
+        "value": 500,
+        "source": "shape: framing/shared encoding/growth adjustment",
+        "site": "items.page"
+      },
+      {
+        "meter": "output bytes",
+        "value": 950,
+        "source": "shape: framing/shared encoding/growth adjustment",
+        "site": "items.page"
+      },
+      {
+        "meter": "output bytes",
+        "value": 50,
+        "source": "items first 50 at items.page (50 repetitions): framing/shared encoding/growth adjustment",
+        "site": "items.page"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 7500,
+        "source": "items.id",
+        "site": "items.page"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 5200,
+        "source": "profiles.name",
+        "site": "profiles.byId"
+      }
+    ]
   },
   "context": {
     "viewer": "u1",

@@ -241,7 +241,123 @@
       "deliveries.byMessageAt"
     ],
     "disclosures": [],
-    "bound_product": "deliveries.forMessage take 10 (+2 reserve) × 1 calls on deliveries = 12"
+    "bound_product": "deliveries.forMessage take 10 (+2 reserve) × 1 calls on deliveries = 12",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 12,
+        "source": "deliveries.forMessage take 10 (+2 reserve) × 1 calls on deliveries",
+        "site": "deliveries.forMessage"
+      },
+      {
+        "meter": "index entries",
+        "value": 12,
+        "source": "deliveries.forMessage take 10 (+2 reserve) × 1 calls on deliveries",
+        "site": "deliveries.forMessage"
+      },
+      {
+        "meter": "steps",
+        "value": 60,
+        "source": "deliveries.forMessage take 10 (+2 reserve) × 1 calls on deliveries × 5",
+        "site": "deliveries.forMessage"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "tombstones-log-schema-identity:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "tombstones-log-schema-identity:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 1920,
+        "source": "deliveries.forMessage take 10 (+2 reserve) × 1 calls on deliveries × 5 × 32",
+        "site": "deliveries.forMessage"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "tombstones-log-schema-identity:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "tombstones-log-schema-identity:statement:1"
+      },
+      {
+        "meter": "output bytes",
+        "value": 380,
+        "source": "deliveries.at",
+        "site": "deliveries.forMessage"
+      },
+      {
+        "meter": "output bytes",
+        "value": 1500,
+        "source": "deliveries.id",
+        "site": "deliveries.forMessage"
+      },
+      {
+        "meter": "output bytes",
+        "value": 310,
+        "source": "deliveries.kind",
+        "site": "deliveries.forMessage"
+      },
+      {
+        "meter": "output bytes",
+        "value": 1570,
+        "source": "deliveries.messageId",
+        "site": "deliveries.forMessage"
+      },
+      {
+        "meter": "output bytes",
+        "value": 100,
+        "source": "deliveries row width: framing/shared encoding/growth adjustment",
+        "site": "deliveries.forMessage"
+      },
+      {
+        "meter": "output bytes",
+        "value": 22,
+        "source": "deliveries first 10 at deliveries.forMessage: framing/shared encoding/growth adjustment",
+        "site": "deliveries.forMessage"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 380,
+        "source": "deliveries.at",
+        "site": "deliveries.forMessage"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 1500,
+        "source": "deliveries.id",
+        "site": "deliveries.forMessage"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 310,
+        "source": "deliveries.kind",
+        "site": "deliveries.forMessage"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 1570,
+        "source": "deliveries.messageId",
+        "site": "deliveries.forMessage"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 100,
+        "source": "deliveries row width: framing/shared encoding/growth adjustment",
+        "site": "deliveries.forMessage"
+      }
+    ]
   },
   "context": {
     "viewer": "u1",

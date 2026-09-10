@@ -176,7 +176,123 @@
       "items.byId"
     ],
     "disclosures": [],
-    "bound_product": "current point read on items × 1 calls = 1"
+    "bound_product": "current point read on items × 1 calls = 1",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 1,
+        "source": "current point read on items × 1 calls",
+        "site": "current"
+      },
+      {
+        "meter": "index entries",
+        "value": 1,
+        "source": "current point read on items × 1 calls",
+        "site": "current"
+      },
+      {
+        "meter": "steps",
+        "value": 5,
+        "source": "items Delete writes",
+        "site": "guarded.update:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "current point read on items × 1 calls × 4",
+        "site": "current"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "guarded.update:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "guarded.update:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "guarded.update:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "guarded.update:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 160,
+        "source": "items Delete writes × 32",
+        "site": "guarded.update:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "current point read on items × 1 calls × 4 × 32",
+        "site": "current"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions × 32",
+        "site": "guarded.update:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "guarded.update:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "guarded.update:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "guarded.update:statement:2"
+      },
+      {
+        "meter": "output bytes",
+        "value": 150,
+        "source": "items.id",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 185,
+        "source": "items.label",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 10,
+        "source": "items row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 0,
+        "source": "closure at peak retention",
+        "site": null
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "items Delete",
+        "site": "guarded.update:statement:2"
+      }
+    ]
   },
   "context": {
     "viewer": "u1",

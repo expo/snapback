@@ -375,7 +375,123 @@
       "people.byNameWords"
     ],
     "disclosures": [],
-    "bound_product": "search.findPeople.0 take 20 (+2 reserve) × 1 calls on people = 22"
+    "bound_product": "search.findPeople.0 take 20 (+2 reserve) × 1 calls on people = 22",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 22,
+        "source": "search.findPeople.0 take 20 (+2 reserve) × 1 calls on people",
+        "site": "search.findPeople.0"
+      },
+      {
+        "meter": "index entries",
+        "value": 22,
+        "source": "search.findPeople.0 take 20 (+2 reserve) × 1 calls on people",
+        "site": "search.findPeople.0"
+      },
+      {
+        "meter": "steps",
+        "value": 353091,
+        "source": "search term normalization at search.findPeople.0",
+        "site": "search.findPeople.0"
+      },
+      {
+        "meter": "steps",
+        "value": 110,
+        "source": "search.findPeople.0 take 20 (+2 reserve) × 1 calls on people × 5",
+        "site": "search.findPeople.0"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "search.findPeople:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "search.findPeople:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 292876,
+        "source": "search term normalization at search.findPeople.0",
+        "site": "search.findPeople.0"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 39475,
+        "source": "search closure scratch",
+        "site": null
+      },
+      {
+        "meter": "heap bytes",
+        "value": 3520,
+        "source": "search.findPeople.0 take 20 (+2 reserve) × 1 calls on people × 5 × 32",
+        "site": "search.findPeople.0"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions × 32",
+        "site": "search.findPeople:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "search.findPeople:statement:1"
+      },
+      {
+        "meter": "output bytes",
+        "value": 2120,
+        "source": "people.handle",
+        "site": "search.findPeople.0"
+      },
+      {
+        "meter": "output bytes",
+        "value": 3000,
+        "source": "people.id",
+        "site": "search.findPeople.0"
+      },
+      {
+        "meter": "output bytes",
+        "value": 4480,
+        "source": "people.name",
+        "site": "search.findPeople.0"
+      },
+      {
+        "meter": "output bytes",
+        "value": 200,
+        "source": "people row width: framing/shared encoding/growth adjustment",
+        "site": "search.findPeople.0"
+      },
+      {
+        "meter": "output bytes",
+        "value": 32,
+        "source": "people first 20 at search.findPeople.0: framing/shared encoding/growth adjustment",
+        "site": "search.findPeople.0"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 11779,
+        "source": "search.findPeople.0 × 1 ranges: source descriptor, suffix bounds, row/halo references",
+        "site": "search.findPeople.0"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 14070,
+        "source": "21 pooled people first images with table/id envelopes",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 13626,
+        "source": "search closure: whole row pool and actual issuing metadata: framing/shared encoding/growth adjustment",
+        "site": null
+      }
+    ]
   },
   "context": {
     "viewer": "alice",

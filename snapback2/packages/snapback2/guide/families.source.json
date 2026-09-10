@@ -365,6 +365,13 @@
     "guide": "quarry"
   },
   {
+    "family": "rule",
+    "code": "E_DELIVER_INCARNATION",
+    "wrong": "```q\n-- snapback/schema.q\ntable conversations:\n  public\n\ntable memberships:\n  conversationId: conversations\n  principal: principal\n  by byGroup: conversationId, principal\n  cap 3 by conversationId\n  public\n\ntable messages:\n  conversationId: conversations\n  authorId: principal\n  body: text <=100\n  deliver to memberships[.conversationId] as deliveries\n  public\n\n-- messageId was deleted; its delivered history still names it.\n-- snapback/messages.q\nmutation recreate(messageId: messages, conversationId: conversations, body: text <=100):\n  upsert messages[messageId] { conversationId, authorId: viewer, body }\n```",
+    "right": "```q\n-- snapback/schema.q\ntable conversations:\n  public\n\ntable memberships:\n  conversationId: conversations\n  principal: principal\n  by byGroup: conversationId, principal\n  cap 3 by conversationId\n  public\n\ntable messages:\n  conversationId: conversations\n  authorId: principal\n  body: text <=100\n  deliver to memberships[.conversationId] as deliveries\n  public\n\n-- snapback/messages.q\nmutation recreate(conversationId: conversations, body: text <=100):\n  insert messages { conversationId, authorId: viewer, body }\n```",
+    "guide": "offline"
+  },
+  {
     "family": "bound",
     "code": "E_DELIVER_UNBOUNDED",
     "wrong": "```q\n-- snapback/schema.q\nuse identity\ntable conversations:\n  title: text <=120\n  public\ntable memberships:\n  conversationId: conversations\n  principal: principal\n  by byConversationPrincipal: conversationId, principal\n  read <- exists memberships[.conversationId, viewer]\ntable messages:\n  conversationId: conversations\n  body: text <=4000\n  deliver to memberships[.conversationId] as deliveries\n  read <- exists memberships[.conversationId, viewer]\n\n-- snapback/ops.q\nquery ping():\n  return null\n```",

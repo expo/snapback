@@ -200,6 +200,8 @@ pub enum ExecutionState {
     Denied { rule: String },
     Committed { seq: u64 },
     Rejected {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        rewrite: Option<String>,
         code: String,
         message: String,
         /// An authored require, preserved independently of its diagnostic wording.

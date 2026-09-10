@@ -316,7 +316,123 @@
       "posts.byAuthorAt"
     ],
     "disclosures": [],
-    "bound_product": "merge merge.ties: 3 lanes heads + 2 advances + 2 lookahead × 1 calls (merge.ties.0 × 1; merge.ties.1 × 1; merge.ties.2 × 1) = 7"
+    "bound_product": "merge merge.ties: 3 lanes heads + 2 advances + 2 lookahead × 1 calls (merge.ties.0 × 1; merge.ties.1 × 1; merge.ties.2 × 1) = 7",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 7,
+        "source": "merge merge.ties: 3 lanes heads + 2 advances + 2 lookahead × 1 calls (merge.ties.0 × 1; merge.ties.1 × 1; merge.ties.2 × 1)",
+        "site": "merge.ties"
+      },
+      {
+        "meter": "index entries",
+        "value": 7,
+        "source": "merge merge.ties: 3 lanes heads + 2 advances + 2 lookahead × 1 calls (merge.ties.0 × 1; merge.ties.1 × 1; merge.ties.2 × 1)",
+        "site": "merge.ties"
+      },
+      {
+        "meter": "steps",
+        "value": 70,
+        "source": "merge merge.ties: heap work",
+        "site": "merge.ties:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 35,
+        "source": "merge merge.ties: 3 lanes heads + 2 advances + 2 lookahead × 1 calls (merge.ties.0 × 1; merge.ties.1 × 1; merge.ties.2 × 1) × 5",
+        "site": "merge.ties"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "expressions",
+        "site": "merge.ties:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "merge.ties:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 2240,
+        "source": "merge merge.ties: heap work × 32",
+        "site": "merge.ties:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 1120,
+        "source": "merge merge.ties: 3 lanes heads + 2 advances + 2 lookahead × 1 calls (merge.ties.0 × 1; merge.ties.1 × 1; merge.ties.2 × 1) × 5 × 32",
+        "site": "merge.ties"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "expressions × 32",
+        "site": "merge.ties:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "merge.ties:statement:1"
+      },
+      {
+        "meter": "output bytes",
+        "value": 76,
+        "source": "posts.at",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 308,
+        "source": "posts.author",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 300,
+        "source": "posts.id",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 20,
+        "source": "posts row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 14,
+        "source": "merge merge.ties: emitted page: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 266,
+        "source": "posts.at",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 1078,
+        "source": "posts.author",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 1050,
+        "source": "posts.id",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 70,
+        "source": "posts row width: framing/shared encoding/growth adjustment",
+        "site": null
+      }
+    ]
   },
   "context": {
     "viewer": "u1",

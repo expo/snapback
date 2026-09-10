@@ -1380,6 +1380,27 @@ fn every_frozen_corpus_case_replays_its_certification_outcome() {
             }
         }
     }
+    for case in cases.iter().filter(|case| matches!(case.name.as_str(), "deliver-id-reuse" | "deliver-seed")) {
+        let row = match &case.program.body[0] {
+            Stmt::Insert { row: Expr::Literal(row), .. } if case.name == "deliver-id-reuse" => row.clone(),
+            Stmt::Upsert { row: Expr::Literal(row), .. } if case.name == "deliver-seed" => row.clone(),
+            statement => panic!("{} must freeze its actual write, got {statement:?}", case.name),
+        };
+        let remove = write_program("remove", vec![Stmt::Delete { table: "messages".into(), key: Expr::Literal(id("m")) }]);
+        let generation = Generation::certify(&ProjectJson { version: 1, schema: case.schema.clone(), programs: vec![case.program.clone(), remove.clone()], effects: vec![], auth: Auth::default() }, Ceilings::default()).unwrap();
+        let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
+        runtime.seed(&[("memberships".into(), object([("id", id("member")), ("conversationId", id("c1")), ("principal", id("u1"))]))]).unwrap();
+        if case.name == "deliver-id-reuse" {
+            runtime.seed(&[("messages".into(), row)]).unwrap();
+            runtime.execute(&remove.name, mutation_context([], Vec::<String>::new())).unwrap();
+        }
+        let result = runtime.execute(&case.program.name, mutation_context([], Vec::<String>::new())).unwrap();
+        let wire = serde_json::to_value(&result.state).unwrap();
+        if case.name == "deliver-id-reuse" {
+            assert_eq!(wire["state"], "rejected");
+            assert_eq!(wire["code"], "E_DELIVER_INCARNATION");
+        } else { assert_eq!(wire["state"], "committed"); }
+    }
     // Public Words retirement removed exactly edge-ascii-words,
     // search-words-optional-null, and search-words-unicode. The declared
     // tombstone schema-identity scenario was added later; Unicode index/search
@@ -1388,10 +1409,10 @@ fn every_frozen_corpus_case_replays_its_certification_outcome() {
     // same-mutation/group-visibility witnesses. Guarded writes add five
     // creation/collision/conditional witnesses. The deliver declaration adds
     // its schema-identity golden and one owned-write refusal (LLP 1019 D1):
-    // 251 evaluator + 26 server-only.
+    // D2 adds ten paired native/receipt-only scenarios and one audience refusal: 261 evaluator + 27 server-only.
     assert_eq!(
         cases.len(),
-        277,
+        288,
         "the complete frozen corpus must be checked"
     );
     assert!(

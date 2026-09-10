@@ -1157,7 +1157,45 @@
     "disclosures": [
       "E_DISCLOSURE: count waitlist summarized into waitCounts"
     ],
-    "bound_product": null
+    "bound_product": null,
+    "cost_terms": [
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "random25:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "random25:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions × 32",
+        "site": "random25:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "random25:statement:1"
+      },
+      {
+        "meter": "output bytes",
+        "value": 32,
+        "source": "scalar expression",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 0,
+        "source": "closure at peak retention",
+        "site": null
+      }
+    ]
   },
   "context": {
     "viewer": "u1",

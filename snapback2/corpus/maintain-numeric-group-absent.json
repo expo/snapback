@@ -515,7 +515,447 @@
       "decimals.byOwner"
     ],
     "disclosures": [],
-    "bound_product": "balances.byOwner point read on balances × 1 calls = 1 + counts.byOwner point read on counts × 1 calls = 1 + decimals.byOwner point read on decimals × 1 calls = 1"
+    "bound_product": "balances.byOwner point read on balances × 1 calls = 1 + counts.byOwner point read on counts × 1 calls = 1 + decimals.byOwner point read on decimals × 1 calls = 1",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 1,
+        "source": "balances.byOwner point read on balances × 1 calls",
+        "site": "balances.byOwner"
+      },
+      {
+        "meter": "examined entries",
+        "value": 1,
+        "source": "counts.byOwner point read on counts × 1 calls",
+        "site": "counts.byOwner"
+      },
+      {
+        "meter": "examined entries",
+        "value": 1,
+        "source": "decimals.byOwner point read on decimals × 1 calls",
+        "site": "decimals.byOwner"
+      },
+      {
+        "meter": "index entries",
+        "value": 1,
+        "source": "balances.byOwner point read on balances × 1 calls",
+        "site": "balances.byOwner"
+      },
+      {
+        "meter": "index entries",
+        "value": 1,
+        "source": "counts.byOwner point read on counts × 1 calls",
+        "site": "counts.byOwner"
+      },
+      {
+        "meter": "index entries",
+        "value": 1,
+        "source": "decimals.byOwner point read on decimals × 1 calls",
+        "site": "decimals.byOwner"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "balances.byOwner point read on balances × 1 calls × 4",
+        "site": "balances.byOwner"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "counts.byOwner point read on counts × 1 calls × 4",
+        "site": "counts.byOwner"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "decimals.byOwner point read on decimals × 1 calls × 4",
+        "site": "decimals.byOwner"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "expressions",
+        "site": "valuesFor:statement:10"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "valuesFor:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "valuesFor:statement:6"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "valuesFor:statement:9"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "valuesFor:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "valuesFor:statement:3:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "valuesFor:statement:4"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "valuesFor:statement:6:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "valuesFor:statement:7"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "valuesFor:statement:9:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "valuesFor:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "valuesFor:statement:5"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "valuesFor:statement:8"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "valuesFor:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "valuesFor:statement:10"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "valuesFor:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "valuesFor:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "valuesFor:statement:3:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "valuesFor:statement:4"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "valuesFor:statement:5"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "valuesFor:statement:6"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "valuesFor:statement:6:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "valuesFor:statement:7"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "valuesFor:statement:8"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "valuesFor:statement:9"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "valuesFor:statement:9:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 5795,
+        "source": "search closure scratch",
+        "site": null
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "balances.byOwner point read on balances × 1 calls × 4 × 32",
+        "site": "balances.byOwner"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "counts.byOwner point read on counts × 1 calls × 4 × 32",
+        "site": "counts.byOwner"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "decimals.byOwner point read on decimals × 1 calls × 4 × 32",
+        "site": "decimals.byOwner"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "expressions × 32",
+        "site": "valuesFor:statement:10"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions × 32",
+        "site": "valuesFor:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions × 32",
+        "site": "valuesFor:statement:6"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions × 32",
+        "site": "valuesFor:statement:9"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "valuesFor:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "valuesFor:statement:3:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "valuesFor:statement:4"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "valuesFor:statement:6:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "valuesFor:statement:7"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "valuesFor:statement:9:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "valuesFor:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "valuesFor:statement:5"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "valuesFor:statement:8"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "valuesFor:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "valuesFor:statement:10"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "valuesFor:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "valuesFor:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "valuesFor:statement:3:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "valuesFor:statement:4"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "valuesFor:statement:5"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "valuesFor:statement:6"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "valuesFor:statement:6:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "valuesFor:statement:7"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "valuesFor:statement:8"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "valuesFor:statement:9"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "valuesFor:statement:9:then:statement:1"
+      },
+      {
+        "meter": "output bytes",
+        "value": 41,
+        "source": "counts.value",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 41,
+        "source": "decimals.value",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 41,
+        "source": "balances.value",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 39,
+        "source": "shape: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 854,
+        "source": "1 pooled balances first images with table/id envelopes",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 852,
+        "source": "1 pooled counts first images with table/id envelopes",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 854,
+        "source": "1 pooled decimals first images with table/id envelopes",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 3235,
+        "source": "maintained-address closure: whole row pool and actual issuing metadata: framing/shared encoding/growth adjustment",
+        "site": null
+      }
+    ]
   },
   "context": {
     "viewer": "u1",

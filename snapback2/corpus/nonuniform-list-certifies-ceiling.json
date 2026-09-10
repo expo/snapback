@@ -210,7 +210,159 @@
       "messages.byConvTime"
     ],
     "disclosures": [],
-    "bound_product": "messages.list take 50 (+2 reserve) × 1 calls on messages = 52"
+    "bound_product": "messages.list take 50 (+2 reserve) × 1 calls on messages = 52",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 10188,
+        "source": "rule evaluation / non-uniform budget reserve",
+        "site": null
+      },
+      {
+        "meter": "examined entries",
+        "value": 52,
+        "source": "messages.list take 50 (+2 reserve) × 1 calls on messages",
+        "site": "messages.list"
+      },
+      {
+        "meter": "index entries",
+        "value": 10188,
+        "source": "rule evaluation / non-uniform budget reserve",
+        "site": null
+      },
+      {
+        "meter": "index entries",
+        "value": 52,
+        "source": "messages.list take 50 (+2 reserve) × 1 calls on messages",
+        "site": "messages.list"
+      },
+      {
+        "meter": "rule probes",
+        "value": 10188,
+        "source": "rule evaluation / non-uniform budget reserve",
+        "site": null
+      },
+      {
+        "meter": "rule probes",
+        "value": 52,
+        "source": "messages.list: 52 calls × 1 rule probes",
+        "site": "messages.list"
+      },
+      {
+        "meter": "steps",
+        "value": 50940,
+        "source": "rule evaluation / non-uniform budget reserve",
+        "site": null
+      },
+      {
+        "meter": "steps",
+        "value": 260,
+        "source": "messages.list take 50 (+2 reserve) × 1 calls on messages × 5",
+        "site": "messages.list"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "nonuniform-list-certifies-ceiling:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "nonuniform-list-certifies-ceiling:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 1630080,
+        "source": "rule evaluation / non-uniform budget reserve",
+        "site": null
+      },
+      {
+        "meter": "heap bytes",
+        "value": 8320,
+        "source": "messages.list take 50 (+2 reserve) × 1 calls on messages × 5 × 32",
+        "site": "messages.list"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "nonuniform-list-certifies-ceiling:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "nonuniform-list-certifies-ceiling:statement:1"
+      },
+      {
+        "meter": "output bytes",
+        "value": 1900,
+        "source": "messages.at",
+        "site": "messages.list"
+      },
+      {
+        "meter": "output bytes",
+        "value": 7800,
+        "source": "messages.authorId",
+        "site": "messages.list"
+      },
+      {
+        "meter": "output bytes",
+        "value": 8100,
+        "source": "messages.conversationId",
+        "site": "messages.list"
+      },
+      {
+        "meter": "output bytes",
+        "value": 7500,
+        "source": "messages.id",
+        "site": "messages.list"
+      },
+      {
+        "meter": "output bytes",
+        "value": 500,
+        "source": "messages row width: framing/shared encoding/growth adjustment",
+        "site": "messages.list"
+      },
+      {
+        "meter": "output bytes",
+        "value": 62,
+        "source": "messages last 50 at messages.list: framing/shared encoding/growth adjustment",
+        "site": "messages.list"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 1900,
+        "source": "messages.at",
+        "site": "messages.list"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 7800,
+        "source": "messages.authorId",
+        "site": "messages.list"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 8100,
+        "source": "messages.conversationId",
+        "site": "messages.list"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 7500,
+        "source": "messages.id",
+        "site": "messages.list"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 500,
+        "source": "messages row width: framing/shared encoding/growth adjustment",
+        "site": "messages.list"
+      }
+    ]
   },
   "context": {
     "viewer": "u1",

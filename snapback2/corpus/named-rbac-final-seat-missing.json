@@ -252,7 +252,69 @@
       "memberships.byGroupPrincipalRole"
     ],
     "disclosures": [],
-    "bound_product": null
+    "bound_product": null,
+    "cost_terms": [
+      {
+        "meter": "rule probes",
+        "value": 1,
+        "source": "groups Insert rules/final constraints: 1 calls × 1 rule probes",
+        "site": "groups Insert rules/final constraints"
+      },
+      {
+        "meter": "steps",
+        "value": 5,
+        "source": "groups Insert writes",
+        "site": "groups.missingCreatorSeat:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "groups.missingCreatorSeat:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "groups.missingCreatorSeat:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 160,
+        "source": "groups Insert writes × 32",
+        "site": "groups.missingCreatorSeat:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "groups.missingCreatorSeat:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "groups.missingCreatorSeat:statement:1"
+      },
+      {
+        "meter": "output bytes",
+        "value": 6,
+        "source": "null value",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 0,
+        "source": "closure at peak retention",
+        "site": null
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "groups Insert",
+        "site": "groups.missingCreatorSeat:statement:1"
+      }
+    ]
   },
   "context": {
     "viewer": "u1",

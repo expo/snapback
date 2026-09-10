@@ -81,7 +81,69 @@
     "halo_rows": 1,
     "indexes_required": [],
     "disclosures": [],
-    "bound_product": null
+    "bound_product": null,
+    "cost_terms": [
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "expressions",
+        "site": "asset-video-duration-member:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "asset-video-duration-member:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "asset-video-duration-member:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "asset-video-duration-member:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "expressions × 32",
+        "site": "asset-video-duration-member:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "asset-video-duration-member:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "asset-video-duration-member:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "asset-video-duration-member:statement:2"
+      },
+      {
+        "meter": "output bytes",
+        "value": 287,
+        "source": "shape.duration",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 0,
+        "source": "closure at peak retention",
+        "site": null
+      }
+    ]
   },
   "context": {
     "viewer": "u1",

@@ -250,7 +250,165 @@
       "grants.byPrincipal"
     ],
     "disclosures": [],
-    "bound_product": "memo.doc point read on docs × 1 calls = 1"
+    "bound_product": "memo.doc point read on docs × 1 calls = 1",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 1,
+        "source": "memo.doc point read on docs × 1 calls",
+        "site": "memo.doc"
+      },
+      {
+        "meter": "index entries",
+        "value": 1,
+        "source": "memo.doc point read on docs × 1 calls",
+        "site": "memo.doc"
+      },
+      {
+        "meter": "rule probes",
+        "value": 1,
+        "source": "actions Insert rules/final constraints: 1 calls × 1 rule probes",
+        "site": "actions Insert rules/final constraints"
+      },
+      {
+        "meter": "rule probes",
+        "value": 1,
+        "source": "memo.doc: 1 calls × 1 rule probes",
+        "site": "memo.doc"
+      },
+      {
+        "meter": "steps",
+        "value": 5,
+        "source": "actions Insert writes",
+        "site": "actions.afterRevoke:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 5,
+        "source": "grants Delete writes",
+        "site": "actions.afterRevoke:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "memo.doc point read on docs × 1 calls × 4",
+        "site": "memo.doc"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "actions.afterRevoke:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "actions.afterRevoke:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "actions.afterRevoke:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "actions.afterRevoke:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "actions.afterRevoke:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "actions.afterRevoke:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 160,
+        "source": "actions Insert writes × 32",
+        "site": "actions.afterRevoke:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 160,
+        "source": "grants Delete writes × 32",
+        "site": "actions.afterRevoke:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "memo.doc point read on docs × 1 calls × 4 × 32",
+        "site": "memo.doc"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "actions.afterRevoke:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "actions.afterRevoke:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "actions.afterRevoke:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "actions.afterRevoke:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "actions.afterRevoke:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "actions.afterRevoke:statement:3"
+      },
+      {
+        "meter": "output bytes",
+        "value": 6,
+        "source": "null value",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 0,
+        "source": "closure at peak retention",
+        "site": null
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "grants Delete",
+        "site": "actions.afterRevoke:statement:2"
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "actions Insert",
+        "site": "actions.afterRevoke:statement:3"
+      }
+    ]
   },
   "context": {
     "viewer": "u1",

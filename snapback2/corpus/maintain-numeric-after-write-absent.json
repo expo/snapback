@@ -648,7 +648,633 @@
       "decimals.byOwner"
     ],
     "disclosures": [],
-    "bound_product": "before point read on counts × 1 calls = 1 + count point read on counts × 1 calls = 1 + decimal point read on decimals × 1 calls = 1 + money point read on balances × 1 calls = 1"
+    "bound_product": "before point read on counts × 1 calls = 1 + count point read on counts × 1 calls = 1 + decimal point read on decimals × 1 calls = 1 + money point read on balances × 1 calls = 1",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 1,
+        "source": "before point read on counts × 1 calls",
+        "site": "before"
+      },
+      {
+        "meter": "examined entries",
+        "value": 1,
+        "source": "count point read on counts × 1 calls",
+        "site": "count"
+      },
+      {
+        "meter": "examined entries",
+        "value": 1,
+        "source": "decimal point read on decimals × 1 calls",
+        "site": "decimal"
+      },
+      {
+        "meter": "examined entries",
+        "value": 1,
+        "source": "money point read on balances × 1 calls",
+        "site": "money"
+      },
+      {
+        "meter": "index entries",
+        "value": 1,
+        "source": "before point read on counts × 1 calls",
+        "site": "before"
+      },
+      {
+        "meter": "index entries",
+        "value": 1,
+        "source": "count point read on counts × 1 calls",
+        "site": "count"
+      },
+      {
+        "meter": "index entries",
+        "value": 1,
+        "source": "decimal point read on decimals × 1 calls",
+        "site": "decimal"
+      },
+      {
+        "meter": "index entries",
+        "value": 1,
+        "source": "money point read on balances × 1 calls",
+        "site": "money"
+      },
+      {
+        "meter": "steps",
+        "value": 6,
+        "source": "expressions",
+        "site": "maintain-numeric-after-write-absent:statement:4"
+      },
+      {
+        "meter": "steps",
+        "value": 5,
+        "source": "expressions",
+        "site": "maintain-numeric-after-write-absent:statement:14"
+      },
+      {
+        "meter": "steps",
+        "value": 5,
+        "source": "ledger Insert writes",
+        "site": "maintain-numeric-after-write-absent:statement:4"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "before point read on counts × 1 calls × 4",
+        "site": "before"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "count point read on counts × 1 calls × 4",
+        "site": "count"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "decimal point read on decimals × 1 calls × 4",
+        "site": "decimal"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "money point read on balances × 1 calls × 4",
+        "site": "money"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "maintain-numeric-after-write-absent:statement:10"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "maintain-numeric-after-write-absent:statement:13"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "maintain-numeric-after-write-absent:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "maintain-numeric-after-write-absent:statement:7"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "maintain-numeric-after-write-absent:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "maintain-numeric-after-write-absent:statement:10:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "maintain-numeric-after-write-absent:statement:11"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "maintain-numeric-after-write-absent:statement:13:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "maintain-numeric-after-write-absent:statement:3:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "maintain-numeric-after-write-absent:statement:5"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "maintain-numeric-after-write-absent:statement:7:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "maintain-numeric-after-write-absent:statement:8"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "maintain-numeric-after-write-absent:statement:12"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "maintain-numeric-after-write-absent:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "maintain-numeric-after-write-absent:statement:6"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "maintain-numeric-after-write-absent:statement:9"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-numeric-after-write-absent:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-numeric-after-write-absent:statement:10"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-numeric-after-write-absent:statement:10:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-numeric-after-write-absent:statement:11"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-numeric-after-write-absent:statement:12"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-numeric-after-write-absent:statement:13"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-numeric-after-write-absent:statement:13:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-numeric-after-write-absent:statement:14"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-numeric-after-write-absent:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-numeric-after-write-absent:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-numeric-after-write-absent:statement:3:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-numeric-after-write-absent:statement:4"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-numeric-after-write-absent:statement:5"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-numeric-after-write-absent:statement:6"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-numeric-after-write-absent:statement:7"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-numeric-after-write-absent:statement:7:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-numeric-after-write-absent:statement:8"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "maintain-numeric-after-write-absent:statement:9"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 7481,
+        "source": "search closure scratch",
+        "site": null
+      },
+      {
+        "meter": "heap bytes",
+        "value": 192,
+        "source": "expressions × 32",
+        "site": "maintain-numeric-after-write-absent:statement:4"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 160,
+        "source": "expressions × 32",
+        "site": "maintain-numeric-after-write-absent:statement:14"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 160,
+        "source": "ledger Insert writes × 32",
+        "site": "maintain-numeric-after-write-absent:statement:4"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "before point read on counts × 1 calls × 4 × 32",
+        "site": "before"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "count point read on counts × 1 calls × 4 × 32",
+        "site": "count"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "decimal point read on decimals × 1 calls × 4 × 32",
+        "site": "decimal"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "money point read on balances × 1 calls × 4 × 32",
+        "site": "money"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions × 32",
+        "site": "maintain-numeric-after-write-absent:statement:10"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions × 32",
+        "site": "maintain-numeric-after-write-absent:statement:13"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions × 32",
+        "site": "maintain-numeric-after-write-absent:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions × 32",
+        "site": "maintain-numeric-after-write-absent:statement:7"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "maintain-numeric-after-write-absent:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "maintain-numeric-after-write-absent:statement:10:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "maintain-numeric-after-write-absent:statement:11"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "maintain-numeric-after-write-absent:statement:13:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "maintain-numeric-after-write-absent:statement:3:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "maintain-numeric-after-write-absent:statement:5"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "maintain-numeric-after-write-absent:statement:7:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "maintain-numeric-after-write-absent:statement:8"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "maintain-numeric-after-write-absent:statement:12"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "maintain-numeric-after-write-absent:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "maintain-numeric-after-write-absent:statement:6"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "maintain-numeric-after-write-absent:statement:9"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-numeric-after-write-absent:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-numeric-after-write-absent:statement:10"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-numeric-after-write-absent:statement:10:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-numeric-after-write-absent:statement:11"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-numeric-after-write-absent:statement:12"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-numeric-after-write-absent:statement:13"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-numeric-after-write-absent:statement:13:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-numeric-after-write-absent:statement:14"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-numeric-after-write-absent:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-numeric-after-write-absent:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-numeric-after-write-absent:statement:3:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-numeric-after-write-absent:statement:4"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-numeric-after-write-absent:statement:5"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-numeric-after-write-absent:statement:6"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-numeric-after-write-absent:statement:7"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-numeric-after-write-absent:statement:7:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-numeric-after-write-absent:statement:8"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "maintain-numeric-after-write-absent:statement:9"
+      },
+      {
+        "meter": "output bytes",
+        "value": 41,
+        "source": "counts.value",
+        "site": "count"
+      },
+      {
+        "meter": "output bytes",
+        "value": 41,
+        "source": "counts.value",
+        "site": "count"
+      },
+      {
+        "meter": "output bytes",
+        "value": 41,
+        "source": "decimals.value",
+        "site": "decimal"
+      },
+      {
+        "meter": "output bytes",
+        "value": 41,
+        "source": "balances.value",
+        "site": "money"
+      },
+      {
+        "meter": "output bytes",
+        "value": 49,
+        "source": "shape: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 854,
+        "source": "1 pooled balances first images with table/id envelopes",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 1704,
+        "source": "2 pooled counts first images with table/id envelopes",
+        "site": "count"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 854,
+        "source": "1 pooled decimals first images with table/id envelopes",
+        "site": "decimal"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 4069,
+        "source": "maintained-address closure: whole row pool and actual issuing metadata: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "ledger Insert",
+        "site": "maintain-numeric-after-write-absent:statement:4"
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "balances maintained applications",
+        "site": "schema.tables.balances"
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "counts maintained applications",
+        "site": "schema.tables.counts"
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "decimals maintained applications",
+        "site": "schema.tables.decimals"
+      }
+    ]
   },
   "context": {
     "viewer": "u1",

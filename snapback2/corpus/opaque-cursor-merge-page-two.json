@@ -305,7 +305,123 @@
       "posts.byAuthorAt"
     ],
     "disclosures": [],
-    "bound_product": "merge opaque-cursor-merge-page-two: 2 lanes heads + 2 advances + 2 lookahead × 1 calls (opaque-cursor-merge-page-two.a × 1; opaque-cursor-merge-page-two.b × 1) = 6"
+    "bound_product": "merge opaque-cursor-merge-page-two: 2 lanes heads + 2 advances + 2 lookahead × 1 calls (opaque-cursor-merge-page-two.a × 1; opaque-cursor-merge-page-two.b × 1) = 6",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 6,
+        "source": "merge opaque-cursor-merge-page-two: 2 lanes heads + 2 advances + 2 lookahead × 1 calls (opaque-cursor-merge-page-two.a × 1; opaque-cursor-merge-page-two.b × 1)",
+        "site": "opaque-cursor-merge-page-two"
+      },
+      {
+        "meter": "index entries",
+        "value": 6,
+        "source": "merge opaque-cursor-merge-page-two: 2 lanes heads + 2 advances + 2 lookahead × 1 calls (opaque-cursor-merge-page-two.a × 1; opaque-cursor-merge-page-two.b × 1)",
+        "site": "opaque-cursor-merge-page-two"
+      },
+      {
+        "meter": "steps",
+        "value": 60,
+        "source": "merge opaque-cursor-merge-page-two: heap work",
+        "site": "opaque-cursor-merge-page-two:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 30,
+        "source": "merge opaque-cursor-merge-page-two: 2 lanes heads + 2 advances + 2 lookahead × 1 calls (opaque-cursor-merge-page-two.a × 1; opaque-cursor-merge-page-two.b × 1) × 5",
+        "site": "opaque-cursor-merge-page-two"
+      },
+      {
+        "meter": "steps",
+        "value": 5,
+        "source": "expressions",
+        "site": "opaque-cursor-merge-page-two:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "opaque-cursor-merge-page-two:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 1920,
+        "source": "merge opaque-cursor-merge-page-two: heap work × 32",
+        "site": "opaque-cursor-merge-page-two:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 960,
+        "source": "merge opaque-cursor-merge-page-two: 2 lanes heads + 2 advances + 2 lookahead × 1 calls (opaque-cursor-merge-page-two.a × 1; opaque-cursor-merge-page-two.b × 1) × 5 × 32",
+        "site": "opaque-cursor-merge-page-two"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 160,
+        "source": "expressions × 32",
+        "site": "opaque-cursor-merge-page-two:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "opaque-cursor-merge-page-two:statement:1"
+      },
+      {
+        "meter": "output bytes",
+        "value": 76,
+        "source": "posts.at",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 308,
+        "source": "posts.author",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 300,
+        "source": "posts.id",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 20,
+        "source": "posts row width: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 14,
+        "source": "merge opaque-cursor-merge-page-two: emitted page: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 228,
+        "source": "posts.at",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 924,
+        "source": "posts.author",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 900,
+        "source": "posts.id",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 60,
+        "source": "posts row width: framing/shared encoding/growth adjustment",
+        "site": null
+      }
+    ]
   },
   "context": {
     "viewer": "u1",

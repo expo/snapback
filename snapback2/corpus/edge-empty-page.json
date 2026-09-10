@@ -1240,7 +1240,171 @@
     "disclosures": [
       "E_DISCLOSURE: count waitlist summarized into waitCounts"
     ],
-    "bound_product": "programs.mentionScan.0 take 20 (+2 reserve) × 1 calls on users = 22"
+    "bound_product": "programs.mentionScan.0 take 20 (+2 reserve) × 1 calls on users = 22",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 22,
+        "source": "programs.mentionScan.0 take 20 (+2 reserve) × 1 calls on users",
+        "site": "programs.mentionScan.0"
+      },
+      {
+        "meter": "index entries",
+        "value": 22,
+        "source": "programs.mentionScan.0 take 20 (+2 reserve) × 1 calls on users",
+        "site": "programs.mentionScan.0"
+      },
+      {
+        "meter": "steps",
+        "value": 110,
+        "source": "programs.mentionScan.0 take 20 (+2 reserve) × 1 calls on users × 5",
+        "site": "programs.mentionScan.0"
+      },
+      {
+        "meter": "steps",
+        "value": 100,
+        "source": "expressions (calls from programs.mentionScan.0 take 20)",
+        "site": "mentionScan:statement:2:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 20,
+        "source": "statements (calls from programs.mentionScan.0 take 20)",
+        "site": "mentionScan:statement:2:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "mentionScan:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "mentionScan:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "mentionScan:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "mentionScan:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "mentionScan:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "mentionScan:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 3520,
+        "source": "programs.mentionScan.0 take 20 (+2 reserve) × 1 calls on users × 5 × 32",
+        "site": "programs.mentionScan.0"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 3200,
+        "source": "expressions (calls from programs.mentionScan.0 take 20) × 32",
+        "site": "mentionScan:statement:2:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 640,
+        "source": "statements (calls from programs.mentionScan.0 take 20) × 32",
+        "site": "mentionScan:statement:2:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions × 32",
+        "site": "mentionScan:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "mentionScan:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "mentionScan:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "mentionScan:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "mentionScan:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "mentionScan:statement:3"
+      },
+      {
+        "meter": "output bytes",
+        "value": 12,
+        "source": "array",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 3080,
+        "source": "users.handle",
+        "site": "programs.mentionScan.0"
+      },
+      {
+        "meter": "output bytes",
+        "value": 3000,
+        "source": "users.id",
+        "site": "programs.mentionScan.0"
+      },
+      {
+        "meter": "output bytes",
+        "value": 200,
+        "source": "shape: framing/shared encoding/growth adjustment",
+        "site": "programs.mentionScan.0"
+      },
+      {
+        "meter": "output bytes",
+        "value": 20,
+        "source": "users first 20 at programs.mentionScan.0 (20 repetitions): framing/shared encoding/growth adjustment",
+        "site": "programs.mentionScan.0"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 3080,
+        "source": "users.handle",
+        "site": "programs.mentionScan.0"
+      },
+      {
+        "meter": "closure bytes",
+        "value": 3000,
+        "source": "users.id",
+        "site": "programs.mentionScan.0"
+      }
+    ]
   },
   "context": {
     "viewer": "u1",

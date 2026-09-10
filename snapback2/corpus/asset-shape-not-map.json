@@ -53,7 +53,45 @@
     "halo_rows": 1,
     "indexes_required": [],
     "disclosures": [],
-    "bound_product": null
+    "bound_product": null,
+    "cost_terms": [
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "asset-shape-not-map:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "asset-shape-not-map:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "asset-shape-not-map:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "asset-shape-not-map:statement:1"
+      },
+      {
+        "meter": "output bytes",
+        "value": 243,
+        "source": "argument asset",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 0,
+        "source": "closure at peak retention",
+        "site": null
+      }
+    ]
   },
   "context": {
     "viewer": "u1",

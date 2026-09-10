@@ -154,7 +154,99 @@
     "halo_rows": 1,
     "indexes_required": [],
     "disclosures": [],
-    "bound_product": null
+    "bound_product": null,
+    "cost_terms": [
+      {
+        "meter": "steps",
+        "value": 5,
+        "source": "items Insert writes",
+        "site": "guarded.insert:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "guarded.insert:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "expressions",
+        "site": "guarded.insert:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "guarded.insert:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "guarded.insert:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 160,
+        "source": "items Insert writes × 32",
+        "site": "guarded.insert:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions × 32",
+        "site": "guarded.insert:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "expressions × 32",
+        "site": "guarded.insert:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "guarded.insert:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "guarded.insert:statement:2"
+      },
+      {
+        "meter": "output bytes",
+        "value": 12,
+        "source": "literal value",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 17,
+        "source": "literal value",
+        "site": null
+      },
+      {
+        "meter": "output bytes",
+        "value": 25,
+        "source": "shape: framing/shared encoding/growth adjustment",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 0,
+        "source": "closure at peak retention",
+        "site": null
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "items Insert",
+        "site": "guarded.insert:statement:1"
+      }
+    ]
   },
   "context": {
     "viewer": "u1",

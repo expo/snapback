@@ -149,7 +149,87 @@
       "members.byGroup"
     ],
     "disclosures": [],
-    "bound_product": "1 calls × cap 1 by group on members = 1"
+    "bound_product": "1 calls × cap 1 by group on members = 1",
+    "cost_terms": [
+      {
+        "meter": "examined entries",
+        "value": 1,
+        "source": "1 calls × cap 1 by group on members",
+        "site": "schema.tables.members"
+      },
+      {
+        "meter": "index entries",
+        "value": 1,
+        "source": "1 calls × cap 1 by group on members",
+        "site": "schema.tables.members"
+      },
+      {
+        "meter": "steps",
+        "value": 5,
+        "source": "1 calls × cap 1 by group on members × 5",
+        "site": "schema.tables.members"
+      },
+      {
+        "meter": "steps",
+        "value": 5,
+        "source": "members Insert writes",
+        "site": "members.insert:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 3,
+        "source": "expressions",
+        "site": "members.insert:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "members.insert:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 160,
+        "source": "1 calls × cap 1 by group on members × 5 × 32",
+        "site": "schema.tables.members"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 160,
+        "source": "members Insert writes × 32",
+        "site": "members.insert:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 96,
+        "source": "expressions × 32",
+        "site": "members.insert:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "members.insert:statement:1"
+      },
+      {
+        "meter": "output bytes",
+        "value": 6,
+        "source": "null value",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 0,
+        "source": "closure at peak retention",
+        "site": null
+      },
+      {
+        "meter": "write rows",
+        "value": 1,
+        "source": "members Insert",
+        "site": "members.insert:statement:1"
+      }
+    ]
   },
   "context": {
     "viewer": "u1",

@@ -73,7 +73,63 @@
       "_connected.byPrincipal"
     ],
     "disclosures": [],
-    "bound_product": null
+    "bound_product": null,
+    "cost_terms": [
+      {
+        "meter": "rule probes",
+        "value": 1,
+        "source": "connected: 1 calls × 1 rule probes",
+        "site": "connected"
+      },
+      {
+        "meter": "steps",
+        "value": 4,
+        "source": "rule evaluation / non-uniform budget reserve",
+        "site": null
+      },
+      {
+        "meter": "steps",
+        "value": 2,
+        "source": "expressions",
+        "site": "connected-live-registry:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements",
+        "site": "connected-live-registry:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 128,
+        "source": "rule evaluation / non-uniform budget reserve",
+        "site": null
+      },
+      {
+        "meter": "heap bytes",
+        "value": 64,
+        "source": "expressions × 32",
+        "site": "connected-live-registry:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements × 32",
+        "site": "connected-live-registry:statement:1"
+      },
+      {
+        "meter": "output bytes",
+        "value": 16,
+        "source": "scalar expression",
+        "site": null
+      },
+      {
+        "meter": "closure bytes",
+        "value": 64,
+        "source": "fixed-width closure metadata",
+        "site": null
+      }
+    ]
   },
   "context": {
     "viewer": "alice",

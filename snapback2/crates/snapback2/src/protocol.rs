@@ -27,6 +27,7 @@ pub(crate) fn certification_family_guide(code: &str) -> (&'static str, &'static 
         "E_DELIVER_UNBOUNDED" => ("bound", "offline/deliver"),
         "E_DELIVER_PRINCIPAL" => ("schema", "offline/deliver"),
         "E_SCHEMA_DELIVER" => ("schema", "offline"),
+        "E_DELIVER_INCARNATION" => ("rule", "offline"),
         code if code.starts_with("E_SCHEMA") => ("schema", "schema/project"),
         code if code.starts_with("E_RULE") => ("rule", "schema/rules"),
         code if code.starts_with("E_SEED") => ("input", "schema/seed"),
@@ -143,6 +144,16 @@ impl Refusal {
             refusal.rule = Some(code.clone());
             refusal.site = site.clone();
             return refusal;
+        }
+        if let RuntimeError::Refusal(error) = error {
+            let (family, guide) = certification_family_guide(&error.code);
+            let mut refusal = Self::new(&error.code, family, &error.message, &error.rewrite, guide);
+            refusal.site = error.site.clone();
+            return refusal;
+        }
+        if let RuntimeError::SchemaDeliver { code, message, rewrite } = error {
+            let (family, guide) = certification_family_guide(code);
+            return Self::new(code, family, message, rewrite, guide).with_site("deliver");
         }
         if let RuntimeError::Successor(refusal) = error {
             return Self::from_successor(refusal);
@@ -629,4 +640,37 @@ pub(crate) fn successor_site(mut refusal: Refusal, next: &crate::project::Compil
         }
     }
     refusal
+}
+
+#[cfg(test)]
+#[test]
+fn real_incarnation_refusals_keep_the_table_repair_on_direct_seed_and_replay_wires() {
+    use snapback2_core::*;
+    let fixture: Json = serde_json::from_str(include_str!("../../../corpus/deliver-log-schema-identity.json")).unwrap();
+    let schema: Schema = serde_json::from_str(&fixture["schema"].to_string().replace("messages", "notes").replace("\"body\"", "\"text\"")).unwrap();
+    let row = object([("id", Value::Id("n".into())), ("conversationId", Value::Id("c".into())), ("authorId", Value::Id("alice".into())), ("text", Value::String("hello".into()))]);
+    let program = Program { name: "notes.send".into(), kind: ProgramKind::Mutation, args: BTreeMap::new(), read_time_granularity_ms: None, body: vec![Stmt::Insert { table: "notes".into(), row: Expr::Literal(row.clone()) }] };
+    let delete = Program { name: "notes.remove".into(), body: vec![Stmt::Delete { table: "notes".into(), key: Expr::Literal(Value::Id("n".into())) }], ..program.clone() };
+    let context = || Context::mutation(Actor::user("alice").unwrap(), BTreeMap::new());
+    let mut engine = Engine::memory(schema.clone()).unwrap();
+    engine.seed("notes", row.clone()).unwrap();
+    engine.execute(&delete, &Checker::new(&schema, Ceilings::default()).check(&delete).unwrap(), context()).unwrap();
+    let mut refusals = vec![Refusal::from_runtime(&engine.execute(&program, &Checker::new(&schema, Ceilings::default()).check(&program).unwrap(), context()).unwrap_err())];
+    refusals.push(Refusal::from_runtime(&engine.seed("notes", row.clone()).unwrap_err()));
+    for (refusal, site) in refusals.iter().zip(["notes.send:statement:1", "seed:statement:1"]) {
+        assert_eq!(refusal.family, "rule"); assert_eq!(refusal.guide, "offline");
+        assert_eq!(refusal.site.as_deref(), Some(site));
+        assert_eq!(refusal.rewrite.as_deref(), Some("insert notes { authorId: viewer, conversationId, text }"));
+    }
+    let project = ProjectJson { version: 1, schema, programs: vec![program.clone(), delete.clone()], effects: vec![], auth: Auth::default() };
+    let mut rt = Runtime::open(Store::memory().unwrap(), Generation::certify(&project, Ceilings::default()).unwrap()).unwrap();
+    rt.seed(&[("notes".into(), row)]).unwrap(); rt.execute(&delete.name, context()).unwrap();
+    let grant = rt.mint_replay_grant("alice", 1).unwrap();
+    let replay = offline::ReplayCommit { grant: grant.id.clone(), offset: 0, count: 1, intent: format!("{}:0", grant.id), request_digest: "d".repeat(64), trace: Default::default(), at: 2 };
+    let execution = rt.execute_replay(&program.name, context(), &replay).unwrap();
+    for wire in [crate::writer_wire::execution_json(&execution), offline::replay_mutation_response(&execution, &replay.intent, None)] {
+        assert_eq!(wire["family"], "rule"); assert_eq!(wire["guide"], "offline");
+        assert_eq!(wire["site"], "notes.send:statement:1");
+        assert_eq!(wire["rewrite"], "insert notes { authorId: viewer, conversationId, text }");
+    }
 }
