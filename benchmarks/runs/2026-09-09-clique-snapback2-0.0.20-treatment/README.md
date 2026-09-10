@@ -96,6 +96,22 @@ grader JSON and trace remain unchanged; their O1 justification is superseded
 only by this addendum. O2–O5, defects, coverage, assertion results, and holistic
 scores are unchanged. The addendum is a rubric adjudication, not a new test run.
 
+**Publication annotations (2026-09-09).** Read the byte-preserved addendum
+with these two qualifications:
+
+- **O1 score placement:** its claim that any O1 score at or above 30 would
+  re-import forbidden credit is the adjudicator's interpolation, not a ceiling
+  imposed by the [frozen rubric](../../briefs/social-messenger.md#scoring).
+  The binding rule fixes the **25/119 completeness-credit accounting**;
+  exact placement at **28** remains a discretionary fraction-and-quality
+  judgment under the rubric's instruction to interpolate between anchors.
+- **Native evidence:** its claim that no simulator/native artifact of any kind
+  exists is too broad. The [retained pre-M7 trace](grading-muse-snapback2.trace.md)
+  records **M1 and M4 iOS Hermes bundle exports** (`native/m1/metadata.json`
+  and `native/m4/metadata.json`, raw-lane locators). Recorded simulator
+  interaction and native behavioral proof are absent. This distinction makes
+  no additional milestone green and does not change corrected O1 **28**.
+
 The clearest cross-lane repeated finding was web send/visibility latency.
 Astra's [timing probes](grading-astra-snapback2.trace.md#316-web-client-write-latency--probe-send-breakdownmjs-lat-probemjs-defect-d-02)
 isolated delay in the browser path to the server. Grok's
