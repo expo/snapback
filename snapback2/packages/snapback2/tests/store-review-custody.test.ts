@@ -4,12 +4,15 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { createHash } from "node:crypto";
+import { api } from "../dist/client.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
-import { decodeDeliveryEnvelope, encodeDeliveryEnvelope } from "../dist/index.mjs";
+import { decodeDeliveryEnvelope, encodeDeliveryEnvelope, schemaDigest } from "../dist/index.mjs";
 import { indexedDbRangeStore } from "../dist/react.mjs";
 import { PersistentRangeStore, SqliteBackend, nodeSqliteDriver, OfflineRuntime, Twin } from "../dist/sqlite-test.mjs";
+import { assertRefused, fixtureClient as createClient } from "./live-fixture.ts";
 import { sqliteFactory } from "./sqlite-fixture.ts";
 import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
+import { generation, metadataResponse, planHash, schemaHash } from "./offline-metadata-fixture.ts";
 
 const ref = (id: string) => ({ $row: { table: "messages", id } });
 const row = (id: string, body = id) => ({ table: "messages", id, row: { id, body } });
@@ -18,6 +21,11 @@ const delivery = (op: string, ids: string[], seq: number) => ({ op, args: {}, se
   state: "complete", data: ids.map(ref), rows: ids.map((id) => row(id)), receipt: receipt() });
 const entry = (intent: string) => ({ intent, grant: "g", offset: 0, count: 1, ids: [],
   op: "send", args: { body: "pending" }, issuedSeq: 1, state: "queued", createdAt: 1, updatedAt: 1 });
+const envelope = (data: unknown, validator = "1".repeat(64), seq = 3) => ({
+  protocol: 1, generation, schemaHash, planHash,
+  authority: { principal: "dev:alice", authEpoch: 7 }, state: "complete", data, next: null, seq,
+  rows: [], receipt: receipt(), validator,
+});
 
 async function carriers() {
   const root = await mkdtemp(join(tmpdir(), "s2-store-review-"));
@@ -244,6 +252,78 @@ test('global negative guards retain integrity without retaining positive index o
     assert.equal((store as any).referenceIndex.guards.size, 1);
     assert.equal((await store.answer('read', {})).data[0].body, 'one');
     assert.equal((await store.outbox.all())[0].intent, 'keep'); await store.close();
+  }
+});
+
+// @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — an ordinary FULL row
+// may not contradict the same-sequence negative fact derived automatically from a declared tombstone.
+test("an expired delivery and positive expired body conflict atomically on every carrier, warm and cold", async (context) => {
+  for (const cold of [false, true]) {
+    const { root, factories } = await carriers();
+    try {
+      for (const base of factories) await context.test(`${base.carrier} ${cold ? "cold" : "warm"}`, async () => {
+        let opened: any;
+        const factory = Object.assign(() => opened = base(), { carrier: base.carrier });
+        let call = 0, declaredSchemaHash = schemaHash;
+        const declared = async (input: RequestInfo | URL) => {
+          const metadata = metadataResponse(input);
+          if (!metadata || !String(input).includes("/api/program?")) return metadata;
+          const program = await metadata.json();
+          program.schema.tables.messages.columns.body = { Optional: { Text: { max: 4000 } } };
+          program.schema.tables.messages.columns.status = { Enum: { variants: ["ok", "removed", "expired"] } };
+          program.schema.tables.deliveries = {
+            columns: { id: "Id", messageId: { Ref: { table: "messages" } }, kind: { Enum: { variants: ["message", "edit", "removed", "expired"] } } },
+            indexes: { byId: { components: [{ Column: "id" }], unique: true } },
+            tombstones: [{ table: "messages", column: "messageId", when: { Or: [
+              { Eq: [{ Field: "kind" }, { Literal: { String: "removed" } }] },
+              { Eq: [{ Field: "kind" }, { Literal: { String: "expired" } }] },
+            ] } }],
+          };
+          program.schemaHash = declaredSchemaHash = schemaDigest(program.schema);
+          return new Response(JSON.stringify(program), { status: 200 });
+        };
+        const expiredDelivery = { table: "deliveries", id: "d1", row: { id: "d1", kind: "expired", messageId: "m1" } };
+        const positiveExpired = { table: "messages", id: "m1", row: { id: "m1", body: null, status: "expired" } };
+        const fetch = async (input: RequestInfo | URL) => {
+          const metadata = await declared(input);
+          if (metadata) return metadata;
+          call += 1;
+          const delivered = envelope(
+            call === 1 ? ref("m1") : call === 2 ? { $row: { table: "deliveries", id: "d1" } } : ref("m1"),
+            String(call).repeat(64), call === 1 ? 1 : 2,
+          );
+          delivered.schemaHash = declaredSchemaHash;
+          delivered.rows = call === 1
+            ? [{ table: "messages", id: "m1", row: { id: "m1", body: "secret", status: "ok" } }]
+            : call === 2 ? [expiredDelivery] : [positiveExpired, expiredDelivery];
+          return new Response(JSON.stringify(delivered), { status: 200 });
+        };
+        const create = () => createClient({ url: "http://tombstone-conflict.test", persona: "alice", offline: { store: factory }, fetch });
+        let client = create();
+        try {
+          await client.ready;
+          await client.query(api.messages.body as any, {});
+          await client.query(api.messages.inbox as any, {});
+          assert.equal((await opened.coverage()).rows.some((item: any) => item.table === "messages" && item.id === "m1"), false,
+            "the declared expired delivery installs a negative fact and removes the positive body");
+          assert.equal(opened.state.rowFacts["messages\0m1"], 2,
+            "the declared tombstone automatically owns the same-sequence negative guard");
+          if (cold) {
+            await client.close();
+            client = create();
+            await client.ready;
+          }
+          const before = JSON.stringify(opened.state);
+          await assertRefused(client.query(api.messages.body as any, {}),
+            (error: any) => error.code === "E_OFFLINE_DELIVERY" && /conflicting durable fact/.test(error.message));
+          assert.equal(JSON.stringify(opened.state), before, "the contradictory swap is byte-identically rolled back");
+        } finally {
+          await client.close();
+        }
+      });
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   }
 });
 
