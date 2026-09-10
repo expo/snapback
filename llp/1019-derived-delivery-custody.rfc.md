@@ -5,7 +5,7 @@
 **Systems:** the engine's schema, writer, and row-change lifecycle (`snapback2/crates/snapback2-core/src/{schema,successor,timers}.rs`, `engine/{mod,runner_ops,timers}.rs`, `snapback2/crates/snapback2/src/{writer_resume,writer_replay,writer_ledger}.rs`), the certificate (`certificate.rs`, `certificate/page.rs`, `certificate_policy/{fanout,visibility}.rs`), the Quarry front end (`snapback2/packages/compiler/src/quarry/{parser,catalog,bound-schema,bound-project}.ts`), the evaluator twin and range store (`snapback2/packages/evaluator/src/{certificate-identity,runner}.ts`, `snapback2/packages/snapback2/src/{drain,offline,tombstones}.ts`, `store/range-store.ts`), the `chat` template and its seed and tests, the guide (`offline.md`, `quarry.md`, `grammar.md`), `guide/families.source.json`
 **Author:** Claude (Fable 5.1), for the author
 **Date:** 2026-09-09
-**Revised:** 2026-09-10 (Accepted; implementer and date assigned); 2026-09-09 (revision (a): a blind gpt-6-astra review at maximum reasoning, `llp/reviews/1019-derived-delivery-custody.r1-astra.md`, returned NOT READY with seven blocking findings, all folded: the log is durable custody, not a rebuildable projection; a served cursor is not a receipt, so receipts are opt-in and built from durable client acknowledgements; the historical audience carries its own bound and successor admission; the log's authorization is table-wide and receipts are a separate engine-owned table; edits append `changed` events (LLP 1012 requires them); joiners read prior history from the content table, which the brief requires; three evidence sentences corrected. Both spelling questions and the update question are resolved by the review's rulings)
+**Revised:** 2026-09-10 (revision (b): P0 decided — native derived writes at the shared row-change lifecycle; the log's `byRow` index becomes `(row, kind, recipient)` and historical fan-out seeks `(row, 'delivered')`; the raw `Engine::seed` fixture helper is closed for delivered tables; install/bootstrap/remove and twin identity notes from the spike folded into §2, §3, §7); 2026-09-10 (Accepted; implementer and date assigned); 2026-09-09 (revision (a): a blind gpt-6-astra review at maximum reasoning, `llp/reviews/1019-derived-delivery-custody.r1-astra.md`, returned NOT READY with seven blocking findings, all folded: the log is durable custody, not a rebuildable projection; a served cursor is not a receipt, so receipts are opt-in and built from durable client acknowledgements; the historical audience carries its own bound and successor admission; the log's authorization is table-wide and receipts are a separate engine-owned table; edits append `changed` events (LLP 1012 requires them); joiners read prior history from the content table, which the brief requires; three evidence sentences corrected. Both spelling questions and the update question are resolved by the review's rulings)
 **Related:** LLP 1012 §3 (the model on one page; the per-recipient log as a program shape; §3's implementation record on current-member fan-out), §5 (retention, revocation, the fence; swap rules 1–4), §"resume" (events for edits and removals; the last tail is live), ruling 2 ("copy the answers, not the mailbox"); LLP 1001 §4 (successors; queued intents across generations) and §"containment"; LLP 1018.003 §3 (`tombstones`) and §5 (the thread projection); LLP 1018.006 (declared partial custody: the thread's fallback); LLP 1017 (cap; the certified fan-out; nonuniform scans and the reserve); LLP 1016 D5 (schedules on the owner's clock); LLP 1011 revision "one spelling" (the word inventory; row reads versus maintain's scalar reads); LLP 1020 §A3 and §"What this does not do" (projection ownership does not cover custody); LLP 1021 (sibling); `issues/20260906-snapback2-no-delivered-ack-primitive-from-the-delivery-log.md`; `benchmarks/briefs/social-messenger.md` M3 (recipient set at send time; full prior history on join; departed members keep history), M5, M6
 
 ## Summary
@@ -169,7 +169,7 @@ table deliveries:                       -- engine-owned; not authorable
   at: time
   by byRecipient: recipient, seq, id
   by byRecipientGroup: recipient, <prefix keys>, kind, seq, id
-  by byRow: row, recipient
+  by byRow: row, kind, recipient      -- historical fan-out seeks (row, 'delivered'); an all-kind scan is unbounded by A
   immutable *
   read <- .recipient = viewer
   insert <- deny / update <- deny / delete <- deny
@@ -319,7 +319,16 @@ fact.
 
 The evaluator's certificate identity must admit `Table.deliver` and the
 engine-owned tables (`certificate-identity.ts:113` rejects unknown
-fields today). The twin **predicts** only the sender's own `delivered`
+fields today): the declaration and ownership metadata are canonicalized in
+Rust field order and hashed, never stripped to make prediction work. The
+prediction uses `runner.ts`'s narrow direct derived-write route (the one
+maintains use), never a scan of a possibly incomplete held membership set.
+The declaration alone does not imply the sender is in its target range, so
+the own-event prediction is emitted only under a proved sender-membership
+contract (the chat template's `require isMember` supplies it); otherwise
+no event is predicted. Repeated edits in one commit need distinct event
+identities; the provisional own-event identity is reconciled with the
+server's commit `seq` on drain. The twin **predicts** only the sender's own `delivered`
 event for a locally queued insert (it holds the sender's principal; it
 does not hold the audience), and predicts no `changed` or `removed` events;
 every other event arrives by drain. Receipt acknowledgements are ordinary
@@ -344,23 +353,54 @@ The chat backend loses about 30 lines and one whole concept; the complete
 local runtime is measured against its 84,000-byte ceiling after §7 lands
 (deleting template lines saves nothing there).
 
-## Mechanism (to be settled by a prototype before D1)
+## Mechanism — decided by P0 (2026-09-10)
 
-Two implementations satisfy this design; the r1 review preferred the
-first:
+Lane P0 built both representations on one content table and measured them
+(`REPORT-proto.md` on branch `s2/ri-proto`, spike code under
+`snapback2-core/src/engine/delivery_spike*.rs` and `delivery_aot_spike.rs`,
+not landed). **Decision: native derived writes at the shared row-change
+lifecycle (`Runner::finish_row_change`, reached from `runner_ops.rs` insert
+mode, upsert, and delete), with the declaration and the generated tables
+compiled ahead of time.** Confidence 90 in the representation. Reasons:
 
-1. **Ahead-of-time expansion.** The compiler expands `deliver` into
-   ordinary private tables and certified IR, and admission enforces the
-   generated writes at every content-write path (mutations, jobs,
-   schedules, seeds, replay), so the twin gets executable writes rather
-   than a second implicit mutation system.
-2. **Native derived writes.** The engine writes the log at the shared
-   row-change lifecycle (`runner_ops.rs:165`), like maintain writes.
+- The native hook reaches product seeds (`Runtime::seed` → certified
+  upserts), conditional inserts, upserts, job chunks, schedule targets, and
+  authoritative offline replay without expanding each program; the AOT
+  spike's expansion admission was a test harness, and `seed_program` is
+  synthesized in Rust after the TS compiler, so a compiler-only expansion
+  misses it.
+- Pricing: the native insert certifies at 4 examined / 4 index entries for a
+  cap-3 fixture; the AOT expansion paid 14 (ordinary lookahead plus an N×N
+  probe over a "trusted cap view" that is not sound production metadata).
+- Neither needs a trigger language; the invariant "custody cannot be
+  omitted by any write path" is the hook's, and the existing containment
+  rejects a certificate from which the delivery write site was removed and
+  rolls the content row back with it.
 
-Either way the invariant is the same — custody cannot be omitted by any
-write path — and the prototype's job is to show which representation
-keeps the twin honest with the least new machinery. Neither needs a
-general trigger language.
+Two corrections the spike forced on this RFC, both applied above: the log's
+`byRow` index is `(row, kind, recipient)` and delete/change fan-out seeks
+`(row, 'delivered')`, because the RFC's `(row, recipient)` would have made
+the historical scan include unbounded `changed` events that the audience
+bound `A` cannot bound; and the raw fixture helper `Engine::seed`
+(`engine/mod.rs:340`, `INSERT OR REPLACE` plus reindex) bypasses the
+lifecycle and produced zero events in the spike — D2 routes it through the
+certified seed path for delivered tables or removes its production
+availability, and the RFC no longer claims "every writer" until it does.
+Native reserves `N + 1` per insert (a bounded overflow probe); §4's `N` is
+read as that.
+
+Successor notes from the spike, binding on D1: the log is an ordinary
+durable table in the schema, **not** in `Schema.maintains`, so `plan()`
+sees its addition and nothing populates it unless `bootstrap` is declared;
+`bootstrap` is certified generated work priced at cap × row count;
+`Drop::Table` behavior is preserved for removal even when the history is
+nonempty and every content body is gone; retarget or prefix changes force
+the same destructive decision even when shapes happen to match; the
+audience bound `A` persists independently of the target's current cap, and
+lowering it needs historical-audience evidence; canonical schema shape and
+insertion authority for the generated tables are enforced for raw IR and
+the system principal, since `insert <- deny` alone does not stop the system
+principal.
 
 ## What this does not do
 
@@ -453,3 +493,4 @@ evidence.
 ## Implementation record
 
 - 2026-09-10 — commissioned; lanes and landings are appended here as each lands (the orchestrator, program `~/projects/snapback-ri-20260910/plan.md`).
+- 2026-09-10 — P0 (lane `proto`, Claude-orchestrated codex spike on `s2/ri-proto`, not landed): native derived writes chosen; `byRow` index and `Engine::seed` corrections applied in revision (b).
