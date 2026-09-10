@@ -16,7 +16,7 @@ Callables always declare parentheses, including `job cleanup():`;
 schedules name an inline call: `schedule cleanup every 1h: sweep()`.
 
 - Types: `guide types`, `guide money`, `guide assets`.
-- Schema: `guide indexes`, `guide rules`, `guide maintain`, `guide retain`.
+- Schema: `guide indexes`, `guide rules`, `guide maintain`, `guide retain`, `guide deliver`.
 - Programs: `guide programs`, `guide expressions`, `guide shape`, `guide fn`, `guide proc`.
 - Reads: `guide pagination`, `guide merge`, `guide absence`, `guide bounds`, `guide live-query`.
 - Writes and background work: `guide writes`, `guide job`, `guide schedule`, `guide expiry`, `guide effects`.

@@ -22,7 +22,7 @@ pub(crate) const TOP_HELP: &str = "usage: snapback2 <command> [options]
   data <table>       Page through rows with --as <persona|system>
   logs               Read the owner's logs
   persona list       List development personas
-  reset              Clear application data and reapply the seed
+  reset [--empty]    Clear data and reapply seed; --empty skips seed
   guide [topic]      Read grammar, recipes, symbols, or refusal recovery
   doctor             Check the installed toolchain
   version            Print the version
@@ -72,12 +72,15 @@ Relative --apply-migration paths resolve from your working directory, even with
 --project. Read snapback2 guide E_SUCCESSOR_DESTRUCTIVE for the full sequence."
         }
         "check" => {
-            "usage: snapback2 check [--project dir] [--json]
+            "usage: snapback2 check [--cost [<op>]] [--project dir] [--json]
        snapback2 check --ir [file] [--json]
 
 Compile, certify, and refresh .snapback/build, including api.d.ts.
 check validates sources; it does not install them in the running owner.
 Use snapback2 dev --status to see the active generation and successor refusals.
+--cost [<op>] shows each sourced analyzer term and all eight meters, even on refusal.
+It inspects without refreshing the cache; jobs show per-chunk bounds. --json keeps terms;
+a term value is a JSON integer, or a decimal string when it lies outside 64-bit range.
 --ir validates project JSON from a file or stdin instead of authored sources."
         }
         "run" => {
@@ -102,13 +105,13 @@ Execute through the owner. --plan inspects; --wait streams chunk receipts;
             "usage: snapback2 data <table> --as <persona|system> [--index name] [--prefix json] [--after token] [--limit 50] [--project dir] [--json]\n\nRead a bounded, rule-checked page. The maximum limit is 500."
         }
         "logs" => {
-            "usage: snapback2 logs [--since seq] [--limit 100] [--project dir] [--json]\n\nRead structured owner logs and commits."
+            "usage: snapback2 logs [--effects] [--since seq] [--limit 100] [--project dir] [--json]\n\nRead structured owner logs and commits."
         }
         "persona" => {
             "usage: snapback2 persona list [--project dir] [--json]\n\nList development personas. First use creates a persona; read snapback2 guide personas."
         }
         "reset" => {
-            "usage: snapback2 reset [--project dir] [--json]\n\nClear application data and jobs, then reapply the seed through the owner."
+            "usage: snapback2 reset [--empty] [--project dir] [--json]\n\nClear application data, jobs and timers; report seed row/persona counts. --empty skips the seed and stays empty after restart; identities and sessions remain."
         }
         "guide" => {
             "usage: snapback2 guide [grammar|init|dev|check|app|<keyword>|<symbol>|<E_CODE>|<recipe>] [--project dir] [--json]\n\nRead installed help; app reads the checked build cache. Default: grammar."
@@ -227,12 +230,16 @@ pub fn data(args: &[String]) -> ExitCode {
 }
 
 pub fn logs(args: &[String]) -> ExitCode {
-    let options = match parse_options(args, &["--project", "--since", "--limit"], &["--json"]) {
+    let options = match parse_options(
+        args,
+        &["--project", "--since", "--limit"],
+        &["--json", "--effects"],
+    ) {
         Ok(options) => options,
         Err(code) => return code,
     };
     if options.positionals().len() != 1 {
-        return usage("usage: snapback2 logs [--since seq] [--limit 100] [--json]");
+        return usage("usage: snapback2 logs [--effects] [--since seq] [--limit 100] [--json]");
     }
     let since = match numeric_option(&options, "--since") {
         Ok(value) => value.unwrap_or(0),
@@ -245,7 +252,10 @@ pub fn logs(args: &[String]) -> ExitCode {
     control(
         &options,
         "GET",
-        &format!("/control/logs?since={since}&limit={limit}"),
+        &format!(
+            "/control/logs?since={since}&limit={limit}&effects={}",
+            options.has("--effects")
+        ),
         json!({}),
     )
 }
@@ -265,23 +275,57 @@ pub fn persona(args: &[String]) -> ExitCode {
 }
 
 pub fn reset(args: &[String]) -> ExitCode {
-    let options = match parse_options(args, &["--project"], &["--json"]) {
+    let options = match parse_options(args, &["--project"], &["--json", "--empty"]) {
         Ok(options) => options,
         Err(code) => return code,
     };
     if options.positionals().len() != 1 {
-        return usage("usage: snapback2 reset [--json]");
+        return usage("usage: snapback2 reset [--empty] [--json]");
     }
-    control(&options, "POST", "/control/reset", json!({}))
+    control_with(
+        &options,
+        "POST",
+        "/control/reset",
+        json!({"empty":options.has("--empty")}),
+        Some(reset_summary),
+    )
+}
+
+fn reset_summary(body: &Json) -> String {
+    let seed = &body["seed"];
+    let summary = if seed == "skipped" {
+        "skipped".to_owned()
+    } else {
+        format!("{} rows, {} personas", seed["rows"], seed["personas"])
+    };
+    format!("reset: cleared application data; seed: {summary}")
 }
 
 fn control(options: &ParsedOptions<'_>, method: &str, path: &str, body: Json) -> ExitCode {
+    control_with(options, method, path, body, None)
+}
+
+/// `human` formats a successful body for the non-JSON path of one verb; every
+/// other verb prints the body itself.
+fn control_with(
+    options: &ParsedOptions<'_>,
+    method: &str,
+    path: &str,
+    body: Json,
+    human: Option<fn(&Json) -> String>,
+) -> ExitCode {
     let (_, owner) = match attached(options) {
         Ok(value) => value,
         Err(error) => return refused(error, options.has("--json"), 1),
     };
     match client::control(&owner, method, path, body) {
-        Ok(response) => print_response(response.status, response.body, options.has("--json")),
+        Ok(response) => match human {
+            Some(human) if !options.has("--json") && response.status < 400 => {
+                println!("{}", human(&response.body));
+                ExitCode::SUCCESS
+            }
+            _ => print_response(response.status, response.body, options.has("--json")),
+        },
         Err(error) => refused(error, options.has("--json"), 1),
     }
 }

@@ -86,6 +86,7 @@ fn read_rule_verdicts_are_engine_evaluated_over_every_stored_row() {
                 constraints: Vec::new(),
                 retain: Default::default(),
                 tombstones: Vec::new(),
+                deliver: None,
             },
         )]),
         ..Schema::default()

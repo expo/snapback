@@ -183,6 +183,11 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
         .map_err(|error| Refusal::from_runtime(&error))?
         == 0
         && !rows.is_empty()
+        && runtime
+            .store()
+            .meta("reset_empty")
+            .map_err(|error| Refusal::from_runtime(&error))?
+            .is_none()
     {
         apply_seed(&mut runtime, &rows)?;
     }
@@ -219,9 +224,13 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
         blobs.clone(),
         staging.clone(),
     )?;
-    let _effects = crate::effects::spawn(handle.clone());
+    let _effects = crate::effects::spawn(handle.clone(), &root, stop.clone());
     handle.call(Action::PublishOwner)?;
-    if let Err(error) = print_url(&info, options.json) {
+    if let Err(error) = print_url(
+        &info,
+        options.json,
+        &handle.call(Action::Status)?["effects"],
+    ) {
         stop.store(true, Ordering::SeqCst);
         let _ = remove_owner_if_matches(&root, &info);
         return Err(error);
@@ -646,13 +655,19 @@ fn owner_path(root: &Path) -> PathBuf {
 }
 
 fn ready_exit(info: &OwnerInfo, json_output: bool) -> ExitCode {
-    match print_url(info, json_output) {
+    let status = client::control(info, "GET", "/control/status", json!({}));
+    let effects = match status {
+        Ok(response) if response.status == 200 => response.body["effects"].clone(),
+        Ok(_) => return print_refusal(owner_running(info), json_output, 1),
+        Err(error) => return print_refusal(error, json_output, 1),
+    };
+    match print_url(info, json_output, &effects) {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => print_refusal(error, json_output, 1),
     }
 }
 
-fn print_url(info: &OwnerInfo, json_output: bool) -> Result<(), Refusal> {
+fn print_url(info: &OwnerInfo, json_output: bool, effects: &Json) -> Result<(), Refusal> {
     // @ref LLP 1002#templates-are-products — bundlers read the owner's URL; the owner never supervises them.
     if info.mode == "dev" {
         write_owner_file(
@@ -664,12 +679,28 @@ fn print_url(info: &OwnerInfo, json_output: bool) -> Result<(), Refusal> {
     if json_output {
         println!(
             "{}",
-            json!({ "url": info.url, "generation": info.generation, "pid": info.pid })
+            json!({ "url": info.url, "generation": info.generation, "pid": info.pid, "effects": effects })
         );
     } else {
         println!("SNAPBACK_URL={}", info.url);
+        println!("{}", effects_line(effects));
     }
     Ok(())
+}
+
+// @ref LLP 1021#1-the-lifecycle-is-in-the-log — the boot line carries the queued count in both engine arms.
+fn effects_line(effects: &Json) -> String {
+    let queued = &effects["queued"];
+    if effects["engine"] == "none" {
+        format!(
+            "effects: no engine in this build — {queued} queued (build one: scripts/hermes build -p snapback2)"
+        )
+    } else {
+        format!(
+            "effects: {} — {queued} queued",
+            effects["engine"].as_str().unwrap_or("unavailable")
+        )
+    }
 }
 
 fn owner_running(info: &OwnerInfo) -> Refusal {
@@ -862,6 +893,18 @@ mod tests {
         ));
         fs::create_dir_all(root.join(".snapback")).unwrap();
         root
+    }
+
+    #[test]
+    fn dev_boot_line_carries_the_queued_count_in_both_engine_arms() {
+        assert_eq!(
+            effects_line(&json!({"engine":"none","queued":3})),
+            "effects: no engine in this build — 3 queued (build one: scripts/hermes build -p snapback2)"
+        );
+        assert_eq!(
+            effects_line(&json!({"engine":"ibex2 + vanilla hermes","queued":3})),
+            "effects: ibex2 + vanilla hermes — 3 queued"
+        );
     }
 
     #[test]

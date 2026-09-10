@@ -109,3 +109,19 @@ resumption and stored-value verification. The stale “job once J1b lands”
 rewrite now names the implemented bounded job and `--wait`. This addresses
 items 4–5's documentation; the separate list/shape/completeness and app-level
 pagination work is not closed by this change.
+
+## 2026-09-10 — LLP 1020 A7 reproductions (lane `cost`)
+
+Item 2 reproduced: the refusing `#pollTallies[...]` spelling parsed as an aggregate (a
+structural count) on 0.0.19; since LLP 1011 B2 a maintained point read is a `Get` and the same
+shape admits. Only a structural sink (`count(page)`) over a capped-only page refuses
+`E_STRUCTURAL_COUNT` — `issues/20260910-snapback2-m7-poll-shape-capped-authority.md`, test
+`snapback2/crates/snapback2/tests/check_cost.rs::m7_poll_tally_reproduction_records_capped_only_refusal`.
+
+The bulk-job `E_STEPS` reproduced on the chat template: every `update messages[...]` was charged
+the full `wordPrefixes(body)` re-derivation (945,153 steps per row; a 100-row chunk priced
+94,517,328 against the 1,000,000 ceiling) whatever the patch wrote. An update now re-derives,
+and is priced, only when its patch writes a column the search index reads
+(`engine/index.rs::reindex_replaced_row`, `certificate/search.rs`; LLP 1001); a `body`
+rewrite still needs `first 1` per chunk — test
+`check_cost.rs::m7_bulk_job_prices_derivation_only_for_patches_that_write_a_derived_column`.

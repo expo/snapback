@@ -75,3 +75,14 @@ snapback2 dev --status --json
 Or use the refusal's `applyCommand`; relative plan paths use the working
 directory. Success is ready at the plan's generation; failure rolls back rows,
 indexes, generation metadata and timers.
+
+## Custody logs
+
+A `deliver` line installs its log empty; `bootstrap` fills it once from
+current members, within 8,192 events per installation (Σ cap × rows over the
+logs it bootstraps; above it E_SUCCESSOR_BOOTSTRAP: drop the word, and readers
+reach prior history through the content table under its rule). Removing or
+retargeting the line is a destructive plan. The audience bound `A` is
+engine-recorded, never spelled: max(cap, largest stored audience), recomputed
+at each installation and shown in the manifest; lowering the cap is admitted,
+and history keeps its pricing until those rows are gone.

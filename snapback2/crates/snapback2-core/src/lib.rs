@@ -10,6 +10,7 @@ pub mod client;
 mod collection_rewrite;
 mod connected;
 pub mod cursor;
+pub mod delivery;
 pub mod engine;
 mod growth;
 pub mod identity;
@@ -45,6 +46,7 @@ pub use client::{ClientStore, LocalState};
 pub use cursor::{
     CursorColumn, CursorError, CursorPosition, decode_cursor, decode_cursor_for, encode_cursor,
 };
+pub use delivery::{Deliver, DeliveryIssue, delivery_issues};
 pub use engine::{
     AuthoritativeTrace, Context, Engine, Execution, ExecutionState, PointTrace, ResultProvenance,
     RuleInputTrace, RuntimeError, StopReason, validate_schema,
@@ -70,7 +72,7 @@ pub use registry::{
     ProjectJson, ResetResult, RowRuleVerdict, Runtime,
 };
 pub use schema::*;
-pub use store::{CommitRecord, OutboxCounts, OutboxRow, ScopeTouch, Store, TouchedKey};
+pub use store::{CommitRecord, OutboxClaim, OutboxCounts, OutboxRow, ScopeTouch, Store, TouchedKey};
 pub use successor::{Drop, MigrationPlan, SuccessorRefusal, SuccessorReport, UniqueConflict};
 pub use value::*;
 

@@ -2,10 +2,10 @@
 
 **Type:** RFC
 **Status:** Accepted (author, 2026-09-10: "ok commit those then implement all of the RFCs"; implementer: codex gpt-6-astra lanes under the orchestrator, program directory `~/projects/snapback-ri-20260910`, plan and briefs there; date 2026-09-10; per `rules/RULES.md` it binds lane by lane as each lane's code lands, and the implementation record below names each landing.) Written on the author's request of 2026-09-09 ("write up 3 LLPs or sub-LLPs to address 1 and 2 and 3") after the elegance assessment of 2026-09-08.
-**Systems:** the engine's schema, writer, and row-change lifecycle (`snapback2/crates/snapback2-core/src/{schema,successor,timers}.rs`, `engine/{mod,runner_ops,timers}.rs`, `snapback2/crates/snapback2/src/{writer_resume,writer_replay,writer_ledger}.rs`), the certificate (`certificate.rs`, `certificate/page.rs`, `certificate_policy/{fanout,visibility}.rs`), the Quarry front end (`snapback2/packages/compiler/src/quarry/{parser,catalog,bound-schema,bound-project}.ts`), the evaluator twin and range store (`snapback2/packages/evaluator/src/{certificate-identity,runner}.ts`, `snapback2/packages/snapback2/src/{drain,offline,tombstones}.ts`, `store/range-store.ts`), the `chat` template and its seed and tests, the guide (`offline.md`, `quarry.md`, `grammar.md`), `guide/families.source.json`
+**Systems:** the engine's schema, writer, and row-change lifecycle (`snapback2/crates/snapback2-core/src/{schema,successor,timers}.rs`, `engine/{mod,runner_ops,timers}.rs`, `snapback2/crates/snapback2/src/{writer_resume,writer_replay,writer_ledger}.rs`), the certificate (`certificate.rs`, `certificate/page.rs`, `certificate_policy/{fanout,visibility}.rs`), the Quarry front end (`snapback2/packages/compiler/src/quarry/{parser,catalog,bound-schema,bound-project}.ts`), the evaluator twin and range store (`snapback2/packages/evaluator/src/{certificate-identity,runner}.ts`, `snapback2/packages/snapback2/src/{drain,offline,tombstones}.ts`, `store/range-store.ts`), the `chat` template and its seed and tests, the guide (`offline.md`, `migrations.md` for the successor rules, `quarry.md`, `grammar.md`), `guide/families.source.json`
 **Author:** Claude (Fable 5.1), for the author
 **Date:** 2026-09-09
-**Revised:** 2026-09-10 (revision (b): P0 decided — native derived writes at the shared row-change lifecycle; the log's `byRow` index becomes `(row, kind, recipient)` and historical fan-out seeks `(row, 'delivered')`; the raw `Engine::seed` fixture helper is closed for delivered tables; install/bootstrap/remove and twin identity notes from the spike folded into §2, §3, §7); 2026-09-10 (Accepted; implementer and date assigned); 2026-09-09 (revision (a): a blind gpt-6-astra review at maximum reasoning, `llp/reviews/1019-derived-delivery-custody.r1-astra.md`, returned NOT READY with seven blocking findings, all folded: the log is durable custody, not a rebuildable projection; a served cursor is not a receipt, so receipts are opt-in and built from durable client acknowledgements; the historical audience carries its own bound and successor admission; the log's authorization is table-wide and receipts are a separate engine-owned table; edits append `changed` events (LLP 1012 requires them); joiners read prior history from the content table, which the brief requires; three evidence sentences corrected. Both spelling questions and the update question are resolved by the review's rulings)
+**Revised:** 2026-09-10 (revision (d), from the custody-a r2 reviews: the bootstrap bound is summed over every log one installation bootstraps; the audience bound is read loudly and the manifest never publishes `deliver` without it; the D2 handoff on the bound being an estimate; the Summary no longer says `A` refuses a successor; the runtime ceiling is 85,000); 2026-09-10 (revision (c), from the custody-a r1 reviews and the orchestrator's rulings: the audience bound `A` is engine-recorded — `max(target cap, largest stored delivered audience)`, recomputed at every installation, persisted as an engine fact, shown in the manifest, outside the schema hash — so lowering the cap is admitted and `E_SUCCESSOR_AUDIENCE` is deleted; the pinned group is the cap whose `by` equals the prefix and the cap needs its enforcement index at the compiler too; `bootstrap` is a trailing word, bounded to 8,192 events (`E_SUCCESSOR_BOOTSTRAP`), and its incarnation convention is recorded; event identity carries a per-commit ordinal; the raw-schema codes keep their families and page on `check --ir`; §2 lists `audience: int`; §8 lists `to`; `tombstones` stays until D6 with its deletion set recorded; the log materializes before maintains); 2026-09-10 (revision (b): P0 decided — native derived writes at the shared row-change lifecycle; the log's `byRow` index becomes `(row, kind, recipient)` and historical fan-out seeks `(row, 'delivered')`; the raw `Engine::seed` fixture helper is closed for delivered tables; install/bootstrap/remove and twin identity notes from the spike folded into §2, §3, §7); 2026-09-10 (Accepted; implementer and date assigned); 2026-09-09 (revision (a): a blind gpt-6-astra review at maximum reasoning, `llp/reviews/1019-derived-delivery-custody.r1-astra.md`, returned NOT READY with seven blocking findings, all folded: the log is durable custody, not a rebuildable projection; a served cursor is not a receipt, so receipts are opt-in and built from durable client acknowledgements; the historical audience carries its own bound and successor admission; the log's authorization is table-wide and receipts are a separate engine-owned table; edits append `changed` events (LLP 1012 requires them); joiners read prior history from the content table, which the brief requires; three evidence sentences corrected. Both spelling questions and the update question are resolved by the review's rulings)
 **Related:** LLP 1012 §3 (the model on one page; the per-recipient log as a program shape; §3's implementation record on current-member fan-out), §5 (retention, revocation, the fence; swap rules 1–4), §"resume" (events for edits and removals; the last tail is live), ruling 2 ("copy the answers, not the mailbox"); LLP 1001 §4 (successors; queued intents across generations) and §"containment"; LLP 1018.003 §3 (`tombstones`) and §5 (the thread projection); LLP 1018.006 (declared partial custody: the thread's fallback); LLP 1017 (cap; the certified fan-out; nonuniform scans and the reserve); LLP 1016 D5 (schedules on the owner's clock); LLP 1011 revision "one spelling" (the word inventory; row reads versus maintain's scalar reads); LLP 1020 §A3 and §"What this does not do" (projection ownership does not cover custody); LLP 1021 (sibling); `issues/20260906-snapback2-no-delivered-ack-primitive-from-the-delivery-log.md`; `benchmarks/briefs/social-messenger.md` M3 (recipient set at send time; full prior history on join; departed members keep history), M5, M6
 
 ## Summary
@@ -35,8 +35,8 @@ send-time audience and three kinds of event — `delivered` at commit,
 `changed` when the row's content is updated, `removed` when the row is
 deleted by a mutation, a job, or a schedule — each to the row's **original
 recipients**, not to whoever is a member later. The log is custody, not a
-projection: it is never rebuilt from current membership, it carries its
-own audience bound with its own successor admission, and removing the
+projection: it is never rebuilt from current membership, its audience
+bound is engine-recorded and never refuses a successor, and removing the
 declaration is a destructive plan. With `with receipts`, the first-party
 SDK acknowledges delivery events it has durably accepted, through ordinary
 certified writes, and `received` becomes a readable fact in an engine-owned
@@ -134,10 +134,15 @@ is a table-block line on the **content** table. It names a range on a
 
 - The prefix keys are expressions over the content row (`.conversationId`),
   as in a rule; they must pin a group of the target table that carries a
-  `cap N by <those columns>` (LLP 1017 §2.1). Without the cap the
-  declaration refuses `E_DELIVER_UNBOUNDED` (family `bound`, site the
-  `deliver` line, rewrite "declare `cap N by conversationId` on
-  memberships", page `offline`).
+  `cap N by <those columns>` (LLP 1017 §2.1): the cap whose `by` tuple
+  **equals** the prefix column names, never the first cap of the same
+  arity (two caps of one arity may share a stored type, and the wrong one
+  would bind an unrelated `N`). The cap must have its enforcement index —
+  an index led by those columns — and the compiler checks it before the
+  engine does. Without the cap the declaration refuses `E_DELIVER_UNBOUNDED`
+  (family `bound`, site the `deliver` line, rewrite `cap 50 by
+  conversationId`, page `offline`); without the index, the same code with
+  the index line to declare.
 - The target table must have exactly one `principal` column, or the
   declaration names it with `by .principal`; otherwise `E_DELIVER_PRINCIPAL`
   (family `schema`, same site, rewrite naming the columns, page `offline`).
@@ -152,7 +157,11 @@ is a table-block line on the **content** table. It names a range on a
   receipt state and no acknowledgement traffic.
 
 The raw-schema form (the compiler's IR) admits the same declaration under
-the same refusals.
+the same refusals, and refuses a generated table that is not the engine's
+exact shape, an authored look-alike, or a program that writes one, as
+`E_SCHEMA_DELIVER` (family `schema`, page `offline`). On `check --ir` each
+of these keeps its own code, family, page, and the declaration's site
+(`schema.tables.<content>.deliver`); none is folded into `E_SCHEMA`.
 
 ### 2. The custody log
 
@@ -165,6 +174,7 @@ table deliveries:                       -- engine-owned; not authorable
   incarnation: int                      -- the content row's commit seq at insert (§3)
   <the prefix key columns, copied>      -- conversationId: conversations
   kind: enum('delivered', 'changed', 'removed')
+  audience: int                         -- the send-time audience count (§3, §4)
   seq: int                              -- the commit that wrote this event
   at: time
   by byRecipient: recipient, seq, id
@@ -187,17 +197,24 @@ reconstruct a send-time audience, and a deleted content row cannot
 reconstruct its history at all. So:
 
 - Adding `deliver` to a table with rows installs an **empty** log unless
-  the successor also says `bootstrap from current members`, which writes
-  one `delivered` event per current target row per existing content row,
-  bounded by the audience cap times the row count, is recorded in the
-  successor log as an approximation of send-time audiences, and is priced
-  under the installation budget LLP 1020 Part B defines (until then, it is
-  a job the refusal pastes).
+  the line also says `bootstrap` (a trailing word; it acts once, when the
+  log is installed, and is inert afterwards), which writes one `delivered`
+  event per current target row per existing content row, deduplicated by
+  principal, inside the installation transaction, and is recorded in the
+  successor log as an approximation of send-time audiences. It is bounded
+  per installation: the sum of `cap × content rows` over every log the
+  installation bootstraps may not exceed 8,192 events (the successor's
+  128-row batch × 64); above it the successor refuses
+  `E_SUCCESSOR_BOOTSTRAP` (family `successor`, site the first such
+  declaration, page `migrations` — the wire label is `successor/migrations`,
+  family/page) naming the total and each log's share, and the rewrite is
+  every such line without the word — no program may write the log, so no
+  job can be pasted; the priced installation path is LLP 1020 Part B's.
 - Removing `deliver` is a **destructive plan** (`Drop::Table` of the log);
   changing its target or prefix keys is destructive too. Custodial data is
   never silently dropped.
-- The log's audience bound (§4) is a successor-admitted number that may
-  only rise while any stored audience exceeds the new value.
+- The log's audience bound `A` (§4) is an engine fact recomputed at every
+  installation; it is never spelled and never refuses a successor.
 
 ### 3. What writes it
 
@@ -228,6 +245,25 @@ replay — can omit it:
   `incarnation` column is the engine's record, not a program input.
 - **Seeds** deliver like inserts. **Rollback** of the enclosing transaction
   rolls the events back with it; there is no partial delivery.
+- **Bootstrapped events** carry `incarnation` = the installation's commit
+  seq, not the content row's original one: the store keeps no per-row
+  insert seq (`_commits.writes` is a per-table count, pruned past 10,000
+  commits), so the log is a row's incarnation of record. D2 reads a live
+  row's incarnation from its `delivered` events through `byRow`, never from
+  a separate per-row record, and bootstrapped and live rows agree by
+  construction.
+- **Event identity** is `digest(row, recipient, kind, seq, ordinal)`, where
+  `ordinal` counts the events one commit writes, so repeated `changed`
+  events for one row in one commit are distinct rows (§7).
+- **The bootstrap bound is an estimate, not a post-write count** (handoff
+  to D2). `E_SUCCESSOR_BOOTSTRAP` refuses on `Σ cap × content rows`,
+  computed before any event is written; nothing counts the events actually
+  inserted, and the estimate is conservative only while every group's
+  membership is within its cap. `Engine::seed` is an uncapped membership
+  path until D2 closes it, so D2 must not treat the bound as a ceiling on
+  rows written, must continue the per-commit `ordinal` inside a content
+  commit rather than assume bootstrap's counter, and must not treat this
+  transactional bootstrap as LLP 1020 Part B's priced job.
 
 `schedule expireMessage on messages at .expiresAt: delete .` is admitted
 by lowering it ahead of time to a private mutation target with the
@@ -243,12 +279,17 @@ over that target, not a new runtime path.
   — and the nonuniform-scan protection of the fan-out reserve
   (`certificate_policy/fanout.rs:93`) applies unchanged.
 - **Update and delete** sites reserve against the log's **audience bound**
-  `A`, a per-log number in the schema that starts at the target group's
-  cap when `deliver` is installed and may only be raised by a successor
-  while any stored audience exceeds the new value (§2). A membership cap
-  lowered from 50 to 2 does not shrink the historical audiences; `A`
-  stays 50 until no stored audience needs it, and the successor log says
-  so. Every generated read and write site is priced on every meter the
+  `A`: an engine-recorded number, never spelled in the schema and never the
+  live cap. `A = max(target cap, largest stored delivered audience)`,
+  recomputed at every installation (successor, migration, open), persisted
+  in the store beside the installed schema, disclosed in the manifest as
+  `deliver.audience`, and reported in the successor log. A membership cap
+  lowered from 50 to 2 is an ordinary successor; the historical audiences
+  keep `A` at 50 until every 50-audience row is gone, and the next
+  installation follows the cap. `A` is outside the schema hash, so the
+  certificate binds the compiler's schema and the twin agrees; D2 prices
+  update and delete sites against `A` as the engine holds it. Every
+  generated read and write site is priced on every meter the
   certificate has; a `schedule` that deletes prices per fired row; the
   runtime's containment (`runner_ops.rs:1230`) guards the full reserve.
 - A mutation whose reservations exceed a ceiling refuses `E_BOUND` with the
@@ -320,7 +361,9 @@ fact.
 The evaluator's certificate identity must admit `Table.deliver` and the
 engine-owned tables (`certificate-identity.ts:113` rejects unknown
 fields today): the declaration and ownership metadata are canonicalized in
-Rust field order and hashed, never stripped to make prediction work. The
+Rust field order (`target, prefix, principal, log, receipts, bootstrap`;
+`audience` is not a descriptor field and is refused if spelled) and hashed,
+never stripped to make prediction work. The
 prediction uses `runner.ts`'s narrow direct derived-write route (the one
 maintains use), never a scan of a possibly incomplete held membership set.
 The declaration alone does not imply the sender is in its target range, so
@@ -341,17 +384,20 @@ they never authorize replay early and never erase queued writes.
   calls, `purgeMessage`, and the `'edit'`/`'expired'` kinds; the template's
   authored delivery seed rows (`seed.ts:26`) and the tests that assert
   `messageId`/`expired` are rewritten to the equivalent behavior.
-- The `tombstones` declaration leaves the grammar: its only use was the
-  authored log. The word inventory (LLP 1011 revision "one spelling", B5)
-  loses `tombstones` and gains `deliver`, `as`, `with`, `receipts`,
-  `bootstrap`; the `rules/NOT-DOING.md` § Moves line records the trade
-  with its offset.
+- The `tombstones` declaration leaves the grammar at D6's template cutover:
+  its only use is the authored log, and until D2's writes exist the shipped
+  template's offline eviction rides on it (the D1/D3 landing kept it; the
+  deletion set is under §Mechanism). The word inventory (LLP 1011 revision
+  "one spelling", B5) loses `tombstones` and gains six words — `deliver`,
+  `to`, `as`, `with`, `receipts`, `bootstrap`; the `rules/NOT-DOING.md`
+  § Moves line records the trade with its offset.
 - LLP 1012 §3's "current members, not every original recipient" record is
   superseded by §3 above and marked so.
 
 The chat backend loses about 30 lines and one whole concept; the complete
-local runtime is measured against its 84,000-byte ceiling after §7 lands
-(deleting template lines saves nothing there).
+local runtime is measured against its 85,000-byte ceiling (the author's
+ruling of 2026-09-09, LLP 1012) after §7 lands (deleting template lines
+saves nothing there).
 
 ## Mechanism — decided by P0 (2026-09-10)
 
@@ -392,15 +438,31 @@ read as that.
 Successor notes from the spike, binding on D1: the log is an ordinary
 durable table in the schema, **not** in `Schema.maintains`, so `plan()`
 sees its addition and nothing populates it unless `bootstrap` is declared;
-`bootstrap` is certified generated work priced at cap × row count;
-`Drop::Table` behavior is preserved for removal even when the history is
-nonempty and every content body is gone; retarget or prefix changes force
-the same destructive decision even when shapes happen to match; the
-audience bound `A` persists independently of the target's current cap, and
-lowering it needs historical-audience evidence; canonical schema shape and
-insertion authority for the generated tables are enforced for raw IR and
-the system principal, since `insert <- deny` alone does not stop the system
-principal.
+`bootstrap` is bounded at Σ cap × row count ≤ 8,192 events per installation,
+summed over every log it bootstraps, inside the installation transaction
+until LLP 1020 Part B prices it; `Drop::Table`
+behavior is preserved for removal even when the history is nonempty and
+every content body is gone; retarget or prefix changes force the same
+destructive decision even when shapes happen to match; the audience bound
+`A` persists independently of the target's current cap as an engine fact,
+and the scan for the largest stored audience runs only when the cap falls
+below the recorded bound (every stored audience is under it otherwise);
+canonical schema shape and insertion authority for the generated tables are
+enforced for raw IR and the system principal, since `insert <- deny` alone
+does not stop the system principal.
+
+`tombstones` stays in the grammar until D6 (P0 finding 6; the D1/D3 landing
+record). D6's deletion set: `parser.ts` (`parseTombstones` and its branch),
+`ast.ts` (`TombstoneDecl`, `TableDecl.tombstones`), `bound-schema.ts`
+(`bindTombstones`, `validateTombstonePredicate`), the `tombstones: []` on
+synthetic declarations in `catalog.ts`, `quarry/index.ts`, and
+`bound-schema-checks.ts`, `quarry/diagnostics.ts` (`tombstone`),
+`diagnostics.ts` and `ir.ts` (`E_QUARRY_TOMBSTONE`), `tombstone-checks.ts`,
+the `families.source.json` row, `retain.md`, the `expiry.md` and
+`schedule.md` sentences, the inventory pin, the template line
+(`templates/chat/snapback/schema.q`) and `fixtures/quarry-chat/snapback/schema.q`.
+The IR field `Table.tombstones` and `tombstone_issues` stay: they are the
+engine's representation of the generated log's tombstone (§3).
 
 ## What this does not do
 
@@ -427,8 +489,9 @@ principal.
    survives a cold restart; an expiring message is purged by the owner's
    schedule with every client closed.
 3. **Historical custody through evolution**: send to Alice and Bob; remove
-   Bob; add Carol; lower the membership cap; change the declaration
-   (refused as destructive); then unsend and expire old messages — Alice
+   Bob; add Carol; lower the membership cap (admitted); change the
+   declaration (refused as destructive); then unsend and expire old
+   messages — Alice
    and Bob receive `removed` events by tombstone (not point absence), Carol
    reads prior history through `history` without becoming an original
    recipient, Bob keeps every other pre-removal body under `retain
@@ -494,3 +557,6 @@ evidence.
 
 - 2026-09-10 — commissioned; lanes and landings are appended here as each lands (the orchestrator, program `~/projects/snapback-ri-20260910/plan.md`).
 - 2026-09-10 — P0 (lane `proto`, Claude-orchestrated codex spike on `s2/ri-proto`, not landed): native derived writes chosen; `byRow` index and `Engine::seed` corrections applied in revision (b).
+- 2026-09-10 — D1 + D3 (lane `custody-a`, branch `s2/ri-custody`): `Table.deliver` (`snapback2-core/src/delivery.rs`: descriptor, canonical log and receipts shapes, raw-schema admission `E_DELIVER_UNBOUNDED`/`E_DELIVER_PRINCIPAL`/`E_SCHEMA_DELIVER`, static refusal of any program write to a generated table), successor custody (`successor/delivery.rs`: install empty, `bootstrap` once at installation, forced `Drop::Table` on removal/retarget, `E_SUCCESSOR_AUDIENCE` — `A` lowers only when no stored `delivered` audience exceeds it; replaced in r1 by the engine-recorded bound), manifest `deliver`, the Quarry line (`quarry/deliver.ts` materializes the generated tables ahead of the catalog; parser/binder/`api.d.ts`), the twin canonicalizes `deliver`; word inventory +6 (`deliver`, `to`, `as`, `with`, `receipts`, `bootstrap`), NOT-DOING move; tests: `tests/delivery.rs` (11), `delivery-checks.ts` (4), corpus 275→277 (`deliver-log-schema-identity`, `deliver-owned-write-refused`). §1–§2, §6 shape, §7 identity. Not done here, by finding (P0 §6): `tombstones` stays in the grammar until D6's template cutover; §2's log shape must list `audience: int`; the inventory also needs `to`; `E_SCHEMA_DELIVER`/`E_SUCCESSOR_AUDIENCE` are new codes. Report: `REPORT-custody-a.md`.
+- 2026-09-10 — D1 + D3 fix round r1 (lane `custody-a`, branch `s2/ri-custody`, from the grok/muse blind reviews): the pinned group is the cap whose `by` equals the prefix (`delivery.rs::group_cap`, `quarry/deliver.ts`), the compiler requires the enforcement index; `A` is engine-recorded (`successor/delivery.rs::record_audience_bounds`, `_meta` `custody_audience:<log>`, `SuccessorReport.audience_bounds`, manifest `deliver.audience`; `Deliver.audience` and `E_SUCCESSOR_AUDIENCE` deleted); raw-schema codes keep their families and page on `check --ir` (`RuntimeError::SchemaDeliver`, `certification_family_guide`); deliveries materialize before maintains; `bootstrap` bounded (`E_SUCCESSOR_BOOTSTRAP`, 8,192 events) with the incarnation convention above; per-commit event ordinal in `event_row`; manifest emission tested. Tests: `tests/delivery.rs` (14), `check.rs` (`deliver_refusals_keep_their_codes_families_and_pages_on_the_ir_path`), `writer_ledger.rs` (`manifest_discloses_deliver_with_the_engine_recorded_audience_bound`), `delivery-checks.ts` (6), the evaluator identity golden; corpus regenerated (277). Revision (c) of this RFC. Report: `reports/final-custody-a.md` § Fix round r1.
+- 2026-09-10 — D1 + D3 fix round r2 (lane `custody-a`, branch `s2/ri-custody`, from the r2 grok/muse blind reviews and the host measure): the complete local runtime paid its bytes by construction in `certificate-identity.ts` (the descriptor through `pick` inline, sibling bespoke reconstructions through the same walker, a dead `COLUMN_FIELDS` entry deleted) — 85,087 → 84,996 gzip against the 85,000 ceiling, `main` at the base measuring 84,994; `audience_bound` is loud on an unreadable record (`E_STORE_VERSION`) and the manifest refuses rather than publishing `deliver` without `A` (`writer_ledger.rs::manifest_table`); the `check --ir` fallback carries a `SchemaDeliver`'s code, family, page, rewrite, and site when the certify row is not located; the bootstrap bound is summed over every log one installation bootstraps (`bootstrap_refusal`); `E_SUCCESSOR_BOOTSTRAP`'s family and page agreement (wire `successor/migrations`, card `migrations`) pinned by test; §Summary, §2, §3 (D2 handoff), §Mechanism, §8 revised. Tests: `tests/delivery.rs` (16: `bootstrap_bound_is_summed_over_every_log_one_installation_bootstraps`, `audience_bound_is_loud_when_its_record_is_unreadable`), `check.rs` (`an_unlocated_deliver_refusal_keeps_its_labels_on_the_ir_path`; the located test gains the `E_DELIVER_PRINCIPAL` case), `protocol.rs` (`successor_bootstrap_has_one_family_and_page_on_the_wire_and_in_the_guide`), `writer_ledger.rs` (`manifest_refuses_a_custody_log_whose_audience_bound_is_unreadable_or_unrecorded`). Report: `reports/final-custody-a.md` § Fix round r2.

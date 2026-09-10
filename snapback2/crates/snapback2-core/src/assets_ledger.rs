@@ -636,6 +636,48 @@ pub(crate) fn reconcile_row_assets(
     Ok(())
 }
 
+pub(crate) fn validate_asset_inputs(
+    transaction: &Transaction<'_>,
+    program: &crate::ir::Program,
+    context: &crate::engine::Context,
+) -> Result<Vec<String>, RuntimeError> {
+    let mut staged = Vec::new();
+    for (name, kind) in &program.args {
+        if !kind.contains_asset() {
+            continue;
+        }
+        let value = context
+            .args
+            .get(name)
+            .ok_or_else(|| RuntimeError::Input(format!("missing arg {name}")))?;
+        for asset in crate::assets::arg_asset_uses(kind, value, &format!("arg {name}"))? {
+            let row = validate_asset_use(transaction, &asset, context.viewer(), true)?;
+            if row.locator.is_none() {
+                staged.push(row.id);
+            }
+        }
+    }
+    Ok(staged)
+}
+
+// @ref LLP 1006#6a-discard-unused-arguments-at-commit — only never-released staged arguments of this call bypass release grace; a row released inside the body or reused while in grace keeps it.
+pub(crate) fn discard_unused_arguments(
+    transaction: &Transaction<'_>,
+    creator: &str,
+    ids: &[String],
+) -> Result<(), RuntimeError> {
+    for id in ids {
+        transaction.execute(
+            "UPDATE _assets SET reclaiming = 1
+             WHERE id = ?1 AND created_by = ?2 AND state = 'ready'
+               AND reclaiming = 0 AND locator_table IS NULL
+               AND released_at IS NULL",
+            params![id, creator],
+        )?;
+    }
+    Ok(())
+}
+
 pub(crate) fn release_table_assets(
     transaction: &Transaction<'_>,
     table: &str,

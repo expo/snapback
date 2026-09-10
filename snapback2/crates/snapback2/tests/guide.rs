@@ -193,7 +193,7 @@ fn refusal_examples_preserve_markdown_preambles_and_paired_fences() {
         let fences: Vec<_> = content.lines().filter(|line| line.starts_with("```")).collect();
         assert_eq!(fences, expected_fences, "{code}");
     }
-    assert_eq!(count, 7);
+    assert_eq!(count, 8);
 }
 
 #[test]
@@ -221,6 +221,7 @@ fn quarry_keywords_print_grammar_and_definitions_beside_symbol_help() {
         ("merge", "combines structurally distinct"),
         ("shape", "splices"),
         ("retain", "keeps rows that went hidden"),
+        ("deliver", "derives an engine-owned per-recipient log"),
         ("channel", "typed latest state"),
         ("connected", "read-only virtual table"),
         ("schedule", "declares two triggers, one kind"),

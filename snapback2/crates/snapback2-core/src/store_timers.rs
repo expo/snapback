@@ -77,12 +77,41 @@ pub(crate) fn maintain(
     Ok(writes)
 }
 
+fn empty_reset(conn: &Connection) -> Result<bool, RuntimeError> {
+    Ok(conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM _meta WHERE key='reset_empty')",
+        [],
+        |row| row.get(0),
+    )?)
+}
+
+// @ref LLP 1021#6-the-adjacent-traps — an explicit empty reset stays dormant through restart and successors until a row exists.
+pub(crate) fn resume_after_empty(conn: &Connection, now: i64) -> Result<(), RuntimeError> {
+    if empty_reset(conn)?
+        && conn.query_row("SELECT EXISTS(SELECT 1 FROM rows)", [], |row| {
+            row.get::<_, bool>(0)
+        })?
+    {
+        conn.execute("DELETE FROM _meta WHERE key='reset_empty'", [])?;
+        let schema: String = conn.query_row(
+            "SELECT value FROM _meta WHERE key='schema_json'",
+            [],
+            |row| row.get(0),
+        )?;
+        reconcile(conn, &Schema::default(), &decode::<Schema>(&schema)?, now)?;
+    }
+    Ok(())
+}
+
 pub(crate) fn reconcile(
     conn: &Connection,
     old: &Schema,
     next: &Schema,
     now: i64,
 ) -> Result<(), RuntimeError> {
+    if empty_reset(conn)? {
+        return Ok(());
+    }
     for previous in &old.schedules {
         if next
             .schedules

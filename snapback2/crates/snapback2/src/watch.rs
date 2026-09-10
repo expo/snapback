@@ -216,18 +216,34 @@ fn collect_authored_sources(root: &Path, output: &mut Vec<PathBuf>) {
     }
 }
 
+// @ref LLP 1021#1-the-lifecycle-is-in-the-log — every writer reports file failures in owner status.
+static LOG_ERRORS: std::sync::Mutex<BTreeMap<PathBuf, String>> =
+    std::sync::Mutex::new(BTreeMap::new());
+
+pub fn log_status(root: &Path) -> String {
+    LOG_ERRORS
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .get(root)
+        .map(|reason| format!("unavailable({reason})"))
+        .unwrap_or_else(|| "available".to_owned())
+}
+
 pub fn log(root: &Path, value: Json) {
+    // Serialize whole lines across the writer, watcher, and signal monitor.
+    let mut errors = LOG_ERRORS.lock().unwrap_or_else(|e| e.into_inner());
     let path = root.join(".snapback/log.jsonl");
-    match OpenOptions::new().create(true).append(true).open(&path) {
-        Ok(mut file) => {
-            if let Err(error) = writeln!(file, "{value}") {
-                eprintln!(
-                    "{}",
-                    json!({ "logError": error.to_string(), "path": path, "event": value })
-                );
-            }
+    let result = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+        .and_then(|mut file| file.write_all(format!("{value}\n").as_bytes()));
+    match result {
+        Ok(()) => {
+            errors.remove(root);
         }
         Err(error) => {
+            errors.insert(root.to_owned(), error.to_string());
             eprintln!(
                 "{}",
                 json!({ "logError": error.to_string(), "path": path, "event": value })

@@ -457,7 +457,7 @@ fn reset_and_successor_close_leases_and_terminal_frames_supersede_snapshots() {
     let (_, rx, next_frame) = open(&mut state, "alice", "one");
     assert_ne!(next_frame["key"], first["key"]);
     assert_eq!(next_frame["entries"], json!([]));
-    state.handle(Action::Reset).unwrap();
+    state.handle(Action::Reset { empty: false }).unwrap();
     assert_eq!(next(&rx)["code"], "E_CHANNEL_RESET");
     std::fs::remove_dir_all(&state.root).unwrap();
 }

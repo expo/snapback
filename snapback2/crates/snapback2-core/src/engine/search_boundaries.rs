@@ -552,7 +552,7 @@ fn reset_seed_clears_native_indexes_atomically_when_row_ids_are_reused() {
         .unwrap();
     assert!(
         engine
-            .reset_and_execute(&p, &cert, Context::system(), Some("seed"))
+            .reset_and_execute(&p, &cert, Context::system(), false)
             .is_err()
     );
     assert!(
@@ -580,7 +580,7 @@ fn reset_seed_clears_native_indexes_atomically_when_row_ids_are_reused() {
         .check(&p)
         .unwrap();
     engine
-        .reset_and_execute(&p, &cert, Context::system(), Some("seed"))
+        .reset_and_execute(&p, &cert, Context::system(), false)
         .unwrap();
     assert!(
         search_index::resolve(

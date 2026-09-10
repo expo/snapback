@@ -46,6 +46,61 @@ pub(crate) fn reindex_row(
     derived.add(super::search_index::insert(
         connection, schema, table_name, row,
     )?);
+    insert_plain_index_entries(connection, table_name, table, id, row)?;
+    Ok(derived)
+}
+
+/// Re-index a replaced row. Search postings are re-derived only when a component of a
+/// derived index differs between the two images; an update that writes none of them
+/// keeps its postings and records no derivation work, which is what the certificate prices.
+// @ref LLP 1020#a7-two-reproductions-before-any-ruling — an update performs and prices derivation only for a written derived component.
+pub(crate) fn reindex_replaced_row(
+    connection: &Connection,
+    schema: &Schema,
+    table_name: &str,
+    old: &Value,
+    new: &Value,
+) -> Result<super::search_index::Derivation, RuntimeError> {
+    let table = schema
+        .table(table_name)
+        .ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
+    if derived_components_changed(table, old, new) {
+        return reindex_row(connection, schema, table_name, new);
+    }
+    let id = new.field("id")?.as_str()?;
+    connection.execute(
+        "DELETE FROM index_entries WHERE table_name = ?1 AND row_id = ?2",
+        params![table_name, id],
+    )?;
+    insert_plain_index_entries(connection, table_name, table, id, new)?;
+    Ok(super::search_index::Derivation::default())
+}
+
+/// Whether any column a derived index reads — its ordinary components or the
+/// `wordPrefixes` source fields — differs between two images of one row.
+pub(crate) fn derived_components_changed(table: &Table, old: &Value, new: &Value) -> bool {
+    let value = |row: &Value, name: &str| row.field(name).cloned().unwrap_or(Value::Null);
+    table
+        .indexes
+        .values()
+        .filter(|index| index.derived_offset().is_some())
+        .any(|index| {
+            index.components.iter().any(|component| match component {
+                IndexComponent::Column(column) => value(old, column) != value(new, column),
+                IndexComponent::WordPrefixes { fields, .. } => {
+                    fields.iter().any(|field| value(old, field) != value(new, field))
+                }
+            })
+        })
+}
+
+fn insert_plain_index_entries(
+    connection: &Connection,
+    table_name: &str,
+    table: &Table,
+    id: &str,
+    row: &Value,
+) -> Result<(), RuntimeError> {
     for (index_name, index) in &table.indexes {
         if index.derived_offset().is_some() {
             continue;
@@ -71,7 +126,7 @@ pub(crate) fn reindex_row(
             ],
         )?;
     }
-    Ok(derived)
+    Ok(())
 }
 
 pub(super) fn delete_index_row(

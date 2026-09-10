@@ -1,4 +1,5 @@
 use super::diagnostic::WorkTerms;
+use super::search::DerivedTerm;
 use super::{ReadSite, WriteSite};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -10,6 +11,12 @@ pub(super) struct Summary {
     pub(super) index_entries: u64,
     pub(super) rule_probes: u64,
     pub(super) steps: u64,
+    pub(super) derived_steps: u64,
+    pub(super) derived_scratch: u64,
+    /// Each derived cause with its site; steps add, scratch rides on the peak term only.
+    pub(super) derived_terms: Vec<DerivedTerm>,
+    /// The first statement site that writes each `"{table} {kind:?}"`, for attributing its derived work.
+    pub(super) write_origins: BTreeMap<String, String>,
     pub(super) nonuniform_range: bool,
     pub(super) count_absence_bytes: u64,
     pub(super) count_probe_tables: BTreeSet<String>,
@@ -38,6 +45,9 @@ impl Summary {
         }
         self.costs.add(other.costs);
         self.writes.extend(other.writes);
+        for (key, site) in other.write_origins {
+            self.write_origins.entry(key).or_insert(site);
+        }
         self.examined = self.examined.saturating_add(other.examined);
         self.index_entries = self.index_entries.saturating_add(other.index_entries);
         self.rule_probes = self.rule_probes.saturating_add(other.rule_probes);
@@ -77,6 +87,9 @@ impl Summary {
         // @ref LLP 1001#2-what-a-commit-records — sequential writes add
         // within one arm; only the completed arm totals are branch-maxed.
         self.writes = sum_write_sites(std::mem::take(&mut self.writes));
+        for (key, site) in other.write_origins {
+            self.write_origins.entry(key).or_insert(site);
+        }
         for write in sum_write_sites(other.writes) {
             if let Some(existing) = self
                 .writes

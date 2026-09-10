@@ -106,11 +106,22 @@ fn main() -> ExitCode {
 }
 
 fn run_check(args: &[String]) -> ExitCode {
-    let options = match verbs::parse_options(args, &["--project"], &["--ir", "--json"]) {
+    let options = match verbs::parse_options(args, &["--project"], &["--ir", "--json", "--cost"]) {
         Ok(options) => options,
         Err(code) => return code,
     };
     let json = options.has("--json");
+    if options.has("--cost") {
+        let positionals = options.positionals();
+        if options.has("--ir") || positionals.len() > 2 {
+            eprintln!("{}", check_usage());
+            return ExitCode::from(2);
+        }
+        return match project::locate_root(options.value("--project").map(std::path::Path::new)) {
+            Ok(root) => check::run_cost_project(&root, positionals.get(1).copied(), json),
+            Err(error) => owner::print_refusal(error, json, 2),
+        };
+    }
     match parse_check(&options) {
         Ok(CheckTarget::Ir(path)) => check::run(path.as_deref(), json),
         Ok(CheckTarget::Project(explicit)) => {
@@ -162,5 +173,5 @@ fn parse_check(options: &verbs::ParsedOptions<'_>) -> Result<CheckTarget, String
 }
 
 fn check_usage() -> &'static str {
-    "usage: snapback2 check [--project <dir>] [--json]\n       snapback2 check --ir [<file>] [--json]"
+    "usage: snapback2 check [--cost [<op>]] [--project <dir>] [--json]\n       snapback2 check --ir [<file>] [--json]"
 }

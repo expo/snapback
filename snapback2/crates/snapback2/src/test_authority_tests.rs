@@ -394,6 +394,7 @@ fn authority_schema(principal_column: ColumnType) -> Schema {
         constraints: Vec::new(),
         retain: Default::default(),
         tombstones: Vec::new(),
+        deliver: None,
     };
     let protected = Table {
         columns: BTreeMap::from([(
@@ -412,6 +413,7 @@ fn authority_schema(principal_column: ColumnType) -> Schema {
         constraints: Vec::new(),
         retain: Default::default(),
         tombstones: Vec::new(),
+        deliver: None,
     };
     Schema {
         tables: BTreeMap::from([

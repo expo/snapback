@@ -17,9 +17,10 @@ For an explicit development-only preview, React and Expo may use
 real account sessions (`guide auth`). Choose
 either a persona or bearer/token-store custody for each client.
 
-The chat seed occupies profile handles `alice` and `bob`. Real account signup
-is separate from profile creation: choosing an occupied handle rejects the
-profile mutation even if signup succeeded. Show that refusal and retry profile
-onboarding with another handle. For a clean app, namespace seed handles (for
-example `demo-alice`) before first `dev`, or reset disposable development data
-after editing the seed. Editing a seed alone does not rewrite existing rows.
+The chat seed uses the fixture handles `alice_dev` and `bob_dev`, so `alice`
+and `bob` are free for a real signup; this reserves no namespace, and `charlie`
+keeps no profile. Real account signup is separate from profile creation:
+choosing an occupied handle rejects the profile mutation even if signup
+succeeded. Show that refusal and retry profile onboarding with another handle.
+Editing a seed alone does not rewrite existing rows; `reset` reapplies it and
+reports row and persona counts.

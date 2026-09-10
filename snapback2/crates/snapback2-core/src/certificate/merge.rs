@@ -90,6 +90,7 @@ impl Analyzer<'_> {
             summary.index_entries = summary.index_entries.saturating_add(advances);
             summary.steps = summary.steps.saturating_add(advances.saturating_mul(5));
             summary.costs.scan(Cost {
+                site: Some(merge.site.clone()),
                 value: calls
                     .saturating_mul(merge.max_lanes())
                     .saturating_add(advances),

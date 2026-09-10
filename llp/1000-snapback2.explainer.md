@@ -6,7 +6,7 @@
 **Systems:** Everything under `snapback2/`; the rules under `rules/`
 **Author:** Charlie Cheever / Claude Fable 5
 **Date:** 2026-08-29
-**Revised:** 2026-09-07 (LLP 1018.003 item surface: explicit 84,000-byte runtime ceiling, 80,000 target); 2026-09-08 (LLP 1018.000 implemented and qualified; current Snapshot contracts reconciled); 2026-09-07 (explicit merged-schema allocation: 82,500 ceiling, 80,000 target); 2026-09-07 (explicit architecture allocation: 82,000-byte ceiling, 80,000 working target); 2026-09-07 (LLP 1018.000 direct typed Quarry production path); 2026-09-06 (fixed complete local-runtime measurement roots: 66,000-byte ceiling, 64,000 target); 2026-09-06 (measured full-entry search trade: 50,000-byte ceiling, 48,000 target); 2026-09-06 (session-delegated Unicode search scope/byte/build trade; Exact 2 deferral); 2026-09-05 (LLP 1016 implemented: the administrative plane; LLP 1016 listed; LLP 1014/1015 listed); 2026-09-04 (LLP 1012 listed); 2026-09-02
+**Revised:** 2026-09-10 (replace stale inventory with current implementation map; current 85,000-byte allocation; guide routing, LLP 1018.008); 2026-09-07 (LLP 1018.003 item surface: explicit 84,000-byte runtime ceiling, 80,000 target); 2026-09-08 (LLP 1018.000 implemented and qualified; current Snapshot contracts reconciled); 2026-09-07 (explicit merged-schema allocation: 82,500 ceiling, 80,000 target); 2026-09-07 (explicit architecture allocation: 82,000-byte ceiling, 80,000 working target); 2026-09-07 (LLP 1018.000 direct typed Quarry production path); 2026-09-06 (fixed complete local-runtime measurement roots: 66,000-byte ceiling, 64,000 target); 2026-09-06 (measured full-entry search trade: 50,000-byte ceiling, 48,000 target); 2026-09-06 (session-delegated Unicode search scope/byte/build trade; Exact 2 deferral); 2026-09-05 (LLP 1016 implemented: the administrative plane; LLP 1016 listed; LLP 1014/1015 listed); 2026-09-04 (LLP 1012 listed); 2026-09-02
 **Related:** LLP 0000, LLP 0329, LLP 0329.014, LLP 0329.014.004, LLP 0329.016,
 LLP 0316, LLP 0330, `rules/RULES.md`, `rules/NOT-DOING.md`,
 `spikes/bounded-programs/`, expo/ibex LLP 0057, LLP 0058, LLP 0068
@@ -84,29 +84,41 @@ numbered 1000 and up.
     found unimplemented by LLP 1007 §2 on 2026-09-01 and built on
     2026-09-02 (LLP 1004 §"Implementation record").
 
-## What exists today (2026-08-30)
+## Current implementation map
 
-| Piece | State |
+The original 2026-08-30 inventory is historical; this map replaces its stale
+"Not yet" claims. Implemented code and the linked implementation records govern,
+not proposal text or old test counts.
+
+| Piece | Implemented surface and governing record |
 |---|---|
-| `crates/snapback2-core` | LLP 1001 implemented: durable `Store` (WAL, exclusive owner + `E_STORE_OWNED`, `_meta/_commits/_outbox/_principals/_credentials/_sessions`), touched keys on the trace, typed states (`complete | capped | partial | denied | committed | rejected`) with opaque non-uniform caps, `Generation`/`Runtime` with `check_all` (every refusal), additive successors in place + destructive plans + `E_SUCCESSOR_UNIQUE`/`COLUMN_REQUIRED`, transactional maintained-target rebuilds, live `Subscriptions` (trace-indexed, coalesced, state-aware digests), identity (nominal `Principal`, argon2id, personas, constant-time login), one reserved system-principal value, structurally derived rule-input visibility, exact receipt-only authority verdicts, channels with traced verdicts, engine-owned seed/closed maintained writes, `Stmt::Emit` → outbox, `Optional/List/Enum/Decimal/Money/Principal/Bytes` columns, `execute_adhoc`, `receipt.absences ⊆ trace.absences` asserted |
-| `crates/snapback2-effects` | LLP 1003: `EffectHost`/`NoEngine`/`Ibex2Host` over vanilla Hermes, vendored fetch factory bound to declared grants, source evaluated at global scope, per-job frozen tools, single-use timer permit, unforgeable denial markers, lifecycle runner over `OutboxAccess` with `then_pending`; 30 Hermes tests (`scripts/hermes test`) |
-| `crates/snapback2` | the owner (LLP 1002 §5: detach/attach by project, watch, hot successors, migration plans, typed exits), the wire (§4: HTTP JSON + SSE frames = query responses or terminal refusals, channels, control routes with secret), verbs `check --project`/`--ir`, `dev`, `run`, `data`, `logs`, `persona`, `fork`, `reset`, `init`, `test` (six derived checks, named `live-revocation`/`successor-policy-fence`/`grant-incarnation-aba` authorization proofs, journeys, and receipt), `why`, `trace`, `guide`, `doctor`; effects runner thread (`--features hermes`) |
-| `packages/compiler` | LLP 1002 §2–§3 plus the Quarry front end (`src/quarry/`: `.q` → in-memory TS modules, `.q` sites, family `quarry`, LLP 1004): the `snapback2` module surface, project lowering (schema/programs/effects/seed/journeys), Node worker + one-shot CLI, `api.d.ts` with named row types, branded `Principal`, `Bytes`, and channels, refusal envelopes with families, all-diagnostics + `E_DIAG_TRUNCATED`, Decimal/Money/Enum with exact whole-unit scaling, `rule.system()`, nominal rule-term checking, closed maintain validation, and derived `rule.exists` visibility |
-| `packages/evaluator` | the RBAC- and Bytes-complete TypeScript IR evaluator twin, including exact authority-only replay, atomic partial mutations, `Emit`, and opaque capped/completeness parity |
-| `packages/snapback2` | shim + authoring runtime + `client` + `react` + `test` runner + guide pages (`quarry`, `grammar`, `typescript`, recipes) + templates (`todos`, `chat` in Quarry; React) |
-| `corpus/` | 106 shared Rust/TypeScript conformance cases for RBAC transitions and invalidation, bootstrap/final-exists, authority-gated maintained writes including omitted Optional groups, intrinsic ids, text constraints, Bytes, and opaque capped completeness |
-| `scripts/` | `test.sh`, `measure.mjs --check`, `publish.mjs`, `hermes` |
+| `crates/snapback2-core` | SQLite transactions, certified typed IR, rules, live query receipts, successors, replay and maintained values ([LLP 1001](./1001-query-engine.spec.md)); bounded fan-out ([LLP 1017](./1017-cap-and-complete-fanout.rfc.md)) |
+| `crates/snapback2-effects` | Grant-bound Ibex/Hermes effects and durable outbox lifecycle ([LLP 1003](./1003-effects-on-ibex2.spec.md)); optional engine, with deadline/lifecycle improvements recorded as they land in LLP 1021 |
+| `crates/snapback2` | Owner, HTTP/SSE, authentication/personas, CLI and diagnostics (LLP 1002); directory-target deploy/rollback/secrets/token admission (LLP 1015 H0); jobs, schedules and rehearsal (LLP 1016) |
+| `packages/compiler` | Quarry binds directly to typed IR, certificates and inferred API types (LLP 1018.000); TypeScript is only for effects, seeds and journeys |
+| `packages/evaluator` | TypeScript twin, Unicode indexed search, held authority and bounded prediction; same value and receipt semantics as Rust (LLPs 1001 and 1012) |
+| `packages/snapback2` | Headless client, React web and Expo arms; durable per-principal store/outbox, retention, resume and asset-byte custody (LLP 1012); item/work presentation (LLP 1018.003), explicit independent history fallback (LLP 1018.006) |
+| `corpus/`, `scripts/`, `metrics/` | Shared conformance cases, existing build/test/measure/publication entry points, retained evidence; counts are generated from the current corpus, not maintained in this map |
 
-Not yet: `deploy`/`rollback`, `secret`, previews (the control plane for the one hosted target is designed in LLP 1015 on the evidence of LLP 1014; lane H0 may start before the loop bar, the rest waits — author ruling 2026-09-05), MCP, `--changed`, the Expo and Exact 2 arms, receipt/IR-backed evaluator wiring in the public web client, a hosted target, the benchmark wiring, `Interval` columns, provenance/site as authored facts, AOT effect bytecode, `snapback.query/run` from inside an effect; local-first v1 — the durable range store, the outbox, retention, resume, and the device byte cache (LLP 1012; after the loop bar). The administrative plane of LLP 1016 is **implemented** (2026-09-05, author ruling to build it ahead of the loop bar): the system principal reads everything and writes under constraints (the `system` rule word is gone), `job`/`chunk` sweeps with the cursor certified as an engine write, narrowing admitted at successor application with the fill job pasted, `schedule … on table at .col` and `schedule … every <duration>` fired on the writer's background turn, the operator seat (`--as system`, `run --file`, `--plan`, `--wait`, `--dry-run` in a rehearsal runtime, `POST /control/run`), and the `fork` and `persona create` adapters deleted; what it still lacks is hosted token admission (LLP 1015 H0) and MCP rows. Post-cap tickets: `issues/20260830-snapback2-*.md`.
+The complete local runtime's allocation is **85,000 gzip bytes**, with an
+**80,000-byte target** (2026-09-09 author ruling, `rules/NOT-DOING.md`).
+React/Expo implementation is not a blanket offline-bar or publication claim;
+the scoped qualification records remain in LLP 1012 and the benchmark LLPs.
 
-The specs are LLP 1001 (engine), 1002 (loop), 1003 (effects) — Draft, implemented by codex lanes A/B0/B1/B2/C/D on 2026-08-29/30 under two-family blind review (LLP 0005 loop, codex + grok), rulings folded into each spec as they were made. Post-cap findings and deferred work are the `issues/20260830-snapback2-*` tickets. LLP 1012 (local-first v1) is the fourth spec, in Review; it binds lane by lane once the loop bar is met (`rules/NOT-DOING.md`, the offline bar).
+LLPs 1019–1021 are being implemented independently: derived delivery custody
+and receipts; additive successor evolution and legible costs; effects in the
+loop. Their dated implementation records distinguish landed pieces from open
+work. LLP 1018.008 follows up on remaining ergonomic costs without duplicating
+those commissions. Hosted provider/control-plane lanes beyond H0, Exact 2,
+and the other excluded features remain governed by `rules/NOT-DOING.md`.
 
 ## How to orient
 
 Read `snapback2/AGENTS.md` (the command sheet), `rules/RULES.md`,
-`rules/NOT-DOING.md`, then this document. For the *why* behind any design
-choice, the two RFCs above and their evidence under
-`llp/reviews/0329.016-dev-loop.*` are the record; do not re-derive them.
+`rules/NOT-DOING.md`, then this document. Read the packaged
+`snapback2 guide <topic>` card for current syntax/API facts. For the *why*,
+follow the relevant implemented LLP above and the code's `@ref` annotations;
+the original loop research remains under `llp/reviews/0329.016-dev-loop.*`.
 
 ## Non-claims
 

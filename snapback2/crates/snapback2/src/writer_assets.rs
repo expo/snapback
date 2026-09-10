@@ -5,21 +5,29 @@ use crate::project::seed_rows;
 use snapback2_core::{ArgType, ColumnType};
 
 impl State {
-    pub(super) fn reset(&mut self) -> Result<Json, Refusal> {
+    pub(super) fn reset(&mut self, empty: bool) -> Result<Json, Refusal> {
         // @ref LLP 1006#9a-where-bytes-live-author-ruling-2026-09-03 — reset clears staging and uses the fork-aware sweep, never a blob wipe.
         self.staging.clear()?;
         let seed = self.seed.clone();
-        let rows = seed_rows(&seed, &self.compiled)?;
+        let rows = if empty {
+            Vec::new()
+        } else {
+            seed_rows(&seed, &self.compiled)?
+        };
         let now = self.now();
-        for persona in &seed.personas {
-            self.runtime_mut()
-                .ensure_persona(persona, now)
-                .map_err(|error| Refusal::from_identity(&error))?;
+        if !empty {
+            for persona in &seed.personas {
+                self.runtime_mut()
+                    .ensure_persona(persona, now)
+                    .map_err(|error| Refusal::from_identity(&error))?;
+            }
         }
-        let reset = self
-            .runtime_mut()
-            .reset_and_seed_at(&rows, now)
-            .map_err(|error| Refusal::from_runtime(&error))?;
+        let reset = if empty {
+            self.runtime_mut().reset_empty_at(now)
+        } else {
+            self.runtime_mut().reset_and_seed_at(&rows, now)
+        }
+        .map_err(|error| Refusal::from_runtime(&error))?;
         let live_ids = self.live.keys().copied().collect::<Vec<_>>();
         for id in live_ids {
             self.runtime_mut().unsubscribe(id);
@@ -35,7 +43,12 @@ impl State {
         let asset_ids = reset.asset_ids.clone();
         self.pending_asset_deletes.extend(reset.asset_ids);
         self.sweep_asset_blobs()?;
-        Ok(reset_response(reset.seq, asset_ids))
+        let seed = if empty {
+            json!("skipped")
+        } else {
+            json!({"rows":rows.len(), "personas":seed.personas.len()})
+        };
+        Ok(reset_response(reset.seq, asset_ids, seed))
     }
 
     pub(super) fn reclaim_assets(&mut self) -> Result<Json, Refusal> {
@@ -291,8 +304,8 @@ impl State {
     }
 }
 
-fn reset_response(seq: u64, asset_ids: Vec<String>) -> Json {
-    json!({ "ok": true, "seq": seq, "assetIds": asset_ids })
+fn reset_response(seq: u64, asset_ids: Vec<String>, seed: Json) -> Json {
+    json!({ "ok": true, "seq": seq, "assetIds": asset_ids, "seed": seed })
 }
 
 fn reclaim_response(asset_ids: Vec<String>) -> Json {
@@ -438,6 +451,7 @@ mod tests {
             },
             exited: false,
             effects_wake: None,
+            outbox_observation: Default::default(),
             asset_carriers: BTreeMap::new(),
             blobs,
             staging,
@@ -901,8 +915,12 @@ mod tests {
     #[test]
     fn reset_and_reclaim_return_asset_ids_to_the_owner() {
         assert_eq!(
-            reset_response(7, vec!["asset-reset".to_owned()]),
-            json!({ "ok": true, "seq": 7, "assetIds": ["asset-reset"] })
+            reset_response(
+                7,
+                vec!["asset-reset".to_owned()],
+                json!({"rows":2,"personas":3})
+            ),
+            json!({ "ok": true, "seq": 7, "assetIds": ["asset-reset"], "seed":{"rows":2,"personas":3} })
         );
         assert_eq!(
             reclaim_response(vec!["asset-reclaim".to_owned()]),
@@ -935,6 +953,7 @@ mod tests {
             constraints: Vec::new(),
             retain: Default::default(),
             tombstones: Vec::new(),
+            deliver: None,
         };
         let insert = Program {
             name: "media.insert".to_owned(),
@@ -1121,6 +1140,7 @@ mod tests {
             constraints: Vec::new(),
             retain: Default::default(),
             tombstones: Vec::new(),
+            deliver: None,
         };
         let insert = Program {
             name: "media.insert".to_owned(),
@@ -1205,7 +1225,7 @@ mod tests {
 
         let trait_store: Arc<dyn BlobStore> = blobs.clone();
         let mut state = state_with_assets(root.clone(), runtime, project, generation, trait_store);
-        let reset = state.reset().unwrap();
+        let reset = state.reset(false).unwrap();
         assert_eq!(reset["assetIds"].as_array().unwrap().len(), 200);
         assert_eq!(blobs.enumerations.load(Ordering::SeqCst), 1);
         assert!(state.runtime().asset_ids().unwrap().is_empty());

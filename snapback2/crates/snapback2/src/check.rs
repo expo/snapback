@@ -110,24 +110,38 @@ impl SerializableError {
     }
 
     fn schema(error: snapback2_core::RuntimeError) -> Self {
-        let rewrite = if let snapback2_core::RuntimeError::SchemaConstraint { rewrite, .. } = &error
-        {
-            rewrite.clone()
-        } else {
-            "restore the compiler-emitted schema invariants".to_owned()
+        let code = error.code().to_owned();
+        let mut message = error
+            .to_string()
+            .strip_prefix(&format!("{code}:"))
+            .map(|message| message.trim_start().to_owned())
+            .unwrap_or_else(|| error.to_string());
+        let (mut family, mut guide, mut site) = ("schema", "schema/project", "<project>:schema".to_owned());
+        let rewrite = match &error {
+            snapback2_core::RuntimeError::SchemaConstraint { rewrite, .. } => rewrite.clone(),
+            // @ref LLP 1019#1-the-declaration — a `deliver` refusal keeps its own
+            // code, family, page, rewrite, and the declaration's site even when the
+            // certify row is not located: `validate_schema` prefixes the site.
+            snapback2_core::RuntimeError::SchemaDeliver { rewrite, .. } => {
+                (family, guide) = certification_family_guide(&code);
+                if let Some((declaration, rest)) = message.split_once(": ")
+                    && declaration.starts_with("schema.tables.")
+                {
+                    site = declaration.to_owned();
+                    message = rest.to_owned();
+                }
+                rewrite.clone()
+            }
+            _ => "restore the compiler-emitted schema invariants".to_owned(),
         };
         Self {
-            code: error.code().to_owned(),
-            family: "schema".to_owned(),
-            message: error
-                .to_string()
-                .strip_prefix(&format!("{}:", error.code()))
-                .map(|message| message.trim_start().to_owned())
-                .unwrap_or_else(|| error.to_string()),
-            site: "<project>:schema".to_owned(),
+            code,
+            family: family.to_owned(),
+            message,
+            site,
             rule: None,
             rewrite,
-            guide: "schema/project".to_owned(),
+            guide: guide.to_owned(),
         }
     }
 }
@@ -264,16 +278,15 @@ fn check_request(request: Request) -> Vec<ResultItem> {
         let mut results = errors
             .into_iter()
             .map(|error| {
-                let located_cap = if let snapback2_core::RuntimeError::SchemaConstraint {
-                    message,
-                    ..
-                } = &error
-                {
-                    located
+                // A cap or `deliver` refusal keeps its own code, site, family, and page.
+                let located_cap = match &error {
+                    snapback2_core::RuntimeError::SchemaConstraint { message, .. } => located
                         .iter()
-                        .find(|(_, e)| e.code == "E_SCHEMA_CONSTRAINT" && &e.message == message)
-                } else {
-                    None
+                        .find(|(_, e)| e.code == "E_SCHEMA_CONSTRAINT" && &e.message == message),
+                    snapback2_core::RuntimeError::SchemaDeliver { code, message, .. } => located
+                        .iter()
+                        .find(|(_, e)| &e.code == code && message.ends_with(&e.message)),
+                    _ => None,
                 };
                 let error = match located_cap {
                     Some((site, error)) => {
@@ -605,6 +618,7 @@ fn synthetic_table() -> Table {
         constraints: Vec::new(),
         retain: Default::default(),
         tombstones: Vec::new(),
+        deliver: None,
     }
 }
 
@@ -697,6 +711,146 @@ mod tests {
                 .message
                 .contains("program JSON")
         );
+    }
+
+    /// The chat shape with `deliver` on messages and its generated log; `capped`
+    /// false leaves memberships without the cap the prefix must pin.
+    fn custody_schema(capped: bool) -> Schema {
+        use snapback2_core::{ColumnType, Constraint, delivery, public_table};
+        let column = |name: &str| snapback2_core::search_key::IndexComponent::Column(name.to_owned());
+        let index = |columns: &[&str], unique: bool| Index {
+            components: columns.iter().map(|name| column(name)).collect(),
+            unique,
+        };
+        let by_id = BTreeMap::from([("byId".to_owned(), index(&["id"], true))]);
+        let conversations = public_table(BTreeMap::from([("id".to_owned(), ColumnType::Id)]), by_id.clone());
+        let mut memberships = public_table(
+            BTreeMap::from([
+                ("id".to_owned(), ColumnType::Id),
+                ("conversationId".to_owned(), ColumnType::Ref { table: "conversations".to_owned() }),
+                ("principal".to_owned(), ColumnType::Principal),
+            ]),
+            BTreeMap::from([
+                ("byId".to_owned(), index(&["id"], true)),
+                ("byConversationPrincipal".to_owned(), index(&["conversationId", "principal"], false)),
+            ]),
+        );
+        if capped {
+            memberships.constraints.push(Constraint::Cap { by: vec!["conversationId".to_owned()], max: 50 });
+        }
+        let deliver = delivery::Deliver {
+            target: "memberships".to_owned(),
+            prefix: vec!["conversationId".to_owned()],
+            principal: "principal".to_owned(),
+            log: "deliveries".to_owned(),
+            receipts: false,
+            bootstrap: false,
+        };
+        let mut messages = public_table(
+            BTreeMap::from([
+                ("id".to_owned(), ColumnType::Id),
+                ("conversationId".to_owned(), ColumnType::Ref { table: "conversations".to_owned() }),
+            ]),
+            by_id,
+        );
+        messages.deliver = Some(deliver.clone());
+        let mut schema = Schema::default();
+        schema.tables.insert("conversations".to_owned(), conversations);
+        schema.tables.insert("memberships".to_owned(), memberships);
+        schema.tables.insert("messages".to_owned(), messages);
+        let log = delivery::log_table(&schema, "messages", &deliver).expect("log shape");
+        schema.tables.insert("deliveries".to_owned(), log);
+        schema
+    }
+
+    fn check_schema(schema: Schema, programs: Vec<Value>) -> Vec<ResultItem> {
+        check_request(Request {
+            programs,
+            schema: Some(serde_json::to_value(schema).unwrap()),
+            schema_mode: SchemaMode::Spike,
+            effects: Vec::new(),
+            auth: None,
+            version: None,
+            ceilings: None,
+        })
+    }
+
+    // @ref LLP 1019#1-the-declaration — the raw-schema form refuses under the
+    // compiler's codes, families, and page, at the declaration's site.
+    #[test]
+    fn deliver_refusals_keep_their_codes_families_and_pages_on_the_ir_path() {
+        let results = check_schema(custody_schema(false), Vec::new());
+        let error = results[0].error.as_ref().unwrap();
+        assert_eq!(results[0].program, "<schema>");
+        assert_eq!(
+            (error.code.as_str(), error.family.as_str(), error.guide.as_str(), error.site.as_str()),
+            ("E_DELIVER_UNBOUNDED", "bound", "offline/deliver", "schema.tables.messages.deliver")
+        );
+        assert_eq!(error.rewrite, "cap 50 by conversationId");
+        assert_eq!(
+            error.message,
+            "deliver to memberships[.conversationId] pins no capped group: memberships has no cap N by conversationId"
+        );
+
+        let forged = json!({
+            "name": "ops.forge", "kind": "Mutation", "args": {}, "read_time_granularity_ms": null,
+            "body": [{ "Insert": { "table": "deliveries", "row": { "Object": { "id": { "Input": "NewId" } } } } }, { "Return": { "Literal": "Null" } }]
+        });
+        let results = check_schema(custody_schema(true), vec![forged]);
+        let error = results[0].error.as_ref().unwrap();
+        assert_eq!(results[0].program, "ops.forge");
+        assert_eq!(
+            (error.code.as_str(), error.family.as_str(), error.guide.as_str()),
+            ("E_SCHEMA_DELIVER", "schema", "offline")
+        );
+        assert!(error.message.contains("engine-owned table deliveries"), "{}", error.message);
+        assert!(check_schema(custody_schema(true), Vec::new()).iter().all(|item| item.error.is_none()));
+
+        let mut misnamed = custody_schema(true);
+        misnamed.tables.get_mut("messages").unwrap().deliver.as_mut().unwrap().principal = "conversationId".to_owned();
+        let results = check_schema(misnamed, Vec::new());
+        let error = results[0].error.as_ref().unwrap();
+        assert_eq!(
+            (error.code.as_str(), error.family.as_str(), error.guide.as_str(), error.site.as_str()),
+            ("E_DELIVER_PRINCIPAL", "schema", "offline/deliver", "schema.tables.messages.deliver")
+        );
+        assert_eq!(error.rewrite, "deliver to memberships[.conversationId] by .principal as deliveries");
+        assert_eq!(
+            error.message,
+            "deliver by .conversationId: memberships.conversationId is Ref(conversations), not principal"
+        );
+    }
+
+    // @ref LLP 1019#1-the-declaration — when the certify row is not located, the
+    // fallback still carries the delivery code's family, page, rewrite, and site.
+    #[test]
+    fn an_unlocated_deliver_refusal_keeps_its_labels_on_the_ir_path() {
+        let error = SerializableError::schema(snapback2_core::RuntimeError::SchemaDeliver {
+            code: "E_DELIVER_PRINCIPAL".to_owned(),
+            message: "schema.tables.messages.deliver: deliver by .nobody: memberships has no such column".to_owned(),
+            rewrite: "deliver to memberships[.conversationId] by .principal as deliveries".to_owned(),
+        });
+        assert_eq!(
+            (error.code.as_str(), error.family.as_str(), error.guide.as_str(), error.site.as_str()),
+            ("E_DELIVER_PRINCIPAL", "schema", "offline/deliver", "schema.tables.messages.deliver")
+        );
+        assert_eq!(error.message, "deliver by .nobody: memberships has no such column");
+        assert_eq!(error.rewrite, "deliver to memberships[.conversationId] by .principal as deliveries");
+        assert!(error.rule.is_none());
+
+        let unbounded = SerializableError::schema(snapback2_core::RuntimeError::SchemaDeliver {
+            code: "E_DELIVER_UNBOUNDED".to_owned(),
+            message: "schema.tables.messages.deliver: pins no capped group".to_owned(),
+            rewrite: "cap 50 by conversationId".to_owned(),
+        });
+        assert_eq!((unbounded.family.as_str(), unbounded.guide.as_str()), ("bound", "offline/deliver"));
+
+        let generic = SerializableError::schema(snapback2_core::RuntimeError::Schema("missing table".to_owned()));
+        assert_eq!(
+            (generic.code.as_str(), generic.family.as_str(), generic.guide.as_str(), generic.site.as_str()),
+            ("E_SCHEMA", "schema", "schema/project", "<project>:schema")
+        );
+        assert_eq!(generic.rewrite, "restore the compiler-emitted schema invariants");
     }
 
     #[test]
@@ -838,4 +992,112 @@ fn check_hangs_wrapped_candidate_index_repairs_under_the_rewrite() {
     let joined: String = lines.iter().enumerate().map(|(i, line)| &line[if i == 0 { 2 } else { 4 }..]).collect();
     assert_eq!(joined, format!("rewrite: {rewrite}"));
     assert!(printed.lines().all(|line| line.chars().count() <= 100));
+}
+
+// @ref LLP 1020#a4-check---cost — diagnostic certificates never enter the build cache or grant admission.
+pub fn run_cost_project(root: &Path, selected: Option<&str>, json: bool) -> ExitCode {
+    let lowered = project::CompilerWorker::spawn()
+        .map_err(|error| vec![error])
+        .and_then(|mut worker| worker.lower_source(root, None));
+    let (project, source) = match lowered {
+        Ok(value) => value,
+        Err(errors) => {
+            for error in errors {
+                if json { println!("{}", serde_json::to_string(&error).unwrap()); }
+                else { print!("{}", format_diagnostic(&error.code, error.site.as_deref(), &error.message, error.rewrite.as_deref())); }
+            }
+            return ExitCode::from(1);
+        }
+    };
+    let ceilings = Ceilings::default();
+    let request: Request = serde_json::from_value(serde_json::to_value(&project).unwrap()).unwrap();
+    let mut results = check_request(request);
+    let refused = results.iter().any(|item| item.error.is_some());
+    if let Some(name) = selected {
+        let matches: Vec<_> = project.programs.iter().filter(|p| p.name == name || p.name.rsplit('.').next() == Some(name)).collect();
+        if matches.len() != 1 {
+            return crate::owner::print_refusal(crate::protocol::Refusal::input(
+                format!("cost operation {name} is unknown or ambiguous"),
+                format!("use one of {}", project.programs.iter().map(|p| p.name.as_str()).collect::<Vec<_>>().join(", ")),
+            ), json, 2);
+        }
+        results.retain(|item| item.program == matches[0].name || item.program == "<schema>");
+    }
+    let checker = snapback2_core::Checker::new(&project.schema, ceilings.clone());
+    let schema_valid = validate_schema(&project.schema).is_ok();
+    let mut reports = Vec::new();
+    let mut seen = BTreeSet::new();
+    for item in &results {
+        if !seen.insert(item.program.clone()) { continue; }
+        let Some(program) = project.programs.iter().find(|p| p.name == item.program) else { continue; };
+        let certificate = item.certificate.clone().or_else(|| schema_valid.then(|| checker.inspect(program).certificate).flatten());
+        let errors: Vec<_> = results.iter().filter(|r| r.program == item.program).filter_map(|r| r.error.as_ref()).collect();
+        if !json {
+            println!("{} ({:?}) — {}", program.name, program.kind, if errors.is_empty() { "admitted" } else { "refused; partial certificate" });
+            if let Some(certificate) = &certificate {
+                print_cost(certificate, &source.sources, &ceilings);
+            } else { println!("  priced plan unavailable: program could not be analyzed"); }
+            for error in &errors { print!("{}", format_diagnostic(&error.code, Some(&error.site), &error.message, Some(&error.rewrite))); }
+        }
+        reports.push(serde_json::json!({"program": program.name, "kind": program.kind,
+            "admitted": errors.is_empty(), "certificate": certificate, "errors": errors}));
+    }
+    if json { println!("{}", serde_json::json!({"ok": !refused, "ceilings": ceilings, "results": reports, "sources": source.sources,
+        "schemaErrors": results.iter().filter(|r| r.program == "<schema>").collect::<Vec<_>>() })); }
+    else {
+        for item in results.iter().filter(|r| r.program == "<schema>") {
+            if let Some(error) = &item.error { print!("{}", format_diagnostic(&error.code, Some(&error.site), &error.message, Some(&error.rewrite))); }
+        }
+    }
+    if refused { ExitCode::from(1) } else { ExitCode::SUCCESS }
+}
+
+/// A merge site is spelled `file:line:col` by the compiler; read it as the location it names.
+fn site_location(site: &str) -> Option<project::SourceSite> {
+    let (rest, col) = site.rsplit_once(':')?;
+    let (file, line) = rest.rsplit_once(':')?;
+    Some(project::SourceSite { file: file.to_owned(), line: line.parse().ok()?, col: col.parse().ok()?, ..Default::default() })
+}
+
+fn print_cost(certificate: &Certificate, sources: &BTreeMap<String, project::SourceSite>, ceilings: &Ceilings) {
+    if let Some(job) = &certificate.job {
+        for (n, chunk) in job.per_chunk.iter().enumerate() {
+            println!("  chunk {} (one commit; total chunks unbounded)", n + 1);
+            print_cost(chunk, sources, ceilings);
+        }
+        return;
+    }
+    const METERS: [&str; 8] = ["examined entries", "index entries", "rule probes", "steps", "heap bytes", "output bytes", "closure bytes", "write rows"];
+    println!("  source / term\texamined\tindex\tprobes\tsteps\theap\toutput\tclosure\twrites");
+    // One row per (source line, term): a term priced on several meters, or repeated per
+    // lowered statement of one authored line, reads as one line with its meters filled in.
+    let mut rows: Vec<(String, String, [Option<i128>; 8])> = Vec::new();
+    for term in &certificate.cost_terms {
+        // A term is placed by its site alone: a declared site, or a merge site that is itself
+        // spelled `file:line:col`. A program-level term (a budget reserve, the search closure)
+        // prints at the operation's declaration.
+        let source = term.site.as_deref().and_then(|id| sources.get(id));
+        let location = match (source, term.site.as_deref().and_then(site_location)) {
+            (Some(s), _) => Some(s.clone()),
+            (None, Some(location)) => Some(location),
+            (None, None) => sources.get(&certificate.program).cloned(),
+        };
+        let location = location.map(|s| { let s = s.r#use.as_deref().unwrap_or(&s); format!("{}:{}", s.file, s.line) })
+            .unwrap_or_else(|| term.site.clone().unwrap_or_else(|| certificate.program.clone()));
+        let Some(column) = METERS.iter().position(|meter| *meter == term.meter) else { continue };
+        let row = match rows.iter_mut().find(|(at, source, _)| *at == location && *source == term.source) {
+            Some(row) => row,
+            None => { rows.push((location, term.source.clone(), [None; 8])); rows.last_mut().expect("pushed row") }
+        };
+        row.2[column] = Some(row.2[column].unwrap_or(0) + term.value);
+    }
+    for (location, source, cells) in rows {
+        let cells = cells.map(|cell| cell.map_or_else(|| "·".to_owned(), |value| value.to_string()));
+        println!("  {location} {source}\t{}", cells.join("\t"));
+    }
+    let writes = certificate.write_sites.iter().fold(certificate.maintained_amplification, |n, w| n.saturating_add(w.max_rows));
+    println!("total\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}", certificate.max_examined, certificate.max_index_entries,
+        certificate.max_rule_probes, certificate.max_steps, certificate.max_heap_bytes, certificate.max_output_bytes, certificate.max_closure_bytes, writes);
+    println!("ceilings\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}", ceilings.examined, ceilings.index_entries, ceilings.rule_probes, ceilings.steps,
+        ceilings.heap_bytes, ceilings.output_bytes, ceilings.closure_bytes, ceilings.write_rows);
 }
