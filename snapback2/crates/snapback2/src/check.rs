@@ -821,6 +821,23 @@ mod tests {
         );
     }
 
+    #[test]
+    fn maintained_content_deliver_refusal_keeps_every_wire_label() {
+        let mut schema = custody_schema(true);
+        schema.tables.get_mut("messages").unwrap().columns.insert("value".into(), snapback2_core::ColumnType::Int);
+        schema.maintains.push(snapback2_core::Maintain {
+            target: "messages".into(), source: "memberships".into(),
+            by: vec!["conversationId".into()], kind: snapback2_core::MaintainKind::Count, readable: None,
+        });
+        let result = serde_json::to_value(check_schema(schema, Vec::new())).unwrap();
+        let error = &result[0]["error"];
+        assert_eq!(error["code"], "E_SCHEMA_DELIVER");
+        assert_eq!(error["family"], "schema");
+        assert_eq!(error["guide"], "offline");
+        assert_eq!(error["site"], "schema.tables.messages.deliver");
+        assert_eq!(error["rewrite"], "remove the deliver line from messages; declare deliver on the maintain's source table");
+    }
+
     // @ref LLP 1019#1-the-declaration — when the certify row is not located, the
     // fallback still carries the delivery code's family, page, rewrite, and site.
     #[test]

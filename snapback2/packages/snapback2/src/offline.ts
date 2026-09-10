@@ -6,7 +6,6 @@ export { decodeHeldProgram } from "./held-program.js";
 import { tombstonesFor } from "./tombstones.js";
 import { RefusalError, throwIfAborted, isRefusalError } from "./client-wire.js";
 import { ClockCoverageReset, FullRevalidationRequired } from './store/fact-integrity.js';
-import { deliveryAcknowledgements } from './delivery-acknowledgements.js';
 import {
   DeliveryEnvelopeDecodeError,
   decodeDeliveryEnvelope,
@@ -507,32 +506,34 @@ export class OfflineRuntime {
     // the previous principal's blob to the incoming partition (grok, O4-web round 2).
     if (this.partition !== undefined && this.partition !== principal) this.bytes.forget();
     await this.serial(async () => {
-      if (this.partition !== principal) {
-        this.outbox.resetTrust();
-        this.facts = undefined;
-        this.superseded = undefined;
-        this.held = undefined;
-        this.operations = {};
-        this.drainVerdict = Promise.resolve({ stopped: false, remaining: 0 });
-      }
-      if (this.partition !== undefined && this.partition !== principal) await this.store.wipe(this.partition);
-      if (this.partition !== principal) {
-        // Between the old partition's wipe and the new one's open the runtime
-        // names no partition: a refused open (a follower) must not leave it on
-        // the old principal, where a delivery would meet an authority mismatch.
-        this.partition = undefined;
-        this.coverageRevision += 1;
-        this.facts = this.superseded = this.held = undefined;
-        this.latestSeq = 0;
-        this.sessionEpoch = undefined;
-        this.schema = undefined;
-      }
-      await this.store.open(principal);
-      if (authenticated) await this.store.unseal();
-      this.partition = principal;
-      this.bytes.bind(principal);
-      await this.loadFacts();
-      await this.loadProgram();
+      await this.outbox.write(async () => {
+        if (this.partition !== principal) {
+          this.outbox.resetTrust();
+          this.facts = undefined;
+          this.superseded = undefined;
+          this.held = undefined;
+          this.operations = {};
+          this.drainVerdict = Promise.resolve({ stopped: false, remaining: 0 });
+        }
+        if (this.partition !== undefined && this.partition !== principal) await this.store.wipe(this.partition);
+        if (this.partition !== principal) {
+          // Between the old partition's wipe and the new one's open the runtime
+          // names no partition: a refused open (a follower) must not leave it on
+          // the old principal, where a delivery would meet an authority mismatch.
+          this.partition = undefined;
+          this.coverageRevision += 1;
+          this.facts = this.superseded = this.held = undefined;
+          this.latestSeq = 0;
+          this.sessionEpoch = undefined;
+          this.schema = undefined;
+        }
+        await this.store.open(principal);
+        if (authenticated) await this.store.unseal();
+        this.partition = principal;
+        this.bytes.bind(principal);
+        await this.loadFacts();
+        await this.loadProgram();
+      });
       await this.flushGrant();
       await this.flushBounds();
       this.outbox.notify();
@@ -595,17 +596,17 @@ export class OfflineRuntime {
   async seal(): Promise<void> {
     this.outbox.resetTrust();
     if (this.partition === undefined) return;
-    await this.serial(async () => {
+    await this.serial(() => this.outbox.write(async () => {
       this.bytes.forget();
       await this.store.seal();
       this.outbox.notify();
-    });
+    }));
   }
 
   async wipe(): Promise<void> {
     this.outbox.resetTrust();
     this.closeInbox();
-    await this.serial(async () => {
+    await this.serial(() => this.outbox.write(async () => {
       this.pendingGrant = undefined;
       if (this.partition === undefined) return;
       const partition = this.partition;
@@ -618,7 +619,7 @@ export class OfflineRuntime {
       this.bytes.bind(undefined);
       await this.store.wipe(partition);
       this.outbox.notify();
-    });
+    }));
   }
 
   async close(): Promise<void> {
@@ -629,7 +630,7 @@ export class OfflineRuntime {
     this.stopInputChanges?.();
     this.inputListeners.clear();
     this.bytes.forget();
-    await this.store.close?.();
+    await this.outbox.write(async () => { await this.store.close?.(); });
   }
 
   manifest(value: Manifest): void {
@@ -765,7 +766,6 @@ export class OfflineRuntime {
       const deliveries: StoreDelivery[] = [];
       const refreshes: StoreRefresh[] = [];
       const tombstones: StoreTombstone[] = [];
-      const deliveryAcks: Record<string, import('./delivery-acknowledgements.js').DeliveryAcknowledgement> = {};
       let nextFacts = this.facts;
       let superseded = this.superseded;
       let sawSupersession = false;
@@ -822,7 +822,6 @@ export class OfflineRuntime {
           if (operation.planHash !== envelope.planHash) throw new TypeError('delivery operation identity mismatch');
           if (queryClock(operation) !== (envelope.readTime !== undefined)) throw new TypeError('delivery query clock identity mismatch');
           prepared = prepareClosureReceipt(envelope, this.held!.schema, operation.ir);
-          Object.assign(deliveryAcks, deliveryAcknowledgements(this.held!.schema, envelope));
         }
         deliveries.push({
           ...(prepared ? { [preparedDeliveryRows]: prepared.rows as unknown as StoreDelivery['rows'], [preparedDeliveryRanges]: prepared[preparedDeliveryRanges] } : {}),
@@ -859,7 +858,6 @@ export class OfflineRuntime {
         deliveries,
         refreshes,
         tombstones,
-        deliveryAcks,
         retention: this.retention,
         schema: this.schema,
         ...(watermarkRecord ? { watermark: watermarkRecord } : {}),

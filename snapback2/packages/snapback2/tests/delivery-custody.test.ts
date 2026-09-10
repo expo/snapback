@@ -44,6 +44,37 @@ const grant = (days = 0) => ({ id: engineId(100), from: engineId(100), count: 81
   mintedAt: Date.now() - days * 86400000, expiresAt: Date.now() + 20 * 86400000 });
 const accept = async (r: any, f = frame(), args = { c:null as any }) => r.commit(op,args,await r.accept(op,args,f));
 
+for (const transition of ['account', 'logout', 'seal'] as const) test(`ack admission loses custody at ${transition} while its grant read is paused`, {timeout:10000}, async () => {
+  const partitions = new Map<string, any>();
+  const factory = () => {
+    let principal: string;
+    return new PersistentRangeStore({carrier:'json',
+      open:async (p:string) => { principal=p; return structuredClone(partitions.get(p)); },
+      replace:async (state:any) => { partitions.set(principal,structuredClone(state)); },
+      wipe:async (p:string) => { partitions.delete(p); }, close() {} });
+  };
+  const bob = new OfflineRuntime({store:factory});
+  await bob.open('bob',true);await bob.program(program);await bob.outbox.adopt({...grant(),id:'bob-grant'});await bob.close();
+  const r = new OfflineRuntime({store:factory});await r.open('u1',true);await r.program(program);
+  await accept(r);await r.outbox.adopt(grant());
+  const before = structuredClone(partitions.get('u1').deliveryAcks);
+  const paused=Promise.withResolvers<void>(), release=Promise.withResolvers<void>();
+  const read=r.store.outbox.grant.bind(r.store.outbox);let intercept=true;
+  r.store.outbox.grant=async()=> { if(intercept) { intercept=false;paused.resolve();await release.promise; } return read(); };
+  const admission=r.outbox.admitAcknowledgements();await paused.promise;
+  const changing=transition==='account'?r.open('bob',true):transition==='logout'?r.wipe():r.seal();
+  await new Promise(resolve=>setTimeout(resolve,25));release.resolve();
+  await changing;await admission;
+  if(transition==='seal') {
+    assert.deepEqual(partitions.get('u1').deliveryAcks,before);
+    await r.open('u1',true);
+  } else assert.equal(partitions.has('u1'),false,'old marks leave with the old partition');
+  const state=partitions.get(transition==='account'?'bob':'u1');
+  assert.deepEqual(Object.values(state?.outbox??{}),[],'no foreign event or sealed admission');
+  if(state) assert.equal(Object.values<any>(state.grants)[0].used,0,'no grant slice consumed');
+  await r.close();
+});
+
 for (const mode of ['missing', 'exhausted'] as const) test(`${mode} acknowledgement grant is visible and retries after resume without losing product writes`, async () => {
   const c = carrier(), r = await open(c);
   const bounds = await r.store.outbox.bounds(); await r.store.commit({ bounds: { ...bounds, 'messages.send': 0 } });
@@ -221,4 +252,26 @@ test('accepted acknowledgement marks and replay bytes survive file, SQLite and I
       await r.close();
     }
   } finally { await rm(root,{recursive:true,force:true}); }
+});
+
+test('a long accepted tail retains compacted marks only for held log rows and suppresses their duplicates', async () => {
+  const c=carrier(), r=await open(c);await r.outbox.adopt(grant());
+  for(let n=0;n<120;n++) {
+    const page=frame(), event=page.rows.find(row=>row.table==='deliveries')!;
+    page.seq=n+2;page.validator=String(n%10).repeat(64);
+    event.id=`event-${n}`;event.row={...event.row,id:event.id,seq:page.seq};
+    page.data.events=[ref('deliveries',event.id)];page.receipt.ranges[0].rowIds=[event.id];
+    // Replace a held tail with its next accepted window; earlier windows are no longer held.
+    await accept(r,page);
+    const entry=(await r.outbox.queued())[0];assert(entry,`admitted ${n}`);
+    await r.store.commit({outbox:{put:[{...entry,state:'committed',response:{seq:page.seq,effects:[],program:{schemaHash:program.schemaHash,planHash:ack.certificate.plan_hash}}}]}});
+    assert.equal(await r.store.outbox.get(entry.intent),undefined,'success compacted');
+    const rows=(await r.store.coverage()).rows.filter(row=>row.table==='deliveries');
+    assert.equal(rows.length,1);
+    assert.equal(Object.keys(c.saved().deliveryAcks).length,1,`settled marks bounded by held log at window ${n}`);
+    await accept(r,page);assert.equal((await r.outbox.queued()).length,0,'retained mark prevents duplicate acknowledgement');
+  }
+  await r.close();const cold=await open(c);
+  assert.equal(Object.keys(await cold.store.outbox.deliveryAcks()).length,1,'the bound survives reopen');
+  await cold.close();
 });

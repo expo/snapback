@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -7,6 +7,7 @@ import { test } from 'node:test';
 import { createClient, api } from '../dist/client.mjs';
 import { fileRangeStore } from '../dist/test.mjs';
 import { subscribe } from '../src/internal.js';
+import { OfflineRuntime, drainOutbox } from '../dist/sqlite-test.mjs';
 import { RealOwnerHarness } from './owner-harness.ts';
 
 const fixture = fileURLToPath(new URL('../../compiler/fixtures/quarry-delivery/snapback',import.meta.url));
@@ -123,4 +124,57 @@ test('real derived inbox predicts an offline send and acknowledges the drained s
     assert.equal(after.data.filter((r:any)=>r.message?.body==='offline').length,1);
     assert(writes.some(w=>w.op==='_delivery.deliveries.ack'&&w.replay?.intent),'acknowledgement is an ordinary replay envelope');
   } finally { sub?.close(); await client.close(); await owner.close(); await rm(root,{recursive:true,force:true}); }
+});
+
+
+test('removing receipts in a real successor drops pending marks once and reopens without stranding product writes', async (t) => {
+  const root=await mkdtemp(join(tmpdir(),'custody-remove-receipts-'));
+  const owner=await RealOwnerHarness.create({forceOwned:true,fixture});
+  const writer=createClient({url:owner.url,persona:'alice'});
+  let runtime:any;const log=t.mock.method(console,'info',()=>{});
+  const request=async(path:string, init?:any) => {
+    if(path==='/api/program') path+='?generation='+(await request('/api/manifest')).programGeneration;
+    const response=await fetch(owner.url+path,{...init,headers:{'X-Snapback-As':'alice','Content-Type':'application/json'}});
+    const value=await response.json();assert(response.ok,JSON.stringify(value));return value;
+  };
+  try {
+    await writer.ready;await writer.mutation(api.messages.join,{conversationId:'group'});
+    await writer.mutation(api.messages.send,{conversationId:'group',body:'accepted'});
+    runtime=new OfflineRuntime({store:fileRangeStore(root)});await runtime.open('dev:alice',true);
+    await runtime.program(await request('/api/program'));
+    const page=await request('/api/query?receipt=1',{method:'POST',body:JSON.stringify({op:'messages.inbox',args:{c:null}})});
+    await runtime.commit('messages.inbox',{c:null},await runtime.accept('messages.inbox',{c:null},page));
+    assert.equal((await runtime.outbox.pendingAcknowledgements()).length,1);
+    const resumed=await request('/api/resume',{method:'POST',body:JSON.stringify(await runtime.resumeRequest([]))});
+    runtime.noteGrant(resumed,'dev:alice');await runtime.adoptPendingGrant();
+    const product=await runtime.outbox.enqueue({op:'messages.send',args:{conversationId:'group',body:'kept product'},issuedSeq:page.seq});
+    assert.equal((await runtime.outbox.pendingAcknowledgements()).length,1);
+    await writer.close();
+    const schema=join(owner.root!,'snapback/schema.q'),ops=join(owner.root!,'snapback/messages.q');
+    await writeFile(schema,(await readFile(schema,'utf8')).replace(' with receipts',''));
+    await writeFile(ops,(await readFile(ops,'utf8')).replace(/query allReceipts\(\):[\s\S]*?\n\n/,'').replace(/\nquery receipts\([\s\S]*/,''));
+    const info=JSON.parse(await readFile(join(owner.root!,'.snapback/owner.json'),'utf8'));
+    let state:any, planFile:string|undefined;
+    for(let n=0;n<200;n++) {
+      state=await fetch(owner.url+'/control/status',{headers:{'x-snapback-control':info.secret}}).then(r=>r.json());
+      planFile=(await readdir(join(owner.root!,'.snapback'))).find(name=>name.startsWith('migration-'));
+      if(planFile) break;
+      await new Promise(resolve=>setTimeout(resolve,25));
+    }
+    assert(planFile,JSON.stringify(state));
+    const migration=JSON.parse(await readFile(join(owner.root!,'.snapback',planFile),'utf8'));
+    const applied=await fetch(owner.url+'/control/migrate',{method:'POST',headers:{'x-snapback-control':info.secret,'Content-Type':'application/json'},body:JSON.stringify(migration)});
+    assert(applied.ok,await applied.text());
+    await runtime.program(await request('/api/program'));
+    assert.equal((await runtime.outbox.pendingAcknowledgements()).length,0,'removed operation has no pending work');
+    assert.equal(log.mock.calls.length,1,'one observable disposition');
+    assert.match(log.mock.calls[0].arguments.join(' '),/acknowledgement.*removed/);
+    assert.deepEqual(await runtime.store.outbox.get(product.intent),product,'adoption preserves product bytes');
+    await runtime.close();runtime=new OfflineRuntime({store:fileRangeStore(root)});await runtime.open('dev:alice',true);
+    await runtime.program(await request('/api/program'));
+    const drained=await drainOutbox({runtime,json:request,shape:(m:string)=>new Error(m),failure:(e:Error)=>e});
+    assert.equal(drained.remaining,0);assert.equal(log.mock.calls.length,1,'reopen does not repeat the log');
+    const inbox:any=await request('/api/query',{method:'POST',body:JSON.stringify({op:'messages.inbox',args:{c:null}})});
+    assert(inbox.data.some((e:any)=>e.message?.body==='kept product'),JSON.stringify(inbox));
+  } finally {await runtime?.close();await writer.close();await owner.close();await rm(root,{recursive:true,force:true});}
 });

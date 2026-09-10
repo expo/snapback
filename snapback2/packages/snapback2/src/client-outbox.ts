@@ -321,7 +321,6 @@ async function drainQueued(options: DrainOptions): Promise<DrainResult> {
       await settle(options, entry, "rejected", result);
     }
   }
-  return finish();
 }
 
 function settlement(result: DrainResult): OutboxSettlement {

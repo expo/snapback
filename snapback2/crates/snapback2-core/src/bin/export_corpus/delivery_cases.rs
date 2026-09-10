@@ -346,3 +346,83 @@ fn add_bound_case(cases: &mut Vec<CorpusCase>) {
         expected: Expected { delivery_writes: None, error_reason: Some("deliver".into()), local_result: None, error_code: Some("E_BOUND".into()), local_state: "certification-refused".into(),
             partial_sites: vec![], canonical_result: serde_json::to_string(&envelope).unwrap(), digest: digest(&envelope), range_stops: BTreeMap::new(), evicted_rows: None, next: None } });
 }
+
+pub(super) fn named_uniform_maintained_inbox_case() -> CorpusCase {
+    let mut schema = spike_schema();
+    schema
+        .tables
+        .get_mut("memberships")
+        .expect("memberships table")
+        .rules
+        .read = RuleExpr::Eq(RuleTerm::Field("userId".to_owned()), RuleTerm::Viewer);
+    let program = Program {
+        name: "inboxMaintainedComplete".to_owned(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: vec![
+            Stmt::Let {
+                name: "result".to_owned(),
+                value: Expr::Array(Vec::new()),
+            },
+            Stmt::For {
+                binding: "membership".to_owned(),
+                domain: LoopDomain::Page(Scan {
+                    site: "inboxComplete.memberships".to_owned(),
+                    table: "memberships".to_owned(),
+                    index: "byUserActivity".to_owned(),
+                    prefix: (vec![Expr::Input(Input::Viewer)])
+                        .into_iter()
+                        .map(IndexKeyExpr::Scalar)
+                        .collect(),
+                    order: Order::Desc,
+                    take: Bound::Literal(50),
+                    after: None,
+                    before: None,
+                    range: None, // no scalar range bounds
+                    opaque_cursor: false,
+                    merge_site: None,
+                    provenance: KeyProvenance::Viewer,
+                }),
+                body: vec![Stmt::Push {
+                    target: "result".to_owned(),
+                    value: Expr::Get(Read {
+                        site: "inboxComplete.unreadMaintained".to_owned(),
+                        table: "unreads".to_owned(),
+                        index: "byConvUser".to_owned(),
+                        key: vec![
+                            field(var("membership"), "conversationId"),
+                            Expr::Input(Input::Viewer),
+                        ],
+                        provenance: KeyProvenance::Shape,
+                    }),
+                }],
+            },
+            Stmt::Return(var("result")),
+        ],
+    };
+    let context = query_context([]);
+    let certificate = Checker::new(&schema, Ceilings::default())
+        .check(&program)
+        .expect("uniform maintained inbox certificate");
+    assert_eq!(certificate.completeness, Completeness::Page);
+    let mut engine = Engine::memory(schema.clone()).expect("uniform inbox engine");
+    for (table, row) in fixture_rows() {
+        engine.seed(table, row).expect("uniform inbox fixture row");
+    }
+    let execution = engine
+        .execute(&program, &certificate, context.clone())
+        .expect("uniform maintained inbox execution");
+    assert_eq!(execution.state, ExecutionState::Complete);
+    case_from_parts(
+        "named-inbox-maintained-complete",
+        "named",
+        schema,
+        program,
+        context,
+        execution.receipt,
+        Vec::new(),
+        None,
+        None,
+    )
+}

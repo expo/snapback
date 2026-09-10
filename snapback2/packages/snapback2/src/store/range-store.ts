@@ -1,5 +1,5 @@
 import { cursorArgument } from "../local-cursor.js";
-import { applyDeliveryAcknowledgements } from "../delivery-acknowledgements.js";
+import { applyDeliveryAcknowledgements, applyOutboxSwap } from "../delivery-acknowledgements.js";
 import { RangeReceipt, preparedDeliveryRanges } from '../../../evaluator/src/range-preparation.js';
 import { RowImage, ImageKeys, imageWire, imageRecord, imageRecords, imageState, preparedChanges, preparedProjection } from '../../../evaluator/src/row-image.js';
 import { CarrierIndex } from "./carrier-index.js";
@@ -306,11 +306,11 @@ export interface OfflineSchema {
     columns?: Record<string, unknown>;
     indexes?: Record<string, { components: import("../../../evaluator/src/search-key.js").IndexComponent[]; unique?: boolean }>;
     retain?: RetentionPolicy;
+    deliver?: { log: string; receipts: boolean };
   }>;
 }
 
 export interface StoreSwap {
-  deliveryAcks?: Record<string, import('../delivery-acknowledgements.js').DeliveryAcknowledgement>;
   factLimitReset?: string;
   deliveries?: StoreDelivery[];
   refreshes?: StoreRefresh[];
@@ -544,7 +544,10 @@ export class PersistentRangeStore implements RangeStore {
   private tail: Promise<void> = Promise.resolve();
 
   readonly outbox: OutboxStore = {
-    deliveryAcks: () => this.readOutbox(state => state.deliveryAcks),
+    deliveryAcks: async () => {
+      await this.tail;
+      return this.partition === undefined || this.state.sealed ? {} : clone(this.state.deliveryAcks);
+    },
     compactedThrough: async () => this.read(() => this.state.sealed ? 0 : this.state.compactedThrough ?? 0),
     all: () => this.readOutbox(state => outboxOrder(state.outbox)),
     get: (intent) => this.readOutbox(state => state.outbox[intent]),
@@ -783,9 +786,11 @@ export class PersistentRangeStore implements RangeStore {
       try {
         this.applySwap(journal.draft, normalized, delta);
         const compactedAliases = compactSuccesses(journal.draft);
+        const removedAcks = applyDeliveryAcknowledgements(journal.draft, normalized, this.partition!);
         const combinedInbox = compactedAliases.length ? { ...inbox, remove: [...(inbox?.remove ?? []), ...compactedAliases] } : inbox;
         this.updates.prepare(journal.changed);
         await this.replace(this.state, delta, undefined, journal.changed, combinedInbox);
+        if (removedAcks) console.info("delivery acknowledgements removed: receipts removed");
       } catch (error) { journal.rollback(); this.referenceIndex = priorIndex; this.referenceSchema = priorSchema; throw error; }
       this.persisted = this.state;
       this.updates.publish(this.state, journal.changed);
@@ -924,36 +929,8 @@ export class PersistentRangeStore implements RangeStore {
       state.watermarks[key] = { ...clone(swap.watermark), order };
     }
     const tail = tailWatermark(Object.values(state.watermarks));
-    // Coverage resets never touch unsent outbox/grant/bound/overlay custody.
-    for (const intent of swap.outbox?.remove ?? []) {
-      delete state.outbox[intent];
-      delete state.overlayMisses[intent];
-      delete state.overlay[intent];
-      delete state.overlayWatermarks[intent];
-      delete state.overlayNegatives[intent];
-    }
-    const committedNow = new Set<string>();
-    applyDeliveryAcknowledgements(state, swap);
-    for (const entry of swap.outbox?.put ?? []) {
-      if (typeof entry.intent !== "string" || entry.intent.length === 0) throw new TypeError("outbox entry needs an intent");
-      const previous = state.outbox[entry.intent];
-      if (entry.state === "committed" && previous?.state !== "committed") committedNow.add(entry.intent);
-      const order = previous?.order ?? entry.order ?? ++state.clock;
-      state.outbox[entry.intent] = { ...clone(entry), order };
-    }
+    const committedNow = applyOutboxSwap(state, swap, clone);
     markDeliveredArrivals(state, deliveredIds);
-    if (swap.bounds) state.bounds = clone(swap.bounds);
-    if (swap.programs) state.programs = clone(swap.programs);
-    for (const id of swap.grants?.remove ?? []) {
-      delete state.grants[id];
-      if (state.currentGrant === id) delete state.currentGrant;
-    }
-    for (const grant of swap.grants?.put ?? []) state.grants[grant.id] = clone(grant);
-    if (swap.grants?.current === null) delete state.currentGrant;
-    else if (typeof swap.grants?.current === "string") {
-      if (!state.grants[swap.grants.current]) throw new TypeError("current grant must be a held grant");
-      state.currentGrant = swap.grants.current;
-    }
     for (const intent of swap.overlay?.remove ?? []) {
       delete state.overlay[intent];
       delete state.overlayMisses[intent];

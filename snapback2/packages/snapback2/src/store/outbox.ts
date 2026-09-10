@@ -204,15 +204,13 @@ export class OutboxLedger {
   /** The same admission checks enqueue applies, without consuming a slice. */
   async status(op?: string): Promise<OutboxStatus> {
     const pending = await this.pendingAcknowledgements();
-    op ??= pending[0]?.[1].op;
+    op ??= pending[0]?.op;
     const grant = await this.grant();
     const bound = op === undefined ? 0 : (await this.store.outbox.bounds())[op];
     const reason = !grant ? "grant-missing" : this.expired(grant) ? "grant-expired"
       : bound === undefined ? "program-missing" : grant.used + 1 + bound > grant.count ? "ids-exhausted" : "ready";
     return { ready: reason === "ready", reason, action: reason === "ready" ? "none" : "connect",
-      remaining: (await this.queued()).length + Object.values(pending.reduce<Record<string, number>>((counts, [, ack]) => {
-        counts[ack.op] = (counts[ack.op] ?? 0) + 1; return counts;
-      }, {})).reduce((total, count) => total + Math.ceil(count / 50), 0), fence: await this.fence() };
+      remaining: (await this.queued()).length + pending.length, fence: await this.fence() };
   }
 
   // @ref LLP 1012#7-writes-offline — the fence bounds trust, never custody: a
@@ -285,33 +283,29 @@ export class OutboxLedger {
   }
 
   async pendingAcknowledgements() {
-    let acks: Record<string, import("../delivery-acknowledgements.js").DeliveryAcknowledgement> | undefined;
-    try {
-      acks = await this.store.outbox.deliveryAcks?.();
-    } catch (error) {
-      // A store closed by logout, reset, or close has nothing pending to admit; the
-      // status read that races that lifecycle reports none rather than failing it.
-      if (error instanceof Error && /not open/.test(error.message)) return [];
-      throw error;
+    const batches: {op: string; args: {events: string[]}; issuedSeq: number}[] = [];
+    const acks = await this.store.outbox.deliveryAcks?.();
+    for (const [key, [seq, intent]] of Object.entries(acks ?? {})) {
+      if (intent) continue;
+      const [log, event] = key.split('\0'), op = `_delivery.${log}.ack`;
+      let batch = batches.find(b => b.op === op && b.args.events.length < 50);
+      if (!batch) batches.push(batch = {op, args:{events:[]}, issuedSeq:seq});
+      batch.args.events.push(event!); batch.issuedSeq = Math.max(batch.issuedSeq, seq);
     }
-    return Object.entries(acks ?? {}).filter(([, ack]) => !ack.intent);
+    return batches;
   }
 
   /** Page acknowledgement admission shares the ordinary FIFO write lock. */
   admitAcknowledgements(): Promise<number> {
+    const generation = this.generation;
+    const custody = () => { if (generation !== this.generation) throw new OutboxRefusal("offline custody changed"); };
     return this.write(async () => {
-      const pending = await this.pendingAcknowledgements();
       let admitted = 0;
-      while (pending.length) {
-        const op = pending[0]![1].op;
-        const batch = pending.filter(([, ack]) => ack.op === op).slice(0, 50);
-        try {
-          await this.enqueueNow({ op, args: { events: batch.map(([, ack]) => ack.event) },
-            issuedSeq: Math.max(...batch.map(([, ack]) => ack.seq)) }, undefined, undefined,
-            entry => ({ deliveryAcks: Object.fromEntries(batch.map(([key, ack]) => [key, { ...ack, intent: entry.intent }])) }));
-        } catch (error) { if (!(error instanceof OutboxRefusal)) throw error; this.notify(); break; }
-        admitted += batch.length;
-        for (const item of batch) pending.splice(pending.indexOf(item), 1);
+      if (generation !== this.generation) return admitted;
+      for (const batch of await this.pendingAcknowledgements()) {
+        try { await this.enqueueNow(batch, undefined, custody); }
+        catch (error) { if (!(error instanceof OutboxRefusal)) throw error; break; }
+        admitted += batch.args.events.length;
       }
       return admitted;
     });

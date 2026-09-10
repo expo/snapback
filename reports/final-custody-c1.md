@@ -381,3 +381,69 @@ the persisted range state gained `deliveryAcks: {}` and the round-trip/projectio
 (`supersession.test.ts`, both carriers) failed because `pendingAcknowledgements` read a closed
 store — a closed store has nothing pending to admit, so it reports none instead of failing the
 status. sqlite, supersession, delivery-custody, outbox, offline-store files 136/136.
+
+## Fix round r3
+
+**REFUSED on item 1 (client bytes).** Items 0, 0b, 1b–1e implemented and verified; no commit or branch operation. The correctness-preserving candidate exceeds all three author-approved maxima. No maximum, scorer, build entry, or runtime allocation was changed.
+
+| Packaged closure, gzip level 9 | r2 base `e389aa8b44` | r3 candidate | Maximum | Excess |
+|---|---:|---:|---:|---:|
+| client | 140,542 | 140,612 | 139,277 | 1,335 |
+| React | 150,252 | 150,322 | 149,089 | 1,233 |
+| Expo | 153,856 | 153,926 | 152,832 | 1,094 |
+
+**Why this round refuses bytes.** A negative control removed all SDK acknowledgement admission, marking, lifecycle notification, and readiness accounting, while keeping product outbox behavior. Its successful package build measured **139,789 / 149,499 / 153,103**, still **512 / 410 / 271** above the maxima. All those deletions were reverted before the final build. Removing the entire acknowledgement behavior saved only 823 gzip bytes in each closure; the required client saving is 1,335. Shrinking that path alone did not pay the bill even when its guarantees were completely removed. A larger allocation or authorization to reduce another part of the client/runtime closure is needed; this report does not claim such authorization. The negative control is evidence only, never the delivered implementation.
+
+Toolchain: real Node **v24.18.0**, esbuild **0.25.9**, gzip **9**. Closures were traversed with the exact `packagedEntryBytes` implementation from the unchanged scorer. Baseline and final esbuild metafiles use the actual split client/internal build options through temporary instrumentation in `/tmp`; every changed per-input `bytesInOutput` follows. These are minified byte contributions, not additive gzip attributions. Untouched files with tiny changes reflect esbuild symbol allocation. Moving the existing outbox swap to the delivery module accounts for most of its increase.
+
+| Input | Before | After | Delta |
+|---|---:|---:|---:|
+| `../evaluator/src/coverage.ts` | 5,726 | 5,728 | +2 |
+| `../evaluator/src/runner.ts` | 28,265 | 28,271 | +6 |
+| `src/assets.ts` | 6,682 | 6,659 | -23 |
+| `src/client-assets.ts` | 2,301 | 2,298 | -3 |
+| `src/client-observed.ts` | 8,091 | 8,097 | +6 |
+| `src/client-outbox.ts` | 9,469 | 9,459 | -10 |
+| `src/delivery-acknowledgements.ts` | 1,053 | 2,139 | +1086 |
+| `src/offline.ts` | 23,234 | 23,292 | +58 |
+| `src/store/outbox.ts` | 8,457 | 8,342 | -115 |
+| `src/store/overlay-retirement.ts` | 6,166 | 6,175 | +9 |
+| `src/store/range-store.ts` | 27,159 | 26,428 | -731 |
+| `src/twin.ts` | 4,810 | 4,812 | +2 |
+| **All client/internal output inputs** | **376,432** | **376,719** | **+287** |
+
+### Implementation and reproduction
+
+- **0 / 1b, lifecycle custody:** `store/outbox.ts` snapshots `generation` before pending marks, rejects stale queued admission, and supplies `enqueueNow`'s `beforeCommit` guard for every batch. `offline.ts` serializes partition open/replacement, wipe/logout, seal, and close with the existing outbox lock. The three grant-read barrier tests use a separately persisted Bob grant and a real accepted Alice event/body. Before: `tests 3`, `pass 0`, `fail 3`; Bob held `intent: "bob-grant:0"`, `grant: "bob-grant"`, `args.events: ["14dcec4356806a2f72e71bf778654d7a2904b08a47b9d6d0e39e2e88c9c784da"]`. Logout failed `json range store is not open`; seal failed `range store is sealed`. After: all three pass; no foreign outbox bytes or consumed grant slice, old partition marks removed, sealed marks unchanged. The unreachable drain return was removed.
+- **0b, successor disposition:** adoption removes marks for absent acknowledgement operations, with one log after the durable swap. The real-owner test installs the exact destructive migration plan removing receipts, preserves a queued product intent, reopens the file carrier, replays the product write to the real owner, and verifies no repeated log. Before: `removed operation has no pending work`, `1 !== 0`, `tests 1`, `pass 0`, `fail 1`. After: `tests 1`, `pass 1`, `fail 0` (also part of the final 107).
+- **1, construction:** one persisted mark shape, `[seq, intent?, retry?]`, keyed by the existing log-row identity; event/body disclosure derives directly inside the accepted-page transaction, rather than constructing and copying a second swap map in the runtime. One batch builder supplies both readiness and admission; ordinary outbox swaps bind marks to intents. No dedicated allocator, duplicated admission loop, retained row-key array, error-message parsing, or unused extraction export. The changes did **not** produce a net byte reduction: final packaged closures are 70 bytes larger than r2 after the safety and retention fixes. Item 1 is refused, not declared fixed.
+- **1c, retirement:** compacted successful marks retire when their event leaves held log coverage. The 120-window test keeps one current log row and exactly one persisted mark, including after reopen; each retained mark prevents another acknowledgement. Before: the second window had two marks for one held event (`2 !== 1`). After: all 120 windows pass. Queued/terminal custody is never discarded to enforce this bound.
+- **1d, splits:** range-store **1,469** lines; export_corpus **1,418** lines. The outbox/acknowledgement swap is in existing `delivery-acknowledgements.ts` (**81** lines). The remaining maintained-inbox delivery fixture moved to existing `export_corpus/delivery_cases.rs` (**428** lines). Corpus export: `wrote 293 frozen corpus cases`; no corpus diff or pinned-count change.
+- **1e, wire labels:** `maintained_content_deliver_refusal_keeps_every_wire_label` serializes the actual raw-schema admission result and pins `E_SCHEMA_DELIVER`, family `schema`, guide/page `offline`, site `schema.tables.messages.deliver`, and the exact executable removal/source-table rewrite. Its maintain fixture is valid apart from the prohibited deliver declaration. The earlier core test bypassed maintain admission and checked only the delivery issue list.
+
+### Verification
+
+| Command / scope | Verbatim result |
+|---|---|
+| `cargo build`; `cargo build -p snapback2-media` | exit 0 |
+| `node build.mjs` | exit 0; `guide: 32 cards, 89942/98304 bytes (8% headroom)` |
+| `node --test --test-concurrency=1 --test-timeout=60000 tests/delivery-custody.test.ts tests/real-owner-delivery.test.ts tests/outbox.test.ts tests/sqlite.test.ts tests/supersession.test.ts` | `tests 107`, `suites 0`, `pass 107`, `fail 0`, `cancelled 0`, `skipped 0`, `todo 0` |
+| delivery Rust suite, nextest local-proof, 8 threads | `59 tests run: 59 passed (1 leaky), 0 skipped` |
+| maintained-content wire label, nextest local-proof, 8 threads | `1 test run: 1 passed, 435 skipped` |
+| `npm_config_cache=/tmp/custody-r3-npm-cache node scripts/measure.mjs --check` | exit 1: only `client_gzip_bytes, react_gzip_bytes, expo_gzip_bytes, runtime_gzip_bytes` failed; bytes **140612 / 150322 / 153926 / 86376**; all timed/consumer checks green |
+| corpus export | `wrote 293 frozen corpus cases` |
+| `./ref-check --verbose` | `ok — 439 LLP docs, 8014 refs in 19160 files, 0 errors, 0 unchecked` |
+| `git diff --check` | exit 0 |
+| root `caps` | 1 inherited violation: unchanged `crates/snapback-tools/src/bin/snapback-agent-safe-paired.rs`, 1504 lines; no changed source exceeds 1500 |
+
+The unchanged scorer compares against its earlier accepted byte baseline (client 136547, React 146166, Expo 149836, runtime 84580), so its runtime red is distinct from the author's 90,000 ceiling: **86,376 < 90,000**. The three client closures also exceed the author's one-time maxima, independently of that older scorer baseline. The first measure run hit an unwritable default npm cache; the repeated run used the writable `/tmp` cache and passed the consumer smoke and every timing check. No owner-stop sandbox artifact remained.
+
+The first concurrent package run had one real-owner timeout and one owner-readiness timeout; the final sequential run passed all 107. No persistent owner-stop sandbox failure is hidden in that count. `scripts/test.sh` and the whole suite were not run, as instructed.
+
+### Scope, deviations, and open question
+
+Changed: `snapback2/packages/snapback2/src/{delivery-acknowledgements.ts,offline.ts,client-outbox.ts,store/outbox.ts,store/range-store.ts}`; the two delivery test files; `guide/deliver.md`; `snapback2/crates/snapback2-core/src/bin/{export_corpus.rs,export_corpus/delivery_cases.rs}`; `snapback2/crates/snapback2/src/check.rs`; the existing measurement logs `snapback2/metrics/{loop,twin}.jsonl`; LLP 1019 and the requested reports. The wire admission test in `check.rs` is the explicit extension beyond the originally cited core-only receipt test; it is necessary to pin the wire labels. No engine, compiler, evaluator, template, scorer, or build source was changed. Temporary measurement helpers and logs remain under `/tmp/custody-r3-*`.
+
+Code facts differing from the brief: generated logs have no schema storage cap, and unsent custody has no total-store cap (LLP 1012 §7). Settled marks are therefore bounded by held log rows under the existing fact-slot budget, and only compacted successes may retire; this adds no arbitrary cap or loss of pending work. A later refetch of an evicted event can produce an idempotent acknowledgement. The old never-evicted-success tests all remain green. Native deliver corpus cases were already in `delivery_cases.rs`; this round moved the remaining maintained-inbox case to free the top-level file. Current guide enforcement is the existing 8,192-byte per-card / 98,304-byte aggregate allocation; `deliver.md` was nevertheless trimmed to **4,092 bytes**, within the brief's older 4,096 limit. No budget was raised.
+
+Open question for the orchestrator/author: authorize broader client/runtime reduction or a new allocation. This candidate is **not landable** under the current three maxima. No commit, stash, branch change, publication, or change to RFC Status.

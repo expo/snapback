@@ -1,8 +1,7 @@
 # Delivery custody: `deliver`
 
-`deliver to T[.keys] as name` on a content table derives an engine-owned
-per-recipient log. Shape/rules: `guide offline`; installation and audience A:
-`guide successor`.
+`deliver to T[.keys] as name` derives an engine-owned per-recipient log.
+Rules: `guide offline`; installation/A: `guide successor`.
 
 Inserts and seeds deliver once per principal in the group at that write.
 Changed updates/upserts and deletes append to original recipients, even departed
@@ -12,8 +11,7 @@ with required fields and a fresh id. Receipt-only replay derives no events.
 Private probes are contained before reading and traced outside receipts.
 
 Reserve: insert N+1, update/delete A, upsert max(N+1,A). User nonuniform
-scans cannot spend it. Named jobs use owner structural pages and separately
-price delivery with retained A; specialization may refuse. E_BOUND names the
+scans cannot spend it. Jobs price owner pages and retained A; specialization may refuse. E_BOUND names the
 dominant deliver term; loop-dominated steps keep E_STEPS. Historical-A replay
 and `then` refusals settle durably. Receipt upserts price two maintained
 applications per row, including final probes, derivation and timers.
@@ -32,8 +30,7 @@ Drain every kind with `{ drain: true }`. `changed` refreshes the shared body,
 with authored `editedAt` and held search outside the live tail; `removed`
 tombstones it. Both survive offline restart. A thread selects
 `deliveries[viewer, conversationId, 'delivered']` by byRecipientGroup, so edits
-add no bubble. New members read history under the content rule; delivery never
-rewrites the original audience.
+add no bubble. New members read history under the content rule; delivery never rewrites audience.
 
 A queued insert predicts only the sender's delivered event after successful
 `require exists memberships[conversationId, viewer]`, including a proc or
@@ -46,7 +43,7 @@ are zero and seq/at use the prediction clock until replacement.
 
 `with receipts` adds deliveriesReceipts: one row per original recipient,
 initially `received: false`. Every index inherits the content read rule;
-body changes refresh its copied rule fields. Enabling receipts initializes
+body changes refresh copied rule fields. Enabling receipts initializes
 false rows from retained delivered events for live bodies, never new members.
 Receipt backfill examines at most 8,192 log rows per installation, sharing that
 budget with bootstrapped events. E_SUCCESSOR_BOOTSTRAP refuses more work:
@@ -63,14 +60,16 @@ The SDK acknowledges durable accepted pages disclosing a delivered/changed
 event and its body. Cursors, metadata and dropped responses acknowledge nothing.
 `_delivery.deliveries.ack` uses ordinary certified
 outbox intents of at most 50 event ids; transport retries preserve their bytes.
-Missing/exhausted grants remain visible in outbox readiness and remaining work;
+Missing/exhausted grants stay visible in outbox readiness/work;
 resume retries admission. Owner-rejected/expired acknowledgements retry as fresh
-intents under a fresh grant on the next accepted page redelivery. Successful
-marks survive compaction.
+intents under a fresh grant on the next accepted page redelivery. Compacted marks stay only with held log events; evicted events can
+acknowledge idempotently again. Account change, logout or seal cancels admission.
+Removing `with receipts` drops marks on adoption and logs once; admitted intents
+keep replay/dismissal rules.
 
-The acknowledgement reserve is 50 × (N+1) membership candidates plus ordinary
-point reads and receipt updates, with one membership page live at a time.
-Missing original events or failed probes refuse with a trace. Departed recipients
+Acknowledgements price 50 × (N+1) membership candidates, point reads and receipt
+updates; one membership page is live.
+Missing events or failed probes refuse with a trace. Departed recipients
 stay false; unavailable local authority stays partial. Only acknowledgement
 sets true and its first commit seq, independently per principal across devices.
 It never renews the fence or removes product writes. Seen/read stays authored.
