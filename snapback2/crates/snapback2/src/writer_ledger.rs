@@ -389,7 +389,7 @@ impl State {
             .schema()
             .tables
             .iter()
-            .map(|(name, table)| Ok((name.clone(), manifest_table(table, runtime.store())?)))
+            .map(|(name, table)| Ok((name.clone(), manifest_table(name, table, runtime.store())?)))
             .collect::<Result<Map<_, _>, Refusal>>()?;
         let ops = self
             .runtime()
@@ -434,7 +434,7 @@ impl State {
 // recorded fact, disclosed beside the declaration; D2 reserves against it, so
 // the manifest never publishes `deliver` without it: an unreadable or missing
 // record refuses the manifest instead of dropping the bound.
-fn manifest_table(table: &snapback2_core::Table, store: &snapback2_core::Store) -> Result<Json, Refusal> {
+fn manifest_table(name: &str, table: &snapback2_core::Table, store: &snapback2_core::Store) -> Result<Json, Refusal> {
     let mut entry = json!({ "retain": table.retain, "columns": table.columns });
     if let Some(deliver) = &table.deliver {
         let audience = snapback2_core::delivery::audience_bound(store, &deliver.log)
@@ -443,7 +443,17 @@ fn manifest_table(table: &snapback2_core::Table, store: &snapback2_core::Store) 
                     detail: format!("custody log {} has no recorded audience bound", deliver.log),
                 })
             })
-            .map_err(|error| Refusal::from_runtime(&error))?;
+            .map_err(|error| {
+                // A missing or unparsable audience record is re-recorded by the
+                // next open; the store must not be deleted for it (LLP 1019 §2).
+                let mut refusal = Refusal::from_runtime(&error);
+                refusal.site = Some(format!("schema.tables.{name}.deliver"));
+                refusal.rewrite = Some(
+                    "stop snapback2 dev and restart the owner: the audience bound is re-recorded on open; keep .snapback/store.sqlite"
+                        .to_owned(),
+                );
+                refusal
+            })?;
         entry["deliver"] = json!(deliver);
         entry["deliver"]["audience"] = json!(audience);
     }
@@ -537,17 +547,19 @@ mod tests {
         let project = custody_project(1, true);
         let messages = &project.schema.tables["messages"];
         let mut store = snapback2_core::Store::memory().unwrap();
-        let refusal = super::manifest_table(messages, &store).unwrap_err();
+        let refusal = super::manifest_table("messages", messages, &store).unwrap_err();
         assert_eq!(refusal.code, "E_STORE_VERSION");
         assert!(refusal.message.contains("custody log deliveries has no recorded audience bound"), "{}", refusal.message);
+        assert_eq!(refusal.site.as_deref(), Some("schema.tables.messages.deliver"));
+        assert!(refusal.rewrite.as_deref().unwrap_or("").contains("keep .snapback/store.sqlite"), "{:?}", refusal.rewrite);
         store.set_meta("custody_audience:deliveries", "nope").unwrap();
-        let refusal = super::manifest_table(messages, &store).unwrap_err();
+        let refusal = super::manifest_table("messages", messages, &store).unwrap_err();
         assert_eq!(refusal.code, "E_STORE_VERSION");
         assert!(refusal.message.contains("custody_audience:deliveries is not an unsigned integer"), "{}", refusal.message);
         store.set_meta("custody_audience:deliveries", "7").unwrap();
-        let entry = super::manifest_table(messages, &store).unwrap();
+        let entry = super::manifest_table("messages", messages, &store).unwrap();
         assert_eq!(entry["deliver"]["audience"], json!(7));
-        let plain = super::manifest_table(&project.schema.tables["memberships"], &store).unwrap();
+        let plain = super::manifest_table("memberships", &project.schema.tables["memberships"], &store).unwrap();
         assert!(plain.get("deliver").is_none());
     }
 
