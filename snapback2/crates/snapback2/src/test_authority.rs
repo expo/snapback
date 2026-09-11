@@ -1470,6 +1470,8 @@ fn blocked(name: &str, started: Instant, recipe: &Recipe, reason: PlanBlock) -> 
         json!({
             "reason": reason.reason,
             "candidates": reason.candidates,
+            "guide": "testing",
+            "rewrite": "declare memberAdd(conversationId, principal), memberPromote(conversationId, membershipId), memberRemove(conversationId, membershipId), and memberLeave(conversationId, membershipId); bind updates and deletes to the exact membership incarnation",
             "membership": {
                 "table": recipe.membership_table,
                 "index": recipe.membership_index,

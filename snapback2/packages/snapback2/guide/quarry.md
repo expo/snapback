@@ -1,4 +1,4 @@
-# Quarry
+# Quarry: `schema`
 
 Quarry is the backend language. `check` compiles in memory; inspection goes in
 `.snapback/build/quarry/`, never `snapback/`. `guide grammar` is the syntax map.
