@@ -510,7 +510,11 @@ everything else is LLP 1012 §15.
 - the witness's pass, dated, per platform: iOS simulator 2026-09-05 (run 12, all ten steps)
   and 2026-09-11 (Xcode 26.6/iOS 26.5, all ten, real COMMIT failure and MP4 playback);
   Android full witness none; targeted memory-video playback, no-file and
-  reopen-denial probe passed on API 36.1 (2026-09-05); web none.
+  reopen-denial probe passed on API 36.1 (2026-09-05), and the ordinary-image
+  release witness loaded its materialized private file on the exact API 36.1
+  arm64 image (2026-09-11; result SHA-256
+  `81ec1df218652c922f61d74e853a9323b2846582112a2c1a525ece23735064ea`);
+  web none.
 
 **Desktop review workload (2026-09-05).** Hold 1,000 / 5,000 / 10,000 messages
 with 500-character bodies in 50-row answers, then enqueue three small entries without

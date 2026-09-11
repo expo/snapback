@@ -13,10 +13,20 @@ new Response(); new Headers();
 // Node's Response converts string bodies with ES2024 toWellFormed. Expo's host
 // response does not; use byte bodies in this host double, leaving the globals absent.
 const HostResponse = Response;
+const hostPromiseWithResolvers = Promise.withResolvers;
+async function consumeHostResponse<T>(consume: () => Promise<T>): Promise<T> {
+  // Node 26's undici-backed body consumer reads this method lazily. Restore it only
+  // while the Node host double consumes bytes; the application global stays restricted.
+  Object.defineProperty(Promise, "withResolvers", { configurable: true, writable: true, value: hostPromiseWithResolvers });
+  try { return await consume(); }
+  finally { Reflect.deleteProperty(Promise, "withResolvers"); }
+}
 globalThis.Response = class extends HostResponse {
   constructor(body?: BodyInit | null, init?: ResponseInit) {
     super(typeof body === "string" ? new TextEncoder().encode(body) : body, init);
   }
+  override json(): Promise<any> { return consumeHostResponse(() => super.json()); }
+  override arrayBuffer(): Promise<ArrayBuffer> { return consumeHostResponse(() => super.arrayBuffer()); }
 };
 const missing: Array<[object, string[]]> = [
   [AbortSignal.prototype, ["throwIfAborted"]], [Promise, ["withResolvers", "try"]],
@@ -48,10 +58,11 @@ const root = await mkdtemp(join(tmpdir(), "e2-hermes-"));
 const owner = fakeOwner({ seed: true, cursorArg: "c" });
 const photo = { id: "s2id-00000000000000000000000000000008-0000000000000001", width: 8, height: 8 };
 let logins = 0, photos = 0;
+const jsonResponse = (value: unknown) => new Response(JSON.stringify(value), { headers: { "Content-Type": "application/json" } });
 (globalThis as any).__snapbackNative.expoFetch = async (input: string | URL | Request, init?: RequestInit) => {
   const path = new URL(String(input)).pathname;
-  if (path === "/api/auth/login") { logins++; return Response.json({ token: "hermes-session", viewer: "dev:alice", kind: "user" }); }
-  if (path === "/api/auth/me") return Response.json({ viewer: "dev:alice", kind: "user" });
+  if (path === "/api/auth/login") { logins++; return jsonResponse({ token: "hermes-session", viewer: "dev:alice", kind: "user" }); }
+  if (path === "/api/auth/me") return jsonResponse({ viewer: "dev:alice", kind: "user" });
   if (path.startsWith("/api/asset/")) { photos++; return new Response(new Uint8Array([1, 2, 3]), { headers: { "Content-Type": "image/png" } }); }
   return owner.fetch(input, init);
 };

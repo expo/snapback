@@ -77,7 +77,7 @@ test("native file queue rechecks view-once after a waiting materialization", asy
   } finally { held.resolve(); await f.close(); }
 });
 
-test("MediaView ordinary onLoad waits for its file source; undefined source reports loaded false", async () => {
+test("MediaView ordinary onLoad waits for its file source and ignores empty-source events", async () => {
   const f = await nativeFixture(); const held = deferred(), writing = deferred();
   f.hooks.write = async () => { writing.resolve(); await held.promise; };
   const results: any[] = [];
@@ -95,8 +95,9 @@ test("MediaView ordinary onLoad waits for its file source; undefined source repo
     await act(async () => renderer.root.findByType("NativeImage").props.onLoad({ nativeEvent: { source: renderer.root.findByType("NativeImage").props.source } }));
     assert.equal(results[0].loaded, true); assert.match(results[0].uri, /^file:\/\//);
     await act(async () => f.store.seal());
+    await until(() => renderer.root.findByType("NativeImage").props.source === undefined);
     await act(async () => renderer.root.findByType("NativeImage").props.onLoad());
-    assert.deepEqual(results.at(-1), { loaded: false });
+    assert.equal(results.length, 1, "a stale Android onLoad without a source cannot revoke an accepted file load");
   } finally { held.resolve(); if (renderer) await act(async () => renderer.unmount()); await f.close(); }
 });
 

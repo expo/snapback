@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // @ref LLP 1013#7-the-simulator-witness — targeted Android media evidence complements the full iOS durability witness.
 import assert from "node:assert/strict";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -43,6 +43,20 @@ async function buildAndInstall(device, cli, buildEnv) {
   const prebuild = await run(process.execPath,
     [cli, "prebuild", "--platform", "android", "--no-install"],
     { cwd: project, env: buildEnv, timeout: 300_000 });
+  const manifestPath = resolve(project, "android/app/src/main/AndroidManifest.xml");
+  const manifest = await readFile(manifestPath, "utf8");
+  const applications = manifest.match(/<application\b/g) ?? [];
+  assert.equal(applications.length, 1, "the generated witness app must have one Android application");
+  const cleartext = manifest.match(/<application\b[^>]*android:usesCleartextTraffic="([^"]+)"/);
+  if (cleartext) assert.equal(cleartext[1], "true",
+    "the generated witness manifest must not reject its localhost control channels");
+  // The disposable witness reaches only adb-reversed localhost HTTP/WebSocket servers.
+  if (!cleartext) {
+    await writeFile(manifestPath, manifest.replace(
+      /<application\b/,
+      '<application android:usesCleartextTraffic="true"',
+    ));
+  }
   const gradle = await run(resolve(project, "android/gradlew"),
     [":app:assembleRelease", "--no-daemon"],
     { cwd: resolve(project, "android"), env: buildEnv, timeout: 1_200_000 });
@@ -61,6 +75,9 @@ async function main() {
   try {
     const target = await connectedDevice();
     device = target.device;
+    await adbRun(device, ["shell", "setprop", "debug.sf.luma_sampling", "0"]);
+    assert.equal((await adbRun(device, ["shell", "getprop", "debug.sf.luma_sampling"])).trim(), "0",
+      "the API 36.1 emulator must disable its broken software-rendered luma sampling path");
     control = await controlServer(controlPort);
     await run("cargo", ["build", "-p", "snapback2"], { cwd: workspace, timeout: 600_000 });
     await run(process.execPath, ["packages/snapback2/build.mjs"], { cwd: workspace });
@@ -80,11 +97,26 @@ async function main() {
     await adbRun(device, ["reverse", `tcp:${ownerPort}`, `tcp:${ownerPort}`]);
     const generation = control.generation;
     await adbRun(device, ["shell", "am", "force-stop", bundleId]);
-    await adbRun(device, ["shell", "am", "start", "-n", `${bundleId}/.MainActivity`]);
+    // Avoid API 36.1's broken ranchu task-thumbnail readback on headless arm64 hosts.
+    await adbRun(device, ["shell", "am", "start", "--activity-exclude-from-recents",
+      "--activity-no-history", "--activity-no-animation", "-n", `${bundleId}/.MainActivity`]);
     await control.connected(generation);
     await control.command("construct", { fresh: true, name: "alice", assets: seed.assets });
     await control.command("drain");
-    const ordinary = await control.command("view", { assetId: seed.assets[0].id });
+    let diagnosticTimer;
+    const diagnostics = new Promise((_, reject) => {
+      diagnosticTimer = setTimeout(() => {
+        void control.command("state").then(
+          (state) => reject(new Error(`Android image load did not settle: ${JSON.stringify({
+            snapshot: state.snapshot, files: state.files, media: state.media,
+          })}`)),
+          reject,
+        );
+      }, 20_000);
+    });
+    const ordinary = await Promise.race([
+      control.command("view", { assetId: seed.assets[0].id }, 30_000), diagnostics,
+    ]).finally(() => clearTimeout(diagnosticTimer));
     assert.equal(ordinary.loaded, true, JSON.stringify(ordinary));
     assert.equal(ordinary.viewed, false);
     assert.match(ordinary.uri, /^file:\/\//);
