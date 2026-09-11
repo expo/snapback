@@ -122,3 +122,43 @@ cd snapback2
 SNAPBACK2_WITNESS_BROWSER=/path/to/chromium node scripts/witness-web.mjs --signup
 SNAPBACK2_WITNESS_BROWSER=/path/to/chromium node scripts/witness-web.mjs --sessions
 ```
+
+## Server/compiler resolution — 2026-09-11
+
+**Status remains Open for client-owned items 1, 2/6, and 7.** This pass owned
+the server, core, and compiler claims only.
+
+- **Item 3 was reproduced and fixed in `2b3ea88b5`.** The direct Quarry
+  frontend already knew that `old.id` was `Ref<conversations>`, but raw-IR
+  certification reduced every table `id` to generic `Id` and admitted the
+  nominal `Id`→`Ref<table>` bridge only for `Field("id")`, not the update
+  images. `OldField("id")` and `NextField("id")` now retain the subject table
+  identity in update rules. Separately, literal text-slice endpoints now
+  constrain output certification: `text <=2000` returned directly certifies at
+  8,016 bytes, while `slice(body, 0, 80)` certifies at 336 bytes. The compiler
+  suite pins the original M7-shaped rule and compares the two certificates.
+- **Item 4 is app-owned, not a platform route defect.** No Snapback template,
+  guide fixture, server, or compiler source contains `ResolveConversation` or
+  the claimed membership query. The run's own
+  `day2-astra-diary.md` says the benchmark app searches only its first 20
+  memberships and that fresh fixture accounts pass. Paging that app route is
+  the remaining action, outside this repository's platform code.
+- **Item 5 records accepted product friction, not incorrect authority.** LLP
+  1020 A4/A6 requires the compiler to refuse over-ceiling work with the
+  responsible terms and preserves capped-page semantics. Changing page 20 to
+  19 after adding output width is therefore the expected proof result; an
+  ascending drain and a descending mutable list remain different product
+  shapes. `408af8ad4` adds the missing system-viewer control that an overlarge
+  merge union remains `Capped` even when rule visibility is bypassed.
+- **Item 8 does not reproduce on current main as a consumed-state naming bug.**
+  `asset_http.rs` maps `E_ASSET_VIEWED` to HTTP 410, and
+  `assets/once.rs` pins both the second-fetch code and status. The frozen
+  grading evidence also records HTTP 404 after *unsend*, where the row/asset
+  was deleted; LLP 1006 §2a.1 deliberately hides missing/deleted existence as
+  `E_ASSET_NOT_READY`. The grader combined consumed and deleted observations,
+  but that is not evidence for changing the current distinction.
+- **Item 9 remains evidence-only** as filed.
+
+The open client items still require the durable descriptor cold-reopen, the
+maintained-value freshness/custody work, and the single-context offline replay
+witness. They are intentionally not weakened or closed by these server fixes.
