@@ -4,6 +4,7 @@ export { ClientInbox, inboxScope } from "../src/client-inbox.js";
 export { OutboxLedger } from "../src/store/outbox.js";
 export { inboxAlias, inboxKeyOf, INBOX_LIMIT } from "../src/store/inbox.js";
 export { DrainSubscription } from "../src/drain.js";
+export { answerOffline } from "../src/client-offline.js";
 export { attachItems, composeHistory, withHistory, defineItems } from "../src/client-items.js";
 
 export { RefusalError, isRefusalError } from "../src/client-wire.js";
