@@ -230,7 +230,7 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
         media_jobs.clone(),
         options.test_owner,
     )?;
-    let _effects = crate::effects::spawn(handle.clone(), &root, stop.clone());
+    let effects = crate::effects::spawn(handle.clone(), &root, stop.clone());
     handle.call(Action::PublishOwner)?;
     if let Err(error) = print_url(
         &info,
@@ -267,7 +267,7 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
     let compiler = Arc::new(Mutex::new(compiler));
     let watcher = watch::spawn(compiler.clone(), root.clone(), handle.clone(), stop.clone());
     let server_result = server.run(ServerContext {
-        handle,
+        handle: handle.clone(),
         root: root.clone(),
         secret,
         mode,
@@ -282,6 +282,17 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
     if watcher.join().is_err() {
         watch::log(&root, json!({ "exited": "source watcher panicked" }));
     }
+    // @ref LLP 1021#5-a-running-effect-can-be-stopped — the writer remains able
+    // to commit the final timeout settlement and its logs until the effects runner
+    // has stopped (or its bounded join has honestly detached).
+    drop(effects);
+    let writer_result = handle.call(Action::FinishStop).map(|_| ());
+    if let Err(error) = &writer_result {
+        watch::log(
+            &root,
+            json!({ "exited": "writer shutdown failed", "refusal": error }),
+        );
+    }
     if let Err(error) = remove_owner_if_matches(&root, &info) {
         watch::log(&root, json!({ "ownerStateError": error.to_string() }));
     }
@@ -289,7 +300,8 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
         // A foreground owner must never return silently.
         println!("owner exited");
     }
-    server_result
+    server_result?;
+    writer_result
 }
 
 fn detach(root: PathBuf, options: DevOptions) -> ExitCode {

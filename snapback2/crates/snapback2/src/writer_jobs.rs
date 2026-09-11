@@ -6,6 +6,27 @@ pub(super) fn drive(state: &mut State, rx: Receiver<Request>) {
     let mut pending = None;
     let mut clients = 0_u8;
     loop {
+        // @ref LLP 1021#5-a-running-effect-can-be-stopped — once stop fences new
+        // claims, keep the writer channel alive for the current attempt's settlement
+        // and logs. The owner sends FinishStop only after the bounded runner join.
+        if state.stop.load(AtomicOrdering::SeqCst) {
+            let request = match pending.take() {
+                Some(request) => request,
+                None => match rx.recv() {
+                    Ok(request) => request,
+                    Err(_) => break,
+                },
+            };
+            let finish = matches!(&request.action, Action::FinishStop);
+            let result = state
+                .sweep_expired_sessions()
+                .and_then(|()| state.handle(request.action));
+            let _ = request.reply.send(result);
+            if finish {
+                break;
+            }
+            continue;
+        }
         let preparation = state
             .sweep_assets_if_due()
             .and_then(|()| state.sweep_expired_sessions())
@@ -39,12 +60,16 @@ pub(super) fn drive(state: &mut State, rx: Receiver<Request>) {
         };
         match request {
             Ok(request) => {
+                let finish = matches!(&request.action, Action::FinishStop);
                 let result = state
                     .sweep_expired_sessions()
                     .and_then(|()| state.handle(request.action));
                 let _ = request.reply.send(result);
-                if state.stop.load(AtomicOrdering::SeqCst) {
+                if finish {
                     break;
+                }
+                if state.stop.load(AtomicOrdering::SeqCst) {
+                    continue;
                 }
                 clients = clients.saturating_add(1);
                 match rx.try_recv() {

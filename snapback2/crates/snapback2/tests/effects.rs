@@ -186,12 +186,9 @@ fn owner_runs_effect_then_delivery_and_honest_restart_requeue() {
 /// CLI's own two-second `E_OWNER_STOP_TIMEOUT` is not the observation. This
 /// takes two default budgets, by design.
 ///
-/// The attempt that is spinning at the stop is ended by the same deadline,
-/// but its settlement does not reach the store — the writer leaves on the
-/// stop before the runner is joined (`issues/20260910-snapback2-dev-stop-
-/// drops-the-settlement-of-a-job-the-deadline-ended.md`) — so the row after
-/// the exit is printed here, not asserted; the transition above is the
-/// evidence that the deadline fires in the owner.
+/// The attempt that is spinning at the stop is ended by the same deadline.
+/// Owner teardown keeps the writer alive until the runner joins, so the retry
+/// settlement and transition log must both be durable before the process exits.
 #[test]
 fn dev_stop_observes_owner_process_exit_while_a_spinning_effect_runs() {
     let root = temp_root();
@@ -278,11 +275,29 @@ fn dev_stop_observes_owner_process_exit_while_a_spinning_effect_runs() {
         stopped.status.success() || cli.contains("E_OWNER_STOP_TIMEOUT"),
         "{cli}"
     );
+    let after = outbox_row(&root, &outbox_id);
+    let timeout = format!(
+        "E_EFFECT_TIMEOUT: budget {} ms",
+        snapback2_effects::DEFAULT_BUDGET.as_millis()
+    );
+    assert_eq!(after.0, "queued", "{after:?}");
+    assert_eq!(after.1.as_deref(), Some(timeout.as_str()), "{after:?}");
+    assert!(after.2.is_some(), "the retry backoff must be durable: {after:?}");
+    let transition = fs::read_to_string(root.join(".snapback/log.jsonl"))
+        .unwrap()
+        .lines()
+        .filter_map(|line| serde_json::from_str::<Value>(line).ok())
+        .find(|line| {
+            line["outbox"]["id"] == outbox_id
+                && line["outbox"]["from"] == "running"
+                && line["outbox"]["to"] == "queued"
+                && line["outbox"]["attempt"] == 2
+        })
+        .expect("the stopped attempt's retry transition must be logged");
+    assert_eq!(transition["outbox"]["error"], timeout, "{transition}");
     eprintln!(
-        "dev --stop returned {}; the owner process exited {elapsed:?} after the stop (budget {:?}); the row after the exit reads {:?}",
-        stopped.status,
-        snapback2_effects::DEFAULT_BUDGET,
-        outbox_row(&root, &outbox_id)
+        "dev --stop returned {}; owner exit after {elapsed:?}; durable row {after:?}",
+        stopped.status
     );
     fs::remove_dir_all(root).unwrap();
 }
@@ -302,10 +317,8 @@ export const notify = effect({
 });
 "#;
 
-/// The outbox row's state and last error, read from the store after the
-/// owner has exited (printed by the spinning journey; see the ticket it
-/// names for why it is not yet asserted).
-fn outbox_row(root: &Path, outbox_id: &str) -> (String, Option<String>) {
+/// The outbox row's state, last error, and retry time after the owner exits.
+fn outbox_row(root: &Path, outbox_id: &str) -> (String, Option<String>, Option<i64>) {
     let store = rusqlite::Connection::open_with_flags(
         root.join(".snapback/store.sqlite"),
         rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
@@ -313,9 +326,9 @@ fn outbox_row(root: &Path, outbox_id: &str) -> (String, Option<String>) {
     .unwrap();
     store
         .query_row(
-            "SELECT state, last_error FROM _outbox WHERE id = ?1",
+            "SELECT state, last_error, next_at FROM _outbox WHERE id = ?1",
             [outbox_id],
-            |row| Ok((row.get(0)?, row.get(1)?)),
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
         )
         .unwrap()
 }

@@ -1,6 +1,6 @@
 # `dev --stop` drops the settlement of an effect job the deadline ended
 
-Status: Open — deadline fixed, shutdown settlement ordering remains (2026-09-11)
+Status: Closed — writer accepts the bounded runner's final settlement before teardown (2026-09-10)
 Priority: P1
 Systems: Snapback 2 owner (effects runner shutdown order)
 Related: LLP 1021 §5 (owner bullet), LLP 1003 §2 and §4, lane `deadline` fix round r1
@@ -45,3 +45,21 @@ Next acceptance: keep the writer able to accept settlement/log actions until the
 is stopped and joined, then assert the post-exit row is `queued` with the current timeout
 and backoff rather than restart-derived `sent_unknown`. Preserve bounded stop and do not
 move this fix into the effects crate.
+
+## Resolution — 2026-09-10
+
+`Action::Stop` now fences new effect claims without ending the writer loop. Owner
+teardown drops `EffectsStatus` first, which preserves its existing budget-plus-one-second
+join/detach bound while the writer can still accept `OutboxSettle` and `EffectsLog`; an
+internal `FinishStop` action ends the writer only after that bounded step. The fix stays
+in the owner/writer lifecycle and does not change the effects crate.
+
+`dev_stop_observes_owner_process_exit_while_a_spinning_effect_runs` now reads the store
+after the owner exits and requires the second/current attempt to be `queued`, with the
+exact `E_EFFECT_TIMEOUT: budget 30000 ms`, a retry `next_at`, and the matching logged
+`running → queued` transition at attempt 2. The default
+`detached_stop_removes_owner_state_and_waits_for_the_pid` regression passes. This host
+does not have the vanilla-Hermes fixture required to execute the 60-second spinning
+journey; `scripts/hermes` reports that prerequisite explicitly, so the strengthened
+Hermes assertion remains part of the scheduled Hermes suite rather than being claimed
+as a local pass.
