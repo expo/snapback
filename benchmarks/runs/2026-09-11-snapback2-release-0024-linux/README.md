@@ -9,7 +9,33 @@ Clique actor has started. The earlier Mac artifacts, source commits, reviews
 and failed qualification attempts remain preserved; changed source requires
 fresh staging, not reuse of those old qualification receipts.
 
-Reviewed native candidate: Ibex
+Reviewed correction checkpoint: Ibex
+`12dfbf3fd20fe0986768a3a5443972d38e69566c`, pinned by Snapback
+`1c940d58a93fb21f5be1037c6f0bfecb268c0364`. The exact correction passed
+22 focused tests (two separate known ignored constructor cases), full Linux
+Hermes30 binaries /480 passes /0 failures /13 ignored, and clippy/static
+checks. All correction code is Linux-gated; Mac compiled/runtime inputs are
+unchanged. The original Snapback effect witness passed75/75 at this exact pin,
+EPYC PID2351497,20:27:53–20:28:05 UTC, exit0. Fresh mutually blind Sol xhigh
+and Grok4.6 xhigh correction-delta reviews started20:27 UTC; production
+staging overlaps them. No main landing or npm write has occurred. The
+[retained correction evidence](./ibex2-intl-12dfbf3-evidence.tar.gz) has
+SHA-256 `88d595f9e303790aae51e8a3ff5ed97e5d42666ef1b235c36b15e2bff1f29eca`.
+Its manifest records exact commands and source/HBC hashes, including the
+comment-only difference between the tested overlay and committed source.
+
+One R2 optional finding proved observable in root's bounded follow-up:
+`checked_time` passed fractional milliseconds through to ICU. The existing
+12df debug CLI formats `-0.1` milliseconds as Dec31,1969 and `0` as Jan1,1970,
+including different day/second parts. The selected TimeClip conversion must
+truncate toward zero first. Root authorized a central conversion correction
+and focused positive/negative fractional regressions as a small addendum,
+with its own two-family delta review, not another whole-Intl review. The
+original reproduction is retained in the archive above. The 12df Linux
+production package passed all19 consumer steps, but is preserved as a
+checkpoint and will be replaced by the corrected candidate before npm writes.
+
+Prior reviewed native candidate: Ibex
 `02cf5b12dc2f3ebe2b64327fd57457eb0ae68485`; staged Snapback integration
 `6c7f81aceeafa98b4fd064770adc25068b9e07bc`. Both are on named branches;
 main landing and npm writes remain held for corrections and renewed native
