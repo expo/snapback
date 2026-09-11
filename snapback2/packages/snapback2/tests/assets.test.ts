@@ -90,6 +90,7 @@ test("mutation substitutes scalar, optional, list, and video sources from one ma
   assert.deepEqual(mutationBody, {
     op: "assets.send",
     args: { photo: image, optional: secondImage, gallery: [image], clip: video },
+    expectedGeneration: "program-test",
   });
   assert.ok(args.photo instanceof File, "substitution must not mutate caller-owned arguments");
   client.close();
@@ -662,7 +663,7 @@ test("local serialization failure discards automatic uploads before any mutation
     for (let attempt = 0; attempt < 3; attempt++) {
       await assertRefused(client.mutation(api.assets.send, {
         photo: new File(["a"], "photo.png"), metadata: cyclic,
-      } as any), (result: any) => result.code === "E_TRANSPORT" && result.retryable === true);
+      } as any), (result: any) => result.code === "E_CLIENT" && result.retryable === false);
       assert.equal(staged.size, 0, "failed local submission must release staged objects and bytes");
     }
     assert.equal(uploads, 3);

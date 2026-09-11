@@ -830,7 +830,6 @@ test("lastRefusal clears only after state-specific validation succeeds", async (
 test("query retries HTTP and network transport failures while mutation retries neither", async () => {
   for (const [response, expectedCode] of [
     [() => fetchJson({ message: "busy" }, 503), "E_TRANSPORT"],
-    [() => new Response("not a refusal envelope", { status: 400 }), "E_TRANSPORT"],
     [() => { throw new Error("offline"); }, "E_TRANSPORT"],
   ] as const) {
     let queryAttempts = 0;
@@ -851,6 +850,23 @@ test("query retries HTTP and network transport failures while mutation retries n
     assert.equal(querying.snapshot.connection, "reconnecting");
     querying.close();
   }
+
+  let malformedAttempts = 0;
+  const malformed = createClient({
+    url: "http://wire.test",
+    fetch: async () => {
+      malformedAttempts += 1;
+      return new Response("not a refusal envelope", { status: 400 });
+    },
+  });
+  await assertRefused(
+    () => malformed.query(api.messages.thread, {}),
+    (error: unknown) => (error.state === "rejected" || error.state === "refused")
+      && error.code === "E_WIRE_SHAPE"
+      && !error.retryable,
+  );
+  assert.equal(malformedAttempts, 1, "malformed HTTP 400 is a validated non-retryable refusal");
+  malformed.close();
 
   for (const [response, expectedCode] of [
     [() => fetchJson(refusal("E_OWNER_BUSY", "busy"), 503), "E_TRANSPORT"],
