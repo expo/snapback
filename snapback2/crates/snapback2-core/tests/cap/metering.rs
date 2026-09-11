@@ -229,28 +229,31 @@ fn unknown_patch_refusal_lists_both_caps_largest_first() {
     let errors = Checker::new(&schema, Ceilings::default())
         .check_all(&p)
         .unwrap_err();
-    let error = errors
-        .iter()
-        .find(|e| e.message.starts_with("examined entries"))
-        .unwrap();
-    assert!(error.message.contains("examined entries 50050"), "{error}");
-    assert!(
-        error.message.contains("50 calls × cap 1000 by group"),
-        "{error}"
-    );
-    assert!(
-        error.message.contains("50 calls × cap 1 by secondary"),
-        "{error}"
-    );
-    assert!(
-        error.message.find("cap 1000 by group").unwrap()
-            < error.message.find("cap 1 by secondary").unwrap()
-    );
-    assert!(
-        error.rewrite.contains("chunk from 50 to at most 10"),
-        "{error}"
-    );
-    assert!(error.rewrite.contains("cap 1000 by group"), "{error}");
+    for meter in ["examined entries", "index entries"] {
+        let error = errors
+            .iter()
+            .find(|e| e.message.starts_with(meter))
+            .unwrap_or_else(|| panic!("missing {meter} from {errors:?}"));
+        assert!(error.message.contains(&format!("{meter} 50050")), "{error}");
+        assert!(
+            error.message.contains("50 calls × cap 1000 by group"),
+            "{error}"
+        );
+        assert!(
+            error.message.contains("50 calls × cap 1 by secondary"),
+            "{error}"
+        );
+        assert!(
+            error.message.find("cap 1000 by group").unwrap()
+                < error.message.find("cap 1 by secondary").unwrap(),
+            "{meter}: {error}"
+        );
+        assert!(
+            error.rewrite.contains("chunk from 50 to at most 10"),
+            "{error}"
+        );
+        assert!(error.rewrite.contains("cap 1000 by group"), "{error}");
+    }
 }
 
 #[test]

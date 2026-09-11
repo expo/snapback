@@ -262,6 +262,29 @@ fn uniform_undecided_membership_scan_evaluates_one_verdict() {
         // A hit also meters the matched membership's self-referential read policy.
         assert_eq!(result.trace.rule_probes, probes);
     }
+    engine
+        .seed(
+            "memberships",
+            row([
+                ("id", id("m3")),
+                ("conversationId", id("c1")),
+                ("principal", id("bob")),
+            ]),
+        )
+        .unwrap();
+    let result = engine
+        .execute(
+            &p,
+            &cert,
+            Context::query(Actor::user("alice").unwrap(), BTreeMap::new()),
+        )
+        .unwrap();
+    assert_eq!(result.state, ExecutionState::Complete);
+    assert_eq!(result.result.as_array().unwrap().len(), 2);
+    assert_eq!(
+        result.trace.rule_probes, 2,
+        "one range verdict plus its self-probe"
+    );
 }
 
 #[test]
