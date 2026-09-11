@@ -63,3 +63,40 @@ Real-browser signup/shared-session controls passed ordinary IndexedDB custody,
 one-writer forwarding and takeover, but not manifest-only reset, paginated
 Carol offline delivery, actual clock reset, or interrupted byte adoption. No
 residual closes here; items 4/6 remain documentation curation.
+
+## Disposition — 2026-09-11 client/custody qualification
+
+**State:** keep open, narrowed. Commits `f9ee16ff0` and `dc8bbf74c` resolve
+items 1, 3–5, 7, and 9 and the correctness half of items 2 and 8:
+
+- the shipped React `<Thread>` is mounted over a supplied cold client and pins
+  the Downloaded-history note, drained and predicted bubbles,
+  `partial-history` witness, and zero transport;
+- Carol pages all 106 historical rows through both shipped reads, restarts
+  offline, repeats every page and the empty delivery log without transport;
+- `client.test.ts` and `assets.test.ts` join the blocking package command. Their
+  90/90 run is green; malformed HTTP 400 is pinned as one non-retryable
+  `E_WIRE_SHAPE`, local serialization as non-retryable `E_CLIENT`, and the
+  descriptor fence now compares both manifest and program generation;
+- LLP 1011 B5 records the actual D3 +6/D6 -1 history;
+- all three carriers prove a retain-adding/type-narrowing successor validates
+  the newly retained rows; and an injected file pre-rename, SQLite transaction,
+  or IndexedDB transaction failure preserves predecessor bodies and bytes,
+  while retry drops only the incompatible body and its unshared bytes and
+  retains both delivery anchors;
+- reset now selects the adopted program's full schema ahead of the manifest
+  projection (while an explicit swap schema still wins). A manifest-only
+  deterministic store/cold-reopen control preserves its delivery anchor and
+  body. A naturally raised `ClockCoverageReset` on each carrier preserves that
+  custody and its bytes, clears the obsolete answer, reopens cold, and admits
+  the next checked clock page.
+
+The four focused files pass **194/194** together at their 60-second per-test
+limit. Exact remaining work is (a) item 6's LLP 1012 split/fold, which remains
+curation rather than a correctness repair; (b) if the original wording is held
+literally, a real-owner scheduling witness for manifest-before-program reset
+instead of the deterministic runtime/store boundary; and (c) an explicit
+client drain after the real clock reset rather than the checked post-reset
+clock page. These last two integration controls do not identify an unfixed
+source defect. Do not close this ticket until those acceptance-wording choices
+and LLP curation are discharged.
