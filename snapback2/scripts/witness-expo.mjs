@@ -250,7 +250,9 @@ const actions = [
     const server = createClient({ url: owner.directUrl, persona: "alice" });
     try {
       const answer = await server.query(api.messages.thread, { conversationId: seed.rooms[3], c: null });
-      for (let i = 0; i < queued.length; i++) assert.equal(answer.data.filter((row) => row.messageId === entries[i].ids[0]).length, 1, "one server row and the same bubble key");
+      for (let i = 0; i < queued.length; i++) assert.equal(answer.data.filter((row) =>
+        row.row === entries[i].ids[0] && row.message?.id === entries[i].ids[0]).length, 1,
+      "one server row and the same bubble key");
     } finally { await server.close(); }
     const state = await command("state", { conversationId: seed.rooms[3] });
     assert.ok(state.bubbles.some((bubble) => bubble.key === queued[0].ids[0] && bubble.kind === "row"), "the same bubble key becomes the server row");
