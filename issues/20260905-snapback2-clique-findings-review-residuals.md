@@ -145,3 +145,16 @@ This disposition supersedes stale current-work claims above; historical observat
 The auth-startup findings explicitly marked Resolved stay resolved. Later direct Quarry compilation retires the old TypeScript authoring-path concerns; current generation must not be changed to preserve that removed lane. Later LLP 1020 also assigns E_STEPS to the bound family.
 
 Remaining work is the separately named reachable diagnostics, source wording and missing controls (redirect statuses, uniformity/cap cases, partial-site parity, live-read cleanup/backoff). Cross-check each against its owning current test before fixing; retain other tickets as the single owner of their reproduced defects. No broad compiler or auth regression is established by this umbrella.
+
+## Implementation progress — 2026-09-11
+
+Two reachable effect residuals are now closed. A static import nested in
+`run` produces one `E_EFFECT_IMPORT` at its authored site without a redundant
+TypeScript `E_EFFECT_TYPE`; the complete compiler suite passes 300/300. The
+Hermes cross-origin redirect matrix now exercises 301 and 308 beside
+302/303/307, and all redirect checks use the whole-header-block content-type
+assertion so duplicate/default content types cannot hide behind a first match.
+
+The umbrella remains open for the independently listed uniformity/cap,
+real-merge closure, live-read cleanup/backoff, malformed disclosure, and other
+missing-control items that are not already owned by a narrower ticket.

@@ -51,6 +51,7 @@ export async function lowerDirectQuarryProject(input: DirectQuarryProjectInput):
   ];
 
   let effectCatalog: EffectCatalog = new Map();
+  const effectTypeDiagnostics: FrontendDiagnostic[] = [];
   if (input.tsModulePaths.length > 0) {
     const declarations = boundEffectDeclarationSources(prepared.prepared.catalog, project.boundPrograms);
     const schemaPath = resolve(input.projectRoot, declarations.schema.fileName);
@@ -61,7 +62,7 @@ export async function lowerDirectQuarryProject(input: DirectQuarryProjectInput):
       [...diskSources, ...declarationSources].sort(([left], [right]) => left.localeCompare(right)),
       loadCompilerLib(true), ts.ScriptTarget.ES2020);
     const effectPaths = new Set(input.tsModulePaths);
-    diagnostics.push(...projectTypeDiagnostics(checked.program, input.projectRoot, () => true, effectPaths).map((item) =>
+    effectTypeDiagnostics.push(...projectTypeDiagnostics(checked.program, input.projectRoot, () => true, effectPaths).map((item) =>
       item.family === "effect" ? item : {
         ...item, code: "E_EFFECT_TYPE" as const, family: "effect" as const, guide: "effects/authoring",
       }));
@@ -71,6 +72,12 @@ export async function lowerDirectQuarryProject(input: DirectQuarryProjectInput):
     }));
     effectCatalog = collectEffectCatalog(effectModules);
   }
+  const loweredEffects = lowerEffects(effectCatalog, project.operationSignatures);
+  const importSites = new Set(loweredEffects.diagnostics
+    .filter((item) => item.code === "E_EFFECT_IMPORT")
+    .map((item) => item.site));
+  diagnostics.push(...effectTypeDiagnostics.filter((item) =>
+    item.code !== "E_EFFECT_TYPE" || !importSites.has(item.site)));
   for (const expected of project.effects) if (!effectCatalog.has(expected.name)) diagnostics.push(typeDiagnostic(
     "E_EFFECT_UNKNOWN", "effect", expected.source.file, expected.source.line, expected.source.col,
     `effect ${expected.name} is not exported by snapback/${expected.moduleName}.ts`,
@@ -84,7 +91,6 @@ export async function lowerDirectQuarryProject(input: DirectQuarryProjectInput):
     "query operation():\n  return null", "programs/operations",
     ));
   }
-  const loweredEffects = lowerEffects(effectCatalog, project.operationSignatures);
   diagnostics.push(...loweredEffects.diagnostics);
   if (diagnostics.length > 0) return failed(input.started, diagnostics);
 
