@@ -1,9 +1,55 @@
 # Snapback2 0.0.24: Linux runtime and two-platform publication
 
-Status: blocked pending author direction on a real native Linux Intl
-implementation. No 0.0.24 package was published. No Linux package or unified
-shim was staged, and no Clique actor started. The qualified Mac artifacts,
-source commits, reviews and all failed qualification attempts are preserved.
+Status: resumed 18:03 UTC with explicit author approval for real native
+ICU-backed Intl in Ibex, followed by publication and Clique. No 0.0.24 package
+has been published. No Linux package or unified shim has been staged, and no
+Clique actor has started. The earlier Mac artifacts, source commits, reviews
+and failed qualification attempts remain preserved; changed source requires
+fresh staging, not reuse of those old qualification receipts.
+
+## Resumed scope and orientation
+
+The author answered "go ahead" to the proposed native Intl implementation.
+The implementation lane is Codex gpt-5.6-sol xhigh, reusing the Ibex lane and
+expo-build-1000 target from the first attempt. An independent Sol lane audits
+adjacent declared Intl behavior with the existing executable; root owns
+integration and the subsequent mutually blind Sol/Grok reviews. No new
+worktree, runtime engine fork, JS standard-library polyfill, publication gate,
+or registry is commissioned.
+
+Governing context:
+
+- Ibex LLP 0057 §3.1: native semantics, thin JavaScript object plumbing, and
+  an engine-optional Rust consumer; the approved Intl completion replaces an
+  engine stub rather than introducing another transport or executor.
+- Ibex LLP 0067 §4–§5: installation before hardening, unchanged grant model,
+  exact global-surface checks, and the unmodified pinned Hermes artifact.
+- Ibex LLP 0068 §3: the no-engine build remains independent of Hermes.
+- Snapback LLP 1003 §1 and §3: authored ES2020 effects, unchanged exact Intl
+  witness, hardened runtime and enforced deadline at every JS entrance.
+- Snapback LLP 1002 §11: actual native consumers must qualify the identical
+  final shim before publication. Prior host-only stages are not substitutes.
+
+Risk to resolve: NumberFormat is a known dummy; other ES2020 Intl members
+need a bounded audit so a number-format fix is not called complete Intl
+conformance. Existing LLPs 0057/0067/0068 and the focused issue are the doc
+update targets. No new design document is needed.
+
+Latest Snapback main `b3b063b4e` (including `75a67c92c` ergonomics and
+acquisition work) was merged into the release lane as
+`04c2a143a814ab7a30c5335e902c0782f960df5e`. The sole manual conflict was the
+LLP 1002 revision header; both entries were retained. Product integration
+was automatic. Canonical verification of that integrated source passed with
+exit 0, separately from the upcoming Intl qualification: 1,335 package tests,
+302 compiler checks, 1,127 native tests and four configured skips, plus
+evaluator (266 corpus, ten delivery, two visibility) and doctests. EPYC wrapper
+PID 1581281 ran 18:07:49–18:09:16 UTC. This first run rebuilt changed source
+and took 87 seconds including prerequisites; it is content qualification,
+not a warm sub-60-second loop claim. The complete output is retained in
+[the canonical log](./snapback-04c2-canonical.log.gz).
+
+The remainder records the initial attempt and its hold, not new qualification
+claims for the resumed candidate.
 
 The author requested npm publication followed by Clique on expo-build-1000,
 using Astra at the previous builder effort. After the Darwin-only 0.0.23
