@@ -209,6 +209,14 @@ defect occurred" — never of magnitude).
   comparison set run on the same machine class.
 - Backend accounts/deployments are fresh per run where the platform
   allows; reused state is recorded.
+- **Client URL variables are unset at launch.** A launcher clears
+  `EXPO_PUBLIC_SNAPBACK_URL` and `VITE_SNAPBACK_URL` from the builder's
+  environment, the way the 0.0.15 launcher already cleared `SNAPBACK_*` tool
+  variables, because both outrank the project's own `.snapback/dev-url`
+  (LLP 1002 §"Templates are products"). With two lanes on one host the 0.0.25
+  run's first M1 browser traffic went to the 0.0.24 lane's backend on port
+  53100 and that attempt was invalid. The scaffold now warns when the variable
+  and the file disagree; unsetting it is what prevents the mix-up.
 
 ## Correction-loop attribution rule (DRAFT)
 

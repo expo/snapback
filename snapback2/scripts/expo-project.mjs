@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { cp, mkdir, readFile, readdir, realpath, rm, symlink } from "node:fs/promises";
+import { cp, mkdir, readFile, readdir, realpath, rename, rm, symlink } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 export const workspace = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -37,6 +37,9 @@ export async function prepareExpoProject() {
   // This is a dedicated generated measurement/witness project, not an app the
   // user edits: refresh its frontend after rebuilding the package.
   await cp(resolve(dist, "templates/chat/expo"), project, { recursive: true, dereference: true });
+  // The witness adds watchFolders on top of the shipped template config rather
+  // than replacing it, so the scaffold's `.snapback` block list is under witness.
+  await rename(resolve(project, "metro.config.cjs"), resolve(project, "metro.config.shipped.cjs"));
   await cp(resolve(workspace, "scripts/witness-expo/metro.config.cjs"), resolve(project, "metro.config.cjs"));
   const modules = resolve(project, "node_modules");
   await mkdir(modules, { recursive: true });

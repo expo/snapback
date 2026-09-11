@@ -1081,9 +1081,22 @@ console.log(JSON.stringify(config.define['import.meta.env.VITE_SNAPBACK_URL']));
                 let defined: String = serde_json::from_slice(&output.stdout).unwrap();
                 let url: String = serde_json::from_str(&defined).unwrap();
                 assert_eq!(url, explicit.or(dotenv).unwrap_or(first.trim()));
+                // An inherited variable still wins, but never silently.
+                assert_eq!(
+                    String::from_utf8_lossy(&output.stderr).contains("overrides this project's owner"),
+                    explicit.or(dotenv).is_some(),
+                    "{}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
             }
         }
         if arm == "expo" {
+            // @ref LLP 1002#templates-are-products — Metro dies on the build
+            // cache's transient directories unless the scaffold blocks it.
+            let metro =
+                std::fs::read_to_string(project.path.join("metro.config.cjs")).unwrap();
+            assert!(metro.contains(r"\.snapback"), "{metro}");
+            assert!(metro.contains("blockList"), "{metro}");
             for override_url in [None, Some("https://backend.example.com")] {
                 let mut node = std::process::Command::new("node");
                 node.args(["-e", "const {evalConfig} = require(require.resolve('@expo/config/build/evalConfig', {paths: [require('node:fs').realpathSync(process.argv[2])]})); console.log(JSON.stringify(evalConfig(process.argv[1], {config: {extra: {kept: true}}}).config));"])
@@ -1105,6 +1118,14 @@ console.log(JSON.stringify(config.define['import.meta.env.VITE_SNAPBACK_URL']));
                     override_url.unwrap_or(first.trim())
                 );
                 assert_eq!(config["extra"]["kept"], true);
+                // An inherited variable still wins, but never silently.
+                assert_eq!(
+                    String::from_utf8_lossy(&output.stderr)
+                        .contains("overrides this project's owner"),
+                    override_url.is_some(),
+                    "{}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
             }
         }
     }

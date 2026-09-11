@@ -1,6 +1,7 @@
-import { cp, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { watch } from "node:fs";
+import { cp, mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import ts from "typescript";
 import { compileJourneys, lowerProject } from "./project";
 
@@ -326,6 +327,65 @@ journey("typed shaped ledger", async ({ as }) => {
         if (!editedJourneys.ok) failures.push(`${name} edited chat journeys: ${diagnosticsText(editedJourneys.diagnostics)}`);
       });
     }
+    assert(failures.length === 0, failures.join("\n"));
+  });
+
+  // @ref LLP 1002#templates-are-products — Metro and Vite crash on a directory
+  // that vanishes mid-crawl, so no journey candidate may appear under the project.
+  test("journey compilation leaves no transient entry in the watched project tree", async () => {
+    const apiDts = `import type { Page } from "snapback2";
+import type { Op } from "snapback2/client";
+declare module "snapback2/client" {
+  interface Api {
+    readonly probe: { readonly list: Op<{}, Page<{ id: string }>> };
+  }
+}
+export {};`;
+    const failures: string[] = [];
+    await withProjectFiles("snapback2-journey-staging-", {
+      "snapback/tests/probe.test.ts": `import { api } from "snapback2/client";
+import { journey } from "snapback2/test";
+
+journey("staging probe", async ({ as }) => {
+  const after = await as("alice").query(api.probe.list, {});
+  if (!("data" in after) || !after.data?.some((row) => row.id.length > 0)) throw new Error("missing row");
+});
+`,
+    }, undefined, async (root) => {
+      const build = join(root, ".snapback/build");
+      const first = await compileJourneys(root, apiDts);
+      if (!first.ok) {
+        failures.push(`first pass refused: ${diagnosticsText(first.diagnostics)}`);
+        return;
+      }
+      // The second pass replaces a published directory — the path that staged
+      // `.tests-*` and left `tests.replaced-<pid>-<ts>` behind. Typechecking is
+      // synchronous, so watch the directory the way a crawler does instead of
+      // polling it from inside this process.
+      const seen = new Set<string>();
+      const watcher = watch(build, (_event, name) => { if (name) seen.add(name.toString()); });
+      const staged = new Set<string>();
+      const beside = watch(dirname(root), (_event, name) => {
+        if (name?.toString().startsWith(`.${basename(root)}.`)) staged.add(name.toString());
+      });
+      const second = await compileJourneys(root, apiDts);
+      await new Promise((settle) => setTimeout(settle, 250));
+      watcher.close();
+      beside.close();
+      if (!second.ok) {
+        failures.push(`second pass refused: ${diagnosticsText(second.diagnostics)}`);
+        return;
+      }
+      // Without this the check could pass by observing nothing at all.
+      if (!seen.has("tests")) failures.push(`the watcher saw ${[...seen].join(", ") || "nothing"}, so it proves nothing`);
+      const transient = [...seen].filter((entry) => entry !== "tests");
+      if (transient.length > 0) failures.push(`compiling exposed ${transient.join(", ")} under .snapback/build`);
+      if (staged.size === 0) failures.push("journeys never staged outside the project tree");
+      const leftover = (await readdir(dirname(root))).filter((entry) => entry.startsWith(`.${basename(root)}.`));
+      if (leftover.length > 0) failures.push(`staging left ${leftover.join(", ")} beside the project`);
+      const published = await readdir(join(build, "tests"));
+      if (published.join(",") !== "probe.mjs") failures.push(`published ${published.join(", ")}`);
+    });
     assert(failures.length === 0, failures.join("\n"));
   });
 
