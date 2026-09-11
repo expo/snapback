@@ -948,6 +948,23 @@ fn raw_certification_scopes_relational_terms_and_created_to_their_exact_effects(
 }
 
 #[test]
+fn update_row_image_ids_keep_the_subject_table_identity() {
+    for id in [
+        RuleTerm::OldField("id".to_owned()),
+        RuleTerm::NextField("id".to_owned()),
+    ] {
+        let mut schema = schema();
+        schema.tables.get_mut("groups").unwrap().rules.update = RuleExpr::Exists {
+            table: "memberships".to_owned(),
+            index: "byGroupPrincipal".to_owned(),
+            key: vec![id, RuleTerm::Viewer],
+            provenance: KeyProvenance::Shape,
+        };
+        Generation::certify(&project(schema, Vec::new()), Ceilings::default()).unwrap();
+    }
+}
+
+#[test]
 fn raw_certification_resolves_every_final_exists_target_index_arity_and_key_term() {
     let constraint =
         |table: &str, index: &str, key: Vec<RuleTerm>| Constraint::FinalExistsOnInsert {

@@ -67,6 +67,36 @@ fn program(body: Vec<Stmt>) -> Program {
         body,
     }
 }
+
+#[test]
+fn literal_text_slice_reduces_the_certified_output_bound() {
+    let program = Program {
+        name: "diagnostic.slice".into(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::from([(
+            "body".into(),
+            ArgType::Text {
+                max: 2000,
+                min: 0,
+                format: None,
+            },
+        )]),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Return(Expr::Builtin {
+            builtin: Builtin::Slice,
+            args: vec![
+                crate::var("body"),
+                Expr::Literal(Value::Int(0)),
+                Expr::Literal(Value::Int(80)),
+            ],
+        })],
+    };
+    let certificate = Checker::new(&schema(), Ceilings::default())
+        .check(&program)
+        .unwrap();
+    assert_eq!(certificate.max_output_bytes, 336);
+}
+
 #[test]
 fn merge_refusal_names_lanes_discovery_and_structural_repairs() {
     let schema = schema();

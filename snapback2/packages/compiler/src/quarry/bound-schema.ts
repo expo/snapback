@@ -381,7 +381,7 @@ function checkRuleField(context: RuleContext, name: string, site: TableDecl["sit
 function ruleTermType(expr: Expr, context: RuleContext): ScalarType | undefined {
   if (expr.kind === "name" && expr.name === "viewer") return { kind: "principal", optional: false };
   if (expr.kind === "literal") {
-    if (typeof expr.value === "string") return { kind: "text", max: Math.max(1, expr.value.length), optional: false };
+    if (typeof expr.value === "string") return { kind: "text", max: Math.max(1, [...expr.value].length), optional: false };
     if (typeof expr.value === "number") return { kind: "int", optional: false };
     if (typeof expr.value === "boolean") return { kind: "bool", optional: false };
   }

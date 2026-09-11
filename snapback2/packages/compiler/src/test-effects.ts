@@ -322,10 +322,10 @@ mutation fire():
           export const notify = effect({ grants: ["https://example.com"], run: async () => { ${statement} return null; } });`,
       }, async (root) => {
         const result = await lowerProject(root);
-        assert(!result.ok, statement);
-        assert(result.diagnostics.every((item) => item.family === "effect" && item.site.startsWith("snapback/provider.ts:")), JSON.stringify(result));
-        assert.equal(result.diagnostics.filter((item) => item.code === "E_EFFECT_IMPORT").length, 1, JSON.stringify(result));
-        assert.equal(result.diagnostics.filter((item) => item.code === "E_EFFECT_TYPE").length, 0, JSON.stringify(result));
+        assert(!result.ok && result.diagnostics.length === 1, JSON.stringify(result));
+        assert(result.diagnostics[0]?.family === "effect"
+          && result.diagnostics[0].site.startsWith("snapback/provider.ts:")
+          && result.diagnostics[0].code === "E_EFFECT_IMPORT", JSON.stringify(result));
       });
     }
   });

@@ -11,7 +11,7 @@ use crate::growth::{
 };
 use crate::ir::*;
 use crate::retention::{argument_max, collection_bytes};
-use crate::schema::Schema;
+use crate::schema::{ColumnType, Schema};
 use crate::value::{Value, canonical_json};
 use std::collections::BTreeMap;
 impl<'a> OutputEstimator<'a> {
@@ -37,6 +37,7 @@ impl<'a> OutputEstimator<'a> {
                         bytes: argument_max(schema, argument),
                         instances: 1,
                         collection: matches!(argument, ArgType::List { .. }),
+                        text: matches!(argument, ArgType::Text { .. }),
                         table: None,
                         provenance: ProvenanceBinding::new(
                             identity,
@@ -86,6 +87,7 @@ impl<'a> OutputEstimator<'a> {
                         let bytes = self.expression(value, variables);
                         let collection =
                             collection_price_from(value, variables, |bound| bound.collection);
+                        let text = self.expression_is_text(value, variables);
                         let table = self.expression_table(value, variables);
                         let shape = self.expression_shape(value, variables);
                         let identity = take_identity(&mut self.next_identity);
@@ -96,6 +98,7 @@ impl<'a> OutputEstimator<'a> {
                                 bytes,
                                 instances: calls,
                                 collection,
+                                text,
                                 table,
                                 provenance: ProvenanceBinding::new(identity, provenance),
                                 shape,
@@ -125,6 +128,7 @@ impl<'a> OutputEstimator<'a> {
                         bytes: CANONICAL_ARRAY_BASE_BYTES,
                         instances: calls,
                         collection: true,
+                        text: false,
                         table: None,
                         provenance: ProvenanceBinding::new(
                             take_identity(&mut self.next_identity),
@@ -141,6 +145,7 @@ impl<'a> OutputEstimator<'a> {
                         .bytes
                         .saturating_add(repetitions.saturating_mul(element));
                     current.collection = true;
+                    current.text = false;
                     current.table = None;
                     let added = ByteShape::repeated(
                         repetitions.saturating_mul(element),
@@ -197,6 +202,7 @@ impl<'a> OutputEstimator<'a> {
                                 domain,
                                 LoopDomain::Page(_) | LoopDomain::Recurse(_)
                             ),
+                            text: false,
                             shape: table
                                 .as_ref()
                                 .map(|t| self.row_shape(t))
@@ -222,6 +228,7 @@ impl<'a> OutputEstimator<'a> {
                             if bytes > value.bytes {
                                 value.bytes = bytes;
                                 value.table = None;
+                                value.text = false;
                                 value.shape = ByteShape::leaf(bytes, format!("{name}: coupled loop recurrence over {bound} iterations"));
                                 widened = true;
                             }
@@ -263,6 +270,7 @@ impl<'a> OutputEstimator<'a> {
     fn assign(&mut self, name: &str, value: &Expr, variables: &mut BTreeMap<String, OutputBound>, calls: u64, iteration: u64) {
         let whole_element = variables.get(name).is_some_and(|v| v.whole_element);
         let instances = variables.get(name).map_or(calls, |bound| bound.instances);
+        let text = self.expression_is_text(value, variables);
         let assignment = assignment_growth(
             variables.get(name).map(|bound| &bound.provenance),
             value,
@@ -276,6 +284,7 @@ impl<'a> OutputEstimator<'a> {
                 collection: collection_price_from(value, variables, |bound| {
                     bound.collection
                 }),
+                text,
                 table: self.expression_table(value, variables),
                 shape: self.expression_shape(value, variables),
             },
@@ -305,6 +314,7 @@ impl<'a> OutputEstimator<'a> {
                         .saturating_add(price.bytes.saturating_mul(growth.repetitions))
                 };
             current.collection = true;
+            current.text = false;
             current.table = None;
             current.provenance = current.provenance.assigned(provenance);
             current.shape = ByteShape::repeated(
@@ -334,6 +344,7 @@ impl<'a> OutputEstimator<'a> {
                     bytes: price.bytes,
                     instances,
                     collection: price.collection,
+                    text: price.text,
                     table: price.table,
                     provenance: assigned,
                     shape: price.shape,
@@ -407,10 +418,25 @@ impl<'a> OutputEstimator<'a> {
                 UnaryOp::Neg => 32,
             },
             Expr::Builtin { builtin, args } => match builtin {
-                Builtin::Slice => args
-                    .first()
-                    .map(|value| self.expression(value, variables))
-                    .unwrap_or(0),
+                Builtin::Slice => {
+                    let source = args
+                        .first()
+                        .map(|value| self.expression(value, variables))
+                        .unwrap_or(0);
+                    // @ref LLP 1020#a5-recurrence-pricing-is-a-bound — literal
+                    // scalar endpoints are a proof of the sliced text's maximum,
+                    // not merely a runtime implementation detail.
+                    if args
+                        .first()
+                        .is_some_and(|value| self.expression_is_text(value, variables))
+                    {
+                        literal_slice_len(args)
+                            .map(|length| source.min(length.saturating_mul(4).saturating_add(16)))
+                            .unwrap_or(source)
+                    } else {
+                        source
+                    }
+                }
                 Builtin::Sort { .. } => args
                     .first()
                     .map(|value| self.expression(value, variables))
@@ -462,6 +488,29 @@ impl<'a> OutputEstimator<'a> {
                 .first()
                 .and_then(|value| self.expression_table(value, variables)),
             _ => None,
+        }
+    }
+
+    fn expression_is_text(
+        &self,
+        expression: &Expr,
+        variables: &BTreeMap<String, OutputBound>,
+    ) -> bool {
+        match expression {
+            Expr::Literal(Value::String(_)) => true,
+            Expr::Variable(name) => variables.get(name).is_some_and(|bound| bound.text),
+            Expr::Field { base, name } => self
+                .expression_table(base, variables)
+                .and_then(|table| self.schema.table(&table))
+                .and_then(|table| table.columns.get(name))
+                .is_some_and(|column| matches!(column, ColumnType::Text { .. })),
+            Expr::Builtin {
+                builtin: Builtin::Slice,
+                args,
+            } => args
+                .first()
+                .is_some_and(|value| self.expression_is_text(value, variables)),
+            _ => false,
         }
     }
 
@@ -542,4 +591,12 @@ impl<'a> OutputEstimator<'a> {
         }
         size
     }
+}
+
+fn literal_slice_len(args: &[Expr]) -> Option<u64> {
+    let endpoint = |position: usize| match args.get(position) {
+        Some(Expr::Literal(Value::Int(value))) => Some((*value).max(0) as u64),
+        _ => None,
+    };
+    Some(endpoint(2)?.saturating_sub(endpoint(1)?))
 }

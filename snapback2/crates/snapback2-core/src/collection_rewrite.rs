@@ -19,6 +19,7 @@ pub(crate) struct OutputBound {
     pub(crate) bytes: u64,
     pub(crate) instances: u64,
     pub(crate) collection: bool,
+    pub(crate) text: bool,
     pub(crate) table: Option<String>,
     pub(crate) provenance: ProvenanceBinding,
     pub(crate) shape: ByteShape,
@@ -32,6 +33,7 @@ pub(crate) struct OutputEstimate {
 pub(crate) struct OutputAssignmentPrice {
     pub(crate) bytes: u64,
     pub(crate) collection: bool,
+    pub(crate) text: bool,
     pub(crate) table: Option<String>,
     pub(crate) shape: ByteShape,
 }
@@ -240,6 +242,7 @@ impl OutputEstimator<'_> {
                     }
                     current.instances = current.instances.min(bound.instances);
                     current.collection |= bound.collection;
+                    current.text &= bound.text;
                     current.table = table;
                     current.provenance.merge(&bound.provenance);
                 })

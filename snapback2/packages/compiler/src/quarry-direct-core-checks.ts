@@ -648,6 +648,13 @@ query matchNames(id: conversations):
       name: "names.class", kind: "Query", args: { default: "Int" }, read_time_granularity_ms: null,
       body: [{ Return: { Variable: "default" } }],
     });
+    for (const name of ["words", "tokens", "range", "min", "max", "count", "divmod", "share"]) {
+      const builtinNamed = prepareQuarry([
+        { path: "/virtual/snapback/schema.q", fileName: "snapback/schema.q", source: `table ${name}:\n  public\n` },
+        { path: "/virtual/snapback/names.q", fileName: "snapback/names.q", source: `query one():\n  return ${name}[] first 1 by byId\n` },
+      ]);
+      assert(builtinNamed.ok, `${name} retained a deleted generated-TypeScript collision: ${JSON.stringify(builtinNamed.ok ? [] : builtinNamed.diagnostics)}`);
+    }
   });
 
   test("direct Quarry elaborates an imported named row shape with definition and use sites", async () => {
