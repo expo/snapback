@@ -64,6 +64,65 @@ test("every PersistedRangeState field round-trips on file, IndexedDB, and SQLite
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
+test("split metadata preserves JSON omission, array holes, and refused-retry custody on both database carriers", async t => {
+  const root = await temporary();
+  try {
+    for (const carrier of ["SQLite", "IndexedDB"] as const) await t.test(carrier, async () => {
+      let reject = false;
+      const database = new FakeIndexedDb();
+      const backend: any = carrier === "SQLite"
+        ? new SqliteBackend(nodeSqliteDriver(join(root, "metadata-json.db")), { beforeCommit() { if (reject) throw new Error("metadata refusal"); } })
+        : (indexedDbRangeStore({ indexedDB: database as any, locks: new FakeLocks(), beforeReplace() { if (reject) throw new Error("metadata refusal"); } })() as any).backend;
+      try {
+        await backend.open(`metadata-json-${carrier}`);
+        const initial: any = sqliteState();
+        initial.futureObject = { child: "held", explicit: null };
+        initial.futureArray = [1, 2, 3];
+        await backend.replace(initial, noBytes);
+        const next = structuredClone(initial);
+        next.futureObject.child = undefined;
+        next.futureArray = [1]; next.futureArray.length = 4;
+        const expected = JSON.parse(JSON.stringify(next));
+        const changed = new Map<string, Set<string>>([
+          ["futureObject", new Set(["child"])], ["*", new Set(["futureArray"])],
+        ]);
+        reject = true;
+        await assert.rejects(backend.replace(next, noBytes, undefined, changed), /metadata refusal/);
+        reject = false; await backend.close();
+        assert.deepEqual(await backend.open(`metadata-json-${carrier}`), initial, `${carrier}: refusal retains old metadata`);
+        await backend.replace(next, noBytes, undefined, changed); await backend.close();
+        assert.deepEqual(await backend.open(`metadata-json-${carrier}`), expected, `${carrier}: undefined is omitted and trailing holes become null`);
+      } finally { reject = false; await backend.close(); }
+    });
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test("the first journaled database write and its refused retry establish the complete metadata root inventory", async t => {
+  const root = await temporary();
+  try {
+    for (const carrier of ["SQLite", "IndexedDB"] as const) await t.test(carrier, async () => {
+      let reject = true;
+      const database = new FakeIndexedDb();
+      const backend: any = carrier === "SQLite"
+        ? new SqliteBackend(nodeSqliteDriver(join(root, "metadata-first.db")), { beforeCommit() { if (reject) throw new Error("first refusal"); } })
+        : (indexedDbRangeStore({ indexedDB: database as any, locks: new FakeLocks(), beforeReplace() { if (reject) throw new Error("first refusal"); } })() as any).backend;
+      const state: any = sqliteState();
+      state.futureRoot = { nested: [undefined, null] };
+      const changed = new Map<string, Set<string>>([
+        ["rows", new Set(Object.keys(state.rows))], ["answers", new Set(Object.keys(state.answers))],
+        ["outbox", new Set(Object.keys(state.outbox))],
+      ]);
+      try {
+        await backend.open(`metadata-first-${carrier}`);
+        await assert.rejects(backend.replace(state, noBytes, undefined, changed), /first refusal/);
+        reject = false;
+        await backend.replace(state, noBytes, undefined, changed); await backend.close();
+        assert.deepEqual(await backend.open(`metadata-first-${carrier}`), JSON.parse(JSON.stringify(state)));
+      } finally { reject = false; await backend.close(); }
+    });
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
 test("IndexedDB rows without meta survive open with version 1 and default maps on every carrier", async () => {
   const root = await temporary();
   const database = new FakeIndexedDb();

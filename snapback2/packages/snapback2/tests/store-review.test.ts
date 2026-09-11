@@ -368,7 +368,7 @@ test("outbox-only IndexedDB swaps update only the entry and scalar header, inclu
     database.writes.length = 0;
     await store.commit({ outbox: { put: [entry("g:0")] } });
     assert.deepEqual(database.writes, [
-      { store: "outbox", action: "put", key: "g:0" }, { store: "meta", action: "put", key: "state" },
+      { store: "outbox", action: "put", key: "g:0" }, { store: "meta", action: "put", key: '["clock"]' },
     ]);
     await store.commit({ outbox: { remove: ["g:0"] } });
     assert.equal((await store.outbox.all()).length, 0);

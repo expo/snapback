@@ -43,8 +43,10 @@ export class SwapJournal<T extends object> {
           const target = current;
           this.undo.push(() => { if (existed) target[key] = before; else delete target[key]; });
         }
-        const category = path[0] ?? '*', records = this.changed.get(category) ?? new Set<string>();
-        records.add(String(key)); this.changed.set(category, records);
+        const opaque = path.length === 1 && (typeof current.toJSON === 'function'
+          || key === 'toJSON' && !remove && typeof next === 'function');
+        const category = opaque ? '*' : path[0] ?? '*', records = this.changed.get(category) ?? new Set<string>();
+        records.add(opaque ? path[0] : String(key)); this.changed.set(category, records);
       }
       if (remove) delete current[key]; else current[key] = raw(next);
       children.delete(key);

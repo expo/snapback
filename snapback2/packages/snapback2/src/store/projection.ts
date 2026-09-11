@@ -26,7 +26,9 @@ export class ProjectionCache {
   private keys = { rows: new Set<string>(), answers: new Set<string>(), outbox: new Set<string>(), meta: new MetadataKeys() };
 
   reset(projected?: StateProjection): void {
-    this.legacyMetadata = !!projected?.meta.some(e => e.key !== "state" && !e.key.startsWith("["));
+    const meta = projected?.meta ?? [], header = meta.find(e => e.key === 'state')?.value;
+    this.legacyMetadata = meta.some(e => e.key !== 'state' && !e.key.startsWith('['))
+      || !!header && typeof header === 'object' && Object.keys(header).length > 0;
     for (const name of Object.keys(this.keys) as Array<keyof StateProjection>) {
       const keys = (projected?.[name] ?? []).map(({ key }) => key);
       if (name === 'meta') this.keys.meta = new MetadataKeys(keys); else this.keys[name] = new Set(keys);
@@ -38,7 +40,10 @@ export class ProjectionCache {
       outbox: { put: [], remove: [] }, meta: { put: [], remove: [] } };
     const put = (name: keyof StateProjection, key: string, value: unknown) => {
       const text = JSON.stringify(name === 'rows' ? imageRecord(value as { row: unknown }) : value);
-      if (text === undefined && !this.keys[name].has(key)) return;
+      if (text === undefined) {
+        if (this.keys[name].has(key)) delta[name].remove.push(key);
+        return;
+      }
       delta[name].put.push({ key, value: JSON.parse(text) });
     };
     const compare = (name: keyof StateProjection, entries: StateEntry[]) => {
@@ -57,7 +62,11 @@ export class ProjectionCache {
       }
       compare(name, Object.entries(state[name] ?? {}).map(([key, value]) => ({ key, value })));
     }
-    const metaDelta = !this.legacyMetadata && changed && metadataChanges(state, changed, this.keys.meta);
+    // The first write owns no complete root inventory. A full projection must
+    // establish every scalar/object root before journal-bounded updates begin;
+    // failed transactions do not call `committed`, so their retry stays full.
+    const metaDelta = !this.legacyMetadata && this.keys.meta.has('state') && changed
+      && metadataChanges(state, changed, this.keys.meta);
     if (!metaDelta) compare("meta", metadata(state));
     else {
       delta.meta.remove.push(...metaDelta.remove);
