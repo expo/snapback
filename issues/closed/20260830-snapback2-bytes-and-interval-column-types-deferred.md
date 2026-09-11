@@ -1,6 +1,6 @@
 # snapback2: `Bytes { max }` and `Interval { of }` column types are deferred behind a value-model decision
 
-**Status:** Open
+**Status:** Resolved — Bytes shipped; Interval, Duration, and Set remain deliberately deferred
 **Systems:** snapback2, schema, evaluator
 **Severity:** P3
 **Author:** Claude Fable 5, directed by Charlie Cheever
@@ -64,3 +64,14 @@ path purports to accept them.
 `Interval { of }` and separate canonical representation, constraint, compiler,
 certificate, native/twin, seed, index, and guide decisions for any Duration or
 Set addition. Do not implement these as incidental extensions of Bytes.
+
+## Resolution — 2026-09-11
+
+The user delegated the remaining product/design choices for this queue. The
+implemented Bytes half remains shipped and qualified. Interval, Duration, and
+Set are not defects or current acceptance requirements: accepted LLP 1001
+explicitly records all three as deferred, while the loop bar permits only work
+required by its current product surface. They therefore remain out of the
+language until a concrete app requirement funds the separate semantic design
+described above. Closing this repository ticket records that decision without
+silently adding a partial value model or claiming those types exist.

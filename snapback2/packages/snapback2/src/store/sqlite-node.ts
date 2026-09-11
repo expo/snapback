@@ -1,5 +1,5 @@
 import { DatabaseSync } from "node:sqlite";
-import { realpathSync } from "node:fs";
+import { statSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { driverQueue, type SqliteDriver, type SqliteExecutor } from "./sqlite-driver.js";
 
@@ -18,7 +18,11 @@ export function nodeSqliteDriver(path: string): SqliteDriver {
     get identity() {
       db(); // Resolve after open creates the file; symlinks must share ownership.
       return identity ??= path === ":memory:" || path === ""
-        ? `sqlite:temporary:${randomUUID()}` : `sqlite:${realpathSync(path)}`;
+        ? `sqlite:temporary:${randomUUID()}`
+        : (() => {
+            const opened = statSync(path, { bigint: true });
+            return `sqlite:inode:${opened.dev}:${opened.ino}`;
+          })();
     },
     run: (sql, params) => queue(() => executor.run(sql, params)),
     get: (sql, params) => queue(() => executor.get(sql, params)),
@@ -33,7 +37,16 @@ export function nodeSqliteDriver(path: string): SqliteDriver {
         db().exec("COMMIT");
         return result;
       } catch (error) {
-        try { db().exec("ROLLBACK"); } catch { /* Preserve the body/COMMIT failure. */ }
+        try {
+          db().exec("ROLLBACK");
+        } catch {
+          // A connection that could not roll back may still own an open
+          // transaction. Drop it so the next queued turn reopens cleanly,
+          // while preserving the body/COMMIT failure as the primary error.
+          const poisoned = database;
+          database = undefined;
+          try { poisoned?.close(); } catch { /* The primary failure still wins. */ }
+        }
         throw error;
       }
     }),
