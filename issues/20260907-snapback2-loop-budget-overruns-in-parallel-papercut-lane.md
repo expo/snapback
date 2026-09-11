@@ -214,3 +214,35 @@ loop timing: client/react/expo/runtime measured 140,849/150,585/154,188/86,577
 gzip bytes versus accepted 136,547/146,166/149,836/84,580. Their records remain
 `byte_baseline_accepted: false`; this ticket neither accepts those bytes nor
 attributes them to the live-capacity change.
+
+## Changed-binary qualification on the local M1 Max — 2026-09-11
+
+Two fresh, serial release relinks at source `1b5f14394` used distinct Rust
+metadata and produced byte-distinct binaries with new inodes. Neither product
+was executed before its retained first `doctor --json` observation. Both first
+samples remain red: **0.680638 s** and **0.525602 s** / 0.5 s. The adjacent
+second samples passed at 0.048704 s and 0.049517 s. The doctor's internal
+reports were only 55.114 ms and 50.571 ms for the red observations.
+
+macOS unified logs attribute the gap before process entry to a fresh
+Gatekeeper path: notarization network work followed by XProtect analysis and
+`GK evaluateScanResult`. Two separately linked trivial C executables showed
+the same variable host floor at 0.575269 s and 0.245959 s. Ad-hoc signing under
+a stable identifier still missed at 0.525092 s. The machine exposes two valid
+Apple Development identities, but `codesign` cannot use either
+non-interactively (`errSecInternalComponent`); developer mode is disabled.
+Silver was not used because it was actively running the Clique benchmark lane.
+
+No product or measurement change is justified by this result. Preserving the
+executable inode across byte changes would hide the exact first-execution cost
+this acceptance clause requires. Enabling Terminal developer mode, disabling
+Gatekeeper, or provisioning/unlocking a signing identity is machine-security
+or credential work outside this repository task, so none was performed.
+
+**Disposition remains open.** The literal two-sample closure criterion failed,
+and the exact observations are retained in the
+[changed-binary qualification](../benchmarks/runs/2026-09-11-snapback2-loop-budget-changed-binary/README.md).
+The remaining action is a controlled setup repair that removes the launch
+assessment without discarding the changed binary's first observation, followed
+by two fresh qualifying samples. Byte-baseline and full-suite verdicts remain
+separate.
