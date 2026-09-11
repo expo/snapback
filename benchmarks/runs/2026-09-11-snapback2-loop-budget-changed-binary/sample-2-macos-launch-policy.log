@@ -6,4 +6,3 @@
 2026-09-11 02:21:28.586 Df syspolicyd[700:903161f] [com.apple.syspolicy.exec:default] GK evaluateScanResult: 2, PST: (path: f3bd9047b44971cd), (team: (null)), (id: snapback2-bd9d6922d4f92863), (bundle_id: NOT_A_BUNDLE), 0, 0, 1, 0, 0, 0, 0
 2026-09-11 02:21:28.592 Df syspolicyd[700:903161f] [com.apple.syspolicy.exec:default] Found provenance data on target: TA(78a030d3e1eb8d0a, 2), PST: (path: f3bd9047b44971cd), (team: (null)), (id: snapback2-bd9d6922d4f92863), (bundle_id: NOT_A_BUNDLE)
 2026-09-11 02:21:28.592 Df syspolicyd[700:903161f] [com.apple.syspolicy.exec:default] Putting executable into provenance with metadata: TA(78a030d3e1eb8d0a, 2)
-

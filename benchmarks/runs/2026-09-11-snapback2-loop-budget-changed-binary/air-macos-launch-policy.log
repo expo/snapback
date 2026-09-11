@@ -13,4 +13,3 @@
 2026-09-11 03:50:45.550 Df syspolicyd[646:4b6f963] [com.apple.xpc:connection] [0xa75734500] activating connection: mach=false listener=false peer=false name=com.apple.XprotectFramework.AnalysisService
 2026-09-11 03:50:45.709 Df syspolicyd[646:4b75009] [com.apple.syspolicy.exec:default] GK evaluateScanResult: 2, PST: (path: 3b6cbb4f28b7afe7), (team: (null)), (id: snapback2-bebebeb75a1bd3d5), (bundle_id: NOT_A_BUNDLE), 0, 0, 1, 0, 0, 0, 0
 2026-09-11 03:50:45.710 Df syspolicyd[646:4b75009] [com.apple.syspolicy.exec:default] Putting executable into provenance with metadata: TA(68077c6fd5523c7, 2)
-
