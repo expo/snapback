@@ -1116,7 +1116,7 @@ impl Runtime {
     ) -> Result<SuccessorReport, RuntimeError> {
         crate::engine::validate_schema(&next.schema).map_err(first_schema_error)?;
         // Ownership is read here, before the drops clear the columns it derives from.
-        let predecessor_maintain_ids = projected_owned_ids(
+        let replaced_projection_ids = projected_owned_ids(
             &self.engine.store().conn,
             &self.generation.schema,
             &next.schema,
@@ -1125,7 +1125,7 @@ impl Runtime {
             &self.engine.store().conn,
             &self.generation.schema,
             &next.schema,
-            &predecessor_maintain_ids,
+            &replaced_projection_ids,
         )?;
         if &expected != migration {
             return Err(RuntimeError::MigrationPlan(format!(
@@ -1139,7 +1139,7 @@ impl Runtime {
         apply_migration_drops(&transaction, &mut reduced, migration, released_at)?;
         // Ownership was read above, before the drops cleared the columns it derives from.
         if let Some(refusal) =
-            additive_refusal(&transaction, &reduced, &next.schema, &predecessor_maintain_ids)?
+            additive_refusal(&transaction, &reduced, &next.schema, &replaced_projection_ids)?
         {
             return Err(RuntimeError::Successor(Box::new(refusal)));
         }
@@ -1149,7 +1149,7 @@ impl Runtime {
             &next.schema,
             from,
             next.hash(),
-            predecessor_maintain_ids,
+            replaced_projection_ids,
             released_at,
         )?;
         report.audience_bounds =

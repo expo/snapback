@@ -1,6 +1,7 @@
 # snapback2: succ review residuals — the repair-paste compile audit and the positional Get test
 
 **Filed:** 2026-09-10 (orchestrator, landing lane `succ`, LLP 1020 A1–A3/A6)
+**Status:** Closed — 2026-09-11
 **From:** `reviews/succ-r6..r8-{grok,codex}.md`
 
 1. **Every generated repair paste should be bound by the compiler, not string-matched.** Four
@@ -46,3 +47,23 @@ The naming and duplicated template helper in item 3 also remain.
 real compiler under its predecessor schema (or an equivalent exhaustive
 generator), make the Rust positional-Get test call `Checker` or narrow its
 claim explicitly to the owner proof, and resolve or split the item-3 cleanup.
+
+## Resolution — 2026-09-11
+
+The engine now pins eleven generated repair families byte-for-byte to
+`exhaustive-repairs.q`: scalar and optional enums, enum lists and an optional
+list wrapper, text and bytes narrowing, JSON/image/video required fills, a
+mixed removal+widening+requiredness change, and a disjoint enum. The compiler
+lowers and certifies every pasted job against the predecessor fixture. The
+disjoint case is certified against the staged widening that its own first line
+requires; it is not misrepresented as compiling before that explicit step.
+
+`regroup_replaces_only_the_owned_projection_without_a_plan` now certifies its
+positional `Get` with `Checker` before executing it. The predecessor/successor
+projection union is named `replaced_projection_ids`, rather than the misleading
+`predecessor_maintain_ids`. The alleged duplicated `dismissible` template helper
+is obsolete: one helper remains in `src/store/outbox.ts`, while both templates
+only render the already-computed action property.
+
+Verification: the generated-fixture engine test and positional-Get test pass;
+the complete compiler suite passes 300/300 on Bun 1.4.0.

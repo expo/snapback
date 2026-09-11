@@ -63,6 +63,20 @@ export function registerJobChecks(test: Test, frontend: string): void {
     assert(JSON.stringify(combined.args.value) === JSON.stringify({ Enum: { variants: ["free"] } }), JSON.stringify(combined.args));
     const repairs = rustCheck([combined, truncation], "synthetic", lowered.project.schema);
     assert(repairs.every((c) => c.certificate && (c.certificate.sweeps as any[])[0].table === "profiles"), JSON.stringify(repairs));
+    const exhaustiveNames = [
+      "remove_enumScalar_value", "remove_enumOptional_value", "remove_enumList_value",
+      "remove_nestedOptionalList_value", "shrink_textBound_value", "shrink_bytesBound_value",
+      "fill_jsonRequired_value", "fill_imageRequired_value", "fill_videoRequired_value",
+      "remove_mixedEnum_value", "remove_disjointEnum_value",
+    ].map((name) => `exhaustive-repairs.${name}`);
+    const exhaustive = exhaustiveNames.map((name) => byName.get(name));
+    assert(exhaustive.every((program) => program?.kind === "job"), `missing exhaustive repair: ${JSON.stringify(exhaustiveNames.filter((_, index) => !exhaustive[index]))}`);
+    const exhaustiveChecks = rustCheck(exhaustive as NonNullable<(typeof exhaustive)[number]>[], "synthetic", lowered.project.schema);
+    assert(exhaustiveChecks.every((check) => check.certificate), JSON.stringify(exhaustiveChecks));
+    assert(JSON.stringify((byName.get("exhaustive-repairs.remove_nestedOptionalList_value") as any).args.value)
+      === JSON.stringify({ List: { of: { Enum: { variants: ["b"] } }, max: 4 } }), "nested repair argument lost its predecessor-safe type");
+    assert(JSON.stringify((byName.get("exhaustive-repairs.remove_disjointEnum_value") as any).args.value)
+      === JSON.stringify({ Enum: { variants: ["c"] } }), "staged disjoint repair lost its successor case");
   });
   test("A job that is not only chunk blocks refuses as E_JOB_SHAPE in the job family, naming the statement", async () => {
     const lowered = await lowerProject(resolve(frontend, "fixtures/quarry-jobs"));
