@@ -16,3 +16,16 @@ report-name = "snapback-local-proof-rust-tests"
 store-success-output = false
 store-failure-output = true
 report-skipped = "ignored"
+
+# @ref LLP 1002#11-measured — the exact suite starts the measured long tail in
+# a separate process while the complementary local-proof inventory runs beside it.
+[profile.local-proof-priority]
+fail-fast = false
+test-threads = 4
+
+[profile.local-proof-priority.junit]
+path = "rust-priority-tests.junit.xml"
+report-name = "snapback-local-proof-rust-priority-tests"
+store-success-output = false
+store-failure-output = true
+report-skipped = "ignored"
