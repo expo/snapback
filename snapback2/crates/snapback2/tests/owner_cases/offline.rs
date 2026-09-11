@@ -125,7 +125,18 @@ fn offline_query_program_and_subscribe_wire_contract() {
         serde_json::from_value(program.body["schema"].clone()).unwrap();
     assert_eq!(served_schema.hash(), program.body["schemaHash"]);
     for (name, item) in program.body["programs"].as_object().unwrap() {
-        assert_eq!(item["planHash"], manifest.body["ops"][name]["planHash"]);
+        if let Some(manifest_item) = manifest.body["ops"].get(name) {
+            assert_eq!(item["planHash"], manifest_item["planHash"]);
+        } else {
+            assert!(
+                program.body["schema"]["schedules"]
+                    .as_array()
+                    .is_some_and(|schedules| schedules.iter().any(|schedule| {
+                        schedule["target"] == *name || schedule["binding"] == *name
+                    })),
+                "only an internal schedule target or binding may be absent from the client manifest: {name}"
+            );
+        }
         assert!(item.get("ir").is_some() && item.get("certificate").is_some());
     }
     let missing_program = request(

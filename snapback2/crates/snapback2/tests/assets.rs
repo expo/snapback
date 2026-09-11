@@ -568,7 +568,7 @@ fn asset_server_upload_delivery_carrier_revoke_and_reset_round_trip() {
     assert_eq!(delivered.header("x-content-type-options"), "nosniff");
     assert_eq!(delivered.header("content-type"), "image/jpeg");
     assert_eq!(delivered.header("referrer-policy"), "no-referrer");
-    assert_eq!(delivered.header("cache-control"), "no-store");
+    assert_eq!(delivered.header("cache-control"), "private, no-cache");
     assert_one_orientation_tag(&delivered.body, 6);
     let etag = delivered.header("etag").to_owned();
 

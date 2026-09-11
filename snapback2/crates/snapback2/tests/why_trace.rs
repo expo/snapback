@@ -301,7 +301,7 @@ fn auth_recipe_executes_scoped_admin_reads_and_diagnoses_owner_only_absence() {
         assert_eq!(refusal["code"], "E_OP_KIND");
         assert_eq!(refusal["family"], "op");
         assert_eq!(refusal["site"], "groups.memberPromote");
-        assert_eq!(refusal["guide"], "auth");
+        assert_eq!(refusal["guide"], "quarry");
         let after_why = run(
             "groups.inspectMembership",
             r#"{"membershipId":"membership-2"}"#,
