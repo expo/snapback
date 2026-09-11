@@ -100,7 +100,7 @@ ln -s "$(pwd)/corpus" "$package_workspace/corpus"
 # Package tests resolve repository fixtures four levels above their test files.
 # In the isolated package copy that root is the compiler fixture, not the
 # package-workspace directory itself.
-ln -s "$(pwd)/benchmarks" "$compiler_fixture/benchmarks"
+ln -s "$repository_root/benchmarks" "$compiler_fixture/benchmarks"
 ln -s "$(pwd)/metrics" "$package_workspace/metrics"
 ln -s "$(pwd)/scripts" "$package_workspace/scripts"
 ln -s "$(pwd)/unicode" "$package_workspace/unicode"
