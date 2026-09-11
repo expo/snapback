@@ -1,0 +1,91 @@
+{
+  "schemaVersion": "snapback2.offline-entrypoint-scale-curve.v1",
+  "date": "2026-09-11",
+  "sourceCommit": "117bf209d60732b449d52b8b898c709733fdfc84",
+  "productPin": "a52703b7c1c438656937c5a294fca0e0e79d2090",
+  "host": {
+    "name": "Charlies-MacBook-Air.local",
+    "model": "Mac17,3",
+    "os": "macOS 26.6.2 (25G83)",
+    "arch": "arm64",
+    "logicalCpu": 10,
+    "memoryBytes": 34359738368,
+    "power": "AC Power",
+    "thermalWarning": false
+  },
+  "toolchain": {
+    "cargo": "cargo 1.97.0 (c980f4866 2026-06-30)",
+    "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+    "profile": "release",
+    "cargoLockSha256": "5b4e0733bebf3dfa1da8ea292469c311e8aa26c0175a4750bae425fa54ab00d8"
+  },
+  "workload": {
+    "program": "search.global",
+    "store": "Store::memory()",
+    "planHash": "95caf8f73648dab92a532677ffd4d95ff0f725df25bbbc5e5084590736c5e3a8",
+    "messageRowWidthBytes": 20480,
+    "membershipRowWidthBytes": 576,
+    "messagesPerLane": 2,
+    "mediaPerMessage": ["image", "once-image", "video"],
+    "correctnessExecutionsBeforeWarmup": 1,
+    "warmups": 5,
+    "samples": 30,
+    "timerBoundary": "std::time::Instant around Runtime.engine.execute only; validation follows timer",
+    "quantileMethod": "nearest-rank: sorted[ceil(p*n)-1]; median is the mean of the two central samples"
+  },
+  "certificate": {
+    "maxClosureBytes": 3938518,
+    "maxHeapBytes": 5987138,
+    "maxOutputBytes": 409632,
+    "maxSteps": 357666,
+    "derivedScratchBytes": 5840738,
+    "derivedSteps": 353091
+  },
+  "points": [
+    {
+      "percentOfLaneCeiling": 10,
+      "lanes": 10,
+      "messages": 20,
+      "minNs": 622000,
+      "medianNs": 823853.5,
+      "p95Ns": 1064125,
+      "maxNs": 1430083,
+      "meanNs": 846344,
+      "actualClosureBytes": 503707,
+      "actualDerivedScratchBytes": 788282,
+      "actualDerivedSteps": 69027
+    },
+    {
+      "percentOfLaneCeiling": 50,
+      "lanes": 50,
+      "messages": 100,
+      "minNs": 1711042,
+      "medianNs": 1834000,
+      "p95Ns": 2556667,
+      "maxNs": 7821709,
+      "meanNs": 2082756,
+      "actualClosureBytes": 1719569,
+      "actualDerivedScratchBytes": 2360508,
+      "actualDerivedSteps": 69027
+    },
+    {
+      "percentOfLaneCeiling": 100,
+      "lanes": 100,
+      "messages": 200,
+      "minNs": 2986292,
+      "medianNs": 3088770.5,
+      "p95Ns": 3298000,
+      "maxNs": 3312667,
+      "meanNs": 3117582,
+      "actualClosureBytes": 3213881,
+      "actualDerivedScratchBytes": 4298858,
+      "actualDerivedSteps": 69027
+    }
+  ],
+  "integrity": {
+    "rawScaleSha256": "6fa497898344004927a0637f4169066972c9fa221b1a8fc5e163b2c37942080f",
+    "harnessPatchSha256": "d6d464532b667611f130a26b45e8fc582e791794ae317d95e0986eec47cc4c40",
+    "patchedSourceSha256": "54deef52fe4b173fa11acee01aa58ef2018fc8cd6c03fc8afbcd4728ca72fca6",
+    "committedSourceSha256": "39c6175dfd08e3912c01e1633e925b2c5860ff7d0b3f64b545479715732f8cf9"
+  }
+}

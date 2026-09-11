@@ -1,0 +1,131 @@
+--- a/snapback2/crates/snapback2-core/src/engine/search_media_tests.rs
++++ b/snapback2/crates/snapback2-core/src/engine/search_media_tests.rs
+@@ -100,7 +100,26 @@
+         ),
+         ("joinedAt".into(), ColumnType::Time),
+     ]);
+-    for stress in [false, true] {
++    let lane_count = std::env::var("SNAPBACK2_SEARCH_MEDIA_LANES")
++        .ok()
++        .map(|value| value.parse::<usize>().expect("lane count must be an integer"))
++        .unwrap_or(100);
++    assert!((10..=100).contains(&lane_count));
++    let measurement_samples = std::env::var("SNAPBACK2_SEARCH_MEDIA_SAMPLES")
++        .ok()
++        .map(|value| value.parse::<usize>().expect("sample count must be an integer"));
++    let measurement_warmups = std::env::var("SNAPBACK2_SEARCH_MEDIA_WARMUPS")
++        .ok()
++        .map(|value| value.parse::<usize>().expect("warmup count must be an integer"))
++        .unwrap_or(5);
++    assert!(measurement_samples.is_none_or(|count| (1..=100).contains(&count)));
++    assert!(measurement_warmups <= 100);
++    let stress_values: &[bool] = if std::env::var_os("SNAPBACK2_SEARCH_MEDIA_STRESS_ONLY").is_some() {
++        &[true]
++    } else {
++        &[false, true]
++    };
++    for &stress in stress_values {
+         let mut schema = base.clone();
+         let (message_pad, member_pad) = if stress {
+             (
+@@ -156,7 +175,7 @@
+         let viewer = "p".repeat(135);
+         let actor = Actor::user(viewer.clone()).unwrap();
+         let padding = |n: usize| Value::String("𐐀".repeat(n.saturating_sub(13) / 4));
+-        for i in 0..100 {
++        for i in 0..lane_count {
+             let c = format!("c{i:03}{}", "x".repeat(131));
+             let mut membership = BTreeMap::from([
+                 (
+@@ -191,7 +210,7 @@
+                     ("photo".into(), asset(&mut runtime, &actor, false)),
+                     ("oncePhoto".into(), asset(&mut runtime, &actor, false)),
+                     ("clip".into(), asset(&mut runtime, &actor, true)),
+-                    ("at".into(), Value::Int(i * 2 + j)),
++                    ("at".into(), Value::Int((i * 2 + j) as i64)),
+                     ("expiresAt".into(), Value::Int(crate::value::I53_MAX)),
+                 ]);
+                 if stress {
+@@ -206,8 +225,8 @@
+                 );
+             }
+         }
+-        let context = Context::query(
+-            Actor::user(viewer).unwrap(),
++        let context = || Context::query(
++            Actor::user(viewer.clone()).unwrap(),
+             BTreeMap::from([
+                 (
+                     "term".into(),
+@@ -218,7 +237,7 @@
+         );
+         let execution = runtime
+             .engine
+-            .execute(&program, &certificate, context)
++            .execute(&program, &certificate, context())
+             .unwrap();
+         assert_eq!(ids(&execution).len(), 20);
+         execution.receipt.validate_pool(&schema).unwrap();
+@@ -233,7 +252,7 @@
+                 .iter()
+                 .filter(|r| r.table == "memberships")
+                 .count(),
+-            100
++            lane_count
+         );
+         assert!(
+             execution
+@@ -250,5 +269,53 @@
+                 &serde_json::json!({"stress":stress,"row_width":crate::bounds::declared_serialized_row_max(&schema,"messages"),"membership_width":crate::bounds::declared_serialized_row_max(&schema,"memberships"),"certificate":certificate,"actual_closure_bytes":bytes,"actual_derived_steps":execution.trace.derived_steps,"actual_derived_scratch_bytes":execution.trace.derived_scratch_bytes})
+             )
+         );
++        if let Some(sample_count) = measurement_samples {
++            for _ in 0..measurement_warmups {
++                let warmed = runtime
++                    .engine
++                    .execute(&program, &certificate, context())
++                    .unwrap();
++                assert_eq!(ids(&warmed).len(), 20);
++            }
++            let mut samples_ns = Vec::<u64>::with_capacity(sample_count);
++            let mut actual_closure_bytes = 0;
++            let mut actual_derived_steps = 0;
++            let mut actual_derived_scratch_bytes = 0;
++            for _ in 0..sample_count {
++                let started = std::time::Instant::now();
++                let measured = runtime
++                    .engine
++                    .execute(&program, &certificate, context())
++                    .unwrap();
++                samples_ns.push(u64::try_from(started.elapsed().as_nanos()).unwrap());
++                assert_eq!(ids(&measured).len(), 20);
++                measured.receipt.validate_pool(&schema).unwrap();
++                actual_closure_bytes = canonical_json(&measured.receipt).len() as u64;
++                actual_derived_steps = measured.trace.derived_steps;
++                actual_derived_scratch_bytes = measured.trace.derived_scratch_bytes;
++                assert!(actual_closure_bytes <= certificate.max_closure_bytes);
++                assert!(actual_derived_steps <= certificate.derived_steps);
++                assert!(actual_derived_scratch_bytes <= certificate.derived_scratch_bytes);
++            }
++            println!(
++                "SEARCH_MEDIA_SCALE {}",
++                canonical_json(&serde_json::json!({
++                    "actor": viewer,
++                    "actual_closure_bytes": actual_closure_bytes,
++                    "actual_derived_scratch_bytes": actual_derived_scratch_bytes,
++                    "actual_derived_steps": actual_derived_steps,
++                    "lane_count": lane_count,
++                    "membership_width": crate::bounds::declared_serialized_row_max(&schema,"memberships"),
++                    "messages_seeded": lane_count * 2,
++                    "plan_hash": certificate.plan_hash,
++                    "program": program.name,
++                    "row_width": crate::bounds::declared_serialized_row_max(&schema,"messages"),
++                    "samples_ns": samples_ns,
++                    "store": "Store::memory()",
++                    "stress": stress,
++                    "warmups_after_correctness_run": measurement_warmups,
++                }))
++            );
++        }
+     }
+ }

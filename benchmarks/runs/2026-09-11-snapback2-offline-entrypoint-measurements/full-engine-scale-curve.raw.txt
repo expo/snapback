@@ -1,0 +1,170 @@
+UTC 2026-09-11T09:00:34Z
+Charlies-MacBook-Air.local
+ProductName:		macOS
+ProductVersion:		26.6.2
+BuildVersion:		25G83
+Darwin Charlies-MacBook-Air.local 25.6.0 Darwin Kernel Version 25.6.0: Fri Jul 31 19:16:20 PDT 2026; root:xnu-12377.161.14~5/RELEASE_ARM64_T8142 arm64
+Mac17,3
+34359738368
+10
+ 2:00  up 22 days, 11:10, 45 users, load averages: 3.90 5.46 4.83
+Now drawing from 'AC Power'
+ -InternalBattery-0 (id=35192931)	80%; AC attached; not charging present: true
+Note: No thermal warning level has been recorded
+Note: No performance warning level has been recorded
+Note: No CPU power status has been recorded
+## bench/offline-entrypoint-scale-20260911
+ M snapback2/crates/snapback2-core/src/engine/search_media_tests.rs
+117bf209d60732b449d52b8b898c709733fdfc84
+rustc 1.97.0 (2d8144b78 2026-07-07)
+cargo 1.97.0 (c980f4866 2026-06-30)
+5b4e0733bebf3dfa1da8ea292469c311e8aa26c0175a4750bae425fa54ab00d8  snapback2/Cargo.lock
+54deef52fe4b173fa11acee01aa58ef2018fc8cd6c03fc8afbcd4728ca72fca6  snapback2/crates/snapback2-core/src/engine/search_media_tests.rs
+d6d464532b667611f130a26b45e8fc582e791794ae317d95e0986eec47cc4c40  /tmp/snapback2-offline-scale-curve.patch
+COMMAND for lanes in 10 50 100; do SNAPBACK2_SEARCH_MEDIA_LANES=\"\" SNAPBACK2_SEARCH_MEDIA_SAMPLES=30 SNAPBACK2_SEARCH_MEDIA_WARMUPS=5 SNAPBACK2_SEARCH_MEDIA_STRESS_ONLY=1 RUST_TEST_THREADS=1 caffeinate -s /usr/bin/time -lp cargo test --release --locked -p snapback2-core --lib maximum_media_shape_and_twenty_kib_stress_fit_actual_closure_and_scratch -- --nocapture; done
+SCALE_POINT_BEGIN lanes=10
+   Compiling version_check v0.9.5
+   Compiling libc v0.2.189
+   Compiling proc-macro2 v1.0.107
+   Compiling typenum v1.20.1
+   Compiling unicode-ident v1.0.24
+   Compiling quote v1.0.47
+   Compiling zerocopy v0.8.56
+   Compiling cfg-if v1.0.4
+   Compiling find-msvc-tools v0.1.11
+   Compiling shlex v2.0.1
+   Compiling subtle v2.6.1
+   Compiling cc v1.4.4
+   Compiling vcpkg v0.2.15
+   Compiling pkg-config v0.3.34
+   Compiling generic-array v0.14.7
+   Compiling ahash v0.8.12
+   Compiling once_cell v1.21.4
+   Compiling serde_core v1.0.229
+   Compiling zmij v1.0.23
+   Compiling libsqlite3-sys v0.30.1
+   Compiling cpufeatures v0.2.17
+   Compiling serde v1.0.229
+   Compiling base64ct v1.8.3
+   Compiling rand_core v0.6.4
+   Compiling serde_json v1.0.151
+   Compiling getrandom v0.3.4
+   Compiling thiserror v2.0.20
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling digest v0.10.7
+   Compiling sha2 v0.10.9
+   Compiling blake2 v0.10.6
+   Compiling syn v3.0.4
+   Compiling snapback2-core v0.0.22 (/Users/ccheever/lanes/llp-ship-20260829T034720Z-wave3/snapback2/crates/snapback2-core)
+   Compiling password-hash v0.5.0
+   Compiling diff v0.1.13
+   Compiling thiserror-impl v2.0.20
+   Compiling serde_derive v1.0.229
+   Compiling memchr v2.8.3
+   Compiling fallible-iterator v0.3.0
+   Compiling yansi v1.0.1
+   Compiling bitflags v2.13.1
+   Compiling itoa v1.0.18
+   Compiling smallvec v1.16.0
+   Compiling fallible-streaming-iterator v0.1.9
+   Compiling pretty_assertions v1.4.1
+   Compiling hashbrown v0.14.5
+   Compiling argon2 v0.5.3
+   Compiling hashlink v0.9.1
+   Compiling rusqlite v0.32.1
+    Finished `release` profile [optimized] target(s) in 31.96s
+     Running unittests src/lib.rs (target/release/deps/snapback2_core-fba8ec12f5106e73)
+
+running 1 test
+test engine::search_tests::media::maximum_media_shape_and_twenty_kib_stress_fit_actual_closure_and_scratch ... SEARCH_MEDIA {"actual_closure_bytes":503707,"actual_derived_scratch_bytes":788282,"actual_derived_steps":69027,"certificate":{"bound_product":"merge snapback/search.q:5:10: 100 lanes heads + 20 advances + 2 lookahead × 1 calls (search.global.1 × 100) = 122 + search.global.0 take 100 (+2 reserve) × 1 calls on memberships = 102","completeness":"Page","constraint_checks":[],"cost_terms":[{"meter":"examined entries","site":"snapback/search.q:5:10","source":"merge snapback/search.q:5:10: 100 lanes heads + 20 advances + 2 lookahead × 1 calls (search.global.1 × 100)","value":122},{"meter":"examined entries","site":"search.global.0","source":"search.global.0 take 100 (+2 reserve) × 1 calls on memberships","value":102},{"meter":"index entries","site":"snapback/search.q:5:10","source":"merge snapback/search.q:5:10: 100 lanes heads + 20 advances + 2 lookahead × 1 calls (search.global.1 × 100)","value":122},{"meter":"index entries","site":"search.global.0","source":"search.global.0 take 100 (+2 reserve) × 1 calls on memberships","value":102},{"meter":"rule probes","site":"search.global.1","source":"search.global.1: 100 calls × 2 rule probes (calls from search.global.0 take 100)","value":200},{"meter":"steps","site":"search.global.1","source":"search term normalization at search.global.1","value":353091},{"meter":"steps","site":"search.global:statement:1","source":"merge snapback/search.q:5:10: heap work","value":3050},{"meter":"steps","site":"snapback/search.q:5:10","source":"merge snapback/search.q:5:10: 100 lanes heads + 20 advances + 2 lookahead × 1 calls (search.global.1 × 100) × 5","value":610},{"meter":"steps","site":"search.global.0","source":"search.global.0 take 100 (+2 reserve) × 1 calls on memberships × 5","value":510},{"meter":"steps","site":"search.global:statement:1","source":"expressions (calls from search.global.0 take 100)","value":400},{"meter":"steps","site":"search.global:statement:1","source":"expressions","value":2},{"meter":"steps","site":"search.global:statement:2","source":"expressions","value":1},{"meter":"steps","site":"search.global:statement:1","source":"statements","value":1},{"meter":"steps","site":"search.global:statement:2","source":"statements","value":1},{"meter":"heap bytes","site":"snapback/search.q:5:10","source":"search closure scratch","value":3938518},{"meter":"heap bytes","site":"search.global.1","source":"search term normalization at search.global.1","value":1902220},{"meter":"heap bytes","site":"search.global:statement:1","source":"merge snapback/search.q:5:10: heap work × 32","value":97600},{"meter":"heap bytes","site":"snapback/search.q:5:10","source":"merge snapback/search.q:5:10: 100 lanes heads + 20 advances + 2 lookahead × 1 calls (search.global.1 × 100) × 5 × 32","value":19520},{"meter":"heap bytes","site":"search.global.0","source":"search.global.0 take 100 (+2 reserve) × 1 calls on memberships × 5 × 32","value":16320},{"meter":"heap bytes","site":"search.global:statement:1","source":"expressions (calls from search.global.0 take 100) × 32","value":12800},{"meter":"heap bytes","site":"search.global:statement:1","source":"expressions × 32","value":64},{"meter":"heap bytes","site":"search.global:statement:2","source":"expressions × 32","value":32},{"meter":"heap bytes","site":"search.global:statement:1","source":"statements × 32","value":32},{"meter":"heap bytes","site":"search.global:statement:2","source":"statements × 32","value":32},{"meter":"output bytes","site":null,"source":"messages.at","value":760},{"meter":"output bytes","site":null,"source":"messages.authorId","value":3120},{"meter":"output bytes","site":null,"source":"messages.body","value":320480},{"meter":"output bytes","site":null,"source":"messages.caption","value":4540},{"meter":"output bytes","site":null,"source":"messages.clip","value":5900},{"meter":"output bytes","site":null,"source":"messages.conversationId","value":3240},{"meter":"output bytes","site":null,"source":"messages.expiresAt","value":900},{"meter":"output bytes","site":null,"source":"messages.id","value":3000},{"meter":"output bytes","site":null,"source":"messages.oncePhoto","value":5120},{"meter":"output bytes","site":null,"source":"messages.pad","value":57300},{"meter":"output bytes","site":null,"source":"messages.photo","value":5040},{"meter":"output bytes","site":null,"source":"messages row width: framing/shared encoding/growth adjustment","value":200},{"meter":"output bytes","site":null,"source":"merge snapback/search.q:5:10: emitted page: framing/shared encoding/growth adjustment","value":32},{"meter":"closure bytes","site":"search.global.0","source":"search.global.0 × 1 ranges: source descriptor, suffix bounds, row/halo references","value":15467},{"meter":"closure bytes","site":"search.global.1","source":"search.global.1 × 100 ranges: source descriptor, suffix bounds, row/halo references","value":1201000},{"meter":"closure bytes","site":null,"source":"101 pooled memberships first images with table/id envelopes","value":76861},{"meter":"closure bytes","site":null,"source":"122 pooled messages first images with table/id envelopes","value":2520764},{"meter":"closure bytes","site":null,"source":"search closure: whole row pool and actual issuing metadata: framing/shared encoding/growth adjustment","value":124426}],"derived_scratch_bytes":5840738,"derived_steps":353091,"disclosures":[],"evaluator_version":"bounded-spike-rust-search-text-refinements-5","halo_rows":1,"indexes_required":["memberships.byConversationPrincipal","memberships.byPrincipal","messages.byConversationWords"],"maintained_amplification":0,"max_closure_bytes":3938518,"max_examined":224,"max_heap_bytes":5987138,"max_index_entries":224,"max_output_bytes":409632,"max_rule_probes":200,"max_steps":357666,"merge_sites":[{"lane_sites":["search.global.1"],"max_lanes":100,"site":"snapback/search.q:5:10","take":20,"uniform":true}],"plan_hash":"95caf8f73648dab92a532677ffd4d95ff0f725df25bbbc5e5084590736c5e3a8","prediction_sites":[],"program":"search.global","read_sites":[{"complete":false,"decided_true":true,"hoist":true,"index":"byPrincipal","max_calls":1,"prefix_template":"Viewer","rule_probes_per_candidate":0,"site":"search.global.0","table":"memberships","take":100},{"complete":false,"hoist":true,"index":"byConversationWords","max_calls":100,"prefix_template":"Shape","rule_probes_per_candidate":2,"site":"search.global.1","table":"messages","take":20}],"read_time_granularity_ms":null,"result_pages":{"1":{"index":"byConversationWords","merge":true,"order":"Desc","site":"snapback/search.q:5:10","suffix":[{"kind":"Time","name":"at"},{"kind":"Id","name":"id"}],"table":"messages"}},"rule_hashes":{"memberships.read":"73674ad06981131bed24ba61837b3c624982fb4a5883d3e3e514ca7375db4f24","messages.read":"73674ad06981131bed24ba61837b3c624982fb4a5883d3e3e514ca7375db4f24"},"schema_hash":"46dfef8e7f99e6a4b868571b5ab493f8ef04377043c62964346c779ce8f59f9b","tables":{"conversations":{"retain":"until-revoked"},"memberships":{"retain":"until-revoked"},"messages":{"retain":"until-revoked"},"people":{"retain":"until-revoked"}},"value_model_version":"i53-codepoint-bytes-unicode-search-text-refinements-v5","write_sites":[]},"membership_width":576,"row_width":20480,"stress":true}
+SEARCH_MEDIA_SCALE {"actor":"ppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp","actual_closure_bytes":503707,"actual_derived_scratch_bytes":788282,"actual_derived_steps":69027,"lane_count":10,"membership_width":576,"messages_seeded":20,"plan_hash":"95caf8f73648dab92a532677ffd4d95ff0f725df25bbbc5e5084590736c5e3a8","program":"search.global","row_width":20480,"samples_ns":[895459,896667,979667,1064125,938792,875500,808792,822916,853125,1430083,967542,867792,770042,802542,750625,738916,715208,1058375,974875,824791,867000,895000,753584,710375,749625,687166,622000,704750,659541,705458],"store":"Store::memory()","stress":true,"warmups_after_correctness_run":5}
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 183 filtered out; finished in 0.10s
+
+real 32.72
+user 137.15
+sys 5.11
+          1392410624  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+             1353516  page reclaims
+               16395  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                 112  signals received
+                3172  voluntary context switches
+              233645  involuntary context switches
+          2392601943  instructions retired
+          1149972252  cycles elapsed
+            50954840  peak memory footprint
+SCALE_POINT_END lanes=10
+SCALE_POINT_BEGIN lanes=50
+    Finished `release` profile [optimized] target(s) in 0.09s
+     Running unittests src/lib.rs (target/release/deps/snapback2_core-fba8ec12f5106e73)
+
+running 1 test
+test engine::search_tests::media::maximum_media_shape_and_twenty_kib_stress_fit_actual_closure_and_scratch ... SEARCH_MEDIA {"actual_closure_bytes":1719569,"actual_derived_scratch_bytes":2360508,"actual_derived_steps":69027,"certificate":{"bound_product":"merge snapback/search.q:5:10: 100 lanes heads + 20 advances + 2 lookahead × 1 calls (search.global.1 × 100) = 122 + search.global.0 take 100 (+2 reserve) × 1 calls on memberships = 102","completeness":"Page","constraint_checks":[],"cost_terms":[{"meter":"examined entries","site":"snapback/search.q:5:10","source":"merge snapback/search.q:5:10: 100 lanes heads + 20 advances + 2 lookahead × 1 calls (search.global.1 × 100)","value":122},{"meter":"examined entries","site":"search.global.0","source":"search.global.0 take 100 (+2 reserve) × 1 calls on memberships","value":102},{"meter":"index entries","site":"snapback/search.q:5:10","source":"merge snapback/search.q:5:10: 100 lanes heads + 20 advances + 2 lookahead × 1 calls (search.global.1 × 100)","value":122},{"meter":"index entries","site":"search.global.0","source":"search.global.0 take 100 (+2 reserve) × 1 calls on memberships","value":102},{"meter":"rule probes","site":"search.global.1","source":"search.global.1: 100 calls × 2 rule probes (calls from search.global.0 take 100)","value":200},{"meter":"steps","site":"search.global.1","source":"search term normalization at search.global.1","value":353091},{"meter":"steps","site":"search.global:statement:1","source":"merge snapback/search.q:5:10: heap work","value":3050},{"meter":"steps","site":"snapback/search.q:5:10","source":"merge snapback/search.q:5:10: 100 lanes heads + 20 advances + 2 lookahead × 1 calls (search.global.1 × 100) × 5","value":610},{"meter":"steps","site":"search.global.0","source":"search.global.0 take 100 (+2 reserve) × 1 calls on memberships × 5","value":510},{"meter":"steps","site":"search.global:statement:1","source":"expressions (calls from search.global.0 take 100)","value":400},{"meter":"steps","site":"search.global:statement:1","source":"expressions","value":2},{"meter":"steps","site":"search.global:statement:2","source":"expressions","value":1},{"meter":"steps","site":"search.global:statement:1","source":"statements","value":1},{"meter":"steps","site":"search.global:statement:2","source":"statements","value":1},{"meter":"heap bytes","site":"snapback/search.q:5:10","source":"search closure scratch","value":3938518},{"meter":"heap bytes","site":"search.global.1","source":"search term normalization at search.global.1","value":1902220},{"meter":"heap bytes","site":"search.global:statement:1","source":"merge snapback/search.q:5:10: heap work × 32","value":97600},{"meter":"heap bytes","site":"snapback/search.q:5:10","source":"merge snapback/search.q:5:10: 100 lanes heads + 20 advances + 2 lookahead × 1 calls (search.global.1 × 100) × 5 × 32","value":19520},{"meter":"heap bytes","site":"search.global.0","source":"search.global.0 take 100 (+2 reserve) × 1 calls on memberships × 5 × 32","value":16320},{"meter":"heap bytes","site":"search.global:statement:1","source":"expressions (calls from search.global.0 take 100) × 32","value":12800},{"meter":"heap bytes","site":"search.global:statement:1","source":"expressions × 32","value":64},{"meter":"heap bytes","site":"search.global:statement:2","source":"expressions × 32","value":32},{"meter":"heap bytes","site":"search.global:statement:1","source":"statements × 32","value":32},{"meter":"heap bytes","site":"search.global:statement:2","source":"statements × 32","value":32},{"meter":"output bytes","site":null,"source":"messages.at","value":760},{"meter":"output bytes","site":null,"source":"messages.authorId","value":3120},{"meter":"output bytes","site":null,"source":"messages.body","value":320480},{"meter":"output bytes","site":null,"source":"messages.caption","value":4540},{"meter":"output bytes","site":null,"source":"messages.clip","value":5900},{"meter":"output bytes","site":null,"source":"messages.conversationId","value":3240},{"meter":"output bytes","site":null,"source":"messages.expiresAt","value":900},{"meter":"output bytes","site":null,"source":"messages.id","value":3000},{"meter":"output bytes","site":null,"source":"messages.oncePhoto","value":5120},{"meter":"output bytes","site":null,"source":"messages.pad","value":57300},{"meter":"output bytes","site":null,"source":"messages.photo","value":5040},{"meter":"output bytes","site":null,"source":"messages row width: framing/shared encoding/growth adjustment","value":200},{"meter":"output bytes","site":null,"source":"merge snapback/search.q:5:10: emitted page: framing/shared encoding/growth adjustment","value":32},{"meter":"closure bytes","site":"search.global.0","source":"search.global.0 × 1 ranges: source descriptor, suffix bounds, row/halo references","value":15467},{"meter":"closure bytes","site":"search.global.1","source":"search.global.1 × 100 ranges: source descriptor, suffix bounds, row/halo references","value":1201000},{"meter":"closure bytes","site":null,"source":"101 pooled memberships first images with table/id envelopes","value":76861},{"meter":"closure bytes","site":null,"source":"122 pooled messages first images with table/id envelopes","value":2520764},{"meter":"closure bytes","site":null,"source":"search closure: whole row pool and actual issuing metadata: framing/shared encoding/growth adjustment","value":124426}],"derived_scratch_bytes":5840738,"derived_steps":353091,"disclosures":[],"evaluator_version":"bounded-spike-rust-search-text-refinements-5","halo_rows":1,"indexes_required":["memberships.byConversationPrincipal","memberships.byPrincipal","messages.byConversationWords"],"maintained_amplification":0,"max_closure_bytes":3938518,"max_examined":224,"max_heap_bytes":5987138,"max_index_entries":224,"max_output_bytes":409632,"max_rule_probes":200,"max_steps":357666,"merge_sites":[{"lane_sites":["search.global.1"],"max_lanes":100,"site":"snapback/search.q:5:10","take":20,"uniform":true}],"plan_hash":"95caf8f73648dab92a532677ffd4d95ff0f725df25bbbc5e5084590736c5e3a8","prediction_sites":[],"program":"search.global","read_sites":[{"complete":false,"decided_true":true,"hoist":true,"index":"byPrincipal","max_calls":1,"prefix_template":"Viewer","rule_probes_per_candidate":0,"site":"search.global.0","table":"memberships","take":100},{"complete":false,"hoist":true,"index":"byConversationWords","max_calls":100,"prefix_template":"Shape","rule_probes_per_candidate":2,"site":"search.global.1","table":"messages","take":20}],"read_time_granularity_ms":null,"result_pages":{"1":{"index":"byConversationWords","merge":true,"order":"Desc","site":"snapback/search.q:5:10","suffix":[{"kind":"Time","name":"at"},{"kind":"Id","name":"id"}],"table":"messages"}},"rule_hashes":{"memberships.read":"73674ad06981131bed24ba61837b3c624982fb4a5883d3e3e514ca7375db4f24","messages.read":"73674ad06981131bed24ba61837b3c624982fb4a5883d3e3e514ca7375db4f24"},"schema_hash":"46dfef8e7f99e6a4b868571b5ab493f8ef04377043c62964346c779ce8f59f9b","tables":{"conversations":{"retain":"until-revoked"},"memberships":{"retain":"until-revoked"},"messages":{"retain":"until-revoked"},"people":{"retain":"until-revoked"}},"value_model_version":"i53-codepoint-bytes-unicode-search-text-refinements-v5","write_sites":[]},"membership_width":576,"row_width":20480,"stress":true}
+SEARCH_MEDIA_SCALE {"actor":"ppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp","actual_closure_bytes":1719569,"actual_derived_scratch_bytes":2360508,"actual_derived_steps":69027,"lane_count":50,"membership_width":576,"messages_seeded":100,"plan_hash":"95caf8f73648dab92a532677ffd4d95ff0f725df25bbbc5e5084590736c5e3a8","program":"search.global","row_width":20480,"samples_ns":[1819084,1828750,1799250,1787625,1801084,1812833,1912250,2138000,1892709,1935875,2556667,7821709,2067917,1945958,1899083,1880000,1876750,2017291,1866708,1834375,1799042,1815333,1743625,1711042,1768916,1874208,1826208,1833625,1810208,1806542],"store":"Store::memory()","stress":true,"warmups_after_correctness_run":5}
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 183 filtered out; finished in 0.21s
+
+real 0.33
+user 0.23
+sys 0.03
+            71843840  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+                8369  page reclaims
+                 198  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   1  signals received
+                 587  voluntary context switches
+                 356  involuntary context switches
+           986564421  instructions retired
+           301885005  cycles elapsed
+            46891608  peak memory footprint
+SCALE_POINT_END lanes=50
+SCALE_POINT_BEGIN lanes=100
+    Finished `release` profile [optimized] target(s) in 0.04s
+     Running unittests src/lib.rs (target/release/deps/snapback2_core-fba8ec12f5106e73)
+
+running 1 test
+test engine::search_tests::media::maximum_media_shape_and_twenty_kib_stress_fit_actual_closure_and_scratch ... SEARCH_MEDIA {"actual_closure_bytes":3213881,"actual_derived_scratch_bytes":4298858,"actual_derived_steps":69027,"certificate":{"bound_product":"merge snapback/search.q:5:10: 100 lanes heads + 20 advances + 2 lookahead × 1 calls (search.global.1 × 100) = 122 + search.global.0 take 100 (+2 reserve) × 1 calls on memberships = 102","completeness":"Page","constraint_checks":[],"cost_terms":[{"meter":"examined entries","site":"snapback/search.q:5:10","source":"merge snapback/search.q:5:10: 100 lanes heads + 20 advances + 2 lookahead × 1 calls (search.global.1 × 100)","value":122},{"meter":"examined entries","site":"search.global.0","source":"search.global.0 take 100 (+2 reserve) × 1 calls on memberships","value":102},{"meter":"index entries","site":"snapback/search.q:5:10","source":"merge snapback/search.q:5:10: 100 lanes heads + 20 advances + 2 lookahead × 1 calls (search.global.1 × 100)","value":122},{"meter":"index entries","site":"search.global.0","source":"search.global.0 take 100 (+2 reserve) × 1 calls on memberships","value":102},{"meter":"rule probes","site":"search.global.1","source":"search.global.1: 100 calls × 2 rule probes (calls from search.global.0 take 100)","value":200},{"meter":"steps","site":"search.global.1","source":"search term normalization at search.global.1","value":353091},{"meter":"steps","site":"search.global:statement:1","source":"merge snapback/search.q:5:10: heap work","value":3050},{"meter":"steps","site":"snapback/search.q:5:10","source":"merge snapback/search.q:5:10: 100 lanes heads + 20 advances + 2 lookahead × 1 calls (search.global.1 × 100) × 5","value":610},{"meter":"steps","site":"search.global.0","source":"search.global.0 take 100 (+2 reserve) × 1 calls on memberships × 5","value":510},{"meter":"steps","site":"search.global:statement:1","source":"expressions (calls from search.global.0 take 100)","value":400},{"meter":"steps","site":"search.global:statement:1","source":"expressions","value":2},{"meter":"steps","site":"search.global:statement:2","source":"expressions","value":1},{"meter":"steps","site":"search.global:statement:1","source":"statements","value":1},{"meter":"steps","site":"search.global:statement:2","source":"statements","value":1},{"meter":"heap bytes","site":"snapback/search.q:5:10","source":"search closure scratch","value":3938518},{"meter":"heap bytes","site":"search.global.1","source":"search term normalization at search.global.1","value":1902220},{"meter":"heap bytes","site":"search.global:statement:1","source":"merge snapback/search.q:5:10: heap work × 32","value":97600},{"meter":"heap bytes","site":"snapback/search.q:5:10","source":"merge snapback/search.q:5:10: 100 lanes heads + 20 advances + 2 lookahead × 1 calls (search.global.1 × 100) × 5 × 32","value":19520},{"meter":"heap bytes","site":"search.global.0","source":"search.global.0 take 100 (+2 reserve) × 1 calls on memberships × 5 × 32","value":16320},{"meter":"heap bytes","site":"search.global:statement:1","source":"expressions (calls from search.global.0 take 100) × 32","value":12800},{"meter":"heap bytes","site":"search.global:statement:1","source":"expressions × 32","value":64},{"meter":"heap bytes","site":"search.global:statement:2","source":"expressions × 32","value":32},{"meter":"heap bytes","site":"search.global:statement:1","source":"statements × 32","value":32},{"meter":"heap bytes","site":"search.global:statement:2","source":"statements × 32","value":32},{"meter":"output bytes","site":null,"source":"messages.at","value":760},{"meter":"output bytes","site":null,"source":"messages.authorId","value":3120},{"meter":"output bytes","site":null,"source":"messages.body","value":320480},{"meter":"output bytes","site":null,"source":"messages.caption","value":4540},{"meter":"output bytes","site":null,"source":"messages.clip","value":5900},{"meter":"output bytes","site":null,"source":"messages.conversationId","value":3240},{"meter":"output bytes","site":null,"source":"messages.expiresAt","value":900},{"meter":"output bytes","site":null,"source":"messages.id","value":3000},{"meter":"output bytes","site":null,"source":"messages.oncePhoto","value":5120},{"meter":"output bytes","site":null,"source":"messages.pad","value":57300},{"meter":"output bytes","site":null,"source":"messages.photo","value":5040},{"meter":"output bytes","site":null,"source":"messages row width: framing/shared encoding/growth adjustment","value":200},{"meter":"output bytes","site":null,"source":"merge snapback/search.q:5:10: emitted page: framing/shared encoding/growth adjustment","value":32},{"meter":"closure bytes","site":"search.global.0","source":"search.global.0 × 1 ranges: source descriptor, suffix bounds, row/halo references","value":15467},{"meter":"closure bytes","site":"search.global.1","source":"search.global.1 × 100 ranges: source descriptor, suffix bounds, row/halo references","value":1201000},{"meter":"closure bytes","site":null,"source":"101 pooled memberships first images with table/id envelopes","value":76861},{"meter":"closure bytes","site":null,"source":"122 pooled messages first images with table/id envelopes","value":2520764},{"meter":"closure bytes","site":null,"source":"search closure: whole row pool and actual issuing metadata: framing/shared encoding/growth adjustment","value":124426}],"derived_scratch_bytes":5840738,"derived_steps":353091,"disclosures":[],"evaluator_version":"bounded-spike-rust-search-text-refinements-5","halo_rows":1,"indexes_required":["memberships.byConversationPrincipal","memberships.byPrincipal","messages.byConversationWords"],"maintained_amplification":0,"max_closure_bytes":3938518,"max_examined":224,"max_heap_bytes":5987138,"max_index_entries":224,"max_output_bytes":409632,"max_rule_probes":200,"max_steps":357666,"merge_sites":[{"lane_sites":["search.global.1"],"max_lanes":100,"site":"snapback/search.q:5:10","take":20,"uniform":true}],"plan_hash":"95caf8f73648dab92a532677ffd4d95ff0f725df25bbbc5e5084590736c5e3a8","prediction_sites":[],"program":"search.global","read_sites":[{"complete":false,"decided_true":true,"hoist":true,"index":"byPrincipal","max_calls":1,"prefix_template":"Viewer","rule_probes_per_candidate":0,"site":"search.global.0","table":"memberships","take":100},{"complete":false,"hoist":true,"index":"byConversationWords","max_calls":100,"prefix_template":"Shape","rule_probes_per_candidate":2,"site":"search.global.1","table":"messages","take":20}],"read_time_granularity_ms":null,"result_pages":{"1":{"index":"byConversationWords","merge":true,"order":"Desc","site":"snapback/search.q:5:10","suffix":[{"kind":"Time","name":"at"},{"kind":"Id","name":"id"}],"table":"messages"}},"rule_hashes":{"memberships.read":"73674ad06981131bed24ba61837b3c624982fb4a5883d3e3e514ca7375db4f24","messages.read":"73674ad06981131bed24ba61837b3c624982fb4a5883d3e3e514ca7375db4f24"},"schema_hash":"46dfef8e7f99e6a4b868571b5ab493f8ef04377043c62964346c779ce8f59f9b","tables":{"conversations":{"retain":"until-revoked"},"memberships":{"retain":"until-revoked"},"messages":{"retain":"until-revoked"},"people":{"retain":"until-revoked"}},"value_model_version":"i53-codepoint-bytes-unicode-search-text-refinements-v5","write_sites":[]},"membership_width":576,"row_width":20480,"stress":true}
+SEARCH_MEDIA_SCALE {"actor":"ppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp","actual_closure_bytes":3213881,"actual_derived_scratch_bytes":4298858,"actual_derived_steps":69027,"lane_count":100,"membership_width":576,"messages_seeded":200,"plan_hash":"95caf8f73648dab92a532677ffd4d95ff0f725df25bbbc5e5084590736c5e3a8","program":"search.global","row_width":20480,"samples_ns":[3235250,3258375,3312667,3190666,3160167,3038167,3026708,3026167,3014250,3047125,3134625,3106667,3141209,3122333,3298000,3219166,3214834,3203792,3201250,3086167,3089250,3065834,3081958,3085625,3088291,3085959,3023041,2992667,2986292,2990959],"store":"Store::memory()","stress":true,"warmups_after_correctness_run":5}
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 183 filtered out; finished in 0.38s
+
+real 0.44
+user 0.41
+sys 0.02
+            72056832  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+                9258  page reclaims
+                   0  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   1  signals received
+                   2  voluntary context switches
+                 197  involuntary context switches
+           835043383  instructions retired
+           244402973  cycles elapsed
+            47104600  peak memory footprint
+SCALE_POINT_END lanes=100

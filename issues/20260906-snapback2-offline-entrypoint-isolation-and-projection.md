@@ -221,3 +221,34 @@ original 60-second canonical-suite bar, the recorded 100-lane media/max-width
 run, phone cold-build peak resident/storage evidence, or the full-engine
 10%/50%/100% latency curve. Those four measured obligations are the only
 remaining scope, and this ticket stays Open until they are recorded honestly.
+
+## Disposition — 2026-09-11 fleet resource measurements
+
+**State: keep open for two remaining measurements.** At exact source commit
+`117bf209d`, the committed 100-lane engine test passed with 100 membership
+lanes, 200 messages carrying image/once-image/video descriptors, 20,480-byte
+message rows and 576-byte membership rows. Its stress arm measured 3,213,881
+closure bytes, 4,298,858 derived scratch bytes, and 69,027 derived steps,
+below the 3,938,518-byte closure, 5,840,738-byte scratch and 353,091-step
+certificate; certified heap/output/step maxima remain below 8 MiB/1 MiB/1M.
+
+An optimized full-engine curve over the same max-width workload recorded 30
+samples after five warmups at each checkpoint. Nearest-rank p95 was 1.064125
+ms at 10 lanes, 2.556667 ms at 50 lanes, and 3.298000 ms at 100 lanes. Every
+sample returned 20 IDs, validated its receipt pool, retained plan hash
+`95caf8f73648dab92a532677ffd4d95ff0f725df25bbbc5e5084590736c5e3a8`,
+and stayed under closure/scratch/step bounds. This discharges the recorded
+100-lane media/max-width and full-engine 10%/50%/100% curve obligations.
+
+[Exact commands, harness patch, all 90 samples, raw test/resource receipts,
+and derived summary](../benchmarks/runs/2026-09-11-snapback2-offline-entrypoint-measurements/README.md)
+are retained. The reusable fleet worktree was restored clean after the run.
+
+Physical-phone evidence remains externally blocked rather than waived. The
+2026-09-09 fleet inventory documents no attached phone; a direct Air probe
+listed three iOS/iPadOS devices as offline, no physical device online, and an
+empty ADB device list. Therefore no phone cold-build peak resident/storage
+claim is made. Per orchestration, the canonical suite was not rerun before the
+final integrated commit. The only live ticket scope is now that final
+canonical-suite 60-second measurement and the physical-phone cold-build peak
+resident/storage witness once an operator makes a device available.
