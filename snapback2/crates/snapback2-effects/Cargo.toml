@@ -13,7 +13,7 @@ thiserror = "2"
 # Ibex 2 (LLP 0057/0058 in expo/ibex): a Rust standard library with JS bindings
 # over vanilla, pinned Hermes. `default-features = false` = no Oxc loader, no
 # engine: this crate builds from crates.io alone. The engine is `hermes`.
-ibex2 = { git = "https://github.com/expo/ibex", rev = "3182a9d7767ca199438d4b7ed114e74c29458944", default-features = false }
+ibex2 = { git = "https://github.com/expo/ibex", rev = "02cf5b12dc2f3ebe2b64327fd57457eb0ae68485", default-features = false }
 
 [features]
 default = []
