@@ -252,3 +252,33 @@ claim is made. Per orchestration, the canonical suite was not rerun before the
 final integrated commit. The only live ticket scope is now that final
 canonical-suite 60-second measurement and the physical-phone cold-build peak
 resident/storage witness once an operator makes a device available.
+
+## Disposition — 2026-09-11 fleet-wide physical-device follow-up
+
+**State: keep open for operator unlock plus the final canonical run.** The
+Air-only availability statement above was superseded by a bounded probe of
+every suitable available-now fleet host. One deduplicated iPhone 17 Pro Max is
+online through the Air and Black, and Bones has two online USB Nothing A069P
+Android 16/API-36 phones. The current host has only an emulator; Silver has
+only simulators; Windows has no ADB; Office, Durand and Minisforum did not
+answer bounded LAN SSH. Offline historical Apple rows and simulators remain
+excluded.
+
+The Android source-bound attempt at exact source `117bf209d` preserved the
+10,240 rule-probe ceiling, admitted 10,000 500-character messages through real
+`messages.send` mutations across 50 seeded conversations, and independently
+re-counted 200 messages in every conversation. Its 67,950,541-byte release APK
+built and installed on both phones. Both Android devices require post-boot
+strong authentication (`deviceLocked=1`, `strongAuthRequired=0x1`) and refused
+activity launch. The paired, developer-mode iPhone likewise refused an
+existing Snapback app launch with an explicit locked-device CoreDevice error.
+No local device credential is available. Consequently no phone process RSS or
+SQLite byte value is claimed.
+
+[Exact fleet and attempt receipts, cleanup, and the reusable measurement
+harness](../benchmarks/runs/2026-09-11-snapback2-offline-entrypoint-measurements/README.md)
+are retained. The installed measurement package and temporary APK were removed
+and the reusable Air worktree was restored clean. The physical obligation is
+now narrowly blocked on an operator unlocking one attached phone, not on device
+discovery or build readiness. The ticket remains open for that measurement and
+root's final canonical-suite 60-second decision.

@@ -15,13 +15,14 @@ The committed 100-lane media/max-width resource witness and the full-engine
 certificate invariants. The curve is a measurement, not a newly invented
 latency threshold.
 
-The phone cold-build peak-resident/storage obligation is still blocked. The
-fleet inventory does not document an attached physical phone. A direct probe
-on the selected Air found only the Mac under `xctrace`'s online `Devices`
-section, three iOS/iPadOS devices under `Devices Offline`, and no Android
-device from `adb devices -l`. Simulator or host-process RSS is not substituted
-for physical-phone evidence. The canonical full-suite deadline was
-deliberately not rerun in this batch.
+The phone cold-build peak-resident/storage obligation is still externally
+blocked after a fleet-wide follow-up. One iPhone is online through both the
+Air and Black hosts, and Bones has two online USB Android phones. All three
+physical phones require an operator unlock before an app can launch. A release
+APK and the exact 10,000-message/50-conversation workload were prepared and
+verified, but no process existed from which to claim resident or SQLite bytes.
+Simulator or host-process RSS is not substituted for physical-phone evidence.
+The canonical full-suite deadline was deliberately not rerun in this batch.
 
 ## Fleet and source custody
 
@@ -148,29 +149,59 @@ command.
 
 ## Physical-phone blocker
 
-The 2026-09-09 fleet inventory has no available-now row documenting an
-attached physical phone. On the selected host, this bounded probe did not
-launch a device or simulator:
+The earlier Air-only probe below was superseded by a bounded sweep of every
+suitable available-now fleet host. The durable enumerator uses `xcdevice`
+rather than treating simulator or stale `xctrace` entries as attached phones:
 
 ```sh
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
-  xcrun xctrace list devices
+  xcrun xcdevice list --timeout 5
 $HOME/Library/Android/sdk/platform-tools/adb devices -l
 ```
 
-`xctrace` reported three physical devices only under `Devices Offline`; the
-online `Devices` section contained the host Mac alone. ADB returned an empty
-device list. The exact probe is
-[`physical-device-availability.raw.txt`](./physical-device-availability.raw.txt),
-SHA-256 `a2e99180882615323bd0e8749784f16c61c4f0605bffacbcfecb106d1eb13add`.
-Until an operator connects/unlocks/trusts a documented physical device, the
-required cold-build peak-resident and application-storage evidence cannot be
-collected. This is an external availability blocker, not an acceptance waiver.
+The sweep found one deduplicated iPhone 17 Pro Max on the Air and Black and two
+Nothing A069P Android 16/API-36 phones on Bones. The current host had only
+`emulator-5554`; Silver had only simulators and no ADB; Windows was reachable
+but had no ADB; Office, Durand and Minisforum did not answer bounded LAN SSH.
+Exact host/device dispositions are in
+[`fleet-physical-device-sweep.json`](./fleet-physical-device-sweep.json).
+
+The source-bound Android attempt kept the engine's 10,240 rule-probe ceiling:
+it seeded 50 scopes, admitted 10,000 500-character source messages through the
+real `messages.send` mutation, and re-counted exactly 200 messages in each of
+50 conversations. A 67,950,541-byte release APK built and installed on both
+phones. Both reported `deviceLocked=1`, `strongAuthRequired=0x1`, and a showing
+keyguard; activity launch was refused. The paired/developer-mode iPhone also
+refused an existing Snapback app launch with `CoreDeviceError 10002`, explicitly
+because the device could not be unlocked. No local device credential exists.
+
+[`physical-phone-attempt.json`](./physical-phone-attempt.json) records the
+attempt without an owner secret or invented resource number.
+[`measure-android-phone.mjs`](./measure-android-phone.mjs) is the exact reusable
+harness: after an operator unlocks either Android phone it records sampled
+`dumpsys meminfo` peak RSS, SQLite main/WAL/SHM sizes, and a process-killed
+offline reopen. The older
+[`physical-device-availability.raw.txt`](./physical-device-availability.raw.txt)
+is retained as the initial Air-only observation, not the final fleet result.
+This is an external unlock blocker, not an acceptance waiver.
+
+SHA-256 custody: fleet sweep
+`5adee33cfba9c57b5a7e8fa7e045c6888a42493c90a2ebede627b93346e051c7`;
+phone attempt
+`4674c0abd982fa21fd5b18712a0f28d98579d90071b761fba9d435aaa1e27232`;
+measurement harness
+`dac3e31276b0866dc8241a5b5cd0be681ecb6e75c7dab0ae6f86b38110f6b588`;
+enumerator
+`246e178e386ae117ba2bab2092621edb213603b44498a582295fba0ec20a2175`.
 
 ## Artifact verification
 
 - `git diff --check`: pass.
 - `jq -e . curve-summary.json`: pass.
+- `jq -e . fleet-physical-device-sweep.json physical-phone-attempt.json`:
+  pass.
+- `node --check probe-physical-devices.mjs` and
+  `node --check measure-android-phone.mjs`: pass.
 - `git apply --check scale-curve.patch`: pass against the committed source.
 - Raw/summary cross-check: pass for all three curve points, all 90 samples,
   min/median/p95/max derivation, and the committed 100-lane stress receipt.
@@ -184,4 +215,5 @@ collected. This is an external availability blocker, not an acceptance waiver.
 
 Two obligations remain: the original canonical full-suite 60-second run on
 the final integrated commit, and physical-phone cold-build peak resident plus
-storage evidence. No canonical suite was run here, per orchestration request.
+storage evidence after an operator unlocks one of the three attached phones.
+No canonical suite was run here, per orchestration request.
