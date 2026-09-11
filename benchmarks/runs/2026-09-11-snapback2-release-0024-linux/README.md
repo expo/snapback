@@ -1,27 +1,56 @@
 # Snapback2 0.0.24: Linux runtime and two-platform publication
 
-Status at21:18 UTC: final native Intl and Snapback release source are landed;
-final Linux and Mac packages have each passed all19 production consumer
-steps against the exact final artifact set. Publication is authorized, but
-two publisher-host checks on Black refused with execution timeouts. The
-unchanged publication is moving to already-qualified Silver. No0.0.24 package
-has been published and no Clique actor
-has started. The author approved this release's package-size exception;
-existing checks and the cleanup ticket remain unchanged. Earlier checkpoints
-and failed attempts below are retained history, not current blockers.
+Status at21:33 UTC: **published and registry-qualified**. `snapback2@0.0.24`,
+`snapback2-darwin-arm64@0.0.24` and `snapback2-linux-x64@0.0.24` are all
+available with the exact staged integrity and `latest=0.0.24`. Both native
+hosts passed all19 checks again from clean registry-only installs. The author
+approved this release's package-size exception; existing checks and the
+cleanup ticket remain unchanged. Earlier checkpoints and failed attempts
+below are retained history, not current release blockers. Clique execution
+is recorded [separately](../2026-09-11-clique-astra-snapback2-0024-linux/README.md).
+
+Silver published with the existing reviewed publisher at source5f115,
+Node24.20.0: wrapper77460,21:20:01–21:20:34 UTC, exit0, all19 local consumer
+steps passed, `publish_s=30.8`. npm reported asynchronous processing; exact
+Linux/shim integrity was visible by21:25:27 and Darwin by21:28:38. No
+republish occurred during those404 responses. The temporary npm config was
+removed and authentication was process-local only.
+
+Clean registry consumers used only the install spec `snapback2@0.0.24`,
+not local tarballs or a directly installed platform package, and did not allow
+an engine-less result:
+
+- Linux: PID2567728,21:26:43.786–21:27:08.895 UTC, exit0,19/19;
+  [complete log](./registry-linux-consumer.log), SHA-256
+  `a32b684c9adef3f71d22ea1c11e61f32d377465338e14fecc58b9455d0c5ada0`.
+- Mac: PID81282,21:29:26–21:29:38 UTC, exit0,19/19;
+  [registry and Mac evidence](./snapback2-final-registry-evidence.tar.gz),
+  SHA-256 `3640ae69296b532f97489af6e9e384443695bdb8dec9bc57244d3e9cef7ef707`.
+
+The immutable final archives also retain
+[Linux effects and B2](./snapback2-final-linux-effects-b2-evidence.tar.gz)
+(`bf387c30c7418838ac05acc99ffc1cf2c94fff59dc4435ae12c1e7692c6b51b2`),
+[Mac A3 and publication](./snapback2-final-mac-a3-publication-evidence.tar.gz)
+(`7119fb1b39740bda9a9c5b5f69f30c7f699c0e561f1167c88f3a93be0997ec62`),
+and [both Black refusals](./snapback2-publication-black-refusals-evidence.tar.gz)
+(`94c09bf12a28eeefe8c75381c07ebf691f262421cf5a8e3470f7654d2820126b`).
 
 Ibex main landed as `1bc50b1cfcb48877a30987867107211fe989309a`, a clean
 fast-forward from `0019691e87f120a33cfec9b7dd22b6d98f49d420`. Its
 `crates/ibex2` tree `803eb2c913cc800f31593664b87f258dd05b9124` is identical
 to the qualified49fa product. The two later commits contain only documented
-limitations and byte-exact review mirrors. Snapback main landed as
+limitations and byte-exact review mirrors. Subsequent Ibex docs-only closeout
+`639de62de0ba473417dd85b8f4c61aa08dc07a78` closes the original Linux Intl
+stub publication blocker with registry evidence; its separate selected-Intl
+conformance follow-up remains open. The product pin is still49fa.
+Snapback main landed as
 `43df16068507ef620b76e141e16f3b4bd4a4733c`, including upstream
 `9bbed63689d25acbf3ab10fc3b23df5cabf1583e`. Relative to the qualified5f115
 source, its only `snapback2/` difference is the non-packed web witness script;
 no package, build or installed-consumer input changed. The inherited offline
 dev-persona witness failure remains separately tracked, not relabeled green.
 
-Current final product candidate: Ibex
+Published product source: Ibex
 `49fa9841212cf1fc119a3f8dcd246b1f9ab71ea8`, pinned by Snapback
 `5f115db401a41954f10dc3737e5b03872470a4eb`. The only executable change after
 the correction checkpoint below is `checked_time` truncation, plus its tests.
@@ -48,7 +77,7 @@ Darwin tarball therefore required a final Linux B2 receipt refresh; the old
 Mac artifact was not silently substituted. B2 passed all19 checks:
 EPYC PID2491826,20:55:05–20:55:56 UTC, exit0. Its receipt binds both
 platform artifacts below to the same canonical shim. All prior stages remain
-preserved. No npm write has occurred.
+preserved. No npm write had occurred at that B2 checkpoint.
 
 | Final 0.0.24 artifact | SHA-256 |
 | --- | --- |
