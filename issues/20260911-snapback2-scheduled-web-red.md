@@ -8,6 +8,7 @@
 **Host:** M1MacBookPro14in2021Office
 **First red:** `f2dc1bdee72d0ca3da5c990eb6c07366ceda7b4f` (2026-09-11)
 **Last red:** `1d2b6d8d3fbef3f66288a9de097e6725349ba5a7` (2026-09-11)
+**Passed again:** `93be9f23614bcc2bdb35d41cefac35baa92f9d5f` (2026-09-11)
 **Last green before it:** none recorded on this host
 
 ## Evidence and impact
