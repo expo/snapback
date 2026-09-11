@@ -6,3 +6,12 @@ table media:
   insert <- .creator = viewer
   update <- .creator = viewer
   delete <- .creator = viewer
+
+table clips:
+  creator: principal
+  video: video <=268435456
+  immutable creator
+  public 'quota regression clips'
+  insert <- .creator = viewer
+  update <- .creator = viewer
+  delete <- .creator = viewer

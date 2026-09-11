@@ -89,3 +89,112 @@ test("43 public claims, 40 successful releases, restart and a fresh small upload
     console.error(JSON.stringify({ phase: "restart-and-new-upload", newAsset: small, finalUsage: (await alice.listUploads()).usage }));
   } finally { await alice.close(); await fresh.close(); }
 });
+
+test("the committed sample-50 media sequence fits the fixed owner envelope", async () => {
+  const fixture = fileURLToPath(new URL("./fixtures/asset-pending", import.meta.url));
+  const sampleRoot = new URL("../../../../benchmarks/fixtures/social-messenger/", import.meta.url);
+  const actionLog = await readFile(new URL("sample-50.log", sampleRoot), "utf8");
+  const actions = actionLog.trim().split("\n").flatMap((line) => {
+    const actor = line.split(" ", 3)[1];
+    return [...line.matchAll(/media\/[a-z0-9-]+\.(?:png|mp4)/g)].map((match) => ({ actor, path: match[0] }));
+  });
+  assert.equal(actions.length, 16, "the frozen 50-action log has exactly 16 affine media uses");
+
+  const isolated = await RealOwnerHarness.create({ fixture, forceOwned: true });
+  const clients = new Map(["sample-a", "sample-b", "sample-c", "sample-d"].map((persona) => [
+    persona, createClient({ url: isolated.url, persona }),
+  ]));
+  try {
+    // A source-bound PNG padded after IEND gives the owner a deterministic
+    // receiving window without changing the canonical action sequence below.
+    const probeSource = await readFile(new URL("media/img-01.png", sampleRoot));
+    const probeBytes = Buffer.concat([probeSource, Buffer.alloc(128 * 1024)]);
+    const probeClient = clients.get("sample-a")!;
+    let responseBody = "";
+    const responseDone = Promise.withResolvers<void>();
+    const receiving = await new Promise<{ objects: number; bytes: number }>((resolve, reject) => {
+      const upload = request(`${isolated.url}/api/upload`, {
+        method: "POST", agent: false, headers: {
+          "X-Snapback-As": "sample-a", "Content-Length": String(probeBytes.length),
+        },
+      }, (response) => {
+        response.setEncoding("utf8");
+        response.on("data", (chunk) => { responseBody += chunk; });
+        response.on("end", responseDone.resolve);
+        response.on("error", (error) => { responseDone.reject(error); reject(error); });
+      });
+      upload.on("error", reject);
+      upload.write(probeBytes.subarray(0, 64 * 1024), async () => {
+        try {
+          for (let attempt = 0; attempt < 100; attempt++) {
+            const listing = await probeClient.listUploads();
+            if (listing.uploads.some((entry) => entry.state === "receiving")) {
+              resolve(listing.usage);
+              upload.end(probeBytes.subarray(64 * 1024));
+              return;
+            }
+            await new Promise((done) => setTimeout(done, 10));
+          }
+          reject(new Error("the paused upload never exposed its receiving ledger row"));
+          upload.destroy();
+        } catch (error) { reject(error); upload.destroy(); }
+      });
+    });
+    assert.deepEqual(receiving, { objects: 1, bytes: probeBytes.length });
+    await responseDone.promise;
+    const probe = JSON.parse(responseBody);
+    assert.equal(typeof probe.id, "string", JSON.stringify(probe));
+    assert.equal(await probeClient.discardUpload(probe.id), true);
+
+    const uploaded: Array<{ actor: string; kind: "image" | "video"; record: any; rowId?: string }> = [];
+    for (const action of actions) {
+      const bytes = await readFile(new URL(action.path, sampleRoot));
+      const kind = action.path.endsWith(".mp4") ? "video" : "image";
+      const type = kind === "video" ? "video/mp4" : "image/png";
+      const source = new File([bytes], action.path.slice("media/".length), { type });
+      const record = kind === "video"
+        ? await clients.get(action.actor)!.upload(source, { kind: "video" })
+        : await clients.get(action.actor)!.upload(source, { kind: "image" });
+      uploaded.push({ ...action, kind, record });
+    }
+    assert.equal(new Set(uploaded.map(({ record }) => record.id)).size, 16);
+    const unreleased = await Promise.all([...clients.values()].map((client) => client.listUploads()));
+    assert.equal(unreleased.reduce((sum, listing) => sum + listing.usage.objects, 0), 16);
+    assert.ok(unreleased.every((listing) => listing.uploads.every((entry) => entry.state === "ready" && !entry.releasedAt)));
+    const unreleasedBytes = unreleased.reduce((sum, listing) => sum + listing.usage.bytes, 0);
+
+    for (const item of uploaded) {
+      const client = clients.get(item.actor)!;
+      const result = item.kind === "video"
+        ? await client.mutation(api.media.keepVideo, { video: item.record })
+        : await client.mutation(api.media.keep, { photo: item.record });
+      assert.equal(result.state, "committed", JSON.stringify(result));
+      item.rowId = result.data.id;
+    }
+    const attached = await Promise.all([...clients.values()].map((client) => client.listUploads()));
+    assert.ok(attached.every((listing) => listing.usage.objects === 0 && listing.usage.bytes === 0));
+
+    for (const item of uploaded) {
+      const client = clients.get(item.actor)!;
+      const result = item.kind === "video"
+        ? await client.mutation(api.media.releaseVideo, { rowId: item.rowId })
+        : await client.mutation(api.media.release, { rowId: item.rowId });
+      assert.equal(result.state, "committed", JSON.stringify(result));
+    }
+    const released = await Promise.all([...clients.values()].map((client) => client.listUploads()));
+    assert.equal(released.reduce((sum, listing) => sum + listing.uploads.length, 0), 16);
+    assert.equal(released.reduce((sum, listing) => sum + listing.usage.objects, 0), 0);
+    assert.equal(released.reduce((sum, listing) => sum + listing.usage.bytes, 0), unreleasedBytes);
+    assert.ok(released.every((listing) => listing.uploads.every((entry) =>
+      entry.state === "ready" && Number.isSafeInteger(entry.releasedAt) && !entry.reclaiming)));
+    console.error(JSON.stringify({
+      phase: "sample-50-media-lifecycle", actions: actions.length,
+      receivingPeak: receiving, unreleasedReadyPeak: { objects: 16, bytes: unreleasedBytes },
+      releasedReady: { objects: 16, chargedObjects: 0, bytes: unreleasedBytes },
+      failed: { objects: 0, bytes: 0 }, tombstoned: { objects: 0, bytes: 0 },
+    }));
+  } finally {
+    for (const client of clients.values()) await client.close();
+    await isolated.close();
+  }
+});

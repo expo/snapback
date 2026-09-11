@@ -1,7 +1,7 @@
 # snapback2: the owner's asset staging ceiling (40 objects / 512 MiB) refuses reseeds and sample media
 
 **Filed:** 2026-09-06 by Claude Fable 5.1 from the Clique full run (benchmarks/runs/2026-09-05-clique-full-3x3), builder evidence as cited; raw lanes at /Users/ccheever/clique-full-20260905/lanes/.
-**Status:** Open — slot leak fixed; original reseed envelope not requalified (2026-09-11) · **Severity:** capability under the brief's media envelope
+**Status:** Closed — fixed slot leak requalified against the committed sample-50 media sequence (2026-09-11) · **Severity:** resolved
 **Priority:** P1
 
 ## Symptom
@@ -63,3 +63,27 @@ peak receiving, unreleased-ready, released-ready, failed/tombstoned object
 counts and charged bytes. If that live footprint itself exceeds 40/512 MiB,
 policy change still requires separate authority; if it does not, close this as
 the already-fixed retry leak.
+
+## Source-bound qualification — 2026-09-11
+
+The external historical lane remains absent, but the repository now carries
+the frozen `benchmarks/fixtures/social-messenger/sample-50.log` and its exact
+media pack. A permanent fresh-owner test extracts all 16 affine media uses from
+that 50-action log (four avatars, seven post images, two post videos, two
+message images, and one message video), uploads the committed bytes under their
+four authored actors, attaches them through image/video mutations, and releases
+them through the corresponding actions.
+
+Measured lifecycle maxima on the source-bound run:
+
+- receiving control: 1 object / 133,134 charged bytes;
+- unreleased ready: 16 objects / 171,493 charged bytes;
+- attached: 0 pending objects / 0 unlocated charged bytes;
+- released ready: 16 listed rows, 0 pending objects / 171,493 charged bytes;
+- failed and tombstoned: 0 objects / 0 bytes.
+
+The test additionally requires 16 distinct engine-minted identities and checks
+every released row is ready, has a release clock, and is not reclaiming. The
+workload is far below the unchanged 40-object / 512 MiB owner ceiling, so the
+historical refusal is attributed to the repaired pending-slot leak; no policy
+number or project setting changed.
