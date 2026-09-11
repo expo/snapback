@@ -45,3 +45,14 @@ execution of the original `{ id: args.id }` program.
 5,000-byte argument and the accepted canonical maximum, retaining its
 certificate/output bound. This is a missing verification result, not evidence
 that the implemented admission rule still accepts the oversized argument.
+
+## Resolution — 2026-09-11
+
+**Status:** Closed. The owner integration test
+`served_id_argument_matches_its_certificate_bound` now serves the original
+`{ id }` query through `/api/query`. It proves that the exact 135-character
+ASCII boundary (144 canonical tagged bytes) is accepted, that its serialized
+result fits the emitted `max_output_bytes`, and that a 5,000-character Id is
+refused as `E_INPUT` with the shared 144-byte rule. This closes the remaining
+served-program verification gap without changing the implemented admission or
+certificate model from `799ba19a6`.
