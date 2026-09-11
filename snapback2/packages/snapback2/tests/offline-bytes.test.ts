@@ -662,7 +662,8 @@ test("schema once excludes raw byte puts before viewing and purges on successor,
     await store.open("dev:alice");
     const schema = { tables: { messages: { columns: { photo: { Image: { max: 5000000 } } } } } };
     await store.commit({ schema, deliveries: [{ op: "once", args: {}, state: "complete", seq: 1,
-      data: ref("messages", "m1"), rows: [messageRow("m1", A)], receipt: emptyReceipt(), next: null }] });
+      data: ref("messages", "m1"), rows: [messageRow("m1", A)], receipt: emptyReceipt(), next: null, validator: "7".repeat(64) }] });
+    assert.equal((await store.answer("once", {})).validator, "7".repeat(64), "an unsullied held value remains conditional");
     await store.commit({ bytes: { put: [put(A, 8, 4, 1)], ceiling: 100 } });
     assert.ok(await store.readBytes(A, 8));
     await store.commit({ schema: { tables: { messages: { columns: { photo: { Image: { max: 5000000, once: true } } } } } } });
@@ -671,8 +672,11 @@ test("schema once excludes raw byte puts before viewing and purges on successor,
     assert.equal(await store.readBytes(A, 8), undefined);
     assert.deepEqual((await store.bytes()).viewed, [], "exclusion does not consume a view");
     assert.equal((await store.answer("once", {})).data.photo, null);
+    assert.equal((await store.answer("once", {})).validator, undefined,
+      "a locally scrubbed descriptor forces the owner to return a full live frame");
     await store.close(); store = fileRangeStore(root)(); await store.open("dev:alice");
     assert.equal((await store.answer("once", {})).data.photo, null);
+    assert.equal((await store.answer("once", {})).validator, undefined);
     await store.commit({ bytes: { put: [put(A, 8, 4, 1)], ceiling: 100 } });
     assert.equal(await store.readBytes(A, 8), undefined);
   } finally { await store.close(); await rm(root, { recursive: true, force: true }); }

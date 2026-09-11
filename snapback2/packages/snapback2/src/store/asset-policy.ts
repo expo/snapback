@@ -26,11 +26,13 @@ export function onceAssetIds(columns: OnceColumns, rows: Iterable<StoredRow>): S
   return ids;
 }
 /** Scrub media even when a query projects it under an alias or out of its row. */
-export function nullOnceMedia(value: unknown, ids: Set<string>): unknown {
-  if (Array.isArray(value)) return value.map(item => nullOnceMedia(item, ids));
+export function nullOnceMedia(value: unknown, ids: Set<string>, scrubbed?: Set<string>): unknown {
+  if (Array.isArray(value)) return value.map(item => nullOnceMedia(item, ids, scrubbed));
   if (!object(value)) return value;
-  if (typeof value.id === "string" && ids.has(value.id) && "width" in value && "height" in value) return null;
-  return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, nullOnceMedia(item, ids)]));
+  if (typeof value.id === "string" && ids.has(value.id) && "width" in value && "height" in value) {
+    scrubbed?.add(value.id); return null;
+  }
+  return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, nullOnceMedia(item, ids, scrubbed)]));
 }
 
 /** Incremental media custody shared by the carrier and effective twin rows. */
