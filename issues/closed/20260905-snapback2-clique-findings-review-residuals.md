@@ -190,3 +190,19 @@ the failed-transition backoff pin, and the site-label parity owned by
 `20260905-snapback2-enriched-capped-page-cursor-parity.md`. Keep this umbrella
 open until those owners land or move their criteria; do not reopen the resolved
 auth-startup sections.
+
+## Client completion — 2026-09-11
+
+**Status: Closed.** The final client-owned items are now permanent controls.
+A non-live `useQuery` observation no longer changes identity merely because a
+stored bearer finishes confirmation: the existing observation resumes its
+authority wait and dispatches exactly one query instead of leaving an obsolete
+wait alive beside a replacement. The React regression mounts during a withheld
+`me` response and requires zero early requests and one request after settlement.
+
+Failed login, signup, and guest transitions from both a restoration backoff and
+a pending restoration now pin the existing policy explicitly: retained bearer
+recovery restarts at the initial one-second delay, does not fire at 999 ms, and
+fires once at 1,000 ms. The enriched capped-page site-label owner ticket is also
+closed with byte-identical `profiles.owner` parity. Together with the preceding
+server/compiler disposition, no item in this umbrella remains open.
