@@ -48,6 +48,36 @@ and took 87 seconds including prerequisites; it is content qualification,
 not a warm sub-60-second loop claim. The complete output is retained in
 [the canonical log](./snapback-04c2-canonical.log.gz).
 
+### Bounded Intl audit and implementation decision
+
+The adjacent-surface audit used existing executables only. Its
+[original inputs, outputs and process receipts](./intl-preimplementation-audit.tar.gz)
+have SHA-256
+`4f5921e1c265585fc6dc095cee58513402d87e2c625a959286efeb33dce0f5e6`.
+Linux's number formatting, locale case mapping and date parts contain actual
+stubs; Collator, date text formatting and canonical locale parsing work in the
+focused controls. Shared missing constructors and inherited Mac NumberFormat
+gaps are tracked in the
+[separate surface ticket](../../../issues/20260911-snapback2-effect-intl-declarations-exceed-runtime.md).
+Two supplementary probes crashed an older Mac debug CLI; their exit139 logs
+remain in the archive and support no positive or new-candidate claim.
+
+The audit's preliminary date-parts seam recommendation was superseded during
+design: engine resolved options omit required formatter state, and a delegated
+constructor wrapper risks duplicate observable option reads. The implementation
+therefore uses one native-owned DateTimeFormat state for both text and parts,
+with ordered JavaScript argument coercion and Rust/ICU computation. It does
+not reconstruct state from engine output or change Hermes source. Separate
+Sol helpers author only new case/date files in the same implementation stream;
+the primary implementer owns existing-file integration and all Ibex commits.
+
+The latest main also contains an independent package-size issue. Its measured
+client/React/Expo closures are 145,189 / 155,056 / 158,589 gzip bytes; complete
+local runtime is 88,053 below the existing 90,000 ceiling. The earlier recovery
+2% exception does not automatically cover these later changes. A release-only
+size disposition was requested while native work continues. No allowance,
+baseline reset or publication is inferred from passing functional tests.
+
 The remainder records the initial attempt and its hold, not new qualification
 claims for the resumed candidate.
 

@@ -38,6 +38,11 @@ including aliases and local helpers, checks grants before transport. Every
 redirect checks grants and strips cross-origin credentials.
 Both `meta` and `tools.meta` carry `id`, `effect`, and `attempt`.
 
+ES2020 selects the type library, not complete Intl conformance. Known runtime
+gaps: `Intl.PluralRules`, `RelativeTimeFormat`, `Locale`, and `DisplayNames`
+are absent. On Mac, NumberFormat parts and some sign/notation/unit options
+are incomplete; BigInt locale formatting remains ungrouped.
+
 `dev` reports engine and queued count at boot (`effects` in JSON). Build an
 engine: `scripts/hermes build -p snapback2`. No engine leaves rows queued and
 logs its count once per change.
