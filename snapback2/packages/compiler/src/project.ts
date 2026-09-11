@@ -1,5 +1,6 @@
+import { randomBytes } from "node:crypto";
 import { existsSync } from "node:fs";
-import { lstat, mkdir, mkdtemp, readdir, readFile, realpath, rename, rm, writeFile } from "node:fs/promises";
+import { lstat, mkdir, mkdtemp, readdir, readFile, realpath, rename, rm, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import ts from "typescript";
@@ -152,22 +153,66 @@ export async function compileJourneys(
   | { ok: false; diagnostics: FrontendDiagnostic[] }
 > {
   const projectRoot = resolve(root);
-  const sourceFiles = (await listJourneys(projectRoot)).map((file) => join(projectRoot, file));
   const buildRoot = join(projectRoot, ".snapback", "build");
-  const outputRoot = join(buildRoot, "tests");
-  const unsafeOutput = await journeyOutputDiagnostic(projectRoot, [join(projectRoot, ".snapback"), buildRoot, outputRoot]);
+  // The unsafe-component refusal precedes the first directory creation, so a
+  // symlinked component can never be created through.
+  const unsafeOutput = await journeyOutputDiagnostic(projectRoot, outputComponents(projectRoot, buildRoot));
   if (unsafeOutput) return { ok: false, diagnostics: [unsafeOutput] };
   await mkdir(buildRoot, { recursive: true });
-  const stagedOutput = await mkdtemp(join(buildRoot, ".tests-"));
+  const stagingRoot = await journeyStagingRoot(projectRoot, buildRoot);
+  try {
+    return await compileJourneysStaged(projectRoot, buildRoot, stagingRoot, apiDts);
+  } finally {
+    if (stagingRoot !== buildRoot) await rm(stagingRoot, { recursive: true, force: true });
+  }
+}
+
+function outputComponents(projectRoot: string, buildRoot: string): string[] {
+  return [join(projectRoot, ".snapback"), buildRoot, join(buildRoot, "tests")];
+}
+
+// @ref LLP 1002#templates-are-products — bundlers crawl the project, so journey
+// candidates churn in a same-device sibling of it and only the finished directory
+// crosses into `.snapback/build`. Snapback 1 killed the same Metro watcher crash
+// this way (issues/closed/20260827-snapback-expo-metro-generations-watcher-crash.md).
+async function journeyStagingRoot(projectRoot: string, buildRoot: string): Promise<string> {
+  const candidate = join(
+    dirname(projectRoot),
+    `.${basename(projectRoot)}.snapback2-journeys-${process.pid}-${randomBytes(6).toString("hex")}`,
+  );
+  try {
+    await mkdir(candidate);
+    const [build, staged] = await Promise.all([stat(buildRoot), stat(candidate)]);
+    // Publication is one rename, so a sibling on another filesystem is no use.
+    if (build.dev === staged.dev) return candidate;
+    await rm(candidate, { recursive: true, force: true });
+  } catch {
+    // An unwritable or unreadable parent keeps staging inside the build cache.
+  }
+  return buildRoot;
+}
+
+async function compileJourneysStaged(
+  projectRoot: string,
+  buildRoot: string,
+  stagingRoot: string,
+  apiDts: string,
+): Promise<
+  | { ok: true; files: string[] }
+  | { ok: false; diagnostics: FrontendDiagnostic[] }
+> {
+  const sourceFiles = (await listJourneys(projectRoot)).map((file) => join(projectRoot, file));
+  const outputRoot = join(buildRoot, "tests");
+  const stagedOutput = await mkdtemp(join(stagingRoot, ".tests-"));
   if (sourceFiles.length === 0) {
-    await replaceDirectoryAtomically(outputRoot, stagedOutput);
+    await replaceDirectoryAtomically(outputRoot, stagedOutput, stagingRoot);
     return { ok: true, files: [] };
   }
 
   const packageDist = compilerPackageDist();
   const clientDts = join(packageDist, "client.d.ts");
   const testDts = join(packageDist, "test.d.ts");
-  const stagedApi = join(buildRoot, `.api-${process.pid}-${Date.now()}.d.ts`);
+  const stagedApi = join(stagingRoot, `.api-${process.pid}-${Date.now()}.d.ts`);
   await writeFile(stagedApi, apiDts);
   const options: ts.CompilerOptions = {
     baseUrl: projectRoot,
@@ -237,20 +282,20 @@ export async function compileJourneys(
     await writeFile(outputPath, rewritten);
     files.push(relativeSite(projectRoot, outputPath));
   }
-  const racedOutput = await journeyOutputDiagnostic(projectRoot, [join(projectRoot, ".snapback"), buildRoot, outputRoot]);
+  const racedOutput = await journeyOutputDiagnostic(projectRoot, outputComponents(projectRoot, buildRoot));
   if (racedOutput) {
     await rm(stagedOutput, { recursive: true, force: true });
     return { ok: false, diagnostics: [racedOutput] };
   }
-  await replaceDirectoryAtomically(outputRoot, stagedOutput);
+  await replaceDirectoryAtomically(outputRoot, stagedOutput, stagingRoot);
   for (let index = 0; index < files.length; index += 1) {
     files[index] = relativeSite(projectRoot, join(outputRoot, basename(files[index]!)));
   }
   return { ok: true, files };
 }
 
-async function replaceDirectoryAtomically(target: string, staged: string): Promise<void> {
-  const backup = `${target}.replaced-${process.pid}-${Date.now()}`;
+async function replaceDirectoryAtomically(target: string, staged: string, backupRoot: string): Promise<void> {
+  const backup = join(backupRoot, `.replaced-${basename(target)}-${process.pid}-${Date.now()}`);
   try {
     await rename(target, backup);
   } catch (error) {
