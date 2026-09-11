@@ -137,6 +137,100 @@ test('clock reset carries the runtime schema and lets the explicit swap schema w
   } finally { await runtime.close(); }
 });
 
+test('manifest-only metadata cannot erase delivered-history when a reset adopts full program custody', async () => {
+  const saved: { value?: any } = {};
+  const factory = () => new PersistentRangeStore({ carrier: 'memory', open: async () => saved.value,
+    replace: async state => { saved.value = structuredClone(state); }, close() {}, wipe: async () => {} });
+  let runtime = new OfflineRuntime({ store: factory });
+  const full = { tables: {
+    messages: { columns: { id: 'Id', body: { Text: { max: 40 } } }, indexes: {}, retain: 'delivered-history',
+      deliver: { log: 'deliveries', receipts: false } },
+    deliveries: { columns: { id: 'Id', row: { Ref: { table: 'messages' } }, kind: { Text: { max: 20 } } }, indexes: {} },
+  }, maintains: [] };
+  const adopted = { generation: 'full-program', schemaHash: schemaDigest(full), schema: full, programs: {} };
+  try {
+    await runtime.open('alice');
+    await runtime.store.commit({ schema: full, deliveries: [{ ...delivery('inbox', [], 1), rows: [
+      row('kept', 'retained body'),
+      { table: 'deliveries', id: 'anchor-kept', row: { id: 'anchor-kept', row: 'kept', kind: 'delivered' } },
+    ] }] });
+    runtime.manifest({ tables: { messages: { retain: 'delivered-history' } }, ops: {}, channels: {}, auth: {} } as any);
+    await (runtime as any).resetClock({ exhausted: false }, { programs: { [adopted.generation]: adopted } });
+    const rows = (await runtime.store.coverage()).rows;
+    assert.deepEqual(rows.filter((item: any) => item.table === 'messages').map((item: any) => item.id), ['kept']);
+    assert.deepEqual(rows.filter((item: any) => item.table === 'deliveries').map((item: any) => item.id), ['anchor-kept']);
+    assert.equal(await runtime.store.answer('inbox', {}), undefined);
+    await runtime.close(); runtime = new OfflineRuntime({ store: factory }); await runtime.open('alice');
+    assert.deepEqual((await runtime.store.coverage()).rows.map((item: any) => `${item.table}/${item.id}`).sort(),
+      ['deliveries/anchor-kept', 'messages/kept']);
+    assert.equal(await runtime.store.answer('inbox', {}), undefined);
+  } finally { await runtime.close(); }
+});
+
+test('a real clock-identity reset preserves delivered custody and bytes, clears the old answer, and admits the next page on every carrier', async context => {
+  const { nativeR8: { halo } } = JSON.parse(await readFile(new URL('../../evaluator/src/test-search-v5-fixtures.json', import.meta.url), 'utf8'));
+  const { root, factories } = await carriers();
+  const assetId = 's2id-00000000000000000000000000000006-0000000000000001';
+  const packet = structuredClone(halo.program); packet.generation = 'a'.repeat(64);
+  packet.schema.tables.messages = { columns: { id: 'Id', body: { Text: { max: 40 } }, photo: { Image: { max: 100 } } }, indexes: {},
+    retain: 'delivered-history', deliver: { log: 'deliveries', receipts: false } };
+  packet.schema.tables.deliveries = { columns: { id: 'Id', row: { Ref: { table: 'messages' } }, kind: { Text: { max: 20 } } }, indexes: {} };
+  packet.schemaHash = schemaDigest(packet.schema);
+  for (const operation of Object.values(packet.programs) as any[]) operation.certificate.schema_hash = packet.schemaHash;
+  try {
+    for (const factory of factories) await context.test(factory.carrier, async () => {
+      const principal = halo.first.authority.principal;
+      let runtime = new OfflineRuntime({ store: factory }); await runtime.store.wipe(principal); await runtime.open(principal, true);
+      await runtime.store.commit({ schema: packet.schema, deliveries: [{
+        op: 'clock.fixed', args: {}, seq: 1, state: 'complete', data: halo.first.data, rows: [
+          ...halo.first.rows,
+          { table: 'messages', id: 'kept', row: { id: 'kept', body: 'retained', photo: { id: assetId, width: 8, height: 8 } } },
+          { table: 'deliveries', id: 'anchor-kept', row: { id: 'anchor-kept', row: 'kept', kind: 'delivered' } },
+        ], receipt: halo.first.receipt, validator: halo.first.validator,
+      }], bytes: { put: [{ assetId, width: 8, bytes: new Uint8Array([1, 2, 3, 4]), type: 'image/jpeg' }] },
+      outbox: { put: [entry('keep')] } });
+      assert(await runtime.store.answer('clock.fixed', {}), 'the deliberately legacy answer exists before adoption');
+      await runtime.program(packet); // Its clock declaration raises and internally handles ClockCoverageReset.
+      assert.equal(await runtime.store.answer('clock.fixed', {}), undefined);
+      assert.deepEqual((await runtime.store.coverage()).rows.map((item: any) => `${item.table}/${item.id}`).sort(),
+        ['deliveries/anchor-kept', 'messages/kept']);
+      assert.deepEqual([...(await runtime.store.readBytes(assetId, 8)).bytes], [1, 2, 3, 4]);
+      assert.equal((await runtime.store.outbox.all())[0].intent, 'keep');
+      await runtime.close(); runtime = new OfflineRuntime({ store: factory }); await runtime.open(principal, true);
+      assert.deepEqual([...(await runtime.store.readBytes(assetId, 8)).bytes], [1, 2, 3, 4]);
+      const frame = { ...structuredClone(halo.first), generation: packet.generation, schemaHash: packet.schemaHash };
+      await runtime.commit('clock.fixed', {}, await runtime.accept('clock.fixed', {}, frame));
+      assert.equal((await runtime.store.answer('clock.fixed', {}))?.state, halo.first.state);
+      assert.equal((await runtime.store.outbox.all())[0].intent, 'keep'); await runtime.close();
+    });
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test('a successor that adds retain validates newly retained rows against its narrowing', async context => {
+  const { root, factories } = await carriers();
+  const program = (retained: boolean, required: boolean) => {
+    const schema = { tables: { messages: { columns: { id: 'Id', version: required ? 'Int' : { Optional: 'Int' } }, indexes: {},
+      ...(retained ? { retain: 'delivered-history' } : {}) } }, maintains: [] };
+    return { generation: `${retained}-${required}`, schemaHash: schemaDigest(schema), schema, programs: {} };
+  };
+  try {
+    for (const factory of factories) await context.test(factory.carrier, async () => {
+      let store: any = factory(); await store.open(`retain-adding-${factory.carrier}`);
+      const predecessor = program(false, false);
+      await store.commit({ programs: { [predecessor.generation]: predecessor }, deliveries: [{ ...delivery('all', [], 1), rows: [
+        { table: 'messages', id: 'nullable', row: { id: 'nullable', version: null } },
+        { table: 'messages', id: 'fitting', row: { id: 'fitting', version: 7 } },
+      ] }] });
+      const successor = program(true, true);
+      await store.commit({ programs: { [successor.generation]: successor } });
+      await store.close(); store = factory(); await store.open(`retain-adding-${factory.carrier}`);
+      await store[preparedChanges]();
+      assert.deepEqual((await store.coverage()).rows.map((item: any) => item.id), ['fitting']);
+      await store.close();
+    });
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
 test('unchanged native26c9 movement, revocation and halo deliveries survive public admission on every carrier', async context => {
   const { nativeR8: native } = JSON.parse(await readFile(new URL('../../evaluator/src/test-search-v5-fixtures.json', import.meta.url), 'utf8'));
   const { root, factories } = await carriers();

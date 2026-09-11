@@ -82,6 +82,7 @@ test("never-opened Thread binding renders a cold drained chat and predicts one o
     } };
   const alice = createClient({ url: screenOwner.url, persona: "never-opened-alice" });
   let bob: any = createClient(options), drain: any, stop: (() => void) | undefined;
+  let reactRoot: Root | undefined, restoreDom: (() => void) | undefined;
   try {
     await Promise.all([alice.ready, bob.ready]);
     const created: any = await alice.mutation(api.groups.groupCreate, { title: "Never opened", members: [(await bob.auth.me()).viewer] });
@@ -109,9 +110,20 @@ test("never-opened Thread binding renders a cold drained chat and predicts one o
     assert.deepEqual(snapshot.items.map((item: any) => item.data?.body), ["only the log was drained", "predicted into the screen"]);
     assert.equal(snapshot.items.filter((item: any) => item.data?.id === id).length, 1);
     assert.equal(snapshot.items.find((item: any) => item.data?.id === id).predicted, true);
+    restoreDom = installDom(); reactRoot = createRoot(document.getElementById("root")!);
+    await act(async () => { reactRoot!.render(React.createElement(SnapbackProvider, { client: bob },
+      React.createElement(Thread, { conversationId }))); });
+    await waitFor(() => document.querySelectorAll("section[aria-label=Thread] ol.bubbles > li").length === 2
+      && document.querySelector("section[aria-label=Thread] .thread-history-note") !== null, "the mounted cold Thread");
+    const bubbles = document.querySelector("section[aria-label=Thread] ol.bubbles")!;
+    assert.equal(bubbles.getAttribute("data-view-source"), "partial-history");
+    assert.match(text(document.querySelector(".thread-history-note")), /Downloaded history/);
+    assert.deepEqual([...bubbles.querySelectorAll("li > p")].map(node => text(node)),
+      ["only the log was drained", "predicted into the screen"]);
     assert.deepEqual(attempts, [], "the screen binding and send use held custody without any transport attempt");
   } finally {
-    stop?.(); drain?.close(); await Promise.all([alice.close(), bob.close()]);
+    if (reactRoot) await act(async () => { reactRoot!.unmount(); });
+    stop?.(); drain?.close(); await Promise.all([alice.close(), bob.close()]); restoreDom?.();
     await rm(root, { recursive: true, force: true });
   }
 });
