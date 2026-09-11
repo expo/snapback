@@ -574,7 +574,13 @@ impl Runtime {
                     evaluator_changed,
                 )
                 .map_err(store_refusal)?;
-                persist_generation_transaction(&transaction, &generation, unix_millis())
+                persist_generation_transaction(
+                    &transaction,
+                    &generation,
+                    unix_millis(),
+                    succession,
+                    true,
+                )
                     .map_err(store_refusal)?;
                 transaction
                     .commit()
@@ -624,8 +630,15 @@ impl Runtime {
                     now,
                 )
                 .map_err(store_refusal)?;
-                report.audience_bounds = persist_generation_transaction(&transaction, &generation, now)
-                    .map_err(store_refusal)?;
+                report.audience_bounds =
+                    persist_generation_transaction(
+                        &transaction,
+                        &generation,
+                        now,
+                        succession,
+                        true,
+                    )
+                        .map_err(store_refusal)?;
                 report.persist(&transaction).map_err(store_refusal)?;
                 opened_successor = Some(report);
                 transaction
@@ -633,12 +646,6 @@ impl Runtime {
                     .map_err(|error| store_refusal(RuntimeError::Sql(error)))?;
             }
         }
-        crate::store_jobs::reconcile(&store.conn, &generation, succession)
-            .map_err(store_refusal)?;
-        store
-            .conn
-            .execute("UPDATE _jobs SET state='queued' WHERE state='running'", [])
-            .map_err(|e| store_refusal(e.into()))?;
         let engine = Engine::new(store, generation.schema.clone()).map_err(store_refusal)?;
         Ok(Self {
             engine,
@@ -1069,9 +1076,9 @@ impl Runtime {
             now,
         )
         .map_err(store_refusal)?;
-        crate::store_jobs::reconcile(&transaction, &next, true).map_err(store_refusal)?;
         report.audience_bounds =
-            persist_generation_transaction(&transaction, &next, now).map_err(store_refusal)?;
+            persist_generation_transaction(&transaction, &next, now, true, false)
+                .map_err(store_refusal)?;
         report.persist(&transaction).map_err(store_refusal)?;
         transaction
             .commit()
@@ -1145,8 +1152,8 @@ impl Runtime {
             predecessor_maintain_ids,
             released_at,
         )?;
-        crate::store_jobs::reconcile(&transaction, &next, true)?;
-        report.audience_bounds = persist_generation_transaction(&transaction, &next, released_at)?;
+        report.audience_bounds =
+            persist_generation_transaction(&transaction, &next, released_at, true, false)?;
         report.persist(&transaction)?;
         transaction.commit()?;
         self.engine.set_schema(next.schema.clone())?;
@@ -1250,7 +1257,7 @@ fn persist_generation(
     now: i64,
 ) -> Result<(), RuntimeError> {
     let transaction = store.conn.transaction()?;
-    persist_generation_transaction(&transaction, generation, now)?;
+    persist_generation_transaction(&transaction, generation, now, false, true)?;
     transaction.commit()?;
     Ok(())
 }
@@ -1264,6 +1271,8 @@ fn persist_generation_transaction(
     transaction: &rusqlite::Transaction<'_>,
     generation: &Generation,
     now: i64,
+    succession: bool,
+    restart: bool,
 ) -> Result<BTreeMap<String, u32>, RuntimeError> {
     let previous: Option<String> = transaction
         .query_row("SELECT value FROM _meta WHERE key='schema_json'", [], |r| {
@@ -1276,6 +1285,14 @@ fn persist_generation_transaction(
         .transpose()?
         .unwrap_or_default();
     crate::store_timers::reconcile(transaction, &previous, &generation.schema, now)?;
+    // @ref LLP 1016#d2--a-job-is-a-sequence-of-sweeps — generation metadata and
+    // every queued/running job's executable binding change as one durable fact.
+    crate::store_jobs::reconcile(transaction, generation, succession)?;
+    if restart {
+        // @ref LLP 1016#d3--the-driver — an interrupted chunk never committed; restart
+        // preserves its cursor and makes it eligible again in the installation transaction.
+        transaction.execute("UPDATE _jobs SET state='queued' WHERE state='running'", [])?;
+    }
     let audience_bounds = crate::successor::delivery::record_audience_bounds(
         transaction,
         &previous,
