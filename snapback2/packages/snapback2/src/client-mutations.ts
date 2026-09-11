@@ -46,18 +46,27 @@ export async function performMutation<Args, Result>(
         () => host.manifestFor(authority), async (mutationArgs, onCustody, expectedGeneration) => {
           const offline = host.forcedOffline;
           const generation = expectedGeneration ?? host.offlineRuntime?.programGeneration;
+          // @ref LLP 1012#7-writes-offline — acquisition is still pre-custody:
+          // a program rotation refuses the original call before any durable intent.
+          const checkProgram = () => {
+            if (generation && host.offlineRuntime && generation !== host.offlineRuntime.programGeneration) throw new RefusalError({
+              code: "E_GENERATION_CHANGED", family: "offline", message: "the program changed before this write was admitted", guide: "offline",
+              rewrite: "review the current program, then send this as a new write" });
+          };
           const result = await submitMutation<Result>({
             expectedGeneration: expectedGeneration ?? (!host.offlineRuntime ? host.observedProgramGeneration : undefined),
             runtime: host.offlineRuntime, offline: host.forcedOffline, op, args: mutationArgs, presentation,
             json: (path, init, onSend) => host.json(path, init, authority, { terminalSession: "after-cleanup", onSend }),
             failure: error => host.offlineRefusal(error), drain: () => host.drainNow(authority),
-            prepare: op => prepareRecovery(host as unknown as RecoveryClient, op, authority),
+            prepare: async op => {
+              try { await prepareRecovery(host as unknown as RecoveryClient, op, authority); }
+              catch (error) { checkProgram(); throw error; }
+              checkProgram();
+            },
             onCustody: kind => {
               host.ensureAuthority(authority);
               if (!offline && host.forcedOffline) throw new RefusalError({ code: "E_OFFLINE", family: "offline", message: "the client went offline before this write was admitted", guide: "offline" });
-              if (generation && host.offlineRuntime && generation !== host.offlineRuntime.programGeneration) throw new RefusalError({
-                code: "E_GENERATION_CHANGED", family: "offline", message: "the program changed before this write was admitted", guide: "offline",
-                rewrite: "review the current program, then send this as a new write" });
+              checkProgram();
               onCustody?.(kind);
             },
             admitInbox: () => host.inbox.admit(),

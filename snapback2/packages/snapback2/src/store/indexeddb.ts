@@ -11,6 +11,7 @@ import {
 } from "./range-store.js";
 import type { ByteDelta } from "./byte-cache.js";
 import { ProjectionCache, unprojectState, type StateEntry as Entry } from "./projection.js";
+import { restoreMetadata } from "./metadata.js";
 import { INBOX_LIMIT, InboxFull, isInboxRow, orderInbox, type InboxConnection, type InboxDelta, type InboxInsert, type InboxRow } from "./inbox.js";
 
 // @ref LLP 1012#4-the-range-store — the carrier holds exactly what `coverage()`
@@ -186,10 +187,12 @@ class IndexedDbInbox implements InboxConnection {
     const transaction = this.open().transaction([INBOX_STORE, "outbox", "meta"], "readonly");
     const rowsRequest = transaction.objectStore(INBOX_STORE).getAll() as IDBRequest<InboxRecord[]>;
     const ledgerRequest = transaction.objectStore("outbox").getAll() as IDBRequest<Entry[]>;
-    const compactedRequest = transaction.objectStore("meta").get("state") as IDBRequest<Entry | undefined>;
-    const [records, entries, meta] = await Promise.all([requestResult(rowsRequest), requestResult(ledgerRequest), requestResult(compactedRequest), transactionDone(transaction)]);
+    // @ref LLP 1018.004#2-the-inbox — the follower reads aliases, ledger and
+    // the split metadata watermark from one transaction.
+    const metadataRequest = transaction.objectStore("meta").getAll() as IDBRequest<Entry[]>;
+    const [records, entries, meta] = await Promise.all([requestResult(rowsRequest), requestResult(ledgerRequest), requestResult(metadataRequest), transactionDone(transaction)]);
     return {
-      compactedThrough: (meta?.value as { compactedThrough?: number } | undefined)?.compactedThrough,
+      compactedThrough: restoreMetadata(meta).compactedThrough,
       rows: orderInbox(records.map(inboxRowOf).filter((row): row is InboxRow => row !== undefined)),
       ledger: Object.fromEntries(entries.map(({ key, value }) => [key, value])),
     };

@@ -447,21 +447,32 @@ async function runCheck(
     primaryError = error;
   } finally {
     elapsedMs = Math.round(performance.now() - started);
+    // @ref LLP 1021#3-a-provider-stand-in-and-nothing-else-answers — clients
+    // release stores before the receipt; a bound provider stays alive until
+    // the supervisor sees it, closes the owner epoch, and acknowledges stdin.
     cleanupErrors = await cleanupJourney({
       clients,
-      epochClosed,
-      providers,
-      removeStoreRoot: storeRoot
-        ? () => rm(storeRoot, { recursive: true, force: true })
-        : undefined,
+      providers: [],
     });
   }
-  if (passed && cleanupErrors.length === 0) {
+  const receiptPassed = passed && cleanupErrors.length === 0;
+  if (receiptPassed) {
     process.stdout.write(`${JSON.stringify({ name: check.name, kind: "journey", verdict: "pass", ms: elapsedMs, detail: { file } })}\n`);
-    return true;
+  } else {
+    process.stdout.write(`${JSON.stringify({ name: check.name, kind: "journey", verdict: "fail", ms: elapsedMs, detail: { file, error: journeyFailureMessage(primaryError, cleanupErrors) } })}\n`);
   }
-  process.stdout.write(`${JSON.stringify({ name: check.name, kind: "journey", verdict: "fail", ms: elapsedMs, detail: { file, error: journeyFailureMessage(primaryError, cleanupErrors) } })}\n`);
-  return false;
+  const deferredCleanupErrors = await cleanupJourney({
+    clients: [],
+    epochClosed,
+    providers,
+    removeStoreRoot: storeRoot
+      ? () => rm(storeRoot, { recursive: true, force: true })
+      : undefined,
+  });
+  if (deferredCleanupErrors.length > 0) {
+    process.stderr.write(`journey cleanup failed: ${journeyFailureMessage(undefined, deferredCleanupErrors)}\n`);
+  }
+  return receiptPassed && deferredCleanupErrors.length === 0;
 }
 
 if (
