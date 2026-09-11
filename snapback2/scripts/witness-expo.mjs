@@ -153,6 +153,10 @@ const actions = [
     if (match.state !== "Booted") await run("xcrun", ["simctl", "boot", device]);
     await run("xcrun", ["simctl", "bootstatus", device, "-b"]);
     control = await controlServer(controlPort);
+    // The generated app resolves the workspace package through a symlink, but
+    // Metro consumes its built export. Qualify the current source, never a
+    // dist artifact left by an earlier witness run.
+    await run(process.execPath, ["packages/snapback2/build.mjs"], { cwd: workspace });
     const { cli } = await prepareExpoProject();
     owner = await ownerHarness(ownerPort); await owner.start(); seed = await seedWitness(owner.directUrl);
     const buildEnv = { ...environment, NODE_BINARY: process.execPath, EXPO_PUBLIC_SNAPBACK_URL: owner.url,
@@ -284,7 +288,10 @@ const actions = [
   async () => {
     const result = await command("conformance", {}, 60_000);
     assert.equal(result.journalMode, "wal"); assert.equal(result.checks.length, 10);
-    assert.ok(result.checks.includes("real COMMIT failure rolls back and next transaction succeeds"));
+    assert.ok(
+      result.checks.includes("real COMMIT failure rolls back and next transaction succeeds"),
+      `native conformance checks: ${JSON.stringify(result.checks)}`,
+    );
     return { ...result, nativeCommitFailure: "qualified: SDK-owned COMMIT refused after the body, left no row, and the next transaction succeeded" };
   },
   async () => {
