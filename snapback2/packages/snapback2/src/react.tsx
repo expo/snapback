@@ -41,13 +41,14 @@ function useAssetBlob(url: string | undefined) {
 
 export type AssetImageProps = Omit<React.ImgHTMLAttributes<HTMLImageElement>, "src" | "width" | "height"> & {
   asset: ImageAsset;
+  onRefusal?: (refusal: Refusal) => void;
   width?: number | string;
   height?: number | string;
 };
 
 // @ref LLP 1006#8-sizes-ask-for-any-width — the web image measures its box,
 // asks for device pixels, and keeps intrinsic record dimensions before bytes arrive.
-export function AssetImage({ asset, width, height, style, ...props }: AssetImageProps): React.ReactElement {
+export function AssetImage({ asset, width, height, style, onRefusal, ...props }: AssetImageProps): React.ReactElement {
   const [element, setElement] = useState<HTMLImageElement | null>(null);
   const [requestedWidth, setRequestedWidth] = useState<number>();
   const [measured, setMeasured] = useState(false);
@@ -68,6 +69,9 @@ export function AssetImage({ asset, width, height, style, ...props }: AssetImage
   }, [element, width, asset.id, asset.width]);
   const deliveryUrl = useAssetUrl(measured ? asset : null, { width: requestedWidth });
   const blob = useAssetBlob(deliveryUrl);
+  const refused = useRef(onRefusal);
+  refused.current = onRefusal;
+  useEffect(() => { if (blob?.refusal) refused.current?.(blob.refusal); }, [blob?.refusal]);
   return <img
     {...props}
     ref={setElement}

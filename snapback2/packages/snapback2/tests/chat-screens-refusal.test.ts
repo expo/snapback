@@ -213,36 +213,256 @@ for (const transport of [false, true]) test(`Composer renders ${transport ? "tra
   } finally { await act(async () => root.unmount()); await client.close(); restore(); }
 });
 
-test("Thread renders edit and unsend refusals locally and drops them when the conversation changes", async () => {
+test("Thread keeps a refused edit in its editor and drops unsend refusals with the conversation", async () => {
   const restore = installDom();
+  let edits = 0;
   const client = createClient({ url: screenOwner.url, persona: "alice", fetch: async (input, init) => {
-    if (new URL(String(input)).pathname === "/api/mutation") return json(rejected());
-    return globalThis.fetch(input, init);
+    if (new URL(String(input)).pathname !== "/api/mutation") return globalThis.fetch(input, init);
+    if (requestBody(init)?.op === "messages.edit") edits++;
+    return json(rejected());
   } });
   const root = createRoot(document.getElementById("root")!);
   const render = (conversationId: string) => React.createElement(SnapbackProvider, { client },
     React.createElement(Thread, { conversationId }));
+  const bubble = "li[data-message=message-1]";
+  const form = () => document.querySelector<HTMLFormElement>(`${bubble} form[aria-label="Edit message"]`);
   try {
     await client.ready; await client.auth.me();
     await act(async () => root.render(render("conversation-1")));
-    await waitFor(() => document.querySelector("li[data-message=message-1] .actions") !== null, "owner actions");
-    window.prompt = () => "edited text";
-    const actions = () => document.querySelectorAll<HTMLButtonElement>("li[data-message=message-1] .actions button");
+    await waitFor(() => document.querySelector(`${bubble} .actions`) !== null, "owner actions");
+    const actions = () => document.querySelectorAll<HTMLButtonElement>(`${bubble} .actions button`);
     await act(async () => actions()[0]!.click());
-    await waitFor(() => /Could not confirm edit\. Open details/.test(text(document.querySelector("section header"))), "edit refusal");
+    assert.equal(form()!.querySelector("input")!.value, text(document.querySelector(`${bubble} > p`)), "the editor starts from the rendered message");
+    await type(form()!.querySelector("input")!, "edited text");
+    await act(async () => { form()!.requestSubmit(); });
+    await waitFor(() => /Could not confirm edit\. Your edit is still here/.test(text(form()?.querySelector("[role=alert]"))), "edit refusal");
+    assert.equal(form()!.querySelector("input")!.value, "edited text", "the refused attempt stays editable");
+    const editDetails = form()!.querySelector("details")!;
+    assert.equal(editDetails.open, false, "structured advice is hidden by default");
+    await act(async () => editDetails.querySelector("summary")!.click());
+    assert.match(text(editDetails), /MEMBERSHIP_REQUIRED/);
+    assert.match(text(editDetails), /Join this conversation before sending/);
+    await act(async () => { [...form()!.querySelectorAll("button")].find(button => text(button) === "Cancel")!.click(); });
+    assert.equal(form(), null, "Cancel closes the editor");
     await act(async () => actions()[1]!.click());
     await waitFor(() => /Could not confirm removal\. Open details/.test(text(document.querySelector("section header"))), "unsend refusal");
-    const details = [...document.querySelectorAll("section header details")];
-    assert.equal(details.length, 2);
-    for (const detail of details) {
-      assert.equal(detail.open, false, "structured advice is hidden by default");
-      await act(async () => detail.querySelector("summary")!.click());
-      assert.match(text(detail), /MEMBERSHIP_REQUIRED/);
-      assert.match(text(detail), /Join this conversation before sending/);
-    }
+    const removeDetails = document.querySelector("section header details")!;
+    await act(async () => removeDetails.querySelector("summary")!.click());
+    assert.match(text(removeDetails), /MEMBERSHIP_REQUIRED/);
     await act(async () => root.render(render("conversation-2")));
     assert.equal(document.querySelector("[role=alert]"), null);
+    assert.equal(edits, 1, "a terminal refusal is never reissued, even after later actions");
   } finally { await act(async () => root.unmount()); await client.close(); restore(); }
+});
+
+test("Thread editor closes for committed and queued edits, and newer text saves over an accepted older attempt", async () => {
+  const restore = installDom();
+  const directory = await mkdtemp(join(tmpdir(), "snapback2-edit-lifecycle-"));
+  let release: (() => void) | undefined, entered: (() => void) | undefined, lateDone: ((value: any) => void) | undefined;
+  const client = createClient({ url: screenOwner.url, persona: "alice", offline: { store: fileRangeStore(directory) },
+    fetch: async (input, init) => {
+      if (new URL(String(input)).pathname === "/api/mutation" && requestBody(init)?.args?.body === "late edit") {
+        await new Promise<void>(done => { release = done; entered?.(); });
+      }
+      return globalThis.fetch(input, init);
+    } });
+  const mutate = client.mutation.bind(client);
+  client.mutation = ((ref: any, args: any) => {
+    const result = mutate(ref, args);
+    if (args?.body === "late edit") void result.then(value => lateDone?.(value));
+    return result;
+  }) as typeof client.mutation;
+  const root = createRoot(document.getElementById("root")!);
+  try {
+    await client.ready; await client.auth.me();
+    const sent: any = await client.mutation(api.messages.send, { conversationId: "conversation-1", body: "edit lifecycle" });
+    assert.equal(sent.state, "committed");
+    const bubble = `li[data-message="${sent.data.id}"]`;
+    const form = () => document.querySelector<HTMLFormElement>(`${bubble} form[aria-label="Edit message"]`);
+    const input = () => form()?.querySelector<HTMLInputElement>("input") ?? null;
+    const body = () => text(document.querySelector(`${bubble} > p`));
+    const openEditor = async () => {
+      await waitFor(() => document.querySelector(`${bubble} .actions button`) !== null, "the Edit action");
+      await act(async () => document.querySelector<HTMLButtonElement>(`${bubble} .actions button`)!.click());
+      assert.equal(input()!.value, body(), "the editor starts from the rendered message");
+    };
+    await act(async () => root.render(React.createElement(SnapbackProvider, { client },
+      React.createElement(Thread, { conversationId: "conversation-1" }))));
+    await openEditor();
+    await type(input()!, "committed edit");
+    await act(async () => { form()!.requestSubmit(); });
+    await waitFor(() => form() === null && body() === "committed edit", "a committed edit closes its editor");
+
+    await openEditor();
+    await type(input()!, "late edit");
+    const late = new Promise<any>(done => { lateDone = done; });
+    await act(async () => { await new Promise<void>(done => { entered = done; form()!.requestSubmit(); }); });
+    await type(input()!, "newer text");
+    await act(async () => {
+      release!();
+      assert.equal((await late).state, "committed");
+      await new Promise<void>(done => setImmediate(done));
+    });
+    assert.equal(input()?.value, "newer text", "the older result neither closes nor erases newer text");
+    assert.equal(form()!.querySelector("[role=alert]"), null, "an accepted older attempt is not reported as a conflict");
+    await act(async () => { form()!.requestSubmit(); });
+    await waitFor(() => form() === null && body() === "newer text", "newer text saves on top of the accepted attempt");
+
+    await waitFor(async () => await client.outbox.ready(), "offline write readiness");
+    await act(async () => { await client.offline(); });
+    await openEditor();
+    await type(input()!, "queued edit");
+    await act(async () => { form()!.requestSubmit(); });
+    await waitFor(() => form() === null && document.querySelector(`${bubble} small[data-edit=queued]`) !== null, "a queued edit closes its editor");
+    await act(async () => { await client.online(); await client.outbox.settled(); });
+    await waitFor(() => body() === "queued edit", "the queued edit settles");
+  } finally {
+    release?.(); await act(async () => root.unmount()); await client.close(); restore();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("Thread editor ignores an older refusal for newer text and keeps one editor open at a time", async () => {
+  const restore = installDom();
+  let release: (() => void) | undefined, entered: (() => void) | undefined, refusedDone: ((value: any) => void) | undefined;
+  const client = createClient({ url: screenOwner.url, persona: "alice", fetch: async (input, init) => {
+    if (new URL(String(input)).pathname === "/api/mutation" && requestBody(init)?.args?.body === "late refusal") {
+      await new Promise<void>(done => { release = done; entered?.(); });
+      return json(rejected());
+    }
+    return globalThis.fetch(input, init);
+  } });
+  const mutate = client.mutation.bind(client);
+  client.mutation = ((ref: any, args: any) => {
+    const result = mutate(ref, args);
+    if (args?.body === "late refusal") void result.then(value => refusedDone?.(value));
+    return result;
+  }) as typeof client.mutation;
+  const root = createRoot(document.getElementById("root")!);
+  try {
+    await client.ready; await client.auth.me();
+    const first: any = await client.mutation(api.messages.send, { conversationId: "conversation-1", body: "one editor" });
+    const second: any = await client.mutation(api.messages.send, { conversationId: "conversation-1", body: "another message" });
+    assert.equal(first.state, "committed"); assert.equal(second.state, "committed");
+    const bubble = `li[data-message="${first.data.id}"]`, other = `li[data-message="${second.data.id}"] .actions button`;
+    const form = () => document.querySelector<HTMLFormElement>(`${bubble} form[aria-label="Edit message"]`);
+    const input = () => form()?.querySelector<HTMLInputElement>("input") ?? null;
+    await act(async () => root.render(React.createElement(SnapbackProvider, { client },
+      React.createElement(Thread, { conversationId: "conversation-1" }))));
+    await waitFor(() => document.querySelector(`${bubble} .actions button`) !== null && document.querySelector(other) !== null, "both Edit actions");
+    await act(async () => document.querySelector<HTMLButtonElement>(`${bubble} .actions button`)!.click());
+    assert.equal(document.querySelector<HTMLButtonElement>(other)!.disabled, true, "another editor cannot silently replace the open one");
+    await type(input()!, "late refusal");
+    const refused = new Promise<any>(done => { refusedDone = done; });
+    await act(async () => { await new Promise<void>(done => { entered = done; form()!.requestSubmit(); }); });
+    await type(input()!, "after refusal");
+    await act(async () => {
+      release!();
+      assert.equal((await refused).state, "rejected");
+      await new Promise<void>(done => setImmediate(done));
+    });
+    assert.equal(input()?.value, "after refusal");
+    assert.equal(form()!.querySelector("[role=alert]"), null, "an older refusal does not describe newer text");
+    await act(async () => { form()!.requestSubmit(); });
+    await waitFor(() => form() === null && text(document.querySelector(`${bubble} > p`)) === "after refusal", "newer text saves after the older refusal");
+    assert.equal(document.querySelector<HTMLButtonElement>(other)!.disabled, false, "closing the editor re-enables other edits");
+  } finally { release?.(); await act(async () => root.unmount()); await client.close(); restore(); }
+});
+
+test("Thread releases the open editor when its message is removed elsewhere", async () => {
+  const restore = installDom();
+  const client = createClient({ url: screenOwner.url, persona: "alice" });
+  const writer = createClient({ url: screenOwner.url, persona: "alice" });
+  const root = createRoot(document.getElementById("root")!);
+  const editAction = (id: string) => document.querySelector<HTMLButtonElement>(`li[data-message="${id}"] .actions button`);
+  try {
+    await Promise.all([client.ready, writer.ready]); await client.auth.me();
+    const doomed: any = await writer.mutation(api.messages.send, { conversationId: "conversation-1", body: "removed while editing" });
+    const other: any = await writer.mutation(api.messages.send, { conversationId: "conversation-1", body: "still here" });
+    assert.equal(doomed.state, "committed"); assert.equal(other.state, "committed");
+    await act(async () => root.render(React.createElement(SnapbackProvider, { client },
+      React.createElement(Thread, { conversationId: "conversation-1" }))));
+    await waitFor(() => editAction(doomed.data.id) !== null && editAction(other.data.id) !== null, "both Edit actions");
+    await act(async () => editAction(doomed.data.id)!.click());
+    assert.equal(editAction(other.data.id)!.disabled, true, "one editor at a time");
+    assert.equal((await writer.mutation(api.messages.unsend, { messageId: doomed.data.id })).state, "committed");
+    await waitFor(() => document.querySelector(`li[data-message="${doomed.data.id}"]`) === null
+      && editAction(other.data.id)?.disabled === false, "the removed message releases the editor");
+  } finally { await act(async () => root.unmount()); await Promise.all([client.close(), writer.close()]); restore(); }
+});
+
+test("Thread editor keeps its draft when the connection drops and returns", async () => {
+  const restore = installDom();
+  const directory = await mkdtemp(join(tmpdir(), "snapback2-edit-drop-"));
+  const client = createClient({ url: screenOwner.url, persona: "alice", offline: { store: fileRangeStore(directory) } });
+  const root = createRoot(document.getElementById("root")!);
+  try {
+    await client.ready; await client.auth.me();
+    const sent: any = await client.mutation(api.messages.send, { conversationId: "conversation-1", body: "draft across a drop" });
+    assert.equal(sent.state, "committed");
+    const form = () => document.querySelector<HTMLFormElement>('form[aria-label="Edit message"]');
+    const editAction = () => document.querySelector<HTMLButtonElement>(`li[data-message="${sent.data.id}"] .actions button`);
+    await act(async () => root.render(React.createElement(SnapbackProvider, { client },
+      React.createElement(Thread, { conversationId: "conversation-1" }))));
+    await waitFor(() => editAction() !== null, "the Edit action");
+    await act(async () => editAction()!.click());
+    await type(form()!.querySelector("input")!, "typed before the drop");
+    await waitFor(async () => await client.outbox.ready(), "offline write readiness");
+    await act(async () => { await client.offline(); });
+    await settle(300);
+    assert.equal(form()?.querySelector("input")?.value, "typed before the drop", "going offline keeps the open editor and its draft");
+    await act(async () => { await client.online(); });
+    await settle(300);
+    assert.equal(form()?.querySelector("input")?.value, "typed before the drop", "reconnecting keeps the open editor and its draft");
+    await act(async () => { form()!.requestSubmit(); });
+    await waitFor(() => form() === null && text(document.querySelector(`li[data-message="${sent.data.id}"] > p`)) === "typed before the drop",
+      "the draft saves after reconnecting");
+  } finally {
+    await act(async () => root.unmount()); await client.close(); restore();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("Thread editor rebases on a conflict, saves the attempt deliberately, and forgets drafts across accounts", async () => {
+  const restore = installDom();
+  const alice = createClient({ url: screenOwner.url, persona: "alice" });
+  const bob = createClient({ url: screenOwner.url, persona: "bob" });
+  const writer = createClient({ url: screenOwner.url, persona: "alice" });
+  const root = createRoot(document.getElementById("root")!);
+  const render = (client: any) => React.createElement(SnapbackProvider, { client },
+    React.createElement(Thread, { conversationId: "conversation-1" }));
+  try {
+    await Promise.all([alice.ready, bob.ready, writer.ready]); await alice.auth.me(); await bob.auth.me();
+    const sent: any = await writer.mutation(api.messages.send, { conversationId: "conversation-1", body: "before conflict" });
+    assert.equal(sent.state, "committed");
+    const bubble = `li[data-message="${sent.data.id}"]`;
+    const form = () => document.querySelector<HTMLFormElement>(`${bubble} form[aria-label="Edit message"]`);
+    const input = () => form()?.querySelector<HTMLInputElement>("input") ?? null;
+    const body = () => text(document.querySelector(`${bubble} > p`));
+    const openEditor = async () => {
+      await waitFor(() => document.querySelector(`${bubble} .actions button`) !== null, "the Edit action");
+      await act(async () => document.querySelector<HTMLButtonElement>(`${bubble} .actions button`)!.click());
+    };
+    await act(async () => root.render(render(alice)));
+    await openEditor();
+    await type(input()!, "my attempt");
+    const moved: any = await writer.mutation(api.messages.edit, { messageId: sent.data.id, body: "changed elsewhere", baseBody: "before conflict" });
+    assert.equal(moved.state, "committed");
+    await act(async () => { form()!.requestSubmit(); });
+    await waitFor(() => /Edit not sent\. Current message: changed elsewhere\. Save again to replace it\./.test(text(form()?.querySelector("[role=alert]"))), "the conflict note");
+    assert.equal(input()!.value, "my attempt", "the attempt survives the conflict");
+    await act(async () => { form()!.requestSubmit(); });
+    await waitFor(() => form() === null && body() === "my attempt", "saving again deliberately replaces the current message");
+
+    await openEditor();
+    await type(input()!, "private draft");
+    await act(async () => root.render(render(bob)));
+    await waitFor(() => body() === "my attempt" && form() === null, "Bob's view of the message");
+    await act(async () => root.render(render(alice)));
+    await waitFor(() => document.querySelector(`${bubble} .actions button`) !== null, "Alice's actions, not her earlier editor");
+    assert.equal(form(), null, "returning to the account does not reopen the earlier editor");
+    assert.doesNotMatch(text(document.querySelector("section[aria-label=Thread]")), /private draft/);
+  } finally { await act(async () => root.unmount()); await Promise.all([alice.close(), bob.close(), writer.close()]); restore(); }
 });
 
 for (const state of ["committed", "rejected"]) test(`a late ${state} send cannot change another conversation's draft or result`, async () => {

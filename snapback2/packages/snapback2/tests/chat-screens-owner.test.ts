@@ -1,6 +1,6 @@
 import { sharedConsumers, subscribe } from "../src/internal.js";
 import assert from "node:assert/strict";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -418,4 +418,134 @@ test("the chat screens render the log, queue offline sends as pinned bubbles, se
     restore();
     await rm(root, { recursive: true, force: true });
   }
+});
+
+test("React Thread renders ordinary photos and clips with accessible loading and refusal states", async () => {
+  const restore = installDom();
+  const alice = createClient({ url: screenOwner.url, persona: "alice" });
+  const bob = createClient({ url: screenOwner.url, persona: "bob", fetch: async (input, init) => {
+    if (new URL(String(input)).pathname.startsWith("/api/asset/")) {
+      return json({ code: "E_ASSET_VIEWED", family: "input", message: "asset viewed", rewrite: "ask for the photo again" }, 410);
+    }
+    return globalThis.fetch(input, init);
+  } });
+  const root = createRoot(document.getElementById("root")!);
+  const render = (client: any) => React.createElement(SnapbackProvider, { client },
+    React.createElement(Thread, { conversationId: "conversation-1" }));
+  const fixture = (name: string) => readFile(resolve(packageRoot, "templates/chat/snapback/tests/fixtures", name));
+  const figure = (id: string, media: string) => document.querySelector(`li[data-message="${id}"] figure[data-media=${media}]`);
+  try {
+    await Promise.all([alice.ready, bob.ready]); await alice.auth.me(); await bob.auth.me();
+    const photo: any = await alice.mutation(api.messages.sendPhoto, { conversationId: "conversation-1",
+      photo: new File([await fixture("photo.jpg")], "photo.jpg", { type: "image/jpeg" }) });
+    const clip: any = await alice.mutation(api.messages.sendClip, { conversationId: "conversation-1",
+      clip: new File([await fixture("clip.mp4")], "clip.mp4", { type: "video/mp4" }) });
+    assert.equal(photo.state, "committed"); assert.equal(clip.state, "committed");
+    await act(async () => root.render(render(alice)));
+    await waitFor(() => !!figure(photo.data.id, "photo")?.querySelector("img[alt=Photo]")?.getAttribute("src")
+      && !!figure(clip.data.id, "clip")?.querySelector("video[aria-label=Video]"), "ordinary photo bytes and the video player");
+    assert.doesNotMatch(text(document.querySelector("ol.bubbles")), /\[photo\]|\[clip\]/);
+    assert.match(text(figure(photo.data.id, "photo")), /Loading photo…/, "the photo says it is loading until it decodes");
+    await act(async () => { figure(photo.data.id, "photo")!.querySelector("img")!.dispatchEvent(new (globalThis.window as any).Event("load")); });
+    assert.equal(figure(photo.data.id, "photo")!.getAttribute("data-state"), "ready");
+    assert.equal(figure(photo.data.id, "photo")!.querySelector("figcaption"), null);
+    assert.ok(figure(clip.data.id, "clip")!.querySelector("video")!.hasAttribute("controls"));
+    await act(async () => root.render(render(bob)));
+    await waitFor(() => figure(photo.data.id, "photo")?.getAttribute("data-state") === "unavailable", "a refused photo");
+    assert.match(text(figure(photo.data.id, "photo")), /Photo unavailable/);
+    await act(async () => root.render(render(alice)));
+    await waitFor(() => !!figure(photo.data.id, "photo")?.querySelector("img")?.getAttribute("src"), "Alice's photo bytes again");
+    assert.equal(figure(photo.data.id, "photo")!.getAttribute("data-state"), "loading", "another account's refusal does not carry back");
+    assert.match(text(figure(photo.data.id, "photo")), /Loading photo…/);
+  } finally { await act(async () => root.unmount()); await Promise.all([alice.close(), bob.close()]); restore(); }
+});
+
+test("React Thread says a photo is not downloaded while offline and fetches it when the connection returns", async () => {
+  const restore = installDom();
+  const directory = await mkdtemp(join(tmpdir(), "snapback2-photo-offline-"));
+  const alice = createClient({ url: screenOwner.url, persona: "alice" });
+  const bob = createClient({ url: screenOwner.url, persona: "bob", offline: { store: fileRangeStore(directory) } });
+  const root = createRoot(document.getElementById("root")!);
+  const figure = (id: string) => document.querySelector(`li[data-message="${id}"] figure[data-media=photo]`);
+  let stop: (() => void) | undefined;
+  try {
+    await Promise.all([alice.ready, bob.ready]); await alice.auth.me(); await bob.auth.me();
+    const photo: any = await alice.mutation(api.messages.sendPhoto, { conversationId: "conversation-1",
+      photo: new File([await readFile(resolve(packageRoot, "templates/chat/snapback/tests/fixtures/photo.jpg"))], "photo.jpg", { type: "image/jpeg" }) });
+    assert.equal(photo.state, "committed");
+    const observed = bob.observe(api.messages.conversationView, { conversationId: "conversation-1" }, { items: conversationItems });
+    stop = observed.subscribe(() => undefined);
+    await waitFor(() => observed.getSnapshot().items.some((item: any) => item.key === photo.data.id), "Bob's held conversation with the photo");
+    stop(); stop = undefined;
+    await act(async () => { await bob.offline(); });
+    await act(async () => root.render(React.createElement(SnapbackProvider, { client: bob },
+      React.createElement(Thread, { conversationId: "conversation-1" }))));
+    await waitFor(() => figure(photo.data.id)?.getAttribute("data-state") === "not-downloaded", "the offline byte refusal");
+    assert.equal(text(figure(photo.data.id)), "Photo not downloaded", "an offline transport refusal is not reported as unavailable");
+    await act(async () => { await bob.online(); });
+    await waitFor(() => !!figure(photo.data.id)?.querySelector("img")?.getAttribute("src"), "the photo's bytes after the connection returns");
+    assert.equal(figure(photo.data.id)!.getAttribute("data-state"), "loading");
+  } finally {
+    stop?.(); await act(async () => root.unmount()); await Promise.all([alice.close(), bob.close()]); restore();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("React Thread says a clip is not downloaded while offline and mints its player URL when the connection returns", async () => {
+  const restore = installDom();
+  const directory = await mkdtemp(join(tmpdir(), "snapback2-clip-offline-"));
+  const alice = createClient({ url: screenOwner.url, persona: "alice" });
+  const bob = createClient({ url: screenOwner.url, persona: "bob", offline: { store: fileRangeStore(directory) } });
+  const root = createRoot(document.getElementById("root")!);
+  const figure = (id: string) => document.querySelector(`li[data-message="${id}"] figure[data-media=clip]`);
+  let stop: (() => void) | undefined;
+  try {
+    await Promise.all([alice.ready, bob.ready]); await alice.auth.me(); await bob.auth.me();
+    const clip: any = await alice.mutation(api.messages.sendClip, { conversationId: "conversation-1",
+      clip: new File([await readFile(resolve(packageRoot, "templates/chat/snapback/tests/fixtures/clip.mp4"))], "clip.mp4", { type: "video/mp4" }) });
+    assert.equal(clip.state, "committed");
+    const observed = bob.observe(api.messages.conversationView, { conversationId: "conversation-1" }, { items: conversationItems });
+    stop = observed.subscribe(() => undefined);
+    await waitFor(() => observed.getSnapshot().items.some((item: any) => item.key === clip.data.id), "Bob's held conversation with the clip");
+    stop(); stop = undefined;
+    await act(async () => { await bob.offline(); });
+    await act(async () => root.render(React.createElement(SnapbackProvider, { client: bob },
+      React.createElement(Thread, { conversationId: "conversation-1" }))));
+    await waitFor(() => text(figure(clip.data.id)) === "Video not downloaded", "the offline clip caption");
+    assert.equal(figure(clip.data.id)!.querySelector("video")!.getAttribute("src"), null, "offline, no player URL could be minted");
+    await act(async () => { await bob.online(); });
+    await waitFor(() => !!figure(clip.data.id)?.querySelector("video")?.getAttribute("src"), "the player URL after the connection returns");
+    assert.equal(text(figure(clip.data.id)), "", "a clip loading online shows no caption");
+  } finally {
+    stop?.(); await act(async () => root.unmount()); await Promise.all([alice.close(), bob.close()]); restore();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("React Thread treats unreachable photo bytes as not downloaded and retries them a bounded number of times", async () => {
+  const restore = installDom();
+  let byteRequests = 0, assetId: string | undefined;
+  const alice = createClient({ url: screenOwner.url, persona: "alice" });
+  const bob = createClient({ url: screenOwner.url, persona: "bob", fetch: async (input, init) => {
+    const path = new URL(String(input)).pathname;
+    if (!path.startsWith("/api/asset/")) return globalThis.fetch(input, init);
+    // Earlier tests leave other photos in this conversation; count only this test's bytes.
+    if (assetId !== undefined && path.includes(assetId)) byteRequests++;
+    return new Response("resize failed", { status: 503 });
+  } });
+  const root = createRoot(document.getElementById("root")!);
+  const figure = (id: string) => document.querySelector(`li[data-message="${id}"] figure[data-media=photo]`);
+  try {
+    await Promise.all([alice.ready, bob.ready]); await alice.auth.me(); await bob.auth.me();
+    const photo: any = await alice.mutation(api.messages.sendPhoto, { conversationId: "conversation-1",
+      photo: new File([await readFile(resolve(packageRoot, "templates/chat/snapback/tests/fixtures/photo.jpg"))], "photo.jpg", { type: "image/jpeg" }) });
+    assert.equal(photo.state, "committed");
+    assetId = photo.data.photo.id;
+    await act(async () => root.render(React.createElement(SnapbackProvider, { client: bob },
+      React.createElement(Thread, { conversationId: "conversation-1" }))));
+    await waitFor(() => figure(photo.data.id)?.getAttribute("data-state") === "not-downloaded", "unreachable photo bytes");
+    assert.equal(text(figure(photo.data.id)), "Photo not downloaded", "a transport failure is not reported as a server refusal");
+    await settle(1_000);
+    assert.ok(byteRequests >= 1 && byteRequests <= 4, `this photo's automatic retries stay bounded: ${byteRequests} byte requests`);
+  } finally { await act(async () => root.unmount()); await Promise.all([alice.close(), bob.close()]); restore(); }
 });
