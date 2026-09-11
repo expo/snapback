@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2-effects` (the host and runner), `snapback2/crates/snapback2` (the runner thread in the owner; `doctor`), `snapback2/packages/compiler` (lowering `effect()` and `emit()`), `snapback2/scripts/{hermes,publish.mjs}`
 **Author:** Claude Fable 5 (orchestrator) — implementer: codex gpt-5.6-sol, lane C (compiler lowering: lane B0)
 **Date:** 2026-08-29
-**Revised:** 2026-09-10 (LLP 1018.008.003: explicit empty grants give no network authority; implementer Codex); 2026-09-05 (Clique F1: authored fetch headers are delivered and redirects obey Fetch; implementer GPT-6 Astra, L6; F2: ES2020 authored-file libraries and witnessed globals/members, L5); 2026-08-30
+**Revised:** 2026-09-11 (Darwin and Linux vanilla-Hermes build lookup); 2026-09-10 (LLP 1018.008.003: explicit empty grants give no network authority; implementer Codex); 2026-09-05 (Clique F1: authored fetch headers are delivered and redirects obey Fetch; implementer GPT-6 Astra, L6; F2: ES2020 authored-file libraries and witnessed globals/members, L5); 2026-08-30
 **Related:** LLP 1000 decision 3 (Ibex 2 embedded now, effects only), LLP 1001 §8 (the outbox), LLP 1002 §5 (the owner that hosts the runner), LLP 0329.014.004 §6 (`effect` kind: "JavaScript with I/O outside the data plane; reads only through named queries as a service principal; writes only through named mutations; transactional outbox"), LLP 0329.016 §9 decision 7, expo/ibex LLP 0057/0058/0067/0068 (the engine, its bindings, and its grant model)
 
 ## Summary
@@ -227,7 +227,11 @@ invocation per host pump.
   through `scripts/hermes` (`--features hermes`, production profile) and
   refuses to publish an engine-less binary (`SNAPBACK2_PUBLISH_WITHOUT_ENGINE=1`
   overrides, loudly, for a platform without vanilla Hermes). The size is a
-  measured number in `metrics/loop.jsonl` beside the engine-less one.
+  measured number in `metrics/loop.jsonl` beside the engine-less one. The
+  wrapper defaults to Ibex's `ios/Frameworks-vanilla` plus
+  `hermesc-macos-<arch>` on Darwin and `linux/Frameworks-vanilla` plus
+  `hermesc-linux-<arch>` on Linux; explicit `IBEX2_VANILLA_HERMES_DIR` and
+  `IBEX2_HERMESC` overrides remain authoritative.
 
 ## 5. What binds, and how it is checked
 

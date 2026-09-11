@@ -1,7 +1,12 @@
 #!/usr/bin/env node
 // Publish snapback2 to npm: stage immutable tarballs, then converge the
 // platform package and shim to that exact pair. `--dry-run` commits neither.
-import { consumerSmoke, stagePlatformDependencies, verifyPlatformDependencies } from "./consumer-smoke.mjs";
+import {
+  consumerSmoke,
+  hostConsumerArtifacts,
+  stagePlatformDependencies,
+  verifyPlatformDependencies,
+} from "./consumer-smoke.mjs";
 import { strict as assert } from "node:assert";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
@@ -18,12 +23,13 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, resolve } from "node:path";
+import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const dry = process.argv.includes("--dry-run");
 const selfTest = process.argv.includes("--self-test");
+const stageOnly = process.argv.includes("--stage-only");
 const npm = process.env.SNAPBACK2_PUBLISH_NPM ?? "npm";
 const npmEnvironment = {
   ...process.env,
@@ -175,6 +181,170 @@ function sha256(path) {
   return createHash("sha256").update(readFileSync(path)).digest("hex");
 }
 
+const platformIdentities = new Map([
+  ["snapback2-darwin-arm64", { os: "darwin", cpu: "arm64" }],
+  ["snapback2-linux-x64", { os: "linux", cpu: "x64" }],
+]);
+
+function platformArtifactPaths(argv = process.argv.slice(2)) {
+  const paths = [];
+  for (let index = 0; index < argv.length; index += 1) {
+    const argument = argv[index];
+    if (argument === "--platform-artifact") {
+      const path = argv[index + 1];
+      if (!path || path.startsWith("--")) throw new Error("--platform-artifact needs a staged resume.json path");
+      paths.push(resolve(path));
+      index += 1;
+    } else if (argument.startsWith("--platform-artifact=")) {
+      const path = argument.slice("--platform-artifact=".length);
+      if (!path) throw new Error("--platform-artifact needs a staged resume.json path");
+      paths.push(resolve(path));
+    }
+  }
+  return paths;
+}
+
+function packedManifest(tarball) {
+  const unpacked = command("tar", ["-xOzf", tarball, "package/package.json"]);
+  try {
+    return JSON.parse(unpacked.stdout);
+  } catch {
+    throw new Error(`staged platform artifact ${tarball} has invalid package metadata`);
+  }
+}
+
+function portableTarballPath(receiptPath, recordedPath) {
+  if (typeof recordedPath !== "string") return undefined;
+  const besideReceipt = resolve(dirname(receiptPath), basename(recordedPath));
+  if (existsSync(besideReceipt)) return besideReceipt;
+  return existsSync(recordedPath) ? recordedPath : undefined;
+}
+
+function consumerEvidencePassed(consumer) {
+  if (consumer?.verdict !== "pass" || !Array.isArray(consumer.steps)) return false;
+  const steps = new Map(consumer.steps.map((step) => [step.name, step]));
+  return steps.get("install tarballs")?.ok === true
+    && steps.get("doctor")?.ok === true
+    && steps.get("todos test")?.ok === true
+    && steps.get("todos receipt")?.accepted === true
+    && steps.get("chat test")?.ok === true
+    && steps.get("chat receipt")?.accepted === true;
+}
+
+// @ref LLP 1002#11-measured — every selected native host qualifies the exact immutable shim before publication.
+export function recordPlatformQualification(staged, platformName, consumer, host = {
+  platform: process.platform,
+  arch: process.arch,
+}) {
+  const identity = platformIdentities.get(platformName);
+  if (!identity || identity.os !== host.platform || identity.cpu !== host.arch) {
+    throw new Error(`cannot record ${platformName} qualification from ${host.platform}-${host.arch}`);
+  }
+  if (consumer.status !== 0) throw new Error(`cannot record failed ${platformName} consumer qualification`);
+  const artifact = staged.artifacts.find((candidate) => candidate.name === platformName);
+  const shim = staged.artifacts.find((candidate) => candidate.name === "snapback2");
+  if (!artifact || !shim || !/^[a-f0-9]{64}$/.test(staged.mediaDigest ?? "")) {
+    throw new Error(`cannot record incomplete ${platformName} qualification`);
+  }
+  const steps = consumer.steps.map(({ name, ok, accepted, verdict }) => ({
+    name,
+    ...(ok === undefined ? {} : { ok }),
+    ...(accepted === undefined ? {} : { accepted }),
+    ...(verdict === undefined ? {} : { verdict }),
+  }));
+  const evidence = { verdict: "pass", steps };
+  if (!consumerEvidencePassed(evidence)) {
+    throw new Error(`cannot record incomplete ${platformName} consumer qualification`);
+  }
+  staged.platformQualifications ??= {};
+  staged.platformQualifications[platformName] = {
+    format: 1,
+    name: platformName,
+    version: artifact.version,
+    integrity: artifact.integrity,
+    shimIntegrity: shim.integrity,
+    mediaDigest: staged.mediaDigest,
+    host,
+    consumer: evidence,
+  };
+  return staged;
+}
+
+export function readQualifiedPlatformArtifact(receiptPath, version) {
+  let receipt;
+  try {
+    receipt = JSON.parse(readFileSync(receiptPath, "utf8"));
+  } catch (error) {
+    throw new Error(`cannot read staged platform receipt ${receiptPath}: ${error.message}`);
+  }
+  const name = receipt?.name;
+  const identity = platformIdentities.get(name);
+  const matching = Array.isArray(receipt?.artifacts)
+    ? receipt.artifacts.filter((artifact) => artifact.name === name)
+    : [];
+  const artifact = matching[0];
+  const shims = Array.isArray(receipt?.artifacts)
+    ? receipt.artifacts.filter((candidate) => candidate.name === "snapback2")
+    : [];
+  const shim = shims[0];
+  const qualification = receipt?.platformQualifications?.[name];
+  const tarball = portableTarballPath(receiptPath, artifact?.tarball);
+  const shimTarball = portableTarballPath(receiptPath, shim?.tarball);
+  if (!identity || receipt.version !== version || matching.length !== 1 || artifact.version !== version
+    || shims.length !== 1 || shim.version !== version || !tarball || !shimTarball) {
+    throw new Error(`staged platform receipt ${receiptPath} does not identify one recognized ${version} artifact`);
+  }
+  if (sri(tarball) !== artifact.integrity) {
+    throw new Error(`staged platform artifact ${tarball} does not match its recorded integrity`);
+  }
+  if (sri(shimTarball) !== shim.integrity) {
+    throw new Error(`staged shim artifact ${shimTarball} does not match its recorded integrity`);
+  }
+  const manifest = packedManifest(tarball);
+  if (manifest.name !== name || manifest.version !== version
+    || JSON.stringify(manifest.os) !== JSON.stringify([identity.os])
+    || JSON.stringify(manifest.cpu) !== JSON.stringify([identity.cpu])) {
+    throw new Error(`staged platform artifact ${tarball} has the wrong identity, version, or platform`);
+  }
+  const shimManifest = packedManifest(shimTarball);
+  if (shimManifest.name !== "snapback2" || shimManifest.version !== version) {
+    throw new Error(`staged shim artifact ${shimTarball} has the wrong identity or version`);
+  }
+  if (qualification?.format !== 1
+    || qualification.name !== name
+    || qualification.version !== version
+    || qualification.integrity !== artifact.integrity
+    || qualification.shimIntegrity !== shim.integrity
+    || !/^[a-f0-9]{64}$/.test(qualification.mediaDigest ?? "")
+    || qualification.mediaDigest !== receipt.mediaDigest
+    || qualification.host?.platform !== identity.os
+    || qualification.host?.arch !== identity.cpu
+    || !consumerEvidencePassed(qualification.consumer)) {
+    throw new Error(`staged platform receipt ${receiptPath} has no matching successful production consumer evidence`);
+  }
+  return {
+    artifact: { name, version, tarball, integrity: artifact.integrity },
+    qualification,
+  };
+}
+
+export function verifyPublicationQualifications(staged) {
+  const shim = staged.artifacts.find((artifact) => artifact.name === "snapback2");
+  if (!shim) throw new Error("staged publication has no snapback2 shim artifact");
+  for (const artifact of staged.artifacts.filter((candidate) => candidate.name !== "snapback2")) {
+    const qualification = staged.platformQualifications?.[artifact.name];
+    if (qualification?.name !== artifact.name
+      || qualification.version !== artifact.version
+      || qualification.integrity !== artifact.integrity
+      || qualification.shimIntegrity !== shim.integrity
+      || !consumerEvidencePassed(qualification.consumer)) {
+      throw new Error(
+        `${artifact.name}@${artifact.version} was not production-qualified with final shim ${shim.integrity}; run --stage-only on that platform with the unified artifact set`,
+      );
+    }
+  }
+}
+
 function codecBuildEnvironment(prefix, macosDeploymentTarget) {
   const pkgConfig = resolve(prefix, "lib/pkgconfig");
   return {
@@ -323,7 +493,7 @@ function buildStaticHeicClosure(macosDeploymentTarget, run = command) {
   return built;
 }
 
-function loadResume(path, name, version) {
+function loadResume(path, name, version, requestedPlatforms = []) {
   if (!existsSync(path)) return undefined;
   const resume = JSON.parse(readFileSync(path, "utf8"));
   if (resume.name !== name
@@ -331,7 +501,16 @@ function loadResume(path, name, version) {
     || !Array.isArray(resume.artifacts)
     || !/^[a-f0-9]{64}$/.test(resume.mediaDigest ?? "")) return undefined;
   for (const artifact of resume.artifacts) {
-    if (!existsSync(artifact.tarball) || sri(artifact.tarball) !== artifact.integrity) return undefined;
+    const tarball = portableTarballPath(path, artifact.tarball);
+    if (!tarball || sri(tarball) !== artifact.integrity) return undefined;
+    artifact.tarball = tarball;
+  }
+  const selected = resume.artifacts.filter((artifact) => artifact.name !== "snapback2");
+  const expected = [{ name }, ...requestedPlatforms.map(({ artifact }) => artifact)];
+  if (selected.length !== expected.length
+    || expected.some((artifact) => selected.filter((candidate) => candidate.name === artifact.name).length !== 1)
+    || requestedPlatforms.some(({ artifact }) => selected.find((candidate) => candidate.name === artifact.name)?.integrity !== artifact.integrity)) {
+    return undefined;
   }
   return resume;
 }
@@ -536,7 +715,7 @@ function buildProductionMedia() {
   return mediaBin;
 }
 
-function prepare(version, name, stateDirectory) {
+function prepare(version, name, stateDirectory, requestedPlatforms = []) {
   rmSync(stateDirectory, { recursive: true, force: true });
   mkdirSync(stateDirectory, { recursive: true });
   // @ref LLP 1006#14a-codecs-live-in-a-separate-executable-the-type-does-not — the one published helper carries every admitted image codec.
@@ -595,6 +774,14 @@ function prepare(version, name, stateDirectory) {
 
   const platformPack = pack(platformStage, stateDirectory);
   const platformArtifacts = [{ name, version, ...platformPack }];
+  const platformQualifications = {};
+  for (const requested of requestedPlatforms) {
+    const target = resolve(stateDirectory, basename(requested.artifact.tarball));
+    if (existsSync(target)) throw new Error(`staged platform artifact target already exists: ${target}`);
+    copyFileSync(requested.artifact.tarball, target);
+    platformArtifacts.push({ ...requested.artifact, tarball: target });
+    platformQualifications[requested.artifact.name] = requested.qualification;
+  }
   stagePlatformDependencies(shimStage, platformArtifacts);
   const shimPack = pack(shimStage, stateDirectory);
   const resume = {
@@ -606,6 +793,7 @@ function prepare(version, name, stateDirectory) {
     withoutEngine,
     withoutEngineBytes,
     withEngineBytes,
+    platformQualifications,
     artifacts: [
       ...platformArtifacts,
       { name: "snapback2", version, ...shimPack },
@@ -614,8 +802,9 @@ function prepare(version, name, stateDirectory) {
   return resume;
 }
 
-function stagePublication(version, name, stateDirectory, resumePath, options = {}) {
+export function stagePublication(version, name, stateDirectory, resumePath, options = {}) {
   const dryRun = options.dryRun ?? dry;
+  const requestedPlatforms = options.platformArtifacts ?? [];
   const prepareArtifacts = options.prepareArtifacts ?? prepare;
   const qualifyArtifacts = options.qualifyArtifacts
     ?? ((staged) => {
@@ -624,8 +813,12 @@ function stagePublication(version, name, stateDirectory, resumePath, options = {
       return staged;
     });
   if (!dryRun) {
-    const staged = loadResume(resumePath, name, version)
-      ?? prepareArtifacts(version, name, stateDirectory);
+    const staged = loadResume(resumePath, name, version, requestedPlatforms)
+      ?? prepareArtifacts(version, name, stateDirectory, requestedPlatforms);
+    staged.platformQualifications ??= {};
+    for (const requested of requestedPlatforms) {
+      staged.platformQualifications[requested.artifact.name] = requested.qualification;
+    }
     qualifyArtifacts(staged);
     writeFileSync(resumePath, `${JSON.stringify(staged, null, 2)}\n`);
     return {
@@ -638,7 +831,7 @@ function stagePublication(version, name, stateDirectory, resumePath, options = {
   const dryStateDirectory = mkdtempSync(`${stateDirectory}.dry-`);
   try {
     return {
-      staged: qualifyArtifacts(prepareArtifacts(version, name, dryStateDirectory)),
+      staged: qualifyArtifacts(prepareArtifacts(version, name, dryStateDirectory, requestedPlatforms)),
       cleanup() {
         rmSync(dryStateDirectory, { recursive: true, force: true });
       },
@@ -899,19 +1092,40 @@ function runSelfTest() {
 }
 
 function main() {
+  if (stageOnly && dry) throw new Error("--stage-only and --dry-run are mutually exclusive; staging must retain its receipt");
   const started = performance.now();
   const version = packageVersion();
   const platform = `${process.platform}-${process.arch}`;
   const name = `snapback2-${platform}`;
+  const requestedPlatforms = platformArtifactPaths().map((path) => readQualifiedPlatformArtifact(path, version));
+  const requestedNames = requestedPlatforms.map(({ artifact }) => artifact.name);
+  if (requestedNames.includes(name)) {
+    throw new Error(`--platform-artifact must name a foreign platform, not this host's ${name}`);
+  }
+  if (new Set(requestedNames).size !== requestedNames.length) {
+    throw new Error("--platform-artifact names the same platform more than once");
+  }
   const stateDirectory = resolve(root, "dist/npm", `publish-${name}-${version}`);
   const resumePath = resolve(stateDirectory, "resume.json");
-  const publication = stagePublication(version, name, stateDirectory, resumePath);
+  const publication = stagePublication(version, name, stateDirectory, resumePath, {
+    platformArtifacts: requestedPlatforms,
+  });
   const staged = publication.staged;
 
   try {
-    const consumer = consumerSmoke(staged.artifacts, { npm });
+    // The shim is qualified exactly as packed, but npm receives only the host
+    // binary tarball directly. Foreign os/cpu packages carry their own host
+    // receipt and must not be executed (or rejected with EBADPLATFORM) here.
+    const consumer = consumerSmoke(hostConsumerArtifacts(staged.artifacts), { npm });
     console.log(`publish consumer: ${consumer.stdout}`);
     if (consumer.status !== 0) throw new Error(`installed package qualification failed\n${consumer.stderr}`);
+    recordPlatformQualification(staged, name, consumer);
+    if (!dry) writeFileSync(resumePath, `${JSON.stringify(staged, null, 2)}\n`);
+    if (stageOnly) {
+      console.log(`staged and qualified ${name}@${version}; transfer ${stateDirectory} and pass its resume.json with --platform-artifact`);
+      return;
+    }
+    verifyPublicationQualifications(staged);
     if (dry) {
       for (const artifact of staged.artifacts) {
         command(npm, ["publish", artifact.tarball, "--access", "public", "--dry-run", "--ignore-scripts"], {
@@ -952,10 +1166,12 @@ function main() {
   }
 }
 
-try {
-  if (selfTest) runSelfTest();
-  else main();
-} catch (error) {
-  console.error(`publish: ${error instanceof Error ? error.message : String(error)}`);
-  process.exitCode = 1;
+if (fileURLToPath(import.meta.url) === resolve(process.argv[1] ?? "")) {
+  try {
+    if (selfTest) runSelfTest();
+    else main();
+  } catch (error) {
+    console.error(`publish: ${error instanceof Error ? error.message : String(error)}`);
+    process.exitCode = 1;
+  }
 }

@@ -4,19 +4,29 @@
 # IBEX2_VANILLA_HERMES_DIR; build it once with expo/ibex's scripts/build-hermes.sh --vanilla.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-default_dir="${HOME}/projects/ibex/ios/Frameworks-vanilla"
+# @ref LLP 1003#4-in-the-owner — published binaries use the engine-bearing build on every supported host.
+case "$(uname -s)" in
+  Darwin) platform=macos; platform_dir=ios; build_script=build-hermes.sh ;;
+  Linux) platform=linux; platform_dir=linux; build_script=build-hermes-linux.sh ;;
+  *) platform=unsupported; platform_dir=unsupported; build_script=build-hermes.sh ;;
+esac
+default_dir="${HOME}/projects/ibex/${platform_dir}/Frameworks-vanilla"
 export IBEX2_VANILLA_HERMES_DIR="${IBEX2_VANILLA_HERMES_DIR:-$default_dir}"
 if [ ! -d "$IBEX2_VANILLA_HERMES_DIR" ]; then
   echo "snapback2/scripts/hermes: no vanilla Hermes at $IBEX2_VANILLA_HERMES_DIR" >&2
-  echo "  clone https://github.com/expo/ibex and run ./scripts/build-hermes.sh --vanilla, or set IBEX2_VANILLA_HERMES_DIR" >&2
+  echo "  clone https://github.com/expo/ibex and run ./scripts/$build_script --vanilla, or set IBEX2_VANILLA_HERMES_DIR" >&2
   exit 2
 fi
-arch="$(uname -m)"; case "$arch" in arm64|aarch64) arch=arm64;; *) arch=x64;; esac
-default_hermesc="${HOME}/projects/ibex/tools/hermes-vanilla/hermesc-macos-${arch}"
+arch="$(uname -m)"; case "$arch" in
+  arm64|aarch64) arch=arm64 ;;
+  x86_64|amd64) arch=x64 ;;
+  *) arch=unsupported ;;
+esac
+default_hermesc="${HOME}/projects/ibex/tools/hermes-vanilla/hermesc-${platform}-${arch}"
 export IBEX2_HERMESC="${IBEX2_HERMESC:-$default_hermesc}"
 if [ ! -x "$IBEX2_HERMESC" ]; then
   echo "snapback2/scripts/hermes: no vanilla hermesc at $IBEX2_HERMESC (Ibex 2 compiles its bindings to bytecode at build time)" >&2
-  echo "  build it with expo/ibex ./scripts/build-hermes.sh --vanilla, or set IBEX2_HERMESC" >&2
+  echo "  build it with expo/ibex ./scripts/$build_script --vanilla, or set IBEX2_HERMESC" >&2
   exit 2
 fi
 command="${1:-build}"

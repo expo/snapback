@@ -5,15 +5,25 @@ import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
 
 // @ref LLP 1002#11-measured — a packed shim names only the platform artifacts in its publication.
-function isPlatformPackage(name) {
-  return name === 'snapback2-darwin-arm64' || name === 'snapback2-linux-x64';
+const platformPackageNames = ['snapback2-darwin-arm64', 'snapback2-linux-x64'];
+
+function isPlatformPackage(name) { return platformPackageNames.includes(name); }
+
+export function hostConsumerArtifacts(artifacts, platform = process.platform, arch = process.arch) {
+  const hostName = `snapback2-${platform}-${arch}`;
+  const shim = artifacts.filter(artifact => artifact.name === 'snapback2');
+  const host = artifacts.filter(artifact => artifact.name === hostName);
+  if (shim.length !== 1) throw new Error('staged publication needs exactly one snapback2 shim artifact');
+  if (host.length !== 1) throw new Error(`staged publication needs exactly one ${hostName} artifact for host qualification`);
+  return [host[0], shim[0]];
 }
 
 function selectedPlatformDependencies(manifest, artifacts) {
   if (!artifacts.length) throw new Error('a staged shim needs at least one platform artifact');
   const dependencies = Object.fromEntries(Object.entries(manifest.optionalDependencies ?? {})
     .filter(([name]) => !isPlatformPackage(name)));
-  for (const artifact of artifacts) {
+  for (const artifact of [...artifacts].sort((left, right) =>
+    platformPackageNames.indexOf(left.name) - platformPackageNames.indexOf(right.name))) {
     if (!isPlatformPackage(artifact.name)
       || artifact.version !== manifest.version || Object.hasOwn(dependencies, artifact.name)) {
       throw new Error(`invalid staged platform ${artifact.name}@${artifact.version} for snapback2@${manifest.version}`);

@@ -2,10 +2,10 @@
 
 **Type:** Spec
 **Status:** Draft
-**Systems:** `snapback2/crates/snapback2` (the binary: owner, server, verbs), `snapback2/packages/compiler` (project lowering, worker), `snapback2/packages/snapback2` (authoring runtime, client, React, test runner, shim), `snapback2/scripts/measure.mjs`
+**Systems:** `snapback2/crates/snapback2` (the binary: owner, server, verbs), `snapback2/packages/compiler` (project lowering, worker), `snapback2/packages/snapback2` (authoring runtime, client, React, test runner, shim), `snapback2/scripts/{measure,publish,consumer-smoke}.mjs`
 **Author:** Claude Fable 5 (orchestrator) — implementers: codex gpt-5.6-sol, lanes B0 (compiler + authoring surface), B1 (owner + server + verbs), B2 (`init`, `test`, `why`, `trace`, `guide`), D (client + React + evaluator)
 **Date:** 2026-08-29
-**Revised:** 2026-09-11 (prebuilt native-binary custody across overlapping inventories); 2026-09-11 (measured native long-tail scheduling and verified artifact preservation); 2026-09-11 (bounded package scheduling and explicit post-fixture artifact boundary); 2026-09-09 (keyword guide cards and final Quarry headers, atomic expectedGeneration mutation admission, real template auth and nested hook session/actions, implementer GPT-6 Astra); 2026-09-09 (docs round-2 review fixes: imperative query retry scope and positive Quarry route); 2026-09-09 (docs round-1 review fixes: query retries versus mutation submission, established follower account, nested-page drain limits and public recovery repairs); 2026-09-09 (integrated shipped-docs accuracy: real chat README declarations, client/recovery scaffold route, composite continuation and public recovery examples); 2026-09-08 (lane D final focused repair: conditional stale-cache recovery and multi-fence effect guide coverage); 2026-09-08 (lane D second repair pass: valid guide fences, legal walk repairs, published family context, successor recovery and unique-source regression pins); 2026-09-08 (lane D review fixes: complete requirement metadata, conservative lookup explanations, executable families, CLI spelling repairs and complete subscriptions); 2026-09-08 (diagnostics say the fix: missing bounds, spelling repairs, current families, wrapping check, source-mapped why prose; implementer GPT-6 Astra, lane D); 2026-09-08 (Lane C final repair: reject statement-bearing expressions throughout policy probes; admit usable inbox arrays before comparison); 2026-09-08 (Lane C round 2: protected-independent guard proof, candidate rejection reasons, isolated count journey); 2026-09-08 (Lane C review: proved carrier projections, derived policy counts, executable Vite precedence and seeded maintain assertions); 2026-09-08 (templates are products, elegance program Lane C, implementer GPT-6 Astra); 2026-09-08 (LLP 1001.000 typed latest-state channels, leases and snapshot clients); 2026-09-08 (resource-aware blocking Rust test scheduling and paired timing); 2026-09-07 (generated insert/merge consumer type bindings; implementer GPT-6 Astra); 2026-09-07 (independent Quarry diagnostics, checked-type repair advice, lexical failure isolation and merge discovery ordering; implementer GPT-6 Astra); 2026-09-07 (preserve unrelated prefixed optional packages; staged platform dependency selection and exact-lock packaging regression; durable browser-follower admission and unknown-outcome recovery; client-owned observed query snapshots; explicit named-journey verification and executable React startup; startup cleanup fixture custody); 2026-09-06 (app guide operation/certificate custody; native logical SSE body; CLI help and executable migration recovery; auth startup recovery and held transition reads; queued transitions, interrupted sync, live held reads); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
+**Revised:** 2026-09-11 (portable multi-platform publication staging and exact-shim host qualification); 2026-09-11 (prebuilt native-binary custody across overlapping inventories); 2026-09-11 (measured native long-tail scheduling and verified artifact preservation); 2026-09-11 (bounded package scheduling and explicit post-fixture artifact boundary); 2026-09-09 (keyword guide cards and final Quarry headers, atomic expectedGeneration mutation admission, real template auth and nested hook session/actions, implementer GPT-6 Astra); 2026-09-09 (docs round-2 review fixes: imperative query retry scope and positive Quarry route); 2026-09-09 (docs round-1 review fixes: query retries versus mutation submission, established follower account, nested-page drain limits and public recovery repairs); 2026-09-09 (integrated shipped-docs accuracy: real chat README declarations, client/recovery scaffold route, composite continuation and public recovery examples); 2026-09-08 (lane D final focused repair: conditional stale-cache recovery and multi-fence effect guide coverage); 2026-09-08 (lane D second repair pass: valid guide fences, legal walk repairs, published family context, successor recovery and unique-source regression pins); 2026-09-08 (lane D review fixes: complete requirement metadata, conservative lookup explanations, executable families, CLI spelling repairs and complete subscriptions); 2026-09-08 (diagnostics say the fix: missing bounds, spelling repairs, current families, wrapping check, source-mapped why prose; implementer GPT-6 Astra, lane D); 2026-09-08 (Lane C final repair: reject statement-bearing expressions throughout policy probes; admit usable inbox arrays before comparison); 2026-09-08 (Lane C round 2: protected-independent guard proof, candidate rejection reasons, isolated count journey); 2026-09-08 (Lane C review: proved carrier projections, derived policy counts, executable Vite precedence and seeded maintain assertions); 2026-09-08 (templates are products, elegance program Lane C, implementer GPT-6 Astra); 2026-09-08 (LLP 1001.000 typed latest-state channels, leases and snapshot clients); 2026-09-08 (resource-aware blocking Rust test scheduling and paired timing); 2026-09-07 (generated insert/merge consumer type bindings; implementer GPT-6 Astra); 2026-09-07 (independent Quarry diagnostics, checked-type repair advice, lexical failure isolation and merge discovery ordering; implementer GPT-6 Astra); 2026-09-07 (preserve unrelated prefixed optional packages; staged platform dependency selection and exact-lock packaging regression; durable browser-follower admission and unknown-outcome recovery; client-owned observed query snapshots; explicit named-journey verification and executable React startup; startup cleanup fixture custody); 2026-09-06 (app guide operation/certificate custody; native logical SSE body; CLI help and executable migration recovery; auth startup recovery and held transition reads; queued transitions, interrupted sync, live held reads); 2026-09-05 (keyword index fallback and recipe list; generated Quarry keyword guide, landed outbox/client custody; auth review: failed-transition custody, read restoration barrier, session kind, paused offline retries; client-owned auth restoration and retry lifecycle; catalog naming rewrites, Clique L2; shared live transport, bounded derived verification, mutation-read guidance, installed consumer qualification)
 **Related:** LLP 1000, LLP 1001 (the engine this serves), LLP 1003 (effects),
 LLP 0329.016 §5 (the design this implements verbatim where it can), LLP
 0329.016 §5.11 (the verb table — no verb exists without its row), LLP
@@ -1516,16 +1516,37 @@ README travels with the compiler, client, templates, and guide. Gates from
 
 The packed shim's optional platform dependencies name exactly the platform
 artifacts selected for that publication, all at the shim's version. The current
-publisher qualifies and stages its host platform; it does not require an
-unreleased Linux binary for a Darwin release. The selection helper also
-preserves multiple platforms when supplied together. The recognized platform
-package identities are `snapback2-darwin-arm64` and `snapback2-linux-x64`, matching
-the source shim's platform dependencies. Selection and replacement use those
-exact identities; unrelated optionals, including `snapback2-plugin` and
-`snapback2-plugin-tools`, and normal/peer dependencies remain unchanged. A
-recognized name alone does not establish platform qualification. Production qualification
-checks the packed package identities and dependency map, including resumed
-tarballs; a mismatched immutable shim is refused and must be staged again.
+publisher qualifies and stages its host platform. `--stage-only` performs the
+same production binary, media, package and installed-consumer qualification,
+writes the durable resume record, and performs no registry convergence or
+publish request. The stage directory is portable: when transferred intact, recorded tarballs are
+resolved beside `resume.json` and checked against their immutable integrity.
+`--platform-artifact <resume.json>` imports a separately staged platform only
+after checking its recognized package identity, version, `os`/`cpu`, tarball
+integrity and explicit successful native-host consumer evidence. It never runs
+the foreign binary locally.
+
+The selection helper preserves multiple platforms when supplied together. The
+recognized platform package identities are `snapback2-darwin-arm64` and
+`snapback2-linux-x64`, matching the source shim's platform dependencies.
+Selection and replacement use those exact identities; unrelated optionals,
+including `snapback2-plugin` and `snapback2-plugin-tools`, and normal/peer
+dependencies remain unchanged. A recognized name alone does not establish
+platform qualification. Each platform's resume evidence binds both that
+platform tarball integrity and the exact shim integrity exercised by its
+production consumer. Staging may assemble the next unified candidate from an
+earlier host receipt, but registry publication refuses until every selected
+platform has successfully exercised the final identical shim. Thus the bounded
+two-host workflow is platform A stage, platform B unified stage, platform A
+unified stage, then platform B publication using the refreshed platform A
+receipt. The local consumer installs only its host artifact plus the unified
+shim, avoiding a direct foreign package install and its `EBADPLATFORM`; the
+shim's packed dependency map is still checked against every selected artifact.
+Production qualification checks the packed package identities and dependency
+map, including resumed tarballs; a mismatched immutable shim is refused and
+must be staged again. A resume is reused only when its exact platform selection
+and imported artifact integrities match the request, so a newly requested
+platform cannot be silently ignored.
 Development consumer packing uses the same selection. `publish.mjs --self-test`
 includes an offline fixture install followed by a fresh `npm ci` with unchanged
 package/lock bytes and default peer/optional dependency semantics. This is
