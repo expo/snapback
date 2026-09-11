@@ -88,9 +88,16 @@ fn command_guides_explain_initialization_and_successor_recovery() {
         "registration drift",
         "Duplicates",
         "Five-second",
+        "memberLeave(conversationId: conversations, membershipId: memberships)",
+        "delayed replay could delete a successor seat",
     ] {
         assert!(content.contains(needle), "{content}");
     }
+    let alias = json_stdout(&project.run(&["guide", "test", "--json"]));
+    assert_eq!(alias["content"], page["content"]);
+    let quarry = json_stdout(&project.run(&["guide", "quarry", "--json"]));
+    let schema = json_stdout(&project.run(&["guide", "schema", "--json"]));
+    assert_eq!(schema["content"], quarry["content"]);
     let page = json_stdout(&project.run(&["guide", "operator", "--json"]));
     let content = page["content"].as_str().unwrap();
     for needle in [

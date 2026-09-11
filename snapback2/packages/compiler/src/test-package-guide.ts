@@ -95,7 +95,7 @@ export function registerPackageGuideChecks(
       assert(keywords[filename.slice(0, -3)] === await readFile(`${guide}/${filename}`, "utf8"),
         `${filename}: full card missing from keyword lookup`);
     }
-    for (const [alias, page] of [["assets/client", "assets"], ["successor", "migrations"], ["migration", "migrations"]])
+    for (const [alias, page] of [["assets/client", "assets"], ["successor", "migrations"], ["migration", "migrations"], ["test", "testing"], ["schema", "quarry"]])
       assert(keywords[alias!] === keywords[page!], `${alias}: topic alias lost`);
     const grammar = await readFile(`${guide}/grammar.md`, "utf8");
     for (const [, keyword] of grammar.matchAll(/^- `([a-z][a-z0-9-]*)`: .+$/gm))

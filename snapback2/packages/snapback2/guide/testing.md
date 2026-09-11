@@ -1,4 +1,4 @@
-# Testing
+# Testing: `test`
 
 The static seed is one system commit before derived checks and journeys:
 maintained targets need no empty seed arrays.
@@ -89,6 +89,17 @@ Guards must be independent of the denied table: only literals, arguments, viewer
 self-readable membership existence with stable keys are proved. Unproved terminal control
 flow blocks, including merges anywhere in expressions; `detail.candidates` names
 each rejected query and its reason.
+
+Canonical proof carriers:
+
+- `memberAdd(conversationId: conversations, principal: principal)`
+- `memberPromote(conversationId: conversations, membershipId: memberships)`
+- `memberRemove(conversationId: conversations, membershipId: memberships)`
+- `memberLeave(conversationId: conversations, membershipId: memberships)`
+
+Add returns its id; the others bind that exact incarnation. Scope-only leave
+is unsafe because delayed replay could delete a successor seat. Seed a member,
+second same-scope admin, spare nonmember, and room below the cap.
 Journeys share the owner; isolate disposable writes from later inboxes and await
 client closes.
 
@@ -96,8 +107,9 @@ Derived checks use a small seed.
 Rules compare every stored row for every seed persona, within a 16,384-probe
 budget; oversized tables block with the counts and a smaller-seed rewrite.
 Empty generated logs/receipts block too: seed content in a group with recipients.
-Invalidation witnesses each query's distinct certificate-intersection groups
-and concrete-disjoint silence, rather than testing every query/mutation pair.
+Invalidation witnesses certificate-intersection groups and possible
+concrete-disjoint silence. Whole-index queries whose every mutation write must
+overlap report silence inapplicable; do not invent an unrelated operation.
 The receipt names groups and physical attempts. SSE silence ends at a fresh
 subscription frame after the write on the same ordered stream. Mutation
 search uses the first two scopes and six personas; if no committing witness is

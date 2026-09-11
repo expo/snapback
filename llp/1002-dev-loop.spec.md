@@ -786,6 +786,14 @@ read-only in the receipt, never editable):
 records the following stable proof names in its test receipt; a lower-level
 unit test may support one but does not replace the served-loop proof:
 
+The v1 carrier is discoverable as `memberAdd(scope, principal)`,
+`memberPromote(scope, membershipId)`, `memberRemove(scope, membershipId)`, and
+`memberLeave(scope, membershipId)`, with the concrete schema scope argument in
+place of `scope`. The names select the distinct add, promote, admin-remove, and
+self-leave roles; every update/delete takes the immutable membership identity.
+A scope-only self-leave cannot prove incarnation safety because delayed replay
+could delete a successor seat.
+
 7. `live-revocation` — subscribe as a currently admitted conversation
    member, delete that exact membership through a named mutation, and require
    the next delivery at the mutation's `seq` to be `denied`. An unchanged or

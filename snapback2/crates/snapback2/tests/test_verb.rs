@@ -789,6 +789,9 @@ mutation aabUnprobeableLeave(missingId: id, membershipId: memberships):
     let receipt = json_stdout(&output);
     let revocation = check(&receipt, "live-revocation");
     assert_eq!(revocation["verdict"], "blocked", "{revocation}");
+    assert_eq!(revocation["detail"]["guide"], "testing", "{revocation}");
+    assert!(revocation["detail"]["rewrite"].as_str().is_some_and(|rewrite|
+        rewrite.contains("memberLeave(conversationId, membershipId)")), "{revocation}");
     assert!(
         revocation["detail"]["reason"]
             .as_str()
