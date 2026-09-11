@@ -38,6 +38,36 @@ only comments the matcher branch and unconditionally uses
 `udatpg_getBestPatternWithOptions` for component skeletons. Track the limitation
 here without calling the current completion full Intl conformance.
 
+### Deferred constructor edge in the Linux replacement
+
+For both NumberFormat and DateTimeFormat, an exotic `Reflect.construct` target
+whose `prototype` is not an object falls back to `Object.prototype`, rather
+than the corresponding Intl prototype:
+
+```js
+function Target() {}
+Target.prototype = 0;
+Object.getPrototypeOf(Reflect.construct(Intl.NumberFormat, ["en"], Target))
+// Object.prototype; expected Intl.NumberFormat.prototype.
+```
+
+Ordinary `new`, call-as-function and custom object-prototype subclasses are
+preserved. Root accepted this review finding initially, then explicitly
+deferred it after three correction attempts exposed a pinned-engine constraint:
+[JSCallableProxy.cpp](https://github.com/facebook/hermes/blob/6badada762121682b5481b6124e6c3a991ae6046/lib/VM/JSCallableProxy.cpp#L78)
+reads `newTarget.prototype` and allocates before looking up any construct trap.
+A thin JS Proxy then needs a second observable read; descriptor heuristics
+add observable proxy traps or confuse an explicitly supplied Object.prototype
+with fallback. Public JSI has no custom constructor/newTarget callback.
+
+Do not fix this with private-VM coupling, an engine fork, bytecode patching,
+extra observable reads or heuristic prototype replacement under the present
+commission. Retain the isolated expected-correct regression and original
+failed attempts. Revisit with a clean engine/public-embedding constructor seam.
+This is an explicitly unimplemented edge, not an optional legacy-constructor
+feature or a passing conformance claim. Final code review receives the exact
+limitation and may propose alternatives or challenge its severity.
+
 The bounded audit and original probe inputs/outputs are retained with the
 [release record](../benchmarks/runs/2026-09-11-snapback2-release-0024-linux/README.md).
 The initial Linux executable is SHA-256

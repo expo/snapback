@@ -42,6 +42,9 @@ ES2020 selects the type library, not complete Intl conformance. Known runtime
 gaps: `Intl.PluralRules`, `RelativeTimeFormat`, `Locale`, and `DisplayNames`
 are absent. On Mac, NumberFormat parts and some sign/notation/unit options
 are incomplete; BigInt locale formatting remains ungrouped.
+Linux date `formatMatcher: "basic"` uses ICU best-fit selection. For Linux
+number/date formatters, a custom `Reflect.construct` target must have an object
+prototype; ordinary `new`, calls and subclasses work.
 
 `dev` reports engine and queued count at boot (`effects` in JSON). Build an
 engine: `scripts/hermes build -p snapback2`. No engine leaves rows queued and

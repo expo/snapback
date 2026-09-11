@@ -144,6 +144,18 @@ snapshot refresh; later authored tampering remains refused. This security
 delta is explicitly included in final review. None of these records claims
 complete Intl conformance or qualifies a package for publication by itself.
 
+The constructor finding above was subsequently **deferred, not fixed** after
+the three-round stop rule. Pinned Hermes allocates and reads the newTarget
+prototype before every Proxy construct trap; the clean JS factory would then
+perform a second observable Get. Public JSI lacks a custom constructor seam.
+Root rejected descriptor heuristics, private-VM coupling and a Hermes fork;
+the ordinary constructor path remains, with normal/custom-object behavior
+preserved and primitive-prototype fallback explicitly unimplemented. The
+existing surface ticket and packed guide disclose it. The exact expected-
+correct regression and failed experiments remain retained, and final reviewers
+receive the trade for independent assessment. This decision does not weaken
+the original effects witness or claim a complete Intl implementation.
+
 The author requested npm publication followed by Clique on expo-build-1000,
 using Astra at the previous builder effort. After the Darwin-only 0.0.23
 publication exposed the missing full Linux runtime, the author explicitly
