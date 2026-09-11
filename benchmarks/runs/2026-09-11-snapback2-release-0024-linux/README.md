@@ -92,6 +92,14 @@ exception; normal growth guards still fail and the cleanup ticket stays open.
 The other agent's [completed work and evidence](../2026-09-11-snapback2-followup-diagnostics/README.md)
 are reused, not reimplemented. Integrated release qualification is separate.
 
+The integrated `ab0a693f8` canonical suite passed on EPYC, PID 2086045,
+19:24:29–19:25:30 UTC, exit 0: 1,340 JavaScript tests, 1,127 native passes
+across the exhaustive 1,120+7 split and four configured skips, 302 compiler
+checks, evaluator and doctests. This 61-second run does not establish the
+separate 60-second budget. The [source, process and original run evidence](./snapback-ab0-canonical.tar.gz)
+archive has SHA-256
+`9cd7a1734fa9426f034acc1b22ee9ee67d91a53b5291cee826935b3ff51840ee`.
+
 The remainder records the initial attempt and its hold, not new qualification
 claims for the resumed candidate.
 
@@ -117,6 +125,9 @@ no-engine PID 37341 ran 19:20:57–19:21:11 UTC. The complete source export has
 SHA-256 `788d0e22164ee24be2881a64400e31743643b2c105e55039634dc9f7b92a1cbc`;
 all six shared source-file hashes matched the control-plane source. Linux-only
 constructor corrections do not change those tested Mac semantic inputs.
+The [original Mac process and test evidence](./ibex-mac-62241-evidence.tar.gz)
+archive has SHA-256
+`31a089c3d0d4c098d991b27ce32e0f6c0c9632936893642a55d669dcf4c1a301`.
 
 Mutually blind [Sol](../../../llp/reviews/1003-native-intl-20260911.r1.sol.md)
 and [Grok](../../../llp/reviews/1003-native-intl-20260911.r1.grok.md) reviews
