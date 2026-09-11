@@ -793,7 +793,7 @@ test("built witness conformance opens two connections and reports WAL plus every
     assert.equal(result.journalMode, "wal");
     assert.deepEqual(result.checks, ["journal_mode readback", "BLOB 1", "BLOB 1048576", "BLOB 0",
       "JSON tuple key round trip", "missing row is undefined", "rollback on throw",
-      "body-ended transaction rejects and next transaction succeeds", "late beforeCommit holds transaction", "transaction result"]);
+      "real COMMIT failure rolls back and next transaction succeeds", "late beforeCommit holds transaction", "transaction result"]);
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 

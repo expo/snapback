@@ -147,40 +147,43 @@ test("the committed sample-50 media sequence fits the fixed owner envelope", asy
     assert.equal(await probeClient.discardUpload(probe.id), true);
 
     const uploaded: Array<{ actor: string; kind: "image" | "video"; record: any; rowId?: string }> = [];
-    for (const action of actions) {
-      const bytes = await readFile(new URL(action.path, sampleRoot));
-      const kind = action.path.endsWith(".mp4") ? "video" : "image";
-      const type = kind === "video" ? "video/mp4" : "image/png";
-      const source = new File([bytes], action.path.slice("media/".length), { type });
-      const record = kind === "video"
-        ? await clients.get(action.actor)!.upload(source, { kind: "video" })
-        : await clients.get(action.actor)!.upload(source, { kind: "image" });
-      uploaded.push({ ...action, kind, record });
-    }
+    await Promise.all([0, 1].map(async (lane) => {
+      for (let index = lane; index < actions.length; index += 2) {
+        const action = actions[index]!;
+        const bytes = await readFile(new URL(action.path, sampleRoot));
+        const kind = action.path.endsWith(".mp4") ? "video" : "image";
+        const type = kind === "video" ? "video/mp4" : "image/png";
+        const source = new File([bytes], action.path.slice("media/".length), { type });
+        const record = kind === "video"
+          ? await clients.get(action.actor)!.upload(source, { kind: "video" })
+          : await clients.get(action.actor)!.upload(source, { kind: "image" });
+        uploaded[index] = { ...action, kind, record };
+      }
+    }));
     assert.equal(new Set(uploaded.map(({ record }) => record.id)).size, 16);
     const unreleased = await Promise.all([...clients.values()].map((client) => client.listUploads()));
     assert.equal(unreleased.reduce((sum, listing) => sum + listing.usage.objects, 0), 16);
     assert.ok(unreleased.every((listing) => listing.uploads.every((entry) => entry.state === "ready" && !entry.releasedAt)));
     const unreleasedBytes = unreleased.reduce((sum, listing) => sum + listing.usage.bytes, 0);
 
-    for (const item of uploaded) {
+    await Promise.all(uploaded.map(async (item) => {
       const client = clients.get(item.actor)!;
       const result = item.kind === "video"
         ? await client.mutation(api.media.keepVideo, { video: item.record })
         : await client.mutation(api.media.keep, { photo: item.record });
       assert.equal(result.state, "committed", JSON.stringify(result));
       item.rowId = result.data.id;
-    }
+    }));
     const attached = await Promise.all([...clients.values()].map((client) => client.listUploads()));
     assert.ok(attached.every((listing) => listing.usage.objects === 0 && listing.usage.bytes === 0));
 
-    for (const item of uploaded) {
+    await Promise.all(uploaded.map(async (item) => {
       const client = clients.get(item.actor)!;
       const result = item.kind === "video"
         ? await client.mutation(api.media.releaseVideo, { rowId: item.rowId })
         : await client.mutation(api.media.release, { rowId: item.rowId });
       assert.equal(result.state, "committed", JSON.stringify(result));
-    }
+    }));
     const released = await Promise.all([...clients.values()].map((client) => client.listUploads()));
     assert.equal(released.reduce((sum, listing) => sum + listing.uploads.length, 0), 16);
     assert.equal(released.reduce((sum, listing) => sum + listing.usage.objects, 0), 0);

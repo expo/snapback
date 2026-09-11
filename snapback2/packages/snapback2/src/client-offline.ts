@@ -580,8 +580,12 @@ export async function performOfflineResume<Authority>(options: {
     throw options.shape("resume response.seq must be a non-negative safe integer");
   }
   try {
-    await options.runtime.commitMany(swaps, watermark, undefined, revision,
+    const reset = await options.runtime.commitMany(swaps, watermark, undefined, revision,
       () => !options.signal?.aborted, Number(response.seq), deliveryOrder);
+    // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — an
+    // internal clock reset or concurrent program rotation starts another
+    // recovery round; its response cannot install a grant under replaced facts.
+    if (reset || revision !== options.runtime.coverageRevision) return true;
   } catch (error) {
     throw options.failure ? options.failure(error) : error;
   }
@@ -590,16 +594,22 @@ export async function performOfflineResume<Authority>(options: {
   // @ref LLP 1012#7-writes-offline — a resume may omit a replacement grant;
   // successful re-authorization itself renews trust, then replay is FIFO.
   options.runtime.noteGrant(response, grantPrincipal);
+  let lifecycleChanged = false;
   try {
     const grantAuthority = () => {
       check();
       if (options.runtime!.outbox.generation !== generation) {
+        lifecycleChanged = true;
         throw resumeUnavailable("offline lifecycle changed during grant adoption; resume again before sending");
       }
     };
     await options.runtime.adoptPendingGrant(grantAuthority);
     grantAuthority();
   } catch (error) {
+    // A same-authority confirmation can reopen the same partition while this
+    // response is persisting. The grant was rolled back; restart recovery on
+    // the new lifecycle instead of exposing an internal coordination race.
+    if (lifecycleChanged) { check(); return true; }
     throw options.failure ? options.failure(error) : error;
   }
   if (!options.runtime.outbox.resumeSucceeded(generation)) return false;
