@@ -291,6 +291,31 @@ test("a follower's write is a durable inbox row before run() resolves; the write
   await writer.close();
 });
 
+test("dev-persona auth confirmation cannot supersede a durable follower insertion", async () => {
+  const { open } = tabs();
+  const writer = open(); await writer.ready;
+  const follower = open(); await follower.ready;
+  let release!: () => void;
+  const paused = new Promise<void>(resolve => { release = resolve; });
+  try {
+    await until(async () => (await follower.outbox.status()).reason === "forwarding", "the follower's inbox route");
+    const inbox = (follower as any).inbox;
+    const runtime = (follower as any).offlineRuntime;
+    inbox.following("dev:alice", true, 7, true);
+    const insert = runtime.insertInbox.bind(runtime);
+    let reached = false;
+    runtime.insertInbox = async (row: any) => { reached = true; await paused; return insert(row); };
+    const pending = follower.mutation(api.messages.send, { conversationId: "conversation-1", body: "survives confirmation" });
+    await until(() => reached, "the paused durable insertion");
+    inbox.following("dev:alice", true, 8, true);
+    release();
+    const queued = await pending;
+    assert.equal(queued.state, "queued", "session confirmation preserves the caller's publication rights");
+    const row = runtime.inboxRows.find((candidate: any) => candidate.key === 1);
+    assert.equal(row?.authEpoch, undefined, "a dev persona's durable row has no auth epoch");
+  } finally { release(); await follower.close(); await writer.close(); }
+});
+
 test("the writer admits durable follower rows before its own write, so the device's order is the ledger's", async () => {
   const { owner, open } = tabs();
   const writer = open();
