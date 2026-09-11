@@ -1,7 +1,8 @@
 # Snapback 2 asset custody, reset ordering and GC progress remain incomplete
 
 **Filed:** 2026-09-06 by GPT-6 Astra, asset-pending lane
-**Status:** open
+**Status:** Open — reset ordering and sibling-delete progress freshly reproduced (2026-09-11)
+**Priority:** P1
 **Scope:** inherited physical cleanup/custody defects; separate from pending-object classification
 **Related:** LLP 1006 §9/§9a/§14; `20260906-snapback2-owner-asset-staging-ceiling-refuses-reseeds.md`
 
@@ -82,3 +83,59 @@ restart recovery, fork retention, and scratch ownership under failure. Measure
 whole-turn work separately; small regression fixtures do not qualify disk
 amplification or latency at large live/fork cardinalities. Preserve ordinary
 release liveness, full grace, affine/creator authority and stable replay terminals.
+
+## Reconciliation and fresh reproductions — 2026-09-11
+
+Current source still has all five categories above. Two priority failures were reproduced
+on BLACK at current `15c134d056`; the scratch assertions were removed afterward.
+
+### Reset removes physical staging before later seed refusal
+
+The probe extended existing
+`tests/owner.rs::reset_seed_refusal_is_atomic_and_keeps_the_owner_running`:
+
+```diff
+ let log_start = fs::metadata(&log_path).unwrap().len();
++let staged = root.join(".snapback/staging/triage-reset.stage");
++fs::write(&staged, b"owned reset-order probe").unwrap();
+ ...
+ assert_eq!(reset.body["code"], "E_CONSTRAINT", "{}", reset.body);
++assert!(staged.exists(),
++    "a reset refused during seed validation must not have removed physical staging bytes");
+```
+
+```text
+cargo test -p snapback2 --test owner reset_seed_refusal_is_atomic_and_keeps_the_owner_running -- --exact --nocapture
+# assertion failed: staging bytes must remain; 0 passed, 1 failed; exit 101
+```
+
+The owner returned `400/E_CONSTRAINT` and kept durable rows, but the staging file was
+absent because `writer_assets::State::reset` calls `LocalStaging::clear` first.
+
+### One blob-delete error aborts a later sibling
+
+The minimal `asset_gc.rs` probe used a `BlobStore` whose enumeration visited `ID` then
+`SIBLING_ID`; `delete(ID)` returned `asset_io("injected first deletion failure")`, and
+later deletes appended their key to `Mutex<Vec<String>>`. Its assertion was:
+
+```rust
+let ids = BTreeSet::from([ID.to_owned(), SIBLING_ID.to_owned()]);
+let error = sweep_asset_blobs(&root, &blobs, &BTreeSet::new(), &ids).unwrap_err();
+assert_eq!(error.code, "E_OWNER_ASSET_IO");
+assert_eq!(*blobs.deleted.lock().unwrap(), vec![SIBLING_ID.to_owned()],
+    "one failed blob deletion must not prevent a later sibling from being deleted");
+```
+
+```text
+cargo test -p snapback2 --bin snapback2 asset_gc::tests::triage_delete_failure_does_not_abort_sibling_progress -- --exact --nocapture
+# left: []; right: [SIBLING_ID]; 0 passed, 1 failed; exit 101
+```
+
+This confirms `visitor(ID)?` / `blobs.delete(key)?` stops enumeration before the sibling;
+the caller's later `finish_asset_reclaims` is also skipped by propagation.
+
+Items 1, 4, and 5 are source-confirmed but were not race/failure-injection tested in this
+bounded pass. Next acceptance: validate seed before destructive clear (including a paused
+receiving/finalizing barrier); retain per-key deletion retry state while allowing sibling
+progress and finishing successful siblings; then add barrier-controlled rung/view-vs-GC
+and failed-scratch-cleanup tests without weakening grace or once history.

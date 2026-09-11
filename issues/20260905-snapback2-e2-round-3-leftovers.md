@@ -1,6 +1,7 @@
 # Snapback 2 lane E2: residuals after the third review round
 
-Status: Open
+Status: Open — reconciled 2026-09-11
+Priority: P1 (native witness and custody claims)
 Filed: 2026-09-05 (LLP 1013 landing 9; reviews `llp/reviews/`-adjacent record in the orchestrator's state)
 
 Three blind-review rounds (grok 4.6, Muse, codex astra) and two fix rounds; the round limit is
@@ -39,3 +40,22 @@ three. What stayed open, each small and bounded:
    no-media scanning and reopen denial. Investigate the ordinary image decode
    and onLoad witness before claiming the full Android media run; this is not
    a claim that the native image itself was proven broken.
+
+## Reconciliation — 2026-09-11
+
+- 1 remains device-unqualified: the portable probe manufactures a body-ended
+  transaction; the mocked Expo unit test is not SDK proof.
+- 2 remains intentional-but-undecided: `client.assetUrl(list)` still compacts viewed
+  entries while `useAssetUrl` preserves positions.
+- 3 remains accepted transient-orphan behavior and constrains future directory sweeps.
+- 4 remains: `SESSION_VIEW_LIMIT = 8` is still unnamed in LLP 1012.
+- 5 is obsolete as an arm requirement: the shipped composer is text-only; app-owned
+  media composer operations can carry `viewOnce`.
+- 6 remains an evidence limitation, not proof that URLSession cached bytes.
+- 7 remains: current private delivery still answers `no-store` because its proof does
+  not identify the supplying row's once policy.
+- 8 remains unqualified; this pass did not run an Android emulator.
+
+Next acceptance: run real SDK COMMIT and Android ordinary-image witnesses; decide the
+list-slot and eight-session contracts; retain orphan tolerance; and either carry an
+exact ordinary-private delivery policy or explicitly accept its no-store cost.

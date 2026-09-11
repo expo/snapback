@@ -53,3 +53,17 @@ the last rounds left, each small; the next lane that touches the named file take
   the `{ fired, late, rejected }` shape check); the declaration-site hash test is struct-level, not
   two compiled projects; `guide.rs` `RECIPES` still lists `offline` twice.
 
+## Reconciliation — 2026-09-11
+
+**Status:** Open. **Priority:** P2.
+
+The core findings remain directly visible: `run_chunk_at` reserves ids before its
+parkable execute; `requested_mode` does not read `wait`; `shape_site` splits refusal
+message text; the owner-wire helper still uses a 5 s read timeout; the coalescing test
+does not cover parked; the ceiling injection asserts only `E_STEPS`; manifest filtering
+excludes only `__owner.*`; and `attach_schedule_receipt` accepts any object.
+
+No broad battery was run for this aggregate hygiene ticket. Next acceptance is one
+bounded lane that closes those cases with focused tests, then checks the smaller
+catalog/guide/metric carryovers individually. Keep the ticket open until every bullet has
+a landed fix or explicit accepted disposition.

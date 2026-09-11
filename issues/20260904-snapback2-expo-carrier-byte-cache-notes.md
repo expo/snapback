@@ -1,6 +1,7 @@
 # Snapback 2 Expo carrier: do not copy two web byte-cache shortcuts
 
-**Status:** Open (blocked on the Expo arm)
+**Status:** Open — reconciled against the landed Expo arm (2026-09-11)
+**Priority:** P2
 **Systems:** snapback2 client (`packages/snapback2/src/store/byte-cache.ts`, `range-store.ts`, the Expo carrier when it exists)
 **Date:** 2026-09-04
 **Related:** LLP 1012 §9 and §10; reviews `o4w-r2-muse.md` M1, M4, M6
@@ -24,3 +25,22 @@
    so a drain of an `after`-cursor log mounted before the first authenticated query files
    under `c`. Recipe ops are named `c`; a custom cursor name on a bearer drain needs the
    manifest awaited, not `ready`.
+
+## Reconciliation — 2026-09-11
+
+The Expo arm now exists, so this is no longer blocked. Current-source triage:
+
+- Item 1 remains: `SESSION_VIEW_LIMIT` is still 8 whole session blobs without a
+  session-byte ceiling.
+- Item 2 is partly landed: SQLite reads and transactions share `driverQueue`, and
+  native materialization/removal has its own file queue. The IndexedDB abort note and
+  a cross-queue completion proof remain.
+- Item 3 remains: `getBytes` catches a coalesced `touchBytes`, and close has no final
+  touch flush.
+- Item 4 landed for native files through per-asset revision revalidation; the web hook
+  still subscribes only to partition custody, so it is not globally resolved.
+- Item 5 was not exercised in this bounded pass and remains unproven.
+
+Next acceptance: bound session-held bytes and width identity; add close/touch and
+read-vs-swap cases for both carriers; prove sibling revocation on each UI arm; and run
+the bearer pre-manifest custom-cursor case.

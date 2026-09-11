@@ -1,6 +1,7 @@
 # Snapback 2 byte cache: the asset record shape is a closed key set
 
-**Status:** Open
+**Status:** Open — deferred evolution hazard; no current invalid-record bug (2026-09-11)
+**Priority:** P3, activates only with an accepted asset-record extension
 **Systems:** snapback2 client (`packages/snapback2/src/store/byte-cache.ts`)
 **Date:** 2026-09-04
 **Related:** LLP 1012 §9 implementation record; LLP 1006 §9b; review `o4w-r2-muse.md` M2
@@ -19,3 +20,18 @@ view-once half of grok's finding; this closed-shape half was declined for the la
 Walk the declared asset columns from the schema (the certificate knows which columns are
 assets) instead of matching a record's key set, before the next media field lands. Add a
 test that an asset record with an extra field still leases, purges, and refuses view-once.
+
+## Reconciliation — 2026-09-11
+
+This is not a latent dynamic-field-recognition fix. LLP 1006 §1 deliberately defines a
+closed image record `{ id, width, height }` and video record `{ id, width, height,
+duration }`; §6 rejects extra fields. Current `byte-cache.ts::assetRecordId` implements
+that exact contract and names it in its `@ref`. A brand, MIME field, or poster would be a
+new asset type/record contract, not a valid current record the cache must discover.
+
+There is therefore no current malformed-record bug to reproduce. The forward-compatibility
+request is retained because LLP 1006 does not permanently forbid a later accepted record
+extension. Its next acceptance starts only when such an extension is proposed: decide
+whether the certificate/schema should direct walking, then update validation, wire values,
+lease/purge behavior, and view-once tests together. No claim is made that arbitrary or
+future fields are recognized today.

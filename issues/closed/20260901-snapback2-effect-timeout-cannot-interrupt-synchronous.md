@@ -1,6 +1,6 @@
 # snapback2: effect timeout cannot interrupt synchronous JavaScript
 
-**Status:** Open
+**Status:** Closed — implemented and freshly verified (2026-09-11)
 **Systems:** snapback2, effects, lifecycle
 **Severity:** P2
 **Author:** GPT-5.6 Sol (ultra), directed by Charlie Cheever
@@ -21,3 +21,23 @@ Snapback 2 is pinned to expo/ibex revision `174c94fb7eb06785d3b48ce9f92527b6f963
 Ibex should add a deadline/interrupt API around all three execution entrances. With vanilla Hermes, the concrete `HermesRuntime` supports time-limit watching; the runtime must be created with async-break checks enabled for evaluated source, arm a remaining-duration deadline before evaluation or a microtask checkpoint, translate the engine-owned timeout into a distinct checked result, and always disarm it. `ibex2_hermes_pump` must also call `ibex2_end_drive` on the interrupted/error path so the task queue is not left permanently driving. The safe Rust surface should return checked results from eval, pump, and microtask drain rather than collapsing status or discarding it. Upstream regressions should cover `while (true) {}` during host eval and a recursively self-scheduling Promise microtask, then prove the runtime can be destroyed or reused according to the documented timeout contract.
 
 There is no sound in-process Snapback-only boundary defense with the pinned API. Checking elapsed time before or after the call cannot preempt it; source-text loop rejection is evadable; and detaching the owner join would let runaway JavaScript keep consuming CPU while leaving the outbox row `running`. Process-isolating each effect could make termination enforceable, but that is a new engine architecture and apparatus, not a local bug fix. Therefore Snapback cannot honestly enforce `E_EFFECT_TIMEOUT` or bounded shutdown until Ibex exposes interruption, and this ticket remains open.
+
+## Reconciliation — 2026-09-11
+
+**Priority:** Resolved.
+
+The prerequisite and Snapback integration landed in `dae0dc310` and follow-up
+`c47d86bf1`: the current Ibex pin exposes the deadline, and Snapback arms one budget
+before every relevant engine entrance. On BLACK at current `15c134d056`, with
+`CARGO_BUILD_JOBS=4 RUST_TEST_THREADS=2`, both exact regressions passed:
+
+```text
+scripts/hermes test -p snapback2-effects ibex::deadline_tests::a_synchronous_loop_is_stopped_at_the_budget_and_its_runtime_is_discarded -- --exact --nocapture
+# 1 passed; 73 filtered out; 0.33s; exit 0
+scripts/hermes test -p snapback2-effects ibex::deadline_tests::a_recursive_microtask_chain_is_stopped_at_the_budget -- --exact --nocapture
+# 1 passed; 73 filtered out; 0.32s; exit 0
+```
+
+These are the two failure modes this ticket requested. Shutdown settlement after a
+deadline is a distinct remaining owner-ordering defect tracked by
+`20260910-snapback2-dev-stop-drops-the-settlement-of-a-job-the-deadline-ended.md`.

@@ -1,6 +1,7 @@
 # Snapback 2: missing deterministic crash seam after provider completion before settlement
 
-Status: Open
+Status: Open — no deterministic seam and no authority to add one (2026-09-11)
+Priority: P2 (acceptance evidence)
 Date: 2026-09-10
 Related: LLP 1021 §Acceptance item 3; witness fix round r1 item 10
 
@@ -24,3 +25,14 @@ requeue, and assert exactly one durable `then` commit. Test-owner recovery also
 needs an honest binding policy: a recovered emission belongs to no later epoch
 and therefore fails `E_EFFECT_UNBOUND` on explicit requeue; a successful replay
 proof uses production transport plus provider idempotency.
+
+## Reconciliation — 2026-09-11
+
+LLP 1021's current implementation record still marks this exact crash point unproved.
+Source inspection found no new owner-controlled synchronization point between host return
+and `OutboxSettle`; the provider listener and durable observations still lie on opposite
+sides of the required seam. No race-by-sleep was attempted.
+
+Next acceptance is unchanged: explicit authority for a deterministic test-only pause (or
+an existing equivalent seam), followed by kill/restart, `sent_unknown`, explicit requeue,
+and exactly-one durable `then`. This triage adds no crash apparatus.

@@ -1,6 +1,7 @@
 # snapback2: `Runtime::open` reconciles jobs outside the transaction that persists the generation
 
-**Status:** Open
+**Status:** Open — current source still has the split transaction (2026-09-11)
+**Priority:** P3
 **Systems:** snapback2, snapback2-core (`registry.rs`, `store_jobs.rs`), jobs, schedules
 **Severity:** P3
 **Owner:** J2's successor path (LLP 1016 D5 succession; the open path J2 and J3 share)
@@ -69,3 +70,14 @@ successor path already does:
 Filed from the J1b fix-round reviews' shared follow-up; the closing round
 did not take it because the change touches the open path every lane shares
 and belongs with J2's successor work rather than a hygiene round.
+
+## Reconciliation — 2026-09-11
+
+The successor path remains transactional, but `Runtime::open` still persists the
+generation before the later standalone `store_jobs::reconcile` and running-to-queued
+update. No fresh crash was injected; source confirms the window and the chunk-time guard
+still limits it to transient wrong administrative state.
+
+Next acceptance: one open-path transaction containing generation persistence, job
+reconciliation, and running reset, plus the requested reopen fixture proving the job is
+parked on open rather than on its first chunk. Retain the chunk-time guard.

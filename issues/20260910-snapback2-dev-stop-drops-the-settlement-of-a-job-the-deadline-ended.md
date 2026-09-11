@@ -1,6 +1,7 @@
 # `dev --stop` drops the settlement of an effect job the deadline ended
 
-Status: Open
+Status: Open — deadline fixed, shutdown settlement ordering remains (2026-09-11)
+Priority: P1
 Systems: Snapback 2 owner (effects runner shutdown order)
 Related: LLP 1021 §5 (owner bullet), LLP 1003 §2 and §4, lane `deadline` fix round r1
 Reported: 2026-09-10, lane `deadline` fix round r1 (`snapback2/crates/snapback2/tests/effects.rs`, `dev_stop_observes_owner_process_exit_while_a_spinning_effect_runs`)
@@ -31,3 +32,16 @@ the row after exit. Today it observes the deadline through the first attempt's
 second attempt's spin, and prints (does not assert) the post-exit row. This
 belongs with the owner `Drop`/detach work of LLP 1021 §5 (lane `traps`), which
 is restructuring the same stop path; do not fix it from the effects crate.
+
+## Reconciliation — 2026-09-11
+
+Fresh Hermes tests prove synchronous-loop and recursive-microtask deadlines now fire,
+but LLP 1021's implementation record explicitly retains this owner shutdown ordering
+defect. `Action::Stop` can still end the writer loop before the joined runner's
+post-deadline `OutboxSettle` and log write arrive. The 30-second stop case was not repeated
+because the current source/LLP record is decisive and this pass was bounded.
+
+Next acceptance: keep the writer able to accept settlement/log actions until the runner
+is stopped and joined, then assert the post-exit row is `queued` with the current timeout
+and backoff rather than restart-derived `sent_unknown`. Preserve bounded stop and do not
+move this fix into the effects crate.
