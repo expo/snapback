@@ -215,8 +215,14 @@ test('chat removal is delivered to an original recipient who left before unsend'
 
 test('a joiner pages all prior live history through both shipped reads without retroactive deliveries', async () => {
   const owner = await RealOwnerHarness.create({ forceOwned: true, fixture });
+  const root = await mkdtemp(join(tmpdir(), 'chat-joiner-pages-'));
   const alice = createClient({ url: owner.url, persona: 'alice' });
-  const carol = createClient({ url: owner.url, persona: 'carol' });
+  let offline = false; const attempts: string[] = [];
+  const options = { url: owner.url, persona: 'carol', offline: { store: fileRangeStore(root) }, fetch: async (input: any, init?: RequestInit) => {
+    if (offline) { attempts.push(String(input)); throw new Error('offline joiner attempted transport'); }
+    return fetch(input, init);
+  } };
+  let carol: any = createClient(options);
   try {
     await Promise.all([alice.ready, carol.ready]);
     const ids = ['message-1'];
@@ -236,7 +242,17 @@ test('a joiner pages all prior live history through both shipped reads without r
     } while (c);
     assert.deepEqual(composite.sort(), [...ids].sort());
     assert.deepEqual(await pages(carol, api.messages.inbox), []);
-  } finally { await Promise.all([alice.close(), carol.close()]); await owner.close(); }
+    await carol.offline(); offline = true; carol = await carol.restart();
+    assert.deepEqual((await pages(carol, api.messages.history, { conversationId: group })).map(r => r.id).sort(), [...ids].sort());
+    const heldComposite: string[] = []; c = null; let heldPreview: unknown;
+    do {
+      const view: any = await carol.query(api.messages.conversationView, { conversationId: group, c });
+      assert.equal(view.data.count, 106); heldPreview ??= view.data.preview; assert.deepEqual(view.data.preview, heldPreview);
+      heldComposite.push(...view.data.messages.map((r: any) => r.message.id)); c = view.next;
+    } while (c);
+    assert.deepEqual(heldComposite.sort(), [...ids].sort()); assert.deepEqual(await pages(carol, api.messages.inbox), []);
+    assert.deepEqual(attempts, [], 'all previously paged reads survive a cold offline restart');
+  } finally { await Promise.all([alice.close(), carol.close()]); await owner.close(); await rm(root, { recursive: true, force: true }); }
 });
 
 for (const evolve of [false, true]) test(`metadata-only departed removal evicts leased photo bytes and retains unrelated custody ${evolve ? 'across a successor' : 'without a successor'}`, async () => {

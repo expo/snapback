@@ -1151,7 +1151,10 @@ export class OfflineRuntime {
   }
 
   private commitReset(facts: CoverageFacts | undefined, superseded: CoverageFacts | undefined, extra: StoreSwap = {}): Promise<void> {
-    return this.store.commit({ schema: this.schema, ...extra, resetCoverage: true, facts, superseded });
+    // @ref LLP 1019#acceptance — program adoption supplies the full delivery-log
+    // schema; a manifest projection cannot erase its retained-history anchors.
+    const adopted = extra.programs && Object.values(extra.programs)[0];
+    return this.store.commit({ schema: adopted?.schema ?? this.schema, ...extra, resetCoverage: true, facts, superseded });
   }
 
   private restoreProgram(held: HeldProgram): void {

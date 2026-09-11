@@ -8,6 +8,7 @@ import { test } from "node:test";
 import React, { act, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { api, createClient } from "../dist/client.mjs";
+import { schemaDigest } from "../dist/index.mjs";
 import { RefusalError } from "../dist/client-observed-test.mjs";
 import { AssetImage, AssetVideo, SnapbackProvider, indexedDbRangeStore, useSnapbackClient } from "../dist/react.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
@@ -452,6 +453,56 @@ test("clean close flushes coalesced LRU touches on every durable carrier", async
       assert.deepEqual((await store.bytes()).entries.map((entry: any) => entry.assetId).sort(), [A, C], factory.carrier);
       await store.close();
     }
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test("interrupted adoption preserves predecessor image bytes; retry drops only the incompatible lease on every carrier", async context => {
+  const root = await tempRoot(), database = new FakeIndexedDb();
+  let failFile = false, failSqlite = false;
+  const cases = [
+    { name: "Node file", factory: fileRangeStore(join(root, "adopt-files"), { beforeRename: () => {
+      if (failFile) throw new Error("injected adoption publication failure");
+    } }), arm: () => { failFile = true; }, disarm: () => { failFile = false; } },
+    { name: "SQLite", factory: sqliteFactory(join(root, "adopt.db"), { beforeCommit: () => {
+      if (failSqlite) throw new Error("injected adoption publication failure");
+    } }), arm: () => { failSqlite = true; }, disarm: () => { failSqlite = false; } },
+    { name: "IndexedDB", factory: indexedDbRangeStore({ indexedDB: database as any, locks: new FakeLocks() as any }),
+      arm: () => { database.failNextPutIn = "meta"; }, disarm: () => { database.failNextPutIn = undefined; } },
+  ];
+  const program = (required: boolean) => {
+    const schema = { tables: {
+      messages: { columns: { id: "Id", version: required ? "Int" : { Optional: "Int" }, photo: { Image: { max: 100 } } }, indexes: {},
+        retain: "delivered-history", deliver: { log: "deliveries", receipts: false } },
+      deliveries: { columns: { id: "Id", row: { Ref: { table: "messages" } }, kind: { Text: { max: 20 } } }, indexes: {} },
+    }, maintains: [] };
+    return { generation: required ? "required" : "optional", schemaHash: schemaDigest(schema), schema, programs: {} };
+  };
+  try {
+    for (const carrier of cases) await context.test(carrier.name, async () => {
+      const principal = `adopt-bytes-${carrier.name}`; let store: any = carrier.factory(); await store.open(principal);
+      const predecessor = program(false), successor = program(true);
+      const anchors = ["nullable", "fitting"].map(id => ({ table: "deliveries", id: `anchor-${id}`,
+        row: { id: `anchor-${id}`, row: id, kind: "delivered" } }));
+      await store.commit({ programs: { [predecessor.generation]: predecessor }, deliveries: [{
+        op: "inbox", args: {}, state: "complete", data: [], next: null, seq: 1, receipt: emptyReceipt(), rows: [
+          { table: "messages", id: "nullable", row: { id: "nullable", photo: photo(A), version: null } },
+          { table: "messages", id: "fitting", row: { id: "fitting", photo: photo(B), version: 7 } }, ...anchors,
+        ],
+      }], bytes: { put: [put(A, 8, 4, 1), put(B, 8, 4, 2)] } });
+      carrier.arm();
+      await assert.rejects(store.commit({ programs: { [successor.generation]: successor } }), /injected/);
+      carrier.disarm();
+      assert.deepEqual((await store.coverage()).rows.filter((item: any) => item.table === "messages").map((item: any) => item.id).sort(), ["fitting", "nullable"]);
+      assert.deepEqual([...(await store.readBytes(A, 8)).bytes], [1, 1, 1, 1]);
+      assert.deepEqual([...(await store.readBytes(B, 8)).bytes], [2, 2, 2, 2]);
+      await store.close(); store = carrier.factory(); await store.open(principal);
+      assert.deepEqual((await store.coverage()).rows.filter((item: any) => item.table === "messages").map((item: any) => item.id).sort(), ["fitting", "nullable"]);
+      await store.commit({ programs: { [successor.generation]: successor } });
+      assert.deepEqual((await store.coverage()).rows.filter((item: any) => item.table === "messages").map((item: any) => item.id), ["fitting"]);
+      assert.deepEqual((await store.coverage()).rows.filter((item: any) => item.table === "deliveries").map((item: any) => item.id).sort(), ["anchor-fitting", "anchor-nullable"]);
+      assert.equal(await store.readBytes(A, 8), undefined); assert.deepEqual([...(await store.readBytes(B, 8)).bytes], [2, 2, 2, 2]);
+      await store.close();
+    });
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
