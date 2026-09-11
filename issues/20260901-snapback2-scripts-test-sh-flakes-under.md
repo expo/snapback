@@ -355,3 +355,37 @@ This disposition supersedes stale current-work claims above; historical observat
 The original cargo-test scheduling description is historical: test.sh now uses nextest with a bounded worker count and explicit doctests. Later execution records still contain original-deadline failures and full-suite runs above 60 seconds; an isolated pass is not closure.
 
 LLP 1002 §11 records the nextest change and 83.921-second full suite. The latest original-deadline observations above remain evidence. Next: reproduce named timing-sensitive cases on a recorded, bounded-load host and compare complete original-deadline runs; distinguish content failures, infrastructure, and genuine timing regression. Do not increase deadlines or substitute the consumer rung for the full suite.
+
+## Canonical verification during ticket triage — 2026-09-11 (UTC)
+
+The final canonical run on EPYC passed with exit 0 in 190 seconds, from
+04:43:47Z to 04:46:57Z, PID 3351020. Tested commit `a704df9d6` has the same
+product and rule sources as `15c134d056` and the integrated ticket-only triage;
+no product/test changes were made. Working directory was
+`/home/ccheever/lanes/clique-channels/snapback2`; the command used the absolute
+`scripts/test.sh` path with command-local `PATH=/home/ccheever/.cargo/bin:$PATH`,
+`CARGO_BUILD_JOBS=4`, and `SNAPBACK_RUST_TEST_THREADS=8`.
+
+- Package: 1,179 passed, no failures/cancellations/skips, 37.973 seconds.
+- Native: 1,104 passed, four existing skips, 103.879 seconds.
+- Evaluator: delivery 10/10, visibility 2/2, corpus 266/266
+  (27 separately marked server-only cases).
+- Compiler: 298/298, including the provider journeys and binary check.
+- Script self-test, prerequisite builds, type checking and the two zero-case
+  doctest targets also passed.
+
+Two earlier failed invocations are retained, not relabelled green: missing
+Cargo on the noninteractive PATH (84 seconds, PID 3303402), then an incorrect
+relative script invocation that broke its self-test after changing directories
+(191 seconds, PID 3310716; all substantive phases passed). The initial Air
+standalone compiler run's `JourneyEffects.provider` declaration failure did
+not recur in the canonical runs after package rebuilding. This is not evidence
+against the separately reproduced unresolved-root-API diagnostic defect.
+
+Raw logs remain in `/tmp/s2-triage-client-20260911/canonical-test*.log` on EPYC
+and `/tmp/snapback2-triage-review.6pjZsz/canonical-attempt{1,2,3}.log` on the
+coordinator. Final log SHA-256:
+`f92973b0acbc107e2b840b32014e569ad7e5397dd9a5465970af19602efc6689`.
+This is a functional canonical pass, not a timing-budget pass, a controlled
+attribution of earlier flakes, or full-engine production-effects qualification.
+The 190-second whole-command observation leaves this ticket open.
