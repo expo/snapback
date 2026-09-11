@@ -1,9 +1,11 @@
 # Snapback2 0.0.24: Linux runtime and two-platform publication
 
-Status at20:53 UTC: final native Intl is reviewed and landed in Ibex main;
+Status at21:18 UTC: final native Intl and Snapback release source are landed;
 final Linux and Mac packages have each passed all19 production consumer
-steps. Publication awaits the final cross-platform receipt refresh and
-registry precheck. No0.0.24 package has been published and no Clique actor
+steps against the exact final artifact set. Publication is authorized, but
+two publisher-host checks on Black refused with execution timeouts. The
+unchanged publication is moving to already-qualified Silver. No0.0.24 package
+has been published and no Clique actor
 has started. The author approved this release's package-size exception;
 existing checks and the cleanup ticket remain unchanged. Earlier checkpoints
 and failed attempts below are retained history, not current blockers.
@@ -12,9 +14,12 @@ Ibex main landed as `1bc50b1cfcb48877a30987867107211fe989309a`, a clean
 fast-forward from `0019691e87f120a33cfec9b7dd22b6d98f49d420`. Its
 `crates/ibex2` tree `803eb2c913cc800f31593664b87f258dd05b9124` is identical
 to the qualified49fa product. The two later commits contain only documented
-limitations and byte-exact review mirrors. Snapback integration also includes
-main `5439f9715dd3a1445b98f4d81cd4d88744a56a48`; its issue-only changes do
-not change any qualified `snapback2/` input.
+limitations and byte-exact review mirrors. Snapback main landed as
+`43df16068507ef620b76e141e16f3b4bd4a4733c`, including upstream
+`9bbed63689d25acbf3ab10fc3b23df5cabf1583e`. Relative to the qualified5f115
+source, its only `snapback2/` difference is the non-packed web witness script;
+no package, build or installed-consumer input changed. The inherited offline
+dev-persona witness failure remains separately tracked, not relabeled green.
 
 Current final product candidate: Ibex
 `49fa9841212cf1fc119a3f8dcd246b1f9ab71ea8`, pinned by Snapback
@@ -39,9 +44,42 @@ and the unchanged canonical shim SHA-256
 `dbb2c3ce953bc9eae903faa24997794632e4e0a47d2f609a0fb11ae71d475733`.
 Although Mac executable inputs are semantically unchanged, A3's rebuild
 changed native binary bytes through source identity/link output. Its new
-Darwin tarball therefore requires a final Linux B2 receipt refresh; the old
-Mac artifact is not silently substituted. All prior stages remain preserved.
-No npm write has occurred.
+Darwin tarball therefore required a final Linux B2 receipt refresh; the old
+Mac artifact was not silently substituted. B2 passed all19 checks:
+EPYC PID2491826,20:55:05–20:55:56 UTC, exit0. Its receipt binds both
+platform artifacts below to the same canonical shim. All prior stages remain
+preserved. No npm write has occurred.
+
+| Final 0.0.24 artifact | SHA-256 |
+| --- | --- |
+| `snapback2` | `dbb2c3ce953bc9eae903faa24997794632e4e0a47d2f609a0fb11ae71d475733` |
+| `snapback2-darwin-arm64` | `990fc4ce5791bd335943177ccd88dc529bb194932c7ffefee791ed340f40b262` |
+| `snapback2-linux-x64` | `23c34a21b61253f86d60ebd5fc77f19300b5d11fc1dbddc190419c261203124a` |
+
+Final B2 resume SHA-256:
+`2ea1e0fdf81c379c348c0afd3b87963f8f802e18bc95f703901208cc0918c2ae`.
+The source qualification and artifact identity remain fixed during the
+publisher-host transfer; moving main does not cause another rebuild.
+
+### Publisher-host refusals retained
+
+Black's first invocation (wrapper80761,21:05:40–21:08:44 UTC, exit1)
+selected Homebrew Node25.9. Both Vite builds timed out at30s and chat dev
+at10s; doctor took22.905s, while both journey receipts and the live round
+trip passed. A single bounded retry with prescribed Volta Node24.18
+(wrapper2826,21:13:14–21:16:34 UTC, exit1) also timed out: doctor, guide,
+both Vite builds and chat test at30s, chat dev at10s. The todos receipt and
+live round trip passed in that attempt. Neither reached registry convergence;
+all three package slots were rechecked absent. The version change did not
+explain or repair the behavior. Host pressure or OS execution policy remains
+a hypothesis, not a demonstrated cause.
+
+No third Black retry, timeout relaxation or security-setting change is made.
+Use the identical artifacts and existing publisher on Silver, injecting npm
+authentication process-locally without secrets in source, logs or persistent
+configuration. Both failed attempts stay retained, and the
+[publisher-host follow-up](../../../issues/20260911-snapback2-black-publication-consumer-execution-timeouts.md)
+tracks diagnosis separately from release progress.
 
 The broader correction-delta reviews are complete and preserved in
 `llp/reviews/1003-native-intl-20260911.r3.*.md`: Grok READY, Sol NOT READY
