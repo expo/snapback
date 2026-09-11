@@ -22,7 +22,6 @@ mod owner_cases;
 mod owner_support;
 mod owner_wire;
 use owner_support::*;
-#[cfg(not(feature = "hermes"))]
 use owner_wire::Sse;
 use owner_wire::{request, status};
 
