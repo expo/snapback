@@ -1438,6 +1438,16 @@ the complete native/compiler/evaluator/doctest inventories, and returned in
 53.38 s. Six is therefore the measured default ceiling; the environment
 override remains diagnostic rather than release evidence.
 
+The final no-override canonical run at `06559b7e3fad` returned exit zero in
+**53.92 s** on the same Silver M5: 1,307 package tests; 1,125 native passes and
+four configured skips across the exhaustive disjoint split; 302 compiler
+checks; evaluator delivery 10/10, visibility 2/2 and corpus 266/266; plus
+doctests, script self-test, prerequisite builds and unchanged canonical
+artifacts. Qualified tools were Node 24.20.0, Bun 1.4.0, Rust 1.97.0 and
+cargo-nextest 0.9.143. The exact-suite 60-second budget is closed by this
+content-green default result; focused or overridden phase runs were not used
+as a substitute.
+
 The blocking suite schedules Rust executable tests at the host's available
 processor count, clamped to 8–32 workers, unless
 `SNAPBACK_RUST_TEST_THREADS` explicitly overrides it. Tests remain separate

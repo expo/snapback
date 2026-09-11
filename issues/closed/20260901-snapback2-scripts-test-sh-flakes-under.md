@@ -1,6 +1,6 @@
 # snapback2: scripts/test.sh flakes under cargo test --workspace parallelism
 
-**Status:** Open
+**Status:** Resolved
 **Systems:** snapback2, test script, loop
 **Severity:** P1
 **Author:** Claude Opus 5, directed by Charlie Cheever
@@ -473,3 +473,44 @@ No test, deadline, file inventory or all-failure behavior was weakened. Because
 the exact run was red and 0.226 seconds over budget, this ticket remains open.
 Re-run the complete command after the integrated content repairs and close only
 for a content-green result below 60 seconds.
+
+## Resolution — 2026-09-11
+
+Resolved on integrated commit `06559b7e3fad` by preserving every inventory,
+assertion and deadline while giving each concurrently consumed artifact one
+owner and scheduling its long tail at phase birth:
+
+- package and compiler clean-build fixtures use target-scoped package copies;
+- the canonical package `dist` is snapshotted and byte-compared after all
+  readers finish;
+- the prerequisite builds the native owner once, and package harnesses consume
+  that prebuilt binary instead of relinking it beneath native readers;
+- seven empirically long native tests and the exhaustive complement start
+  together in disjoint nextest filters; and
+- package file concurrency is capped at the measured six-worker default.
+
+The correction also fixed two product lifecycle races exposed by the exact
+suite: dev-persona follower confirmation no longer supersedes an in-flight
+durable inbox insertion, and owner shutdown wakes idle multiplexed streams
+instead of waiting for their 15-second heartbeat.
+
+The final no-override command was `scripts/test.sh` on the Silver M5 Max with
+Node 24.20.0, Bun 1.4.0, Rust 1.97.0 and cargo-nextest 0.9.143. It exited 0 in
+**53.92 seconds**:
+
+- package: 1,307/1,307;
+- native: 1,125 passes and four configured skips across the disjoint exhaustive
+  split;
+- compiler: 302/302;
+- evaluator: delivery 10/10, visibility 2/2, corpus 266/266 (27 server-only
+  cases separately marked);
+- doctests, script self-test, prerequisite builds and the final artifact
+  comparison: passed.
+
+The raw log remains on Silver at
+`/tmp/s2-fulltest-06559b7e3-canonical.log`; SHA-256
+`621d3087abb5c77feaec0cd3361699ace56cd5277af37a95f027ede628f145f3`.
+The preceding eight-file samples remain failed evidence: one ended in 52.37
+seconds with three package failures and one in 56.85 seconds with one package
+failure, both at the two-second owner-stop boundary. A controlled six-file run
+then passed in 53.38 seconds before the no-override confirmation above.
