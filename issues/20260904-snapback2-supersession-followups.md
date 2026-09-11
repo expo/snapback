@@ -29,8 +29,19 @@
 
 ## Disposition — 2026-09-11
 
-**Priority:** P2. **State:** keep open. Same-client hot-regroup controls
-exercised ordinary online/resume supersession without refusal, but impose none
-of these await-boundary races and do not replace the staged tail proof. Close
-item-by-item after deterministic marker ordering, abort-unwind, persist/adopt,
-late-4xx and drain-revision tests; retain the epoch-order dependency.
+**Priority:** P2. **State:** keep open for items 1–5; items 6/7 are implemented.
+Same-client hot-regroup controls exercised ordinary online/resume supersession
+without refusal, but do not impose the remaining await-boundary races or replace
+the staged tail proof.
+
+Item 6 is resolved by `client.ts::refuseJson` checking cancellation before
+ordinary late-refusal expiry/sealing. The delayed terminal/invalid-refusal
+cases in `auth-restoration.test.ts` pin unchanged token, snapshot, status and
+entries after the cancelled body completes. Item 7 is resolved by
+`drainNow`'s tracked AbortController, its signal passed to `drainOutbox`,
+and `withAbort` around JSON; the same file has the replay-fetch/body and
+tail-fetch cancellation matrix. These are current-source and maintained-test
+evidence at `15c134d056`, not claims that the hot-regroup control exercised them.
+
+Remaining: deterministic marker ordering, abort-unwind, persist/adopt and
+unstaged settlement-tail evidence; retain the epoch-order dependency.

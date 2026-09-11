@@ -36,7 +36,10 @@ rules; that is not scoped application authority.
 
 Repeat from `snapback2/packages/compiler` at baseline `15c134d056` with Bun
 1.3.14 on macOS: use `withProject`/`lowerProject` on these exact declarations,
-then execute the lowered `admin.inspect` with `ClientStore.reexecute`:
+then execute the lowered `admin.inspect` with `ClientStore.reexecute`.
+Put the first declaration below in `snapback/schema.q` and the second in
+`snapback/admin.q`: `admin` is only the module filename, not operator
+authority. The execution remains a user mutation as Alice:
 
 ```q
 use identity

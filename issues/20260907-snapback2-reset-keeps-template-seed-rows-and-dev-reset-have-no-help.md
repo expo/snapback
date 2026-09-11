@@ -1,6 +1,6 @@
 # snapback2: `reset` does not clear the template's static seed rows, and `dev`/`reset` have no `--help`
 
-**Status:** Closed — the chosen semantics, help, and fixture handles landed and were freshly verified (2026-09-11)
+**Status:** Open — reset/help/fixture handles resolved; parallel fresh-instance guide recipe remains
 
 **Date:** 2026-09-07 · **Area:** snapback2 CLI / chat template · **Source:** Clique full run, muse-snapback2 lane (diary M1), grok-snapback2 (M1: dev seed personas occupy fixture handles)
 
@@ -23,7 +23,7 @@
 
 ## Reconciliation — 2026-09-11
 
-**Priority:** Resolved.
+**Priority:** P3 (remaining guide gap).
 
 LLP 1021 §6 chose explicit dual semantics: `reset` clears application state and
 reapplies the seed while reporting seed row/persona counts; `reset --empty` skips the
@@ -44,4 +44,10 @@ cargo test -p snapback2 --test owner seeded_chat_leaves_alice_for_a_real_signup_
 
 The separate bug where a reset refusal can remove physical staging bytes before later
 seed validation is tracked in `20260906-snapback2-asset-custody-gc-follow-up.md` and is
-not hidden by this closure.
+not part of the resolved lifecycle-surface work.
+
+Review correction: this ticket remains open only for proposed item 2. The testing
+card documents an isolated owner per journey run, but the guide does not yet give
+the requested separate-project/instance recipe for parallel app/scale replays.
+`reset --empty` is not that recipe. Add the guide recipe using the supported
+isolation mechanism; no new `--store` flag or reset semantics are commissioned here.

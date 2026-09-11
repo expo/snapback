@@ -82,9 +82,14 @@ Triaged against current main `15c134d056`; keep this umbrella open.
   descriptor cold reopen.
 - **P2, item 3 — open.** Reproduce the exact multi-bound M7 schema and retain
   the emitted binder/type carrier.
-- **P3, items 4/5/8 — open product/diagnostic work.** Classify item 4 as app
-  shape or platform; item 5 is explicit closure-budget/list-order friction;
-  item 8 is terminal-diagnostic naming.
+- **P3, items 4/5 — open product/diagnostic work.** Classify item 4 as app
+  shape or platform; item 5 is explicit closure-budget/list-order friction.
+- **P3, item 8 — narrowed to deleted/missing attribution and the original
+  response.** The consumed case already has `E_ASSET_VIEWED` / HTTP 410 in
+  `asset_http.rs`, documented by `guide/families.source.json`. Do not file
+  a new consumed-state name as if none exists. Reconcile which ledger/deletion
+  state made the frozen run return `E_ASSET_NOT_READY`; the current distinction
+  does not prove every consumed-then-deleted path returns 410.
 - **Item 9 — evidence-only as filed.** LLP 1019's native removed-event design
   owns it; no separate reproduction belongs here.
 

@@ -13,12 +13,16 @@ text addition during binding, before IR or execution.
 
 The current `quarry/bound.ts::binary` admits time arithmetic explicitly,
 handles decimal/money brands, and otherwise requires both arithmetic operands
-to be present ints. The old TypeScript data compiler that produced this
-check/runtime mismatch was deleted by `090bb82bc`.
+to be present ints. The original report is Quarry, not TypeScript-authored
+data; deleting the latter is not the closure reason. The current direct
+Quarry binder's refusal is.
 
 **Verification:** a temporary `compileInline` probe used the ticket's exact
 schema and `return a + b` operation. `bun test
 src/triage-compiler-probe.test.ts` passed on 2026-09-11 by asserting
 `ok === false`, `E_QUARRY_TYPE`, and “requires present numeric operands.” The
-probe was removed after the run. This satisfies the ticket's permitted
-check-time-refusal outcome.
+probe was removed after the run. `compileInline` invokes `prepareQuarry`
+and `tryBindQuarryProject`, the binder used by the production direct compiler.
+This establishes the allowed check-time-refusal outcome for the exact source.
+It is not a fresh installed CLI check/run or a rerun of the old raw-IR witness;
+the now-refused authored program never reaches that runtime boundary.
