@@ -389,3 +389,40 @@ coordinator. Final log SHA-256:
 This is a functional canonical pass, not a timing-budget pass, a controlled
 attribution of earlier flakes, or full-engine production-effects qualification.
 The 190-second whole-command observation leaves this ticket open.
+
+## Bounded package scheduling and artifact boundary — 2026-09-11
+
+**Disposition:** Open — total-loop budget only. The current resource-flake
+repair is qualified; the complete script still exceeds 60 seconds.
+
+Two controls on the Silver M5 used the host default of 18 concurrent Node test
+files. The first package phase reported 1,178/1,180 passes in 40.413 seconds:
+an asset fixture could not stop its live owner within two seconds and a
+local-data fixture's owner exited without a status. The immediately following
+control passed 1,180/1,180 in 40.809 seconds. These differing outcomes reproduce
+the ticket's resource-sensitive package phase without weakening its 10-second
+file deadline.
+
+`f2d5f2f6f` bounds package-file concurrency to the available processor count
+clamped to 2–8, with `SNAPBACK_PACKAGE_TEST_THREADS` as an explicit diagnostic
+override. Every file, assertion and existing deadline remains. Two consecutive
+bounded phases then passed 1,180/1,180 with no failures or cancellations in
+44.566 and 48.081 seconds. The first full run also exposed a separate artifact
+boundary: after a successful package phase, a native init test began while the
+shared package `dist/templates` tree was absent. `e2eb59cef` rebuilds the package
+after package fixtures finish. On the repaired source the next native inventory
+passed 1,106/1,106 with four skips in 55.338 seconds.
+
+Both bounded full commands took 133 seconds. Their overall exit status remains
+red because the Silver/Bun 1.4 qualification separately reports one evaluator
+null-prototype equality failure and three compiler content failures (two
+null-prototype equalities and the existing money journey type mismatch). Those
+failures are not timing evidence and are not accepted as part of this ticket's
+resource repair. The controlled tools were Node 24.18.0, Bun 1.4.0, Rust 1.97.0
+and cargo-nextest 0.9.143; the host had 18 available processors. Failed samples
+remain failed.
+
+The remaining acceptance is now exact: preserve the bounded package scheduling
+and post-fixture artifact boundary while reducing a complete, content-green
+canonical script below 60 seconds. Do not raise deadlines, remove inventory, or
+use focused phases as a substitute for that whole-command result.
