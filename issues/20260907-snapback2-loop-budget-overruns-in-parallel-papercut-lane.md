@@ -1,6 +1,6 @@
 # Snapback 2 loop measurement exceeds consumer, check, and doctor budgets
 
-**Status:** Open
+**Status:** Open — consumer/check sustained green; changed-binary first doctor remains red
 **Date:** 2026-09-07
 **Severity:** P0 (measured budget breach; breaking commit not established)
 **Reporter:** Codex root, parallel papercut integration
@@ -178,3 +178,39 @@ This disposition supersedes stale current-work claims above; historical observat
 Newer records improve materially but do not erase the misses: dfac9e92d1 at 2026-09-10T21:08:50.782Z has consumer 40.24 s and doctor first sample 0.697 s; its next consumer is 31.75 s. Later cc64186513 samples have consumer 13.40/13.06 s, project check 0.450/0.486 s, and both doctor samples below 0.5 s.
 
 Evidence: existing snapback2/metrics/loop.jsonl, not new timings. Preserve all samples, including the earlier npm-cache EPERM infrastructure failure, separately from product latency. Remaining: paired controlled measurements that establish cause and sustained compliance at the original budgets; byte-baseline acceptance and complete-suite timing are separate verdicts.
+
+## Controlled Silver M5 series — 2026-09-11
+
+Three sequential, non-overlapping `measure.mjs --check` executions at product
+source `85b8d3821` used the reusable Silver M5 Max lane, 18 logical CPUs,
+Rust/Cargo 1.97.0, Node 24.18.0, esbuild 0.25.9, and gzip level 9. Start/end
+one-minute load averages were 2.31/3.22, 2.86/2.44, and 1.65/3.78; no other
+task-owned build or test overlapped them. Every functional step passed in all
+three records, which are appended to `metrics/loop.jsonl`.
+
+The originally named consumer and project-check budgets now pass throughout:
+consumer smoke was 21.11, 11.55, and 11.62 seconds; project check was 0.360,
+0.362, and 0.352 seconds. The first consumer's 10.158-second tarball install
+fell to 0.779/0.797 seconds on the two immediately repeated runs, making cache
+state a measured component of this series without claiming it explains the
+historical 58-second result.
+
+Doctor still has one honest red. After the first run produced a changed release
+binary, its external samples were 0.588/0.030 seconds against the 0.5-second
+budget even though the binary's internal report was 55.158 ms. The next two
+no-op-build runs retained the executable inode and passed at 0.154/0.027 and
+0.153/0.025 seconds (internal 31.976 and 30.885 ms). This localizes the current
+miss to changed-binary first execution outside the reported doctor body, but it
+does not prove which macOS launch-policy component owns that extra time or make
+the first sample pass.
+
+Keep the ticket open, narrowed to that first-execution path and historical
+attribution. Closure requires either two controlled changed-binary runs whose
+first samples both meet 0.5 seconds, or a source/setup repair with the same
+evidence; a prewarm that discards the first observation is not acceptance.
+
+All three commands also rejected the current byte baseline, separately from
+loop timing: client/react/expo/runtime measured 140,849/150,585/154,188/86,577
+gzip bytes versus accepted 136,547/146,166/149,836/84,580. Their records remain
+`byte_baseline_accepted: false`; this ticket neither accepts those bytes nor
+attributes them to the live-capacity change.
