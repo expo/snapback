@@ -99,7 +99,7 @@ export const witness = effect({
       Int16Array: new Int16Array([7])[0] === 7,
       Int32Array: new Int32Array([7])[0] === 7,
       Int8Array: new Int8Array([7])[0] === 7,
-      Intl: Number(new Intl.NumberFormat("en-US").format(7)) === 7,
+      Intl: new Intl.NumberFormat("en-US").format(7) === "7",
       JSON: JSON.parse(JSON.stringify({ x: 7 })).x === 7,
       Map: new Map([["x", 7]]).get("x") === 7,
       Math: Math.max(1, 7) === 7,
