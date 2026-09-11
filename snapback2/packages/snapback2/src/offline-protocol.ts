@@ -132,7 +132,24 @@ export class DeliveryEnvelopeDecodeError extends TypeError {
   }
 }
 
+// @ref LLP 1018.008.007.002#6-reduce-the-remaining-preparation-and-publication-work —
+// only a deeply detached, validated immutable envelope can reuse admission.
+const ownedEnvelopes = new WeakSet<object>();
+function ownWire(value: unknown, path: string): any {
+  if (!value || typeof value !== 'object') return value;
+  if (Array.isArray(value)) return Object.freeze(value.map((child, i) => ownWire(child, `${path}[${i}]`)));
+  if (!plain(value)) fail(path, 'expected object');
+  return Object.freeze(Object.fromEntries(Object.entries(value).map(([key, child]) => [key, ownWire(child, `${path}.${key}`)])));
+}
+export function ownDeliveryEnvelope(json: unknown): DeliveryEnvelopeV1 {
+  if (ownedEnvelopes.has(json as object)) return json as DeliveryEnvelopeV1;
+  const envelope = decodeDeliveryEnvelope(ownWire(json, '$'));
+  ownedEnvelopes.add(envelope);
+  return envelope;
+}
+
 export function decodeDeliveryEnvelope(json: unknown): DeliveryEnvelopeV1 {
+  if (ownedEnvelopes.has(json as object)) return json as DeliveryEnvelopeV1;
   // Output + closure admission ceilings, plus the fixed authority/validator envelope.
   if (utf8Length(JSON.stringify(json)) > 5 * 1024 * 1024 + 4096) fail('$', 'delivery exceeds closure/output envelope budget');
   object(json, "$", [

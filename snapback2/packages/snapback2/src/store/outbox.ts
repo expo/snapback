@@ -76,9 +76,18 @@ export interface OutboxGrant {
   used: number;
 }
 
+export type QueuedInfo = Pick<OutboxEntry, 'intent' | 'state' | 'grant' | 'createdAt' | 'reason' | 'refusal'>;
+/** Derive the blocked head from durable FIFO entries on either tab. */
+export function blockedStatus(entries: Pick<QueuedInfo, 'intent' | 'state' | 'refusal'>[]): Pick<OutboxStatus, 'blocked'> {
+  const head = entries.find(entry => entry.state === 'queued');
+  return head?.refusal ? { blocked: { intent: head.intent, code: head.refusal.code } } : {};
+}
+
 export interface OutboxStore {
-  pendingDeliveryAcks?(): Promise<PendingDeliveryAcks>;
+  pendingDeliveryAcks?(limit?: number): Promise<PendingDeliveryAcks>;
+  replayBatch?(): Promise<OutboxEntry[]>;
   queued?(): Promise<OutboxEntry[]>;
+  queuedInfo?(): Promise<QueuedInfo[]>;
   targets?(op: string, args: unknown, ids: readonly string[]): Promise<AdmittedMutationTargets | undefined>;
   acknowledgementWithoutTail?(entry: OutboxEntry): Promise<boolean>;
   compactedThrough?(): Promise<number>;
@@ -105,7 +114,7 @@ export const ENGINE_ID = /^s2id-([0-9a-f]{32})-([0-9a-f]{16})$/;
 export class OutboxRefusal extends Error {
   readonly code = "E_OFFLINE_ID_BLOCK";
   readonly site = "client.outbox.enqueue";
-  constructor(message: string, readonly rewrite: string = "resume online for a fresh grant, then send again") {
+  constructor(message: string, readonly rewrite: string = "reconnect as this account, then send again") {
     super(message);
     this.name = "OutboxRefusal";
   }
@@ -247,6 +256,10 @@ export class OutboxLedger {
     return (await this.entries()).filter((entry) => entry.state === "queued");
   }
 
+  private queuedInfo(): Promise<QueuedInfo[]> {
+    return this.store.outbox.queuedInfo?.() ?? this.queued();
+  }
+
   grant(): Promise<OutboxGrant | undefined> {
     return this.store.outbox.grant();
   }
@@ -306,13 +319,16 @@ export class OutboxLedger {
   /** The same admission checks enqueue applies, without consuming a slice. */
   async status(op?: string): Promise<OutboxStatus> {
     const pending = await this.pendingAcknowledgements();
+    // Read pending before queued: admission can transfer the former into the
+    // latter between reads, and may conservatively double-count, never vanish.
+    const queued = await this.queuedInfo();
     op ??= pending.next?.op;
     const grant = await this.grant();
     const bound = op === undefined ? 0 : (await this.store.outbox.bounds())[op];
     const reason = !grant ? "grant-missing" : this.expired(grant) ? "grant-expired"
       : bound === undefined ? "program-missing" : grant.used + 1 + bound > grant.count ? "ids-exhausted" : "ready";
     return { ready: reason === "ready", reason, action: reason === "ready" ? "none" : "connect",
-      remaining: (await this.queued()).length + pending.remaining, fence: await this.fence() };
+      remaining: queued.length + pending.remaining, fence: await this.fence(queued), ...blockedStatus(queued) };
   }
 
   // @ref LLP 1012#7-writes-offline — the fence bounds trust, never custody: a
@@ -351,17 +367,22 @@ export class OutboxLedger {
   get generation(): number { return this.trustGeneration; }
 
   /** A newer consumption grant cannot authorize work queued under an older one. */
-  async canReplay(entry: OutboxEntry): Promise<boolean> {
+  async canReplay(entry: QueuedInfo): Promise<boolean> {
+    return this.replayTrusted(entry, await this.grantById(entry.grant));
+  }
+
+  private replayTrusted(entry: QueuedInfo, grant: OutboxGrant | undefined): boolean {
     if (entry.reason === "fence" && !this.resumedSince(entry.createdAt)) return false;
-    const grant = await this.grantById(entry.grant);
     // Without the original grant's trust facts only a subsequent resume can
     // authorize sending; the owner still judges the grant and the intent.
     return grant ? !this.pastFence(grant) : this.resumedSince(entry.createdAt);
   }
 
-  async fence(): Promise<"inside" | "past"> {
-    for (const entry of await this.queued()) {
-      if (!(await this.canReplay(entry))) return "past";
+  async fence(queued?: QueuedInfo[]): Promise<"inside" | "past"> {
+    queued ??= await this.queuedInfo();
+    const grants = await this.store.outbox.grants();
+    for (const entry of queued) {
+      if (!this.replayTrusted(entry, grants.find(grant => grant.id === entry.grant))) return "past";
     }
     const grant = await this.grant();
     return grant && this.pastFence(grant) ? "past" : "inside";
@@ -384,8 +405,8 @@ export class OutboxLedger {
     return this.write(() => this.enqueueNow(input, predict, beforeCommit));
   }
 
-  async pendingAcknowledgements(): Promise<PendingDeliveryAcks> {
-    return await this.store.outbox.pendingDeliveryAcks?.() ?? { remaining: 0 };
+  async pendingAcknowledgements(limit = 1): Promise<PendingDeliveryAcks> {
+    return await this.store.outbox.pendingDeliveryAcks?.(limit) ?? { remaining: 0 };
   }
 
   /** Page acknowledgement admission shares the ordinary FIFO write lock. */
@@ -393,19 +414,29 @@ export class OutboxLedger {
     const generation = this.generation;
     const custody = () => { if (generation !== this.generation) throw new OutboxRefusal("offline custody changed"); };
     return this.write(async () => {
-      let admitted = 0;
-      if (generation !== this.generation) return admitted;
-      let pending = await this.pendingAcknowledgements();
-      // Bound this turn to the work present on entry; new pages cannot extend
-      // admission indefinitely ahead of an already waiting foreground write.
-      for (let budget = pending.remaining; budget > 0 && pending.next; budget--) {
-        const batch = pending.next;
-        try { await this.enqueueNow(batch, undefined, custody); }
-        catch (error) { if (!(error instanceof OutboxRefusal)) throw error; break; }
-        admitted += batch.args.events.length;
-        if (budget > 1) pending = await this.pendingAcknowledgements();
+      if (generation !== this.generation) return 0;
+      const pending = await this.pendingAcknowledgements(16), entries: OutboxEntry[] = [];
+      if (!pending.next) return 0;
+      if ((await this.store.inboxRows?.())?.some(row => row.kind === 'mutation' && row.state === 'queued' && row.admitted === undefined)) return 0;
+      let grant = await this.grant();
+      const bounds = await this.store.outbox.bounds();
+      let keyBytes = 0;
+      // @ref LLP 1018.008.007.002#5-batch-acknowledgement-admission-and-replay —
+      // one bounded FIFO turn owns every slice and event binding atomically.
+      for (const batch of pending.batches ?? [pending.next]) {
+        // Ack admission changes event bindings, one outbox key per intent, and
+        // grant/clock accounting. Leave half the journal for existing custody.
+        const size = batch.args.events.reduce((n, event) => n + event.length + batch.op.length + 96, 0) + 256 + (grant?.id.length ?? 0);
+        if (entries.length && keyBytes + size > 131_072) break;
+        try {
+          custody();
+          const prepared = await this.prepareEntry(batch, grant, bounds);
+          entries.push(prepared.entry); grant = prepared.grant; keyBytes += size;
+        } catch (error) { if (!(error instanceof OutboxRefusal)) throw error; break; }
       }
-      return admitted;
+      if (!entries.length || generation !== this.generation) return 0;
+      await this.commit({ grants: { put: [grant!] }, outbox: { put: entries } });
+      return entries.reduce((count, entry) => count + (entry.args as { events: string[] }).events.length, 0);
     });
   }
 
@@ -415,22 +446,24 @@ export class OutboxLedger {
     beforeCommit?: () => void,
     extra?: (entry: OutboxEntry, grant: OutboxGrant) => Partial<import("./range-store.js").StoreSwap>,
   ): Promise<OutboxEntry> {
-      const args = structuredClone(input.args);
       const grant = await this.grant();
-      if (!grant) {
-        throw new OutboxRefusal(
-          "no replay grant on this device; log in, or drain a query online, before writing",
-          "resume as this principal (a login, or a query with { drain: true } reaching its watermark), then send again",
-        );
-      }
+      const prepared = await this.prepareEntry(input, grant, await this.store.outbox.bounds(), predict);
+      beforeCommit?.();
+      await this.commit({
+        grants: { put: [prepared.grant] }, outbox: { put: [prepared.entry] },
+        ...(prepared.overlay ? { overlay: { put: { [prepared.entry.intent]: prepared.overlay } } } : {}),
+        ...extra?.(prepared.entry, grant!),
+      });
+      return (await this.store.outbox.get(prepared.entry.intent)) ?? prepared.entry;
+  }
+
+  private async prepareEntry(input: EnqueueInput, grant: OutboxGrant | undefined, bounds: Record<string, number>,
+    predict?: (ids: string[]) => Promise<EnqueuePrediction>): Promise<{ entry: OutboxEntry; grant: OutboxGrant; overlay?: OverlayRow[] }> {
+      const args = structuredClone(input.args);
+      if (!grant) throw new OutboxRefusal("no replay grant on this device");
       if (this.expired(grant)) throw new OutboxRefusal("replay grant expired; queued writes are kept");
-      const maxNewIds = (await this.store.outbox.bounds())[input.op];
-      if (maxNewIds === undefined) {
-        throw new OutboxRefusal(
-          `write bound for ${input.op} is unknown`,
-          "load /api/program online, then send again",
-        );
-      }
+      const maxNewIds = bounds[input.op];
+      if (maxNewIds === undefined) throw new OutboxRefusal(`write bound for ${input.op} is unknown`);
       const count = 1 + maxNewIds;
       if (grant.used + count > grant.count) {
         throw new OutboxRefusal(
@@ -468,15 +501,7 @@ export class OutboxLedger {
         createdAt: now,
         updatedAt: now,
       };
-      // From this point a storage failure can be ambiguous; before it no intent exists.
-      beforeCommit?.();
-      await this.commit({
-        grants: { put: [{ ...grant, used: grant.used + count }] },
-        outbox: { put: [entry] },
-        ...(prediction?.predicted ? { overlay: { put: { [entry.intent]: prediction.overlay } } } : {}),
-        ...extra?.(entry, grant),
-      });
-      return (await this.store.outbox.get(entry.intent)) ?? entry;
+      return { entry, grant: { ...grant, used: grant.used + count }, ...(prediction?.predicted ? { overlay: prediction.overlay } : {}) };
   }
 
   // @ref LLP 1018.004#2-the-inbox — one serial operation and one swap: the row
@@ -554,6 +579,25 @@ export class OutboxLedger {
         await this.commit({ outbox: { put: [entry] } });
       }
       return entry;
+    });
+  }
+
+  /** Reserve a contiguous eligible prefix under the same dismissal/admission lock. */
+  attemptBatch(signal?: AbortSignal): Promise<OutboxEntry[]> {
+    return this.write(async () => {
+      const generation = this.generation;
+      const candidates = this.store.outbox.replayBatch ? await this.store.outbox.replayBatch() : (await this.queued()).slice(0, 1);
+      const entries: OutboxEntry[] = [], changed: OutboxEntry[] = [];
+      for (const entry of candidates) {
+        if (!(await this.canReplay(entry))) break;
+        entries.push(entry);
+        if (entry.refusal) { delete entry.refusal; changed.push(entry); }
+      }
+      // A cancelled trust read never reached request custody. Preserve the
+      // last known unspent refusal so the writer/follower can still dismiss it.
+      if (generation !== this.generation || signal?.aborted) return [];
+      if (changed.length) await this.commit({ outbox: { put: changed } });
+      return entries;
     });
   }
 

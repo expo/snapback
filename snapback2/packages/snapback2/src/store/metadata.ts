@@ -9,10 +9,7 @@ const own = (target: Record<string,unknown>, key: string, value: unknown): void 
   else target[key] = value;
 };
 const rootValue = (value: unknown): unknown => value && typeof value === 'object' ? Array.isArray(value) ? [] : {} : value;
-export function metadata(state: object): MetaEntry[] { return projectMetadata(state)!.put; }
-export function metadataChanges(state: object, changed: ChangedRecords, owned: MetadataKeys): { put: MetaEntry[]; remove: string[] } | undefined {
-  return projectMetadata(state, changed, owned);
-}
+export function metadata(state: object): MetaEntry[] { return metadataChanges(state).put; }
 function jsonValue(value: unknown, key: string, arrayItem = false): { present: boolean; value: unknown } {
   const holder: Record<string,unknown> = {}; own(holder,key,value);
   const copy = JSON.parse(JSON.stringify(holder));
@@ -22,7 +19,7 @@ function arrayIndex(key: string, length: number): boolean {
   const index = Number(key);
   return Number.isInteger(index) && index >= 0 && index < length && String(index) === key;
 }
-function projectMetadata(state: object, changed?: ChangedRecords, owned?: MetadataKeys): { put: MetaEntry[]; remove: string[] } | undefined {
+export function metadataChanges(state: object, changed?: ChangedRecords, owned?: MetadataKeys): { put: MetaEntry[]; remove: string[] } {
   const put: MetaEntry[] = [], removed = new Set<string>(), projected = new Set<string>();
   const add = (key: string, value: unknown) => {
     if (projected.has(key)) return;

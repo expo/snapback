@@ -5,6 +5,7 @@ import {
 } from "./client-wire.js";
 import { referenceName, type Channel as ChannelRef } from "./api.js";
 import { ReconnectingSse } from "./sse.js";
+import { immutable as freeze } from '../../evaluator/src/row-image.js';
 import type { SseResponse } from "./sse-parser.js";
 import type {
   ChannelHandle, ChannelSnapshot, ChannelWriteResult, ClientSnapshot,
@@ -52,14 +53,6 @@ function refusal(code: string, message: string): RefusalError {
   return new RefusalError({ code, family: "op", message, guide: "live-query", site: "client.channel", retryable: false,
     rewrite: "use a ready channel handle; reconnect or create a new handle after closing it" });
 }
-function freeze<Value>(value: Value): Value {
-  if (value !== null && typeof value === "object") {
-    for (const child of Object.values(value)) freeze(child);
-    Object.freeze(value);
-  }
-  return value;
-}
-
 export function createChannel<Authority, Expiration, Args, Value>(
   host: ChannelHost<Authority, Expiration>, ref: ChannelRef<Args, Value>, args: Args,
 ): ChannelHandle<Value> {

@@ -791,13 +791,14 @@ test("account open and wipe retire the old headless query snapshot through the a
 // @ref LLP 1018#3-move-one-one-coherent-reactive-client — a committed local
 // overlay revision publishes one shared prediction; settlement rolls it back
 // without waiting for a transport frame, while grant bookkeeping stays silent.
-test("mounted query snapshots follow committed prediction and settlement revisions", async () => {
+test("mounted query snapshots follow committed prediction and settlement revisions", async t => {
   const database = new FakeIndexedDb(), locks = new FakeLocks();
   const carrier = indexedDbRangeStore({ indexedDB: database as any, locks: locks as any });
   const physical = carrier();
   const owner = fakeOwner({ seed: true, cursorArg: "c" });
   const client = createClient({ url: "http://local-revision.test", persona: "alice", fetch: owner.fetch,
     offline: { store: () => physical } });
+  t.after(() => client.close());
   await client.ready;
   const args = { conversationId: "conversation-1", c: null };
   const first = client.observe(api.messages.thread, args);
@@ -851,7 +852,6 @@ test("mounted query snapshots follow committed prediction and settlement revisio
   assert.equal(firstNotifies, beforeBookkeeping + 1);
   assert.equal(secondNotifies, firstNotifies);
   raw.close(); stopFirst(); stopSecond();
-  await client.close();
 });
 
 test("durable item-only queue changes update mounted work without running the twin", async () => {

@@ -32,10 +32,10 @@ function frame() {
       absences: [], verdicts: [] } };
 }
 function carrier() {
-  let saved: any, fail = false;
+  let saved: any, fail = false, writes = 0;
   const factory = () => new PersistentRangeStore({ carrier: 'json', open: async () => structuredClone(saved),
-    replace: async (state: any) => { if (fail) throw new Error('durable write failed'); saved = JSON.parse(JSON.stringify(state)); }, close() {}, wipe: async () => { saved = undefined; } });
-  return { factory, saved: () => saved, fail: (value: boolean) => { fail = value; } };
+    replace: async (state: any) => { if (fail) throw new Error('durable write failed'); saved = JSON.parse(JSON.stringify(state)); writes++; }, close() {}, wipe: async () => { saved = undefined; } });
+  return { factory, saved: () => saved, writes: () => writes, fail: (value: boolean) => { fail = value; } };
 }
 async function open(c: ReturnType<typeof carrier>) {
   const runtime = new OfflineRuntime({ store: c.factory }); await runtime.open('u1',true); await runtime.program(program); return runtime;
@@ -43,6 +43,23 @@ async function open(c: ReturnType<typeof carrier>) {
 const grant = (days = 0) => ({ id: engineId(100), from: engineId(100), count: 8192, used: 0,
   mintedAt: Date.now() - days * 86400000, expiresAt: Date.now() + 20 * 86400000 });
 const accept = async (r: any, f = frame(), args = { c:null as any }) => r.commit(op,args,await r.accept(op,args,f));
+
+test('readiness cannot lose an acknowledgement while pending custody becomes a queued intent', async () => {
+  const c = carrier(), runtime = await open(c);
+  try {
+    await accept(runtime); await runtime.outbox.adopt(grant());
+    const read = runtime.store.outbox.queuedInfo.bind(runtime.store.outbox);
+    let handoff = true;
+    runtime.store.outbox.queuedInfo = async () => {
+      const before = await read();
+      if (handoff) { handoff = false; await runtime.outbox.admitAcknowledgements(); }
+      return before;
+    };
+    const status = await runtime.outbox.status();
+    assert.equal((await runtime.outbox.queued()).length, 1, 'admission completed during the read');
+    assert.equal(status.remaining, 1, 'the transferred obligation cannot disappear between projections');
+  } finally { await runtime.close(); }
+});
 
 for (const transition of ['account', 'logout', 'seal'] as const) test(`ack admission loses custody at ${transition} while its grant read is paused`, {timeout:10000}, async () => {
   const partitions = new Map<string, any>();
@@ -217,20 +234,22 @@ test('own event reconciles with the server identity before settlement; changed a
   await cold.close();
 });
 
-test('51 delivery events at one sequence acknowledge only each accepted page in batches of at most 50', async () => {
-  const c = carrier(), r = await open(c); await r.outbox.adopt(grant());
-  const make = (start:number,count:number) => {
+function deliveryPage(start:number,count:number) {
     const f = frame(), event = f.rows.find((r:any)=>r.table==='deliveries')!, message = f.rows.find((r:any)=>r.table==='messages')!;
-    const events = Array.from({length:count},(_,n)=>({ table:'deliveries',id:`e${String(start+n).padStart(2,'0')}`,row:{...event.row,id:`e${String(start+n).padStart(2,'0')}`,row:`m${start+n}`} }));
+    const events = Array.from({length:count},(_,n)=>({ table:'deliveries',id:`e${String(start+n).padStart(4,'0')}`,row:{...event.row,id:`e${String(start+n).padStart(4,'0')}`,row:`m${start+n}`} }));
     const messages = events.map(e=>({table:'messages',id:e.row.row,row:{...message.row,id:e.row.row}}));
     f.rows=[...events,...messages]; f.data={events:events.map(e=>ref(e.table,e.id)),message:messages.map(m=>ref(m.table,m.id)) as any};
     f.receipt.ranges[0].rowIds=events.map(e=>e.id); f.receipt.ranges[0].stop=count===50?'Limit':'Exhausted'; f.state=count===50?'capped':'complete';
-    if(start) f.receipt.ranges[0].after=[2,'e49'] as any;
+    if(start) f.receipt.ranges[0].after=[2,`e${String(start-1).padStart(4,'0')}`] as any;
     return f;
-  };
-  await accept(r,make(0,50));
+}
+
+test('51 delivery events at one sequence acknowledge only each accepted page in batches of at most 50', async () => {
+  const c = carrier(), r = await open(c); await r.outbox.adopt(grant());
+
+  await accept(r,deliveryPage(0,50));
   assert.deepEqual((await r.outbox.queued()).map(e=>e.args.events.length),[50]);
-  const last = await r.accept(op,{c:'tail'},make(50,1)); // response decoded, still not accepted
+  const last = await r.accept(op,{c:'tail'},deliveryPage(50,1)); // response decoded, still not accepted
   assert.equal(Object.keys(c.saved().deliveryAcks).length,50);
   await r.commit(op,{c:'tail'},last);
   assert.deepEqual((await r.outbox.queued()).map(e=>e.args.events.length),[50,1]);
@@ -415,4 +434,150 @@ test('acknowledgement-only swaps cannot change their own program proof and faile
   assert.equal((await r.store.outbox.get(entry.intent)).state,'queued');assert.equal((await r.store.outbox.programs())[generation].programs[ackOp].planHash,ack.certificate.plan_hash);
   c.fail(true);await assert.rejects(r.store.commit({outbox:{put:[settled],acknowledgementOnly:true}}),/durable write failed/);c.fail(false);
   assert.equal((await r.store.outbox.get(entry.intent)).state,'queued');await r.close();
+});
+
+
+async function pendingPages(count = 3) {
+  const c = carrier(), r = await open(c), pages = [];
+  for (let index = 0; index < count; index++) {
+    const args = { c: index ? `page-${index}` : null };
+    pages.push({ op, args, accepted: await r.accept(op, args, deliveryPage(index * 50, index === count - 1 ? 1 : 50)) });
+  }
+  await r.commitMany(pages);
+  return { c, r };
+}
+
+test('bulk acknowledgement admission commits the available FIFO grant prefix once and leaves the rest pending', async () => {
+  const { c, r } = await pendingPages();
+  await r.outbox.adopt({ ...grant(), count: 2 }); const before = c.writes();
+  assert.equal(await r.outbox.admitAcknowledgements(), 100);
+  assert.equal(c.writes() - before, 1);
+  const entries = await r.outbox.queued();
+  assert.deepEqual(entries.map(e => [e.offset, e.count, e.args.events.length]), [[0,1,50],[1,1,50]]);
+  assert.equal((await r.outbox.pendingAcknowledgements()).remaining, 1);
+  assert.equal((await r.outbox.grant()).used, 2);
+  await r.outbox.adopt({ ...grant(), id: 'next-grant' });
+  assert.equal(await r.outbox.admitAcknowledgements(), 1);
+  assert.deepEqual((await r.outbox.queued()).slice(0,2), entries);
+  await r.close();
+});
+
+test('a failed bulk admission rolls back every event binding and grant offset through reopen', async () => {
+  const { c, r } = await pendingPages(); await r.outbox.adopt(grant());
+  const before = structuredClone(c.saved()); c.fail(true);
+  await assert.rejects(r.outbox.admitAcknowledgements(), /durable write failed/);
+  c.fail(false); assert.deepEqual(c.saved(), before); assert.equal((await r.outbox.queued()).length, 0);
+  await r.close(); const cold = await open(c);
+  assert.equal((await cold.outbox.pendingAcknowledgements()).remaining, 3);
+  assert.equal(await cold.outbox.admitAcknowledgements(), 101);
+  assert.deepEqual((await cold.outbox.queued()).map(e => e.offset), [0,1,2]); await cold.close();
+});
+
+test('lost batch reply retries identical envelopes and a bounded terminal prefix settles in one transaction', async () => {
+  const { c, r } = await pendingPages(); await r.outbox.adopt(grant()); await r.outbox.admitAcknowledgements();
+  const entries = await r.outbox.queued(), requests: any[] = [];
+  const options = { runtime:r, shape:(m:string)=>new Error(m), failure:(e:any)=>e };
+  const stopped = await drainOutbox({ ...options, json:async (_path:any, init:any) => {
+    requests.push(JSON.parse(init.body)); throw new RefusalError({ code:'E_TRANSPORT',family:'transport',message:'lost reply' }, true);
+  } });
+  assert.equal(stopped.reason, 'transport'); assert.equal(requests[0].batch.length, 3);
+  assert.deepEqual(await r.outbox.queued(), entries);
+  const before = c.writes();
+  const done = await drainOutbox({ ...options, json:async (path:any, init:any) => {
+    assert.equal(path, '/api/mutation'); const request = JSON.parse(init.body); requests.push(request);
+    if (request.batch) return { results:request.batch.slice(0,2).map((e:any) => ({ ...emptyAckResult(), intent:e.replay.intent })), more:true };
+    return { ...emptyAckResult(), intent:request.replay.intent };
+  } });
+  assert.equal(done.stopped, false); assert.equal(c.writes() - before, 2);
+  assert.deepEqual(requests[1], requests[0]); assert.equal(requests[2].replay.intent, entries[2].intent);
+  assert.equal((await r.outbox.queued()).length, 0); await r.close();
+});
+
+test('ordinary FIFO writes divide acknowledgement batches and their refusal holds later acknowledgements', async () => {
+  const c = carrier(), r = await open(c); await r.outbox.adopt(grant()); await accept(r,deliveryPage(0,50));
+  await r.store.commit({ bounds:{...await r.store.outbox.bounds(),'messages.send':0} });
+  const product = await r.outbox.enqueue({ op:'messages.send',args:{body:'barrier'},issuedSeq:2 });
+  await accept(r,deliveryPage(50,1),{c:'next'}); const seen:string[] = [];
+  await assert.rejects(drainOutbox({ runtime:r, shape:m=>new Error(m), failure:e=>e, json:async (_path:any,init:any) => {
+    const request = JSON.parse(init.body); assert.equal(request.batch,undefined); seen.push(request.op);
+    if (request.op === 'messages.send') throw new RefusalError({code:'E_INPUT',family:'input',message:'blocked'});
+    return emptyAckResult();
+  } }), /blocked/);
+  assert.deepEqual(seen,[ackOp,'messages.send']);
+  assert.deepEqual((await r.outbox.queued()).map(e=>e.op), ['messages.send',ackOp]);
+  assert.equal((await r.store.outbox.get(product.intent)).refusal.code, 'E_INPUT'); await r.close();
+});
+
+test('partial batch refusal settles only its terminal prefix and marks the exact unspent FIFO head', async () => {
+  const { r } = await pendingPages(); await r.outbox.adopt(grant()); await r.outbox.admitAcknowledgements();
+  const entries = await r.outbox.queued();
+  await assert.rejects(drainOutbox({runtime:r,shape:m=>new Error(m),failure:e=>e,json:async()=>({
+    results:[{...emptyAckResult(),intent:entries[0].intent}], more:false,
+    error:{code:'E_SCHEMA',family:'schema',message:'successor changed input'},
+  })}),/successor changed input/);
+  assert.deepEqual((await r.outbox.queued()).map(e=>e.intent),entries.slice(1).map(e=>e.intent));
+  assert.equal((await r.store.outbox.get(entries[1].intent)).refusal.code,'E_SCHEMA');
+  assert.equal((await r.store.outbox.get(entries[2].intent)).refusal,undefined); await r.close();
+});
+
+test('all-entry no-tail validation is atomic when one acknowledgement gains an overlay', async () => {
+  const { r } = await pendingPages(2); await r.outbox.adopt(grant()); await r.outbox.admitAcknowledgements();
+  const entries = await r.outbox.queued(), terminals = entries.map(e=>r.outbox.settle(e,'committed',emptyAckResult()));
+  await r.store.commit({overlay:{put:{[entries[1].intent]:[]}}});
+  await assert.rejects(r.store.commit({outbox:{put:terminals,acknowledgementOnly:true}}));
+  assert.deepEqual(await r.outbox.queued(),entries); await r.close();
+});
+
+test('a batch terminal without its exact intent identity cannot settle any attempted entry', async () => {
+  for (const intent of [undefined, 'another-intent']) {
+    const { r } = await pendingPages(2); await r.outbox.adopt(grant()); await r.outbox.admitAcknowledgements();
+    try {
+      const before = await r.outbox.queued();
+      await assert.rejects(drainOutbox({ runtime:r, shape:m=>new Error(m), failure:e=>e,
+        json:async()=>({ results:[{...emptyAckResult(), intent}], more:true }) }), /FIFO intent/);
+      assert.deepEqual(await r.outbox.queued(), before);
+    } finally { await r.close(); }
+  }
+});
+
+test('older unadmitted follower inbox work blocks acknowledgement admission until its FIFO position exists', async () => {
+  const { r } = await pendingPages(2); await r.outbox.adopt(grant());
+  let waiting = true;
+  Object.defineProperty(r.store, 'inboxRows', { value: async () => waiting ? [{kind:'mutation',state:'queued',admitted:undefined}] : [] });
+  assert.equal(await r.outbox.admitAcknowledgements(),0); assert.equal((await r.outbox.grant()).used,0);
+  await r.store.commit({bounds:{...await r.store.outbox.bounds(),'messages.send':0}});
+  const follower = await r.outbox.enqueue({op:'messages.send',args:{body:'older follower'},issuedSeq:2,inbox:1});
+  waiting = false; assert.equal(await r.outbox.admitAcknowledgements(),51);
+  assert.equal((await r.outbox.queued())[0].intent,follower.intent); await r.close();
+});
+
+test('operation removal disables batching while original stored-terminal retries keep their exact envelopes', async () => {
+  const { r } = await pendingPages(2); await r.outbox.adopt(grant()); await r.outbox.admitAcknowledgements();
+  const entries = await r.outbox.queued(), removed = structuredClone(program); delete removed.programs[ackOp];
+  await r.store.commit({programs:{[generation]:removed},bounds:{}});
+  const seen:any[] = [];
+  const done = await drainOutbox({runtime:r,shape:m=>new Error(m),failure:e=>e,json:async(_path:any,init:any)=>{
+    const request=JSON.parse(init.body); assert.equal(request.batch,undefined); seen.push(request);
+    return {...emptyAckResult(),intent:request.replay.intent};
+  }});
+  assert.equal(done.stopped,false); assert.deepEqual(seen.map(e=>e.replay.intent),entries.map(e=>e.intent));
+  assert.deepEqual(seen.map(e=>e.args),entries.map(e=>e.args)); await r.close();
+});
+
+test('one sufficient later tail settles a batch while actual unseen receipt effects remain in custody', async () => {
+  const { r } = await pendingPages(2); await r.outbox.adopt(grant()); await r.outbox.admitAcknowledgements();
+  await r.store.commit({watermark:{op,args:{c:null},watermark:null,updatedAt:1}});
+  const entries = await r.outbox.queued(); let tails = 0;
+  const done = await drainOutbox({runtime:r,shape:m=>new Error(m),failure:e=>e,json:async(path:any,init:any)=>{
+    if(path==='/api/mutation') return {results:JSON.parse(init.body).batch.map((e:any,index:number)=>({
+      ...emptyAckResult(),seq:3+index,intent:e.replay.intent,effects:[{table:'deliveriesReceipts',id:`unseen-${index}`}],
+    })),more:false};
+    tails++; const page=deliveryPage(0,50);page.seq=8;return page;
+  }});
+  assert.equal(done.stopped,false);assert.equal(tails,1);
+  for(const entry of entries) {
+    const held=await r.store.outbox.get(entry.intent);assert.equal(held.state,'committed');
+    assert.equal(held.response.effects.length,1,'terminal custody keeps actual unobserved receipt effects');
+  }
+  await r.close();
 });

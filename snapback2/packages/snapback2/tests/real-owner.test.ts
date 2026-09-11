@@ -31,7 +31,10 @@ test("reconnect after a conditional refresh replays a queued send for joined and
         const response = await fetch(input, init);
         const path = new URL(String(input)).pathname;
         if (path === "/api/resume") resumes.push(await response.clone().json());
-        if (path === "/api/query" && JSON.parse(String(init?.body)).op === op) reads.push(await response.clone().json());
+        if (path === "/api/query" && JSON.parse(String(init?.body)).op === op) {
+          const raw = await response.clone().json();
+          reads.push(...(raw.pages?.map((frame: any) => frame.envelope) ?? [raw]));
+        }
         return response;
       },
     });

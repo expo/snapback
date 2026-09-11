@@ -3,7 +3,8 @@ import { canonicalProgramJson, canonicalSchemaJson } from './certificate-identit
 import { sha256 } from './hash';
 import { CURRENT_EVALUATOR, CURRENT_VALUE_MODEL_VERSION, Runner } from './runner';
 import { ClientStore } from './store';
-import { prepareSchema, scopedRuleHash } from './value-runtime';
+import { canonicalJson, prepareSchema, scopedRuleHash } from './value-runtime';
+import { rangeSchemaIdentity } from './range-preparation';
 import { schemaDigest } from '../../snapback2/src/offline-schema';
 import { decodeHeldProgram } from '../../snapback2/src/held-program';
 
@@ -87,6 +88,21 @@ try { for (let index = 0; index < 3; index++) {
 } } finally { Object.keys = objectKeys; }
 assert.equal(preparedReads,0,'admitted custody reuses canonical hashes across fresh executions');
 assert.equal(admittedHash,scopedRuleHash(schema,changed),'prepared and public hashers retain byte parity');
+
+const rangeHash = sha256(canonicalJson(admittedSchema));
+assert.equal(rangeSchemaIdentity(admittedSchema),rangeHash,'range identity retains its exact prior encoding');
+preparedReads = 0;
+Object.keys = ((value: object) => { if (value === admittedSchema.tables) preparedReads++; return objectKeys(value); }) as typeof Object.keys;
+try { for (let i = 0; i < 4; i++) assert.equal(rangeSchemaIdentity(admittedSchema),rangeHash); }
+finally { Object.keys = objectKeys; }
+assert.equal(preparedReads,0,'owned immutable schemas do not repeat the range hash traversal');
+const mutableRangeSchema = structuredClone(admittedSchema), priorRangeHash = rangeSchemaIdentity(mutableRangeSchema);
+Object.freeze(mutableRangeSchema);
+mutableRangeSchema.tables.denied.retain = 'delivered-history';
+assert.notEqual(rangeSchemaIdentity(mutableRangeSchema),priorRangeHash,'a frozen caller root does not authorize caching mutable descendants');
+assert.equal(rangeSchemaIdentity(mutableRangeSchema),sha256(canonicalJson(mutableRangeSchema)));
+const preparedRangeSchema = prepareSchema(mutableRangeSchema,schemaDigest(mutableRangeSchema));
+assert.equal(rangeSchemaIdentity(preparedRangeSchema),rangeSchemaIdentity(mutableRangeSchema),'fresh custody starts with its own exact hash');
 
 const nested = (value: unknown): boolean => !value || typeof value !== 'object'
   || Object.isFrozen(value) && Object.values(value).every(nested);

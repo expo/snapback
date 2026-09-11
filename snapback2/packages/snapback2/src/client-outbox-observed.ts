@@ -4,6 +4,7 @@ import { referenceName, type Op } from "./api.js";
 import type { RecoveryDemand } from "./client-recovery.js";
 import { intentLabel, readiness } from "./snapshot.js";
 import { dismissible } from "./store/outbox.js";
+import { immutable } from '../../evaluator/src/row-image.js';
 import type { ConnectionState, ObservedOutbox, OutboxEntry, OutboxSnapshot, OutboxStatus, OutboxWork } from "./types.js";
 
 const empty = Object.freeze([]) as unknown as OutboxEntry[];
@@ -37,14 +38,6 @@ interface Slot {
   snapshot: OutboxSnapshot;
   listeners: Set<() => void>;
   demand?: RecoveryDemand;
-}
-
-function immutable<T>(value: T): T {
-  if (value && typeof value === "object") {
-    for (const child of Object.values(value)) immutable(child);
-    Object.freeze(value);
-  }
-  return value;
 }
 
 export function observeOutbox(

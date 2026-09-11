@@ -92,3 +92,25 @@ to acquisition alone. The runtime stays under 90,000 but has only 976 bytes of
 headroom and remains above its 80,000 target. All four normal 1% growth guards
 remain red and `byte_baseline_accepted` remains false. This measurement neither
 accepts a new baseline nor qualifies publication.
+
+
+## Bounded bulk acquisition — 2026-09-11
+
+The combined implementation of LLP 1018.008.007.002 measures **142,809 /
+152,738 / 156,231 / 89,995 gzip bytes** (client / React / Expo / complete
+local runtime), Node 24.18.0 / esbuild 0.25.9 / gzip 9. The 90,000 runtime
+ceiling is unchanged and has five bytes of headroom; the 80,000 target and
+existing package-growth guards remain unmet. `byte_baseline_accepted` is false.
+An optional persisted-page restart selector was removed, and redundant
+normalization/wrappers were deleted to fund the implementation. No budget
+increase or publication qualification is inferred from this landing.
+
+The same canonical loop run passes project check (0.433 s), doctor
+(0.433/0.028 s), incremental rebuild (2.490 s) and affected consumer checks
+(13.320 s). These are separate from full-suite duration and acquisition timing.
+The actual record is appended to `snapback2/metrics/loop.jsonl`.
+
+The final cancellation-boundary repair adds five runtime bytes and ten bytes
+to each public closure relative to the full loop record above. The final runtime
+record is in `twin.jsonl`; public closures use the exact canonical
+`packagedEntryBytes` implementation on the final package build.

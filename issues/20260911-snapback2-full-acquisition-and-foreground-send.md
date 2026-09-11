@@ -1,4 +1,4 @@
-# Snapback2 acquisition remains above 30 seconds; foreground admission repaired
+# Snapback2 full acquisition needs 2–3 seconds; foreground qualification remains open
 
 Status: Open
 Date: 2026-09-11
@@ -107,3 +107,25 @@ Further preparation reduction and an explicitly designed treatment of per-page
 overhead are the next investigations. The [research](../llp/1018.008.007-affordable-offline-acquisition.research.md)
 and `incrementalWork20260911` field of the [retained evidence](../snapback2/metrics/acquisition-20260911.json)
 record exact samples, source scope, all setup attempts and review dispositions.
+
+
+## Bounded bulk implementation — 2026-09-11
+
+The author tightened the objective to **2–3 seconds**, including full durable
+content, every earned acknowledgement terminal, and the first offline
+thread/search queries. [LLP 1018.008.007.002](../llp/1018.008.007.002-bounded-bulk-acquisition.plan.md)
+received two rounds from Grok, Muse, Astra and Gemini and implements bounded
+transport batches, four-page carrier commits, grouped acknowledgement work,
+and reductions in repeated preparation. Keep this ticket open until the target
+is supported by a qualifying cohort. Earlier 30-second references above are
+historical objectives, not the current acceptance criterion.
+
+Early shared-host diagnostics remain around 25 seconds versus a roughly
+30-second production control. They are not a timing qualification: unrelated
+work overlapped, and their retained baseline owner predates the client baseline.
+Final comparison must use a source-aligned owner and client for each variant.
+Repeated physical outbox polling was also removed from the timing observer;
+a same-source control shows material observer cost, which must not be attributed
+to product improvement. The final endpoint uses public settlement, performs
+the first offline queries inside timing, and validates the full physical row
+hash and acknowledgement custody afterward. Any mismatch invalidates a sample.

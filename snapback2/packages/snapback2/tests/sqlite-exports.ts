@@ -19,4 +19,12 @@ export { applyDeliveryAcknowledgements, DeliveryAcknowledgementIndex } from '../
 export { SwapJournal } from '../src/store/swap-journal.js';
 export { collectRefs } from '../src/store/row-values.js';
 export { compactSuccesses } from '../src/store/success-compaction.js';
-export { factAssertion } from '../src/store/fact-integrity.js';
+export { factAssertion, FactTransaction } from '../src/store/fact-integrity.js';
+export { FactIndex } from '../src/store/fact-index.js';
+export { ExtentIndex } from '../src/store/extent-index.js';
+export { extentContains } from '../src/store/extent-facts.js';
+export { HeldIndex } from '../../evaluator/src/index-store.js';
+export { commitQuery } from '../src/client-query.js';
+export { DrainSubscription } from '../src/drain.js';
+export { itemInputs } from '../src/query-frame.js';
+export { RowImage } from '../../evaluator/src/row-image.js';

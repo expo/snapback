@@ -511,3 +511,28 @@ test("replay clears a recorded refusal durably before sending; in-flight and unk
     } finally { release.resolve(); await retry?.catch(() => undefined); await client.close(); await carrier.cleanup(); }
   }
 });
+
+test("cancelling replay during its trust read preserves the last unspent refusal and dismissal bytes", async () => {
+  for (const carrier of await carriers()) {
+    const refusal = { code:"E_INPUT",family:"input",message:"enum case removed",guide:"input/runtime" };
+    const owner = fakeOwner({refuse:()=>({status:400,envelope:refusal})});
+    await seededStore(carrier.factory());
+    const client = createClient({url:"http://cancel-before-replay.test",persona:"alice",fetch:owner.fetch,offline:{store:carrier.factory()}});
+    const entered=Promise.withResolvers<void>(),release=Promise.withResolvers<void>();
+    let retry:Promise<unknown>|undefined;
+    try {
+      await client.ready;await client.offline();
+      await client.mutation(api.messages.send,post("still dismissible"));
+      await assert.rejects(client.online(),{code:"E_INPUT"});
+      const runtime=(client as any).offlineRuntime,head=(await client.outbox.entries())[0]!;
+      const canReplay=runtime.outbox.canReplay.bind(runtime.outbox);
+      runtime.outbox.canReplay=async(entry:any)=>{const trusted=await canReplay(entry);entered.resolve();await release.promise;return trusted;};
+      const requests=owner.requests.filter(path=>path==="/api/mutation").length;
+      retry=client.outbox.drain();void retry.catch(()=>undefined);await entered.promise;
+      await client.offline();release.resolve();await assert.rejects(retry);
+      assert.equal(owner.requests.filter(path=>path==="/api/mutation").length,requests,"cancelled before request custody");
+      assert.deepEqual((await client.outbox.entries())[0]?.refusal,refusal,`${carrier.name}: an unsent cancelled retry does not erase refusal evidence`);
+      assert.deepEqual(await client.outbox.dismiss(head.intent),{intent:head.intent,op:head.op,args:head.args,refusal});
+    } finally {release.resolve();await retry?.catch(()=>undefined);await client.close();await carrier.cleanup();}
+  }
+});

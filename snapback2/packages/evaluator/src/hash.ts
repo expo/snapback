@@ -45,7 +45,7 @@ export function sha256(text: string): string {
     state[7] = (state[7] + h) >>> 0;
   }
   const push = (byte: number) => { block[used++] = byte; if (used === 64) { compress(); used = 0; } };
-  for (const byte of utf8(text)) { push(byte); length++; }
+  utf8(text, byte => { push(byte); length++; });
   push(0x80);
   while (used !== 56) push(0);
   const high = Math.floor(length * 8 / 0x100000000), low = length * 8 >>> 0;
@@ -67,19 +67,20 @@ function rotate(value: number, bits: number): number {
   return (value >>> bits) | (value << (32 - bits));
 }
 
-/** Shared scalar UTF-8 encoder; hashing consumes it without a full byte-array allocation. */
-export function* utf8(text: string): Generator<number> {
+// @ref LLP 1018.008.007.002#6-reduce-the-remaining-preparation-and-publication-work — stream identical bytes without a generator result per byte.
+/** Hashing needs no full byte-array allocation; the cursor collects its bounded payload. */
+export function utf8(text: string, emit: (byte: number) => void): void {
   for (const character of text) {
     const p = character.codePointAt(0)!;
-    if (p <= 0x7f) yield p;
+    if (p <= 0x7f) emit(p);
     else {
-      if (p <= 0x7ff) yield 0xc0 | p >> 6;
+      if (p <= 0x7ff) emit(0xc0 | p >> 6);
       else {
-        if (p <= 0xffff) yield 0xe0 | p >> 12;
-        else { yield 0xf0 | p >> 18; yield 0x80 | p >> 12 & 63; }
-        yield 0x80 | p >> 6 & 63;
+        if (p <= 0xffff) emit(0xe0 | p >> 12);
+        else { emit(0xf0 | p >> 18); emit(0x80 | p >> 12 & 63); }
+        emit(0x80 | p >> 6 & 63);
       }
-      yield 0x80 | p & 63;
+      emit(0x80 | p & 63);
     }
   }
 }

@@ -154,15 +154,20 @@ export class HeldIndex<Row = Value> {
   put(row: Row & Value): void {
     this.putPrepared(asString(field(row, 'id')), row, indexKeys(this.schema, this.table, this.name, c => fieldOrNull(row,c)));
   }
-  /** Internal immutable-key custody uses the same postings without recovering source text. */
-  putPrepared(id: string, row: Row, parts: KeyParts): void {
+  /** Validate immutable keys without constructing postings; integrity indexes can remain empty until queried. */
+  validatePrepared(parts: KeyParts): string[] {
     if (parts.length !== this.parts.length) throw new EvalError('E_SCHEMA', 'immutable index width mismatch');
-    const identity = parts, derived = parts[this.derived], words = derived && 'Words' in derived ? derived.Words : [];
+    const derived = parts[this.derived], words = derived && 'Words' in derived ? derived.Words : [];
     let scalars = 0;
     for (const word of words) {
       scalars += scalarLength(word,word.length);
       if (!word.length || scalars > this.wordScalars) throw new EvalError('E_INPUT', 'immutable search postings exceed source bounds');
     }
+    return words;
+  }
+  /** Internal immutable-key custody uses the same postings without recovering source text. */
+  putPrepared(id: string, row: Row, parts: KeyParts): void {
+    const identity = parts, words = this.validatePrepared(parts);
     const old = this.reverse.get(id);
     if (old?.keys.parts === parts && (!this.partition || this.partition(old.row) === this.partition(row))) {
       if (this.derived >= 0 && !this.partition) {

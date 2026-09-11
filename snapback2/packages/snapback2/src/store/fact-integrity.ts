@@ -97,10 +97,12 @@ export class FactTransaction {
     private answer: (owner: string) => StoredAnswer | undefined,
     private enrollExtent: (condition: ExtentCondition) => void) { this.incoming = index.newFacts(); }
   prepare(row: StoredRow): PreparedImage {
-    const key = rowFactKey(row.table,row.id), body = canonical(row.row), digest = factAssertion(row), imageId = factImageId([key,digest])!;
+    const key = rowFactKey(row.table,row.id), digest = factAssertion(row), imageId = factImageId([key,digest])!;
     let image = this.images.get(imageId);
     if (image) {
-      if (image.key !== key || (image.row !== row && canonical(image.row.row) !== body)) throw new TypeError('conflicting immutable image identity');
+      // @ref LLP 1018.008.007.002#6-reduce-the-remaining-preparation-and-publication-work — only an actual collision needs body text; nominal immutable identity already proves equality.
+      if (image.key !== key || (image.row !== row && !(RowImage.is(row.row) && image.row.row === row.row)
+        && canonical(image.row.row) !== canonical(row.row))) throw new TypeError('conflicting immutable image identity');
     } else {
       image = { key,digest,imageId,row,keys: this.index.keyImage(row,imageId) }; this.images.set(imageId,image);
     }

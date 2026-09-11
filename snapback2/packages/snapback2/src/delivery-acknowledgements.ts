@@ -16,6 +16,7 @@ export type DeliveryAcknowledgement = [seq: number, intent?: string, retry?: boo
 export interface PendingDeliveryAcks {
   remaining: number;
   next?: { op: string; args: { events: string[] }; issuedSeq: number };
+  batches?: NonNullable<PendingDeliveryAcks['next']>[];
 }
 
 // @ref LLP 1018.008.007.001#3-acknowledgements-proportional-to-changed-state —
@@ -55,16 +56,19 @@ export class DeliveryAcknowledgementIndex {
     }
   }
 
-  read(acks: PersistedRangeState['deliveryAcks']): PendingDeliveryAcks {
-    const first = this.pending.entries().next().value;
-    if (!first) return { remaining: 0 };
-    const [log, keys] = first, events: string[] = [];
-    let issuedSeq = 0;
-    for (const key of keys) {
-      events.push(key.slice(log.length + 1)); issuedSeq = Math.max(issuedSeq, acks[key][0]);
-      if (events.length === 50) break;
+  read(acks: PersistedRangeState['deliveryAcks'], limit = 1): PendingDeliveryAcks {
+    const batches: NonNullable<PendingDeliveryAcks['next']>[] = [];
+    outer: for (const [log, keys] of this.pending) {
+      let batch: PendingDeliveryAcks['next'];
+      for (const key of keys) {
+        if (!batch || batch.args.events.length === 50) {
+          if (batches.length >= Math.min(16, limit)) break outer;
+          batch = { op: `_delivery.${log}.ack`, args: { events: [] }, issuedSeq: 0 }; batches.push(batch);
+        }
+        batch.args.events.push(key.slice(log.length + 1)); batch.issuedSeq = Math.max(batch.issuedSeq, acks[key][0]);
+      }
     }
-    return { remaining: this.remaining, next: { op: `_delivery.${log}.ack`, args: { events }, issuedSeq } };
+    return { remaining: this.remaining, ...(batches.length ? { next: batches[0], ...(limit > 1 ? { batches } : {}) } : {}) };
   }
 
   candidates(state: PersistedRangeState, swap: StoreSwap, changed: ChangedRecords): Iterable<string> {
@@ -76,6 +80,25 @@ export class DeliveryAcknowledgementIndex {
     for (const intent of changed.get('outbox') ?? []) for (const key of this.intents.get(intent) ?? []) keys.add(key);
     return keys;
   }
+}
+
+/** Shared current-program proof; neither replay nor settlement trusts the reserved name alone. */
+function acknowledgementProgram(state: PersistedRangeState, entry: OutboxEntry): string | undefined {
+  const held = storedProgram(state), log = ACK_OP.exec(entry.op)?.[1];
+  return held && log && entry.targets?.generation === held.generation
+    && entry.targets.schemaHash === held.schemaHash && entry.targets.planHash === held.programs[entry.op]?.planHash
+    && held.programs[entry.op]?.kind === 'mutation'
+    && Object.values(held.schema.tables ?? {}).some(table => table.deliver?.receipts && table.deliver.log === log)
+    ? log : undefined;
+}
+
+/** Local earned-event custody selects the prefix; the owner also checks exact generated IR. */
+export function acknowledgementForReplay(state: PersistedRangeState, entry: OutboxEntry): boolean {
+  const log = acknowledgementProgram(state, entry), events = (entry.args as { events?: unknown })?.events;
+  return !!log && entry.state === 'queued' && !entry.refusal && !entry.predicted && entry.inbox === undefined
+    && !state.overlay[entry.intent]
+    && Array.isArray(events) && events.length > 0 && events.length <= 50
+    && events.every(event => typeof event === 'string' && state.deliveryAcks[`${log}\0${event}`]?.[1] === entry.intent);
 }
 
 export function applyDeliveryAcknowledgements(state: PersistedRangeState, swap: StoreSwap, principal: string,
@@ -128,26 +151,23 @@ export function applyDeliveryAcknowledgements(state: PersistedRangeState, swap: 
 // empty actual effects are owner evidence; unresolved certified targets are not.
 export function acknowledgementWithoutTail(state: PersistedRangeState, entry: OutboxEntry,
   queued = state.outbox[entry.intent]): boolean {
-  const held = storedProgram(state), log = ACK_OP.exec(entry.op)?.[1];
   const result = entry.response as { effects?: unknown; program?: { planHash?: string; schemaHash?: string } } | undefined;
   const targets = entry.targets;
-  return !!held && !!log && !state.sealed && !state.superseded && entry.state === 'committed'
-    && queued?.state === 'queued' && queued.op === entry.op && held.programs[entry.op]?.kind === 'mutation'
+  return !!acknowledgementProgram(state, entry) && !state.sealed && !state.superseded && entry.state === 'committed'
+    && queued?.state === 'queued' && queued.op === entry.op
     && !queued.predicted && !entry.predicted && !state.overlay[entry.intent] && !!targets
     && queued.targets?.generation === targets.generation && queued.targets.schemaHash === targets.schemaHash
     && queued.targets.planHash === targets.planHash
-    && targets.generation === held.generation && targets.schemaHash === held.schemaHash
-    && targets.planHash === held.programs[entry.op]?.planHash
     && result?.program?.schemaHash === targets.schemaHash && result.program.planHash === targets.planHash
-    && Array.isArray(result.effects) && result.effects.length === 0
-    && Object.values(held.schema.tables ?? {}).some(t => t.deliver?.receipts && t.deliver.log === log);
+    && Array.isArray(result.effects) && result.effects.length === 0;
 }
 
 /** A changed eligibility proof retains the queued intent and uses the ordinary tail path. */
 export class AcknowledgementTailRequired extends Error {}
 
-/** The page and its FIFO custody use the same carrier transaction. */
-export function applyOutboxSwap(state: PersistedRangeState, swap: StoreSwap, clone: <T>(value: T) => T): Set<string> {
+/** The carrier supplies its private JSON-normalized swap; no caller-owned metadata enters this transaction. */
+// @ref LLP 1018.008.007.002#6-reduce-the-remaining-preparation-and-publication-work — commit owns these values already; journal insertion needs no second detached copy.
+export function applyOutboxSwap(state: PersistedRangeState, swap: StoreSwap): Set<string> {
   // Coverage resets never touch unsent outbox/grant/bound/overlay custody.
   for (const intent of swap.outbox?.remove ?? []) {
     delete state.outbox[intent];
@@ -159,15 +179,15 @@ export function applyOutboxSwap(state: PersistedRangeState, swap: StoreSwap, clo
     const previous = state.outbox[entry.intent];
     if (entry.state === "committed" && previous?.state !== "committed") committedNow.add(entry.intent);
     const order = previous?.order ?? entry.order ?? ++state.clock;
-    state.outbox[entry.intent] = { ...clone(entry), order };
+    state.outbox[entry.intent] = { ...entry, order };
   }
-  if (swap.bounds) state.bounds = clone(swap.bounds);
-  if (swap.programs) state.programs = clone(swap.programs);
+  if (swap.bounds) state.bounds = swap.bounds;
+  if (swap.programs) state.programs = swap.programs;
   for (const id of swap.grants?.remove ?? []) {
     delete state.grants[id];
     if (state.currentGrant === id) delete state.currentGrant;
   }
-  for (const grant of swap.grants?.put ?? []) state.grants[grant.id] = clone(grant);
+  for (const grant of swap.grants?.put ?? []) state.grants[grant.id] = grant;
   if (swap.grants?.current === null) delete state.currentGrant;
   else if (typeof swap.grants?.current === "string") {
     if (!state.grants[swap.grants.current]) throw new TypeError("current grant must be a held grant");

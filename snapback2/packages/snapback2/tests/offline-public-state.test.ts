@@ -10,6 +10,7 @@ import { api } from "../dist/client.mjs";
 import { RefusalError } from "../dist/client-observed-test.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
 import { OfflineRuntime } from "../dist/sqlite-test.mjs";
+import { decodeDeliveryEnvelope, expandRows } from "../dist/index.mjs";
 import { fixtureClient as createClient } from "./live-fixture.ts";
 import { certifiedDrain, certifiedDrainProgram, generation, schemaHash, planHash, metadataResponse } from "./offline-metadata-fixture.ts";
 
@@ -33,6 +34,30 @@ function envelope(data: unknown, validator = "1".repeat(64), seq = 3) {
     rows: [], receipt: emptyReceipt(), validator,
   };
 }
+
+test('accepted envelopes own immutable evidence while public values remain detached', async () => {
+  const root = await tempRoot();
+  const runtime = new OfflineRuntime({ store: fileRangeStore(root) });
+  try {
+    await runtime.open('dev:alice');
+    const raw = { ...envelope({ $row: { table: 'messages', id: 'm1' } }),
+      rows: [{ table: 'messages', id: 'm1', row: { id: 'm1', body: 'original' } }] };
+    const accepted = await runtime.accept('read', {}, raw);
+    raw.rows[0].row.body = 'caller mutation';
+    raw.authority.authEpoch = 99;
+    assert.equal(accepted.envelope.rows[0].row.body, 'original');
+    assert.equal(accepted.envelope.authority.authEpoch, 7);
+    assert.throws(() => { accepted.envelope.rows[0].row.body = 'forged'; }, TypeError);
+    accepted.result.data.body = 'presentation mutation';
+    assert.equal(accepted.envelope.rows[0].row.body, 'original');
+    await runtime.commit('read', {}, accepted);
+    assert.equal((await runtime.answer('read', {})).data.body, 'original');
+    const copied = structuredClone(accepted.envelope);
+    copied.rows[0].id = 'different';
+    assert.throws(() => decodeDeliveryEnvelope(copied), /does not match/);
+    assert.throws(() => expandRows(copied), /does not match/);
+  } finally { await runtime.close(); await rm(root, { recursive: true, force: true }); }
+});
 async function seededResumeStore(root: string, exact = false): Promise<void> {
   const identity = exact ? certifiedDrain : { op: "messages.inbox", generation, schemaHash };
   const store = fileRangeStore(root)();

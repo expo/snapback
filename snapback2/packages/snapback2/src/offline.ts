@@ -9,7 +9,7 @@ import { RefusalError, throwIfAborted, isRefusalError } from "./client-wire.js";
 import { ClockCoverageReset, FullRevalidationRequired } from './store/fact-integrity.js';
 import {
   DeliveryEnvelopeDecodeError,
-  decodeDeliveryEnvelope,
+  ownDeliveryEnvelope,
   prepareClosureReceipt, preparedDeliveryRows, preparedDeliveryRanges,
   expandRows,
   type DeliveryEnvelopeV1,
@@ -239,8 +239,9 @@ export class OfflineRuntime {
   get principal(): string | undefined { return this.partition; }
 
   /** Bind a returned owner image to its own receipt after admission into this account. */
-  async withQueryItems<T extends object>(op: string, args: unknown, accepted: AcceptedDelivery<unknown>, value: T): Promise<T> {
-    const entries = await this.itemEntries(), compactedThrough = await this.compactedThrough();
+  async withQueryItems<T extends object>(op: string, args: unknown, accepted: AcceptedDelivery<unknown>, value: T,
+    ledger?: { entries: OutboxEntry[]; compactedThrough: number }): Promise<T> {
+    const { entries, compactedThrough } = ledger ?? { entries: await this.itemEntries(), compactedThrough: await this.compactedThrough() };
     if (accepted.envelope) {
       const inputs = { ...deliveredItemInputs(accepted.envelope, (value as { data?: unknown }).data, entries), compactedThrough };
       if (!inputs.selection) {
@@ -769,7 +770,7 @@ export class OfflineRuntime {
     if (!object(raw) || raw.protocol === undefined) {
       return { result: raw as AcceptedDelivery<Result>["result"] };
     }
-    const envelope = decodeDeliveryEnvelope(raw);
+    const envelope = ownDeliveryEnvelope(raw);
     const result = queryResult<Result>(envelope,
       envelope.state === "denied" ? undefined : await this.expandUnviewed(envelope) as Result);
     return { result, envelope };
