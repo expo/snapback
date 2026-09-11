@@ -146,8 +146,14 @@ mutation record(body: text <=2000):
       const preview = operation(lowered.project.programs, "probe.preview");
       const certificate = checked.find(item => item.program === preview.name)!.certificate!;
       const fullCertificate = checked.find(item => item.program === "probe.full")!.certificate!;
-      assert(certificate.max_output_bytes < fullCertificate.max_output_bytes,
-        `literal slice did not reduce the certified output bound: ${certificate.max_output_bytes}/${fullCertificate.max_output_bytes}`);
+      const outputBound = (value: unknown, program: string): number => {
+        assert(typeof value === "number", `${program} certificate did not carry a numeric output bound`);
+        return value;
+      };
+      const previewBound = outputBound(certificate.max_output_bytes, preview.name);
+      const fullBound = outputBound(fullCertificate.max_output_bytes, "probe.full");
+      assert(previewBound < fullBound,
+        `literal slice did not reduce the certified output bound: ${previewBound}/${fullBound}`);
       for (const input of ["", "a".repeat(79), "a".repeat(80), "a".repeat(81), "a".repeat(223),
         `${"🙂".repeat(79)}界tail`]) {
         const result = new ClientStore(lowered.project.schema).reexecute(preview,
@@ -182,7 +188,10 @@ table memberships:
   public
 `;
     await project("query probe():\n  return null\n", (lowered) => {
-      deepStrictEqual(lowered.project.schema.tables.conversations.rules.update, { And: [
+      const conversations = lowered.project.schema.tables.conversations;
+      assert(typeof conversations === "object" && conversations !== null && "rules" in conversations,
+        "conversations lost its compiled rules");
+      deepStrictEqual((conversations as unknown as { rules: { update: unknown } }).rules.update, { And: [
         { Exists: { table: "memberships", index: "byConversationPrincipal",
           key: [{ OldField: "id" }, "Viewer"], provenance: "Shape" } },
         { Eq: [{ NextField: "id" }, { OldField: "id" }] },

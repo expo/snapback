@@ -14,6 +14,8 @@ import { decodeLocalCursor, encodeLocalCursor } from '../../snapback2/src/local-
 import { canonicalSchemaJson } from './certificate-identity';
 import { sha256 } from './hash';
 
+const plainJson = <T>(value: T): T => JSON.parse(JSON.stringify(value));
+
 for (let i = 1; i <= 4; i++) {
   const w = JSON.parse(readFileSync(new URL(`./test-maintained-fixtures/roundtrip-${i}.json`, import.meta.url), 'utf8'));
   const schema = w.project.schema, ir = w.project.programs.find((p: any) => p.name === w.program);
@@ -21,7 +23,10 @@ for (let i = 1; i <= 4; i++) {
   const replay = (receipt: any) => new ClientStore(schema, receipt).reexecute(ir, context, w.certificate);
   assert.equal(replay(w.execution.receipt).state, 'fresh');
   assert.deepEqual(replay(w.execution.receipt).execution.result, w.execution.result);
-  assert.deepEqual(tagArguments(ir.args, Object.fromEntries(Object.entries(w.args).map(([k,v]) => [k,wireJson(v as any)])), schema), w.args);
+  assert.deepEqual(
+    plainJson(tagArguments(ir.args, Object.fromEntries(Object.entries(w.args).map(([k,v]) => [k,wireJson(v as any)])), schema)),
+    w.args,
+  );
   const descriptor = { kind: 'query', planHash: w.certificate.plan_hash, ir, certificate: w.certificate };
   const held = { generation: 'a'.repeat(64), schemaHash: w.certificate.schema_hash, schema, programs: { [ir.name]: descriptor } };
   assert(decodeHeldProgram(held)?.programs[ir.name], 'current exact held identity admits the native operation');
@@ -38,12 +43,12 @@ for (let i = 1; i <= 4; i++) {
   validateInputs(schema,{ args: { input: nested } },{ input });
   assert.throws(() => validateInputs(schema,{ args: { input: { List: { of: ref,max: 1 } } } },
     { input: { Array: [{ Id: address },{ Id: address }] } }),{ code: 'E_FANOUT' });
-  assert.deepEqual(tagArguments({ input: nested },{ input: [null,address] },schema),{ input });
+  assert.deepEqual(plainJson(tagArguments({ input: nested },{ input: [null,address] },schema)),{ input });
   for (const descriptor of ['Id','Principal','Scalar',{ Json: { max_bytes: 4096 } },{ Ref: { table: 'memberships' } }])
     assert.throws(() => validateInputs(schema,{ args: { input: descriptor } },{ input: { Id: address } }), { code: 'E_INPUT' });
   const link = { Row: { id: { Id: 'link' }, parent: { Id: address }, parents: input } } as any;
   validateWriteRow(schema,'links',link);
-  assert.deepEqual(tagWireRow(schema,'links',wireJson(link) as any),link);
+  assert.deepEqual(plainJson(tagWireRow(schema,'links',wireJson(link) as any)),link);
   assert.throws(() => new ClientStore(schema,{ ...w.execution.receipt, rows: [{ ...record,id: 'forged' }] }),{ code: 'E_INPUT' });
   const image = RowImage.prepare(schema,target,record.row), first = imageCanonical(image);
   const replacement = structuredClone(record.row); replacement.Row.value = { Int: 2 };
@@ -85,7 +90,7 @@ for (let i = 1; i <= 4; i++) {
     (error: any) => error.code === 'E_INPUT' && !error.restartLocalPage,'invalid values refuse before stale-page restart');
   assert.throws(() => encodeCursor({ ...position,values: [{ Id: 'x'.repeat(4096) }] }),/4096/);
   const raw = wireJson(record.row) as any;
-  assert.deepEqual(tagWireRow(schema,target,raw),record.row);
+  assert.deepEqual(plainJson(tagWireRow(schema,target,raw)),record.row);
   assert.equal(imageCanonical(prepareWireRow(schema,target,raw)),first);
 }
 validateIdentity('a'.repeat(135));

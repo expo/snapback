@@ -48,7 +48,7 @@ fn m7_poll_tally_reproduction_records_capped_only_refusal() {
     let refusal: serde_json::Value = serde_json::from_str(text.lines().next().unwrap()).unwrap();
     assert_eq!(refusal["code"], "E_STRUCTURAL_COUNT");
     assert_eq!(refusal["message"], "returned result depends on capped-only site todos.list.0; its read rule is not uniform over the scanned prefix");
-    assert_eq!(refusal["rewrite"], "query list():\n-- returned result depends on capped-only site todos.list.0; its read rule is not uniform over the scanned prefix");
+    assert_eq!(refusal["rewrite"], "query list():\n-- returned result depends on capped-only site todos.list.0; its read rule is not uniform over the scanned prefix\n-- checker repair: denormalize the authorization scope onto polls and include it in the byId prefix so the rule is uniform, or declare maintain totals: count polls by <scope> and read the maintained aggregate");
     fs::write(project.path.join("snapback/todos.q"), "query list():\n  page = polls[viewer] first 20 by byOwner\n  return { rows: page { *, tally: tallies[.id] }, count: count(page) }\n").unwrap();
     let repaired = project.run(&["check", "--json"]);
     assert!(repaired.status.success(), "{}", String::from_utf8_lossy(&repaired.stdout));

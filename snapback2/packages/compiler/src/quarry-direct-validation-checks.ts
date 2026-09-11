@@ -373,7 +373,10 @@ query nullFirst(flag: bool):
         id: { Id: "record-1" }, amounts: ints(expected),
       } } as const;
       deepStrictEqual(
-        execution.writes.map(({ table, id, row }) => ({ table, id, row: canonicalValue(row) })),
+        execution.writes.map(({ table, id, row }) => {
+          assert(row !== null, "the guarded insert unexpectedly emitted a delete");
+          return { table, id, row: canonicalValue(row) };
+        }),
         [{ table: "records", id: "record-1", row: canonicalValue(expectedRow) }],
       );
     }
