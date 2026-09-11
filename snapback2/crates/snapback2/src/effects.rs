@@ -20,6 +20,8 @@ use std::time::{Duration, Instant};
 struct WriterAccess {
     handle: OwnerHandle,
     running: Arc<Mutex<Vec<String>>>,
+    #[cfg(debug_assertions)]
+    test_post_provider_pause: Option<PathBuf>,
 }
 
 impl WriterAccess {
@@ -139,6 +141,7 @@ impl OutboxAccess for WriterAccess {
     }
 
     fn settle(&mut self, id: &str, settlement: OutboxSettlement) -> Result<(), OutboxError> {
+        self.pause_after_provider(id)?;
         let terminal = !matches!(settlement, OutboxSettlement::ThenPending { .. });
         let (state, result, last_error, next_at) = match settlement {
             OutboxSettlement::ThenPending { result, .. } => {
@@ -244,6 +247,25 @@ impl OutboxAccess for WriterAccess {
         } else {
             Ok(ThenOutcome::Rejected(error))
         }
+    }
+}
+
+impl WriterAccess {
+    /// A debug-only integration-test seam at the exact crash boundary from LLP
+    /// 1021 acceptance 3. The runner calls settlement only after the host has
+    /// returned from the provider; production owners never receive a pause path.
+    fn pause_after_provider(&self, _id: &str) -> Result<(), OutboxError> {
+        #[cfg(debug_assertions)]
+        if let Some(path) = &self.test_post_provider_pause {
+            std::fs::create_dir_all(path)
+                .map_err(|error| OutboxError(format!("test provider pause: {error}")))?;
+            std::fs::write(path.join("reached"), _id)
+                .map_err(|error| OutboxError(format!("test provider pause: {error}")))?;
+            while !path.join("release").is_file() {
+                thread::sleep(Duration::from_millis(5));
+            }
+        }
+        Ok(())
     }
 }
 
@@ -373,7 +395,13 @@ impl Drop for EffectsStatus {
     }
 }
 
-pub fn spawn(handle: OwnerHandle, root: &Path, stop: Arc<atomic::AtomicBool>) -> EffectsStatus {
+pub fn spawn(
+    handle: OwnerHandle,
+    root: &Path,
+    stop: Arc<atomic::AtomicBool>,
+    #[cfg(debug_assertions)]
+    test_post_provider_pause: Option<PathBuf>,
+) -> EffectsStatus {
     let (wake, receiver) = sync_channel(1);
     let running = Arc::new(Mutex::new(Vec::new()));
     handle
@@ -384,7 +412,16 @@ pub fn spawn(handle: OwnerHandle, root: &Path, stop: Arc<atomic::AtomicBool>) ->
         .spawn({
             let stop = stop.clone();
             let running = running.clone();
-            move || run(handle, receiver, stop, running)
+            move || {
+                run(
+                    handle,
+                    receiver,
+                    stop,
+                    running,
+                    #[cfg(debug_assertions)]
+                    test_post_provider_pause,
+                )
+            }
         })
         .expect("effects runner thread must start");
     EffectsStatus {
@@ -402,6 +439,8 @@ fn run(
     receiver: Receiver<()>,
     stop: Arc<atomic::AtomicBool>,
     running: Arc<Mutex<Vec<String>>>,
+    #[cfg(debug_assertions)]
+    test_post_provider_pause: Option<PathBuf>,
 ) {
     #[cfg(feature = "hermes")]
     let runner = Runner::new(
@@ -409,7 +448,17 @@ fn run(
     );
     #[cfg(not(feature = "hermes"))]
     let runner = Runner::new(snapback2_effects::NoEngine);
-    run_with(runner, WriterAccess { handle, running }, receiver, stop);
+    run_with(
+        runner,
+        WriterAccess {
+            handle,
+            running,
+            #[cfg(debug_assertions)]
+            test_post_provider_pause,
+        },
+        receiver,
+        stop,
+    );
 }
 
 fn run_with<H: snapback2_effects::EffectHost, A: RunnerAccess>(
@@ -627,6 +676,8 @@ mod tests {
         let mut access = WriterAccess {
             handle: crate::writer::effects_tests::spawn_effects_writer("running-ids", 3),
             running: running.clone(),
+            #[cfg(debug_assertions)]
+            test_post_provider_pause: None,
         };
         let first = access.claim_next(1).unwrap().unwrap();
         let second = access.claim_next(1).unwrap().unwrap();
@@ -688,6 +739,8 @@ mod tests {
         let mut access = WriterAccess {
             handle: crate::writer::effects_tests::spawn_effects_writer("detach-then", 1),
             running: running.clone(),
+            #[cfg(debug_assertions)]
+            test_post_provider_pause: None,
         };
         let job = access.claim_next(1).unwrap().unwrap();
         access

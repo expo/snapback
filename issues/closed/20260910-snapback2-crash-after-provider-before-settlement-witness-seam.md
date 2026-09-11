@@ -1,6 +1,6 @@
 # Snapback 2: missing deterministic crash seam after provider completion before settlement
 
-Status: Open — no deterministic seam and no authority to add one (2026-09-11)
+Status: Closed — deterministic post-provider/pre-settlement crash witness passes (2026-09-10)
 Priority: P2 (acceptance evidence)
 Date: 2026-09-10
 Related: LLP 1021 §Acceptance item 3; witness fix round r1 item 10
@@ -36,3 +36,20 @@ sides of the required seam. No race-by-sleep was attempted.
 Next acceptance is unchanged: explicit authority for a deterministic test-only pause (or
 an existing equivalent seam), followed by kill/restart, `sent_unknown`, explicit requeue,
 and exactly-one durable `then`. This triage adds no crash apparatus.
+
+## Resolution — 2026-09-10
+
+The author authorized the narrow test apparatus. A debug-build owner child can
+receive `SNAPBACK2_TEST_POST_PROVIDER_PAUSE`; after the effect host has returned
+from its provider and immediately before `WriterAccess::settle` sends the durable
+settlement, it writes the outbox ID to `reached` and pauses. Release builds omit
+the field and argument entirely, normal foreground owners do not read the hidden
+variable, and no CLI, control route, or production effect API was added.
+
+`owner_runs_effect_then_delivery_and_honest_restart_requeue` now releases the
+first real loopback provider response, waits for that exact marker, verifies the
+row is still `running`, kills the recorded owner, and restarts the same store.
+It requires `sent_unknown`, proves no automatic replay, explicitly requeues the
+same outbox identity, observes a second provider request with the same
+idempotency key and same idempotent provider result, and requires exactly one
+durable `then` commit. The exact test passes against vanilla Hermes in 6.08 s.

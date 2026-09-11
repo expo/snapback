@@ -230,7 +230,17 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
         media_jobs.clone(),
         options.test_owner,
     )?;
-    let effects = crate::effects::spawn(handle.clone(), &root, stop.clone());
+    let effects = crate::effects::spawn(
+        handle.clone(),
+        &root,
+        stop.clone(),
+        #[cfg(debug_assertions)]
+        if options.owner_child {
+            std::env::var_os("SNAPBACK2_TEST_POST_PROVIDER_PAUSE").map(PathBuf::from)
+        } else {
+            None
+        },
+    );
     handle.call(Action::PublishOwner)?;
     if let Err(error) = print_url(
         &info,
