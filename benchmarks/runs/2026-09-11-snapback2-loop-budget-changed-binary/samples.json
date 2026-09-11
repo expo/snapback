@@ -1,0 +1,83 @@
+{
+  "format": "snapback2.loop-budget.changed-binary.v1",
+  "source": "1b5f14394a30ed8355903a1a5b69ccde4ffc9946",
+  "budgetSeconds": 0.5,
+  "method": {
+    "command": "snapback2 doctor --json",
+    "timer": "Node performance.now around spawnSync, matching scripts/measure.mjs",
+    "prewarmed": false,
+    "buildsOverlapped": false,
+    "firstObservationRetained": true
+  },
+  "machine": {
+    "fleetName": "Charlie’s MacBook Pro (2)",
+    "hostname": "Charlies-MacBook-Pro-2.local",
+    "architecture": "arm64",
+    "cpu": "Apple M1 Max",
+    "logicalCpus": 10,
+    "os": "macOS 26.6 (25G72)",
+    "node": "v26.7.0",
+    "cargo": "1.97.0 (c980f4866 2026-06-30)",
+    "rustc": "1.97.0 (2d8144b78 2026-07-07)",
+    "developerMode": "disabled"
+  },
+  "samples": [
+    {
+      "buildMetadata": "loop_budget_control_one",
+      "binarySha256": "41cbf3fa41ef106e7cb89b83d45b2eab6030105ec42f010d161935323ce686b7",
+      "binaryInode": 399158623,
+      "signature": "adhoc",
+      "identifier": "snapback2-a59d2e79676c1b48",
+      "firstStartedUtc": "2026-09-11T09:16:25.233Z",
+      "loadAverageOneMinute": 8.48,
+      "first": {
+        "externalSeconds": 0.680637,
+        "status": 0,
+        "doctorElapsedMs": 55.114333,
+        "compilerMs": 43.27225,
+        "withinBudget": false
+      },
+      "second": {
+        "externalSeconds": 0.048704,
+        "status": 0,
+        "doctorElapsedMs": 45.006,
+        "withinBudget": true
+      }
+    },
+    {
+      "buildMetadata": "loop_budget_control_two",
+      "binarySha256": "8c26d313933d95e7914d598c192d6b225bc5c33c997c7af9b9e6419f8624648c",
+      "binaryInode": 399164130,
+      "binaryBytes": 16673744,
+      "signature": "adhoc",
+      "identifier": "snapback2-bd9d6922d4f92863",
+      "firstStartedUtc": "2026-09-11T09:21:28.127Z",
+      "loadAverageOneMinute": 9.98,
+      "first": {
+        "externalSeconds": 0.525601875,
+        "status": 0,
+        "doctorElapsedMs": 50.571375,
+        "compilerMs": 41.672209,
+        "withinBudget": false
+      },
+      "second": {
+        "externalSeconds": 0.049516875,
+        "status": 0,
+        "doctorElapsedMs": 46.017833,
+        "compilerMs": 43.004541,
+        "withinBudget": true
+      }
+    }
+  ],
+  "controls": {
+    "freshTinyCExecutableFirstLaunchSeconds": [0.575269, 0.245959],
+    "stableIdentifierAdhocProductFirstLaunchSeconds": 0.525092,
+    "appleDevelopmentSigningAttempt": "errSecInternalComponent; temporary copy remained ad-hoc signed"
+  },
+  "verdict": {
+    "qualified": false,
+    "reason": "Both retained changed-binary first samples exceed 0.5 seconds.",
+    "ticketDisposition": "open"
+  }
+}
+
