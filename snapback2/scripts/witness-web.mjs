@@ -791,8 +791,11 @@ async function singleContextOfflineReplay(context, page, ownerUrl, principal) {
       || typeof client.offlineRuntime?.programGeneration !== "string"
       || !Number.isSafeInteger(client.offlineRuntime?.authEpoch)) return false;
     const status = await client.outbox.status(window.__api.messages.send);
-    return status.ready && status.remaining === 0;
+    const sends = (await client.outbox.entries()).filter(entry => entry.state === "queued" && entry.op === "messages.send");
+    return status.ready && sends.length === 0;
   }, principal, { timeout: 15_000, label: "the single writer's exact send readiness" });
+  // `status.remaining` counts every queued entry, including the receipt acknowledgements a delivered
+  // page admits on its own, so this witness counts the send's own queue from the entries.
   const evidence = async () => ({ pages: context.pages().length, ...await page.evaluate(async () => {
     const client = window.__snapback;
     const databases = (await indexedDB.databases()).map(entry => entry.name)
@@ -804,6 +807,7 @@ async function singleContextOfflineReplay(context, page, ownerUrl, principal) {
       generation: client.offlineRuntime.programGeneration,
       following: client.offlineRuntime.following,
       status: await client.outbox.status(window.__api.messages.send),
+      queuedSends: (await client.outbox.entries()).filter(entry => entry.state === "queued" && entry.op === "messages.send").length,
       partitions: databases,
     };
   }) });
@@ -813,8 +817,8 @@ async function singleContextOfflineReplay(context, page, ownerUrl, principal) {
   assert.equal(before.following, false, "the only page owns the account partition instead of following another writer");
   assert.deepEqual(before.partitions, [`snapback2:${principal}`]);
   assert.deepEqual({ ready: before.status.ready, reason: before.status.reason, action: before.status.action,
-    remaining: before.status.remaining, fence: before.status.fence },
-  { ready: true, reason: "ready", action: "none", remaining: 0, fence: "inside" });
+    queuedSends: before.queuedSends, fence: before.status.fence },
+  { ready: true, reason: "ready", action: "none", queuedSends: 0, fence: "inside" });
 
   const body = `single-context offline replay ${Date.now()}`;
   await page.evaluate(() => window.__snapback.offline());
@@ -831,6 +835,7 @@ async function singleContextOfflineReplay(context, page, ownerUrl, principal) {
     return { mutation, ms: performance.now() - started,
       entry: entries.find(entry => entry.intent === mutation.intent),
       status: await client.outbox.status(window.__api.messages.send),
+      queuedSends: entries.filter(entry => entry.state === "queued" && entry.op === "messages.send").length,
       mutationRequests: window.__witnessRequests.filter(request => request.path === "/api/mutation"
         && JSON.parse(String(request.body)).op === "messages.send"),
       principal: client.offlineRuntime.principal, authEpoch: client.offlineRuntime.authEpoch,
@@ -848,8 +853,8 @@ async function singleContextOfflineReplay(context, page, ownerUrl, principal) {
     following: queued.following }, { principal: before.principal, authEpoch: before.authEpoch,
     generation: before.generation, following: false });
   assert.deepEqual(queued.partitions, before.partitions);
-  assert.deepEqual({ ready: queued.status.ready, reason: queued.status.reason, remaining: queued.status.remaining },
-    { ready: true, reason: "ready", remaining: 1 });
+  assert.deepEqual({ ready: queued.status.ready, reason: queued.status.reason, queuedSends: queued.queuedSends },
+    { ready: true, reason: "ready", queuedSends: 1 });
 
   await context.setOffline(false);
   const flushed = await page.evaluate(async ({ intent }) => {
