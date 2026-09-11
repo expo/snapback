@@ -385,6 +385,11 @@ fn control_run_source_modes_and_declared_job_route_share_operator_admission() {
             json!({"name":"admin.fill","mode":"dry-run","wait":true}),
             "wait",
         ),
+        (
+            "/control/job",
+            json!({"name":"admin.fill","mode":"run","wait":true}),
+            "wait",
+        ),
         ("/control/run", json!({"source":source,"mode":true}), "mode"),
         (
             "/control/run",
@@ -444,6 +449,13 @@ fn control_run_source_modes_and_declared_job_route_share_operator_admission() {
         seq_before,
         "a refused flag ran"
     );
+    let accepted_false = control(
+        port,
+        &secret,
+        "/control/job",
+        json!({"name":"admin.fill","mode":"plan","wait":false}),
+    );
+    assert_eq!(accepted_false["engineWrites"], json!(["_jobs"]), "{accepted_false}");
     // The flags alone are honoured, not ignored: `dryRun: true` rehearses, `plan: true`
     // plans, and `mode: "plan"` on the declared route is the plan flag.
     let rehearsed = control(

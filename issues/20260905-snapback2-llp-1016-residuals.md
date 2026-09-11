@@ -67,3 +67,30 @@ No broad battery was run for this aggregate hygiene ticket. Next acceptance is o
 bounded lane that closes those cases with focused tests, then checks the smaller
 catalog/guide/metric carryovers individually. Keep the ticket open until every bullet has
 a landed fix or explicit accepted disposition.
+
+## Implementation progress — 2026-09-11
+
+The core residuals are repaired: `E_JOB_SHAPE` carries its site structurally;
+direct `/control/job` requests refuse `wait: true` and the guide names `--wait`
+as CLI polling; the owner harness observes the same 35-second ad-hoc compile
+window as the production client; `parked` joins `done` and `cancelled` in the
+restored-occurrence proof; all three ceiling codes traverse the rejection
+envelope; schedule receipts require exactly numeric `{ fired, late, rejected }`;
+and non-job schedule targets are absent from the public manifest while declared
+jobs remain discoverable by the operator CLI. The five inherited `E_OP_KIND`
+paths now use the catalogued `quarry` guide, and `E_JOB_GENERATION`'s catalog
+site now agrees with the emitted job name.
+
+LLP 1016 scopes pre-chunk store-handle failure honestly and names the closing
+round's two defects. The stale `guide.rs` duplicate-`offline` claim is obsolete:
+there is no fixed `RECIPES` array in the current guide test. The argument repair
+signature remains deterministically alphabetic because the accepted IR stores
+arguments in a `BTreeMap`; preserving authored order would require an IR change
+with no runtime semantic benefit, so it is explicitly accepted here rather than
+smuggled into this cleanup. The append-only metric relabel retains its original
+sample payload and carries the historical synthetic timestamp in the note; it
+is not rewritten.
+
+Remaining before closure: pin zero-declaration `--file`, the project-check
+rewrite, compiler-lock release after refusal, declaration-site hash across two
+compiled projects, and the small `@ref`/catalog wording controls.

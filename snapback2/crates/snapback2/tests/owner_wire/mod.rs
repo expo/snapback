@@ -46,8 +46,16 @@ pub(super) fn request_bytes(
     bytes: &[u8],
 ) -> Response {
     let mut stream = TcpStream::connect(("127.0.0.1", port)).unwrap();
+    // @ref LLP 1016#closing-round — ad hoc source routes compile before they
+    // answer. Mirror the production client's compiler timeout plus margin so
+    // this harness can observe the owner's full legal response window.
+    let read_timeout = if path == "/control/run" {
+        Duration::from_secs(35)
+    } else {
+        Duration::from_secs(5)
+    };
     stream
-        .set_read_timeout(Some(Duration::from_secs(5)))
+        .set_read_timeout(Some(read_timeout))
         .unwrap();
     write!(
         stream,

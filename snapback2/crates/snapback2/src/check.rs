@@ -68,17 +68,16 @@ struct SerializableError {
 impl SerializableError {
     fn from_certify(error: CheckError, site: impl Into<String>) -> Self {
         let (family, guide) = certification_family_guide(&error.code);
-        // A job-shape refusal names the statement; the program is the site only for an empty body.
-        let site = snapback2_core::jobs::shape_site(&error)
-            .map(str::to_owned)
-            .unwrap_or_else(|| site.into());
+        // A job-shape refusal carries the authored statement explicitly; other
+        // certificate errors fall back to the enclosing program supplied here.
+        let site = error.site.clone().unwrap_or_else(|| site.into());
         let rule = (error.code == "E_STRUCTURAL_FANOUT")
             .then(|| "a mutation population loop covers its selected range".to_owned());
         Self {
             code: error.code,
             family: family.to_owned(),
             message: error.message,
-            site: error.site.clone().unwrap_or(site),
+            site,
             rule,
             rewrite: error.rewrite,
             guide: guide.to_owned(),

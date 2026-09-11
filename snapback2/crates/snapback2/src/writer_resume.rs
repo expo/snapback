@@ -283,7 +283,7 @@ impl State {
                 "op",
                 format!("resume operation {op} is not a query"),
                 "send only query operations in log and mounted",
-                "op/kind",
+                "quarry",
             ));
         }
         self.runtime_mut()

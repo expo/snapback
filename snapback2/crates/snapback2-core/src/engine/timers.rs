@@ -168,8 +168,13 @@ impl Engine {
             runner.statements(&target.body)?;
             runner.check_final_constraints()?;
             #[cfg(test)]
-            if CEILING_FAULT.with(|fault| fault.replace(false)) {
-                return Err(RuntimeError::Steps(1));
+            if let Some(code) = CEILING_FAULT.with(|fault| fault.replace(None)) {
+                return Err(match code {
+                    "E_STEPS" => RuntimeError::Steps(1),
+                    "E_FANOUT" => RuntimeError::Fanout,
+                    "E_TRACE_SUBSET" => RuntimeError::TraceSubset("injected schedule target trace mismatch".into()),
+                    _ => unreachable!("test ceiling code"),
+                });
             }
             // Settlement is certified alongside any timer-index writes made by the target.
             *runner.trace.writes.entry("_timers".into()).or_default() += 1;
@@ -259,7 +264,7 @@ impl Engine {
 #[cfg(test)]
 thread_local! {static FAIL_BEFORE_SETTLE:std::cell::Cell<bool>=const {std::cell::Cell::new(false)};}
 #[cfg(test)]
-thread_local! {static CEILING_FAULT:std::cell::Cell<bool>=const {std::cell::Cell::new(false)};}
+thread_local! {static CEILING_FAULT:std::cell::Cell<Option<&'static str>>=const {std::cell::Cell::new(None)};}
 
 #[cfg(test)]
 mod tests {
@@ -492,29 +497,31 @@ mod tests {
     // the words `/api/mutation` and a parked chunk carry for the same fault.
     #[test]
     fn a_ceiling_rejection_settles_with_its_real_code_and_the_bound_family() {
-        let mut rt = runtime("admin.purge");
-        // Certification is static, so a certified target cannot exceed its ceiling; the fault
-        // injected after the target ran is the only way to exercise the ceiling settle path.
-        super::CEILING_FAULT.with(|fault| fault.set(true));
-        let fired = rt.fire_due_at(64, 7).unwrap();
-        assert_eq!(fired.len(), 1);
-        assert!(!super::CEILING_FAULT.with(|fault| fault.get()));
-        let outcome = &fired[0].firing.outcome;
-        assert_eq!(outcome["state"], "rejected");
-        assert_eq!(outcome["code"], "E_STEPS");
-        assert_eq!(outcome["family"], "bound");
-        assert_eq!(outcome["guide"], "schedule");
-        assert_eq!(outcome["site"], "snapback/admin.q:1:1");
-        assert!(outcome["rewrite"].as_str().unwrap().contains("--as system"));
-        assert!(outcome["message"].as_str().unwrap().starts_with("E_STEPS"));
-        let commits = rt.store().commits_since(0, 100).unwrap();
-        let commit = commits.iter().find(|c| c.kind == "schedule").unwrap();
-        assert_eq!(&commit.schedule.as_ref().unwrap().outcome, outcome);
-        assert!(commit.writes.get("log").is_none(), "the target rolled back");
-        assert_eq!(rt.store().timer_status(7).unwrap()["rejected"], 1);
-        assert!(
-            rt.store().due_timers(i64::MAX, 64).unwrap().is_empty(),
-            "a rejected row timer settles"
-        );
+        for code in ["E_STEPS", "E_FANOUT", "E_TRACE_SUBSET"] {
+            let mut rt = runtime("admin.purge");
+            // Certification is static, so a certified target cannot exceed its ceiling; the
+            // injected post-target fault is the only way to exercise every settle envelope.
+            super::CEILING_FAULT.with(|fault| fault.set(Some(code)));
+            let fired = rt.fire_due_at(64, 7).unwrap();
+            assert_eq!(fired.len(), 1);
+            assert_eq!(super::CEILING_FAULT.with(|fault| fault.get()), None);
+            let outcome = &fired[0].firing.outcome;
+            assert_eq!(outcome["state"], "rejected");
+            assert_eq!(outcome["code"], code);
+            assert_eq!(outcome["family"], "bound");
+            assert_eq!(outcome["guide"], "schedule");
+            assert_eq!(outcome["site"], "snapback/admin.q:1:1");
+            assert!(outcome["rewrite"].as_str().unwrap().contains("--as system"));
+            assert!(outcome["message"].as_str().unwrap().starts_with(code));
+            let commits = rt.store().commits_since(0, 100).unwrap();
+            let commit = commits.iter().find(|c| c.kind == "schedule").unwrap();
+            assert_eq!(&commit.schedule.as_ref().unwrap().outcome, outcome);
+            assert!(commit.writes.get("log").is_none(), "the target rolled back");
+            assert_eq!(rt.store().timer_status(7).unwrap()["rejected"], 1);
+            assert!(
+                rt.store().due_timers(i64::MAX, 64).unwrap().is_empty(),
+                "a rejected row timer settles"
+            );
+        }
     }
 }

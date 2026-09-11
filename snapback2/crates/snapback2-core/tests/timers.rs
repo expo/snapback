@@ -286,6 +286,18 @@ fn sweep(name: &str, scoped: bool) -> Program {
         }],
     )
 }
+fn parked_sweep() -> Program {
+    let mut program = sweep("admin.park", true);
+    let Stmt::For { body, .. } = &mut program.body[0] else {
+        unreachable!("sweep is one chunk")
+    };
+    body.push(Stmt::Require {
+        site: Some("admin.park:require".into()),
+        condition: lit(Value::Bool(false)),
+        code: "PARK_FOR_TEST".into(),
+    });
+    program
+}
 fn sweep_at() -> Program {
     let scan = |site: &str| {
         LoopDomain::Page(Scan {
@@ -365,6 +377,7 @@ fn certify_with(
         reject(),
         sweep("admin.sweep", false),
         sweep("admin.sweepScope", true),
+        parked_sweep(),
         sweep_at(),
     ];
     programs.extend(bindings);
@@ -1079,6 +1092,21 @@ fn a_finished_job_for_the_occurrence_does_not_coalesce_a_restored_deadline() {
     assert_eq!(fourth[0].firing.outcome["job"], format!("{job}_2"));
     assert_eq!(rt.store().jobs(100).unwrap().len(), 3);
     assert_eq!(schedule_commits(&rt).len(), 4, "every firing ledgers");
+}
+
+#[test]
+fn a_parked_job_for_the_occurrence_does_not_coalesce_a_restored_deadline() {
+    let mut rt = runtime(vec![scope_schedule("sweepAt", "admin.park")]);
+    seed(&mut rt, vec![row("a", Some(5), true)]);
+    let first = rt.fire_due_at(64, 5).unwrap();
+    let job = first[0].firing.outcome["job"].as_str().unwrap().to_owned();
+    assert_eq!(rt.run_chunk_at(&job, 5).unwrap().job.state, "parked");
+    set_at(&mut rt, "a", None);
+    set_at(&mut rt, "a", Some(5));
+    let second = rt.fire_due_at(64, 6).unwrap();
+    assert_eq!(second[0].firing.outcome["state"], "queued");
+    assert_eq!(second[0].firing.outcome["job"], format!("{job}_1"));
+    assert_eq!(rt.store().jobs(100).unwrap().len(), 2);
 }
 
 #[test]

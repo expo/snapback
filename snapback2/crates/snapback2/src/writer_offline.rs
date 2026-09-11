@@ -161,7 +161,7 @@ fn projection_refusal(error: DeliveryProjectionError) -> Refusal {
             "op",
             "a subscription query produced a mutation state",
             "subscribe only to query operations",
-            "op/kind",
+            "quarry",
         ),
         DeliveryProjectionError::MissingPooledRow { .. } | DeliveryProjectionError::InvalidPool => {
             Refusal::new(

@@ -28,12 +28,30 @@ pub fn route(
     if !matches!(path, "/control/job" | "/control/execute") {
         return None;
     }
+    // @ref LLP 1016#d8--surface-and-diagnostics — every supplied mode flag is
+    // either honoured by this route or refused; direct owner requests never
+    // acquire CLI-only polling semantics by sending `wait`.
+    if path == "/control/job" {
+        match flag(body, "wait") {
+            Err(refusal) => return Some(Err((400, refusal))),
+            Ok(true) => return Some(Err((400, owner_wait()))),
+            Ok(false) => {}
+        }
+    }
     match requested_mode(body) {
         Ok(Mode::DryRun) => Some(rehearse_declared(body, context).map_err(|e| (400, e))),
         Ok(Mode::Plan) if path == "/control/execute" => Some(Err((400, op_kind()))),
         Ok(Mode::Run | Mode::Plan) => None,
         Err(refusal) => Some(Err((400, refusal))),
     }
+}
+
+fn owner_wait() -> Refusal {
+    Refusal::input(
+        "wait is CLI-side polling, not an owner job mode",
+        "enqueue the job without wait and poll its id, or use snapback2 run <job> --wait",
+    )
+    .with_site("wait")
 }
 
 /// How a body asks to run. `mode` names it; `dryRun: true` or `plan: true` alone chooses it.
