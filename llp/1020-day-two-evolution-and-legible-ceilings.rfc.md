@@ -295,6 +295,13 @@ maximum-width escaped values, not equality with one observed result.
   (`certificate_policy.rs:327`, LLP 1011 revision "one spelling" B2).
 - The M7 bulk-job `E_STEPS`: reproduce, then price or rewrite.
 
+**Ruling (2026-09-11, delegated implementation authority):** no maintained-read
+or cap-equals-bound exception is owed. The refusing `#` aggregate spelling no
+longer exists, while the keyed maintained `Get` already admits. The existing
+capped-only rule remains unchanged: a cap is not visibility evidence and may
+not manufacture absence authority. The bulk-job reproduction is resolved by
+the derived-column pricing rule recorded in the implementation record below.
+
 ## Part B — `fill` (deferred)
 
 `fill <literal>` on a column declaration is a **successor repair, never
@@ -417,4 +424,3 @@ Each lane lands with its tests and guide sentence under LLP 1002's loop.
 - 2026-09-10 — lane `succ` fix round r9 (orchestrator; review `succ-r8-codex.md`): `fill_type` intersects every bound (image with the predecessor's `once`, video, list, text, bytes, json) and stages inside wrappers without losing their bounds; the successor report is logged before the build cache publishes.
 - 2026-09-10 — A1, A2, A3, A6 (A8.1, A8.2) LANDED (lane `succ`, orchestrator; nine blind review rounds `succ-r1..r8-{grok,muse|codex}`: the dismissal-custody seam ended by the carrier-transaction `take` in r5, the repair fill-type class ended by intersecting every bound in r6–r9 and ticketed as a compile audit in `issues/20260910-snapback2-succ-review-residuals.md`; grok r7/r8 LAND WITH FIXES): merged with main through custody-b and witness; host verify `succ-m11`: 1062 Rust, package 1130/0, compiler 299, evaluator 261, runtime 84,832 (the client-bundle scorer red is main's approved size trade). Open: the hot-regroup twin race ticket (two signatures), the succ residuals ticket, the `migrations`→`successor` page rename (aliases kept).
 - 2026-09-10 — A8.4 (R1) RUN: the M7 and day-two cold runs on the published `snapback2@0.0.21`, two builders (gpt-6-astra medium, grok-4.6 xhigh), recorded in `benchmarks/runs/2026-09-10-clique-ri-0.0.21/`. M7 on the populated store: astra green in 19 m (a required field installed optional → bounded fill job → required, `nullRows=0`, exact snapshot), grok green in 23 m (an additive successor of nine optional columns and three tables, two maintains backfilled, exact snapshot). The day-two brief on a copy of each finished app: six change requests, 6 / 6 pass, **0 forced resets, 0 database drops, 0 owner restarts**; an additive change costs one `check` and one watcher-installed successor (73–206 s); a builder who wants existing rows populated authors one job and runs it `--plan` / `--dry-run` / `--wait` (grok CR1: 81 s all in); the four-step keep-optional / apply / job / re-apply recipe was walked once (astra M7) and cost three `check`/install steps. **The measured cost does not commission Part B:** no builder was forced to reset, and the recipe's price is the three steps the guide already teaches; the recorded friction is closure budgets and diagnostics, not the missing `fill` word. Part B stays deferred; the author may reopen it on a run that records the recipe as a forced or repeated cost. Scores on the same rubric as the 2026-09-05 3×3: astra 82 (was 64), grok 72 (was 57).
-

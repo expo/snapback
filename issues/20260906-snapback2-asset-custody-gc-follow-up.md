@@ -1,7 +1,7 @@
 # Snapback 2 asset custody, reset ordering and GC progress remain incomplete
 
 **Filed:** 2026-09-06 by GPT-6 Astra, asset-pending lane
-**Status:** Open — reset ordering and sibling-delete progress freshly reproduced (2026-09-11)
+**Status:** Open — custody fixes landed; bounded sweep and scratch-failure accounting remain
 **Priority:** P1
 **Scope:** inherited physical cleanup/custody defects; separate from pending-object classification
 **Related:** LLP 1006 §9/§9a/§14; `20260906-snapback2-owner-asset-staging-ceiling-refuses-reseeds.md`
@@ -194,3 +194,24 @@ bounded pass. Next acceptance: validate seed before destructive clear (including
 receiving/finalizing barrier); retain per-key deletion retry state while allowing sibling
 progress and finishing successful siblings; then add barrier-controlled rung/view-vs-GC
 and failed-scratch-cleanup tests without weakening grace or once history.
+
+## Implementation progress — 2026-09-11
+
+Items 1, 2, 4, and the sibling-settlement half of item 3 are repaired with
+focused regressions:
+
+- physical unlocated originals remain byte-charged through ready, reclaiming,
+  and failed ledger states until cleanup actually settles;
+- reset validates and commits its database transaction before requesting
+  staging cleanup, and registered receiving/finalizing custody defers that
+  cleanup until the worker closes;
+- one blob deletion refusal is retained while successful siblings are deleted
+  and their ledger reclamations are finished;
+- active rung/once media jobs fence final GC, and once-view insertion requires
+  the asset still to be ready and located in the same transaction.
+
+The accepted asset LLP and operator guide now state these custody semantics.
+The ticket stays open only for the unbounded enumeration/materialization half
+of item 3 and the failure-inclusive scratch budget/audit in item 5. Those
+remaining changes require a bounded continuation design and an exact ownership
+inventory; this batch does not imply either one.

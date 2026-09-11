@@ -1,6 +1,6 @@
 # Snapback 2 byte cache: the asset record shape is a closed key set
 
-**Status:** Open — deferred evolution hazard; no current invalid-record bug (2026-09-11)
+**Status:** Closed — not a defect under the accepted closed-record contract
 **Priority:** P3, activates only with an accepted asset-record extension
 **Systems:** snapback2 client (`packages/snapback2/src/store/byte-cache.ts`)
 **Date:** 2026-09-04
@@ -35,3 +35,12 @@ extension. Its next acceptance starts only when such an extension is proposed: d
 whether the certificate/schema should direct walking, then update validation, wire values,
 lease/purge behavior, and view-once tests together. No claim is made that arbitrary or
 future fields are recognized today.
+
+## Resolution — 2026-09-11
+
+The user delegated the remaining design choices for this queue. This speculative
+compatibility request is closed without a code change: LLP 1006 deliberately
+makes asset values closed records and requires coordinated schema, validation,
+wire, cache, and view-once work for any future extension. Keeping an open defect
+against invalid extra-field records would contradict that accepted contract. A
+future accepted asset-record extension should file its own implementation task.

@@ -175,6 +175,7 @@ pub(super) fn state_from(
         asset_carriers: BTreeMap::new(),
         blobs,
         staging,
+        media_jobs: Default::default(),
         pending_asset_deletes: BTreeSet::new(),
         next_asset_sweep: Instant::now() + ASSET_SWEEP_INTERVAL,
     }

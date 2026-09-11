@@ -851,9 +851,9 @@ query context(id: nodes, supplied: principal):
         args: { id: { Id: "node-1" }, supplied: { Id: "supplied-1" } }, now: 1, new_ids: [], read_time: 1 };
       const execution = new ClientStore(nestedContext.project.schema, receipt)
         .reexecute(program, context, checked.certificate).execution;
-      deepStrictEqual(execution.result, { Row: {
+      deepStrictEqual(canonicalValue(execution.result), canonicalValue({ Row: {
         direct: { Id: "supplied-1" }, nested: { Row: { who: { Id: "viewer-1" } } },
-      } });
+      } }));
     }
     const schema = `table nodes:
   label: text <=40

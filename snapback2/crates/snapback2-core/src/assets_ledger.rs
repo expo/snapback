@@ -31,8 +31,8 @@ pub struct AssetUpload {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AssetStagingUsage {
-    /// Admission charge for unlocated receiving and available ready originals,
-    /// including released originals; not total physical storage.
+    /// Admission charge for every unlocated ledger row that can still retain
+    /// physical bytes, including failed and reclaiming originals.
     pub bytes: u64,
     /// Receiving (including cancellation custody) and never-claimed ready uploads.
     pub objects: u32,
@@ -143,6 +143,14 @@ impl Store {
         )?;
         if viewed {
             return Err(RuntimeError::AssetViewed(id.to_owned()));
+        }
+        let available = asset_row(&transaction, id)?.is_some_and(|row| {
+            row.state == AssetState::Ready && !row.reclaiming && row.locator.is_some()
+        });
+        if !available {
+            return Err(RuntimeError::AssetNotReady(format!(
+                "asset {id} disappeared before its view could be recorded"
+            )));
         }
         transaction.execute(
             "INSERT INTO _asset_views(asset_id, principal, at) VALUES (?1, ?2, ?3)",
@@ -260,20 +268,18 @@ impl Store {
             let (bytes, objects): (i64, i64) = if let Some(creator) = creator {
                 connection.query_row(
                     "SELECT COALESCE(SUM(MAX(staged_bytes, COALESCE(bytes, 0))), 0),
-                            COALESCE(SUM(CASE WHEN state = 'receiving' OR released_at IS NULL THEN 1 ELSE 0 END), 0)
+                            COALESCE(SUM(CASE WHEN state = 'receiving' OR (state = 'ready' AND reclaiming = 0 AND released_at IS NULL) THEN 1 ELSE 0 END), 0)
                      FROM _assets
-                     WHERE locator_table IS NULL
-                       AND (state = 'receiving' OR (state = 'ready' AND reclaiming = 0)) AND created_by = ?1",
+                     WHERE locator_table IS NULL AND created_by = ?1",
                     [creator],
                     |row| Ok((row.get(0)?, row.get(1)?)),
                 )?
             } else {
                 connection.query_row(
                     "SELECT COALESCE(SUM(MAX(staged_bytes, COALESCE(bytes, 0))), 0),
-                            COALESCE(SUM(CASE WHEN state = 'receiving' OR released_at IS NULL THEN 1 ELSE 0 END), 0)
+                            COALESCE(SUM(CASE WHEN state = 'receiving' OR (state = 'ready' AND reclaiming = 0 AND released_at IS NULL) THEN 1 ELSE 0 END), 0)
                      FROM _assets
-                     WHERE locator_table IS NULL
-                       AND (state = 'receiving' OR (state = 'ready' AND reclaiming = 0))",
+                     WHERE locator_table IS NULL",
                     [],
                     |row| Ok((row.get(0)?, row.get(1)?)),
                 )?
@@ -919,9 +925,44 @@ mod tests {
     #[test]
     fn reset_data_clears_once_views_before_sweep() {
         let mut store = crate::Store::memory().unwrap();
-        store.record_asset_view("old-asset", "alice", 11).unwrap();
+        let id = "s2id-00000000000000000000000000000001-0000000000000001";
+        store
+            .asset_create_receiving(id, AssetKind::Image, "alice", 1, 1)
+            .unwrap();
+        store.asset_reserve_finalized_bytes(id, 1).unwrap();
+        store
+            .asset_mark_ready(
+                id,
+                &AssetReadyFacts {
+                    media_type: "image/png".to_owned(),
+                    bytes: 1,
+                    width: 1,
+                    height: 1,
+                    duration: None,
+                },
+            )
+            .unwrap();
+        store
+            .conn
+            .execute(
+                "UPDATE _assets SET locator_table = 'messages', locator_row = 'm1', locator_column = 'photo' WHERE id = ?1",
+                [id],
+            )
+            .unwrap();
+        store.record_asset_view(id, "alice", 11).unwrap();
         store.reset_data().unwrap();
-        assert!(!store.asset_viewed("old-asset", "alice").unwrap());
+        assert!(!store.asset_viewed(id, "alice").unwrap());
+    }
+
+    #[test]
+    fn once_view_refuses_to_orphan_history_after_final_gc() {
+        let mut store = crate::Store::memory().unwrap();
+        let error = store.record_asset_view(
+            "s2id-00000000000000000000000000000001-0000000000000002",
+            "alice",
+            11,
+        );
+        assert_eq!(error.unwrap_err().code(), "E_ASSET_NOT_READY");
     }
 
     use super::*;

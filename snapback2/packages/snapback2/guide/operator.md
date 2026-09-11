@@ -28,6 +28,25 @@ reviewed destructive plans.
 and timers, keeps principals and sessions, re-arms no schedule until a row
 exists, and stays empty across restart.
 
+## Parallel fresh instances
+
+The project directory is the owner and store isolation boundary. For parallel
+proofs or scale replays, create a separate project directory for each instance
+and select it with `--project`; do not reuse `reset --empty` as isolation.
+
+```sh
+snapback2 init .replays/a --template chat --client none
+snapback2 init .replays/b --template chat --client none
+snapback2 test --project .replays/a
+snapback2 test --project .replays/b
+```
+
+For parallel development owners, run `snapback2 dev --project .replays/a` and
+the corresponding command for `b`. With no `--port`, each owner chooses a free
+port and writes its own `.snapback/dev-url`. Stop each owner with the same
+`--project` argument. When cloning an existing app into replay directories,
+copy authored source only: never copy `.snapback/`, owner metadata, or stores.
+
 ## Recovering abandoned media uploads
 
 Pass browser `File` or Expo `{ uri, size?/fileSize? }` directly as an asset
@@ -42,15 +61,17 @@ original bytes, `createdAt`, nullable `releasedAt` and `reclaiming`.
 Page with `{ after: page.next }` (100 rows). `usage.objects` counts receiving
 (including cancellation custody) and never-claimed ready uploads across pages.
 Released rows use no slots; `usage.bytes` includes their charge, the larger of
-uploaded and finalized size. Limits: 20 objects / 256 MiB per creator,
+uploaded and finalized size, until physical cleanup settles; failed and
+reclaiming originals remain byte-charged too. Limits: 20 objects / 256 MiB per creator,
 40 / 512 MiB per owner. Public totals show only your usage.
 
 `await client.discardUpload(id)` abandons an unclaimed id; claimed ids refuse
 `E_ASSET_IN_USE`, missing/foreign ids return `false`. Keep uploads needed by
 pending or queued mutations. Receiving bodies are fenced before freeing their
 charge; running finalizers or failed staging unlinks can retain it. Ready
-disposal removes the charge before blob sweeping finishes; usage is not disk
-size. Cleanup expiry cannot replace a settled result.
+disposal frees its object slot immediately but keeps the byte charge until blob
+sweeping finishes; usage is not total disk size. Cleanup expiry cannot replace
+a settled result.
 
 A committed mutation discards the validated staged asset arguments it left
 unattached, including an idempotent early return and offline replay: the

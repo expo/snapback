@@ -40,6 +40,20 @@ struct MediaJobCounts {
 }
 
 impl MediaJobs {
+    pub(crate) fn active_asset_ids(&self) -> std::collections::BTreeSet<String> {
+        let state = self.0.state.lock().expect("media job lock");
+        state
+            .rungs
+            .iter()
+            .map(|key| {
+                key.split_once(".w")
+                    .map_or(key.as_str(), |(id, _)| id)
+                    .to_owned()
+            })
+            .chain(state.once.iter().map(|(id, _)| id.clone()))
+            .collect()
+    }
+
     fn once(&self, id: &str, principal: &str) -> OncePermit {
         let key = (id.to_owned(), principal.to_owned());
         let mut state = self.0.state.lock().expect("media job lock");
@@ -1167,6 +1181,29 @@ fn asset_file_io(error: io::Error) -> Refusal {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn media_flights_expose_their_asset_ids_until_their_permits_drop() {
+        let jobs = MediaJobs::default();
+        let rung = jobs
+            .rung("s2id-asset-one.w256")
+            .expect("first rung owns its flight");
+        let once = jobs.once("s2id-asset-two", "alice");
+        assert_eq!(
+            jobs.active_asset_ids(),
+            std::collections::BTreeSet::from([
+                "s2id-asset-one".to_owned(),
+                "s2id-asset-two".to_owned(),
+            ])
+        );
+        drop(rung);
+        assert_eq!(
+            jobs.active_asset_ids(),
+            std::collections::BTreeSet::from(["s2id-asset-two".to_owned()])
+        );
+        drop(once);
+        assert!(jobs.active_asset_ids().is_empty());
+    }
     use crate::blob_store::BlobRead;
     use std::collections::BTreeMap;
     use std::io::Cursor;

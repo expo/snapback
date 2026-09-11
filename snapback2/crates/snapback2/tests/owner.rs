@@ -64,6 +64,8 @@ fn reset_seed_refusal_is_atomic_and_keeps_the_owner_running() {
         .unwrap()
         .replace("handle: \"bob\"", "handle: \"alice\"");
     fs::write(&seed_path, seed).unwrap();
+    let staged = root.join(".snapback/staging/reset-order-probe.stage");
+    fs::write(&staged, b"owned reset-order probe").unwrap();
     wait_for(Duration::from_secs(6), || {
         let mut file = fs::File::open(&log_path).ok()?;
         use std::io::{Seek, SeekFrom};
@@ -82,6 +84,10 @@ fn reset_seed_refusal_is_atomic_and_keeps_the_owner_running() {
     );
     assert_eq!(reset.status, 400, "{}", reset.body);
     assert_eq!(reset.body["code"], "E_CONSTRAINT", "{}", reset.body);
+    assert!(
+        staged.exists(),
+        "a reset refused during seed validation must retain staging bytes"
+    );
     assert_eq!(status(port, &secret)["status"], "ready");
     let after = request(
         port,

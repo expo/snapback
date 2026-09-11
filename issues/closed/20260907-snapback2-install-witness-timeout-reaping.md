@@ -1,6 +1,6 @@
 # Snapback2 install witness loses child exit during timeout cleanup
 
-Status: Open
+Status: Closed — corrected helper retained; obsolete packet requirement retired
 Date: 2026-09-07
 Scope: Clique release measurement helper, not a confirmed package-install defect
 
@@ -23,3 +23,11 @@ This disposition supersedes stale current-work claims above; historical observat
 The R3 helper correction and six controls are already complete. No new timeout fix or retry of the original failed install is owed. The retained README still distinguishes the 0.0.18 dry producer from the future public default-install packet.
 
 benchmarks/runs/2026-09-06-clique-improvement/evidence/timeout-reaping-controls/r3/README.md binds candidate-helper.py SHA b66c1e0e7eddb99d6a17a3902a0d3fb116f35618c47068d16b8d97a87438fa0a. Remaining: name a later default-install packet using that exact derivative and its terminal record, or explicitly retire the unused packet requirement. Original 0.0.17 exit remains unknown.
+
+## Resolution — 2026-09-11
+
+The user delegated the remaining queue decisions. The unused 0.0.18 packet
+requirement is retired: current release qualification has moved beyond that
+packet, while R3 and all six deterministic timeout/reaping controls remain the
+accepted helper evidence. This does not reinterpret or repair the original
+0.0.17 record; its npm exit remains unknown and that witness remains failed.

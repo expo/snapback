@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
 
@@ -59,6 +59,7 @@ pub struct FileBlobStore {
 pub struct LocalStaging {
     staging: PathBuf,
     uploads: Arc<Mutex<BTreeMap<String, UploadCustody>>>,
+    reset_clear_pending: Arc<AtomicBool>,
 }
 
 impl FileBlobStore {
@@ -92,6 +93,7 @@ impl LocalStaging {
         Ok(Self {
             staging,
             uploads: Default::default(),
+            reset_clear_pending: Default::default(),
         })
     }
 
@@ -168,7 +170,28 @@ impl LocalStaging {
         )))
     }
 
-    pub fn clear(&self) -> Result<(), Refusal> {
+    /// Request destructive reset cleanup. Registered receiving/finalizing
+    /// workers retain every staging path until their custody closes; the last
+    /// later sweep completes the deferred directory clear.
+    pub fn clear_after_reset(&self) -> Result<bool, Refusal> {
+        self.reset_clear_pending.store(true, Ordering::SeqCst);
+        self.resume_reset_clear()
+    }
+
+    pub fn resume_reset_clear(&self) -> Result<bool, Refusal> {
+        if !self.reset_clear_pending.load(Ordering::SeqCst) {
+            return Ok(true);
+        }
+        let uploads = self.uploads.lock().expect("uploads lock");
+        if !uploads.is_empty() {
+            return Ok(false);
+        }
+        self.clear_files()?;
+        self.reset_clear_pending.store(false, Ordering::SeqCst);
+        Ok(true)
+    }
+
+    fn clear_files(&self) -> Result<(), Refusal> {
         for entry in fs::read_dir(&self.staging).map_err(|error| {
             asset_io(
                 format!("cannot read .snapback/staging: {error}"),
@@ -985,6 +1008,30 @@ mod tests {
             assert!(!path.exists(), "{} survived startup sweep", path.display());
         }
         assert!(unknown.is_file());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reset_clear_waits_for_registered_finalizing_upload_custody() {
+        let root = root();
+        let staging = LocalStaging::open(&root).unwrap();
+        let receiving = staging.create().unwrap();
+        let custody = UploadCustody::new(receiving);
+        staging.register_upload("upload-1".to_owned(), custody.clone());
+        let finalizing = custody.finalize().unwrap();
+        let finalizing_path = finalizing.path.clone();
+        let marker = root.join(".snapback/staging/reset-order-probe.stage");
+        fs::write(&marker, b"present before reset").unwrap();
+
+        assert!(!staging.clear_after_reset().unwrap());
+        assert!(finalizing_path.is_file());
+        assert!(marker.is_file());
+
+        custody.finish(Some(finalizing)).unwrap();
+        staging.finish_upload("upload-1");
+        assert!(staging.resume_reset_clear().unwrap());
+        assert!(!finalizing_path.exists());
+        assert!(!marker.exists());
         fs::remove_dir_all(root).unwrap();
     }
 }

@@ -678,9 +678,9 @@ forged-string property is preserved.
 
 ### 6a. Discard unused arguments at commit
 
-Amendment, 2026-09-10 (LLP 1021 §6): a successful mutation discards its validated staged asset arguments that remain unattached, including idempotent early returns and offline-replay settlement. The same transaction tombstones the ready ledger rows, releasing both pending object slots and original-byte admission charges. The candidate set contains only this call's typed arguments, recursively through optionals/lists, validated as owned by the caller and staged at entry; work is bounded by the call's argument asset-use count (a list argument holds several ids). Already-attached arguments retain ordinary release semantics, and so does any released row: an argument attached and released inside the same body, or a released in-grace id passed again, is never discarded. A rejection or replay conflict rolls back the tentative discard; a committed discard leaves no attachment for later rollback to restore.
+Amendment, 2026-09-10 (LLP 1021 §6): a successful mutation discards its validated staged asset arguments that remain unattached, including idempotent early returns and offline-replay settlement. The same transaction tombstones the ready ledger rows, releasing pending object slots immediately; the original-byte admission charge remains until physical cleanup settles (2026-09-11 delegated custody correction). The candidate set contains only this call's typed arguments, recursively through optionals/lists, validated as owned by the caller and staged at entry; work is bounded by the call's argument asset-use count (a list argument holds several ids). Already-attached arguments retain ordinary release semantics, and so does any released row: an argument attached and released inside the same body, or a released in-grace id passed again, is never discarded. A rejection or replay conflict rolls back the tentative discard; a committed discard leaves no attachment for later rollback to restore.
 
-This is not release: release's 24-hour grace and byte charge remain unchanged. Physical deletion still uses the fork-aware sweep and durable tombstones, so restarts or cleanup failure cannot resurrect admission charge. Receiving-byte custody and the operator upload recovery verbs are unchanged.
+This is not release: release's 24-hour grace and byte charge remain unchanged. Physical deletion still uses the fork-aware sweep and durable tombstones, so restarts or cleanup failure cannot erase the charge before its bytes settle. Receiving-byte custody and the operator upload recovery verbs are unchanged.
 
 ## 7. Reading
 
@@ -829,10 +829,12 @@ pending slots, not listed rows; `usage.bytes` includes released ready originals 
 `POST /api/uploads/discard { id }` tombstones only the creator's unclaimed id,
 refuses claimed ids, and treats missing/foreign ids identically. Receiving cancellation
 retains its slot/charge until physical closure; staging unlink failures retain custody.
-Ready tombstones and failed rows leave admission accounting before blob deletion.
-Staging cancellation failures are skipped per id; blob-sweep errors can abort siblings.
-These inherited custody/GC gaps remain open in
-`issues/20260906-snapback2-asset-custody-gc-follow-up.md`; this revision does not fix them.
+Ready tombstones and failed rows retain their original-byte admission charge until
+blob deletion and ledger settlement; tombstones still free pending object slots.
+Staging cancellation failures are retried per id, and one blob-delete failure does
+not prevent later siblings from deleting and settling. Remaining bounded-sweep and
+scratch-custody work is tracked in
+`issues/20260906-snapback2-asset-custody-gc-follow-up.md`.
 
 ### 9a. Where bytes live (author ruling, 2026-09-03)
 
@@ -886,12 +888,14 @@ covers failure progress, reset ordering, scratch custody and late physical work.
   responses are already shaped for one — and never a place authority lives.
 - **Reclamation** marks unlocated rows `reclaiming` before physical deletion.
   Only successful fork-aware cleanup finishes those ledger rows and their view
-  history; admission accounting has the exclusions documented in §9/§14.
+  history; their byte charge remains until that finish (§9/§14).
 - **`reset`** tombstones live assets and clears application rows/view history,
   then uses the ordinary fork-aware sweep; it never wipes `.snapback/blobs/`.
-  Owner staging unlink currently precedes core reset/seed validation, an inherited
-  ordering defect tracked in §9's follow-up. No capacity-admission refusal is added.
-  Tombstones survive cleanup failure; existing fork references still protect blobs.
+  Staging cleanup starts only after the reset/seed transaction commits. Registered
+  receiving/finalizing workers defer directory cleanup, and media-flight guards keep
+  rung publication and once-view settlement ahead of final GC. No reset
+  capacity-admission refusal is added. Tombstones survive cleanup failure; existing
+  fork references still protect blobs.
 - **Existing fork snapshots** under `.snapback/forks/<name>.sqlite` share immutable
   blobs. Their ledgers remain referrers for GC. The `fork` CLI was removed by
   LLP 1016; a future writable restore must rotate its namespace before minting ids.
@@ -1329,13 +1333,14 @@ nothing in slice 1 changes meaning when it lands.
   **20 pending objects / 256 MiB per creator; 40 / 512 MiB per owner**, unchanged.
   With no locator, receiving rows (including reclaiming ones) consume a slot;
   ready rows consume a slot only if `released_at IS NULL` and not reclaiming.
-  Bytes remain `max(staged_bytes, finalized bytes)` over unlocated receiving and
-  non-reclaiming ready rows, including released originals. Claims clear release
-  time; later releases set it anew. Same-cell retention changes neither (§2a).
+  Bytes remain `max(staged_bytes, finalized bytes)` over every unlocated ledger
+  row that can retain physical bytes: receiving, ready (including reclaiming), and
+  failed. Claims clear release time; later releases set it anew. Same-cell
+  retention changes neither (§2a).
   Byte growth is reserved before publication. Releases/replacements/reset gain
   no capacity refusal. These SQL totals survive restart without new counters.
-  Failed rows/ready tombstones, derived widths, once history and scratch are not
-  covered by this byte sum; it is not an aggregate physical-storage limit.
+  Derived widths, once history and scratch are not covered by this byte sum; it is
+  not yet an aggregate physical-storage limit.
 - **Denormalized dimensions**, a few dozen immutable bytes per reference.
 
 ### 14a. Codecs live in a separate executable; the type does not

@@ -1,6 +1,6 @@
 # Snapback 2 compiler checks compare object prototypes under Bun 1.4
 
-**Status:** Open
+**Status:** Resolved
 **Date:** 2026-09-08
 **Systems:** compiler test runner, toolchain compatibility
 
@@ -39,3 +39,16 @@ This disposition supersedes stale current-work claims above; historical observat
 The retained two Bun 1.4 failures concern value-dictionary prototype equality, not demonstrated wrong compiler values. This host has Bun 1.3.14, so its passes would not reproduce or clear the reported version-specific failure.
 
 Keep the original named assertions and before/after controls. Next: run both checks on the intended Bun 1.4 version, use the intended tagged-value equality contract if prototypes are irrelevant, and qualify the full supported compiler runner. No production provenance change or toolchain-wide upgrade is authorized by this triage.
+
+## Resolution — 2026-09-11
+
+The three affected assertions now compare Snapback values with the compiler's
+existing canonical tagged-value representation instead of treating a JavaScript
+dictionary prototype as part of the value contract. The table/id, integer,
+optional-absence, and nested tagged-value assertions remain intact; production
+row construction and provenance are unchanged.
+
+The complete compiler suite passes on both intended compatibility points:
+
+- Bun 1.4.0: 298 passed, 0 failed.
+- Bun 1.3.12: 298 passed, 0 failed.
