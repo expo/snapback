@@ -127,7 +127,11 @@ test("native second viewing instance cannot borrow the first instance's session"
   try {
     await until(() => Boolean(image(renderer)));
     assert.equal(await f.client.assetUrl(photo), undefined);
-    assert.deepEqual(await f.client.assetUrl([photo]), []);
+    assert.deepEqual(await f.client.assetUrl([photo]), [undefined]);
+    assert.deepEqual(await f.client.assetUrl([photo, clip]), [
+      undefined,
+      `http://assets.test/api/asset/${clip.id}`,
+    ], "list resolution keeps the consumed slot before a mintable sibling");
     const second = await mount(f);
     try { await tick(); assert.equal(image(second), undefined); assert.match(image(renderer).uri, /^data:/); }
     finally { await act(async () => second.unmount()); }

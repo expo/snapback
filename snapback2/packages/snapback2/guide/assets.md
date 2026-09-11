@@ -3,8 +3,9 @@
 `image <=N` is a byte-bounded closed record `{ id, width, height }`; `video <=N`
 adds integer-millisecond `duration`. Both admit `?` and bounded lists, but no
 indexes or `maintain.by`. `once` is image-column-only, never on arguments.
-Authenticated readers get one original 200, `private, no-store`;
-anonymous gets 404 on public rows too. HEAD is free; width, Range and
+Authenticated readers get one original 200. Ordinary private bytes are
+`private, no-cache` with an ETag and reauthorize before 304; a `once` response
+is `private, no-store`. Anonymous gets 404 on public rows too. HEAD is free; width, Range and
 conditionals cannot bypass 410 `E_ASSET_VIEWED`. Add `once`: prior views unrecorded; removal is destructive.
 
 ```q
@@ -51,6 +52,8 @@ Obtain the tokenless URL through `await client.assetUrl(asset)`; if present, fet
 same object for subsequent reads by the same mounted consumer. The client
 performs fetch, lease checks and durable admission before resolving; there
 is no separate application-level commit to race against the fetch.
+The list overload preserves its input positions and returns `undefined` in a
+consumed asset's slot; it never compacts sibling records.
 `E_ASSET_TYPE` names a missing viewing instance, `E_ASSET_VIEWED` means its
 allowance is already consumed, and `E_OFFLINE_CARRIER` means the durable
 allowance or row custody changed. Do not retry with a new token to bypass them.

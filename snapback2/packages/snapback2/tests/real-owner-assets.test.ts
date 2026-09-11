@@ -11,7 +11,7 @@ import { configureRealOwner, RealOwnerHarness } from "./owner-harness.ts";
 const owner = await configureRealOwner();
 after(async () => owner.close());
 
-test("real owner private asset bytes and conditional responses forbid HTTP cache storage", async () => {
+test("real owner ordinary private bytes are cacheable only with owner revalidation", async () => {
   const { readFile } = await import("node:fs/promises");
   const client = createClient({ url: owner.url, persona: "alice" });
   try {
@@ -28,12 +28,12 @@ test("real owner private asset bytes and conditional responses forbid HTTP cache
     assert.ok(preflight.headers.get("Access-Control-Allow-Headers")?.toLowerCase().split(/,\s*/).includes("cache-control"));
     const headers = await client.assetHeaders();
     const response = await fetch(url, { headers });
-    assert.equal(response.status, 200); assert.equal(response.headers.get("Cache-Control"), "no-store");
+    assert.equal(response.status, 200); assert.equal(response.headers.get("Cache-Control"), "private, no-cache");
     const bytes = await response.arrayBuffer(); assert.ok(bytes.byteLength > 0);
     const partial = await fetch(url, { headers: { ...headers, Range: "bytes=0-9" } });
-    assert.equal(partial.status, 206); assert.equal(partial.headers.get("Cache-Control"), "no-store"); await partial.arrayBuffer();
+    assert.equal(partial.status, 206); assert.equal(partial.headers.get("Cache-Control"), "private, no-cache"); await partial.arrayBuffer();
     const conditional = await fetch(url, { headers: { ...headers, "If-None-Match": response.headers.get("ETag")! } });
-    assert.equal(conditional.status, 304); assert.equal(conditional.headers.get("Cache-Control"), "no-store");
+    assert.equal(conditional.status, 304); assert.equal(conditional.headers.get("Cache-Control"), "private, no-cache");
   } finally { await client.close(); }
 });
 

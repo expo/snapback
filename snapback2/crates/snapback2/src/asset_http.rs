@@ -499,11 +499,10 @@ pub fn handle_asset_delivery(request: Request, context: &Context, path: &str, qu
     } else if public {
         "public, immutable"
     } else {
-        // @ref LLP 1012#9-asset-bytes-on-the-device — the delivery proof says
-        // public/private, not which private row supplies a one-use lease.
-        // Unknown private policy forbids HTTP storage; ByteCache still caches
-        // ordinary assets under their row lease.
-        "no-store"
+        // @ref LLP 1006#2-authority-delivery-is-by-the-row-that-holds-it — the
+        // point-read delivery proof includes the exact owning column's `once`
+        // policy. Ordinary private bytes may be retained but must revalidate.
+        "private, no-cache"
     };
     if !public
         && carrier.is_none()
