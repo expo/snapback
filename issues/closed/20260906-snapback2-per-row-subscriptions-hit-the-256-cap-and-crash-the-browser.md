@@ -1,5 +1,6 @@
 # snapback2: one `useQuery` per rendered row walks into the 256-subscription cap and crashes the browser; live-update misses forced polling
 
+**Status:** Closed — exact browser boundary and no-poll delivery qualified (2026-09-11)
 **Date:** 2026-09-06 · **Area:** snapback2 React arm / live queries · **Source:** Clique full run, grok-snapback2 (M3, M4 diary, essay) and astra-snapback2 (M8 diary, essay)
 
 ## What happened
@@ -46,3 +47,33 @@ order. That is a shared-consumer control, but exercises far fewer than 256
 distinct shapes and no sustained second-client writes. Wrapper PID 3273399;
 real browser, IndexedDB and Web Locks. Closure still needs the 256/257 boundary
 and a no-polling sustained-write run, with load threshold if dependent.
+
+## Resolution — 2026-09-11
+
+Commit `85b8d3821` closes the remaining failure mode and witness gap. The shared
+client now refuses only logical child 257 locally with `E_OWNER_BUSY`,
+`site: client.subscribe`, and `guide: live-query`; it does not turn the owner's
+capacity response into a terminal failure for the 256 healthy siblings. Closing
+one child immediately permits a replacement. The live-query guide states the
+distinct-shape budget and the list/composite-query alternative to per-row hooks
+or polling.
+
+The deterministic multiplex regression passed 9/9 channel tests and proves an
+initial batch of 256, an isolated refusal at 257 without another owner control,
+and remove-plus-replacement on the same stream. The scheduled real-browser
+entry point now has a focused `witness-web --capacity` mode.
+
+That witness passed in headless Google Chrome on the Silver M5 Max (18 logical
+CPUs, load averages 2.72/8.05/6.65). One raw browser SSE connection admitted
+256 distinct canonical `messages.thread` shapes; a 257th control returned HTTP
+400 `owner/E_OWNER_BUSY` while the document remained responsive. The retained
+`capacity-0` child then received a complete state containing all 12 unique
+writes committed by a second client, ending at sequence 22, without a polling
+query. The same run also re-proved two identical app consumers sharing one
+logical stream and surviving single-consumer close.
+
+An earlier version of the new witness waited for every one of the 256 initial
+query deliveries and hit its 30-second observer deadline. It made no product
+claim and was replaced by the exact boundary control above: admission is the
+control acknowledgement, while sustained delivery is proved on the retained
+target child. No deadline, owner capacity, or polling fallback changed.
