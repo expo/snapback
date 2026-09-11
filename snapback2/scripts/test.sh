@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Everything that blocks, in one run, reporting every failure (rules/RULES.md).
 set -uo pipefail
+script_path="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 cd "$(dirname "$0")/.." || exit 1
 
 run_compiler_checks() {
@@ -77,7 +78,7 @@ run_timed() {
   return "$phase_status"
 }
 
-echo "== blocking script self-test"; "$0" --self-test || status=1
+echo "== blocking script self-test"; "$script_path" --self-test || status=1
 echo "== bundle the compiler worker + client (the owner tests load dist/)"; (cd packages/snapback2 && node build.mjs >/dev/null) || status=1
 echo "== build the native owner and media helper before parallel package fixtures"; cargo build -p snapback2 -p snapback2-media || status=1
 # The compiler's clean-build regressions use this target-scoped output instead
@@ -96,7 +97,10 @@ ln -s "$(pwd)/node_modules" "$package_workspace/node_modules"
 ln -s "$(pwd)/packages/compiler" "$package_workspace/packages/compiler"
 ln -s "$(pwd)/packages/evaluator" "$package_workspace/packages/evaluator"
 ln -s "$(pwd)/corpus" "$package_workspace/corpus"
-ln -s "$(pwd)/benchmarks" "$package_workspace/benchmarks"
+# Package tests resolve repository fixtures four levels above their test files.
+# In the isolated package copy that root is the compiler fixture, not the
+# package-workspace directory itself.
+ln -s "$(pwd)/benchmarks" "$compiler_fixture/benchmarks"
 ln -s "$(pwd)/metrics" "$package_workspace/metrics"
 ln -s "$(pwd)/scripts" "$package_workspace/scripts"
 ln -s "$(pwd)/unicode" "$package_workspace/unicode"
