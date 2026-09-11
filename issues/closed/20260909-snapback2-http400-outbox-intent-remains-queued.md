@@ -1,12 +1,13 @@
 # Snapback2 terminal HTTP 400 can leave a durable outbox intent queued
 
-**Status:** Open
+**Status:** Closed
 **Impact:** 3
 **Urgency:** 3
 **Ease:** 2
 **Confidence:** 4
 **Systems:** Snapback2 client, Durable outbox, Diagnostics
 **Date:** 2026-09-09
+**Resolved:** 2026-09-10
 **Related:** LLP 1018.003.000
 
 ## Summary
@@ -71,3 +72,14 @@ Queue preservation is custody policy; progress UX is the explicit blocked
 status plus dismissal, not silent settlement. Close only after the original
 copied-app retry and validated, malformed-body, restart and byte-identity cases
 agree with that policy.
+
+## Resolution — 2026-09-10
+
+The all-carrier acceptance control now covers the intended policy end to end.
+A validated `input` HTTP 400 is recorded on the unchanged queued intent, blocks
+FIFO, is dismissible, and produces no autonomous retry during the original
+reported timing window. A malformed HTTP 400 remains ambiguous: it keeps the
+intent queued but clears dismissal evidence. After a cold restart, both cases
+retry the same durable identity with byte-identical replay bodies; a later
+validated refusal restores the blocked/dismissible state. File, IndexedDB, and
+SQLite all pass the same control. No custody-policy code change was required.
