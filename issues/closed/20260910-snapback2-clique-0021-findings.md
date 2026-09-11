@@ -162,3 +162,39 @@ the server, core, and compiler claims only.
 The open client items still require the durable descriptor cold-reopen, the
 maintained-value freshness/custody work, and the single-context offline replay
 witness. They are intentionally not weakened or closed by these server fixes.
+
+## Client resolution — 2026-09-11
+
+**Closed by `a52703b7c`.** The remaining platform-owned items are fixed or
+permanently qualified. Items 4 and 5 retain their app-owned / accepted-product
+dispositions above, and item 9 remains evidence owned by LLP 1019 rather than
+a second live defect.
+
+- **Item 1 reproduced at the conditional-request seam and is fixed.** An
+  unviewed `image once` descriptor is correctly scrubbed from an offline twin
+  result, but the held answer kept its validator. On cold reconnect the owner
+  could therefore answer `unchanged`, causing that scrubbed `null` to be
+  published with a fresh server receipt. Held answers now omit the validator
+  when their result suppressed an unviewed once descriptor, forcing a full
+  authoritative frame. The real-owner regression proves the descriptor stays
+  present after the initial durable refresh, a cold offline reopen publishes
+  `null` from the twin while retaining schema custody, and reconnect restores
+  the descriptor from a complete server frame. Viewed rows still retain their
+  conditional path and remain `null`.
+- **Items 2/6 are permanently qualified as truthful stale custody, not a
+  current-zero defect.** The real-owner regression holds complete maintained
+  zero at seq 1, advances the same owner group to one at seq 2, and records the
+  mounted transition `twin 0 / stale / seq 1` → `twin 1 / stale / seq 2` →
+  `server 1 / live / seq 2`. No snapshot claims zero with `live:true`; the next
+  cold reopen retains complete one at seq 2.
+- **Item 7 is permanently qualified by a focused real-Chromium mode.** Run
+  `node scripts/witness-web.mjs --offline-replay`. The passing run used one
+  page, one `snapback2:dev:alice` IndexedDB partition, principal `dev:alice`,
+  auth epoch 0, `following:false`, held generation
+  `440d4f2bda12e2f4121f716960c1e4390bbb588130345facc9fd3af18b49d17d`, and
+  `outbox.status(messages.send) = ready/ready/none/0/inside`. The browser-offline
+  mutation durably queued in 9 ms without a request; reconnect flushed its
+  byte-identical replay envelope in 62 ms with one application mutation
+  request, zero remaining rows, and exactly one owner row. The earlier
+  dual-context stall remains the already-qualified follower/writer artifact,
+  not this single-writer path.
