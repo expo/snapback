@@ -802,8 +802,17 @@ function prepare(version, name, stateDirectory, requestedPlatforms = []) {
   return resume;
 }
 
+function preservedStagePath(stateDirectory) {
+  let path = `${stateDirectory}.previous`;
+  for (let suffix = 2; existsSync(path); suffix += 1) {
+    path = `${stateDirectory}.previous-${suffix}`;
+  }
+  return path;
+}
+
 export function stagePublication(version, name, stateDirectory, resumePath, options = {}) {
   const dryRun = options.dryRun ?? dry;
+  const stageOnlyRun = options.stageOnly ?? false;
   const requestedPlatforms = options.platformArtifacts ?? [];
   const prepareArtifacts = options.prepareArtifacts ?? prepare;
   const qualifyArtifacts = options.qualifyArtifacts
@@ -813,8 +822,19 @@ export function stagePublication(version, name, stateDirectory, resumePath, opti
       return staged;
     });
   if (!dryRun) {
-    const staged = loadResume(resumePath, name, version, requestedPlatforms)
-      ?? prepareArtifacts(version, name, stateDirectory, requestedPlatforms);
+    const hasResume = existsSync(resumePath);
+    let staged = loadResume(resumePath, name, version, requestedPlatforms);
+    if (hasResume && staged === undefined) {
+      if (!stageOnlyRun) {
+        throw new Error(
+          `existing publication resume ${resumePath} does not match ${name}@${version} and the requested platform artifacts; refusing to replace its immutable stage. Re-run with --stage-only to intentionally reassemble it`,
+        );
+      }
+      const preserved = preservedStagePath(stateDirectory);
+      renameSync(stateDirectory, preserved);
+      console.log(`publish: --stage-only saved prior immutable stage at ${preserved}`);
+    }
+    staged ??= prepareArtifacts(version, name, stateDirectory, requestedPlatforms);
     staged.platformQualifications ??= {};
     for (const requested of requestedPlatforms) {
       staged.platformQualifications[requested.artifact.name] = requested.qualification;
@@ -1109,6 +1129,7 @@ function main() {
   const resumePath = resolve(stateDirectory, "resume.json");
   const publication = stagePublication(version, name, stateDirectory, resumePath, {
     platformArtifacts: requestedPlatforms,
+    stageOnly,
   });
   const staged = publication.staged;
 

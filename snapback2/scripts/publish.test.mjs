@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -177,7 +177,7 @@ test('foreign platform import requires portable digest-bound native-host consume
   assert.throws(() => readQualifiedPlatformArtifact(receipt, version), /recorded integrity/);
 });
 
-test('a durable resume is rebuilt rather than silently ignoring a newly requested platform', t => {
+test('publication refuses a mismatched durable resume without changing its receipt or tarballs', t => {
   const directory = fixture(t);
   const stateDirectory = resolve(directory, 'durable');
   mkdirSync(stateDirectory);
@@ -201,32 +201,135 @@ test('a durable resume is rebuilt rather than silently ignoring a newly requeste
     artifact: foreign,
     qualification: { name: foreign.name, version, integrity: foreign.integrity },
   };
+  const before = Object.fromEntries(readdirSync(stateDirectory).map(name => [name, readFileSync(resolve(stateDirectory, name))]));
+  assert.throws(() => stagePublication(version, host.name, stateDirectory, resumePath, {
+    dryRun: false,
+    platformArtifacts: [requested],
+    prepareArtifacts() { assert.fail('publication must not replace a mismatched immutable stage'); },
+    qualifyArtifacts(staged) { return staged; },
+  }), /refusing to replace its immutable stage.*--stage-only/);
+  assert.deepEqual(readdirSync(stateDirectory), Object.keys(before));
+  for (const [name, bytes] of Object.entries(before)) {
+    assert.deepEqual(readFileSync(resolve(stateDirectory, name)), bytes);
+  }
+});
+
+test('stage-only can change selection while preserving the prior immutable stage', t => {
+  const directory = fixture(t);
+  const stateDirectory = resolve(directory, 'durable');
+  mkdirSync(stateDirectory);
+  const hostTarball = resolve(stateDirectory, 'host.tgz');
+  const foreignSource = resolve(directory, 'foreign.tgz');
+  const shimTarball = resolve(stateDirectory, 'shim.tgz');
+  writeFileSync(hostTarball, 'host');
+  writeFileSync(foreignSource, 'foreign');
+  writeFileSync(shimTarball, 'host-only-shim');
+  const host = { ...platforms[0], tarball: hostTarball, integrity: integrity(hostTarball) };
+  const foreign = { ...platforms[1], tarball: foreignSource, integrity: integrity(foreignSource) };
+  const shim = { name: 'snapback2', version, tarball: shimTarball, integrity: integrity(shimTarball) };
+  const resumePath = resolve(stateDirectory, 'resume.json');
+  const oldResume = Buffer.from(`${JSON.stringify({
+    name: host.name,
+    version,
+    mediaDigest: 'b'.repeat(64),
+    artifacts: [host, shim],
+  })}\n`);
+  writeFileSync(resumePath, oldResume);
+  const requested = {
+    artifact: foreign,
+    qualification: { name: foreign.name, version, integrity: foreign.integrity },
+  };
   let prepares = 0;
   const stage = stagePublication(version, host.name, stateDirectory, resumePath, {
     dryRun: false,
+    stageOnly: true,
     platformArtifacts: [requested],
-    prepareArtifacts(_version, _name, _directory, requestedPlatforms) {
+    prepareArtifacts(_version, _name, target, requestedPlatforms) {
       prepares += 1;
       assert.deepEqual(requestedPlatforms, [requested]);
+      mkdirSync(target);
+      const nextHost = resolve(target, 'host.tgz');
+      const nextForeign = resolve(target, 'foreign.tgz');
+      const nextShim = resolve(target, 'shim.tgz');
+      writeFileSync(nextHost, 'new host');
+      copyFileSync(foreignSource, nextForeign);
+      writeFileSync(nextShim, 'unified shim');
       return {
         name: host.name,
         version,
         mediaDigest: 'b'.repeat(64),
-        artifacts: [host, foreign, shim],
+        artifacts: [
+          { ...host, tarball: nextHost, integrity: integrity(nextHost) },
+          { ...foreign, tarball: nextForeign, integrity: integrity(nextForeign) },
+          { ...shim, tarball: nextShim, integrity: integrity(nextShim) },
+        ],
       };
     },
     qualifyArtifacts(staged) { return staged; },
   });
   assert.equal(prepares, 1);
   assert.deepEqual(stage.staged.artifacts.map(artifact => artifact.name), [host.name, foreign.name, 'snapback2']);
+  const preserved = `${stateDirectory}.previous`;
+  assert.deepEqual(readFileSync(resolve(preserved, 'resume.json')), oldResume);
+  assert.deepEqual(readFileSync(resolve(preserved, 'host.tgz')), Buffer.from('host'));
+  assert.deepEqual(readFileSync(resolve(preserved, 'shim.tgz')), Buffer.from('host-only-shim'));
+});
 
-  stagePublication(version, host.name, stateDirectory, resumePath, {
-    dryRun: false,
-    platformArtifacts: [requested],
-    prepareArtifacts() { assert.fail('matching requested platform should resume'); },
-    qualifyArtifacts(staged) { return staged; },
-  });
-  assert.equal(prepares, 1);
+test('the two-host stage-stage-stage-publish workflow converges on one immutable shim', t => {
+  const directory = fixture(t);
+  const hostA = platforms[0];
+  const hostB = platforms[1];
+  const stateA = resolve(directory, 'host-a');
+  const stateB = resolve(directory, 'host-b');
+  const resumeA = resolve(stateA, 'resume.json');
+  const resumeB = resolve(stateB, 'resume.json');
+  const preparations = [];
+  const prepareArtifacts = (_version, name, target, requestedPlatforms) => {
+    preparations.push({ name, selected: requestedPlatforms.map(({ artifact }) => artifact.name) });
+    mkdirSync(target);
+    const hostTarball = resolve(target, `${name}.tgz`);
+    writeFileSync(hostTarball, `platform:${name}`);
+    const artifacts = [{ name, version, tarball: hostTarball, integrity: integrity(hostTarball) }];
+    for (const requested of requestedPlatforms) {
+      const copied = resolve(target, basename(requested.artifact.tarball));
+      copyFileSync(requested.artifact.tarball, copied);
+      artifacts.push({ ...requested.artifact, tarball: copied });
+    }
+    const shimTarball = resolve(target, 'snapback2.tgz');
+    writeFileSync(shimTarball, `shim:${artifacts.map(artifact => artifact.name).sort().join(',')}`);
+    artifacts.push({ name: 'snapback2', version, tarball: shimTarball, integrity: integrity(shimTarball) });
+    return { name, version, mediaDigest: 'c'.repeat(64), artifacts };
+  };
+  const qualifyArtifacts = staged => staged;
+  const qualification = artifact => ({ name: artifact.name, version, integrity: artifact.integrity });
+
+  const aHostOnly = stagePublication(version, hostA.name, stateA, resumeA, {
+    dryRun: false, stageOnly: true, prepareArtifacts, qualifyArtifacts,
+  }).staged;
+  const aArtifact = aHostOnly.artifacts.find(artifact => artifact.name === hostA.name);
+  const bUnified = stagePublication(version, hostB.name, stateB, resumeB, {
+    dryRun: false, stageOnly: true, prepareArtifacts, qualifyArtifacts,
+    platformArtifacts: [{ artifact: aArtifact, qualification: qualification(aArtifact) }],
+  }).staged;
+  const bArtifact = bUnified.artifacts.find(artifact => artifact.name === hostB.name);
+  const aUnified = stagePublication(version, hostA.name, stateA, resumeA, {
+    dryRun: false, stageOnly: true, prepareArtifacts, qualifyArtifacts,
+    platformArtifacts: [{ artifact: bArtifact, qualification: qualification(bArtifact) }],
+  }).staged;
+  const refreshedA = aUnified.artifacts.find(artifact => artifact.name === hostA.name);
+  const published = stagePublication(version, hostB.name, stateB, resumeB, {
+    dryRun: false, prepareArtifacts() { assert.fail('matching publication should resume'); }, qualifyArtifacts,
+    platformArtifacts: [{ artifact: refreshedA, qualification: qualification(refreshedA) }],
+  }).staged;
+
+  const shimIntegrity = staged => staged.artifacts.find(artifact => artifact.name === 'snapback2').integrity;
+  assert.equal(shimIntegrity(bUnified), shimIntegrity(aUnified));
+  assert.equal(shimIntegrity(published), shimIntegrity(aUnified));
+  assert.deepEqual(preparations, [
+    { name: hostA.name, selected: [] },
+    { name: hostB.name, selected: [hostA.name] },
+    { name: hostA.name, selected: [hostB.name] },
+  ]);
 });
 
 test('publication requires every host consumer to have exercised the final identical shim', () => {

@@ -1519,7 +1519,8 @@ artifacts selected for that publication, all at the shim's version. The current
 publisher qualifies and stages its host platform. `--stage-only` performs the
 same production binary, media, package and installed-consumer qualification,
 writes the durable resume record, and performs no registry convergence or
-publish request. The stage directory is portable: when transferred intact, recorded tarballs are
+publish request; its normal package dependency fetches remain part of building
+and qualifying that candidate. The stage directory is portable: when transferred intact, recorded tarballs are
 resolved beside `resume.json` and checked against their immutable integrity.
 `--platform-artifact <resume.json>` imports a separately staged platform only
 after checking its recognized package identity, version, `os`/`cpu`, tarball
@@ -1543,10 +1544,14 @@ receipt. The local consumer installs only its host artifact plus the unified
 shim, avoiding a direct foreign package install and its `EBADPLATFORM`; the
 shim's packed dependency map is still checked against every selected artifact.
 Production qualification checks the packed package identities and dependency
-map, including resumed tarballs; a mismatched immutable shim is refused and
-must be staged again. A resume is reused only when its exact platform selection
-and imported artifact integrities match the request, so a newly requested
-platform cannot be silently ignored.
+map, including resumed tarballs. A publication invocation refuses an existing
+resume when its exact platform selection or imported artifact integrities do
+not match the request, leaving the resume and immutable tarballs unchanged.
+Intentional reassembly uses `--stage-only`; before replacing a mismatched
+selection it renames the complete prior stage to a reported sibling path, so
+its receipt and tarballs remain recoverable. A matching resume is reused, so a
+newly requested platform can neither be silently ignored nor destructively
+replace publication state.
 Development consumer packing uses the same selection. `publish.mjs --self-test`
 includes an offline fixture install followed by a fresh `npm ci` with unchanged
 package/lock bytes and default peer/optional dependency semantics. This is
