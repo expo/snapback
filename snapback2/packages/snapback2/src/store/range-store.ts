@@ -654,16 +654,16 @@ export class PersistentRangeStore implements RangeStore {
       const watermark = this.state.watermarks[key];
       const media = (this.referenceIndex ??= new CarrierIndex(this.state, this.referenceSchema)).assets;
       const { refs: _refs, order: _order, fingerprint: _fingerprint, cursorArg: _cursorArg, rowProofs: _rows, verdictProofs: _verdicts, extentProofs: _extents, clockOnly: _clockOnly, selection: _selection, ...visible } = stored;
-      const { data, ...answer } = clone(visible);
-      const value = defined({
-        ...answer,
+      const { data, validator, ...answer } = clone(visible), scrubbed = new Set<string>();
+      const projected = data === undefined ? undefined : nullOnceMedia(expand(data, this.state.rows, media.exhausted), media.once, scrubbed) as Result;
+      const capture = new ItemCapture(this.state, op, args); capture.references(stored.data, projected);
+      return withItemInputs(defined({ ...answer,
+        // @ref LLP 1006#2a1-one-use-image-delivery-clique-f3-2026-09-05 — a locally hidden descriptor cannot satisfy a conditional owner read; force the full authorized live frame.
+        ...(validator === undefined || scrubbed.size > 0 ? {} : { validator }),
         // A viewed view-once row reads as absent: the view was its one delivery (LLP 1012 §9).
-        data: data === undefined ? undefined : nullOnceMedia(expand(data, this.state.rows, media.exhausted), media.once) as Result,
+        data: projected,
         caughtUp: watermark === undefined ? undefined : true, watermark: watermark?.watermark,
-      });
-      const capture = new ItemCapture(this.state, op, args);
-      capture.references(stored.data, value.data);
-      return withItemInputs(value, capture.inputs());
+      }), capture.inputs());
     });
   }
 

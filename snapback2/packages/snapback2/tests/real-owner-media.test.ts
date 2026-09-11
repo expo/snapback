@@ -10,6 +10,91 @@ import { configureRealOwner, RealOwnerHarness } from "./owner-harness.ts";
 const owner = await configureRealOwner();
 after(async () => owner.close());
 
+// @ref LLP 1006#2a1-one-use-image-delivery-clique-f3-2026-09-05 — the carrier
+// retains schema custody, but the twin never republishes once media offline.
+test("a live view-once descriptor survives its durable refresh, while a cold offline reopen still hides it", async () => {
+  const { readFile, mkdtemp, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { fileRangeStore } = await import("../dist/test.mjs");
+  const directory = await mkdtemp(join(tmpdir(), "snapback-once-cold-"));
+  const sender = createClient({ url: owner.url, persona: "alice" });
+  let client: any;
+  let cold: any;
+  try {
+    const png = await readFile(new URL("../../../scripts/witness-expo/view-once.png", import.meta.url));
+    const photo = await sender.upload(new Blob([png], { type: "image/png" }), { kind: "image" });
+    const posted: any = await sender.mutation(api.messages.sendOncePhoto, { conversationId: "conversation-1", photo });
+    assert.equal(posted.state, "committed");
+
+    const localRefresh = Promise.withResolvers<any>();
+    client = createClient({
+      url: owner.url,
+      persona: "alice",
+      offline: { store: fileRangeStore(directory) },
+      offlineReadObserver: (_ref: unknown, _args: unknown, result: any) => {
+        if (result?.data?.some?.((row: any) => row?.message?.id === posted.data.id)) localRefresh.resolve(result);
+      },
+    } as any);
+    const observed = client.observe(api.messages.thread, { conversationId: "conversation-1", c: null });
+    const live = Promise.withResolvers<any>();
+    const stop = observed.subscribe(() => {
+      const snapshot = observed.getSnapshot();
+      if (snapshot.freshness.live && snapshot.data?.some?.((row: any) => row?.message?.id === posted.data.id)) live.resolve(snapshot);
+    });
+    await Promise.race([live.promise, new Promise((_, reject) => setTimeout(() => reject(new Error("live once-photo snapshot timed out")), 5_000))]);
+    const local: any = await Promise.race([localRefresh.promise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error("durable once-photo refresh timed out")), 5_000))]);
+    assert.equal(local.data.find((row: any) => row?.message?.id === posted.data.id)?.message.oncePhoto, null,
+      "the twin keeps the schema-once value unavailable for an offline publication");
+    const durableLive = observed.getSnapshot();
+    assert.equal(durableLive.freshness.live, true);
+    assert.equal(durableLive.receipt?.source, "server");
+    assert.equal(durableLive.data.find((row: any) => row?.message?.id === posted.data.id)?.message.oncePhoto.id, photo.id,
+      "persisting the frame cannot replace its live server descriptor with the twin's offline null");
+    stop();
+
+    await client.offline();
+    cold = await client.restart();
+    client = undefined;
+    const held: any = await cold.query(api.messages.thread, { conversationId: "conversation-1", c: null });
+    assert.equal(held.live, false);
+    assert.equal(held.state, "complete");
+    assert.equal(held.data.find((row: any) => row?.message?.id === posted.data.id)?.message.oncePhoto, null,
+      "the cold carrier retained the once descriptor and applied its offline refusal");
+    assert.equal(await cold.assetCache.viewOnce(photo.id), true, "the cold byte policy derives once from durable schema custody");
+    const coldObserved = cold.observe(api.messages.thread, { conversationId: "conversation-1", c: null });
+    const published = Promise.withResolvers<any>();
+    const reconnected = Promise.withResolvers<any>();
+    const coldStates: any[] = [];
+    const stopCold = coldObserved.subscribe(() => {
+      const snapshot = coldObserved.getSnapshot();
+      coldStates.push(snapshot);
+      if (snapshot.receipt) published.resolve(snapshot);
+      if (snapshot.freshness.live
+        && snapshot.data?.find?.((row: any) => row?.message?.id === posted.data.id)?.message.oncePhoto?.id === photo.id) {
+        reconnected.resolve(snapshot);
+      }
+    });
+    const coldSnapshot = await Promise.race([published.promise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error("cold once-photo snapshot timed out")), 5_000))]);
+    assert.equal(coldSnapshot.receipt.source, "twin");
+    assert.equal(coldSnapshot.freshness.live, false);
+    assert.equal(coldSnapshot.data.find((row: any) => row?.message?.id === posted.data.id)?.message.oncePhoto, null);
+    await cold.online();
+    const coldLive: any = await Promise.race([reconnected.promise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error(`cold once-photo reconnect timed out: ${JSON.stringify(coldStates)}`)), 5_000))]);
+    assert.equal(coldLive.receipt.source, "server");
+    assert.equal(coldLive.freshness.live, true);
+    stopCold();
+  } finally {
+    await client?.close();
+    await cold?.close();
+    await sender.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("chat once photo uses one message and upload, each member gets one server delivery, and web stores no bytes", async () => {
   const { readFile, mkdtemp, rm } = await import("node:fs/promises");
   const { tmpdir } = await import("node:os");

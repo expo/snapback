@@ -12,6 +12,7 @@
 //   node scripts/witness-web.mjs --sessions # LLP 1018 shared subscriptions and tab takeover only
 //   node scripts/witness-web.mjs --capacity # exact 256/257 boundary and no-poll live-write witness
 //   node scripts/witness-web.mjs --signup   # signup grant + first IndexedDB-backed profile write only
+//   node scripts/witness-web.mjs --offline-replay # one writer's browser-offline admission and exact flush
 //   node scripts/witness-web.mjs --keep     # leave the scratch project and profile behind
 //
 // playwright-core is an optional devDependency of packages/snapback2; when it
@@ -37,6 +38,7 @@ const indexedSearchTerm = "CAFE\u0301";
 const sessionsOnly = process.argv.includes("--sessions");
 const capacityOnly = process.argv.includes("--capacity");
 const signupOnly = process.argv.includes("--signup");
+const offlineReplayOnly = process.argv.includes("--offline-replay");
 const steps = [];
 
 function step(name, detail) {
@@ -748,6 +750,131 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
   }
 }
 
+// @ref LLP 1018.004#1-the-write-record — the focused stall witness keeps one
+// real IndexedDB partition and one context: this page owns the Web Lock, admits
+// one durable row offline, then sends that row's exact envelope after resume.
+async function singleContextOfflineReplay(context, page, ownerUrl) {
+  for (const other of context.pages()) if (other !== page) await other.close();
+  assert.equal(context.pages().length, 1, "the replay witness has exactly one browser page");
+  await pollUntil(page, async () => {
+    const client = window.__snapback;
+    if (!client || client.offlineRuntime?.principal !== "dev:alice"
+      || typeof client.offlineRuntime?.programGeneration !== "string"
+      || !Number.isSafeInteger(client.offlineRuntime?.authEpoch)) return false;
+    const status = await client.outbox.status(window.__api.messages.send);
+    return status.ready && status.remaining === 0;
+  }, undefined, { timeout: 15_000, label: "the single writer's exact send readiness" });
+  const evidence = async () => ({ pages: context.pages().length, ...await page.evaluate(async () => {
+    const client = window.__snapback;
+    const databases = (await indexedDB.databases()).map(entry => entry.name)
+      .filter(name => typeof name === "string" && name.startsWith("snapback2:"));
+    return {
+      persona: client.snapshot.persona,
+      principal: client.offlineRuntime.principal,
+      authEpoch: client.offlineRuntime.authEpoch,
+      generation: client.offlineRuntime.programGeneration,
+      following: client.offlineRuntime.following,
+      status: await client.outbox.status(window.__api.messages.send),
+      partitions: databases,
+    };
+  }) });
+  const before = await evidence();
+  assert.equal(before.persona, "alice");
+  assert.equal(before.principal, "dev:alice");
+  assert.equal(before.following, false, "the only page owns the persona partition instead of following another writer");
+  assert.deepEqual(before.partitions, ["snapback2:dev:alice"]);
+  assert.deepEqual({ ready: before.status.ready, reason: before.status.reason, action: before.status.action,
+    remaining: before.status.remaining, fence: before.status.fence },
+  { ready: true, reason: "ready", action: "none", remaining: 0, fence: "inside" });
+
+  const body = `single-context offline replay ${Date.now()}`;
+  await page.evaluate(() => window.__snapback.offline());
+  await context.setOffline(true);
+  await page.evaluate(() => { window.__witnessRequests.length = 0; });
+  const queued = await page.evaluate(async ({ body }) => {
+    const client = window.__snapback;
+    const started = performance.now();
+    const mutation = await Promise.race([
+      client.mutation(window.__api.messages.send, { conversationId: "conversation-1", body }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("offline mutation exceeded 15 seconds")), 15_000)),
+    ]);
+    const entries = await client.outbox.entries();
+    return { mutation, ms: performance.now() - started,
+      entry: entries.find(entry => entry.intent === mutation.intent),
+      status: await client.outbox.status(window.__api.messages.send),
+      mutationRequests: window.__witnessRequests.filter(request => request.path === "/api/mutation"
+        && JSON.parse(String(request.body)).op === "messages.send"),
+      principal: client.offlineRuntime.principal, authEpoch: client.offlineRuntime.authEpoch,
+      generation: client.offlineRuntime.programGeneration, following: client.offlineRuntime.following,
+      partitions: (await indexedDB.databases()).map(entry => entry.name)
+        .filter(name => typeof name === "string" && name.startsWith("snapback2:")) };
+  }, { body });
+  assert.equal(queued.mutation.state, "queued", JSON.stringify(queued));
+  assert.ok(queued.ms < 15_000, `offline admission took ${queued.ms}ms`);
+  assert.equal(queued.entry?.state, "queued");
+  assert.equal(queued.entry?.op, "messages.send");
+  assert.deepEqual(queued.entry?.args, { conversationId: "conversation-1", body });
+  assert.equal(queued.mutationRequests.length, 0, "offline admission sends no mutation request");
+  assert.deepEqual({ principal: queued.principal, authEpoch: queued.authEpoch, generation: queued.generation,
+    following: queued.following }, { principal: before.principal, authEpoch: before.authEpoch,
+    generation: before.generation, following: false });
+  assert.deepEqual(queued.partitions, before.partitions);
+  assert.deepEqual({ ready: queued.status.ready, reason: queued.status.reason, remaining: queued.status.remaining },
+    { ready: true, reason: "ready", remaining: 1 });
+
+  await context.setOffline(false);
+  const flushed = await page.evaluate(async ({ intent }) => {
+    const client = window.__snapback;
+    const started = performance.now();
+    const settlement = await Promise.race([
+      (async () => { await client.online(); return client.outbox.settled(); })(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("offline replay exceeded 15 seconds")), 15_000)),
+    ]);
+    const entries = await client.outbox.entries();
+    return { settlement, ms: performance.now() - started,
+      entry: entries.find(entry => entry.intent === intent),
+      status: await client.outbox.status(window.__api.messages.send),
+      mutationRequests: window.__witnessRequests.filter(request => request.path === "/api/mutation"
+        && JSON.parse(String(request.body)).op === "messages.send"),
+      principal: client.offlineRuntime.principal, authEpoch: client.offlineRuntime.authEpoch,
+      generation: client.offlineRuntime.programGeneration, following: client.offlineRuntime.following,
+      partitions: (await indexedDB.databases()).map(entry => entry.name)
+        .filter(name => typeof name === "string" && name.startsWith("snapback2:")) };
+  }, { intent: queued.mutation.intent });
+  assert.deepEqual(flushed.settlement, { stopped: false, remaining: 0 });
+  assert.ok(flushed.ms < 15_000, `offline replay took ${flushed.ms}ms`);
+  assert.equal(flushed.entry?.state, "committed", JSON.stringify(flushed));
+  assert.equal(flushed.mutationRequests.length, 1,
+    `one queued intent emits one owner mutation request: ${JSON.stringify(flushed.mutationRequests)}`);
+  const request = {
+    op: queued.entry.op,
+    args: queued.entry.args,
+    replay: { grant: queued.entry.grant, offset: queued.entry.offset, count: queued.entry.count,
+      intent: queued.entry.intent, trace: queued.entry.trace ?? { points: [], verdicts: [] } },
+  };
+  assert.equal(String(flushed.mutationRequests[0].body), JSON.stringify(request),
+    "the browser flush preserves the durable admission envelope byte-for-byte");
+  assert.deepEqual({ principal: flushed.principal, authEpoch: flushed.authEpoch, generation: flushed.generation,
+    following: flushed.following }, { principal: before.principal, authEpoch: before.authEpoch,
+    generation: before.generation, following: false });
+  assert.deepEqual(flushed.partitions, before.partitions);
+  assert.deepEqual({ ready: flushed.status.ready, reason: flushed.status.reason, remaining: flushed.status.remaining },
+    { ready: true, reason: "ready", remaining: 0 });
+
+  const { createClient, api } = await import(resolve(dist, "client.mjs"));
+  const verifier = createClient({ url: ownerUrl, persona: "alice" });
+  try {
+    const thread = await verifier.query(api.messages.thread, { conversationId: "conversation-1", c: null });
+    assert.equal(thread.state, "complete");
+    assert.equal(thread.data.filter(row => row.message?.body === body).length, 1,
+      "the replayed intent produced exactly one owner row");
+  } finally { await verifier.close(); }
+  step("one IndexedDB writer admits offline and flushes one exact envelope without a 15-second stall", {
+    before, queued: { intent: queued.entry.intent, ms: Math.round(queued.ms), remaining: queued.status.remaining },
+    flushed: { ms: Math.round(flushed.ms), remaining: flushed.status.remaining, requests: flushed.mutationRequests.length },
+  });
+}
+
 async function main() {
   precondition(spawnSync(binary, ["--version"]).status !== null, `${binary} is not built; run cargo build --workspace --bins`);
   const playwright = await loadPlaywright();
@@ -778,6 +905,8 @@ async function main() {
     let page = await launch();
     if (signupOnly) {
       await signupWitness(page);
+    } else if (offlineReplayOnly) {
+      await singleContextOfflineReplay(context, page, owner.url);
     } else if (sessionsOnly || capacityOnly) {
       await sharedSessions(context, page, appUrl, owner.url);
     } else {

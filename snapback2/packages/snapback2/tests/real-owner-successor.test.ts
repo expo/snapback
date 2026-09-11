@@ -355,6 +355,81 @@ function gateLiveResponse(response: Response, select: (delivery: any) => Promise
   return new Response(body, { status: response.status, statusText: response.statusText, headers: response.headers });
 }
 
+// @ref LLP 1012#6-reads-offline — an exact maintained
+// zero the device actually held remains usable but stale; reconnect must never
+// relabel it live while the owner has already advanced the group.
+test("a cold maintained zero stays explicitly stale until the owner publishes the current value", { timeout: 60000 }, async t => {
+  const { directory, source } = await fixture();
+  const previousUrl = process.env.SNAPBACK_URL;
+  let owner: RealOwnerHarness | undefined;
+  const clients: any[] = [];
+  const stops: Array<() => void> = [];
+  try {
+    delete process.env.SNAPBACK_URL;
+    owner = await RealOwnerHarness.create({ forceOwned: true, fixture: source });
+    const carrier = fileRangeStore(join(directory, "maintained-bob"));
+    const cached: any = createClient({ url: owner.url, persona: "bob", offline: { store: carrier } });
+    clients.push(cached);
+    await cached.ready;
+    const args = { who: "dev:bob" };
+    const cachedZero: any = await cached.query(api.ops.count, args);
+    assert.deepEqual({ state: cachedZero.state, data: cachedZero.data, seq: cachedZero.seq },
+      { state: "complete", data: 0, seq: 1 });
+    await cached.close(); clients.pop();
+
+    const writer: any = createClient({ url: owner.url, persona: "bob" });
+    clients.push(writer);
+    const write = await writer.mutation(api.ops.send, { kind: "text", body: "after cached zero" });
+    assert.equal(write.state, "committed", JSON.stringify(write));
+    const ownerNow: any = await writer.query(api.ops.count, args);
+    assert.deepEqual({ state: ownerNow.state, data: ownerNow.data, seq: ownerNow.seq },
+      { state: "complete", data: 1, seq: 2 });
+    await writer.close(); clients.pop();
+
+    const cold: any = createClient({ url: owner.url, persona: "bob", startOffline: true, offline: { store: carrier } });
+    clients.push(cold);
+    await cold.ready;
+    const observed = cold.observe(api.ops.count, args);
+    const snapshots: any[] = [];
+    stops.push(observed.subscribe(() => snapshots.push(observed.getSnapshot())));
+    const stale: any = await until(async () => observed.getSnapshot(),
+      value => value.status === "ready" && value.data === 0 && value.receipt?.source === "twin", "cold maintained zero");
+    assert.deepEqual({ data: stale.data, status: stale.status, receipt: stale.receipt,
+      freshness: stale.freshness, reason: stale.reason?.code }, {
+      data: 0,
+      status: "ready",
+      receipt: { state: "complete", source: "twin", seq: 1, next: null },
+      freshness: { live: false, staleSince: stale.freshness.staleSince, connection: "offline" },
+      reason: "stale",
+    });
+    assert.equal(typeof stale.freshness.staleSince, "number");
+
+    await cold.online();
+    const live: any = await until(async () => observed.getSnapshot(),
+      value => value.status === "ready" && value.data === 1 && value.freshness.live === true, "current maintained value");
+    assert.deepEqual(live.receipt, { state: "complete", source: "server", seq: 2, next: null });
+    assert.equal(snapshots.some(snapshot => snapshot.data === 0 && snapshot.freshness.live === true), false,
+      `the stale zero was never fabricated as current: ${JSON.stringify(snapshots)}`);
+
+    stops.splice(0).forEach(stop => stop());
+    await cold.offline(); await cold.close(); clients.pop();
+    const colder: any = createClient({ url: owner.url, persona: "bob", startOffline: true, offline: { store: carrier } });
+    clients.push(colder); await colder.ready;
+    const retained: any = await colder.query(api.ops.count, args);
+    assert.deepEqual({ state: retained.state, data: retained.data, seq: retained.seq, live: retained.live },
+      { state: "complete", data: 1, seq: 2, live: false });
+    t.diagnostic(`maintained custody: ${JSON.stringify({ cached: { data: 0, seq: 1, live: false, source: "twin" },
+      owner: { data: 1, seq: 2 }, transitions: snapshots.map(snapshot => ({ data: snapshot.data,
+        live: snapshot.freshness.live, source: snapshot.receipt?.source, seq: snapshot.receipt?.seq })), retained: { data: 1, seq: 2 } })}`);
+  } finally {
+    stops.splice(0).forEach(stop => stop());
+    for (const client of clients.reverse()) await client.close();
+    await owner?.close();
+    if (previousUrl === undefined) delete process.env.SNAPBACK_URL; else process.env.SNAPBACK_URL = previousUrl;
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 // @ref LLP 1020#a8-acceptance — actual owners, durable carriers, and original intent bytes.
 test("two clients and cold carrier reopen preserve rows; an enum replay with a lost acknowledgment cannot be dismissed", { timeout: 60000 }, async t => {
   const { directory, source } = await fixture();
