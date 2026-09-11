@@ -50,7 +50,23 @@ run_evaluator_checks() {
 
 run_native_checks() {
   if nextest_path="$(command -v -- "$nextest_bin" 2>/dev/null)"; then
-    SNAPBACK2_TEST_PACKAGE_PREBUILT=1 NEXTEST_TEST_THREADS="$rust_test_threads" \
+    # @ref LLP 1002#11-measured — start the empirically long native tail at
+    # phase birth while the complementary inventory uses the remaining slots.
+    slow_filter='test(/connected_silent_socket|clique_sized_seed|successor_policy_blocks_protected|successor_policy_blocks_unproved|quarry_chat_init|offline_resume_stops|chat_template_receipt/)'
+    priority_threads=4
+    remainder_threads=$((rust_test_threads > 8 ? rust_test_threads - priority_threads : 4))
+    SNAPBACK2_TEST_PACKAGE_PREBUILT=1 NEXTEST_TEST_THREADS="$priority_threads" \
+      "$nextest_path" nextest run \
+      --config-file "$nextest_config" \
+      --profile local-proof-priority \
+      --workspace \
+      --no-fail-fast \
+      --failure-output immediate-final \
+      --status-level fail \
+      --final-status-level fail \
+      -E "$slow_filter" &
+    priority_pid="$!"
+    SNAPBACK2_TEST_PACKAGE_PREBUILT=1 NEXTEST_TEST_THREADS="$remainder_threads" \
       "$nextest_path" nextest run \
       --config-file "$nextest_config" \
       --profile local-proof \
@@ -58,7 +74,13 @@ run_native_checks() {
       --no-fail-fast \
       --failure-output immediate-final \
       --status-level fail \
-      --final-status-level fail
+      --final-status-level fail \
+      -E "not $slow_filter" &
+    remainder_pid="$!"
+    native_status=0
+    wait "$priority_pid" || native_status=1
+    wait "$remainder_pid" || native_status=1
+    return "$native_status"
   else
     printf '%s\n' \
       'SNAPBACK_CARGO_NEXTEST_MISSING: cargo-nextest 0.9.143 is required for Rust tests.' >&2
@@ -90,6 +112,8 @@ compiler_fixture="$(mktemp -d "$(pwd)/target/b2-compiler-package.XXXXXX")" || {
 }
 trap 'rm -rf -- "$compiler_fixture"' EXIT
 repository_root="$(cd .. && pwd)"
+canonical_dist_snapshot="$compiler_fixture/canonical-dist"
+cp -R packages/snapback2/dist "$canonical_dist_snapshot" || exit 1
 package_workspace="$compiler_fixture/package-workspace"
 mkdir -p "$package_workspace/packages" "$package_workspace/target"
 cp -R packages/snapback2 "$package_workspace/packages/snapback2"
@@ -128,7 +152,13 @@ for phase_pid in "$package_pid" "$native_pid" "$doctest_pid" "$evaluator_pid" "$
   wait "$phase_pid" || status=1
 done
 
-# A package fixture can exercise clean-dist recovery. Re-establish the artifact
-# boundary after every concurrent consumer has released the checked-in package.
-echo "== restore package artifacts after package fixtures"; (cd packages/snapback2 && node build.mjs >/dev/null) || status=1
+# Every destructive package fixture is isolated. Prove that boundary and repair
+# it from the pre-phase snapshot only if a future regression mutates canonical
+# artifacts; the ordinary green path does not repeat the complete package build.
+echo "== verify package artifacts after isolated fixtures"
+if ! diff -qr "$canonical_dist_snapshot" packages/snapback2/dist; then
+  status=1
+  rm -rf -- packages/snapback2/dist
+  cp -R "$canonical_dist_snapshot" packages/snapback2/dist || status=1
+fi
 exit $status
