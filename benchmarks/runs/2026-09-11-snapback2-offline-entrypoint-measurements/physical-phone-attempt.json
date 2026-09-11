@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "snapback2.offline-entrypoint-phone-attempt.v1",
+  "observedAt": "2026-09-11T09:48:00Z",
+  "sourceCommit": "117bf209d60732b449d52b8b898c709733fdfc84",
+  "reviewedProductPin": "a52703b7c1c438656937c5a294fca0e0e79d2090",
+  "buildHost": "Charlies-MacBook-Air.local",
+  "deviceHost": "Charlies-Mac-mini-bones-M416.local",
+  "result": "external-blocker-device-lock",
+  "bootstrap": "passed exact existing runtime-readiness receipt before Cargo",
+  "workload": {
+    "personas": 1,
+    "conversations": 50,
+    "memberships": 50,
+    "messages": 10000,
+    "messageBodyCharacters": 500,
+    "admission": "50 bounded scopes via seed, then real messages.send mutations without changing the 10240 rule-probe ceiling",
+    "verification": "all 50 conversationView maintained counts were exactly 200; sum 10000"
+  },
+  "apk": {
+    "variant": "release",
+    "bytes": 67950541,
+    "bundleId": "dev.snapback.chat",
+    "install": "succeeded on both physical Android phones"
+  },
+  "androidAttempts": [
+    {
+      "serial": "00333366J002730",
+      "model": "Nothing A069P",
+      "os": "Android 16 / API 36",
+      "fingerprint": "Nothing/FroggerProEEA/FroggerPro:16/BQ2A.250913.001-BP2A.250605.031.A3/2604241447:user/release-keys",
+      "transport": "USB on Bones through an SSH-forwarded adb server",
+      "lock": "deviceLocked=1; strongAuthRequired=0x1; keyguard showing",
+      "launch": "refused while locked (am start Error type 3)"
+    },
+    {
+      "serial": "003383658003733",
+      "model": "Nothing A069P",
+      "os": "Android 16 / API 36",
+      "transport": "USB on Bones",
+      "lock": "deviceLocked=1; strongAuthRequired=0x1; keyguard showing",
+      "launch": "refused while locked (am start Error type 3)"
+    }
+  ],
+  "iosAttempt": {
+    "udid": "00008150-00120CEE3E40401C",
+    "model": "iPhone 17 Pro Max",
+    "os": "iOS 26.6.1",
+    "hosts": ["Charlies-MacBook-Air.local", "Charlies-MacBook-Pro-M5Max-Black.local"],
+    "state": "online, paired, developer mode enabled, passcode required",
+    "launch": "devicectl CoreDeviceError 10002 / FBSOpenApplicationErrorDomain 7: denied because the device was not, or could not be, unlocked"
+  },
+  "measurement": {
+    "phonePeakResidentBytes": null,
+    "phoneSqliteBytes": null,
+    "reason": "No app process can start before an operator unlocks one of the attached phones; host or simulator values are not substituted."
+  },
+  "cleanup": "The measurement package was absent before the attempt, then uninstalled from both Android phones; the temporary APK was removed and both screens were returned to sleep. The reusable Air worktree is clean."
+}

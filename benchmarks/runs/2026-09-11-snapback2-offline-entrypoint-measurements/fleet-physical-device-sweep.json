@@ -1,0 +1,69 @@
+{
+  "schemaVersion": "snapback2.physical-device-fleet-sweep.v1",
+  "observedAt": "2026-09-11T09:49:54Z",
+  "inventoryLastVerified": "2026-09-09",
+  "result": "attached-phones-locked",
+  "hosts": [
+    {
+      "host": "Charlies-MacBook-Pro-2.local",
+      "reachable": true,
+      "apple": "two remembered physical iPhones unavailable (deviceprep -27)",
+      "android": "emulator-5554 only; excluded as emulator"
+    },
+    {
+      "host": "Charlies-MacBook-Pro-M5Max-Black.local",
+      "reachable": true,
+      "apple": "iPhone 17 Pro Max 00008150-00120CEE3E40401C online, iOS 26.6.1",
+      "android": "empty device list"
+    },
+    {
+      "host": "Charlies-MacBook-Pro-M5-Max-Silver.local",
+      "reachable": true,
+      "apple": "host plus simulators only; no physical phone",
+      "android": "adb not installed in standard locations"
+    },
+    {
+      "host": "Charlies-MacBook-Air.local",
+      "reachable": true,
+      "apple": "same iPhone 17 Pro Max 00008150-00120CEE3E40401C online, paired, developer mode enabled, but currently locked",
+      "android": "empty device list",
+      "launchProbe": "devicectl refused an already-installed Snapback qualification app with CoreDeviceError 10002: unable to launch because the device was not, or could not be, unlocked"
+    },
+    {
+      "host": "M1MacBookPro14in2021Office / 192.168.1.96",
+      "reachable": false,
+      "probe": "bounded SSH ConnectTimeout=7 expired"
+    },
+    {
+      "host": "Charlies-Mac-mini-bones-M416.local",
+      "reachable": true,
+      "apple": "host only; no physical phone",
+      "android": "two online USB Nothing A069P phones on Android 16/API 36: 00333366J002730 and 003383658003733",
+      "lockProbe": "both report deviceLocked=1, strongAuthRequired=0x1 and keyguard showing; wm dismiss-keyguard cannot clear post-boot strong authentication"
+    },
+    {
+      "host": "charlies-mac-mini--durand / 192.168.1.118",
+      "reachable": false,
+      "probe": "mDNS did not resolve and bounded LAN SSH ConnectTimeout=7 expired"
+    },
+    {
+      "host": "ccheever-minisforum-AI-Series / 192.168.1.24",
+      "reachable": false,
+      "probe": "bounded LAN SSH ConnectTimeout=7 expired"
+    },
+    {
+      "host": "NucBox_EVO-X2 / 192.168.1.47",
+      "reachable": true,
+      "android": "where.exe adb returned no executable"
+    }
+  ],
+  "deduplication": "The Black and Air observations are the same iPhone UDID, not two phones.",
+  "excluded": "Simulators, emulator-5554, offline historical xcdevice entries, planned machines, and cloud-only Hetzner build hosts are not online attached physical phones.",
+  "commands": [
+    "DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun xcdevice list --timeout 5",
+    "$HOME/Library/Android/sdk/platform-tools/adb devices -l",
+    "xcrun devicectl device info lockState --device 00008150-00120CEE3E40401C",
+    "adb -s SERIAL shell dumpsys trust",
+    "adb -s SERIAL shell dumpsys window"
+  ]
+}
