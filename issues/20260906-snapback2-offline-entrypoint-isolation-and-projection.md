@@ -201,3 +201,23 @@ independent full-delta review, original canonical-suite deadline measurement,
 full-engine scale curve. The Silver host did not answer a bounded SSH
 availability probe, so no fleet/device qualification was attempted or claimed.
 Those measured/review obligations remain the exact blockers to closure.
+
+## Disposition — 2026-09-11 fresh full-delta review
+
+**Correctness review: READY. State: keep open for measurements only.** A fresh
+read-only review at product pin `a52703b7c` inspected the cumulative historical
+counterexample matrix, the per-root metadata/first-write repair at integrated
+commit `776098904`, the retained-reset follow-through at `3a6358e9e`, and the
+adjacent cold view-once revalidation repair. No material correctness defect was
+found. The six focused package files pass 427/427; direct named-`toJSON`, own
+`__proto__`, sparse-array and canonical-domain probes pass. The evaluator ran
+all retained offline audit controls successfully before stopping later on the
+separate Bun 1.4 maintained-address null-prototype assertion, so no full-suite
+pass or timing is inferred.
+
+[Complete review and practical measurement map](../benchmarks/runs/2026-09-11-snapback2-offline-entrypoint-review/README.md).
+This discharges the pending independent correctness review, but not the
+original 60-second canonical-suite bar, the recorded 100-lane media/max-width
+run, phone cold-build peak resident/storage evidence, or the full-engine
+10%/50%/100% latency curve. Those four measured obligations are the only
+remaining scope, and this ticket stays Open until they are recorded honestly.
