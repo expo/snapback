@@ -21,6 +21,7 @@ pub const IMAGE_WIDTH_RUNGS: &[u32] = &[
     256, 512, 768, 1_024, 1_536, 2_048, 3_072, 4_096, 6_144, 8_192, 12_288, 16_384,
 ];
 const DETECTION_PREFIX_BYTES: u64 = 64 * 1024;
+const MEDIA_HELPER_OUTPUT_BYTES: u64 = 64 * 1024 * 1024;
 pub const MAX_MEDIA_HELPERS: usize = 2;
 
 #[derive(Clone, Default)]
@@ -176,7 +177,7 @@ pub fn handle_upload(mut request: Request, context: &Context, identity: Identity
             return;
         }
     };
-    let mut staging = match context.staging.create() {
+    let mut staging = match context.staging.create_for_upload(content_length) {
         Ok(staging) => staging,
         Err(error) => {
             respond_refusal(request, 500, error, &context.mode);
@@ -801,18 +802,22 @@ fn finalize_asset(
     let (media_type, width, height, duration) = match detected.kind {
         AssetKind::Image => match detected.image.expect("detected image format") {
             ImageFormat::Heic => {
-                let normalized = staging.allocate_path("heic-normalized")?;
+                let mut normalized = staging.reserve_path(
+                    "heic-normalized",
+                    MEDIA_HELPER_OUTPUT_BYTES.saturating_mul(2),
+                    2,
+                )?;
                 let _helper = media_jobs.helper();
-                let result = media_helper::normalize_heic(path, &normalized);
+                let result = media_helper::normalize_heic(path, normalized.path());
                 let result = match result {
                     Ok(result) => result,
                     Err(error) => {
-                        let _ = fs::remove_file(&normalized);
+                        normalized.discard()?;
                         return Err(error);
                     }
                 };
                 fs::remove_file(path).map_err(asset_file_io)?;
-                fs::rename(&normalized, path).map_err(asset_file_io)?;
+                fs::rename(normalized.path(), path).map_err(asset_file_io)?;
                 let stripped = image_walk::strip(path)?;
                 if stripped.format != ImageFormat::Jpeg
                     || result.format != media_helper::MediaFormat::Jpeg
@@ -962,7 +967,9 @@ fn render_rung(
     source_max: u64,
     render: &dyn Fn(&Path, &Path, u32) -> Result<media_helper::RenderResult, Refusal>,
 ) -> Result<String, Refusal> {
-    let mut source = staging_store.create_named("source")?;
+    // The helper permit precedes every source/output allocation, so queued
+    // rung requests own no scratch while waiting for one of the two workers.
+    let _helper = media_jobs.helper();
     let blob = store.get(source_id, None)?;
     if blob.length == 0 || blob.length > source_max {
         return Err(too_large(format!(
@@ -971,6 +978,7 @@ fn render_rung(
         )));
     }
     let expected = blob.length;
+    let mut source = staging_store.create_reserved("source", expected, 1)?;
     let copied = io::copy(
         &mut blob.stream.take(expected.saturating_add(1)),
         source.file_mut(),
@@ -980,26 +988,26 @@ fn render_rung(
         return Err(asset_type("blob store returned a truncated rung source"));
     }
     source.sync_and_close()?;
-    let output = staging_store.allocate_path("rung")?;
-    let _helper = media_jobs.helper();
-    let result = render(source.path(), &output, width);
+    let mut output =
+        staging_store.reserve_path("rung", MEDIA_HELPER_OUTPUT_BYTES.saturating_mul(2), 2)?;
+    let result = render(source.path(), output.path(), width);
     let rendered = match result {
         Ok(rendered) => rendered,
         Err(error) => {
-            let _ = fs::remove_file(&output);
+            output.discard()?;
             return Err(error);
         }
     };
     if rendered.width != width {
-        let _ = fs::remove_file(&output);
+        output.discard()?;
         return Err(asset_type(format!(
             "media helper rendered width {}, expected rung {width}",
             rendered.width
         )));
     }
-    let mut input = File::open(&output).map_err(asset_file_io)?;
+    let mut input = File::open(output.path()).map_err(asset_file_io)?;
     let put = store.put(key, &mut input);
-    let _ = fs::remove_file(&output);
+    output.discard()?;
     match put {
         Ok(_) => Ok(rendered.format.content_type().to_owned()),
         Err(error) => sniff_image_type(store, key).map_err(|_| error),
@@ -1338,23 +1346,30 @@ mod tests {
             Ok(())
         }
 
-        fn enumerate(
+        fn enumerate_page(
             &self,
             prefix: &str,
+            continuation: Option<&str>,
+            limit: usize,
             visitor: &mut dyn FnMut(&str) -> Result<(), Refusal>,
-        ) -> Result<(), Refusal> {
-            let keys = self
+        ) -> Result<Option<String>, Refusal> {
+            let mut keys = self
                 .0
                 .lock()
                 .unwrap()
                 .keys()
-                .filter(|key| key.starts_with(prefix))
+                .filter(|key| {
+                    key.starts_with(prefix) && continuation.is_none_or(|after| key.as_str() > after)
+                })
+                .take(limit.saturating_add(1))
                 .cloned()
                 .collect::<Vec<_>>();
-            for key in keys {
+            let next = (keys.len() > limit).then(|| keys[limit - 1].clone());
+            keys.truncate(limit);
+            for key in &keys {
                 visitor(&key)?;
             }
-            Ok(())
+            Ok(next)
         }
     }
 

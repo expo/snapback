@@ -456,10 +456,21 @@ fn seven_retried_photo_sends_discard_both_charges_at_commit() {
             &runtime
                 .execute(
                     "media.retry",
-                    Context::mutation(alice.clone(), args("same-message", photo)),
+                    Context::mutation(alice.clone(), args("same-message", photo.clone())),
                 )
                 .unwrap(),
         );
+        assert_eq!(
+            runtime.asset_staging_usage(&alice).unwrap().creator,
+            AssetStagingUsage {
+                objects: 0,
+                bytes: 50_000_000
+            },
+            "physical closure has not settled photo send {attempt}"
+        );
+        let reclaiming = runtime.reclaim_assets(0).unwrap();
+        assert_eq!(reclaiming, vec![asset_id(&photo)]);
+        runtime.finish_asset_reclaims(&reclaiming).unwrap();
         assert_eq!(
             runtime.asset_staging_usage(&alice).unwrap().creator,
             AssetStagingUsage::default(),
@@ -609,7 +620,7 @@ fn discard_is_scoped_to_validated_typed_arguments_and_offline_commit() {
         runtime.asset_staging_usage(&alice).unwrap().creator,
         AssetStagingUsage {
             objects: 1,
-            bytes: 3
+            bytes: 10
         }
     );
     assert_eq!(
@@ -818,7 +829,7 @@ fn only_unattached_list_and_optional_arguments_are_discarded() {
         runtime.asset_staging_usage(&alice).unwrap().creator,
         AssetStagingUsage {
             objects: 1,
-            bytes: 11
+            bytes: 23
         }
     );
 }

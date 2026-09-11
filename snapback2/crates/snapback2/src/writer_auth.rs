@@ -517,7 +517,9 @@ mod tests {
             blobs,
             staging,
             media_jobs: Default::default(),
-            pending_asset_deletes: BTreeSet::new(),
+            asset_reclaim_after: String::new(),
+            asset_blob_continuation: None,
+            asset_sweep_pending: None,
             next_asset_sweep: Instant::now() + ASSET_SWEEP_INTERVAL,
         };
 

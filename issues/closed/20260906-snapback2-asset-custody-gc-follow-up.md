@@ -1,7 +1,7 @@
-# Snapback 2 asset custody, reset ordering and GC progress remain incomplete
+# Snapback 2 asset custody, reset ordering and GC progress follow-up
 
 **Filed:** 2026-09-06 by GPT-6 Astra, asset-pending lane
-**Status:** Open — custody fixes landed; bounded sweep and scratch-failure accounting remain
+**Status:** Closed — bounded sweep and failure-inclusive scratch custody landed 2026-09-11
 **Priority:** P1
 **Scope:** inherited physical cleanup/custody defects; separate from pending-object classification
 **Related:** LLP 1006 §9/§9a/§14; `20260906-snapback2-owner-asset-staging-ceiling-refuses-reseeds.md`
@@ -215,3 +215,36 @@ The ticket stays open only for the unbounded enumeration/materialization half
 of item 3 and the failure-inclusive scratch budget/audit in item 5. Those
 remaining changes require a bounded continuation design and an exact ownership
 inventory; this batch does not imply either one.
+
+## Resolution — 2026-09-11
+
+The remaining work landed on top of custody prerequisite `86a7342c7`:
+
+- Core selects at most 32 ordered reclaim candidates with an explicit `after`
+  continuation. The writer retains a bounded pending page instead of the full
+  live ledger or reset set.
+- The filesystem blob store retains an opaque `ReadDir` continuation and
+  inspects at most 64 entries per turn. Fork reconciliation retains its own
+  iterator, inspects at most eight fork-directory entries per reclamation turn,
+  and point queries only the bounded current candidate set; reclamation never
+  materializes every fork asset id.
+- Original plus all twelve possible width keys are settled directly for each
+  reclaim candidate. Orphan keys use the same bounded physical page. Per-key
+  deletion errors remain retryable and do not block successful siblings.
+- `.snapback/staging` and blob-publish temporaries each have a 32-object / 5 GiB
+  physical-plus-reservation envelope (64 objects / 10 GiB aggregate scratch),
+  derived conservatively from the unchanged four-upload/two-helper concurrency
+  and 512 MiB owner admission ceiling. Upload rewrites and helper source/output
+  work reserve before allocation; rung source copies now occur only after a
+  helper permit. Retained staging and publish unlink failures remain charged
+  until a later cleanup actually removes the file.
+- Rung output cleanup is checked, failed image-strip cleanup is surfaced, and
+  the parent helper cleanup now recognizes both the media binary's current
+  `.snapback2-media-*` name and its older destination-prefixed spelling.
+
+Permanent regressions cover 200 reset assets settling in seven 32-row turns,
+17 fork ledgers advancing in three eight-entry calls, concurrent and
+failed-unlink staging reservations, failed publish cleanup retaining its byte
+and object charge, sibling progress, fork retention, and restart completion.
+The 20/40 object caps, 256/512 MiB admission caps, full grace, affine authority,
+and once history are unchanged.

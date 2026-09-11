@@ -832,9 +832,12 @@ retains its slot/charge until physical closure; staging unlink failures retain c
 Ready tombstones and failed rows retain their original-byte admission charge until
 blob deletion and ledger settlement; tombstones still free pending object slots.
 Staging cancellation failures are retried per id, and one blob-delete failure does
-not prevent later siblings from deleting and settling. Remaining bounded-sweep and
-scratch-custody work is tracked in
-`issues/20260906-snapback2-asset-custody-gc-follow-up.md`.
+not prevent later siblings from deleting and settling. Reclaim candidates, physical
+blob entries, and fork ledgers advance through fixed-size continuation pages; no
+reclamation turn materializes the complete ledger, blob directory, or fork asset
+set. Scratch bytes and objects are reserved before upload rewrites and helper work,
+and failed staging or
+publish cleanup remains charged from the retained physical file until a later sweep.
 
 ### 9a. Where bytes live (author ruling, 2026-09-03)
 
@@ -842,19 +845,21 @@ scratch-custody work is tracked in
 through the server in both cases.** One trait, streaming-first, three
 publication operations — put a stream and get back a key, get a key with an
 optional byte range as a stream, delete a key — plus the sweep's deliberate
-fourth operation, callback `enumerate(prefix, visitor)`. It avoids a returned key
-vector, but the sweep materializes all live/fork ids and walks the full directory
-synchronously, without continuation; it is not a bounded whole-sweep guarantee.
-Revision (m), 2026-09-04, supplies streaming blob I/O; the open follow-up in §9
-covers failure progress, reset ordering, scratch custody and late physical work.
+fourth operation, callback `enumerate_page(prefix, continuation, limit, visitor)`.
+The filesystem cursor owns its `ReadDir` between calls and inspects at most 64
+entries per writer turn. The ledger selects at most 32 ordered reclaim candidates;
+the fork scan holds its directory iterator and inspects at most eight fork entries,
+using point queries only for that bounded candidate set. Continuations are
+process-local and a restart safely begins a new complete pass over durable tombstones.
 
 - **Keys are asset ids** (author decision, 2026-09-03, on the second panel's
   split). The ledger row is written first, in `receiving`; finalize then
   durably records its byte size on that receiving row (including any
   normalization growth), the blob is put under the asset's id, and only then
   does the row flip to `ready`: original growth is durably charged before publication.
-  Derived widths use id/rung keys and currently have no byte reservation; failed
-  cleanup is not a complete physical-custody envelope. Blobs are immutable. Revision (g) chose content addresses for deduplication and
+  Derived widths use id/rung keys. Upload rewrites, helper source/output files and
+  publish temporaries have explicit byte/object scratch reservations; a failed unlink
+  remains charged by its retained physical file until sweep. Blobs are immutable. Revision (g) chose content addresses for deduplication and
   cheap forks; the panel showed that immutable ids give the same fork sharing,
   that a content address cannot be known until the stored bytes are hashed
   (so orphans need a directory listing the trait does not offer), and that
@@ -1339,8 +1344,14 @@ nothing in slice 1 changes meaning when it lands.
   retention changes neither (§2a).
   Byte growth is reserved before publication. Releases/replacements/reset gain
   no capacity refusal. These SQL totals survive restart without new counters.
-  Derived widths, once history and scratch are not covered by this byte sum; it is
-  not yet an aggregate physical-storage limit.
+  Derived widths and once history are not covered by this byte sum. Scratch has a
+  separate 32-object / 5 GiB physical-plus-reservation envelopes for staging and
+  publish temporaries (64 objects / 10 GiB aggregate scratch). The conservative
+  ten-times formula covers four upload original/rewrite pairs plus two concurrent
+  helper source/output/atomic-temporary groups without sharing an optimistic counter
+  across directories. It does not widen the 20/40-object or 256/512 MiB admission
+  policy. Failed staging, strip, helper and publish cleanup stays in the physical side
+  of that accounting until startup or a later sweep removes it.
 - **Denormalized dimensions**, a few dozen immutable bytes per reference.
 
 ### 14a. Codecs live in a separate executable; the type does not

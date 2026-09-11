@@ -778,8 +778,19 @@ impl Runtime {
         self.engine.store_mut().record_asset_view(id, principal, at)
     }
 
+    pub fn reclaim_assets_page(
+        &mut self,
+        now: i64,
+        after: &str,
+        limit: usize,
+    ) -> Result<crate::AssetReclaimPage, RuntimeError> {
+        self.engine.store_mut().reclaim_page(now, after, limit)
+    }
+
+    /// Compatibility helper for direct core callers. Server reclamation uses
+    /// `reclaim_assets_page` and its explicit continuation.
     pub fn reclaim_assets(&mut self, now: i64) -> Result<Vec<String>, RuntimeError> {
-        self.engine.store_mut().reclaim(now)
+        Ok(self.reclaim_assets_page(now, "", 100)?.ids)
     }
 
     pub fn finish_asset_reclaims(&mut self, ids: &[String]) -> Result<(), RuntimeError> {

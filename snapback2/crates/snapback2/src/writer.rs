@@ -449,7 +449,9 @@ struct State {
     blobs: Arc<dyn BlobStore>,
     staging: Arc<LocalStaging>,
     media_jobs: crate::asset_http::MediaJobs,
-    pending_asset_deletes: BTreeSet<String>,
+    asset_reclaim_after: String,
+    asset_blob_continuation: Option<String>,
+    asset_sweep_pending: Option<writer_assets::PendingAssetSweep>,
     next_asset_sweep: Instant,
 }
 
@@ -504,7 +506,9 @@ pub fn spawn_writer(
                     blobs,
                     staging,
                     media_jobs,
-                    pending_asset_deletes: BTreeSet::new(),
+                    asset_reclaim_after: String::new(),
+                    asset_blob_continuation: None,
+                    asset_sweep_pending: None,
                     next_asset_sweep: Instant::now() + ASSET_SWEEP_INTERVAL,
                 },
                 rx,
@@ -634,6 +638,7 @@ impl State {
                 replay,
             } => {
                 let mut replay = replay;
+                let sweeps_assets = self.operation_has_asset_args(&op);
                 if replay.is_some() {
                     if let Some(generation) = expected_generation {
                         replay
@@ -653,7 +658,11 @@ impl State {
                     self.resolve_authority(identity.clone())?;
                     return Ok(response);
                 }
-                self.execute(&op, args, identity, expected, offline, replay)
+                let response = self.execute(&op, args, identity, expected, offline, replay)?;
+                if sweeps_assets && response["state"] == "committed" {
+                    self.sweep_asset_blobs()?;
+                }
+                Ok(response)
             }
             Action::Resume { body, identity } => self.resume(body, identity),
             Action::Subscribe {
@@ -851,6 +860,7 @@ impl State {
                 self.runtime_mut()
                     .mark_asset_failed(&id)
                     .map_err(|error| Refusal::from_runtime(&error))?;
+                self.sweep_asset_blobs()?;
                 Ok(json!({ "ok": true }))
             }
             Action::AssetSession { identity } => self.mint_asset_carrier(identity),

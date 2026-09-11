@@ -138,10 +138,7 @@ fn strip_jpeg(path: &Path) -> Result<ImageFacts, Refusal> {
         }
         finish_replace(path, &temporary, output)
     })();
-    if result.is_err() {
-        let _ = fs::remove_file(&temporary);
-    }
-    result.map(|()| facts)
+    cleanup_failed_temporary(&temporary, result).map(|()| facts)
 }
 
 fn inspect_jpeg(path: &Path) -> Result<ImageFacts, Refusal> {
@@ -264,10 +261,7 @@ fn strip_png(path: &Path) -> Result<ImageFacts, Refusal> {
         }
         finish_replace(path, &temporary, output)
     })();
-    if result.is_err() {
-        let _ = fs::remove_file(&temporary);
-    }
-    result.map(|()| facts)
+    cleanup_failed_temporary(&temporary, result).map(|()| facts)
 }
 
 fn inspect_png(path: &Path) -> Result<ImageFacts, Refusal> {
@@ -428,10 +422,7 @@ fn strip_webp(path: &Path) -> Result<ImageFacts, Refusal> {
             .map_err(|error| asset_io("finish WebP header", error))?;
         finish_replace(path, &temporary, output)
     })();
-    if result.is_err() {
-        let _ = fs::remove_file(&temporary);
-    }
-    result.map(|()| facts)
+    cleanup_failed_temporary(&temporary, result).map(|()| facts)
 }
 
 fn inspect_webp(path: &Path) -> Result<ImageFacts, Refusal> {
@@ -819,6 +810,17 @@ fn temporary_output(path: &Path) -> Result<(PathBuf, File), Refusal> {
         "allocate stripped image temporary",
         io::Error::new(io::ErrorKind::AlreadyExists, "name attempts exhausted"),
     ))
+}
+
+fn cleanup_failed_temporary(path: &Path, result: Result<(), Refusal>) -> Result<(), Refusal> {
+    if result.is_ok() {
+        return result;
+    }
+    match fs::remove_file(path) {
+        Ok(()) => result,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => result,
+        Err(error) => Err(asset_io("remove failed stripped-image temporary", error)),
+    }
 }
 
 fn finish_replace(path: &Path, temporary: &Path, mut output: File) -> Result<(), Refusal> {

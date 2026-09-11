@@ -4,7 +4,22 @@ use super::*;
 use crate::project::seed_rows;
 use snapback2_core::{ArgType, ColumnType};
 
+pub(super) struct PendingAssetSweep {
+    reclaimed: BTreeSet<String>,
+    orphan_keys: Vec<String>,
+    forks: crate::asset_gc::ForkReferenceScan,
+}
+
 impl State {
+    pub(super) fn operation_has_asset_args(&self, op: &str) -> bool {
+        self.compiled
+            .project
+            .programs
+            .iter()
+            .find(|program| program.name == op)
+            .is_some_and(|program| program.args.values().any(arg_contains_asset))
+    }
+
     pub(super) fn reset(&mut self, empty: bool) -> Result<Json, Refusal> {
         let seed = self.seed.clone();
         let rows = if empty {
@@ -39,7 +54,6 @@ impl State {
         // fork-aware sweep — never a blob wipe — deletes the bytes
         // (LLP 1006 §9a).
         let asset_ids = reset.asset_ids.clone();
-        self.pending_asset_deletes.extend(reset.asset_ids);
         // @ref LLP 1006#9a-where-bytes-live-author-ruling-2026-09-03 — only a
         // committed reset may clear staging. Active upload custody defers that
         // physical clear, and the fork-aware sweep below never performs a blob wipe.
@@ -54,15 +68,7 @@ impl State {
     }
 
     pub(super) fn reclaim_assets(&mut self) -> Result<Json, Refusal> {
-        let now = self.now();
-        let asset_ids = self
-            .runtime_mut()
-            .reclaim_assets(now)
-            .map_err(|error| Refusal::from_runtime(&error))?;
-        // Reclaimed rows are `reclaiming` tombstones until the fork-aware blob
-        // deletion succeeds; finish them here rather than on the next sweep.
-        self.pending_asset_deletes.extend(asset_ids.iter().cloned());
-        self.sweep_asset_blobs()?;
+        let asset_ids = self.sweep_asset_blobs()?;
         Ok(reclaim_response(asset_ids))
     }
 
@@ -71,13 +77,7 @@ impl State {
     }
 
     pub(super) fn sweep_assets_now(&mut self) -> Result<(), Refusal> {
-        let now = self.now();
-        let ids = self
-            .runtime_mut()
-            .reclaim_assets(now)
-            .map_err(|error| Refusal::from_runtime(&error))?;
-        self.pending_asset_deletes.extend(ids);
-        self.sweep_asset_blobs()
+        self.sweep_asset_blobs().map(|_| ())
     }
 
     pub(super) fn asset_poll_timeout(&self) -> Duration {
@@ -93,19 +93,86 @@ impl State {
         self.sweep_assets_now()
     }
 
-    pub(super) fn sweep_asset_blobs(&mut self) -> Result<(), Refusal> {
-        let live_ids = self
-            .runtime()
-            .asset_ids()
-            .map_err(|error| Refusal::from_runtime(&error))?
-            .into_iter()
-            .collect();
+    pub(super) fn sweep_asset_blobs(&mut self) -> Result<Vec<String>, Refusal> {
+        const RECLAIM_PAGE: usize = 32;
+        const BLOB_PAGE: usize = 64;
+        const FORK_PAGE: usize = 8;
+        let mut reported = Vec::new();
+        let active_media = self.media_jobs.active_asset_ids();
+        if self.asset_sweep_pending.is_none() {
+            let now = self.now();
+            let reclaim_after = self.asset_reclaim_after.clone();
+            let page = self
+                .runtime_mut()
+                .reclaim_assets_page(now, &reclaim_after, RECLAIM_PAGE)
+                .map_err(|error| Refusal::from_runtime(&error))?;
+            self.asset_reclaim_after = page.continuation.clone().unwrap_or_default();
+            reported = page.ids;
+            let reclaimed = reported.iter().cloned().collect::<BTreeSet<_>>();
+            let blobs = crate::asset_gc::enumerate_blob_page(
+                self.blobs.as_ref(),
+                self.asset_blob_continuation.as_deref(),
+                BLOB_PAGE,
+            )?;
+            self.asset_blob_continuation = blobs.continuation;
+            let mut checked = BTreeMap::new();
+            let mut orphan_keys = Vec::new();
+            for key in blobs.keys {
+                let id = key.split_once(".w").map_or(key.as_str(), |(id, _)| id);
+                if active_media.contains(id) {
+                    continue;
+                }
+                let live = match checked.get(id) {
+                    Some(live) => *live,
+                    None => {
+                        let live = self
+                            .runtime()
+                            .store()
+                            .asset(id)
+                            .map_err(|error| Refusal::from_runtime(&error))?
+                            .is_some();
+                        checked.insert(id.to_owned(), live);
+                        live
+                    }
+                };
+                if !live {
+                    orphan_keys.push(key);
+                }
+            }
+            let candidates = reclaimed
+                .iter()
+                .cloned()
+                .chain(orphan_keys.iter().map(|key| {
+                    key.split_once(".w")
+                        .map_or(key.as_str(), |(id, _)| id)
+                        .to_owned()
+                }))
+                .collect();
+            self.asset_sweep_pending = Some(PendingAssetSweep {
+                reclaimed,
+                orphan_keys,
+                forks: crate::asset_gc::ForkReferenceScan::open(&self.root, candidates)?,
+            });
+        }
+        let Some(fork_ids) = self
+            .asset_sweep_pending
+            .as_mut()
+            .expect("pending asset sweep")
+            .forks
+            .advance(FORK_PAGE)?
+        else {
+            self.staging.resume_reset_clear()?;
+            return Ok(reported);
+        };
+        let pending = self
+            .asset_sweep_pending
+            .take()
+            .expect("pending asset sweep");
         let mut deletable = BTreeSet::new();
         // @ref LLP 1006#9-lifecycle-finalize-off-the-writer-and-reclamation —
         // final GC shares the media-flight guard, so a rung cannot publish and
         // a once-view cannot record history after its ledger row disappears.
-        let active_media = self.media_jobs.active_asset_ids();
-        for id in &self.pending_asset_deletes {
+        for id in &pending.reclaimed {
             if active_media.contains(id) {
                 continue;
             }
@@ -116,11 +183,11 @@ impl State {
                 deletable.insert(id.clone());
             }
         }
-        let sweep = crate::asset_gc::sweep_asset_blobs(
-            &self.root,
+        let sweep = crate::asset_gc::sweep_reclaimed_asset_blobs(
             self.blobs.as_ref(),
-            &live_ids,
             &deletable,
+            &active_media,
+            &fork_ids,
         )?;
         let finished = deletable
             .difference(&sweep.remaining)
@@ -130,11 +197,16 @@ impl State {
             .finish_asset_reclaims(&finished)
             .map_err(|error| Refusal::from_runtime(&error))?;
         for id in finished {
-            self.pending_asset_deletes.remove(&id);
             self.staging.finish_upload(&id);
         }
+        let orphan_refusal = crate::asset_gc::delete_orphan_blob_keys(
+            self.blobs.as_ref(),
+            &pending.orphan_keys,
+            &active_media,
+            &fork_ids,
+        );
         self.staging.resume_reset_clear()?;
-        sweep.refusal.map_or(Ok(()), Err)
+        sweep.refusal.or(orphan_refusal).map_or(Ok(reported), Err)
     }
 
     // @ref LLP 1006#2-authority-delivery-is-by-the-row-that-holds-it — asset
@@ -236,7 +308,6 @@ impl State {
             .discard_upload(&actor, id)
             .map_err(|error| Refusal::from_runtime(&error))?;
         if discarded {
-            self.pending_asset_deletes.insert(id.to_owned());
             // Receiving tombstones remain charged until the shared handle has
             // closed/unlinked staging, or the finalizer reports physical release.
             if self.staging.cancel_upload(id)?
@@ -251,6 +322,7 @@ impl State {
                     .mark_asset_failed(id)
                     .map_err(|error| Refusal::from_runtime(&error))?;
             }
+            self.sweep_asset_blobs()?;
         }
         Ok(json!({ "discarded": discarded }))
     }
@@ -377,6 +449,17 @@ fn arg_asset_maxima(kind: &ArgType, maxima: &mut (u64, u64)) {
     }
 }
 
+fn arg_contains_asset(kind: &ArgType) -> bool {
+    match kind {
+        ArgType::Image { .. } | ArgType::Video { .. } => true,
+        ArgType::Optional(inner) => arg_contains_asset(inner),
+        ArgType::List {
+            of: Some(inner), ..
+        } => arg_contains_asset(inner),
+        _ => false,
+    }
+}
+
 fn asset_type(message: impl Into<String>) -> Refusal {
     Refusal::new(
         "E_ASSET_TYPE",
@@ -467,7 +550,9 @@ mod tests {
             blobs,
             staging,
             media_jobs: Default::default(),
-            pending_asset_deletes: std::collections::BTreeSet::new(),
+            asset_reclaim_after: String::new(),
+            asset_blob_continuation: None,
+            asset_sweep_pending: None,
             next_asset_sweep: Instant::now() + ASSET_SWEEP_INTERVAL,
         }
     }
@@ -709,13 +794,16 @@ mod tests {
             self.inner.delete(key)
         }
 
-        fn enumerate(
+        fn enumerate_page(
             &self,
             prefix: &str,
+            continuation: Option<&str>,
+            limit: usize,
             visitor: &mut dyn FnMut(&str) -> Result<(), Refusal>,
-        ) -> Result<(), Refusal> {
+        ) -> Result<Option<String>, Refusal> {
             self.enumerations.fetch_add(1, Ordering::SeqCst);
-            self.inner.enumerate(prefix, visitor)
+            self.inner
+                .enumerate_page(prefix, continuation, limit, visitor)
         }
     }
 
@@ -866,11 +954,10 @@ mod tests {
             let served = response.try_recv();
             let stopped = state.stop.load(Ordering::SeqCst);
             let sibling_reclaimed = state.runtime().store().asset(&sibling).unwrap().is_none()
-                && state.blobs.get(&sibling, None).is_err()
-                && !state.pending_asset_deletes.contains(&sibling);
+                && state.blobs.get(&sibling, None).is_err();
             let retained = path.exists()
                 && state.blobs.get(id, None).is_ok()
-                && state.pending_asset_deletes.contains(id);
+                && state.runtime().store().asset(id).unwrap().is_some();
             let still_charged = state
                 .runtime()
                 .asset_staging_usage(&actor)
@@ -1119,7 +1206,7 @@ mod tests {
     }
 
     #[test]
-    fn reset_of_200_assets_performs_one_blob_enumeration() {
+    fn reset_of_200_assets_reclaims_in_bounded_continuation_pages() {
         let table = Table {
             columns: BTreeMap::from([
                 ("id".to_owned(), ColumnType::Id),
@@ -1239,7 +1326,14 @@ mod tests {
         let mut state = state_with_assets(root.clone(), runtime, project, generation, trait_store);
         let reset = state.reset(false).unwrap();
         assert_eq!(reset["assetIds"].as_array().unwrap().len(), 200);
-        assert_eq!(blobs.enumerations.load(Ordering::SeqCst), 1);
+        let mut turns = 1;
+        while !state.runtime().asset_ids().unwrap().is_empty() {
+            state.sweep_assets_now().unwrap();
+            turns += 1;
+            assert!(turns <= 8, "32-row pages must settle 200 rows in 7 turns");
+        }
+        assert_eq!(turns, 7);
+        assert_eq!(blobs.enumerations.load(Ordering::SeqCst), turns);
         assert!(state.runtime().asset_ids().unwrap().is_empty());
         drop(state);
         std::fs::remove_dir_all(root).unwrap();
