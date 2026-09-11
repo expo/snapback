@@ -7,6 +7,7 @@ import { subscribe } from "../src/internal.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { api, createClient } from "../dist/client.mjs";
+import { answerOffline } from "../dist/client-observed-test.mjs";
 import { RealOwnerHarness } from "./owner-harness.ts";
 
 // @ref LLP 1018#6-move-four-evolution-of-the-whole-application —
@@ -323,6 +324,37 @@ async function install(owner: RealOwnerHarness, cases: string, by = "sender", re
   return ready;
 }
 
+/** Hold selected complete owner frames after the server produced them but before the client can consume them. */
+function gateLiveResponse(response: Response, select: (delivery: any) => Promise<void>): Response {
+  assert.ok(response.body, "live response has a streaming body");
+  const reader = response.body.getReader(), decoder = new TextDecoder(), encoder = new TextEncoder();
+  let buffered = "", done = false;
+  const body = new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      while (true) {
+        const boundary = buffered.indexOf("\n\n");
+        if (boundary >= 0) {
+          const event = buffered.slice(0, boundary + 2); buffered = buffered.slice(boundary + 2);
+          const line = event.split("\n").find(value => value.startsWith("data: "));
+          if (line) {
+            const frame = JSON.parse(line.slice(6));
+            if (frame?.data) await select(frame.data);
+          }
+          controller.enqueue(encoder.encode(event)); return;
+        }
+        if (done) {
+          if (buffered) controller.enqueue(encoder.encode(buffered));
+          controller.close(); return;
+        }
+        const chunk = await reader.read(); done = chunk.done;
+        if (chunk.value) buffered += decoder.decode(chunk.value, { stream: !done });
+      }
+    },
+    cancel(reason) { return reader.cancel(reason); },
+  });
+  return new Response(body, { status: response.status, statusText: response.statusText, headers: response.headers });
+}
+
 // @ref LLP 1020#a8-acceptance — actual owners, durable carriers, and original intent bytes.
 test("two clients and cold carrier reopen preserve rows; an enum replay with a lost acknowledgment cannot be dismissed", { timeout: 60000 }, async t => {
   const { directory, source } = await fixture();
@@ -437,40 +469,125 @@ test("two clients and cold carrier reopen preserve rows; an enum replay with a l
 test("positional reads compile after a regroup, report it in log/status, and absent/hidden receipts do not invent completeness", { timeout: 60000 }, async t => {
   const { directory, source } = await fixture();
   const previousUrl = process.env.SNAPBACK_URL;
-  let owner: RealOwnerHarness | undefined, client: any;
+  let owner: RealOwnerHarness | undefined;
+  const clients: any[] = [], subscriptions: any[] = [];
+  const onlineLive = { armed: false, entered: Promise.withResolvers<any>(), release: Promise.withResolvers<void>() };
+  const onlineQuery = { armed: false, entered: Promise.withResolvers<any>(), release: Promise.withResolvers<void>() };
+  const onlineReset = { armed: false, entered: Promise.withResolvers<any>(), release: Promise.withResolvers<void>() };
+  const resumeReset = { armed: false, entered: Promise.withResolvers<any>(), release: Promise.withResolvers<void>() };
+  const resumeQuery = { armed: false, entered: Promise.withResolvers<any>(), release: Promise.withResolvers<void>() };
+  let predecessor: string | undefined;
+  const gatedJson = async (response: Response, gate: typeof onlineQuery) => {
+    const value = await response.clone().json();
+    if (gate.armed) { gate.armed = false; gate.entered.resolve(value); await gate.release.promise; }
+    return response;
+  };
   try {
     owner = await RealOwnerHarness.create({ forceOwned: true, fixture: source });
-    client = createClient({ url: owner.url, persona: "bob", offline: { store: fileRangeStore(join(directory, "bob")) } });
-    await client.ready;
-    assert.equal((await client.query(api.ops.count, { who: "dev:alice" })).data, 1);
-    // A client that held the predecessor generation across the regroup is the ticketed race
-    // (issues/20260910-snapback2-online-client-query-during-hot-regroup.md: the twin commits the
-    // successor's delivery against the held schema, online or on the resume after `offline()`).
-    // This test proves the positional reads on a client opened after the install; the reset path
-    // is the ticket's to prove.
-    await client.close();
+    const onlineFetch: typeof fetch = async (input, init) => {
+      const response = await fetch(input, init), path = new URL(String(input)).pathname;
+      if (path === "/api/live") return gateLiveResponse(response, async delivery => {
+        if (onlineLive.armed && delivery?.generation && delivery.generation !== predecessor) {
+          onlineLive.armed = false; onlineLive.entered.resolve(delivery); await onlineLive.release.promise;
+        }
+      });
+      if (path === "/api/query" && onlineQuery.armed) return gatedJson(response, onlineQuery);
+      if (path === "/api/resume" && onlineReset.armed) return gatedJson(response, onlineReset);
+      return response;
+    };
+    const resumeFetch: typeof fetch = async (input, init) => {
+      const response = await fetch(input, init), path = new URL(String(input)).pathname;
+      if (path === "/api/resume" && resumeReset.armed) return gatedJson(response, resumeReset);
+      if (path === "/api/query" && resumeQuery.armed) return gatedJson(response, resumeQuery);
+      return response;
+    };
+    const online: any = createClient({ url: owner.url, persona: "bob", fetch: onlineFetch,
+      offline: { store: fileRangeStore(join(directory, "bob-online")) } });
+    const resuming: any = createClient({ url: owner.url, persona: "bob", fetch: resumeFetch,
+      offline: { store: fileRangeStore(join(directory, "bob-resume")) } });
+    clients.push(online, resuming);
+    await Promise.all([online.ready, resuming.ready]);
+    for (const client of clients) assert.equal((await client.query(api.ops.count, { who: "dev:alice" })).data, 1);
+    predecessor = online.offlineRuntime.programGeneration;
+    assert.equal(resuming.offlineRuntime.programGeneration, predecessor);
+    const onlineEvents: any[] = [], resumeEvents: any[] = [];
+    const onlineSub = subscribe(online, api.ops.count, { who: "dev:alice" }, value => onlineEvents.push(value));
+    const resumeSub = subscribe(resuming, api.ops.count, { who: "dev:alice" }, value => resumeEvents.push(value));
+    subscriptions.push(onlineSub, resumeSub);
+    await Promise.all([
+      onlineSub.until((event: any) => event.live === true && event.data === 1, 5_000),
+      resumeSub.until((event: any) => event.live === true && event.data === 1, 5_000),
+    ]);
+    await resuming.offline();
+    onlineLive.armed = true;
     const after: any = await install(owner, "'text', 'image'", "recipient");
+    const blockedLive = await onlineLive.entered.promise;
+    assert.notEqual(blockedLive.generation, predecessor, "the held frame belongs to the installed successor");
+    assert.equal(online.offlineRuntime.programGeneration, predecessor, "the retained online client still holds the predecessor before the frame commits");
+    assert.equal(resuming.offlineRuntime.programGeneration, predecessor, "the offline client retains the predecessor before resume");
     cli(owner.root!, ["check"]);
     assert.deepEqual(after.successor.maintains, ["maintain counts: by sender → by recipient"]);
     const text = await readFile(join(owner.root!, ".snapback/log.jsonl"), "utf8");
     assert.ok(text.includes("maintain counts: by sender → by recipient"));
     assert.deepEqual(cli(owner.root!, ["dev", "--status"]).successor.maintains, after.successor.maintains);
-    client = createClient({ url: owner.url, persona: "bob", offline: { store: fileRangeStore(join(directory, "bob-after")) } });
-    await client.ready;
-    assert.equal((await client.query(api.ops.count, { who: "dev:alice" })).data, 0);
-    assert.equal((await client.query(api.ops.count, { who: "dev:bob" })).data, 1);
+
+    // The owner has produced both successor answers while the twin still owns
+    // the predecessor schema. Neither may be applied through its old bySender index.
+    onlineQuery.armed = true; onlineReset.armed = true;
+    const queried = online.query(api.ops.count, { who: "dev:alice" });
+    const blockedQuery = await onlineQuery.entered.promise;
+    assert.equal(blockedQuery.generation, blockedLive.generation);
+    assert.equal(online.offlineRuntime.programGeneration, predecessor);
+    onlineQuery.release.resolve();
+    assert.equal((await queried).data, 0, "the one-shot online read returns the successor answer");
+    const resetRefusal = await onlineReset.entered.promise;
+    assert.equal(resetRefusal.code, "E_OFFLINE_RESET", JSON.stringify(resetRefusal));
+    assert.equal(online.offlineRuntime.resetNeeded, true);
+    assert.equal((await answerOffline(online.offlineRuntime, "ops.count", { who: "dev:alice" }, error => error as Error)).state,
+      "hydrating", "superseded predecessor coverage is never served as exact");
+    onlineLive.release.resolve(); onlineReset.release.resolve();
+    const onlineSuccessor = await onlineSub.until((event: any) => event.live === true && event.state === "complete" && event.data === 0, 8_000);
+    assert.equal(onlineSuccessor.data, 0);
+    await until(async () => online.offlineRuntime, (runtime: any) => runtime.programGeneration !== predecessor && !runtime.resetNeeded,
+      "online successor coverage completion");
+
+    // The offline client sends predecessor facts. Hold the owner's reset
+    // refusal, then hold the fresh mounted answer during the atomic rebuild.
+    resumeReset.armed = true; resumeQuery.armed = true;
+    const resumed = resuming.online();
+    const resumeRefusal = await resumeReset.entered.promise;
+    assert.equal(resumeRefusal.code, "E_OFFLINE_RESET", JSON.stringify(resumeRefusal));
+    assert.equal(resuming.offlineRuntime.programGeneration, predecessor);
+    resumeReset.release.resolve();
+    const freshResume = await resumeQuery.entered.promise;
+    assert.equal(freshResume.generation, blockedLive.generation);
+    assert.notEqual(resuming.offlineRuntime.programGeneration, predecessor, "successor program is adopted before fresh coverage");
+    assert.equal(resuming.offlineRuntime.resetNeeded, true);
+    assert.equal((await answerOffline(resuming.offlineRuntime, "ops.count", { who: "dev:alice" }, error => error as Error)).state,
+      "hydrating", "the shared reset never exposes a partial predecessor/successor image");
+    resumeQuery.release.resolve(); await resumed;
+    assert.equal((await resuming.query(api.ops.count, { who: "dev:alice" })).data, 0);
+    assert.equal((await resuming.query(api.ops.count, { who: "dev:bob" })).data, 1);
+    await resumeSub.until((event: any) => event.live === true && event.state === "complete" && event.data === 0, 8_000);
+
     for (const [name, who] of [["count", "dev:alice"], ["hidden", "dev:alice"]]) {
-      const server: any = await client.query(api.ops[name], { who });
+      const server: any = await online.query(api.ops[name], { who });
       assert.equal(server.data, 0, `${name}: server typed zero: ${JSON.stringify(server)}`);
-      await client.online();
-      const replay = await client.offlineRuntime.evaluate(`ops.${name}`, { who });
+      await online.online();
+      const replay = await online.offlineRuntime.evaluate(`ops.${name}`, { who });
       t.diagnostic(`${name}: ${JSON.stringify({ server: server.state, replay })}`);
       assert.equal(server.state, "complete", `${name}: the server's typed zero is complete`);
       assert.equal(replay?.state, "partial", `${name}: receipt-only evaluation cannot mint zero authority`);
       assert.equal(replay?.reason, "never-held", `${name}: the group was never held, so no false completeness: ${JSON.stringify(replay)}`);
     }
+    assert.equal(onlineEvents.some(event => event.state === "refused" && /E_SCHEMA|E_OFFLINE_STATE/.test(event.code ?? "")), false);
+    assert.equal(resumeEvents.some(event => event.state === "refused" && /E_SCHEMA|E_OFFLINE_STATE/.test(event.code ?? "")), false);
   } finally {
-    await client?.close(); await owner?.close();
+    onlineLive.release.resolve(); onlineQuery.release.resolve(); onlineReset.release.resolve();
+    resumeReset.release.resolve(); resumeQuery.release.resolve();
+    for (const subscription of subscriptions) subscription.close();
+    for (const client of clients.reverse()) await client.close();
+    await owner?.close();
     if (previousUrl === undefined) delete process.env.SNAPBACK_URL; else process.env.SNAPBACK_URL = previousUrl;
     await rm(directory, { recursive: true, force: true });
   }
