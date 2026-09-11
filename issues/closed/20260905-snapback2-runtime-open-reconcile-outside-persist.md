@@ -1,6 +1,6 @@
 # snapback2: `Runtime::open` reconciles jobs outside the transaction that persists the generation
 
-**Status:** Open — current source still has the split transaction (2026-09-11)
+**Status:** Closed — generation persistence and job recovery are one transaction
 **Priority:** P3
 **Systems:** snapback2, snapback2-core (`registry.rs`, `store_jobs.rs`), jobs, schedules
 **Severity:** P3
@@ -81,3 +81,16 @@ still limits it to transient wrong administrative state.
 Next acceptance: one open-path transaction containing generation persistence, job
 reconciliation, and running reset, plus the requested reopen fixture proving the job is
 parked on open rather than on its first chunk. Retain the chunk-time guard.
+
+## Resolution
+
+`persist_generation_transaction` now reconciles timers and jobs, resets compatible
+`running` rows to `queued`, and writes generation metadata before the transaction commits.
+The hot successor and migration paths use the same helper; their duplicate reconciliation
+calls were removed. The chunk-time executable check remains unchanged.
+
+`snapback2-core/tests/jobs.rs::open_reconciles_jobs_with_the_generation_it_persists`
+models the old crash window by persisting the successor program generation beside a queued
+predecessor job, then proves reopening parks the row before a chunk runs.
+`failed_open_reconciliation_rolls_back_generation_metadata` corrupts a queued row so
+reconciliation fails and proves the predecessor program generation remains durable.

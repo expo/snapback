@@ -311,6 +311,68 @@ fn committed_cursor_survives_restart_without_reapplying_rows() {
     drop(reopened);
     std::fs::remove_file(path).unwrap();
 }
+
+#[test]
+fn open_reconciles_jobs_with_the_generation_it_persists() {
+    let path =
+        std::env::temp_dir().join(format!("j1b-open-reconcile-{}.sqlite", std::process::id()));
+    let old = generation(schema(), job(1));
+    let mut rt = Runtime::open(Store::open(&path).unwrap(), old).unwrap();
+    seed(&mut rt, &["01", "02"]);
+    let id = start(&mut rt);
+    let next = generation(schema(), job(2));
+    drop(rt);
+
+    // Model the old crash window: generation metadata reached disk, but the queued
+    // row still carries the predecessor executable. Opening the already-persisted
+    // generation must park it before the runtime can expose administrative state.
+    let mut store = Store::open(&path).unwrap();
+    store
+        .set_meta("program_generation", next.program_hash())
+        .unwrap();
+    drop(store);
+    let reopened = Runtime::open(Store::open(&path).unwrap(), next).unwrap();
+    let parked = reopened.job_record(&id).unwrap();
+    assert_eq!(parked.state, "parked");
+    assert_eq!(
+        parked.chunks, 0,
+        "no chunk was needed to discover the mismatch"
+    );
+    assert_eq!(parked.last_error.unwrap().code, "E_JOB_GENERATION");
+    drop(reopened);
+    std::fs::remove_file(path).unwrap();
+}
+
+#[test]
+fn failed_open_reconciliation_rolls_back_generation_metadata() {
+    let path = std::env::temp_dir().join(format!(
+        "j1b-open-reconcile-rollback-{}.sqlite",
+        std::process::id()
+    ));
+    let old = generation(schema(), job(1));
+    let old_program_generation = old.program_hash().to_owned();
+    let mut rt = Runtime::open(Store::open(&path).unwrap(), old).unwrap();
+    seed(&mut rt, &["01"]);
+    let id = start(&mut rt);
+    drop(rt);
+
+    let connection = rusqlite::Connection::open(&path).unwrap();
+    connection
+        .execute("UPDATE _jobs SET args='not-json' WHERE id=?1", [&id])
+        .unwrap();
+    drop(connection);
+    let next = generation(schema(), job(2));
+    assert!(Runtime::open(Store::open(&path).unwrap(), next).is_err());
+
+    let store = Store::open(&path).unwrap();
+    assert_eq!(
+        store.meta("program_generation").unwrap().as_deref(),
+        Some(old_program_generation.as_str()),
+        "a failed job reconciliation must not commit the new generation"
+    );
+    drop(store);
+    std::fs::remove_file(path).unwrap();
+}
 #[test]
 fn rejection_rolls_back_only_current_chunk_then_resume_and_terminal_cancel() {
     let mut rt = runtime(2);

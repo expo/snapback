@@ -1013,6 +1013,12 @@ writes, progress and `kind: job` commit. A refused chunk rolls back and parks
 in a separate transaction. Restart restores running rows to queued; succession
 binds the body and sweep index descriptor; reset clears jobs and their compiled
 plan cache. Enqueue, cancel and resume also have operator ledger receipts.
+The later open-path atomicity correction makes generation persistence, timer
+and job reconciliation, and the `running` → `queued` restart reset one
+transaction too. `open_reconciles_jobs_with_the_generation_it_persists` pins
+the crash-window reopen behavior, while
+`failed_open_reconciliation_rolls_back_generation_metadata` proves a failed
+reconciliation cannot expose the new generation.
 Core proof: `snapback2/crates/snapback2-core/tests/jobs.rs` (ten active tests:
 visiting, crash recovery, rollback/resume/cancel, body succession, certification,
 constraint rollback, ad hoc restart/reset, typed prefixes/index succession,
