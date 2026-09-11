@@ -36,3 +36,14 @@ The candidate record is the 2026-09-11T15:38:58.398Z append in
 `snapback2/metrics/loop.jsonl`; matched pristine runtime evidence is retained in
 `metrics/twin.jsonl`. Root's ignored raw logs and exact canonical measurement
 functions are under `/tmp/snapback2-four-plans-{measure,baseline-runtime,baseline-package-bytes}.*`.
+
+## One-time publication disposition — 2026-09-11
+
+For the subsequent Linux-capable release, the author explicitly answered:
+"Allow this release; retain size cleanup." The request disclosed the exact
+client/React/Expo closures, **145,189 / 155,056 / 158,589 gzip bytes**, and the
+unchanged **90,000-byte** complete-runtime ceiling. This is permission to
+publish that measured package-size trade for this release, subject to all
+remaining native/runtime/publication qualification. It does not reset an
+accepted baseline, change the normal check, authorize later growth, or close
+this cleanup ticket. The original measurements and red verdict remain intact.

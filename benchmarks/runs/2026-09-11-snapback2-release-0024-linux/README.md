@@ -74,9 +74,11 @@ the primary implementer owns existing-file integration and all Ibex commits.
 The latest main also contains an independent package-size issue. Its measured
 client/React/Expo closures are 145,189 / 155,056 / 158,589 gzip bytes; complete
 local runtime is 88,053 below the existing 90,000 ceiling. The earlier recovery
-2% exception does not automatically cover these later changes. A release-only
-size disposition was requested while native work continues. No allowance,
-baseline reset or publication is inferred from passing functional tests.
+2% exception does not automatically cover these later changes. The author
+explicitly approved the disclosed release-only size exception: "Allow this
+release; retain size cleanup." The existing checks, accepted baseline and
+cleanup ticket remain unchanged. This resolves only the package-size trade;
+native/runtime qualification and exact staged consumers still gate publication.
 
 The remainder records the initial attempt and its hold, not new qualification
 claims for the resumed candidate.
