@@ -1,6 +1,6 @@
 # Snapback2 restored inbox reports conflicting deliveries at the same sequence
 
-Status: Open
+Status: Closed — protocol behavior qualified in `c6f577bce` (2026-09-11)
 Date: 2026-09-06
 Scope: Snapback2 persistent client, delivery and query restoration
 
@@ -101,3 +101,22 @@ reset-owner wire pair. It proves typing, not that legitimate equivocation
 should be suppressed. Closure still requires the retained old-owner/new-owner
 equal-sequence pair through a current real durable carrier, preserving genuine
 disagreement, and a decision on database-instance identity.
+
+## Resolution and database-instance decision — 2026-09-11
+
+Commit `c6f577bce` exercises the retained reset-owner shape through the current
+public client and real durable file carrier: old bytes are opened cold, an
+equal-authority/equal-generation/equal-sequence replacement with different
+content is refused as `E_OFFLINE_DELIVERY` on resume and query, the snapshot
+publishes the same typed refusal, the old answer survives another cold open,
+and the queued outbox entry remains byte-for-byte present. The full
+`offline-public-state.test.ts` plus `twin.test.ts` run passed 218/218.
+
+The protocol decision is to preserve this as genuine equivocation. Replacing
+an owner database is a deployment transition: the owner must advance its
+program/deployment generation (or explicitly clear development clients).
+Adding a carrier-local database-instance escape hatch would let the same
+authority tuple silently discard conflicting retained evidence. The original
+published-0.0.8 session cannot be attributed without its missing envelope
+pair, but it leaves no unresolved product action: current resume typing is
+correct and the specified disagreement must not be suppressed.

@@ -1,6 +1,6 @@
 # Snapback 2 Expo carrier: do not copy two web byte-cache shortcuts
 
-**Status:** Open — reconciled against the landed Expo arm (2026-09-11)
+**Status:** Closed — implemented and qualified in `819dfb063` (2026-09-11)
 **Priority:** P2
 **Systems:** snapback2 client (`packages/snapback2/src/store/byte-cache.ts`, `range-store.ts`, the Expo carrier when it exists)
 **Date:** 2026-09-04
@@ -44,3 +44,20 @@ The Expo arm now exists, so this is no longer blocked. Current-source triage:
 Next acceptance: bound session-held bytes and width identity; add close/touch and
 read-vs-swap cases for both carriers; prove sibling revocation on each UI arm; and run
 the bearer pre-manifest custom-cursor case.
+
+## Resolution — 2026-09-11
+
+Commit `819dfb063` closes all five items. View-once session blobs now use exact
+`(assetId,width)` admission keys and the single `maxAssetBytes` device ceiling,
+with one oversize on-screen blob permitted. Reads and revoking swaps share the
+store queue on file, SQLite, and IndexedDB; the IndexedDB abort is awaited.
+Coalesced LRU touches flush on close, and close preserves a primary flush error
+plus a carrier-close error when both fail.
+
+Both React arms observe view-once admission revisions, so a sibling loses its
+source immediately. The bearer drain waits for the manifest when no restored
+program can name a custom cursor. Deterministic coverage is in
+`offline-bytes.test.ts`, `offline-view-once.test.ts`,
+`native-custody.test.ts`, and `offline-resume-tail.test.ts`; the combined focused
+run passed 205/205 after the teardown control was made to await client close,
+and the two UI files then passed 44/44 together.
