@@ -9,6 +9,39 @@ Clique actor has started. The earlier Mac artifacts, source commits, reviews
 and failed qualification attempts remain preserved; changed source requires
 fresh staging, not reuse of those old qualification receipts.
 
+Current final product candidate: Ibex
+`49fa9841212cf1fc119a3f8dcd246b1f9ab71ea8`, pinned by Snapback
+`5f115db401a41954f10dc3737e5b03872470a4eb`. The only executable change after
+the correction checkpoint below is `checked_time` truncation, plus its tests.
+Focused tests passed (PID2421391,20:36:09–20:36:12 UTC); full Linux Hermes
+passed481/0failed/13ignored across30 summaries (PID2424964,
+20:36:37–20:36:49 UTC). Snapback's unchanged75-test effects suite also passed
+at this pin (PID2439826,20:40:59–20:41:11 UTC). The
+[TimeClip source/process evidence](./ibex2-intl-49fa98412-evidence.tar.gz)
+has SHA-256 `e32aefb16d8ae0572a98031e4cfb1e11af1a4d62c7868a554f7ec9fa6ec63172`.
+Independent Sol and blind Grok addendum reviews are both READY; no required
+correction remains. Their unchanged responses are under
+`llp/reviews/1003-native-intl-timeclip-20260911.*.md`. Later-spec fractional
+second fields are not added merely to strengthen the optional positive test;
+the exact Rust999.9→999 assertion and negative public-path regressions cover
+the correction. Signed zero is not exposed by the formatter's public results.
+Final production artifact qualification is pending. No npm write has occurred.
+
+The broader correction-delta reviews are complete and preserved in
+`llp/reviews/1003-native-intl-20260911.r3.*.md`: Grok READY, Sol NOT READY
+solely for missing full option-alias canonicalization. Root accepts that
+technical gap but defers it beyond the bounded ASCII-case correction rather
+than treating it as a release blocker. Canonical calendar names work; aliases
+such as `islamicc` do not. This predates the reviewed correction delta and
+is not evidence of complete ES2020 conformance. Sol's verdict is not rewritten
+or represented as READY. The existing
+[Intl follow-up](../../../issues/20260911-snapback2-effect-intl-declarations-exceed-runtime.md)
+records alias behavior, the unchanged constructable String case wrappers,
+and a stronger nonconstructability test pattern suggested by Sol. No fourth
+whole-Intl review or new conformance program is started. Ibex's docs-only
+child `cafe2429280ee4b6dd309e397b3dac8715864dbd` makes the same limits explicit;
+its product source is identical to the pinned49fa revision.
+
 Reviewed correction checkpoint: Ibex
 `12dfbf3fd20fe0986768a3a5443972d38e69566c`, pinned by Snapback
 `1c940d58a93fb21f5be1037c6f0bfecb268c0364`. The exact correction passed

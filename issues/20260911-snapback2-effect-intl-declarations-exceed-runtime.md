@@ -76,6 +76,29 @@ The sparse Mac probe completed successfully; two supplementary probes in an
 older Mac debug CLI exited 139 and are retained, not used as positive evidence
 or attributed to the new implementation.
 
+### Remaining normalization and function-shape edges
+
+The Linux replacement ASCII-lowercases syntactically valid calendar/numbering
+options, but does not perform complete UTS35 option-alias canonicalization.
+For example, `calendar: "islamicc"` is treated as unsupported rather than
+as `"islamic-civil"`; `"ethiopic-amete-alem"` likewise does not select
+`"ethioaa"`. Use the canonical calendar name. With a requested Buddhist
+extension plus the unsupported alias, Buddhist formatting remains selected.
+This falls short of the selected 2020 ResolveLocale alias step, not merely a
+spelling difference in metadata. Sol's final correction review reports it as
+blocking; Grok calls it inherited/outside the bounded case-normalization
+delta. Root records the real gap here and defers full alias handling beyond
+this release, without claiming both reviewers returned READY or full Intl
+conformance. Source: [2020 ResolveLocale](https://402.ecma-international.org/7.0/#sec-resolvelocale).
+
+The unchanged Linux String locale-case wrappers remain ordinary constructable
+functions. Their normal calls and Unicode mapping work, but their built-in
+function shape is incomplete. The corrected nonconstructable callable claim
+applies to NumberFormat/DateTimeFormat methods, accessors and bound formatters,
+plus Number/BigInt/Date locale methods; it does not cover these String wrappers.
+Follow-up tests should check `[[Construct]]` by using a method as newTarget,
+so a body-level receiver-brand TypeError cannot masquerade as nonconstructability.
+
 ## Follow-up
 
 Reconcile each admitted Intl constructor/member with a compile-and-execute
