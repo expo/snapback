@@ -36,4 +36,4 @@ This disposition supersedes stale current-work claims above; historical observat
 
 Current grader-report.schema.json still admits assertionResults keys only through ^m[1-7]-a[0-9]{2}$ while M8 remains part of the instrument. This is a reporting-schema defect, not an M8 application failure.
 
-Source: benchmarks/tools/social-messenger/grader/grader-report.schema.json patternProperties. Correct it only in a versioned instrument revision, validate all declared assertion IDs and preserve frozen reports. No historical invalid report is reclassified as schema-valid.
+Source: benchmarks/tools/social-messenger/grader/grader-report.schema.json patternProperties. A fresh Node 24.18.0 control read this exact JSON and applied its patterns: `m7-a01: true`, `m8-a01: false`, `additionalProperties: false`. This is a pattern-admission control, not a complete report-validation run. Correct it only in a versioned instrument revision, validate all declared assertion IDs and preserve frozen reports. No historical invalid report is reclassified as schema-valid.

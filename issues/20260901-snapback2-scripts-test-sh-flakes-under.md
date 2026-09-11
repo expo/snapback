@@ -76,7 +76,7 @@ observations do not establish a common cause or reproduce the base commit.
 
 Two non-timing findings are distinguished: the offline guide's required reset
 endpoint wording was corrected, while the chat unsend replay value mismatch
-remains open in [its own ticket](20260907-snapback2-offline-replay-disagrees-after-chat-unsend.md).
+was tracked in [its own ticket](closed/20260907-snapback2-offline-replay-disagrees-after-chat-unsend.md), subsequently closed with its retained resolution.
 
 A package-only retry kept the script's file list and 10-second deadlines and
 limited concurrency to two files: 459 passed, three failed, six cancelled,
