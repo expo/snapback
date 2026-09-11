@@ -1,6 +1,6 @@
 # Snapback 2 scheduled check `web` is red
 
-**Status:** Open
+**Status:** Closed
 **Priority:** P2
 **Date:** 2026-09-11
 **Systems:** Snapback 2 scheduled checks (`snapback2/scripts/scheduled.mjs`), the React chat starter in real Chromium (`scripts/witness-web.mjs`)
@@ -37,3 +37,24 @@ No green run of this check is recorded on this host yet.
   `cd snapback2 && node scripts/witness-web.mjs && node scripts/witness-web.mjs --signup && node scripts/witness-web.mjs --offline-replay` pass. Each scheduled run
   refreshes **Last red** at most once a day or when the failure changes, and adds **Passed again**
   once the check passes.
+
+## Resolution — 2026-09-11
+
+**Status:** Closed. The scheduled run on this host is green at `93be9f236` and recorded
+**Passed again** itself.
+
+Both reds were stale assertions in the witness, not product regressions. Each counted a
+delivered page's receipt acknowledgement (`_delivery.<log>.ack`, LLP 1019 D5) as the send under
+test, so each failed only where the acknowledgement landed before the assertion — which is why
+the same commits passed on the machine they were written on.
+
+- `1d2b6d8d3` — `--offline-replay`: the readiness poll and both evidence assertions count queued
+  `messages.send` entries instead of `status.remaining`, which counts every queued entry.
+- `ffe490e38` — the shared-tabs step: the browser context listener records only `messages.send`
+  mutations, which is what all nine counts in that step are about.
+- `93be9f236` — the same class in the reloaded follower's count, found by auditing the file
+  afterwards rather than by waiting for a third red.
+
+Evidence: the scheduled run at `93be9f236` on the Office M1 MacBook Pro passed the default
+22-step run, `--signup` and `--offline-replay`; locally, two default runs, `--sessions`, and
+three `--offline-replay` runs passed.
