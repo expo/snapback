@@ -95,6 +95,9 @@ impl State {
             ));
         }
         let authority = self.resolve_authority(identity)?;
+        // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — epoch
+        // refusal intentionally precedes generation refusal. The client keeps
+        // the requested epoch through reset only under this owner ordering.
         if request.auth_epoch != authority.auth_epoch() {
             return Err(
                 Refusal::from_identity(&snapback2_core::IdentityError::Session)

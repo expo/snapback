@@ -138,9 +138,10 @@ export async function commitOffline(
   failure: (error: unknown) => Error,
   revision?: number,
   current?: () => boolean,
+  deliveryOrder?: number,
 ): Promise<boolean> {
   if (!runtime) return false;
-  try { return await runtime.commit(op, args, accepted, revision, current); }
+  try { return await runtime.commit(op, args, accepted, revision, current, deliveryOrder); }
   catch (error) { throw failure(error); }
 }
 
@@ -154,6 +155,7 @@ export async function decodeOfflineSubscription<Result>(options: {
   observe?(): Promise<void>;
   revision?: number;
   current?: () => boolean;
+  deliveryOrder?: number;
   superseded?(): void;
   revalidate?(): Promise<unknown>;
 }): Promise<LiveQueryDelivery<Result> | QueryRefusedDelivery> {
@@ -163,7 +165,8 @@ export async function decodeOfflineSubscription<Result>(options: {
     ? { ...wireQuery<Result>(accepted.result, "subscription delivery"), live: true as const }
     : wireSubscription<Result>(options.data);
   if (value().state !== "refused") {
-    const superseded = await commitOffline(options.runtime, options.op, options.args, accepted, options.failure, options.revision, options.current);
+    const superseded = await commitOffline(options.runtime, options.op, options.args, accepted, options.failure,
+      options.revision, options.current, options.deliveryOrder);
     if (superseded) options.superseded?.();
     if (!options.current || options.current()) await options.observe?.();
   }
@@ -432,6 +435,7 @@ export async function performOfflineResume<Authority>(options: {
     if (seeds.length === 0) throw resumeUnavailable("no query with known arguments can establish resume facts");
     for (const seed of seeds) {
       try {
+        const deliveryOrder = options.runtime.beginDelivery();
         const raw = await options.json("/api/query?receipt=1", {
           method: "POST", body: JSON.stringify({ op: seed.op, args: seed.args }), signal: options.signal,
         }, options.authority);
@@ -440,7 +444,7 @@ export async function performOfflineResume<Authority>(options: {
         check();
         const delivered = wireQuery(accepted.result);
         const superseded = await commitOffline(options.runtime, seed.op, seed.args, accepted, options.failure ?? ((error) => error as Error),
-          revision, () => !options.signal?.aborted);
+          revision, () => !options.signal?.aborted, deliveryOrder);
         check();
         if (seed.drain && !superseded && accepted.envelope && "next" in delivered
           && (delivered.next === null || typeof delivered.next === "string")) {
@@ -478,6 +482,7 @@ export async function performOfflineResume<Authority>(options: {
     return true;
   };
   let value: unknown;
+  const deliveryOrder = options.runtime.beginDelivery();
   try {
     const grant = await options.runtime.outbox.grant();
     check();
@@ -571,7 +576,8 @@ export async function performOfflineResume<Authority>(options: {
     throw options.shape("resume response.seq must be a non-negative safe integer");
   }
   try {
-    await options.runtime.commitMany(swaps, watermark, undefined, revision, () => !options.signal?.aborted, Number(response.seq));
+    await options.runtime.commitMany(swaps, watermark, undefined, revision,
+      () => !options.signal?.aborted, Number(response.seq), deliveryOrder);
   } catch (error) {
     throw options.failure ? options.failure(error) : error;
   }
@@ -678,6 +684,7 @@ export async function resumeClient(host: ResumeClient, authority: ClientAuthorit
     for (const [, item] of pending) {
       check();
       if (item.principal !== runtime.principal) continue;
+      const deliveryOrder = runtime.beginDelivery();
       const raw = await json("/api/query?receipt=1", {
         method: "POST", body: JSON.stringify({ op: item.op, args: runtime.serverArguments(item.op, item.args) }),
       });
@@ -687,7 +694,7 @@ export async function resumeClient(host: ResumeClient, authority: ClientAuthorit
       check();
       wireQuery(accepted.result);
       superseded = await commitOffline(runtime, item.op, item.args, accepted,
-        (error) => host.offlineRefusal(error), revision, () => !signal.aborted);
+        (error) => host.offlineRefusal(error), revision, () => !signal.aborted, deliveryOrder);
       check();
       if (superseded || revision !== runtime.coverageRevision) break;
     }

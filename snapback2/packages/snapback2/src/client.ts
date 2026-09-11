@@ -288,13 +288,15 @@ class Client implements SnapbackClient {
       try {
         const held = await this.offlineRuntime?.answer(op, transportArgs);
         const revision = this.offlineRuntime?.coverageRevision;
+        const deliveryOrder = this.offlineRuntime?.beginDelivery();
         const raw = await this.json(`/api/query?receipt=${this.offlineRuntime ? 1 : 0}${drain ? "&drain=1" : ""}`, {
           method: "POST",
           body: JSON.stringify(this.offlineRuntime && held?.validator ? { op, args: transportArgs, validator: held.validator } : { op, args: transportArgs }),
         }, authority);
         const accepted = await acceptOffline<Result>(this.offlineRuntime, op, transportArgs, raw, wireShape,
           () => this.json("/api/query?receipt=1", { method: "POST", body: JSON.stringify({ op, args: transportArgs }) }, authority));
-        const superseded = await commitOffline(this.offlineRuntime, op, transportArgs, accepted, (error) => this.offlineRefusal(error, "client.query.commit"), revision);
+        const superseded = await commitOffline(this.offlineRuntime, op, transportArgs, accepted,
+          (error) => this.offlineRefusal(error, "client.query.commit"), revision, undefined, deliveryOrder);
         const decoded = wireQuery<Result>(accepted.result);
         const result = this.offlineRuntime ? await this.offlineRuntime.withQueryItems(op, transportArgs, accepted, decoded) : decoded;
         this.validated(authority);
@@ -403,6 +405,7 @@ class Client implements SnapbackClient {
     let lastPair: { seq: number; data?: Result } | undefined;
     let connected = false;
     let revision: number | undefined;
+    let deliveryOrder: number | undefined;
     let authority: Authority | undefined;
     let subscription: Subscription<SubscriptionDelivery<Result>>;
     const finish = (value: LiveQueryDelivery<Result> | QueryRefusedDelivery) => {
@@ -421,6 +424,7 @@ class Client implements SnapbackClient {
         if (!drain) this.mounted.set(mountedKey, mountedRecord);
         this.scheduleSupersessionReset(authority);
         revision = this.offlineRuntime?.coverageRevision;
+        deliveryOrder = this.offlineRuntime?.beginDelivery();
         const held = await this.offlineRuntime?.answer(op, transportArgs);
         let path = `/api/subscribe?op=${encodeURIComponent(op)}&args=${encodeURIComponent(JSON.stringify(transportArgs))}`;
         if (this.offlineRuntime) path += "&receipt=1";
@@ -435,7 +439,7 @@ class Client implements SnapbackClient {
           runtime: this.offlineRuntime, op, args: frameArgs, data, shape: wireShape,
           revalidate: () => this.json("/api/query?receipt=1", { method: "POST", body: JSON.stringify({ op, args: frameArgs }) }, frameAuthority),
           failure: (error) => this.offlineRefusal(error),
-          revision: frameRevision, current,
+          revision: frameRevision, current, deliveryOrder,
           superseded: () => this.scheduleSupersessionReset(authority!, { op, args }),
           observe: this.createOptions.offlineReadObserver
             ? async () => this.createOptions.offlineReadObserver!(
@@ -1124,7 +1128,9 @@ class Client implements SnapbackClient {
   private abortSync(except?: AbortSignal | null): void {
     this.recoveryRevision += 1; this.recoveryReachable = false;
     blockedRecovery(this.recoveryHost);
-    if (this.resumeController?.signal !== except) { this.resumeController?.abort(); this.resumeController = undefined; this.resumeFlight = undefined; }
+    // Keep the flight slot occupied until the aborted run has actually settled;
+    // its own finish handler is the sole owner that clears the slot/controller.
+    if (this.resumeController?.signal !== except) this.resumeController?.abort();
     for (const controller of this.drainControllers) if (controller.signal !== except) controller.abort();
   }
 

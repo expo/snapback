@@ -207,6 +207,9 @@ export class OfflineRuntime {
   private readonly stopInputChanges?: () => void;
   /** Fences deliveries already in flight when coverage or principal is replaced. */
   coverageRevision = 0;
+  /** Request-start order keeps delayed predecessor responses behind successors. */
+  private deliveryClock = 0;
+  private supersessionOrder = 0;
 
   constructor(private readonly options: OfflineClientOptions) {
     this.store = options.store();
@@ -286,6 +289,9 @@ export class OfflineRuntime {
 
   /** A live delivery rotated past the held coverage; only the reset resume may clear it. */
   get resetNeeded(): boolean { return this.superseded !== undefined; }
+
+  /** Capture immediately before transport starts, not when its response arrives. */
+  beginDelivery(): number { return ++this.deliveryClock; }
 
   get needsDrainMetadata(): boolean { return !!this.held && Object.values(this.held.programs).some(op => op.drain === undefined); }
 
@@ -516,6 +522,7 @@ export class OfflineRuntime {
         if (this.partition !== principal) {
           this.facts = undefined;
           this.superseded = undefined;
+          this.supersessionOrder = 0;
           this.held = undefined;
           this.operations = {};
           this.drainVerdict = Promise.resolve({ stopped: false, remaining: 0 });
@@ -619,6 +626,7 @@ export class OfflineRuntime {
       this.partition = undefined;
       this.facts = undefined;
       this.superseded = undefined;
+      this.supersessionOrder = 0;
       this.held = undefined;
       this.sessionEpoch = undefined;
       this.bytes.bind(undefined);
@@ -689,12 +697,15 @@ export class OfflineRuntime {
         if (this.partition !== undefined) {
           const swap = { bounds, programs: programCustody(held) };
           await this.commitProgram(swap);
+          const persisted = Object.values(await this.store.outbox.programs())[0];
+          if (persisted) this.restoreProgram(persisted);
+          this.outbox.notify();
           throwIfAborted(signal);
         } else {
           this.pendingBounds = bounds;
           this.pendingProgram = held;
         }
-        if (held) this.restoreProgram(held);
+        if (this.partition === undefined && held) this.restoreProgram(held);
         this.outbox.notify();
       });
     });
@@ -740,8 +751,9 @@ export class OfflineRuntime {
     return { result, envelope };
   }
 
-  async commit(op: string, args: unknown, accepted: AcceptedDelivery<unknown>, revision = this.coverageRevision, current?: () => boolean): Promise<boolean> {
-    return this.commitMany([{ op, args, accepted }], undefined, undefined, revision, current);
+  async commit(op: string, args: unknown, accepted: AcceptedDelivery<unknown>, revision = this.coverageRevision,
+    current?: () => boolean, deliveryOrder = this.beginDelivery()): Promise<boolean> {
+    return this.commitMany([{ op, args, accepted }], undefined, undefined, revision, current, undefined, deliveryOrder);
   }
 
   async commitMany(
@@ -751,6 +763,7 @@ export class OfflineRuntime {
     revision?: number,
     current?: () => boolean,
     resumeSeq?: number,
+    deliveryOrder = this.beginDelivery(),
   ): Promise<boolean> {
     if (items.length === 0 && !watermark && !outbox && resumeSeq === undefined) return false;
     // An outbox write shares the ledger's tail (one critical section for every
@@ -768,6 +781,7 @@ export class OfflineRuntime {
       const tombstones: StoreTombstone[] = [];
       let nextFacts = this.facts;
       let superseded = this.superseded;
+      let supersessionOrder = this.supersessionOrder;
       let sawSupersession = false;
       for (const { op, args, accepted } of items) {
         const envelope = accepted.envelope;
@@ -781,9 +795,11 @@ export class OfflineRuntime {
           continue;
         }
         if (envelope) {
-          // The first authenticated delivery establishes session authority. A
+          // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — the
+          // first authenticated delivery establishes session authority. A
           // program reset keeps that epoch: the owner's 409 checked it before
-          // checking generation. A successor envelope cannot choose a new epoch.
+          // checking generation. Preserve that epoch-before-generation owner
+          // dependency: a successor envelope cannot choose a new epoch.
           if (this.sessionEpoch !== undefined && envelope.authority.authEpoch !== this.sessionEpoch) {
             throw new OfflineAuthorityError("delivery/session auth epoch mismatch");
           }
@@ -797,7 +813,10 @@ export class OfflineRuntime {
           // reset path drops the coverage and re-fetches the program.
           const received = programFacts(envelope, envelope.authority.authEpoch);
           if (nextFacts && !sameProgram(envelope, nextFacts)) {
-            superseded = received;
+            if (deliveryOrder >= supersessionOrder) {
+              superseded = received;
+              supersessionOrder = deliveryOrder;
+            }
             sawSupersession = true;
             continue;
           }
@@ -866,6 +885,7 @@ export class OfflineRuntime {
       this.facts = nextFacts;
       this.sessionEpoch ??= nextFacts?.authEpoch;
       this.superseded = superseded;
+      this.supersessionOrder = supersessionOrder;
       for (const item of [...deliveries, ...refreshes]) this.latestSeq = Math.max(this.latestSeq, item.seq);
       // A delivery or unchanged resume can clear a committed entry's predicted flag.
       this.outbox.notify();
@@ -968,18 +988,22 @@ export class OfflineRuntime {
   async resetCoverage(authEpoch?: number, signal?: AbortSignal): Promise<void> {
     // The fence's trust anchor belongs to the coverage being replaced.
     this.outbox.resetTrust();
-    if (this.partition !== undefined) await this.serial(async () => {
-      throwIfAborted(signal);
-      const epoch = authEpoch ?? this.sessionEpoch ?? this.facts?.authEpoch;
-      const facts = this.held && epoch !== undefined ? programFacts(this.held, epoch) : undefined;
-      // Keep a durable pending marker through the entire rebuild, including a
-      // crash after program adoption. Facts let a cold restart authenticate its
-      // resume even before any fresh query has committed.
-      const superseded = facts ?? this.superseded ?? this.facts;
-      await this.commitReset(facts, superseded);
-      this.coverageRevision++; this.facts = facts; this.superseded = superseded;
-      this.sessionEpoch = epoch;
-    });
+    if (this.partition !== undefined) {
+      const resetOrder = this.beginDelivery();
+      await this.serial(async () => {
+        throwIfAborted(signal);
+        const epoch = authEpoch ?? this.sessionEpoch ?? this.facts?.authEpoch;
+        const facts = this.held && epoch !== undefined ? programFacts(this.held, epoch) : undefined;
+        // Keep a durable pending marker through the entire rebuild, including a
+        // crash after program adoption. Facts let a cold restart authenticate its
+        // resume even before any fresh query has committed.
+        const superseded = facts ?? this.superseded ?? this.facts;
+        await this.commitReset(facts, superseded);
+        this.coverageRevision++; this.facts = facts; this.superseded = superseded;
+        this.supersessionOrder = resetOrder;
+        this.sessionEpoch = epoch;
+      });
+    }
   }
 
   /** Clear only the rebuild we completed, never a successor discovered during it. */
@@ -992,6 +1016,7 @@ export class OfflineRuntime {
         || !sameProgram(this.superseded, this.held)) return false;
       await this.store.commit({ superseded: null });
       this.superseded = undefined;
+      this.supersessionOrder = 0;
       return true;
     });
   }
@@ -1095,6 +1120,7 @@ export class OfflineRuntime {
     await this.commitReset(facts, superseded, { ...extra, ...(error.exhausted ? { factLimitReset: JSON.stringify([this.partition, facts]) } : {}) });
     this.outbox.resetTrust(); this.coverageRevision++;
     this.facts = facts; this.superseded = superseded;
+    this.supersessionOrder = this.beginDelivery();
   }
 
   private commitReset(facts: CoverageFacts | undefined, superseded: CoverageFacts | undefined, extra: StoreSwap = {}): Promise<void> {
@@ -1111,6 +1137,7 @@ export class OfflineRuntime {
   private async loadFacts(): Promise<void> {
     const metadata = await this.storeMetadata();
     this.superseded = metadata.superseded;
+    if (this.superseded) this.supersessionOrder = this.beginDelivery();
     if (metadata.facts) {
       this.facts = metadata.facts;
       this.sessionEpoch ??= metadata.facts.authEpoch;
