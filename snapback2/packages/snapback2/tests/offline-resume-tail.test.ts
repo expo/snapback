@@ -227,6 +227,42 @@ test("the returned-page cursor drives drain and resume, ahead of an auxiliary Cu
   }
 });
 
+test("a bearer drain with no restored principal waits for its custom-cursor manifest", async () => {
+  const root = await mkdtemp(join(tmpdir(), "snapback2-bearer-cursor-"));
+  const manifestReached = Promise.withResolvers<void>(), releaseManifest = Promise.withResolvers<void>();
+  const requests: any[] = [];
+  const client = createClient({ url: "http://bearer-cursor.test", token: "bearer", offline: { store: fileRangeStore(root) },
+    fetch: async (input, init) => {
+      const url = new URL(String(input));
+      if (url.pathname === "/api/auth/me") return Response.json({ viewer: "dev:alice", kind: "user", authEpoch: 7 });
+      if (url.pathname === "/api/manifest") {
+        manifestReached.resolve(); await releaseManifest.promise;
+        return afterManifest(url)!;
+      }
+      if (url.pathname === "/api/program") return metadataResponse(url)!;
+      if (url.pathname === "/api/resume") return Response.json({ seq: 0, generation, schemaHash,
+        authority: { principal: "dev:alice", authEpoch: 7 }, log: { unchanged: true }, mounted: [] });
+      if (url.pathname === "/api/query") {
+        const args = JSON.parse(String(init?.body)).args; requests.push(args);
+        assert.equal("c" in args, false); assert.equal(args.after, null);
+        return Response.json(envelope([], "8".repeat(64), 1));
+      }
+      if (url.pathname === "/api/subscribe") return sse(undefined, true);
+      throw new Error(`unexpected path ${url.pathname}`);
+    } });
+  const drain = subscribe(client, api.messages.inbox as any, { after: null }, () => undefined, { drain: true });
+  try {
+    await manifestReached.promise;
+    assert.deepEqual(requests, [], "no page is filed before the cursor contract arrives");
+    releaseManifest.resolve();
+    await drain.until(value => value.caughtUp === true, 2_000);
+    assert.deepEqual(requests, [{ after: null }]);
+  } finally {
+    releaseManifest.resolve(); drain.close(); await client.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 // @ref LLP 1012#6-reads-offline — an offline drain adopts the persisted watermark as its resume
 // position, but the view it settles on is the drained page chain: the tail after the watermark is
 // held for the resume, never shown in place of the inbox (the browser witness's cold start lost

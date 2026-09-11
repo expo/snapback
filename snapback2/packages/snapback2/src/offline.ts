@@ -667,6 +667,9 @@ export class OfflineRuntime {
   declaredCursorArg(op: string): string | undefined {
     return cursorArgument(this.held ? this.held.programs[op] : this.operations[op]);
   }
+  hasOperation(op: string): boolean {
+    return this.held?.programs[op] !== undefined || this.operations[op] !== undefined;
+  }
   cursorArg(op: string): string { return this.declaredCursorArg(op) ?? "c"; }
   serverArguments(op: string, args: unknown): unknown {
     return serverArguments(operationArgs(args, this.declaredCursorArg(op)), (this.held?.programs[op]?.ir as any)?.args ?? this.operations[op]?.args);

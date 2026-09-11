@@ -545,6 +545,7 @@ export class PersistentRangeStore implements RangeStore {
   private readonly inputListeners = new Set<() => void>();
   private partition?: PrincipalPartition;
   private tail: Promise<void> = Promise.resolve();
+  private readonly touchedBytes = new Set<string>();
 
   readonly outbox: OutboxStore = {
     deliveryAcks: async () => {
@@ -608,6 +609,7 @@ export class PersistentRangeStore implements RangeStore {
         await this.replace(this.state, bytes, loaded);
       }
       this.updates.reset(this.state, rawFingerprints ? loaded : undefined); this.referenceIndex = undefined;
+      this.touchedBytes.clear();
       // Normalizing a legacy fingerprint changes persisted content. Keep the
       // original baseline until the next successful swap writes those digests.
       this.persisted = rawFingerprints ? loaded : this.state;
@@ -629,6 +631,7 @@ export class PersistentRangeStore implements RangeStore {
       const next = { ...this.state, sealed };
       await this.replace(next, NO_BYTES, this.persisted);
       this.state = this.persisted = next;
+      this.touchedBytes.clear();
       this.updates.reset();
     });
   }
@@ -787,6 +790,7 @@ export class PersistentRangeStore implements RangeStore {
         const combinedInbox = compactedAliases.length ? { ...inbox, remove: [...(inbox?.remove ?? []), ...compactedAliases] } : inbox;
         this.updates.prepare(journal.changed);
         await this.replace(this.state, delta, undefined, journal.changed, combinedInbox);
+        this.touchedBytes.clear();
         for (const [table, count] of removed) console.info(JSON.stringify({ snapback2: "adopt", table, removed: count }));
         if (removedAcks) console.info("delivery acknowledgements removed: receipts removed");
       } catch (error) { journal.rollback(); this.referenceIndex = priorIndex; this.referenceSchema = priorSchema; throw error; }
@@ -805,7 +809,8 @@ export class PersistentRangeStore implements RangeStore {
 
   /** The cached rendition for an asset at a width; nothing when unheld, sealed, or the payload is gone. */
   async readBytes(assetId: string, width: number | null): Promise<{ bytes: Uint8Array; type: string } | undefined> {
-    return this.read(async () => {
+    return this.enqueue(async () => {
+      this.ensureOpen();
       if (this.state.sealed) return undefined;
       const key = byteKey(assetId, width);
       const entry = this.state.assets[key];
@@ -861,7 +866,7 @@ export class PersistentRangeStore implements RangeStore {
       let clock = this.state.clock;
       for (const key of keys) {
         const entry = assets[key];
-        if (entry) assets[key] = { ...entry, lastRead: ++clock };
+        if (entry) { assets[key] = { ...entry, lastRead: ++clock }; this.touchedBytes.add(key); }
       }
       this.state = { ...this.state, assets, clock };
       this.updates.dirty('assets', keys); this.updates.dirty('*', ['clock']);
@@ -870,13 +875,31 @@ export class PersistentRangeStore implements RangeStore {
 
   async close(): Promise<void> {
     await this.enqueue(async () => {
+      let primary: unknown;
+      try {
+        if (this.partition !== undefined && this.touchedBytes.size > 0) {
+          const changed: ChangedRecords = new Map([
+            ['assets', new Set(this.touchedBytes)],
+            ['*', new Set(['clock'])],
+          ]);
+          await this.replace(this.state, NO_BYTES, this.persisted, changed);
+          this.persisted = this.state;
+          this.touchedBytes.clear();
+        }
+      } catch (error) { primary = error; }
       this.release();
-      await this.backend.close();
+      try { await this.backend.close(); }
+      catch (error) {
+        if (primary !== undefined) throw new AggregateError([primary, error], 'byte touch flush and carrier close both failed');
+        throw error;
+      }
+      if (primary !== undefined) throw primary;
     });
   }
   private release(): void {
     this.partition = undefined; this.state = emptyState(); this.persisted = undefined;
     this.referenceIndex = undefined; this.referenceSchema = undefined; this.updates.reset();
+    this.touchedBytes.clear();
   }
   private applySwap(state: PersistedRangeState, swap: StoreSwap, bytes: ByteDelta) {
     const removed = new Map<string, number>();

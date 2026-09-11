@@ -238,7 +238,7 @@ test("the view-once session allowance obeys custody: a partition switch, a wipe,
     state.fill = 8;
     const afterSeal = await client.assetBlob(urlB, { viewing }).then(bytes).catch(() => "refused");
     assert.notDeepEqual(afterSeal, [7, 7, 7, 7], "the byte path never falls back to the sealed session's blob");
-    client.close();
+    await client.close();
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
@@ -297,6 +297,12 @@ test("blob: URLs are revoked and re-minted when the client identity or the parti
   const env = domEnvironment();
   const document = env.dom.window.document;
   let reactRoot: Root | undefined;
+  const providerClients = new Set<any>();
+  function TrackClient() {
+    const client = useSnapbackClient();
+    useEffect(() => { providerClients.add(client); }, [client]);
+    return null;
+  }
   try {
     // Part 1: a client identity change (persona swap) on a mounted image.
     let offlinePhase = false;
@@ -318,13 +324,16 @@ test("blob: URLs are revoked and re-minted when the client identity or the parti
     await seed.ready;
     await seed.query(api.messages.thread, THREAD_ARGS);
     await seed.assetBlob((await seed.assetUrl(photo(A) as any, { width: 240 }))!);
-    seed.close();
+    await seed.close();
     offlinePhase = true;
     const render = async (persona: string) => {
       await act(async () => {
         reactRoot!.render(React.createElement(
           SnapbackProvider, { url: "http://assets.test", persona, fetch, offline } as any,
-          React.createElement(AssetImage, { asset: photo(A) as any, alt: "photo" }),
+          React.createElement(React.Fragment, null,
+            React.createElement(TrackClient),
+            React.createElement(AssetImage, { asset: photo(A) as any, alt: "photo" }),
+          ),
         ));
       });
     };
@@ -343,6 +352,7 @@ test("blob: URLs are revoked and re-minted when the client identity or the parti
     reactRoot = undefined;
   } finally {
     if (reactRoot) await act(async () => reactRoot!.unmount());
+    await Promise.all([...providerClients].map(client => client.close()));
     env.restore();
     await rm(root, { recursive: true, force: true });
   }
@@ -360,7 +370,7 @@ test("blob: URLs are revoked and re-minted when the client identity or the parti
     await seed.auth.login({ email: "a@example.com", password: "pw" });
     await seed.query(api.messages.thread, THREAD_ARGS);
     await seed.assetBlob((await seed.assetUrl(photo(A) as any, { width: 240 }))!);
-    seed.close();
+    await seed.close();
     let client: any;
     function Grab() {
       const value = useSnapbackClient();
@@ -428,7 +438,7 @@ test("a viewed view-once row reads null on a fresh query, a conditional read, an
     const live = await subscription.until((delivery) => "data" in delivery, 2_000);
     assert.deepEqual(ids(live), ["m1", null], "a live frame hides it");
     subscription.close();
-    client.close();
+    await client.close();
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
@@ -527,6 +537,37 @@ test("web mounted image holds one viewing token; a second consumer and a remount
     await render("remount"); await settle(5);
     assert.equal(src("first"), null); assert.ok(env.revoked.includes(first!)); assert.equal(owner.state.assetFetches, 1);
   } finally { await act(async () => root.unmount()); await client.close(); env.restore(); await rm(directory, { recursive: true, force: true }); }
+});
+
+test("simultaneously mounted web siblings revoke the losing view-once consumer", async () => {
+  const directory = await tempRoot(); const owner = bearerServer(); const env = domEnvironment();
+  const releases: Array<() => void> = [];
+  const fetch = async (input: string | URL | Request, init?: RequestInit) => {
+    const url = new URL(String(input));
+    if (!url.pathname.startsWith("/api/asset/")) return owner.fetch(input, init);
+    await new Promise<void>(resolve => releases.push(resolve));
+    return owner.fetch(input, init);
+  };
+  const client = createClient({ url: "http://assets.test", token: "token-a", offlinePrincipal: "principal-a",
+    fetch, offline: { store: fileRangeStore(directory) } });
+  const root = createRoot(env.dom.window.document.getElementById("root")!);
+  const src = (alt: string) => env.dom.window.document.querySelector(`img[alt="${alt}"]`)?.getAttribute("src");
+  try {
+    await client.ready; await client.query(api.messages.thread, THREAD_ARGS);
+    await act(async () => root.render(React.createElement(SnapbackProvider, { client }, React.createElement(React.Fragment, null,
+      React.createElement(AssetImage, { asset: photo(B), alt: "left" }),
+      React.createElement(AssetImage, { asset: photo(B), alt: "right" })))));
+    assert.ok(await until(() => releases.length === 2), "both siblings began before either viewing was admitted");
+    releases.splice(0).forEach(resolve => resolve());
+    assert.ok(await until(() => Boolean(src("left")) !== Boolean(src("right"))));
+    assert.equal([src("left"), src("right")].filter(Boolean).length, 1);
+    assert.equal(await client.assetCache!.viewed(B), true);
+    assert.equal(owner.state.assetFetches, 2, "the race may move two responses but admits one mounted viewer");
+  } finally {
+    releases.splice(0).forEach(resolve => resolve());
+    await act(async () => root.unmount()); await client.close(); env.restore();
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 
