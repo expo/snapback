@@ -91,8 +91,10 @@ export class RealOwnerHarness {
     const external = process.env.SNAPBACK_URL;
     if (external && !options.forceOwned) return new RealOwnerHarness({ owned: false, url: external, mode: "external" });
 
-    const built = command(["cargo", "build", "-p", "snapback2"]);
-    assert.equal(built.status, 0, `cargo build failed\n${built.stdout}\n${built.stderr}`);
+    if (process.env.SNAPBACK2_TEST_BINARY_PREBUILT !== "1") {
+      const built = command(["cargo", "build", "-p", "snapback2"]);
+      assert.equal(built.status, 0, `cargo build failed\n${built.stdout}\n${built.stderr}`);
+    }
     const root = await mkdtemp(join(tmpdir(), "snapback2-client-owner-"));
     try {
       await cp(options.fixture ?? ((options.fullChat || options.withDeliveries) ? join(packageRoot, "templates/chat/snapback") : join(fixture, "snapback")), join(root, "snapback"), { recursive: true });
