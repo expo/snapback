@@ -17,3 +17,12 @@ mutation inspect(photo: image <=268435456):
 
 query get(rowId: media):
   return media[rowId]
+
+mutation keepVideo(video: video <=268435456):
+  row = insert clips { creator: viewer, video }
+  return { id: row.id, video }
+
+mutation releaseVideo(rowId: clips):
+  row = clips[rowId] ! else NOT_FOUND
+  delete clips[row]
+  return null
