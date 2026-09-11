@@ -282,3 +282,31 @@ and the reusable Air worktree was restored clean. The physical obligation is
 now narrowly blocked on an operator unlocking one attached phone, not on device
 discovery or build readiness. The ticket remains open for that measurement and
 root's final canonical-suite 60-second decision.
+
+## Disposition — 2026-09-11 canonical-suite closure
+
+**State: keep open only for operator-unlocked physical-phone evidence.** The
+final no-override `snapback2/scripts/test.sh` command at integrated commit
+`06559b7e3fad` exited zero in 53.92 seconds on the Silver M5 Max. Package
+tests passed 1,307/1,307; native passed 1,125 with four configured skips;
+compiler passed 302/302; evaluator delivery, visibility and corpus checks,
+doctests, prerequisite builds and the canonical-artifact comparison all
+passed. The log SHA-256 is
+`621d3087abb5c77feaec0cd3361699ace56cd5277af37a95f027ede628f145f3`.
+This discharges the canonical-suite obligation without substituting a focused
+run or raising a deadline.
+
+The attached Android workload is built and was installed successfully, and
+the paired iPhone is developer-enabled, but all three discovered phones last
+refused launch while awaiting post-boot strong authentication. The remaining
+acceptance is exactly one honest cold-build process-RSS and SQLite/storage
+witness on an operator-unlocked attached phone. No repository change can
+supply that credential boundary, so the ticket remains Open rather than
+waiving the measurement.
+
+A final fleet recheck at `2026-09-11T10:34:18Z` confirmed the same external
+boundary. The deduplicated iPhone 17 Pro Max remained online through the Air
+and Black hosts with `passcodeRequired=true`. Both Bones Android devices
+remained attached but reported `deviceLocked=1`,
+`strongAuthRequired=0x1`, and keyguard showing. No measurement was attempted
+against a locked phone and no resource value is inferred from availability.
