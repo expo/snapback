@@ -51,8 +51,17 @@ script, failed zero-byte preflight output and direct stream evidence remain
 under remote `preflight/`. No credential, model, frozen instrument, threshold
 or authentication setting changed. This follows the documented status
 command contract; its observed stream placement is local evidence, not an
-assertion about every CLI version.
-[Official CLI reference](https://learn.chatgpt.com/docs/developer-commands?surface=cli#codex-login)
+assertion about every CLI version. See the
+[official CLI reference](https://learn.chatgpt.com/docs/developer-commands?surface=cli#codex-login).
+
+The immutable [preparation and launch archive](./preparation-and-launch.tar.gz)
+has SHA-256 `5ce81cb9cf9c343a26de1799bb637294c1e1f5839f7953ddf8e7008dfeb5c8ba`.
+It includes generic runner sources, prompts, the170-file manifest, both auth
+parser versions and stream evidence, final preflight and actor-start metadata.
+Final prompt SHA-256:
+`9ea73ca9c85aa006c56798f38f492dcd1e395566e1abe41ec8944f1e04443488`;
+patched preflight:
+`d73562dc994169e26ac3a348335624ed9a2fad5ea8a89d53b664ffa025f61c1f`.
 
 ## Execution and evidence limits
 
