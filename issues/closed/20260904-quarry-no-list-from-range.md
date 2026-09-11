@@ -1,6 +1,6 @@
 # Quarry: a mutation cannot build a bounded list from a range read
 
-**Status:** Open
+**Status:** Resolved — deliberately deferred
 **Systems:** snapback2 compiler (`packages/compiler/src/quarry`), LLP 1010/1011 language record
 **Date:** 2026-09-04
 **Related:** LLP 1012 §3 implementation record
@@ -42,3 +42,14 @@ construction gap.
 static output cardinality, certificate/native/twin parity, diagnostics, and a
 guide example. Close as unwanted only by an explicit language ruling, or as
 implemented after those tests land.
+
+## Resolution — 2026-09-11
+
+The user delegated the remaining language choices for this queue. Accepted
+LLP 1001 now explicitly defers both page-to-list projection and positional
+list indexing. The motivating original-recipient fan-out no longer belongs in
+application data: LLP 1019's engine-derived delivery log preserves that
+custody. Neither syntax is required by the present loop/offline bars, so adding
+a second collection surface and its certificate/twin semantics would expand
+scope rather than fix a current defect. Reopen only with a concrete app need
+that funds the full acceptance above.

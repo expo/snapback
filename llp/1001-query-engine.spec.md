@@ -1144,6 +1144,13 @@ archetypes need it, but it interacts with visibility, retention, and the
 deferred `exclusion` constraint), `Duration`, `Set { of, max }`. Floats stay
 out (the survey's "why no floats" section is the ruling).
 
+Also deliberately deferred are positional list indexing and constructing a
+bounded scalar list by projecting a page. Bounded lists remain arguments,
+columns, literals, and fixed built-in results; authors can iterate them, but a
+page remains a page. The original-recipient use case is owned by the engine's
+derived `deliver` custody log (LLP 1019), so neither syntax is required by the
+current loop or offline bar.
+
 ### Pure builtins
 
 The public `words(text)` value function and `Builtin::Words` were retired in

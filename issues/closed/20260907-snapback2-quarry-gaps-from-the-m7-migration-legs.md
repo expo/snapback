@@ -1,5 +1,6 @@
 # snapback2: Quarry and guide gaps hit by the fresh-session M7 migration legs (list indexing, nested maintain in a page shape, `capped` vs "no row", destructive maintain regrouping, successor page)
 
+**Status:** Resolved — implemented items retained; surviving syntax explicitly deferred
 **Date:** 2026-09-07 · **Area:** Quarry language / successor migrations / guide · **Source:** Clique full run M7 legs, grok-snapback2 (`m7/final-report.md` gap list) and astra-snapback2 (`m7/final-report.md`)
 
 Both M7 legs went green (group polls plus a backfilled per-conversation message count, migrated
@@ -128,7 +129,7 @@ rewrite still needs `first 1` per chunk — test
 
 ## 2026-09-11 triage
 
-**Priority:** P3. **Disposition:** Open as a reconciled composite; no current M7
+**Priority:** P3. **Disposition:** Resolved as a reconciled composite; no current M7
 blocking defect was reproduced, but substantive language/policy scope remains.
 
 - Item 1 remains: current direct Quarry can iterate bounded values but has no
@@ -157,3 +158,14 @@ blocking defect was reproduced, but substantive language/policy scope remains.
 indexing/projection; obtain the author ruling for cap-equals-bound envelope
 state; separately adjudicate the app/client-arm items. Close this composite
 only when those surviving scopes are split or resolved.
+
+## Resolution — 2026-09-11
+
+The surviving language and policy choices are now explicit. LLP 1001 defers
+positional indexing and page-to-list projection; the obsolete motivating
+recipient list is owned by derived delivery custody. LLP 1020 A7 records the
+delegated no-exception ruling for cap-equals-bound, preserving capped state and
+absence authority. Items 2, 4, 5, and the bulk-job charge already have the
+named regressions above. Authorization-specific paginated-history and UI-arm
+coverage remain independently tracked by the custody/client tickets rather
+than keeping this compiler/evolution composite open.
