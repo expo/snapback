@@ -325,6 +325,39 @@ test("an obsolete queued grant-adoption callback cannot consume a newer session 
   } finally { await f.close(); }
 });
 
+test("same-principal open advances lifecycle and rolls back a deferred obsolete grant", async () => {
+  const f = await fixture();
+  try {
+    const runtime = f.client.offlineRuntime;
+    const before = runtime.outbox.generation;
+    const originalGrant = await runtime.outbox.grant();
+    const persisted = Promise.withResolvers<void>(), release = Promise.withResolvers<void>();
+    const commit = runtime.store.commit.bind(runtime.store);
+    const replacement = { id: engineId(9000), from: engineId(9000), count: 8192,
+      used: 0, mintedAt: Date.now(), expiresAt: Date.now() + 30 * DAY };
+    runtime.store.commit = async (swap: any) => {
+      await commit(swap);
+      if (swap.grants?.current === replacement.id) {
+        persisted.resolve();
+        await release.promise;
+      }
+    };
+    runtime.noteGrant({ grant: replacement }, "dev:alice");
+    const generation = runtime.outbox.generation;
+    const adoption = runtime.adoptPendingGrant(() => {
+      if (runtime.outbox.generation !== generation) throw new Error("obsolete lifecycle");
+    });
+    await persisted.promise;
+    const reopened = runtime.open("dev:alice", true);
+    assert.equal(runtime.outbox.generation, before + 1);
+    release.resolve();
+    await assert.rejects(adoption, /obsolete lifecycle/);
+    await reopened;
+    assert.equal((await runtime.outbox.grant())?.id, originalGrant?.id);
+    assert.equal((await runtime.store.outbox.grants()).some((grant: any) => grant.id === replacement.id), false);
+  } finally { await f.close(); }
+});
+
 test("reads recovering real transport never reissue a rejected mutation as a new intent", async () => {
   let mutations = 0, failRead = true;
   const f = await fixture({ fetch: owner => async (input, init) => {
