@@ -35,7 +35,7 @@ fi
 status=0
 rust_test_threads="${SNAPBACK_RUST_TEST_THREADS:-$(node -e 'process.stdout.write(String(Math.max(8, Math.min(32, require("node:os").availableParallelism()))))' 2>/dev/null || printf '8\n')}"
 # @ref LLP 1002#11-measured — bound owner-heavy test-file concurrency while preserving every original per-test deadline.
-package_test_threads="${SNAPBACK_PACKAGE_TEST_THREADS:-$(node -e 'process.stdout.write(String(Math.max(2, Math.min(8, require("node:os").availableParallelism()))))' 2>/dev/null || printf '2\n')}"
+package_test_threads="${SNAPBACK_PACKAGE_TEST_THREADS:-$(node -e 'process.stdout.write(String(Math.max(2, Math.min(6, require("node:os").availableParallelism()))))' 2>/dev/null || printf '2\n')}"
 nextest_bin="${SNAPBACK_CARGO_NEXTEST_BIN:-cargo-nextest}"
 nextest_config="$(pwd)/../.config/nextest.toml"
 
