@@ -1,6 +1,6 @@
 # Snapback2 silently drops authored argument formats
 
-Status: Open
+Status: Closed
 Date: 2026-09-06
 Scope: Quarry compiler and native/client recursive argument admission
 
@@ -52,4 +52,6 @@ and pre-body refusals. Packaged `guide types` says argument minimums and
 text refinements and refuses them before the body`, and the evaluator suite
 passed its native-v5 format/channel custody and recursive scalar admission
 checks. The maintained mixed-version raw-IR exclusion remains explicit, not
-unfinished ticket scope.
+unfinished ticket scope. The named compiler checks passed within a run that
+finished 297 passed / 1 failed (`JourneyEffects.provider` declaration
+mismatch); the complete compiler suite was not green.

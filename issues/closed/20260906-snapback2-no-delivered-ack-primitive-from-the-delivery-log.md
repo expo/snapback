@@ -1,5 +1,7 @@
 # snapback2: "delivered" receipts are an application table even though the delivery log already knows when a replica caught up
 
+**Status:** Closed — superseded by implemented, documented delivery acknowledgements
+
 **Date:** 2026-09-06 · **Area:** snapback2 engine / delivery log (`retain delivered-history`) · **Source:** Clique full run, grok-snapback2 (M3 diary "Missing capability", essay); astra-snapback2 built the same application table
 
 ## What happened
@@ -26,11 +28,20 @@ an application fact.
 
 ## Disposition — 2026-09-11
 
-**Priority:** P3. **State:** keep open for the explicit scope record, not as an
-assertion that a served watermark is a receipt. LLP 1019 requires durable
-client acknowledgements because server delivery is not proof a replica
-received an event. Real-browser `witness-web --sessions` showed committed
-`_delivery.deliveries.ack` intents through the ledger, confirming the
-cooperative primitive. That does not satisfy “for free/no client cooperation.”
-Close as obsolete only after the ruling is discoverable in the requested
-NOT-DOING/guide location (or a replica-observable capability is specified).
+**Priority:** Resolved. **State:** Closed, superseded by the implemented
+LLP 1019 design. A served watermark is not a receipt: server delivery alone
+cannot establish that a replica accepted the event and body. The receipt-enabled
+SDK supplies durable acknowledgements through ordinary certified writes; the
+engine-owned receipts table exposes received state and the chat template uses it.
+
+The ruling is already discoverable in
+`snapback2/packages/snapback2/guide/deliver.md` §Receipts: it distinguishes
+durably accepted body/event pages from cursors, metadata and dropped responses,
+and keeps seen/read state authored. A separate NOT-DOING entry is not a missing
+capability or a prerequisite to close the resolved app-authoring gap.
+
+Real-browser `witness-web --sessions` at `15c134d056` showed committed
+`_delivery.deliveries.ack` intents through the ledger. This confirms the
+implemented cooperative contract, not the original report's “for free/no
+client cooperation” premise. Ack retry/custody residuals remain in
+[the custody follow-up](../20260910-snapback2-custody-c2-review-residuals.md).

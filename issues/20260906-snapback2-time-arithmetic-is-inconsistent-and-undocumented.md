@@ -1,5 +1,7 @@
 # snapback2: Quarry time arithmetic is inconsistent (`0 + now` accepted, `now - at` refused) and day bucketing is not expressible
 
+**Status:** Open — language and guide repaired; requested server-bucket regression outstanding
+
 **Date:** 2026-09-06 · **Area:** Quarry language / guide (guide-gap) · **Source:** Clique full run, astra-snapback2 (run-log line 55, M8 diary) and grok-snapback2 (M1, M8 diary, essay)
 
 ## What happened
@@ -32,10 +34,11 @@ author no blessed way to do the one thing every app with a chart needs.
 
 wave 1 L2 typed `time − time` and the time rules on the grammar page (main 0f5e6d27a); L9's `divmod(time, int)` yields int so a UTC day bucket is `divmod(now, 86400000).quotient` (main, pending L9 landing). Open: whether `0 + now` should refuse; the side-by-side accepted/refused table on the grammar page.
 
-## 2026-09-11 triage and resolution
+## 2026-09-11 triage
 
-**Priority:** P2. **Disposition:** Closed; time arithmetic has one implemented
-typed rule and the packaged grammar documents it.
+**Priority:** P2. **Disposition:** Open, narrowed to the requested seven-day
+server-maintained regression. Time arithmetic has one implemented typed rule
+and the packaged grammar documents it.
 
 Commit `284cb0a25` plus review fix `7da7e0f6a` established: `time - time`
 returns int milliseconds; `time +/- int` and `int + time` return time;
@@ -48,5 +51,11 @@ and the epoch-bucketing form.
 **Verification:** the 2026-09-11 compiler suite passed `Quarry time difference
 and epoch divmod have integer parts`, `Quarry time arithmetic refuses undefined
 and absent operands with the rule`, and `Quarry divmod tuple binds once and
-preserves decimal and money parts`. The ticket's consistency, day bucketing,
-and documentation acceptance is satisfied.
+preserves decimal and money parts`. These named checks passed within the
+297-pass / 1-fail compiler run (`JourneyEffects.provider` declaration
+mismatch); the complete compiler suite was not green. They prove expression
+typing/evaluation, not the requested seven server-maintained UTC-day buckets.
+
+**Remaining acceptance:** retain a regression of that seven-day maintained
+Insights shape against a real owner. The language-rule and guide work is done;
+do not reopen the decided time semantics merely because this fixture is absent.

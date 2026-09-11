@@ -42,8 +42,11 @@ node --test packages/snapback2/tests/twin.test.ts
 ```
 
 That is package/corpus evidence, not native certification or the published
-reproduction. Original Insights also reads the viewer profile and computes a
-day bucket from `now`, then returns six maintained totals plus day0…day6
-count/like keys. Closure needs that multi-key, multi-maintain, profile-read,
-timed-query shape on a real owner and durable client, with pinned read time and
-cold reopen.
+reproduction. Closure needs the original pinned-clock repair qualified through
+a natively certified timed query and a real durable client, including reopen
+and the clock-authority/coverage controls already requested above.
+
+The later multi-key, multi-maintain Insights disagreement (profile read plus
+`now`-bucketed totals) is tracked by
+[the 0.0.21 findings](20260910-snapback2-clique-0021-findings.md). Requiring that
+entire app shape here would add acceptance scope to the narrower clock-input fix.

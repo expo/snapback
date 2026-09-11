@@ -1,6 +1,6 @@
 # snapback2: the compiler lowers arguments, locals, and loop bindings into one flat IR Variable namespace — runtime shadowing can contradict the certificate
 
-**Status:** Open
+**Status:** Closed
 **Systems:** snapback2, compiler, certificate
 **Severity:** P2
 **Author:** Claude Fable 5, directed by Charlie Cheever

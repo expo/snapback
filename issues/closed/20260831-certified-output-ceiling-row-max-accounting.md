@@ -1,5 +1,7 @@
 # Certified output ceiling accounts declared row maxima, not projected fields
 
+**Status:** Closed
+
 **Opened:** 2026-08-31 · **Systems:** snapback2 certificate, query planning, DX
 **Source:** first Clique diagnostic run (cold lane, packaged tarballs) — RUN-DIARY in the run artifacts.
 

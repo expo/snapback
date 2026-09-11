@@ -1,6 +1,6 @@
 # snapback2: a Bytes `exists` rule literal against a later-declared table is refused (incomplete two-pass typing)
 
-**Status:** Open
+**Status:** Closed
 **Systems:** snapback2, compiler
 **Severity:** P3
 **Author:** Claude Fable 5, directed by Charlie Cheever

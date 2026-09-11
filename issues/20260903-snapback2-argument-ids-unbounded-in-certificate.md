@@ -1,5 +1,7 @@
 # snapback2: argument ids are not length-bounded, so the certificate under-prices them
 
+**Status:** Open — implementation landed; served-program regression still unqualified
+
 **Opened:** 2026-09-03 (row-width lane, blind review, inherited hole)
 **Area:** `snapback2/crates/snapback2-core` (`argument_max` in `retention.rs`, argument validation in `engine/mod.rs`)
 
@@ -14,10 +16,11 @@ the honest fix: 144 is already the wire assumption everywhere.
 Pin: a program returning `{ id: args.id }` served with a 5,000-byte id is
 refused as input, and the certificate covers the accepted maximum.
 
-## 2026-09-11 triage and resolution
+## 2026-09-11 triage
 
-**Priority:** P1. **Disposition:** Closed; argument admission now enforces the
-same canonical identity ceiling used by the certificate.
+**Priority:** P2 (verification gap; original under-pricing was P1).
+**Disposition:** Open, narrowed to the requested served-program pin.
+Source now enforces the same canonical identity ceiling used by the certificate.
 
 Commit `799ba19a6` added `value.rs::validate_identities`: any `Value::Id` whose
 tagged canonical UTF-8 representation exceeds 144 bytes refuses `E_INPUT`,
@@ -33,5 +36,12 @@ declared table identity maximum.
 
 **Verification:** the 2026-09-11 evaluator suite passed, including its
 136-character `store.put` refusal and exact 144-byte `wideId` boundary. The
-accepted maximum remains covered and the reported 5,000-byte argument is now
-refused before execution.
+accepted evaluator boundary is covered. Native source also has direct
+`identity_fits` / `validate_arg_value` boundary checks in
+`engine/search_boundaries.rs`. Neither cited result is a fresh owner/served
+execution of the original `{ id: args.id }` program.
+
+**Remaining acceptance:** qualify the original served-program pin with a
+5,000-byte argument and the accepted canonical maximum, retaining its
+certificate/output bound. This is a missing verification result, not evidence
+that the implemented admission rule still accepts the oversized argument.

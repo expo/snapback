@@ -1,6 +1,6 @@
 # Snapback2 Quarry declared text minimum accepts empty API input
 
-Status: Open
+Status: Closed
 Date: 2026-09-06
 Scope: Snapback2 compiler / argument validation
 
@@ -52,4 +52,6 @@ minimums are enforced.
 suite passed `direct Quarry preserves recursive text refinements and refuses
 them before the body`; the evaluator suite passed its v5 recursive minimum
 checks. These cover scalar, nested list, query/mutation/job, and channel
-admission before side effects.
+admission before side effects. The named compiler checks passed within a run
+that finished 297 passed / 1 failed (`JourneyEffects.provider` declaration
+mismatch); the complete compiler suite was not green.

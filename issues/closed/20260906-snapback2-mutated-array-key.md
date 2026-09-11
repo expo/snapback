@@ -1,6 +1,6 @@
 # Snapback2 compiler silently truncates a mutated array key
 
-Status: Open
+Status: Closed
 Date: 2026-09-06
 Scope: private compiler lowering; public Quarry reachability not yet established
 
@@ -28,6 +28,10 @@ which has no `push`, mutable array alias, or helper-escape expression surface;
 `project.ts::lowerProject` refuses TypeScript data modules. The 2026-09-11
 compiler suite passed `Successor guide fill recipe is the compiled fixture and
 mutable keys refuse at check` plus the TypeScript-data refusal check.
+
+The named compiler checks passed within a run that finished 297 passed /
+1 failed (`JourneyEffects.provider` declaration mismatch); this is not a
+complete compiler-suite pass.
 
 The report's exact `const key = ['x']; key.push('y')` path is unreachable. A
 new public Quarry key-mutation or aliasing reproduction would be a new ticket.
