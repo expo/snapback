@@ -1,0 +1,32 @@
+{
+  "at": "2026-09-11T18:10:52.461Z",
+  "platformTags": {
+    "latest": "0.0.23"
+  },
+  "shimLatest": "0.0.23",
+  "shimOptionalDependencies": {
+    "snapback2-darwin-arm64": "0.0.23"
+  },
+  "artifacts": [
+    {
+      "version": "0.0.22",
+      "publishedAt": "2026-09-10T23:01:22.752Z",
+      "filename": "runs/followup-diagnostics-20260911/doctor-signed-release/snapback2-darwin-arm64-0.0.22.tgz",
+      "url": "https://registry.npmjs.org/snapback2-darwin-arm64/-/snapback2-darwin-arm64-0.0.22.tgz",
+      "bytes": 5126212,
+      "sha256": "2ca38753557d4b71fe04ced7435f4ede7c2c9646481713eabdb19109162ba890",
+      "integrity": "sha512-NfiKzyE7q+evzpNF4MhEQbz6nARjrNH+dokWm/sIhBSAx57oO2+YAfh38+vTxYeL3LpRIShVqfOikZUpEeQZUA==",
+      "integrityVerified": true
+    },
+    {
+      "version": "0.0.23",
+      "publishedAt": "2026-09-11T13:36:40.720Z",
+      "filename": "runs/followup-diagnostics-20260911/doctor-signed-release/snapback2-darwin-arm64-0.0.23.tgz",
+      "url": "https://registry.npmjs.org/snapback2-darwin-arm64/-/snapback2-darwin-arm64-0.0.23.tgz",
+      "bytes": 5135916,
+      "sha256": "97f3a746dc231945846e7f454a436badbfa3d95bd1d4e43f19048a9860650dfe",
+      "integrity": "sha512-VCnSaaH1uWTsNF0qNGnTwBCSn5vUBgc5ZZFwRwhVJeEPQX+spM7gKrgSoBw94lsPku5Qhnpz2E9lVGR+C8qnaQ==",
+      "integrityVerified": true
+    }
+  ]
+}

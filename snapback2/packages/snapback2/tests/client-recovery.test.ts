@@ -582,3 +582,87 @@ test("an offline follower keeps its durable work visible through writer takeover
     assert.equal(owner.executions.length, 0);
   } finally { detach(); await follower.close(); await writer.close(); }
 });
+
+// @ref LLP 1012#7-writes-offline — appending an online intent does not wait
+// for older transport; its own terminal result does not wait for newer work.
+test("online admission stays FIFO and resolves its own result while newer replay waits", async () => {
+  const older = Promise.withResolvers<void>(), later = Promise.withResolvers<void>();
+  const laterStarted = Promise.withResolvers<void>();
+  let firstOlder = true;
+  const f = await fixture({ facts: true, fetch: owner => async (input, init) => {
+    if (new URL(String(input)).pathname === "/api/mutation") {
+      const body = JSON.parse(String(init?.body)).args?.body;
+      if (body === "older") {
+        if (firstOlder) { firstOlder = false; throw new TypeError("lost connection before admission"); }
+        await older.promise;
+      }
+      if (body === "later") { laterStarted.resolve(); await later.promise; }
+    }
+    return owner.fetch(input, init);
+  } });
+  const pending: Promise<unknown>[] = [];
+  try {
+    assert.equal((await f.client.mutation(api.messages.send, args("older"))).state, "queued");
+    const own = f.client.mutation(api.messages.send, args("foreground")); pending.push(own);
+    await until(async () => (await f.client.outbox.entries()).some((entry: any) => entry.args.body === "foreground"));
+    assert.equal(f.owner.executions.length, 0, "foreground is durable without overtaking older transport");
+    const following = f.client.mutation(api.messages.send, args("later")); pending.push(following);
+    await until(async () => (await f.client.outbox.entries()).some((entry: any) => entry.args.body === "later"));
+    older.resolve();
+    let observed: any;
+    void own.then((result: any) => { observed = result; });
+    await until(() => observed !== undefined);
+    assert.equal(observed.state, "committed", "own terminal does not wait for later replay");
+    await laterStarted.promise;
+    assert.deepEqual(f.owner.executions.map(entry => (entry.args as any).body), ["older", "foreground"]);
+    assert.equal((await f.client.outbox.entries()).find((entry: any) => entry.args.body === "later").state, "queued");
+    later.resolve();
+    assert.equal((await following).state, "committed");
+    assert.deepEqual(f.owner.executions.map(entry => (entry.args as any).body), ["older", "foreground", "later"]);
+  } finally { older.resolve(); later.resolve(); await Promise.allSettled(pending); await f.close(); }
+});
+
+// @ref LLP 1012#7-writes-offline — the owner's commit is not a local
+// settlement when a coverage change causes the queued atomic swap to skip.
+test("an online result stays queued when coverage supersedes its settlement swap", async () => {
+  const f = await fixture({ facts: true });
+  const runtime = f.client.offlineRuntime;
+  const commit = runtime.commitMany.bind(runtime);
+  let skipped = false;
+  runtime.commitMany = async (...values: any[]) => {
+    if (!skipped && values[2]?.put?.some((entry: any) => entry.state === "committed")) {
+      skipped = true; runtime.coverageRevision++;
+    }
+    return commit(...values);
+  };
+  try {
+    const result = await f.client.mutation(api.messages.send, args("superseded settlement"));
+    assert.equal(skipped, true);
+    assert.equal(f.owner.executions.length, 1, "the owner executed before the local coverage changed");
+    assert.equal((await f.client.outbox.entries())[0].state, "queued", "the real commitMany guard skipped its durable swap");
+    assert.equal(result.state, "queued", "the terminal waiter cannot invent local settlement");
+    runtime.commitMany = commit;
+    await f.client.outbox.drain();
+    assert.equal((await f.client.outbox.entries())[0].state, "committed");
+    assert.equal(f.owner.executions.length, 1, "same admitted intent replays without re-execution");
+  } finally { runtime.commitMany = commit; await f.close(); }
+});
+
+for (const family of ["input", "schema"]) test(`an older ${family} refusal keeps a new admitted send queued`, async () => {
+  const f = await fixture({ facts: true, fetch: owner => async (input, init) => {
+    if (new URL(String(input)).pathname === "/api/mutation" && JSON.parse(String(init?.body)).args?.body === "older") {
+      return new Response(JSON.stringify({ code: family === "input" ? "E_INPUT" : "E_SCHEMA", family,
+        message: "older intent refused", guide: "offline" }), { status: 400, headers: { "content-type": "application/json" } });
+    }
+    return owner.fetch(input, init);
+  } });
+  try {
+    assert.equal((await f.client.mutation(api.messages.send, args("older"))).state, "rejected");
+    const own = await f.client.mutation(api.messages.send, args("newer"));
+    assert.equal(own.state, "queued");
+    const entries = await f.client.outbox.entries();
+    assert.deepEqual(entries.map((entry: any) => entry.args.body), ["older", "newer"]);
+    assert.equal(entries[1].refusal, undefined, "older refusal is not attributed to the newer send");
+    assert.equal(f.owner.executions.length, 0);
+  } finally { await f.close(); }
+});

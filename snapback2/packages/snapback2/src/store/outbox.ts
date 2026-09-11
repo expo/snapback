@@ -303,9 +303,8 @@ export class OutboxLedger {
 
   async pendingAcknowledgements() {
     const batches: {op: string; args: {events: string[]}; issuedSeq: number}[] = [];
-    const acks = await this.store.outbox.deliveryAcks?.();
-    for (const [key, [seq, intent]] of Object.entries(acks ?? {})) {
-      if (intent) continue;
+    const acks = await this.store.outbox.pendingDeliveryAcks?.();
+    for (const [key, seq] of Object.entries(acks ?? {})) {
       const [log, event] = key.split('\0'), op = `_delivery.${log}.ack`;
       let batch = batches.find(b => b.op === op && b.args.events.length < 50);
       if (!batch) batches.push(batch = {op, args:{events:[]}, issuedSeq:seq});

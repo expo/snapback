@@ -1,0 +1,190 @@
+{
+  "sourceCommit": "b3b063b4e2132c64ec90ef8e636052ef13b0dfe8",
+  "toolchain": {
+    "node": "v24.18.0",
+    "esbuild": "0.25.9",
+    "gzipLevel": 9
+  },
+  "archives": {
+    "current": {
+      "sourceFileCount": 1134,
+      "sourceFileManifestSha256": "82f90ada990a2604ce6aaac8a103de3a3d06b81657b2bd5ba40d1fe650e6903b",
+      "artifacts": {
+        "build.log": "4bfc127786c8e37d90669903a2e284b87d3b2c656babe7d78003191a458b629c",
+        "runtime-metafile.json": "23fd4131a36b5dc03b3fe72045725299ebeef0ba6efbbcb042cfd8224d6a5868",
+        "runtime.mjs": "c81a564195b00a079b0530a0fe7446aedc2efd281eca3013ce44587a500940e9",
+        "snapback2/packages/snapback2/dist/client-observed-test.mjs": "86de42f24fb127a86b80188ec15e60e4889992ec077bd8df9e7e603c861fe4a9",
+        "snapback2/packages/snapback2/dist/client-observed-test.mjs.map": "36e73f878b2ed89d63bfd9bfb4a6cb7cef1e0ba05577c425779beb1e956bc5ab",
+        "snapback2/packages/snapback2/dist/client-runtime.mjs": "7134ae9946e3fd7a3f0a73bd6c73ecaecb25d455e226c9119ecf3cc8c84bb86e",
+        "snapback2/packages/snapback2/dist/client-runtime.mjs.map": "c0698640008bb9c0a4d13f34b2126d70d063ec4de8b535848164acc016fb9a98",
+        "snapback2/packages/snapback2/dist/client.mjs": "ec31ea8bb6e53a4be68c0cad6b2e4b2cfaadf33812ffd97e8c8236a20978b7fd",
+        "snapback2/packages/snapback2/dist/client.mjs.map": "35dc2fecd893bc32d820ced47bf6a489cc78009898307f7a5ddbbddf26adb6e6",
+        "snapback2/packages/snapback2/dist/compiler-core.mjs": "ae432f5c70744110b305409aa2a60e9576f0d8c3abced2387ef58e1f555be82e",
+        "snapback2/packages/snapback2/dist/compiler-core.mjs.map": "100e00da4ca4ff29905e7ea382de3c43c41c151aeb58c249836e04deba6becfb",
+        "snapback2/packages/snapback2/dist/compiler.mjs": "9c93d2adc425eab14d977a2a8b0d1228a0a5c8c27c4e59bc889efe9863490a78",
+        "snapback2/packages/snapback2/dist/compiler.mjs.map": "1df52e541d9aafff1b44417552d30833f20da3f5f28bd72e09b57fa024f23ec7",
+        "snapback2/packages/snapback2/dist/expo.mjs": "8ebd3deadc9abf35261384af12e64de6379965adef38d7914afcb176643f24af",
+        "snapback2/packages/snapback2/dist/expo.mjs.map": "88e7dec9b4c7bd9aae65a1cb139a9c46b1ca74afc6f2b1c91ef95ea7c1f4d146",
+        "snapback2/packages/snapback2/dist/image-runtime.mjs": "4636bf68b911b1616e44dbb6977b76cc43f9983d4872e7fde1a50645d0296b27",
+        "snapback2/packages/snapback2/dist/image-runtime.mjs.map": "f6f1aef9ee6786b807f4f1e258001bd0049bf447e2632b5d51544fdf34c85699",
+        "snapback2/packages/snapback2/dist/index.mjs": "e832f383edbf8acf62ee52b90cfee99de04ca5e2d86963ccc7a9f7ae1e3c752d",
+        "snapback2/packages/snapback2/dist/index.mjs.map": "3dc180ff0690b875a20a94043b93d91705d6e76eec6f904ef908e9a0cb8e63cc",
+        "snapback2/packages/snapback2/dist/internal.mjs": "5d86f2306cf314ce904e84f7125e5aa667440d198b48e5bf5998b1a0ad8ce625",
+        "snapback2/packages/snapback2/dist/internal.mjs.map": "11ba9f042ad6f144269647f92f6c8e977f221cf2112871fbfa1f3bc2b7f32e80",
+        "snapback2/packages/snapback2/dist/react-core.mjs": "5e8d96da7c6f15a343928618ac4e910f7ee50207de2aec1749c4bd559f8b2369",
+        "snapback2/packages/snapback2/dist/react-core.mjs.map": "fe63d0aa1a01810bb76b338e184e8a45c3dd2f1baa974c02e50025a72083bc9b",
+        "snapback2/packages/snapback2/dist/react-native.mjs": "e153e1a4a2c225bc381c955886f7032f63bb903d5f75c4799482e675587e832c",
+        "snapback2/packages/snapback2/dist/react-native.mjs.map": "29f898c5165f6748a9953ea07df105aa4b9461585a25bc8496962ea5b2d515cc",
+        "snapback2/packages/snapback2/dist/react.mjs": "7e9b9f646eb093e17882fb634667660e9013586f064f72d94ec8babb87126d53",
+        "snapback2/packages/snapback2/dist/react.mjs.map": "20e3e360249e357b5bc362f74eaac488ea28cde5636b1a683cd7a692862614da",
+        "snapback2/packages/snapback2/dist/sqlite-test.mjs": "6a8f53dd39522447183037bd9a311f8eddb2cfe0eb247270af2e0399ff2ad247",
+        "snapback2/packages/snapback2/dist/sqlite-test.mjs.map": "b5d20ce57b039e4cab4a0f46cf5c4fc76b0e918fe505939c007c7ee532f37847",
+        "snapback2/packages/snapback2/dist/test-runner.mjs": "e51e085aa0c72a3e528efbabf333b0b5bba706579a9c15a38b80ecaa498101ca",
+        "snapback2/packages/snapback2/dist/test-runner.mjs.map": "8a57accf370c3cf5c95d99a7b8ad3f7fb890175c2903c0d215d73bb689da95f4",
+        "snapback2/packages/snapback2/dist/test.mjs": "96c13b14a71f3843f1b5a032d0a51d08099baa93d7b60b4b8de60444dc06b32b",
+        "snapback2/packages/snapback2/dist/test.mjs.map": "8a57accf370c3cf5c95d99a7b8ad3f7fb890175c2903c0d215d73bb689da95f4",
+        "snapback2/packages/snapback2/dist/witness-test.mjs": "477e3593305b5ee23d9332b2089d1a72c4834f5f1152e92dd0ea3780f743633c",
+        "snapback2/packages/snapback2/dist/witness-test.mjs.map": "8eecc827946793a8107973a8f2a1f8dde7f3f88ba0eadf5df351b5ecc08f995d"
+      }
+    },
+    "experiment-value-hash": {
+      "sourceFileCount": 1134,
+      "sourceFileManifestSha256": "c04d0cffb83e30a0f5c4da3d94800c97d4495077a59fccb134bfd2a8ef688fef",
+      "artifacts": {
+        "build.log": "422b98798e18801fe24633b79b489fc2d18247407ed8edc904fde349362a95c9",
+        "runtime-metafile.json": "2e4828b9b12ea8c5accbcf0ab660c3902f9e51ff28e1ccf1c3fc1836b6f67128",
+        "runtime.mjs": "c81a564195b00a079b0530a0fe7446aedc2efd281eca3013ce44587a500940e9",
+        "snapback2/packages/snapback2/dist/client-observed-test.mjs": "38b5103af8a09a80a4015a6df0f86e553643246a92eaad2ce304adcf4e1dbb46",
+        "snapback2/packages/snapback2/dist/client-observed-test.mjs.map": "49e22ed1a383b5359277b0b3dcc3e2ade0a47072fcb769d9db3b55010e688623",
+        "snapback2/packages/snapback2/dist/client-runtime.mjs": "6a9e976a8556527b0f80baa2663433585b820871c02bb443db844a1f47f6f1a3",
+        "snapback2/packages/snapback2/dist/client-runtime.mjs.map": "602e5e4dad827c34937ce613a71018c291618c89df045407641b4500ab9a2f6b",
+        "snapback2/packages/snapback2/dist/client.mjs": "cc6e709ca23ef888c239a4dd5839881a8b441a2b31aef7f158c3218674e5953d",
+        "snapback2/packages/snapback2/dist/client.mjs.map": "35dc2fecd893bc32d820ced47bf6a489cc78009898307f7a5ddbbddf26adb6e6",
+        "snapback2/packages/snapback2/dist/compiler-core.mjs": "ae432f5c70744110b305409aa2a60e9576f0d8c3abced2387ef58e1f555be82e",
+        "snapback2/packages/snapback2/dist/compiler-core.mjs.map": "100e00da4ca4ff29905e7ea382de3c43c41c151aeb58c249836e04deba6becfb",
+        "snapback2/packages/snapback2/dist/compiler.mjs": "9c93d2adc425eab14d977a2a8b0d1228a0a5c8c27c4e59bc889efe9863490a78",
+        "snapback2/packages/snapback2/dist/compiler.mjs.map": "1df52e541d9aafff1b44417552d30833f20da3f5f28bd72e09b57fa024f23ec7",
+        "snapback2/packages/snapback2/dist/expo.mjs": "4d4bd51afb26022cb180f0f1ef77ce86c108b796648e2f9df04d229284944889",
+        "snapback2/packages/snapback2/dist/expo.mjs.map": "5d59ec94ee8542ec0e8c009b3c6f772f60e7e6678ecdb9acae9ffb0fcd46ae61",
+        "snapback2/packages/snapback2/dist/image-runtime.mjs": "8878674ab9ffc01d5868684611e7e5abbd3d5fbfb141f23fb344c6b0532bf4f1",
+        "snapback2/packages/snapback2/dist/image-runtime.mjs.map": "17bf33ad84ba67892dc21bd96b3b3768838f4b1061aa9b95044349964eb1f497",
+        "snapback2/packages/snapback2/dist/index.mjs": "10307dbb20617536c2ee050f0e84cfc13c5833515247febd01694e52d8794f44",
+        "snapback2/packages/snapback2/dist/index.mjs.map": "8c75ca9d84d9dd635888f9251e1763d35edb303fb898aad532e5d475606aeff3",
+        "snapback2/packages/snapback2/dist/internal.mjs": "0081b29817f88a87418c21847902fc68cfc58632622388bf32ed27ed83e080a9",
+        "snapback2/packages/snapback2/dist/internal.mjs.map": "6fbf488bd94b0557b270b6e941f5a4a11cce16f7062e2dfe11ae725c1fb26c24",
+        "snapback2/packages/snapback2/dist/react-core.mjs": "87e7ab9aac06747097502aac250ea039931a037fc8c5a6d2bb8fcdf0c6153b61",
+        "snapback2/packages/snapback2/dist/react-core.mjs.map": "4e8bf5797f9d04c4f33917a45cb63c0ba0fab165c73bae0586b13b2a0cb54eb6",
+        "snapback2/packages/snapback2/dist/react-native.mjs": "c29d10eea58bb2300ff95a14046ac049ea1ae4dff0935af34901a98b7bc596ac",
+        "snapback2/packages/snapback2/dist/react-native.mjs.map": "5c3b6b4ee0c75eb81de181b4915ccd92db0baad8e3a9d14dab48d1e62988bc9e",
+        "snapback2/packages/snapback2/dist/react.mjs": "30cd30c672c4ddb5c2f758307d2fbd93bc344d275dfab49862c2d39f75762752",
+        "snapback2/packages/snapback2/dist/react.mjs.map": "9d9d0b7c47915ac5ed9f4acfd6764acab931e27e667b39ac0d7f521e5b3c55f7",
+        "snapback2/packages/snapback2/dist/sqlite-test.mjs": "492d73f441c8478392a0dcaaefff7e0c99dae22192f52de2fb1a8c81051fb537",
+        "snapback2/packages/snapback2/dist/sqlite-test.mjs.map": "b7f9264c2fe55fd23dd78f6c9dbc49a33860ff630226dbb9b88f629041664ce6",
+        "snapback2/packages/snapback2/dist/test-runner.mjs": "83e1a53eeae18cf6b1fbed32728bd8da304506a1fb9791352dbabf48f9ed4a62",
+        "snapback2/packages/snapback2/dist/test-runner.mjs.map": "a99f6e32a8eacc14b86c4d65decbd242508c33aade6cb83c7c3d5db95472c02e",
+        "snapback2/packages/snapback2/dist/test.mjs": "282beec459d9d0ec7bb9148296fddad416396ae232ba2bb5c9bd0a946d7399f7",
+        "snapback2/packages/snapback2/dist/test.mjs.map": "a99f6e32a8eacc14b86c4d65decbd242508c33aade6cb83c7c3d5db95472c02e",
+        "snapback2/packages/snapback2/dist/witness-test.mjs": "477e3593305b5ee23d9332b2089d1a72c4834f5f1152e92dd0ea3780f743633c",
+        "snapback2/packages/snapback2/dist/witness-test.mjs.map": "8eecc827946793a8107973a8f2a1f8dde7f3f88ba0eadf5df351b5ecc08f995d"
+      },
+      "changedSourcePaths": [
+        "snapback2/packages/snapback2/build.mjs",
+        "snapback2/packages/snapback2/src/image-runtime.ts"
+      ]
+    },
+    "experiment-primitives": {
+      "sourceFileCount": 1134,
+      "sourceFileManifestSha256": "411528fc62522546d82eae0304a8ab332c2f3ce2b6d5c29342735c88d9c73ec4",
+      "artifacts": {
+        "build.log": "7c6056ae9a7ada84a48afd98a49860065743f18201e9a618895a74cc5348b88b",
+        "runtime-metafile.json": "1852170ea379745ac8bc1b6bb9ca79fde4948a588fd166b0fe9d026365c9ab11",
+        "runtime.mjs": "c81a564195b00a079b0530a0fe7446aedc2efd281eca3013ce44587a500940e9",
+        "snapback2/packages/snapback2/dist/client-observed-test.mjs": "2917d6471915cfe11b665287cf7993591896f1608deed2f7b2808edb9b210732",
+        "snapback2/packages/snapback2/dist/client-observed-test.mjs.map": "3f467d2ec7d61dd32bc5abec0f6964f6b32f6c26a793a4513d265bc446f756a7",
+        "snapback2/packages/snapback2/dist/client-runtime.mjs": "a3bcff2a8b981a0204fbc11415037aea3629d76634d76ebeaa5f6cda8bdd6c15",
+        "snapback2/packages/snapback2/dist/client-runtime.mjs.map": "4fda8706b550afa032c53e863c6159bd999435979ea06ff5675be5669e5c21a4",
+        "snapback2/packages/snapback2/dist/client.mjs": "09fa0ce2bf33a6baeef67e7d992887149eab6cffe7b68bd6a17019b279305072",
+        "snapback2/packages/snapback2/dist/client.mjs.map": "b3dfc2d20329f4abed08dffed63b64ed48e83410981bc97f04b89edb66b8e8f1",
+        "snapback2/packages/snapback2/dist/compiler-core.mjs": "ae432f5c70744110b305409aa2a60e9576f0d8c3abced2387ef58e1f555be82e",
+        "snapback2/packages/snapback2/dist/compiler-core.mjs.map": "100e00da4ca4ff29905e7ea382de3c43c41c151aeb58c249836e04deba6becfb",
+        "snapback2/packages/snapback2/dist/compiler.mjs": "9c93d2adc425eab14d977a2a8b0d1228a0a5c8c27c4e59bc889efe9863490a78",
+        "snapback2/packages/snapback2/dist/compiler.mjs.map": "1df52e541d9aafff1b44417552d30833f20da3f5f28bd72e09b57fa024f23ec7",
+        "snapback2/packages/snapback2/dist/expo.mjs": "c0d3af4c117ccee36a45f80643f5f6ab2093c064e975c492d9764178f2164aba",
+        "snapback2/packages/snapback2/dist/expo.mjs.map": "bf8a61dc5c2cf11aac9c1929baceb99686a797ff3265e7420b13d23a6a066211",
+        "snapback2/packages/snapback2/dist/image-runtime.mjs": "85a496774a41cf2750ca465ad812a630158d386a9794af52b2d99cedaced5b55",
+        "snapback2/packages/snapback2/dist/image-runtime.mjs.map": "62257750e88f27550058dbf2ceecefc6c80ed598f449caaeb3a06af0c0f126d2",
+        "snapback2/packages/snapback2/dist/index.mjs": "8d62fb3ed9689296ba9b8bb7974133493855a0769bccfe478cb8f5565bf47a4c",
+        "snapback2/packages/snapback2/dist/index.mjs.map": "11844cb98c2aca613815865796f2e1eb6d1e461345803ac3d1dc15a958556f77",
+        "snapback2/packages/snapback2/dist/internal.mjs": "afca2be2e8ab27160d516ecdb4f2b5cb8cd430916eeda002230c2a7c39162cfe",
+        "snapback2/packages/snapback2/dist/internal.mjs.map": "37903e6dd65aa95055c9434be1040b9f48fe5fd37e7ed9d85fc3098ac5722936",
+        "snapback2/packages/snapback2/dist/react-core.mjs": "89c0b9142e719e181e82aef222f483021adfdf574c98f74dbdeadcf84b9b249e",
+        "snapback2/packages/snapback2/dist/react-core.mjs.map": "dc02053aff7814bf4a802cbf0e0f453388a14e259682820ed74cfbcf4fb79ca7",
+        "snapback2/packages/snapback2/dist/react-native.mjs": "2ee7aad4a8fa172ff6c571b62ad2c9466595828ae52a72c9abe8ed6d132aa744",
+        "snapback2/packages/snapback2/dist/react-native.mjs.map": "c7c910e794c3602050723d7bf29b8c3efd256ef846722e746334ec8effd0e6b3",
+        "snapback2/packages/snapback2/dist/react.mjs": "3f4aafce7bfa898104643792ac30226939d3addcc808959bf3787fa98354395b",
+        "snapback2/packages/snapback2/dist/react.mjs.map": "718506c52e430dfe220ec3cc074036269a2710c2d33d1c416c6a6956ffdc460c",
+        "snapback2/packages/snapback2/dist/sqlite-test.mjs": "fdd1c7302d9a77042e11bd791781b26fac0f32aac503224b5c3944d0a17c9e91",
+        "snapback2/packages/snapback2/dist/sqlite-test.mjs.map": "b093dbc2ef9ff116aac93e36eab29330b5aeac24ad37f0a0121a4615831914e4",
+        "snapback2/packages/snapback2/dist/test-runner.mjs": "8a89dca18c13f2467e5127f75aa82b5a8caa2eca1e11b3a00f88608f04b55012",
+        "snapback2/packages/snapback2/dist/test-runner.mjs.map": "b835d4ef5be3411fed651b99d48c2f126cb1fb0909e3ec62c80a96881fb51ace",
+        "snapback2/packages/snapback2/dist/test.mjs": "a0ee0e3f8d3fb7db779f7b87374c2f0fade82dfa236ca207608cfdbb62b02fc2",
+        "snapback2/packages/snapback2/dist/test.mjs.map": "b835d4ef5be3411fed651b99d48c2f126cb1fb0909e3ec62c80a96881fb51ace",
+        "snapback2/packages/snapback2/dist/witness-test.mjs": "477e3593305b5ee23d9332b2089d1a72c4834f5f1152e92dd0ea3780f743633c",
+        "snapback2/packages/snapback2/dist/witness-test.mjs.map": "8eecc827946793a8107973a8f2a1f8dde7f3f88ba0eadf5df351b5ecc08f995d"
+      },
+      "changedSourcePaths": [
+        "snapback2/packages/snapback2/build.mjs",
+        "snapback2/packages/snapback2/src/image-runtime.ts"
+      ]
+    }
+  },
+  "patches": {
+    "bytes-sharing-primitives.patch": "4ec2098507d27e0ad08ed3d66db2e72e2f0fd024e451e71eba7405fcbd747cc3",
+    "bytes-sharing-value-hash.patch": "8397b171e94c3778d2685e1f3db6e2681194b26075dba58c040d5e87141ccf75"
+  },
+  "canonicalArchives": {
+    "accepted": {
+      "commit": "bf650aebb9ed4cf3c59aba906b25d97d1c87958a",
+      "gitArchiveSha256": "016e902db974c3352c353bd0d380a1ab679aeb0a8cfba961a0555674978aaec2",
+      "gitArchiveBytes": 25344000
+    },
+    "pristine": {
+      "commit": "bf84508494d3671a2037766bfef33cbb62c690dc",
+      "gitArchiveSha256": "c216ce4df7095ae621a9ab81e472868318c608a9ccc8fbc836046ba0eee76f8e",
+      "gitArchiveBytes": 29306880
+    },
+    "current": {
+      "commit": "b3b063b4e2132c64ec90ef8e636052ef13b0dfe8",
+      "gitArchiveSha256": "c6e1cb30ae1fd1e0d0eb97ecea4f067dbf267278128eeecf7e615ddb68e0646d",
+      "gitArchiveBytes": 29480960
+    }
+  },
+  "diagnostics": {
+    "bytes-adjacent-builds.json": "5612224c18382e6b21ad9fd25ffcf15502838b7725765acb857b64197ddc4556",
+    "bytes-adjacent-measure.mjs": "ef539d08480964f61f1a1f919f653db5880f6f9fab8b973614a6f8cda4049793",
+    "bytes-adjacent.json": "bbd9b35872164dd9f44b7641152589dd84a4a4dcb5a3e90f63c27a7a0d2fe1f7",
+    "bytes-attribution.json": "9b95366bbe3b85e2a24cf829ba31ddf17f5c1e90be4a7a72ca8523f31532d311",
+    "bytes-attribution.log": "7bd77403dfcbb44f63cc1ae19808fa70233da3b1e97f49dbbb35f0410398f651",
+    "bytes-attribution.mjs": "3d6bf0ee366ce1291f36a3f07dab6c661667f7470c1eef0d41d04efea98b2eea",
+    "bytes-build-results.json": "42d15072f3ea617a47b8d9c30528a9c1e5429d4faa0dc395250fbff9d07f5fe4",
+    "bytes-candidate-summary.json": "6d37a5a1c3c5a4491e25694c29a076b0c3978b1cb498b8e2ab6b40225fe9d1a5",
+    "bytes-experiment-builds.json": "c867105b16a9581315d1b855bd0fcb1cea906007b9afc59d92a28c4ee082e022",
+    "bytes-experiment-measure.mjs": "f501e1f11d07e75af315f5ae36ac7700d3d1614e34cf113ed6fd0ea117005d53",
+    "bytes-experiments.json": "bbaa5990e5568d16cf0c35310a81f5eafd67edcb5ddf6a412645ef986d91475f",
+    "bytes-module-contributions.csv": "25484148b66da1ac022df0d48cc120555bead6013d1aada05b86a508cc59782e",
+    "bytes-module-delta-accepted-pristine.json": "8232962f5eb5e86d644da5356dfc4a2da2ea91bc4a0e6a1644a6ef660b678938",
+    "bytes-module-delta-pristine-current.json": "c4abc53820f20c17ad8736ef76c01b8f05784b5e61031a2930378d30bab205fc",
+    "bytes-report.md": "f46d59e55614d0f06aed2d0993aef15e3d67ed139472bc35482ca84bb25820fe",
+    "bytes-sharing-primitives.patch": "4ec2098507d27e0ad08ed3d66db2e72e2f0fd024e451e71eba7405fcbd747cc3",
+    "bytes-sharing-value-hash.patch": "8397b171e94c3778d2685e1f3db6e2681194b26075dba58c040d5e87141ccf75",
+    "bytes-source-map-audit.json": "46c190643e73a923dbb36224bc60de0a13c016274d1925d5cf8ce1ad6dbcaaa4",
+    "bytes-source-map-audit.mjs": "caafcc4a71a06645007ea86416d4e9087a3d1c39ca3b870ad7f837a3d4e60bfd"
+  },
+  "presentationNormalization": {
+    "bytes-module-contributions.csv": {
+      "originalSha256": "cb9e56232f9bc1bcc28ace72da9b75a9d9741a094d3bd55b075f3dcf17eab930",
+      "committedSha256": "25484148b66da1ac022df0d48cc120555bead6013d1aada05b86a508cc59782e",
+      "change": "CRLF to LF; original retained in ignored run directory"
+    }
+  }
+}

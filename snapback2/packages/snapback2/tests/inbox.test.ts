@@ -489,3 +489,32 @@ test("a follower dismisses a refused queued intent with its original bytes and b
     assert.deepEqual(owner.executions.map(e => (e.args as any).body), ["after"]);
   } finally { closeDrain(); await follower.close(); await writer.close(); }
 });
+
+// @ref LLP 1018.004#2-the-inbox — receipt validation does not repeatedly
+// restart the active writer; ledger nudges and polling still admit follower work.
+test("validated traffic cannot extend writer activation; ledger changes still announce", async () => {
+  const { ClientInbox } = await import("../dist/client-observed-test.mjs");
+  const announcement = Promise.withResolvers<void>();
+  let ledgerChanged = () => {}, reads = 0, announcements = 0, subscriptions = 0;
+  const runtime: any = { principal: "alice", coordinationScope: "activation-test", inboxRows: [],
+    admitInbox: async () => { reads++; return { admitted: 0 }; }, itemEntries: async () => [] };
+  const inbox = new ClientInbox({ url: "http://activation.test", runtime,
+    closed: () => false, fence: () => 1, failure: () => ({} as any), superseded: () => new Error("superseded"),
+    writerStatus: async () => { announcements++; await announcement.promise; return { ready: true, remaining: 0, fence: "inside" } as any; },
+    subscribeLedger: callback => { subscriptions++; ledgerChanged = callback; return () => {}; }, admitted: () => {},
+  });
+  try {
+    const first = inbox.activate();
+    const traffic = Array.from({ length: 50 }, () => inbox.activate());
+    announcement.resolve();
+    await first; await Promise.all(traffic);
+    assert.equal(reads, 1, "network traffic does not restart inbox admission");
+    assert.equal(subscriptions, 1);
+    const before = announcements; ledgerChanged();
+    await until(() => announcements > before, "ledger status still announces");
+    runtime.principal = "bob";
+    await inbox.activate();
+    assert.equal(reads, 2, "a new account activates its own writer");
+    assert.equal(subscriptions, 2);
+  } finally { announcement.resolve(); inbox.stop(); }
+});

@@ -1,6 +1,6 @@
 # Snapback 2 loop measurement exceeds consumer, check, and doctor budgets
 
-**Status:** Open — consumer/check sustained green; changed-binary first doctor remains red
+**Status:** Open — consumer/check overruns recur; changed-binary first doctor remains unqualified
 **Date:** 2026-09-07
 **Severity:** P0 (measured budget breach; breaking commit not established)
 **Reporter:** Codex root, parallel papercut integration
@@ -286,3 +286,51 @@ retry replaces this first-execution result. All functional consumer steps
 passed; the chat receipt retains the no-effects-engine block. The distinct
 [package-growth issue](./20260911-snapback2-package-growth-after-four-plans.md)
 records exact pristine/candidate bytes and preserves the rejected baseline.
+
+## Follow-up diagnostics — 2026-09-11
+
+The header is broadened again: current measurements retain consumer and project
+check failures as well as the unresolved changed-binary first-launch path. At
+`2026-09-11T18:28:43.771Z`, consumer smoke takes **66.62 s** and project check
+**1.524 s**. The final source at `2026-09-11T18:42:07.888Z` records **37.60 s**
+and **1.163 s**, still above 30/1 seconds. All functional steps pass; chat retains
+only the standard no-effects-engine block. The two direct doctor samples pass
+in each run (0.267/0.066 and 0.218/0.057 seconds), but unchanged-binary passes
+do not qualify the still-failing changed-binary criterion. Both failed metrics
+and raw logs are retained; these are not retries accepted as a new baseline.
+
+The slowdown spans npm installation, compiler/check, Vite, tests and incremental
+building. Later host observations show pressure, but do not prove the cause of
+earlier runs. There is no matched causal attribution or justified timing repair
+in this pass. Preserve the original budgets and isolate the existing command
+inputs under recorded host/cache state before changing product code.
+
+The [release inspection](../benchmarks/runs/2026-09-11-snapback2-followup-diagnostics/doctor/report.md)
+verified public 0.0.22 and 0.0.23 tarball integrity. Both CLI and media binaries
+are ad-hoc linker-signed, without Team ID or hardened runtime; all four fail
+Apple's explicit notarized-signature requirement. The publisher has no
+Developer ID signing/notarization step. No product was launched or fresh-launch
+claim made during this static assessment.
+
+Next setup work needs a headless-usable Developer ID Application key and named
+notary credential profile, then signing/notarization of the exact staged release
+artifacts before ordinary first-launch controls. Existing private-key probes
+failed noninteractively; no key was unlocked or machine security setting changed.
+A published-release pipeline alone does not repair `measure.mjs`'s locally built
+`target/release` binary, and notarization's timing benefit remains unmeasured.
+
+A bounded identical-compiler A/B/B/A project-check control also retains four
+misses: 1.560 / 2.574 / 2.088 / 1.260 seconds. The two middle candidate-path
+observations are slower; that difference remains unexplained. Compiler leaves
+and the already-launched native executable/inode were unchanged. Recorded host
+load was 16.16–20.71 on ten CPUs, including this run's read-only Snapback1
+inventory scan; this is not idle-host qualification or proof of a host cause.
+All four command outputs/statuses and inputs are preserved in the follow-up
+[control record](../benchmarks/runs/2026-09-11-snapback2-followup-diagnostics/project-check-control.json).
+No further retry or budget change follows from this inconclusive control.
+
+The final complete Snapback2 test script passes all product checks but takes
+73 seconds on EPYC (18:50:18–18:51:31 UTC), above the separate 60-second suite
+budget. This was also above budget in the preceding four-plan run (~68 seconds);
+no matched timing experiment attributes the difference. The full passing log
+and its first failed expectation-update run are retained in the follow-up.

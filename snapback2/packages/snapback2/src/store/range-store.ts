@@ -1,5 +1,5 @@
 import { cursorArgument } from "../local-cursor.js";
-import { applyDeliveryAcknowledgements, applyOutboxSwap } from "../delivery-acknowledgements.js";
+import { applyDeliveryAcknowledgements, applyOutboxSwap, pendingDeliveryAcks } from "../delivery-acknowledgements.js";
 import { RangeReceipt, preparedDeliveryRanges } from '../../../evaluator/src/range-preparation.js';
 import { RowImage, ImageKeys, imageWire, imageRecord, imageRecords, imageState, preparedChanges, preparedProjection } from '../../../evaluator/src/row-image.js';
 import { CarrierIndex } from "./carrier-index.js";
@@ -250,7 +250,7 @@ export interface OutboxGrant {
 }
 
 export interface OutboxStore {
-  deliveryAcks?(): Promise<Record<string, import('../delivery-acknowledgements.js').DeliveryAcknowledgement>>;
+  pendingDeliveryAcks?(): Promise<Record<string, number>>;
   compactedThrough?(): Promise<number>;
   all(): Promise<OutboxEntry[]>;
   get(intent: string): Promise<OutboxEntry | undefined>;
@@ -548,9 +548,9 @@ export class PersistentRangeStore implements RangeStore {
   private readonly touchedBytes = new Set<string>();
 
   readonly outbox: OutboxStore = {
-    deliveryAcks: async () => {
+    pendingDeliveryAcks: async () => {
       await this.tail;
-      return this.partition === undefined || this.state.sealed ? {} : clone(this.state.deliveryAcks);
+      return this.partition === undefined || this.state.sealed ? {} : pendingDeliveryAcks(this.state.deliveryAcks);
     },
     compactedThrough: () => this.read(() => this.state.sealed ? 0 : this.state.compactedThrough ?? 0),
     all: () => this.readOutbox(state => outboxOrder(state.outbox)),

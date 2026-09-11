@@ -1,0 +1,2951 @@
+{
+  "toolchain": {
+    "node": "v24.18.0",
+    "esbuild": "0.25.9",
+    "gzipLevel": 9
+  },
+  "versions": {
+    "accepted": {
+      "source": {
+        "label": "accepted",
+        "commit": "bf650aebb9ed4cf3c59aba906b25d97d1c87958a",
+        "originalBuildSha256": "eddf0e2623ca0eca03d27f042714f02c2fcd32e7304fe8b1b14854aefef95481",
+        "instrumentation": "esbuild metafile:true, no semantic build-option changes",
+        "sourceArchiveBytes": 25344000
+      },
+      "entries": {
+        "client": {
+          "gzipBytes": 136547,
+          "rawBytes": 426849,
+          "files": [
+            "client.mjs",
+            "client-runtime.mjs",
+            "image-runtime.mjs"
+          ]
+        },
+        "react": {
+          "gzipBytes": 146166,
+          "rawBytes": 453245,
+          "files": [
+            "react.mjs",
+            "react-core.mjs",
+            "client.mjs",
+            "client-runtime.mjs",
+            "image-runtime.mjs",
+            "internal.mjs"
+          ]
+        },
+        "expo": {
+          "gzipBytes": 149836,
+          "rawBytes": 463129,
+          "files": [
+            "expo.mjs",
+            "react-core.mjs",
+            "client.mjs",
+            "client-runtime.mjs",
+            "image-runtime.mjs",
+            "internal.mjs"
+          ]
+        }
+      },
+      "leaves": [
+        {
+          "file": "client-runtime.mjs",
+          "rawBytes": 285020,
+          "gzipBytes": 90338,
+          "sha256": "6fe69c1a612124ad4a4498ce057d6a1c608f2302e130d3ba45569e48341ab09e",
+          "imports": [
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs"
+          ],
+          "modules": [
+            {
+              "module": "packages/evaluator/src/runner.ts",
+              "bytesInOutput": 27355
+            },
+            {
+              "module": "packages/snapback2/src/store/range-store.ts",
+              "bytesInOutput": 27040
+            },
+            {
+              "module": "packages/snapback2/src/offline.ts",
+              "bytesInOutput": 22221
+            },
+            {
+              "module": "packages/evaluator/src/value-runtime.ts",
+              "bytesInOutput": 13584
+            },
+            {
+              "module": "packages/snapback2/src/offline-protocol.ts",
+              "bytesInOutput": 9699
+            },
+            {
+              "module": "packages/evaluator/src/certificate-identity.ts",
+              "bytesInOutput": 9671
+            },
+            {
+              "module": "packages/snapback2/src/twin-store.ts",
+              "bytesInOutput": 8785
+            },
+            {
+              "module": "packages/snapback2/src/store/outbox.ts",
+              "bytesInOutput": 8742
+            },
+            {
+              "module": "packages/snapback2/src/client-inbox.ts",
+              "bytesInOutput": 8714
+            },
+            {
+              "module": "packages/snapback2/src/client-wire.ts",
+              "bytesInOutput": 8326
+            },
+            {
+              "module": "packages/snapback2/src/client-observed.ts",
+              "bytesInOutput": 8097
+            },
+            {
+              "module": "packages/evaluator/src/store.ts",
+              "bytesInOutput": 7966
+            },
+            {
+              "module": "packages/evaluator/src/index-store.ts",
+              "bytesInOutput": 7413
+            },
+            {
+              "module": "packages/snapback2/src/store/fact-integrity.ts",
+              "bytesInOutput": 7200
+            },
+            {
+              "module": "packages/snapback2/src/store/byte-cache.ts",
+              "bytesInOutput": 6965
+            },
+            {
+              "module": "packages/snapback2/src/assets.ts",
+              "bytesInOutput": 6739
+            },
+            {
+              "module": "packages/snapback2/src/client-sessions.ts",
+              "bytesInOutput": 6724
+            },
+            {
+              "module": "packages/snapback2/src/store/carrier-index.ts",
+              "bytesInOutput": 6480
+            },
+            {
+              "module": "packages/evaluator/src/cursor.ts",
+              "bytesInOutput": 6016
+            },
+            {
+              "module": "packages/snapback2/src/store/overlay-retirement.ts",
+              "bytesInOutput": 5770
+            },
+            {
+              "module": "packages/evaluator/src/coverage.ts",
+              "bytesInOutput": 5726
+            },
+            {
+              "module": "packages/snapback2/src/client-items.ts",
+              "bytesInOutput": 5288
+            },
+            {
+              "module": "packages/snapback2/src/twin.ts",
+              "bytesInOutput": 4809
+            },
+            {
+              "module": "packages/snapback2/src/snapshot.ts",
+              "bytesInOutput": 4605
+            },
+            {
+              "module": "packages/snapback2/src/drain.ts",
+              "bytesInOutput": 3769
+            },
+            {
+              "module": "packages/snapback2/src/store/swap-journal.ts",
+              "bytesInOutput": 3121
+            },
+            {
+              "module": "packages/snapback2/src/local-cursor.ts",
+              "bytesInOutput": 3001
+            },
+            {
+              "module": "packages/snapback2/src/query-items.ts",
+              "bytesInOutput": 2599
+            },
+            {
+              "module": "packages/snapback2/src/store/extent-index.ts",
+              "bytesInOutput": 2422
+            },
+            {
+              "module": "packages/snapback2/src/client-assets.ts",
+              "bytesInOutput": 2298
+            },
+            {
+              "module": "packages/evaluator/src/hash.ts",
+              "bytesInOutput": 2178
+            },
+            {
+              "module": "packages/snapback2/src/store/row-values.ts",
+              "bytesInOutput": 2145
+            },
+            {
+              "module": "packages/snapback2/src/store/inbox.ts",
+              "bytesInOutput": 1796
+            },
+            {
+              "module": "packages/evaluator/src/held-directory.ts",
+              "bytesInOutput": 1769
+            },
+            {
+              "module": "packages/snapback2/src/store/fact-index.ts",
+              "bytesInOutput": 1761
+            },
+            {
+              "module": "packages/evaluator/src/slot-tree.ts",
+              "bytesInOutput": 1704
+            },
+            {
+              "module": "packages/snapback2/src/mutation-targets.ts",
+              "bytesInOutput": 1691
+            },
+            {
+              "module": "packages/snapback2/src/types.ts",
+              "bytesInOutput": 1621
+            },
+            {
+              "module": "packages/evaluator/src/ordered.ts",
+              "bytesInOutput": 1606
+            },
+            {
+              "module": "packages/evaluator/src/search-key.ts",
+              "bytesInOutput": 1422
+            },
+            {
+              "module": "packages/snapback2/src/store/maintained-coherence.ts",
+              "bytesInOutput": 1394
+            },
+            {
+              "module": "packages/snapback2/src/store/asset-policy.ts",
+              "bytesInOutput": 1374
+            },
+            {
+              "module": "packages/evaluator/src/search-runtime.ts",
+              "bytesInOutput": 1163
+            },
+            {
+              "module": "packages/snapback2/src/tombstones.ts",
+              "bytesInOutput": 1114
+            },
+            {
+              "module": "packages/snapback2/src/store/extent-facts.ts",
+              "bytesInOutput": 1055
+            },
+            {
+              "module": "packages/snapback2/src/twin-hydrate.ts",
+              "bytesInOutput": 1019
+            },
+            {
+              "module": "packages/snapback2/src/held-program.ts",
+              "bytesInOutput": 1016
+            },
+            {
+              "module": "packages/snapback2/src/store/success-compaction.ts",
+              "bytesInOutput": 962
+            },
+            {
+              "module": "packages/evaluator/src/prefix-dictionary.ts",
+              "bytesInOutput": 861
+            },
+            {
+              "module": "packages/evaluator/src/posting-tree.ts",
+              "bytesInOutput": 842
+            },
+            {
+              "module": "packages/evaluator/src/coverage-spans.ts",
+              "bytesInOutput": 828
+            },
+            {
+              "module": "packages/snapback2/src/token-store.ts",
+              "bytesInOutput": 828
+            },
+            {
+              "module": "packages/evaluator/src/merge.ts",
+              "bytesInOutput": 793
+            },
+            {
+              "module": "packages/snapback2/src/store/canonical.ts",
+              "bytesInOutput": 573
+            },
+            {
+              "module": "packages/snapback2/src/store/query-inputs.ts",
+              "bytesInOutput": 456
+            },
+            {
+              "module": "packages/snapback2/src/api.ts",
+              "bytesInOutput": 390
+            },
+            {
+              "module": "packages/evaluator/src/text.ts",
+              "bytesInOutput": 269
+            },
+            {
+              "module": "crates/snapback2-core/ir-contract.json",
+              "bytesInOutput": 167
+            },
+            {
+              "module": "packages/snapback2/src/offline-schema.ts",
+              "bytesInOutput": 31
+            }
+          ],
+          "unattributedBytes": 1047
+        },
+        {
+          "file": "client.mjs",
+          "rawBytes": 82450,
+          "gzipBytes": 24081,
+          "sha256": "f1174f4aa0c6a52b1bb30f42338a19c911d2a8eeec545749ab811924ead91bb3",
+          "imports": [
+            "client-runtime.mjs",
+            "image-runtime.mjs"
+          ],
+          "modules": [
+            {
+              "module": "packages/snapback2/src/client.ts",
+              "bytesInOutput": 33705
+            },
+            {
+              "module": "packages/snapback2/src/client-offline.ts",
+              "bytesInOutput": 9875
+            },
+            {
+              "module": "packages/snapback2/src/client-outbox.ts",
+              "bytesInOutput": 8148
+            },
+            {
+              "module": "packages/snapback2/src/client-upload.ts",
+              "bytesInOutput": 7187
+            },
+            {
+              "module": "packages/snapback2/src/client-channels.ts",
+              "bytesInOutput": 5580
+            },
+            {
+              "module": "packages/snapback2/src/client-auth.ts",
+              "bytesInOutput": 5353
+            },
+            {
+              "module": "packages/snapback2/src/live.ts",
+              "bytesInOutput": 4351
+            },
+            {
+              "module": "packages/snapback2/src/sse.ts",
+              "bytesInOutput": 3848
+            },
+            {
+              "module": "packages/snapback2/src/client-outbox-observed.ts",
+              "bytesInOutput": 1407
+            },
+            {
+              "module": "packages/snapback2/src/sse-parser.ts",
+              "bytesInOutput": 994
+            },
+            {
+              "module": "packages/snapback2/src/client-mutations.ts",
+              "bytesInOutput": 922
+            },
+            {
+              "module": "packages/snapback2/src/internal-access.ts",
+              "bytesInOutput": 96
+            }
+          ],
+          "unattributedBytes": 984
+        },
+        {
+          "file": "image-runtime.mjs",
+          "rawBytes": 59379,
+          "gzipBytes": 22128,
+          "sha256": "c2ae72250e245dc98fa9fd43dbdc70f1c47e818994ef417ab55b476b098ddf74",
+          "imports": [],
+          "modules": [
+            {
+              "module": "packages/evaluator/dist/unicode-tables.ts",
+              "bytesInOutput": 17186
+            },
+            {
+              "module": "packages/evaluator/src/value-runtime.ts",
+              "bytesInOutput": 9794
+            },
+            {
+              "module": "packages/evaluator/src/certificate-identity.ts",
+              "bytesInOutput": 5654
+            },
+            {
+              "module": "packages/evaluator/src/cursor.ts",
+              "bytesInOutput": 4922
+            },
+            {
+              "module": "packages/evaluator/src/unicode.ts",
+              "bytesInOutput": 4746
+            },
+            {
+              "module": "packages/evaluator/src/range-preparation.ts",
+              "bytesInOutput": 4732
+            },
+            {
+              "module": "packages/evaluator/src/row-image.ts",
+              "bytesInOutput": 2612
+            },
+            {
+              "module": "packages/evaluator/src/hash.ts",
+              "bytesInOutput": 2183
+            },
+            {
+              "module": "packages/evaluator/src/index-store.ts",
+              "bytesInOutput": 1878
+            },
+            {
+              "module": "packages/evaluator/src/unicode-tables.ts",
+              "bytesInOutput": 1327
+            },
+            {
+              "module": "packages/evaluator/src/search-key.ts",
+              "bytesInOutput": 1218
+            },
+            {
+              "module": "packages/evaluator/src/search-runtime.ts",
+              "bytesInOutput": 1004
+            },
+            {
+              "module": "packages/snapback2/src/query-frame.ts",
+              "bytesInOutput": 608
+            },
+            {
+              "module": "packages/evaluator/src/errors.ts",
+              "bytesInOutput": 205
+            },
+            {
+              "module": "packages/snapback2/src/internal-access.ts",
+              "bytesInOutput": 182
+            },
+            {
+              "module": "crates/snapback2-core/ir-contract.json",
+              "bytesInOutput": 167
+            },
+            {
+              "module": "packages/snapback2/src/image-runtime.ts",
+              "bytesInOutput": 0
+            }
+          ],
+          "unattributedBytes": 961
+        },
+        {
+          "file": "expo.mjs",
+          "rawBytes": 25421,
+          "gzipBytes": 9106,
+          "sha256": "34bffc63d48ffd831ba068e3b5aaa9d5f782f7c9d25d6576c0d8ba35ef9089ac",
+          "imports": [
+            "react-core.mjs",
+            "react-core.mjs",
+            "client.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "react-core.mjs",
+            "react-core.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "react-core.mjs"
+          ],
+          "modules": [
+            {
+              "module": "packages/snapback2/src/store/sqlite.ts",
+              "bytesInOutput": 4604
+            },
+            {
+              "module": "packages/snapback2/src/react-native/files.ts",
+              "bytesInOutput": 3816
+            },
+            {
+              "module": "packages/snapback2/src/react-native/components.tsx",
+              "bytesInOutput": 3265
+            },
+            {
+              "module": "packages/snapback2/src/react-native/source.ts",
+              "bytesInOutput": 3135
+            },
+            {
+              "module": "packages/snapback2/src/store/projection.ts",
+              "bytesInOutput": 1915
+            },
+            {
+              "module": "packages/snapback2/src/store/metadata.ts",
+              "bytesInOutput": 1355
+            },
+            {
+              "module": "packages/snapback2/src/store/locks.ts",
+              "bytesInOutput": 1274
+            },
+            {
+              "module": "packages/snapback2/src/expo/token-store.ts",
+              "bytesInOutput": 1217
+            },
+            {
+              "module": "packages/snapback2/src/react-native.tsx",
+              "bytesInOutput": 1047
+            },
+            {
+              "module": "packages/snapback2/src/store/sqlite-expo.ts",
+              "bytesInOutput": 962
+            },
+            {
+              "module": "packages/snapback2/src/expo/index.ts",
+              "bytesInOutput": 422
+            },
+            {
+              "module": "packages/snapback2/src/expo/files.ts",
+              "bytesInOutput": 420
+            },
+            {
+              "module": "packages/snapback2/src/react-native/memory-video.tsx",
+              "bytesInOutput": 359
+            },
+            {
+              "module": "client-shared:packages/snapback2/src/store/range-store.ts",
+              "bytesInOutput": 323
+            },
+            {
+              "module": "client-shared:packages/snapback2/src/store/byte-cache.ts",
+              "bytesInOutput": 233
+            },
+            {
+              "module": "client-shared:packages/snapback2/src/client-wire.ts",
+              "bytesInOutput": 184
+            },
+            {
+              "module": "packages/snapback2/src/store/sqlite-driver.ts",
+              "bytesInOutput": 99
+            },
+            {
+              "module": "client-shared:packages/snapback2/src/token-store.ts",
+              "bytesInOutput": 71
+            },
+            {
+              "module": "packages/snapback2/src/expo.ts",
+              "bytesInOutput": 34
+            }
+          ],
+          "unattributedBytes": 686
+        },
+        {
+          "file": "react.mjs",
+          "rawBytes": 15537,
+          "gzipBytes": 5436,
+          "sha256": "954ee6ef039479614469bbdb2fd1f12cb3b690132943282427b48b8144170d99",
+          "imports": [
+            "react-core.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "react-core.mjs",
+            "image-runtime.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "image-runtime.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs"
+          ],
+          "modules": [
+            {
+              "module": "packages/snapback2/src/store/indexeddb.ts",
+              "bytesInOutput": 7829
+            },
+            {
+              "module": "packages/snapback2/src/react.tsx",
+              "bytesInOutput": 3610
+            },
+            {
+              "module": "packages/snapback2/src/store/projection.ts",
+              "bytesInOutput": 1637
+            },
+            {
+              "module": "packages/snapback2/src/store/metadata.ts",
+              "bytesInOutput": 1352
+            },
+            {
+              "module": "client-shared:packages/snapback2/src/store/inbox.ts",
+              "bytesInOutput": 359
+            },
+            {
+              "module": "client-shared:packages/snapback2/src/store/range-store.ts",
+              "bytesInOutput": 321
+            },
+            {
+              "module": "client-shared:packages/snapback2/src/client-wire.ts",
+              "bytesInOutput": 184
+            },
+            {
+              "module": "client-shared:packages/snapback2/src/client-assets.ts",
+              "bytesInOutput": 124
+            }
+          ],
+          "unattributedBytes": 121
+        },
+        {
+          "file": "react-core.mjs",
+          "rawBytes": 8144,
+          "gzipBytes": 3080,
+          "sha256": "15eeeb63b054047973a744053f65f243f93b052e77555a16ad9615076cceb10f",
+          "imports": [
+            "client.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs"
+          ],
+          "modules": [
+            {
+              "module": "packages/snapback2/src/react-core.tsx",
+              "bytesInOutput": 5318
+            },
+            {
+              "module": "packages/snapback2/src/client-pages.ts",
+              "bytesInOutput": 1553
+            },
+            {
+              "module": "client-shared:packages/snapback2/src/snapshot.ts",
+              "bytesInOutput": 305
+            },
+            {
+              "module": "client-shared:packages/snapback2/src/types.ts",
+              "bytesInOutput": 195
+            },
+            {
+              "module": "client-shared:packages/snapback2/src/client-wire.ts",
+              "bytesInOutput": 184
+            },
+            {
+              "module": "client-shared:packages/snapback2/src/client-assets.ts",
+              "bytesInOutput": 124
+            },
+            {
+              "module": "client-shared:packages/snapback2/src/api.ts",
+              "bytesInOutput": 61
+            }
+          ],
+          "unattributedBytes": 404
+        },
+        {
+          "file": "internal.mjs",
+          "rawBytes": 2715,
+          "gzipBytes": 1103,
+          "sha256": "32885ccd950a38f8f6e2c66b3636acb9ffbc62427459cf40b0b7c4abf87b154c",
+          "imports": [
+            "client-runtime.mjs",
+            "image-runtime.mjs"
+          ],
+          "modules": [
+            {
+              "module": "internal-client-exports:internal-client-exports",
+              "bytesInOutput": 119
+            }
+          ],
+          "unattributedBytes": 2596
+        }
+      ],
+      "runtime": {
+        "gzipBytes": 84580,
+        "rawBytes": 259512,
+        "modules": [
+          {
+            "module": "packages/evaluator/src/runner.ts",
+            "bytesInOutput": 27264
+          },
+          {
+            "module": "packages/snapback2/src/store/range-store.ts",
+            "bytesInOutput": 26615
+          },
+          {
+            "module": "packages/snapback2/src/offline.ts",
+            "bytesInOutput": 22107
+          },
+          {
+            "module": "packages/evaluator/dist/unicode-tables.ts",
+            "bytesInOutput": 17186
+          },
+          {
+            "module": "packages/evaluator/src/value-runtime.ts",
+            "bytesInOutput": 13429
+          },
+          {
+            "module": "packages/snapback2/src/offline-protocol.ts",
+            "bytesInOutput": 9901
+          },
+          {
+            "module": "packages/evaluator/src/certificate-identity.ts",
+            "bytesInOutput": 9616
+          },
+          {
+            "module": "packages/snapback2/src/twin-store.ts",
+            "bytesInOutput": 8648
+          },
+          {
+            "module": "packages/snapback2/src/store/outbox.ts",
+            "bytesInOutput": 8541
+          },
+          {
+            "module": "packages/evaluator/src/store.ts",
+            "bytesInOutput": 7802
+          },
+          {
+            "module": "packages/evaluator/src/index-store.ts",
+            "bytesInOutput": 7225
+          },
+          {
+            "module": "packages/snapback2/src/store/fact-integrity.ts",
+            "bytesInOutput": 7150
+          },
+          {
+            "module": "packages/snapback2/src/store/byte-cache.ts",
+            "bytesInOutput": 6916
+          },
+          {
+            "module": "packages/snapback2/src/store/carrier-index.ts",
+            "bytesInOutput": 6317
+          },
+          {
+            "module": "packages/evaluator/src/cursor.ts",
+            "bytesInOutput": 5966
+          },
+          {
+            "module": "packages/snapback2/src/store/overlay-retirement.ts",
+            "bytesInOutput": 5770
+          },
+          {
+            "module": "packages/evaluator/src/coverage.ts",
+            "bytesInOutput": 5545
+          },
+          {
+            "module": "packages/evaluator/src/range-preparation.ts",
+            "bytesInOutput": 4744
+          },
+          {
+            "module": "packages/evaluator/src/unicode.ts",
+            "bytesInOutput": 4716
+          },
+          {
+            "module": "packages/snapback2/src/twin.ts",
+            "bytesInOutput": 4702
+          },
+          {
+            "module": "packages/snapback2/src/store/swap-journal.ts",
+            "bytesInOutput": 3003
+          },
+          {
+            "module": "packages/snapback2/src/local-cursor.ts",
+            "bytesInOutput": 2949
+          },
+          {
+            "module": "packages/evaluator/src/row-image.ts",
+            "bytesInOutput": 2622
+          },
+          {
+            "module": "packages/snapback2/src/query-items.ts",
+            "bytesInOutput": 2498
+          },
+          {
+            "module": "packages/snapback2/src/store/extent-index.ts",
+            "bytesInOutput": 2422
+          },
+          {
+            "module": "packages/evaluator/src/hash.ts",
+            "bytesInOutput": 2178
+          },
+          {
+            "module": "packages/snapback2/src/store/projection.ts",
+            "bytesInOutput": 2158
+          },
+          {
+            "module": "packages/snapback2/src/store/row-values.ts",
+            "bytesInOutput": 2145
+          },
+          {
+            "module": "packages/evaluator/src/held-directory.ts",
+            "bytesInOutput": 1769
+          },
+          {
+            "module": "packages/snapback2/src/store/fact-index.ts",
+            "bytesInOutput": 1761
+          },
+          {
+            "module": "packages/evaluator/src/slot-tree.ts",
+            "bytesInOutput": 1704
+          },
+          {
+            "module": "packages/evaluator/src/ordered.ts",
+            "bytesInOutput": 1606
+          },
+          {
+            "module": "packages/snapback2/src/types.ts",
+            "bytesInOutput": 1573
+          },
+          {
+            "module": "packages/snapback2/src/store/metadata.ts",
+            "bytesInOutput": 1356
+          },
+          {
+            "module": "packages/snapback2/src/store/maintained-coherence.ts",
+            "bytesInOutput": 1345
+          },
+          {
+            "module": "packages/evaluator/src/unicode-tables.ts",
+            "bytesInOutput": 1339
+          },
+          {
+            "module": "packages/snapback2/src/store/asset-policy.ts",
+            "bytesInOutput": 1324
+          },
+          {
+            "module": "packages/evaluator/src/search-key.ts",
+            "bytesInOutput": 1224
+          },
+          {
+            "module": "packages/snapback2/src/mutation-targets.ts",
+            "bytesInOutput": 1163
+          },
+          {
+            "module": "packages/snapback2/src/tombstones.ts",
+            "bytesInOutput": 1114
+          },
+          {
+            "module": "packages/snapback2/src/store/extent-facts.ts",
+            "bytesInOutput": 1055
+          },
+          {
+            "module": "packages/snapback2/src/twin-hydrate.ts",
+            "bytesInOutput": 1019
+          },
+          {
+            "module": "packages/snapback2/src/held-program.ts",
+            "bytesInOutput": 1016
+          },
+          {
+            "module": "packages/evaluator/src/search-runtime.ts",
+            "bytesInOutput": 1009
+          },
+          {
+            "module": "packages/snapback2/src/store/inbox.ts",
+            "bytesInOutput": 977
+          },
+          {
+            "module": "packages/snapback2/src/store/success-compaction.ts",
+            "bytesInOutput": 962
+          },
+          {
+            "module": "packages/evaluator/src/prefix-dictionary.ts",
+            "bytesInOutput": 861
+          },
+          {
+            "module": "packages/evaluator/src/posting-tree.ts",
+            "bytesInOutput": 842
+          },
+          {
+            "module": "packages/evaluator/src/coverage-spans.ts",
+            "bytesInOutput": 828
+          },
+          {
+            "module": "packages/evaluator/src/merge.ts",
+            "bytesInOutput": 793
+          },
+          {
+            "module": "packages/snapback2/src/store/canonical.ts",
+            "bytesInOutput": 520
+          },
+          {
+            "module": "packages/snapback2/src/client-wire.ts",
+            "bytesInOutput": 489
+          },
+          {
+            "module": "packages/snapback2/src/store/query-inputs.ts",
+            "bytesInOutput": 456
+          },
+          {
+            "module": "packages/snapback2/src/query-frame.ts",
+            "bytesInOutput": 287
+          },
+          {
+            "module": "packages/evaluator/src/text.ts",
+            "bytesInOutput": 269
+          },
+          {
+            "module": "packages/evaluator/src/errors.ts",
+            "bytesInOutput": 205
+          },
+          {
+            "module": "crates/snapback2-core/ir-contract.json",
+            "bytesInOutput": 167
+          },
+          {
+            "module": "packages/snapback2/src/offline-schema.ts",
+            "bytesInOutput": 31
+          },
+          {
+            "module": "../../../../<stdin>",
+            "bytesInOutput": 0
+          }
+        ]
+      }
+    },
+    "pristine": {
+      "source": {
+        "label": "pristine",
+        "commit": "bf84508494d3671a2037766bfef33cbb62c690dc",
+        "originalBuildSha256": "5a1d11318ea54e4d5b59d927dd546055fc8e40e5d68da98a4ccde0c0d96d078d",
+        "instrumentation": "esbuild metafile:true, no semantic build-option changes",
+        "sourceArchiveBytes": 29306880
+      },
+      "entries": {
+        "client": {
+          "gzipBytes": 142125,
+          "rawBytes": 441949,
+          "files": [
+            "client.mjs",
+            "client-runtime.mjs",
+            "image-runtime.mjs"
+          ]
+        },
+        "react": {
+          "gzipBytes": 152478,
+          "rawBytes": 470397,
+          "files": [
+            "react.mjs",
+            "react-core.mjs",
+            "client.mjs",
+            "client-runtime.mjs",
+            "image-runtime.mjs",
+            "internal.mjs"
+          ]
+        },
+        "expo": {
+          "gzipBytes": 156010,
+          "rawBytes": 479837,
+          "files": [
+            "expo.mjs",
+            "react-core.mjs",
+            "client.mjs",
+            "client-runtime.mjs",
+            "image-runtime.mjs",
+            "internal.mjs"
+          ]
+        }
+      },
+      "leaves": [
+        {
+          "file": "client-runtime.mjs",
+          "rawBytes": 317441,
+          "gzipBytes": 101120,
+          "sha256": "a78e415ca6b09a7c8d3cd877caf3b533d7b0393fae2d8699d22c629743959782",
+          "imports": [
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs"
+          ],
+          "modules": [
+            {
+              "module": "packages/evaluator/src/runner.ts",
+              "bytesInOutput": 28453
+            },
+            {
+              "module": "packages/snapback2/src/store/range-store.ts",
+              "bytesInOutput": 27190
+            },
+            {
+              "module": "packages/snapback2/src/offline.ts",
+              "bytesInOutput": 23528
+            },
+            {
+              "module": "packages/snapback2/src/client-offline.ts",
+              "bytesInOutput": 13777
+            },
+            {
+              "module": "packages/evaluator/src/value-runtime.ts",
+              "bytesInOutput": 13645
+            },
+            {
+              "module": "packages/snapback2/src/client-inbox.ts",
+              "bytesInOutput": 9704
+            },
+            {
+              "module": "packages/snapback2/src/offline-protocol.ts",
+              "bytesInOutput": 9618
+            },
+            {
+              "module": "packages/evaluator/src/certificate-identity.ts",
+              "bytesInOutput": 9538
+            },
+            {
+              "module": "packages/snapback2/src/client-outbox.ts",
+              "bytesInOutput": 9500
+            },
+            {
+              "module": "packages/snapback2/src/twin-store.ts",
+              "bytesInOutput": 9222
+            },
+            {
+              "module": "packages/snapback2/src/store/outbox.ts",
+              "bytesInOutput": 8606
+            },
+            {
+              "module": "packages/snapback2/src/client-observed.ts",
+              "bytesInOutput": 8369
+            },
+            {
+              "module": "packages/snapback2/src/client-wire.ts",
+              "bytesInOutput": 8094
+            },
+            {
+              "module": "packages/evaluator/src/store.ts",
+              "bytesInOutput": 7981
+            },
+            {
+              "module": "packages/snapback2/src/store/byte-cache.ts",
+              "bytesInOutput": 7667
+            },
+            {
+              "module": "packages/evaluator/src/index-store.ts",
+              "bytesInOutput": 7419
+            },
+            {
+              "module": "packages/snapback2/src/store/fact-integrity.ts",
+              "bytesInOutput": 7182
+            },
+            {
+              "module": "packages/snapback2/src/client-sessions.ts",
+              "bytesInOutput": 6810
+            },
+            {
+              "module": "packages/snapback2/src/assets.ts",
+              "bytesInOutput": 6682
+            },
+            {
+              "module": "packages/snapback2/src/store/carrier-index.ts",
+              "bytesInOutput": 6482
+            },
+            {
+              "module": "packages/snapback2/src/store/overlay-retirement.ts",
+              "bytesInOutput": 5979
+            },
+            {
+              "module": "packages/evaluator/src/cursor.ts",
+              "bytesInOutput": 5936
+            },
+            {
+              "module": "packages/evaluator/src/coverage.ts",
+              "bytesInOutput": 5728
+            },
+            {
+              "module": "packages/snapback2/src/client-items.ts",
+              "bytesInOutput": 5283
+            },
+            {
+              "module": "packages/snapback2/src/twin.ts",
+              "bytesInOutput": 4812
+            },
+            {
+              "module": "packages/snapback2/src/snapshot.ts",
+              "bytesInOutput": 4733
+            },
+            {
+              "module": "packages/snapback2/src/drain.ts",
+              "bytesInOutput": 3769
+            },
+            {
+              "module": "packages/snapback2/src/store/swap-journal.ts",
+              "bytesInOutput": 3310
+            },
+            {
+              "module": "packages/snapback2/src/local-cursor.ts",
+              "bytesInOutput": 2967
+            },
+            {
+              "module": "packages/snapback2/src/query-items.ts",
+              "bytesInOutput": 2515
+            },
+            {
+              "module": "packages/snapback2/src/store/extent-index.ts",
+              "bytesInOutput": 2422
+            },
+            {
+              "module": "packages/snapback2/src/client-assets.ts",
+              "bytesInOutput": 2301
+            },
+            {
+              "module": "packages/evaluator/src/hash.ts",
+              "bytesInOutput": 2234
+            },
+            {
+              "module": "packages/snapback2/src/delivery-acknowledgements.ts",
+              "bytesInOutput": 2096
+            },
+            {
+              "module": "packages/snapback2/src/store/row-values.ts",
+              "bytesInOutput": 2064
+            },
+            {
+              "module": "packages/snapback2/src/store/inbox.ts",
+              "bytesInOutput": 1817
+            },
+            {
+              "module": "packages/evaluator/src/held-directory.ts",
+              "bytesInOutput": 1773
+            },
+            {
+              "module": "packages/snapback2/src/store/fact-index.ts",
+              "bytesInOutput": 1761
+            },
+            {
+              "module": "packages/evaluator/src/slot-tree.ts",
+              "bytesInOutput": 1704
+            },
+            {
+              "module": "packages/snapback2/src/mutation-targets.ts",
+              "bytesInOutput": 1626
+            },
+            {
+              "module": "packages/snapback2/src/types.ts",
+              "bytesInOutput": 1621
+            },
+            {
+              "module": "packages/evaluator/src/ordered.ts",
+              "bytesInOutput": 1606
+            },
+            {
+              "module": "packages/snapback2/src/client-outbox-observed.ts",
+              "bytesInOutput": 1483
+            },
+            {
+              "module": "packages/evaluator/src/search-key.ts",
+              "bytesInOutput": 1370
+            },
+            {
+              "module": "packages/snapback2/src/store/asset-policy.ts",
+              "bytesInOutput": 1322
+            },
+            {
+              "module": "packages/snapback2/src/store/maintained-coherence.ts",
+              "bytesInOutput": 1230
+            },
+            {
+              "module": "packages/evaluator/src/search-runtime.ts",
+              "bytesInOutput": 1163
+            },
+            {
+              "module": "packages/snapback2/src/tombstones.ts",
+              "bytesInOutput": 1071
+            },
+            {
+              "module": "packages/snapback2/src/store/extent-facts.ts",
+              "bytesInOutput": 1061
+            },
+            {
+              "module": "packages/evaluator/src/delivery-prediction.ts",
+              "bytesInOutput": 1034
+            },
+            {
+              "module": "packages/snapback2/src/held-program.ts",
+              "bytesInOutput": 1023
+            },
+            {
+              "module": "packages/snapback2/src/store/success-compaction.ts",
+              "bytesInOutput": 962
+            },
+            {
+              "module": "packages/snapback2/src/twin-hydrate.ts",
+              "bytesInOutput": 910
+            },
+            {
+              "module": "packages/evaluator/src/prefix-dictionary.ts",
+              "bytesInOutput": 861
+            },
+            {
+              "module": "packages/evaluator/src/posting-tree.ts",
+              "bytesInOutput": 842
+            },
+            {
+              "module": "packages/evaluator/src/coverage-spans.ts",
+              "bytesInOutput": 829
+            },
+            {
+              "module": "packages/snapback2/src/token-store.ts",
+              "bytesInOutput": 828
+            },
+            {
+              "module": "packages/evaluator/src/merge.ts",
+              "bytesInOutput": 793
+            },
+            {
+              "module": "packages/snapback2/src/store/canonical.ts",
+              "bytesInOutput": 605
+            },
+            {
+              "module": "packages/snapback2/src/store/query-inputs.ts",
+              "bytesInOutput": 550
+            },
+            {
+              "module": "packages/snapback2/src/api.ts",
+              "bytesInOutput": 390
+            },
+            {
+              "module": "packages/evaluator/src/text.ts",
+              "bytesInOutput": 269
+            },
+            {
+              "module": "crates/snapback2-core/ir-contract.json",
+              "bytesInOutput": 167
+            },
+            {
+              "module": "packages/snapback2/src/offline-schema.ts",
+              "bytesInOutput": 0
+            }
+          ],
+          "unattributedBytes": 1154
+        },
+        {
+          "file": "image-runtime.mjs",
+          "rawBytes": 59185,
+          "gzipBytes": 22127,
+          "sha256": "4636bf68b911b1616e44dbb6977b76cc43f9983d4872e7fde1a50645d0296b27",
+          "imports": [],
+          "modules": [
+            {
+              "module": "packages/evaluator/dist/unicode-tables.ts",
+              "bytesInOutput": 17186
+            },
+            {
+              "module": "packages/evaluator/src/value-runtime.ts",
+              "bytesInOutput": 9736
+            },
+            {
+              "module": "packages/evaluator/src/certificate-identity.ts",
+              "bytesInOutput": 5639
+            },
+            {
+              "module": "packages/evaluator/src/cursor.ts",
+              "bytesInOutput": 4853
+            },
+            {
+              "module": "packages/evaluator/src/unicode.ts",
+              "bytesInOutput": 4746
+            },
+            {
+              "module": "packages/evaluator/src/range-preparation.ts",
+              "bytesInOutput": 4732
+            },
+            {
+              "module": "packages/evaluator/src/row-image.ts",
+              "bytesInOutput": 2612
+            },
+            {
+              "module": "packages/evaluator/src/hash.ts",
+              "bytesInOutput": 2183
+            },
+            {
+              "module": "packages/evaluator/src/index-store.ts",
+              "bytesInOutput": 1878
+            },
+            {
+              "module": "packages/evaluator/src/unicode-tables.ts",
+              "bytesInOutput": 1327
+            },
+            {
+              "module": "packages/evaluator/src/search-key.ts",
+              "bytesInOutput": 1166
+            },
+            {
+              "module": "packages/evaluator/src/search-runtime.ts",
+              "bytesInOutput": 1004
+            },
+            {
+              "module": "packages/snapback2/src/query-frame.ts",
+              "bytesInOutput": 608
+            },
+            {
+              "module": "packages/evaluator/src/errors.ts",
+              "bytesInOutput": 205
+            },
+            {
+              "module": "packages/snapback2/src/internal-access.ts",
+              "bytesInOutput": 182
+            },
+            {
+              "module": "crates/snapback2-core/ir-contract.json",
+              "bytesInOutput": 167
+            },
+            {
+              "module": "packages/snapback2/src/image-runtime.ts",
+              "bytesInOutput": 0
+            }
+          ],
+          "unattributedBytes": 961
+        },
+        {
+          "file": "client.mjs",
+          "rawBytes": 65323,
+          "gzipBytes": 18878,
+          "sha256": "16ad66289c6753001d3c428226609825bbdba362f173fdc8b85f4db5ca760c57",
+          "imports": [
+            "client-runtime.mjs"
+          ],
+          "modules": [
+            {
+              "module": "packages/snapback2/src/client.ts",
+              "bytesInOutput": 33401
+            },
+            {
+              "module": "packages/snapback2/src/client-upload.ts",
+              "bytesInOutput": 7239
+            },
+            {
+              "module": "packages/snapback2/src/client-channels.ts",
+              "bytesInOutput": 5579
+            },
+            {
+              "module": "packages/snapback2/src/client-auth.ts",
+              "bytesInOutput": 5359
+            },
+            {
+              "module": "packages/snapback2/src/live.ts",
+              "bytesInOutput": 4607
+            },
+            {
+              "module": "packages/snapback2/src/sse.ts",
+              "bytesInOutput": 3847
+            },
+            {
+              "module": "packages/snapback2/src/client-recovery.ts",
+              "bytesInOutput": 1645
+            },
+            {
+              "module": "packages/snapback2/src/client-mutations.ts",
+              "bytesInOutput": 1509
+            },
+            {
+              "module": "packages/snapback2/src/sse-parser.ts",
+              "bytesInOutput": 994
+            },
+            {
+              "module": "packages/snapback2/src/internal-access.ts",
+              "bytesInOutput": 96
+            }
+          ],
+          "unattributedBytes": 1047
+        },
+        {
+          "file": "expo.mjs",
+          "rawBytes": 26940,
+          "gzipBytes": 9648,
+          "sha256": "6d4ccf4b3e3919fdf60421e3261e7a8eabcaaa47f8304d0b398986ee770e3d51",
+          "imports": [
+            "react-core.mjs",
+            "react-core.mjs",
+            "client.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "react-core.mjs",
+            "react-core.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "react-core.mjs"
+          ],
+          "modules": [
+            {
+              "module": "packages/snapback2/src/store/sqlite.ts",
+              "bytesInOutput": 4606
+            },
+            {
+              "module": "packages/snapback2/src/react-native/files.ts",
+              "bytesInOutput": 3822
+            },
+            {
+              "module": "packages/snapback2/src/react-native/components.tsx",
+              "bytesInOutput": 3257
+            },
+            {
+              "module": "packages/snapback2/src/react-native/source.ts",
+              "bytesInOutput": 3135
+            },
+            {
+              "module": "packages/snapback2/src/store/metadata.ts",
+              "bytesInOutput": 2710
+            },
+            {
+              "module": "packages/snapback2/src/store/projection.ts",
+              "bytesInOutput": 2069
+            },
+            {
+              "module": "packages/snapback2/src/store/locks.ts",
+              "bytesInOutput": 1275
+            },
+            {
+              "module": "packages/snapback2/src/expo/token-store.ts",
+              "bytesInOutput": 1217
+            },
+            {
+              "module": "packages/snapback2/src/react-native.tsx",
+              "bytesInOutput": 1047
+            },
+            {
+              "module": "packages/snapback2/src/store/sqlite-expo.ts",
+              "bytesInOutput": 962
+            },
+            {
+              "module": "packages/snapback2/src/expo/files.ts",
+              "bytesInOutput": 428
+            },
+            {
+              "module": "packages/snapback2/src/expo/index.ts",
+              "bytesInOutput": 422
+            },
+            {
+              "module": "packages/snapback2/src/react-native/memory-video.tsx",
+              "bytesInOutput": 359
+            },
+            {
+              "module": "client-shared:packages/snapback2/src/store/range-store.ts",
+              "bytesInOutput": 323
+            },
+            {
+              "module": "client-shared:packages/snapback2/src/store/byte-cache.ts",
+              "bytesInOutput": 234
+            },
+            {
+              "module": "client-shared:packages/snapback2/src/client-wire.ts",
+              "bytesInOutput": 184
+            },
+            {
+              "module": "packages/snapback2/src/store/sqlite-driver.ts",
+              "bytesInOutput": 99
+            },
+            {
+              "module": "client-shared:packages/snapback2/src/token-store.ts",
+              "bytesInOutput": 71
+            },
+            {
+              "module": "packages/snapback2/src/expo.ts",
+              "bytesInOutput": 34
+            }
+          ],
+          "unattributedBytes": 686
+        },
+        {
+          "file": "react.mjs",
+          "rawBytes": 17500,
+          "gzipBytes": 6116,
+          "sha256": "048e1d3899b9016c79e4ce4b03120ac02e7f24bc6bd83f8e054ed26dad396b9f",
+          "imports": [
+            "react-core.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "react-core.mjs",
+            "image-runtime.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "image-runtime.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs"
+          ],
+          "modules": [
+            {
+              "module": "packages/snapback2/src/store/indexeddb.ts",
+              "bytesInOutput": 8155
+            },
+            {
+              "module": "packages/snapback2/src/react.tsx",
+              "bytesInOutput": 3738
+            },
+            {
+              "module": "packages/snapback2/src/store/metadata.ts",
+              "bytesInOutput": 2705
+            },
+            {
+              "module": "packages/snapback2/src/store/projection.ts",
+              "bytesInOutput": 1791
+            },
+            {
+              "module": "client-shared:packages/snapback2/src/store/inbox.ts",
+              "bytesInOutput": 359
+            },
+            {
+              "module": "client-shared:packages/snapback2/src/store/range-store.ts",
+              "bytesInOutput": 323
+            },
+            {
+              "module": "client-shared:packages/snapback2/src/client-wire.ts",
+              "bytesInOutput": 184
+            },
+            {
+              "module": "client-shared:packages/snapback2/src/client-assets.ts",
+              "bytesInOutput": 124
+            }
+          ],
+          "unattributedBytes": 121
+        },
+        {
+          "file": "react-core.mjs",
+          "rawBytes": 8098,
+          "gzipBytes": 3069,
+          "sha256": "fd6c207a64756067aff1900726189ee1912c7e521de32ac8f532bd4732fc0652",
+          "imports": [
+            "client.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs"
+          ],
+          "modules": [
+            {
+              "module": "packages/snapback2/src/react-core.tsx",
+              "bytesInOutput": 5272
+            },
+            {
+              "module": "packages/snapback2/src/client-pages.ts",
+              "bytesInOutput": 1553
+            },
+            {
+              "module": "client-shared:packages/snapback2/src/snapshot.ts",
+              "bytesInOutput": 305
+            },
+            {
+              "module": "client-shared:packages/snapback2/src/types.ts",
+              "bytesInOutput": 195
+            },
+            {
+              "module": "client-shared:packages/snapback2/src/client-wire.ts",
+              "bytesInOutput": 184
+            },
+            {
+              "module": "client-shared:packages/snapback2/src/client-assets.ts",
+              "bytesInOutput": 124
+            },
+            {
+              "module": "client-shared:packages/snapback2/src/api.ts",
+              "bytesInOutput": 61
+            }
+          ],
+          "unattributedBytes": 404
+        },
+        {
+          "file": "internal.mjs",
+          "rawBytes": 2850,
+          "gzipBytes": 1168,
+          "sha256": "cad42033891818cba79cca53fe1fa29696b954ce933314b91a34da7e2a9f453d",
+          "imports": [
+            "client-runtime.mjs",
+            "image-runtime.mjs"
+          ],
+          "modules": [
+            {
+              "module": "internal-client-exports:internal-client-exports",
+              "bytesInOutput": 119
+            }
+          ],
+          "unattributedBytes": 2731
+        }
+      ],
+      "runtime": {
+        "gzipBytes": 88008,
+        "rawBytes": 267167,
+        "modules": [
+          {
+            "module": "packages/evaluator/src/runner.ts",
+            "bytesInOutput": 28379
+          },
+          {
+            "module": "packages/snapback2/src/store/range-store.ts",
+            "bytesInOutput": 26686
+          },
+          {
+            "module": "packages/snapback2/src/offline.ts",
+            "bytesInOutput": 23421
+          },
+          {
+            "module": "packages/evaluator/dist/unicode-tables.ts",
+            "bytesInOutput": 17186
+          },
+          {
+            "module": "packages/evaluator/src/value-runtime.ts",
+            "bytesInOutput": 13476
+          },
+          {
+            "module": "packages/snapback2/src/offline-protocol.ts",
+            "bytesInOutput": 9820
+          },
+          {
+            "module": "packages/evaluator/src/certificate-identity.ts",
+            "bytesInOutput": 9483
+          },
+          {
+            "module": "packages/snapback2/src/twin-store.ts",
+            "bytesInOutput": 9102
+          },
+          {
+            "module": "packages/snapback2/src/store/outbox.ts",
+            "bytesInOutput": 8405
+          },
+          {
+            "module": "packages/evaluator/src/store.ts",
+            "bytesInOutput": 7816
+          },
+          {
+            "module": "packages/snapback2/src/store/byte-cache.ts",
+            "bytesInOutput": 7618
+          },
+          {
+            "module": "packages/evaluator/src/index-store.ts",
+            "bytesInOutput": 7231
+          },
+          {
+            "module": "packages/snapback2/src/store/fact-integrity.ts",
+            "bytesInOutput": 7127
+          },
+          {
+            "module": "packages/snapback2/src/store/carrier-index.ts",
+            "bytesInOutput": 6319
+          },
+          {
+            "module": "packages/snapback2/src/store/overlay-retirement.ts",
+            "bytesInOutput": 5929
+          },
+          {
+            "module": "packages/evaluator/src/cursor.ts",
+            "bytesInOutput": 5886
+          },
+          {
+            "module": "packages/evaluator/src/coverage.ts",
+            "bytesInOutput": 5547
+          },
+          {
+            "module": "packages/evaluator/src/range-preparation.ts",
+            "bytesInOutput": 4744
+          },
+          {
+            "module": "packages/evaluator/src/unicode.ts",
+            "bytesInOutput": 4716
+          },
+          {
+            "module": "packages/snapback2/src/twin.ts",
+            "bytesInOutput": 4705
+          },
+          {
+            "module": "packages/snapback2/src/store/swap-journal.ts",
+            "bytesInOutput": 3193
+          },
+          {
+            "module": "packages/snapback2/src/local-cursor.ts",
+            "bytesInOutput": 2914
+          },
+          {
+            "module": "packages/snapback2/src/store/metadata.ts",
+            "bytesInOutput": 2722
+          },
+          {
+            "module": "packages/evaluator/src/row-image.ts",
+            "bytesInOutput": 2622
+          },
+          {
+            "module": "packages/snapback2/src/store/extent-index.ts",
+            "bytesInOutput": 2422
+          },
+          {
+            "module": "packages/snapback2/src/query-items.ts",
+            "bytesInOutput": 2414
+          },
+          {
+            "module": "packages/snapback2/src/store/projection.ts",
+            "bytesInOutput": 2312
+          },
+          {
+            "module": "packages/evaluator/src/hash.ts",
+            "bytesInOutput": 2233
+          },
+          {
+            "module": "packages/snapback2/src/store/row-values.ts",
+            "bytesInOutput": 2064
+          },
+          {
+            "module": "packages/snapback2/src/delivery-acknowledgements.ts",
+            "bytesInOutput": 2045
+          },
+          {
+            "module": "packages/evaluator/src/held-directory.ts",
+            "bytesInOutput": 1771
+          },
+          {
+            "module": "packages/snapback2/src/store/fact-index.ts",
+            "bytesInOutput": 1761
+          },
+          {
+            "module": "packages/evaluator/src/slot-tree.ts",
+            "bytesInOutput": 1704
+          },
+          {
+            "module": "packages/evaluator/src/ordered.ts",
+            "bytesInOutput": 1606
+          },
+          {
+            "module": "packages/snapback2/src/types.ts",
+            "bytesInOutput": 1573
+          },
+          {
+            "module": "packages/evaluator/src/unicode-tables.ts",
+            "bytesInOutput": 1339
+          },
+          {
+            "module": "packages/snapback2/src/store/asset-policy.ts",
+            "bytesInOutput": 1272
+          },
+          {
+            "module": "packages/snapback2/src/store/maintained-coherence.ts",
+            "bytesInOutput": 1181
+          },
+          {
+            "module": "packages/evaluator/src/search-key.ts",
+            "bytesInOutput": 1172
+          },
+          {
+            "module": "packages/snapback2/src/mutation-targets.ts",
+            "bytesInOutput": 1098
+          },
+          {
+            "module": "packages/snapback2/src/tombstones.ts",
+            "bytesInOutput": 1071
+          },
+          {
+            "module": "packages/snapback2/src/store/extent-facts.ts",
+            "bytesInOutput": 1061
+          },
+          {
+            "module": "packages/evaluator/src/delivery-prediction.ts",
+            "bytesInOutput": 1033
+          },
+          {
+            "module": "packages/evaluator/src/search-runtime.ts",
+            "bytesInOutput": 1009
+          },
+          {
+            "module": "packages/snapback2/src/store/inbox.ts",
+            "bytesInOutput": 977
+          },
+          {
+            "module": "packages/snapback2/src/held-program.ts",
+            "bytesInOutput": 973
+          },
+          {
+            "module": "packages/snapback2/src/store/success-compaction.ts",
+            "bytesInOutput": 962
+          },
+          {
+            "module": "packages/snapback2/src/twin-hydrate.ts",
+            "bytesInOutput": 910
+          },
+          {
+            "module": "packages/evaluator/src/prefix-dictionary.ts",
+            "bytesInOutput": 861
+          },
+          {
+            "module": "packages/evaluator/src/posting-tree.ts",
+            "bytesInOutput": 842
+          },
+          {
+            "module": "packages/evaluator/src/coverage-spans.ts",
+            "bytesInOutput": 829
+          },
+          {
+            "module": "packages/evaluator/src/merge.ts",
+            "bytesInOutput": 793
+          },
+          {
+            "module": "packages/snapback2/src/store/canonical.ts",
+            "bytesInOutput": 552
+          },
+          {
+            "module": "packages/snapback2/src/store/query-inputs.ts",
+            "bytesInOutput": 550
+          },
+          {
+            "module": "packages/snapback2/src/client-wire.ts",
+            "bytesInOutput": 489
+          },
+          {
+            "module": "packages/snapback2/src/query-frame.ts",
+            "bytesInOutput": 287
+          },
+          {
+            "module": "packages/evaluator/src/text.ts",
+            "bytesInOutput": 269
+          },
+          {
+            "module": "packages/evaluator/src/errors.ts",
+            "bytesInOutput": 205
+          },
+          {
+            "module": "crates/snapback2-core/ir-contract.json",
+            "bytesInOutput": 167
+          },
+          {
+            "module": "packages/snapback2/src/offline-schema.ts",
+            "bytesInOutput": 0
+          },
+          {
+            "module": "../../../../<stdin>",
+            "bytesInOutput": 0
+          }
+        ]
+      }
+    },
+    "current": {
+      "source": {
+        "label": "current",
+        "commit": "b3b063b4e2132c64ec90ef8e636052ef13b0dfe8",
+        "originalBuildSha256": "5a1d11318ea54e4d5b59d927dd546055fc8e40e5d68da98a4ccde0c0d96d078d",
+        "instrumentation": "esbuild metafile:true, no semantic build-option changes",
+        "sourceArchiveBytes": 29480960
+      },
+      "entries": {
+        "client": {
+          "gzipBytes": 145189,
+          "rawBytes": 452462,
+          "files": [
+            "client.mjs",
+            "client-runtime.mjs",
+            "image-runtime.mjs"
+          ]
+        },
+        "react": {
+          "gzipBytes": 155056,
+          "rawBytes": 479664,
+          "files": [
+            "react.mjs",
+            "react-core.mjs",
+            "client.mjs",
+            "client-runtime.mjs",
+            "image-runtime.mjs",
+            "internal.mjs"
+          ]
+        },
+        "expo": {
+          "gzipBytes": 158589,
+          "rawBytes": 489104,
+          "files": [
+            "expo.mjs",
+            "react-core.mjs",
+            "client.mjs",
+            "client-runtime.mjs",
+            "image-runtime.mjs",
+            "internal.mjs"
+          ]
+        }
+      },
+      "leaves": [
+        {
+          "file": "client-runtime.mjs",
+          "rawBytes": 327121,
+          "gzipBytes": 103955,
+          "sha256": "7134ae9946e3fd7a3f0a73bd6c73ecaecb25d455e226c9119ecf3cc8c84bb86e",
+          "imports": [
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs"
+          ],
+          "modules": [
+            {
+              "module": "packages/evaluator/src/runner.ts",
+              "bytesInOutput": 28453
+            },
+            {
+              "module": "packages/snapback2/src/store/range-store.ts",
+              "bytesInOutput": 27190
+            },
+            {
+              "module": "packages/snapback2/src/offline.ts",
+              "bytesInOutput": 23528
+            },
+            {
+              "module": "packages/snapback2/src/client-offline.ts",
+              "bytesInOutput": 13777
+            },
+            {
+              "module": "packages/evaluator/src/value-runtime.ts",
+              "bytesInOutput": 13645
+            },
+            {
+              "module": "packages/snapback2/src/client-outbox.ts",
+              "bytesInOutput": 9789
+            },
+            {
+              "module": "packages/snapback2/src/client-inbox.ts",
+              "bytesInOutput": 9704
+            },
+            {
+              "module": "packages/snapback2/src/offline-protocol.ts",
+              "bytesInOutput": 9618
+            },
+            {
+              "module": "packages/evaluator/src/certificate-identity.ts",
+              "bytesInOutput": 9538
+            },
+            {
+              "module": "packages/snapback2/src/twin-store.ts",
+              "bytesInOutput": 9222
+            },
+            {
+              "module": "packages/snapback2/src/client-observed.ts",
+              "bytesInOutput": 8778
+            },
+            {
+              "module": "packages/snapback2/src/store/outbox.ts",
+              "bytesInOutput": 8606
+            },
+            {
+              "module": "packages/snapback2/src/client-wire.ts",
+              "bytesInOutput": 8094
+            },
+            {
+              "module": "packages/evaluator/src/store.ts",
+              "bytesInOutput": 7981
+            },
+            {
+              "module": "packages/snapback2/src/store/byte-cache.ts",
+              "bytesInOutput": 7667
+            },
+            {
+              "module": "packages/evaluator/src/index-store.ts",
+              "bytesInOutput": 7419
+            },
+            {
+              "module": "packages/snapback2/src/store/fact-integrity.ts",
+              "bytesInOutput": 7182
+            },
+            {
+              "module": "packages/snapback2/src/client-pages.ts",
+              "bytesInOutput": 7036
+            },
+            {
+              "module": "packages/snapback2/src/client-sessions.ts",
+              "bytesInOutput": 6810
+            },
+            {
+              "module": "packages/snapback2/src/assets.ts",
+              "bytesInOutput": 6682
+            },
+            {
+              "module": "packages/snapback2/src/store/carrier-index.ts",
+              "bytesInOutput": 6482
+            },
+            {
+              "module": "packages/snapback2/src/store/overlay-retirement.ts",
+              "bytesInOutput": 5979
+            },
+            {
+              "module": "packages/evaluator/src/cursor.ts",
+              "bytesInOutput": 5936
+            },
+            {
+              "module": "packages/evaluator/src/coverage.ts",
+              "bytesInOutput": 5728
+            },
+            {
+              "module": "packages/snapback2/src/client-items.ts",
+              "bytesInOutput": 5431
+            },
+            {
+              "module": "packages/snapback2/src/twin.ts",
+              "bytesInOutput": 4812
+            },
+            {
+              "module": "packages/snapback2/src/snapshot.ts",
+              "bytesInOutput": 4637
+            },
+            {
+              "module": "packages/snapback2/src/drain.ts",
+              "bytesInOutput": 3769
+            },
+            {
+              "module": "packages/snapback2/src/store/swap-journal.ts",
+              "bytesInOutput": 3310
+            },
+            {
+              "module": "packages/snapback2/src/local-cursor.ts",
+              "bytesInOutput": 2967
+            },
+            {
+              "module": "packages/snapback2/src/query-items.ts",
+              "bytesInOutput": 2515
+            },
+            {
+              "module": "packages/snapback2/src/store/extent-index.ts",
+              "bytesInOutput": 2422
+            },
+            {
+              "module": "packages/snapback2/src/client-assets.ts",
+              "bytesInOutput": 2301
+            },
+            {
+              "module": "packages/evaluator/src/hash.ts",
+              "bytesInOutput": 2234
+            },
+            {
+              "module": "packages/snapback2/src/store/row-values.ts",
+              "bytesInOutput": 2181
+            },
+            {
+              "module": "packages/snapback2/src/client-outbox-observed.ts",
+              "bytesInOutput": 2156
+            },
+            {
+              "module": "packages/snapback2/src/delivery-acknowledgements.ts",
+              "bytesInOutput": 2096
+            },
+            {
+              "module": "packages/snapback2/src/store/inbox.ts",
+              "bytesInOutput": 1817
+            },
+            {
+              "module": "packages/evaluator/src/held-directory.ts",
+              "bytesInOutput": 1773
+            },
+            {
+              "module": "packages/snapback2/src/store/fact-index.ts",
+              "bytesInOutput": 1761
+            },
+            {
+              "module": "packages/evaluator/src/slot-tree.ts",
+              "bytesInOutput": 1704
+            },
+            {
+              "module": "packages/snapback2/src/mutation-targets.ts",
+              "bytesInOutput": 1626
+            },
+            {
+              "module": "packages/snapback2/src/types.ts",
+              "bytesInOutput": 1621
+            },
+            {
+              "module": "packages/evaluator/src/ordered.ts",
+              "bytesInOutput": 1606
+            },
+            {
+              "module": "packages/evaluator/src/search-key.ts",
+              "bytesInOutput": 1370
+            },
+            {
+              "module": "packages/snapback2/src/store/asset-policy.ts",
+              "bytesInOutput": 1322
+            },
+            {
+              "module": "packages/snapback2/src/store/maintained-coherence.ts",
+              "bytesInOutput": 1230
+            },
+            {
+              "module": "packages/evaluator/src/search-runtime.ts",
+              "bytesInOutput": 1163
+            },
+            {
+              "module": "packages/snapback2/src/tombstones.ts",
+              "bytesInOutput": 1071
+            },
+            {
+              "module": "packages/snapback2/src/store/extent-facts.ts",
+              "bytesInOutput": 1061
+            },
+            {
+              "module": "packages/snapback2/src/client-outbox-recover.ts",
+              "bytesInOutput": 1052
+            },
+            {
+              "module": "packages/evaluator/src/delivery-prediction.ts",
+              "bytesInOutput": 1034
+            },
+            {
+              "module": "packages/snapback2/src/held-program.ts",
+              "bytesInOutput": 1023
+            },
+            {
+              "module": "packages/snapback2/src/store/success-compaction.ts",
+              "bytesInOutput": 969
+            },
+            {
+              "module": "packages/snapback2/src/twin-hydrate.ts",
+              "bytesInOutput": 910
+            },
+            {
+              "module": "packages/evaluator/src/prefix-dictionary.ts",
+              "bytesInOutput": 861
+            },
+            {
+              "module": "packages/evaluator/src/posting-tree.ts",
+              "bytesInOutput": 842
+            },
+            {
+              "module": "packages/evaluator/src/coverage-spans.ts",
+              "bytesInOutput": 829
+            },
+            {
+              "module": "packages/snapback2/src/token-store.ts",
+              "bytesInOutput": 828
+            },
+            {
+              "module": "packages/evaluator/src/merge.ts",
+              "bytesInOutput": 793
+            },
+            {
+              "module": "packages/snapback2/src/store/canonical.ts",
+              "bytesInOutput": 605
+            },
+            {
+              "module": "packages/snapback2/src/store/query-inputs.ts",
+              "bytesInOutput": 550
+            },
+            {
+              "module": "packages/snapback2/src/api.ts",
+              "bytesInOutput": 390
+            },
+            {
+              "module": "packages/evaluator/src/text.ts",
+              "bytesInOutput": 269
+            },
+            {
+              "module": "crates/snapback2-core/ir-contract.json",
+              "bytesInOutput": 167
+            },
+            {
+              "module": "packages/snapback2/src/offline-schema.ts",
+              "bytesInOutput": 0
+            }
+          ],
+          "unattributedBytes": 1199
+        },
+        {
+          "file": "image-runtime.mjs",
+          "rawBytes": 59185,
+          "gzipBytes": 22127,
+          "sha256": "4636bf68b911b1616e44dbb6977b76cc43f9983d4872e7fde1a50645d0296b27",
+          "imports": [],
+          "modules": [
+            {
+              "module": "packages/evaluator/dist/unicode-tables.ts",
+              "bytesInOutput": 17186
+            },
+            {
+              "module": "packages/evaluator/src/value-runtime.ts",
+              "bytesInOutput": 9736
+            },
+            {
+              "module": "packages/evaluator/src/certificate-identity.ts",
+              "bytesInOutput": 5639
+            },
+            {
+              "module": "packages/evaluator/src/cursor.ts",
+              "bytesInOutput": 4853
+            },
+            {
+              "module": "packages/evaluator/src/unicode.ts",
+              "bytesInOutput": 4746
+            },
+            {
+              "module": "packages/evaluator/src/range-preparation.ts",
+              "bytesInOutput": 4732
+            },
+            {
+              "module": "packages/evaluator/src/row-image.ts",
+              "bytesInOutput": 2612
+            },
+            {
+              "module": "packages/evaluator/src/hash.ts",
+              "bytesInOutput": 2183
+            },
+            {
+              "module": "packages/evaluator/src/index-store.ts",
+              "bytesInOutput": 1878
+            },
+            {
+              "module": "packages/evaluator/src/unicode-tables.ts",
+              "bytesInOutput": 1327
+            },
+            {
+              "module": "packages/evaluator/src/search-key.ts",
+              "bytesInOutput": 1166
+            },
+            {
+              "module": "packages/evaluator/src/search-runtime.ts",
+              "bytesInOutput": 1004
+            },
+            {
+              "module": "packages/snapback2/src/query-frame.ts",
+              "bytesInOutput": 608
+            },
+            {
+              "module": "packages/evaluator/src/errors.ts",
+              "bytesInOutput": 205
+            },
+            {
+              "module": "packages/snapback2/src/internal-access.ts",
+              "bytesInOutput": 182
+            },
+            {
+              "module": "crates/snapback2-core/ir-contract.json",
+              "bytesInOutput": 167
+            },
+            {
+              "module": "packages/snapback2/src/image-runtime.ts",
+              "bytesInOutput": 0
+            }
+          ],
+          "unattributedBytes": 961
+        },
+        {
+          "file": "client.mjs",
+          "rawBytes": 66156,
+          "gzipBytes": 19107,
+          "sha256": "ec31ea8bb6e53a4be68c0cad6b2e4b2cfaadf33812ffd97e8c8236a20978b7fd",
+          "imports": [
+            "client-runtime.mjs"
+          ],
+          "modules": [
+            {
+              "module": "packages/snapback2/src/client.ts",
+              "bytesInOutput": 34234
+            },
+            {
+              "module": "packages/snapback2/src/client-upload.ts",
+              "bytesInOutput": 7239
+            },
+            {
+              "module": "packages/snapback2/src/client-channels.ts",
+              "bytesInOutput": 5579
+            },
+            {
+              "module": "packages/snapback2/src/client-auth.ts",
+              "bytesInOutput": 5359
+            },
+            {
+              "module": "packages/snapback2/src/live.ts",
+              "bytesInOutput": 4607
+            },
+            {
+              "module": "packages/snapback2/src/sse.ts",
+              "bytesInOutput": 3847
+            },
+            {
+              "module": "packages/snapback2/src/client-recovery.ts",
+              "bytesInOutput": 1645
+            },
+            {
+              "module": "packages/snapback2/src/client-mutations.ts",
+              "bytesInOutput": 1509
+            },
+            {
+              "module": "packages/snapback2/src/sse-parser.ts",
+              "bytesInOutput": 994
+            },
+            {
+              "module": "packages/snapback2/src/internal-access.ts",
+              "bytesInOutput": 96
+            }
+          ],
+          "unattributedBytes": 1047
+        },
+        {
+          "file": "expo.mjs",
+          "rawBytes": 26940,
+          "gzipBytes": 9650,
+          "sha256": "8ebd3deadc9abf35261384af12e64de6379965adef38d7914afcb176643f24af",
+          "imports": [
+            "react-core.mjs",
+            "react-core.mjs",
+            "client.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "image-runtime.mjs",
+            "image-runtime.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "react-core.mjs",
+            "react-core.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "react-core.mjs"
+          ],
+          "modules": [
+            {
+              "module": "packages/snapback2/src/store/sqlite.ts",
+              "bytesInOutput": 4606
+            },
+            {
+              "module": "packages/snapback2/src/react-native/files.ts",
+              "bytesInOutput": 3822
+            },
+            {
+              "module": "packages/snapback2/src/react-native/components.tsx",
+              "bytesInOutput": 3257
+            },
+            {
+              "module": "packages/snapback2/src/react-native/source.ts",
+              "bytesInOutput": 3135
+            },
+            {
+              "module": "packages/snapback2/src/store/metadata.ts",
+              "bytesInOutput": 2710
+            },
+            {
+              "module": "packages/snapback2/src/store/projection.ts",
+              "bytesInOutput": 2069
+            },
+            {
+              "module": "packages/snapback2/src/store/locks.ts",
+              "bytesInOutput": 1275
+            },
+            {
+              "module": "packages/snapback2/src/expo/token-store.ts",
+              "bytesInOutput": 1217
+            },
+            {
+              "module": "packages/snapback2/src/react-native.tsx",
+              "bytesInOutput": 1047
+            },
+            {
+              "module": "packages/snapback2/src/store/sqlite-expo.ts",
+              "bytesInOutput": 962
+            },
+            {
+              "module": "packages/snapback2/src/expo/files.ts",
+              "bytesInOutput": 428
+            },
+            {
+              "module": "packages/snapback2/src/expo/index.ts",
+              "bytesInOutput": 422
+            },
+            {
+              "module": "packages/snapback2/src/react-native/memory-video.tsx",
+              "bytesInOutput": 359
+            },
+            {
+              "module": "client-shared:packages/snapback2/src/store/range-store.ts",
+              "bytesInOutput": 323
+            },
+            {
+              "module": "client-shared:packages/snapback2/src/store/byte-cache.ts",
+              "bytesInOutput": 234
+            },
+            {
+              "module": "client-shared:packages/snapback2/src/client-wire.ts",
+              "bytesInOutput": 184
+            },
+            {
+              "module": "packages/snapback2/src/store/sqlite-driver.ts",
+              "bytesInOutput": 99
+            },
+            {
+              "module": "client-shared:packages/snapback2/src/token-store.ts",
+              "bytesInOutput": 71
+            },
+            {
+              "module": "packages/snapback2/src/expo.ts",
+              "bytesInOutput": 34
+            }
+          ],
+          "unattributedBytes": 686
+        },
+        {
+          "file": "react.mjs",
+          "rawBytes": 17500,
+          "gzipBytes": 6117,
+          "sha256": "7e9b9f646eb093e17882fb634667660e9013586f064f72d94ec8babb87126d53",
+          "imports": [
+            "react-core.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "react-core.mjs",
+            "image-runtime.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "image-runtime.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs"
+          ],
+          "modules": [
+            {
+              "module": "packages/snapback2/src/store/indexeddb.ts",
+              "bytesInOutput": 8155
+            },
+            {
+              "module": "packages/snapback2/src/react.tsx",
+              "bytesInOutput": 3738
+            },
+            {
+              "module": "packages/snapback2/src/store/metadata.ts",
+              "bytesInOutput": 2705
+            },
+            {
+              "module": "packages/snapback2/src/store/projection.ts",
+              "bytesInOutput": 1791
+            },
+            {
+              "module": "client-shared:packages/snapback2/src/store/inbox.ts",
+              "bytesInOutput": 359
+            },
+            {
+              "module": "client-shared:packages/snapback2/src/store/range-store.ts",
+              "bytesInOutput": 323
+            },
+            {
+              "module": "client-shared:packages/snapback2/src/client-wire.ts",
+              "bytesInOutput": 184
+            },
+            {
+              "module": "client-shared:packages/snapback2/src/client-assets.ts",
+              "bytesInOutput": 124
+            }
+          ],
+          "unattributedBytes": 121
+        },
+        {
+          "file": "react-core.mjs",
+          "rawBytes": 6621,
+          "gzipBytes": 2495,
+          "sha256": "5e8d96da7c6f15a343928618ac4e910f7ee50207de2aec1749c4bd559f8b2369",
+          "imports": [
+            "client.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs",
+            "internal.mjs"
+          ],
+          "modules": [
+            {
+              "module": "packages/snapback2/src/react-core.tsx",
+              "bytesInOutput": 5348
+            },
+            {
+              "module": "client-shared:packages/snapback2/src/snapshot.ts",
+              "bytesInOutput": 305
+            },
+            {
+              "module": "client-shared:packages/snapback2/src/types.ts",
+              "bytesInOutput": 195
+            },
+            {
+              "module": "client-shared:packages/snapback2/src/client-wire.ts",
+              "bytesInOutput": 184
+            },
+            {
+              "module": "client-shared:packages/snapback2/src/client-assets.ts",
+              "bytesInOutput": 124
+            },
+            {
+              "module": "client-shared:packages/snapback2/src/api.ts",
+              "bytesInOutput": 61
+            }
+          ],
+          "unattributedBytes": 404
+        },
+        {
+          "file": "internal.mjs",
+          "rawBytes": 3081,
+          "gzipBytes": 1255,
+          "sha256": "5d86f2306cf314ce904e84f7125e5aa667440d198b48e5bf5998b1a0ad8ce625",
+          "imports": [
+            "client-runtime.mjs",
+            "image-runtime.mjs"
+          ],
+          "modules": [
+            {
+              "module": "internal-client-exports:internal-client-exports",
+              "bytesInOutput": 119
+            }
+          ],
+          "unattributedBytes": 2962
+        }
+      ],
+      "runtime": {
+        "gzipBytes": 88053,
+        "rawBytes": 267291,
+        "modules": [
+          {
+            "module": "packages/evaluator/src/runner.ts",
+            "bytesInOutput": 28379
+          },
+          {
+            "module": "packages/snapback2/src/store/range-store.ts",
+            "bytesInOutput": 26686
+          },
+          {
+            "module": "packages/snapback2/src/offline.ts",
+            "bytesInOutput": 23421
+          },
+          {
+            "module": "packages/evaluator/dist/unicode-tables.ts",
+            "bytesInOutput": 17186
+          },
+          {
+            "module": "packages/evaluator/src/value-runtime.ts",
+            "bytesInOutput": 13476
+          },
+          {
+            "module": "packages/snapback2/src/offline-protocol.ts",
+            "bytesInOutput": 9820
+          },
+          {
+            "module": "packages/evaluator/src/certificate-identity.ts",
+            "bytesInOutput": 9483
+          },
+          {
+            "module": "packages/snapback2/src/twin-store.ts",
+            "bytesInOutput": 9102
+          },
+          {
+            "module": "packages/snapback2/src/store/outbox.ts",
+            "bytesInOutput": 8405
+          },
+          {
+            "module": "packages/evaluator/src/store.ts",
+            "bytesInOutput": 7816
+          },
+          {
+            "module": "packages/snapback2/src/store/byte-cache.ts",
+            "bytesInOutput": 7618
+          },
+          {
+            "module": "packages/evaluator/src/index-store.ts",
+            "bytesInOutput": 7231
+          },
+          {
+            "module": "packages/snapback2/src/store/fact-integrity.ts",
+            "bytesInOutput": 7127
+          },
+          {
+            "module": "packages/snapback2/src/store/carrier-index.ts",
+            "bytesInOutput": 6319
+          },
+          {
+            "module": "packages/snapback2/src/store/overlay-retirement.ts",
+            "bytesInOutput": 5929
+          },
+          {
+            "module": "packages/evaluator/src/cursor.ts",
+            "bytesInOutput": 5886
+          },
+          {
+            "module": "packages/evaluator/src/coverage.ts",
+            "bytesInOutput": 5547
+          },
+          {
+            "module": "packages/evaluator/src/range-preparation.ts",
+            "bytesInOutput": 4744
+          },
+          {
+            "module": "packages/evaluator/src/unicode.ts",
+            "bytesInOutput": 4716
+          },
+          {
+            "module": "packages/snapback2/src/twin.ts",
+            "bytesInOutput": 4705
+          },
+          {
+            "module": "packages/snapback2/src/store/swap-journal.ts",
+            "bytesInOutput": 3193
+          },
+          {
+            "module": "packages/snapback2/src/local-cursor.ts",
+            "bytesInOutput": 2914
+          },
+          {
+            "module": "packages/snapback2/src/store/metadata.ts",
+            "bytesInOutput": 2722
+          },
+          {
+            "module": "packages/evaluator/src/row-image.ts",
+            "bytesInOutput": 2622
+          },
+          {
+            "module": "packages/snapback2/src/store/extent-index.ts",
+            "bytesInOutput": 2422
+          },
+          {
+            "module": "packages/snapback2/src/query-items.ts",
+            "bytesInOutput": 2414
+          },
+          {
+            "module": "packages/snapback2/src/store/projection.ts",
+            "bytesInOutput": 2312
+          },
+          {
+            "module": "packages/evaluator/src/hash.ts",
+            "bytesInOutput": 2233
+          },
+          {
+            "module": "packages/snapback2/src/store/row-values.ts",
+            "bytesInOutput": 2181
+          },
+          {
+            "module": "packages/snapback2/src/delivery-acknowledgements.ts",
+            "bytesInOutput": 2045
+          },
+          {
+            "module": "packages/evaluator/src/held-directory.ts",
+            "bytesInOutput": 1771
+          },
+          {
+            "module": "packages/snapback2/src/store/fact-index.ts",
+            "bytesInOutput": 1761
+          },
+          {
+            "module": "packages/evaluator/src/slot-tree.ts",
+            "bytesInOutput": 1704
+          },
+          {
+            "module": "packages/evaluator/src/ordered.ts",
+            "bytesInOutput": 1606
+          },
+          {
+            "module": "packages/snapback2/src/types.ts",
+            "bytesInOutput": 1573
+          },
+          {
+            "module": "packages/evaluator/src/unicode-tables.ts",
+            "bytesInOutput": 1339
+          },
+          {
+            "module": "packages/snapback2/src/store/asset-policy.ts",
+            "bytesInOutput": 1272
+          },
+          {
+            "module": "packages/snapback2/src/store/maintained-coherence.ts",
+            "bytesInOutput": 1181
+          },
+          {
+            "module": "packages/evaluator/src/search-key.ts",
+            "bytesInOutput": 1172
+          },
+          {
+            "module": "packages/snapback2/src/mutation-targets.ts",
+            "bytesInOutput": 1098
+          },
+          {
+            "module": "packages/snapback2/src/tombstones.ts",
+            "bytesInOutput": 1071
+          },
+          {
+            "module": "packages/snapback2/src/store/extent-facts.ts",
+            "bytesInOutput": 1061
+          },
+          {
+            "module": "packages/evaluator/src/delivery-prediction.ts",
+            "bytesInOutput": 1033
+          },
+          {
+            "module": "packages/evaluator/src/search-runtime.ts",
+            "bytesInOutput": 1009
+          },
+          {
+            "module": "packages/snapback2/src/store/inbox.ts",
+            "bytesInOutput": 977
+          },
+          {
+            "module": "packages/snapback2/src/held-program.ts",
+            "bytesInOutput": 973
+          },
+          {
+            "module": "packages/snapback2/src/store/success-compaction.ts",
+            "bytesInOutput": 969
+          },
+          {
+            "module": "packages/snapback2/src/twin-hydrate.ts",
+            "bytesInOutput": 910
+          },
+          {
+            "module": "packages/evaluator/src/prefix-dictionary.ts",
+            "bytesInOutput": 861
+          },
+          {
+            "module": "packages/evaluator/src/posting-tree.ts",
+            "bytesInOutput": 842
+          },
+          {
+            "module": "packages/evaluator/src/coverage-spans.ts",
+            "bytesInOutput": 829
+          },
+          {
+            "module": "packages/evaluator/src/merge.ts",
+            "bytesInOutput": 793
+          },
+          {
+            "module": "packages/snapback2/src/store/canonical.ts",
+            "bytesInOutput": 552
+          },
+          {
+            "module": "packages/snapback2/src/store/query-inputs.ts",
+            "bytesInOutput": 550
+          },
+          {
+            "module": "packages/snapback2/src/client-wire.ts",
+            "bytesInOutput": 489
+          },
+          {
+            "module": "packages/snapback2/src/query-frame.ts",
+            "bytesInOutput": 287
+          },
+          {
+            "module": "packages/evaluator/src/text.ts",
+            "bytesInOutput": 269
+          },
+          {
+            "module": "packages/evaluator/src/errors.ts",
+            "bytesInOutput": 205
+          },
+          {
+            "module": "crates/snapback2-core/ir-contract.json",
+            "bytesInOutput": 167
+          },
+          {
+            "module": "packages/snapback2/src/offline-schema.ts",
+            "bytesInOutput": 0
+          },
+          {
+            "module": "../../../../<stdin>",
+            "bytesInOutput": 0
+          }
+        ]
+      }
+    }
+  }
+}

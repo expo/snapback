@@ -1,0 +1,141 @@
+{
+  "at": "2026-09-11T18:13:34.546763+00:00",
+  "directory": "/var/folders/l4/5wkw68k17fg1mz9rkw88y30c0000gn/T/snapback2-doctor-signed-release-20260911-p3yrxf3h",
+  "name": {
+    "status": 0,
+    "stdout": "Charlie\u2019s Mac mini-bones M4/16",
+    "stderr": ""
+  },
+  "model": {
+    "status": 0,
+    "stdout": "Mac16,10",
+    "stderr": ""
+  },
+  "cpu": {
+    "status": 0,
+    "stdout": "10",
+    "stderr": ""
+  },
+  "memory": {
+    "status": 0,
+    "stdout": "17179869184",
+    "stderr": ""
+  },
+  "load": {
+    "status": 0,
+    "stdout": "{ 1.75 2.05 2.12 }",
+    "stderr": ""
+  },
+  "memoryPressure": {
+    "status": 0,
+    "stdout": "The system has 17179869184 (1048576 pages with a page size of 16384).\nSystem-wide memory free percentage: 60%",
+    "stderr": ""
+  },
+  "disk": {
+    "status": 0,
+    "stdout": "Filesystem   1024-blocks      Used Available Capacity iused    ifree %iused  Mounted on\n/dev/disk3s5   239362496 214537872   2202620    99% 2951886 22026200   12%   /System/Volumes/Data",
+    "stderr": ""
+  },
+  "os": {
+    "status": 0,
+    "stdout": "ProductName:\t\tmacOS\nProductVersion:\t\t26.6.2\nBuildVersion:\t\t25G83",
+    "stderr": ""
+  },
+  "topProcesses": [
+    {
+      "pid": 639,
+      "ppid": 1,
+      "cpu": 67.6,
+      "mem": 0.2,
+      "command": "/usr/libexec/mobileassetd"
+    },
+    {
+      "pid": 31294,
+      "ppid": 31292,
+      "cpu": 21.0,
+      "mem": 0.1,
+      "command": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python"
+    },
+    {
+      "pid": 939,
+      "ppid": 1,
+      "cpu": 14.6,
+      "mem": 0.1,
+      "command": "/usr/libexec/triald"
+    },
+    {
+      "pid": 31293,
+      "ppid": 48650,
+      "cpu": 11.3,
+      "mem": 0.1,
+      "command": "/Users/ccheever/.local/bin/fleet"
+    },
+    {
+      "pid": 55789,
+      "ppid": 1,
+      "cpu": 10.2,
+      "mem": 1.3,
+      "command": "/Applications/Dropbox.app/Contents/MacOS/Dropbox"
+    },
+    {
+      "pid": 31295,
+      "ppid": 1,
+      "cpu": 9.9,
+      "mem": 0.0,
+      "command": "sshd-session: [accepted]"
+    },
+    {
+      "pid": 1173,
+      "ppid": 1,
+      "cpu": 7.6,
+      "mem": 0.2,
+      "command": "/System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/MacOS/WallpaperAerialsExtension"
+    },
+    {
+      "pid": 675,
+      "ppid": 1,
+      "cpu": 4.3,
+      "mem": 0.1,
+      "command": "/System/Library/CoreServices/TimeMachine/backupd"
+    },
+    {
+      "pid": 607,
+      "ppid": 1,
+      "cpu": 3.8,
+      "mem": 0.2,
+      "command": "/System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer"
+    },
+    {
+      "pid": 569,
+      "ppid": 1,
+      "cpu": 3.5,
+      "mem": 0.1,
+      "command": "/usr/libexec/opendirectoryd"
+    },
+    {
+      "pid": 1,
+      "ppid": 0,
+      "cpu": 2.5,
+      "mem": 0.1,
+      "command": "/sbin/launchd"
+    },
+    {
+      "pid": 852,
+      "ppid": 1,
+      "cpu": 2.3,
+      "mem": 0.0,
+      "command": "/System/Library/CoreServices/TimeMachine/backupd-helper"
+    }
+  ],
+  "buildOrTestProcesses": [
+    {
+      "pid": 82573,
+      "ppid": 82572,
+      "cpu": 0.0,
+      "mem": 0.2,
+      "command": "node"
+    }
+  ],
+  "concurrencyCap": 1,
+  "scope": "Only static code-signature/notarization assessment; no product process execution, build, signing, or credential access."
+}

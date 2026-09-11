@@ -7,3 +7,7 @@ export { SEARCH_CONTRACT, SearchInputError, SearchNormalizer, scalarLength, sear
 export * from '../../evaluator/src/range-preparation.js';
 export * from './query-frame.js';
 export { subscribe, sharedConsumers, internalSubscribe, internalConsumers } from './internal-access.js';
+export * from '../../evaluator/src/value-runtime.js';
+export * from '../../evaluator/src/hash.js';
+export * from '../../evaluator/src/certificate-identity.js';
+export * from '../../evaluator/src/cursor.js';

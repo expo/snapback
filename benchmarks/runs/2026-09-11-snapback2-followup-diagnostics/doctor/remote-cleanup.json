@@ -1,0 +1,11 @@
+{
+  "at": "2026-09-11T18:15:58.773756+00:00",
+  "directory": "/var/folders/l4/5wkw68k17fg1mz9rkw88y30c0000gn/T/snapback2-doctor-signed-release-20260911-p3yrxf3h",
+  "removedOwnedFiles": [
+    "snapback2-0.0.22",
+    "snapback2-media-0.0.22",
+    "snapback2-0.0.23",
+    "snapback2-media-0.0.23"
+  ],
+  "directoryRemoved": true
+}

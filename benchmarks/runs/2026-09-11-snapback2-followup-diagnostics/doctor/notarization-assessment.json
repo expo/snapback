@@ -1,0 +1,66 @@
+{
+  "at": "2026-09-11T18:14:17.597884+00:00",
+  "productLaunched": false,
+  "assessments": [
+    {
+      "binary": "snapback2-0.0.22",
+      "sha256": "1969ca63454a53e437187154b9d62484d7a7367e10443d96ebbb5e18559931b5",
+      "command": [
+        "codesign",
+        "--verify",
+        "--verbose=4",
+        "--test-requirement",
+        "=notarized",
+        "/var/folders/l4/5wkw68k17fg1mz9rkw88y30c0000gn/T/snapback2-doctor-signed-release-20260911-p3yrxf3h/snapback2-0.0.22"
+      ],
+      "exitCode": 3,
+      "stdout": "",
+      "stderr": "/var/folders/l4/5wkw68k17fg1mz9rkw88y30c0000gn/T/snapback2-doctor-signed-release-20260911-p3yrxf3h/snapback2-0.0.22: valid on disk\n/var/folders/l4/5wkw68k17fg1mz9rkw88y30c0000gn/T/snapback2-doctor-signed-release-20260911-p3yrxf3h/snapback2-0.0.22: satisfies its Designated Requirement\ntest-requirement: code failed to satisfy specified code requirement(s)\n"
+    },
+    {
+      "binary": "snapback2-0.0.23",
+      "sha256": "b6181c8535ab54d3b31bb7f12c991bcdc357b7a3751ce0f300795e779c8ae71e",
+      "command": [
+        "codesign",
+        "--verify",
+        "--verbose=4",
+        "--test-requirement",
+        "=notarized",
+        "/var/folders/l4/5wkw68k17fg1mz9rkw88y30c0000gn/T/snapback2-doctor-signed-release-20260911-p3yrxf3h/snapback2-0.0.23"
+      ],
+      "exitCode": 3,
+      "stdout": "",
+      "stderr": "/var/folders/l4/5wkw68k17fg1mz9rkw88y30c0000gn/T/snapback2-doctor-signed-release-20260911-p3yrxf3h/snapback2-0.0.23: valid on disk\n/var/folders/l4/5wkw68k17fg1mz9rkw88y30c0000gn/T/snapback2-doctor-signed-release-20260911-p3yrxf3h/snapback2-0.0.23: satisfies its Designated Requirement\ntest-requirement: code failed to satisfy specified code requirement(s)\n"
+    },
+    {
+      "binary": "snapback2-media-0.0.22",
+      "sha256": "5545ac3eb3ad8ec93a44d0757dbe28c8312617ad1613353fe5aec379d9843c1a",
+      "command": [
+        "codesign",
+        "--verify",
+        "--verbose=4",
+        "--test-requirement",
+        "=notarized",
+        "/var/folders/l4/5wkw68k17fg1mz9rkw88y30c0000gn/T/snapback2-doctor-signed-release-20260911-p3yrxf3h/snapback2-media-0.0.22"
+      ],
+      "exitCode": 3,
+      "stdout": "",
+      "stderr": "/var/folders/l4/5wkw68k17fg1mz9rkw88y30c0000gn/T/snapback2-doctor-signed-release-20260911-p3yrxf3h/snapback2-media-0.0.22: valid on disk\n/var/folders/l4/5wkw68k17fg1mz9rkw88y30c0000gn/T/snapback2-doctor-signed-release-20260911-p3yrxf3h/snapback2-media-0.0.22: satisfies its Designated Requirement\ntest-requirement: code failed to satisfy specified code requirement(s)\n"
+    },
+    {
+      "binary": "snapback2-media-0.0.23",
+      "sha256": "bc559dc3d19e32f9a5a06bb0a3cc4ce88c1d55c224b357ac8742e00d2166d6eb",
+      "command": [
+        "codesign",
+        "--verify",
+        "--verbose=4",
+        "--test-requirement",
+        "=notarized",
+        "/var/folders/l4/5wkw68k17fg1mz9rkw88y30c0000gn/T/snapback2-doctor-signed-release-20260911-p3yrxf3h/snapback2-media-0.0.23"
+      ],
+      "exitCode": 3,
+      "stdout": "",
+      "stderr": "/var/folders/l4/5wkw68k17fg1mz9rkw88y30c0000gn/T/snapback2-doctor-signed-release-20260911-p3yrxf3h/snapback2-media-0.0.23: valid on disk\n/var/folders/l4/5wkw68k17fg1mz9rkw88y30c0000gn/T/snapback2-doctor-signed-release-20260911-p3yrxf3h/snapback2-media-0.0.23: satisfies its Designated Requirement\ntest-requirement: code failed to satisfy specified code requirement(s)\n"
+    }
+  ]
+}

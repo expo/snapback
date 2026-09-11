@@ -12,6 +12,18 @@ const ACK_OP = /^_delivery\.([^.]+)\.ack$/;
 /** Keyed by the log row key. A terminal binding retries only on accepted redelivery. */
 export type DeliveryAcknowledgement = [seq: number, intent?: string, retry?: boolean];
 
+// @ref LLP 1019#6-receipts-with-receipts — retained bindings suppress
+// duplicate receipts. Admission needs only detached, unbound identities;
+// copying retained history on every page dominates large acquisitions.
+export function pendingDeliveryAcks(acks: Record<string, DeliveryAcknowledgement>): Record<string, number> {
+  const pending: Record<string, number> = {};
+  for (const key of Object.keys(acks)) {
+    const [seq, intent] = acks[key];
+    if (!intent) pending[key] = seq;
+  }
+  return pending;
+}
+
 export function applyDeliveryAcknowledgements(state: PersistedRangeState, swap: StoreSwap, principal: string): boolean {
   const schema = storedProgram(state, swap)?.schema;
   for (const page of swap.deliveries ?? []) {

@@ -1,0 +1,2385 @@
+{
+  "current": {
+    "value-runtime": {
+      "emittedDeclarations": 57,
+      "duplicateDeclarations": 35,
+      "declarations": [
+        {
+          "name": "prepareSchema",
+          "line": 16,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "schemaDigest",
+          "line": 27,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "canonicalValue",
+          "line": 34,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "canonicalValues",
+          "line": 52,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "materializeOptionalFields",
+          "line": 63,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "rowValue",
+          "line": 76,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "field",
+          "line": 82,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "fieldOrNull",
+          "line": 88,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "asObject",
+          "line": 93,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "asArray",
+          "line": 99,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "asString",
+          "line": 104,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "asInt",
+          "line": 110,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "asBool",
+          "line": 115,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "int",
+          "line": 120,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "safeNumber",
+          "line": 124,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "totalCompare",
+          "line": 130,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "compareArrays",
+          "line": 160,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "comparePrimitive",
+          "line": 169,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "variant",
+          "line": 173,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "wireJson",
+          "line": 184,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "rowDigest",
+          "line": 199,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "scopedRuleHash",
+          "line": 204,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "kindOf",
+          "line": 208,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "isVariant",
+          "line": 215,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "sameValueZero",
+          "line": 226,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "startsWith",
+          "line": 244,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "validHttpUrl",
+          "line": 248,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "canonicalJson",
+          "line": 257,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "validateWriteRow",
+          "line": 268,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "validateInputs",
+          "line": 290,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "validateScanCursor",
+          "line": 299,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "columnDescriptor",
+          "line": 312,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "validateColumnValue",
+          "line": 317,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "validateTypedValue",
+          "line": 321,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "validateType",
+          "line": 337,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "disallowedTextControlCodePoint",
+          "line": 415,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "descriptorContainsAsset",
+          "line": 423,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "validateAsset",
+          "line": 432,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "validEngineId",
+          "line": 451,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "assetType",
+          "line": 455,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "assertValue",
+          "line": 459,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "inspectValue",
+          "line": 462,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "canonicalBytes",
+          "line": 489,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "hasOwn",
+          "line": 493,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "plainObject",
+          "line": 497,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "clone",
+          "line": 501,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "builtinArity",
+          "line": 515,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "valueText",
+          "line": 524,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "isWordCharacter",
+          "line": 535,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "scalarText",
+          "line": 540,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "validateIdentity",
+          "line": 543,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "identityFits",
+          "line": 547,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "validateAddress",
+          "line": 550,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "wireObject",
+          "line": 569,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "rowFromWire",
+          "line": 573,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "valueFromWire",
+          "line": 584,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "tagJson",
+          "line": 630,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        }
+      ]
+    },
+    "hash": {
+      "emittedDeclarations": 5,
+      "duplicateDeclarations": 5,
+      "declarations": [
+        {
+          "name": "sha256",
+          "line": 1,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "utf8Length",
+          "line": 60,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "rotate",
+          "line": 66,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "utf8",
+          "line": 71,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "compareCodepoints",
+          "line": 102,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        }
+      ]
+    },
+    "certificate-identity": {
+      "emittedDeclarations": 30,
+      "duplicateDeclarations": 20,
+      "declarations": [
+        {
+          "name": "canonicalProgramJson",
+          "line": 8,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "canonicalSchemaJson",
+          "line": 27,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeSchedule",
+          "line": 51,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "known",
+          "line": 67,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "pick",
+          "line": 78,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "deepSorted",
+          "line": 86,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "canonicalRuleJson",
+          "line": 93,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "normalizeMaintain",
+          "line": 97,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeMaintainKind",
+          "line": 104,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeTable",
+          "line": 110,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeTombstone",
+          "line": 138,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeIndex",
+          "line": 144,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeChannel",
+          "line": 153,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeRules",
+          "line": 169,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeRule",
+          "line": 176,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeRuleTerm",
+          "line": 198,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeConstraint",
+          "line": 206,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeColumnType",
+          "line": 227,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeArgType",
+          "line": 248,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeStatement",
+          "line": 273,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "normalizeDomain",
+          "line": 300,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "normalizeExpression",
+          "line": 313,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "normalizeHeldSearch",
+          "line": 339,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "normalizeRead",
+          "line": 349,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "normalizeScan",
+          "line": 353,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "normalizeBound",
+          "line": 375,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "nullableExpression",
+          "line": 380,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "normalizeValue",
+          "line": 384,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "sortedMap",
+          "line": 392,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "tagged",
+          "line": 398,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        }
+      ]
+    },
+    "cursor": {
+      "emittedDeclarations": 11,
+      "duplicateDeclarations": 9,
+      "declarations": [
+        {
+          "name": "encodeCursor",
+          "line": 21,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "decodeCursor",
+          "line": 44,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "decodeCursorFor",
+          "line": 77,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "cursorSuffix",
+          "line": 97,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "validateValues",
+          "line": 107,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeDescriptor",
+          "line": 130,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeValue",
+          "line": 164,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "decodeUtf8",
+          "line": 185,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "variant",
+          "line": 202,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "nonnegativeInteger",
+          "line": 203,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "fail",
+          "line": 204,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        }
+      ]
+    }
+  },
+  "experiment-value-hash": {
+    "value-runtime": {
+      "emittedDeclarations": 60,
+      "duplicateDeclarations": 0,
+      "declarations": [
+        {
+          "name": "prepareSchema",
+          "line": 16,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "schemaDigest",
+          "line": 27,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "canonicalValue",
+          "line": 34,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "canonicalValues",
+          "line": 52,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "rangeStops",
+          "line": 56,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "materializeOptionalFields",
+          "line": 63,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "rowValue",
+          "line": 76,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "field",
+          "line": 82,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "fieldOrNull",
+          "line": 88,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "asObject",
+          "line": 93,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "asArray",
+          "line": 99,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "asString",
+          "line": 104,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "asInt",
+          "line": 110,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "asBool",
+          "line": 115,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "int",
+          "line": 120,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "safeNumber",
+          "line": 124,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "totalCompare",
+          "line": 130,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "compareArrays",
+          "line": 160,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "comparePrimitive",
+          "line": 169,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "variant",
+          "line": 173,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "wireJson",
+          "line": 184,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "rowDigest",
+          "line": 199,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "scopedRuleHash",
+          "line": 204,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "kindOf",
+          "line": 208,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "isVariant",
+          "line": 215,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "valuesEqual",
+          "line": 222,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "sameValueZero",
+          "line": 226,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "startsWith",
+          "line": 244,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "validHttpUrl",
+          "line": 248,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "canonicalJson",
+          "line": 257,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "validateWriteRow",
+          "line": 268,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "validateInputs",
+          "line": 290,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "validateScanCursor",
+          "line": 299,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "columnDescriptor",
+          "line": 312,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "validateColumnValue",
+          "line": 317,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "validateTypedValue",
+          "line": 321,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "validateType",
+          "line": 337,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "disallowedTextControlCodePoint",
+          "line": 415,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "descriptorContainsAsset",
+          "line": 423,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "validateAsset",
+          "line": 432,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "validEngineId",
+          "line": 451,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "assetType",
+          "line": 455,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "assertValue",
+          "line": 459,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "inspectValue",
+          "line": 462,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "canonicalBytes",
+          "line": 489,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "hasOwn",
+          "line": 493,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "plainObject",
+          "line": 497,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "clone",
+          "line": 501,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "sortObject",
+          "line": 509,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "builtinArity",
+          "line": 515,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "valueText",
+          "line": 524,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "isWordCharacter",
+          "line": 535,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "scalarText",
+          "line": 540,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "validateIdentity",
+          "line": 543,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "identityFits",
+          "line": 547,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "validateAddress",
+          "line": 550,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "wireObject",
+          "line": 569,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "rowFromWire",
+          "line": 573,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "valueFromWire",
+          "line": 584,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "tagJson",
+          "line": 630,
+          "emitted": [
+            "image-runtime"
+          ]
+        }
+      ]
+    },
+    "hash": {
+      "emittedDeclarations": 5,
+      "duplicateDeclarations": 0,
+      "declarations": [
+        {
+          "name": "sha256",
+          "line": 1,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "utf8Length",
+          "line": 60,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "rotate",
+          "line": 66,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "utf8",
+          "line": 71,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "compareCodepoints",
+          "line": 102,
+          "emitted": [
+            "image-runtime"
+          ]
+        }
+      ]
+    },
+    "certificate-identity": {
+      "emittedDeclarations": 30,
+      "duplicateDeclarations": 20,
+      "declarations": [
+        {
+          "name": "canonicalProgramJson",
+          "line": 8,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "canonicalSchemaJson",
+          "line": 27,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeSchedule",
+          "line": 51,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "known",
+          "line": 67,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "pick",
+          "line": 78,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "deepSorted",
+          "line": 86,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "canonicalRuleJson",
+          "line": 93,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeMaintain",
+          "line": 97,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeMaintainKind",
+          "line": 104,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeTable",
+          "line": 110,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeTombstone",
+          "line": 138,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeIndex",
+          "line": 144,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeChannel",
+          "line": 153,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeRules",
+          "line": 169,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeRule",
+          "line": 176,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeRuleTerm",
+          "line": 198,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeConstraint",
+          "line": 206,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeColumnType",
+          "line": 227,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeArgType",
+          "line": 248,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeStatement",
+          "line": 273,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "normalizeDomain",
+          "line": 300,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "normalizeExpression",
+          "line": 313,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "normalizeHeldSearch",
+          "line": 339,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "normalizeRead",
+          "line": 349,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "normalizeScan",
+          "line": 353,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "normalizeBound",
+          "line": 375,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "nullableExpression",
+          "line": 380,
+          "emitted": [
+            "client-runtime"
+          ]
+        },
+        {
+          "name": "normalizeValue",
+          "line": 384,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "sortedMap",
+          "line": 392,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "tagged",
+          "line": 398,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        }
+      ]
+    },
+    "cursor": {
+      "emittedDeclarations": 11,
+      "duplicateDeclarations": 11,
+      "declarations": [
+        {
+          "name": "encodeCursor",
+          "line": 21,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "decodeCursor",
+          "line": 44,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "decodeCursorFor",
+          "line": 77,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "cursorSuffix",
+          "line": 97,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "validateValues",
+          "line": 107,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeDescriptor",
+          "line": 130,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeValue",
+          "line": 164,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "decodeUtf8",
+          "line": 185,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "variant",
+          "line": 202,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "nonnegativeInteger",
+          "line": 203,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "fail",
+          "line": 204,
+          "emitted": [
+            "client-runtime",
+            "image-runtime"
+          ]
+        }
+      ]
+    }
+  },
+  "experiment-primitives": {
+    "value-runtime": {
+      "emittedDeclarations": 60,
+      "duplicateDeclarations": 0,
+      "declarations": [
+        {
+          "name": "prepareSchema",
+          "line": 16,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "schemaDigest",
+          "line": 27,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "canonicalValue",
+          "line": 34,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "canonicalValues",
+          "line": 52,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "rangeStops",
+          "line": 56,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "materializeOptionalFields",
+          "line": 63,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "rowValue",
+          "line": 76,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "field",
+          "line": 82,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "fieldOrNull",
+          "line": 88,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "asObject",
+          "line": 93,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "asArray",
+          "line": 99,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "asString",
+          "line": 104,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "asInt",
+          "line": 110,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "asBool",
+          "line": 115,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "int",
+          "line": 120,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "safeNumber",
+          "line": 124,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "totalCompare",
+          "line": 130,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "compareArrays",
+          "line": 160,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "comparePrimitive",
+          "line": 169,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "variant",
+          "line": 173,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "wireJson",
+          "line": 184,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "rowDigest",
+          "line": 199,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "scopedRuleHash",
+          "line": 204,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "kindOf",
+          "line": 208,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "isVariant",
+          "line": 215,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "valuesEqual",
+          "line": 222,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "sameValueZero",
+          "line": 226,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "startsWith",
+          "line": 244,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "validHttpUrl",
+          "line": 248,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "canonicalJson",
+          "line": 257,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "validateWriteRow",
+          "line": 268,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "validateInputs",
+          "line": 290,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "validateScanCursor",
+          "line": 299,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "columnDescriptor",
+          "line": 312,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "validateColumnValue",
+          "line": 317,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "validateTypedValue",
+          "line": 321,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "validateType",
+          "line": 337,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "disallowedTextControlCodePoint",
+          "line": 415,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "descriptorContainsAsset",
+          "line": 423,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "validateAsset",
+          "line": 432,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "validEngineId",
+          "line": 451,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "assetType",
+          "line": 455,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "assertValue",
+          "line": 459,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "inspectValue",
+          "line": 462,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "canonicalBytes",
+          "line": 489,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "hasOwn",
+          "line": 493,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "plainObject",
+          "line": 497,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "clone",
+          "line": 501,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "sortObject",
+          "line": 509,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "builtinArity",
+          "line": 515,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "valueText",
+          "line": 524,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "isWordCharacter",
+          "line": 535,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "scalarText",
+          "line": 540,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "validateIdentity",
+          "line": 543,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "identityFits",
+          "line": 547,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "validateAddress",
+          "line": 550,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "wireObject",
+          "line": 569,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "rowFromWire",
+          "line": 573,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "valueFromWire",
+          "line": 584,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "tagJson",
+          "line": 630,
+          "emitted": [
+            "image-runtime"
+          ]
+        }
+      ]
+    },
+    "hash": {
+      "emittedDeclarations": 5,
+      "duplicateDeclarations": 0,
+      "declarations": [
+        {
+          "name": "sha256",
+          "line": 1,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "utf8Length",
+          "line": 60,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "rotate",
+          "line": 66,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "utf8",
+          "line": 71,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "compareCodepoints",
+          "line": 102,
+          "emitted": [
+            "image-runtime"
+          ]
+        }
+      ]
+    },
+    "certificate-identity": {
+      "emittedDeclarations": 30,
+      "duplicateDeclarations": 0,
+      "declarations": [
+        {
+          "name": "canonicalProgramJson",
+          "line": 8,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "canonicalSchemaJson",
+          "line": 27,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeSchedule",
+          "line": 51,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "known",
+          "line": 67,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "pick",
+          "line": 78,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "deepSorted",
+          "line": 86,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "canonicalRuleJson",
+          "line": 93,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeMaintain",
+          "line": 97,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeMaintainKind",
+          "line": 104,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeTable",
+          "line": 110,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeTombstone",
+          "line": 138,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeIndex",
+          "line": 144,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeChannel",
+          "line": 153,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeRules",
+          "line": 169,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeRule",
+          "line": 176,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeRuleTerm",
+          "line": 198,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeConstraint",
+          "line": 206,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeColumnType",
+          "line": 227,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeArgType",
+          "line": 248,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeStatement",
+          "line": 273,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeDomain",
+          "line": 300,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeExpression",
+          "line": 313,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeHeldSearch",
+          "line": 339,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeRead",
+          "line": 349,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeScan",
+          "line": 353,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeBound",
+          "line": 375,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "nullableExpression",
+          "line": 380,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeValue",
+          "line": 384,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "sortedMap",
+          "line": 392,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "tagged",
+          "line": 398,
+          "emitted": [
+            "image-runtime"
+          ]
+        }
+      ]
+    },
+    "cursor": {
+      "emittedDeclarations": 11,
+      "duplicateDeclarations": 0,
+      "declarations": [
+        {
+          "name": "encodeCursor",
+          "line": 21,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "decodeCursor",
+          "line": 44,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "decodeCursorFor",
+          "line": 77,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "cursorSuffix",
+          "line": 97,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "validateValues",
+          "line": 107,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeDescriptor",
+          "line": 130,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "normalizeValue",
+          "line": 164,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "decodeUtf8",
+          "line": 185,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "variant",
+          "line": 202,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "nonnegativeInteger",
+          "line": 203,
+          "emitted": [
+            "image-runtime"
+          ]
+        },
+        {
+          "name": "fail",
+          "line": 204,
+          "emitted": [
+            "image-runtime"
+          ]
+        }
+      ]
+    }
+  }
+}

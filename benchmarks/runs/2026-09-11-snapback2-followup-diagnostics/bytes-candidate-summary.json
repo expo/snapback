@@ -1,0 +1,98 @@
+[
+  {
+    "experiment": "experiment-hash",
+    "gzip": {
+      "client": 143999,
+      "react": 153866,
+      "expo": 157399
+    },
+    "runtimeGzip": 88053,
+    "saving": {
+      "client": 1190,
+      "react": 1190,
+      "expo": 1190
+    },
+    "sameClosureLeaves": true,
+    "runtimeByteIdentical": true
+  },
+  {
+    "experiment": "experiment-value",
+    "gzip": {
+      "client": 143790,
+      "react": 153620,
+      "expo": 157152
+    },
+    "runtimeGzip": 88053,
+    "saving": {
+      "client": 1399,
+      "react": 1436,
+      "expo": 1437
+    },
+    "sameClosureLeaves": true,
+    "runtimeByteIdentical": true
+  },
+  {
+    "experiment": "experiment-value-hash",
+    "gzip": {
+      "client": 142633,
+      "react": 152463,
+      "expo": 155995
+    },
+    "runtimeGzip": 88053,
+    "saving": {
+      "client": 2556,
+      "react": 2593,
+      "expo": 2594
+    },
+    "sameClosureLeaves": true,
+    "runtimeByteIdentical": true
+  },
+  {
+    "experiment": "experiment-certificate",
+    "gzip": {
+      "client": 143606,
+      "react": 153457,
+      "expo": 156989
+    },
+    "runtimeGzip": 88053,
+    "saving": {
+      "client": 1583,
+      "react": 1599,
+      "expo": 1600
+    },
+    "sameClosureLeaves": true,
+    "runtimeByteIdentical": true
+  },
+  {
+    "experiment": "experiment-cursor",
+    "gzip": {
+      "client": 143962,
+      "react": 153829,
+      "expo": 157362
+    },
+    "runtimeGzip": 88053,
+    "saving": {
+      "client": 1227,
+      "react": 1227,
+      "expo": 1227
+    },
+    "sameClosureLeaves": true,
+    "runtimeByteIdentical": true
+  },
+  {
+    "experiment": "experiment-primitives",
+    "gzip": {
+      "client": 139382,
+      "react": 149192,
+      "expo": 152724
+    },
+    "runtimeGzip": 88053,
+    "saving": {
+      "client": 5807,
+      "react": 5864,
+      "expo": 5865
+    },
+    "sameClosureLeaves": true,
+    "runtimeByteIdentical": true
+  }
+]
