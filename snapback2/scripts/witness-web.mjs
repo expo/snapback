@@ -2,8 +2,8 @@
 // The browser witness for LLP 1012 §10 (lane O2, never blocking): real
 // Chromium over the chat template's React screens and the IndexedDB carrier,
 // driven through Playwright, signed in as a real account through the starter's
-// own form. No schedule runs it; run it after changing the chat starter or
-// client custody, and file a red as a ticket.
+// own form. `scripts/scheduled.mjs` runs it on a launchd schedule and keeps one
+// ticket open while it is red; run it by hand after changing the chat starter.
 //
 // Run from `snapback2/` after `cargo build --workspace --bins` and
 // `(cd packages/snapback2 && node build.mjs)`:

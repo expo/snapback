@@ -14,6 +14,7 @@ scripts/test.sh                      # everything blocking (~84 s warm on EPYC; 
 node scripts/measure.mjs --check     # loop numbers → metrics/loop.jsonl; fails on regression
 node scripts/publish.mjs --dry-run   # production build WITH the engine + npm pack; drop --dry-run to ship
 scripts/hermes test -p snapback2-effects   # the engine proof (Ibex 2 + vanilla Hermes); never blocking
+node scripts/scheduled.mjs install --checks web  # browser/simulator witnesses on launchd; a red keeps one ticket
 (cd packages/snapback2 && node build.mjs)  # bundle the compiler worker, client, react, test runner
 ./target/debug/snapback2 doctor      # boot-to-ready proof: certifies programs, finds the compiler worker
 ```

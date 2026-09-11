@@ -7,7 +7,8 @@ export const packageRoot = resolve(workspace, "packages/snapback2");
 export const binary = resolve(workspace, "target/debug/snapback2");
 export const dist = resolve(packageRoot, "dist");
 export const project = resolve(workspace, "target/e2-expo-app");
-export const environment = { ...process.env, SNAPBACK2_EXPO_WORKSPACE: workspace, SNAPBACK2_COMPILER: resolve(dist, "compiler.mjs"),
+// CocoaPods refuses to run without a UTF-8 locale, and launchd starts jobs with none.
+export const environment = { ...process.env, LANG: process.env.LANG || "en_US.UTF-8", SNAPBACK2_EXPO_WORKSPACE: workspace, SNAPBACK2_COMPILER: resolve(dist, "compiler.mjs"),
   SNAPBACK2_TEMPLATES: resolve(dist, "templates"), SNAPBACK2_GUIDE: resolve(dist, "guide"), EXPO_NO_TELEMETRY: "1" };
 export function run(command, args, options = {}) {
   const { timeout = 600_000, ...spawnOptions } = options;
