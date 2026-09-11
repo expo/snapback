@@ -21,6 +21,8 @@ use snapback2_core::{
 };
 use std::collections::{BTreeMap, BTreeSet};
 use std::time::{Duration, Instant};
+#[path = "test_invalidation_coverage.rs"]
+mod coverage;
 
 pub(super) fn specialize_probe_args(
     program: &Program,
@@ -212,6 +214,7 @@ pub(super) struct CommitEvidence {
     changed: bool,
     observed_invalidated: bool,
     observed_delivered: bool,
+    all_probe_writes_covered: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -239,6 +242,7 @@ pub(super) fn physical_commit_evidence(
     query: &str,
     query_args: &Json,
     query_persona: &str,
+    generation: &Generation,
 ) -> Result<Option<CommitEvidence>, String> {
     let seq = response
         .get("seq")
@@ -306,6 +310,7 @@ pub(super) fn physical_commit_evidence(
         changed: normalized_result(&before.result) != normalized_result(&after),
         observed_invalidated: invalidated_ids.contains(&before.subscription_id),
         observed_delivered: delivery_ids.contains(&before.subscription_id),
+        all_probe_writes_covered: coverage::every_probe_write_is_covered(&before.trace, generation),
     }))
 }
 
@@ -618,6 +623,7 @@ fn physical_outcome_details(
         "invalidated": evidence.observed_invalidated,
         "delivered": evidence.observed_delivered,
         "sseDelivered": sse_delivery.is_some(),
+        "allProbeWritesCovered": evidence.all_probe_writes_covered,
         "sseSeq": sse_delivery.as_ref().and_then(|delivery| delivery.get("seq")).cloned(),
         "error": error,
     })
@@ -652,6 +658,7 @@ pub(super) fn check(
     let mut overlap_probes = 0_u64;
     let mut delivery_probes = 0_u64;
     let mut silence_probes = 0_u64;
+    let mut silence_inapplicable = Vec::new();
     let mut exclusions = 0_u64;
     let system_targets = compiled
         .generation
@@ -677,6 +684,7 @@ pub(super) fn check(
             }
         };
         let mut query_has_silence = false;
+        let mut query_disjoint_inapplicable = false;
         let mut query_has_generic_mutation = false;
         // One witnessed representative per certificate-intersection signature,
         // rather than repeating the same subscription proof for every operation.
@@ -787,6 +795,7 @@ pub(super) fn check(
                         &mut delivery_probes,
                         &mut silence_probes,
                         &mut query_has_silence,
+                        &mut query_disjoint_inapplicable,
                     );
                     break;
                 }
@@ -804,7 +813,7 @@ pub(super) fn check(
                 }));
             }
         }
-        if !query_has_silence && query_has_generic_mutation {
+        if !query_has_silence && query_has_generic_mutation && !query_disjoint_inapplicable {
             let disjoint_persona = format!("__snapback2_disjoint_{}", query_name.replace('.', "_"));
             'fallback: for (mutation_name, (mutation, mutation_certificate)) in
                 compiled.generation.programs()
@@ -852,6 +861,7 @@ pub(super) fn check(
                             &mut delivery_probes,
                             &mut silence_probes,
                             &mut query_has_silence,
+                            &mut query_disjoint_inapplicable,
                         );
                         break 'fallback;
                     }
@@ -892,12 +902,16 @@ pub(super) fn check(
                         &mut delivery_probes,
                         &mut silence_probes,
                         &mut query_has_silence,
+                        &mut query_disjoint_inapplicable,
                     );
                     break 'fallback;
                 }
             }
         }
-        if !query_has_silence && query_has_generic_mutation {
+        if !query_has_silence && query_disjoint_inapplicable {
+            silence_inapplicable.push(json!({ "query": query_name,
+                "reason": "every mutation write site is covered by a whole-index authoritative range" }));
+        } else if !query_has_silence && query_has_generic_mutation {
             blocked.push(json!({
                 "query": query_name,
                 "reason": format!("no physical concrete-disjoint probe for {query_name}"),
@@ -905,7 +919,7 @@ pub(super) fn check(
         }
     }
     let detail = json!({
-        "coverage": "one physical representative per query and certificate-intersection signature, plus concrete-disjoint silence per query; not every operation pair",
+        "coverage": "one physical representative per query and certificate-intersection signature, plus concrete-disjoint silence whenever such a commit is possible; not every operation pair",
         "groups": coverage,
         "candidateLimit": 12,
         "attemptLimitPerQuery": 64,
@@ -914,6 +928,7 @@ pub(super) fn check(
         "overlapProbes": overlap_probes,
         "deliveryProbes": delivery_probes,
         "silenceProbes": silence_probes,
+        "silenceInapplicable": silence_inapplicable,
         "exclusions": exclusions,
         "transport": "SSE",
         "intersectionLevel": "exact authoritative trace key x commit touched key",
@@ -1030,6 +1045,7 @@ fn invalidation_attempt(owner: &OwnerInfo, generation: &Generation, meta: Attemp
         meta.query,
         meta.query_args,
         meta.query_persona,
+        generation,
     ) {
         Ok(Some(evidence)) => evidence,
         Ok(None) => {
@@ -1082,7 +1098,9 @@ fn count_probe(
     delivery_probes: &mut u64,
     silence_probes: &mut u64,
     query_has_silence: &mut bool,
+    query_disjoint_inapplicable: &mut bool,
 ) {
+    *query_disjoint_inapplicable |= evidence.all_probe_writes_covered;
     *probes += 1;
     if evidence.overlaps {
         *overlap_probes += 1;
@@ -1367,6 +1385,7 @@ mod tests {
             changed,
             observed_invalidated: invalidated,
             observed_delivered: delivered,
+            all_probe_writes_covered: false,
         };
         assert!(
             trace_disposition(ProbeRole::Pair, true, evidence(true, true, false, false)).is_err()
