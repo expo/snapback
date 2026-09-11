@@ -162,7 +162,7 @@ export async function assetUrlFor(
   assetOrList: AssetRecord | readonly AssetRecord[] | null | undefined,
   options: AssetUrlOptions,
   authority: Authority,
-): Promise<string | string[] | undefined> {
+): Promise<string | (string | undefined)[] | undefined> {
   const records = Array.isArray(assetOrList)
     ? assetOrList
     : assetOrList == null ? [] : [assetOrList as AssetRecord];
@@ -182,7 +182,11 @@ export async function assetUrlFor(
   }
   try {
     if (Array.isArray(assetOrList)) {
-      return mintable.map((asset) => assetPath(host.url, asset, options.width, carrier));
+      // @ref LLP 1012#9-asset-bytes-on-the-device — list resolution preserves
+      // record positions as custody consumes individual view-once entries.
+      return records.map((asset) => viewed.has(asset.id)
+        ? undefined
+        : assetPath(host.url, asset, options.width, carrier));
     }
     return assetOrList == null || viewed.has((assetOrList as AssetRecord).id)
       ? undefined

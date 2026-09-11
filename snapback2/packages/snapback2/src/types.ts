@@ -426,7 +426,8 @@ export interface SnapbackClient {
   /** Discards own unclaimed bytes; running finalizers retain quota until closed. Missing/foreign ids return false. */
   discardUpload(id: string): Promise<boolean>;
   assetUrl(asset: AssetRecord | null | undefined, options?: AssetUrlOptions): Promise<string | undefined>;
-  assetUrl(assets: readonly AssetRecord[], options?: AssetUrlOptions): Promise<string[]>;
+  /** Preserves list positions; a consumed view-once asset resolves to `undefined`. */
+  assetUrl(assets: readonly AssetRecord[], options?: AssetUrlOptions): Promise<(string | undefined)[]>;
   /** Authentication headers for a native image source; carriers stay reserved for players/downloads. */
   assetHeaders(): Promise<Record<string, string>>;
   /** Fetches a client-issued asset URL: the byte cache under the row's lease first, then the network with the header credential. */

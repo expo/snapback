@@ -351,8 +351,8 @@ class Client implements SnapbackClient {
   }
 
   async assetUrl(asset: AssetRecord | null | undefined, options?: AssetUrlOptions): Promise<string | undefined>;
-  async assetUrl(assets: readonly AssetRecord[], options?: AssetUrlOptions): Promise<string[]>;
-  async assetUrl(assetOrList: AssetRecord | readonly AssetRecord[] | null | undefined, options: AssetUrlOptions = {}): Promise<string | string[] | undefined> {
+  async assetUrl(assets: readonly AssetRecord[], options?: AssetUrlOptions): Promise<(string | undefined)[]>;
+  async assetUrl(assetOrList: AssetRecord | readonly AssetRecord[] | null | undefined, options: AssetUrlOptions = {}): Promise<string | (string | undefined)[] | undefined> {
     return assetUrlFor(this, assetOrList, options, await this.operationAuthority());
   }
   async assetHeaders(): Promise<Record<string, string>> {
