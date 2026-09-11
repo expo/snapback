@@ -324,7 +324,8 @@ mutation fire():
         const result = await lowerProject(root);
         assert(!result.ok, statement);
         assert(result.diagnostics.every((item) => item.family === "effect" && item.site.startsWith("snapback/provider.ts:")), JSON.stringify(result));
-        assert(result.diagnostics.some((item) => item.code === "E_EFFECT_IMPORT"), JSON.stringify(result));
+        assert.equal(result.diagnostics.filter((item) => item.code === "E_EFFECT_IMPORT").length, 1, JSON.stringify(result));
+        assert.equal(result.diagnostics.filter((item) => item.code === "E_EFFECT_TYPE").length, 0, JSON.stringify(result));
       });
     }
   });

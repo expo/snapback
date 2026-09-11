@@ -424,8 +424,11 @@ fn fetch_redirect_matrix_preserves_or_drops_method_body_and_headers() {
                 request.starts_with(&format!("{expected_method} /end HTTP/1.1\r\n")),
                 "{request}"
             );
+            assert_content_type(
+                request,
+                if drop_body { None } else { Some("application/json") },
+            );
             for (name, value) in [
-                ("content-type", "application/json"),
                 ("content-encoding", "identity"),
                 ("content-language", "en"),
                 ("content-location", "/body"),
@@ -472,7 +475,7 @@ fn fetch_redirect_matrix_preserves_or_drops_method_body_and_headers() {
 
 #[test]
 fn fetch_cross_origin_redirect_strips_credentials_and_checks_each_grant() {
-    for status in [302, 303, 307] {
+    for status in [301, 302, 303, 307, 308] {
         for granted in [false, true] {
             let destination = TestServer::start("ok");
             let redirector =
@@ -514,11 +517,11 @@ fn fetch_cross_origin_redirect_strips_credentials_and_checks_each_grant() {
                 initial.split_once("\r\n\r\n").unwrap().1,
                 r#"{"cross":true}"#
             );
+            assert_content_type(initial, Some("application/json"));
             for (name, value) in [
                 ("authorization", "Bearer token"),
                 ("proxy-authorization", "Basic proxy"),
                 ("cookie", "session=secret"),
-                ("content-type", "application/json"),
                 ("content-length", "14"),
                 ("content-encoding", "identity"),
                 ("content-language", "en"),
@@ -534,7 +537,7 @@ fn fetch_cross_origin_redirect_strips_credentials_and_checks_each_grant() {
                 println!(
                     "{status} cross-origin first request:\n{initial}\ncross-origin redirected request:\n{request}"
                 );
-                let dropped = status != 307;
+                let dropped = status != 307 && status != 308;
                 let method = if dropped { "GET" } else { "POST" };
                 assert!(
                     request.starts_with(&format!("{method} /end HTTP/1.1\r\n")),
@@ -543,8 +546,11 @@ fn fetch_cross_origin_redirect_strips_credentials_and_checks_each_grant() {
                 for name in ["authorization", "proxy-authorization", "cookie"] {
                     assert_eq!(request_header(request, name), None, "{request}");
                 }
+                assert_content_type(
+                    request,
+                    if dropped { None } else { Some("application/json") },
+                );
                 for (name, value) in [
-                    ("content-type", "application/json"),
                     ("content-length", "14"),
                     ("content-encoding", "identity"),
                     ("content-language", "en"),
