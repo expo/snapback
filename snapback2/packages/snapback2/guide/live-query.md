@@ -30,13 +30,17 @@ or add a polling reconciliation loop for ordinary live delivery.
 Queued writes replay after `online()` (`guide offline`). `last` clears on
 account/op change. `ResultOf<Op>`/`ArgsOf<Op>`: `snapback2/client`.
 
-`usePage(op, args, options?)` returns
+`usePage(op, args, options?)` / lazy `client.observePages` returns
 `{ items, pages, loadMore, hasMore, status, reason }` for arrays.
 Omit `c` (or `options.cursor`). Pages stay live by previous `next`; args reset pages. Keep cursors unchanged.
 `hasMore` means a continuation is currently proved, not that a partial has
 exhausted server data. Check `pages`/`reason`: a queued prediction can temporarily
 make a computed offline page partial without `next`, even for another operation.
 Do not invent offsets or reuse an old cursor on changed data.
+With `{ items }`, `items` keeps row/draft types; `head.data` owns the primary
+summary. `pages` contains original snapshots, with no combined receipt.
+Declared history uses its own cursors; `itemsFrom` identifies the active
+source. See `guide pagination` for ordering and handover.
 
 `defineItems(query, { table, select, order, create, update, remove })` binds
 items; composites name `rows`. `select` returns an original row or null; omit it

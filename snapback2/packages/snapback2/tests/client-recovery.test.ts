@@ -8,6 +8,7 @@ import { fileRangeStore } from "../dist/test.mjs";
 import { indexedDbRangeStore } from "../dist/react.mjs";
 import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
 import { DAY, engineId, fakeOwner, seededStore } from "./fake-owner.ts";
+import { recoverOutbox, createOutboxApi } from "../dist/sqlite-test.mjs";
 
 const args = (body: string) => ({ conversationId: engineId(10), body });
 const pause = () => new Promise(resolve => setTimeout(resolve, 5));
@@ -376,4 +377,208 @@ test("reads recovering real transport never reissue a rejected mutation as a new
     assert.equal(mutations, 1);
     assert.equal((await f.client.outbox.entries()).filter((entry: any) => entry.state === "queued").length, 0);
   } finally { await f.close(); }
+});
+
+function gate<T = void>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>(done => { resolve = done; });
+  return { promise, resolve };
+}
+const flush = async () => { for (let i = 0; i < 8; i++) await new Promise<void>(done => setImmediate(done)); };
+
+test("recovery callers have independent deadlines while their shared work can finish", async t => {
+  const resumed = gate(), scope = new AbortController();
+  let settled = 0;
+  const host = { ready: async () => {}, identity: () => "alice:1", scope: () => scope.signal,
+    online: async () => resumed.promise,
+    settled: async () => { settled++; return { stopped: false as const, remaining: 0 }; } };
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  try {
+    const first = recoverOutbox(host); await flush();
+    t.mock.timers.tick(5_000);
+    const second = recoverOutbox(host); await flush();
+    t.mock.timers.tick(5_000); await flush();
+    assert.equal((await first).refusal.code, "E_TRANSPORT");
+    resumed.resolve();
+    assert.deepEqual(await second, { settlement: { stopped: false, remaining: 0 } });
+    assert.equal(settled, 1, "expired caller does not start settlement after its shared resume finishes");
+    assert.deepEqual(await recoverOutbox(host), { settlement: { stopped: false, remaining: 0 } }, "a later call owns a fresh wait");
+  } finally { t.mock.timers.reset(); resumed.resolve(); }
+});
+
+test("recovery cannot clear an offline cut made while startup was still pending", async () => {
+  const startup = gate(), scope = new AbortController();
+  let online = 0;
+  const recovery = recoverOutbox({ ready: () => startup.promise, identity: () => "alice:1", scope: () => scope.signal,
+    online: async () => { online++; }, settled: async () => ({ stopped: false, remaining: 0 }) });
+  scope.abort();
+  const result = await recovery;
+  assert.equal(result.refusal.code, "E_OFFLINE_LIFECYCLE");
+  assert.equal(result.settlement, undefined, "a lifecycle refusal has no invented remaining count");
+  startup.resolve(); await flush();
+  assert.equal(online, 0);
+});
+
+test("A to B to A invalidates a recovery waiter even when the account string returns", async () => {
+  const resumed = gate(), scope = new AbortController();
+  let generation = 1, settlementReads = 0;
+  const result = recoverOutbox({ ready: async () => {}, identity: () => `alice:${generation}`, scope: () => scope.signal,
+    online: async () => resumed.promise, settled: async () => { settlementReads++; return { stopped: false, remaining: 0 }; } });
+  await flush(); generation += 2; scope.abort();
+  assert.equal((await result).refusal.code, "E_AUTH_SUPERSEDED");
+  resumed.resolve(); await flush();
+  assert.equal(settlementReads, 0);
+});
+
+for (const following of [false, true]) test(`recovery fences a late ${following ? "follower refresh" : "drain"} before reading a new partition`, async () => {
+  const pending = gate(), scope = new AbortController();
+  let reads = 0;
+  const runtime: any = { principal: "dev:alice", following, drainTail: pending.promise,
+    drainVerdict: Promise.resolve({ stopped: false, remaining: 0 }),
+    itemEntries: async () => { reads++; return []; }, inboxPending: 0,
+    outbox: { status: async () => { reads++; return { remaining: 0 }; } } };
+  const api = createOutboxApi(runtime, async () => ({ stopped: false, remaining: 0 }), async () => {}, () => false,
+    { refresh: () => pending.promise }, () => "alice:1", undefined, undefined,
+    { scope: () => scope.signal, online: async () => {}, connection: () => "connected", subscribe: () => () => {} });
+  const recovering = api.recover(); await flush(); scope.abort();
+  assert.equal((await recovering).refusal.code, "E_OFFLINE_LIFECYCLE");
+  runtime.principal = "dev:bob";
+  pending.resolve(); await flush();
+  assert.equal(reads, 0, "an expired outer Promise cannot leave unguarded settlement work behind");
+});
+
+for (const boundary of ["offline", "close", "login"] as const) test(`public recover promptly refuses ${boundary} while resume ignores abort`, async () => {
+  const held = gate(), sent = gate();
+  let hold = false;
+  const f = await fixture({ facts: true, bearer: boundary === "login", fetch: owner => async (input, init) => {
+    const path = new URL(String(input)).pathname;
+    if (path === "/api/resume" && hold) { sent.resolve(); await held.promise; }
+    if (path === "/api/auth/login") return Response.json({ viewer: "dev:bob", token: "token-bob", kind: "user", authEpoch: 8 });
+    return owner.fetch(input, init);
+  } });
+  try {
+    hold = true;
+    const recovering = f.client.outbox.recover();
+    await sent.promise;
+    if (boundary === "login") await f.client.auth.login({ email: "bob@example.com", password: "test" });
+    else await f.client[boundary]();
+    const result = await recovering;
+    assert.equal(result.refusal.code, boundary === "login" ? "E_AUTH_SUPERSEDED" : "E_OFFLINE_LIFECYCLE");
+    assert.equal(result.settlement, undefined);
+    held.resolve(); await flush();
+    if (boundary === "offline") assert.equal(f.client.snapshot.connection, "offline");
+    assert.equal(f.owner.executions.length, 0);
+  } finally { held.resolve(); await f.close(); }
+});
+
+test("public recovery drains saved work and repeated recovery has truthful zero settlement", async () => {
+  const f = await fixture({ facts: true });
+  try {
+    await f.client.offline();
+    const saved = await f.client.mutation(api.messages.send, args("recover me"));
+    assert.equal(saved.state, "queued");
+    assert.deepEqual(await f.client.outbox.recover(), { settlement: { stopped: false, remaining: 0 } });
+    assert.deepEqual(await f.client.outbox.recover(), { settlement: { stopped: false, remaining: 0 } });
+    assert.equal(f.owner.executions.length, 1);
+  } finally { await f.close(); }
+});
+
+test("recovery retains structured deadline refusals on native signals without reason", async t => {
+  const NativeController = globalThis.AbortController;
+  class WithoutReason extends NativeController {
+    constructor() { super(); Object.defineProperty(this.signal, "reason", { get: () => undefined }); }
+  }
+  globalThis.AbortController = WithoutReason;
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  try {
+    const scope = new AbortController();
+    const result = recoverOutbox({ ready: () => new Promise(() => {}), identity: () => "alice:1", scope: () => scope.signal,
+      online: async () => {}, settled: async () => ({ stopped: false, remaining: 0 }) });
+    t.mock.timers.tick(10_000);
+    const value = await result;
+    assert.equal(value.refusal.code, "E_TRANSPORT");
+    assert.equal(value.refusal.site, "client.outbox.recover");
+    assert.equal(value.settlement, undefined);
+  } finally { globalThis.AbortController = NativeController; t.mock.timers.reset(); }
+});
+
+test("follower recovery keeps the writer offline and the work lookup follows its inbox alias", async () => {
+  const store = indexedDbRangeStore({ indexedDB: new FakeIndexedDb() as any, locks: new FakeLocks() as any });
+  await seededStore(store);
+  const owner = fakeOwner();
+  const open = () => createClient({ url: "http://recover-follower.test", persona: "alice", fetch: owner.fetch, offline: { store } });
+  const writer = open(); await writer.ready; await writer.offline();
+  const follower = open(); await follower.ready;
+  const view = follower.outbox.observe(api.messages.send), detach = view.subscribe(() => {});
+  try {
+    await until(() => view.getSnapshot().status.reason === "forwarding");
+    const saved = await follower.mutation(api.messages.send, args("stay on this device"));
+    assert.equal(saved.state, "queued");
+    assert.match(saved.intent, /^inbox:/);
+    await until(() => view.getWork(saved.intent) !== undefined);
+    const result = await follower.outbox.recover();
+    assert.equal(result.refusal, undefined);
+    assert.ok(result.settlement.remaining > 0);
+    assert.equal(result.settlement.stopped, "pending");
+    assert.equal(writer.snapshot.connection, "offline");
+    assert.equal(owner.executions.length, 0);
+    await until(() => view.getWork(saved.intent)?.entry.intent !== saved.intent);
+    const admitted = view.getWork(saved.intent);
+    assert.equal(admitted.entry.inbox, Number(saved.intent.slice("inbox:".length)));
+    assert.strictEqual(view.getWork(admitted.entry.intent), admitted);
+    await writer.online();
+    await until(() => owner.executions.length === 1);
+    await until(() => view.getWork(saved.intent)?.entry.state !== "queued");
+    const final = view.getWork(saved.intent);
+    assert.ok(final === undefined || (final.entry.state === "committed" && final.dismissible));
+  } finally { detach(); await follower.close(); await writer.close(); }
+});
+
+test("concurrent public recovery joins one held resume instead of starting another after it", async () => {
+  const held = gate(), sent = gate();
+  let hold = false, requests = 0;
+  const f = await fixture({ facts: true, fetch: owner => async (input, init) => {
+    if (new URL(String(input)).pathname === "/api/resume" && hold) { requests++; sent.resolve(); await held.promise; }
+    return owner.fetch(input, init);
+  } });
+  try {
+    hold = true;
+    const first = f.client.outbox.recover(); await sent.promise;
+    const second = f.client.outbox.recover(), third = f.client.outbox.recover();
+    await flush();
+    assert.equal(requests, 1);
+    held.resolve();
+    const results = await Promise.all([first, second, third]);
+    assert.deepEqual(results, Array.from({ length: 3 }, () => ({ settlement: { stopped: false, remaining: 0 } })));
+    assert.equal(requests, 1, "later callers join the active owner before awaiting its completion");
+  } finally { held.resolve(); await f.close(); }
+});
+
+test("an offline follower keeps its durable work visible through writer takeover", async () => {
+  const store = indexedDbRangeStore({ indexedDB: new FakeIndexedDb() as any, locks: new FakeLocks() as any });
+  await seededStore(store);
+  const owner = fakeOwner();
+  const open = (): any => createClient({ url: "http://recover-takeover.test", persona: "alice", fetch: owner.fetch, offline: { store } });
+  const writer = open(); await writer.ready; await writer.offline();
+  const follower = open(); await follower.ready; await follower.offline();
+  const view = follower.outbox.observe(api.messages.send), detach = view.subscribe(() => {});
+  const entered = gate();
+  let during: any;
+  const takeover = follower.takeover.bind(follower);
+  follower.takeover = () => {
+    const run = takeover();
+    // Inspect the public resource while the real lock-transfer callback is suspended.
+    during = view.getSnapshot(); entered.resolve();
+    return run;
+  };
+  try {
+    const saved = await follower.mutation(api.messages.send, args("survive the sending tab"));
+    assert.equal(saved.state, "queued");
+    await until(() => view.getWork(saved.intent) !== undefined);
+    await writer.close(); await entered.promise;
+    assert.ok(during.entries.some((entry: any) => entry.intent === saved.intent || `inbox:${entry.inbox}` === saved.intent));
+    assert.ok(during.work.length > 0);
+    assert.equal(follower.snapshot.connection, "offline");
+    assert.equal(owner.executions.length, 0);
+  } finally { detach(); await follower.close(); await writer.close(); }
 });

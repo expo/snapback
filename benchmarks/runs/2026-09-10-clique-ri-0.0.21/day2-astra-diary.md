@@ -37,3 +37,28 @@ The final existing suites cover auth/profile (M1), social/feed (M2), messaging (
 The first extra M7 run on repeatedly reused Alice fixtures hit an existing route limitation: ResolveConversation searches only the first 20 memberships. Accumulated test groups put its target outside that page. Fresh fixture accounts allow the same functional assertions to run without changing the product during a pure refactor. The limitation is preserved and documented, not silently fixed or erased through a database reset.
 
 A SQL/ORM refactor would require no database migration. Snapback also produced no semantic generation change, although its watcher still checked/reported the source update. The identical hash is useful evidence alongside actual acceptance reruns. `snapback2 test` was not invoked because its documented fresh isolated owner has no advertised fixed-port option; the app's acceptance checks instead used the two authorized ports.
+
+## 2026-09-11 platform follow-up — cost explanation (Codex)
+
+The original app and CR1 evidence remain intact on the black M5 Max. A current
+compiler inspection of an isolated copy reproduced the same 4,199,688-byte
+refusal. The copy removes the retired `deliveries` tombstones declaration only
+for cost analysis; this is not another live-app migration or a replacement for
+the original 39-message preservation proof.
+
+The surprising coupling is now attributable: before the timestamp, closure is
+4,188,952 bytes; afterwards it rises by 244 × 44 = 10,736, while output, examined
+entries, probes and steps stay unchanged. The old explanation showed 944 copies
+at the widest row size and hid the difference in a large shared-encoding
+subtraction. The L2 change in LLP 1018.008.008.000 separates full-row and projected
+value contributions and exposes the multiplier in `check --cost`. It also names
+first-image pools separately from serialized authority evidence.
+
+This makes the correction easier to understand without making it disappear:
+the same 100-lane query still needs a page of 19 to admit (4,110,036 bytes), and
+continuation must still be followed. Compared with an ORM's unconstrained
+nullable column addition, the up-front byte budget remains extra work; the
+improvement is seeing which retained values pay for it. An unrelated optional
+field in a disconnected table leaves these prices unchanged, and the internal
+helper rename still preserves same-version generation. No lower ceiling price,
+authorization-hash redesign, new SQL migration step or `fill` word was needed.

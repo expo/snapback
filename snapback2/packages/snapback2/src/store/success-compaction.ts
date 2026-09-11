@@ -21,8 +21,11 @@ export function compactSuccesses(state: PersistedRangeState): number[] {
       // Empty effect sets require no row coverage; nonempty sets need this exact schema.
       if (!state.facts || state.facts.schemaHash !== identity.schemaHash || state.facts.generation !== held.generation) return true;
       const key = rowKey(row);
-      let positive = rowObservation(state, key)?.through ?? -1;
-      if (positive < seq!) for (const answer of Object.values(state.answers)) {
+      const observed = rowObservation(state, key);
+      let positive = observed?.through ?? -1;
+      // An answer can extend an existing image's proof, never supply a missing
+      // or negatively superseded image. Keep explicit negative evidence below.
+      if (observed && positive < seq!) for (const answer of Object.values(state.answers)) {
         positive = Math.max(positive, rowObservation(state, key, answer)?.through ?? -1);
         if (positive >= seq!) break;
       }

@@ -1136,7 +1136,7 @@ of fabricated coverage. Two held principal counts supported a predicted atomic
 allocation; one missing count correctly disabled prediction. A complete zero
 query carried no absence evidence, so a new group's allocation still queued
 without prediction and committed on reconnect. This conservative limitation is
-[filed](../issues/20260907-snapback2-public-zero-count-does-not-enable-offline-cap-prediction.md).
+[filed](../issues/closed/20260907-snapback2-public-zero-count-does-not-enable-offline-cap-prediction.md).
 A full second principal rejected the allocation and rolled back the first
 insert. This qualifies representative two-principal acquisition and cap
 behavior; it is not the 49-insert scale witness. The earlier schema-conflict
@@ -2018,3 +2018,39 @@ fifty-row cap with the newest id present and no unread head. Expired and
 page-evicted messages do not resurrect after remount or cold reopen despite
 retained committed history. Both independent source reviews are READY. These
 are final copied-app observations, not a regrade of either benchmark lane.
+
+### 2026-09-11: shipped Thread and Search continuation
+
+The shipped React and Expo Threads now use the item-aware page resource, so
+older messages use the same rendering loop as the first page. Count and preview
+come from `head.data`; cold downloaded history supplies messages without
+pretending to supply those scalars. Both Search screens expose Show more results.
+The complete six-file application change is 220→224 physical lines and
+13,994→14,929 bytes, including the shared binding and witness helper.
+
+The useful simplification is ownership: the application still declares message
+selection, conversation membership, and draft contents. It does not choose
+which source is authorized, store cursor arrays, deduplicate row images, or
+reconcile pending work across pages. One old predicate, `query.c == null`, had
+encoded draft placement inside product membership; removing it lets pending
+creates stay associated with rows on older pages. The SDK emits each draft once.
+Getting ordering right needed a concrete three-page example: reversing every
+page separately still leaves older page blocks in the wrong place. Undoing that
+presentation, choosing whole row winners, and reversing the collection once
+produces chronological history without borrowing another image's evidence.
+
+Mounted React and Expo tests load 105 messages, edit a middle row, insert and
+remove the newest row, and advance Search from 20 to 40 hits. A reader added
+after the messages can page the permitted primary history; removing that
+membership clears its mounted Search. Both arms then open an original
+recipient's cold downloaded history through three pages, with no transport and
+no count/preview. One offline queued send appears exactly once across that
+prefix. These are the actual shipped components with a real owner and native
+component mocks; they are not new device-performance measurements.
+
+Compared with ordinary React cursor-array state, the screen change is small
+because the SDK owns the difficult lifetime and evidence rules. That benefit
+costs SDK code and a few explicit facts (`head`, original `pages`, and
+`itemsFrom`) for inspection. This session did not run a Convex/Supabase
+comparison, nor use Exact or Contract. The complete fixed local runtime remains
+88,053 gzip bytes, below its 90,000-byte ceiling but above the 80,000-byte target.

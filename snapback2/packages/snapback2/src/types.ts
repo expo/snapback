@@ -1,8 +1,9 @@
+import type { ObservePages } from "./client-pages.js";
 import type { AssetFetchOptions } from "./store/byte-cache.js";
 import type { Channel as ChannelRef, Op } from "./api.js";
 import type { AssetCache, ByteCacheEntry, ByteCacheStatus } from "./store/byte-cache.js";
 import type { OutboxEntry, RangeStoreFactory } from "./store/range-store.js";
-import type { Snapshot } from "./snapshot.js";
+import type { Readiness, Snapshot } from "./snapshot.js";
 import type { HistorySnapshot, ItemRow, Items, ItemSnapshot, ItemsWithHistory } from "./client-items.js";
 import { canonical } from "./store/canonical.js";
 
@@ -310,6 +311,14 @@ export type CreateClientOptions = ClientLocationOptions & (
 // request, so a queued message is on screen at cold start.
 export type OutboxSettlement = { stopped: false | "fence" | "transport" | "authority" | "offline" | "pending" | "writer-unresponsive"; remaining: number };
 
+/** A bounded attempt reports either actual settlement or a refusal, never a guessed count. */
+export type RecoveryResult = { settlement: OutboxSettlement; refusal?: never } | { refusal: Refusal; settlement?: never };
+export interface OutboxWork {
+  readonly entry: OutboxEntry;
+  readonly label: string;
+  readonly dismissible: boolean;
+}
+
 export interface OutboxStatus {
   ready: boolean;
   /**
@@ -382,20 +391,27 @@ export interface OutboxApi {
    * and rejects with a non-retryable refusal that stopped it.
    */
   settled(): Promise<OutboxSettlement>;
+  /** Explicitly reconnect and resume saved work; each caller waits at most ten seconds. */
+  recover(): Promise<RecoveryResult>;
 }
 
 export interface OutboxSnapshot {
   readonly entries: OutboxEntry[];
+  readonly work: readonly OutboxWork[];
+  readonly can: Readiness;
   readonly status: OutboxStatus;
   /** On a follower: the writer's announced ledger status, beside this tab's own (LLP 1018.004 §3). */
   readonly writer?: OutboxStatus;
 }
 export interface ObservedOutbox {
   getSnapshot(): OutboxSnapshot;
+  /** Current durable work by intent or follower alias; missing/compacted work is unknown. */
+  getWork(intent: string): OutboxWork | undefined;
   subscribe(notify: () => void): () => void;
 }
 
 export interface SnapbackClient {
+  readonly observePages: ObservePages;
   readonly auth: AuthApi;
   readonly outbox: OutboxApi;
   /** Settles only after explicit token restoration and any initial persistence. */

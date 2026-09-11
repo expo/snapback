@@ -1,0 +1,1773 @@
+{
+  "kind": "Retained scoped experiment; no gate or benchmark registry",
+  "date": "2026-09-11",
+  "plan": "llp/1018.008.007.000-incremental-acquisition-performance.plan.md",
+  "followUp": "issues/20260911-snapback2-full-acquisition-and-foreground-send.md",
+  "source": {
+    "baseline": "bf84508494d3671a2037766bfef33cbb62c690dc",
+    "warmLaneHead": "dd629ae33",
+    "equivalence": "git diff dd629ae33..bf8450849 -- snapback2 contains metrics/loop.jsonl only",
+    "candidateChanges": [
+      {
+        "path": "snapback2/packages/snapback2/src/store/row-values.ts",
+        "baselineSha256": "782c839668e075abe9300115049c8fdb485b55dc7a446b7022bc5eddf0eb5157",
+        "candidateSha256": "a36dc4040b5d9576ba98056f4deb49bf7135312832f057235b0a0120d7069846"
+      },
+      {
+        "path": "snapback2/packages/snapback2/src/store/success-compaction.ts",
+        "baselineSha256": "d405d7879ffaabbeb075978feaf879833e1f8dfe5d3139379af4e3b93cc46fe2",
+        "candidateSha256": "63b2ab8f0194a7d64d08efa892c41a208d91ae928a737bc6e730392aa996faa9"
+      }
+    ],
+    "pageRecoveryTemplate": "Identical bf845-equivalent current template and public APIs for both variants; excludes simultaneous integration changes"
+  },
+  "artifacts": {
+    "remoteHost": "EPYC / expose-builder-pixel",
+    "remoteRoot": "/home/ccheever/lanes/clique-20260909-initial/runs/four-plans-acquisition-20260911",
+    "localIgnoredMirror": "runs/four-plans-acquisition-20260911",
+    "priorState": "provenance-before.json; previous-owner; previous-dist; old run evidence preserved",
+    "harnesses": [
+      {
+        "path": "PRIMARY.md",
+        "sha256": "f35519ff0ef36d1651dcf62d8a7b96efc901b389eb082e0f9d2788e0410fd5a9"
+      },
+      {
+        "path": "paired-browser.mjs",
+        "sha256": "27f8357621ec4be1679715a93e636d496a729d362e6d5db453996f090f4fe5e0"
+      },
+      {
+        "path": "checkpoint-browser.mjs",
+        "sha256": "c7ee9bf925bae880eeca465318c389f053f2742d5836e7e6fa98ff995bc9bc9c"
+      },
+      {
+        "path": "foreground-browser.mjs",
+        "sha256": "d769a7df4ed6b6b40f12874c9c49318d8d83fefdce4bdb52481cfb550e651ca7"
+      },
+      {
+        "path": "acquisition-browser-clean-final.mjs",
+        "sha256": "310c2cbe97201c9e5a30685bc0c9be2c908c5032e537b1431760c2fe179da3ee"
+      },
+      {
+        "path": "collector-diagnostic.mjs",
+        "sha256": "61473f8f676bdeb9429714c6b7e9d9099630db271f07824fb9e92539bfba239d"
+      }
+    ]
+  },
+  "inputs": {
+    "ownerSha": "73ca6fa2a56434981ad1997aa86efff15c60f0667c5fde8bada736b8e11a1763",
+    "compilerSha": "ae432f5c70744110b305409aa2a60e9576f0d8c3abced2387ef58e1f555be82e",
+    "browser": "151.0.7922.34"
+  },
+  "environment": {
+    "platform": "Linux 6.8.0-138-generic",
+    "logicalCpus": 96,
+    "physicalMemoryGiB": 251,
+    "node": "24.18.0",
+    "esbuild": "0.25.9",
+    "carrier": "Physical Chromium persistent profile / IndexedDB",
+    "owner": "Release build, no effects engine; startup media helper only, fixture has no assets",
+    "load": "Final series started after coordinated builds ended; shared host load recorded in every sample. Pilot overlapping compiler excluded. No unrelated work was stopped."
+  },
+  "fixture": {
+    "conversations": 100,
+    "distinctMessages": 10008,
+    "busyConversation": "conversation-000",
+    "population": "Minimal seed then supported messages.send and groups.groupCreate([bobViewer]) mutations; 99 other groups have Bob, busy group has Alice only and emits no effects",
+    "snapshotSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+    "snapshotBytes": 312115200,
+    "receiptAcknowledged": 4450,
+    "receiptUnacknowledged": 5558,
+    "sameSnapshotEachSample": true,
+    "freshBrowserProfileEachSample": true,
+    "fullMessageContentSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+    "comparisonToOlderCohort": "Current distinct-message shape; not the old 10,008 manually seeded delivery rows"
+  },
+  "protocol": {
+    "primary": "coldSyncedMs: fresh navigation through inbox local.caughtUp / log downloaded UI",
+    "pairs": 10,
+    "order": "baseline then candidate in each of ten alternating pairs",
+    "timeoutMs": 120000,
+    "timeoutChange": "Root-authorized measurement-only extension frozen before final series. Original clean 30-second baseline failure retained; no runtime bound or target changed.",
+    "instrumentation": "No beforeReplace hook, CPU or heap sampling in primary interval. Post-timing physical snapshots and held query controls are separate.",
+    "missingResults": "Right-censored at 120 seconds; never imputed as completion time",
+    "reopenAdjustment": "First two candidates attempted Auth UI and timed out. Remaining eight use supported public held queries with owner transport cut; no auth bypass. Primary metric unchanged."
+  },
+  "summary": {
+    "candidateColdSyncedMs": {
+      "n": 10,
+      "median": 67414.12665749999,
+      "minimum": 66970.096123,
+      "maximum": 69953.06135399999
+    },
+    "baselineCompleted": 0,
+    "candidateCompleted": 10,
+    "baselineCensored": 10,
+    "baselineMedianLowerBoundMs": 120000,
+    "medianImprovementLowerBoundPercent": 43.821561118750004,
+    "improvementInterpretation": "Baseline median exceeds cutoff; candidate median is observed. Greater than 43.8% median-time reduction lower bound, not an estimated baseline median or p95. Scoped planning improvement exceeds 20%; 30-second affordability goal remains open.",
+    "firstInboxMs": {
+      "baseline": {
+        "n": 10,
+        "median": 1072.531681,
+        "minimum": 723.0787029999999,
+        "maximum": 1161.5556650000003
+      },
+      "candidate": {
+        "n": 10,
+        "median": 1118.070445,
+        "minimum": 1071.3827869999998,
+        "maximum": 1161.796552
+      }
+    },
+    "firstInboxInterpretation": "Candidate median is 45.54 ms higher (+4.25%); small N and shared-host noise do not establish a regression or a first-render win. No first-inbox result substitutes for full acquisition.",
+    "candidatePublicQueryReopenMs": {
+      "n": 8,
+      "median": 8767.493548500002,
+      "minimum": 8737.59771799999,
+      "maximum": 9852.812556999997
+    },
+    "fullDatasetEquality": "All ten candidates have the same full physical message content hash; later samples additionally compare every message ID/body to supported population. Eight public-query physical reopens preserve that hash and held history/search results."
+  },
+  "samples": [
+    {
+      "experiment": "quiet-01-baseline",
+      "variant": "baseline",
+      "startedAt": "2026-09-11T14:57:07.857Z",
+      "finishedAt": "2026-09-11T14:59:12.454Z",
+      "firstInboxMs": 1059.8998250000002,
+      "primaryPass": false,
+      "failedAtMs": 120115.141548,
+      "primaryError": "TimeoutError: page.waitForFunction: Timeout 119918.860956ms exceeded.",
+      "runtimeSha": "a78e415ca6b09a7c8d3cd877caf3b533d7b0393fae2d8699d22c629743959782",
+      "appSha": "5455be7e1335b790813aab74d90ae865218404fef3f64db046593f86a69e0e35",
+      "finishedLoad": [
+        1.53,
+        1.54,
+        1.92
+      ],
+      "startLoad": [
+        1.17,
+        1.45,
+        1.95
+      ],
+      "durable": {
+        "counts": {
+          "rows": 19601,
+          "answers": 197,
+          "outbox": 104,
+          "meta": 49362
+        },
+        "tables": {
+          "conversations": 100,
+          "deliveries": 9701,
+          "memberships": 100,
+          "messages": 9700
+        },
+        "outbox": {
+          "_delivery.deliveries.ack/committed": 103,
+          "_delivery.deliveries.ack/queued": 1
+        },
+        "messageCount": 9700,
+        "messageSha256": "ad98b802aea45e97b42d1d9cdbe4d821ebac7003cb2a10b3b5af5ec83011e0d3"
+      },
+      "reopen": {
+        "attempted": false
+      }
+    },
+    {
+      "experiment": "quiet-01-candidate",
+      "variant": "candidate",
+      "startedAt": "2026-09-11T14:59:12.555Z",
+      "finishedAt": "2026-09-11T15:00:55.047Z",
+      "firstInboxMs": 1119.558989,
+      "coldSyncedMs": 68023.319499,
+      "primaryPass": true,
+      "runtimeSha": "3d87c73bfccdb98015de12ea1e96c3c217c23347f27c2dd506e463916469615a",
+      "appSha": "68d225281c0c90af9ed08cc4a8ca0926b863d282322665425c692fc84dfc9f27",
+      "finishedLoad": [
+        15.56,
+        5.94,
+        3.42
+      ],
+      "startLoad": [
+        1.53,
+        1.54,
+        1.92
+      ],
+      "durable": {
+        "counts": {
+          "rows": 20216,
+          "answers": 204,
+          "outbox": 112,
+          "meta": 50914
+        },
+        "tables": {
+          "conversations": 100,
+          "deliveries": 10008,
+          "memberships": 100,
+          "messages": 10008
+        },
+        "outbox": {
+          "_delivery.deliveries.ack/committed": 110,
+          "_delivery.deliveries.ack/queued": 2
+        },
+        "messageCount": 10008,
+        "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80"
+      },
+      "held": {
+        "threadRows": 50,
+        "threadMs": 178.46213500000886,
+        "searchMs": 12.248916000011377,
+        "searchHits": 1
+      },
+      "reopen": {
+        "attempted": true,
+        "protocol": "Template Auth UI",
+        "pass": false,
+        "error": "page.waitForSelector: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator('nav[aria-label=Inbox] li') to be visible\n\n    at /home/ccheever/lanes/clique-20260909-initial/runs/four-plans-acquisition-20260911/paired-browser.mjs:914:16",
+        "classification": "Development-persona Auth UI limitation; no held bearer binding. Primary acquisition passed."
+      }
+    },
+    {
+      "experiment": "quiet-02-baseline",
+      "variant": "baseline",
+      "startedAt": "2026-09-11T15:00:55.284Z",
+      "finishedAt": "2026-09-11T15:03:00.134Z",
+      "firstInboxMs": 1040.314905,
+      "primaryPass": false,
+      "failedAtMs": 120516.102888,
+      "primaryError": "TimeoutError: page.waitForFunction: Timeout 119915.37824ms exceeded.",
+      "runtimeSha": "a78e415ca6b09a7c8d3cd877caf3b533d7b0393fae2d8699d22c629743959782",
+      "appSha": "8dc75914d46e9f170cf54b2eda14f76e2afe0701828091770460576aad182f00",
+      "finishedLoad": [
+        3.9,
+        5.07,
+        3.45
+      ],
+      "startLoad": [
+        15.56,
+        5.94,
+        3.42
+      ],
+      "durable": {
+        "counts": {
+          "rows": 19601,
+          "answers": 197,
+          "outbox": 105,
+          "meta": 49362
+        },
+        "tables": {
+          "conversations": 100,
+          "deliveries": 9701,
+          "memberships": 100,
+          "messages": 9700
+        },
+        "outbox": {
+          "_delivery.deliveries.ack/committed": 104,
+          "_delivery.deliveries.ack/queued": 1
+        },
+        "messageCount": 9700,
+        "messageSha256": "ad98b802aea45e97b42d1d9cdbe4d821ebac7003cb2a10b3b5af5ec83011e0d3"
+      },
+      "reopen": {
+        "attempted": false
+      }
+    },
+    {
+      "experiment": "quiet-02-candidate",
+      "variant": "candidate",
+      "startedAt": "2026-09-11T15:03:00.238Z",
+      "finishedAt": "2026-09-11T15:04:41.791Z",
+      "firstInboxMs": 1116.581901,
+      "coldSyncedMs": 67188.706097,
+      "primaryPass": true,
+      "runtimeSha": "3d87c73bfccdb98015de12ea1e96c3c217c23347f27c2dd506e463916469615a",
+      "appSha": "b6bad980c76e2e3bb06b049b3934b810519e5401de3022cc4328636d0a6bd914",
+      "finishedLoad": [
+        2.34,
+        4.23,
+        3.32
+      ],
+      "startLoad": [
+        3.9,
+        5.07,
+        3.45
+      ],
+      "durable": {
+        "counts": {
+          "rows": 20216,
+          "answers": 204,
+          "outbox": 112,
+          "meta": 50914
+        },
+        "tables": {
+          "conversations": 100,
+          "deliveries": 10008,
+          "memberships": 100,
+          "messages": 10008
+        },
+        "outbox": {
+          "_delivery.deliveries.ack/committed": 110,
+          "_delivery.deliveries.ack/queued": 2
+        },
+        "messageCount": 10008,
+        "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80"
+      },
+      "held": {
+        "threadRows": 50,
+        "threadMs": 207.42057699999714,
+        "searchMs": 14.353839999996126,
+        "searchHits": 1
+      },
+      "reopen": {
+        "attempted": true,
+        "protocol": "Template Auth UI",
+        "pass": false,
+        "error": "page.waitForSelector: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator('nav[aria-label=Inbox] li') to be visible\n\n    at /home/ccheever/lanes/clique-20260909-initial/runs/four-plans-acquisition-20260911/paired-browser.mjs:915:16",
+        "classification": "Development-persona Auth UI limitation; no held bearer binding. Primary acquisition passed."
+      }
+    },
+    {
+      "experiment": "quiet-03-baseline",
+      "variant": "baseline",
+      "startedAt": "2026-09-11T15:04:42.086Z",
+      "finishedAt": "2026-09-11T15:06:46.658Z",
+      "firstInboxMs": 1121.335285,
+      "primaryPass": false,
+      "failedAtMs": 120147.291585,
+      "primaryError": "TimeoutError: page.waitForFunction: Timeout 119871.040501ms exceeded.",
+      "runtimeSha": "a78e415ca6b09a7c8d3cd877caf3b533d7b0393fae2d8699d22c629743959782",
+      "appSha": "509de4e209944fd63cf4158cb9315e1b71ee5ac96c8a947d6f2b1527fc20785f",
+      "finishedLoad": [
+        2.02,
+        3.59,
+        3.2
+      ],
+      "startLoad": [
+        2.34,
+        4.23,
+        3.32
+      ],
+      "durable": {
+        "counts": {
+          "rows": 19601,
+          "answers": 197,
+          "outbox": 104,
+          "meta": 49362
+        },
+        "tables": {
+          "conversations": 100,
+          "deliveries": 9701,
+          "memberships": 100,
+          "messages": 9700
+        },
+        "outbox": {
+          "_delivery.deliveries.ack/committed": 103,
+          "_delivery.deliveries.ack/queued": 1
+        },
+        "messageCount": 9700,
+        "messageSha256": "ad98b802aea45e97b42d1d9cdbe4d821ebac7003cb2a10b3b5af5ec83011e0d3"
+      },
+      "reopen": {
+        "attempted": false
+      }
+    },
+    {
+      "experiment": "quiet-03-candidate",
+      "variant": "candidate",
+      "startedAt": "2026-09-11T15:06:46.760Z",
+      "finishedAt": "2026-09-11T15:08:09.091Z",
+      "firstInboxMs": 1086.39556,
+      "coldSyncedMs": 67824.14868,
+      "primaryPass": true,
+      "runtimeSha": "3d87c73bfccdb98015de12ea1e96c3c217c23347f27c2dd506e463916469615a",
+      "appSha": "03706c097381b5ccdfc5de6d3fbff56dd2addee21b935151c3d99ad1fd9f165e",
+      "finishedLoad": [
+        2.28,
+        3.31,
+        3.14
+      ],
+      "startLoad": [
+        1.93,
+        3.54,
+        3.19
+      ],
+      "durable": {
+        "counts": {
+          "rows": 20216,
+          "answers": 204,
+          "outbox": 112,
+          "meta": 50914
+        },
+        "tables": {
+          "conversations": 100,
+          "deliveries": 10008,
+          "memberships": 100,
+          "messages": 10008
+        },
+        "outbox": {
+          "_delivery.deliveries.ack/committed": 110,
+          "_delivery.deliveries.ack/queued": 2
+        },
+        "messageCount": 10008,
+        "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80"
+      },
+      "held": {
+        "threadRows": 50,
+        "threadMs": 214.48014300000796,
+        "searchMs": 14.563093999997363,
+        "searchHits": 1
+      },
+      "reopen": {
+        "pass": true,
+        "totalMs": 8834.817381,
+        "equalMessages": true,
+        "equalThread": true,
+        "equalSearch": true,
+        "uiInboxRows": 0,
+        "uiQualification": "Dev persona carries no bearer binding; the Auth screen can hide held data during owner-cut restoration. Direct public queries qualify physical data only.",
+        "auth": {
+          "state": "refused"
+        }
+      }
+    },
+    {
+      "experiment": "quiet-04-baseline",
+      "variant": "baseline",
+      "startedAt": "2026-09-11T15:08:09.198Z",
+      "finishedAt": "2026-09-11T15:10:13.603Z",
+      "firstInboxMs": 1127.429145,
+      "primaryPass": false,
+      "failedAtMs": 120063.631468,
+      "primaryError": "TimeoutError: page.waitForFunction: Timeout 119883.03098ms exceeded.",
+      "runtimeSha": "a78e415ca6b09a7c8d3cd877caf3b533d7b0393fae2d8699d22c629743959782",
+      "appSha": "332a899e3417ed2367ffb423335be464951f340690adc82712a9597e584e16a9",
+      "finishedLoad": [
+        1.6,
+        2.76,
+        2.96
+      ],
+      "startLoad": [
+        2.28,
+        3.31,
+        3.14
+      ],
+      "durable": {
+        "counts": {
+          "rows": 19601,
+          "answers": 197,
+          "outbox": 104,
+          "meta": 49362
+        },
+        "tables": {
+          "conversations": 100,
+          "deliveries": 9701,
+          "memberships": 100,
+          "messages": 9700
+        },
+        "outbox": {
+          "_delivery.deliveries.ack/committed": 103,
+          "_delivery.deliveries.ack/queued": 1
+        },
+        "messageCount": 9700,
+        "messageSha256": "ad98b802aea45e97b42d1d9cdbe4d821ebac7003cb2a10b3b5af5ec83011e0d3"
+      },
+      "reopen": {
+        "attempted": false
+      }
+    },
+    {
+      "experiment": "quiet-04-candidate",
+      "variant": "candidate",
+      "startedAt": "2026-09-11T15:10:13.723Z",
+      "finishedAt": "2026-09-11T15:11:35.875Z",
+      "firstInboxMs": 1137.1420039999998,
+      "coldSyncedMs": 67754.52106099999,
+      "primaryPass": true,
+      "runtimeSha": "3d87c73bfccdb98015de12ea1e96c3c217c23347f27c2dd506e463916469615a",
+      "appSha": "ca3c43700ec559f15a858502fd0dc60dc4a69eae05d363344534395f9eda082d",
+      "finishedLoad": [
+        1.94,
+        2.63,
+        2.89
+      ],
+      "startLoad": [
+        1.6,
+        2.76,
+        2.96
+      ],
+      "durable": {
+        "counts": {
+          "rows": 20216,
+          "answers": 204,
+          "outbox": 112,
+          "meta": 50914
+        },
+        "tables": {
+          "conversations": 100,
+          "deliveries": 10008,
+          "memberships": 100,
+          "messages": 10008
+        },
+        "outbox": {
+          "_delivery.deliveries.ack/committed": 110,
+          "_delivery.deliveries.ack/queued": 2
+        },
+        "messageCount": 10008,
+        "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+        "matchesOwnerMessages": true,
+        "matchesOwnerSubset": true
+      },
+      "held": {
+        "threadRows": 50,
+        "threadMs": 193.1049309999944,
+        "searchMs": 15.947707999992417,
+        "searchHits": 1
+      },
+      "reopen": {
+        "pass": true,
+        "totalMs": 8803.756508000006,
+        "equalMessages": true,
+        "equalThread": true,
+        "equalSearch": true,
+        "uiInboxRows": 0,
+        "uiQualification": "Dev persona carries no bearer binding; the Auth screen can hide held data during owner-cut restoration. Direct public queries qualify physical data only.",
+        "auth": {
+          "state": "refused"
+        }
+      }
+    },
+    {
+      "experiment": "quiet-05-baseline",
+      "variant": "baseline",
+      "startedAt": "2026-09-11T15:11:35.992Z",
+      "finishedAt": "2026-09-11T15:13:41.034Z",
+      "firstInboxMs": 1084.033217,
+      "primaryPass": false,
+      "failedAtMs": 120370.928425,
+      "primaryError": "TimeoutError: page.waitForFunction: Timeout 119904.763777ms exceeded.",
+      "runtimeSha": "a78e415ca6b09a7c8d3cd877caf3b533d7b0393fae2d8699d22c629743959782",
+      "appSha": "c2b69387eba97ef4967eb8456f903c03b63dc1a9b75738f9514bbead86148e88",
+      "finishedLoad": [
+        1.8,
+        2.33,
+        2.75
+      ],
+      "startLoad": [
+        1.94,
+        2.63,
+        2.89
+      ],
+      "durable": {
+        "counts": {
+          "rows": 19601,
+          "answers": 197,
+          "outbox": 104,
+          "meta": 49362
+        },
+        "tables": {
+          "conversations": 100,
+          "deliveries": 9701,
+          "memberships": 100,
+          "messages": 9700
+        },
+        "outbox": {
+          "_delivery.deliveries.ack/committed": 103,
+          "_delivery.deliveries.ack/queued": 1
+        },
+        "messageCount": 9700,
+        "messageSha256": "ad98b802aea45e97b42d1d9cdbe4d821ebac7003cb2a10b3b5af5ec83011e0d3",
+        "matchesOwnerMessages": false,
+        "matchesOwnerSubset": true
+      },
+      "reopen": {
+        "attempted": false
+      }
+    },
+    {
+      "experiment": "quiet-05-candidate",
+      "variant": "candidate",
+      "startedAt": "2026-09-11T15:13:41.154Z",
+      "finishedAt": "2026-09-11T15:15:02.642Z",
+      "firstInboxMs": 1071.3827869999998,
+      "coldSyncedMs": 66970.096123,
+      "primaryPass": true,
+      "runtimeSha": "3d87c73bfccdb98015de12ea1e96c3c217c23347f27c2dd506e463916469615a",
+      "appSha": "8bf16bd7516a464f3ac864af45b5bfdc859d1d0182ffe0209eec3eb0b287d3f4",
+      "finishedLoad": [
+        6.9,
+        3.51,
+        3.11
+      ],
+      "startLoad": [
+        1.8,
+        2.33,
+        2.75
+      ],
+      "durable": {
+        "counts": {
+          "rows": 20216,
+          "answers": 204,
+          "outbox": 112,
+          "meta": 50914
+        },
+        "tables": {
+          "conversations": 100,
+          "deliveries": 10008,
+          "memberships": 100,
+          "messages": 10008
+        },
+        "outbox": {
+          "_delivery.deliveries.ack/committed": 109,
+          "_delivery.deliveries.ack/queued": 3
+        },
+        "messageCount": 10008,
+        "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+        "matchesOwnerMessages": true,
+        "matchesOwnerSubset": true
+      },
+      "held": {
+        "threadRows": 50,
+        "threadMs": 207.4556739999971,
+        "searchMs": 14.269633000003523,
+        "searchHits": 1
+      },
+      "reopen": {
+        "pass": true,
+        "totalMs": 8748.07884799999,
+        "equalMessages": true,
+        "equalThread": true,
+        "equalSearch": true,
+        "uiInboxRows": 0,
+        "uiQualification": "Dev persona carries no bearer binding; the Auth screen can hide held data during owner-cut restoration. Direct public queries qualify physical data only.",
+        "auth": {
+          "state": "refused"
+        }
+      }
+    },
+    {
+      "experiment": "quiet-06-baseline",
+      "variant": "baseline",
+      "startedAt": "2026-09-11T15:15:02.760Z",
+      "finishedAt": "2026-09-11T15:17:07.536Z",
+      "firstInboxMs": 1058.0444069999999,
+      "primaryPass": false,
+      "failedAtMs": 120436.824792,
+      "primaryError": "TimeoutError: page.waitForFunction: Timeout 119918.335045ms exceeded.",
+      "runtimeSha": "a78e415ca6b09a7c8d3cd877caf3b533d7b0393fae2d8699d22c629743959782",
+      "appSha": "85816711d8dc42ab18b8562b1a796d9153299aaf9a095d365d56d83f157f61a5",
+      "finishedLoad": [
+        15.61,
+        10.61,
+        5.94
+      ],
+      "startLoad": [
+        6.9,
+        3.51,
+        3.11
+      ],
+      "durable": {
+        "counts": {
+          "rows": 19201,
+          "answers": 193,
+          "outbox": 101,
+          "meta": 48354
+        },
+        "tables": {
+          "conversations": 100,
+          "deliveries": 9501,
+          "memberships": 100,
+          "messages": 9500
+        },
+        "outbox": {
+          "_delivery.deliveries.ack/committed": 99,
+          "_delivery.deliveries.ack/queued": 2
+        },
+        "messageCount": 9500,
+        "messageSha256": "9f5fb489f53b9a8480531071db98a52a68b6f8ac269d521558a3704a79ef83c7",
+        "matchesOwnerMessages": false,
+        "matchesOwnerSubset": true
+      },
+      "reopen": {
+        "attempted": false
+      }
+    },
+    {
+      "experiment": "quiet-06-candidate",
+      "variant": "candidate",
+      "startedAt": "2026-09-11T15:17:07.654Z",
+      "finishedAt": "2026-09-11T15:18:28.973Z",
+      "firstInboxMs": 1107.337089,
+      "coldSyncedMs": 67272.559102,
+      "primaryPass": true,
+      "runtimeSha": "3d87c73bfccdb98015de12ea1e96c3c217c23347f27c2dd506e463916469615a",
+      "appSha": "92db7f922a093fcc06b777c27562513ea0e62f52a7d1fca53509eda07f2c43d0",
+      "finishedLoad": [
+        7.25,
+        8.98,
+        5.74
+      ],
+      "startLoad": [
+        15.61,
+        10.61,
+        5.94
+      ],
+      "durable": {
+        "counts": {
+          "rows": 20216,
+          "answers": 204,
+          "outbox": 112,
+          "meta": 50914
+        },
+        "tables": {
+          "conversations": 100,
+          "deliveries": 10008,
+          "memberships": 100,
+          "messages": 10008
+        },
+        "outbox": {
+          "_delivery.deliveries.ack/committed": 111,
+          "_delivery.deliveries.ack/queued": 1
+        },
+        "messageCount": 10008,
+        "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+        "matchesOwnerMessages": true,
+        "matchesOwnerSubset": true
+      },
+      "held": {
+        "threadRows": 50,
+        "threadMs": 169.68666700000176,
+        "searchMs": 14.486787999994704,
+        "searchHits": 1
+      },
+      "reopen": {
+        "pass": true,
+        "totalMs": 8779.057910999996,
+        "equalMessages": true,
+        "equalThread": true,
+        "equalSearch": true,
+        "uiInboxRows": 0,
+        "uiQualification": "Dev persona carries no bearer binding; the Auth screen can hide held data during owner-cut restoration. Direct public queries qualify physical data only.",
+        "auth": {
+          "state": "refused"
+        }
+      }
+    },
+    {
+      "experiment": "quiet-07-baseline",
+      "variant": "baseline",
+      "startedAt": "2026-09-11T15:18:29.073Z",
+      "finishedAt": "2026-09-11T15:20:33.853Z",
+      "firstInboxMs": 1122.5608520000003,
+      "primaryPass": false,
+      "failedAtMs": 120323.86039,
+      "primaryError": "TimeoutError: page.waitForFunction: Timeout 119891.388575ms exceeded.",
+      "runtimeSha": "a78e415ca6b09a7c8d3cd877caf3b533d7b0393fae2d8699d22c629743959782",
+      "appSha": "9b1bd53aaf32c13c358d40ef6eeedf0d26d92b8e3bc6f3f584b1e94e4d0483af",
+      "finishedLoad": [
+        16.44,
+        11.17,
+        6.88
+      ],
+      "startLoad": [
+        7.25,
+        8.98,
+        5.74
+      ],
+      "durable": {
+        "counts": {
+          "rows": 19501,
+          "answers": 196,
+          "outbox": 103,
+          "meta": 49110
+        },
+        "tables": {
+          "conversations": 100,
+          "deliveries": 9651,
+          "memberships": 100,
+          "messages": 9650
+        },
+        "outbox": {
+          "_delivery.deliveries.ack/committed": 102,
+          "_delivery.deliveries.ack/queued": 1
+        },
+        "messageCount": 9650,
+        "messageSha256": "4b9880a6f10ab642d6222891bde65c2483d64eeb6b3c599b92c9bb87d8714bf4",
+        "matchesOwnerMessages": false,
+        "matchesOwnerSubset": true
+      },
+      "reopen": {
+        "attempted": false
+      }
+    },
+    {
+      "experiment": "quiet-07-candidate",
+      "variant": "candidate",
+      "startedAt": "2026-09-11T15:20:33.973Z",
+      "finishedAt": "2026-09-11T15:21:55.864Z",
+      "firstInboxMs": 1082.5062069999997,
+      "coldSyncedMs": 67555.694213,
+      "primaryPass": true,
+      "runtimeSha": "3d87c73bfccdb98015de12ea1e96c3c217c23347f27c2dd506e463916469615a",
+      "appSha": "03eb5f78e70c1470e55b15a6eab0378c34a59c3fd6fe9dd49e279ad1bbe408b3",
+      "finishedLoad": [
+        7.15,
+        9.42,
+        6.62
+      ],
+      "startLoad": [
+        16.44,
+        11.17,
+        6.88
+      ],
+      "durable": {
+        "counts": {
+          "rows": 20216,
+          "answers": 204,
+          "outbox": 112,
+          "meta": 50914
+        },
+        "tables": {
+          "conversations": 100,
+          "deliveries": 10008,
+          "memberships": 100,
+          "messages": 10008
+        },
+        "outbox": {
+          "_delivery.deliveries.ack/committed": 110,
+          "_delivery.deliveries.ack/queued": 2
+        },
+        "messageCount": 10008,
+        "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+        "matchesOwnerMessages": true,
+        "matchesOwnerSubset": true
+      },
+      "held": {
+        "threadRows": 50,
+        "threadMs": 208.9545189999917,
+        "searchMs": 14.33558099999209,
+        "searchHits": 1
+      },
+      "reopen": {
+        "pass": true,
+        "totalMs": 8754.643874999994,
+        "equalMessages": true,
+        "equalThread": true,
+        "equalSearch": true,
+        "uiInboxRows": 0,
+        "uiQualification": "Dev persona carries no bearer binding; the Auth screen can hide held data during owner-cut restoration. Direct public queries qualify physical data only.",
+        "auth": {
+          "state": "refused"
+        }
+      }
+    },
+    {
+      "experiment": "quiet-08-baseline",
+      "variant": "baseline",
+      "startedAt": "2026-09-11T15:21:55.981Z",
+      "finishedAt": "2026-09-11T15:24:00.965Z",
+      "firstInboxMs": 1061.030145,
+      "primaryPass": false,
+      "failedAtMs": 120456.148789,
+      "primaryError": "TimeoutError: page.waitForFunction: Timeout 119859.452459ms exceeded.",
+      "runtimeSha": "a78e415ca6b09a7c8d3cd877caf3b533d7b0393fae2d8699d22c629743959782",
+      "appSha": "b895671a5fc31b58f2fc979bec1d8df75eea0c5ec4be0bb893e06e0c04a46689",
+      "finishedLoad": [
+        3.19,
+        7.1,
+        6.12
+      ],
+      "startLoad": [
+        7.15,
+        9.42,
+        6.62
+      ],
+      "durable": {
+        "counts": {
+          "rows": 19501,
+          "answers": 195,
+          "outbox": 103,
+          "meta": 49108
+        },
+        "tables": {
+          "conversations": 100,
+          "deliveries": 9651,
+          "memberships": 100,
+          "messages": 9650
+        },
+        "outbox": {
+          "_delivery.deliveries.ack/committed": 102,
+          "_delivery.deliveries.ack/queued": 1
+        },
+        "messageCount": 9650,
+        "messageSha256": "4b9880a6f10ab642d6222891bde65c2483d64eeb6b3c599b92c9bb87d8714bf4",
+        "matchesOwnerMessages": false,
+        "matchesOwnerSubset": true
+      },
+      "reopen": {
+        "attempted": false
+      }
+    },
+    {
+      "experiment": "quiet-08-candidate",
+      "variant": "candidate",
+      "startedAt": "2026-09-11T15:24:01.078Z",
+      "finishedAt": "2026-09-11T15:25:26.834Z",
+      "firstInboxMs": 1161.796552,
+      "coldSyncedMs": 69953.06135399999,
+      "primaryPass": true,
+      "runtimeSha": "3d87c73bfccdb98015de12ea1e96c3c217c23347f27c2dd506e463916469615a",
+      "appSha": "b0b3fd4c40a28533f947b9ecc37abd5daf7a9120fc41c2e1c4044670728f75e1",
+      "finishedLoad": [
+        16.87,
+        9.38,
+        6.94
+      ],
+      "startLoad": [
+        3.19,
+        7.1,
+        6.12
+      ],
+      "durable": {
+        "counts": {
+          "rows": 20216,
+          "answers": 204,
+          "outbox": 112,
+          "meta": 50914
+        },
+        "tables": {
+          "conversations": 100,
+          "deliveries": 10008,
+          "memberships": 100,
+          "messages": 10008
+        },
+        "outbox": {
+          "_delivery.deliveries.ack/committed": 111,
+          "_delivery.deliveries.ack/queued": 1
+        },
+        "messageCount": 10008,
+        "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+        "matchesOwnerMessages": true,
+        "matchesOwnerSubset": true
+      },
+      "held": {
+        "threadRows": 50,
+        "threadMs": 233.3177469999937,
+        "searchMs": 18.631448999993154,
+        "searchHits": 1
+      },
+      "reopen": {
+        "pass": true,
+        "totalMs": 9852.812556999997,
+        "equalMessages": true,
+        "equalThread": true,
+        "equalSearch": true,
+        "uiInboxRows": 0,
+        "uiQualification": "Dev persona carries no bearer binding; the Auth screen can hide held data during owner-cut restoration. Direct public queries qualify physical data only.",
+        "auth": {
+          "state": "refused"
+        }
+      }
+    },
+    {
+      "experiment": "quiet-09-baseline",
+      "variant": "baseline",
+      "startedAt": "2026-09-11T15:25:26.936Z",
+      "finishedAt": "2026-09-11T15:27:30.924Z",
+      "firstInboxMs": 723.0787029999999,
+      "primaryPass": false,
+      "failedAtMs": 120175.881914,
+      "primaryError": "TimeoutError: page.waitForFunction: Timeout 119899.849535ms exceeded.",
+      "runtimeSha": "a78e415ca6b09a7c8d3cd877caf3b533d7b0393fae2d8699d22c629743959782",
+      "appSha": "d288448a2c57ddeca97793a20103e1798b4101a0b24ba89b29ec08498d58ac90",
+      "finishedLoad": [
+        4.59,
+        7.32,
+        6.5
+      ],
+      "startLoad": [
+        16.87,
+        9.38,
+        6.94
+      ],
+      "durable": {
+        "counts": {
+          "rows": 19601,
+          "answers": 197,
+          "outbox": 104,
+          "meta": 49362
+        },
+        "tables": {
+          "conversations": 100,
+          "deliveries": 9701,
+          "memberships": 100,
+          "messages": 9700
+        },
+        "outbox": {
+          "_delivery.deliveries.ack/committed": 103,
+          "_delivery.deliveries.ack/queued": 1
+        },
+        "messageCount": 9700,
+        "messageSha256": "ad98b802aea45e97b42d1d9cdbe4d821ebac7003cb2a10b3b5af5ec83011e0d3",
+        "matchesOwnerMessages": false,
+        "matchesOwnerSubset": true
+      },
+      "reopen": {
+        "attempted": false
+      }
+    },
+    {
+      "experiment": "quiet-09-candidate",
+      "variant": "candidate",
+      "startedAt": "2026-09-11T15:27:31.033Z",
+      "finishedAt": "2026-09-11T15:28:52.554Z",
+      "firstInboxMs": 1132.927441,
+      "coldSyncedMs": 67248.534405,
+      "primaryPass": true,
+      "runtimeSha": "3d87c73bfccdb98015de12ea1e96c3c217c23347f27c2dd506e463916469615a",
+      "appSha": "58c9734616eebba41033336bf3e10dddb6acbfa6000c8715d356254232253d19",
+      "finishedLoad": [
+        2.75,
+        6.05,
+        6.12
+      ],
+      "startLoad": [
+        4.59,
+        7.32,
+        6.5
+      ],
+      "durable": {
+        "counts": {
+          "rows": 20216,
+          "answers": 204,
+          "outbox": 112,
+          "meta": 50914
+        },
+        "tables": {
+          "conversations": 100,
+          "deliveries": 10008,
+          "memberships": 100,
+          "messages": 10008
+        },
+        "outbox": {
+          "_delivery.deliveries.ack/committed": 110,
+          "_delivery.deliveries.ack/queued": 2
+        },
+        "messageCount": 10008,
+        "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+        "matchesOwnerMessages": true,
+        "matchesOwnerSubset": true
+      },
+      "held": {
+        "threadRows": 50,
+        "threadMs": 195.98874299999443,
+        "searchMs": 15.889895000000251,
+        "searchHits": 1
+      },
+      "reopen": {
+        "pass": true,
+        "totalMs": 8737.59771799999,
+        "equalMessages": true,
+        "equalThread": true,
+        "equalSearch": true,
+        "uiInboxRows": 0,
+        "uiQualification": "Dev persona carries no bearer binding; the Auth screen can hide held data during owner-cut restoration. Direct public queries qualify physical data only.",
+        "auth": {
+          "state": "refused"
+        }
+      }
+    },
+    {
+      "experiment": "quiet-10-baseline",
+      "variant": "baseline",
+      "startedAt": "2026-09-11T15:28:52.679Z",
+      "finishedAt": "2026-09-11T15:30:57.278Z",
+      "firstInboxMs": 1161.5556650000003,
+      "primaryPass": false,
+      "failedAtMs": 120056.272194,
+      "primaryError": "TimeoutError: page.waitForFunction: Timeout 119858.48312799999ms exceeded.",
+      "runtimeSha": "a78e415ca6b09a7c8d3cd877caf3b533d7b0393fae2d8699d22c629743959782",
+      "appSha": "d40eacc79e0e0f200d13b4c59dd559a4bfcbca6cd8a6502cbeeae56cfb4c6de6",
+      "finishedLoad": [
+        2.11,
+        4.64,
+        5.59
+      ],
+      "startLoad": [
+        2.75,
+        6.05,
+        6.12
+      ],
+      "durable": {
+        "counts": {
+          "rows": 19601,
+          "answers": 197,
+          "outbox": 104,
+          "meta": 49362
+        },
+        "tables": {
+          "conversations": 100,
+          "deliveries": 9701,
+          "memberships": 100,
+          "messages": 9700
+        },
+        "outbox": {
+          "_delivery.deliveries.ack/committed": 102,
+          "_delivery.deliveries.ack/queued": 2
+        },
+        "messageCount": 9700,
+        "messageSha256": "ad98b802aea45e97b42d1d9cdbe4d821ebac7003cb2a10b3b5af5ec83011e0d3",
+        "matchesOwnerMessages": false,
+        "matchesOwnerSubset": true
+      },
+      "reopen": {
+        "attempted": false
+      }
+    },
+    {
+      "experiment": "quiet-10-candidate",
+      "variant": "candidate",
+      "startedAt": "2026-09-11T15:30:57.396Z",
+      "finishedAt": "2026-09-11T15:32:18.965Z",
+      "firstInboxMs": 1149.7176659999998,
+      "coldSyncedMs": 67169.397241,
+      "primaryPass": true,
+      "runtimeSha": "3d87c73bfccdb98015de12ea1e96c3c217c23347f27c2dd506e463916469615a",
+      "appSha": "40e66cc5c9c2fd3038e9b4d8db5df971e99f0d78dc9c434c3bf36f71010d98dd",
+      "finishedLoad": [
+        2.83,
+        4.23,
+        5.36
+      ],
+      "startLoad": [
+        2.11,
+        4.64,
+        5.59
+      ],
+      "durable": {
+        "counts": {
+          "rows": 20216,
+          "answers": 204,
+          "outbox": 112,
+          "meta": 50914
+        },
+        "tables": {
+          "conversations": 100,
+          "deliveries": 10008,
+          "memberships": 100,
+          "messages": 10008
+        },
+        "outbox": {
+          "_delivery.deliveries.ack/committed": 111,
+          "_delivery.deliveries.ack/queued": 1
+        },
+        "messageCount": 10008,
+        "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+        "matchesOwnerMessages": true,
+        "matchesOwnerSubset": true
+      },
+      "held": {
+        "threadRows": 50,
+        "threadMs": 189.8111399999907,
+        "searchMs": 14.781952999997884,
+        "searchHits": 1
+      },
+      "reopen": {
+        "pass": true,
+        "totalMs": 8755.929186000008,
+        "equalMessages": true,
+        "equalThread": true,
+        "equalSearch": true,
+        "uiInboxRows": 0,
+        "uiQualification": "Dev persona carries no bearer binding; the Auth screen can hide held data during owner-cut restoration. Direct public queries qualify physical data only.",
+        "auth": {
+          "state": "refused"
+        }
+      }
+    }
+  ],
+  "checkpointControls": {
+    "protocol": "Existing beforeReplace correctness barrier blocks next transaction at >=1,000 messages; Chromium closes with exactly 950 physically durable. Reopen owner-cut, verify held history/search; queue send, physical reopen again, compare intent/IDs and pending row; restore transport and observe target intent committed plus /api/resume 200. Separate from performance.",
+    "results": [
+      {
+        "variant": "baseline",
+        "artifact": "evidence/checkpoint-baseline.json",
+        "pass": true,
+        "beforeKill": {
+          "counts": {
+            "rows": 2101,
+            "answers": 22,
+            "outbox": 4,
+            "meta": 5262
+          },
+          "tables": {
+            "conversations": 100,
+            "deliveries": 951,
+            "memberships": 100,
+            "messages": 950
+          },
+          "outbox": {
+            "_delivery.deliveries.ack/queued": 4
+          },
+          "messageCount": 950,
+          "messageSha256": "bc59b21ebf052ce547ed7cca177eb0c8895ece5aa2c94d79d16748431139a85a",
+          "matchesOwnerMessages": false,
+          "matchesOwnerSubset": true
+        },
+        "afterReopen": {
+          "counts": {
+            "rows": 2101,
+            "answers": 22,
+            "outbox": 4,
+            "meta": 5262
+          },
+          "tables": {
+            "conversations": 100,
+            "deliveries": 951,
+            "memberships": 100,
+            "messages": 950
+          },
+          "outbox": {
+            "_delivery.deliveries.ack/queued": 4
+          },
+          "messageCount": 950,
+          "messageSha256": "bc59b21ebf052ce547ed7cca177eb0c8895ece5aa2c94d79d16748431139a85a",
+          "matchesOwnerMessages": false,
+          "matchesOwnerSubset": true
+        },
+        "afterPendingReopen": {
+          "counts": {
+            "rows": 2101,
+            "answers": 22,
+            "outbox": 5,
+            "meta": 5263
+          },
+          "tables": {
+            "conversations": 100,
+            "deliveries": 951,
+            "memberships": 100,
+            "messages": 950
+          },
+          "outbox": {
+            "_delivery.deliveries.ack/queued": 4,
+            "messages.send/queued": 1
+          },
+          "messageCount": 950,
+          "messageSha256": "bc59b21ebf052ce547ed7cca177eb0c8895ece5aa2c94d79d16748431139a85a",
+          "matchesOwnerMessages": false,
+          "matchesOwnerSubset": true
+        },
+        "postGc": {
+          "JSHeapUsedSize": 19163184,
+          "JSHeapTotalSize": 21176320
+        },
+        "storageBytes": 6001180,
+        "queuedState": "queued",
+        "reservedIdCount": 104,
+        "resumeResponses": [
+          {
+            "status": 200,
+            "generation": "440d4f2bda12e2f4121f716960c1e4390bbb588130345facc9fd3af18b49d17d",
+            "schemaHash": "da408df9c9b29028fe37d1eee8633e0bece5cd8c4ee4d70d42f0b3079a401927"
+          }
+        ],
+        "resumedIntentStates": [
+          "committed"
+        ],
+        "resumedHistoryState": "capped",
+        "resumedHistoryRows": 50
+      },
+      {
+        "variant": "candidate",
+        "artifact": "evidence/checkpoint-candidate.json",
+        "pass": true,
+        "beforeKill": {
+          "counts": {
+            "rows": 2101,
+            "answers": 22,
+            "outbox": 3,
+            "meta": 5262
+          },
+          "tables": {
+            "conversations": 100,
+            "deliveries": 951,
+            "memberships": 100,
+            "messages": 950
+          },
+          "outbox": {
+            "_delivery.deliveries.ack/queued": 3
+          },
+          "messageCount": 950,
+          "messageSha256": "bc59b21ebf052ce547ed7cca177eb0c8895ece5aa2c94d79d16748431139a85a",
+          "matchesOwnerMessages": false,
+          "matchesOwnerSubset": true
+        },
+        "afterReopen": {
+          "counts": {
+            "rows": 2101,
+            "answers": 22,
+            "outbox": 3,
+            "meta": 5262
+          },
+          "tables": {
+            "conversations": 100,
+            "deliveries": 951,
+            "memberships": 100,
+            "messages": 950
+          },
+          "outbox": {
+            "_delivery.deliveries.ack/queued": 3
+          },
+          "messageCount": 950,
+          "messageSha256": "bc59b21ebf052ce547ed7cca177eb0c8895ece5aa2c94d79d16748431139a85a",
+          "matchesOwnerMessages": false,
+          "matchesOwnerSubset": true
+        },
+        "afterPendingReopen": {
+          "counts": {
+            "rows": 2101,
+            "answers": 22,
+            "outbox": 4,
+            "meta": 5263
+          },
+          "tables": {
+            "conversations": 100,
+            "deliveries": 951,
+            "memberships": 100,
+            "messages": 950
+          },
+          "outbox": {
+            "_delivery.deliveries.ack/queued": 3,
+            "messages.send/queued": 1
+          },
+          "messageCount": 950,
+          "messageSha256": "bc59b21ebf052ce547ed7cca177eb0c8895ece5aa2c94d79d16748431139a85a",
+          "matchesOwnerMessages": false,
+          "matchesOwnerSubset": true
+        },
+        "postGc": {
+          "JSHeapUsedSize": 19158528,
+          "JSHeapTotalSize": 20652032
+        },
+        "storageBytes": 5992801,
+        "queuedState": "queued",
+        "reservedIdCount": 104,
+        "resumeResponses": [
+          {
+            "status": 200,
+            "generation": "440d4f2bda12e2f4121f716960c1e4390bbb588130345facc9fd3af18b49d17d",
+            "schemaHash": "da408df9c9b29028fe37d1eee8633e0bece5cd8c4ee4d70d42f0b3079a401927"
+          }
+        ],
+        "resumedIntentStates": [
+          "committed"
+        ],
+        "resumedHistoryState": "capped",
+        "resumedHistoryRows": 50
+      }
+    ]
+  },
+  "foregroundControls": {
+    "qualification": "Unresolved for both variants; online public mutation did not resolve before external timeout. No admission, settlement, receiver or frame-gap latency claimed. FIFO draining is only a source-informed hypothesis.",
+    "results": [
+      {
+        "variant": "baseline",
+        "startedAt": "2026-09-11T15:32:46.124Z",
+        "finishedAt": "2026-09-11T15:34:16.389Z",
+        "firstUsefulThreadMs": 1484.030507,
+        "fillRoundTripMs": 47.65494000000035,
+        "pass": false,
+        "error": "page.evaluate: Target page, context or browser has been closed\n    at /home/ccheever/lanes/clique-20260909-initial/runs/four-plans-acquisition-20260911/foreground-browser.mjs:917:33",
+        "durableMessagesBeforeSend": 301,
+        "harnessExternalTimeoutMs": 90000,
+        "mutationResultObtained": false
+      },
+      {
+        "variant": "candidate",
+        "startedAt": "2026-09-11T15:34:16.472Z",
+        "finishedAt": "2026-09-11T15:35:46.739Z",
+        "firstUsefulThreadMs": 1530.439594,
+        "fillRoundTripMs": 85.74800800000003,
+        "pass": false,
+        "error": "page.evaluate: Target page, context or browser has been closed\n    at /home/ccheever/lanes/clique-20260909-initial/runs/four-plans-acquisition-20260911/foreground-browser.mjs:917:33",
+        "durableMessagesBeforeSend": 301,
+        "harnessExternalTimeoutMs": 90000,
+        "mutationResultObtained": false
+      }
+    ]
+  },
+  "smallMediumBaselineDiagnostics": [
+    {
+      "messages": 100,
+      "artifact": "evidence/clean-100-baseline-profile.json",
+      "instrumentation": "CPU profile and 500 ms heap sampling; beforeReplace hook absent; single diagnostic, excluded from paired metric",
+      "firstInboxMs": 976.699114,
+      "coldSyncedMs": 1171.908363,
+      "postGcHeapUsedBytes": 12022284,
+      "sampledPeakHeapUsedBytes": 25149468,
+      "indexedDbUsageBytes": 633435,
+      "queryStats": {
+        "messages.inbox": {
+          "responses": 4,
+          "rows": 100,
+          "network": [
+            {
+              "requestMs": 358.81097,
+              "headersMs": 360.333431,
+              "bodyMs": 462.73741800000016
+            },
+            {
+              "requestMs": 661.0793319999998,
+              "headersMs": 695.5188549999998,
+              "bodyMs": 758.4978879999999
+            },
+            {
+              "requestMs": 1035.846806,
+              "headersMs": 1038.7645579999999,
+              "bodyMs": 1083.157237
+            },
+            {
+              "requestMs": 1120.524688,
+              "headersMs": 1121.8975649999998,
+              "bodyMs": 1123.624543
+            }
+          ]
+        },
+        "groups.mine": {
+          "responses": 2,
+          "rows": 100,
+          "network": [
+            {
+              "requestMs": 360.05965100000003,
+              "headersMs": 464.9168850000001,
+              "bodyMs": 468.7456320000001
+            },
+            {
+              "requestMs": 661.209848,
+              "headersMs": 696.8235300000001,
+              "bodyMs": 761.9707530000001
+            }
+          ]
+        }
+      }
+    },
+    {
+      "messages": 1000,
+      "artifact": "evidence/clean-1000-baseline-profile.json",
+      "instrumentation": "CPU profile and 500 ms heap sampling; beforeReplace hook absent; single diagnostic, excluded from paired metric",
+      "firstInboxMs": 1029.2901190000002,
+      "coldSyncedMs": 4048.6502130000003,
+      "postGcHeapUsedBytes": 23526224,
+      "sampledPeakHeapUsedBytes": 74446188,
+      "indexedDbUsageBytes": 2865704,
+      "queryStats": {
+        "messages.inbox": {
+          "responses": 20,
+          "rows": 1000,
+          "network": [
+            {
+              "requestMs": 385.7907730000002,
+              "headersMs": 387.5366690000001,
+              "bodyMs": 484.7460020000003
+            },
+            {
+              "requestMs": 680.40859,
+              "headersMs": 714.6303160000002,
+              "bodyMs": 782.4662980000003
+            },
+            {
+              "requestMs": 940.0579520000001,
+              "headersMs": 956.3941239999999,
+              "bodyMs": 1024.013281
+            },
+            {
+              "requestMs": 1117.679834,
+              "headersMs": 1117.978111,
+              "bodyMs": 1122.7417
+            },
+            {
+              "requestMs": 1264.3971510000001,
+              "headersMs": 1280.262237,
+              "bodyMs": 1322.2198860000003
+            },
+            {
+              "requestMs": 1402.3567130000001,
+              "headersMs": 1420.5810150000002,
+              "bodyMs": 1462.4434420000002
+            },
+            {
+              "requestMs": 1545.108928,
+              "headersMs": 1565.3767320000002,
+              "bodyMs": 1609.4868070000002
+            },
+            {
+              "requestMs": 1687.044528,
+              "headersMs": 1704.530965,
+              "bodyMs": 1747.081302
+            },
+            {
+              "requestMs": 1832.8855420000004,
+              "headersMs": 1849.4211529999998,
+              "bodyMs": 1888.8355809999998
+            },
+            {
+              "requestMs": 1976.659999,
+              "headersMs": 1986.956079,
+              "bodyMs": 2026.6850680000002
+            },
+            {
+              "requestMs": 2147.954268,
+              "headersMs": 2169.233237,
+              "bodyMs": 2209.5054809999997
+            },
+            {
+              "requestMs": 2318.519003,
+              "headersMs": 2336.581783,
+              "bodyMs": 2376.894438
+            },
+            {
+              "requestMs": 2487.772184,
+              "headersMs": 2508.139076,
+              "bodyMs": 2547.014046
+            },
+            {
+              "requestMs": 2667.5290849999997,
+              "headersMs": 2685.470783,
+              "bodyMs": 2725.6066530000003
+            },
+            {
+              "requestMs": 2854.0400890000005,
+              "headersMs": 2872.673614,
+              "bodyMs": 2913.937864
+            },
+            {
+              "requestMs": 3039.463813,
+              "headersMs": 3052.1128590000003,
+              "bodyMs": 3092.4505409999997
+            },
+            {
+              "requestMs": 3182.613533,
+              "headersMs": 3200.6330780000003,
+              "bodyMs": 3241.9072330000004
+            },
+            {
+              "requestMs": 3386.272335,
+              "headersMs": 3404.295605,
+              "bodyMs": 3447.717669
+            },
+            {
+              "requestMs": 3593.757851,
+              "headersMs": 3614.8277380000004,
+              "bodyMs": 3656.935602
+            },
+            {
+              "requestMs": 3808.1352870000005,
+              "headersMs": 3825.6053580000003,
+              "bodyMs": 3867.0207750000004
+            }
+          ]
+        },
+        "groups.mine": {
+          "responses": 22,
+          "rows": 100,
+          "network": [
+            {
+              "requestMs": 386.76109700000006,
+              "headersMs": 486.23895900000025,
+              "bodyMs": 496.7951290000001
+            },
+            {
+              "requestMs": 680.5326960000002,
+              "headersMs": 715.6116670000001,
+              "bodyMs": 785.972413
+            },
+            {
+              "requestMs": 1282.5087640000002,
+              "headersMs": 1322.60239,
+              "bodyMs": 1325.6895560000003
+            },
+            {
+              "requestMs": 1497.620339,
+              "headersMs": 1497.9450260000003,
+              "bodyMs": 1499.46904
+            },
+            {
+              "requestMs": 1642.403738,
+              "headersMs": 1642.7432670000003,
+              "bodyMs": 1643.7934300000002
+            },
+            {
+              "requestMs": 1789.5459720000003,
+              "headersMs": 1789.8909180000005,
+              "bodyMs": 1790.9738920000004
+            },
+            {
+              "requestMs": 1938.4876319999998,
+              "headersMs": 1938.855043,
+              "bodyMs": 1939.8577449999998
+            },
+            {
+              "requestMs": 2080.40159,
+              "headersMs": 2080.748771,
+              "bodyMs": 2081.7347780000005
+            },
+            {
+              "requestMs": 2270.0571270000005,
+              "headersMs": 2270.3719880000003,
+              "bodyMs": 2291.9814229999997
+            },
+            {
+              "requestMs": 2441.8817599999998,
+              "headersMs": 2442.241219,
+              "bodyMs": 2444.1622380000003
+            },
+            {
+              "requestMs": 2620.427897,
+              "headersMs": 2620.7329640000003,
+              "bodyMs": 2621.6959280000005
+            },
+            {
+              "requestMs": 2803.9653650000005,
+              "headersMs": 2804.2990139999997,
+              "bodyMs": 2805.579924
+            },
+            {
+              "requestMs": 2996.7903499999998,
+              "headersMs": 2997.1995739999998,
+              "bodyMs": 2999.5826950000005
+            },
+            {
+              "requestMs": 3135.9549680000005,
+              "headersMs": 3136.2804760000004,
+              "bodyMs": 3137.2908700000003
+            },
+            {
+              "requestMs": 3335.866364,
+              "headersMs": 3336.1994630000004,
+              "bodyMs": 3337.3272039999997
+            },
+            {
+              "requestMs": 3545.9019430000003,
+              "headersMs": 3546.2431440000005,
+              "bodyMs": 3548.440637
+            },
+            {
+              "requestMs": 3754.0763819999997,
+              "headersMs": 3754.3996360000006,
+              "bodyMs": 3755.405924
+            },
+            {
+              "requestMs": 3959.5509750000006,
+              "headersMs": 3959.860779,
+              "bodyMs": 3960.944573
+            },
+            {
+              "requestMs": 4067.843827,
+              "headersMs": 4143.952216,
+              "bodyMs": 4171.402124
+            },
+            {
+              "requestMs": 4281.116296,
+              "headersMs": 4283.134801,
+              "bodyMs": 4290.475693
+            },
+            {
+              "requestMs": 4559.992491999999,
+              "headersMs": 4586.0598979999995,
+              "bodyMs": 4589.195908
+            },
+            {
+              "requestMs": 4658.926018,
+              "headersMs": 4660.375690999999,
+              "bodyMs": 4664.647161999999
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "attribution": {
+    "collector": {
+      "fixtureObjects": 1000,
+      "markers": 3000,
+      "distinctReferences": 1000,
+      "sameOutput": true,
+      "baselineObjectFromEntriesCalls": 5000,
+      "candidateObjectFromEntriesCalls": 0,
+      "baselineCopiedFieldEntries": 12000,
+      "candidateCopiedFieldEntries": 0,
+      "limitation": "Counts only discarded object-parent materialization, not all allocation or heap and not independent end-to-end effect"
+    },
+    "cleanFullCpuProfile": {
+      "artifact": "evidence/current-10008-baseline-clean-profile-r3.json",
+      "profile": "evidence/current-10008-baseline-clean-profile-r3.cpuprofile",
+      "timeoutMs": 30000,
+      "durableMessages": 4500,
+      "networkMessageRows": 4550,
+      "successCompactionInclusiveMs": 2646.351,
+      "effectFilterInclusiveMs": 2561.568,
+      "sampledPeakHeapUsedBytes": 265539404,
+      "limitation": "Single truncated CPU/heap diagnostic; no post-GC full-size heap comparison"
+    },
+    "compactionProof": "rowObservation rejects missing, unsequenced or negatively superseded images before answer evidence. Skip impossible answer scans; existing explicit-negative discharge still runs. No cache, scheduler, retention or authority changes."
+  },
+  "verification": [
+    {
+      "scope": "collector; store-review, store-review-custody, offline-store, offline-resume-tail",
+      "pass": 298,
+      "fail": 0,
+      "seconds": 8.47,
+      "log": "logs/collector-affected-tests.log",
+      "command": "node build.mjs && node --test --test-concurrency=4 --test-timeout=10000 tests/store-review.test.ts tests/store-review-custody.test.ts tests/offline-store.test.ts tests/offline-resume-tail.test.ts"
+    },
+    {
+      "scope": "collector + compaction; store-review, store-review-custody, outbox, offline-resume-tail",
+      "pass": 291,
+      "fail": 0,
+      "seconds": 8.549874,
+      "log": "logs/compaction-affected-tests.log",
+      "command": "node build.mjs && node --test --test-concurrency=4 --test-timeout=10000 tests/store-review.test.ts tests/store-review-custody.test.ts tests/outbox.test.ts tests/offline-resume-tail.test.ts"
+    }
+  ],
+  "runtimeGzip": {
+    "source": "Root matched canonical five-root measurement; /tmp/snapback2-four-plans-baseline-runtime.json and metrics/twin.jsonl",
+    "baselineBytes": 88008,
+    "integratedBytes": 88053,
+    "deltaBytes": 45,
+    "ceilingBytes": 90000,
+    "targetBytes": 80000,
+    "limitation": "Integrated all-four-plans byte delta, not attribution to two acquisition changes. Prior accepted 84,580-byte growth baseline already exceeded by pristine bf845."
+  },
+  "excludedOrFailedEvidence": [
+    {
+      "artifacts": "evidence/current-100-baseline*.json and logs/current-100-baseline*.log",
+      "reason": "Missing media helper, bulk seed exceeding unchanged 8 MiB bound, group creation lacking established second member; corrected documented supported population prerequisites."
+    },
+    {
+      "artifacts": "current-10008-baseline-clean-contended-profile, current-10008-baseline-clean-profile, current-10008-baseline-clean-profile-r2",
+      "reason": "Copied dist dependency resolution, installed journey package layout, and react-core bundler alias prerequisites."
+    },
+    {
+      "artifacts": "Early 100/1000/full calibration",
+      "reason": "No-op beforeReplace correctness hook still materializes whole state every commit; excluded from production timing."
+    },
+    {
+      "artifacts": "paired-01-baseline",
+      "reason": "Pilot overlapped locality compiler; excluded from final ten pairs."
+    },
+    {
+      "artifacts": "quiet-01-candidate, quiet-02-candidate",
+      "reason": "Primary passed, later Auth UI reopen timed out; persona has no held bearer binding. Retained as UI qualification limitation."
+    },
+    {
+      "artifacts": "foreground-baseline, foreground-candidate",
+      "reason": "Public online mutation unresolved when external 90-second timeout closed browser; follow-up open."
+    }
+  ],
+  "limits": [
+    "Linux EPYC headless physical Chromium only; no native, full-engine, media or production-device performance claim.",
+    "Full-size baseline never completes, so full-size matched retained-memory/reopen comparison is unavailable. Checkpoint heap/storage diagnostics cover identical 950-row data only.",
+    "Eight physical candidate reopens qualify public held query custody, not bearer-authenticated template UI reopen.",
+    "No foreground latency or old incident closure follows from the bulk acquisition improvement."
+  ]
+}

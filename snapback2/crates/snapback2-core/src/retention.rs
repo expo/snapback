@@ -31,6 +31,36 @@ struct RowFlow {
     bytes: u64,
     max_bytes: u64,
     retained_bytes: u64,
+    // Diagnostic portions of the existing price, not another estimator. Adding a
+    // full row and a projection must not explain both at their maximum width.
+    portions: BTreeMap<(BTreeSet<String>, u64), u64>,
+}
+
+impl RowFlow {
+    fn reset_portions(&mut self) {
+        self.portions = BTreeMap::from([((self.fields.clone(), self.bytes), self.count)]);
+    }
+
+    fn shape(&self, schema: &Schema, site: &str) -> ByteShape {
+        let children = self.portions.iter().filter(|(_, count)| **count > 0).map(|((fields, bytes), count)| {
+            let mut width = row_shape(schema, &self.table);
+            if !fields.is_empty() {
+                width.children.retain(|c| fields.iter().any(|f| c.label == format!("{}.{f}", self.table)));
+                width.label = format!("{} projected value width", self.table);
+            }
+            width.bytes = *bytes;
+            ByteShape::repeated(
+                count.saturating_mul(*bytes),
+                format!("{count} {}", if fields.is_empty() { "full row values" } else { "projected values" }),
+                *count,
+                width,
+            )
+        }).collect();
+        let mut shape = ByteShape::group(self.retained_bytes,
+            format!("{} at {site}: retained row/value contributions", self.table), children);
+        shape.site = Some(site.to_owned());
+        shape
+    }
 }
 
 impl Flow {
@@ -46,6 +76,7 @@ impl Flow {
                     bytes,
                     max_bytes: bytes,
                     retained_bytes: count.saturating_mul(bytes),
+                    portions: BTreeMap::from([((BTreeSet::new(), bytes), count)]),
                 },
             )]),
             value_bytes: 0,
@@ -78,6 +109,10 @@ impl Flow {
                     current.retained_bytes = current
                         .retained_bytes
                         .saturating_add(incoming.retained_bytes);
+                    for (width, count) in &incoming.portions {
+                        let value = current.portions.entry(width.clone()).or_default();
+                        *value = value.saturating_add(*count);
+                    }
                 })
                 .or_insert(incoming);
         }
@@ -107,6 +142,7 @@ impl Flow {
                         .saturating_add(incoming.bytes)
                         .min(current.max_bytes);
                     current.retained_bytes = current.count.saturating_mul(current.bytes);
+                    current.reset_portions();
                 })
                 .or_insert(incoming);
         }
@@ -123,6 +159,7 @@ impl Flow {
             row.fields = BTreeSet::from([field.into()]);
             row.bytes = bytes.min(row.max_bytes);
             row.retained_bytes = row.count.saturating_mul(row.bytes);
+            row.reset_portions();
         }
         self
     }
@@ -132,6 +169,7 @@ impl Flow {
             row.fields.clear();
             row.bytes = row.max_bytes;
             row.retained_bytes = row.count.saturating_mul(row.bytes);
+            row.reset_portions();
         }
         self
     }
@@ -151,6 +189,7 @@ impl Flow {
                     current.bytes = current.bytes.max(incoming.bytes);
                     current.max_bytes = current.max_bytes.max(incoming.max_bytes);
                     current.retained_bytes = current.count.saturating_mul(current.bytes);
+                    current.reset_portions();
                 })
                 .or_insert(incoming);
         }
@@ -164,6 +203,7 @@ impl Flow {
         for row in self.rows.values_mut() {
             row.count = row.count.saturating_mul(factor);
             row.retained_bytes = row.retained_bytes.saturating_mul(factor);
+            for count in row.portions.values_mut() { *count = count.saturating_mul(factor); }
         }
         self.value_bytes = self.value_bytes.saturating_mul(factor);
         self.retained_value_bytes = self.retained_value_bytes.saturating_mul(factor);
@@ -179,6 +219,11 @@ impl Flow {
                 incoming.retained_bytes = incoming
                     .retained_bytes
                     .saturating_sub(retained.retained_bytes.saturating_mul(occurrences));
+                for (width, count) in &retained.portions {
+                    if let Some(incoming) = incoming.portions.get_mut(width) {
+                        *incoming = incoming.saturating_sub(count.saturating_mul(occurrences));
+                    }
+                }
             }
         }
         self.rows.retain(|_, row| row.count > 0);
@@ -209,6 +254,7 @@ impl Flow {
             // proportional division would underprice mixed-width sources.
             row.count = row.count.min(retained);
             row.retained_bytes = row.count.saturating_mul(row.bytes);
+            row.reset_portions();
         }
         self
     }
@@ -223,6 +269,7 @@ impl Flow {
                 .saturating_add(count.saturating_sub(1))
                 .saturating_div(count.max(1));
             row.retained_bytes = row.count.saturating_mul(row.bytes);
+            row.reset_portions();
         }
         self.value_bytes = self
             .value_bytes
@@ -326,23 +373,7 @@ impl<'a> RetentionEstimator<'a> {
                 .peak
                 .rows
                 .into_iter()
-                .map(|(site, row)| {
-                    let mut width = row_shape(schema, &row.table);
-                    if !row.fields.is_empty() {
-                        width.children.retain(|c| {
-                            row.fields
-                                .iter()
-                                .any(|f| c.label == format!("{}.{f}", row.table))
-                        });
-                    }
-                    width.bytes = row.bytes;
-                    ByteShape::repeated(
-                        row.retained_bytes,
-                        format!("{} at {site}: {} retained rows", row.table, row.count),
-                        row.count,
-                        width,
-                    )
-                })
+                .map(|(site, row)| row.shape(schema, &site))
                 .collect();
             if estimator.peak.retained_value_bytes > 0 {
                 children.push(ByteShape::leaf(

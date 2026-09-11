@@ -6,7 +6,8 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { api, createClient } from "../dist/client.mjs";
 import { multiplexFetch } from "./live-fixture.ts";
-import { ClientQueries, composeHistory, defineItems, withHistory } from "../dist/client-observed-test.mjs";
+import { ClientPages, ClientQueries, composeHistory, defineItems, withHistory } from "../dist/client-observed-test.mjs";
+import { withItemInputs } from "../dist/image-runtime.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
 import { offlineView } from "../dist/sqlite-test.mjs";
 
@@ -89,6 +90,228 @@ const conversationItems = withHistory(defineItems(api.messages.conversationView 
   table: "messages", rows: (v: any) => v.messages, select: (d: any) => d.message, order: "reverse",
 }), { items: threadItems, args: ({ conversationId }: any) => ({ conversationId, c: null }) });
 const viewArgs = { conversationId: "c" }, threadArgs = { conversationId: "c", c: null };
+
+// @ref LLP 1018.008.005.000#ordering-and-pending-work — original page images
+// retain their own evidence while one chain chooses display order and custody.
+function pageFixture(cursors: Record<string, string> = { "messages.conversationView": "c", "messages.thread": "c" }) {
+  const cells = new Map<string, { snapshot: any; listeners: Set<() => void> }>();
+  const opens: Array<{ op: string; args: any; close: boolean }> = [];
+  let active = true;
+  const key = (op: string, cursor: unknown) => JSON.stringify([op, cursor ?? null]);
+  const cell = (op: string, cursor: unknown) => {
+    const id = key(op, cursor);
+    if (!cells.has(id)) cells.set(id, { snapshot: { status: "loading", next: null, ...offline, items: [] }, listeners: new Set() });
+    return cells.get(id)!;
+  };
+  const host = {
+    cursor: (op: string) => cursors[op], active: () => active, connection: () => "offline",
+    observe(ref: any, args: any) {
+      const current = cell(ref.op, args[cursors[ref.op]]);
+      return { getSnapshot: () => current.snapshot, subscribe(notify: () => void) {
+        const opened = { op: ref.op, args, close: false }; opens.push(opened); current.listeners.add(notify);
+        return () => { opened.close = true; current.listeners.delete(notify); };
+      } };
+    },
+  };
+  const publish = (op: string, cursor: unknown, snapshot: any) => {
+    const current = cell(op, cursor);
+    current.snapshot = snapshot;
+    for (const notify of [...current.listeners]) notify();
+  };
+  const snapshot = (ids: Array<string | number>, next: string | null, options: any = {}) => Object.freeze({
+    status: "ready", data: ids.map(id => row(String(id))), next,
+    receipt: { state: next ? "capped" : "complete", source: "server", seq: 1, next }, ...offline,
+    items: ids.map(id => item(String(id))), ...options,
+  });
+  return { host, opens, cell, publish, snapshot, deactivate: () => { active = false; } };
+}
+
+test("item pages undo page reversal, choose whole first images, and union durable drafts across the valid prefix", () => {
+  const f = pageFixture(), binding = defineItems(api.messages.thread as any, { table: "messages", order: "reverse" });
+  const pages = new ClientPages(f.host as any, api.messages.thread, {}, { items: binding });
+  assert.equal(f.opens.length, 0, "constructing and reading a page resource starts no subscription");
+  assert.strictEqual(pages.getSnapshot(), pages.getSnapshot());
+  const stop = pages.subscribe(() => {});
+  const draft = (id: string, intent: string) => ({ key: id, draft: { body: id }, predicted: false,
+    pending: [{ intent, kind: "create", state: "committed", label: "Sent", dismissible: false }] });
+  const d1 = draft("draft-first", "inbox:8"), d2 = draft("draft-second", "i2");
+  const entries = [{ intent: "i2", order: 20 }, { intent: "i1", inbox: 8, order: 10 }];
+  const framed = (page: any) => withItemInputs(page, { entries, observations: new Map(), predicted: new Map() });
+  const first9 = item("9", { data: { id: "9", body: "first image" }, pending: [{ intent: "edit-9", kind: "update", state: "committed" }] });
+  const head = framed(f.snapshot([7, 8, 9], "a", { items: [item("7"), item("8"), first9, d2, draft("1", "create-1")],
+    data: { messages: [], count: 99, preview: [] } }));
+  f.publish("messages.thread", null, head);
+  pages.getSnapshot().loadMore();
+  f.publish("messages.thread", "a", framed(f.snapshot([4, 5, 6], "b", { items: [item("4"), item("5"), item("6"), d1, d2] })));
+  pages.getSnapshot().loadMore();
+  const last = f.snapshot([1, 2, 3], null, { items: [item("1"), item("2"), item("3"), item("9", { data: { id: "9", body: "later image" } })] });
+  f.publish("messages.thread", "b", last);
+  const current = pages.getSnapshot();
+  assert.deepEqual(current.items.map((value: any) => value.key), ["1", "2", "3", "4", "5", "6", "7", "8", "9", "draft-first", "draft-second"]);
+  assert.strictEqual(current.items[8], first9, "a later observed duplicate cannot retire the selected image's update");
+  assert.strictEqual(current.items[9], d1, "a draft missing from the head still survives from a valid deeper page");
+  assert.equal(current.items[0].draft, undefined, "a materialized page-three row beats a page-one draft");
+  assert.strictEqual(current.head, head); assert.strictEqual(current.pages[2], last);
+  assert.equal(current.head.data.count, 99, "the SDK never computes summary authority from visible rows");
+  assert.equal("receipt" in current, false); assert.equal("seq" in current, false);
+  const unchanged = pages.getSnapshot(); assert.strictEqual(unchanged, current);
+  stop(); assert.ok(f.opens.every(open => open.close));
+});
+
+for (const reverse of [false, true]) test(`three original pages preserve ${reverse ? "reverse" : "forward"} scan order`, () => {
+  const f = pageFixture(), binding = defineItems(api.messages.thread as any, { table: "messages", ...(reverse ? { order: "reverse" } : {}) });
+  const resource = new ClientPages(f.host as any, api.messages.thread, {}, { items: binding });
+  const stop = resource.subscribe(() => {});
+  for (const [index, raw] of [[9, 8, 7], [6, 5, 4], [3, 2, 1]].entries()) {
+    f.publish("messages.thread", index ? String(index) : null, f.snapshot(reverse ? [...raw].reverse() : raw, index < 2 ? String(index + 1) : null));
+    if (index < 2) resource.getSnapshot().loadMore();
+  }
+  assert.deepEqual(resource.getSnapshot().items.map((value: any) => Number(value.key)), reverse ? [1, 2, 3, 4, 5, 6, 7, 8, 9] : [9, 8, 7, 6, 5, 4, 3, 2, 1]);
+  stop();
+});
+
+test("changed continuations discard the suffix before publication, ignore late frames, and retain unchanged links", () => {
+  const f = pageFixture(), resource = new ClientPages(f.host as any, api.messages.thread, {});
+  const stop = resource.subscribe(() => {});
+  f.publish("messages.thread", null, f.snapshot([9, 8, 7], "a")); resource.getSnapshot().loadMore();
+  f.publish("messages.thread", "a", f.snapshot([6, 5, 4], "b")); resource.getSnapshot().loadMore();
+  f.publish("messages.thread", "b", f.snapshot([3, 2, 1], null));
+  const opens = f.opens.length;
+  f.publish("messages.thread", null, f.snapshot([10, 8, 7], "a"));
+  assert.equal(f.opens.length, opens, "an unrelated edit with the same cursor never reopens pages");
+  const late = [...f.cell("messages.thread", "b").listeners];
+  f.publish("messages.thread", null, f.snapshot([10, 9, 8], "new-a"));
+  assert.deepEqual(resource.getSnapshot().items.map((value: Row) => value.id), ["10", "9", "8"]);
+  assert.equal(resource.getSnapshot().status, "loading");
+  const waiting = f.opens.length;
+  resource.getSnapshot().loadMore(); resource.getSnapshot().loadMore(); assert.equal(f.opens.length, waiting);
+  assert.ok(f.opens.filter(open => ["a", "b"].includes(open.args.c)).every(open => open.close));
+  f.publish("messages.thread", "b", f.snapshot(["abandoned"], null)); late.forEach(notify => notify());
+  assert.deepEqual(resource.getSnapshot().items.map((value: Row) => value.id), ["10", "9", "8"]);
+  f.publish("messages.thread", "new-a", f.snapshot([7, 6, 5], "new-b"));
+  f.publish("messages.thread", "new-b", f.snapshot([4, 3, 2], null));
+  assert.equal(resource.getSnapshot().pages.length, 3, "replacement retains requested depth");
+  f.publish("messages.thread", "new-b", f.snapshot([], null, { status: "unavailable", data: undefined, reason: { code: "refused", message: "no" } }));
+  assert.equal(resource.getSnapshot().status, "unavailable"); assert.equal(resource.getSnapshot().reason.code, "refused");
+  assert.equal(resource.getSnapshot().items.length, 6, "a refused tail leaves only the valid readable prefix");
+  stop();
+});
+
+test("history handover preserves depth with independent normalized cursors and releases ineligible observations", () => {
+  const f = pageFixture({ "messages.conversationView": "after", "messages.thread": "before" });
+  const mapped: any[] = [];
+  const history = defineItems(api.messages.thread as any, { table: "messages" });
+  const binding = withHistory(defineItems(api.messages.conversationView as any, { table: "messages", rows: (value: any) => value.messages }), {
+    items: history, args: (args: any) => { mapped.push(args); return { conversationId: args.conversationId, before: null }; },
+  });
+  const resource = new ClientPages(f.host as any, api.messages.conversationView, { conversationId: "chat", c: "unrelated" }, { items: binding });
+  const stop = resource.subscribe(() => {});
+  f.publish("messages.conversationView", null, f.snapshot([9], "p1")); resource.getSnapshot().loadMore();
+  f.publish("messages.conversationView", "p1", f.snapshot([8], "p2")); resource.getSnapshot().loadMore();
+  f.publish("messages.conversationView", "p2", f.snapshot([7], null));
+  assert.deepEqual(mapped, [{ conversationId: "chat", c: "unrelated", after: null }]);
+  f.publish("messages.conversationView", null, f.snapshot([], null, { status: "unavailable", data: undefined,
+    receipt: { state: "partial", source: "twin", seq: 2, next: null }, reason: { code: "partial", message: "count missing" } }));
+  assert.equal(resource.getSnapshot().itemsFrom, "drafts"); assert.equal(resource.getSnapshot().head.data, undefined);
+  assert.ok(f.opens.filter(open => open.args.after != null).every(open => open.close));
+  const historyHead = f.snapshot([3], "h1"); f.publish("messages.thread", null, historyHead);
+  assert.equal(resource.getSnapshot().itemsFrom, "history");
+  assert.equal(resource.getSnapshot().status, "loading");
+  f.publish("messages.thread", "h1", f.snapshot([2], "h2")); f.publish("messages.thread", "h2", f.snapshot([1], null));
+  assert.deepEqual(resource.getSnapshot().items.map((value: any) => value.key), ["3", "2", "1"]);
+  assert.strictEqual(resource.getSnapshot().history, historyHead);
+  for (const open of f.opens.filter(open => open.op === "messages.thread")) {
+    assert.ok("before" in open.args); assert.equal("after" in open.args, false); assert.equal("c" in open.args, false);
+  }
+  f.publish("messages.conversationView", null, f.snapshot([10], "q1"));
+  assert.equal(resource.getSnapshot().itemsFrom, "query"); assert.equal(resource.getSnapshot().history, undefined);
+  assert.ok(f.opens.filter(open => open.op === "messages.thread").every(open => open.close));
+  f.publish("messages.conversationView", "q1", f.snapshot([9], "q2")); f.publish("messages.conversationView", "q2", f.snapshot([8], null));
+  assert.equal(resource.getSnapshot().pages.length, 3); assert.equal(mapped.length, 1);
+  f.publish("messages.conversationView", null, f.snapshot([], null, { status: "unavailable", data: undefined,
+    receipt: { state: "denied", source: "server", seq: 4, next: null } }));
+  assert.equal(resource.getSnapshot().itemsFrom, "drafts"); assert.deepEqual(resource.getSnapshot().items, []);
+  assert.equal(resource.getSnapshot().history, undefined);
+  stop(); f.deactivate();
+  assert.equal(resource.getSnapshot().head.data, undefined); assert.deepEqual(resource.getSnapshot().items, []);
+});
+
+test("a pure getter cannot suppress the pending publication to an attached page consumer", () => {
+  const f = pageFixture(), resource = new ClientPages(f.host as any, api.messages.thread, {});
+  let notified = 0;
+  f.cell("messages.thread", null).listeners.add(() => { resource.getSnapshot(); });
+  const stop = resource.subscribe(() => { notified++; });
+  const before = notified;
+  f.publish("messages.thread", null, f.snapshot([1], null));
+  assert.equal(notified, before + 1);
+  stop();
+});
+
+test("a headless subscriber can load the next page from the capped publication without waiting for another frame", () => {
+  const f = pageFixture(), resource = new ClientPages(f.host as any, api.messages.thread, {});
+  const stop = resource.subscribe(() => {
+    const snapshot = resource.getSnapshot();
+    if (snapshot.status === "ready" && snapshot.hasMore) snapshot.loadMore();
+  });
+  f.publish("messages.thread", null, f.snapshot([3, 2], "tail"));
+  assert.deepEqual(f.opens.map(open => open.args.c), [null, "tail"], "loadMore during notification opens its page in the same refresh");
+  f.publish("messages.thread", "tail", f.snapshot([1], null));
+  assert.deepEqual(resource.getSnapshot().items.map((value: Row) => value.id), ["3", "2", "1"]);
+  stop();
+});
+
+test("page metadata preparation is lazy, independently normalized, and cannot open a retired history", async () => {
+  const f = pageFixture({ "messages.conversationView": "after", "messages.thread": "before" });
+  const known = new Map<string, string>(), resolving = new Map<string, (cursor: string) => void>();
+  const prepared: string[] = [], mapped: any[] = [];
+  const host = { ...f.host, cursor: (op: string) => known.get(op), prepare: (op: string) => {
+    prepared.push(op); return new Promise<string>(resolve => resolving.set(op, cursor => { known.set(op, cursor); resolve(cursor); }));
+  } };
+  const declared = withHistory(defineItems(api.messages.conversationView as any, { table: "messages", rows: (value: any) => value.messages }), {
+    items: defineItems(api.messages.thread as any, { table: "messages" }),
+    args: (args: any) => { mapped.push(args); return { before: null, conversationId: args.conversationId }; },
+  });
+  const resource = new ClientPages(host as any, api.messages.conversationView, { conversationId: "chat", c: null }, { items: declared });
+  resource.getSnapshot(); resource.getSnapshot(); assert.deepEqual(prepared, []); assert.deepEqual(mapped, []);
+  const stop = resource.subscribe(() => {});
+  assert.deepEqual(prepared, ["messages.conversationView"]); assert.deepEqual(f.opens, []);
+  resolving.get("messages.conversationView")!("after"); await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(mapped, [{ conversationId: "chat", c: null, after: null }]);
+  assert.deepEqual(f.opens[0].args, mapped[0]);
+  f.publish("messages.conversationView", null, f.snapshot([], null, { status: "unavailable", data: undefined,
+    receipt: { state: "partial", source: "twin", seq: 2, next: null } }));
+  assert.deepEqual(prepared, ["messages.conversationView", "messages.thread"]);
+  resource.retire(); resolving.get("messages.thread")!("before"); await new Promise(resolve => setImmediate(resolve));
+  assert.equal(f.opens.length, 1, "late metadata cannot acquire an abandoned history");
+  assert.deepEqual(resource.getSnapshot().items, []); stop();
+});
+
+test("ClientQueries shares raw primary page subscriptions without opening nested declared histories", () => {
+  let active = true;
+  const opened: Array<{ op: string; args: any; publish: (event: any) => void; closed: boolean }> = [];
+  const queries = new ClientQueries({ identity: () => [1, 1], active: () => active, cursor: () => "c", connection: () => "offline",
+    open(ref: any, args: any, publish: (event: any) => void) { const record = { op: ref.op, args, publish, closed: false }; opened.push(record);
+      return { close: () => { record.closed = true; }, until: async () => { throw new Error("unused"); } }; },
+    query: async () => { throw new Error("unused"); }, local: async () => { throw new Error("unused"); },
+  } as any);
+  const resources = [queries.observePages(api.messages.conversationView, viewArgs, { items: conversationItems }),
+    queries.observePages(api.messages.conversationView, viewArgs, { items: conversationItems })];
+  assert.deepEqual(opened, []); resources.forEach(resource => resource.getSnapshot()); assert.deepEqual(opened, []);
+  const stops = resources.map(resource => resource.subscribe(() => {}));
+  assert.equal(opened.length, 1);
+  opened[0].publish({ state: "partial", seq: 1, reason: "count", live: false });
+  assert.equal(opened.length, 2, "one independent history head for both page handles");
+  opened[1].publish({ state: "capped", seq: 1, data: [{ message: row("9") }], next: "h1", live: false });
+  resources.forEach(resource => resource.getSnapshot().loadMore());
+  assert.equal(opened.length, 3, "both handles reuse each underlying page");
+  opened[2].publish({ state: "complete", seq: 1, data: [{ message: row("8") }], next: null, live: false });
+  for (const resource of resources) assert.deepEqual(resource.getSnapshot().items.map((value: any) => value.key), ["8", "9"]);
+  stops[0](); assert.ok(opened.every(open => !open.closed));
+  active = false; queries.clear();
+  assert.ok(opened.every(open => open.closed));
+  for (const resource of resources) { assert.deepEqual(resource.getSnapshot().items, []); assert.equal(resource.getSnapshot().history, undefined); }
+  stops[1]();
+});
 
 function host() {
   let identity: readonly [number, number] = [1, 1];
@@ -270,6 +493,34 @@ test("retained projections stay partial while their certified page boundary and 
     assert.equal(observed.getSnapshot().data?.count, 1);
     assert.equal(observed.getSnapshot().history, undefined);
   } finally { stop(); await store.close?.(); await rm(root, { recursive: true, force: true }); }
+});
+
+for (const paged of [false, true]) test(`${paged ? "page" : "query"} composition hides settled rows while history reacquires independent authority`, () => {
+  const { queries, publish } = host();
+  const composed = paged ? queries.observePages(api.messages.conversationView, viewArgs, { items: conversationItems })
+    : queries.observe(api.messages.conversationView, viewArgs, { items: conversationItems });
+  const stop = composed.subscribe(() => {});
+  const data = { messages: [message], count: 1, preview: [message] };
+  publish("messages.conversationView", { state: "partial", live: true, seq: 1, data, next: null });
+  publish("messages.thread", { state: "complete", live: true, seq: 1, data: [message], next: null });
+  assert.equal(composed.getSnapshot().itemsFrom, "history");
+  assert.equal(composed.getSnapshot().items[0]?.data.body, "m");
+  publish("messages.conversationView", { state: "capped", live: true, seq: 2, data, next: null });
+  assert.equal(composed.getSnapshot().itemsFrom, "query");
+  assert.equal(queries.consumers(api.messages.thread, threadArgs), 0, "usable primary releases the last history consumer");
+  publish("messages.conversationView", { state: "partial", live: true, seq: 3, data, next: null });
+  const loading = composed.getSnapshot();
+  assert.equal(loading.itemsFrom, "drafts");
+  assert.equal(loading.history?.status, "loading");
+  assert.deepEqual(loading.items, [], "the settled row has no draft; neither partial primary nor detached history authorizes its image");
+  assert.equal((loading.head ?? loading).data, undefined, "history cannot preserve scalar authority either");
+  const renewed = { ...message, message: { ...message.message, body: "fresh history" } };
+  publish("messages.thread", { state: "complete", live: true, seq: 3, data: [renewed], next: null });
+  const restored = composed.getSnapshot();
+  assert.equal(restored.itemsFrom, "history");
+  assert.deepEqual(restored.items.map((item: any) => [item.key, item.data.body]), [["m", "fresh history"]]);
+  assert.equal(restored.history?.receipt?.seq, 3, "restoration uses the newly acquired history's own receipt");
+  stop();
 });
 
 test("the composition acquires history at subscribe time, releases it on a usable composite, and shares one object", () => {

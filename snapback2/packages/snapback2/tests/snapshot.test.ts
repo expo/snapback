@@ -119,7 +119,7 @@ test("intentLabel never shows a client clock and reads a conflict the same way f
   assert.equal(intentLabel({ ...base, state: "expired" } as any), "Expired");
   assert.equal(intentLabel({ ...base, state: "rejected", response: { reason: "conflict" } } as any), "Not sent · Message changed");
   assert.equal(intentLabel({ ...base, state: "rejected", response: { code: "CONFLICT" } } as any), "Not sent · Message changed");
-  assert.equal(intentLabel({ ...base, state: "rejected", response: { code: "NOT_MEMBER", rewrite: "Join first." } } as any), "Not sent · Join first.");
-  assert.equal(intentLabel({ ...base, state: "rejected", response: { code: "NOT_MEMBER", message: "not a member" } } as any), "Not sent · not a member");
-  assert.equal(intentLabel({ ...base, state: "rejected" } as any), "Not sent · refused");
+  assert.equal(intentLabel({ ...base, state: "rejected", response: { code: "NOT_MEMBER", rewrite: "Join first." } } as any), "Not sent");
+  assert.equal(intentLabel({ ...base, state: "rejected", response: { code: "NOT_MEMBER", message: "not a member" } } as any), "Not sent");
+  assert.equal(intentLabel({ ...base, state: "rejected" } as any), "Not sent");
 });

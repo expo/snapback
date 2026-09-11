@@ -1,24 +1,22 @@
 import { useState } from "react";
 import { api, reasonMessages } from "snapback2/client";
-import { useQuery } from "snapback2/react";
+import { usePage } from "snapback2/react";
 
 function Results({ term, onOpen }: { term: string; onOpen(conversationId: string): void }) {
-  const result = useQuery(api.messages.search, { term });
-  const hits = result.data ?? [];
-  const next = result.next !== null;
-  const limit = next ? "Indexed result limit reached · more available" : "Indexed result limit reached";
-  const predicted = hits.some((row) => result.local.predicted.some((item) => item.table === "messages" && item.id === row.id));
+  const result = usePage(api.messages.search, { term });
+  const hits = result.items, page = result.pages.at(-1), next = result.hasMore;
+  const predicted = result.pages.some(page => page.local.predicted.some(item => item.table === "messages" && page.data?.some(row => row.id === item.id)));
   const primary = result.status === "loading" ? "Searching…"
-    : result.reason?.code === "held" ? "Downloaded indexed results"
-    : result.reason?.code === "partial" ? `Partial indexed results · ${result.reason.detail ?? result.reason.message}`
-    : result.status === "unavailable" ? (result.reason?.message ?? "Search unavailable")
-    : result.reason?.code === "stale" ? "Showing stale indexed results"
-    : result.freshness.live ? "Live indexed results" : "Indexed results";
+    : result.reason?.code === "held" ? "Matching downloaded messages"
+    : result.reason?.code === "partial" ? "Some matching messages are not downloaded"
+    : result.status === "unavailable" ? "Search unavailable"
+    : result.reason?.code === "stale" ? "Saved matches may be out of date"
+    : result.reason?.code === "changed" ? "Saved matches need refreshing" : "Matching messages";
   const status = [primary, predicted ? reasonMessages.predicted : undefined,
-    result.receipt?.state === "capped" ? limit : undefined].filter(Boolean).join(" · ");
+    next ? "More results available" : result.status === "ready" && !hits.length ? "No matching messages" : undefined].filter(Boolean).join(" · ");
   return <>
-    <p className="scope" data-state={result.receipt?.state ?? result.status} data-status={result.status}
-      data-receipt={result.receipt?.state ?? "none"} data-reason={result.reason?.code}
+    <p className="scope" data-state={page?.receipt?.state ?? result.status} data-status={result.status}
+      data-receipt={page?.receipt?.state ?? "none"} data-reason={result.reason?.code}
       data-predicted={String(predicted)} data-next={next ? "available" : "none"}>{status}</p>
     <ul className="hits">
       {hits.map((row) => (
@@ -27,6 +25,8 @@ function Results({ term, onOpen }: { term: string; onOpen(conversationId: string
         </li>
       ))}
     </ul>
+    {next ? <button type="button" disabled={result.status === "loading"} onClick={result.loadMore}>Show more results</button> : null}
+    {result.reason ? <details><summary>Search details</summary><pre>{JSON.stringify(result.reason, null, 2)}</pre></details> : null}
   </>;
 }
 

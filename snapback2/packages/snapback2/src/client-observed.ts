@@ -2,6 +2,7 @@ import { operationArgs, queryArgs } from "./store/canonical.js";
 import { isRefusalError, toRefusal } from "./client-wire.js";
 import { referenceName, referencePath, type Op } from "./api.js";
 import { SharedSubscriptions } from "./client-sessions.js";
+import { ClientPages, type ObservePages, type PageOptions } from "./client-pages.js";
 import { summarize, type Snapshot } from "./snapshot.js";
 import {
   attachItems, composeHistory,
@@ -217,9 +218,20 @@ interface QueryHost {
 /** Owns query identity, lazy shared entries, and committed-local-input reevaluation for one client. */
 export class ClientQueries {
   private readonly shared = new SharedSubscriptions();
+  private readonly pages = new Set<ClientPages<any, any>>();
   /** Composition cores with at least one consumer, by items declaration and composite identity. */
   private readonly compositions = new Map<string, HistoryCore<any, any, any, any>>();
   constructor(private readonly host: QueryHost) {}
+
+  readonly observePages: ObservePages = (ref: Op<any, any>, args: any, options?: PageOptions<any, any, any, any>) => {
+    const fence = this.host.identity();
+    return new ClientPages({
+      observe: (op, value, supplied) => this.observe(op, value, supplied),
+      cursor: this.host.cursor, prepare: this.host.prepare, connection: this.host.connection,
+      active: () => this.host.active(fence),
+      retain: pages => { this.pages.add(pages); return () => { this.pages.delete(pages); }; },
+    }, ref, args, options);
+  };
 
   private async local<Args, Result>(
     request: ReturnType<typeof bindQueryRequest<Args, Result>>, drain: boolean,
@@ -327,7 +339,7 @@ export class ClientQueries {
           && before.data === current.snapshot.data && before.freshness === current.snapshot.freshness
           && before.local === current.snapshot.local && before.refusal === current.snapshot.refusal
           && before.status === current.snapshot.status && before.reason === current.snapshot.reason) return before;
-        return freezeTree({ ...current.snapshot, items: joined });
+        return freezeTree(withItemInputs({ ...current.snapshot, items: joined }, current.inputs));
       },
     };
     const observed = once ? this.shared.observe(queryEntry<Result, QueryMachineEvent<Result>>(
@@ -398,8 +410,10 @@ export class ClientQueries {
   refresh(): void { this.shared.refresh(); }
   resumeHydrating(): void { this.shared.resumeHydrating(); }
   reproject(): void { this.shared.reproject(); }
-  retireInactive(): void { this.shared.retireInactive(); }
+  retireInactive(): void { this.shared.retireInactive(); for (const pages of this.pages) pages.retireInactive(); }
   clear(except?: Subscription<unknown>): void {
+    for (const pages of [...this.pages]) pages.retire();
+    this.pages.clear();
     this.shared.clear(except);
     for (const core of this.compositions.values()) core.retire();
     this.compositions.clear();

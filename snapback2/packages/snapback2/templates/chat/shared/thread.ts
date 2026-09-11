@@ -16,7 +16,7 @@ export const threadItems = defineItems(api.messages.thread, {
   select: delivery => delivery.message,
   create: {
     target: messageWrites.create,
-    belongs: (args, query) => query.c == null && args.conversationId === query.conversationId,
+    belongs: (args, query) => args.conversationId === query.conversationId,
     draft: args => ({ body: args.body }),
   },
 });
@@ -27,7 +27,7 @@ export const conversationItems = withHistory(defineItems(api.messages.conversati
   select: delivery => delivery.message,
   create: {
     target: messageWrites.create,
-    belongs: (args, query) => query.c == null && args.conversationId === query.conversationId,
+    belongs: (args, query) => args.conversationId === query.conversationId,
     draft: args => ({ body: args.body }),
   },
 }), { items: threadItems, args: ({ conversationId }) => ({ conversationId, c: null }) });

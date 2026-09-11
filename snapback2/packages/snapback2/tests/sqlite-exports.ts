@@ -13,5 +13,9 @@ export { CURRENT_EVALUATOR, CURRENT_VALUE_MODEL_VERSION } from '../../evaluator/
 export { Twin } from '../src/twin.js';
 export { ClientStore } from '../../evaluator/src/store.js';
 export { OfflineRuntime, offlineView } from '../src/offline.js';
-export { drainOutbox } from '../src/client-outbox.js';
+export { drainOutbox, createOutboxApi } from '../src/client-outbox.js';
+export { recoverOutbox } from '../src/client-outbox-recover.js';
 export { applyDeliveryAcknowledgements } from '../src/delivery-acknowledgements.js';
+export { collectRefs } from '../src/store/row-values.js';
+export { compactSuccesses } from '../src/store/success-compaction.js';
+export { factAssertion } from '../src/store/fact-integrity.js';

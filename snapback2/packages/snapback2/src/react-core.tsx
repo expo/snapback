@@ -1,4 +1,4 @@
-import { ClientPages, type PageSnapshot } from "./client-pages.js";
+import type { PageSnapshot, ItemPageSnapshot } from "./client-pages.js";
 import React, {
   createContext,
   useCallback,
@@ -14,7 +14,7 @@ import { createClient } from "./client.js";
 import { toRefusal } from "./client-wire.js";
 import { viewedAssetIds } from "./client-assets.js";
 import { referenceName, type Channel as ChannelRef, type Op } from "./api.js";
-import { readiness, type Readiness, type Snapshot } from "./snapshot.js";
+import { type Readiness, type Snapshot } from "./snapshot.js";
 import type { HistorySnapshot, ItemRow, Items, ItemSnapshot, ItemsWithHistory } from "./client-items.js";
 import {
   stableSerialize,
@@ -32,6 +32,9 @@ import {
   type MutationResult,
   type OfflineClientOptions,
   type OutboxEntry,
+  type OutboxWork,
+  type ObservedOutbox,
+  type RecoveryResult,
   type OutboxStatus,
   type DismissedIntent,
   type Principal,
@@ -185,16 +188,26 @@ export function useQuery<Args, Result, Row extends ItemRow, Draft>(
   return state;
 }
 
-export type { PageSnapshot } from "./client-pages.js";
+export type { PageSnapshot, ItemPageSnapshot } from "./client-pages.js";
 // @ref LLP 1018.003#the-plain-tier — paging owns live observations, not a screen's cursor array.
+export function usePage<Args, Result, Row extends ItemRow, Draft, HistoryArgs, History, Key extends string = "c">(
+  ref: Op<Args, Result>, args: NoInfer<Omit<Args, Key>>,
+  options: { cursor?: Key; items: ItemsWithHistory<Args, Result, Row, Draft, HistoryArgs, History> },
+): ItemPageSnapshot<Result, Row, Draft, History>;
+export function usePage<Args, Result, Row extends ItemRow, Draft, Key extends string = "c">(
+  ref: Op<Args, Result>, args: NoInfer<Omit<Args, Key>>,
+  options: { cursor?: Key; items: Items<Args, Result, Row, Draft> },
+): ItemPageSnapshot<Result, Row, Draft>;
 export function usePage<Args, Result extends readonly unknown[], Key extends string = "c">(
-  ref: Op<Args, Result>, args: NoInfer<Omit<Args, Key>>, options: { cursor?: Key } = {},
-): PageSnapshot<Result> {
+  ref: Op<Args, Result>, args: NoInfer<Omit<Args, Key>>, options?: { cursor?: Key; items?: undefined },
+): PageSnapshot<Result>;
+export function usePage(
+  ref: Op<any, any>, args: any, options: { cursor?: string; items?: Items<any, any, any, any> } = {},
+): any {
   const { client, snapshot } = provider();
-  const cursor = options.cursor ?? "c", operation = referenceName(ref);
-  const argsKey = stableSerialize(args);
-  const pages = useMemo(() => new ClientPages(client, ref, structuredClone(args), cursor),
-    [client, snapshot.authGeneration, operation, argsKey, cursor]);
+  const operation = referenceName(ref), argsKey = stableSerialize(args);
+  const pages = useMemo(() => client.observePages(ref, structuredClone(args), options as any),
+    [client, snapshot.authGeneration, operation, argsKey, options.cursor, options.items]);
   return useSyncExternalStore(pages.subscribe, pages.getSnapshot, pages.getSnapshot);
 }
 
@@ -205,15 +218,19 @@ export interface UseMutationResult<Args, Result> {
   /** Whether `run()` can be accepted now, and what the user can do if not (LLP 1018.003 §2). */
   can: Readiness;
   last: MutationResult<Result> | undefined;
+  /** Current durable state of `last`, absent once its ledger entry is compacted. */
+  work: OutboxWork | undefined;
 }
 
 /** The durable outbox of the open partition, FIFO, with `dismiss` for eligible intents. */
 export interface UseOutboxResult {
   entries: OutboxEntry[];
+  work: readonly OutboxWork[];
   /** Grant-present readiness: no particular write bound is implied. */
   can: Readiness;
   detail: { status: OutboxStatus; writer?: OutboxStatus };
   dismiss(intent: string): Promise<DismissedIntent | undefined>;
+  recover(): Promise<RecoveryResult>;
 }
 
 // @ref LLP 1012#7-writes-offline — the outbox opens before the first request,
@@ -221,23 +238,21 @@ export interface UseOutboxResult {
 // @ref LLP 1018.003#4-pending-rows-attribution-settlement-and-failure — the runtime
 // exposes terminal history until explicit dismissal. Query items independently
 // resolve their indicators from the displayed target's observation evidence.
-function useOutboxState(op?: Op<any, any>): UseOutboxResult {
+function useOutboxState(op?: Op<any, any>): { outbox: UseOutboxResult; observed: ObservedOutbox } {
   const { client, snapshot } = provider();
   const operation = op === undefined ? undefined : referenceName(op);
   const identity = useMemo(() => ({}), [client, snapshot.authGeneration, operation]);
   const observed = useMemo(() => client.outbox.observe(op), [identity]);
-  const { entries, status, writer } = useSyncExternalStore(observed.subscribe, observed.getSnapshot, observed.getSnapshot);
+  const { entries, work, can, status, writer } = useSyncExternalStore(observed.subscribe, observed.getSnapshot, observed.getSnapshot);
   const dismiss = useCallback((intent: string) => client.outbox.dismiss(intent), [client]);
-  const queued = useMemo(
-    () => entries.filter((entry) => entry.state === "queued" && (operation === undefined || entry.op === operation)).length,
-    [entries, operation],
-  );
-  const can = useMemo(() => readiness(status, snapshot.connection, queued), [status, snapshot.connection, queued]);
-  return useMemo(() => ({ entries, can, detail: { status, ...(writer === undefined ? {} : { writer }) }, dismiss }), [entries, can, status, writer, dismiss]);
+  const recover = useCallback(() => client.outbox.recover(), [client]);
+  const outbox = useMemo(() => ({ entries, work, can, detail: { status, ...(writer === undefined ? {} : { writer }) }, dismiss, recover }),
+    [entries, work, can, status, writer, dismiss, recover]);
+  return { outbox, observed };
 }
 
 export function useOutbox(): UseOutboxResult {
-  return useOutboxState();
+  return useOutboxState().outbox;
 }
 
 export function useMutation<Args, Result>(ref: Op<Args, Result>): UseMutationResult<Args, Result> {
@@ -246,7 +261,7 @@ export function useMutation<Args, Result>(ref: Op<Args, Result>): UseMutationRes
   const identity = useMemo(() => ({ client, generation: snapshot.authGeneration, operation }), [client, snapshot.authGeneration, operation]);
   const activeIdentity = useRef(identity);
   activeIdentity.current = identity;
-  const { can } = useOutboxState(ref);
+  const { outbox: { can }, observed } = useOutboxState(ref);
   const [machine, setMachine] = useState<{
     identity: typeof identity;
     pending: number;
@@ -278,9 +293,11 @@ export function useMutation<Args, Result>(ref: Op<Args, Result>): UseMutationRes
         : current);
     }
   }, [identity, ref]);
+  const work = visible.last && "intent" in visible.last && visible.last.intent
+    ? observed.getWork(visible.last.intent) : undefined;
   return useMemo(
-    () => ({ run, inFlight: visible.pending > 0, can, last: visible.last }),
-    [run, visible.pending, can, visible.last],
+    () => ({ run, inFlight: visible.pending > 0, can, last: visible.last, work }),
+    [run, visible.pending, can, visible.last, work],
   );
 }
 

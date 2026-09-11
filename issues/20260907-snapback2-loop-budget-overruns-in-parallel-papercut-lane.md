@@ -33,7 +33,7 @@ host contention as the cause.
 Follow up on a warm named lane without overlapping package builds, retain
 both doctor samples and all failed records, and attribute the overruns before
 changing product code or budgets. The existing
-[full-suite timing ticket](20260901-snapback2-scripts-test-sh-flakes-under.md)
+[full-suite timing ticket](./closed/20260901-snapback2-scripts-test-sh-flakes-under.md)
 tracks test deadlines separately. Raw measurement stdout and the launch
 PID/exit/duration receipt remain locally in
 `/Users/ccheever/projects/snapback/.llp/ship-runs/20260907-parallel-papercuts/measure.*`.
@@ -274,3 +274,15 @@ developer mode as a sufficient setup repair, and the only visible signing
 identity could not be used without interactive credential state. The exact
 [Air qualification record](../benchmarks/runs/2026-09-11-snapback2-loop-budget-changed-binary/air-recheck.json)
 retains both failures; neither first sample was discarded.
+
+## Four-plan implementation qualification — 2026-09-11
+
+The integrated candidate's ordinary measurement at 15:38:58.398Z retains another
+changed-release first-doctor miss: 0.658 seconds against 0.5, followed by 0.034.
+Consumer smoke 13.35 seconds, project check 0.461, incremental rebuild 2.34,
+release build 67.96 and init-to-dev 0.791 all meet their existing budgets. No
+product workaround or security-setting change was made, and no prewarming
+retry replaces this first-execution result. All functional consumer steps
+passed; the chat receipt retains the no-effects-engine block. The distinct
+[package-growth issue](./20260911-snapback2-package-growth-after-four-plans.md)
+records exact pristine/candidate bytes and preserves the rejected baseline.

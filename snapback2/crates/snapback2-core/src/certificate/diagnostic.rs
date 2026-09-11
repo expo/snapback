@@ -381,14 +381,20 @@ pub(super) fn priced_terms(
         }
     }
     fn bytes(result: &mut Vec<CostTerm>, meter: &str, shape: &ByteShape, scale: u64, summary: &Summary, parent: Option<String>) {
-        let site = summary.reads.keys().filter(|site| shape.label.contains(site.as_str())).max_by_key(|site| site.len()).cloned().or(parent);
+        let site = shape.site.clone().or_else(|| summary.reads.keys().filter(|site| shape.label.contains(site.as_str())).max_by_key(|site| site.len()).cloned()).or(parent);
         if shape.children.is_empty() {
-            result.push(CostTerm { meter: meter.into(), value: i128::from(shape.bytes.saturating_mul(scale)), source: shape.label.clone(), site: site.clone() });
+            let detail = shape.detail.as_ref().map_or(String::new(), |detail| format!("; {detail}"));
+            let source = if scale > 1 { format!("{scale} × {} ({} bytes each{detail})", shape.label, shape.bytes) }
+                else if detail.is_empty() { shape.label.clone() }
+                else { format!("{} ({} bytes{detail})", shape.label, shape.bytes) };
+            result.push(CostTerm { meter: meter.into(), value: i128::from(shape.bytes.saturating_mul(scale)), source, site: site.clone() });
         } else {
             let child_scale = scale.saturating_mul(shape.repeat.unwrap_or(1));
             for child in &shape.children { bytes(result, meter, child, child_scale, summary, site.clone()); }
-            let sum = shape.children.iter().fold(0u64, |n, c| n.saturating_add(c.bytes.saturating_mul(child_scale)));
-            let delta = i128::from(shape.bytes.saturating_mul(scale)) - i128::from(sum);
+            // Each child reconciles to its own saturated u64 bound. Add those
+            // emitted integers exactly, so a saturated parent still reconciles.
+            let sum: i128 = shape.children.iter().map(|c| i128::from(c.bytes.saturating_mul(child_scale))).sum();
+            let delta = i128::from(shape.bytes.saturating_mul(scale)) - sum;
             if delta != 0 { result.push(CostTerm { meter: meter.into(), value: delta, source: format!("{}: framing/shared encoding/growth adjustment", shape.label), site }); }
         }
     }

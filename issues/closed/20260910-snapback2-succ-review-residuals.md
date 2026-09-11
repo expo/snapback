@@ -67,3 +67,22 @@ only render the already-computed action property.
 
 Verification: the generated-fixture engine test and positional-Get test pass;
 the complete compiler suite passes 300/300 on Bun 1.4.0.
+
+## Papercut commission — 2026-09-11
+
+The author requested tickets for the current ergonomics assessment. Item 1 is
+the canonical ticket for **dependable generated migration repairs**; no duplicate
+repair ticket is created. It is linked from the new
+[locality problem statement](../../llp/1018.008.008-locality-of-application-changes.research.md).
+The existing every-shape predecessor-schema compile acceptance above remains
+the requested outcome. A failing generated repair must identify its real type
+context; passing a text comparison alone is insufficient evidence.
+
+The duplicate-dismissal part of item 3 is now owned by
+[starter recovery and dismissal](./20260911-snapback2-starter-recovery-and-dismissal.md).
+That scope is transferred, not resolved. `predecessor_maintain_ids` naming and
+items 1–2 remain here. This filing adds no reproduction or successor data-loss
+claim and requires no general locality redesign before the repair audit. The
+later resolution above is the product outcome for items 1–2 and the naming
+cleanup; this commission note is retained as the locality-index pointer and
+the transfer of the dismissal scope.

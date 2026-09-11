@@ -18,8 +18,9 @@ import { OutboxRefusal, replayEnvelope, type OutboxEntry } from "./store/outbox.
 import { referenceName } from "./api.js";
 import { inboxKeyOf } from "./store/inbox.js";
 import { observeOutbox } from "./client-outbox-observed.js";
+import { recoverOutbox, recoveryLifecycle } from "./client-outbox-recover.js";
 import type { RecoveryDemand } from "./client-recovery.js";
-import type { MutationResult, OutboxApi, OutboxSettlement, OutboxStatus } from "./types.js";
+import type { ConnectionState, MutationResult, OutboxApi, OutboxSettlement, OutboxStatus } from "./types.js";
 
 /**
  * The replayed mutation's terminal object: today's committed/rejected shapes
@@ -327,11 +328,13 @@ function settlement(result: DrainResult): OutboxSettlement {
   return { stopped: result.reason ?? false, remaining: result.remaining };
 }
 
-async function followerSettlement(runtime: OfflineRuntime, inbox: FollowerInbox | undefined, offline: boolean): Promise<OutboxSettlement> {
+async function followerSettlement(runtime: OfflineRuntime, inbox: FollowerInbox | undefined, offline: boolean, check = () => {}): Promise<OutboxSettlement> {
   const queuedEntries = (await runtime.itemEntries()).filter((entry) => entry.state === "queued" && inboxKeyOf(entry.intent) === undefined).length;
+  check();
   const remaining = runtime.inboxPending + queuedEntries;
   if (remaining === 0) return { stopped: false, remaining };
   const status = await inbox?.status();
+  check();
   if (status?.reason === "writer-unresponsive") return { stopped: "writer-unresponsive", remaining };
   const writer = inbox?.writer;
   if (writer?.fence === "past") return { stopped: "fence", remaining };
@@ -449,6 +452,13 @@ export function createOutboxApi(
   identity: () => string = () => runtime?.principal ?? "",
   prepare?: (op: string) => RecoveryDemand,
   recovering: () => boolean = () => false,
+  client?: {
+    connection(): ConnectionState;
+    subscribe(notify: () => void): () => void;
+    scope(): AbortSignal;
+    recoveryIdentity?(): string;
+    online(check: () => void, current: () => void): Promise<void>;
+  },
 ): OutboxApi {
   const entries = (): Promise<OutboxEntry[]> => runtime?.itemEntries() ?? Promise.resolve([]);
   const status = async (op?: import("./api.js").Op<any, any>): Promise<OutboxStatus> => {
@@ -465,13 +475,43 @@ export function createOutboxApi(
       throw error;
     }
   };
+  // A recovery waiter checks its captured lifecycle after every suspension,
+  // before reading another mutable partition fact. Ordinary settled keeps its contract.
+  const settled = async (check = () => {}): Promise<OutboxSettlement> => {
+    check(); await ready(); check();
+    if (runtime?.following) {
+      await inbox?.refresh(); check();
+      return followerSettlement(runtime, inbox, offline(), check);
+    }
+    await runtime?.drainTail; check();
+    if (!runtime || runtime.principal === undefined) return { stopped: false, remaining: 0 };
+    const result = await runtime.drainVerdict; check();
+    let remaining: number;
+    try { remaining = (await runtime.outbox.status()).remaining; }
+    catch (error) {
+      check();
+      if (error instanceof Error && /sealed|not open|closed/.test(error.message)) throw new RefusalError({
+        code: "E_OFFLINE_LIFECYCLE", family: "offline", guide: "offline", site: "client.outbox.settled",
+        message: "outbox settlement is unavailable while this partition is sealed or closed",
+        rewrite: "authenticate the same account or reopen the client; queued writes are kept",
+      });
+      throw error;
+    }
+    check();
+    if (remaining === 0) return { stopped: false, remaining };
+    const fence = await runtime.outbox.fence(); check();
+    if (fence === "past") return { stopped: "fence", remaining };
+    return { stopped: offline() ? "offline" : result.stopped || "pending", remaining };
+  };
   return {
     entries,
     status,
     observe: observeOutbox(entries, status, notify => {
-      const stop = runtime?.outbox.subscribe(notify), stopInbox = inbox?.subscribe(notify);
-      return () => { stop?.(); stopInbox?.(); };
-    }, identity, () => (runtime?.following ? inbox?.writer : undefined), prepare),
+      const stop = runtime?.outbox.subscribe(notify), stopInbox = inbox?.subscribe(notify), stopClient = client?.subscribe(notify);
+      return () => { stop?.(); stopInbox?.(); stopClient?.(); };
+    }, identity, () => (runtime?.following ? inbox?.writer : undefined), prepare, client?.connection),
+    recover: () => client ? recoverOutbox({ ready, identity: client.recoveryIdentity ?? identity, scope: client.scope, online: client.online, settled })
+      : Promise.resolve({ refusal: recoveryLifecycle().envelope }),
     // @ref LLP 1018.004#2-the-inbox — a follower's dismissal is a durable command row the writer consumes.
     dismiss: async (intent) => {
       const entry = (runtime?.following || runtime?.principal !== undefined) && inbox ? await inbox.dismiss(intent)
@@ -518,27 +558,6 @@ export function createOutboxApi(
     },
     // A fence stop is explicit even though custody remains queued. Other
     // non-retryable refusals still reject; transport stops retain their behavior.
-    settled: async () => {
-      await ready();
-      // @ref LLP 1018.004#3-readiness-on-a-follower — a follower's settlement
-      // reads the rows and the writer's ledger; it never hangs on an offline writer.
-      if (runtime?.following) { await inbox?.refresh(); return followerSettlement(runtime, inbox, offline()); }
-      await runtime?.drainTail;
-      if (!runtime || runtime.principal === undefined) return { stopped: false, remaining: 0 };
-      const result = await runtime.drainVerdict;
-      let remaining: number;
-      try { remaining = (await runtime.outbox.status()).remaining; }
-      catch (error) {
-        if (error instanceof Error && /sealed|not open|closed/.test(error.message)) throw new RefusalError({
-          code: "E_OFFLINE_LIFECYCLE", family: "offline", guide: "offline", site: "client.outbox.settled",
-          message: "outbox settlement is unavailable while this partition is sealed or closed",
-          rewrite: "authenticate the same account or reopen the client; queued writes are kept",
-        });
-        throw error;
-      }
-      if (remaining === 0) return { stopped: false, remaining };
-      if (await runtime.outbox.fence() === "past") return { stopped: "fence", remaining };
-      return { stopped: offline() ? "offline" : result.stopped || "pending", remaining };
-    },
+    settled: () => settled(),
   };
 }

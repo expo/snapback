@@ -1,4 +1,5 @@
 export { ClientQueries } from "../src/client-observed.js";
+export { ClientPages } from "../src/client-pages.js";
 export { SharedSubscriptions, TabFollower } from "../src/client-sessions.js";
 export { ClientInbox, inboxScope } from "../src/client-inbox.js";
 export { OutboxLedger } from "../src/store/outbox.js";

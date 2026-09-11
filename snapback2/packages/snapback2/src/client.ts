@@ -1,3 +1,4 @@
+import type { ObservePages } from "./client-pages.js";
 import { cursorArgument } from "./local-cursor.js";
 import { internalSubscribe, internalConsumers } from "./internal-access.js";
 import { mayNeedAssetPlanning } from "./assets.js";
@@ -91,12 +92,15 @@ type InternalClientOptions = CreateClientOptions & {
 };
 // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test — auth custody is restored explicitly and every principal transition fences old in-memory work.
 class Client implements SnapbackClient {
+  readonly observePages: ObservePages;
   readonly auth;
   readonly outbox: OutboxApi;
   readonly ready: Promise<void>;
   private readonly localReady: Promise<void>;
   private readonly startupController = new AbortController();
   private readonly lifetimeController = new AbortController();
+  private recoveryScope = new AbortController();
+  private recoveryOwnership = 0;
   private startupComplete = false;
   private queryCursors?: Manifest["ops"];
   readonly url: string;
@@ -226,9 +230,16 @@ class Client implements SnapbackClient {
       compactedThrough: () => this.offlineRuntime?.compactedThrough() ?? Promise.resolve(0),
     });
     this.offlineRuntime?.subscribeInputs(() => this.queries.refresh());
+    this.observePages = this.queries.observePages;
     this.outbox = createOutboxApi(this.offlineRuntime, () => this.drainNow(), () => this.localReady,
       () => this.forcedOffline, this.inbox, () => `${this.authGeneration}:${this.operationFence}`,
-      op => observeRecovery(this.recoveryHost, op), () => !!this.resumeFlight);
+      op => observeRecovery(this.recoveryHost, op), () => !!this.resumeFlight, {
+        connection: () => this.currentSnapshot.connection,
+        subscribe: notify => this.subscribeStatus(notify),
+        scope: () => this.closed ? this.lifetimeController.signal : this.recoveryScope.signal,
+        recoveryIdentity: () => `${this.authGeneration}:${this.operationFence}:${this.recoveryOwnership}`,
+        online: (check, current) => this.onlineScoped(check, current),
+      });
     this.auth = {
       signup: (input: { email: string; password: string }) => this.session("/api/auth/signup", input),
       login: (input: { email: string; password: string }) => this.session("/api/auth/login", input),
@@ -592,17 +603,26 @@ class Client implements SnapbackClient {
     });
   }
 
-  async online(): Promise<void> {
-    if (this.offlineRuntime?.following) await this.inbox.refresh();
+  online(): Promise<void> { return this.onlineScoped(); }
+
+  private async onlineScoped(check = () => {}, current = check): Promise<void> {
+    await this.ready; check(); this.ensureOpen();
+    if (this.offlineRuntime?.following) {
+      await this.inbox.refresh(); check();
+      this.forcedOffline = false;
+      this.patchSnapshot({ connection: "reconnecting" });
+      this.reconnectTransports();
+      return;
+    }
     return goOnline({
       ready: this.ready,
-      ensureOpen: () => this.ensureOpen(),
+      ensureOpen: () => { check(); this.ensureOpen(); },
       force: (value) => { this.forcedOffline = value; if (!value) recoveryOpportunity(this.recoveryHost); },
       connection: (value) => { this.patchSnapshot({ connection: value }); },
-      authority: () => this.operationAuthority(),
+      authority: async () => { const authority = await this.operationAuthority(false); check(); return authority; },
       resume: (authority) => this.performResume(authority),
       setResume: (run) => { this.resumeTail = run; },
-      reconnect: () => this.reconnectTransports(),
+      reconnect: () => { try { current(); } catch { return; } this.reconnectTransports(); },
     });
   }
 
@@ -1061,6 +1081,8 @@ class Client implements SnapbackClient {
 
   /** The writer tab closed: load the program and resume the inherited coverage; the caller replays the inherited queue. */
   private async takeover(): Promise<Authority> {
+    this.recoveryOwnership += 1;
+    this.recoveryScope.abort(); this.recoveryScope = new AbortController();
     const authority = await this.operationAuthority();
     try {
       await this.ensureOfflineMetadata(authority);
@@ -1132,6 +1154,8 @@ class Client implements SnapbackClient {
   }
 
   private abortSync(except?: AbortSignal | null): void {
+    // Caller waiters retire on lifecycle cuts; compatible resume work owns its existing controllers.
+    this.recoveryScope.abort(); this.recoveryScope = new AbortController();
     this.recoveryRevision += 1; this.recoveryReachable = false;
     blockedRecovery(this.recoveryHost);
     // Keep the flight slot occupied until the aborted run has actually settled;
@@ -1454,3 +1478,5 @@ class Client implements SnapbackClient {
 export function createClient(options: CreateClientOptions): SnapbackClient {
   return new Client(options);
 }
+
+export type { ObservePages, ObservedPages, PageSnapshot, ItemPageSnapshot } from "./client-pages.js";

@@ -1,5 +1,5 @@
 //! Byte-bound explanations follow the estimator's value flow; they never invent a replacement result.
-use crate::bounds::{declared_serialized_column_max, declared_serialized_row_max};
+use crate::bounds::{declared_column_description, declared_serialized_column_max, declared_serialized_row_max};
 use crate::growth::ProvenanceBinding;
 use crate::ir::*;
 use crate::schema::Schema;
@@ -44,6 +44,8 @@ pub(crate) struct ByteShape {
     pub label: String,
     pub children: Vec<ByteShape>,
     pub repeat: Option<u64>,
+    pub site: Option<String>,
+    pub detail: Option<String>,
 }
 impl ByteShape {
     pub fn leaf(bytes: u64, label: impl Into<String>) -> Self {
@@ -59,6 +61,7 @@ impl ByteShape {
             label: label.into(),
             children,
             repeat: None,
+            ..Self::default()
         }
     }
     pub fn repeated(bytes: u64, label: impl Into<String>, n: u64, element: Self) -> Self {
@@ -67,11 +70,13 @@ impl ByteShape {
             label: label.into(),
             children: vec![element],
             repeat: Some(n),
+            ..Self::default()
         }
     }
     pub fn render(&self) -> String {
         if self.children.is_empty() {
-            return format!("{} = {} bytes", self.label, self.bytes);
+            let detail = self.detail.as_ref().map_or(String::new(), |detail| format!(" ({detail})"));
+            return format!("{}{detail} = {} bytes", self.label, self.bytes);
         }
         if let Some(n) = self.repeat {
             let subtotal = n.saturating_mul(self.children[0].bytes);
@@ -160,7 +165,7 @@ impl ByteShape {
         path: String,
         best: &mut Option<(u64, String, &'a Self)>,
     ) -> bool {
-        let nested_path = if self.repeat.is_some() {
+        let nested_path = if self.repeat.is_some() || self.label.starts_with("merge ") {
             if path.is_empty() {
                 self.label.clone()
             } else {
@@ -201,7 +206,7 @@ impl ByteShape {
         );
         if name.contains("merge ") {
             format!(
-                "structural repair: use a smaller lane bound, a smaller page, two reads (they are two snapshots), or a maintained feed; {repair}"
+                "structural repair: use a smaller lane bound, a smaller page, two reads (they are two snapshots), or a maintained feed; {repair}; a smaller lane bound narrows the population; a smaller page preserves reachability only with valid continuation that the client follows"
             )
         } else {
             repair
@@ -373,7 +378,11 @@ pub(crate) fn row_shape(schema: &Schema, table: &str) -> ByteShape {
             .flat_map(|t| &t.columns)
             .filter_map(|(name, _)| {
                 declared_serialized_column_max(schema, table, name)
-                    .map(|bytes| ByteShape::leaf(bytes, format!("{table}.{name}")))
+                    .map(|bytes| {
+                        let mut field = ByteShape::leaf(bytes, format!("{table}.{name}"));
+                        field.detail = declared_column_description(schema, table, name);
+                        field
+                    })
             })
             .collect(),
     )

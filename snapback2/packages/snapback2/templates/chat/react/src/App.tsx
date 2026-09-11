@@ -1,6 +1,6 @@
 import { Auth } from "./Auth";
 import { useState } from "react";
-import { api, intentLabel } from "snapback2/client";
+import { api } from "snapback2/client";
 import { DevOverlay, useConnection, useOutbox, useQuery } from "snapback2/react";
 import { Inbox, type LogRow } from "./Inbox";
 import { Search } from "./Search";
@@ -22,11 +22,12 @@ function Home() {
         <h1>Snapback 2 chat</h1>
         <p role="status" data-connection={connection}>
           {connection === "connected" ? "Connected" : connection === "offline" ? "Offline" : "Reconnecting…"}
-          {inbox.local.caughtUp ? " · log downloaded" : inbox.status === "loading" ? " · loading" : ""}
+          {inbox.local.caughtUp ? " · messages available on this device" : inbox.status === "loading" ? " · loading" : ""}
         </p>
-        {outbox.entries.length > 0 ? <details><summary>Changes on this device ({outbox.entries.length})</summary><ul>
-          {outbox.entries.map(entry => <li key={entry.intent}>{entry.op} · {intentLabel(entry)}
-            {(entry.state !== "queued" || entry.refusal !== undefined) ? <button type="button" onClick={() => { void outbox.dismiss(entry.intent); }}>Dismiss</button> : null}
+        {outbox.work.length > 0 ? <details><summary>Changes on this device ({outbox.work.length})</summary><ul>
+          {outbox.work.map(({ entry, label, dismissible }) => <li key={entry.intent}>{label}
+            {dismissible ? <button type="button" onClick={() => { void outbox.dismiss(entry.intent); }}>Dismiss</button> : null}
+            <details><summary>Details</summary><pre>{JSON.stringify({ operation: entry.op, refusal: entry.refusal, result: entry.response }, null, 2)}</pre></details>
           </li>)}
         </ul></details> : null}
       </header>

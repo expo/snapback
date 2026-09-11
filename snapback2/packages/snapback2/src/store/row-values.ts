@@ -44,7 +44,17 @@ export function mapRowValues(value: unknown, resolve: (ref: RowRef) => unknown):
 
 export function collectRefs(value: unknown): RowRef[] {
   const refs = new Map<string, RowRef>();
-  mapRowValues(value, (ref) => { refs.set(`${ref.table}\u0000${ref.id}`, ref); });
+  // @ref LLP 1018.008.007.000#a2--remove-unnecessary-traversal-and-preparation
+  // Collection owns no transformed parent values and confers no image custody.
+  const visit = (item: unknown): void => {
+    const ref = asRowRef(item);
+    if (ref) { refs.set(rowKey(ref), ref); return; }
+    if (Array.isArray(item)) { item.forEach(visit); return; }
+    if (!object(item)) return;
+    const fields = escapedFields(item) ?? item;
+    for (const key of Object.keys(fields)) visit(fields[key]);
+  };
+  visit(value);
   return [...refs.values()];
 }
 
