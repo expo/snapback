@@ -1,7 +1,6 @@
 //! HTTP and SSE helpers shared by the owner integration scenarios.
 
 use serde_json::{Value, json};
-#[cfg(not(feature = "hermes"))]
 use std::io::{BufRead, BufReader};
 use std::io::{Read, Write};
 use std::net::{Shutdown, TcpStream};
@@ -133,13 +132,11 @@ pub(super) fn status(port: u16, secret: &str) -> Value {
     response.body
 }
 
-#[cfg(not(feature = "hermes"))]
 pub(super) struct Sse {
     reader: BufReader<TcpStream>,
     pub(super) last_id: Option<u64>,
 }
 
-#[cfg(not(feature = "hermes"))]
 impl Sse {
     pub(super) fn open(port: u16, path: &str, persona: &str) -> Self {
         Self::open_with_header(port, path, "X-Snapback-As", persona)

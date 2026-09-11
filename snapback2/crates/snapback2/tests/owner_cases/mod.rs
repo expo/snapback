@@ -897,5 +897,4 @@ fn successful_hot_apply_never_pairs_successor_trace_with_predecessor_certificate
     fs::remove_dir_all(root).unwrap();
 }
 
-#[cfg(not(feature = "hermes"))]
 mod channels;

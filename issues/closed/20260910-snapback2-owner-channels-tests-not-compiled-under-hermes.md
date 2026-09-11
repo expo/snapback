@@ -1,6 +1,6 @@
 # snapback2: `owner_cases/channels.rs` does not compile under `--features hermes`; gated off, so channel journeys have no Hermes-build coverage
 
-**Status:** Open
+**Status:** Closed — the unchanged channel journey compiles and passes under Hermes
 
 - Filed: 2026-09-10 (lane `traps` fix round r1 of the RFC implementation program; reviewer muse M2)
 - Area: `snapback2/crates/snapback2/tests/owner_cases/{channels.rs,mod.rs}`, `tests/owner_wire/mod.rs`
@@ -34,3 +34,13 @@ This disposition supersedes stale current-work claims above; historical observat
 owner_wire::Sse and its impl remain cfg(not(feature = "hermes")); gating the channels module restores compilation but does not exercise those channel journeys with the shipped engine.
 
 Current sources: snapback2/crates/snapback2/tests/owner_wire/mod.rs and owner_cases/mod.rs. Next: make the test helper available on both configurations and run unchanged channel cases in both. No Hermes build was claimed by this read-only source audit.
+
+## Resolution — 2026-09-10
+
+The shared `BufRead`/`BufReader` imports, `Sse` helper and owner-level `Sse`
+import now compile in both configurations, and `owner_cases::channels` is no
+longer gated out. The channel journey itself was not weakened or duplicated.
+
+Verified with the exact
+`owner_cases::channels::channel_values_expire_without_requests_and_late_subscribers_get_fresh_state`
+test in both the default build and `--features hermes`; both pass.
