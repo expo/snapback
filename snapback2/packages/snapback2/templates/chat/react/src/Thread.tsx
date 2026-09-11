@@ -3,6 +3,8 @@ import { refusalDetails } from "../shared/status";
 import { api } from "snapback2/client";
 import { AssetImage, useAuth, useMutation, useOutbox, usePage, useViewer } from "snapback2/react";
 import { Composer } from "./Composer";
+import { EditMessage } from "./EditMessage";
+import { Clip, Photo } from "./MessageMedia";
 import { threadWitness } from "./witness";
 import { conversationItems, messageWrites } from "../shared/thread";
 export function Thread(props: { conversationId: string }) { return <Conversation key={props.conversationId} {...props} />; }
@@ -10,15 +12,13 @@ function Conversation({ conversationId }: { conversationId: string }) {
   const { session: auth } = useAuth();
   const viewer = useViewer(), account = auth.state === "anonymous" ? null : auth.viewer ?? auth.restoringViewer;
   const snapshot = usePage(api.messages.conversationView, { conversationId }, { items: conversationItems });
-  const [opened, setOpened] = useState({ account, ids: [] as string[] });
-  if (account !== undefined && account !== opened.account) setOpened({ account, ids: [] });
-  const { dismiss } = useOutbox();
-  const edit = useMutation(messageWrites.update), unsend = useMutation(messageWrites.remove);
+  const [ui, setUi] = useState({ account, opened: [] as string[], editing: undefined as string | undefined });
+  if (account !== undefined && account !== ui.account) setUi({ account, opened: [], editing: undefined });
+  // Only a ready, complete view proves the edited message is gone; a partial or loading view keeps the editor.
+  if (ui.editing !== undefined && snapshot.status === "ready" && !snapshot.reason && !snapshot.head.partial
+    && !snapshot.items.some((item) => item.key === ui.editing && item.data?.body)) setUi({ ...ui, editing: undefined });
+  const { dismiss } = useOutbox(), unsend = useMutation(messageWrites.remove);
   const composite = snapshot.head.data, preview = composite?.preview[0]?.message?.body, witness = threadWitness(snapshot);
-  const onEdit = (messageId: string, body: string) => {
-    const next = window.prompt("Edit message", body);
-    if (next !== null && next !== body) void edit.run({ messageId, body: next, baseBody: body });
-  };
   return <section aria-label="Thread">
     <header><h2>{conversationId}</h2>
       <p className="thread-summary" {...witness.summary} data-count={composite?.count} data-preview-message={composite?.preview[0]?.message?.id}>
@@ -26,10 +26,6 @@ function Conversation({ conversationId }: { conversationId: string }) {
       </p>
       {snapshot.status === "loading" ? <p role="status">Loading…</p> : snapshot.reason ? <p role="status">{snapshot.reason.message}</p> : null}
       {snapshot.head.partial || snapshot.head.reason?.code === "partial" ? <p className="thread-history-note" {...witness.historyNote}>Downloaded history · Count and preview unavailable.</p> : null}
-      {edit.last?.state === "rejected" ? <div><p role="alert">{edit.last.reason === "conflict"
-        ? typeof edit.last.current?.body === "string" ? `Edit not sent. Current message: ${edit.last.current.body}` : "Edit not sent. The message is no longer readable."
-        : "Could not confirm edit. Open details for the next step."}</p>
-        <details><summary>Edit details</summary><pre>{refusalDetails(edit.last)}</pre></details></div> : null}
       {unsend.last?.state === "rejected" ? <div><p role="alert">Could not confirm removal. Open details for the next step.</p>
         <details><summary>Remove details</summary><pre>{refusalDetails(unsend.last)}</pre></details></div> : null}
     </header>
@@ -40,19 +36,23 @@ function Conversation({ conversationId }: { conversationId: string }) {
         const post = item.pending.find(action => action.kind === "create"), own = message?.authorId === viewer;
         const photoKey = account == null ? undefined : JSON.stringify([account, messageId]);
         return <li key={messageId} data-message={messageId} data-state={post?.state ?? "row"} className={!message ? "bubble pending" : own ? "bubble own" : "bubble"}>
-          <p>{message?.body || item.draft?.body || (message?.photo ? "[photo]" : message?.clip ? "[clip]" : "")}</p>
-          {message?.oncePhoto ? photoKey !== undefined && opened.ids.includes(photoKey) ? <AssetImage asset={message.oncePhoto} width={240} />
-            : <button type="button" disabled={photoKey === undefined} onClick={() => photoKey !== undefined && setOpened((state) => ({ ...state, ids: [...state.ids, photoKey] }))}>View photo once</button> : null}
+          <p>{message?.body || item.draft?.body}</p>
+          {message?.photo ? <Photo key={JSON.stringify([account, message.photo.id])} asset={message.photo} /> : null}
+          {message?.clip ? <Clip key={JSON.stringify([account, message.clip.id])} asset={message.clip} /> : null}
+          {message?.oncePhoto ? photoKey !== undefined && ui.opened.includes(photoKey) ? <AssetImage asset={message.oncePhoto} width={240} />
+            : <button type="button" disabled={photoKey === undefined} onClick={() => photoKey !== undefined && setUi((state) => ({ ...state, opened: [...state.opened, photoKey] }))}>View photo once</button> : null}
           {message && !post && !item.predicted ? <time dateTime={new Date(message.at).toISOString()}>{new Date(message.at).toLocaleTimeString()}</time> : null}
           {item.pending.map(action => <small key={action.intent}
             data-edit={action.kind === "update" ? action.state : undefined} data-unsend={action.kind === "remove" ? action.state : undefined}>
             {action.kind === "create" ? action.label : `${action.kind === "update" ? "Edit" : "Unsend"} ${action.label.toLowerCase()}`}
             {action.dismissible ? <button type="button" onClick={() => { void dismiss(action.intent); }}>Dismiss</button> : null}
           </small>)}
-          {own && message?.body && !post ? <span className="actions">
-            <button type="button" disabled={edit.inFlight || unsend.inFlight} onClick={() => onEdit(messageId, message.body!)}>Edit</button>
-            <button type="button" disabled={edit.inFlight || unsend.inFlight} onClick={() => { void unsend.run({ messageId }); }}>Unsend</button>
-          </span> : null}
+          {own && message?.body && !post ? ui.editing === messageId
+            ? <EditMessage messageId={messageId} body={message.body} onClose={() => setUi((state) => ({ ...state, editing: undefined }))} />
+            : <span className="actions">
+              <button type="button" disabled={unsend.inFlight || ui.editing !== undefined} onClick={() => setUi((state) => ({ ...state, editing: messageId }))}>Edit</button>
+              <button type="button" disabled={unsend.inFlight} onClick={() => { void unsend.run({ messageId }); }}>Unsend</button>
+            </span> : null}
         </li>;
       })}
     </ol><Composer conversationId={conversationId} />
