@@ -348,15 +348,17 @@ mod tests {
         fs::create_dir_all(&root).unwrap();
         let helper = root.join("hanging-helper");
         let destination = root.join("output.jpg");
-        let temporary = root.join(format!(
+        let legacy_temporary = root.join(format!(
             ".output.jpg.snapback2-media-{}-0.tmp",
             std::process::id()
         ));
+        let temporary = root.join(format!(".snapback2-media-{}-0.tmp", std::process::id()));
         fs::write(
             &helper,
             format!(
-                "#!/bin/sh\nprintf x > '{}'\n/bin/sleep 60 &\nwait\n",
-                temporary.display()
+                "#!/bin/sh\nprintf x > '{}'\nprintf x > '{}'\n/bin/sleep 60 &\nwait\n",
+                temporary.display(),
+                legacy_temporary.display()
             ),
         )
         .unwrap();
@@ -367,6 +369,7 @@ mod tests {
         assert_eq!(refusal.code, "E_ASSET_TYPE", "{}", refusal.message);
         assert!(refusal.message.contains("wall-clock ceiling"));
         assert!(!temporary.exists());
+        assert!(!legacy_temporary.exists());
         fs::remove_dir_all(root).unwrap();
     }
 
@@ -546,6 +549,7 @@ fn interpret(status: ExitStatus, bytes: Vec<u8>) -> Result<Json, Refusal> {
 struct HelperTemporaryCleanup {
     directory: PathBuf,
     prefix: String,
+    legacy_prefix: String,
 }
 
 impl HelperTemporaryCleanup {
@@ -560,7 +564,8 @@ impl HelperTemporaryCleanup {
             .unwrap_or("output");
         Self {
             directory,
-            prefix: format!(".{base}.snapback2-media-"),
+            prefix: ".snapback2-media-".to_owned(),
+            legacy_prefix: format!(".{base}.snapback2-media-"),
         }
     }
 }
@@ -573,7 +578,9 @@ impl Drop for HelperTemporaryCleanup {
         for entry in entries.flatten() {
             let name = entry.file_name();
             let name = name.to_string_lossy();
-            if name.starts_with(&self.prefix) && name.ends_with(".tmp") {
+            if (name.starts_with(&self.prefix) || name.starts_with(&self.legacy_prefix))
+                && name.ends_with(".tmp")
+            {
                 let _ = fs::remove_file(entry.path());
             }
         }

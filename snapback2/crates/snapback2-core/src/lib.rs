@@ -34,7 +34,7 @@ pub mod value;
 pub use assets::AssetKind;
 pub use assets_ledger::{
     ASSET_RECLAIM_GRACE_MS, AssetDelivery, AssetLedgerRow, AssetLocator, AssetReadyFacts,
-    AssetStagingSnapshot, AssetStagingUsage, AssetState, STAGING_GLOBAL_BYTES,
+    AssetReclaimPage, AssetStagingSnapshot, AssetStagingUsage, AssetState, STAGING_GLOBAL_BYTES,
     STAGING_GLOBAL_OBJECTS, STAGING_PER_PRINCIPAL_BYTES, STAGING_PER_PRINCIPAL_OBJECTS,
 };
 pub use certificate::{

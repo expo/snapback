@@ -17,6 +17,14 @@ use std::os::unix::fs::{DirBuilderExt, MetadataExt, OpenOptionsExt, PermissionsE
 
 static TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 const BLOB_TEMP_STALE_AFTER: Duration = Duration::from_secs(5 * 60);
+// @ref LLP 1006#14-what-it-costs — scratch counts physical bytes plus
+// worst-case reservations, separately from unchanged upload admission.
+// Four admitted uploads can each hold an original and a strip rewrite; two
+// helper jobs can additionally hold a source copy, bounded output, and the
+// helper's atomic temporary. Counting both reservation and materialized bytes
+// peaks below ten times the unchanged 512 MiB owner admission byte ceiling.
+pub const SCRATCH_GLOBAL_BYTES: u64 = snapback2_core::STAGING_GLOBAL_BYTES * 10;
+pub const SCRATCH_GLOBAL_OBJECTS: u32 = 32;
 
 #[cfg(test)]
 thread_local! {
@@ -42,17 +50,31 @@ pub trait BlobStore: Send + Sync {
     fn put(&self, key: &str, source: &mut dyn Read) -> Result<u64, Refusal>;
     fn get(&self, key: &str, range: Option<ByteRange>) -> Result<BlobRead, Refusal>;
     fn delete(&self, key: &str) -> Result<(), Refusal>;
-    fn enumerate(
+    /// Inspect at most `limit` directory entries. A returned continuation is
+    /// opaque and valid only for this store instance; callers persist it only
+    /// for the lifetime of the owner process and restart from `None` after a
+    /// crash.
+    fn enumerate_page(
         &self,
         prefix: &str,
+        continuation: Option<&str>,
+        limit: usize,
         visitor: &mut dyn FnMut(&str) -> Result<(), Refusal>,
-    ) -> Result<(), Refusal>;
+    ) -> Result<Option<String>, Refusal>;
+}
+
+#[derive(Debug)]
+struct BlobEnumeration {
+    prefix: String,
+    entries: fs::ReadDir,
 }
 
 #[derive(Clone, Debug)]
 pub struct FileBlobStore {
     blobs: PathBuf,
     active_puts: Arc<Mutex<BTreeSet<String>>>,
+    enumerations: Arc<Mutex<BTreeMap<String, BlobEnumeration>>>,
+    publish_scratch: Arc<Mutex<BTreeMap<String, u64>>>,
 }
 
 #[derive(Clone, Debug)]
@@ -60,6 +82,63 @@ pub struct LocalStaging {
     staging: PathBuf,
     uploads: Arc<Mutex<BTreeMap<String, UploadCustody>>>,
     reset_clear_pending: Arc<AtomicBool>,
+    scratch: Arc<Mutex<ScratchReservations>>,
+}
+
+#[derive(Debug, Default)]
+struct ScratchReservations {
+    bytes: u64,
+    objects: u32,
+}
+
+#[derive(Debug)]
+pub struct ScratchPermit {
+    scratch: Arc<Mutex<ScratchReservations>>,
+    bytes: u64,
+    objects: u32,
+}
+
+impl Drop for ScratchPermit {
+    fn drop(&mut self) {
+        let mut scratch = self.scratch.lock().expect("scratch reservation lock");
+        scratch.bytes = scratch.bytes.saturating_sub(self.bytes);
+        scratch.objects = scratch.objects.saturating_sub(self.objects);
+    }
+}
+
+#[derive(Debug)]
+pub struct ReservedStagingPath {
+    path: PathBuf,
+    permit: Option<ScratchPermit>,
+}
+
+impl ReservedStagingPath {
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    pub fn discard(&mut self) -> Result<(), Refusal> {
+        match fs::remove_file(&self.path) {
+            Ok(()) => {
+                self.permit.take();
+                Ok(())
+            }
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                self.permit.take();
+                Ok(())
+            }
+            Err(error) => Err(asset_io(
+                format!("cannot discard reserved staging output: {error}"),
+                "repair .snapback/staging permissions and retry disposal",
+            )),
+        }
+    }
+}
+
+impl Drop for ReservedStagingPath {
+    fn drop(&mut self) {
+        let _ = self.discard();
+    }
 }
 
 impl FileBlobStore {
@@ -76,12 +155,23 @@ impl FileBlobStore {
         Ok(Self {
             blobs,
             active_puts: Arc::new(Mutex::new(BTreeSet::new())),
+            enumerations: Default::default(),
+            publish_scratch: Default::default(),
         })
     }
 
     pub fn path_for_key(&self, key: &str) -> Result<PathBuf, Refusal> {
         validate_key(key)?;
         Ok(self.blobs.join(key))
+    }
+
+    #[cfg(test)]
+    fn publish_scratch_usage(&self) -> (u64, u32) {
+        let scratch = self.publish_scratch.lock().expect("publish scratch lock");
+        (
+            scratch.values().copied().fold(0_u64, u64::saturating_add),
+            scratch.len() as u32,
+        )
     }
 }
 
@@ -94,6 +184,7 @@ impl LocalStaging {
             staging,
             uploads: Default::default(),
             reset_clear_pending: Default::default(),
+            scratch: Default::default(),
         })
     }
 
@@ -113,11 +204,27 @@ impl LocalStaging {
         self.uploads.lock().expect("uploads lock").remove(id);
     }
 
+    #[cfg(test)]
     pub fn create(&self) -> Result<StagingFile, Refusal> {
         self.create_named("upload")
     }
 
+    #[cfg(test)]
     pub fn create_named(&self, label: &str) -> Result<StagingFile, Refusal> {
+        self.create_reserved(label, 0, 0)
+    }
+
+    pub fn create_for_upload(&self, bytes: u64) -> Result<StagingFile, Refusal> {
+        self.create_reserved("upload", bytes.saturating_mul(2), 2)
+    }
+
+    pub fn create_reserved(
+        &self,
+        label: &str,
+        bytes: u64,
+        objects: u32,
+    ) -> Result<StagingFile, Refusal> {
+        let permit = self.reserve_scratch(bytes, objects)?;
         for _ in 0..100 {
             let mut random = [0_u8; 16];
             getrandom::fill(&mut random).map_err(|error| {
@@ -138,6 +245,7 @@ impl LocalStaging {
                     return Ok(StagingFile {
                         path,
                         file: Some(file),
+                        permit: Some(permit),
                     });
                 }
                 Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
@@ -155,7 +263,13 @@ impl LocalStaging {
         ))
     }
 
-    pub fn allocate_path(&self, label: &str) -> Result<PathBuf, Refusal> {
+    pub fn reserve_path(
+        &self,
+        label: &str,
+        bytes: u64,
+        objects: u32,
+    ) -> Result<ReservedStagingPath, Refusal> {
+        let permit = self.reserve_scratch(bytes, objects)?;
         let mut random = [0_u8; 16];
         getrandom::fill(&mut random).map_err(|error| {
             asset_io(
@@ -163,11 +277,76 @@ impl LocalStaging {
                 "retry after restoring operating-system randomness",
             )
         })?;
-        Ok(self.staging.join(format!(
-            "{label}-{}-{}.stage",
-            hex(&random),
-            TEMP_SEQUENCE.fetch_add(1, Ordering::Relaxed)
-        )))
+        Ok(ReservedStagingPath {
+            path: self.staging.join(format!(
+                "{label}-{}-{}.stage",
+                hex(&random),
+                TEMP_SEQUENCE.fetch_add(1, Ordering::Relaxed)
+            )),
+            permit: Some(permit),
+        })
+    }
+
+    pub fn scratch_usage(&self) -> Result<(u64, u32), Refusal> {
+        let mut bytes = 0_u64;
+        let mut objects = 0_u32;
+        for entry in fs::read_dir(&self.staging).map_err(|error| {
+            asset_io(
+                format!("cannot inspect staging scratch: {error}"),
+                "make .snapback/staging readable by its owner",
+            )
+        })? {
+            let entry = entry.map_err(|error| {
+                asset_io(
+                    format!("cannot inspect a staging scratch entry: {error}"),
+                    "repair .snapback/staging and retry media work",
+                )
+            })?;
+            let metadata = fs::symlink_metadata(entry.path()).map_err(|error| {
+                asset_io(
+                    format!("cannot inspect {}: {error}", entry.path().display()),
+                    "repair .snapback/staging and retry media work",
+                )
+            })?;
+            if !metadata.is_file() || metadata.file_type().is_symlink() {
+                return Err(asset_io(
+                    format!("refusing non-file staging entry {}", entry.path().display()),
+                    "remove the unsafe entry from .snapback/staging and retry media work",
+                ));
+            }
+            bytes = bytes.saturating_add(metadata.len());
+            objects = objects.saturating_add(1);
+        }
+        Ok((bytes, objects))
+    }
+
+    fn reserve_scratch(&self, bytes: u64, objects: u32) -> Result<ScratchPermit, Refusal> {
+        let mut scratch = self.scratch.lock().expect("scratch reservation lock");
+        let (physical_bytes, physical_objects) = self.scratch_usage()?;
+        let next_bytes = physical_bytes
+            .saturating_add(scratch.bytes)
+            .saturating_add(bytes);
+        let next_objects = physical_objects
+            .saturating_add(scratch.objects)
+            .saturating_add(objects);
+        if next_bytes > SCRATCH_GLOBAL_BYTES || next_objects > SCRATCH_GLOBAL_OBJECTS {
+            return Err(Refusal::new(
+                "E_ASSET_TOO_LARGE",
+                "input",
+                format!(
+                    "asset scratch would use {next_objects} objects and {next_bytes} bytes; limits are {SCRATCH_GLOBAL_OBJECTS} objects and {SCRATCH_GLOBAL_BYTES} bytes"
+                ),
+                "retry after active media work and retained failed-cleanup files have been removed",
+                "assets/storage",
+            ));
+        }
+        scratch.bytes = scratch.bytes.saturating_add(bytes);
+        scratch.objects = scratch.objects.saturating_add(objects);
+        Ok(ScratchPermit {
+            scratch: self.scratch.clone(),
+            bytes,
+            objects,
+        })
     }
 
     /// Request destructive reset cleanup. Registered receiving/finalizing
@@ -243,8 +422,26 @@ impl BlobStore for FileBlobStore {
             .lock()
             .expect("active blob put lock")
             .insert(temporary_name.clone());
+        {
+            let mut scratch = self.publish_scratch.lock().expect("publish scratch lock");
+            let bytes = scratch.values().copied().fold(0_u64, u64::saturating_add);
+            if scratch.len() as u32 >= SCRATCH_GLOBAL_OBJECTS || bytes >= SCRATCH_GLOBAL_BYTES {
+                self.active_puts
+                    .lock()
+                    .expect("active blob put lock")
+                    .remove(&temporary_name);
+                return Err(Refusal::new(
+                    "E_ASSET_TOO_LARGE",
+                    "input",
+                    "asset publish scratch is full, including retained failed-cleanup files",
+                    "retry after active publishing and retained publish temporaries have been removed",
+                    "assets/storage",
+                ));
+            }
+            scratch.insert(temporary_name.clone(), 0);
+        }
         let _active = ActivePut {
-            name: temporary_name,
+            name: temporary_name.clone(),
             active: self.active_puts.clone(),
         };
         let result: io::Result<u64> = (|| {
@@ -253,20 +450,52 @@ impl BlobStore for FileBlobStore {
             #[cfg(unix)]
             options.mode(0o600).custom_flags(libc::O_NOFOLLOW);
             let mut output = options.open(&temporary)?;
-            let bytes = io::copy(source, &mut output)?;
+            let mut bounded = PublishScratchWriter {
+                inner: &mut output,
+                name: &temporary_name,
+                scratch: &self.publish_scratch,
+            };
+            let bytes = io::copy(source, &mut bounded)?;
             output.flush()?;
             output.sync_all()?;
             // Linking is the local no-clobber publish primitive. `rename`
             // would silently replace an existing immutable id on Unix.
             fs::hard_link(&temporary, &destination)?;
             fs::remove_file(&temporary)?;
+            self.publish_scratch
+                .lock()
+                .expect("publish scratch lock")
+                .remove(&temporary_name);
             File::open(&self.blobs)?.sync_all()?;
             Ok(bytes)
         })();
         match result {
             Ok(bytes) => Ok(bytes),
             Err(error) => {
-                let _ = fs::remove_file(&temporary);
+                if let Err(cleanup) = fs::remove_file(&temporary)
+                    && cleanup.kind() != io::ErrorKind::NotFound
+                {
+                    if let Ok(metadata) = fs::metadata(&temporary)
+                        && let Some(bytes) = self
+                            .publish_scratch
+                            .lock()
+                            .expect("publish scratch lock")
+                            .get_mut(&temporary_name)
+                    {
+                        *bytes = metadata.len();
+                    }
+                    return Err(asset_io(
+                        format!(
+                            "cannot clean failed asset publish temporary {}: {cleanup}",
+                            temporary.display()
+                        ),
+                        "make .snapback/blobs writable and retry cleanup",
+                    ));
+                }
+                self.publish_scratch
+                    .lock()
+                    .expect("publish scratch lock")
+                    .remove(&temporary_name);
                 Err(asset_io(
                     format!("cannot publish asset blob {key}: {error}"),
                     "make .snapback/blobs writable and retry the upload",
@@ -327,17 +556,59 @@ impl BlobStore for FileBlobStore {
         }
     }
 
-    fn enumerate(
+    fn enumerate_page(
         &self,
         prefix: &str,
+        continuation: Option<&str>,
+        limit: usize,
         visitor: &mut dyn FnMut(&str) -> Result<(), Refusal>,
-    ) -> Result<(), Refusal> {
-        for entry in fs::read_dir(&self.blobs).map_err(|error| {
-            asset_io(
-                format!("cannot enumerate asset blobs: {error}"),
-                "make .snapback/blobs readable by its owner",
+    ) -> Result<Option<String>, Refusal> {
+        if limit == 0 {
+            return Err(asset_io(
+                "asset blob enumeration page limit must be positive",
+                "retry reclamation with a positive page limit",
+            ));
+        }
+        let token = continuation.map(str::to_owned).unwrap_or_else(|| {
+            format!(
+                "blob-enumeration-{}",
+                TEMP_SEQUENCE.fetch_add(1, Ordering::Relaxed)
             )
-        })? {
+        });
+        let mut enumerations = self.enumerations.lock().expect("blob enumerations lock");
+        if continuation.is_none() {
+            let entries = fs::read_dir(&self.blobs).map_err(|error| {
+                asset_io(
+                    format!("cannot enumerate asset blobs: {error}"),
+                    "make .snapback/blobs readable by its owner",
+                )
+            })?;
+            enumerations.insert(
+                token.clone(),
+                BlobEnumeration {
+                    prefix: prefix.to_owned(),
+                    entries,
+                },
+            );
+        }
+        let Some(enumeration) = enumerations.get_mut(&token) else {
+            return Err(asset_io(
+                "asset blob enumeration continuation is no longer active",
+                "restart reclamation without the stale continuation",
+            ));
+        };
+        if enumeration.prefix != prefix {
+            enumerations.remove(&token);
+            return Err(asset_io(
+                "asset blob enumeration continuation has a different prefix",
+                "restart reclamation with the intended prefix",
+            ));
+        }
+        for _ in 0..limit {
+            let Some(entry) = enumeration.entries.next() else {
+                enumerations.remove(&token);
+                return Ok(None);
+            };
             let entry = entry.map_err(|error| {
                 asset_io(
                     format!("cannot inspect an asset blob: {error}"),
@@ -397,8 +668,18 @@ impl BlobStore for FileBlobStore {
                     .unwrap_or_default();
                 if age >= BLOB_TEMP_STALE_AFTER {
                     match fs::remove_file(&path) {
-                        Ok(()) => {}
-                        Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+                        Ok(()) => {
+                            self.publish_scratch
+                                .lock()
+                                .expect("publish scratch lock")
+                                .remove(&name);
+                        }
+                        Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                            self.publish_scratch
+                                .lock()
+                                .expect("publish scratch lock")
+                                .remove(&name);
+                        }
                         Err(error) => {
                             return Err(asset_io(
                                 format!(
@@ -417,7 +698,51 @@ impl BlobStore for FileBlobStore {
                 visitor(&name)?;
             }
         }
-        Ok(())
+        Ok(Some(token))
+    }
+}
+
+struct PublishScratchWriter<'a> {
+    inner: &'a mut File,
+    name: &'a str,
+    scratch: &'a Arc<Mutex<BTreeMap<String, u64>>>,
+}
+
+impl Write for PublishScratchWriter<'_> {
+    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+        let requested = bytes.len() as u64;
+        {
+            let mut scratch = self.scratch.lock().expect("publish scratch lock");
+            let total = scratch.values().copied().fold(0_u64, u64::saturating_add);
+            if requested > SCRATCH_GLOBAL_BYTES.saturating_sub(total) {
+                return Err(io::Error::new(
+                    io::ErrorKind::FileTooLarge,
+                    "asset publish scratch byte ceiling exceeded",
+                ));
+            }
+            *scratch.get_mut(self.name).expect("active publish scratch") += requested;
+        }
+        match self.inner.write(bytes) {
+            Ok(written) => {
+                let unused = requested.saturating_sub(written as u64);
+                if unused > 0 {
+                    let mut scratch = self.scratch.lock().expect("publish scratch lock");
+                    let tracked = scratch.get_mut(self.name).expect("active publish scratch");
+                    *tracked = tracked.saturating_sub(unused);
+                }
+                Ok(written)
+            }
+            Err(error) => {
+                let mut scratch = self.scratch.lock().expect("publish scratch lock");
+                let tracked = scratch.get_mut(self.name).expect("active publish scratch");
+                *tracked = tracked.saturating_sub(requested);
+                Err(error)
+            }
+        }
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.inner.flush()
     }
 }
 
@@ -536,14 +861,21 @@ impl UploadCustody {
 pub struct StagingFile {
     path: PathBuf,
     file: Option<File>,
+    permit: Option<ScratchPermit>,
 }
 
 impl StagingFile {
     pub fn discard(&mut self) -> Result<(), Refusal> {
         self.file.take();
         match fs::remove_file(&self.path) {
-            Ok(()) => Ok(()),
-            Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(()),
+            Ok(()) => {
+                self.permit.take();
+                Ok(())
+            }
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                self.permit.take();
+                Ok(())
+            }
             Err(error) => Err(asset_io(
                 format!("cannot discard staging file: {error}"),
                 "repair .snapback/staging permissions and retry disposal",
@@ -769,7 +1101,6 @@ fn hex(bytes: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::BTreeSet;
     use std::io::Cursor;
     use std::sync::mpsc::{Receiver, Sender, channel};
     use std::thread;
@@ -785,6 +1116,22 @@ mod tests {
         ));
         fs::create_dir_all(path.join(".snapback")).unwrap();
         path
+    }
+
+    fn enumerate_all(store: &dyn BlobStore, prefix: &str) -> Vec<String> {
+        let mut keys = Vec::new();
+        let mut continuation = None;
+        loop {
+            continuation = store
+                .enumerate_page(prefix, continuation.as_deref(), 8, &mut |key| {
+                    keys.push(key.to_owned());
+                    Ok(())
+                })
+                .unwrap();
+            if continuation.is_none() {
+                return keys;
+            }
+        }
     }
 
     #[test]
@@ -819,13 +1166,7 @@ mod tests {
             .join(format!(".{PUT_KEY}.put-1-2.tmp"));
         fs::write(&temporary, b"in flight").unwrap();
 
-        let mut keys = Vec::new();
-        store
-            .enumerate("", &mut |key| {
-                keys.push(key.to_owned());
-                Ok(())
-            })
-            .unwrap();
+        let keys = enumerate_all(&store, "");
         assert_eq!(keys, vec![REAL_KEY]);
         assert!(temporary.is_file());
         fs::remove_dir_all(root).unwrap();
@@ -873,17 +1214,57 @@ mod tests {
             .unwrap()
             .path();
 
-        crate::asset_gc::sweep_asset_blobs(
-            &root,
-            store.as_ref(),
-            &BTreeSet::from([REAL_KEY.to_owned(), PUT_KEY.to_owned()]),
-            &BTreeSet::new(),
-        )
-        .unwrap();
+        crate::asset_gc::enumerate_blob_page(store.as_ref(), None, 8).unwrap();
         assert!(temporary.is_file());
         resume_tx.send(()).unwrap();
         assert_eq!(writer.join().unwrap().unwrap(), 9);
         assert!(store.path_for_key(PUT_KEY).unwrap().is_file());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn failed_publish_cleanup_remains_scratch_charged_until_sweep() {
+        let root = root();
+        let store = Arc::new(FileBlobStore::open(&root).unwrap());
+        let (started_tx, started_rx) = channel();
+        let (resume_tx, resume_rx) = channel();
+        let writer = {
+            let store = store.clone();
+            thread::spawn(move || {
+                let mut source = PausingReader {
+                    source: Cursor::new(b"published"),
+                    started: Some(started_tx),
+                    resume: resume_rx,
+                };
+                store.put(PUT_KEY, &mut source)
+            })
+        };
+        started_rx.recv().unwrap();
+        let directory = root.join(".snapback/blobs");
+        fs::set_permissions(&directory, fs::Permissions::from_mode(0o500)).unwrap();
+        resume_tx.send(()).unwrap();
+        assert_eq!(writer.join().unwrap().unwrap_err().code, "E_OWNER_ASSET_IO");
+        fs::set_permissions(&directory, fs::Permissions::from_mode(0o700)).unwrap();
+        assert_eq!(store.publish_scratch_usage(), (9, 1));
+        let temporary = fs::read_dir(&directory)
+            .unwrap()
+            .map(Result::unwrap)
+            .find(|entry| is_blob_temporary(entry.file_name().to_str().unwrap()))
+            .unwrap()
+            .path();
+        let old = SystemTime::now()
+            .checked_sub(BLOB_TEMP_STALE_AFTER + Duration::from_secs(1))
+            .unwrap();
+        File::options()
+            .write(true)
+            .open(&temporary)
+            .unwrap()
+            .set_times(fs::FileTimes::new().set_modified(old))
+            .unwrap();
+        crate::asset_gc::enumerate_blob_page(store.as_ref(), None, 8).unwrap();
+        assert_eq!(store.publish_scratch_usage(), (0, 0));
+        assert!(!temporary.exists());
         fs::remove_dir_all(root).unwrap();
     }
 
@@ -926,13 +1307,7 @@ mod tests {
                 true
             }));
         });
-        let mut keys = Vec::new();
-        store
-            .enumerate(REAL_KEY, &mut |key| {
-                keys.push(key.to_owned());
-                Ok(())
-            })
-            .unwrap();
+        let keys = enumerate_all(store.as_ref(), REAL_KEY);
 
         assert_eq!(writer.join().unwrap().unwrap(), 9);
         assert_eq!(keys, vec![REAL_KEY]);
@@ -966,13 +1341,7 @@ mod tests {
             .set_times(fs::FileTimes::new().set_modified(old))
             .unwrap();
 
-        crate::asset_gc::sweep_asset_blobs(
-            &root,
-            &store,
-            &BTreeSet::from([REAL_KEY.to_owned()]),
-            &BTreeSet::new(),
-        )
-        .unwrap();
+        crate::asset_gc::enumerate_blob_page(&store, None, 8).unwrap();
         assert!(!temporary.exists());
         assert!(store.path_for_key(REAL_KEY).unwrap().is_file());
         fs::remove_dir_all(root).unwrap();
@@ -1032,6 +1401,41 @@ mod tests {
         assert!(staging.resume_reset_clear().unwrap());
         assert!(!finalizing_path.exists());
         assert!(!marker.exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn scratch_reservations_include_concurrent_work_and_failed_unlinks() {
+        let root = root();
+        let staging = LocalStaging::open(&root).unwrap();
+        let mut reserved = staging
+            .create_reserved("source", SCRATCH_GLOBAL_BYTES, 1)
+            .unwrap();
+        assert_eq!(
+            staging.create_reserved("source", 1, 1).unwrap_err().code,
+            "E_ASSET_TOO_LARGE"
+        );
+        reserved.discard().unwrap();
+
+        let mut retained = staging.create_for_upload(1).unwrap();
+        retained.file_mut().write_all(b"x").unwrap();
+        let retained_path = retained.path().to_owned();
+        let directory = root.join(".snapback/staging");
+        fs::set_permissions(&directory, fs::Permissions::from_mode(0o500)).unwrap();
+        assert_eq!(retained.discard().unwrap_err().code, "E_OWNER_ASSET_IO");
+        drop(retained);
+        fs::set_permissions(&directory, fs::Permissions::from_mode(0o700)).unwrap();
+        assert_eq!(staging.scratch_usage().unwrap(), (1, 1));
+        assert_eq!(
+            staging
+                .create_reserved("source", SCRATCH_GLOBAL_BYTES, 1)
+                .unwrap_err()
+                .code,
+            "E_ASSET_TOO_LARGE"
+        );
+        fs::remove_file(retained_path).unwrap();
+        assert_eq!(staging.scratch_usage().unwrap(), (0, 0));
         fs::remove_dir_all(root).unwrap();
     }
 }

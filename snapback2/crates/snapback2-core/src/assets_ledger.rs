@@ -45,6 +45,13 @@ pub struct AssetStagingSnapshot {
     pub creator: AssetStagingUsage,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AssetReclaimPage {
+    pub ids: Vec<String>,
+    /// The last id in this page when another row is known to follow.
+    pub continuation: Option<String>,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum AssetState {
@@ -472,21 +479,41 @@ impl Store {
     }
 
     // @ref LLP 1006#9-lifecycle-finalize-off-the-writer-and-reclamation — unclaimed rows age out without scanning application tables.
-    pub fn reclaim(&mut self, now: i64) -> Result<Vec<String>, RuntimeError> {
+    pub fn reclaim_page(
+        &mut self,
+        now: i64,
+        after: &str,
+        limit: usize,
+    ) -> Result<AssetReclaimPage, RuntimeError> {
+        if limit == 0 {
+            return Err(RuntimeError::Input(
+                "asset reclaim page limit must be positive".to_owned(),
+            ));
+        }
         let cutoff = now.saturating_sub(ASSET_RECLAIM_GRACE_MS);
         let transaction = self.conn.transaction()?;
-        let ids = {
+        let mut ids = {
             let mut statement = transaction.prepare(
                 "SELECT id FROM _assets
                  WHERE locator_table IS NULL
                    AND (reclaiming = 1
                         OR MAX(created_at, COALESCE(released_at, created_at)) <= ?1)
-                 ORDER BY id",
+                   AND id > ?2
+                 ORDER BY id LIMIT ?3",
             )?;
             statement
-                .query_map([cutoff], |row| row.get::<_, String>(0))?
+                .query_map(
+                    params![
+                        cutoff,
+                        after,
+                        i64::try_from(limit.saturating_add(1)).unwrap_or(i64::MAX)
+                    ],
+                    |row| row.get::<_, String>(0),
+                )?
                 .collect::<Result<Vec<_>, _>>()?
         };
+        let continuation = (ids.len() > limit).then(|| ids[limit - 1].clone());
+        ids.truncate(limit);
         // The row survives as a `reclaiming` tombstone until the server's
         // fork-aware blob deletion succeeds and `finish_asset_reclaims` runs,
         // so a crash between the two cannot orphan bytes.
@@ -500,7 +527,7 @@ impl Store {
         // Blob bytes are server-owned. Fork snapshots share immutable blobs,
         // so the server must treat every live/fork ledger as a referrer before
         // deleting any id returned here (LLP 1006 §9a).
-        Ok(ids)
+        Ok(AssetReclaimPage { ids, continuation })
     }
 
     pub fn finish_asset_reclaims(&mut self, ids: &[String]) -> Result<(), RuntimeError> {

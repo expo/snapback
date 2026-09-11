@@ -1,5 +1,6 @@
 //! Fork-aware deletion of server-owned asset bytes.
 
+use crate::asset_http::IMAGE_WIDTH_RUNGS;
 use crate::blob_store::BlobStore;
 use crate::protocol::Refusal;
 use rusqlite::{Connection, OpenFlags};
@@ -12,62 +13,132 @@ pub struct AssetSweep {
     pub refusal: Option<Refusal>,
 }
 
-/// Sweep immutable originals and variants in one enumeration. Active-ledger
-/// reclamation candidates survive only while a read-only fork still names
-/// them; keys absent from every ledger are orphans by definition. The returned
-/// ids remain candidates for a later sweep.
+pub struct BlobPage {
+    pub keys: Vec<String>,
+    pub continuation: Option<String>,
+}
+
+// @ref LLP 1006#9a-where-bytes-live-author-ruling-2026-09-03 — fork
+// referrers are checked in bounded directory pages against bounded id pages.
+pub struct ForkReferenceScan {
+    entries: Option<fs::ReadDir>,
+    candidates: BTreeSet<String>,
+    referenced: BTreeSet<String>,
+}
+
+/// Delete every possible immutable key for one bounded reclaim page. Candidates
+/// survive while an active media job or the completed fork page names them.
 // @ref LLP 1006#9a-where-bytes-live-author-ruling-2026-09-03 — immutable
 // blobs are shared by fork snapshots, so every fork ledger is a referrer.
-pub fn sweep_asset_blobs(
-    root: &Path,
+pub fn sweep_reclaimed_asset_blobs(
     blobs: &dyn BlobStore,
-    live_ids: &BTreeSet<String>,
     reclaimed_ids: &BTreeSet<String>,
+    active_ids: &BTreeSet<String>,
+    fork_ids: &BTreeSet<String>,
 ) -> Result<AssetSweep, Refusal> {
-    let fork_ids = fork_all_references(root)?;
-    let mut remaining = reclaimed_ids
-        .intersection(&fork_ids)
-        .cloned()
-        .collect::<BTreeSet<_>>();
+    let mut remaining = BTreeSet::new();
     let mut refusal = None;
-    blobs.enumerate("", &mut |key| {
-        let id = key.split_once(".w").map_or(key, |(id, _)| id);
-        let fork_referenced = fork_ids.contains(id);
-        if !fork_referenced && (reclaimed_ids.contains(id) || !live_ids.contains(id)) {
-            if let Err(error) = blobs.delete(key) {
-                if reclaimed_ids.contains(id) {
-                    remaining.insert(id.to_owned());
-                }
+    for id in reclaimed_ids {
+        if active_ids.contains(id) || fork_ids.contains(id) {
+            remaining.insert(id.clone());
+            continue;
+        }
+        for key in std::iter::once(id.clone()).chain(
+            IMAGE_WIDTH_RUNGS
+                .iter()
+                .map(|width| format!("{id}.w{width}")),
+        ) {
+            if let Err(error) = blobs.delete(&key) {
+                remaining.insert(id.clone());
                 refusal.get_or_insert(error);
             }
         }
-        Ok(())
-    })?;
+    }
     Ok(AssetSweep { remaining, refusal })
 }
 
-fn fork_all_references(root: &Path) -> Result<BTreeSet<String>, Refusal> {
-    let directory = root.join(".snapback/forks");
-    let entries = match fs::read_dir(&directory) {
-        Ok(entries) => entries,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            return Ok(BTreeSet::new());
+/// Inspect one bounded physical-store page. The blob store's opaque
+/// continuation owns the directory iterator, so each call inspects at most
+/// `limit` entries without materializing the directory.
+pub fn enumerate_blob_page(
+    blobs: &dyn BlobStore,
+    continuation: Option<&str>,
+    limit: usize,
+) -> Result<BlobPage, Refusal> {
+    let mut keys = Vec::new();
+    let continuation = blobs.enumerate_page("", continuation, limit, &mut |key| {
+        keys.push(key.to_owned());
+        Ok(())
+    })?;
+    Ok(BlobPage { keys, continuation })
+}
+
+pub fn delete_orphan_blob_keys(
+    blobs: &dyn BlobStore,
+    keys: &[String],
+    active_ids: &BTreeSet<String>,
+    fork_ids: &BTreeSet<String>,
+) -> Option<Refusal> {
+    let mut refusal = None;
+    for key in keys {
+        let id = key.split_once(".w").map_or(key.as_str(), |(id, _)| id);
+        if !active_ids.contains(id)
+            && !fork_ids.contains(id)
+            && let Err(error) = blobs.delete(key)
+        {
+            refusal.get_or_insert(error);
         }
-        Err(error) => {
-            return Err(asset_io(format!(
-                "cannot inspect fork ledgers in {}: {error}",
-                directory.display()
-            )));
+    }
+    refusal
+}
+
+impl ForkReferenceScan {
+    pub fn open(root: &Path, candidates: BTreeSet<String>) -> Result<Self, Refusal> {
+        let directory = root.join(".snapback/forks");
+        let entries = match fs::read_dir(&directory) {
+            Ok(entries) => Some(entries),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+            Err(error) => {
+                return Err(asset_io(format!(
+                    "cannot inspect fork ledgers in {}: {error}",
+                    directory.display()
+                )));
+            }
+        };
+        Ok(Self {
+            entries,
+            candidates,
+            referenced: BTreeSet::new(),
+        })
+    }
+
+    /// Inspect at most `limit` fork-directory entries. Each candidate page is
+    /// fixed-size, so point queries per entry are bounded too.
+    pub fn advance(&mut self, limit: usize) -> Result<Option<BTreeSet<String>>, Refusal> {
+        if limit == 0 {
+            return Err(asset_io("fork reference page limit must be positive"));
         }
-    };
-    let mut referenced = BTreeSet::new();
-    for entry in entries {
-        let entry = entry.map_err(|error| asset_io(format!("cannot inspect a fork: {error}")))?;
-        let path = entry.path();
+        let Some(_) = &self.entries else {
+            return Ok(Some(self.referenced.clone()));
+        };
+        for _ in 0..limit {
+            let next = self.entries.as_mut().expect("fork entries").next();
+            let Some(entry) = next else {
+                self.entries = None;
+                return Ok(Some(self.referenced.clone()));
+            };
+            let entry =
+                entry.map_err(|error| asset_io(format!("cannot inspect a fork: {error}")))?;
+            self.inspect(&entry.path())?;
+        }
+        Ok(None)
+    }
+
+    fn inspect(&mut self, path: &Path) -> Result<(), Refusal> {
         if path.extension().and_then(|value| value.to_str()) != Some("sqlite") {
-            continue;
+            return Ok(());
         }
-        let metadata = fs::symlink_metadata(&path)
+        let metadata = fs::symlink_metadata(path)
             .map_err(|error| asset_io(format!("cannot inspect {}: {error}", path.display())))?;
         if !metadata.is_file() || metadata.file_type().is_symlink() {
             return Err(asset_io(format!(
@@ -76,7 +147,7 @@ fn fork_all_references(root: &Path) -> Result<BTreeSet<String>, Refusal> {
             )));
         }
         let connection = Connection::open_with_flags(
-            &path,
+            path,
             OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
         )
         .map_err(|error| {
@@ -93,21 +164,24 @@ fn fork_all_references(root: &Path) -> Result<BTreeSet<String>, Refusal> {
             )
             .map_err(|error| asset_io(format!("cannot inspect fork {}: {error}", path.display())))?;
         if !has_assets {
-            continue;
+            return Ok(());
         }
-        let mut statement = connection
-            .prepare("SELECT id FROM _assets")
-            .map_err(|error| asset_io(format!("cannot read fork {}: {error}", path.display())))?;
-        let rows = statement
-            .query_map([], |row| row.get::<_, String>(0))
-            .map_err(|error| asset_io(format!("cannot read fork {}: {error}", path.display())))?;
-        for row in rows {
-            referenced.insert(row.map_err(|error| {
-                asset_io(format!("cannot decode fork {}: {error}", path.display()))
-            })?);
+        for id in &self.candidates {
+            let referenced = connection
+                .query_row(
+                    "SELECT EXISTS(SELECT 1 FROM _assets WHERE id = ?1)",
+                    [id],
+                    |row| row.get::<_, bool>(0),
+                )
+                .map_err(|error| {
+                    asset_io(format!("cannot read fork {}: {error}", path.display()))
+                })?;
+            if referenced {
+                self.referenced.insert(id.clone());
+            }
         }
+        Ok(())
     }
-    Ok(referenced)
 }
 
 fn asset_io(message: impl Into<String>) -> Refusal {
@@ -134,6 +208,15 @@ mod tests {
     const ID: &str = "s2id-00000000000000000000000000000006-0000000000000001";
     const SIBLING_ID: &str = "s2id-00000000000000000000000000000006-0000000000000002";
 
+    fn fork_ids(root: &Path, candidates: BTreeSet<String>) -> BTreeSet<String> {
+        let mut scan = ForkReferenceScan::open(root, candidates).unwrap();
+        loop {
+            if let Some(ids) = scan.advance(2).unwrap() {
+                return ids;
+            }
+        }
+    }
+
     struct FirstDeleteFails {
         deleted: std::sync::Mutex<Vec<String>>,
     }
@@ -159,28 +242,36 @@ mod tests {
             Ok(())
         }
 
-        fn enumerate(
+        fn enumerate_page(
             &self,
             _prefix: &str,
+            _continuation: Option<&str>,
+            _limit: usize,
             visitor: &mut dyn FnMut(&str) -> Result<(), Refusal>,
-        ) -> Result<(), Refusal> {
+        ) -> Result<Option<String>, Refusal> {
             visitor(ID)?;
             visitor(SIBLING_ID)?;
-            Ok(())
+            Ok(None)
         }
     }
 
     #[test]
     fn one_delete_failure_retains_that_id_but_settles_later_siblings() {
-        let root = std::env::temp_dir().join("snapback2-asset-gc-delete-progress");
         let blobs = FirstDeleteFails {
             deleted: std::sync::Mutex::new(Vec::new()),
         };
         let ids = BTreeSet::from([ID.to_owned(), SIBLING_ID.to_owned()]);
-        let result = sweep_asset_blobs(&root, &blobs, &BTreeSet::new(), &ids).unwrap();
+        let result =
+            sweep_reclaimed_asset_blobs(&blobs, &ids, &BTreeSet::new(), &BTreeSet::new()).unwrap();
         assert_eq!(result.refusal.unwrap().code, "E_OWNER_ASSET_IO");
         assert_eq!(result.remaining, BTreeSet::from([ID.to_owned()]));
-        assert_eq!(*blobs.deleted.lock().unwrap(), vec![SIBLING_ID.to_owned()]);
+        assert!(
+            blobs
+                .deleted
+                .lock()
+                .unwrap()
+                .contains(&SIBLING_ID.to_owned())
+        );
     }
 
     /// The raw ledger mint is crate-private to core; a tableless generation is
@@ -220,8 +311,9 @@ mod tests {
         drop(fork);
 
         let candidates = BTreeSet::from([ID.to_owned()]);
+        let referenced = fork_ids(&root, candidates.clone());
         assert_eq!(
-            sweep_asset_blobs(&root, &blobs, &candidates, &candidates)
+            sweep_reclaimed_asset_blobs(&blobs, &candidates, &BTreeSet::new(), &referenced,)
                 .unwrap()
                 .remaining,
             candidates
@@ -231,13 +323,49 @@ mod tests {
 
         fs::remove_file(root.join(".snapback/forks/kept.sqlite")).unwrap();
         assert!(
-            sweep_asset_blobs(&root, &blobs, &candidates, &candidates)
-                .unwrap()
-                .remaining
-                .is_empty()
+            sweep_reclaimed_asset_blobs(
+                &blobs,
+                &candidates,
+                &BTreeSet::new(),
+                &fork_ids(&root, candidates.clone()),
+            )
+            .unwrap()
+            .remaining
+            .is_empty()
         );
         assert!(!blobs.path_for_key(ID).unwrap().exists());
         assert!(!blobs.path_for_key(&format!("{ID}.w256")).unwrap().exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn fork_reference_scan_has_a_fixed_directory_page() {
+        let stamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("snapback2-fork-page-{stamp}"));
+        fs::create_dir_all(root.join(".snapback/forks")).unwrap();
+        for index in 0..17 {
+            let fork = Connection::open(
+                root.join(".snapback/forks")
+                    .join(format!("fork-{index:02}.sqlite")),
+            )
+            .unwrap();
+            fork.execute("CREATE TABLE _assets (id TEXT PRIMARY KEY)", [])
+                .unwrap();
+            if index == 16 {
+                fork.execute("INSERT INTO _assets (id) VALUES (?1)", [ID])
+                    .unwrap();
+            }
+        }
+        let mut scan = ForkReferenceScan::open(&root, BTreeSet::from([ID.to_owned()])).unwrap();
+        assert!(scan.advance(8).unwrap().is_none());
+        assert!(scan.advance(8).unwrap().is_none());
+        assert_eq!(
+            scan.advance(8).unwrap(),
+            Some(BTreeSet::from([ID.to_owned()]))
+        );
         fs::remove_dir_all(root).unwrap();
     }
 
@@ -291,11 +419,11 @@ mod tests {
         let resumed = ledger.reclaim_assets(0).unwrap();
         assert_eq!(resumed, vec![id.clone()]);
         assert!(
-            sweep_asset_blobs(
-                &root,
+            sweep_reclaimed_asset_blobs(
                 &blobs,
                 &BTreeSet::from([id.clone()]),
-                &BTreeSet::from([id.clone()]),
+                &BTreeSet::new(),
+                &BTreeSet::new(),
             )
             .unwrap()
             .remaining
@@ -321,14 +449,42 @@ mod tests {
         blobs
             .put(&format!("{ID}.w256"), &mut Cursor::new(b"rung"))
             .unwrap();
-        sweep_asset_blobs(&root, &blobs, &BTreeSet::new(), &BTreeSet::new()).unwrap();
+        let mut continuation = None;
+        loop {
+            let page = enumerate_blob_page(&blobs, continuation.as_deref(), 1).unwrap();
+            let candidates = page
+                .keys
+                .iter()
+                .map(|key| {
+                    key.split_once(".w")
+                        .map_or(key.as_str(), |(id, _)| id)
+                        .to_owned()
+                })
+                .collect();
+            delete_orphan_blob_keys(
+                &blobs,
+                &page.keys,
+                &BTreeSet::new(),
+                &fork_ids(&root, candidates),
+            );
+            continuation = page.continuation;
+            if continuation.is_none() {
+                break;
+            }
+        }
         let mut found = Vec::new();
-        blobs
-            .enumerate("", &mut |key| {
-                found.push(key.to_owned());
-                Ok(())
-            })
-            .unwrap();
+        let mut continuation = None;
+        loop {
+            continuation = blobs
+                .enumerate_page("", continuation.as_deref(), 1, &mut |key| {
+                    found.push(key.to_owned());
+                    Ok(())
+                })
+                .unwrap();
+            if continuation.is_none() {
+                break;
+            }
+        }
         assert!(found.is_empty());
         fs::remove_dir_all(root).unwrap();
     }
