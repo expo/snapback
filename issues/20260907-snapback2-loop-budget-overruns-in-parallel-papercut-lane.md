@@ -334,3 +334,24 @@ The final complete Snapback2 test script passes all product checks but takes
 budget. This was also above budget in the preceding four-plan run (~68 seconds);
 no matched timing experiment attributes the difference. The full passing log
 and its first failed expectation-update run are retained in the follow-up.
+
+## Incremental acquisition verification — 2026-09-11
+
+The integrated `b5c73f084` source passes the complete test script on EPYC in
+**68 seconds**, still above the 60-second suite budget: 1,368 package tests,
+1,127 native tests, compiler/evaluator phases and doctests pass. Initial setup
+failures in the ignored qualification copy were missing TypeScript dependency
+links and the LLP 1003 fixture; those were repaired without product edits.
+
+Pinned Node 24.18.0 measurement at `2026-09-11T20:31:56.073Z` retains another
+project-check miss: **1.012 seconds** against 1 second. Consumer verification
+23.4 seconds, warm build 0.12, incremental rebuild 3.09, and direct doctor
+0.037/0.038 all pass their budgets. These doctor passes are Linux measurements;
+they do not qualify the macOS changed-binary condition above. No retry replaces
+the project-check miss, and no causal attribution to the acquisition delta is
+claimed. The compiler/owner acquisition comparison is a separate frozen cohort.
+
+The canonical raw record carries the private qualification copy's inherited
+Git SHA `dd629ae33`; its source manifest and context explicitly bind `b5c73f084`.
+The [acquisition record](../snapback2/metrics/acquisition-20260911.json) retains
+the binding, byte-growth red, passing functional phases, and failing budgets.

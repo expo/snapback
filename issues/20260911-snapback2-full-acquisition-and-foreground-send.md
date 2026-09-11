@@ -78,3 +78,32 @@ and diagnostic limits are retained in the linked record.
 full-size timing cohort and broader foreground/reopen/heap/native qualification.
 Keep the 30-second criterion unchanged. The concrete pre-admission stall is fixed;
 this ticket stays open for acquisition and the remaining measurement scope.
+
+
+## Incremental work result — 2026-09-11
+
+[LLP 1018.008.007.001](../llp/1018.008.007.001-acquisition-with-incremental-work.plan.md)
+is implemented after the Grok/Muse/Astra/Gemini panel and fresh code reviews.
+The new clean ten-pair comparison lowers the full durable-content **and all
+acknowledgements settled** median from **56.458 to 32.554 seconds (42.34%)**.
+All 20 samples preserve the exact 10,008-message full-row hash, settle every
+earned acknowledgement, pass the post-stop owner receipt oracle, and survive
+physical browser reopen. None fail or hit the 180-second cutoff. This comparison
+starts from the already-repaired foreground/pending-projection source and does
+not count the earlier changes again. Inputs remain fixed throughout the run.
+
+The separate final control retains about 173 MB after GC versus 209 MB baseline.
+Foreground admission during/after acquisition is 10.3/24.7 ms and public mutation
+return is 1.213/0.661 seconds; these remain individual controls. The fixture has
+4,450 already-received and 5,558 unreceived receipts. Native, bearer UI, general
+foreground responsiveness and tail-latency qualification are still outside this
+scoped Chromium/IndexedDB/dev-persona comparison.
+
+**Still open:** the unchanged 30-second goal. Candidate range is 32.087–33.126
+seconds. Remaining measured costs include canonical image/JSON preparation,
+posting-tree work, 201 inbox requests and 613 IndexedDB writes. Request and
+transaction intervals overlap CPU; do not treat them as additive lower bounds.
+Further preparation reduction and an explicitly designed treatment of per-page
+overhead are the next investigations. The [research](../llp/1018.008.007-affordable-offline-acquisition.research.md)
+and `incrementalWork20260911` field of the [retained evidence](../snapback2/metrics/acquisition-20260911.json)
+record exact samples, source scope, all setup attempts and review dispositions.

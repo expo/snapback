@@ -75,3 +75,20 @@ deletion/sharing or an explicit budget trade, not automatic baseline acceptance.
 The release lane incorporates this landed reduction without redoing its work.
 The smaller public-entry closures remain within the author's disclosed
 release-only exception; the normal guard and cleanup ticket remain open.
+
+## Incremental acquisition implementation — 2026-09-11
+
+The integrated source snapshot `b5c73f084` measures **140,687 / 150,564 /
+154,061 / 89,024** gzip bytes (client / React / Expo / complete local runtime),
+using pinned Node 24.18.0, esbuild 0.25.9 and gzip 9. The canonical record is
+`2026-09-11T20:31:56.073Z`; its raw `dd629ae33` SHA is the ignored qualification
+copy's inherited Git metadata, not its source. The run's source manifest binds
+the actual snapshot. The retained acquisition evidence records that distinction.
+
+Relative to the preceding final source, this integrated snapshot adds 1,237 /
+1,304 / 1,269 / 938 bytes. The public-entry comparison also includes the
+independently landed React starter media change; do not attribute every byte
+to acquisition alone. The runtime stays under 90,000 but has only 976 bytes of
+headroom and remains above its 80,000 target. All four normal 1% growth guards
+remain red and `byte_baseline_accepted` remains false. This measurement neither
+accepts a new baseline nor qualifies publication.
