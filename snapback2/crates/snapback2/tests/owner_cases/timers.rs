@@ -305,6 +305,33 @@ fn schedules_fire_on_the_dev_clock_with_clients_closed_and_the_digest_fires_once
 
     // A schedule target is a system program: `/api/*` refuses it like a job, on the schedule
     // page and naming the schedule; the operator seat runs it by hand; the schedule keeps it.
+    let manifest = request(port, "GET", "/api/manifest", &[], json!({}));
+    assert_eq!(manifest.status, 200, "{}", manifest.body);
+    assert!(
+        manifest.body["ops"].get("deliveries.purgeMessage").is_none(),
+        "a schedule-only target leaked into the client manifest: {}",
+        manifest.body
+    );
+    assert_eq!(
+        manifest.body["ops"]["admin.digestSweep"]["kind"],
+        "job",
+        "operator-discoverable jobs remain in the manifest: {}",
+        manifest.body
+    );
+    let operator_manifest = request(
+        port,
+        "GET",
+        "/api/manifest",
+        &[("X-Snapback-Control", &secret)],
+        json!({}),
+    );
+    assert_eq!(operator_manifest.status, 200, "{}", operator_manifest.body);
+    assert_eq!(
+        operator_manifest.body["ops"]["deliveries.purgeMessage"]["kind"],
+        "mutation",
+        "the authenticated operator sees the schedule target: {}",
+        operator_manifest.body
+    );
     let by_hand = send_expiring(port, "purge me by hand", owner_now(port, &secret) + HOUR);
     let refused = request(
         port,

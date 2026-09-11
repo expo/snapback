@@ -259,7 +259,14 @@ impl CompilerWorker {
                         source
                             .filter(|_| !precise)
                             .filter(|site| site.file.ends_with(".q"))
-                            .map(|site| quarry_certification_rewrite(root, site, &error.message))
+                            .map(|site| {
+                                quarry_certification_rewrite(
+                                    root,
+                                    site,
+                                    &error.message,
+                                    &error.rewrite,
+                                )
+                            })
                             .unwrap_or_else(|| error.rewrite.clone())
                     };
                     let mut refusal =
@@ -706,7 +713,12 @@ pub fn stage_build_cache(
     Ok(staged)
 }
 
-fn quarry_certification_rewrite(root: &Path, site: &SourceSite, message: &str) -> String {
+fn quarry_certification_rewrite(
+    root: &Path,
+    site: &SourceSite,
+    message: &str,
+    checker_rewrite: &str,
+) -> String {
     let first_message_line = message.lines().next().unwrap_or(message);
     let path = Path::new(&site.file);
     if path
@@ -716,9 +728,9 @@ fn quarry_certification_rewrite(root: &Path, site: &SourceSite, message: &str) -
         && let Ok(authored) = fs::read_to_string(root.join(path))
         && let Some(line) = authored.lines().nth(site.line as usize - 1)
     {
-        return format!("{line}\n-- {first_message_line}");
+        return format!("{line}\n-- {first_message_line}\n-- checker repair: {checker_rewrite}");
     }
-    format!("-- {first_message_line}")
+    format!("-- {first_message_line}\n-- checker repair: {checker_rewrite}")
 }
 
 fn quarry_fanout_rewrite(

@@ -404,7 +404,14 @@ fn handle(mut request: Request, context: Context, streams: live::Streams) {
             ),
             Err(error) => respond_refusal(request, 500, error, &context.mode),
         },
-        ("GET", "/api/manifest") => call_json(request, &context, Action::Manifest, 200),
+        ("GET", "/api/manifest") => {
+            let operator = header(&request, "X-Snapback-Control").is_some();
+            if operator && let Err(refusal) = control_admission(&request, &context.secret) {
+                respond_refusal(request, 403, refusal, &context.mode);
+            } else {
+                call_json(request, &context, Action::Manifest { operator }, 200);
+            }
+        }
         ("GET", "/api/program") => call_json(
             request,
             &context,

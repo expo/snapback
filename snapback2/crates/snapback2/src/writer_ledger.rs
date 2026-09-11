@@ -384,7 +384,7 @@ impl State {
         }))
     }
 
-    pub(super) fn manifest(&self) -> Result<Json, Refusal> {
+    pub(super) fn manifest(&self, operator: bool) -> Result<Json, Refusal> {
         let runtime = self.runtime();
         let schedule_targets = runtime
             .generation()
@@ -407,7 +407,8 @@ impl State {
             .iter()
             .filter(|(name, (program, _))| {
                 !name.starts_with("__owner.")
-                    && (program.kind == ProgramKind::Job
+                    && (operator
+                        || program.kind == ProgramKind::Job
                         || !schedule_targets.contains(name.as_str()))
             })
             .map(|(name, (program, certificate))| {
@@ -581,7 +582,7 @@ mod tests {
     #[test]
     fn manifest_discloses_deliver_with_the_engine_recorded_audience_bound() {
         let mut state = state_with("manifest-custody", custody_project(3, false));
-        let manifest = state.manifest().unwrap();
+        let manifest = state.manifest(false).unwrap();
         for (name, entry) in manifest["tables"].as_object().unwrap() {
             assert!(entry.get("deliver").is_none(), "{name} carries a deliver key without a declaration");
         }
@@ -613,7 +614,7 @@ mod tests {
         let lowered = Generation::certify(&custody_project(1, true), Ceilings::default()).unwrap();
         runtime.apply_successor(lowered).unwrap();
 
-        let manifest = state.manifest().unwrap();
+        let manifest = state.manifest(false).unwrap();
         assert_eq!(
             manifest["tables"]["messages"]["deliver"],
             json!({ "target": "memberships", "prefix": ["conversationId"], "principal": "principal", "log": "deliveries", "bootstrap": true, "audience": 3 }),

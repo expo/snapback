@@ -110,7 +110,11 @@ function placementDiagnostics(documents: Document[]): QuarryDiagnostic[] {
       const site = document.programs[0]?.site ?? document.effects[0]!.site;
       diagnostics.push(placement(document.file, site.line, site.col, "schema.q holds declarations only; query, mutation, and effect declarations belong in a program module", "move this declaration to snapback/<module>.q"));
     }
-    if (!isSchema && document.programs.length === 0 && document.schedules.length === 0
+    // @ref LLP 1016#d6--the-operator-seat-ad-hoc-programs-and-rehearsal — the transient
+    // ad-hoc module may be empty so `/control/run` can classify zero declarations with
+    // the same E_INPUT/usage envelope as multiple declarations.
+    if (!isSchema && basename(document.file) !== "__adhoc.q"
+      && document.programs.length === 0 && document.schedules.length === 0
       && document.shapes.length === 0 && document.shapeImports.length === 0
       && document.functions.length === 0 && document.functionImports.length === 0
       && document.procs.length === 0 && document.procImports.length === 0) {

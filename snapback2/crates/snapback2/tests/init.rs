@@ -268,6 +268,47 @@ fn quarry_certification_refusal_rewrite_starts_with_the_authored_line() {
         rewrite.starts_with("query unsafeCount():\n-- "),
         "{rewrite}"
     );
+    assert!(
+        rewrite.contains("-- checker repair: denormalize the authorization scope")
+            && rewrite.contains("maintain totals: count todos by <scope>"),
+        "project check must preserve the checker's complete repair: {rewrite}"
+    );
+}
+
+#[test]
+fn quarry_schedule_declaration_line_does_not_change_the_compiled_generation() {
+    let project = Project::new();
+    assert!(project.init("chat", "none").status.success());
+    let first = project.run(&["check", "--json"]);
+    assert!(
+        first.status.success(),
+        "{}",
+        String::from_utf8_lossy(&first.stdout)
+    );
+    let first: Json = serde_json::from_slice(&first.stdout).unwrap();
+
+    let messages = project.path.join("snapback/messages.q");
+    let source = std::fs::read_to_string(&messages).unwrap();
+    let marker = "schedule expireMessage ";
+    assert!(
+        source.contains(marker),
+        "chat template lost its expiry schedule"
+    );
+    std::fs::write(
+        &messages,
+        source.replacen(marker, "\nschedule expireMessage ", 1),
+    )
+    .unwrap();
+    let moved = project.run(&["check", "--json"]);
+    assert!(
+        moved.status.success(),
+        "{}",
+        String::from_utf8_lossy(&moved.stdout)
+    );
+    let moved: Json = serde_json::from_slice(&moved.stdout).unwrap();
+
+    assert_eq!(first["generation"], moved["generation"]);
+    assert_eq!(first["schemaCertificate"], moved["schemaCertificate"]);
 }
 
 #[test]

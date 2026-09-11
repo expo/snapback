@@ -29,6 +29,8 @@ impl State {
         }
         Ok(())
     }
+    // @ref LLP 1016#d5--schedules-row-timers-and-periods-on-the-owners-clock — summaries begin
+    // with the declarations so a schedule with no materialized timer row is still listed at zero.
     pub(super) fn timers(&self) -> Result<Json, Refusal> {
         let runtime = self.runtime();
         runtime
