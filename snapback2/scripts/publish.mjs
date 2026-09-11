@@ -580,7 +580,8 @@ function elfDependencies(path, inspect = command) {
 }
 
 function isSystemLinuxDependency(name) {
-  return /^(?:libc|libm|libstdc\+\+|libgcc_s|libpthread|libdl|librt|libutil|libresolv)\.so(?:\..*)?$/.test(name);
+  return /^(?:libc|libm|libstdc\+\+|libgcc_s|libpthread|libdl|librt|libutil|libresolv)\.so(?:\..*)?$/.test(name)
+    || name === "ld-linux-x86-64.so.2";
 }
 
 function verifySelfContainedMediaHelper(mediaBin, inspect = command, platform = process.platform) {
@@ -965,7 +966,7 @@ function runSelfTest() {
     assert.deepEqual(verifySelfContainedMediaHelper(
       "snapback2-media",
       () => ({
-        stdout: " 0x0000000000000001 (NEEDED) Shared library: [libstdc++.so.6]\n 0x0000000000000001 (NEEDED) Shared library: [libc.so.6]\n",
+        stdout: " 0x0000000000000001 (NEEDED) Shared library: [libstdc++.so.6]\n 0x0000000000000001 (NEEDED) Shared library: [libc.so.6]\n 0x0000000000000001 (NEEDED) Shared library: [ld-linux-x86-64.so.2]\n",
       }),
       "linux",
     ), ["snapback2-media"]);
