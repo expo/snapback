@@ -83,3 +83,21 @@ Retained under `~/verify-snapback2-liveoffline-20260906/` (`evidence-G/`,
 `evidence-native/runs/native-accounts-2026-09-06T18-09-29-494Z/step4-online-throw.json`
 with the full proxy wire capture). Wire captures show the held partition
 carried the earlier instance's answers before the client ever went online.
+
+## Disposition — 2026-09-11
+
+**Priority:** P2. **State:** keep open, narrowed to database-instance replacement
+and the original builder attribution. On current main `15c134d056`, the public
+resume conflict control passed and surfaces `E_OFFLINE_DELIVERY` rather than a
+raw `TypeError`:
+
+```sh
+cd snapback2
+node --test packages/snapback2/tests/offline-public-state.test.ts
+```
+
+This is a package carrier test, not the published-0.0.8 browser session or
+reset-owner wire pair. It proves typing, not that legitimate equivocation
+should be suppressed. Closure still requires the retained old-owner/new-owner
+equal-sequence pair through a current real durable carrier, preserving genuine
+disagreement, and a decision on database-instance identity.

@@ -153,3 +153,14 @@ No further repair was made after the repository’s three-round limit; one
 additional bounded round has been requested from the user. Published019 and
 main do not contain the third candidate’s introduced defect. This ticket
 remains open for the original metadata gaps and separate resource work.
+
+## Disposition — 2026-09-11
+
+**Priority:** P2. **State:** keep open. This triage did not rerun rejected,
+unpublished metadata candidates: `15c134d056` intentionally lacks their
+first-write regression, so those failures are not current-production evidence.
+Current browser controls exercised ordinary IndexedDB first-write custody, not
+the candidate projection. Remaining work is the original isolation/public
+projection proof, two generic metadata gaps, first-write plus abort/retry proof
+for any repair, and the separately stated size, deadline, media-width and
+device-resource obligations.

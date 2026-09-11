@@ -26,3 +26,11 @@
    mirror `stream()`'s check so an aborted request cannot seal the session.
 7. **`drainNow()` has no signal** (grok r3 4): drains rely on the revision fence only; give the
    drain the flight's signal or a revision check at each await.
+
+## Disposition — 2026-09-11
+
+**Priority:** P2. **State:** keep open. Same-client hot-regroup controls
+exercised ordinary online/resume supersession without refusal, but impose none
+of these await-boundary races and do not replace the staged tail proof. Close
+item-by-item after deterministic marker ordering, abort-unwind, persist/adopt,
+late-4xx and drain-revision tests; retain the epoch-order dependency.

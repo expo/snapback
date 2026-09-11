@@ -47,3 +47,19 @@ before landing; these are the residuals both families and the implementer named.
    incompatible body and its unshared byte lease while keeping both anchors (the reviewer's
    in-memory rollback probe passed; the physical carriers are unproved).
 
+## Disposition — 2026-09-11
+
+**Priority:** P2 overall (items 2, 7–9 highest custody risk). **State:** keep
+open. The inherited retry red still fails at `15c134d056`:
+
+```sh
+cd snapback2
+node --test --test-name-pattern="query retries HTTP and network transport failures while mutation retries neither" \
+  packages/snapback2/tests/client.test.ts
+```
+
+It failed at `assertRefused` (`false !== true`), so item 5 is current evidence.
+Real-browser signup/shared-session controls passed ordinary IndexedDB custody,
+one-writer forwarding and takeover, but not manifest-only reset, paginated
+Carol offline delivery, actual clock reset, or interrupted byte adoption. No
+residual closes here; items 4/6 remain documentation curation.

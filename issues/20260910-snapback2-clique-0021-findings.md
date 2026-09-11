@@ -53,3 +53,67 @@ defect list; same run record):
    expiry with delete-for-everyone. D6 removes that pattern from the template (native `removed`
    events; expiry is a direct deletion).
 
+## Disposition — 2026-09-11
+
+Triaged against current main `15c134d056`; keep this umbrella open.
+
+- **P1, items 2/6 — reproduced only as an honestly stale twin, not a false
+  live/server zero.** A real owner and durable file carrier cached complete
+  zero at seq 0. After the same persona's write, the same
+  persona/arguments/schema one-shot owner read was complete 1. Cold snapshots
+  remained complete 0 with `source:"twin"`, `live:false`,
+  `reason.code:"stale"` through reconnect, then moved to twin 1 and finally
+  complete/server/seq 1 with `live:true`; next offline was complete 1. Wrapper
+  PID 3234746. This can explain UI that renders `data` without freshness, but
+  not an incorrect committed/live claim. Original Insights remains different:
+  viewer profile read, `now`/day bucket, six maintained totals, and day0…day6
+  count/like keys.
+- **P1, item 7 — not reproduced for a single online first write; the reported
+  offline flush remains open.** Real Chromium/IndexedDB `witness-web --signup`
+  committed the first authenticated mutation 3/3 with ready custody and one
+  persona-bound signup partition (wrapper PID 59360). That is not m7-a05's
+  single-context offline-vote replay. Separately, `--sessions` passed the
+  intentional shared-follower control: forwarding, reload, one writer's FIFO
+  admission and Web Lock takeover (PID 3273399). The full witness stopped
+  earlier at an unrelated composite-revocation UI timeout and never reached
+  the stall segment. Next run must capture held generation, authenticated
+  epoch, readiness, writer/follower state and persona-partition count.
+- **P1, item 1 — open/unattempted here.** It needs the real durable image
+  descriptor cold reopen.
+- **P2, item 3 — open.** Reproduce the exact multi-bound M7 schema and retain
+  the emitted binder/type carrier.
+- **P3, items 4/5/8 — open product/diagnostic work.** Classify item 4 as app
+  shape or platform; item 5 is explicit closure-budget/list-order friction;
+  item 8 is terminal-diagnostic naming.
+- **Item 9 — evidence-only as filed.** LLP 1019's native removed-event design
+  owns it; no separate reproduction belongs here.
+
+The aggregate control is repeatable by inserting this block before regroup in
+the existing real-owner successor fixture (`dev:bob` begins at zero):
+
+```ts
+const args = { who: "dev:bob" };
+const cachedZero = await client.query(api.ops.count, args);
+await client.close();
+const writer = createClient({ url: owner.url, persona: "bob" });
+await writer.mutation(api.ops.send, { kind: "text", body: "after cache" });
+const ownerNow = await writer.query(api.ops.count, args); // complete 1
+writer.close();
+client = createClient({ url: owner.url, persona: "bob",
+  offline: { store: fileRangeStore(join(directory, "bob")) } });
+await client.ready; await client.offline();
+const cold = await client.query(api.ops.count, args); // record all public flags
+const seen: unknown[] = [];
+const live = subscribe(client, api.ops.count, args, value => seen.push(value));
+await client.online();
+await live.until(v => v.state === "complete" && v.data === 1 && v.live === true, 3000);
+live.close();
+```
+
+Existing real-browser controls are exactly:
+
+```sh
+cd snapback2
+SNAPBACK2_WITNESS_BROWSER=/path/to/chromium node scripts/witness-web.mjs --signup
+SNAPBACK2_WITNESS_BROWSER=/path/to/chromium node scripts/witness-web.mjs --sessions
+```

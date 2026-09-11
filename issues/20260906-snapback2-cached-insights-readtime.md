@@ -29,3 +29,21 @@ sample per query invocation, with coverage/state and clock-authority controls.
 Mutation prediction remains separately governed. Repair and native/durable
 qualification are pending; keep this ticket open until verified and landed.
 Do not modify the frozen benchmark app or steer its builder.
+
+## Disposition — 2026-09-11
+
+**Priority:** P2. **State:** keep open, likely repaired but not qualified against
+the original shape. Current source samples `sources.now()` for a timed query,
+and all 192 `twin.test.ts` cases passed on `15c134d056`:
+
+```sh
+cd snapback2
+node --test packages/snapback2/tests/twin.test.ts
+```
+
+That is package/corpus evidence, not native certification or the published
+reproduction. Original Insights also reads the viewer profile and computes a
+day bucket from `now`, then returns six maintained totals plus day0…day6
+count/like keys. Closure needs that multi-key, multi-maintain, profile-read,
+timed-query shape on a real owner and durable client, with pinned read time and
+cold reopen.

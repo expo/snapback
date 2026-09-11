@@ -47,3 +47,31 @@ applied the successor's delivery against the held predecessor schema before the 
 dropped it. The test now opens a fresh client after the install and no longer claims the
 reset path; both the online and the resume forms are this ticket's to prove, with a hook
 between the installation and the next live frame or resume.
+
+## Disposition — 2026-09-11
+
+**Priority:** P1. **State:** keep open; not reproduced in the bounded current-main
+run. On `15c134d056`, an actual owner plus the same durable file-carrier client
+was held across `by sender` → `by recipient`. Three online and three resume
+attempts all returned correct successor answers (`alice=0`, `bob=1`) without
+`E_OFFLINE_STATE`/`E_SCHEMA`. A mounted observer converged to complete,
+server-sourced, live zero. Wrapper PID 3271477; real Node file carrier. A
+32-thread-load control also did not reproduce. One resume observer remained
+twin/stale at the three-second edge although its one-shot query was correct;
+that is not the reported refusal and is not closure.
+
+Repeat with the existing test while retaining the original `client` and `bob`
+store across `install(...)`: mount `subscribe(client, api.ops.count,
+{who:"dev:alice"}, observer)` before installation, and for resume call
+`offline()` before and `online()` after installation. Do not execute the
+`client.close()`/`bob-after` replacement block. Then run:
+
+```sh
+cd snapback2
+node --test --test-name-pattern="positional reads compile after a regroup" \
+  packages/snapback2/tests/real-owner-successor.test.ts
+```
+
+Closure needs a deterministic barrier between installation and both the next
+live frame and resume commit, with predecessor-schema, superseded/hydrating,
+and correct successor-answer controls.

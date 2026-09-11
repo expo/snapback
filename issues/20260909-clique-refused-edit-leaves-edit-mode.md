@@ -26,3 +26,13 @@ the edited target and draft after terminal refusal, and clear edit mode only
 when the existing edit intent is accepted. Cover queued/committed/refused
 results and a user changing edit target while settlement is pending. Do not
 turn this into a new composer, generic retry loop, or benchmark rescore.
+
+## Disposition — 2026-09-11
+
+**Priority:** P2. **State:** keep open; still source-only. Frozen benchmark/run
+bytes were not modified or rescored, and no current copied-app browser fixture
+exercised a refused edit. The HTTP-400 control establishes public terminal
+state `rejected` while its durable row is retained/named, which the composer
+must distinguish from accepted queued/committed results. Closure still needs
+the exact fresh-copy UI matrix, including changed-edit-target race; source
+inspection alone is not reproduction.

@@ -23,3 +23,14 @@ an application fact.
 2. Update the chat template to use it for the delivered tick and keep read receipts as rows.
 3. If this is ruled out of scope, record it in `rules/NOT-DOING.md` with the reason, so the next
    builder does not look for it.
+
+## Disposition — 2026-09-11
+
+**Priority:** P3. **State:** keep open for the explicit scope record, not as an
+assertion that a served watermark is a receipt. LLP 1019 requires durable
+client acknowledgements because server delivery is not proof a replica
+received an event. Real-browser `witness-web --sessions` showed committed
+`_delivery.deliveries.ack` intents through the ledger, confirming the
+cooperative primitive. That does not satisfy “for free/no client cooperation.”
+Close as obsolete only after the ruling is discoverable in the requested
+NOT-DOING/guide location (or a replica-observable capability is specified).

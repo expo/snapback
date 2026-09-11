@@ -35,6 +35,16 @@ Observed output, verbatim:
 {"after":{"String":"WzEsImRvY3MiLCJieVNjb3BlIiwiQXNjIixbeyJuYW1lIjoib3JkZXIiLCJraW5kIjoiSW50In0seyJuYW1lIjoiaWQiLCJraW5kIjoiSWQifV0sW3siSW50IjoxfSx7IklkIjoiZDEifV1d"},"rust":{"state":"capped","result":{"Array":[{"Row":{"id":{"Id":"d2"},"owner":"Null"}}]},"next":"WzEsImRvY3MiLCJieVNjb3BlIiwiQXNjIixbeyJuYW1lIjoib3JkZXIiLCJraW5kIjoiSW50In0seyJuYW1lIjoiaWQiLCJraW5kIjoiSWQifV0sW3siSW50IjoyfSx7IklkIjoiZDIifV1d","localState":"Partial([\"docs.page\", \"profiles.byId\"])"},"twin":{"state":"capped","result":{"Array":[{"Row":{"id":{"Id":"d2"},"owner":"Null"}}]},"next":null,"localState":"partial","partialSites":["docs.page","profiles.owner"]}}
 ```
 
-## Resolution criteria
+## Disposition — 2026-09-11
+
+**Priority:** P2. **State:** keep open at the narrowed site-label boundary.
+Current source and the retained command still identify authored
+`profiles.owner` versus synthesized `profiles.byId`; this pass did not claim a
+fresh Rust→TypeScript JSONL execution. Cursor clearing is resolved and must not
+be reopened. Closure is a fresh existing-command run plus permanent
+byte-identical corpus assertions keeping the authored site visible on both
+pages.
+
+## Remaining resolution criteria
 
 Agree on partial local cursor semantics across Rust and TypeScript, preserve the authoritative two-page journey and hidden-position exclusion, align uncovered-point site reporting, then freeze both page receipts in the existing corpus and assert identical replay. Keep `profiles.owner` in a test so site-name parity cannot be hidden by using `profiles.byId` everywhere. L8b leaves the corpus-size union to integration as requested.

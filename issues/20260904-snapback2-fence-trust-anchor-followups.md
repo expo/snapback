@@ -31,3 +31,12 @@
    a delivery log, iterate candidates.
 
 Filed at the lane's third review round (the limit); the fence landed with all four open.
+
+## Disposition — 2026-09-11
+
+**Priority:** P2. **State:** keep open. Current browser controls passed ordinary
+signup generation/auth installation and shared-writer takeover, but neither
+barriers same-principal `open()` nor forces the first no-facts seed to refuse.
+The four findings remain live; items 2/4 are one unit. Closure needs the
+deferred-carrier same-principal race (no obsolete grant/anchor) and ordered
+seed fallback ending in typed `E_OFFLINE_RESUME` only after exhaustion.
