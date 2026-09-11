@@ -1,8 +1,9 @@
 #!/usr/bin/env node
-// The browser witness for LLP 1012 §10 (lane O2, scheduled, never blocking):
-// real Chromium over the chat template's React screens and the IndexedDB
-// carrier, driven through Playwright. It files nothing itself; the schedule
-// that runs it turns a red into a bounded ticket.
+// The browser witness for LLP 1012 §10 (lane O2, never blocking): real
+// Chromium over the chat template's React screens and the IndexedDB carrier,
+// driven through Playwright, signed in as a real account through the starter's
+// own form. No schedule runs it; run it after changing the chat starter or
+// client custody, and file a red as a ticket.
 //
 // Run from `snapback2/` after `cargo build --workspace --bins` and
 // `(cd packages/snapback2 && node build.mjs)`:
@@ -82,7 +83,7 @@ async function bundleApp(url) {
 import { StrictMode, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { indexedDbRangeStore, SnapbackProvider, useSnapbackClient } from "snapback2/react";
-import { api, createClient } from "snapback2/client";
+import { api, browserTokenStore, createClient } from "snapback2/client";
 import * as diagnostics from "snapback2/internal";
 (window as any).__diagnostics = diagnostics;
 (window as any).__api = api;
@@ -128,6 +129,8 @@ const transport: typeof fetch = async (input, init) => {
 const offline = {
   store: indexedDbRangeStore({ beforeReplace: state => (window as any).__witnessBarrier?.(state) }),
 };
+// The starter's own custody (templates/chat/react/src/main.tsx): a bearer session kept in localStorage.
+const tokenStore = browserTokenStore(localStorage, ${JSON.stringify(`snapback2:${url}:auth`)});
 (window as any).__startSignupWitness = () => {
   const requests: Array<{ path: string; body?: unknown }> = [];
   const signupFetch: typeof fetch = async (input, init) => {
@@ -158,7 +161,7 @@ function Expose() {
 }
 
 createRoot(document.getElementById("root")!).render(
-  <StrictMode><SnapbackProvider url=${JSON.stringify(url)} persona="alice" fetch={transport} offline={offline}><Expose /><App /></SnapbackProvider></StrictMode>,
+  <StrictMode><SnapbackProvider url=${JSON.stringify(url)} tokenStore={tokenStore} fetch={transport} offline={offline}><Expose /><App /></SnapbackProvider></StrictMode>,
 );
 `);
   try {
@@ -295,10 +298,21 @@ async function startOwner(project) {
 
 async function seed(url) {
   const { createClient, api } = await import(resolve(dist, "client.mjs"));
+  // The browser signs in as a real account, as the starter does; the seeded personas are the other members.
+  const nonce = `${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
+  const account = { email: `witness-${nonce}@example.test`, password: "browser-witness-password-12345" };
+  const signup = createClient({ url });
+  const principal = (await signup.auth.signup(account)).viewer;
+  await signup.close();
   const alice = createClient({ url, persona: "alice" });
   const bob = createClient({ url, persona: "bob" });
   const bobPrincipal = (await bob.auth.me()).viewer;
-  const group = await alice.mutation(api.groups.groupCreate, { title: "Witness room", members: [bobPrincipal] });
+  // Join before the seeded messages are sent, so the account receives their deliveries.
+  for (const conversationId of ["conversation-1", "conversation-2"]) {
+    const joined = await alice.mutation(api.groups.memberAdd, { conversationId, principal });
+    if (joined.state !== "committed") throw new Error(`adding the account to ${conversationId} was ${JSON.stringify(joined)}`);
+  }
+  const group = await alice.mutation(api.groups.groupCreate, { title: "Witness room", members: [bobPrincipal, principal] });
   if (group.state !== "committed") throw new Error(`group creation was ${group.state}`);
   const conversations = ["conversation-1", "conversation-2", group.data.id];
   for (const conversationId of conversations) {
@@ -308,7 +322,22 @@ async function seed(url) {
   const doomed = await alice.mutation(api.messages.send, { conversationId: "conversation-1", body: indexedSearchBody });
   alice.close();
   bob.close();
-  return { conversations, doomedMessageId: doomed.state === "committed" ? doomed.data.id : undefined };
+  return { account: { ...account, principal }, conversations, doomedMessageId: doomed.state === "committed" ? doomed.data.id : undefined };
+}
+
+// Log in through the starter's own form; the bearer then stays in the profile's localStorage across relaunches.
+async function submitLogin(page, account) {
+  await page.fill("section[aria-label=Account] input[type=email]", account.email);
+  await page.fill("section[aria-label=Account] input[type=password]", account.password);
+  await page.getByRole("button", { name: "Log in", exact: true }).click();
+}
+
+async function signIn(page, account) {
+  await submitLogin(page, account);
+  await page.waitForFunction((principal) => {
+    const text = document.querySelector("section[aria-label=Account]")?.textContent ?? "";
+    return text.includes(`Signed in as ${principal}`) && document.querySelector("[role=status][data-connection]") !== null;
+  }, account.principal, { timeout: 15_000 });
 }
 
 // Playwright's waitForFunction does not await an async predicate (a pending
@@ -353,7 +382,7 @@ async function openChat(page, conversationId) {
 
 // @ref LLP 1018.000#8-account-sessions-and-durable-follower-admission — actual
 // Chromium tabs, Web Locks, BroadcastChannel, IndexedDB, and the owner prove one queue.
-async function sharedSessions(context, writer, appUrl, ownerUrl) {
+async function sharedSessions(context, writer, appUrl, ownerUrl, principal) {
   await pollUntil(writer, async () => window.__snapback && (await window.__snapback.outbox.status()).ready,
     null, { timeout: 15_000 });
   const added = [];
@@ -684,17 +713,17 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
   const inherited = replayed.slice(beforeWrites).filter(request => intents.includes(request.replay?.intent));
   assert.deepEqual(inherited.map(request => request.replay.intent), intents, "inherited queue replays FIFO exactly once");
   const takeoverAdmitted = replayed.slice(beforeWrites).filter(request => request.args?.body === "1018.004 admitted on takeover");
-  const takeoverState = await follower.evaluate(async () => ({
+  const takeoverState = await follower.evaluate(async (principal) => ({
     status: await window.__snapback.outbox.status(), lastRefusal: window.__snapback.snapshot.lastRefusal,
     entries: (await window.__snapback.outbox.entries()).map(entry => ({ intent: entry.intent, inbox: entry.inbox, state: entry.state,
       body: entry.args?.body, ids: entry.ids.length, response: entry.response })),
     rows: await new Promise((resolve) => {
-      const open = indexedDB.open("snapback2:dev:alice");
+      const open = indexedDB.open(`snapback2:${principal}`);
       open.onsuccess = () => { const db = open.result; const tx = db.transaction(["inbox"], "readonly");
         const all = tx.objectStore("inbox").getAll(); all.onsuccess = () => { resolve(all.result); db.close(); }; };
       open.onerror = () => resolve("open failed");
     }),
-  }));
+  }), principal);
   assert.equal(takeoverAdmitted.length, 1, `the row left behind was admitted by the new writer and executed once: ${JSON.stringify(takeoverState)}`);
   assert.ok(replayed.slice(beforeWrites).indexOf(takeoverAdmitted[0]) > replayed.slice(beforeWrites).indexOf(inherited[2]),
     "the inherited intents replay before the row admitted on takeover");
@@ -719,7 +748,7 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
   });
 
   // Lifecycle: with a third tab following the new writer, the writer's partition
-  // is wiped (a persona app has no sign-out; sign-out takes the same path). The
+  // is wiped (sign-out takes the same path). The
   // deletion completes beneath the third tab's open inbox connection because
   // that connection closes on versionchange; the third tab's wait then wins the
   // freed lock and it becomes the writer of a fresh, empty partition.
@@ -735,11 +764,11 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
   await pollUntil(third, async () => !window.__snapback.offlineRuntime.following
     && !["forwarding", "writer-unresponsive", "follower"].includes((await window.__snapback.outbox.status()).reason), null,
   { timeout: 15_000, label: "the third tab taking over the freed partition" });
-  const thirdAfter = await third.evaluate(async () => ({
+  const thirdAfter = await third.evaluate(async (principal) => ({
     entries: (await window.__snapback.outbox.entries()).length,
     status: await window.__snapback.outbox.status(),
-    databases: (await indexedDB.databases()).map(entry => entry.name).filter(name => name?.includes("dev:alice")),
-  }));
+    databases: (await indexedDB.databases()).map(entry => entry.name).filter(name => name?.includes(principal)),
+  }), principal);
   assert.equal(thirdAfter.entries, 0, "the deletion completed beneath the third tab's connection: its fresh partition holds no ledger");
   step("a wipe deletes the partition beneath an open follower connection; the follower's route ends and its wait takes over a fresh partition", {
     before: thirdBefore, after: thirdAfter,
@@ -753,17 +782,17 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
 // @ref LLP 1018.004#1-the-write-record — the focused stall witness keeps one
 // real IndexedDB partition and one context: this page owns the Web Lock, admits
 // one durable row offline, then sends that row's exact envelope after resume.
-async function singleContextOfflineReplay(context, page, ownerUrl) {
+async function singleContextOfflineReplay(context, page, ownerUrl, principal) {
   for (const other of context.pages()) if (other !== page) await other.close();
   assert.equal(context.pages().length, 1, "the replay witness has exactly one browser page");
-  await pollUntil(page, async () => {
+  await pollUntil(page, async (principal) => {
     const client = window.__snapback;
-    if (!client || client.offlineRuntime?.principal !== "dev:alice"
+    if (!client || client.offlineRuntime?.principal !== principal
       || typeof client.offlineRuntime?.programGeneration !== "string"
       || !Number.isSafeInteger(client.offlineRuntime?.authEpoch)) return false;
     const status = await client.outbox.status(window.__api.messages.send);
     return status.ready && status.remaining === 0;
-  }, undefined, { timeout: 15_000, label: "the single writer's exact send readiness" });
+  }, principal, { timeout: 15_000, label: "the single writer's exact send readiness" });
   const evidence = async () => ({ pages: context.pages().length, ...await page.evaluate(async () => {
     const client = window.__snapback;
     const databases = (await indexedDB.databases()).map(entry => entry.name)
@@ -779,10 +808,10 @@ async function singleContextOfflineReplay(context, page, ownerUrl) {
     };
   }) });
   const before = await evidence();
-  assert.equal(before.persona, "alice");
-  assert.equal(before.principal, "dev:alice");
-  assert.equal(before.following, false, "the only page owns the persona partition instead of following another writer");
-  assert.deepEqual(before.partitions, ["snapback2:dev:alice"]);
+  assert.equal(before.persona, undefined, "the page holds a bearer session, not a dev persona");
+  assert.equal(before.principal, principal);
+  assert.equal(before.following, false, "the only page owns the account partition instead of following another writer");
+  assert.deepEqual(before.partitions, [`snapback2:${principal}`]);
   assert.deepEqual({ ready: before.status.ready, reason: before.status.reason, action: before.status.action,
     remaining: before.status.remaining, fence: before.status.fence },
   { ready: true, reason: "ready", action: "none", remaining: 0, fence: "inside" });
@@ -901,14 +930,18 @@ async function main() {
   };
   const close = async () => { await context?.close().catch(() => undefined); context = undefined; };
   try {
-    // Seed, drain, open three chats.
+    // Seed, sign in, drain, open three chats.
     let page = await launch();
+    if (!signupOnly) {
+      await signIn(page, seeded.account);
+      step("a real account signs in through the starter's form", { principal: seeded.account.principal });
+    }
     if (signupOnly) {
       await signupWitness(page);
     } else if (offlineReplayOnly) {
-      await singleContextOfflineReplay(context, page, owner.url);
+      await singleContextOfflineReplay(context, page, owner.url, seeded.account.principal);
     } else if (sessionsOnly || capacityOnly) {
-      await sharedSessions(context, page, appUrl, owner.url);
+      await sharedSessions(context, page, appUrl, owner.url, seeded.account.principal);
     } else {
     await page.waitForFunction(() => /messages available on this device/.test(document.querySelector("[role=status][data-connection]")?.textContent ?? ""), null, { timeout: 15_000 });
     const [neverOpened, ...opened] = [...seeded.conversations].reverse();
@@ -1070,8 +1103,19 @@ async function main() {
     await context.addInitScript(() => { Object.defineProperty(window, "indexedDB", { value: undefined, configurable: true }); });
     page = await context.newPage();
     await page.goto(appUrl);
-    await page.waitForFunction(() => /E_OFFLINE_CARRIER/.test(document.body.textContent ?? ""), null, { timeout: 10_000 });
-    step("boot with the carrier refused shows E_OFFLINE_CARRIER");
+    // A fresh profile holds no session: logging in without a carrier stays signed out and says why.
+    await submitLogin(page, seeded.account);
+    await page.waitForFunction(() => window.__snapback?.snapshot.lastRefusal?.code === "E_OFFLINE_CARRIER"
+      && /IndexedDB and Web Locks are required/.test(document.querySelector("section[aria-label=Account] [role=alert]")?.textContent ?? ""),
+    null, { timeout: 10_000 }).catch(async (error) => {
+      const diagnosis = await page.evaluate(() => ({ account: document.querySelector("section[aria-label=Account]")?.textContent,
+        auth: window.__snapback?.snapshot.auth, lastRefusal: window.__snapback?.snapshot.lastRefusal })).catch((e) => String(e));
+      throw new Error(`the refused carrier was never reported: ${JSON.stringify(diagnosis)}\n${error.message}`);
+    });
+    const carrier = await page.evaluate(() => ({ auth: window.__snapback.snapshot.auth.state,
+      code: window.__snapback.snapshot.lastRefusal.code, alert: document.querySelector("section[aria-label=Account] [role=alert]")?.textContent }));
+    if (carrier.auth === "authenticated") throw new Error(`a login without a carrier installed a session: ${JSON.stringify(carrier)}`);
+    step("with the carrier refused, logging in stays signed out, says IndexedDB is required, and records E_OFFLINE_CARRIER", carrier);
     await close();
 
     // Backend up: 503 after the first commit, kill mid-commit, exactly one row, second in order.
@@ -1081,37 +1125,19 @@ async function main() {
     await page.fill("form[aria-label=Composer] input", "second queued message");
     await page.click("form[aria-label=Composer] button[type=submit]");
     await page.waitForFunction(() => document.querySelectorAll("li[data-state=queued]").length === 2, null, { timeout: 5_000 });
-    const queuedBeforeFault = await page.evaluate(async () => (await window.__snapback.outbox.entries())
-      .filter(entry => entry.state === "queued").map(({ intent, ids, args }) => ({ intent, ids, args })));
+    // Receipt acknowledgements for delivered pages (`_delivery.<log>.ack`) are queued work of their own
+    // and can join the queue after reconnecting; the checks below follow the two sends.
+    const sendsOf = (items) => items.filter(item => item.op === "messages.send");
+    const queuedBeforeFault = sendsOf(await page.evaluate(async () => (await window.__snapback.outbox.entries())
+      .filter(entry => entry.state === "queued").map(({ intent, ids, args, op }) => ({ intent, ids, args, op }))))
+      .map(({ intent, ids, args }) => ({ intent, ids, args }));
     assert.equal(queuedBeforeFault.length, 2, "both intents are durable before reconnect");
     assert.equal(queuedBeforeFault[0].ids[0], queued.id, "the first cold intent keeps its pinned message id");
     await page.evaluate((id) => { window.__witnessPinnedBubble = document.querySelector(`li[data-message="${id}"]`); }, queued.id);
-    await context.unroute(cutOwner);
-    await page.evaluate(() => { window.__witnessFaults.push({ path: "/api/mutation", status: 503 }); });
-    await page.evaluate(() => window.__snapback.online());
-    const afterFault = await page.evaluate(async () => ({
-      settlement: await window.__snapback.outbox.settled(),
-      queued: (await window.__snapback.outbox.entries()).filter(entry => entry.state === "queued")
-        .map(({ intent, ids, args }) => ({ intent, ids, args })),
-      requests: window.__witnessRequests.filter(request => request.path === "/api/mutation"),
-    }));
-    assert.deepEqual(afterFault.settlement, { stopped: "transport", remaining: 2 }, "the lost receipt stops replay");
-    assert.deepEqual(afterFault.queued, queuedBeforeFault, "the 503 preserves both intents and their pinned bytes");
-    assert.equal(afterFault.requests.length, 1, "screen/auth lifetimes cause no additional replay");
-    assert.equal(afterFault.requests[0].status, 200, "the injected 503 follows a real owner response");
-    assert.equal(afterFault.requests[0].injectedStatus, 503, "the intended mutation response was lost");
-    // Settlement is durable custody; React publication has its own boundary.
-    // Check both, and keep the original DOM identity assertion across them.
-    await page.waitForFunction(() => document.querySelector("ol.bubbles")?.getAttribute("data-view-source") === "composite"
-      && document.querySelectorAll("li[data-state=queued]").length === 2, null, { timeout: 10_000 });
-    const retainedThroughComposite = await page.evaluate((id) =>
-      window.__witnessPinnedBubble === document.querySelector(`li[data-message="${id}"]`), queued.id);
-    if (!retainedThroughComposite) throw new Error("partial history to coherent composite remounted the pinned bubble");
-    assert.deepEqual(await page.evaluate(async () => window.__witnessRequests.filter(request => request.path === "/api/mutation")
-      .map(request => request.body)), afterFault.requests.map(request => request.body), "composite publication starts no replay");
-    step("partial history becomes a coherent composite without remounting its pinned bubble", { stopped: "transport", queued: 2, mutationRequests: 1 });
-    // beforeReplace runs before opening the IndexedDB transaction. Kill only
-    // after the first intent's committed image reaches that persistence boundary.
+    // beforeReplace runs before opening the IndexedDB transaction. Kill only after the first intent's
+    // committed image reaches that persistence boundary, so install the barrier before reconnecting.
+    // @ref LLP 1018.008.000#replay-after-transport-recovery — reaching the owner again after the lost
+    // receipt is a recovery opportunity; the client's one automatic retry is what reaches the barrier.
     await page.evaluate(([first, second]) => {
       window.__witnessBarrier = state => {
         if (state.outbox[first]?.state !== "committed") return;
@@ -1119,21 +1145,50 @@ async function main() {
         return new Promise(() => undefined);
       };
     }, queuedBeforeFault.map(entry => entry.intent));
-    const draining = page.evaluate(() => window.__snapback.outbox.drain()).catch(() => undefined);
+    await context.unroute(cutOwner);
+    await page.evaluate(() => { window.__witnessFaults.push({ path: "/api/mutation", status: 503 }); });
+    await page.evaluate(() => window.__snapback.online());
+    const afterFault = await page.evaluate(async () => ({
+      settlement: await window.__snapback.outbox.settled(),
+      queued: (await window.__snapback.outbox.entries()).filter(entry => entry.state === "queued")
+        .map(({ intent, ids, args, op }) => ({ intent, ids, args, op })),
+      requests: window.__witnessRequests.filter(request => request.path === "/api/mutation")
+        .map(request => ({ ...request, op: JSON.parse(String(request.body)).op })),
+    }));
+    const faultRequests = sendsOf(afterFault.requests);
+    assert.equal(afterFault.settlement.stopped, "transport", "the lost receipt stops replay");
+    assert.ok(afterFault.queued.every(entry => entry.op === "messages.send" || /^_delivery\.[^.]+\.ack$/.test(entry.op)),
+      `only the sends and receipt acknowledgements stay queued: ${JSON.stringify(afterFault.queued.map(entry => entry.op))}`);
+    assert.deepEqual(sendsOf(afterFault.queued).map(({ intent, ids, args }) => ({ intent, ids, args })), queuedBeforeFault,
+      "the 503 preserves both intents and their pinned bytes");
+    assert.equal(faultRequests.length, 1, "screen/auth lifetimes cause no additional replay");
+    assert.equal(faultRequests[0].status, 200, "the injected 503 follows a real owner response");
+    assert.equal(faultRequests[0].injectedStatus, 503, "the intended mutation response was lost");
+    // Settlement is durable custody; React publication has its own boundary.
+    // Check both, and keep the original DOM identity assertion across them.
+    await page.waitForFunction(() => document.querySelector("ol.bubbles")?.getAttribute("data-view-source") === "composite"
+      && document.querySelectorAll("li[data-state=queued]").length === 2, null, { timeout: 10_000 });
+    const retainedThroughComposite = await page.evaluate((id) =>
+      window.__witnessPinnedBubble === document.querySelector(`li[data-message="${id}"]`), queued.id);
+    if (!retainedThroughComposite) throw new Error("partial history to coherent composite remounted the pinned bubble");
+    step("partial history becomes a coherent composite without remounting its pinned bubble", { stopped: "transport", queued: 2 });
     await page.waitForFunction(() => window.__witnessSettlement !== undefined, null, { timeout: 10_000 });
     assert.deepEqual(await page.evaluate(() => window.__witnessSettlement), { first: "committed", second: "queued" });
-    const beforeKill = await page.evaluate(() => window.__witnessRequests.filter(request => request.path === "/api/mutation").map(request => request.body));
-    assert.deepEqual(beforeKill, [afterFault.requests[0].body, afterFault.requests[0].body], "the first retry is byte-identical; the second intent has not replayed");
+    const beforeKill = sendsOf(await page.evaluate(() => window.__witnessRequests.filter(request => request.path === "/api/mutation")
+      .map(request => ({ body: request.body, op: JSON.parse(String(request.body)).op })))).map(request => request.body);
+    assert.deepEqual(beforeKill, [faultRequests[0].body, faultRequests[0].body], "the automatic retry is byte-identical; the second intent has not replayed");
     await close();
-    await draining;
     page = await launch();
     await page.evaluate(() => window.__snapback.outbox.settled());
     await page.evaluate(() => window.__snapback.outbox.drain());
     await openChat(page, neverOpened);
     await page.waitForFunction(() => document.querySelectorAll("li[data-state=queued]").length === 0, null, { timeout: 10_000 });
     await page.waitForSelector(`li[data-message="${queued.id}"][data-state=row]`, { timeout: 10_000 });
-    const afterKill = await page.evaluate(() => window.__witnessRequests.filter(request => request.path === "/api/mutation").map(request => request.body));
-    assert.deepEqual(afterKill.map(body => JSON.parse(body).replay.intent), queuedBeforeFault.map(entry => entry.intent), "cold recovery replays the two durable intents in exact FIFO order");
+    const coldMutations = await page.evaluate(() => window.__witnessRequests.filter(request => request.path === "/api/mutation")
+      .map(request => ({ body: request.body, op: JSON.parse(String(request.body)).op })));
+    const afterKill = sendsOf(coldMutations).map(request => request.body);
+    assert.deepEqual(afterKill.map(body => JSON.parse(body).replay.intent), queuedBeforeFault.map(entry => entry.intent),
+      `cold recovery replays the two durable intents in exact FIFO order: ${JSON.stringify(coldMutations.map(request => request.op))}`);
     assert.equal(afterKill[0], beforeKill[0], "the interrupted settlement retains the identical first envelope");
     const durableAfterKill = await page.evaluate(async () => (await window.__snapback.outbox.entries())
       .map(({ intent, ids, args, state }) => ({ intent, ids, args, state })));
@@ -1177,7 +1232,7 @@ async function main() {
     step("revocation removes only the expired indexed row; the settled prediction remains in held Unicode search (LLP 1016 D5)");
     await page.evaluate(() => window.__snapback.online());
 
-    await sharedSessions(context, page, appUrl, owner.url);
+    await sharedSessions(context, page, appUrl, owner.url, seeded.account.principal);
     }
   } catch (error) {
     fail("witness", error);

@@ -1,6 +1,6 @@
 # Snapback 2 web witness is red, and its offline cold start refuses a dev persona
 
-**Status:** Open
+**Status:** Closed
 **Priority:** P2
 **Date:** 2026-09-11
 **Systems:** `snapback2/scripts/witness-web.mjs`, Snapback 2 client auth (`src/client-auth.ts`), React chat starter (`Auth.tsx`)
@@ -47,3 +47,29 @@ before settlement, revocation on resume, shared sessions) have not run on curren
   session. Record the choice here.
 - Get `node scripts/witness-web.mjs` green on `main`, or file each remaining real failure.
 - Run it on a schedule that reports a red, or remove the "scheduled" claim from its header.
+
+## Resolution — 2026-09-11
+
+**Status:** Closed. The author chose a real account over a persona that restores like a
+bearer session. `seed` signs up an account and `alice` adds it to all three conversations
+before the seeded messages are sent. The page logs in through the starter's own form with
+`browserTokenStore`, as `main.tsx` does, and relaunches restore the bearer from the profile's
+localStorage, so the offline cold start now exercises bearer restoration and passes. Offline
+replay and shared sessions follow the account's principal and partition.
+
+Three later steps were also stale against current `main`, none a product bug:
+
+- With IndexedDB refused, logging in stays signed out, shows "IndexedDB and Web Locks are
+  required", and records `E_OFFLINE_CARRIER` as `lastRefusal`. The persona-era page printed
+  the code instead.
+- After the lost receipt, reaching the owner again is a recovery opportunity (LLP
+  1018.008.000, "Replay after transport recovery"), so the client retries on its own. The
+  witness now installs its persistence barrier before reconnecting and lets that retry reach
+  it, instead of calling `drain()` afterwards.
+- Receipt acknowledgements (`_delivery.<log>.ack`, LLP 1019 D5) are queued mutations of their
+  own, so the 503 and cold-recovery checks follow the two sends.
+
+Evidence: the default run passed all 22 steps twice (headless Google Chrome, macOS, at
+`43df16068` with this change), and `--offline-replay`, `--signup` and `--sessions` each
+passed. No schedule was added, since that would be a new check needing human approval; the
+header no longer claims one.
