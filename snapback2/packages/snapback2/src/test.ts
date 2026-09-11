@@ -13,6 +13,7 @@ import {
 } from "./client.js";
 import { fileRangeStore } from "./store/file.js";
 import { canonicalAnswerKey } from "./store/canonical.js";
+import { cleanupJourney, journeyFailureMessage } from "./test-cleanup.js";
 // The journey effects contract is declared once, in the shipped types.
 import type { EffectsPage, EffectsSettlement, JourneyEffects, JourneyProvider, ProviderRequest } from "../types/test.js";
 
@@ -368,6 +369,10 @@ async function runCheck(
   const devices = new Set<Device>();
   const providers = new Set<JourneyProvider>();
   let epochClosed: Promise<void> | undefined;
+  let elapsedMs = 0;
+  let primaryError: unknown;
+  let passed = false;
+  let cleanupErrors: unknown[] = [];
   process.stdout.write(`${JSON.stringify({ runner: "start", name: check.name })}\n`);
   try {
     if (storeRoot) await rm(storeRoot, { recursive: true, force: true });
@@ -437,17 +442,26 @@ async function runCheck(
       url,
     })));
     await within(5_000, () => runOfflineDerived(devices));
-    process.stdout.write(`${JSON.stringify({ name: check.name, kind: "journey", verdict: "pass", ms: Math.round(performance.now() - started), detail: { file } })}\n`);
-    return true;
+    passed = true;
   } catch (error) {
-    process.stdout.write(`${JSON.stringify({ name: check.name, kind: "journey", verdict: "fail", ms: Math.round(performance.now() - started), detail: { file, error: error instanceof Error ? error.message : String(error) } })}\n`);
-    return false;
+    primaryError = error;
   } finally {
-    for (const client of clients) client.close();
-    await epochClosed;
-    for (const provider of providers) await provider.close().catch(() => undefined);
-    if (storeRoot) await rm(storeRoot, { recursive: true, force: true }).catch(() => undefined);
+    elapsedMs = Math.round(performance.now() - started);
+    cleanupErrors = await cleanupJourney({
+      clients,
+      epochClosed,
+      providers,
+      removeStoreRoot: storeRoot
+        ? () => rm(storeRoot, { recursive: true, force: true })
+        : undefined,
+    });
   }
+  if (passed && cleanupErrors.length === 0) {
+    process.stdout.write(`${JSON.stringify({ name: check.name, kind: "journey", verdict: "pass", ms: elapsedMs, detail: { file } })}\n`);
+    return true;
+  }
+  process.stdout.write(`${JSON.stringify({ name: check.name, kind: "journey", verdict: "fail", ms: elapsedMs, detail: { file, error: journeyFailureMessage(primaryError, cleanupErrors) } })}\n`);
+  return false;
 }
 
 if (

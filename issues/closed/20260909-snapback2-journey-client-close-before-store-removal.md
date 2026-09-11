@@ -1,9 +1,10 @@
 # Await journey client closure before removing durable store files
 
-Status: Open
+Status: Closed
 Systems: Snapback 2 test runner
 Related: LLP 1002, LLP 1018.007
 Reported: 2026-09-09, independent Sol xhigh proof-source review
+Resolved: 2026-09-10
 
 `snapback2/packages/snapback2/src/test.ts` finally starts each asynchronous
 `client.close()` without awaiting it, then removes the durable store root.
@@ -30,3 +31,12 @@ This disposition supersedes stale current-work claims above; historical observat
 Current src/test.ts still starts every client.close() without awaiting the returned promises, then awaits epoch/provider cleanup and removes storeRoot. Those unrelated awaits do not establish that durable carriers have finished closing.
 
 Source: snapback2/packages/snapback2/src/test.ts finally block in runJourney. Remaining: an actual delayed-close runner regression proving store removal waits; preserve the original journey error if cleanup fails. This triage confirms the source ordering, not an observed physical store-loss event.
+
+## Resolution — 2026-09-10
+
+`runCheck` now awaits all owned client closes before the epoch/provider cleanup
+and before removing its temporary store directory. Cleanup uses all-settled
+semantics so one failed close cannot prevent another close from completing, and
+the emitted failure retains the primary journey error followed by any cleanup
+errors. `test-runner-cleanup.test.ts` deterministically holds one close promise
+and proves root removal cannot overtake it.
