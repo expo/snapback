@@ -1173,6 +1173,30 @@ test("non-live useQuery keeps hydrating across a network failure, reports connec
   await client.close();
 });
 
+test("a non-live useQuery mounted during bearer confirmation dispatches once", async () => {
+  const confirmation = Promise.withResolvers<Response>();
+  let queryRequests = 0, view: any;
+  const value = realClient({ url: "http://wire.test", tokenStore: {
+    load: () => "token-a", save: () => undefined,
+    loadPrincipalBinding: () => ({ token: "token-a", principal: "alice" }), savePrincipal: () => undefined,
+  }, fetch: async input => {
+    const path = new URL(String(input)).pathname;
+    if (path === "/api/auth/me") return confirmation.promise;
+    if (path === "/api/manifest") return fetchJson({ generation: "g", programGeneration: "p", ops: {}, channels: {}, auth: {} });
+    if (path === "/api/query") { queryRequests += 1; return fetchJson({ state: "complete", data: [], seq: 1, next: null }); }
+    throw new Error(`unexpected route ${path}`);
+  } });
+  function Harness() { view = useQuery(api.messages.thread, {}, { live: false }); return null; }
+  let renderer!: TestRenderer.ReactTestRenderer;
+  try {
+    await act(async () => { renderer = TestRenderer.create(React.createElement(SnapbackProvider, { client: value }, React.createElement(Harness))); await new Promise(resolve => setImmediate(resolve)); });
+    assert.equal(queryRequests, 0, "the one-shot waits for stored-bearer confirmation");
+    await act(async () => { confirmation.resolve(fetchJson({ viewer: "alice", kind: "user", authEpoch: 1 })); await value.ready; await new Promise(resolve => setImmediate(resolve)); });
+    assert.equal(view.receipt?.state, "complete");
+    assert.equal(queryRequests, 1, "confirmation resumes rather than replaces the mounted one-shot");
+  } finally { confirmation.resolve(fetchJson({ viewer: "alice", kind: "user", authEpoch: 1 })); if (renderer) await act(async () => renderer.unmount()); await value.close(); }
+});
+
 test("separately bundled client and React entry points share generated API references", async () => {
   const bundledClient: any = await import("../dist/client.mjs");
   const bundledReact: any = await import("../dist/react.mjs");

@@ -320,9 +320,9 @@ for (const state of ["authenticated", "backoff", "pending"] as const) {
         if (state === "authenticated") assert.equal(client.snapshot.auth.viewer, "alice");
         else {
           assert.equal(client.snapshot.auth.restoringViewer, "alice");
-          assert.ok(client.snapshot.auth.retryAt! > Date.now());
-          context.mock.timers.tick(client.snapshot.auth.retryAt! - Date.now()); await flush();
-          assert.equal(requests, 2, "failed transition must leave a live restoration timer");
+          assert.equal(client.snapshot.auth.retryAt! - Date.now(), 1_000, "a failed transition restarts at the initial backoff");
+          context.mock.timers.tick(999); await flush(); assert.equal(requests, 1, "the restored timer does not fire early");
+          context.mock.timers.tick(1); await flush(); assert.equal(requests, 2, "failed transition must leave a live restoration timer");
         }
       } finally { response.resolve(me()); await client.close(); }
     });
