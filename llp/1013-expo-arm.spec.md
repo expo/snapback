@@ -263,7 +263,7 @@ Schema, one database file per app (`snapback2.db` under the app's document direc
 partition as a column so `wipe` is one `DELETE` per table:
 
 ```sql
-CREATE TABLE IF NOT EXISTS state   (partition TEXT NOT NULL PRIMARY KEY, value TEXT NOT NULL);         -- scalar metadata header
+CREATE TABLE IF NOT EXISTS state   (partition TEXT NOT NULL PRIMARY KEY, value TEXT NOT NULL);         -- metadata-format sentinel
 CREATE TABLE IF NOT EXISTS metadata (partition TEXT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY (partition, key));
 CREATE TABLE IF NOT EXISTS rows    (partition TEXT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY (partition, key));
 CREATE TABLE IF NOT EXISTS answers (partition TEXT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY (partition, key));
@@ -273,19 +273,23 @@ CREATE TABLE IF NOT EXISTS bytes   (partition TEXT NOT NULL, key TEXT NOT NULL, 
 
 `key` is the JSON encoding of the tuple the state uses (decision 3); the byte table has no
 type column because `ByteDelta.put` carries `{ key, bytes }` and the MIME type lives in the
-state's asset record, as in the IndexedDB carrier; `state.value` is the same
-scalar header the IndexedDB carrier writes. Object/array metadata fields (watermarks,
-grants, overlay, bounds, programs, facts, viewed, and future state fields) are separate
-records in SQLite's `metadata` table and IndexedDB's `meta` store. This prevents a clock
-update from rewriting all row sequence guards or the held program. The shared projection
-in `store/projection.ts` keeps the carriers aligned; a test asserts every field of
-`PersistedRangeState` survives a round trip on all three carriers.
+state's asset record, as in the IndexedDB carrier. `state.value` is the constant empty
+metadata-format and root-inventory sentinel also written in IndexedDB's `meta` store.
+Every metadata root (watermarks, grants, overlay, bounds, programs, facts, viewed, and
+future fields) has a `[field]` record containing its scalar value or constant container
+shell; object/array children use `[field,key]`, including an explicit array-length child.
+This prevents a clock update from rewriting all row sequence guards or the held program
+while preserving JSON omission, null, sparse-array, and own-property semantics. The shared
+projection in `store/projection.ts` keeps the carriers aligned; a test asserts every field
+of `PersistedRangeState` survives a round trip on all three carriers.
 
 The projection is one module (`store/projection.ts`) shared by the IndexedDB and sqlite
-carriers; it defines the wire form of the state — `undefined` fields dropped, `null` kept — and
-the store keeps its in-memory state in that same form, so a warm store and a reopened one
-agree; a store whose rows exist without a meta record is opened with a default-filled meta on
-every carrier.
+carriers; it defines the wire form of the state — undefined object fields dropped, `null`
+kept, and undefined or missing array slots restored as `null` — and the store keeps its
+in-memory state in that same form, so a warm store and a reopened one agree. A first write
+uses the full projection to establish the root inventory; only a successfully committed
+sentinel enables journal-bounded metadata updates. A store whose rows exist without a meta
+record is opened with a default-filled meta on every carrier.
 
 `replace(state, bytes, previous?)`: compute changed projections, then apply only their puts
 and removals plus the byte delta inside `driver.transaction`; await `beforeCommit?.()`

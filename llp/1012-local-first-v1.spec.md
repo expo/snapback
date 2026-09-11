@@ -325,6 +325,18 @@ interface RangeStore {
   transaction. An outbox-only swap shares unchanged history in memory and
   does not rewrite its rows or answers; LLP 1013 §14 records the workload
   that justified replacing the initial whole-state rewrite.
+  Metadata has the JSON form before it is split: undefined object properties
+  are omitted, array holes and undefined array items become null, array length
+  survives reopen, and even `__proto__` is restored as an own property. Each
+  metadata root is stored at `[field]` as a scalar or constant `{}`/`[]` shell,
+  with children at `[field,key]` and array length at `[field,"length"]`; the
+  reserved `state` record is an empty migration and root-inventory sentinel.
+  Full replacements and root journals normalize the complete root. Ordinary
+  child journals visit only named values, while installing, removing, or
+  changing a callable root `toJSON` promotes the root to the serialization
+  boundary. The first database write is always a full projection so an aborted
+  transaction and its retry cannot publish a partial root inventory; later
+  swaps keep the journal's changed-record bound.
 - **Partition, seal, wipe.** The partition key is the principal id, never
   the bearer. Sessions expire after thirty days with no renewal (§1), so a
   terminal `E_AUTH_SESSION` **seals** the partition — unreadable, outbox
