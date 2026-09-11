@@ -8,7 +8,7 @@ import { indexedDbRangeStore } from '../dist/react.mjs';
 import { sqliteFactory } from './sqlite-fixture.ts';
 import { FakeIndexedDb, FakeLocks } from './fake-indexeddb.ts';
 import { test } from 'node:test';
-import { OfflineRuntime, PersistentRangeStore, drainOutbox, applyDeliveryAcknowledgements, sqliteState } from '../dist/sqlite-test.mjs';
+import { OfflineRuntime, PersistentRangeStore, drainOutbox, applyDeliveryAcknowledgements, DeliveryAcknowledgementIndex, SwapJournal, sqliteState } from '../dist/sqlite-test.mjs';
 import { engineId } from './fake-owner.ts';
 import { RefusalError } from '../dist/client-observed-test.mjs';
 
@@ -244,7 +244,7 @@ test('accepted acknowledgement marks and replay bytes survive file, SQLite and I
       indexedDbRangeStore({indexedDB:new FakeIndexedDb() as any,locks:new FakeLocks() as any})]) {
       const start=async () => { const r=new OfflineRuntime({store:factory}); await r.open('u1',true); await r.program(program); return r; };
       let r=await start(); await accept(r); await r.close();
-      r=await start(); assert.equal(Object.keys(await r.store.outbox.pendingDeliveryAcks()).length,1);
+      r=await start(); assert.equal((await r.store.outbox.pendingDeliveryAcks()).remaining,1);
       await r.outbox.adopt(grant()); await r.outbox.admitAcknowledgements();
       const intent=(await r.outbox.queued())[0]; await r.close();
       r=await start(); assert.deepEqual((await r.outbox.queued())[0],intent);
@@ -273,27 +273,28 @@ test('a long accepted tail retains compacted marks only for held log rows and su
   }
   await r.close();const cold=await open(c);
   assert.equal(Object.keys(c.saved().deliveryAcks).length,1,'the bound survives reopen');
-  assert.deepEqual(await cold.store.outbox.pendingDeliveryAcks(),{},'retained bindings are not pending');
+  assert.deepEqual(await cold.store.outbox.pendingDeliveryAcks(),{remaining:0},'retained bindings are not pending');
   await cold.close();
 });
 
 test('pending acknowledgement reads are detached while admitted and retry bindings remain durable', async () => {
   const c=carrier(), r=await open(c); await accept(r);
-  const pending=await r.store.outbox.pendingDeliveryAcks(), key=Object.keys(pending)[0];
-  assert.equal(pending[key],2);
-  pending[key]=999; pending['deliveries\0foreign']=999;
-  assert.deepEqual(await r.store.outbox.pendingDeliveryAcks(),{[key]:2});
+  const pending=await r.store.outbox.pendingDeliveryAcks(), expected=structuredClone(pending);
+  const key=`deliveries\0${pending.next.args.events[0]}`;
+  assert.equal(pending.next.issuedSeq,2);
+  pending.next.issuedSeq=999; pending.next.args.events.push('foreign'); pending.remaining=999;
+  assert.deepEqual(await r.store.outbox.pendingDeliveryAcks(),expected);
   await r.outbox.adopt(grant()); await r.outbox.admitAcknowledgements();
   const entry=(await r.outbox.queued())[0];
-  assert.deepEqual(await r.store.outbox.pendingDeliveryAcks(),{});
+  assert.deepEqual(await r.store.outbox.pendingDeliveryAcks(),{remaining:0});
   assert.equal(c.saved().deliveryAcks[key][1],entry.intent);
   await r.store.commit({outbox:{put:[{...entry,state:'expired'}]}});
-  assert.deepEqual(await r.store.outbox.pendingDeliveryAcks(),{},'retry waits for accepted redelivery');
+  assert.deepEqual(await r.store.outbox.pendingDeliveryAcks(),{remaining:0},'retry waits for accepted redelivery');
   assert.equal(c.saved().deliveryAcks[key][2],true);
   await accept(r);
-  assert.deepEqual(await r.store.outbox.pendingDeliveryAcks(),{[key]:2});
+  assert.deepEqual(await r.store.outbox.pendingDeliveryAcks(),expected);
   await r.close();
-  assert.deepEqual(await r.store.outbox.pendingDeliveryAcks(),{});
+  assert.deepEqual(await r.store.outbox.pendingDeliveryAcks(),{remaining:0});
 });
 
 // `_delivery` is a legal module stem: an authored `_delivery.send` is an ordinary product write
@@ -308,4 +309,110 @@ test('an authored _delivery.* product mutation is not an acknowledgement', () =>
   state.outbox['g:2'] = ack; // the put lands in the same transaction; a bound, unretried mark whose intent AND event row are both absent retires
   applyDeliveryAcknowledgements(state, { outbox: { put: [ack] } } as any, 'alice');
   assert.equal(state.deliveryAcks['deliveries\0e1'][1], 'g:2', 'the engine-owned acknowledgement binds its mark');
+});
+
+test('pending work reads at most one batch even with a blocked large backlog', () => {
+  const acks: any = Object.fromEntries(Array.from({length:10008},(_,n)=>[`deliveries\0e${n}`,[n]]));
+  acks['other\0event']=[10009];
+  const index=new DeliveryAcknowledgementIndex(acks);
+  let reads=0, enumerations=0;
+  const watched=new Proxy(acks,{get:(target,key)=>{reads++;return target[key];},ownKeys:target=>{enumerations++;return Reflect.ownKeys(target);}});
+  for(let n=0;n<20;n++) {
+    const pending=index.read(watched);
+    assert.equal(pending.remaining,202);assert.equal(pending.next.args.events.length,50);
+    assert.equal(pending.next.issuedSeq,49);
+  }
+  assert.equal(reads,1000);assert.equal(enumerations,0);
+  reads=0;let batches=0,total=0;
+  for(let next;(next=index.read(watched)).remaining;) {
+    const log=next.next.op.split('.')[1],keys=next.next.args.events.map(id=>`${log}\0${id}`);
+    for(const key of keys) acks[key]=[acks[key][0],`intent-${batches}`];
+    index.update(acks,keys);batches++;total+=keys.length;
+  }
+  assert.equal(batches,202);assert.equal(total,10009);assert.equal(reads,10009);
+  assert.equal(enumerations,0);
+});
+
+test('incremental acknowledgement cleanup matches the full oracle across compaction, retry, policy, and rollback', () => {
+  const state:any={...sqliteState(),deliveryAcks:{},rows:{},outbox:{}};
+  for(let n=0;n<1000;n++) {const key=`deliveries\0e${n}`;state.deliveryAcks[key]=[n,`i${n}`];state.rows[key]={};}
+  state.deliveryAcks['deliveries\0retry']=[1,'retry',true];
+  const index=new DeliveryAcknowledgementIndex(state.deliveryAcks);
+  const apply=(change:(draft:any)=>void,swap:any={},rollback=false)=>{
+    const journal=new SwapJournal(state);change(journal.draft);
+    const oracle=structuredClone(state);
+    applyDeliveryAcknowledgements(oracle,swap,'u1');
+    applyDeliveryAcknowledgements(journal.draft,swap,'u1',index,journal.changed);
+    assert.deepEqual(state.deliveryAcks,oracle.deliveryAcks);
+    if(rollback) journal.rollback();else index.update(state.deliveryAcks,journal.changed.get('deliveryAcks')??[]);
+  };
+  // Retiring an intent and its event in one transaction still reaches the reverse binding.
+  apply(draft=>{delete draft.rows['deliveries\0e10'];delete draft.outbox.i10;});
+  assert.equal(state.deliveryAcks['deliveries\0e10'],undefined);
+  apply(draft=>{delete draft.rows['deliveries\0e11'];}, {}, true);
+  assert(state.deliveryAcks['deliveries\0e11']);
+  apply(draft=>{delete draft.rows['deliveries\0e11'];});
+  apply(draft=>{draft.deliveryAcks['deliveries\0retry']=[7];});
+  assert.deepEqual(index.read(state.deliveryAcks).next.args.events,['retry']);
+  const changed=new Map([['outbox',new Set(['i12'])]]);
+  assert.deepEqual([...index.candidates(state,{bounds:{[ackOp]:0}},changed)],['deliveries\0e12']);
+  apply(()=>{}, {bounds:{other:0}});
+  assert.deepEqual(state.deliveryAcks,{});assert.deepEqual(index.read(state.deliveryAcks),{remaining:0});
+});
+
+test('failed acknowledgement admission leaves both pending index and grant slice unchanged through reopen', async () => {
+  const c=carrier();let r=await open(c);await accept(r);await r.outbox.adopt(grant());
+  const pending=await r.store.outbox.pendingDeliveryAcks(),before=await r.outbox.grant();
+  c.fail(true);await assert.rejects(r.outbox.admitAcknowledgements(),/durable write failed/);c.fail(false);
+  assert.deepEqual(await r.store.outbox.pendingDeliveryAcks(),pending);assert.deepEqual(await r.outbox.grant(),before);
+  await r.close();r=await open(c);assert.deepEqual(await r.store.outbox.pendingDeliveryAcks(),pending);
+  assert.equal(await r.outbox.admitAcknowledgements(),1);assert.equal((await r.outbox.queued()).length,1);
+  assert.deepEqual(await r.store.outbox.pendingDeliveryAcks(),{remaining:0});await r.close();
+});
+
+const emptyAckResult=()=>({state:'committed',seq:3,data:null,effects:[],program:{schemaHash:program.schemaHash,planHash:ack.certificate.plan_hash}});
+async function queuedAck() {
+  const c=carrier(),r=await open(c);await r.outbox.adopt(grant());await accept(r);
+  await r.store.commit({watermark:{op,args:{c:null},watermark:null,updatedAt:1}});
+  return {c,r,entry:(await r.outbox.queued())[0]};
+}
+test('an effect-free generated acknowledgement settles durably without the ordinary tail request', async () => {
+  const {c,r,entry}=await queuedAck();let requests=0;
+  const result=await drainOutbox({runtime:r,json:async(path:any)=>{requests++;assert.equal(path,'/api/mutation');return emptyAckResult();},shape:m=>new Error(m),failure:e=>e});
+  assert.equal(result.stopped,false);assert.equal(requests,1);
+  assert.equal(c.saved().deliveryAcks[Object.keys(c.saved().deliveryAcks)[0]][1],entry.intent);
+  assert.equal((await r.outbox.queued()).length,0);await r.close();
+});
+
+for(const condition of ['effects','missing-effects','identity','missing-identity','prediction','overlay','superseded','ordinary'] as const)
+test(`${condition} prevents acknowledgement-only settlement and retains the queued envelope when the tail fails`, async () => {
+  const {r,entry}=await queuedAck(),response:any=emptyAckResult();
+  if(condition==='effects')response.effects=[{table:'deliveriesReceipts',id:'r'}];
+  if(condition==='missing-effects')delete response.effects;
+  if(condition==='identity')response.program.planHash='f'.repeat(64);
+  if(condition==='missing-identity')delete response.program;
+  if(condition==='prediction')await r.store.commit({outbox:{put:[{...entry,predicted:true}]}});
+  if(condition==='overlay')await r.store.commit({overlay:{put:{[entry.intent]:[]}}});
+  if(condition==='superseded')await r.store.commit({superseded:{generation:'f'.repeat(64),schemaHash:program.schemaHash,authEpoch:1}});
+  if(condition==='ordinary')await r.store.commit({outbox:{put:[{...entry,op:'_delivery.send'}]}});
+  let tails=0;
+  await assert.rejects(drainOutbox({runtime:r,json:async(path:any)=>{if(path==='/api/mutation')return response;tails++;throw new Error('tail unavailable');},shape:m=>new Error(m),failure:e=>e}),/tail unavailable/);
+  assert.equal(tails,1);assert.equal((await r.store.outbox.get(entry.intent)).state,'queued');await r.close();
+});
+
+test('acknowledgement eligibility is rechecked within settlement and a changed proof falls back without resending', async () => {
+  const {r,entry}=await queuedAck();const check=r.store.outbox.acknowledgementWithoutTail.bind(r.store.outbox);
+  r.store.outbox.acknowledgementWithoutTail=async e=>{const eligible=await check(e);assert(eligible);await r.store.commit({overlay:{put:{[entry.intent]:[]}}});return eligible;};
+  let sends=0,tails=0;
+  await assert.rejects(drainOutbox({runtime:r,json:async(path:any)=>{if(path==='/api/mutation'){sends++;return emptyAckResult();}tails++;throw new Error('fallback tail unavailable');},shape:m=>new Error(m),failure:e=>e}),/fallback tail unavailable/);
+  assert.equal(sends,1);assert.equal(tails,1);assert.equal((await r.store.outbox.get(entry.intent)).state,'queued');await r.close();
+});
+
+test('acknowledgement-only swaps cannot change their own program proof and failed durability retains queued custody', async () => {
+  const {c,r,entry}=await queuedAck();const settled=r.outbox.settle(entry,'committed',emptyAckResult());
+  const changed=structuredClone(program);changed.programs[ackOp].planHash='f'.repeat(64);
+  await assert.rejects(r.store.commit({outbox:{put:[settled],acknowledgementOnly:true},programs:{[generation]:changed}}));
+  assert.equal((await r.store.outbox.get(entry.intent)).state,'queued');assert.equal((await r.store.outbox.programs())[generation].programs[ackOp].planHash,ack.certificate.plan_hash);
+  c.fail(true);await assert.rejects(r.store.commit({outbox:{put:[settled],acknowledgementOnly:true}}),/durable write failed/);c.fail(false);
+  assert.equal((await r.store.outbox.get(entry.intent)).state,'queued');await r.close();
 });

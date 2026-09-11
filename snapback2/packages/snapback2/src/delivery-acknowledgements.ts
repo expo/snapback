@@ -4,7 +4,8 @@ import { imageRecord } from '../../evaluator/src/row-image.js';
 import { collectRefs, rowKey } from './store/row-values.js';
 import { storedProgram } from './store/canonical.js';
 import { dropOverlay } from './store/overlay-retirement.js';
-import type { PersistedRangeState, StoreSwap } from './store/range-store.js';
+import type { OutboxEntry, PersistedRangeState, StoreSwap } from './store/range-store.js';
+import type { ChangedRecords } from './store/swap-journal.js';
 
 /** The engine-owned acknowledgement mutation of one custody log (`receipts.rs::ack_name`). */
 const ACK_OP = /^_delivery\.([^.]+)\.ack$/;
@@ -12,19 +13,73 @@ const ACK_OP = /^_delivery\.([^.]+)\.ack$/;
 /** Keyed by the log row key. A terminal binding retries only on accepted redelivery. */
 export type DeliveryAcknowledgement = [seq: number, intent?: string, retry?: boolean];
 
-// @ref LLP 1019#6-receipts-with-receipts — retained bindings suppress
-// duplicate receipts. Admission needs only detached, unbound identities;
-// copying retained history on every page dominates large acquisitions.
-export function pendingDeliveryAcks(acks: Record<string, DeliveryAcknowledgement>): Record<string, number> {
-  const pending: Record<string, number> = {};
-  for (const key of Object.keys(acks)) {
-    const [seq, intent] = acks[key];
-    if (!intent) pending[key] = seq;
-  }
-  return pending;
+export interface PendingDeliveryAcks {
+  remaining: number;
+  next?: { op: string; args: { events: string[] }; issuedSeq: number };
 }
 
-export function applyDeliveryAcknowledgements(state: PersistedRangeState, swap: StoreSwap, principal: string): boolean {
+// @ref LLP 1018.008.007.001#3-acknowledgements-proportional-to-changed-state —
+// derived keys only; patch after durability, never while a draft can roll back.
+export class DeliveryAcknowledgementIndex {
+  private readonly bindings = new Map<string, string | undefined>();
+  private readonly intents = new Map<string, Set<string>>();
+  private readonly pending = new Map<string, Set<string>>();
+  private readonly logs = new Map<string, number>();
+  private remaining = 0;
+
+  constructor(acks: PersistedRangeState['deliveryAcks']) { this.update(acks, Object.keys(acks)); }
+
+  update(acks: PersistedRangeState['deliveryAcks'], keys: Iterable<string>): void {
+    for (const key of keys) {
+      const present = this.bindings.has(key), before = this.bindings.get(key), after = acks[key]?.[1];
+      if (present && acks[key] && before === after) continue;
+      const log = key.split('\0')[0];
+      if (present) {
+        const map = before ? this.intents : this.pending, group = before || log, set = map.get(group)!;
+        if (!before) this.remaining -= Math.ceil(set.size / 50);
+        set.delete(key);
+        if (!before) this.remaining += Math.ceil(set.size / 50);
+        if (!set.size) map.delete(group);
+        this.bindings.delete(key);
+        const count = this.logs.get(log)! - 1;
+        if (count) this.logs.set(log, count); else this.logs.delete(log);
+      }
+      if (!acks[key]) continue;
+      this.bindings.set(key, after);
+      this.logs.set(log, (this.logs.get(log) ?? 0) + 1);
+      const map = after ? this.intents : this.pending, group = after || log;
+      const set = map.get(group) ?? new Set<string>(); map.set(group, set);
+      if (!after) this.remaining -= Math.ceil(set.size / 50);
+      set.add(key);
+      if (!after) this.remaining += Math.ceil(set.size / 50);
+    }
+  }
+
+  read(acks: PersistedRangeState['deliveryAcks']): PendingDeliveryAcks {
+    const first = this.pending.entries().next().value;
+    if (!first) return { remaining: 0 };
+    const [log, keys] = first, events: string[] = [];
+    let issuedSeq = 0;
+    for (const key of keys) {
+      events.push(key.slice(log.length + 1)); issuedSeq = Math.max(issuedSeq, acks[key][0]);
+      if (events.length === 50) break;
+    }
+    return { remaining: this.remaining, next: { op: `_delivery.${log}.ack`, args: { events }, issuedSeq } };
+  }
+
+  candidates(state: PersistedRangeState, swap: StoreSwap, changed: ChangedRecords): Iterable<string> {
+    const roots = changed.get('*');
+    if (['rows', 'outbox', 'deliveryAcks'].some(k => roots?.has(k))
+      || swap.bounds && [...this.logs.keys()].some(log => swap.bounds![`_delivery.${log}.ack`] === undefined))
+      return Object.keys(state.deliveryAcks);
+    const keys = new Set([...changed.get('deliveryAcks') ?? [], ...changed.get('rows') ?? []]);
+    for (const intent of changed.get('outbox') ?? []) for (const key of this.intents.get(intent) ?? []) keys.add(key);
+    return keys;
+  }
+}
+
+export function applyDeliveryAcknowledgements(state: PersistedRangeState, swap: StoreSwap, principal: string,
+  index?: DeliveryAcknowledgementIndex, changed?: ChangedRecords): boolean {
   const schema = storedProgram(state, swap)?.schema;
   for (const page of swap.deliveries ?? []) {
     if (!page.receipt || page.state === 'denied') continue;
@@ -60,13 +115,36 @@ export function applyDeliveryAcknowledgements(state: PersistedRangeState, swap: 
     }
   }
   let removed = false;
-  for (const [key, ack] of Object.entries(state.deliveryAcks)) {
+  for (const key of index && changed ? index.candidates(state, swap, changed) : Object.keys(state.deliveryAcks)) {
+    const ack = state.deliveryAcks[key]; if (!ack) continue;
     if (swap.bounds && swap.bounds[`_delivery.${key.split('\0')[0]}.ack`] === undefined) {
       delete state.deliveryAcks[key]; removed = true;
     } else if (ack[1] && !ack[2] && !state.outbox[ack[1]] && !state.rows[key]) delete state.deliveryAcks[key];
   }
   return removed;
 }
+
+// @ref LLP 1018.008.007.001#5-avoid-redundant-query-work-without-suppressing-progress —
+// empty actual effects are owner evidence; unresolved certified targets are not.
+export function acknowledgementWithoutTail(state: PersistedRangeState, entry: OutboxEntry,
+  queued = state.outbox[entry.intent]): boolean {
+  const held = storedProgram(state), log = ACK_OP.exec(entry.op)?.[1];
+  const result = entry.response as { effects?: unknown; program?: { planHash?: string; schemaHash?: string } } | undefined;
+  const targets = entry.targets;
+  return !!held && !!log && !state.sealed && !state.superseded && entry.state === 'committed'
+    && queued?.state === 'queued' && queued.op === entry.op && held.programs[entry.op]?.kind === 'mutation'
+    && !queued.predicted && !entry.predicted && !state.overlay[entry.intent] && !!targets
+    && queued.targets?.generation === targets.generation && queued.targets.schemaHash === targets.schemaHash
+    && queued.targets.planHash === targets.planHash
+    && targets.generation === held.generation && targets.schemaHash === held.schemaHash
+    && targets.planHash === held.programs[entry.op]?.planHash
+    && result?.program?.schemaHash === targets.schemaHash && result.program.planHash === targets.planHash
+    && Array.isArray(result.effects) && result.effects.length === 0
+    && Object.values(held.schema.tables ?? {}).some(t => t.deliver?.receipts && t.deliver.log === log);
+}
+
+/** A changed eligibility proof retains the queued intent and uses the ordinary tail path. */
+export class AcknowledgementTailRequired extends Error {}
 
 /** The page and its FIFO custody use the same carrier transaction. */
 export function applyOutboxSwap(state: PersistedRangeState, swap: StoreSwap, clone: <T>(value: T) => T): Set<string> {

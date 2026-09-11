@@ -32,6 +32,7 @@ export class SwapJournal<T extends object> {
     let current: any = value, copied = false;
     const children = new Map<PropertyKey, { value: any; proxy: any }>();
     const write = (key: PropertyKey, next: any, remove = false): void => {
+      if (remove && !Object.hasOwn(current, key)) return;
       if (path.length >= 2 && !copied) {
         current = Array.isArray(current) ? current.slice() : { ...current };
         copied = true; parent!(current);

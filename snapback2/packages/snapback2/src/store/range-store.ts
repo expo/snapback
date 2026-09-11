@@ -1,5 +1,7 @@
 import { cursorArgument } from "../local-cursor.js";
-import { applyDeliveryAcknowledgements, applyOutboxSwap, pendingDeliveryAcks } from "../delivery-acknowledgements.js";
+import { applyDeliveryAcknowledgements, applyOutboxSwap, DeliveryAcknowledgementIndex,
+  acknowledgementWithoutTail, AcknowledgementTailRequired } from "../delivery-acknowledgements.js";
+import { admittedMutationTargets } from '../mutation-targets.js';
 import { RangeReceipt, preparedDeliveryRanges } from '../../../evaluator/src/range-preparation.js';
 import { RowImage, ImageKeys, imageWire, imageRecord, imageRecords, imageState, preparedChanges, preparedProjection } from '../../../evaluator/src/row-image.js';
 import { CarrierIndex } from "./carrier-index.js";
@@ -9,7 +11,7 @@ import { ClockCoverageReset, FullRevalidationRequired, deliveryFacts, FactTransa
   imageSlots, extentSlots, extentMeaning, FACT_FORMAT, type FactProof, type PreparedImage } from './fact-integrity.js';
 import { extentContains, rangeMeaningKey, type FactImage, type FactExtent, type ExtentProof, type ExtentCondition } from './extent-facts.js';
 import { SwapJournal, StoreChanges, raw, type StoreRevision, type StoreChange, type ChangedRecords } from "./swap-journal.js";
-import { changesQueryInputs, outboxOrder } from "./query-inputs.js";
+import { changesQueryInputs, outboxOrder, type QueryInputChange } from "./query-inputs.js";
 import { compactSuccesses } from "./success-compaction.js";
 import { onceColumns, onceRow, onceAssetIds, nullOnceMedia, type OnceColumns } from "./asset-policy.js";
 // @ref LLP 1012#4-the-range-store — every carrier persists the same per-principal answer/range model.
@@ -189,86 +191,9 @@ export interface CoverageMetadata {
   superseded?: CoverageFacts;
 }
 
-export type OutboxState = "queued" | "committed" | "rejected" | "expired";
-/** What the twin read when the intent was queued: the replay envelope's `trace` (LLP 1012 §7). */
-export interface OutboxTrace {
-  points: Array<{ table: string; index: string; key: unknown[]; digest: string | null }>;
-  verdicts: Array<{ ruleHash: string; inputsDigest: string; result: boolean }>;
-}
-// @ref LLP 1012#7-writes-offline — one durable intent: its pinned id slice, its
-// bytes, and its terminal response, so a retry is the same envelope.
-export interface OutboxEntry {
-  effects?: import("./success-compaction.js").SuccessEffects;
-  targets?: import("../mutation-targets.js").AdmittedMutationTargets;
-  intent: string;
-  grant: string;
-  offset: number;
-  count: number;
-  ids: string[];
-  op: string;
-  args: unknown;
-  issuedSeq: number;
-  expectedGeneration?: string;
-  state: OutboxState;
-  response?: unknown;
-  presentation?: string; // The submitter's table choice, fixed with admission.
-  predicted?: boolean;
-  /** A pinned or confirmed authoritative row arrived; dismiss only after rendering it. */
-  arrived?: true;
-  /** Prediction and its trace were skipped; the program will check this write on the server. */
-  reason?: "fence";
-  /**
-   * The owner's last non-retryable `input`/`schema` refusal of this queued intent's
-   * replay (a removed enum case, LLP 1020 A2). The intent is unspent and still
-   * queued; it is the one kind of queued entry `dismiss` admits. Cleared durably
-   * before another replay can send, and on settlement.
-   */
-  refusal?: import("../types.js").Refusal;
-  /** Engine-owned aggregate targets the prediction's overlay omits by design (the server writes them); absent when none. */
-  omitted?: string[];
-  trace?: OutboxTrace;
-  createdAt: number;
-  updatedAt: number;
-  /** Durable FIFO position; assigned by the store when absent. */
-  order?: number;
-  /**
-   * The inbox row this entry was admitted from, when a follower tab wrote it;
-   * the row's public name `inbox:<key>` is an alias for this entry from then on
-   * (LLP 1018.004 §1).
-   */
-  inbox?: number;
-}
+import type { OutboxEntry, OutboxGrant, OutboxStore } from "./outbox.js";
+export type { OutboxState, OutboxTrace, OutboxEntry, OutboxGrant, OutboxStore } from "./outbox.js";
 
-/** A principal-bound replay grant plus the client's own consumption cursor. */
-export interface OutboxGrant {
-  id: string;
-  from: string;
-  count: number;
-  mintedAt: number;
-  expiresAt: number;
-  used: number;
-}
-
-export interface OutboxStore {
-  pendingDeliveryAcks?(): Promise<Record<string, number>>;
-  compactedThrough?(): Promise<number>;
-  all(): Promise<OutboxEntry[]>;
-  get(intent: string): Promise<OutboxEntry | undefined>;
-  put(entry: OutboxEntry): Promise<void>;
-  remove(intent: string): Promise<void>;
-  /** The grant new intents consume from, if one is held. */
-  grant(): Promise<OutboxGrant | undefined>;
-  /** Every held grant, including those older queued intents still name. */
-  grants(): Promise<OutboxGrant[]>;
-  /** Each op's persisted write bound (`maxNewIds`); an enqueue refuses without one. */
-  bounds(): Promise<Record<string, number>>;
-  /** The prediction overlay by intent: the rows a queued intent's local run wrote, `removed` for a delete. */
-  overlay(): Promise<Record<string, OverlayRow[]>>;
-  /** The certified programs held for this partition, keyed by generation. */
-  programs(): Promise<Record<string, HeldProgram>>;
-}
-
-/** A predicted row: the write's final image, or a `removed` marker for a row the intent deletes. */
 export interface OverlayRow extends StoredRow { removed?: true; fields?: string[] }
 
 export interface StoreDelivery {
@@ -324,7 +249,7 @@ export interface StoreSwap {
   dropAnswers?: string[];
   /** Explicitly retire unusable delivery-log candidates by canonical answer key. */
   dropWatermarks?: string[];
-  outbox?: { put?: OutboxEntry[]; remove?: string[] };
+  outbox?: { put?: OutboxEntry[]; remove?: string[]; acknowledgementOnly?: true };
   /** Inbox rows to mark or delete in this swap's carrier transaction: a per-key delta, never a store replacement (LLP 1018.004 §2). */
   inbox?: InboxDelta;
   /**
@@ -371,7 +296,7 @@ export interface RangeStore {
   metadata?(): Promise<CoverageMetadata>;
   changes(since?: StoreRevision): Promise<StoreChange<PersistedRangeState>>;
   /** @ref LLP 1018#3-move-one-one-coherent-reactive-client — post-commit effective local query inputs. */
-  subscribeInputs(listener: () => void): () => void;
+  subscribeInputs(listener: (kind?: QueryInputChange) => void): () => void;
   readonly outbox: OutboxStore;
   /** Stable carrier namespace used with backend identity and principal for tab coordination. */
   readonly coordinationScope?: string;
@@ -538,11 +463,12 @@ function changesCoverage(swap: StoreSwap): boolean {
 /** Shared swap engine; carrier subclasses only provide the atomic replace. */
 export class PersistentRangeStore implements RangeStore {
   private state = emptyState();
+  private acknowledgementIndex?: DeliveryAcknowledgementIndex;
   private referenceIndex?: CarrierIndex;
   private referenceSchema?: OfflineSchema;
   private persisted?: PersistedRangeState;
   private readonly updates = new StoreChanges<PersistedRangeState>();
-  private readonly inputListeners = new Set<() => void>();
+  private readonly inputListeners = new Set<(kind?: QueryInputChange) => void>();
   private partition?: PrincipalPartition;
   private tail: Promise<void> = Promise.resolve();
   private readonly touchedBytes = new Set<string>();
@@ -550,10 +476,13 @@ export class PersistentRangeStore implements RangeStore {
   readonly outbox: OutboxStore = {
     pendingDeliveryAcks: async () => {
       await this.tail;
-      return this.partition === undefined || this.state.sealed ? {} : pendingDeliveryAcks(this.state.deliveryAcks);
+      return this.partition === undefined || this.state.sealed ? { remaining: 0 } : this.acknowledgements().read(this.state.deliveryAcks);
     },
     compactedThrough: () => this.read(() => this.state.sealed ? 0 : this.state.compactedThrough ?? 0),
     all: () => this.readOutbox(state => outboxOrder(state.outbox)),
+    queued: () => this.readOutbox(state => outboxOrder(state.outbox, true)),
+    targets: (op, args, ids) => this.readOutbox(state => admittedMutationTargets(storedProgram(state), op, args, ids)),
+    acknowledgementWithoutTail: entry => this.readOutbox(state => acknowledgementWithoutTail(state, entry)),
     get: (intent) => this.readOutbox(state => state.outbox[intent]),
     put: (entry) => this.commit({ outbox: { put: [entry] } }),
     remove: (intent) => this.commit({ outbox: { remove: [intent] } }),
@@ -567,6 +496,9 @@ export class PersistentRangeStore implements RangeStore {
   /** Every outbox view shares the same admission and detached-value boundary. */
   private readOutbox<T>(select: (state: PersistedRangeState) => T): Promise<T> {
     return this.read(() => { this.ensureUnsealed(); return clone(select(this.state)); });
+  }
+  private acknowledgements(): DeliveryAcknowledgementIndex {
+    return this.acknowledgementIndex ??= new DeliveryAcknowledgementIndex(this.state.deliveryAcks);
   }
 
   readonly acquire?: (partition: PrincipalPartition, signal?: AbortSignal) => Promise<void>;
@@ -592,6 +524,7 @@ export class PersistentRangeStore implements RangeStore {
       if (this.partition === partition) return;
       if (this.partition !== undefined && this.partition !== partition) await this.backend.close();
       this.referenceIndex = undefined; this.referenceSchema = undefined;
+      this.acknowledgementIndex = undefined;
       this.partition = undefined;
       try {
       const loaded = await this.backend.open(partition);
@@ -720,7 +653,7 @@ export class PersistentRangeStore implements RangeStore {
       return jsonState(change); });
   }
 
-  subscribeInputs(listener: () => void): () => void {
+  subscribeInputs(listener: (kind?: QueryInputChange) => void): () => void {
     this.inputListeners.add(listener);
     return () => { this.inputListeners.delete(listener); };
   }
@@ -768,6 +701,11 @@ export class PersistentRangeStore implements RangeStore {
       const delta: ByteDelta = { put: [], remove: [] };
       // Normalize before deriving answer keys/fingerprints, then normalize the state we publish.
       const normalized = { ...jsonState(rest), ...(bytes === undefined ? {} : { bytes }) };
+      const ackEntry = normalized.outbox?.acknowledgementOnly ? normalized.outbox.put?.[0] : undefined;
+      const ackQueued = ackEntry && this.state.outbox[ackEntry.intent];
+      if (normalized.outbox?.acknowledgementOnly && (normalized.outbox.put?.length !== 1
+        || normalized.outbox.remove?.length || !acknowledgementWithoutTail(this.state, normalized.outbox.put[0])))
+        throw new AcknowledgementTailRequired();
       for (let i = 0; i < (swap.deliveries?.length ?? 0); i++) {
         const images = swap.deliveries![i][preparedDeliveryRows];
         if (images) {
@@ -783,10 +721,12 @@ export class PersistentRangeStore implements RangeStore {
         }
       }
       const journal = new SwapJournal(this.state), priorIndex = this.referenceIndex, priorSchema = this.referenceSchema;
+      const acknowledgements = this.acknowledgements();
       try {
         const removed = this.applySwap(journal.draft, normalized, delta);
+        if (ackEntry && !acknowledgementWithoutTail(journal.draft, ackEntry, ackQueued)) throw new AcknowledgementTailRequired();
         const compactedAliases = compactSuccesses(journal.draft);
-        const removedAcks = applyDeliveryAcknowledgements(journal.draft, normalized, this.partition!);
+        const removedAcks = applyDeliveryAcknowledgements(journal.draft, normalized, this.partition!, acknowledgements, journal.changed);
         const combinedInbox = compactedAliases.length ? { ...inbox, remove: [...(inbox?.remove ?? []), ...compactedAliases] } : inbox;
         this.updates.prepare(journal.changed);
         await this.replace(this.state, delta, undefined, journal.changed, combinedInbox);
@@ -795,13 +735,18 @@ export class PersistentRangeStore implements RangeStore {
         if (removedAcks) console.info("delivery acknowledgements removed: receipts removed");
       } catch (error) { journal.rollback(); this.referenceIndex = priorIndex; this.referenceSchema = priorSchema; throw error; }
       this.persisted = this.state;
+      try {
+        if (journal.changed.get('*')?.has('deliveryAcks')) this.acknowledgementIndex = undefined;
+        else acknowledgements.update(this.state.deliveryAcks, journal.changed.get('deliveryAcks') ?? []);
+      } catch { this.acknowledgementIndex = undefined; } // Committed state is never rolled back for a derived index.
       this.updates.publish(this.state, journal.changed);
       if (['answers', 'programs', 'onceColumns', 'rows', 'viewed'].some(k => journal.changed.get('*')?.has(k))) this.referenceIndex = undefined;
       else { try { this.referenceIndex?.update(this.state, journal.changed, normalized.schema); }
         catch (error) { this.referenceIndex = undefined; throw error; } }
 
-      if (changesQueryInputs(journal.changed)) for (const listener of [...this.inputListeners]) {
-        try { listener(); } catch { /* store durability cannot depend on an observer */ }
+      const inputChange = changesQueryInputs(journal.changed, this.state);
+      if (inputChange) for (const listener of [...this.inputListeners]) {
+        try { listener(inputChange); } catch { /* store durability cannot depend on an observer */ }
       }
 
     });
@@ -892,6 +837,7 @@ export class PersistentRangeStore implements RangeStore {
     });
   }
   private release(): void {
+    this.acknowledgementIndex = undefined;
     this.partition = undefined; this.state = emptyState(); this.persisted = undefined;
     this.referenceIndex = undefined; this.referenceSchema = undefined; this.updates.reset();
     this.touchedBytes.clear();

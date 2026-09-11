@@ -1,4 +1,5 @@
 import { defined, operationArgs, queryArgs } from "./store/canonical.js";
+import type { QueryInputChange } from "./store/query-inputs.js";
 import { isSha256 } from "../../evaluator/src/hash.js";
 import { decodeHeldProgram, queryClock } from "./held-program.js";
 import { cursorArgument, serverArguments } from "./local-cursor.js";
@@ -203,7 +204,7 @@ export class OfflineRuntime {
   private held?: HeldProgram;
   private resumeQueries: MountedQuery[] = [];
   private tail: Promise<void> = Promise.resolve();
-  private readonly inputListeners = new Set<() => void>();
+  private readonly inputListeners = new Set<(kind?: QueryInputChange) => void>();
   private readonly stopInputChanges?: () => void;
   /** Fences deliveries already in flight when coverage or principal is replaced. */
   coverageRevision = 0;
@@ -232,7 +233,7 @@ export class OfflineRuntime {
       now: () => Date.now(),
       seq: () => this.latestSeq,
     });
-    this.stopInputChanges = this.store.subscribeInputs(() => this.publishInputs());
+    this.stopInputChanges = this.store.subscribeInputs(kind => this.publishInputs(kind));
   }
 
   get principal(): string | undefined { return this.partition; }
@@ -296,7 +297,7 @@ export class OfflineRuntime {
   get needsDrainMetadata(): boolean { return !!this.held && Object.values(this.held.programs).some(op => op.drain === undefined); }
 
   /** Observe committed local inputs; each listener schedules and fences its own evaluation. */
-  subscribeInputs(listener: () => void): () => void {
+  subscribeInputs(listener: (kind?: QueryInputChange) => void): () => void {
     this.inputListeners.add(listener);
     return () => { this.inputListeners.delete(listener); };
   }
@@ -390,9 +391,9 @@ export class OfflineRuntime {
     this.inboxCompactedThrough = 0;
   }
 
-  private publishInputs(): void {
+  private publishInputs(kind: QueryInputChange = "semantic"): void {
     for (const listener of [...this.inputListeners]) {
-      try { listener(); } catch { /* query observers cannot fail a durable read */ }
+      try { listener(kind); } catch { /* query observers cannot fail a durable read */ }
     }
   }
 
@@ -431,7 +432,7 @@ export class OfflineRuntime {
     this.inboxRowsCache = rows;
     this.inboxLedgerCache = ledger;
     this.inboxCompactedThrough = compactedThrough;
-    if (changed) { this.outbox.notify(); this.publishInputs(); }
+    if (changed) { this.outbox.notify(); this.publishInputs("items"); }
     return changed;
   }
 
@@ -504,7 +505,7 @@ export class OfflineRuntime {
     if (this.inboxConnection && admitted > 0) {
       this.inboxLedgerCache = Object.fromEntries((await this.outbox.entries()).map((entry) => [entry.intent, entry]));
     }
-    if (changed) { this.outbox.notify(); this.publishInputs(); }
+    if (changed) { this.outbox.notify(); this.publishInputs("items"); }
     return defined({ admitted, stopped });
   }
 
@@ -782,7 +783,7 @@ export class OfflineRuntime {
   async commitMany(
     items: Array<{ op: string; args: unknown; accepted: AcceptedDelivery<unknown> }>,
     watermark?: Omit<WatermarkRecord, "generation" | "schemaHash" | "authEpoch" | "updatedAt">,
-    outbox?: { put?: OutboxEntry[]; remove?: string[] },
+    outbox?: StoreSwap['outbox'],
     revision?: number,
     current?: () => boolean,
     resumeSeq?: number,

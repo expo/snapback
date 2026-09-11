@@ -5,7 +5,7 @@
 **Systems:** `snapback2/packages/snapback2` (client, React, the range-store carriers, the `chat` template, the recipes, the journey primitives), `snapback2/packages/compiler` (the certificate's retention line if ruling 8 stands), `snapback2/crates/snapback2` (the wire: the frozen delivery envelope, `/api/resume`, the replay envelope, grants), `snapback2/crates/snapback2-core` (`_client_intents`, grants, the public receipt projection; `ClientStore` as the reference replay), LLP 1006's asset client (the device byte cache), `rules/NOT-DOING.md`
 **Author:** Claude Fable 5.1, at the author's direction and rulings, 2026-09-04
 **Date:** 2026-09-04
-**Revised:** 2026-09-11 (structural curation only; revision and landing chronology moved to LLP 1022)
+**Revised:** 2026-09-11 (bounded acquisition bookkeeping and effect-free acknowledgement settlement; earlier chronology in LLP 1022)
 **Related:** LLP 0329.014.004 §5 dimension F and §7 (the contract this implements), LLP 0329.014.007 F8 and F11 (the assessment; "not a replica"), LLP 0329.014.008 (the eight candidates — §11 says which this takes and which wait), LLP 1001 (engine: `ClientStore`, `new_ids`, receipts, absences, `_sessions`), LLP 1002 §4 (wire) and §9 (client states; `queued` reserved), LLP 1006 §9b (bytes on the device), LLP 1007 §4a (the two-bar pattern), LLP 1009 (shelved by the trade, §13), LLP 1022 (implementation, measurement, and review history), `benchmarks/briefs/social-messenger.md` M5–M6, `issues/20260830-snapback2-wire-evaluator-into-public-client.md`, `issues/20260806-expo-file-carrier-process-kill-witness.md`, `guide/sync/offline-and-retention.md` (Snapback 1's four mechanisms — what not to rebuild), `rules/NOT-DOING.md`, the panel record `llp/reviews/1012-local-first-v1.*`
 
 ## Summary
@@ -811,6 +811,30 @@ every held row and receipt through `coverage()`. Custom carriers without that
 optional selector retain the coverage fallback. The returned metadata is
 isolated from mutable aliases and grants no new authority. This removes
 sender-settlement copying; recipient delivery is measured separately.
+
+The carrier also projects admitted mutation targets from its held program and
+filters queued entries before detaching them. `targets(op, args, ids)` reuses
+the certified target calculation; `queued()` preserves the full ledger's exact
+ordering. Full `programs()` and `all()` reads remain detached. Custom carriers
+without these optional selectors retain the existing full-read fallback.
+
+**Effect-free receipt acknowledgements (2026-09-11).** The engine-generated
+acknowledgement of a receipt-enabled log can settle without the application
+tail when admitted, current and committed program identities agree, the owner
+explicitly reports no observable effects, and neither prediction nor overlay
+exists. Eligibility is checked within the atomic terminal transaction; a changed
+proof retains queued custody and falls back to the ordinary tail. All other
+mutations keep their existing tail and failure behavior. The terminal alone
+earns no query coverage, observation, watermark progress or fence renewal
+([LLP 1019 §6](./1019-derived-delivery-custody.rfc.md#6-receipts-with-receipts)).
+
+Store input notifications distinguish semantic changes from ledger-only `items`
+changes. Item refresh preserves the owned query image, receipt, refusal and
+observation while updating work and compaction freshness. Rows, overlays,
+coverage, clocks, authority and lifecycle changes keep semantic refresh; an
+omitted kind from a custom carrier is semantic. The shared query owner lets
+semantic work finish despite item nudges and fences obsolete results. This is
+bookkeeping inside the existing subscription, not an additional query lifetime.
 
 A grant is bound to the **principal**, not the session, so a fresh session
 for the same principal finishes its outbox. Ids are the engine's own

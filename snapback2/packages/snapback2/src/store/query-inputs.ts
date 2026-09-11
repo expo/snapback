@@ -1,20 +1,28 @@
 import type { ChangedRecords } from "./swap-journal.js";
-import type { OutboxEntry } from "./range-store.js";
+import type { OutboxEntry, PersistedRangeState } from "./range-store.js";
+
+export type QueryInputChange = "semantic" | "items";
 
 /** The carrier's durable FIFO order, including its legacy timestamp tie-break. */
 export const outboxFifo = (a: OutboxEntry, b: OutboxEntry): number =>
   (a.order ?? a.createdAt) - (b.order ?? b.createdAt) || a.intent.localeCompare(b.intent);
-export function outboxOrder(entries: Record<string, OutboxEntry>): OutboxEntry[] {
-  return Object.values(entries).sort((a, b) =>
+export function outboxOrder(entries: Record<string, OutboxEntry>, queued = false): OutboxEntry[] {
+  const selected = Object.values(entries);
+  return (queued ? selected.filter(entry => entry.state === "queued") : selected).sort((a, b) =>
     (a.order ?? a.createdAt) - (b.order ?? b.createdAt) || a.createdAt - b.createdAt || (a.intent < b.intent ? -1 : 1));
 }
 
-const RECORDS = ["answers", "rows", "negative", "extentNegative", "rowSeq", "viewed", "outbox", "overlay", "watermarks"];
-const ROOTS = [...RECORDS, "facts", "superseded", "programs", "onceColumns", "sealed", "compactedThrough"];
+const RECORDS = ["answers", "rows", "negative", "extentNegative", "rowSeq", "viewed", "overlay", "overlayNegatives", "watermarks"];
+const ROOTS = [...RECORDS, "facts", "superseded", "programs", "onceColumns", "sealed", "outbox"];
 
-/** Carrier fields read by `answer()` or the incremental twin; transport-only custody stays silent. */
-export function changesQueryInputs(changed: ChangedRecords): boolean {
-  if (RECORDS.some((category) => (changed.get(category)?.size ?? 0) > 0)) return true;
+// @ref LLP 1018.008.007.001#5-avoid-redundant-query-work-without-suppressing-progress — a real
+// removed overlay is journal-visible; a retained one is in the committed state. No row scan is needed.
+export function changesQueryInputs(changed: ChangedRecords, state: Pick<PersistedRangeState, "overlay">): QueryInputChange | undefined {
+  if (RECORDS.some((category) => (changed.get(category)?.size ?? 0) > 0)) return "semantic";
   const roots = changed.get("*");
-  return roots !== undefined && ROOTS.some((key) => roots.has(key));
+  if (roots !== undefined && ROOTS.some((key) => roots.has(key))) return "semantic";
+  const outbox = changed.get("outbox");
+  if (outbox && [...outbox].some(intent => Object.hasOwn(state.overlay, intent))) return "semantic";
+  if (outbox?.size || roots?.has("compactedThrough")) return "items";
+  return undefined;
 }

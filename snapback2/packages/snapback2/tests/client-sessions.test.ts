@@ -3,7 +3,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import React from "react";
 import TestRenderer, { act } from "react-test-renderer";
-import { api } from "../dist/client.mjs";
+import { api, defineItems, mutationTarget } from "../dist/client.mjs";
+import { itemInputs, withItemInputs } from "../dist/image-runtime.mjs";
+import { changesQueryInputs } from "../src/store/query-inputs.ts";
 import { RefusalError, isRefusalError } from "../dist/client-observed-test.mjs";
 import { indexedDbRangeStore, SnapbackProvider, useQuery } from "../dist/react.mjs";
 import { ClientQueries, DrainSubscription, SharedSubscriptions, TabFollower } from "../dist/client-observed-test.mjs";
@@ -23,6 +25,195 @@ async function until(condition: () => Promise<boolean> | boolean, what: string, 
 
 const observedVerdict = (snapshot: any): string => snapshot.refusal !== undefined
   ? "refused" : snapshot.receipt?.state ?? snapshot.status;
+
+type RefreshKind = "semantic" | "items";
+type RefreshFrame = { value: number; items: number };
+function controlledRefresh() {
+  const shared = new SharedSubscriptions(), calls: Array<{
+    kind: RefreshKind; snapshot: RefreshFrame; result: ReturnType<typeof Promise.withResolvers<RefreshFrame>>;
+  }> = [], heard: RefreshFrame[] = [];
+  let publish!: (event: RefreshFrame) => void;
+  const spec = {
+    key: "controlled-refresh", initial: { value: 0, items: 0 },
+    reduce: (current: RefreshFrame, event: RefreshFrame) => current.value === event.value && current.items === event.items ? current : event,
+    open: (listener: typeof publish) => {
+      publish = listener;
+      return { close: () => undefined, reset: () => undefined, until: async () => { throw new Error("shared waiter only"); } };
+    },
+    refresh: (snapshot: RefreshFrame, _authoritative: unknown, kind: RefreshKind = "semantic") => {
+      const result = Promise.withResolvers<RefreshFrame>(); calls.push({ kind, snapshot, result }); return result.promise;
+    },
+  };
+  const subscription = shared.attach(spec, (event: RefreshFrame) => { heard.push(event); });
+  return { shared, calls, heard, subscription, publish: (event: RefreshFrame) => publish(event), view: shared.observe(spec) };
+}
+
+// @ref LLP 1018.008.007.001#5-avoid-redundant-query-work-without-suppressing-progress —
+// pending semantic work dominates items; items cannot starve an in-flight semantic result.
+for (const pair of [["semantic", "items"], ["items", "semantic"], ["semantic", "semantic"], ["items", "items"]] as const) {
+  test(`scheduled ${pair.join(" then ")} refreshes coalesce without losing semantic work`, async () => {
+    const f = controlledRefresh();
+    f.shared.refresh(pair[0]); f.shared.refresh(pair[1]);
+    await until(() => f.calls.length === 1, "the coalesced refresh");
+    assert.equal(f.calls[0].kind, pair.some(kind => kind === "semantic") ? "semantic" : "items");
+    f.calls[0].result.resolve({ value: 1, items: 2 });
+    await until(() => f.heard.length === 1, "the coalesced result");
+    assert.deepEqual(f.view.getSnapshot(), { value: 1, items: 2 });
+    f.subscription.close();
+  });
+}
+
+test("a finite item burst cannot cancel semantic progress and finishes with current items", async () => {
+  const f = controlledRefresh(); f.shared.refresh();
+  await until(() => f.calls.length === 1, "the semantic read");
+  for (let n = 0; n < 20; n++) f.shared.refresh("items");
+  f.calls[0].result.resolve({ value: 1, items: 0 });
+  await until(() => f.calls.length === 2, "the latched item read");
+  assert.deepEqual(f.heard, [{ value: 1, items: 0 }], "semantic progress publishes before the item read resolves");
+  assert.equal(f.calls[1].kind, "items");
+  assert.deepEqual(f.calls[1].snapshot, { value: 1, items: 0 }, "items start from the new semantic image");
+  f.calls[1].result.resolve({ value: 1, items: 20 });
+  await until(() => f.heard.length === 2, "the latest item state");
+  assert.deepEqual(f.view.getSnapshot(), { value: 1, items: 20 });
+  assert.equal(f.calls.length, 2); f.subscription.close();
+});
+
+for (const kind of ["items", "semantic"] as const) {
+  test(`a semantic change fences an in-flight ${kind} refresh`, async () => {
+    const f = controlledRefresh(); f.shared.refresh(kind);
+    await until(() => f.calls.length === 1, "the earlier refresh");
+    f.shared.refresh("semantic"); f.shared.refresh("items");
+    f.calls[0].result.resolve({ value: 1, items: 1 });
+    await until(() => f.calls.length === 2, "the later semantic refresh");
+    assert.deepEqual(f.heard, [], "the superseded image was never published");
+    assert.equal(f.calls[1].kind, "semantic");
+    f.calls[1].result.resolve({ value: 2, items: 2 });
+    await until(() => f.heard.length === 1, "the current semantic image");
+    assert.deepEqual(f.view.getSnapshot(), { value: 2, items: 2 }); f.subscription.close();
+  });
+
+  test(`a direct delivery and reset fence an in-flight ${kind} refresh`, async () => {
+    const f = controlledRefresh(); f.publish({ value: 1, items: 1 }); f.shared.refresh(kind);
+    await until(() => f.calls.length === 1, "the earlier refresh");
+    (f.subscription as any).reset();
+    assert.deepEqual(f.view.getSnapshot(), { value: 0, items: 0 }, "reset withdrew the preceding image");
+    f.publish({ value: 3, items: 3 });
+    f.calls[0].result.resolve({ value: 2, items: 2 });
+    await until(() => f.calls.length === 2, "the refresh after the direct image");
+    assert.deepEqual(f.heard, [{ value: 1, items: 1 }, { value: 3, items: 3 }]);
+    assert.equal(f.calls[1].kind, kind);
+    assert.deepEqual(f.calls[1].snapshot, { value: 3, items: 3 });
+    f.calls[1].result.resolve({ value: 3, items: 4 });
+    await until(() => f.heard.length === 3, "the current item state after reset");
+    f.subscription.close();
+  });
+
+  test(`retiring authority discards an in-flight ${kind} refresh`, async () => {
+    const f = controlledRefresh(); f.shared.refresh(kind);
+    await until(() => f.calls.length === 1, "the predecessor refresh");
+    f.shared.clear(); f.calls[0].result.resolve({ value: 9, items: 9 });
+    await new Promise<void>(resolve => setImmediate(resolve));
+    assert.deepEqual(f.heard, []); assert.deepEqual(f.view.getSnapshot(), { value: 0, items: 0 });
+  });
+}
+
+test("carrier input classification preserves semantic custody and excludes allocation clocks", () => {
+  const kind = (category: string, key: string, overlay = {}) => changesQueryInputs(new Map([[category, new Set([key])]]), { overlay });
+  assert.equal(kind("outbox", "ack"), "items");
+  assert.equal(kind("*", "compactedThrough"), "items");
+  assert.equal(kind("*", "clock"), undefined, "grant/intent allocation is not a query execution clock");
+  assert.equal(kind("grants", "grant"), undefined);
+  assert.equal(kind("outbox", "edit", { edit: [] }), "semantic", "unchanged retained overlay custody remains semantic");
+  assert.equal(kind("overlay", "edit"), "semantic", "a real removed overlay remains in the journal");
+  for (const category of ["answers", "rows", "negative", "extentNegative", "rowSeq", "viewed", "overlayNegatives", "watermarks"]) {
+    assert.equal(kind(category, "changed"), "semantic", category);
+  }
+  for (const root of ["facts", "superseded", "programs", "onceColumns", "sealed", "outbox", "overlay"]) {
+    assert.equal(kind("*", root), "semantic", root);
+  }
+});
+
+test("item refresh updates work and compaction without changing the query's image or observation", async () => {
+  let publish!: (event: any) => void, entries: any[] = [], compactedThrough = 0, localRuns = 0;
+  const queries = new ClientQueries({
+    identity: () => [1, 1] as const, active: () => true, connection: () => "connected",
+    open: (_ref: unknown, _args: unknown, listener: typeof publish) => {
+      publish = listener; return { close: () => undefined, until: async () => { throw new Error("shared waiter only"); } };
+    },
+    query: async () => { throw new Error("unused"); },
+    local: async () => { localRuns++; return { state: "complete", data: [{ id: "m", body: "new clock" }], next: null, seq: 7 }; },
+    entries: async () => entries, compactedThrough: async () => compactedThrough,
+  } as any);
+  const items = defineItems(api.messages.thread as any, { table: "messages", update: { target: mutationTarget(api.messages.edit, "messages") } });
+  const observed = queries.observe(api.messages.thread, { c: null }, { items });
+  const stop = observed.subscribe(() => undefined), row = { id: "m", body: "owner clock" };
+  const observation = { through: 7, order: 1 }, program = { generation: "g", schemaHash: "s" };
+  publish(withItemInputs({ state: "complete", live: true, data: [row], next: null, seq: 7 }, {
+    entries: [], compactedThrough: 0, program, observations: new Map([["messages\0m", observation]]),
+    predicted: new Map(), values: new Map([[row, "messages\0m"]]),
+  }));
+  const initial = observed.getSnapshot();
+  entries = [{ intent: "edit", op: "messages.edit", args: { messageId: "m" }, ids: [], state: "queued", issuedSeq: 7,
+    order: 2, createdAt: 1, updatedAt: 1, targets: { ...program, planHash: "p", rows: [{ table: "messages", id: "m", kind: "update" }], unresolved: [], complete: true } }];
+  queries.refresh("items");
+  await until(() => observed.getSnapshot().items[0]?.pending.length === 1, "the attached queued work");
+  const queued = observed.getSnapshot();
+  assert.strictEqual(queued.data, initial.data); assert.strictEqual(queued.receipt, initial.receipt);
+  assert.deepEqual(itemInputs(queued)?.observations.get("messages\0m"), observation);
+  entries = [{ ...entries[0], state: "rejected", updatedAt: 2, response: { state: "rejected", code: "NO" } }];
+  queries.refresh("items");
+  await until(() => observed.getSnapshot().items[0]?.pending[0]?.state === "rejected", "the rejected work");
+  entries = []; compactedThrough = 8; queries.refresh("items");
+  await until(() => observed.getSnapshot().freshness.compactedThrough === 8, "compaction freshness");
+  const compacted = observed.getSnapshot();
+  assert.deepEqual(compacted.items[0]?.pending, []); assert.equal(compacted.reason?.code, "changed");
+  assert.strictEqual(compacted.data, initial.data); assert.deepEqual(compacted.receipt, initial.receipt);
+  assert.deepEqual(itemInputs(compacted)?.observations.get("messages\0m"), observation);
+  assert.equal(localRuns, 0, "item admission, rejection and compaction never ran the twin");
+  queries.refresh(); // Missing classification, including custom carriers, remains semantic.
+  await until(() => (observed.getSnapshot().data as any)?.[0]?.body === "new clock", "same-sequence semantic clock update");
+  assert.equal(localRuns, 1);
+  const refusedEvents: any[] = [];
+  const raw = queries.subscribe(api.messages.thread, { c: null }, event => refusedEvents.push(event));
+  publish({ state: "refused", live: false, code: "E_AUTH_SESSION", family: "auth", message: "session ended", guide: "auth" });
+  const refused = observed.getSnapshot(); entries = [{ intent: "still-durable", op: "other", state: "queued", ids: [] }];
+  queries.refresh("items");
+  await until(() => refusedEvents.length === 2, "the refused entry's item publication");
+  assert.equal(itemInputs(refusedEvents[1])?.entries.length, 1, "the shared entry receives the new ledger inputs");
+  assert.equal(refusedEvents[1].code, "E_AUTH_SESSION", "raw callbacks retain the refusal envelope shape");
+  assert.strictEqual(observed.getSnapshot().refusal, refused.refusal, "item bookkeeping cannot reinterpret or clear a refusal");
+  assert.strictEqual(observed.getSnapshot(), refused, "unrelated ledger work keeps an unchanged public item projection stable");
+  assert.equal(observed.getSnapshot().data, undefined); assert.equal(localRuns, 1); raw.close(); stop();
+});
+
+for (const selector of ["entries", "compactedThrough"] as const) for (const obsolete of [false, true])
+test(`${selector} item-read failure publishes a refusal only for current authority (obsolete=${obsolete})`, async () => {
+  let publish!: (event: any) => void, active = true;
+  const started = Promise.withResolvers<void>(), failed = Promise.withResolvers<never>();
+  const events: any[] = [];
+  const queries = new ClientQueries({
+    identity: () => [1, 1] as const, active: () => active, connection: () => "connected",
+    open: (_ref: unknown, _args: unknown, listener: typeof publish) => {
+      publish = listener; return { close() {}, until: async () => { throw new Error("unused"); } };
+    },
+    query: async () => { throw new Error("unused"); }, local: async () => { throw new Error("must not evaluate"); },
+    entries: async () => [], compactedThrough: async () => 0,
+    [selector]: async () => { started.resolve(); return failed.promise; },
+  } as any);
+  const raw = queries.subscribe(api.messages.thread, { c: null }, event => events.push(event));
+  const observed = queries.observe(api.messages.thread, { c: null }), stop = observed.subscribe(() => undefined);
+  publish({ state: "complete", live: true, data: [], next: null, seq: 1 });
+  queries.refresh("items"); await started.promise;
+  if (obsolete) active = false;
+  failed.reject(new Error("carrier read failed"));
+  if (obsolete) { await new Promise(resolve => setTimeout(resolve, 20)); assert.equal(events.length, 1); }
+  else {
+    await until(() => events.length === 2, "current carrier failure");
+    assert.equal(events[1].state, "refused");assert.equal(events[1].code, "E_CLIENT");
+    assert.match(events[1].message, /carrier read failed/); assert.equal(observed.getSnapshot().status, "unavailable");
+  }
+  raw.close(); stop();
+});
 
 class MemoryBroadcastChannel {
   static members = new Map<string, Set<MemoryBroadcastChannel>>();
@@ -661,6 +852,43 @@ test("mounted query snapshots follow committed prediction and settlement revisio
   assert.equal(secondNotifies, firstNotifies);
   raw.close(); stopFirst(); stopSecond();
   await client.close();
+});
+
+test("durable item-only queue changes update mounted work without running the twin", async () => {
+  const physical = indexedDbRangeStore({ indexedDB: new FakeIndexedDb() as any, locks: new FakeLocks() as any })();
+  const owner = fakeOwner({ seed: true, cursorArg: "c" });
+  const client = createClient({ url: "http://item-inputs.test", persona: "alice", fetch: owner.fetch, offline: { store: () => physical } });
+  await client.ready;
+  const items = defineItems(api.messages.thread as any, { table: "messages", select: (value: any) => value.message,
+    update: { target: mutationTarget(api.messages.edit, "messages") } });
+  const observed = client.observe(api.messages.thread, { conversationId: "conversation-1", c: null }, { items });
+  const stop = observed.subscribe(() => undefined);
+  try {
+    await until(() => observed.getSnapshot().items.length === 1, "the initial owner image");
+    await client.offline(); await new Promise(resolve => setTimeout(resolve, 20));
+    const runtime = (client as any).offlineRuntime, evaluate = runtime.twin.evaluate.bind(runtime.twin);
+    let runs = 0;
+    runtime.twin.evaluate = (...args: unknown[]) => { runs++; return evaluate(...args); };
+    const kinds: Array<RefreshKind | undefined> = [], unlisten = physical.subscribeInputs(kind => kinds.push(kind));
+    const initial = observed.getSnapshot(), message = initial.items[0].data!;
+    const program = Object.values(await physical.outbox.programs())[0];
+    const entry = { intent: "item-only-edit", op: "messages.edit", args: { messageId: message.id, body: "not predicted" },
+      grant: "grant", offset: 0, count: 1, ids: [], state: "queued" as const, issuedSeq: initial.receipt!.seq,
+      createdAt: 1, updatedAt: 1, targets: { generation: program.generation, schemaHash: program.schemaHash,
+        planHash: program.programs["messages.edit"].planHash, complete: true, unresolved: [],
+        rows: [{ table: "messages", kind: "update" as const, id: message.id }] } };
+    await physical.commit({ outbox: { put: [entry] } });
+    await until(() => observed.getSnapshot().items[0]?.pending.length === 1, "the saved item work");
+    assert.strictEqual(observed.getSnapshot().data, initial.data);
+    assert.strictEqual(observed.getSnapshot().receipt, initial.receipt);
+    await physical.commit({ outbox: { put: [{ ...entry, state: "rejected", updatedAt: 2 }] } });
+    await until(() => observed.getSnapshot().items[0]?.pending[0]?.state === "rejected", "the terminal work");
+    await physical.commit({ outbox: { remove: [entry.intent] } });
+    await until(() => observed.getSnapshot().items[0]?.pending.length === 0, "the dismissed work");
+    assert.deepEqual(kinds, ["items", "items", "items"]);
+    assert.equal(runs, 0, "the whole store/runtime/shared-observer path avoided twin execution");
+    unlisten();
+  } finally { stop(); await client.close(); }
 });
 
 test("identical drains share one page walk and one tail", async () => {

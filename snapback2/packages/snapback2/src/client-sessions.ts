@@ -3,6 +3,7 @@
 // mounted record, released when the last consumer closes.
 import { RefusalError, copyRefusal } from "./client-wire.js";
 import type { Subscription } from "./types.js";
+import type { QueryInputChange } from "./store/query-inputs.js";
 
 interface Waiter<Event> {
   predicate: (event: Event) => boolean;
@@ -48,22 +49,22 @@ interface Entry<Event, Snapshot> {
   /** Latest live server value; local revisions may return to it after overlays settle. */
   authoritative?: Event;
   epoch: number;
-  refreshPending: boolean;
+  refreshPending?: QueryInputChange;
   refreshScheduled: boolean;
-  refreshing: boolean;
+  refreshing?: QueryInputChange;
 }
 
 interface EntrySpec<Event, Snapshot> {
   key: string;
   initial: Snapshot;
   /** Isolate the event once before reduction, replay, callbacks, or waiters see it. */
-  publication?(event: Event, current: Snapshot): Event;
-  reduce(current: Snapshot, event: Event): Snapshot;
+  publication?(event: Event, current: Snapshot, kind?: QueryInputChange): Event;
+  reduce(current: Snapshot, event: Event, kind?: QueryInputChange): Snapshot;
   /** Reproject client-level facts without fabricating a query delivery. */
   reproject?(current: Snapshot): Snapshot;
   open(fanout: (event: Event) => void): Subscription<Event>;
   /** Reevaluate this query after a committed local input revision. */
-  refresh?(current: Snapshot, authoritative?: Event): Promise<Event | undefined>;
+  refresh?(current: Snapshot, authoritative?: Event, kind?: QueryInputChange): Promise<Event | undefined>;
 }
 
 interface ObservedSnapshot<Snapshot> {
@@ -108,16 +109,16 @@ export class SharedSubscriptions {
   }
 
   private publish<Event, Snapshot>(
-    key: string, entry: Entry<Event, Snapshot>, spec: EntrySpec<Event, Snapshot>, event: Event, direct: boolean,
+    key: string, entry: Entry<Event, Snapshot>, spec: EntrySpec<Event, Snapshot>, event: Event, direct: boolean, kind?: QueryInputChange,
   ): void {
-    const published = spec.publication?.(event, entry.snapshot) ?? event;
+    const published = spec.publication?.(event, entry.snapshot, kind) ?? event;
     if (direct) {
       entry.epoch += 1;
-      if (entry.refreshing) entry.refreshPending = true;
+      if (entry.refreshing && entry.refreshPending !== "semantic") entry.refreshPending = entry.refreshing;
       if ((published as { live?: unknown } | undefined)?.live === true) entry.authoritative = published;
     }
     entry.last = published;
-    const next = spec.reduce(entry.snapshot, published);
+    const next = spec.reduce(entry.snapshot, published, kind);
     const changed = next !== entry.snapshot;
     entry.snapshot = next;
     if (changed) this.projectEntry(entry);
@@ -143,9 +144,7 @@ export class SharedSubscriptions {
       initial: spec.initial,
       snapshot: spec.initial,
       epoch: 0,
-      refreshPending: false,
       refreshScheduled: false,
-      refreshing: false,
       underlying: undefined as unknown as Subscription<Event>,
     };
     created.underlying = spec.open((event) => this.publish(spec.key, created, spec, event, true));
@@ -178,14 +177,16 @@ export class SharedSubscriptions {
     setTimeout(() => {
       entry.refreshScheduled = false;
       if (this.entries.get(key) !== entry) return;
-      entry.refreshPending = false;
-      entry.refreshing = true;
+      const kind = entry.refreshPending;
+      if (kind === undefined) return;
+      entry.refreshPending = undefined;
+      entry.refreshing = kind;
       const epoch = entry.epoch;
-      void spec.refresh!(entry.snapshot, entry.authoritative).then((event) => {
+      void spec.refresh!(entry.snapshot, entry.authoritative, kind).then((event) => {
         if (event === undefined || epoch !== entry.epoch || this.entries.get(key) !== entry) return;
-        this.publish(key, entry, spec, event, false);
+        this.publish(key, entry, spec, event, false, kind);
       }).catch(() => undefined).finally(() => {
-        entry.refreshing = false;
+        entry.refreshing = undefined;
         if (entry.refreshPending && this.entries.get(key) === entry) this.scheduleRefresh(key, entry, spec);
       });
     }, 0);
@@ -355,12 +356,13 @@ export class SharedSubscriptions {
     return entry === undefined ? 0 : entry.attachments.size + entry.observations.size;
   }
 
-  /** Coalesce committed local input revisions to at most one evaluation per active entry at a time. */
-  refresh(): void {
+  // @ref LLP 1018.008.007.001#5-avoid-redundant-query-work-without-suppressing-progress — item
+  // nudges latch without cancelling useful semantic work; a later semantic/direct image fences either kind.
+  refresh(kind: QueryInputChange = "semantic"): void {
     for (const [key, entry] of this.entries) {
       if (!entry.spec.refresh) continue;
-      entry.epoch += 1;
-      entry.refreshPending = true;
+      if (kind === "semantic") entry.epoch += 1;
+      if (entry.refreshPending !== "semantic") entry.refreshPending = kind;
       this.scheduleRefresh(key, entry, entry.spec);
     }
   }

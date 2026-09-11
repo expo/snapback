@@ -92,6 +92,15 @@ for (const carrier of ["file", "indexeddb", "sqlite"]) test(`${carrier}: admissi
     await ledger.adopt({ id: "grant", from: engineId(500), count: 20, used: 0, mintedAt: 0, expiresAt: 10_000 });
     const first = program();
     await ledger.recordBounds({ "messages.post": 2 }, { [first.generation]: first });
+    for (const [op, args, ids] of [["messages.post", {}, ["audit", "message"]],
+      ["messages.edit", { messageId: "existing" }, []], ["unsupported", {}, []]] as const) {
+      const expected = admittedMutationTargets(first, op, args, ids);
+      const selected = await store.outbox.targets!(op, args, ids);
+      assert.deepEqual(selected, expected);
+      if (selected) (selected.rows as any[]).push({ table: "foreign", kind: "create", id: "bad" });
+      assert.deepEqual(await store.outbox.targets!(op, args, ids), expected, "mutating a projection never changes admission");
+    }
+    assert.deepEqual((await store.outbox.programs())[first.generation], first, "the held program remains detached and unchanged");
     const queued = await ledger.enqueue({ op: "messages.post", args: { body: "submitted" }, issuedSeq: 10 });
     assert.equal(queued.predicted, false, "fence skips prediction without suppressing certified addresses");
     assert.equal(queued.targets?.rows[0]?.id, engineId(501));
@@ -111,6 +120,25 @@ for (const carrier of ["file", "indexeddb", "sqlite"]) test(`${carrier}: admissi
     assert.equal(target.id({ ...committed, response: { seq: 11, program: { ...identity, planHash: "e".repeat(64) } } }), undefined);
     assert.equal(target.id({ ...committed, op: "other.post" }), undefined);
   } finally { await store.close(); await rm(root, { recursive: true, force: true }); }
+});
+
+test("queued projection preserves the full ledger comparator and detached ownership", async () => {
+  const root = await mkdtemp(join(tmpdir(), "snapback-queue-projection-")), store = fileRangeStore(root)();
+  try {
+    await store.open("alice");
+    const entries: any[] = [
+      ["z", 1, 20, "queued"], ["A", 1, 10, "queued"], ["a", 1, 10, "queued"],
+      ["earlier", 0, 100, "queued"], ["terminal", 0, 1, "rejected"],
+    ].map(([intent, order, createdAt, state]) => ({ intent, order, createdAt, updatedAt: createdAt, state,
+      op: "send", args: { body: intent }, grant: "g", offset: 0, count: 1, ids: [], issuedSeq: 1, predicted: false }));
+    await store.commit({outbox:{put:entries}});
+    const expected=(await store.outbox.all()).filter(entry=>entry.state==="queued");
+    const queued=await store.outbox.queued!();
+    assert.deepEqual(queued,expected);assert.deepEqual(queued.map(entry=>entry.intent),["earlier","A","a","z"]);
+    (queued[0]!.args as any).body="mutated";queued.reverse();
+    assert.deepEqual(await store.outbox.queued!(),expected);
+    assert.equal((await store.outbox.all()).length,5,"public history still includes terminal work");
+  } finally {await store.close();await rm(root,{recursive:true,force:true});}
 });
 
 test("replay response preserves exact execution identity and refuses malformed identity", () => {
