@@ -144,3 +144,31 @@ record in a conventionally numbered companion or tombstone, and run both
 `ref-check` and an LLP-maintain audit over every changed reference. Until that
 curation is reviewed and lands, this ticket stays open at P3 documentation
 priority; there is no remaining custody/runtime defect attributed to it.
+
+## Resolution — 2026-09-11
+
+**State:** closed. Commit `9caef626b` discharges the final documentation-only
+residual without changing LLP 1012's implemented contract:
+
+- LLP 1012 is 1,455 lines, below the 1,500-line rule. Its complete `##`/`###`
+  heading set is byte-identical to the pre-curation document, so every existing
+  section anchor remains in place with concise normative text.
+- LLP 1022 is the next top-level corpus number after 1021. It is a Draft
+  Explainer that preserves the extracted baseline, superseded implementation
+  and allocation records, lane/landing chronology, panel provenance, and moot
+  scheduling question. Its metadata explicitly denies any new ratification,
+  review verdict, or author acceptance; LLP 1012 remains controlling.
+- The focused LLP-maintain-style audit found 183 live non-review/non-benchmark
+  `LLP 1012#…` references across the source and working corpus. None targets an
+  extracted historical-only anchor, so no external reference was rewritten.
+  `./ref-check --verbose` reports 440 LLP documents, 8,296 references, zero
+  errors, and zero unchecked references.
+- The direct LLP document-cap check is green at 1,455 lines. Separately,
+  `node scripts/caps.mjs` remains red only for two unrelated source files at
+  1,504 and 1,508 lines (206 oversize files against the existing baseline of
+  204); neither changed in this curation.
+
+Items 1–5 and 7–9 were already discharged by the implementation and literal
+integration controls recorded above (`f9ee16ff0`, `dc8bbf74c`, and
+`90ca5ab03`). Item 6 is now discharged by the structural split and audit. No
+custody/runtime or documentation acceptance remains on this ticket.
