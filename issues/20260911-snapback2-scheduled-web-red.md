@@ -7,29 +7,23 @@
 **Scheduled check:** `web`
 **Host:** M1MacBookPro14in2021Office
 **First red:** `f2dc1bdee72d0ca3da5c990eb6c07366ceda7b4f` (2026-09-11)
-**Last red:** `f2dc1bdee72d0ca3da5c990eb6c07366ceda7b4f` (2026-09-11)
+**Last red:** `1d2b6d8d3fbef3f66288a9de097e6725349ba5a7` (2026-09-11)
 **Last green before it:** none recorded on this host
 
 ## Evidence and impact
 
 <!-- scheduled failure -->
-`cd snapback2 && node scripts/witness-web.mjs --offline-replay` exited 1 at `f2dc1bdee` on M1MacBookPro14in2021Office; the full output is in `/Users/ccheever/.snapback2-scheduled/logs/web.log` there.
+`cd snapback2 && node scripts/witness-web.mjs` exited 1 at `1d2b6d8d3` on M1MacBookPro14in2021Office; the full output is in `/Users/ccheever/.snapback2-scheduled/logs/web.log` there.
 
-    FAIL witness
-    AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
-    + actual - expected
+    FAIL two offline tabs share one durable queue and transfer writer ownership
+    AssertionError [ERR_ASSERTION]: an unadmitted row sends no owner mutation
     
-      {
-        ready: true,
-        reason: 'ready',
-    +   remaining: 2
-    -   remaining: 1
-      }
+    7 !== 5
     
-        at singleContextOfflineReplay (file:///Users/ccheever/.snapback2-scheduled/repo/snapback2/scripts/witness-web.mjs:851:10)
-        at async main (file:///Users/ccheever/.snapback2-scheduled/repo/snapback2/scripts/witness-web.mjs:942:7)
-        at async file:///Users/ccheever/.snapback2-scheduled/repo/snapback2/scripts/witness-web.mjs:1256:1
-    {"name":"witness-web","kind":"witness","verdict":"fail","steps":[{"name":"a real account signs in through the starter's form","verdict":"pass","detail":{"principal":"user:MN5lflj0w_z_a4KYDyjbWw"}},{"name":"witness","verdict":"fail","detail"…
+        at sharedSessions (file:///Users/ccheever/.snapback2-scheduled/repo/snapback2/scripts/witness-web.mjs:618:10)
+        at async main (file:///Users/ccheever/.snapback2-scheduled/repo/snapback2/scripts/witness-web.mjs:1240:5)
+        at async file:///Users/ccheever/.snapback2-scheduled/repo/snapback2/scripts/witness-web.mjs:1261:1
+    {"name":"witness-web","kind":"witness","verdict":"fail","steps":[{"name":"a real account signs in through the starter's form","verdict":"pass","detail":{"principal":"user:9jvosR57MU_FOB8krvSC4g"}},{"name":"seed, drain, and open three chats …
 <!-- /scheduled failure -->
 
 Commits touching `snapback2/` since that green run, newest first (at most 20):
