@@ -100,3 +100,47 @@ client drain after the real clock reset rather than the checked post-reset
 clock page. These last two integration controls do not identify an unfixed
 source defect. Do not close this ticket until those acceptance-wording choices
 and LLP curation are discharged.
+
+## Disposition — 2026-09-11 literal integration controls
+
+**State:** keep open for documentation curation only. Commit `90ca5ab03`
+discharges both remaining correctness controls against a real owner and the
+Node file carrier:
+
+- the client first drains the shipped chat log and retains the real generated
+  delivery anchor and `message-1` body;
+- a legacy unclocked answer is installed while that custody remains, and its
+  held program is cleared to reproduce the cold manifest-before-program state;
+- the first real `/api/program` response is held after `/api/manifest`; at that
+  boundary the runtime has no restored program and carries exactly the
+  manifest schema projection;
+- releasing the response makes the first ordinary program commit raise
+  `ClockCoverageReset`; the observed retry is one `resetCoverage` swap carrying
+  the adopted program's full schema, including `messages.deliver.log`;
+- the reset removes the obsolete answer while retaining the exact body and
+  anchor, after which a public `drain: true` subscription reaches `caughtUp`
+  and the live tail; a transport-free cold restart still reads the drained
+  message.
+
+The combined focused control passes 6/6: this real-owner case, the prior
+manifest-only runtime case, and the actual clock-identity custody/byte case on
+the Node file, IndexedDB and SQLite carriers. No production change was needed.
+
+Item 6 is not safe to fold opportunistically into this correctness lane. LLP
+1012 is currently 1,877 lines. Reaching the 1,500-line rule requires moving or
+deleting at least 378 lines, while its two largest sections (`#6-reads-offline`
+and `#7-writes-offline`) interleave current normative rules with historical
+implementation records and account for 898 lines. There are 220 live
+non-review references to LLP 1012 in this checkout, including direct references
+to those section anchors and their `indexed-held-search`,
+`bytes--frozen-allocation`, and `coverage-reset-amendment` subsections. A blind
+split would either move the meaning behind those anchors or duplicate binding
+text.
+
+The safe remaining work is a documentation-only curation pass: separate the
+dated implementation history from the current contract, retain concise
+normative text under every existing referenced heading, place the extracted
+record in a conventionally numbered companion or tombstone, and run both
+`ref-check` and an LLP-maintain audit over every changed reference. Until that
+curation is reviewed and lands, this ticket stays open at P3 documentation
+priority; there is no remaining custody/runtime defect attributed to it.
