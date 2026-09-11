@@ -513,6 +513,7 @@ mod tests {
                 cause: "budget test complete".into(),
             })
             .unwrap();
+        handle.call(Action::FinishStop).unwrap();
         writer.join().unwrap();
         std::fs::remove_dir_all(root).unwrap();
     }
@@ -598,6 +599,7 @@ mod tests {
                 cause: "running wait test complete".into(),
             })
             .unwrap();
+        handle.call(Action::FinishStop).unwrap();
         writer.join().unwrap();
         std::fs::remove_dir_all(root).unwrap();
     }
@@ -642,6 +644,7 @@ mod tests {
                 cause: "settlement test complete".into(),
             })
             .unwrap();
+        handle.call(Action::FinishStop).unwrap();
         writer.join().unwrap();
         std::fs::remove_dir_all(root).unwrap();
     }
