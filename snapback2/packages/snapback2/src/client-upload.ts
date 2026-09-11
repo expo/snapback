@@ -125,7 +125,8 @@ export async function withMutationUploads<Result>(
       if (placements.length > 0) {
         for (const placement of placements) records.push(await uploadPrepared(host, placement.prepared, {}, authority));
         const current = await manifest();
-        if (current.programGeneration !== descriptorManifest.programGeneration) throw assetInput(host, new AssetInputError("E_ASSET_NOT_READY",
+        if (current.generation !== descriptorManifest.generation
+          || current.programGeneration !== descriptorManifest.programGeneration) throw assetInput(host, new AssetInputError("E_ASSET_NOT_READY",
           `descriptor generation changed from ${descriptorManifest.generation} to ${current.generation} during asset upload`));
         mutationArgs = substituteAssetRecords(args, placements, records);
       }
