@@ -592,7 +592,7 @@ async function sharedSessions(context, writer, appUrl, ownerUrl) {
   await follower.reload();
   await follower.waitForFunction(() => window.__snapback && window.__witnessBroadcast, null, { timeout: 15_000 });
   await follower.evaluate(() => { window.__witnessBroadcast.dropTypes = ["inbox"]; });
-  await follower.waitForFunction(() => /log downloaded|Connected/.test(document.querySelector("[role=status][data-connection]")?.textContent ?? ""), null, { timeout: 15_000 });
+  await follower.waitForFunction(() => /messages available on this device|Connected/.test(document.querySelector("[role=status][data-connection]")?.textContent ?? ""), null, { timeout: 15_000 });
   await openChat(follower, "conversation-1");
   await follower.waitForFunction(() => document.querySelectorAll("section[aria-label=Thread] li[data-state=queued]").length === 2, null, { timeout: 10_000 });
   const reloaded = await follower.evaluate(async () => ({
@@ -910,7 +910,7 @@ async function main() {
     } else if (sessionsOnly || capacityOnly) {
       await sharedSessions(context, page, appUrl, owner.url);
     } else {
-    await page.waitForFunction(() => /log downloaded/.test(document.querySelector("[role=status][data-connection]")?.textContent ?? ""), null, { timeout: 15_000 });
+    await page.waitForFunction(() => /messages available on this device/.test(document.querySelector("[role=status][data-connection]")?.textContent ?? ""), null, { timeout: 15_000 });
     const [neverOpened, ...opened] = [...seeded.conversations].reverse();
     const coherentViews = [];
     for (const conversationId of opened) coherentViews.push(await openChat(page, conversationId));
@@ -937,7 +937,7 @@ async function main() {
     step("Unicode one-word prefix runs through the live messages.search index", warmSearch);
 
     // A warmed composite remains one value through a local prediction, its
-    // settlement, and a removal whose newest delivery intentionally has no body.
+    // settlement, and a removal that returns count and preview to the earlier message.
     const coherentConversation = opened[0];
     const beforeComposite = await openChat(page, coherentConversation);
     await context.setOffline(true); await page.evaluate(() => window.__snapback.offline());
@@ -964,19 +964,28 @@ async function main() {
     const removed = await page.evaluate((messageId) =>
       window.__snapback.mutation(window.__api.messages.unsend, { messageId }), predictedComposite.ids[0]);
     if (removed.state !== "committed") throw new Error(`composite revocation was ${JSON.stringify(removed)}`);
-    await page.waitForFunction(({ id, count }) => {
+    await page.waitForFunction(({ id, count, preview }) => {
       const summary = document.querySelector("section[aria-label=Thread] .thread-summary");
       return !document.querySelector(`section[aria-label=Thread] li[data-message="${id}"]`)
         && summary?.getAttribute("data-count") === count
-        && !summary.hasAttribute("data-preview-message");
-    }, { id: predictedComposite.ids[0], count: beforeComposite.count }, { timeout: 10_000 });
+        && summary.getAttribute("data-preview-message") === preview;
+    }, { id: predictedComposite.ids[0], count: beforeComposite.count, preview: beforeComposite.previewMessage }, { timeout: 10_000 }).catch(async (error) => {
+      const diagnosis = await page.evaluate((id) => {
+        const summary = document.querySelector("section[aria-label=Thread] .thread-summary");
+        const row = document.querySelector(`section[aria-label=Thread] li[data-message="${id}"]`);
+        return { summary: summary && Object.fromEntries([...summary.attributes].map((a) => [a.name, a.value])), text: summary?.textContent,
+          row: row && { state: row.getAttribute("data-state"), text: row.textContent } };
+      }, predictedComposite.ids[0]).catch((e) => String(e));
+      throw new Error(`composite revocation never settled: ${JSON.stringify({ beforeComposite, settledView, diagnosis })}\n${error.message}`);
+    });
     const revokedView = await openChat(page, coherentConversation);
     if (predictedView.source !== "composite" || settledView.source !== "composite" || revokedView.source !== "composite"
       || predictedView.seq === settledView.seq || settledView.seq === revokedView.seq
-      || settledView.count === beforeComposite.count || revokedView.count !== beforeComposite.count) {
+      || settledView.count === beforeComposite.count || revokedView.count !== beforeComposite.count
+      || revokedView.previewMessage !== beforeComposite.previewMessage) {
       throw new Error(`composite lifecycle was incoherent: ${JSON.stringify({ beforeComposite, predictedView, settledView, revokedView })}`);
     }
-    step("one composite snapshot covers offline prediction, settlement, and bodyless revocation", {
+    step("one composite snapshot covers offline prediction, settlement, and removal", {
       before: beforeComposite, predicted: predictedView, settled: settledView, revoked: revokedView,
     });
 
@@ -1013,7 +1022,7 @@ async function main() {
         && scope.getAttribute("data-receipt") === "none"
         && scope.getAttribute("data-reason") === "held"
         && scope.getAttribute("data-predicted") === "true"
-        && /Downloaded indexed results/.test(scope.textContent ?? "")
+        && /Matching downloaded messages/.test(scope.textContent ?? "")
         && /server has not confirmed/.test(scope.textContent ?? "");
     }, null, { timeout: 10_000 });
     step("the mounted indexed search publishes the offline prediction; partial history hides composite count and preview", {
@@ -1045,7 +1054,7 @@ async function main() {
     }));
     if (coldSearch.state !== "ready" || coldSearch.status !== "ready" || coldSearch.receipt !== "none"
       || coldSearch.reason !== "held" || coldSearch.predicted !== "true"
-      || !/Downloaded indexed results/.test(coldSearch.text ?? "")
+      || !/Matching downloaded messages/.test(coldSearch.text ?? "")
       || !/server has not confirmed/.test(coldSearch.text ?? "")) throw new Error(`cold indexed search was ${JSON.stringify(coldSearch)}`);
     if (coldPartialHistory?.source !== "partial-history" || coldPartialHistory.count !== null
       || coldPartialHistory.previewMessage !== null || !coldPartialHistory.historyState
