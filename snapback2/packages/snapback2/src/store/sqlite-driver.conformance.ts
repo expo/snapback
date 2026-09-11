@@ -44,18 +44,29 @@ export async function runSqliteDriverConformance(open: () => SqliteDriver | Prom
     } catch (error) { check(error === marker, "rollback propagates the body error"); }
     check(await first.get("SELECT key FROM conformance WHERE key = ?", ["rollback"]) === undefined, "rollback on throw");
     checks.push("rollback on throw");
-    // The body ends its transaction. This proves error propagation and reuse,
-    // not recovery from a COMMIT failure that leaves a live transaction.
-    let commitFailed = false;
-    await first.transaction(async (tx) => {
-      await tx.run("INSERT INTO conformance VALUES (?, ?)", ["failed-commit", new Uint8Array([7])]);
-      await tx.run("ROLLBACK");
-    }).catch(() => { commitFailed = true; });
-    check(commitFailed, "COMMIT after rollback must fail");
+    // In rollback-journal mode a second connection's read transaction permits
+    // the write body but blocks COMMIT's EXCLUSIVE lock. This exercises the
+    // driver's real SDK-owned COMMIT failure path without a test hook.
+    const deleteMode = await first.get<{ journal_mode: string }>("PRAGMA journal_mode=DELETE");
+    check(deleteMode?.journal_mode === "delete", "rollback journal mode for COMMIT failure");
+    await second.exec("BEGIN");
+    await second.get("SELECT key FROM conformance LIMIT 1");
+    let bodyFinished = false;
+    let commitFailure: unknown;
+    try {
+      await first.transaction(async (tx) => {
+        await tx.run("INSERT INTO conformance VALUES (?, ?)", ["failed-commit", new Uint8Array([7])]);
+        bodyFinished = true;
+      });
+    } catch (error) { commitFailure = error; }
+    check(bodyFinished && /busy|locked/i.test(String(commitFailure)), "real COMMIT fails after its body under a reader lock");
+    await second.exec("ROLLBACK");
     check(await first.get("SELECT key FROM conformance WHERE key = ?", ["failed-commit"]) === undefined, "failed COMMIT leaves no row");
     await first.transaction((tx) => tx.run("INSERT INTO conformance VALUES (?, ?)", ["after-failed-commit", new Uint8Array([8])]));
     check(await first.get("SELECT key FROM conformance WHERE key = ?", ["after-failed-commit"]) !== undefined, "next transaction after failed COMMIT succeeds");
-    checks.push("body-ended transaction rejects and next transaction succeeds");
+    const restoredMode = await first.get<{ journal_mode: string }>("PRAGMA journal_mode=WAL");
+    check(restoredMode?.journal_mode === "wal", "journal mode restored after COMMIT failure");
+    checks.push("real COMMIT failure rolls back and next transaction succeeds");
     let release!: () => void;
     let reached!: () => void;
     let committed = false;

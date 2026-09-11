@@ -279,8 +279,8 @@ const actions = [
   async () => {
     const result = await command("conformance", {}, 60_000);
     assert.equal(result.journalMode, "wal"); assert.equal(result.checks.length, 10);
-    assert.ok(result.checks.includes("body-ended transaction rejects and next transaction succeeds"));
-    return { ...result, nativeCommitFailure: "unqualified: this probe ends the transaction in its body" };
+    assert.ok(result.checks.includes("real COMMIT failure rolls back and next transaction succeeds"));
+    return { ...result, nativeCommitFailure: "qualified: SDK-owned COMMIT refused after the body, left no row, and the next transaction succeeded" };
   },
   async () => {
     await command("online"); await killApp(); await launch(); await command("construct"); await command("drain");
