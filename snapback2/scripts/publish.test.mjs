@@ -11,6 +11,7 @@ import {
   readQualifiedPlatformArtifact,
   recordPlatformQualification,
   stagePublication,
+  stagePublicationShim,
   verifyPublicationQualifications,
 } from './publish.mjs';
 
@@ -165,6 +166,8 @@ test('foreign platform import requires portable digest-bound native-host consume
   assert.equal(imported.artifact.name, platform.name);
   assert.equal(imported.artifact.tarball, localTarball);
   assert.equal(imported.artifact.integrity, artifact.integrity);
+  assert.equal(imported.shim.tarball, shim.tarball);
+  assert.equal(imported.shim.integrity, shim.integrity);
   assert.equal(imported.qualification.shimIntegrity, shim.integrity);
 
   const withoutConsumer = structuredClone(staged);
@@ -175,6 +178,123 @@ test('foreign platform import requires portable digest-bound native-host consume
   writeFileSync(receipt, `${JSON.stringify(staged, null, 2)}\n`);
   writeFileSync(localTarball, 'changed after qualification');
   assert.throws(() => readQualifiedPlatformArtifact(receipt, version), /recorded integrity/);
+});
+
+test('a full-set imported shim is reused byte-for-byte while a single-platform shim expands', t => {
+  const directory = fixture(t);
+  const platformDirectory = resolve(directory, 'platforms');
+  const platformArtifacts = platforms.map((platform, index) => {
+    const artifact = packedPackage(platformDirectory, {
+      ...platform, os: [index === 0 ? 'darwin' : 'linux'], cpu: [index === 0 ? 'arm64' : 'x64'],
+    });
+    return { ...artifact, integrity: integrity(artifact.tarball) };
+  });
+  const fullShim = packedPackage(resolve(directory, 'canonical'), {
+    ...source,
+    custody: 'canonical-import',
+    optionalDependencies: Object.fromEntries(platforms.map(platform => [platform.name, version])),
+  });
+  fullShim.integrity = integrity(fullShim.tarball);
+  const singleShim = packedPackage(resolve(directory, 'single'), {
+    ...source,
+    custody: 'single-platform-import',
+    optionalDependencies: { [platforms[1].name]: version },
+  });
+  singleShim.integrity = integrity(singleShim.tarball);
+  const rebuilt = packedPackage(resolve(directory, 'rebuilt'), {
+    ...source,
+    custody: 'locally-rebuilt-different-bytes',
+    optionalDependencies: Object.fromEntries(platforms.map(platform => [platform.name, version])),
+  });
+  rebuilt.integrity = integrity(rebuilt.tarball);
+  assert.notEqual(rebuilt.integrity, fullShim.integrity);
+
+  const canonicalState = resolve(directory, 'canonical-state');
+  const canonicalSource = resolve(directory, 'canonical-source');
+  mkdirSync(canonicalState);
+  writePackage(canonicalSource, source);
+  let canonicalPacks = 0;
+  const reused = stagePublicationShim(
+    version,
+    canonicalSource,
+    canonicalState,
+    platformArtifacts,
+    [{ artifact: platformArtifacts[1], shim: fullShim, qualification: {} }],
+    () => { canonicalPacks += 1; return rebuilt; },
+  );
+  assert.equal(canonicalPacks, 0);
+  assert.equal(reused.integrity, fullShim.integrity);
+  assert.deepEqual(readFileSync(reused.tarball), readFileSync(fullShim.tarball));
+  assert.notDeepEqual(readFileSync(reused.tarball), readFileSync(rebuilt.tarball));
+
+  const expansionState = resolve(directory, 'expansion-state');
+  const expansionSource = resolve(directory, 'expansion-source');
+  mkdirSync(expansionState);
+  writePackage(expansionSource, source);
+  let expansionPacks = 0;
+  const expanded = stagePublicationShim(
+    version,
+    expansionSource,
+    expansionState,
+    platformArtifacts,
+    [{ artifact: platformArtifacts[1], shim: singleShim, qualification: {} }],
+    (shimStage) => {
+      expansionPacks += 1;
+      const artifact = packedPackage(expansionState, JSON.parse(readFileSync(resolve(shimStage, 'package.json'), 'utf8')));
+      return { tarball: artifact.tarball, integrity: integrity(artifact.tarball) };
+    },
+  );
+  assert.equal(expansionPacks, 1);
+  assert.notEqual(expanded.integrity, singleShim.integrity);
+  assert.doesNotThrow(() => verifyPlatformDependencies([...platformArtifacts, expanded]));
+});
+
+test('a resume with stale local shim bytes refuses an imported canonical full-set shim', t => {
+  const directory = fixture(t);
+  const stateDirectory = resolve(directory, 'durable');
+  mkdirSync(stateDirectory);
+  const records = platforms.map((platform, index) => {
+    const packed = packedPackage(resolve(directory, `platform-${index}`), {
+      ...platform, os: [index === 0 ? 'darwin' : 'linux'], cpu: [index === 0 ? 'arm64' : 'x64'],
+    });
+    const tarball = resolve(stateDirectory, basename(packed.tarball));
+    copyFileSync(packed.tarball, tarball);
+    return { ...platform, tarball, integrity: integrity(tarball) };
+  });
+  const packedStale = packedPackage(resolve(directory, 'stale'), {
+    ...source,
+    custody: 'stale-local',
+    optionalDependencies: Object.fromEntries(platforms.map(platform => [platform.name, version])),
+  });
+  const staleTarball = resolve(stateDirectory, basename(packedStale.tarball));
+  copyFileSync(packedStale.tarball, staleTarball);
+  const staleShim = { name: 'snapback2', version, tarball: staleTarball, integrity: integrity(staleTarball) };
+  const canonicalShim = packedPackage(resolve(directory, 'canonical'), {
+    ...source,
+    custody: 'canonical-import',
+    optionalDependencies: Object.fromEntries(platforms.map(platform => [platform.name, version])),
+  });
+  canonicalShim.integrity = integrity(canonicalShim.tarball);
+  assert.notEqual(staleShim.integrity, canonicalShim.integrity);
+  const resumePath = resolve(stateDirectory, 'resume.json');
+  writeFileSync(resumePath, `${JSON.stringify({
+    name: platforms[0].name,
+    version,
+    mediaDigest: 'd'.repeat(64),
+    artifacts: [...records, staleShim],
+  })}\n`);
+  const before = [resumePath, ...records.map(record => record.tarball), staleTarball]
+    .map(path => readFileSync(path));
+  assert.throws(() => stagePublication(version, platforms[0].name, stateDirectory, resumePath, {
+    dryRun: false,
+    platformArtifacts: [{ artifact: records[1], shim: canonicalShim, qualification: {} }],
+    prepareArtifacts() { assert.fail('stale local shim must not be resumed or replaced'); },
+    qualifyArtifacts(staged) { return staged; },
+  }), /refusing to replace its immutable stage.*--stage-only/);
+  assert.deepEqual(
+    [resumePath, ...records.map(record => record.tarball), staleTarball].map(path => readFileSync(path)),
+    before,
+  );
 });
 
 test('publication refuses a mismatched durable resume without changing its receipt or tarballs', t => {
@@ -295,9 +415,19 @@ test('the two-host stage-stage-stage-publish workflow converges on one immutable
       copyFileSync(requested.artifact.tarball, copied);
       artifacts.push({ ...requested.artifact, tarball: copied });
     }
-    const shimTarball = resolve(target, 'snapback2.tgz');
-    writeFileSync(shimTarball, `shim:${artifacts.map(artifact => artifact.name).sort().join(',')}`);
-    artifacts.push({ name: 'snapback2', version, tarball: shimTarball, integrity: integrity(shimTarball) });
+    const shimSource = resolve(target, 'shim-source');
+    writePackage(shimSource, source);
+    artifacts.push(stagePublicationShim(
+      version,
+      shimSource,
+      target,
+      artifacts,
+      requestedPlatforms,
+      (stagedSource) => {
+        const packed = packedPackage(target, JSON.parse(readFileSync(resolve(stagedSource, 'package.json'), 'utf8')));
+        return { tarball: packed.tarball, integrity: integrity(packed.tarball) };
+      },
+    ));
     return { name, version, mediaDigest: 'c'.repeat(64), artifacts };
   };
   const qualifyArtifacts = staged => staged;
@@ -307,19 +437,22 @@ test('the two-host stage-stage-stage-publish workflow converges on one immutable
     dryRun: false, stageOnly: true, prepareArtifacts, qualifyArtifacts,
   }).staged;
   const aArtifact = aHostOnly.artifacts.find(artifact => artifact.name === hostA.name);
+  const aHostOnlyShim = aHostOnly.artifacts.find(artifact => artifact.name === 'snapback2');
   const bUnified = stagePublication(version, hostB.name, stateB, resumeB, {
     dryRun: false, stageOnly: true, prepareArtifacts, qualifyArtifacts,
-    platformArtifacts: [{ artifact: aArtifact, qualification: qualification(aArtifact) }],
+    platformArtifacts: [{ artifact: aArtifact, shim: aHostOnlyShim, qualification: qualification(aArtifact) }],
   }).staged;
   const bArtifact = bUnified.artifacts.find(artifact => artifact.name === hostB.name);
+  const bUnifiedShim = bUnified.artifacts.find(artifact => artifact.name === 'snapback2');
   const aUnified = stagePublication(version, hostA.name, stateA, resumeA, {
     dryRun: false, stageOnly: true, prepareArtifacts, qualifyArtifacts,
-    platformArtifacts: [{ artifact: bArtifact, qualification: qualification(bArtifact) }],
+    platformArtifacts: [{ artifact: bArtifact, shim: bUnifiedShim, qualification: qualification(bArtifact) }],
   }).staged;
   const refreshedA = aUnified.artifacts.find(artifact => artifact.name === hostA.name);
+  const aUnifiedShim = aUnified.artifacts.find(artifact => artifact.name === 'snapback2');
   const published = stagePublication(version, hostB.name, stateB, resumeB, {
     dryRun: false, prepareArtifacts() { assert.fail('matching publication should resume'); }, qualifyArtifacts,
-    platformArtifacts: [{ artifact: refreshedA, qualification: qualification(refreshedA) }],
+    platformArtifacts: [{ artifact: refreshedA, shim: aUnifiedShim, qualification: qualification(refreshedA) }],
   }).staged;
 
   const shimIntegrity = staged => staged.artifacts.find(artifact => artifact.name === 'snapback2').integrity;

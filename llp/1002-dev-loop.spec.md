@@ -1535,18 +1535,24 @@ including `snapback2-plugin` and `snapback2-plugin-tools`, and normal/peer
 dependencies remain unchanged. A recognized name alone does not establish
 platform qualification. Each platform's resume evidence binds both that
 platform tarball integrity and the exact shim integrity exercised by its
-production consumer. Staging may assemble the next unified candidate from an
-earlier host receipt, but registry publication refuses until every selected
-platform has successfully exercised the final identical shim. Thus the bounded
-two-host workflow is platform A stage, platform B unified stage, platform A
-unified stage, then platform B publication using the refreshed platform A
+production consumer. An imported shim is canonical only when its packed
+platform dependency map names the complete selected platform set at the
+publication version. The next host copies and locally qualifies those exact
+shim tarball bytes rather than independently packing an equivalent manifest;
+a single-platform imported shim cannot be canonical for an expanded set, so
+that first expansion packs the unified shim once. Registry publication still
+refuses until every selected platform has successfully exercised the final
+identical shim. Thus the bounded two-host workflow is platform A stage,
+platform B unified expansion, platform A reuse and qualification of B's exact
+unified shim, then platform B publication using the refreshed platform A
 receipt. The local consumer installs only its host artifact plus the unified
 shim, avoiding a direct foreign package install and its `EBADPLATFORM`; the
 shim's packed dependency map is still checked against every selected artifact.
 Production qualification checks the packed package identities and dependency
 map, including resumed tarballs. A publication invocation refuses an existing
-resume when its exact platform selection or imported artifact integrities do
-not match the request, leaving the resume and immutable tarballs unchanged.
+resume when its exact platform selection, imported artifact integrities, or an
+imported canonical full-set shim integrity do not match the request, leaving
+the resume and immutable tarballs unchanged.
 Intentional reassembly uses `--stage-only`; before replacing a mismatched
 selection it renames the complete prior stage to a reported sibling path, so
 its receipt and tarballs remain recoverable. A matching resume is reused, so a

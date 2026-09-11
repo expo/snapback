@@ -7,6 +7,10 @@ headless client, React web arm, and CLI shim. It requires Node 20 or newer for N
 npm install snapback2 react
 ```
 
+Native CLI packages are provided for macOS arm64 and Linux x64. Linux x64 is
+qualified on Ubuntu 24.04 with glibc 2.39; musl and older Linux distributions
+are not currently qualified. Existing macOS arm64 support is unchanged.
+
 Start an Expo app with `npx snapback2 init my-app --template chat --client expo`.
 Use `npx snapback2 guide init` for scaffolding and CLI setup, `npx snapback2 guide auth`
 for authentication, and `npx snapback2 guide app` for the current backend's certified

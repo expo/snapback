@@ -220,6 +220,27 @@ function portableTarballPath(receiptPath, recordedPath) {
   return existsSync(recordedPath) ? recordedPath : undefined;
 }
 
+function shimCoversPlatformSet(shim, platformArtifacts, version) {
+  if (shim?.name !== "snapback2" || shim.version !== version) return false;
+  const manifest = packedManifest(shim.tarball);
+  if (manifest.name !== "snapback2" || manifest.version !== version) return false;
+  const actual = Object.fromEntries(Object.entries(manifest.optionalDependencies ?? {})
+    .filter(([name]) => platformIdentities.has(name)));
+  const expected = Object.fromEntries(platformArtifacts.map((artifact) => [artifact.name, version]));
+  return Object.keys(actual).length === Object.keys(expected).length
+    && Object.entries(expected).every(([name, selectedVersion]) => actual[name] === selectedVersion);
+}
+
+function importedCanonicalShim(requestedPlatforms, platformArtifacts, version) {
+  const matching = requestedPlatforms
+    .map((requested) => requested.shim)
+    .filter((shim) => shimCoversPlatformSet(shim, platformArtifacts, version));
+  if (new Set(matching.map((shim) => shim.integrity)).size > 1) {
+    throw new Error("imported platform receipts disagree on the canonical full-platform shim integrity");
+  }
+  return matching[0];
+}
+
 function consumerEvidencePassed(consumer) {
   if (consumer?.verdict !== "pass" || !Array.isArray(consumer.steps)) return false;
   const steps = new Map(consumer.steps.map((step) => [step.name, step]));
@@ -324,6 +345,7 @@ export function readQualifiedPlatformArtifact(receiptPath, version) {
   }
   return {
     artifact: { name, version, tarball, integrity: artifact.integrity },
+    shim: { name: "snapback2", version, tarball: shimTarball, integrity: shim.integrity },
     qualification,
   };
 }
@@ -506,12 +528,16 @@ function loadResume(path, name, version, requestedPlatforms = []) {
     artifact.tarball = tarball;
   }
   const selected = resume.artifacts.filter((artifact) => artifact.name !== "snapback2");
+  const shims = resume.artifacts.filter((artifact) => artifact.name === "snapback2");
   const expected = [{ name }, ...requestedPlatforms.map(({ artifact }) => artifact)];
-  if (selected.length !== expected.length
+  if (shims.length !== 1
+    || selected.length !== expected.length
     || expected.some((artifact) => selected.filter((candidate) => candidate.name === artifact.name).length !== 1)
     || requestedPlatforms.some(({ artifact }) => selected.find((candidate) => candidate.name === artifact.name)?.integrity !== artifact.integrity)) {
     return undefined;
   }
+  const canonicalShim = importedCanonicalShim(requestedPlatforms, selected, version);
+  if (canonicalShim && shims[0].integrity !== canonicalShim.integrity) return undefined;
   return resume;
 }
 
@@ -715,6 +741,29 @@ function buildProductionMedia() {
   return mediaBin;
 }
 
+// @ref LLP 1002#11-measured — a full-set imported shim is the canonical byte artifact qualified by both native hosts.
+export function stagePublicationShim(
+  version,
+  shimStage,
+  stateDirectory,
+  platformArtifacts,
+  requestedPlatforms,
+  packShim = pack,
+) {
+  const canonical = importedCanonicalShim(requestedPlatforms, platformArtifacts, version);
+  if (canonical) {
+    const tarball = resolve(stateDirectory, basename(canonical.tarball));
+    if (existsSync(tarball)) throw new Error(`staged canonical shim target already exists: ${tarball}`);
+    copyFileSync(canonical.tarball, tarball);
+    if (sri(tarball) !== canonical.integrity) {
+      throw new Error(`copied canonical shim ${tarball} does not match imported integrity`);
+    }
+    return { name: "snapback2", version, tarball, integrity: canonical.integrity };
+  }
+  stagePlatformDependencies(shimStage, platformArtifacts);
+  return { name: "snapback2", version, ...packShim(shimStage, stateDirectory) };
+}
+
 function prepare(version, name, stateDirectory, requestedPlatforms = []) {
   rmSync(stateDirectory, { recursive: true, force: true });
   mkdirSync(stateDirectory, { recursive: true });
@@ -782,8 +831,13 @@ function prepare(version, name, stateDirectory, requestedPlatforms = []) {
     platformArtifacts.push({ ...requested.artifact, tarball: target });
     platformQualifications[requested.artifact.name] = requested.qualification;
   }
-  stagePlatformDependencies(shimStage, platformArtifacts);
-  const shimPack = pack(shimStage, stateDirectory);
+  const shimArtifact = stagePublicationShim(
+    version,
+    shimStage,
+    stateDirectory,
+    platformArtifacts,
+    requestedPlatforms,
+  );
   const resume = {
     name,
     version,
@@ -796,7 +850,7 @@ function prepare(version, name, stateDirectory, requestedPlatforms = []) {
     platformQualifications,
     artifacts: [
       ...platformArtifacts,
-      { name: "snapback2", version, ...shimPack },
+      shimArtifact,
     ],
   };
   return resume;
