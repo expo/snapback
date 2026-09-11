@@ -398,6 +398,37 @@ mutation empty_last(photo: image <=5000000, images: [image <=5000000] <=4, video
     });
   });
 
+  test("seed text rejects unpaired surrogates through optional and list values", async () => {
+    await withProject({
+      "snapback/schema.q": `table docs:
+  body: text <=4
+  optionalBody: text <=4 ?
+  tags: [text <=4] <=2
+  public
+`,
+      "snapback/seed.ts": `export default {
+  personas: [],
+  rows: { docs: [{
+    id: "doc-1",
+    body: "\\uD800",
+    optionalBody: "\\uDC00",
+    tags: ["ok", "\\uD800"],
+  }] },
+};
+`,
+    }, async (root) => {
+      const result = await (await import("./project")).lowerSeed(root);
+      const messages = result.ok ? [] : result.diagnostics
+        .filter((item) => item.code === "E_SEED_VALUE")
+        .map((item) => item.message);
+      assert(!result.ok && JSON.stringify(messages) === JSON.stringify([
+        "docs[0].body contains invalid Unicode scalar text",
+        "docs[0].optionalBody contains invalid Unicode scalar text",
+        "docs[0].tags[1] contains invalid Unicode scalar text",
+      ]), `seed scalar refusals were not stable and recursive: ${JSON.stringify(result)}`);
+    });
+  });
+
   test("asset records reject unknown fields with a typed Quarry rewrite and have no legacy URL compatibility", () => {
     const nullable = compileInline([
       { fileName: "snapback/schema.q", source: "table media:\n  photo: image <=5000000 ?\n  public\n" },

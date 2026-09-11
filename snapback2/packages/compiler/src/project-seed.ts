@@ -184,7 +184,12 @@ function seedValueMismatch(value: unknown, type: unknown, path: string): SeedMis
   if (!type || typeof type !== "object" || Array.isArray(type)) return seedMismatch(`${path} has an unsupported schema type`);
   const descriptor = type as Record<string, any>;
   if (descriptor.Text) {
-    if (typeof value !== "string" || [...value].length > descriptor.Text.max) {
+    if (typeof value !== "string") {
+      return seedMismatch(`${path} must be text of at most ${descriptor.Text.max} characters`);
+    }
+    const scalarLength = wellFormedScalarLength(value);
+    if (scalarLength === undefined) return seedMismatch(`${path} contains invalid Unicode scalar text`);
+    if (scalarLength > descriptor.Text.max) {
       return seedMismatch(`${path} must be text of at most ${descriptor.Text.max} characters`);
     }
     const codePoint = disallowedTextControlCodePoint(value);
@@ -239,6 +244,24 @@ function seedValueMismatch(value: unknown, type: unknown, path: string): SeedMis
     return undefined;
   }
   return seedMismatch(`${path} has an unsupported schema type`);
+}
+
+// @ref LLP 1001#unicode-search-foundation — authored seed text must inhabit
+// the same Unicode scalar domain accepted by the Rust JSON/value boundary.
+function wellFormedScalarLength(text: string): number | undefined {
+  let length = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    const unit = text.charCodeAt(index);
+    if (unit >= 0xd800 && unit <= 0xdbff) {
+      const next = text.charCodeAt(index + 1);
+      if (!(next >= 0xdc00 && next <= 0xdfff)) return undefined;
+      index += 1;
+    } else if (unit >= 0xdc00 && unit <= 0xdfff) {
+      return undefined;
+    }
+    length += 1;
+  }
+  return length;
 }
 
 function disallowedTextControlCodePoint(text: string): number | undefined {

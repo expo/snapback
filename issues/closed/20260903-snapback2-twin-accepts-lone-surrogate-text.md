@@ -58,3 +58,16 @@ not the desired assertion after a fix.
 with recursive Optional/List coverage and the same stable seed diagnostic,
 and add a seed regression beside the evaluator case. No twin runtime work
 remains.
+
+## Resolution — 2026-09-11
+
+**Status:** Closed. Seed text validation now scans UTF-16 explicitly and
+refuses either half of an unpaired surrogate as `E_SEED_VALUE` with the stable
+`contains invalid Unicode scalar text` message. The same scan counts valid
+supplementary characters as one scalar for the declared text maximum.
+
+`seed text rejects unpaired surrogates through optional and list values` pins
+the direct Text, Optional<Text>, and List<Text> paths (including the nested
+list index in the refusal). Together with the existing evaluator recursive
+`E_INPUT: invalid Unicode scalar text` assertion from `799ba19a6`, both
+JavaScript admission paths now match the server's scalar-only value domain.
