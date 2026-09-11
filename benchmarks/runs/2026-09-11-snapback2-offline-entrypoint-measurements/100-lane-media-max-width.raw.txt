@@ -1,0 +1,288 @@
+UTC 2026-09-11T08:55:23Z
+Charlies-MacBook-Air.local
+ProductName:		macOS
+ProductVersion:		26.6.2
+BuildVersion:		25G83
+Darwin Charlies-MacBook-Air.local 25.6.0 Darwin Kernel Version 25.6.0: Fri Jul 31 19:16:20 PDT 2026; root:xnu-12377.161.14~5/RELEASE_ARM64_T8142 arm64
+Mac17,3
+34359738368
+10
+## bench/offline-entrypoint-scale-20260911
+117bf209d60732b449d52b8b898c709733fdfc84
+rustc 1.97.0 (2d8144b78 2026-07-07)
+cargo 1.97.0 (c980f4866 2026-06-30)
+5b4e0733bebf3dfa1da8ea292469c311e8aa26c0175a4750bae425fa54ab00d8  snapback2/Cargo.lock
+39c6175dfd08e3912c01e1633e925b2c5860ff7d0b3f64b545479715732f8cf9  snapback2/crates/snapback2-core/src/engine/search_media_tests.rs
+COMMAND cd snapback2 && /usr/bin/time -lp cargo test --locked -p snapback2-core maximum_media_shape_and_twenty_kib_stress_fit_actual_closure_and_scratch -- --nocapture
+   Compiling version_check v0.9.5
+   Compiling typenum v1.20.1
+   Compiling cfg-if v1.0.4
+   Compiling proc-macro2 v1.0.107
+   Compiling libc v0.2.189
+   Compiling unicode-ident v1.0.24
+   Compiling quote v1.0.47
+   Compiling zerocopy v0.8.56
+   Compiling subtle v2.6.1
+   Compiling shlex v2.0.1
+   Compiling find-msvc-tools v0.1.11
+   Compiling once_cell v1.21.4
+   Compiling pkg-config v0.3.34
+   Compiling serde_core v1.0.229
+   Compiling cc v1.4.4
+   Compiling generic-array v0.14.7
+   Compiling ahash v0.8.12
+   Compiling vcpkg v0.2.15
+   Compiling zmij v1.0.23
+   Compiling rand_core v0.6.4
+   Compiling serde_json v1.0.151
+   Compiling serde v1.0.229
+   Compiling getrandom v0.3.4
+   Compiling libsqlite3-sys v0.30.1
+   Compiling thiserror v2.0.20
+   Compiling base64ct v1.8.3
+   Compiling syn v3.0.4
+   Compiling password-hash v0.5.0
+   Compiling cpufeatures v0.2.17
+   Compiling thiserror-impl v2.0.20
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling serde_derive v1.0.229
+   Compiling digest v0.10.7
+   Compiling sha2 v0.10.9
+   Compiling snapback2-core v0.0.22 (/Users/ccheever/lanes/llp-ship-20260829T034720Z-wave3/snapback2/crates/snapback2-core)
+   Compiling blake2 v0.10.6
+   Compiling smallvec v1.16.0
+   Compiling fallible-streaming-iterator v0.1.9
+   Compiling bitflags v2.13.1
+   Compiling itoa v1.0.18
+   Compiling fallible-iterator v0.3.0
+   Compiling memchr v2.8.3
+   Compiling hashbrown v0.14.5
+   Compiling argon2 v0.5.3
+   Compiling diff v0.1.13
+   Compiling hashlink v0.9.1
+   Compiling yansi v1.0.1
+   Compiling pretty_assertions v1.4.1
+   Compiling rusqlite v0.32.1
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 20.94s
+     Running unittests src/lib.rs (target/debug/deps/snapback2_core-94ab46a3b03215a9)
+
+running 1 test
+SEARCH_MEDIA {"actual_closure_bytes":2895753,"actual_derived_scratch_bytes":3967437,"actual_derived_steps":69027,"certificate":{"bound_product":"merge snapback/search.q:5:10: 100 lanes heads + 20 advances + 2 lookahead × 1 calls (search.global.1 × 100) = 122 + search.global.0 take 100 (+2 reserve) × 1 calls on memberships = 102","completeness":"Page","constraint_checks":[],"cost_terms":[{"meter":"examined entries","site":"snapback/search.q:5:10","source":"merge snapback/search.q:5:10: 100 lanes heads + 20 advances + 2 lookahead × 1 calls (search.global.1 × 100)","value":122},{"meter":"examined entries","site":"search.global.0","source":"search.global.0 take 100 (+2 reserve) × 1 calls on memberships","value":102},{"meter":"index entries","site":"snapback/search.q:5:10","source":"merge snapback/search.q:5:10: 100 lanes heads + 20 advances + 2 lookahead × 1 calls (search.global.1 × 100)","value":122},{"meter":"index entries","site":"search.global.0","source":"search.global.0 take 100 (+2 reserve) × 1 calls on memberships","value":102},{"meter":"rule probes","site":"search.global.1","source":"search.global.1: 100 calls × 2 rule probes (calls from search.global.0 take 100)","value":200},{"meter":"steps","site":"search.global.1","source":"search term normalization at search.global.1","value":353091},{"meter":"steps","site":"search.global:statement:1","source":"merge snapback/search.q:5:10: heap work","value":3050},{"meter":"steps","site":"snapback/search.q:5:10","source":"merge snapback/search.q:5:10: 100 lanes heads + 20 advances + 2 lookahead × 1 calls (search.global.1 × 100) × 5","value":610},{"meter":"steps","site":"search.global.0","source":"search.global.0 take 100 (+2 reserve) × 1 calls on memberships × 5","value":510},{"meter":"steps","site":"search.global:statement:1","source":"expressions (calls from search.global.0 take 100)","value":400},{"meter":"steps","site":"search.global:statement:1","source":"expressions","value":2},{"meter":"steps","site":"search.global:statement:2","source":"expressions","value":1},{"meter":"steps","site":"search.global:statement:1","source":"statements","value":1},{"meter":"steps","site":"search.global:statement:2","source":"statements","value":1},{"meter":"heap bytes","site":"snapback/search.q:5:10","source":"search closure scratch","value":3586665},{"meter":"heap bytes","site":"search.global.1","source":"search term normalization at search.global.1","value":1902220},{"meter":"heap bytes","site":"search.global:statement:1","source":"merge snapback/search.q:5:10: heap work × 32","value":97600},{"meter":"heap bytes","site":"snapback/search.q:5:10","source":"merge snapback/search.q:5:10: 100 lanes heads + 20 advances + 2 lookahead × 1 calls (search.global.1 × 100) × 5 × 32","value":19520},{"meter":"heap bytes","site":"search.global.0","source":"search.global.0 take 100 (+2 reserve) × 1 calls on memberships × 5 × 32","value":16320},{"meter":"heap bytes","site":"search.global:statement:1","source":"expressions (calls from search.global.0 take 100) × 32","value":12800},{"meter":"heap bytes","site":"search.global:statement:1","source":"expressions × 32","value":64},{"meter":"heap bytes","site":"search.global:statement:2","source":"expressions × 32","value":32},{"meter":"heap bytes","site":"search.global:statement:1","source":"statements × 32","value":32},{"meter":"heap bytes","site":"search.global:statement:2","source":"statements × 32","value":32},{"meter":"output bytes","site":null,"source":"messages.at","value":760},{"meter":"output bytes","site":null,"source":"messages.authorId","value":3120},{"meter":"output bytes","site":null,"source":"messages.body","value":320480},{"meter":"output bytes","site":null,"source":"messages.caption","value":4540},{"meter":"output bytes","site":null,"source":"messages.clip","value":5900},{"meter":"output bytes","site":null,"source":"messages.conversationId","value":3240},{"meter":"output bytes","site":null,"source":"messages.expiresAt","value":900},{"meter":"output bytes","site":null,"source":"messages.id","value":3000},{"meter":"output bytes","site":null,"source":"messages.oncePhoto","value":5120},{"meter":"output bytes","site":null,"source":"messages.photo","value":5040},{"meter":"output bytes","site":null,"source":"messages row width: framing/shared encoding/growth adjustment","value":200},{"meter":"output bytes","site":null,"source":"merge snapback/search.q:5:10: emitted page: framing/shared encoding/growth adjustment","value":32},{"meter":"closure bytes","site":"search.global.0","source":"search.global.0 × 1 ranges: source descriptor, suffix bounds, row/halo references","value":15467},{"meter":"closure bytes","site":"search.global.1","source":"search.global.1 × 100 ranges: source descriptor, suffix bounds, row/halo references","value":1201000},{"meter":"closure bytes","site":null,"source":"101 pooled memberships first images with table/id envelopes","value":74538},{"meter":"closure bytes","site":null,"source":"122 pooled messages first images with table/id envelopes","value":2171234},{"meter":"closure bytes","site":null,"source":"search closure: whole row pool and actual issuing metadata: framing/shared encoding/growth adjustment","value":124426}],"derived_scratch_bytes":5488885,"derived_steps":353091,"disclosures":[],"evaluator_version":"bounded-spike-rust-search-text-refinements-5","halo_rows":1,"indexes_required":["memberships.byConversationPrincipal","memberships.byPrincipal","messages.byConversationWords"],"maintained_amplification":0,"max_closure_bytes":3586665,"max_examined":224,"max_heap_bytes":5635285,"max_index_entries":224,"max_output_bytes":352332,"max_rule_probes":200,"max_steps":357666,"merge_sites":[{"lane_sites":["search.global.1"],"max_lanes":100,"site":"snapback/search.q:5:10","take":20,"uniform":true}],"plan_hash":"95caf8f73648dab92a532677ffd4d95ff0f725df25bbbc5e5084590736c5e3a8","prediction_sites":[],"program":"search.global","read_sites":[{"complete":false,"decided_true":true,"hoist":true,"index":"byPrincipal","max_calls":1,"prefix_template":"Viewer","rule_probes_per_candidate":0,"site":"search.global.0","table":"memberships","take":100},{"complete":false,"hoist":true,"index":"byConversationWords","max_calls":100,"prefix_template":"Shape","rule_probes_per_candidate":2,"site":"search.global.1","table":"messages","take":20}],"read_time_granularity_ms":null,"result_pages":{"1":{"index":"byConversationWords","merge":true,"order":"Desc","site":"snapback/search.q:5:10","suffix":[{"kind":"Time","name":"at"},{"kind":"Id","name":"id"}],"table":"messages"}},"rule_hashes":{"memberships.read":"2bb63f474673d7e0c4d0f9b99da655b8fcae53891a107c7404987f2188c8db4f","messages.read":"2bb63f474673d7e0c4d0f9b99da655b8fcae53891a107c7404987f2188c8db4f"},"schema_hash":"cff660ede674b318d4838a636eb3f114d53416abad747f4399d970a045d687c9","tables":{"conversations":{"retain":"until-revoked"},"memberships":{"retain":"until-revoked"},"messages":{"retain":"until-revoked"},"people":{"retain":"until-revoked"}},"value_model_version":"i53-codepoint-bytes-unicode-search-text-refinements-v5","write_sites":[]},"membership_width":553,"row_width":17615,"stress":false}
+SEARCH_MEDIA {"actual_closure_bytes":3213881,"actual_derived_scratch_bytes":4298858,"actual_derived_steps":69027,"certificate":{"bound_product":"merge snapback/search.q:5:10: 100 lanes heads + 20 advances + 2 lookahead × 1 calls (search.global.1 × 100) = 122 + search.global.0 take 100 (+2 reserve) × 1 calls on memberships = 102","completeness":"Page","constraint_checks":[],"cost_terms":[{"meter":"examined entries","site":"snapback/search.q:5:10","source":"merge snapback/search.q:5:10: 100 lanes heads + 20 advances + 2 lookahead × 1 calls (search.global.1 × 100)","value":122},{"meter":"examined entries","site":"search.global.0","source":"search.global.0 take 100 (+2 reserve) × 1 calls on memberships","value":102},{"meter":"index entries","site":"snapback/search.q:5:10","source":"merge snapback/search.q:5:10: 100 lanes heads + 20 advances + 2 lookahead × 1 calls (search.global.1 × 100)","value":122},{"meter":"index entries","site":"search.global.0","source":"search.global.0 take 100 (+2 reserve) × 1 calls on memberships","value":102},{"meter":"rule probes","site":"search.global.1","source":"search.global.1: 100 calls × 2 rule probes (calls from search.global.0 take 100)","value":200},{"meter":"steps","site":"search.global.1","source":"search term normalization at search.global.1","value":353091},{"meter":"steps","site":"search.global:statement:1","source":"merge snapback/search.q:5:10: heap work","value":3050},{"meter":"steps","site":"snapback/search.q:5:10","source":"merge snapback/search.q:5:10: 100 lanes heads + 20 advances + 2 lookahead × 1 calls (search.global.1 × 100) × 5","value":610},{"meter":"steps","site":"search.global.0","source":"search.global.0 take 100 (+2 reserve) × 1 calls on memberships × 5","value":510},{"meter":"steps","site":"search.global:statement:1","source":"expressions (calls from search.global.0 take 100)","value":400},{"meter":"steps","site":"search.global:statement:1","source":"expressions","value":2},{"meter":"steps","site":"search.global:statement:2","source":"expressions","value":1},{"meter":"steps","site":"search.global:statement:1","source":"statements","value":1},{"meter":"steps","site":"search.global:statement:2","source":"statements","value":1},{"meter":"heap bytes","site":"snapback/search.q:5:10","source":"search closure scratch","value":3938518},{"meter":"heap bytes","site":"search.global.1","source":"search term normalization at search.global.1","value":1902220},{"meter":"heap bytes","site":"search.global:statement:1","source":"merge snapback/search.q:5:10: heap work × 32","value":97600},{"meter":"heap bytes","site":"snapback/search.q:5:10","source":"merge snapback/search.q:5:10: 100 lanes heads + 20 advances + 2 lookahead × 1 calls (search.global.1 × 100) × 5 × 32","value":19520},{"meter":"heap bytes","site":"search.global.0","source":"search.global.0 take 100 (+2 reserve) × 1 calls on memberships × 5 × 32","value":16320},{"meter":"heap bytes","site":"search.global:statement:1","source":"expressions (calls from search.global.0 take 100) × 32","value":12800},{"meter":"heap bytes","site":"search.global:statement:1","source":"expressions × 32","value":64},{"meter":"heap bytes","site":"search.global:statement:2","source":"expressions × 32","value":32},{"meter":"heap bytes","site":"search.global:statement:1","source":"statements × 32","value":32},{"meter":"heap bytes","site":"search.global:statement:2","source":"statements × 32","value":32},{"meter":"output bytes","site":null,"source":"messages.at","value":760},{"meter":"output bytes","site":null,"source":"messages.authorId","value":3120},{"meter":"output bytes","site":null,"source":"messages.body","value":320480},{"meter":"output bytes","site":null,"source":"messages.caption","value":4540},{"meter":"output bytes","site":null,"source":"messages.clip","value":5900},{"meter":"output bytes","site":null,"source":"messages.conversationId","value":3240},{"meter":"output bytes","site":null,"source":"messages.expiresAt","value":900},{"meter":"output bytes","site":null,"source":"messages.id","value":3000},{"meter":"output bytes","site":null,"source":"messages.oncePhoto","value":5120},{"meter":"output bytes","site":null,"source":"messages.pad","value":57300},{"meter":"output bytes","site":null,"source":"messages.photo","value":5040},{"meter":"output bytes","site":null,"source":"messages row width: framing/shared encoding/growth adjustment","value":200},{"meter":"output bytes","site":null,"source":"merge snapback/search.q:5:10: emitted page: framing/shared encoding/growth adjustment","value":32},{"meter":"closure bytes","site":"search.global.0","source":"search.global.0 × 1 ranges: source descriptor, suffix bounds, row/halo references","value":15467},{"meter":"closure bytes","site":"search.global.1","source":"search.global.1 × 100 ranges: source descriptor, suffix bounds, row/halo references","value":1201000},{"meter":"closure bytes","site":null,"source":"101 pooled memberships first images with table/id envelopes","value":76861},{"meter":"closure bytes","site":null,"source":"122 pooled messages first images with table/id envelopes","value":2520764},{"meter":"closure bytes","site":null,"source":"search closure: whole row pool and actual issuing metadata: framing/shared encoding/growth adjustment","value":124426}],"derived_scratch_bytes":5840738,"derived_steps":353091,"disclosures":[],"evaluator_version":"bounded-spike-rust-search-text-refinements-5","halo_rows":1,"indexes_required":["memberships.byConversationPrincipal","memberships.byPrincipal","messages.byConversationWords"],"maintained_amplification":0,"max_closure_bytes":3938518,"max_examined":224,"max_heap_bytes":5987138,"max_index_entries":224,"max_output_bytes":409632,"max_rule_probes":200,"max_steps":357666,"merge_sites":[{"lane_sites":["search.global.1"],"max_lanes":100,"site":"snapback/search.q:5:10","take":20,"uniform":true}],"plan_hash":"95caf8f73648dab92a532677ffd4d95ff0f725df25bbbc5e5084590736c5e3a8","prediction_sites":[],"program":"search.global","read_sites":[{"complete":false,"decided_true":true,"hoist":true,"index":"byPrincipal","max_calls":1,"prefix_template":"Viewer","rule_probes_per_candidate":0,"site":"search.global.0","table":"memberships","take":100},{"complete":false,"hoist":true,"index":"byConversationWords","max_calls":100,"prefix_template":"Shape","rule_probes_per_candidate":2,"site":"search.global.1","table":"messages","take":20}],"read_time_granularity_ms":null,"result_pages":{"1":{"index":"byConversationWords","merge":true,"order":"Desc","site":"snapback/search.q:5:10","suffix":[{"kind":"Time","name":"at"},{"kind":"Id","name":"id"}],"table":"messages"}},"rule_hashes":{"memberships.read":"73674ad06981131bed24ba61837b3c624982fb4a5883d3e3e514ca7375db4f24","messages.read":"73674ad06981131bed24ba61837b3c624982fb4a5883d3e3e514ca7375db4f24"},"schema_hash":"46dfef8e7f99e6a4b868571b5ab493f8ef04377043c62964346c779ce8f59f9b","tables":{"conversations":{"retain":"until-revoked"},"memberships":{"retain":"until-revoked"},"messages":{"retain":"until-revoked"},"people":{"retain":"until-revoked"}},"value_model_version":"i53-codepoint-bytes-unicode-search-text-refinements-v5","write_sites":[]},"membership_width":576,"row_width":20480,"stress":true}
+test engine::search_tests::media::maximum_media_shape_and_twenty_kib_stress_fit_actual_closure_and_scratch ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 183 filtered out; finished in 3.25s
+
+     Running unittests src/bin/export_corpus.rs (target/debug/deps/export_corpus-14a6d9ade97be88d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/assets.rs (target/debug/deps/assets-848f0e1382afbe83)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 36 filtered out; finished in 0.00s
+
+     Running tests/cap.rs (target/debug/deps/cap-2f50f2adbff559c6)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.00s
+
+     Running tests/certificate_cost.rs (target/debug/deps/certificate_cost-6d2e2700e306d887)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.00s
+
+     Running tests/certificate_retention.rs (target/debug/deps/certificate_retention-a4c796829f6d1212)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/certificate_visibility.rs (target/debug/deps/certificate_visibility-27985be56ab1412f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.00s
+
+     Running tests/channels.rs (target/debug/deps/channels-15c0980d7d6e814a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/column_types.rs (target/debug/deps/column_types-c68da688b09ab56b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s
+
+     Running tests/completeness.rs (target/debug/deps/completeness-60dbdf619666b224)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 31 filtered out; finished in 0.00s
+
+     Running tests/corpus_cursors.rs (target/debug/deps/corpus_cursors-e6df2fb9c4cbaa6b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.00s
+
+     Running tests/delivery.rs (target/debug/deps/delivery-16e799639eefd38e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 59 filtered out; finished in 0.00s
+
+     Running tests/estimate_row_width.rs (target/debug/deps/estimate_row_width-96e67dc29f8f33f1)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+     Running tests/identity.rs (target/debug/deps/identity-c6ac0bf321c492b3)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.00s
+
+     Running tests/jobs.rs (target/debug/deps/jobs-33159860f5eac7cd)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 0.00s
+
+     Running tests/live.rs (target/debug/deps/live-0e4349e1a4428f1a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s
+
+     Running tests/merge.rs (target/debug/deps/merge-7ede7cba7f8cc39d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.00s
+
+     Running tests/money_maintains.rs (target/debug/deps/money_maintains-aae0d73d8427d8ce)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/offline_goldens.rs (target/debug/deps/offline_goldens-3e0e6c358b26c44a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s
+
+     Running tests/operator.rs (target/debug/deps/operator-586d70d2105bf5bd)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s
+
+     Running tests/outbox.rs (target/debug/deps/outbox-f42cc4a231472790)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 25 filtered out; finished in 0.00s
+
+     Running tests/retention_policy.rs (target/debug/deps/retention_policy-9e3706489f74edf5)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/search_foundation.rs (target/debug/deps/search_foundation-d5ab2036bdfd9527)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/spike.rs (target/debug/deps/spike-e9bf211a74cefe56)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.00s
+
+     Running tests/store.rs (target/debug/deps/store-4ffdb08c554cd7c0)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.00s
+
+     Running tests/successor.rs (target/debug/deps/successor-6edf2424111a1b37)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 0.00s
+
+     Running tests/successor_maintains.rs (target/debug/deps/successor_maintains-422c408ce9b7cdda)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s
+
+     Running tests/successor_narrowing.rs (target/debug/deps/successor_narrowing-3f226bda356bf627)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/tier0_authorization.rs (target/debug/deps/tier0_authorization-63692d05f18c024a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.00s
+
+     Running tests/timers.rs (target/debug/deps/timers-0f6c609454c1a00c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.00s
+
+     Running tests/tombstones.rs (target/debug/deps/tombstones-3ea2d90c20f9f2ea)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.00s
+
+     Running tests/verified_regressions.rs (target/debug/deps/verified_regressions-b76b0b0e6da37afb)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.00s
+
+     Running tests/visibility_proofs.rs (target/debug/deps/visibility_proofs-6e3ccfe556753cb9)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.00s
+
+real 41.10
+user 101.55
+sys 11.12
+          1740128256  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+             2786887  page reclaims
+               12679  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                 101  signals received
+                6360  voluntary context switches
+              223194  involuntary context switches
+          2934079766  instructions retired
+          1422501260  cycles elapsed
+            52216432  peak memory footprint
