@@ -147,6 +147,9 @@ impl BoundServer {
                 }
             }
         }
+        // @ref LLP 1002#5-the-owner — stop wakes idle physical streams so their
+        // heartbeat wait cannot outlive the owner's bounded exit contract.
+        streams.wake_all();
         Ok(())
     }
 }
