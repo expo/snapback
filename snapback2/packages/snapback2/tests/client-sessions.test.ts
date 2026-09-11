@@ -216,6 +216,49 @@ test("a current local reevaluation refusal publishes while an obsolete-authority
   stopOld();
 });
 
+test("a one-shot auth resume retries only after its in-flight read reports no held answer", async () => {
+  const first = Promise.withResolvers<any>(), second = Promise.withResolvers<any>();
+  let calls = 0;
+  const queries = new ClientQueries({
+    identity: () => [1, 1] as const,
+    active: () => true,
+    connection: () => "offline",
+    open: () => { throw new Error("unused"); },
+    query: () => ++calls === 1 ? first.promise : second.promise,
+    local: async () => { throw new Error("unused"); },
+  } as any);
+  const observed = queries.observe(api.messages.inbox, { c: null }, { live: false });
+  const stop = observed.subscribe(() => undefined);
+  assert.equal(calls, 1);
+
+  queries.resumeHydrating();
+  assert.equal(calls, 1, "confirmation does not overlap the pending one-shot");
+  first.resolve({ state: "hydrating", live: false, connection: "offline" });
+  await until(() => calls === 2, "the queued no-held retry");
+  assert.equal(observed.getSnapshot().reason?.code, "offline");
+  second.resolve({ state: "complete", data: [], next: null, seq: 1 });
+  await until(() => observed.getSnapshot().receipt?.state === "complete", "the resumed owner answer");
+  assert.equal(calls, 2);
+  stop();
+
+  let heldCalls = 0;
+  const heldQueries = new ClientQueries({
+    identity: () => [1, 1] as const,
+    active: () => true,
+    connection: () => "offline",
+    open: () => { throw new Error("unused"); },
+    query: async () => { heldCalls += 1; return { state: "held", live: false, connection: "offline", data: [], next: null, seq: 1 }; },
+    local: async () => { throw new Error("unused"); },
+  } as any);
+  const held = heldQueries.observe(api.messages.inbox, { c: null }, { live: false });
+  const stopHeld = held.subscribe(() => undefined);
+  await until(() => held.getSnapshot().reason?.code === "held", "the held one-shot answer");
+  heldQueries.resumeHydrating();
+  await new Promise<void>(resolve => setImmediate(resolve));
+  assert.equal(heldCalls, 1, "confirmation preserves a held one-shot without refreshing it");
+  stopHeld();
+});
+
 test("a live indexed query preserves its authoritative state until its effective value changes", async () => {
   let publish!: (event: any) => void;
   let local: { state: "held" | "complete" | "capped" | "partial"; live: false; connection: "offline"; data: Array<{ id: string }>;

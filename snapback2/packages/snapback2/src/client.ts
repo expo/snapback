@@ -1415,9 +1415,13 @@ class Client implements SnapbackClient {
   }
 
   private publishAuthSnapshot(): void {
+    const resumed = this.currentSnapshot.auth.state === "hydrating"
+      && this.currentSnapshot.authGeneration === this.authGeneration
+      && this.authState.value.state === "authenticated";
     this.queries.retireInactive();
     if (this.currentSnapshot.auth.state !== "authenticated" && this.authState.value.state === "authenticated") recoveryOpportunity(this.recoveryHost);
     this.patchSnapshot({ authGeneration: this.authGeneration, token: this.currentToken, auth: this.authState.value });
+    if (resumed) this.queries.resumeHydrating();
   }
 
   private transportFailureState(): "reconnecting" | "offline" {

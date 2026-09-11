@@ -365,6 +365,14 @@ export class SharedSubscriptions {
     }
   }
 
+  /** Resume sources that deliberately remained mounted across an external readiness transition. */
+  resumeHydrating(): void {
+    for (const entry of this.entries.values()) {
+      const source = entry.underlying as Subscription<unknown> & { resumeHydrating?(): void };
+      source.resumeHydrating?.();
+    }
+  }
+
   /** Reproject active snapshots after a client-level status fact changes. */
   reproject(): void {
     for (const entry of this.entries.values()) {
