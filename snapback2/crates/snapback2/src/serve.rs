@@ -122,8 +122,8 @@ impl BoundServer {
                     if let Err(error) = thread::Builder::new()
                         .name("snapback2-http".to_owned())
                         .spawn(move || {
-                            let _worker = worker;
-                            handle(request, connection_context, connection_streams);
+                            let mut worker = worker;
+                            handle(request, connection_context, connection_streams, &mut worker);
                         })
                     {
                         let refusal = fatal_server("connection thread", error);
@@ -221,6 +221,7 @@ impl WorkerPools {
         Some(HttpWorker {
             pools: self.clone(),
             class,
+            release_reply: None,
         })
     }
 }
@@ -228,6 +229,20 @@ impl WorkerPools {
 struct HttpWorker {
     pools: WorkerPools,
     class: WorkerClass,
+    release_reply: Option<(
+        std::sync::mpsc::SyncSender<Result<Json, Refusal>>,
+        Result<Json, Refusal>,
+    )>,
+}
+
+impl HttpWorker {
+    fn reply_after_release(
+        &mut self,
+        sender: std::sync::mpsc::SyncSender<Result<Json, Refusal>>,
+        result: Result<Json, Refusal>,
+    ) {
+        self.release_reply = Some((sender, result));
+    }
 }
 
 impl Drop for HttpWorker {
@@ -239,6 +254,10 @@ impl Drop for HttpWorker {
             WorkerClass::Sse => counts.sse -= 1,
             WorkerClass::Upload => counts.upload -= 1,
             WorkerClass::Control => counts.control -= 1,
+        }
+        drop(counts);
+        if let Some((sender, result)) = self.release_reply.take() {
+            let _ = sender.send(result);
         }
     }
 }
@@ -262,7 +281,7 @@ fn control_admission(request: &Request, secret: &str) -> Result<(), Refusal> {
     Ok(())
 }
 
-fn handle(mut request: Request, context: Context, streams: live::Streams) {
+fn handle(mut request: Request, context: Context, streams: live::Streams, worker: &mut HttpWorker) {
     let method = method_name(request.method());
     let request_url = request.url().to_owned();
     let (path, query) = split_url(&request_url);
@@ -385,6 +404,7 @@ fn handle(mut request: Request, context: Context, streams: live::Streams) {
             identity,
             body,
             path.ends_with("/control"),
+            worker,
         );
         return;
     }
@@ -1031,6 +1051,25 @@ mod tests {
         );
         assert_eq!(WorkerClass::for_url("/api/query"), WorkerClass::Json);
         assert_eq!(WorkerClass::for_url("/api/upload"), WorkerClass::Upload);
+    }
+
+    #[test]
+    fn release_reply_is_sent_only_after_the_worker_returns_to_the_pool() {
+        let pools = WorkerPools::default();
+        let mut worker = pools.acquire(WorkerClass::Sse).unwrap();
+        let (reply, answer) = std::sync::mpsc::sync_channel(1);
+        worker.reply_after_release(reply, Ok(json!({ "ok": true })));
+        assert!(matches!(
+            answer.try_recv(),
+            Err(std::sync::mpsc::TryRecvError::Empty)
+        ));
+
+        drop(worker);
+
+        assert_eq!(answer.recv().unwrap().unwrap(), json!({ "ok": true }));
+        let counts = pools.0.lock().unwrap();
+        assert_eq!(counts.total, 0);
+        assert_eq!(counts.sse, 0);
     }
 
     #[test]
