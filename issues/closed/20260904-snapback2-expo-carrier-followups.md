@@ -1,6 +1,6 @@
 # Snapback 2 Expo arm (lane E1): carrier follow-ups from the third review round
 
-**Status:** Open — actual Expo SDK COMMIT-failure witness remains (2026-09-11)
+**Status:** Closed (2026-09-11)
 **Priority:** P2
 **Systems:** snapback2 client (`packages/snapback2/src/store/{sqlite,sqlite-node,sqlite-expo,sqlite-driver}.ts`, `packages/compiler/tsconfig.json`)
 **Date:** 2026-09-04
@@ -56,3 +56,14 @@ The package SQLite suite passes both regressions. This ticket stays open only
 for finding 3: the checked-in portable conformance double is not an actual
 pinned Expo SDK COMMIT-failure witness. Closure still requires that device
 result to prove no row and a successful next transaction.
+
+## Resolution — 2026-09-11
+
+The current workspace package was rebuilt into the generated app, then the
+reusable Silver M5 lane ran all ten witness steps on Xcode 26.6 build 17F113,
+iPhone 17, iOS 26.5. The Expo SDK owned the transaction: a second connection's
+reader lock let the body finish and made COMMIT fail; the inserted row was
+absent after rollback and the next exclusive transaction succeeded. The exact
+record and build-log digests are retained in LLP 1013 §7. Together with the
+landed device/inode identity and rollback-poison recovery tests, all five
+findings now have implementation or native evidence.

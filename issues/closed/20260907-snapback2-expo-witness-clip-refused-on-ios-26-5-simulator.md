@@ -1,7 +1,7 @@
 # snapback2: the Expo witness's video clip is refused by the iOS 26.5 simulator ("Cannot Open", CoreMedia -12847) before and after LLP 1018.003
 
 **Filed:** 2026-09-07 by Claude Fable 5.1, from running `snapback2/scripts/witness-expo.mjs` on the primary Mac (Xcode 26.6 build 17F113, iOS 26.5 simulator "iPhone 17").
-**Status:** Open — candidate repair landed; same-host device witness still required (2026-09-11) · **Severity:** witness blocked at step 2 on this host; pre-existing
+**Status:** Closed (2026-09-11) · **Severity:** resolved native witness blocker
 **Priority:** P1
 
 ## What happens
@@ -29,3 +29,12 @@ Next acceptance: on the same iOS 26.5/Xcode 26.6 environment, warm-run witness s
 against current main and record the clip's `.mp4` path plus loaded/playing events. Close
 only on that pass; if `-12847` persists, qualify a larger valid fixture without weakening
 MIME or custody checks.
+
+## Resolution — 2026-09-11
+
+The same iPhone 17 UDID on Xcode 26.6 build 17F113 and iOS 26.5 passed the
+current all-ten-step witness. Step 2 reported the unchanged 16×16 fixture as
+`loaded: true`, `playing: true`, `viewed: false` from a private path ending in
+`.mp4`; cold steps 4 and 5 repeated actual playback and container custody.
+CoreMedia `-12847` did not recur, so the MIME-derived suffix repair resolves
+the candidate without replacing or weakening the fixture.
