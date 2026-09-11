@@ -54,3 +54,33 @@ This disposition supersedes stale current-work claims above; historical observat
 The test moved to tests/real-owner-session.test.ts and now registers context.after to await both client closes before assertions. The old throw-skips-all-cleanup mechanism is therefore no longer the source shape. Readiness, typing and terminal waits still use 2,000 ms.
 
 Current source: tests/real-owner-session.test.ts, real channel membership revocation ends the subscriber with a refusal. Remaining: deterministic progress-based revocation control or a bounded repeated under-load reproduction with cleanup verified after failure. No new load result is inferred from the moved test or prior isolated passes.
+
+## Resolved — 2026-09-10
+
+`real channel membership revocation ends the subscriber with a refusal` no
+longer uses 2,000 ms readiness, typing, or terminal windows. Its callback owns
+explicit promises for each semantic state. After `memberLeave` commits, the
+test sends a subsequent `/control/status` action through the real owner and
+requires `channelSubscriptions` to have fallen by exactly one. This is an
+ordered progress witness: the mutation turn has completed channel readmission,
+queued the terminal refusal, and removed Bob's handle before the later status
+action can answer. The test then waits for the refused public snapshot without
+a local timing guess and verifies that the subscription's already-latched
+terminal is exactly `E_RULE_CHANNEL_SUBSCRIBE`.
+
+Cleanup remains registered with `context.after` before the assertions, and the
+subscription is registered there immediately after creation, so a failed
+assertion cannot leak the keep-alive child. The publisher and subscriber are
+also closed on the successful path.
+
+Focused verification:
+
+```sh
+cd snapback2
+node --test --test-timeout=120000 \
+  --test-name-pattern='real channel membership revocation ends' \
+  packages/snapback2/tests/real-owner-session.test.ts
+```
+
+Result: 1 passed, 0 failed. The semantic test body completed in 51 ms; that
+measurement is informational, not part of its acceptance.
