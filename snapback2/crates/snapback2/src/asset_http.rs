@@ -570,6 +570,8 @@ pub fn handle_asset_delivery(request: Request, context: &Context, path: &str, qu
     };
     let response = Response::new(StatusCode(status), headers, blob.stream, Some(length), None)
         .with_chunked_threshold(usize::MAX);
+    // tiny_http suppresses this response body for HEAD while retaining the GET
+    // headers and Content-Length; the raw-TCP asset HEAD regression pins that behavior.
     let _ = request.respond(response);
 }
 

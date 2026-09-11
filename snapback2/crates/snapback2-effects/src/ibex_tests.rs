@@ -513,6 +513,7 @@ fn fetch_cross_origin_redirect_strips_credentials_and_checks_each_grant() {
             assert_eq!(initial_hits.len(), 1);
             let initial = &initial_hits[0];
             assert!(initial.starts_with("POST /start HTTP/1.1\r\n"), "{initial}");
+            assert_content_type(initial, Some("application/json"));
             assert_eq!(
                 initial.split_once("\r\n\r\n").unwrap().1,
                 r#"{"cross":true}"#
