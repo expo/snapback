@@ -53,6 +53,97 @@ async function installSchema(owner: RealOwnerHarness, source: string) {
   return until(() => control(owner, 'status'), value => value.status === 'ready' && value.generation !== before.generation, 'schema successor');
 }
 
+// @ref LLP 1012#coverage-reset-amendment — the real metadata schedule must
+// retain delivery custody even when program adoption discovers legacy clockless
+// coverage after the manifest's schema projection has already been installed.
+test('real owner manifest-before-program clock reset retains custody and then drains the client log', { timeout: 60000 }, async () => {
+  const owner = await RealOwnerHarness.create({ forceOwned: true, fixture, prepare: root =>
+    writeFile(join(root, 'snapback/custody-clock.q'), `query clock():
+  return { readAt: now }
+`) });
+  const root = await mkdtemp(join(tmpdir(), 'chat-clock-reset-'));
+  const durable = fileRangeStore(root);
+  let seeded: any = createClient({ url: owner.url, persona: 'alice', offline: { store: durable } });
+  let client: any, drain: any, opened: any;
+  const programEntered = Promise.withResolvers<void>(), releaseProgram = Promise.withResolvers<void>();
+  const requests: string[] = [], programAttempts: boolean[] = [], resets: any[] = [];
+  let manifestBody: any, heldProgramRequest = false;
+  try {
+    await seeded.ready;
+    drain = await warm(seeded); drain.close(); drain = undefined;
+    const held = await seeded.offlineRuntime.store.coverage();
+    const body = held.rows.find((row: any) => row.table === 'messages' && row.id === 'message-1');
+    const anchor = held.rows.find((row: any) => row.table === 'deliveries'
+      && row.row?.row === 'message-1' && row.row?.kind === 'delivered');
+    assert(body && anchor, `the initial real drain must hold its body and delivery anchor: ${JSON.stringify(held.rows)}`);
+    const programs = await seeded.offlineRuntime.store.outbox.programs();
+    const packet: any = Object.values(programs)[0];
+    assert.equal(packet.programs['custody-clock.clock'].ir.read_time_granularity_ms, 1);
+    await seeded.close(); seeded = undefined;
+
+    // Model a carrier written before execution-clock identity was persisted:
+    // its real delivery custody remains, but this one answer has no readTime.
+    opened = durable(); await opened.open('dev:alice');
+    await opened.commit({ programs: {} });
+    await opened.commit({ deliveries: [{ op: 'custody-clock.clock', args: {}, seq: 0, state: 'complete',
+      data: { readAt: 0 }, rows: [], receipt: { ranges: [], absences: [], verdicts: [] }, validator: '0'.repeat(64) }] });
+    await opened.close(); opened = undefined;
+
+    const observedStore: any = () => {
+      const store: any = durable(), commit = store.commit.bind(store);
+      store.commit = async (swap: any) => {
+        if (swap.programs) programAttempts.push(swap.resetCoverage === true);
+        if (swap.resetCoverage) resets.push(structuredClone(swap));
+        return commit(swap);
+      };
+      return store;
+    };
+    Object.defineProperty(observedStore, 'carrier', { value: durable.carrier });
+    const observedFetch: typeof fetch = async (input, init) => {
+      const response = await fetch(input, init), path = new URL(String(input)).pathname;
+      if (path === '/api/manifest') {
+        requests.push(path); manifestBody = await response.clone().json();
+      }
+      if (path === '/api/program') {
+        requests.push(path);
+        if (!heldProgramRequest) {
+          heldProgramRequest = true; programEntered.resolve(); await releaseProgram.promise;
+        }
+      }
+      return response;
+    };
+    client = createClient({ url: owner.url, persona: 'alice', fetch: observedFetch, offline: { store: observedStore } });
+    await Promise.race([programEntered.promise, client.ready.then(() => assert.fail('client became ready before its program response'))]);
+    assert.deepEqual(requests.slice(-2), ['/api/manifest', '/api/program']);
+    assert.equal(client.offlineRuntime.programGeneration, undefined, 'the cleared carrier has restored no program');
+    assert.deepEqual(client.offlineRuntime.schema, { tables: manifestBody.tables }, 'manifest schema is installed while the program response is held');
+    assert.equal(manifestBody.tables.messages.retain, 'delivered-history');
+    releaseProgram.resolve(); await client.ready;
+
+    assert.deepEqual(programAttempts.slice(0, 2), [false, true],
+      'the unreset program commit raises ClockCoverageReset and retries as one reset swap');
+    assert.deepEqual(resets[0].schema, packet.schema, 'the reset uses the full adopted program schema');
+    assert.equal(resets[0].schema.tables.messages.deliver.log, 'deliveries');
+    const resetRows = (await client.offlineRuntime.store.coverage()).rows;
+    assert(resetRows.some((row: any) => row.table === 'messages' && row.id === body.id));
+    assert(resetRows.some((row: any) => row.table === 'deliveries' && row.id === anchor.id));
+    assert.equal(await client.offlineRuntime.store.answer('custody-clock.clock', {}), undefined);
+
+    // This is the public drain integration the carrier-only clock proof could
+    // not establish: it starts after the real reset and reaches the live tail.
+    drain = await warm(client);
+    assert((await pages(client, api.messages.inbox)).some((row: any) => row.message?.id === body.id));
+    drain.close(); drain = undefined;
+    await client.offline(); const beforeCold = requests.length; client = await client.restart();
+    assert((await pages(client, api.messages.inbox)).some((row: any) => row.message?.id === body.id));
+    assert.equal(requests.length, beforeCold, 'the post-reset drain survives a transport-free cold reopen');
+  } finally {
+    releaseProgram.resolve(); drain?.close();
+    await opened?.close?.(); await seeded?.close(); await client?.close();
+    await owner.close(); await rm(root, { recursive: true, force: true });
+  }
+});
+
 // @ref LLP 1019#acceptance — the shipped template owns the offline bar and historical custody.
 for (const evolve of [false, true]) test(`chat historical custody ${evolve ? 'across a cap successor' : 'without a successor'}: departed recipients receive unsend and expiry tombstones`, { timeout: 60000 }, async () => {
   const owner = await RealOwnerHarness.create({ forceOwned: true, fixture, prepare: root =>
