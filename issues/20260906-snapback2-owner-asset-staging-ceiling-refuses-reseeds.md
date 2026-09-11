@@ -36,3 +36,30 @@ Next acceptance: rerun the original reseed and sample-media workload in a fresh 
 temporary store, record peak objects and bytes by lifecycle state, and distinguish a
 real live-footprint ceiling from the fixed retry leak. Widening/configuring the limit
 requires separate authority; this triage grants none.
+
+## Fresh deterministic lifecycle control — 2026-09-11
+
+The current public-owner controls pass 3/3 in 11.043 seconds without changing
+the 20/40-object or 256/512 MiB policy:
+
+- `asset-pending.test.ts` committed 43 equal-byte claims with 43 distinct asset
+  identities, released 40, reported `objects: 0` and 6,240 charged ready bytes,
+  restarted, preserved every original byte digest, admitted a fresh principal's
+  upload, and re-claimed one exact released record.
+- Its pre-body byte probe was refused from the recorded 6,240-byte lifecycle
+  state, proving that released originals still consume byte custody while no
+  longer consuming pending-object slots.
+- `asset-pending-caps.test.ts` re-proved 20 slots per creator and 40 per owner,
+  including nondisclosure to a third principal. Twenty-one replacements ended
+  with zero pending objects and 3,276 released ready bytes.
+
+This is durable evidence for the repaired lifecycle, not the requested original
+Clique rerun: the historical lane path named above is absent on the current
+machine and the committed benchmark record contains reports, not its fixture
+media or executable sample-50 app. Keep this ticket open. Remaining acceptance
+is exactly one source-bound rerun of that retained external workload (or a
+committed equivalent fixture with the same media/action sequence), recording
+peak receiving, unreleased-ready, released-ready, failed/tombstoned object
+counts and charged bytes. If that live footprint itself exceeds 40/512 MiB,
+policy change still requires separate authority; if it does not, close this as
+the already-fixed retry leak.
