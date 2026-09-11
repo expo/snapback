@@ -688,6 +688,13 @@ already reported. The existing host termination after a completed receipt's
 `.snapback/test-<ts>.sqlite`, deleted after), applies the seed, then runs
 derived checks and journeys.
 
+The multiplexed live transport's explicit `close` control is a synchronous
+resource boundary: its successful response is withheld until the physical SSE
+handler has removed the session, unsubscribed its children, and returned its
+bounded SSE worker token. A caller may open a successor transport immediately
+after that response; it never needs sleeps or external pacing to stay below the
+48-worker ceiling.
+
 Startup cleanup owns scratch and store paths before the first fallible setup
 step, and reaps the directly launched owner before removing those paths and
 SQLite sidecars. Its Unix regression fixture launches `/bin/sleep` directly

@@ -257,6 +257,28 @@ fn connected_batches_two_connects_with_lower_and_upper_time_bounds() {
 }
 
 #[test]
+fn connected_close_ack_releases_each_sse_worker_before_the_next_open() {
+    with_connected_owner(|_, port, _, token, _, _| {
+        let mut retired = Vec::new();
+        for attempt in 0..96 {
+            let mut stream = Sse::live_bearer(port, token);
+            let session = stream.event()["session"].clone();
+            call(
+                port,
+                "/api/live/control",
+                json!({"session":session,"close":true}),
+                Some(token),
+            );
+            retired.push(stream);
+            assert_eq!(retired.len(), attempt + 1);
+        }
+        for stream in &mut retired {
+            stream.assert_closed();
+        }
+    });
+}
+
+#[test]
 fn connected_counts_legacy_query_and_channel_transports_and_fences_both_on_logout() {
     with_connected_owner(|_, port, _, token, principal, _| {
         let mut query =

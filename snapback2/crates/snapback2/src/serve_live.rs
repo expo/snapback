@@ -61,6 +61,7 @@ pub(super) fn handle(
     identity: Identity,
     body: Json,
     control: bool,
+    worker: &mut HttpWorker,
 ) {
     if control {
         let connection = streams
@@ -150,6 +151,7 @@ pub(super) fn handle(
     } else {
         ""
     };
+    let mut release_reply = None;
     let run = (|| -> std::io::Result<()> {
         write!(
             writer,
@@ -174,10 +176,11 @@ pub(super) fn handle(
                     &identity,
                     &wake,
                 );
-                let _ = command.reply.send(result);
                 if close {
+                    release_reply = Some((command.reply, result));
                     return Ok(());
                 }
+                let _ = command.reply.send(result);
             }
             let mut removed = Vec::new();
             for (id, child) in &children {
@@ -218,6 +221,12 @@ pub(super) fn handle(
     if run.is_ok() {
         let _ = writer.write_all(b"0\r\n\r\n");
         let _ = writer.flush();
+    }
+    if let Some((reply, result)) = release_reply {
+        // @ref LLP 1002#4-the-wire — a close acknowledgement is also the
+        // bounded-worker release boundary, so a successor transport may open
+        // immediately without racing the retired physical connection.
+        worker.reply_after_release(reply, result);
     }
 }
 fn chunk(writer: &mut impl Write, payload: &str) -> std::io::Result<()> {
