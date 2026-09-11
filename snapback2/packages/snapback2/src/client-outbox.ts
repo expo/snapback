@@ -14,6 +14,7 @@ import {
 import { DeliveryEnvelopeDecodeError } from "./offline-protocol.js";
 import { OfflineAuthorityError, type AcceptedDelivery, type OfflineRuntime } from "./offline.js";
 import { FullRevalidationRequired } from "./store/fact-integrity.js";
+import { AcknowledgementTailRequired } from './delivery-acknowledgements.js';
 import { OutboxRefusal, replayEnvelope, type OutboxEntry } from "./store/outbox.js";
 import { referenceName } from "./api.js";
 import { inboxKeyOf } from "./store/inbox.js";
@@ -258,7 +259,7 @@ async function drainQueued(options: DrainOptions): Promise<DrainResult> {
   for (;;) {
     await runtime.outbox.admitAcknowledgements();
     const queued = (await runtime.outbox.queued())[0];
-    if (!queued) return finish((await runtime.outbox.pendingAcknowledgements()).length ? "pending" : undefined);
+    if (!queued) return finish((await runtime.outbox.pendingAcknowledgements()).remaining ? "pending" : undefined);
     throwIfAborted(options.signal);
     let entry = await runtime.store.outbox.get(queued.intent);
     throwIfAborted(options.signal);
@@ -297,12 +298,21 @@ async function drainQueued(options: DrainOptions): Promise<DrainResult> {
     throwIfAborted(options.signal);
     const result = wireReplayResponse(raw);
     if (result.state === "committed") {
+      const revision = runtime.coverageRevision;
+      // @ref LLP 1018.008.007.001#5-avoid-redundant-query-work-without-suppressing-progress —
+      // the carrier rechecks eligibility in the terminal transaction; a stale
+      // proof falls back to the ordinary tail without resending the mutation.
+      if (await runtime.store.outbox.acknowledgementWithoutTail?.(runtime.outbox.settle(entry, 'committed', result))) {
+        try {
+          if (!(await settle(options, entry, 'committed', result, undefined, revision, true))) return finish('authority');
+          continue;
+        } catch (error) { if (!(error instanceof AcknowledgementTailRequired)) throw error; }
+      }
       // @ref LLP 1012#7-writes-offline — a committed settlement lands with the
       // rows the commit produced or not at all: when the tail cannot be fetched
       // the intent stays queued and the drain stops; the retry is the same
       // envelope, which the owner's ledger answers unexecuted, and the tail
       // then joins the settlement swap.
-      const revision = runtime.coverageRevision;
       let tail: Awaited<ReturnType<typeof logTail>>;
       try {
         tail = await logTail(options, revision);
@@ -343,17 +353,20 @@ async function settle(
   response?: unknown,
   tail?: { op: string; args: unknown; accepted: AcceptedDelivery<unknown>; deliveryOrder: number },
   revision = options.runtime.coverageRevision,
+  acknowledgementOnly = false,
 ): Promise<boolean> {
   const settled = options.runtime.outbox.settle(entry, state, response);
   try {
     throwIfAborted(options.signal);
-    const superseded = await options.runtime.commitMany(tail ? [tail] : [], undefined, { put: [settled] }, revision,
+    const superseded = await options.runtime.commitMany(tail ? [tail] : [], undefined,
+      { put: [settled], ...(acknowledgementOnly ? { acknowledgementOnly: true as const } : {}) }, revision,
       () => !options.signal?.aborted, undefined, tail?.deliveryOrder);
     throwIfAborted(options.signal);
     const current = !superseded && revision === options.runtime.coverageRevision;
     if (current) recordTerminal(options.runtime, settled);
     return current;
   } catch (error) {
+    if (error instanceof AcknowledgementTailRequired) throw error;
     throw options.failure(error);
   }
 }

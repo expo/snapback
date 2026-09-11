@@ -1769,5 +1769,2012 @@
     "Full-size baseline never completes, so full-size matched retained-memory/reopen comparison is unavailable. Checkpoint heap/storage diagnostics cover identical 950-row data only.",
     "Eight physical candidate reopens qualify public held query custody, not bearer-authenticated template UI reopen.",
     "No foreground latency or old incident closure follows from the bulk acquisition improvement."
-  ]
+  ],
+  "incrementalWork20260911": {
+    "plan": "llp/1018.008.007.001-acquisition-with-incremental-work.plan.md",
+    "baselineProductCommit": "1917a7964700b7f29976fe6fb0406e50e477da44",
+    "implementationSnapshotCommit": "b5c73f084aa7a996cf281f7ffbaa2ff0f6efae55",
+    "qualificationSourceManifest": "qualification-committed-source-manifest.json",
+    "sourceDeltaSha256": {
+      "snapback2/packages/snapback2/src/client-observed.ts": "80255630a76fc5c960dbaaa5fea10e0ebf67574a26b23591157312086ce8fc71",
+      "snapback2/packages/snapback2/src/client-outbox.ts": "f6b1360642d5cfa4aee7365a6f17354a2866fe2ce3e6bf1b4321213d26a94c5d",
+      "snapback2/packages/snapback2/src/client-sessions.ts": "b3de28403d34b80c81090cb5ebf1ec797e895b06684a265d441c0ef2a8df6769",
+      "snapback2/packages/snapback2/src/client.ts": "86f89d2f58e14bf960bb398247b497e0aa4e96351ba0b2eb51a2abe8127f2b88",
+      "snapback2/packages/snapback2/src/delivery-acknowledgements.ts": "ea16b02df3889cc2db8984b50652e5fae027d3e25f8a5f14a9d77f0c991ae850",
+      "snapback2/packages/snapback2/src/offline.ts": "31fc924fac62a9f8a8077094cca61d0e5aab713a7cd72df55be338025e8e874f",
+      "snapback2/packages/snapback2/src/store/outbox.ts": "5819bbe2239bbb6ed9fc9a907ad5402c2429659a25ac8b1e14d2fa259f480726",
+      "snapback2/packages/snapback2/src/store/query-inputs.ts": "775cc3446f7c5232a8555ddd5339df1b3622a6412498a701cea9a543dc0a123f",
+      "snapback2/packages/snapback2/src/store/range-store.ts": "caa833a58815d313b44966b44c25221f40adcb5f6c508cc871dc67542d0a045f",
+      "snapback2/packages/snapback2/src/store/swap-journal.ts": "a260c65e8ed22c2ddf0f52827e4528f215371f5d1f31cb6351cea4e6b66c0a3b"
+    },
+    "primaryEndpoint": "Durable complete fixture content and every earned acknowledgement durably settled; exact content hash and owner received=true verification after timing. Content-only is secondary.",
+    "scope": "Frozen Chromium, IndexedDB, development persona, identical owner/compiler/app/fixture. No bearer-UI, native, p95 or specialized-sync-system qualification.",
+    "fixture": {
+      "messages": 10008,
+      "receiptsAlreadyReceived": 4450,
+      "receiptsInitiallyUnreceived": 5558,
+      "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80"
+    },
+    "sampleProtocol": {
+      "pairs": 10,
+      "order": "AB,BA alternating",
+      "cutoffSeconds": 180,
+      "profilingInPrimaryTiming": false,
+      "fullContentHashAfterTiming": true,
+      "ownerReceiptOracleAfterStop": true
+    },
+    "diagnosticSelectors": {
+      "baseline": {
+        "contentMs": 56087,
+        "rendererThreadMs": 51649,
+        "allCalls": 6819,
+        "allCopyMs": 7438,
+        "programsCalls": 206,
+        "programsCopyMs": 715,
+        "groupsQueries": 203,
+        "inboxQueries": 201,
+        "ackMutations": 201,
+        "indexedDbWrites": 613
+      },
+      "initialCandidate": {
+        "contentMs": 32592,
+        "rendererThreadMs": 27702,
+        "allCalls": 2080,
+        "allCopyMs": 1939,
+        "queuedSelectorCalls": 5411,
+        "queuedCopyMs": 116,
+        "programsCalls": 5,
+        "programsCopyMs": 14,
+        "targetsCalls": 201,
+        "targetsCopyMs": 1.8,
+        "groupsQueries": 114,
+        "inboxQueries": 201,
+        "ackMutations": 201,
+        "indexedDbWrites": 613
+      },
+      "note": "Single instrumented samples; synchronous selector times. Initial candidate predates the error-path-only repair. Inclusive profiler times are not additive.",
+      "finalCandidate": {
+        "artifact": "evidence/candidate-final-profile-10008.json",
+        "allCalls": 2076,
+        "allCopyMs": 1915.9,
+        "programsCalls": 5,
+        "programsCopyMs": 14.6,
+        "queuedSelectorCalls": 5397,
+        "queuedCopyMs": 142.7,
+        "targetsCalls": 201,
+        "targetsCopyMs": 1.4,
+        "note": "Final repaired source, synchronous selector copy CPU. The separate awaited ledger.queued duration includes overlapping waits and is not additive CPU."
+      }
+    },
+    "codeReview": {
+      "freshCodex": "One P2 item-read failure suppression repaired; independently reproduced after repair; NO MATERIAL FINDING REMAINS.",
+      "planPanel": "Grok, Muse, Astra, Gemini all READY after two rounds.",
+      "grok": "Fresh grok-4.6-build/xhigh session01a09219-66cd-7f50-b36c-c34f86b99ffe inspected repaired live source; NO MATERIAL FINDINGS REMAIN; did not run tests.",
+      "measurement": "Fresh independent Codex review; exact-cohort/full-row/identity enforcement and censor-bound math repaired and independently checked in seven synthetic cases. Final v3 also requires actual cutoff evidence and no independent errors. All20 final samples pass."
+    },
+    "artifacts": {
+      "remoteHost": "EPYC / expose-builder-pixel",
+      "remoteRoot": "/home/ccheever/lanes/clique-20260909-initial/runs/acquisition-linear-work-20260911",
+      "localIgnoredMirror": "runs/acquisition-linear-work-20260911"
+    },
+    "residualProfile": {
+      "gcSelfMs": 2721,
+      "baselineGcSelfMs": 10198,
+      "imageCanonicalInclusiveMs": 2344,
+      "jsonStateSelfMs": 1660,
+      "postingTreeChangeInclusiveMs": 2871,
+      "indexedDbReplaceInclusiveMs": 1275,
+      "indexedDbTransactionUnionMs": 9027,
+      "requestToHeadersUnionMs": 10067,
+      "note": "Diagnostic attribution. Inclusive samples and elapsed intervals overlap; these are not additive savings or an IndexedDB/network floor."
+    },
+    "singleFinalControl": {
+      "completeAcquisitionMs": 32557.507267000005,
+      "contentMs": 32211.657883000003,
+      "postGcHeapBytes": 172781080,
+      "baselinePostGcHeapBytes": 209027476,
+      "physicalReopenMs": 8926.605398,
+      "exactContentHash": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+      "allOwnerReceiptsReceived": {
+        "total": 10008,
+        "received": 10008,
+        "unreceived": 0
+      },
+      "interruptedPrefixMessages": 950,
+      "exactPendingEnvelopePreserved": true,
+      "note": "Single final candidate control; not a distribution or native/bearer UI qualification."
+    },
+    "qualification": {
+      "sourceCommit": "b5c73f084aa7a996cf281f7ffbaa2ff0f6efae55",
+      "rawRecordGitSha": "dd629ae33",
+      "rawRecordNote": "Inherited metadata of ignored private qualification copy; actual source bound by qualified commit and source manifest.",
+      "at": "2026-09-11T20:31:56.073Z",
+      "testScriptExit": 0,
+      "testScriptSeconds": 68,
+      "packageTestsPassed": 1368,
+      "nativeTestsPassed": 1127,
+      "compilerEvaluatorDoctestPhases": "pass",
+      "measureExit": 1,
+      "gzipBytes": {
+        "client": 140687,
+        "react": 150564,
+        "expo": 154061,
+        "runtime": 89024
+      },
+      "byteBaselineAccepted": false,
+      "checkProjectSeconds": 1.012,
+      "consumerSmokeSeconds": 23.4,
+      "doctorSeconds": [
+        0.037,
+        0.038
+      ],
+      "warmBuildSeconds": 0.12,
+      "incrementalBuildSeconds": 3.09,
+      "openFailures": [
+        "four package growth guards",
+        "project check above1s",
+        "test suite above60s",
+        "base source cap overflow",
+        "base root inventories drift"
+      ],
+      "contextSha256": "7a86bfe7ed52c41a98cb4d425dabd7d5003839b00e00f82fc5943e4aa75ff239",
+      "sourceManifestSha256": "c7449fa82020c0edac1bd3cec3a9b6a13544cfc4739cd34de9c5ddd44e63c44b",
+      "rawFinalRecord": {
+        "at": "2026-09-11T20:31:56.073Z",
+        "sha": "dd629ae33",
+        "steps": {
+          "warm_build_s": {
+            "seconds": 0.12,
+            "ok": true
+          },
+          "package_build_s": {
+            "seconds": 3.322,
+            "ok": true
+          },
+          "package_bytes_s": {
+            "seconds": 0.354,
+            "ok": true
+          },
+          "boot_s": {
+            "seconds": 0.038,
+            "ok": true,
+            "samples": [
+              {
+                "seconds": 0.037,
+                "ok": true
+              },
+              {
+                "seconds": 0.038,
+                "ok": true
+              }
+            ]
+          },
+          "incremental_build_s": {
+            "seconds": 3.09,
+            "ok": true
+          },
+          "consumer_smoke_s": {
+            "seconds": 23.4,
+            "ok": true
+          },
+          "check_s": {
+            "seconds": 0.008,
+            "ok": true
+          },
+          "check_project_s": {
+            "seconds": 1.012,
+            "ok": true
+          },
+          "dev_boot_s": {
+            "seconds": 0.56,
+            "ok": true
+          },
+          "dev_stop_s": {
+            "seconds": 0.21,
+            "ok": true
+          },
+          "dev_cleanup_s": {
+            "seconds": 0.003,
+            "ok": true
+          },
+          "debug_binary_stat_s": {
+            "seconds": 0,
+            "ok": true
+          },
+          "init_to_dev_s": {
+            "seconds": 1.642,
+            "ok": true
+          },
+          "init_dev_stop_s": {
+            "seconds": 0.21,
+            "ok": true
+          },
+          "init_cleanup_s": {
+            "seconds": 0.004,
+            "ok": true
+          }
+        },
+        "client_gzip_bytes": 140687,
+        "react_gzip_bytes": 150564,
+        "expo_gzip_bytes": 154061,
+        "runtime_gzip_bytes": 89024,
+        "warm_build_s": 0.12,
+        "package_build_s": 3.322,
+        "byte_measurement": {
+          "values": {
+            "client_gzip_bytes": 140687,
+            "react_gzip_bytes": 150564,
+            "expo_gzip_bytes": 154061,
+            "runtime_gzip_bytes": 89024
+          },
+          "toolchain": {
+            "node": "v24.18.0",
+            "esbuild": "0.25.9",
+            "gzipLevel": 9
+          },
+          "format": "packaged-esm-closure-gzip-v1",
+          "ok": true
+        },
+        "byte_toolchain": {
+          "node": "v24.18.0",
+          "esbuild": "0.25.9",
+          "gzipLevel": 9
+        },
+        "byte_format": "packaged-esm-closure-gzip-v1",
+        "package_bytes_s": 0.354,
+        "boot_s": 0.038,
+        "doctor_samples_s": [
+          {
+            "seconds": 0.037,
+            "ok": true
+          },
+          {
+            "seconds": 0.038,
+            "ok": true
+          }
+        ],
+        "doctor_ms": 31.499778,
+        "incremental_build_s": 3.09,
+        "consumer_smoke_s": 23.4,
+        "consumer": [
+          {
+            "name": "install tarballs",
+            "seconds": 1.948288944,
+            "ok": true
+          },
+          {
+            "name": "doctor",
+            "seconds": 0.06782549699999982,
+            "ok": true
+          },
+          {
+            "name": "guide auth",
+            "seconds": 0.03270183899999938,
+            "ok": true
+          },
+          {
+            "name": "public client and React exports",
+            "seconds": 0.04873543299999983,
+            "ok": true
+          },
+          {
+            "name": "todos init",
+            "seconds": 0.7300798250000007,
+            "ok": true
+          },
+          {
+            "name": "todos check",
+            "seconds": 0.743609156999999,
+            "ok": true
+          },
+          {
+            "name": "todos React bundle",
+            "seconds": 1.5803832279999988,
+            "ok": true
+          },
+          {
+            "name": "todos dev",
+            "seconds": 0.2892271070000006,
+            "ok": true
+          },
+          {
+            "name": "React live query round trip",
+            "seconds": 0.1766332910000001,
+            "ok": true
+          },
+          {
+            "name": "todos receipt",
+            "accepted": true,
+            "verdict": "pass"
+          },
+          {
+            "name": "todos test",
+            "seconds": 0.9515339929999991,
+            "ok": true
+          },
+          {
+            "name": "todos stop",
+            "seconds": 0.16398309599999994,
+            "ok": true
+          },
+          {
+            "name": "chat init",
+            "seconds": 1.1721775970000017,
+            "ok": true
+          },
+          {
+            "name": "chat check",
+            "seconds": 1.1692737269999998,
+            "ok": true
+          },
+          {
+            "name": "chat React bundle",
+            "seconds": 1.6225708400000003,
+            "ok": true
+          },
+          {
+            "name": "chat dev",
+            "seconds": 0.5900586920000024,
+            "ok": true
+          },
+          {
+            "name": "chat receipt",
+            "accepted": true,
+            "verdict": "blocked",
+            "blocked": "a sent message notifies the recipient, effects"
+          },
+          {
+            "name": "chat test",
+            "seconds": 9.703942026,
+            "ok": true
+          },
+          {
+            "name": "chat stop",
+            "seconds": 0.16361158900000008,
+            "ok": true
+          }
+        ],
+        "check_s": 0.008,
+        "check_project_s": 1.012,
+        "dev_boot_s": 0.56,
+        "dev_stop_s": 0.21,
+        "dev_cleanup_s": 0.003,
+        "debug_binary_bytes": 178094856,
+        "release_binary_bytes": 19787560,
+        "debug_binary_stat_s": 0,
+        "init_to_dev_s": 1.642,
+        "init_dev_stop_s": 0.21,
+        "init_cleanup_s": 0.004,
+        "byte_baseline_accepted": false
+      },
+      "rawSetupFailedRecord": {
+        "at": "2026-09-11T20:27:43.502Z",
+        "sha": "dd629ae33",
+        "steps": {
+          "warm_build_s": {
+            "seconds": 0.12,
+            "ok": true
+          },
+          "package_build_s": {
+            "seconds": 3.412,
+            "ok": true
+          },
+          "package_bytes_s": {
+            "seconds": 1.125,
+            "ok": false,
+            "error": "byte measurements require Node 24.18.0 / esbuild 0.25.9 / gzip 9: {\"node\":\"v24.13.1\",\"esbuild\":\"0.25.9\",\"gzipLevel\":9}"
+          },
+          "boot_s": {
+            "seconds": 0.036,
+            "ok": true,
+            "samples": [
+              {
+                "seconds": 0.036,
+                "ok": true
+              },
+              {
+                "seconds": 0.035,
+                "ok": true
+              }
+            ]
+          },
+          "incremental_build_s": {
+            "seconds": 3.1,
+            "ok": true
+          },
+          "consumer_smoke_s": {
+            "seconds": 25.06,
+            "ok": true
+          },
+          "check_s": {
+            "seconds": 0.007,
+            "ok": true
+          },
+          "check_project_s": {
+            "seconds": 1.155,
+            "ok": true
+          },
+          "dev_boot_s": {
+            "seconds": 0.712,
+            "ok": true
+          },
+          "dev_stop_s": {
+            "seconds": 0.264,
+            "ok": true
+          },
+          "dev_cleanup_s": {
+            "seconds": 0.003,
+            "ok": true
+          },
+          "debug_binary_stat_s": {
+            "seconds": 0,
+            "ok": true
+          },
+          "init_to_dev_s": {
+            "seconds": 1.935,
+            "ok": true
+          },
+          "init_dev_stop_s": {
+            "seconds": 0.185,
+            "ok": true
+          },
+          "init_cleanup_s": {
+            "seconds": 0.003,
+            "ok": true
+          }
+        },
+        "client_gzip_bytes": null,
+        "react_gzip_bytes": null,
+        "expo_gzip_bytes": null,
+        "runtime_gzip_bytes": null,
+        "warm_build_s": 0.12,
+        "package_build_s": 3.412,
+        "byte_measurement": {
+          "values": {
+            "client_gzip_bytes": 140687,
+            "react_gzip_bytes": 150564,
+            "expo_gzip_bytes": 154061,
+            "runtime_gzip_bytes": 89024
+          },
+          "toolchain": {
+            "node": "v24.13.1",
+            "esbuild": "0.25.9",
+            "gzipLevel": 9
+          },
+          "format": "packaged-esm-closure-gzip-v1",
+          "ok": true
+        },
+        "package_bytes_s": 1.125,
+        "boot_s": 0.036,
+        "doctor_samples_s": [
+          {
+            "seconds": 0.036,
+            "ok": true
+          },
+          {
+            "seconds": 0.035,
+            "ok": true
+          }
+        ],
+        "doctor_ms": 30.85413,
+        "incremental_build_s": 3.1,
+        "consumer_smoke_s": 25.06,
+        "consumer": [
+          {
+            "name": "install tarballs",
+            "seconds": 2.112739064000001,
+            "ok": true
+          },
+          {
+            "name": "doctor",
+            "seconds": 0.06222397400000045,
+            "ok": true
+          },
+          {
+            "name": "guide auth",
+            "seconds": 0.030137085999998817,
+            "ok": true
+          },
+          {
+            "name": "public client and React exports",
+            "seconds": 0.07028269899999941,
+            "ok": true
+          },
+          {
+            "name": "todos init",
+            "seconds": 0.9110693400000001,
+            "ok": true
+          },
+          {
+            "name": "todos check",
+            "seconds": 0.914039761,
+            "ok": true
+          },
+          {
+            "name": "todos React bundle",
+            "seconds": 1.696649561,
+            "ok": true
+          },
+          {
+            "name": "todos dev",
+            "seconds": 0.4891136490000008,
+            "ok": true
+          },
+          {
+            "name": "React live query round trip",
+            "seconds": 0.18327142599999935,
+            "ok": true
+          },
+          {
+            "name": "todos receipt",
+            "accepted": true,
+            "verdict": "pass"
+          },
+          {
+            "name": "todos test",
+            "seconds": 1.2445184169999992,
+            "ok": true
+          },
+          {
+            "name": "todos stop",
+            "seconds": 0.1599147499999999,
+            "ok": true
+          },
+          {
+            "name": "chat init",
+            "seconds": 1.3582713189999995,
+            "ok": true
+          },
+          {
+            "name": "chat check",
+            "seconds": 1.3261214569999975,
+            "ok": true
+          },
+          {
+            "name": "chat React bundle",
+            "seconds": 1.594783599000002,
+            "ok": true
+          },
+          {
+            "name": "chat dev",
+            "seconds": 0.7393008790000022,
+            "ok": true
+          },
+          {
+            "name": "chat receipt",
+            "accepted": true,
+            "verdict": "blocked",
+            "blocked": "a sent message notifies the recipient, effects"
+          },
+          {
+            "name": "chat test",
+            "seconds": 9.756140201000003,
+            "ok": true
+          },
+          {
+            "name": "chat stop",
+            "seconds": 0.2367247690000004,
+            "ok": true
+          }
+        ],
+        "check_s": 0.007,
+        "check_project_s": 1.155,
+        "dev_boot_s": 0.712,
+        "dev_stop_s": 0.264,
+        "dev_cleanup_s": 0.003,
+        "debug_binary_bytes": 178094856,
+        "release_binary_bytes": 19787560,
+        "debug_binary_stat_s": 0,
+        "init_to_dev_s": 1.935,
+        "init_dev_stop_s": 0.185,
+        "init_cleanup_s": 0.003,
+        "byte_baseline_accepted": false
+      },
+      "compilerTests": {
+        "passed": 302,
+        "total": 302
+      },
+      "evaluatorTests": {
+        "passed": 266,
+        "total": 266,
+        "visibilityPassed": 2,
+        "visibilityTotal": 2
+      },
+      "deliveryPredictionTests": {
+        "passed": 10,
+        "total": 10
+      }
+    },
+    "foregroundControls": {
+      "baseline-during": {
+        "firstUsefulThreadMs": 1451.266322,
+        "ownerObservedMs": 1737.2047350000003,
+        "senderViewObservedMs": 1795.0034989999995,
+        "pass": true,
+        "durableAdmissionMs": 38.10000014305115,
+        "mutationReturnMs": 1652.2000000476837,
+        "mutationState": "committed"
+      },
+      "baseline-after": {
+        "firstUsefulThreadMs": 1527.392778,
+        "ownerObservedMs": 1997.0237720000005,
+        "senderViewObservedMs": 2309.7956640000048,
+        "pass": true,
+        "durableAdmissionMs": 52.200000047683716,
+        "mutationReturnMs": 1840.2000000476837,
+        "mutationState": "committed"
+      },
+      "candidate-final-during": {
+        "firstUsefulThreadMs": 1384.8514149999999,
+        "ownerObservedMs": 1245.8388249999998,
+        "senderViewObservedMs": 1301.065074,
+        "pass": true,
+        "durableAdmissionMs": 10.299999952316284,
+        "mutationReturnMs": 1213.0999999046326,
+        "mutationState": "committed"
+      },
+      "candidate-final-after": {
+        "firstUsefulThreadMs": 1487.475754,
+        "ownerObservedMs": 719.9227099999989,
+        "senderViewObservedMs": 783.982594000001,
+        "pass": true,
+        "durableAdmissionMs": 24.700000047683716,
+        "mutationReturnMs": 660.5999999046326,
+        "mutationState": "committed"
+      }
+    },
+    "benchmarkRuntime": {
+      "node": "v24.13.1",
+      "browser": "140.0.7339.186",
+      "note": "Fixed benchmark environment, distinct from the pinned24.18.0 canonical byte measurement."
+    },
+    "sourceContext": {
+      "baseline": {
+        "commit": "1917a7964700b7f29976fe6fb0406e50e477da44",
+        "manifest": {
+          "file": "baseline-source-manifest.json",
+          "sha256": "ba967c33434d3b307f5116f1d072068f3888544272999d306dfb0536cb8f7e1f"
+        }
+      },
+      "benchmarkCandidate": {
+        "baseCommit": "6e644f02866ffb09150c07955206e9c87c55692a",
+        "note": "Final performance source frozen from the lane before integrated upstream React/chat additions. Base commit alone is not candidate identity; the exact source manifest and retained delta patch define it.",
+        "manifest": {
+          "file": "candidate-final-source-manifest.json",
+          "sha256": "b07a7f135c0783b3e34e657575b116902542014f1c6af967c099224e39a913db"
+        },
+        "deltaPatch": {
+          "file": "candidate-final-source-delta.patch",
+          "sha256": "02dc1f6d005af28c3e28a51920f63206a1371f17407e0802311da0f449e5b95e"
+        }
+      },
+      "canonicalQualification": {
+        "commit": "b5c73f084aa7a996cf281f7ffbaa2ff0f6efae55",
+        "manifest": {
+          "file": "qualification-committed-source-manifest.json",
+          "sha256": "c7449fa82020c0edac1bd3cec3a9b6a13544cfc4739cd34de9c5ddd44e63c44b"
+        },
+        "context": {
+          "file": "qualification-context.json",
+          "sha256": "7a86bfe7ed52c41a98cb4d425dabd7d5003839b00e00f82fc5943e4aa75ff239"
+        },
+        "rawMeasurementSha": "dd629ae33",
+        "rawShaMeaning": "Inherited warm-checkout metadata in an isolated private index; qualified source is the b5c manifest."
+      },
+      "baselineToCandidateSourceDelta": [
+        {
+          "path": "snapback2/metrics/twin.jsonl",
+          "before": "bb8d5a5772674f5a7480f467160f546aa810e6752dea768e0cbafe02e9688b0e",
+          "after": "3bd4a804cbfb6aabaf3294c9a34496f803f05a755abcb6f0c91968fe938b3d02"
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/client-observed.ts",
+          "before": "5063af80c934aa5a943b831272bef7a64aab96deda4d6bb37b19632e849a8c19",
+          "after": "80255630a76fc5c960dbaaa5fea10e0ebf67574a26b23591157312086ce8fc71"
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/client-outbox.ts",
+          "before": "7126dccddb813ec3c16a2f9ae926691b654c70fb38079b2625f7173109a71551",
+          "after": "f6b1360642d5cfa4aee7365a6f17354a2866fe2ce3e6bf1b4321213d26a94c5d"
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/client-sessions.ts",
+          "before": "dca5f27ebb9abc980755e5801c17ae9ac093ef62986680e4fe36a9d4ceb527fd",
+          "after": "b3de28403d34b80c81090cb5ebf1ec797e895b06684a265d441c0ef2a8df6769"
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/client.ts",
+          "before": "f5f4b66b4997460603e8c99cba722ab30fd85959ad5efd12b03480098bfb7047",
+          "after": "86f89d2f58e14bf960bb398247b497e0aa4e96351ba0b2eb51a2abe8127f2b88"
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/delivery-acknowledgements.ts",
+          "before": "06c23693c9252d48909c3ff81c2769bc92969a9e5a50af52a2876d8f91f68e4a",
+          "after": "ea16b02df3889cc2db8984b50652e5fae027d3e25f8a5f14a9d77f0c991ae850"
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/offline.ts",
+          "before": "2a4da5f33a326872d0a416e56dc667ea095a4a577998b58bcdd4d77c90998c6a",
+          "after": "31fc924fac62a9f8a8077094cca61d0e5aab713a7cd72df55be338025e8e874f"
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/store/outbox.ts",
+          "before": "6ca8a460eb5689218a56b2080a0db096682ef885d7e5d865a5b23e91fe749a3c",
+          "after": "5819bbe2239bbb6ed9fc9a907ad5402c2429659a25ac8b1e14d2fa259f480726"
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/store/query-inputs.ts",
+          "before": "e6af4d521f8cedc30c0b55c9d960e0d99044a6b3b65b515624721463ddb6cb5a",
+          "after": "775cc3446f7c5232a8555ddd5339df1b3622a6412498a701cea9a543dc0a123f"
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/store/range-store.ts",
+          "before": "080a57013e89db251fb21ab696ef1ca73ad3e68c1f13afea3c80a0368d6cd513",
+          "after": "caa833a58815d313b44966b44c25221f40adcb5f6c508cc871dc67542d0a045f"
+        },
+        {
+          "path": "snapback2/packages/snapback2/src/store/swap-journal.ts",
+          "before": "6f5a905a9baf0e35ce09631e22aba2bf2463b2dbbc14c12f4a86757c6ac540f3",
+          "after": "a260c65e8ed22c2ddf0f52827e4528f215371f5d1f31cb6351cea4e6b66c0a3b"
+        },
+        {
+          "path": "snapback2/packages/snapback2/tests/client-sessions.test.ts",
+          "before": "e5515161af88c23cde1297b280e6ddb26890ed3d7c833d12d2830381286f5c8e",
+          "after": "6c1f1e01bc4b062821263a60d4fe75112bad1f3d5ba413decb77a778a8049ca1"
+        },
+        {
+          "path": "snapback2/packages/snapback2/tests/delivery-custody.test.ts",
+          "before": "5d26522b5363ee2999d177fdf508b7a706ec94d5b97155d090378b7bf0439920",
+          "after": "a9339d98ca33ad55ef353bb545d8185c713d75f15363738482af215b2744dd76"
+        },
+        {
+          "path": "snapback2/packages/snapback2/tests/mutation-targets.test.ts",
+          "before": "16ead27dbb6b3130772a22edad884e9604b8b67435049191b2e7ab13e4578d32",
+          "after": "6bef8b4c2fdb300afc05690707407bb8f3e0cae64bd326e4bbf8523fbc7bc310"
+        },
+        {
+          "path": "snapback2/packages/snapback2/tests/real-owner-delivery.test.ts",
+          "before": "2c6b44924aa6a4296eb42dc5f9ae2786ba04c7de2d620fa54917c8f15b1101e2",
+          "after": "f8ee8c8a7aba4ad7b2a554cc5d9165363cd96ea37a1e2d984b79d605f1701773"
+        },
+        {
+          "path": "snapback2/packages/snapback2/tests/sqlite-exports.ts",
+          "before": "89bb2fdc929cdf15f09060262bb9a1be58452b53c60d32363c729622206e9f33",
+          "after": "6f39559818cf88941856be189579c9cc71ded0db0b863e63a5a1087c2fe39c46"
+        }
+      ],
+      "benchmarkCandidateToIntegratedSourceDelta": [
+        {
+          "path": "snapback2/packages/snapback2/src/react.tsx",
+          "before": "b403949a4c4ac0ce85ffd73527b7d88815c633d4d27a563bfe9189019d0dda38",
+          "after": "9dcd89c431dc560f342d31893eb3e53101513e9595d1c1d6afe989e0655f01e6"
+        },
+        {
+          "path": "snapback2/packages/snapback2/templates/chat/react/src/EditMessage.tsx",
+          "before": null,
+          "after": "719864313760241e2a81b603cf2803f64cfd57b3e704fe62d99d66f5b84dcff4"
+        },
+        {
+          "path": "snapback2/packages/snapback2/templates/chat/react/src/MessageMedia.tsx",
+          "before": null,
+          "after": "58ce9d17ea4a64a2495df2d2cc1cbb60e95ba672053ee2cfb8b8db53247d1cb8"
+        },
+        {
+          "path": "snapback2/packages/snapback2/templates/chat/react/src/Thread.tsx",
+          "before": "a87e9a3a1d2d3fb400b1fc405ea12fa443fd9c352691915791c4885af66f06d6",
+          "after": "869e96e4b2d0b6451bf5283509addeca7a921dd19610ed810246398925e4c69b"
+        },
+        {
+          "path": "snapback2/packages/snapback2/tests/chat-screens-owner.test.ts",
+          "before": "8594b4bfa132f0a6cc1d5dfb9c5e76fb0a340c0cb1fb467232da6093380b79f1",
+          "after": "95a6484953b57e5b41ad73b9e5e4c4c362303b1087402be56ee0a0d943252ffd"
+        },
+        {
+          "path": "snapback2/packages/snapback2/tests/chat-screens-refusal.test.ts",
+          "before": "ae3c6e822392076772dbf2025293924e9b9860924f1ab5738578f6e72ce1e0be",
+          "after": "2dd9b86209ecea3ad746164f2d4c3a6154f38365e73c18292e98923d171f1d4e"
+        }
+      ],
+      "frozenInputs": {
+        "file": "frozen-cohort-inputs.json",
+        "sha256": "c846c9f7f0e1ac145f97ca2eef5d828322b6bb8a31c9359589c2a8a15fce4f2a"
+      },
+      "browser": "140.0.7339.186",
+      "browserExecutable": "/home/ccheever/.cache/ms-playwright/chromium-1193/chrome-linux/chrome",
+      "browserHarnessNode": "v24.13.1",
+      "canonicalByteNode": "v24.18.0",
+      "fixture": {
+        "messages": 10008,
+        "receivedAtStart": 4450,
+        "unreceivedAtStart": 5558,
+        "fullMessageRowsSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+        "scope": "Matched-source comparison; not a first-ever all-false receipt fixture."
+      },
+      "app": "Both variants use the baseline-source chat React template and same build settings; runtime/React package imports select the variant. Fixed copied owner/media binaries and compiler-dist.",
+      "isolation": "Single serial browser cohort. Canonical qualification completed before pairs; no own build or profile run overlaps timing."
+    },
+    "failedOrSupersededAttempts": [
+      {
+        "attempt": "baseline-clean10008-initial",
+        "classification": "setup-failure",
+        "cause": "Isolated frozen compiler could not resolve TypeScript. Run-local dependency symlink repaired before browser timing.",
+        "evidence": [
+          "evidence/baseline-clean10008-initial.json",
+          "logs/baseline-clean10008-initial.log"
+        ]
+      },
+      {
+        "attempt": "baseline-clean10008-r2",
+        "classification": "setup-failure",
+        "cause": "Fixed owner lacked its sibling media helper. Existing helper copied without rebuilding owner or helper.",
+        "evidence": [
+          "evidence/baseline-clean10008-r2.json",
+          "logs/baseline-clean10008-r2.log"
+        ]
+      },
+      {
+        "attempt": "baseline-clean10008-r3",
+        "classification": "invalid-endpoint-observer",
+        "cause": "First acknowledgement observer counted metadata root sentinel as pending:10009 total/10008 bound/1 pending/0 queued. Content complete54.372s; resulting180s timeout is not a product censor.",
+        "evidence": [
+          "evidence/baseline-clean10008-r3.json",
+          "logs/baseline-clean10008-r3.log"
+        ]
+      },
+      {
+        "attempt": "baseline-clean10008-r4",
+        "classification": "superseded-timing-definition",
+        "cause": "Valid conservative57.656s primary includes full content read before narrow ack observation. Later harness moved full hash verification after timing. Not a paired sample.",
+        "evidence": [
+          "evidence/baseline-clean10008-r4.json",
+          "logs/baseline-clean10008-r4.log"
+        ]
+      },
+      {
+        "attempt": "candidate snapshot preparation",
+        "classification": "setup-failure",
+        "cause": "Initial copy omitted two tracked chat template directory symlinks. Restored and source manifest verified before browser controls.",
+        "evidence": [
+          "logs/candidate-build-prep-missing-symlinks.log",
+          "logs/candidate-preparation-missing-symlinks.log"
+        ]
+      },
+      {
+        "attempt": "candidate-final-10008 (variant candidate; initial source)",
+        "classification": "invalid-owner-oracle-placement",
+        "cause": "Post-timing SQLite oracle ran while owner held exclusive lock. After owner stop all10008 receipts were true. Final frozen harness places oracle after stop; initial raw failed verdict retained.",
+        "evidence": [
+          "evidence/candidate-final-10008.json",
+          "logs/candidate-final-10008.log",
+          "acquisition-clean-before-oracle-stop.mjs"
+        ]
+      },
+      {
+        "attempt": "initial candidate diagnostic queued-ledger counter",
+        "classification": "diagnostic-counter-limitation",
+        "cause": "Initial candidate ledger.queued timing wrapper measured the promise return without awaiting completion. Its wall-time counter is not comparable. Synchronous selector-copy CPU counters remain valid; final diagnostic awaits the call. Clean paired harness has no such instrumentation.",
+        "evidence": [
+          "evidence/candidate-profile-10008.json",
+          "evidence/candidate-final-profile-10008.json",
+          "prepare-diagnostic.py"
+        ]
+      },
+      {
+        "attempt": "initial canonical qualification",
+        "classification": "setup-failure",
+        "cause": "Missing package-local node_modules symlinks made generated native fixtures unable to resolve TypeScript; root LLP1003 absent; default Node24.13.1 violated byte measurement Node24.18.0 pin. Only prerequisites repaired, then full test.sh and measure rerun.",
+        "evidence": [
+          "logs/setup-failed-final-test-suite.log",
+          "logs/setup-failed-final-measure.log",
+          "logs/setup-failed-qualification-run.log",
+          "setup-failed-qualification-status.json",
+          "setup-failed-qualification-loop.jsonl",
+          "setup-failed-qualification-twin.jsonl"
+        ]
+      },
+      {
+        "attempt": "final canonical qualification",
+        "classification": "honest-budget-failures",
+        "cause": "Functional suite passes. Existing1% byte-growth guards fail all four closures; project check1.012s exceeds1s. No guard relaxed or byte baseline accepted.",
+        "evidence": [
+          "logs/final-test-suite.log",
+          "logs/final-measure.log",
+          "qualification-status.json",
+          "qualification-loop.jsonl",
+          "qualification-twin.jsonl",
+          "qualification-attempt-rows.json"
+        ]
+      }
+    ],
+    "artifactHashes": {
+      "measurement-source-context.json": "84777d08668650eacc794b4071a8777cc0edd8688b1f9373ce46fcbfbaf99af8",
+      "setup-failure-catalog.json": "8ec06fa3ce0c5fab883846b78ae29c3a634d78b8706009906625d12529a137dd",
+      "frozen-cohort-inputs.json": "c846c9f7f0e1ac145f97ca2eef5d828322b6bb8a31c9359589c2a8a15fce4f2a",
+      "qualification-attempt-rows.json": "32a4bb77b0c8782e7dca818c9b2e5efceb9e45e6895f97e25331c9f8ea3e4cdf",
+      "acquisition-clean.mjs": "d221e0cb9ca218fe999d0a5e3e29149033ac952f4540c84a1b15951e8d20d819",
+      "run-pairs.sh": "9be45904abd16aee8daece15b1f98e11561bc89785d0fe635cd33b8f1ee8ed4b",
+      "measurement-review-astra.md": "dccf609370727da8a0a097b08a7c17f92d07340c5a1c416cb8832ad5e1eeb279",
+      "analyze-pairs-v3.py": "7b9c336913628984b1dc95e0679ff4bc74f312c24feb9dd298278a50b484180a",
+      "paired-summary.json": "8c59725d2b3beac8ff942331eec80a24f0e89932ca20ebd497979146e5a1f7d9",
+      "paired-compact.json": "4b55c4c2710c8ca5964094343c345598e0dc022c98396462e91aff3f611935ea",
+      "pre-pairs-input-verification.json": "e8c8726b3f6e1cdd0e6c474b59d057ad31cf3ea686ab4cd85380af92e9fd8fa8",
+      "post-pairs-input-verification.json": "08b18df19a0d73cab3e4a187a4c27c4811cd058a9ee480fb2560cc547589c9cd"
+    },
+    "pairedComparison": {
+      "endpoint": "exact full immutable fixture message rows; all earned acknowledgements locally settled; post-stop owner receipt oracle; cutoff180000ms; no failures removed",
+      "analysisRevision": 3,
+      "analysisRepairs": [
+        "Require exact20 expected pair/variant results and each full-row message hash plus frozen owner/compiler/fixture/harness/runtime identity before qualified median.",
+        "Cutoff classifications require observed deadline evidence and no independent page/process/oracle error; missing evidence remains a non-timing failure.",
+        "Censors contribute cutoff180000ms to median lower bounds; either central observation censored makes the median censored."
+      ],
+      "samples": [
+        {
+          "sample": "pair-01-baseline",
+          "variant": "baseline",
+          "contentMs": 56699.062918,
+          "completeMs": 57208.497782,
+          "primaryPass": true,
+          "verifiedPass": true,
+          "reopenPass": true,
+          "firstInboxMs": 1192.2153589999998,
+          "reopenMs": 8907.709927999997,
+          "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+          "fullContentPass": true,
+          "ackEndpoint": {
+            "atMs": 57208.487957000005,
+            "total": 10008,
+            "pending": 0,
+            "bound": 10008,
+            "retry": 0,
+            "queued": 0
+          },
+          "ownerReceipts": {
+            "total": 10008,
+            "received": 10008,
+            "unreceived": 0
+          },
+          "failureKind": null,
+          "timingCensor": false,
+          "identityErrors": [],
+          "error": null,
+          "hostLoad": [
+            2.99,
+            3.64,
+            2.93
+          ],
+          "finishedLoad": [
+            2.28,
+            3.31,
+            2.87
+          ],
+          "ownerSha": "73ca6fa2a56434981ad1997aa86efff15c60f0667c5fde8bada736b8e11a1763",
+          "compilerSha": "ae432f5c70744110b305409aa2a60e9576f0d8c3abced2387ef58e1f555be82e",
+          "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+          "harnessSha256": "d221e0cb9ca218fe999d0a5e3e29149033ac952f4540c84a1b15951e8d20d819",
+          "runtimeSha": "96d385762b2f1b518595f9e8b1d3b33faf1e58809148b8b5c0f2edeea1b6c8da"
+        },
+        {
+          "sample": "pair-01-candidate",
+          "variant": "candidate",
+          "contentMs": 31957.398768999996,
+          "completeMs": 32446.150918999996,
+          "primaryPass": true,
+          "verifiedPass": true,
+          "reopenPass": true,
+          "firstInboxMs": 689.1329029999999,
+          "reopenMs": 8913.568388,
+          "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+          "fullContentPass": true,
+          "ackEndpoint": {
+            "atMs": 32446.144079,
+            "total": 10008,
+            "pending": 0,
+            "bound": 10008,
+            "retry": 0,
+            "queued": 0
+          },
+          "ownerReceipts": {
+            "total": 10008,
+            "received": 10008,
+            "unreceived": 0
+          },
+          "failureKind": null,
+          "timingCensor": false,
+          "identityErrors": [],
+          "error": null,
+          "hostLoad": [
+            2.28,
+            3.31,
+            2.87
+          ],
+          "finishedLoad": [
+            2.3,
+            3.18,
+            2.85
+          ],
+          "ownerSha": "73ca6fa2a56434981ad1997aa86efff15c60f0667c5fde8bada736b8e11a1763",
+          "compilerSha": "ae432f5c70744110b305409aa2a60e9576f0d8c3abced2387ef58e1f555be82e",
+          "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+          "harnessSha256": "d221e0cb9ca218fe999d0a5e3e29149033ac952f4540c84a1b15951e8d20d819",
+          "runtimeSha": "f2e1dcd3b862f26069d171dfc46087ebd2f04cbcc565156933fc67cc89589131"
+        },
+        {
+          "sample": "pair-02-baseline",
+          "variant": "baseline",
+          "contentMs": 55639.429861,
+          "completeMs": 56087.008068999996,
+          "primaryPass": true,
+          "verifiedPass": true,
+          "reopenPass": true,
+          "firstInboxMs": 1076.3434010000003,
+          "reopenMs": 8928.514677,
+          "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+          "fullContentPass": true,
+          "ackEndpoint": {
+            "atMs": 56086.998345,
+            "total": 10008,
+            "pending": 0,
+            "bound": 10008,
+            "retry": 0,
+            "queued": 0
+          },
+          "ownerReceipts": {
+            "total": 10008,
+            "received": 10008,
+            "unreceived": 0
+          },
+          "failureKind": null,
+          "timingCensor": false,
+          "identityErrors": [],
+          "error": null,
+          "hostLoad": [
+            1.76,
+            2.89,
+            2.76
+          ],
+          "finishedLoad": [
+            2.9,
+            2.99,
+            2.8
+          ],
+          "ownerSha": "73ca6fa2a56434981ad1997aa86efff15c60f0667c5fde8bada736b8e11a1763",
+          "compilerSha": "ae432f5c70744110b305409aa2a60e9576f0d8c3abced2387ef58e1f555be82e",
+          "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+          "harnessSha256": "d221e0cb9ca218fe999d0a5e3e29149033ac952f4540c84a1b15951e8d20d819",
+          "runtimeSha": "96d385762b2f1b518595f9e8b1d3b33faf1e58809148b8b5c0f2edeea1b6c8da"
+        },
+        {
+          "sample": "pair-02-candidate",
+          "variant": "candidate",
+          "contentMs": 32150.367683,
+          "completeMs": 32508.022027999996,
+          "primaryPass": true,
+          "verifiedPass": true,
+          "reopenPass": true,
+          "firstInboxMs": 1098.6173130000002,
+          "reopenMs": 8909.232841999998,
+          "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+          "fullContentPass": true,
+          "ackEndpoint": {
+            "atMs": 32508.012354000002,
+            "total": 10008,
+            "pending": 0,
+            "bound": 10008,
+            "retry": 0,
+            "queued": 0
+          },
+          "ownerReceipts": {
+            "total": 10008,
+            "received": 10008,
+            "unreceived": 0
+          },
+          "failureKind": null,
+          "timingCensor": false,
+          "identityErrors": [],
+          "error": null,
+          "hostLoad": [
+            2.3,
+            3.18,
+            2.85
+          ],
+          "finishedLoad": [
+            1.76,
+            2.89,
+            2.76
+          ],
+          "ownerSha": "73ca6fa2a56434981ad1997aa86efff15c60f0667c5fde8bada736b8e11a1763",
+          "compilerSha": "ae432f5c70744110b305409aa2a60e9576f0d8c3abced2387ef58e1f555be82e",
+          "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+          "harnessSha256": "d221e0cb9ca218fe999d0a5e3e29149033ac952f4540c84a1b15951e8d20d819",
+          "runtimeSha": "f2e1dcd3b862f26069d171dfc46087ebd2f04cbcc565156933fc67cc89589131"
+        },
+        {
+          "sample": "pair-03-baseline",
+          "variant": "baseline",
+          "contentMs": 54602.498202,
+          "completeMs": 55054.621865,
+          "primaryPass": true,
+          "verifiedPass": true,
+          "reopenPass": true,
+          "firstInboxMs": 705.3406350000002,
+          "reopenMs": 8948.695960000005,
+          "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+          "fullContentPass": true,
+          "ackEndpoint": {
+            "atMs": 55054.616236,
+            "total": 10008,
+            "pending": 0,
+            "bound": 10008,
+            "retry": 0,
+            "queued": 0
+          },
+          "ownerReceipts": {
+            "total": 10008,
+            "received": 10008,
+            "unreceived": 0
+          },
+          "failureKind": null,
+          "timingCensor": false,
+          "identityErrors": [],
+          "error": null,
+          "hostLoad": [
+            2.9,
+            2.99,
+            2.8
+          ],
+          "finishedLoad": [
+            3.05,
+            3.06,
+            2.84
+          ],
+          "ownerSha": "73ca6fa2a56434981ad1997aa86efff15c60f0667c5fde8bada736b8e11a1763",
+          "compilerSha": "ae432f5c70744110b305409aa2a60e9576f0d8c3abced2387ef58e1f555be82e",
+          "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+          "harnessSha256": "d221e0cb9ca218fe999d0a5e3e29149033ac952f4540c84a1b15951e8d20d819",
+          "runtimeSha": "96d385762b2f1b518595f9e8b1d3b33faf1e58809148b8b5c0f2edeea1b6c8da"
+        },
+        {
+          "sample": "pair-03-candidate",
+          "variant": "candidate",
+          "contentMs": 31937.960163000003,
+          "completeMs": 32308.799266,
+          "primaryPass": true,
+          "verifiedPass": true,
+          "reopenPass": true,
+          "firstInboxMs": 676.7327829999997,
+          "reopenMs": 8876.122392000005,
+          "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+          "fullContentPass": true,
+          "ackEndpoint": {
+            "atMs": 32308.789342000004,
+            "total": 10008,
+            "pending": 0,
+            "bound": 10008,
+            "retry": 0,
+            "queued": 0
+          },
+          "ownerReceipts": {
+            "total": 10008,
+            "received": 10008,
+            "unreceived": 0
+          },
+          "failureKind": null,
+          "timingCensor": false,
+          "identityErrors": [],
+          "error": null,
+          "hostLoad": [
+            3.05,
+            3.06,
+            2.84
+          ],
+          "finishedLoad": [
+            3.27,
+            3.12,
+            2.88
+          ],
+          "ownerSha": "73ca6fa2a56434981ad1997aa86efff15c60f0667c5fde8bada736b8e11a1763",
+          "compilerSha": "ae432f5c70744110b305409aa2a60e9576f0d8c3abced2387ef58e1f555be82e",
+          "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+          "harnessSha256": "d221e0cb9ca218fe999d0a5e3e29149033ac952f4540c84a1b15951e8d20d819",
+          "runtimeSha": "f2e1dcd3b862f26069d171dfc46087ebd2f04cbcc565156933fc67cc89589131"
+        },
+        {
+          "sample": "pair-04-baseline",
+          "variant": "baseline",
+          "contentMs": 55443.188467,
+          "completeMs": 55902.330416,
+          "primaryPass": true,
+          "verifiedPass": true,
+          "reopenPass": true,
+          "firstInboxMs": 661.1700969999999,
+          "reopenMs": 8955.921389999996,
+          "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+          "fullContentPass": true,
+          "ackEndpoint": {
+            "atMs": 55902.321783,
+            "total": 10008,
+            "pending": 0,
+            "bound": 10008,
+            "retry": 0,
+            "queued": 0
+          },
+          "ownerReceipts": {
+            "total": 10008,
+            "received": 10008,
+            "unreceived": 0
+          },
+          "failureKind": null,
+          "timingCensor": false,
+          "identityErrors": [],
+          "error": null,
+          "hostLoad": [
+            3.35,
+            3.18,
+            2.91
+          ],
+          "finishedLoad": [
+            3.38,
+            3.24,
+            2.95
+          ],
+          "ownerSha": "73ca6fa2a56434981ad1997aa86efff15c60f0667c5fde8bada736b8e11a1763",
+          "compilerSha": "ae432f5c70744110b305409aa2a60e9576f0d8c3abced2387ef58e1f555be82e",
+          "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+          "harnessSha256": "d221e0cb9ca218fe999d0a5e3e29149033ac952f4540c84a1b15951e8d20d819",
+          "runtimeSha": "96d385762b2f1b518595f9e8b1d3b33faf1e58809148b8b5c0f2edeea1b6c8da"
+        },
+        {
+          "sample": "pair-04-candidate",
+          "variant": "candidate",
+          "contentMs": 32715.966239,
+          "completeMs": 33126.44926,
+          "primaryPass": true,
+          "verifiedPass": true,
+          "reopenPass": true,
+          "firstInboxMs": 1123.401843,
+          "reopenMs": 8923.401646999999,
+          "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+          "fullContentPass": true,
+          "ackEndpoint": {
+            "atMs": 33126.440096,
+            "total": 10008,
+            "pending": 0,
+            "bound": 10008,
+            "retry": 0,
+            "queued": 0
+          },
+          "ownerReceipts": {
+            "total": 10008,
+            "received": 10008,
+            "unreceived": 0
+          },
+          "failureKind": null,
+          "timingCensor": false,
+          "identityErrors": [],
+          "error": null,
+          "hostLoad": [
+            3.27,
+            3.12,
+            2.88
+          ],
+          "finishedLoad": [
+            3.35,
+            3.18,
+            2.91
+          ],
+          "ownerSha": "73ca6fa2a56434981ad1997aa86efff15c60f0667c5fde8bada736b8e11a1763",
+          "compilerSha": "ae432f5c70744110b305409aa2a60e9576f0d8c3abced2387ef58e1f555be82e",
+          "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+          "harnessSha256": "d221e0cb9ca218fe999d0a5e3e29149033ac952f4540c84a1b15951e8d20d819",
+          "runtimeSha": "f2e1dcd3b862f26069d171dfc46087ebd2f04cbcc565156933fc67cc89589131"
+        },
+        {
+          "sample": "pair-05-baseline",
+          "variant": "baseline",
+          "contentMs": 56404.744469000005,
+          "completeMs": 57086.400746,
+          "primaryPass": true,
+          "verifiedPass": true,
+          "reopenPass": true,
+          "firstInboxMs": 1116.559743,
+          "reopenMs": 8922.730291999993,
+          "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+          "fullContentPass": true,
+          "ackEndpoint": {
+            "atMs": 57086.394036000005,
+            "total": 10008,
+            "pending": 0,
+            "bound": 10008,
+            "retry": 0,
+            "queued": 0
+          },
+          "ownerReceipts": {
+            "total": 10008,
+            "received": 10008,
+            "unreceived": 0
+          },
+          "failureKind": null,
+          "timingCensor": false,
+          "identityErrors": [],
+          "error": null,
+          "hostLoad": [
+            3.38,
+            3.24,
+            2.95
+          ],
+          "finishedLoad": [
+            3.21,
+            3.22,
+            2.97
+          ],
+          "ownerSha": "73ca6fa2a56434981ad1997aa86efff15c60f0667c5fde8bada736b8e11a1763",
+          "compilerSha": "ae432f5c70744110b305409aa2a60e9576f0d8c3abced2387ef58e1f555be82e",
+          "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+          "harnessSha256": "d221e0cb9ca218fe999d0a5e3e29149033ac952f4540c84a1b15951e8d20d819",
+          "runtimeSha": "96d385762b2f1b518595f9e8b1d3b33faf1e58809148b8b5c0f2edeea1b6c8da"
+        },
+        {
+          "sample": "pair-05-candidate",
+          "variant": "candidate",
+          "contentMs": 32526.127461999997,
+          "completeMs": 32874.22144,
+          "primaryPass": true,
+          "verifiedPass": true,
+          "reopenPass": true,
+          "firstInboxMs": 1123.9524040000001,
+          "reopenMs": 8958.528384999998,
+          "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+          "fullContentPass": true,
+          "ackEndpoint": {
+            "atMs": 32874.211364999996,
+            "total": 10008,
+            "pending": 0,
+            "bound": 10008,
+            "retry": 0,
+            "queued": 0
+          },
+          "ownerReceipts": {
+            "total": 10008,
+            "received": 10008,
+            "unreceived": 0
+          },
+          "failureKind": null,
+          "timingCensor": false,
+          "identityErrors": [],
+          "error": null,
+          "hostLoad": [
+            3.21,
+            3.22,
+            2.97
+          ],
+          "finishedLoad": [
+            2.93,
+            3.17,
+            2.96
+          ],
+          "ownerSha": "73ca6fa2a56434981ad1997aa86efff15c60f0667c5fde8bada736b8e11a1763",
+          "compilerSha": "ae432f5c70744110b305409aa2a60e9576f0d8c3abced2387ef58e1f555be82e",
+          "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+          "harnessSha256": "d221e0cb9ca218fe999d0a5e3e29149033ac952f4540c84a1b15951e8d20d819",
+          "runtimeSha": "f2e1dcd3b862f26069d171dfc46087ebd2f04cbcc565156933fc67cc89589131"
+        },
+        {
+          "sample": "pair-06-baseline",
+          "variant": "baseline",
+          "contentMs": 54993.92907,
+          "completeMs": 55452.011231,
+          "primaryPass": true,
+          "verifiedPass": true,
+          "reopenPass": true,
+          "firstInboxMs": 1084.3115240000002,
+          "reopenMs": 8907.369474000006,
+          "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+          "fullContentPass": true,
+          "ackEndpoint": {
+            "atMs": 55452.000905,
+            "total": 10008,
+            "pending": 0,
+            "bound": 10008,
+            "retry": 0,
+            "queued": 0
+          },
+          "ownerReceipts": {
+            "total": 10008,
+            "received": 10008,
+            "unreceived": 0
+          },
+          "failureKind": null,
+          "timingCensor": false,
+          "identityErrors": [],
+          "error": null,
+          "hostLoad": [
+            2.47,
+            3.01,
+            2.92
+          ],
+          "finishedLoad": [
+            1.74,
+            2.69,
+            2.81
+          ],
+          "ownerSha": "73ca6fa2a56434981ad1997aa86efff15c60f0667c5fde8bada736b8e11a1763",
+          "compilerSha": "ae432f5c70744110b305409aa2a60e9576f0d8c3abced2387ef58e1f555be82e",
+          "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+          "harnessSha256": "d221e0cb9ca218fe999d0a5e3e29149033ac952f4540c84a1b15951e8d20d819",
+          "runtimeSha": "96d385762b2f1b518595f9e8b1d3b33faf1e58809148b8b5c0f2edeea1b6c8da"
+        },
+        {
+          "sample": "pair-06-candidate",
+          "variant": "candidate",
+          "contentMs": 31770.703532,
+          "completeMs": 32086.90872,
+          "primaryPass": true,
+          "verifiedPass": true,
+          "reopenPass": true,
+          "firstInboxMs": 726.2221760000002,
+          "reopenMs": 8937.110256,
+          "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+          "fullContentPass": true,
+          "ackEndpoint": {
+            "atMs": 32086.899847,
+            "total": 10008,
+            "pending": 0,
+            "bound": 10008,
+            "retry": 0,
+            "queued": 0
+          },
+          "ownerReceipts": {
+            "total": 10008,
+            "received": 10008,
+            "unreceived": 0
+          },
+          "failureKind": null,
+          "timingCensor": false,
+          "identityErrors": [],
+          "error": null,
+          "hostLoad": [
+            2.93,
+            3.17,
+            2.96
+          ],
+          "finishedLoad": [
+            2.47,
+            3.01,
+            2.92
+          ],
+          "ownerSha": "73ca6fa2a56434981ad1997aa86efff15c60f0667c5fde8bada736b8e11a1763",
+          "compilerSha": "ae432f5c70744110b305409aa2a60e9576f0d8c3abced2387ef58e1f555be82e",
+          "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+          "harnessSha256": "d221e0cb9ca218fe999d0a5e3e29149033ac952f4540c84a1b15951e8d20d819",
+          "runtimeSha": "f2e1dcd3b862f26069d171dfc46087ebd2f04cbcc565156933fc67cc89589131"
+        },
+        {
+          "sample": "pair-07-baseline",
+          "variant": "baseline",
+          "contentMs": 56470.429277999996,
+          "completeMs": 57011.730375,
+          "primaryPass": true,
+          "verifiedPass": true,
+          "reopenPass": true,
+          "firstInboxMs": 1123.648275,
+          "reopenMs": 8964.846827000001,
+          "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+          "fullContentPass": true,
+          "ackEndpoint": {
+            "atMs": 57011.721201,
+            "total": 10008,
+            "pending": 0,
+            "bound": 10008,
+            "retry": 0,
+            "queued": 0
+          },
+          "ownerReceipts": {
+            "total": 10008,
+            "received": 10008,
+            "unreceived": 0
+          },
+          "failureKind": null,
+          "timingCensor": false,
+          "identityErrors": [],
+          "error": null,
+          "hostLoad": [
+            1.74,
+            2.69,
+            2.81
+          ],
+          "finishedLoad": [
+            2.06,
+            2.62,
+            2.78
+          ],
+          "ownerSha": "73ca6fa2a56434981ad1997aa86efff15c60f0667c5fde8bada736b8e11a1763",
+          "compilerSha": "ae432f5c70744110b305409aa2a60e9576f0d8c3abced2387ef58e1f555be82e",
+          "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+          "harnessSha256": "d221e0cb9ca218fe999d0a5e3e29149033ac952f4540c84a1b15951e8d20d819",
+          "runtimeSha": "96d385762b2f1b518595f9e8b1d3b33faf1e58809148b8b5c0f2edeea1b6c8da"
+        },
+        {
+          "sample": "pair-07-candidate",
+          "variant": "candidate",
+          "contentMs": 32380.248644000003,
+          "completeMs": 32734.783330000002,
+          "primaryPass": true,
+          "verifiedPass": true,
+          "reopenPass": true,
+          "firstInboxMs": 768.0366939999999,
+          "reopenMs": 8945.840549,
+          "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+          "fullContentPass": true,
+          "ackEndpoint": {
+            "atMs": 32734.774056,
+            "total": 10008,
+            "pending": 0,
+            "bound": 10008,
+            "retry": 0,
+            "queued": 0
+          },
+          "ownerReceipts": {
+            "total": 10008,
+            "received": 10008,
+            "unreceived": 0
+          },
+          "failureKind": null,
+          "timingCensor": false,
+          "identityErrors": [],
+          "error": null,
+          "hostLoad": [
+            2.06,
+            2.62,
+            2.78
+          ],
+          "finishedLoad": [
+            2.34,
+            2.64,
+            2.78
+          ],
+          "ownerSha": "73ca6fa2a56434981ad1997aa86efff15c60f0667c5fde8bada736b8e11a1763",
+          "compilerSha": "ae432f5c70744110b305409aa2a60e9576f0d8c3abced2387ef58e1f555be82e",
+          "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+          "harnessSha256": "d221e0cb9ca218fe999d0a5e3e29149033ac952f4540c84a1b15951e8d20d819",
+          "runtimeSha": "f2e1dcd3b862f26069d171dfc46087ebd2f04cbcc565156933fc67cc89589131"
+        },
+        {
+          "sample": "pair-08-baseline",
+          "variant": "baseline",
+          "contentMs": 54738.399623,
+          "completeMs": 55273.48418,
+          "primaryPass": true,
+          "verifiedPass": true,
+          "reopenPass": true,
+          "firstInboxMs": 1092.709976,
+          "reopenMs": 8931.278763999995,
+          "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+          "fullContentPass": true,
+          "ackEndpoint": {
+            "atMs": 55273.474655,
+            "total": 10008,
+            "pending": 0,
+            "bound": 10008,
+            "retry": 0,
+            "queued": 0
+          },
+          "ownerReceipts": {
+            "total": 10008,
+            "received": 10008,
+            "unreceived": 0
+          },
+          "failureKind": null,
+          "timingCensor": false,
+          "identityErrors": [],
+          "error": null,
+          "hostLoad": [
+            1.71,
+            2.43,
+            2.7
+          ],
+          "finishedLoad": [
+            2.2,
+            2.51,
+            2.72
+          ],
+          "ownerSha": "73ca6fa2a56434981ad1997aa86efff15c60f0667c5fde8bada736b8e11a1763",
+          "compilerSha": "ae432f5c70744110b305409aa2a60e9576f0d8c3abced2387ef58e1f555be82e",
+          "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+          "harnessSha256": "d221e0cb9ca218fe999d0a5e3e29149033ac952f4540c84a1b15951e8d20d819",
+          "runtimeSha": "96d385762b2f1b518595f9e8b1d3b33faf1e58809148b8b5c0f2edeea1b6c8da"
+        },
+        {
+          "sample": "pair-08-candidate",
+          "variant": "candidate",
+          "contentMs": 32496.154889999998,
+          "completeMs": 33071.256666,
+          "primaryPass": true,
+          "verifiedPass": true,
+          "reopenPass": true,
+          "firstInboxMs": 1080.1517840000001,
+          "reopenMs": 8836.012743,
+          "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+          "fullContentPass": true,
+          "ackEndpoint": {
+            "atMs": 33071.250006,
+            "total": 10008,
+            "pending": 0,
+            "bound": 10008,
+            "retry": 0,
+            "queued": 0
+          },
+          "ownerReceipts": {
+            "total": 10008,
+            "received": 10008,
+            "unreceived": 0
+          },
+          "failureKind": null,
+          "timingCensor": false,
+          "identityErrors": [],
+          "error": null,
+          "hostLoad": [
+            2.34,
+            2.64,
+            2.78
+          ],
+          "finishedLoad": [
+            1.78,
+            2.46,
+            2.71
+          ],
+          "ownerSha": "73ca6fa2a56434981ad1997aa86efff15c60f0667c5fde8bada736b8e11a1763",
+          "compilerSha": "ae432f5c70744110b305409aa2a60e9576f0d8c3abced2387ef58e1f555be82e",
+          "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+          "harnessSha256": "d221e0cb9ca218fe999d0a5e3e29149033ac952f4540c84a1b15951e8d20d819",
+          "runtimeSha": "f2e1dcd3b862f26069d171dfc46087ebd2f04cbcc565156933fc67cc89589131"
+        },
+        {
+          "sample": "pair-09-baseline",
+          "variant": "baseline",
+          "contentMs": 57044.380667000005,
+          "completeMs": 57502.317073,
+          "primaryPass": true,
+          "verifiedPass": true,
+          "reopenPass": true,
+          "firstInboxMs": 1119.948758,
+          "reopenMs": 8876.248377999997,
+          "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+          "fullContentPass": true,
+          "ackEndpoint": {
+            "atMs": 57502.307999000004,
+            "total": 10008,
+            "pending": 0,
+            "bound": 10008,
+            "retry": 0,
+            "queued": 0
+          },
+          "ownerReceipts": {
+            "total": 10008,
+            "received": 10008,
+            "unreceived": 0
+          },
+          "failureKind": null,
+          "timingCensor": false,
+          "identityErrors": [],
+          "error": null,
+          "hostLoad": [
+            2.2,
+            2.51,
+            2.72
+          ],
+          "finishedLoad": [
+            2.68,
+            2.6,
+            2.73
+          ],
+          "ownerSha": "73ca6fa2a56434981ad1997aa86efff15c60f0667c5fde8bada736b8e11a1763",
+          "compilerSha": "ae432f5c70744110b305409aa2a60e9576f0d8c3abced2387ef58e1f555be82e",
+          "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+          "harnessSha256": "d221e0cb9ca218fe999d0a5e3e29149033ac952f4540c84a1b15951e8d20d819",
+          "runtimeSha": "96d385762b2f1b518595f9e8b1d3b33faf1e58809148b8b5c0f2edeea1b6c8da"
+        },
+        {
+          "sample": "pair-09-candidate",
+          "variant": "candidate",
+          "contentMs": 32026.259828000002,
+          "completeMs": 32367.317243999998,
+          "primaryPass": true,
+          "verifiedPass": true,
+          "reopenPass": true,
+          "firstInboxMs": 722.0009480000001,
+          "reopenMs": 8809.310876000003,
+          "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+          "fullContentPass": true,
+          "ackEndpoint": {
+            "atMs": 32367.306938,
+            "total": 10008,
+            "pending": 0,
+            "bound": 10008,
+            "retry": 0,
+            "queued": 0
+          },
+          "ownerReceipts": {
+            "total": 10008,
+            "received": 10008,
+            "unreceived": 0
+          },
+          "failureKind": null,
+          "timingCensor": false,
+          "identityErrors": [],
+          "error": null,
+          "hostLoad": [
+            2.68,
+            2.6,
+            2.73
+          ],
+          "finishedLoad": [
+            4.32,
+            3.02,
+            2.87
+          ],
+          "ownerSha": "73ca6fa2a56434981ad1997aa86efff15c60f0667c5fde8bada736b8e11a1763",
+          "compilerSha": "ae432f5c70744110b305409aa2a60e9576f0d8c3abced2387ef58e1f555be82e",
+          "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+          "harnessSha256": "d221e0cb9ca218fe999d0a5e3e29149033ac952f4540c84a1b15951e8d20d819",
+          "runtimeSha": "f2e1dcd3b862f26069d171dfc46087ebd2f04cbcc565156933fc67cc89589131"
+        },
+        {
+          "sample": "pair-10-baseline",
+          "variant": "baseline",
+          "contentMs": 56130.936224,
+          "completeMs": 56828.796604,
+          "primaryPass": true,
+          "verifiedPass": true,
+          "reopenPass": true,
+          "firstInboxMs": 1125.7088489999999,
+          "reopenMs": 8973.698181,
+          "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+          "fullContentPass": true,
+          "ackEndpoint": {
+            "atMs": 56828.790125,
+            "total": 10008,
+            "pending": 0,
+            "bound": 10008,
+            "retry": 0,
+            "queued": 0
+          },
+          "ownerReceipts": {
+            "total": 10008,
+            "received": 10008,
+            "unreceived": 0
+          },
+          "failureKind": null,
+          "timingCensor": false,
+          "identityErrors": [],
+          "error": null,
+          "hostLoad": [
+            4.28,
+            3.19,
+            2.93
+          ],
+          "finishedLoad": [
+            3.15,
+            3.06,
+            2.9
+          ],
+          "ownerSha": "73ca6fa2a56434981ad1997aa86efff15c60f0667c5fde8bada736b8e11a1763",
+          "compilerSha": "ae432f5c70744110b305409aa2a60e9576f0d8c3abced2387ef58e1f555be82e",
+          "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+          "harnessSha256": "d221e0cb9ca218fe999d0a5e3e29149033ac952f4540c84a1b15951e8d20d819",
+          "runtimeSha": "96d385762b2f1b518595f9e8b1d3b33faf1e58809148b8b5c0f2edeea1b6c8da"
+        },
+        {
+          "sample": "pair-10-candidate",
+          "variant": "candidate",
+          "contentMs": 32288.268583000005,
+          "completeMs": 32599.690059,
+          "primaryPass": true,
+          "verifiedPass": true,
+          "reopenPass": true,
+          "firstInboxMs": 748.5902490000001,
+          "reopenMs": 8890.409124000005,
+          "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+          "fullContentPass": true,
+          "ackEndpoint": {
+            "atMs": 32599.681625999998,
+            "total": 10008,
+            "pending": 0,
+            "bound": 10008,
+            "retry": 0,
+            "queued": 0
+          },
+          "ownerReceipts": {
+            "total": 10008,
+            "received": 10008,
+            "unreceived": 0
+          },
+          "failureKind": null,
+          "timingCensor": false,
+          "identityErrors": [],
+          "error": null,
+          "hostLoad": [
+            4.06,
+            2.98,
+            2.85
+          ],
+          "finishedLoad": [
+            4.28,
+            3.19,
+            2.93
+          ],
+          "ownerSha": "73ca6fa2a56434981ad1997aa86efff15c60f0667c5fde8bada736b8e11a1763",
+          "compilerSha": "ae432f5c70744110b305409aa2a60e9576f0d8c3abced2387ef58e1f555be82e",
+          "fixtureSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+          "harnessSha256": "d221e0cb9ca218fe999d0a5e3e29149033ac952f4540c84a1b15951e8d20d819",
+          "runtimeSha": "f2e1dcd3b862f26069d171dfc46087ebd2f04cbcc565156933fc67cc89589131"
+        }
+      ],
+      "summary": {
+        "baseline": {
+          "samples": 10,
+          "nonTimingFailures": 0,
+          "passes": 10,
+          "censors": 0,
+          "censoredOrFailed": 0,
+          "qualifiedMedian": true,
+          "medianCompleteMs": 56457.9023365,
+          "observedMedianCompleteMs": 56457.9023365,
+          "medianCensored": false,
+          "medianLowerBoundMs": null,
+          "lowerBoundStrict": false,
+          "medianFirstInboxMs": 1104.6348595,
+          "medianContentMs": 55885.18304249999,
+          "medianReopenMs": 8929.896720499997,
+          "allReopenPass": true
+        },
+        "candidate": {
+          "samples": 10,
+          "nonTimingFailures": 0,
+          "passes": 10,
+          "censors": 0,
+          "censoredOrFailed": 0,
+          "qualifiedMedian": true,
+          "medianCompleteMs": 32553.856043499996,
+          "observedMedianCompleteMs": 32553.856043499996,
+          "medianCensored": false,
+          "medianLowerBoundMs": null,
+          "lowerBoundStrict": false,
+          "medianFirstInboxMs": 758.3134715,
+          "medianContentMs": 32219.318133,
+          "medianReopenMs": 8911.400614999999,
+          "allReopenPass": true
+        }
+      },
+      "medianReductionPercent": 42.33959340275746,
+      "candidateUnder30Seconds": false,
+      "candidateAtLeast30PercentFaster": true,
+      "completeTenPairs": true,
+      "missingSamples": [],
+      "unexpectedSamples": [],
+      "messageHashes": [
+        "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80"
+      ],
+      "frozenManifestSha256": "c846c9f7f0e1ac145f97ca2eef5d828322b6bb8a31c9359589c2a8a15fce4f2a",
+      "ranges": {
+        "baseline": {
+          "completeMs": {
+            "count": 10,
+            "min": 55054.621865,
+            "median": 56457.9023365,
+            "max": 57502.317073
+          },
+          "contentMs": {
+            "count": 10,
+            "min": 54602.498202,
+            "median": 55885.18304249999,
+            "max": 57044.380667000005
+          },
+          "firstInboxMs": {
+            "count": 10,
+            "min": 661.1700969999999,
+            "median": 1104.6348595,
+            "max": 1192.2153589999998
+          },
+          "reopenMs": {
+            "count": 10,
+            "min": 8876.248377999997,
+            "median": 8929.896720499997,
+            "max": 8973.698181
+          }
+        },
+        "candidate": {
+          "completeMs": {
+            "count": 10,
+            "min": 32086.90872,
+            "median": 32553.856043499996,
+            "max": 33126.44926
+          },
+          "contentMs": {
+            "count": 10,
+            "min": 31770.703532,
+            "median": 32219.318133,
+            "max": 32715.966239
+          },
+          "firstInboxMs": {
+            "count": 10,
+            "min": 676.7327829999997,
+            "median": 758.3134715,
+            "max": 1123.9524040000001
+          },
+          "reopenMs": {
+            "count": 10,
+            "min": 8809.310876000003,
+            "median": 8911.400614999999,
+            "max": 8958.528384999998
+          }
+        }
+      },
+      "rawArtifactHashes": {
+        "evidence/pair-01-baseline.json": "bad990fa6ba1c2dbbd61be5d648a1a86db612146386c1bea89b6365d9fafe75e",
+        "evidence/pair-01-candidate.json": "cdb65f799de41ad66805692f43fde2d1929c3e12b73a856f45ab660be121a600",
+        "evidence/pair-02-baseline.json": "b5b0f1ed8bd6d8896b0c84cd4f6d91e4582c06d49bfce94435ce46bbb5f34f7c",
+        "evidence/pair-02-candidate.json": "871d91323403c34a71614a8e3950fcd6fdc079bcddeb07672d623739ea8763bd",
+        "evidence/pair-03-baseline.json": "d2a65756e4a70429c2835fa0a313d7f3e0c414ddbf1be0271fe0eb0cf44d1b2d",
+        "evidence/pair-03-candidate.json": "9f92115419a4bd1996866ec09ab8e7a2fc210957b61c12dfd733782f1ee259c9",
+        "evidence/pair-04-baseline.json": "2e1516a2f814faf64d5ad4189996e39be47f9923a5a790517a06fd00feff95e9",
+        "evidence/pair-04-candidate.json": "510a4fd924fd31cd0328f7925eb6cfa1e32b6cb4f8face22f69c0accf5aba900",
+        "evidence/pair-05-baseline.json": "2bfd6cb8fdf64f21c6828469b41624353ec16604d13806536211da959892d86f",
+        "evidence/pair-05-candidate.json": "03e4d8af3e30183dfc6abfc1d75fc4705daacdd97307bdf6a08ad4111f467b98",
+        "evidence/pair-06-baseline.json": "cc3a13915e281821614612a25473ee60cc2ebd1c0a256e6c2ea037fbbedcaaf7",
+        "evidence/pair-06-candidate.json": "59829a0a5187858756e228e7611a1cc4e7cde778b0eda18c4877e8e265c3a46b",
+        "evidence/pair-07-baseline.json": "5a16f4d6a278f3fd2e04fb467ca62b8491795618c875024a654025885d847d6a",
+        "evidence/pair-07-candidate.json": "ca8a39cf55e3980b8addc677f6fcc201b6ff914b7397c68fab65aa13a92d6b37",
+        "evidence/pair-08-baseline.json": "4a5195bd162a65b15969c3fdfc3fc9aeece885d8e821d36cca16416c3a2bdadc",
+        "evidence/pair-08-candidate.json": "3c9ea2a301c4f873a75e165af3ea85b6211118e5ac93b68f0faded5d99e36882",
+        "evidence/pair-09-baseline.json": "7c8de40021f8b6d2af615a25832a82161734a0b838f2ab798224c876b33cfc7e",
+        "evidence/pair-09-candidate.json": "b9237021870c9ecbffc51f004a95bf1dbda462edd5594dedd644946452ae179e",
+        "evidence/pair-10-baseline.json": "06b71fa18a97661c5e2a9425e97f64b110b7189a80d80b782a8cdab9f592d90c",
+        "evidence/pair-10-candidate.json": "cd1b1f2a0a4c122275e381a0e6c81e01898f50f228f798772fe87f11f00cf226"
+      }
+    },
+    "inputVerification": {
+      "before": {
+        "at": 1789159045.7197857,
+        "files": 940,
+        "errors": []
+      },
+      "after": {
+        "at": 1789160275.140395,
+        "files": 940,
+        "errors": [],
+        "sourceVerification": {
+          "baseline-source": {
+            "files": 1134,
+            "links": 0,
+            "errors": [],
+            "manifestSha256": "ba967c33434d3b307f5116f1d072068f3888544272999d306dfb0536cb8f7e1f"
+          },
+          "candidate-final-source": {
+            "files": 1134,
+            "links": 2,
+            "errors": [],
+            "manifestSha256": "b07a7f135c0783b3e34e657575b116902542014f1c6af967c099224e39a913db"
+          }
+        }
+      },
+      "unchanged": true
+    },
+    "completion": {
+      "planStatus": "Implemented",
+      "thirtyPercentPlanningTargetMet": true,
+      "thirtySecondProductGoalMet": false,
+      "runOwnedProcessesRemaining": false,
+      "controllerExitCode": 0,
+      "independentRootVerification": "All20 raw hashes, exact cohort, full-row hashes, runtime/fixed identities, acknowledgement/owner/reopen checks and medians verified from mirrored raw JSON."
+    },
+    "landingIntegration": {
+      "upstream": "43df16068507ef620b76e141e16f3b4bd4a4733c",
+      "acquisitionImplementationCommit": "b585f410db1e727ec3c8ca13de5c3a864f55ca63",
+      "frozenAcquisitionSourceHashesUnchanged": true,
+      "conflictResolution": "Union of independent appended size-ticket paragraphs; no source conflict or semantic repair.",
+      "upstreamDelta": "Browser witness/issue maintenance and native Intl/unified publication work, including package version0.0.24. No acquisition, compiler or evaluator source change.",
+      "qualificationScope": "Canonical full tests and byte/timing records remain bound to b5c73f084 source snapshot; frozen browser comparison remains bound to its source manifests. Neither is a publication qualification or rerun of the newer native release."
+    }
+  }
 }

@@ -144,11 +144,11 @@ test('removing receipts in a real successor drops pending marks once and reopens
     await runtime.program(await request('/api/program'));
     const page=await request('/api/query?receipt=1',{method:'POST',body:JSON.stringify({op:'messages.inbox',args:{c:null}})});
     await runtime.commit('messages.inbox',{c:null},await runtime.accept('messages.inbox',{c:null},page));
-    assert.equal((await runtime.outbox.pendingAcknowledgements()).length,1);
+    assert.equal((await runtime.outbox.pendingAcknowledgements()).remaining,1);
     const resumed=await request('/api/resume',{method:'POST',body:JSON.stringify(await runtime.resumeRequest([]))});
     runtime.noteGrant(resumed,'dev:alice');await runtime.adoptPendingGrant();
     const product=await runtime.outbox.enqueue({op:'messages.send',args:{conversationId:'group',body:'kept product'},issuedSeq:page.seq});
-    assert.equal((await runtime.outbox.pendingAcknowledgements()).length,1);
+    assert.equal((await runtime.outbox.pendingAcknowledgements()).remaining,1);
     await writer.close();
     const schema=join(owner.root!,'snapback/schema.q'),ops=join(owner.root!,'snapback/messages.q');
     await writeFile(schema,(await readFile(schema,'utf8')).replace(' with receipts',''));
@@ -166,7 +166,7 @@ test('removing receipts in a real successor drops pending marks once and reopens
     const applied=await fetch(owner.url+'/control/migrate',{method:'POST',headers:{'x-snapback-control':info.secret,'Content-Type':'application/json'},body:JSON.stringify(migration)});
     assert(applied.ok,await applied.text());
     await runtime.program(await request('/api/program'));
-    assert.equal((await runtime.outbox.pendingAcknowledgements()).length,0,'removed operation has no pending work');
+    assert.equal((await runtime.outbox.pendingAcknowledgements()).remaining,0,'removed operation has no pending work');
     assert.equal(log.mock.calls.length,1,'one observable disposition');
     assert.match(log.mock.calls[0].arguments.join(' '),/acknowledgement.*removed/);
     assert.deepEqual(await runtime.store.outbox.get(product.intent),product,'adoption preserves product bytes');

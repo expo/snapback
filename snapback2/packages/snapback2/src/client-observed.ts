@@ -1,4 +1,5 @@
 import { operationArgs, queryArgs } from "./store/canonical.js";
+import type { QueryInputChange } from "./store/query-inputs.js";
 import { isRefusalError, toRefusal } from "./client-wire.js";
 import { referenceName, referencePath, type Op } from "./api.js";
 import { SharedSubscriptions } from "./client-sessions.js";
@@ -86,7 +87,7 @@ export function queryIdentity(authGeneration: number, fence: number, mode: "live
 export function queryEntry<Result, Event extends QueryMachineEvent<Result>>(
   key: string,
   open: (fanout: (event: Event) => void) => Subscription<Event>,
-  refresh?: (current: QueryView<Result>, authoritative?: Event, inputs?: ItemInputs) => Promise<Event | undefined>,
+  refresh?: (current: QueryView<Result>, authoritative?: Event, inputs?: ItemInputs, kind?: QueryInputChange) => Promise<Event | undefined>,
   connection: () => import("./types.js").ConnectionState = () => "reconnecting",
 ) {
   const view = immutablePublication(initialQueryState<Result>());
@@ -94,9 +95,17 @@ export function queryEntry<Result, Event extends QueryMachineEvent<Result>>(
   return {
     key,
     initial,
-    publication: (event: Event, current: QuerySnapshot<Result>) => immutablePublication(event, current.view),
-    reduce: (current: QuerySnapshot<Result>, event: Event) => {
-      const next = freezeTree(reduceQueryState(current.view, event));
+    publication: (event: Event, current: QuerySnapshot<Result>, kind?: QueryInputChange) => {
+      if (kind !== "items" || !itemInputs(event)) return immutablePublication(event, current.view);
+      const received = itemInputs(event), view = current.view;
+      // Item refresh owns only ledger inputs. Reuse the already isolated query image without
+      // cloning its data or reinterpreting a view (notably `refusal`) as a new query delivery.
+      return withItemInputs(Object.freeze(view.state === "refused"
+        ? { state: "refused", live: false, ...view.refusal } : { ...view }) as Event,
+      received ? { ...current.inputs, entries: received.entries, compactedThrough: received.compactedThrough } : current.inputs);
+    },
+    reduce: (current: QuerySnapshot<Result>, event: Event, kind?: QueryInputChange) => {
+      const next = kind === "items" && itemInputs(event) ? current.view : freezeTree(reduceQueryState(current.view, event));
       const received = itemInputs(event);
       const inputs = received ? rebindItemInputs(received, "data" in event ? event.data : undefined, "data" in next ? next.data : undefined)
         : "data" in next ? current.inputs : { ...emptyItemInputs, entries: current.inputs.entries };
@@ -112,7 +121,7 @@ export function queryEntry<Result, Event extends QueryMachineEvent<Result>>(
     reproject: (current: QuerySnapshot<Result>) => current.snapshot.freshness.connection === connection()
       ? current : Object.freeze({ ...current, snapshot: freezeTree(summarize(current.view, connection(), current.inputs.compactedThrough)) }),
     open,
-    ...(refresh === undefined ? {} : { refresh: (current: QuerySnapshot<Result>, authoritative?: Event) => refresh(current.view, authoritative, current.inputs) }),
+    ...(refresh === undefined ? {} : { refresh: (current: QuerySnapshot<Result>, authoritative?: Event, kind?: QueryInputChange) => refresh(current.view, authoritative, current.inputs, kind) }),
   };
 }
 
@@ -236,10 +245,17 @@ export class ClientQueries {
   private async local<Args, Result>(
     request: ReturnType<typeof bindQueryRequest<Args, Result>>, drain: boolean,
     current: QueryView<Result>, fence: QueryFence, authoritative?: SubscriptionDelivery<Result>, inputs = emptyItemInputs,
+    kind: QueryInputChange = "semantic",
   ): Promise<SubscriptionDelivery<Result> | undefined> {
     if (!this.host.active(fence)) return undefined;
     let event: QueryMachineEvent<Result>;
     try {
+      if (kind === "items") {
+        const entries = await this.host.entries?.(), compactedThrough = await this.host.compactedThrough?.();
+        if (!this.host.active(fence) || entries === undefined) return undefined;
+        // Keep the query's own observation, clock and receipt. New ledger custody attaches work only.
+        return withItemInputs({ ...current } as SubscriptionDelivery<Result>, { ...inputs, entries, compactedThrough });
+      }
       event = await this.host.local(request.ref, request.args, drain);
     } catch (error) {
       if (!this.host.active(fence) || (isRefusalError(error) && error.code === "E_AUTH_SUPERSEDED")) return undefined;
@@ -354,7 +370,7 @@ export class ClientQueries {
     ), active, projection) : this.shared.observe(queryEntry<Result, SubscriptionDelivery<Result>>(
       key,
       (fanout) => this.host.open(request.ref, request.args, fanout, drain),
-      (current, authoritative, inputs) => this.local(request, drain, current, fence, authoritative, inputs),
+      (current, authoritative, inputs, kind) => this.local(request, drain, current, fence, authoritative, inputs, kind),
       this.host.connection,
     ), active, projection);
     if (!items || !("history" in items)) return observed;
@@ -396,7 +412,7 @@ export class ClientQueries {
     return this.shared.attach(queryEntry<Result, SubscriptionDelivery<Result>>(
       queryIdentity(fence[0], fence[1], mode, request.op, request.args, cursor),
       (fanout) => this.host.open(request.ref, request.args, fanout, drain),
-      (current, authoritative, inputs) => this.local(request, drain, current, fence, authoritative, inputs),
+      (current, authoritative, inputs, kind) => this.local(request, drain, current, fence, authoritative, inputs, kind),
       this.host.connection,
     ), callback);
   }
@@ -407,7 +423,7 @@ export class ClientQueries {
     const raw = queryIdentity(generation, fence, drain ? "drain" : "live", referenceName(ref), args);
     return this.shared.consumers(key) + (raw === key ? 0 : this.shared.consumers(raw));
   }
-  refresh(): void { this.shared.refresh(); }
+  refresh(kind: QueryInputChange = "semantic"): void { this.shared.refresh(kind); }
   resumeHydrating(): void { this.shared.resumeHydrating(); }
   reproject(): void { this.shared.reproject(); }
   retireInactive(): void { this.shared.retireInactive(); for (const pages of this.pages) pages.retireInactive(); }

@@ -7,16 +7,98 @@ import { plainObject } from "../../../evaluator/src/value-runtime.js";
 import { inboxKeyOf, type InboxRow } from "./inbox.js";
 import { admittedMutationTargets } from "../mutation-targets.js";
 import type {
-  OutboxEntry,
-  OutboxGrant,
-  OutboxState,
-  OutboxTrace,
   OverlayRow,
   RangeStore,
   StoreDelivery,
   StoreSwap,
+  HeldProgram,
 } from "./range-store.js";
+import type { PendingDeliveryAcks } from '../delivery-acknowledgements.js';
+import type { AdmittedMutationTargets } from '../mutation-targets.js';
 
+export type OutboxState = "queued" | "committed" | "rejected" | "expired";
+/** What the twin read when the intent was queued: the replay envelope's `trace` (LLP 1012 §7). */
+export interface OutboxTrace {
+  points: Array<{ table: string; index: string; key: unknown[]; digest: string | null }>;
+  verdicts: Array<{ ruleHash: string; inputsDigest: string; result: boolean }>;
+}
+// @ref LLP 1012#7-writes-offline — one durable intent: its pinned id slice, its
+// bytes, and its terminal response, so a retry is the same envelope.
+export interface OutboxEntry {
+  effects?: import("./success-compaction.js").SuccessEffects;
+  targets?: import("../mutation-targets.js").AdmittedMutationTargets;
+  intent: string;
+  grant: string;
+  offset: number;
+  count: number;
+  ids: string[];
+  op: string;
+  args: unknown;
+  issuedSeq: number;
+  expectedGeneration?: string;
+  state: OutboxState;
+  response?: unknown;
+  presentation?: string; // The submitter's table choice, fixed with admission.
+  predicted?: boolean;
+  /** A pinned or confirmed authoritative row arrived; dismiss only after rendering it. */
+  arrived?: true;
+  /** Prediction and its trace were skipped; the program will check this write on the server. */
+  reason?: "fence";
+  /**
+   * The owner's last non-retryable `input`/`schema` refusal of this queued intent's
+   * replay (a removed enum case, LLP 1020 A2). The intent is unspent and still
+   * queued; it is the one kind of queued entry `dismiss` admits. Cleared durably
+   * before another replay can send, and on settlement.
+   */
+  refusal?: import("../types.js").Refusal;
+  /** Engine-owned aggregate targets the prediction's overlay omits by design (the server writes them); absent when none. */
+  omitted?: string[];
+  trace?: OutboxTrace;
+  createdAt: number;
+  updatedAt: number;
+  /** Durable FIFO position; assigned by the store when absent. */
+  order?: number;
+  /**
+   * The inbox row this entry was admitted from, when a follower tab wrote it;
+   * the row's public name `inbox:<key>` is an alias for this entry from then on
+   * (LLP 1018.004 §1).
+   */
+  inbox?: number;
+}
+
+/** A principal-bound replay grant plus the client's own consumption cursor. */
+export interface OutboxGrant {
+  id: string;
+  from: string;
+  count: number;
+  mintedAt: number;
+  expiresAt: number;
+  used: number;
+}
+
+export interface OutboxStore {
+  pendingDeliveryAcks?(): Promise<PendingDeliveryAcks>;
+  queued?(): Promise<OutboxEntry[]>;
+  targets?(op: string, args: unknown, ids: readonly string[]): Promise<AdmittedMutationTargets | undefined>;
+  acknowledgementWithoutTail?(entry: OutboxEntry): Promise<boolean>;
+  compactedThrough?(): Promise<number>;
+  all(): Promise<OutboxEntry[]>;
+  get(intent: string): Promise<OutboxEntry | undefined>;
+  put(entry: OutboxEntry): Promise<void>;
+  remove(intent: string): Promise<void>;
+  /** The grant new intents consume from, if one is held. */
+  grant(): Promise<OutboxGrant | undefined>;
+  /** Every held grant, including those older queued intents still name. */
+  grants(): Promise<OutboxGrant[]>;
+  /** Each op's persisted write bound (`maxNewIds`); an enqueue refuses without one. */
+  bounds(): Promise<Record<string, number>>;
+  /** The prediction overlay by intent: the rows a queued intent's local run wrote, `removed` for a delete. */
+  overlay(): Promise<Record<string, OverlayRow[]>>;
+  /** The certified programs held for this partition, keyed by generation. */
+  programs(): Promise<Record<string, HeldProgram>>;
+}
+
+/** A predicted row: the write's final image, or a `removed` marker for a row the intent deletes. */
 export const ENGINE_ID = /^s2id-([0-9a-f]{32})-([0-9a-f]{16})$/;
 
 /** A local custody refusal at enqueue time; the client maps it onto the offline family. */
@@ -161,6 +243,7 @@ export class OutboxLedger {
   }
 
   async queued(): Promise<OutboxEntry[]> {
+    if (this.store.outbox.queued) return this.store.outbox.queued();
     return (await this.entries()).filter((entry) => entry.state === "queued");
   }
 
@@ -223,13 +306,13 @@ export class OutboxLedger {
   /** The same admission checks enqueue applies, without consuming a slice. */
   async status(op?: string): Promise<OutboxStatus> {
     const pending = await this.pendingAcknowledgements();
-    op ??= pending[0]?.op;
+    op ??= pending.next?.op;
     const grant = await this.grant();
     const bound = op === undefined ? 0 : (await this.store.outbox.bounds())[op];
     const reason = !grant ? "grant-missing" : this.expired(grant) ? "grant-expired"
       : bound === undefined ? "program-missing" : grant.used + 1 + bound > grant.count ? "ids-exhausted" : "ready";
     return { ready: reason === "ready", reason, action: reason === "ready" ? "none" : "connect",
-      remaining: (await this.queued()).length + pending.length, fence: await this.fence() };
+      remaining: (await this.queued()).length + pending.remaining, fence: await this.fence() };
   }
 
   // @ref LLP 1012#7-writes-offline — the fence bounds trust, never custody: a
@@ -301,16 +384,8 @@ export class OutboxLedger {
     return this.write(() => this.enqueueNow(input, predict, beforeCommit));
   }
 
-  async pendingAcknowledgements() {
-    const batches: {op: string; args: {events: string[]}; issuedSeq: number}[] = [];
-    const acks = await this.store.outbox.pendingDeliveryAcks?.();
-    for (const [key, seq] of Object.entries(acks ?? {})) {
-      const [log, event] = key.split('\0'), op = `_delivery.${log}.ack`;
-      let batch = batches.find(b => b.op === op && b.args.events.length < 50);
-      if (!batch) batches.push(batch = {op, args:{events:[]}, issuedSeq:seq});
-      batch.args.events.push(event!); batch.issuedSeq = Math.max(batch.issuedSeq, seq);
-    }
-    return batches;
+  async pendingAcknowledgements(): Promise<PendingDeliveryAcks> {
+    return await this.store.outbox.pendingDeliveryAcks?.() ?? { remaining: 0 };
   }
 
   /** Page acknowledgement admission shares the ordinary FIFO write lock. */
@@ -320,10 +395,15 @@ export class OutboxLedger {
     return this.write(async () => {
       let admitted = 0;
       if (generation !== this.generation) return admitted;
-      for (const batch of await this.pendingAcknowledgements()) {
+      let pending = await this.pendingAcknowledgements();
+      // Bound this turn to the work present on entry; new pages cannot extend
+      // admission indefinitely ahead of an already waiting foreground write.
+      for (let budget = pending.remaining; budget > 0 && pending.next; budget--) {
+        const batch = pending.next;
         try { await this.enqueueNow(batch, undefined, custody); }
         catch (error) { if (!(error instanceof OutboxRefusal)) throw error; break; }
         admitted += batch.args.events.length;
+        if (budget > 1) pending = await this.pendingAcknowledgements();
       }
       return admitted;
     });
@@ -358,8 +438,9 @@ export class OutboxLedger {
         );
       }
       const ids = sliceIds(grant, grant.used, count);
-      const programs = await this.store.outbox.programs();
-      const targets = admittedMutationTargets(Object.values(programs)[0], input.op, args, ids);
+      const targets = this.store.outbox.targets
+        ? await this.store.outbox.targets(input.op, args, ids)
+        : admittedMutationTargets(Object.values(await this.store.outbox.programs())[0], input.op, args, ids);
       // @ref LLP 1012#7-writes-offline — the twin runs the mutation with the
       // slice as its `new` envelope, so the prediction and the commit mint the
       // same ids; the overlay and the trace land in the entry's own swap.
@@ -536,4 +617,4 @@ export function replayEnvelope(entry: OutboxEntry): {
   };
 }
 
-export type { OutboxEntry, OutboxGrant, OutboxState, OutboxTrace, StoreDelivery };
+export type { StoreDelivery };
