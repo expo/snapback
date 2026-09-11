@@ -31,3 +31,22 @@ author no blessed way to do the one thing every app with a chart needs.
 ## Partly addressed (2026-09-06, Clique findings program)
 
 wave 1 L2 typed `time − time` and the time rules on the grammar page (main 0f5e6d27a); L9's `divmod(time, int)` yields int so a UTC day bucket is `divmod(now, 86400000).quotient` (main, pending L9 landing). Open: whether `0 + now` should refuse; the side-by-side accepted/refused table on the grammar page.
+
+## 2026-09-11 triage and resolution
+
+**Priority:** P2. **Disposition:** Closed; time arithmetic has one implemented
+typed rule and the packaged grammar documents it.
+
+Commit `284cb0a25` plus review fix `7da7e0f6a` established: `time - time`
+returns int milliseconds; `time +/- int` and `int + time` return time;
+`divmod(time, int)` returns integer quotient/remainder; all other time
+arithmetic refuses. Thus `0 + now` is deliberately a time offset expression,
+not the old numeric coercion: `divmod(10, 0 + now)` now refuses because its
+divisor is time. Packaged `guide grammar` states the accepted and refused rule
+and the epoch-bucketing form.
+
+**Verification:** the 2026-09-11 compiler suite passed `Quarry time difference
+and epoch divmod have integer parts`, `Quarry time arithmetic refuses undefined
+and absent operands with the rule`, and `Quarry divmod tuple binds once and
+preserves decimal and money parts`. The ticket's consistency, day bucketing,
+and documentation acceptance is satisfied.

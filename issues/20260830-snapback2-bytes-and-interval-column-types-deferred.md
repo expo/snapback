@@ -48,3 +48,19 @@ semantics; neither is a near-free extension of Bytes. This ticket remains
 and Set.
 
 **Claim retracted** (session snapback-8a, 2026-08-30): the 0830 burn's `s2/t-bytes` lane landed the Bytes half before this claim was pushed; lane `s2/t2-bytes` was cancelled with no commits. Only the provenance/site ticket remains claimed by snapback-8a.
+
+## 2026-09-11 triage
+
+**Priority:** deferred. **Disposition:** Open; this is a language/value-model
+proposal, not a reproduced defect in the current Snapback 2 acceptance bars.
+
+The Bytes half remains implemented by `bd2c7e3fa` plus review fix
+`6cacaa6d7f`. The packaged `guide types` card currently lists `bytes <=N` but
+not Interval, Duration, or Set, and `rules/NOT-DOING.md` does not make those
+types part of the present product contract. No current compiler or evaluator
+path purports to accept them.
+
+**Remaining acceptance:** an author-approved value/visibility design for
+`Interval { of }` and separate canonical representation, constraint, compiler,
+certificate, native/twin, seed, index, and guide decisions for any Duration or
+Set addition. Do not implement these as incidental extensions of Bytes.

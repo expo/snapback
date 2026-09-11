@@ -35,3 +35,23 @@ nor absence in its receipt; receipt-only replay stays `partial` even when the se
 typed zero (LLP 1011 B2; LLP 1001 capped-only sites). A group cap is not a visibility proof.
 
 Close on the author's confirmation that no ruling is owed.
+
+## 2026-09-11 triage
+
+**Priority:** P3. **Disposition:** Open pending the explicitly requested author
+confirmation; absence of a reproduced current defect is not that ruling.
+
+Current source and tests still support the 2026-09-10 finding. Commit
+`ff23a9326` added
+`check_cost.rs::m7_poll_tally_reproduction_records_capped_only_refusal`, and
+review fix `30c379783` left its policy unchanged: a maintained point `Get`
+inside the page shape certifies; `count(page)` over a nonuniform capped-only
+scan refuses `E_STRUCTURAL_COUNT`; pinning the scan to the rule-uniform
+`byOwner` prefix admits. LLP 1020 A7 says this reproduction precedes, but does
+not itself supply, a ruling. A group cap remains write-fanout evidence rather
+than visibility/absence authority.
+
+**Remaining acceptance:** the author confirms that no cap-equals-bound or
+maintained-read exception is owed, or approves a specific policy amendment
+with certificate/native/twin/receipt tests. Until then this ticket is not
+eligible for closure.

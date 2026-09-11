@@ -24,3 +24,21 @@ amendment and a certificate rule (the list bound equals the page bound).
 
 See the sibling ticket on `or` hoisting; either fix lets LLP 1012's recipe return to
 original-recipient fan-out.
+
+## 2026-09-11 triage
+
+**Priority:** deferred. **Disposition:** Open as a language capability request,
+not a current acceptance defect.
+
+Direct Quarry supports iterating an already bounded list/page/range (`guide
+grammar`, `for`) but still has no list comprehension, positional projection,
+or append surface that constructs `[T] <=N` from a page. No current guide card
+claims otherwise. The original recipient-fanout motivation is stale after
+commit `951e24da8` moved chat onto LLP 1019's engine-owned `deliver` custody
+log and marked LLP 1012 §3 superseded; that does not erase the broader list
+construction gap.
+
+**Remaining acceptance:** an author-approved Quarry syntax and semantics,
+static output cardinality, certificate/native/twin parity, diagnostics, and a
+guide example. Close as unwanted only by an explicit language ruling, or as
+implemented after those tests land.

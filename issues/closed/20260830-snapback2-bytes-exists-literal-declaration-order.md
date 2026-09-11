@@ -12,3 +12,21 @@ Found by the grok-4.6 delta review of the Bytes fix round (READY verdict; this w
 Adjacent note from the same review: `and`/`or` filter out a failed child term (e.g. `and(exists(badKey), allow())` becomes `{ And: ["Allow"] }` plus a diagnostic); `lowerProject` still refuses on any schema diagnostic, so this is not reachable as a certified program, but failing the whole composite like `eq`/`exists` now do would be more direct.
 
 Fix shape: make index-type registration a true first pass (record index column types when table names are pre-registered), and fail the composite rule on any failed child.
+
+## 2026-09-11 triage and resolution
+
+**Priority:** P3. **Disposition:** Closed as obsolete authoring-path behavior;
+this is not a claim that the old TypeScript lowering algorithm was repaired.
+
+Commit `090bb82bc` deleted the TypeScript data compiler, including the named
+`packages/compiler/src/lower/schema.ts` path. `project.ts::lowerProject` now
+requires `snapback/schema.q` and routes data declarations through
+`lowerDirectQuarryProject`; packaged `guide quarry` says TypeScript is only for
+seeds, tests, and effect I/O. The old order-sensitive Bytes rule literal and
+the adjacent composite-rule lowering therefore cannot be authored through the
+supported surface.
+
+**Resolution evidence:** the current compiler suite's
+`TypeScript data declarations refuse while effect-only modules remain on the
+production path` check passed on 2026-09-11. Reopen only for a current Quarry
+declaration-order reproduction, not for the retired TypeScript lowering.

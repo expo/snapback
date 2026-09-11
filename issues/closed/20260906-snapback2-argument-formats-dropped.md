@@ -33,3 +33,23 @@ Arbitrary mixed-version raw-IR compatibility remains unsupported. Existing v4 wi
 evidence. New native/client checks must verify valid controls, recursive
 refusals and no side effects, using the existing error families. Keep this
 ticket open until the coherent implementation is reviewed and landed.
+
+## 2026-09-11 triage and resolution
+
+**Priority:** P2. **Disposition:** Closed; the coherent v5 implementation and
+direct-Quarry custody landed.
+
+Commit `799ba19a6` added `ArgType::Text { min, format }`, recursive native/twin
+admission, new fenced identities, and `engine/input_format_tests.rs`.
+Commit `5c35f692d` then pinned direct Quarry's recursive argument descriptors
+and pre-body refusals. Packaged `guide types` says argument minimums and
+`format handle`/`format url` are enforced.
+
+**Verification:** `cargo test -p snapback2-core argument_formats_` passed both
+`argument_formats_share_exact_column_predicates_and_closed_wire_values` and
+`argument_formats_admit_before_query_mutation_and_channel_and_fence_v4` on
+2026-09-11. The compiler suite also passed `direct Quarry preserves recursive
+text refinements and refuses them before the body`, and the evaluator suite
+passed its native-v5 format/channel custody and recursive scalar admission
+checks. The maintained mixed-version raw-IR exclusion remains explicit, not
+unfinished ticket scope.

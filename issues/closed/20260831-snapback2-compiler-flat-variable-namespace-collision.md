@@ -36,3 +36,20 @@ computed token `"token"`, not the argument `"arg-key"`. LLP 1002 §2 rule (5)
 requires Computed here; the certificate records rule (2). Note the raw project
 certificate carries `prediction_sites: []` — prediction mode is derived by
 `Checker::check_pair`, which would classify this non-Computed site Closed.
+
+## 2026-09-11 triage and resolution
+
+**Priority:** P2. **Disposition:** Closed as obsolete authoring-path behavior;
+this does not claim the retired TypeScript IR lowering was repaired.
+
+Commit `090bb82bc` deleted `packages/compiler/src/compiler.ts` and the entire
+`lower/expr.ts` lowering family that flattened `args.<field>`, locals, and loop
+bindings into this namespace. Supported data authoring is direct Quarry
+(`project.ts::lowerProject`; packaged `guide quarry`). Its binder assigns
+hygienic symbol identities before IR lowering, and the 2026-09-11 compiler run
+passed the `lexical loop-shadow`, `lexical loop-capture`,
+`lexical nested-loop-isolation`, and `fn scopes are hygienic` checks.
+
+The ticket's exact generated TypeScript collision is no longer reachable.
+Reopen for a direct-Quarry source that still certifies one binding but executes
+another, with its lowered IR and certificate.

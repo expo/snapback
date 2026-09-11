@@ -20,3 +20,29 @@
    Rust test too, or say in the report that the owner test is the certification proof.
 3. `predecessor_maintain_ids` names the predecessor/successor union; the chat templates duplicate
    `dismissible` instead of importing it (runtime bytes kept it out of the measured tier).
+
+## 2026-09-11 triage
+
+**Priority:** P2. **Disposition:** Open; the named review gaps remain evidence
+and cleanup work, not reproduced successor data loss.
+
+Commit `65059922f` improved both areas but did not satisfy their strongest
+acceptance. `successor_narrowing.rs::combined_and_truncating_repairs_are_the_fixture_the_compiler_lowers`
+generates and text-matches two mixed repair shapes against `repairs.q`, while
+`quarry-job-checks.ts::The narrowing refusal's pasted job lowers with its typed
+argument, enum quoting included, and certifies` compiles those fixtures. There
+is still no generated every-row-shape paste-to-compiler audit covering the
+enumerated scalar/wrapper/bound combinations.
+
+Likewise,
+`registry_evolution_tests::regroup_replaces_only_the_owned_projection_without_a_plan`
+still constructs the positional `Get` IR and calls `read_operator` without a
+`Checker` call. Commit `949dcbf86` makes the owner scenario run `cli check` on
+a fresh client after install, so the system path has certification evidence,
+but the Rust test still does not prove what its comment claims in isolation.
+The naming and duplicated template helper in item 3 also remain.
+
+**Remaining acceptance:** feed every generated A1/A2 repair paste through the
+real compiler under its predecessor schema (or an equivalent exhaustive
+generator), make the Rust positional-Get test call `Checker` or narrow its
+claim explicitly to the owner proof, and resolve or split the item-3 cleanup.

@@ -125,3 +125,35 @@ and is priced, only when its patch writes a column the search index reads
 (`engine/index.rs::reindex_replaced_row`, `certificate/search.rs`; LLP 1001); a `body`
 rewrite still needs `first 1` per chunk — test
 `check_cost.rs::m7_bulk_job_prices_derivation_only_for_patches_that_write_a_derived_column`.
+
+## 2026-09-11 triage
+
+**Priority:** P3. **Disposition:** Open as a reconciled composite; no current M7
+blocking defect was reproduced, but substantive language/policy scope remains.
+
+- Item 1 remains: current direct Quarry can iterate bounded values but has no
+  positional list indexing or page-to-list projection. See the still-open
+  `20260904-quarry-no-list-from-range.md`.
+- Item 2 is resolved by the current maintained `Get` spelling and
+  `check_cost.rs::m7_poll_tally_reproduction_records_capped_only_refusal`;
+  structural `count(page)` remains intentionally refused.
+- Item 3 is not resolved by a group cap. LLP 1020 A7 and
+  `20260910-snapback2-m7-poll-shape-capped-authority.md` preserve the author's
+  confirmation condition; no completeness-policy change is authorized here.
+- Items 4–5 remain resolved by the 2026-09-09 successor/migrations guide and
+  the current packaged `guide successor` card.
+- The historical nested-page statement is stale at the engine/compiler
+  contract: commits `02c1250c5` and `52ab67e2a` support one cursor-bearing page
+  through a returned record, and `quarry-chat-composition-checks.ts` asserts
+  that the shipped chat view has exactly one certified result page. The
+  packaged `guide pagination` says that page supplies root `next`. Proving the
+  app's authorization-specific history route beyond 20 rows, and item 6's
+  client-arm UI behavior, remain outside this compiler/evolution triage.
+- The bulk-job false re-derivation charge remains resolved by `ff23a9326` and
+  its named `check_cost.rs` regression; a body rewrite still honestly needs a
+  smaller chunk.
+
+**Remaining acceptance:** decide and implement or explicitly decline list
+indexing/projection; obtain the author ruling for cap-equals-bound envelope
+state; separately adjudicate the app/client-arm items. Close this composite
+only when those surviving scopes are split or resolved.

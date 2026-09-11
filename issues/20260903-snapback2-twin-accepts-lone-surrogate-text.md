@@ -15,3 +15,46 @@ Fix: refuse a string that is not well-formed (`String.prototype.isWellFormed()`
 is available in Bun and Node 20+) at the same validation sites with the same
 `E_INPUT` wording, and pin it in the evaluator and seed tests beside the
 control-character cases.
+
+## 2026-09-11 triage
+
+**Priority:** P2. **Disposition:** Open, narrowed to seed validation; the twin
+half is fixed.
+
+Commit `799ba19a6` routed twin text through `value-runtime.ts::scalarText`,
+which calls `unicode.ts::scalarLength` and refuses an unpaired surrogate as
+`E_INPUT: invalid Unicode scalar text`. The 2026-09-11 evaluator suite passed;
+its recursive admission check in `test-indexed.ts` includes
+`{ String: '\uD800' }` and expects that exact refusal.
+
+The seed path remains divergent. `project-seed.ts::seedValueMismatch` still
+uses `[...value].length` plus only `disallowedTextControlCodePoint`; neither
+rejects a lone surrogate. The 2026-09-11 temporary
+`triage-compiler-probe.test.ts` called exported `validateSeedRow` for
+`body: { Text: { max: 4 } }` with `"\uD800"` and observed an empty diagnostics
+array. The bounded probe passed and was then removed.
+
+Repeat from `snapback2/packages/compiler` at baseline `15c134d056` with Bun
+1.3.14 on macOS by placing this temporary Bun test beside `project-seed.ts`
+and running `bun test src/triage-compiler-probe.test.ts`:
+
+```ts
+const source = "export default {};\n";
+const sourceFile = ts.createSourceFile("snapback/seed.ts", source, ts.ScriptTarget.ES2022, true);
+const diagnostics: FrontendDiagnostic[] = [];
+validateSeedRow(
+  { sourceFile, source, fileName: "snapback/seed.ts" }, sourceFile,
+  "docs", 0, { id: "doc-1", body: "\uD800" },
+  { id: "Id", body: { Text: { max: 4 } } }, diagnostics,
+);
+expect(diagnostics).toEqual([]);
+```
+
+The imports are `typescript`, `validateSeedRow` from `./project-seed`, and
+`FrontendDiagnostic` from `./ir`. The empty array is the reproduced defect,
+not the desired assertion after a fix.
+
+**Remaining acceptance:** make seed text require well-formed Unicode scalars,
+with recursive Optional/List coverage and the same stable seed diagnostic,
+and add a seed regression beside the evaluator case. No twin runtime work
+remains.
