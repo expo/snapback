@@ -1,6 +1,6 @@
 # Snapback 2 React starter should retain an editor and draft after refusal
 
-**Status:** Open
+**Status:** Closed
 **Priority:** P2
 **Date:** 2026-09-11
 **Systems:** Snapback 2 React chat starter editing
@@ -8,13 +8,13 @@
 
 ## Evidence and impact
 
-At `b47337b26`, [Thread.onEdit](../snapback2/packages/snapback2/templates/chat/react/src/Thread.tsx)
+At `b47337b26`, [Thread.onEdit](../../snapback2/packages/snapback2/templates/chat/react/src/Thread.tsx)
 reads text from `window.prompt`, invokes `edit.run`, and retains no editor state
 for the attempted text. Rejection appears later in the thread header. Reopening
 Edit starts with the rendered message body, not the refused attempt.
 
 This is a source-confirmed missing draft lifecycle, not a new executed conflict
-reproduction. The [copied Clique edit issue](./20260909-clique-refused-edit-leaves-edit-mode.md)
+reproduction. The [copied Clique edit issue](../20260909-clique-refused-edit-leaves-edit-mode.md)
 concerns another artifact that retains a draft but clears `editId`; its frozen
 benchmark and fresh-copy acceptance remain owned by that ticket.
 
@@ -50,7 +50,10 @@ conflict names the current readable message ("Edit not sent. Current message: â€
 again to replace it."), keeps the attempt and rebases onto the current text; an
 unreadable row cannot be saved. One editor is open at a time. The editor is released
 only when a ready, complete view no longer contains its message; a partial or loading
-view never closes it. Changing account or conversation discards the editor and draft.
+view does not release it, although the draft itself lives in the message row and is
+[not yet kept](../20260911-snapback2-starter-edit-draft-across-page-shifts.md) if the
+message briefly leaves the list. Changing account or conversation discards the editor
+and draft.
 
 Evidence (`chat-screens-refusal.test.ts`): a refused edit keeps its text after one
 request, shows its details and closes on Cancel; a committed edit closes; a delayed

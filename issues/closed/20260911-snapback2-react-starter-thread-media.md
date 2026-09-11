@@ -1,6 +1,6 @@
 # Snapback 2 React starter shows ordinary media as text placeholders
 
-**Status:** Open
+**Status:** Closed
 **Priority:** P2
 **Date:** 2026-09-11
 **Systems:** Snapback 2 React chat starter thread and asset presentation
@@ -8,10 +8,10 @@
 
 ## Evidence and impact
 
-At `b47337b26`, [React Thread](../snapback2/packages/snapback2/templates/chat/react/src/Thread.tsx)
+At `b47337b26`, [React Thread](../../snapback2/packages/snapback2/templates/chat/react/src/Thread.tsx)
 uses `[photo]` and `[clip]` as body fallbacks. It mounts `AssetImage` only for
 `oncePhoto`; ordinary `photo` and `clip` records have no renderer. In contrast,
-[Expo Thread](../snapback2/packages/snapback2/templates/chat/expo/src/screens/Thread.tsx)
+[Expo Thread](../../snapback2/packages/snapback2/templates/chat/expo/src/screens/Thread.tsx)
 already uses `AssetImage` and `AssetVideo` for those ordinary records.
 
 The backend and public React asset components support these values. The missing
@@ -47,7 +47,10 @@ downloaded"/"Video unavailable" distinction; a clip opened offline says "Video n
 downloaded" even though its player, whose URL is minted over the network, reports no
 failure. Media that failed, or began loading without a connection, tries again when
 the connection returns, at most three times per mount; media that already loaded, or a
-slow load that began online, is left alone. Both are keyed by account and asset, so
+slow load that began online, is left alone. A clip whose player URL fails to mint while
+the client still believes it is connected reports nothing the starter can see, so it
+stays blank until remount; that SDK gap is
+[filed](../20260911-snapback2-asset-url-mint-failure-is-silent.md). Both are keyed by account and asset, so
 state never carries across viewers. Web `AssetImage` gained the `onRefusal` callback
 the React Native component already had. The once-photo click gate and account-scoped
 openings are unchanged, no raw asset URL is constructed, and Expo's renderer is
@@ -59,7 +62,7 @@ photo bytes and the player, shows "Photo unavailable" for a second viewer whose 
 fetch is refused, and shows the first account's photo loading again afterwards; the
 offline photo and offline clip tests mount from held data offline and see the network
 request made after reconnecting; the unreachable-bytes test answers 503 to every byte
-request and bounds that photo's requests. The silent clip mint failure belongs in the
-SDK (`useAssetUrl` drops it). This work was first built on a branch whose search,
+request and bounds that photo's requests. The transport-family branch of that mapping is
+only reached together with a dropped connection in these tests, so no test isolates it. This work was first built on a branch whose search,
 status and recovery changes were superseded by `75a67c92c`; only this ticket and the
 refused-edit ticket were ported onto the page-resource Thread (Diary 0119).
