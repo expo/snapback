@@ -59,3 +59,26 @@ typing/evaluation, not the requested seven server-maintained UTC-day buckets.
 **Remaining acceptance:** retain a regression of that seven-day maintained
 Insights shape against a real owner. The language-rule and guide work is done;
 do not reopen the decided time semantics merely because this fixture is absent.
+
+## Resolved — 2026-09-10
+
+The remaining acceptance is covered by
+`real owner maintains seven UTC-day insight buckets` in
+`packages/snapback2/tests/real-owner-successor.test.ts`. The fixture runs seven
+real owner mutations on successive exact UTC days, derives each stored group
+with `divmod(now, 86400000).quotient`, and reads all seven transactionally
+maintained counts through one `week` query. It therefore exercises the shipped
+compiler, owner clock, mutation engine, maintained projection, and query wire;
+it is not a compiler-only expression check or a client-assembled chart.
+
+Focused verification:
+
+```sh
+cd snapback2
+node --test --test-timeout=120000 \
+  --test-name-pattern='real owner maintains seven UTC-day insight buckets' \
+  packages/snapback2/tests/real-owner-successor.test.ts
+```
+
+Result: 1 passed, 0 failed. The language and guide dispositions recorded above
+remain unchanged.
