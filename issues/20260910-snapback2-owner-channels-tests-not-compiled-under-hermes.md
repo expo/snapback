@@ -1,5 +1,7 @@
 # snapback2: `owner_cases/channels.rs` does not compile under `--features hermes`; gated off, so channel journeys have no Hermes-build coverage
 
+**Status:** Open
+
 - Filed: 2026-09-10 (lane `traps` fix round r1 of the RFC implementation program; reviewer muse M2)
 - Area: `snapback2/crates/snapback2/tests/owner_cases/{channels.rs,mod.rs}`, `tests/owner_wire/mod.rs`
 
@@ -22,3 +24,13 @@ or duplicate the channel journeys in the Hermes suite. Preferred: un-gate `Sse`.
 
 The gate is the smallest change that makes the Hermes suite compile again; the coverage hole is
 inherited from the channels landing, not introduced by the lane.
+
+## Triage — 2026-09-11 (UTC)
+
+**Disposition:** Open — production-build coverage gap. **Triage priority:** P2.
+**Audit source:** `15c134d056`; Codex, on the author's request to reconcile tickets.
+This disposition supersedes stale current-work claims above; historical observations remain unchanged.
+
+owner_wire::Sse and its impl remain cfg(not(feature = "hermes")); gating the channels module restores compilation but does not exercise those channel journeys with the shipped engine.
+
+Current sources: snapback2/crates/snapback2/tests/owner_wire/mod.rs and owner_cases/mod.rs. Next: make the test helper available on both configurations and run unchanged channel cases in both. No Hermes build was claimed by this read-only source audit.

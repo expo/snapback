@@ -1,5 +1,7 @@
 # Clique setup: isolate Expo transforms before concurrent backend exports
 
+**Status:** Open
+
 **Date:** 2026-09-08 · **Area:** benchmark environment / Expo web export
 
 The published019 M7 attempt aborted after its exported ClientProvider embedded
@@ -27,3 +29,13 @@ existing preparation; no additional blocking gate or registry is proposed.
 
 Keep the aborted attempt and externally accessed fallback as diagnostic
 records. A successful retry must not erase their clocks, failures or evidence.
+
+## Triage — 2026-09-11 (UTC)
+
+**Disposition:** Open — benchmark environment isolation. **Triage priority:** P1.
+**Audit source:** `15c134d056`; Codex, on the author's request to reconcile tickets.
+This disposition supersedes stale current-work claims above; historical observations remain unchanged.
+
+The observed mixed backend bindings invalidate the affected browser attempt. Shared Metro transforms are a supported hypothesis, not a proven causal trace; the isolated retry is only that retry's success.
+
+Remaining: the generic preparation path needs a private transform cache, supported clean export and active-endpoint preflight when backend environments differ. No browser, shared cache deletion or new mechanism was run here; keep aborted-attempt evidence and original clocks.

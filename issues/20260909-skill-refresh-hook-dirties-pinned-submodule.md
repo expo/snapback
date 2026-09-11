@@ -28,3 +28,13 @@ submodule edits rather than resetting them.
 
 No hook implementation is changed by the Clique correction program. This is a
 separate workflow follow-up, not one of its eight product findings.
+
+## Triage — 2026-09-11 (UTC)
+
+**Disposition:** Open — post-merge only; post-checkout corrected. **Triage priority:** P2.
+**Audit source:** `15c134d056`; Codex, on the author's request to reconcile tickets.
+This disposition supersedes stale current-work claims above; historical observations remain unchanged.
+
+post-checkout now invokes sync-agent-skills --no-fetch --quiet. post-merge still invokes only --quiet, and the script defaults to --remote submodule update, so an ordinary merge can still advance vendor/llp beyond the recorded gitlink.
+
+Current sources: .githooks/post-checkout, .githooks/post-merge, scripts/sync-agent-skills. Remaining: make post-merge use recorded pins and test upstream-ahead plus dirty-submodule preservation. This audit leaves the user's existing dirty vendor/llp untouched and uses per-command hook suppression only for its lane switches.

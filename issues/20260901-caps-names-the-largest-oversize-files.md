@@ -17,3 +17,13 @@ Consequence, observed rather than hypothesized: during the 2026-09-01 review swe
 Note a second, smaller trap in the same area: caps counts text.split('\n').length (caps.mjs:153), so a file with a trailing newline counts one higher than wc -l. A file wc -l reports as exactly 1,500 is 1,501 to caps and is over the cap. Anyone checking their own work with wc will conclude they are exactly at the limit when they are past it.
 
 Suggested fix: name the files whose oversize status is new relative to the merge base, not the largest ones - or, if that is too much machinery, always name every file over the cap that is not in a committed baseline list, and make the baseline a list of paths rather than a bare count so the diff is computable. Also state the counting rule in the message ('N lines as caps counts them, including the trailing newline') so wc -l and caps cannot disagree silently.
+
+## Triage — 2026-09-11 (UTC)
+
+**Disposition:** Open — diagnostics still lack attribution. **Triage priority:** P2.
+**Audit source:** `15c134d056`; Codex, on the author's request to reconcile tickets.
+This disposition supersedes stale current-work claims above; historical observations remain unchanged.
+
+The title's largest-file algorithm is stale: caps now prints the smallest overflow files. That still cannot identify newly oversized files from a count-only baseline; the later recorded counterexamples show unchanged S1 paths can mask new S2 overages.
+
+Source: scripts/caps.mjs oversize.sort ascending followed by slice(0, overflow). Narrow remaining work to truthful offender attribution and explicit line-count convention, not merely reversing the sort again. Respect the no-new-registry rule; no baseline increase or S1 cleanup is authorized here.

@@ -13,3 +13,13 @@ An Astra xhigh preparation is assigned in the external `default-install-timeout-
 2026-09-07 verification update: all six controlled r2 tests passed, including exact-parent reproduction, exit during cleanup, matching-group reaping, changed-identity refusal/unknown receipt, disappearance before group lookup, and ordinary success. The first harness attempt failed on Python 3.9 kqueue context-manager support; its failure and the narrow correction are retained in [the evidence](../benchmarks/runs/2026-09-06-clique-improvement/evidence/timeout-reaping-controls/README.md). Independent review and adoption into future measurement packets remain pending. The original npm timeout remains failed/incomplete.
 
 2026-09-07 correction review: R3 removes the unsupported `logComplete` inference identified by the first pair. All six controls passed once; fresh independent Astra xhigh and Grok4.6 xhigh reviews returned READY after actual closed runs. [Accepted derivative](../benchmarks/runs/2026-09-06-clique-improvement/evidence/timeout-reaping-controls/r3/README.md). Root requires this exact helper base for the later018 public default-install witness. This ticket remains open only for its bound future packet adoption; the source correction and controlled review are complete. No original017 retry or latency claim is authorized by this evidence.
+
+## Triage — 2026-09-11 (UTC)
+
+**Disposition:** Open — evidence-tool adoption only. **Triage priority:** P3.
+**Audit source:** `15c134d056`; Codex, on the author's request to reconcile tickets.
+This disposition supersedes stale current-work claims above; historical observations remain unchanged.
+
+The R3 helper correction and six controls are already complete. No new timeout fix or retry of the original failed install is owed. The retained README still distinguishes the 0.0.18 dry producer from the future public default-install packet.
+
+benchmarks/runs/2026-09-06-clique-improvement/evidence/timeout-reaping-controls/r3/README.md binds candidate-helper.py SHA b66c1e0e7eddb99d6a17a3902a0d3fb116f35618c47068d16b8d97a87438fa0a. Remaining: name a later default-install packet using that exact derivative and its terminal record, or explicitly retire the unused packet requirement. Original 0.0.17 exit remains unknown.

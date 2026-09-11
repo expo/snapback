@@ -27,3 +27,13 @@ adjudication in
 [the diagnostic run](../benchmarks/runs/2026-09-08-release-cold-headroom/README.md).
 The duplicate September 8 ticket is archived under `issues/closed/`; this
 September 6 ticket owns the unresolved fixture/calibration correction.
+
+## Triage — 2026-09-11 (UTC)
+
+**Disposition:** Open — fixture/choreography contract mismatch. **Triage priority:** P2.
+**Audit source:** `15c134d056`; Codex, on the author's request to reconcile tickets.
+This disposition supersedes stale current-work claims above; historical observations remain unchanged.
+
+The ticket's original Erin omission remains an instrument defect until the seeded recipient set and driven actors are reconciled. A later isolated client or an application that removes Erin is not the requested correction.
+
+The 0.0.21 run still uses frozen instrument f40559f37722c79178be664a11f8a6485f1508fd and records M3 14/15 in both graders; that score alone does not attribute its one miss to Erin. Next instrument revision must drive all retained send-time recipients and preserve DM failures as separate findings.

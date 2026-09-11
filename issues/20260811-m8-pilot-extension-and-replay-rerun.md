@@ -1,5 +1,7 @@
 # M8 (P2b): pilot extension, replay rerun, and probe-rotation instances
 
+**Status:** Open
+
 **Opened:** 2026-08-11
 **Source:** LLP 0201, dated amendment 2026-08-11 (M8 additive milestone)
 
@@ -34,3 +36,13 @@ remainders gate P3 freeze:
 Also confirm at P3: the M8 entries in the schema-manifest ambiguity
 log (assertion executor classifications chosen at authoring time,
 e.g. m8-a02 as choreo) and the choreography segment's contract IDs.
+
+## Triage — 2026-09-11 (UTC)
+
+**Disposition:** Open — benchmark qualification backlog. **Triage priority:** P3.
+**Audit source:** `15c134d056`; Codex, on the author's request to reconcile tickets.
+This disposition supersedes stale current-work claims above; historical observations remain unchanged.
+
+This is an instrument-calibration/probe-minting obligation, not a Snapback2 feature bug. Later diagnostic M8 app runs do not automatically supply tier-1 pilot caps, regenerated scale replay qualification, or committed rotated probes.
+
+Governing scope remains LLP 0201's M8 amendment. Retain pending pilot/replay/probe evidence separately; execute only when a new claim-eligible benchmark wave is commissioned. Do not rerun historical cells or alter frozen comparisons during ticket triage.

@@ -135,3 +135,13 @@ Non-blocking review residue from the wave-2/3 lanes (L8a uniformity proofs, L8b 
 - **L10 (5f556dffe + c32534df7 + ef1dc675b).** Engine-side pins that the system viewer still caps on a forced `Limit` stop and an overlarge union (the twin has them; the engine test asserts only the bypass direction) (Muse r3 M1). The merge remainder's halo may start on an id-duplicate (commented, harmless).
 - **L11 (d3f2df71a + c64de817e).** Soften the two `expect()` panics in the schema-certificate disclosure merge (`registry.rs` ~1310) into a refusal for a non-array `disclosures` value (Muse r2). Once `HEAD` on the ordinary path is pinned as headers-only by tiny_http's method handling, not by our code — a comment at the route would save the next reviewer the same claim.
 - **L12 (6bf503e9a + bd7e07fc7 + fix round 2).** None beyond round 2.
+
+## Triage — 2026-09-11 (UTC)
+
+**Disposition:** Open — umbrella narrowed to unclosed subitems. **Triage priority:** P3.
+**Audit source:** `15c134d056`; Codex, on the author's request to reconcile tickets.
+This disposition supersedes stale current-work claims above; historical observations remain unchanged.
+
+The auth-startup findings explicitly marked Resolved stay resolved. Later direct Quarry compilation retires the old TypeScript authoring-path concerns; current generation must not be changed to preserve that removed lane. Later LLP 1020 also assigns E_STEPS to the bound family.
+
+Remaining work is the separately named reachable diagnostics, source wording and missing controls (redirect statuses, uniformity/cap cases, partial-site parity, live-read cleanup/backoff). Cross-check each against its owning current test before fixing; retain other tickets as the single owner of their reproduced defects. No broad compiler or auth regression is established by this umbrella.

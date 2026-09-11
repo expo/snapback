@@ -29,3 +29,13 @@ the existing canonical tagged-value comparison if prototypes are irrelevant.
 Preserve integer, ID, optional-absence and nested-value assertions. Qualify
 the full compiler suite on the intended supported Bun versions; do not alter
 production row provenance merely to satisfy a fixture prototype.
+
+## Triage — 2026-09-11 (UTC)
+
+**Disposition:** Open — toolchain/test compatibility. **Triage priority:** P2.
+**Audit source:** `15c134d056`; Codex, on the author's request to reconcile tickets.
+This disposition supersedes stale current-work claims above; historical observations remain unchanged.
+
+The retained two Bun 1.4 failures concern value-dictionary prototype equality, not demonstrated wrong compiler values. This host has Bun 1.3.14, so its passes would not reproduce or clear the reported version-specific failure.
+
+Keep the original named assertions and before/after controls. Next: run both checks on the intended Bun 1.4 version, use the intended tagged-value equality contract if prototypes are irrelevant, and qualify the full supported compiler runner. No production provenance change or toolchain-wide upgrade is authorized by this triage.

@@ -345,3 +345,13 @@ deadline or replace any failed sample. No same-machine baseline comparison
 attributing the added time was performed. Logs are named
 `snapback2-client-123-diagnostic-{sessions,successor,store}.log` in the run
 evidence directory.
+
+## Triage — 2026-09-11 (UTC)
+
+**Disposition:** Open — reliability and total-loop budget. **Triage priority:** P1.
+**Audit source:** `15c134d056`; Codex, on the author's request to reconcile tickets.
+This disposition supersedes stale current-work claims above; historical observations remain unchanged.
+
+The original cargo-test scheduling description is historical: test.sh now uses nextest with a bounded worker count and explicit doctests. Later execution records still contain original-deadline failures and full-suite runs above 60 seconds; an isolated pass is not closure.
+
+LLP 1002 §11 records the nextest change and 83.921-second full suite. The latest original-deadline observations above remain evidence. Next: reproduce named timing-sensitive cases on a recorded, bounded-load host and compare complete original-deadline runs; distinguish content failures, infrastructure, and genuine timing regression. Do not increase deadlines or substitute the consumer rung for the full suite.

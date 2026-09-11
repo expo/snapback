@@ -33,3 +33,13 @@ for milestones that need them.
 - Lane setup succeeds for M1–M6+M8 without invented fixture paths.
 - The generated orientation names the complete requested scope.
 - Existing M1–M3 starter links and snapshot validation remain intact.
+
+## Triage — 2026-09-11 (UTC)
+
+**Disposition:** Open — implementation fixed; verification blocked by instrument drift. **Triage priority:** P2.
+**Audit source:** `15c134d056`; Codex, on the author's request to reconcile tickets.
+This disposition supersedes stale current-work claims above; historical observations remain unchanged.
+
+Current lane-setup.mjs explicitly omits missing M4–M6/M8 starter segments, preserves canonical M1–M3 refusals and prints full continuous scope. Commits 607dd776d and eff33c588 implement the requested behavior.
+
+Fresh command on 15c134d056: node --test --test-name-pattern='full continuous journey without inventing starter segments' benchmarks/tools/lane-setup.test.mjs. Result: 0 pass / 1 fail, before the target behavior, with instrument artifact brief digest mismatch at briefs/social-messenger.md. Do not label this the original starter bug or change the frozen manifest to get green. Remaining: run that existing regression against a coherently qualified instrument snapshot, then close.

@@ -33,3 +33,13 @@ runtime output into a lane-owned scratch directory outside the frozen tree.
 - Run choreography for one lane against a digest-pinned instrument.
 - Verify the complete instrument tree digest is unchanged afterward.
 - Set up and run a second lane from the same snapshot without restaging.
+
+## Triage — 2026-09-11 (UTC)
+
+**Disposition:** Open — default output path still unsafe for frozen snapshots. **Triage priority:** P2.
+**Audit source:** `15c134d056`; Codex, on the author's request to reconcile tickets.
+This disposition supersedes stale current-work claims above; historical observations remain unchanged.
+
+Current choreography.mjs still defaults receipts.jsonl beside the script; explicit --receipts/CHOREO_RECEIPTS moves output but does not make default invocation safe. The runbook still installs dependencies in the choreography directory.
+
+Source audit only: benchmarks/tools/social-messenger/choreography/choreography.mjs DEFAULT_RECEIPTS_PATH and RUNBOOK.md setup. Remaining: keep dependencies and output outside the frozen source and qualify two sequential lanes against the same unchanged digest. Do not mutate frozen snapshots or restage historical runs during this audit.

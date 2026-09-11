@@ -29,3 +29,13 @@ root in the handoff, with no dependency on the original lane directory.
 - Copy a handoff to a new directory with the declared instrument link.
 - Run both replay/reseed entrypoints without path edits.
 - No path in the exported handoff points back to the builder lane root.
+
+## Triage — 2026-09-11 (UTC)
+
+**Disposition:** Open — reusable handoff qualification. **Triage priority:** P2.
+**Audit source:** `15c134d056`; Codex, on the author's request to reconcile tickets.
+This disposition supersedes stale current-work claims above; historical observations remain unchanged.
+
+The original failure concerns exported replay scripts resolving fixtures through the builder directory. Successful individual fresh-session M7 attempts do not prove the generic exported handoff relocates without edits.
+
+The 0.0.21 run README records successful M7/day-two sessions, but not the exact two-entrypoint relocation control requested here. Next: copy a completed handoff to an owned new directory, resolve the explicitly supplied frozen instrument, and run both replay/reseed entrypoints without source edits. Preserve the original app/store and instrument.

@@ -1,5 +1,7 @@
 # Packaged-consumer smoke rung missing from the snapback2 proof
 
+**Status:** Closed
+
 **Opened:** 2026-08-31 · **Systems:** snapback2 packaging, dev loop, proof
 
 The first-ever exercise of the packed artifacts as a consumer (npm install
@@ -25,3 +27,13 @@ step that packs both tarballs, installs them into a scratch dir, and runs
 `init` → `check` → `test` green (candidate home: `scripts/test.sh` leg or
 the publish path before `npm publish`). Until it exists, every publish
 ships a surface no test has ever consumed.
+
+## Triage — 2026-09-11 (UTC)
+
+**Disposition:** Closed — implemented. **Triage priority:** P3.
+**Audit source:** `15c134d056`; Codex, on the author's request to reconcile tickets.
+This disposition supersedes stale current-work claims above; historical observations remain unchanged.
+
+The missing consumer proof is implemented, not a remaining feature request. scripts/consumer-smoke.mjs packs/installs the shim and native/helper artifacts, then runs installed imports, both templates, check/dev/test and React round trip. measure.mjs invokes it; publication uses the production consumer proof.
+
+LLP 1002 §11 documents the installed-consumer replacement. metrics/loop.jsonl at 2026-09-10T22:31:34.834Z, cc64186513, records consumer_smoke_s=13.06 with all invoked steps successful; the engine-less chat receipt remains explicitly blocked for engine absence, not a production effects pass. This closure concerns presence and execution of the consumer rung, not the whole loop budget or all-platform qualification.

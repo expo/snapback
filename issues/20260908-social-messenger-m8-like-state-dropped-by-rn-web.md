@@ -34,3 +34,13 @@ misses this integration. Bump the instrument version and retain the frozen run.
 This finding was not supplied to the cold builder or fresh assessor. It does
 not establish the app's Insights correctness or resolve the separate M8
 dual-offline convergence failures.
+
+## Triage — 2026-09-11 (UTC)
+
+**Disposition:** Open — stock web semantic-state mismatch. **Triage priority:** P2.
+**Audit source:** `15c134d056`; Codex, on the author's request to reconcile tickets.
+This disposition supersedes stale current-work claims above; historical observations remain unchanged.
+
+Current FeedCard still uses accessibilityState.selected for its Action, while the ticket's exact RN Web 0.21.2 renderer control demonstrates that neither boolean becomes the attributes the M8 observer reads.
+
+Next instrument revision: retain native accessibility and expose explicit true/false web toggle state, then execute the real renderer and M8 selector controls. Handwritten self-test ARIA does not cover the stock component boundary. No new renderer run or application-grade claim in this audit.

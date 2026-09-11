@@ -33,3 +33,13 @@ scoped M5 observer of root/descendant media URLs is another coherent option.
 Do not broaden every snapshot or alter the current frozen run.
 
 [Bounded observation custody and source hashes](../benchmarks/runs/2026-09-08-release-cold-headroom/m5-background-observer.json).
+
+## Triage — 2026-09-11 (UTC)
+
+**Disposition:** Open — stock UI/observer mismatch. **Triage priority:** P2.
+**Audit source:** `15c134d056`; Codex, on the author's request to reconcile tickets.
+This disposition supersedes stale current-work claims above; historical observations remain unchanged.
+
+The current ChatSettingsForm still supplies backgroundUri through a descendant Image without the root semantic change the M5 observer waits for. The retained real DOM observation remains stronger evidence than the source-regex checks.
+
+Next instrument revision: execute an actual RN-web URI A→B transition and loaded-image control, either expose the neutral semantic value on the root or narrowly observe descendant media changes. Preserve empty/native states; no product change or new browser pass is claimed here.

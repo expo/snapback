@@ -37,3 +37,13 @@ reproducer lands.
 LLP 0317 Wave 5 records M7 as environment-null and does not execute M7 in its
 product cells, so this issue does not gate that scoped rerun. The N7 preflight,
 frozen-root verifier, and scale fixture remain hard entry gates.
+
+## Triage — 2026-09-11 (UTC)
+
+**Disposition:** Open — instrument reliability. **Triage priority:** P2.
+**Audit source:** `15c134d056`; Codex, on the author's request to reconcile tickets.
+This disposition supersedes stale current-work claims above; historical observations remain unchanged.
+
+The original same-input fail/pass calibration observations remain valid. Later passing M7 apps and self-tests do not identify the vote-switch timing cause or prove deterministic calibration.
+
+Keep this as a shared instrument issue, not an application vote-loss claim. Next: bounded repeated original-deadline calibration with recorded load and vote-state/observer ordering; preserve every failing and passing receipt. No new browser calibration was run in this triage.

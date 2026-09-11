@@ -168,3 +168,13 @@ PID 7609 and completion status are retained in the primary checkout's
 `.llp/ship-runs/20260908-client-123/` (`snapback2-client-123-measure.log` and
 the run ledger). This leaves the timing ticket open and does not qualify the
 complete loop or a package publication.
+
+## Triage — 2026-09-11 (UTC)
+
+**Disposition:** Open — intermittent budget overrun; attribution unestablished. **Triage priority:** P0.
+**Audit source:** `15c134d056`; Codex, on the author's request to reconcile tickets.
+This disposition supersedes stale current-work claims above; historical observations remain unchanged.
+
+Newer records improve materially but do not erase the misses: dfac9e92d1 at 2026-09-10T21:08:50.782Z has consumer 40.24 s and doctor first sample 0.697 s; its next consumer is 31.75 s. Later cc64186513 samples have consumer 13.40/13.06 s, project check 0.450/0.486 s, and both doctor samples below 0.5 s.
+
+Evidence: existing snapback2/metrics/loop.jsonl, not new timings. Preserve all samples, including the earlier npm-cache EPERM infrastructure failure, separately from product latency. Remaining: paired controlled measurements that establish cause and sustained compliance at the original budgets; byte-baseline acceptance and complete-suite timing are separate verdicts.

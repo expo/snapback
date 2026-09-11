@@ -315,3 +315,13 @@ macOS host + semantic-interaction receipt; and (4) normalized Coterie/Clique
 be inferred from the static-vocabulary preflight, so it is not provable by
 running the current harness at all. The ticket remains **Open** until (1)–(3)
 execute and pass AND (4)'s checker is built and run.
+
+## Triage — 2026-09-11 (UTC)
+
+**Disposition:** Open — remaining external qualification, not missing implementation. **Triage priority:** P3.
+**Audit source:** `15c134d056`; Codex, on the author's request to reconcile tickets.
+This disposition supersedes stale current-work claims above; historical observations remain unchanged.
+
+The ticket already records the delivered observability/versioned harness. Its remaining obligations are clean control failure/retry receipts and the separately identified W9 browser/native/selector-tree proofs; Snapback2 builder scores do not discharge those.
+
+Current benchmarks/tools/social-messenger/choreography/RUNBOOK.md expressly separates fixture mechanics from Coterie/native product evidence. Keep the named missing proofs and selector-tree checker requirement explicit; no new gate, native run or score is added by this audit.

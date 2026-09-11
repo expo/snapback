@@ -1,5 +1,7 @@
 # Social messenger grader schema rejects the instrument’s M8 assertions
 
+**Status:** Open
+
 **Date:** 2026-09-08
 **Area:** Clique benchmark reporting
 **Source:** Preflight for the published Snapback2 0.0.19 cold diagnostic run
@@ -25,3 +27,13 @@ and explicitly report the limitation instead of omitting them or claiming
 schema validation for an invalid report.
 
 Related: LLP 0201; `benchmarks/runs/2026-09-08-release-cold-headroom/README.md`.
+
+## Triage — 2026-09-11 (UTC)
+
+**Disposition:** Open — current schema mismatch. **Triage priority:** P2.
+**Audit source:** `15c134d056`; Codex, on the author's request to reconcile tickets.
+This disposition supersedes stale current-work claims above; historical observations remain unchanged.
+
+Current grader-report.schema.json still admits assertionResults keys only through ^m[1-7]-a[0-9]{2}$ while M8 remains part of the instrument. This is a reporting-schema defect, not an M8 application failure.
+
+Source: benchmarks/tools/social-messenger/grader/grader-report.schema.json patternProperties. Correct it only in a versioned instrument revision, validate all declared assertion IDs and preserve frozen reports. No historical invalid report is reclassified as schema-valid.

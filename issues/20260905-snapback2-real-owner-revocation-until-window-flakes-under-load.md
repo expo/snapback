@@ -2,7 +2,7 @@
 
 **Filed:** 2026-09-05 by Claude Fable 5.1 (LLP 1017 landing)
 **Where:** `snapback2/packages/snapback2/tests/real-owner.test.ts`, the test at ~line 236
-**Status:** open
+**Status:** Open
 
 ## Symptom
 
@@ -44,3 +44,13 @@ faster paths) or wait on a settled marker rather than a fixed window.
 - `snapback2/packages/snapback2/tests/owner-harness.ts` `stop()` (the drain).
 - Memory note in the LLP 1017 program record; LLP 1006's "hang = leaked
   subscriptions" trap.
+
+## Triage — 2026-09-11 (UTC)
+
+**Disposition:** Open — timing qualification; cleanup repaired. **Triage priority:** P2.
+**Audit source:** `15c134d056`; Codex, on the author's request to reconcile tickets.
+This disposition supersedes stale current-work claims above; historical observations remain unchanged.
+
+The test moved to tests/real-owner-session.test.ts and now registers context.after to await both client closes before assertions. The old throw-skips-all-cleanup mechanism is therefore no longer the source shape. Readiness, typing and terminal waits still use 2,000 ms.
+
+Current source: tests/real-owner-session.test.ts, real channel membership revocation ends the subscriber with a refusal. Remaining: deterministic progress-based revocation control or a bounded repeated under-load reproduction with cleanup verified after failure. No new load result is inferred from the moved test or prior isolated passes.

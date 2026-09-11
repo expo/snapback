@@ -52,3 +52,13 @@ Fresh M7 preparation installs both locks before the author starts. Future
 handoffs must verify both imported source closure and nested harness dependency
 readiness; a successful app-only install is insufficient. See the
 [0.0.19 diagnostic record](../benchmarks/runs/2026-09-08-release-cold-headroom/README.md).
+
+## Triage — 2026-09-11 (UTC)
+
+**Disposition:** Open — recurring packet-construction defect. **Triage priority:** P1.
+**Audit source:** `15c134d056`; Codex, on the author's request to reconcile tickets.
+This disposition supersedes stale current-work claims above; historical observations remain unchanged.
+
+Earlier 0.0.19 packet repairs did not close the general constructor: the 0.0.21 run again aborted Astra attempt 1 because lib/json-schema.mjs was omitted. This is a fresh recorded recurrence, not a hypothetical missing-import concern.
+
+benchmarks/runs/2026-09-10-clique-ri-0.0.21/README.md explicitly records the failed first attempt and second attempt. Root cause class remains incomplete imported source/dependency closure. Qualify a copied packet with exact helper bytes plus both locked dependency installs before the builder clock; do not replace the validator or discard the aborted attempt.

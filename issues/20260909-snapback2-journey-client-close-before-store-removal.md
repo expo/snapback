@@ -20,3 +20,13 @@ also fails. Do not raise journey deadlines or alter offline-derived assertions.
 
 Evidence: `llp/reviews/1018.007-clique-correction-program.code-sol-final.md`,
 2026-09-09 retained proof-source re-review of `4f0d35467`.
+
+## Triage — 2026-09-11 (UTC)
+
+**Disposition:** Open — current source gap. **Triage priority:** P2.
+**Audit source:** `15c134d056`; Codex, on the author's request to reconcile tickets.
+This disposition supersedes stale current-work claims above; historical observations remain unchanged.
+
+Current src/test.ts still starts every client.close() without awaiting the returned promises, then awaits epoch/provider cleanup and removes storeRoot. Those unrelated awaits do not establish that durable carriers have finished closing.
+
+Source: snapback2/packages/snapback2/src/test.ts finally block in runJourney. Remaining: an actual delayed-close runner regression proving store removal waits; preserve the original journey error if cleanup fails. This triage confirms the source ordering, not an observed physical store-loss event.

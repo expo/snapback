@@ -18,3 +18,13 @@ touched the asset code.
 
 The fixture reserves finalized bytes before marking ready, matching the engine's
 invariant; a corpus export on a clean tree then completes.
+
+## Triage — 2026-09-11 (UTC)
+
+**Disposition:** Open — repair present, fresh export verification pending. **Triage priority:** P2.
+**Audit source:** `15c134d056`; Codex, on the author's request to reconcile tickets.
+This disposition supersedes stale current-work claims above; historical observations remain unchanged.
+
+The cited fixture now calls reserve_asset_finalized_bytes before mark_asset_ready at both current asset fixture sites. The original missing-precondition source is repaired; this ticket is narrowed to confirming that the complete current corpus exporter actually completes.
+
+Source inspected at snapback2/crates/snapback2-core/src/bin/export_corpus/assets.rs (reservation sites beside readiness publication). A bounded current export is requested as part of this audit; source presence alone is not recorded as an executed export.
