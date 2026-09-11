@@ -17,8 +17,8 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-// @ref LLP 1003#4-in-the-owner — this proves the commit wake, durable runner,
-// subscription fanout, sent_unknown honesty, and explicit requeue.
+// @ref LLP 1021#acceptance — this proves the exact post-provider/pre-settlement
+// crash, sent_unknown honesty, explicit requeue, provider idempotency, and one then.
 #[test]
 fn owner_runs_effect_then_delivery_and_honest_restart_requeue() {
     let provider = Provider::start();
@@ -41,7 +41,13 @@ fn owner_runs_effect_then_delivery_and_honest_restart_requeue() {
         String::from_utf8_lossy(&check.stderr)
     );
 
-    let mut first_owner = ChildGuard::spawn(binary, &compiler, &root);
+    let pause = root.join(".post-provider-pause");
+    let mut first_owner = ChildGuard::spawn_post_provider_pause(
+        binary,
+        &compiler,
+        &root,
+        &pause,
+    );
     let (port, secret) = first_owner.ready(&root);
     assert_eq!(
         status(port, &secret)["effects"]["engine"],
@@ -83,8 +89,18 @@ fn owner_runs_effect_then_delivery_and_honest_restart_requeue() {
     assert_eq!(running_trace["outbox"]["rows"][0]["state"], "running");
     provider.assert_headers(0, &outbox_id);
 
-    first_owner.kill();
     provider.release_first();
+    wait_for(Duration::from_secs(8), || {
+        fs::read_to_string(pause.join("reached"))
+            .ok()
+            .filter(|reached| reached == &outbox_id)
+    });
+    assert_eq!(
+        trace(port, &secret, seq)["outbox"]["rows"][0]["state"],
+        "running",
+        "the pause must be after provider completion but before settlement"
+    );
+    first_owner.kill();
 
     let mut second_owner = ChildGuard::spawn(binary, &compiler, &root);
     let (port, secret) = second_owner.ready(&root);
@@ -130,7 +146,7 @@ fn owner_runs_effect_then_delivery_and_honest_restart_requeue() {
         .iter()
         .find(|row| row["outboxId"] == outbox_id)
         .expect("the effect delivery row must be present beside seed data");
-    assert_eq!(delivered["providerId"], "provider-2");
+    assert_eq!(delivered["providerId"], "provider-idempotent");
     assert_eq!(provider.hits(), 2);
     provider.assert_headers(1, &outbox_id);
     let final_status = wait_for(Duration::from_secs(5), || {
@@ -402,7 +418,9 @@ impl Provider {
                         released = wake.wait(released).unwrap();
                     }
                 }
-                let body = format!(r#"{{"id":"provider-{hit}"}}"#);
+                // Both deliveries use the same idempotency key, so this stand-in
+                // returns the same provider result across the crash/retry pair.
+                let body = r#"{"id":"provider-idempotent"}"#;
                 let response = format!(
                     "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
                     body.len()
@@ -594,8 +612,28 @@ impl ChildGuard {
         Self::spawn_flags(binary, compiler, root, &["--owner-child", "--test-owner"])
     }
 
+    fn spawn_post_provider_pause(
+        binary: &str,
+        compiler: &Path,
+        root: &Path,
+        pause: &Path,
+    ) -> Self {
+        Self::spawn_command(binary, compiler, root, &["--owner-child"], Some(pause))
+    }
+
     fn spawn_flags(binary: &str, compiler: &Path, root: &Path, flags: &[&str]) -> Self {
-        let mut child = Command::new(binary)
+        Self::spawn_command(binary, compiler, root, flags, None)
+    }
+
+    fn spawn_command(
+        binary: &str,
+        compiler: &Path,
+        root: &Path,
+        flags: &[&str],
+        post_provider_pause: Option<&Path>,
+    ) -> Self {
+        let mut command = Command::new(binary);
+        command
             .args(["dev", "--project"])
             .arg(root)
             .arg("--foreground")
@@ -603,9 +641,11 @@ impl ChildGuard {
             .env("SNAPBACK2_COMPILER", compiler)
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .unwrap();
+            .stderr(Stdio::piped());
+        if let Some(path) = post_provider_pause {
+            command.env("SNAPBACK2_TEST_POST_PROVIDER_PAUSE", path);
+        }
+        let mut child = command.spawn().unwrap();
         let stdout = BufReader::new(child.stdout.take().unwrap());
         Self { child, stdout }
     }
