@@ -7,6 +7,13 @@ Clique actor has started. The earlier Mac artifacts, source commits, reviews
 and failed qualification attempts remain preserved; changed source requires
 fresh staging, not reuse of those old qualification receipts.
 
+Current frozen native candidate: Ibex
+`02cf5b12dc2f3ebe2b64327fd57457eb0ae68485`; Snapback pin/integration
+`0455433ccc8616b0a08c437f6c9e40a493152ee7`. Both are on named branches;
+main landing and npm writes remain held for final review and native consumers.
+Sol xhigh and Grok4.6 xhigh started mutually blind final-delta reviews at
+19:37 UTC. Fresh stage-only qualification overlaps those reviews.
+
 ## Resumed scope and orientation
 
 The author answered "go ahead" to the proposed native Intl implementation.
@@ -166,6 +173,34 @@ existing surface ticket and packed guide disclose it. The exact expected-
 correct regression and failed experiments remain retained, and final reviewers
 receive the trade for independent assessment. This decision does not weaken
 the original effects witness or claim a complete Intl implementation.
+
+### Final native-content evidence
+
+`02cf5b12` changes only two test files and the existing issue/LLP0067 from
+`62241df63`; production and shared Mac inputs are byte-identical. The stronger
+number/date assertions pass (11 and nine tests), with two isolated expected-
+correct primitive-newTarget tests explicitly ignored as unimplemented. The
+parent-content full Hermes suite passed 478 tests across 30 binaries, with
+11 pre-existing ignored tests; no-engine passed 188 across 29 binaries with
+one ignored test. The combined number/case/date/SQLite suite passed 31/31.
+Do not count the two newly deferred cases as passes or claim blanket Intl
+conformance from those totals.
+
+The unchanged Snapback engine-effects suite now passes **75/75 plus doctests**
+at the final pin: EPYC PID 2150728, 19:37:21–19:37:33 UTC, exit 0. The final
+existing release boot-floor executable's dynamic closure contains only normal
+system C/C++ libraries, not shared Hermes, ICU, JSI, Boost, curl or TLS. Its
+observed floors remain GLIBC 2.39 / GLIBCXX 3.4.30 / CXXABI 1.3.9. This is
+the tested Ibex boot-floor executable, not the subsequently packaged Snapback
+binary; the publisher inspects that artifact separately.
+
+The [native evidence archive](./ibex2-intl-02cf5b12-evidence.tar.gz) retains
+source/hash identity, full/focused/no-engine/clippy/boot results, exact process
+receipts, HBC reconciliation, original constructor failures and ELF inspection.
+SHA-256: `2130924bdae44952ba3b6f2002b2767f66e04294a64082cbe0c5b9c5f5af4270`.
+Root verified every internal checksum after transfer. The complete candidate
+Git archive tar stream (not the compressed review capsule) is 185,518,080 bytes,
+SHA-256 `8c9483c815b6404614b903b1631174c7595b663eff16f6af9b561c3548cc60ba`.
 
 The author requested npm publication followed by Clique on expo-build-1000,
 using Astra at the previous builder effort. After the Darwin-only 0.0.23
