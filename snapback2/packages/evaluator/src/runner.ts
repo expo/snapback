@@ -615,11 +615,19 @@ export class Runner {
       take + 2,
     );
     this.trace.examined = (this.trace.examined ?? 0) + examined.length;
-    const stop = examined.length > take ? "limit" : "exhausted";
     // The proof belongs to this scan; point reads still evaluate their row policy.
     const readSite = this.certificate?.read_sites?.find((site: any) => site.site === scan.site);
+    const publicRule = this.context.viewer === coreIrContract.systemPrincipalId
+      || ["Allow", "Public"].includes(variant(this.schema.tables[scan.table].rules.read)[0]);
+    const uniform = readSite?.hoist === true || publicRule;
     const decidedTrue = readSite?.hoist === true && readSite.decided_true === true;
     const visible = examined.filter((row) => decidedTrue || this.checkRule(scan.table, "read", null, row));
+    const sourceExhausted = examined.length < take + 2;
+    // @ref LLP 1001#3-read-and-write-states-no-silent-states — exhausting
+    // held candidates cannot prove a non-uniform scan complete when exactly
+    // `take` visible rows were returned; unseen hidden/visible rows may follow.
+    const stop = ((uniform && visible.length <= take && sourceExhausted)
+      || (!uniform && visible.length < take && sourceExhausted)) ? "exhausted" : "limit";
     const returned = visible.slice(0, take);
     const suffix = cursorSuffix(this.schema, scan);
     this.recordRange(scan, input, suffix, visible, returned, visible.slice(take), stop);

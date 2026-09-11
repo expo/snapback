@@ -1161,7 +1161,14 @@ fn enriched_capped_page_cursors_follow_only_returned_rows() {
             .unwrap()
             .reexecute(&program, &certificate, context.clone())
             .unwrap();
-        assert!(matches!(state, LocalState::Partial(_)));
+        assert_eq!(
+            state,
+            LocalState::Partial(if id == "d1" {
+                vec!["docs.page".to_owned()]
+            } else {
+                vec!["docs.page".to_owned(), "profiles.owner".to_owned()]
+            })
+        );
         assert_eq!(local.state, ExecutionState::Capped);
         assert_eq!(local.result, execution.result);
         // A partial local re-execution carries no cursor in either runtime (L10's rule);

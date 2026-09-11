@@ -219,7 +219,7 @@
                 "name": "profile",
                 "value": {
                   "Get": {
-                    "site": "profiles.byId",
+                    "site": "profiles.owner",
                     "table": "profiles",
                     "index": "byId",
                     "key": [
@@ -312,7 +312,7 @@
   },
   "certificate": {
     "program": "items.enriched",
-    "plan_hash": "b6396fda53b4c20122748c46c91398f2f58490f4eb954b3768fcb50b872f5da2",
+    "plan_hash": "82d58fca3f1514084ba1f753e5356da3ce3b078556f3c85bef37766d60683c88",
     "schema_hash": "ba166087c4aefdd29b0b208a1ceba5cae8eb96145d80307c4ea8d1544eb80e05",
     "tables": {
       "items": {
@@ -344,7 +344,7 @@
         "complete": false
       },
       {
-        "site": "profiles.byId",
+        "site": "profiles.owner",
         "table": "profiles",
         "index": "byId",
         "prefix_template": "Shape",
@@ -377,7 +377,7 @@
       "shares.byItemViewer"
     ],
     "disclosures": [],
-    "bound_product": "items.page take 50 (+2 reserve) × 1 calls on items = 52 + profiles.byId point read on profiles × 50 calls (calls from items.page take 50) = 50",
+    "bound_product": "items.page take 50 (+2 reserve) × 1 calls on items = 52 + profiles.owner point read on profiles × 50 calls (calls from items.page take 50) = 50",
     "cost_terms": [
       {
         "meter": "examined entries",
@@ -394,8 +394,8 @@
       {
         "meter": "examined entries",
         "value": 50,
-        "source": "profiles.byId point read on profiles × 50 calls (calls from items.page take 50)",
-        "site": "profiles.byId"
+        "source": "profiles.owner point read on profiles × 50 calls (calls from items.page take 50)",
+        "site": "profiles.owner"
       },
       {
         "meter": "index entries",
@@ -412,8 +412,8 @@
       {
         "meter": "index entries",
         "value": 50,
-        "source": "profiles.byId point read on profiles × 50 calls (calls from items.page take 50)",
-        "site": "profiles.byId"
+        "source": "profiles.owner point read on profiles × 50 calls (calls from items.page take 50)",
+        "site": "profiles.owner"
       },
       {
         "meter": "rule probes",
@@ -448,8 +448,8 @@
       {
         "meter": "steps",
         "value": 200,
-        "source": "profiles.byId point read on profiles × 50 calls (calls from items.page take 50) × 4",
-        "site": "profiles.byId"
+        "source": "profiles.owner point read on profiles × 50 calls (calls from items.page take 50) × 4",
+        "site": "profiles.owner"
       },
       {
         "meter": "steps",
@@ -562,8 +562,8 @@
       {
         "meter": "heap bytes",
         "value": 6400,
-        "source": "profiles.byId point read on profiles × 50 calls (calls from items.page take 50) × 4 × 32",
-        "site": "profiles.byId"
+        "source": "profiles.owner point read on profiles × 50 calls (calls from items.page take 50) × 4 × 32",
+        "site": "profiles.owner"
       },
       {
         "meter": "heap bytes",
@@ -701,7 +701,7 @@
         "meter": "closure bytes",
         "value": 5200,
         "source": "profiles.name",
-        "site": "profiles.byId"
+        "site": "profiles.owner"
       }
     ]
   },
@@ -843,7 +843,7 @@
     "localState": "partial",
     "partialSites": [
       "items.page",
-      "profiles.byId"
+      "profiles.owner"
     ],
     "canonicalResult": "{\"Array\":[{\"Row\":{\"id\":{\"Id\":\"i1\"},\"owner\":{\"Row\":{\"name\":{\"String\":\"Visible\"}}}}},{\"Row\":{\"id\":{\"Id\":\"i2\"},\"owner\":\"Null\"}}]}",
     "digest": "8d0a7e37dbd526c682dfe1a7e17a0b9c1c281bb78ba6c80af9e6fd6a6a2ab8e6",

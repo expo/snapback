@@ -215,7 +215,7 @@
                     ],
                     "order": "Asc",
                     "take": {
-                      "Literal": 50
+                      "Literal": 1
                     },
                     "after": {
                       "Variable": "c"
@@ -233,7 +233,7 @@
                       "name": "profile",
                       "value": {
                         "Get": {
-                          "site": "profiles.byId",
+                          "site": "profiles.owner",
                           "table": "profiles",
                           "index": "byId",
                           "key": [
@@ -340,7 +340,7 @@
   },
   "certificate": {
     "program": "items.enriched",
-    "plan_hash": "82c39c1502f6dae9f38786d2f5b95060c1f2ad160c879888226ac5a88e45ef51",
+    "plan_hash": "696f9cbc1346bc75dabaedab75b31a555698395db9a096437f377a9ddcd35bae",
     "schema_hash": "ba166087c4aefdd29b0b208a1ceba5cae8eb96145d80307c4ea8d1544eb80e05",
     "tables": {
       "items": {
@@ -365,19 +365,19 @@
         "table": "items",
         "index": "byGroup",
         "prefix_template": "Const",
-        "take": 50,
+        "take": 1,
         "max_calls": 1,
         "rule_probes_per_candidate": 1,
         "hoist": false,
         "complete": false
       },
       {
-        "site": "profiles.byId",
+        "site": "profiles.owner",
         "table": "profiles",
         "index": "byId",
         "prefix_template": "Shape",
         "take": 1,
-        "max_calls": 50,
+        "max_calls": 1,
         "rule_probes_per_candidate": 0,
         "hoist": false,
         "complete": false
@@ -408,12 +408,12 @@
     "max_examined": 10240,
     "max_index_entries": 10240,
     "max_rule_probes": 10240,
-    "max_steps": 52110,
+    "max_steps": 51228,
     "derived_steps": 0,
     "derived_scratch_bytes": 0,
-    "max_heap_bytes": 1667520,
-    "max_output_bytes": 14234,
-    "max_closure_bytes": 12700,
+    "max_heap_bytes": 1639296,
+    "max_output_bytes": 318,
+    "max_closure_bytes": 254,
     "completeness": "Capped",
     "prediction_sites": [],
     "read_time_granularity_ms": null,
@@ -424,133 +424,97 @@
       "shares.byItemViewer"
     ],
     "disclosures": [],
-    "bound_product": "items.page take 50 (+2 reserve) × 1 calls on items = 52 + profiles.byId point read on profiles × 50 calls (calls from items.page take 50) = 50",
+    "bound_product": "items.page take 1 (+2 reserve) × 1 calls on items = 3 + profiles.owner point read on profiles × 1 calls (calls from items.page take 1) = 1",
     "cost_terms": [
       {
         "meter": "examined entries",
-        "value": 10138,
+        "value": 10236,
         "source": "rule evaluation / non-uniform budget reserve",
         "site": null
       },
       {
         "meter": "examined entries",
-        "value": 52,
-        "source": "items.page take 50 (+2 reserve) × 1 calls on items",
+        "value": 3,
+        "source": "items.page take 1 (+2 reserve) × 1 calls on items",
         "site": "items.page"
       },
       {
         "meter": "examined entries",
-        "value": 50,
-        "source": "profiles.byId point read on profiles × 50 calls (calls from items.page take 50)",
-        "site": "profiles.byId"
+        "value": 1,
+        "source": "profiles.owner point read on profiles × 1 calls (calls from items.page take 1)",
+        "site": "profiles.owner"
       },
       {
         "meter": "index entries",
-        "value": 10138,
+        "value": 10236,
         "source": "rule evaluation / non-uniform budget reserve",
         "site": null
       },
       {
         "meter": "index entries",
-        "value": 52,
-        "source": "items.page take 50 (+2 reserve) × 1 calls on items",
+        "value": 3,
+        "source": "items.page take 1 (+2 reserve) × 1 calls on items",
         "site": "items.page"
       },
       {
         "meter": "index entries",
-        "value": 50,
-        "source": "profiles.byId point read on profiles × 50 calls (calls from items.page take 50)",
-        "site": "profiles.byId"
+        "value": 1,
+        "source": "profiles.owner point read on profiles × 1 calls (calls from items.page take 1)",
+        "site": "profiles.owner"
       },
       {
         "meter": "rule probes",
-        "value": 10188,
+        "value": 10237,
         "source": "rule evaluation / non-uniform budget reserve",
         "site": null
       },
       {
         "meter": "rule probes",
-        "value": 52,
-        "source": "items.page: 52 calls × 1 rule probes",
+        "value": 3,
+        "source": "items.page: 3 calls × 1 rule probes",
         "site": "items.page"
       },
       {
         "meter": "steps",
-        "value": 50690,
+        "value": 51180,
         "source": "rule evaluation / non-uniform budget reserve",
         "site": null
       },
       {
         "meter": "steps",
-        "value": 260,
-        "source": "items.page take 50 (+2 reserve) × 1 calls on items × 5",
+        "value": 15,
+        "source": "items.page take 1 (+2 reserve) × 1 calls on items × 5",
         "site": "items.page"
       },
       {
         "meter": "steps",
-        "value": 200,
-        "source": "expressions (calls from items.page take 50)",
+        "value": 4,
+        "source": "expressions (calls from items.page take 1)",
         "site": "items.enriched:statement:1:then:statement:2:statement:4"
       },
       {
         "meter": "steps",
-        "value": 200,
-        "source": "profiles.byId point read on profiles × 50 calls (calls from items.page take 50) × 4",
-        "site": "profiles.byId"
+        "value": 4,
+        "source": "profiles.owner point read on profiles × 1 calls (calls from items.page take 1) × 4",
+        "site": "profiles.owner"
       },
       {
         "meter": "steps",
-        "value": 150,
-        "source": "expressions (calls from items.page take 50)",
+        "value": 3,
+        "source": "expressions (calls from items.page take 1)",
         "site": "items.enriched:statement:1:then:statement:2:statement:1"
       },
       {
         "meter": "steps",
-        "value": 150,
-        "source": "expressions (calls from items.page take 50)",
+        "value": 3,
+        "source": "expressions (calls from items.page take 1)",
         "site": "items.enriched:statement:1:then:statement:2:statement:3"
       },
       {
         "meter": "steps",
-        "value": 150,
-        "source": "expressions (calls from items.page take 50)",
+        "value": 3,
+        "source": "expressions (calls from items.page take 1)",
         "site": "items.enriched:statement:1:then:statement:2:statement:3:then:statement:1"
-      },
-      {
-        "meter": "steps",
-        "value": 50,
-        "source": "expressions (calls from items.page take 50)",
-        "site": "items.enriched:statement:1:then:statement:2:statement:2"
-      },
-      {
-        "meter": "steps",
-        "value": 50,
-        "source": "statements (calls from items.page take 50)",
-        "site": "items.enriched:statement:1:then:statement:2:statement:1"
-      },
-      {
-        "meter": "steps",
-        "value": 50,
-        "source": "statements (calls from items.page take 50)",
-        "site": "items.enriched:statement:1:then:statement:2:statement:2"
-      },
-      {
-        "meter": "steps",
-        "value": 50,
-        "source": "statements (calls from items.page take 50)",
-        "site": "items.enriched:statement:1:then:statement:2:statement:3"
-      },
-      {
-        "meter": "steps",
-        "value": 50,
-        "source": "statements (calls from items.page take 50)",
-        "site": "items.enriched:statement:1:then:statement:2:statement:3:then:statement:1"
-      },
-      {
-        "meter": "steps",
-        "value": 50,
-        "source": "statements (calls from items.page take 50)",
-        "site": "items.enriched:statement:1:then:statement:2:statement:4"
       },
       {
         "meter": "steps",
@@ -579,6 +543,12 @@
       {
         "meter": "steps",
         "value": 1,
+        "source": "expressions (calls from items.page take 1)",
+        "site": "items.enriched:statement:1:then:statement:2:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
         "source": "statements",
         "site": "items.enriched:statement:1"
       },
@@ -601,82 +571,76 @@
         "site": "items.enriched:statement:1:then:statement:3"
       },
       {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements (calls from items.page take 1)",
+        "site": "items.enriched:statement:1:then:statement:2:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements (calls from items.page take 1)",
+        "site": "items.enriched:statement:1:then:statement:2:statement:2"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements (calls from items.page take 1)",
+        "site": "items.enriched:statement:1:then:statement:2:statement:3"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements (calls from items.page take 1)",
+        "site": "items.enriched:statement:1:then:statement:2:statement:3:then:statement:1"
+      },
+      {
+        "meter": "steps",
+        "value": 1,
+        "source": "statements (calls from items.page take 1)",
+        "site": "items.enriched:statement:1:then:statement:2:statement:4"
+      },
+      {
         "meter": "heap bytes",
-        "value": 1622080,
+        "value": 1637760,
         "source": "rule evaluation / non-uniform budget reserve",
         "site": null
       },
       {
         "meter": "heap bytes",
-        "value": 8320,
-        "source": "items.page take 50 (+2 reserve) × 1 calls on items × 5 × 32",
+        "value": 480,
+        "source": "items.page take 1 (+2 reserve) × 1 calls on items × 5 × 32",
         "site": "items.page"
       },
       {
         "meter": "heap bytes",
-        "value": 6400,
-        "source": "expressions (calls from items.page take 50) × 32",
+        "value": 128,
+        "source": "expressions (calls from items.page take 1) × 32",
         "site": "items.enriched:statement:1:then:statement:2:statement:4"
       },
       {
         "meter": "heap bytes",
-        "value": 6400,
-        "source": "profiles.byId point read on profiles × 50 calls (calls from items.page take 50) × 4 × 32",
-        "site": "profiles.byId"
+        "value": 128,
+        "source": "profiles.owner point read on profiles × 1 calls (calls from items.page take 1) × 4 × 32",
+        "site": "profiles.owner"
       },
       {
         "meter": "heap bytes",
-        "value": 4800,
-        "source": "expressions (calls from items.page take 50) × 32",
+        "value": 96,
+        "source": "expressions (calls from items.page take 1) × 32",
         "site": "items.enriched:statement:1:then:statement:2:statement:1"
       },
       {
         "meter": "heap bytes",
-        "value": 4800,
-        "source": "expressions (calls from items.page take 50) × 32",
+        "value": 96,
+        "source": "expressions (calls from items.page take 1) × 32",
         "site": "items.enriched:statement:1:then:statement:2:statement:3"
       },
       {
         "meter": "heap bytes",
-        "value": 4800,
-        "source": "expressions (calls from items.page take 50) × 32",
+        "value": 96,
+        "source": "expressions (calls from items.page take 1) × 32",
         "site": "items.enriched:statement:1:then:statement:2:statement:3:then:statement:1"
-      },
-      {
-        "meter": "heap bytes",
-        "value": 1600,
-        "source": "expressions (calls from items.page take 50) × 32",
-        "site": "items.enriched:statement:1:then:statement:2:statement:2"
-      },
-      {
-        "meter": "heap bytes",
-        "value": 1600,
-        "source": "statements (calls from items.page take 50) × 32",
-        "site": "items.enriched:statement:1:then:statement:2:statement:1"
-      },
-      {
-        "meter": "heap bytes",
-        "value": 1600,
-        "source": "statements (calls from items.page take 50) × 32",
-        "site": "items.enriched:statement:1:then:statement:2:statement:2"
-      },
-      {
-        "meter": "heap bytes",
-        "value": 1600,
-        "source": "statements (calls from items.page take 50) × 32",
-        "site": "items.enriched:statement:1:then:statement:2:statement:3"
-      },
-      {
-        "meter": "heap bytes",
-        "value": 1600,
-        "source": "statements (calls from items.page take 50) × 32",
-        "site": "items.enriched:statement:1:then:statement:2:statement:3:then:statement:1"
-      },
-      {
-        "meter": "heap bytes",
-        "value": 1600,
-        "source": "statements (calls from items.page take 50) × 32",
-        "site": "items.enriched:statement:1:then:statement:2:statement:4"
       },
       {
         "meter": "heap bytes",
@@ -693,6 +657,12 @@
       {
         "meter": "heap bytes",
         "value": 32,
+        "source": "expressions (calls from items.page take 1) × 32",
+        "site": "items.enriched:statement:1:then:statement:2:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
         "source": "expressions × 32",
         "site": "items.enriched:statement:1"
       },
@@ -701,6 +671,36 @@
         "value": 32,
         "source": "expressions × 32",
         "site": "items.enriched:statement:1:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements (calls from items.page take 1) × 32",
+        "site": "items.enriched:statement:1:then:statement:2:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements (calls from items.page take 1) × 32",
+        "site": "items.enriched:statement:1:then:statement:2:statement:2"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements (calls from items.page take 1) × 32",
+        "site": "items.enriched:statement:1:then:statement:2:statement:3"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements (calls from items.page take 1) × 32",
+        "site": "items.enriched:statement:1:then:statement:2:statement:3:then:statement:1"
+      },
+      {
+        "meter": "heap bytes",
+        "value": 32,
+        "source": "statements (calls from items.page take 1) × 32",
+        "site": "items.enriched:statement:1:then:statement:2:statement:4"
       },
       {
         "meter": "heap bytes",
@@ -734,32 +734,32 @@
       },
       {
         "meter": "output bytes",
-        "value": 7500,
+        "value": 150,
         "source": "items.id",
         "site": "items.page"
       },
       {
         "meter": "output bytes",
-        "value": 5200,
+        "value": 104,
         "source": "profiles.name",
         "site": "items.page"
       },
       {
         "meter": "output bytes",
-        "value": 500,
+        "value": 10,
         "source": "shape: framing/shared encoding/growth adjustment",
         "site": "items.page"
       },
       {
         "meter": "output bytes",
-        "value": 950,
+        "value": 19,
         "source": "shape: framing/shared encoding/growth adjustment",
         "site": "items.page"
       },
       {
         "meter": "output bytes",
-        "value": 50,
-        "source": "items first 50 at items.page (50 repetitions): framing/shared encoding/growth adjustment",
+        "value": 1,
+        "source": "items first 1 at items.page (1 repetitions): framing/shared encoding/growth adjustment",
         "site": "items.page"
       },
       {
@@ -770,15 +770,15 @@
       },
       {
         "meter": "closure bytes",
-        "value": 7500,
+        "value": 150,
         "source": "items.id",
         "site": "items.page"
       },
       {
         "meter": "closure bytes",
-        "value": 5200,
+        "value": 104,
         "source": "profiles.name",
-        "site": "profiles.byId"
+        "site": "profiles.owner"
       }
     ]
   },
@@ -788,7 +788,7 @@
     "auth_epoch": 1,
     "args": {
       "c": {
-        "String": "WzEsIml0ZW1zIiwiYnlHcm91cCIsIkFzYyIsW3sibmFtZSI6ImF0Iiwia2luZCI6IlRpbWUifSx7Im5hbWUiOiJpZCIsImtpbmQiOiJJZCJ9XSxbeyJJbnQiOjJ9LHsiSWQiOiJpMiJ9XV0"
+        "String": "WzEsIml0ZW1zIiwiYnlHcm91cCIsIkFzYyIsW3sibmFtZSI6ImF0Iiwia2luZCI6IlRpbWUifSx7Im5hbWUiOiJpZCIsImtpbmQiOiJJZCJ9XSxbeyJJbnQiOjF9LHsiSWQiOiJpMSJ9XV0"
       },
       "global": {
         "Bool": true
@@ -800,7 +800,45 @@
   },
   "receipt": {
     "schema_hash": "ba166087c4aefdd29b0b208a1ceba5cae8eb96145d80307c4ea8d1544eb80e05",
-    "rows": [],
+    "rows": [
+      {
+        "table": "shares",
+        "id": "s-i2",
+        "row": {
+          "Row": {
+            "id": {
+              "Id": "s-i2"
+            },
+            "item": {
+              "Id": "i2"
+            },
+            "viewer": {
+              "Id": "u1"
+            }
+          }
+        }
+      },
+      {
+        "table": "items",
+        "id": "i2",
+        "row": {
+          "Row": {
+            "at": {
+              "Int": 2
+            },
+            "group": {
+              "Id": "g1"
+            },
+            "id": {
+              "Id": "i2"
+            },
+            "owner": {
+              "Id": "u2"
+            }
+          }
+        }
+      }
+    ],
     "ranges": [],
     "absences": [],
     "verdicts": []
@@ -811,20 +849,30 @@
     "localResult": {
       "Row": {
         "messages": {
-          "Array": []
+          "Array": [
+            {
+              "Row": {
+                "id": {
+                  "Id": "i2"
+                },
+                "owner": "Null"
+              }
+            }
+          ]
         }
       }
     },
     "errorCode": null,
     "localState": "partial",
     "partialSites": [
-      "items.page"
+      "items.page",
+      "profiles.owner"
     ],
-    "canonicalResult": "{\"Row\":{\"messages\":{\"Array\":[]}}}",
-    "digest": "a74b87924104056ba099b22a29ed218fd0407f4ecc6fcda5ac99f89cea03442a",
+    "canonicalResult": "{\"Row\":{\"messages\":{\"Array\":[{\"Row\":{\"id\":{\"Id\":\"i2\"},\"owner\":\"Null\"}}]}}}",
+    "digest": "147759a43e7a635cdc13842647ab4b0e5fc2d6b31ba6e52157fd68ebce49bc0e",
     "rangeStops": {
       "items.page": [
-        "exhausted"
+        "limit"
       ]
     },
     "evictedRows": null,

@@ -48,3 +48,23 @@ pages.
 ## Remaining resolution criteria
 
 Agree on partial local cursor semantics across Rust and TypeScript, preserve the authoritative two-page journey and hidden-position exclusion, align uncovered-point site reporting, then freeze both page receipts in the existing corpus and assert identical replay. Keep `profiles.owner` in a test so site-name parity cannot be hidden by using `profiles.byId` everywhere. L8b leaves the corpus-size union to integration as requested.
+
+## Resolution — 2026-09-11
+
+**Status:** Closed. Rust `ClientStore::reexecute` now maps an uncovered physical
+absence back through every matching absent `PointTrace`, preserving authored
+read-site identities such as `profiles.owner`; only synthetic evidence without
+an authored point falls back to `table.index`.
+
+The authoritative hidden-before journey still returns the two one-row capped
+pages with cursors anchored at `d1` and `d2`, while both local runtimes clear
+those cursors. A fresh run of the ticket's Rust-to-TypeScript JSONL command
+reported identical results and partial sites on both pages:
+`["docs.page"]`, then `["docs.page","profiles.owner"]`.
+
+The existing `conditional-enriched-hidden-page-{1,2}` corpus cases now carry
+that same one-row pagination shape, an unreadable row before page one, and the
+authored `profiles.owner` site. Permanent evaluator assertions require the
+Rust-generated canonical result bytes, ordered partial sites, and null local
+cursor to match on both pages. The general corpus comparison also covers their
+range-stop, digest, state, and result fields.
