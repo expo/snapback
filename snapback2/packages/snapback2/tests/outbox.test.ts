@@ -153,12 +153,12 @@ test("no-facts recovery orders candidates and falls back from a retired delivery
     let now = originalNow();
     Date.now = () => now;
     try {
-      for (const choice of ["mounted", "recorded", "cursor", "optional", "fallback", "exhausted"] as const) {
+      for (const choice of ["mounted", "recorded", "cursor", "optional", "fallback", "exhausted", "transient"] as const) {
         const owner = fakeOwner();
         const queries: string[] = [];
         const manifestOps = {
           ...(choice === "exhausted" ? {} : { "account.mine": { kind: "query", args: {}, planHash: "f".repeat(64) } }),
-          ...(choice === "optional" ? {} : choice === "fallback" ? {
+          ...(choice === "optional" ? {} : choice === "fallback" || choice === "transient" ? {
             "retired.log": { kind: "query", cursor: "c", drain: { cursor: "c" }, args: { c: { Optional: "Cursor" } }, planHash: "f".repeat(64) },
             "messages.inbox": { kind: "query", cursor: "c", drain: { cursor: "c" }, args: { c: { Optional: "Cursor" } }, planHash: "f".repeat(64) },
           } : choice === "exhausted" ? {
@@ -174,6 +174,7 @@ test("no-facts recovery orders candidates and falls back from a retired delivery
           if (path === "/api/query") {
             const op = JSON.parse(String(init?.body)).op;
             queries.push(op);
+            if (choice === "transient" && op === "retired.log") return jsonResponse({}, 503);
             if (op.startsWith("retired.")) return jsonResponse({
               code: "E_OP_UNKNOWN", family: "op", message: "operation retired", guide: "op/manifest",
             }, 404);
@@ -191,11 +192,11 @@ test("no-facts recovery orders candidates and falls back from a retired delivery
           await client.mutation(api.messages.send as any, post(choice));
           await client.close();
           now += 3 * DAY;
-          if (choice === "recorded" || choice === "fallback" || choice === "exhausted") {
+          if (["recorded", "fallback", "exhausted", "transient"].includes(choice)) {
             const store = carrier.factory()();
             await store.open("dev:alice");
             // The log choice survived, but it has no generation/auth facts yet.
-            await store.commit({ watermark: { op: choice === "fallback" || choice === "exhausted" ? "retired.log" : "messages.inbox", args: { c: null }, watermark: null, updatedAt: now } });
+            await store.commit({ watermark: { op: ["fallback", "exhausted", "transient"].includes(choice) ? "retired.log" : "messages.inbox", args: { c: null }, watermark: null, updatedAt: now } });
             await store.close?.();
           }
           client = createClient({ url: "http://seed-choice.test", fetch, token: "alice-token", offline: { store: carrier.factory(), fenceDays: 1 } });
@@ -206,10 +207,16 @@ test("no-facts recovery orders candidates and falls back from a retired delivery
           await client.ready;
           const expected = choice === "optional" ? ["account.mine"] : choice === "cursor" ? ["feed.global"]
             : choice === "fallback" ? ["retired.log", "messages.inbox"]
-            : choice === "exhausted" ? ["retired.log", "retired.other"] : ["messages.inbox"];
+            : choice === "exhausted" ? ["retired.log", "retired.other"]
+            : choice === "transient" ? ["retired.log"] : ["messages.inbox"];
           assert.deepEqual(queries.slice(0, expected.length), expected, `${carrier.name}: ${choice}`);
-          assert.equal((await client.outbox.entries())[0]?.state, choice === "exhausted" ? "queued" : "committed");
+          assert.equal((await client.outbox.entries())[0]?.state,
+            choice === "exhausted" || choice === "transient" ? "queued" : "committed");
           if (choice === "exhausted") assert.equal(client.snapshot.lastRefusal?.code, "E_OFFLINE_RESUME");
+          if (choice === "transient") {
+            assert.equal(client.snapshot.lastRefusal?.code, "E_TRANSPORT");
+            assert.equal((await (client as any).offlineRuntime.logWatermark())?.op, "retired.log");
+          }
           if (choice === "mounted") await (subscriptions[1] as any).until((value: any) => value.caughtUp === true, 2_000);
         } finally {
           for (const subscription of subscriptions) subscription.close();

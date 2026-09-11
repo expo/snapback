@@ -52,6 +52,8 @@ The deterministic same-principal test proves the obsolete grant is absent.
 
 No-facts recovery now enumerates mounted drains, the durable log, manifest
 delivery logs, cursor queries, and all-optional fallbacks in that order. A
-refused durable log is explicitly retired, a successful replacement log takes
-over settlement-tail custody, and exhaustion yields typed `E_OFFLINE_RESUME`.
-The all-carrier regression covers both successful fallback and exhaustion.
+durable log with a validated terminal refusal is explicitly retired, a
+successful replacement log takes over settlement-tail custody, and exhaustion
+yields typed `E_OFFLINE_RESUME`. Ambiguous transport failure retains the log
+and stops. The all-carrier regression covers fallback, exhaustion, and that
+ambiguity boundary.
