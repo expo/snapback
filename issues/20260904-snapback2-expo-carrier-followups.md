@@ -1,6 +1,6 @@
 # Snapback 2 Expo arm (lane E1): carrier follow-ups from the third review round
 
-**Status:** Open — three of five findings remain (2026-09-11)
+**Status:** Open — actual Expo SDK COMMIT-failure witness remains (2026-09-11)
 **Priority:** P2
 **Systems:** snapback2 client (`packages/snapback2/src/store/{sqlite,sqlite-node,sqlite-expo,sqlite-driver}.ts`, `packages/compiler/tsconfig.json`)
 **Date:** 2026-09-04
@@ -38,3 +38,21 @@ ignores a failed `ROLLBACK`, leaving connection recovery undefined.
 Next acceptance: a hardlink/bind alias test where supported; an actual pinned Expo SDK
 COMMIT failure with no row plus a successful next transaction; and a Node rollback-failure
 test demonstrating close/reopen or another documented recovery.
+
+## Implementation progress — 2026-09-11
+
+The two local carrier defects are repaired:
+
+- Node derives the database lock identity from the opened file's device/inode
+  pair. The regression proves a symlink and a hardlink cannot earn independent
+  partition locks; bind aliases therefore share the same filesystem identity
+  where the platform exposes it.
+- If Node cannot roll back after a body or COMMIT failure, it closes the
+  possibly poisoned connection while preserving the primary error. The next
+  queued transaction reopens the database, succeeds, and observes neither row
+  from the failed transaction.
+
+The package SQLite suite passes both regressions. This ticket stays open only
+for finding 3: the checked-in portable conformance double is not an actual
+pinned Expo SDK COMMIT-failure witness. Closure still requires that device
+result to prove no row and a successful next transaction.

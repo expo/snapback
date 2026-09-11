@@ -3,7 +3,7 @@ import { isRefusalError } from "../dist/client-observed-test.mjs";
 import assert from "node:assert/strict";
 import { fork } from "node:child_process";
 import { once } from "node:events";
-import { mkdtemp, readFile, rm, stat, symlink } from "node:fs/promises";
+import { link, mkdtemp, readFile, rm, stat, symlink } from "node:fs/promises";
 import { DatabaseSync } from "node:sqlite";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -179,6 +179,8 @@ test("Node COMMIT failure rolls back, preserves the original error, and the next
     failCommit = true;
     failRollback = true;
     await assert.rejects(driver.transaction((tx) => tx.run("INSERT INTO attempts VALUES (3)")), (error) => error === failure);
+    await driver.transaction((tx) => tx.run("INSERT INTO attempts VALUES (4)"));
+    assert.deepEqual((await driver.all<{ value: number }>("SELECT value FROM attempts")).map((row) => row.value), [2, 4]);
   } finally { await driver.close(); await rm(root, { recursive: true, force: true }); }
 });
 
@@ -290,23 +292,26 @@ test("custom factories share database identity locks while distinct databases do
   } finally { await first.close(); await duplicate.close(); await separate.close(); await rm(root, { recursive: true, force: true }); }
 });
 
-test("Node realpath identity collapses a symlink and uses the deliberate scoped lock symbol", async () => {
+test("Node inode identity collapses symlink and hardlink aliases and uses the deliberate scoped lock symbol", async () => {
   const root = await temporary();
-  const path = join(root, "real.db"), alias = join(root, "alias.db");
+  const path = join(root, "real.db"), alias = join(root, "alias.db"), hardlink = join(root, "hardlink.db");
   const driver = nodeSqliteDriver(path);
   const first = sqliteRangeStore(driver)(), duplicate = sqliteFactory(alias)();
   const aliasDriver = nodeSqliteDriver(alias);
+  const hardlinkDriver = nodeSqliteDriver(hardlink);
   try {
     await first.open("alice");
     await symlink(path, alias);
+    await link(path, hardlink);
     assert.equal(driver.identity, aliasDriver.identity);
+    assert.equal(driver.identity, hardlinkDriver.identity);
     const scopes = (globalThis as any)[Symbol.for("snapback2.offline.storeLocks")];
     assert.ok(scopes.get(driver.identity).has("snapback2:alice"));
     await assert.rejects(duplicate.open("alice"), (error: any) => error.code === "E_OFFLINE_LOCK");
     await first.close();
     assert.equal(scopes.has(driver.identity), false);
     await duplicate.open("alice");
-  } finally { await first.close(); await duplicate.close(); await driver.close(); await aliasDriver.close(); await rm(root, { recursive: true, force: true }); }
+  } finally { await first.close(); await duplicate.close(); await driver.close(); await aliasDriver.close(); await hardlinkDriver.close(); await rm(root, { recursive: true, force: true }); }
 });
 
 test("SQLite refuses an identity-less custom driver before reading or writing the database", async () => {

@@ -262,7 +262,7 @@ import { journey } from "snapback2/test";
 journey("minor units", async ({ as }) => {
   const client = as("alice");
   const first = await client.query(api.ops.echo, { amount: 250 });
-  if (!("data" in first)) throw new Error("missing data");
+  if (!("data" in first) || first.data === undefined) throw new Error("missing data");
   await client.query(api.ops.echo, { amount: first.data });
 });
 `;
