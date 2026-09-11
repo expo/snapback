@@ -6,6 +6,7 @@
     "orientation": "portrait",
     "jsEngine": "hermes",
     "ios": { "bundleIdentifier": "dev.snapback.chat", "supportsTablet": true },
+    "android": { "package": "dev.snapback.chat" },
     "plugins": ["expo-sqlite", "expo-secure-store", "expo-video"]
   }
 }
