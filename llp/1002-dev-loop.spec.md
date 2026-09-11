@@ -1386,11 +1386,18 @@ overrides it. Tests, their 10-second deadlines, the complete file inventory and
 all-failure reporting remain unchanged. The bound prevents many owner-heavy
 files from simultaneously starting and stopping native owners; the retained
 timing ticket records its controlled qualification rather than treating a
-single green rerun as reliability evidence. The script rebuilds the package
-once after those fixtures finish: clean-dist recovery tests may remove the
-shared output tree, while the following native init inventory requires the
-packaged templates. That explicit artifact boundary prevents a successful
-package phase from racing its downstream consumer.
+single green rerun as reliability evidence. After the initial package and
+native build prerequisites, the complete package, native, doctest, evaluator
+and compiler inventories run concurrently. Package tests use a target-scoped
+copy of their source and built artifacts, while their repository and native
+binary lookups remain pinned to the canonical checkout. Compiler clean-build
+and killed-lock regressions use a separate target-scoped package generation,
+snapshot and lock. Native tests assert that the canonical package generation
+is complete and consume it without rebuilding. These ownership boundaries
+prevent destructive package fixtures from deleting an artifact another phase
+is reading. The script still rebuilds the canonical package after every
+concurrent reader finishes, preserving the complete artifact boundary for
+following commands.
 
 The blocking suite schedules Rust executable tests at the host's available
 processor count, clamped to 8–32 workers, unless
@@ -1415,6 +1422,17 @@ record runtime tool versions, so their paired phase measurements are kept
 separate from historical full-suite comparisons using different tooling.
 The 60-second total budget remains open; the existing timing issue retains
 the failed samples, phase evidence and remaining work.
+
+The first complete overlapping run on a warm 96-CPU EPYC host ended after
+60.226 seconds with content failures: package tests finished in 53 seconds,
+native nextest in 49 seconds (47.971 seconds inside nextest), compiler checks
+in 39 seconds, evaluator checks in eight seconds and doctests in one second.
+The package inventory reported 1,289 passes and 12 failures; native reported
+1,105 passes, 13 failures and four skips; the compiler runtime inventory passed
+302/302 while its separate typecheck reported four failures. The retained
+ticket distinguishes these content failures from orchestration evidence and
+keeps the exact content-green sub-60 qualification open. No inventory,
+per-test deadline or no-fail-fast behavior changed.
 
 `scripts/measure.mjs` measures `check_project_s` (`check` on the chat
 fixture), `init_to_dev_s` (`init` → `dev` ready, fresh dir), and

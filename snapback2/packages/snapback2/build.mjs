@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process";
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { randomUUID } from "node:crypto";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { build, version as esbuildVersion } from "esbuild";
 import ts from "typescript";
@@ -14,6 +14,7 @@ generateUnicodeTables();
 if (process.argv.includes("--unicode-only")) process.exit(0);
 
 const here = dirname(fileURLToPath(import.meta.url));
+const workspace = resolve(here, "../..");
 if (process.argv.includes("--measure-twin")) {
   const measured = await build({ stdin: { contents: [
     "export * from './src/twin.ts'; export { serverArguments } from './src/local-cursor.ts'; export { reduceQueryState } from './src/types.ts';",
@@ -36,14 +37,35 @@ if (process.argv.includes("--measure-twin")) {
   if (gzip > 90000) throw new Error(`twin exceeds 90000 gzip bytes: ${gzip}`);
   process.exit(0);
 }
-const dist = resolve(here, "dist");
-const packageBuildLock = resolve(here, "../../target/b2-package-build.lock");
+// @ref LLP 1002#11-measured — destructive compiler regressions get one
+// target-confined package generation instead of racing canonical dist readers.
+const testDist = process.env.SNAPBACK2_TEST_PACKAGE_DIST;
+const dist = testDist ? resolve(testDist) : resolve(here, "dist");
+if (testDist) {
+  const testRoot = resolve(workspace, "target");
+  const relativeTestDist = relative(testRoot, dist);
+  if (!relativeTestDist
+    || relativeTestDist === ".."
+    || relativeTestDist.startsWith(`..${sep}`)
+    || isAbsolute(relativeTestDist)) {
+    throw new Error("SNAPBACK2_TEST_PACKAGE_DIST must stay inside snapback2/target");
+  }
+}
+const packageBuildLock = testDist
+  ? resolve(dirname(dist), "b2-package-build.lock")
+  : resolve(here, "../../target/b2-package-build.lock");
 const packageBuildLockHeld = process.env.SNAPBACK2_PACKAGE_BUILD_LOCK_HELD === "1";
 // Test fixtures take this same lock while snapshotting dist as one package unit.
 const packageBuildToken = packageBuildLockHeld ? undefined : await acquirePackageBuildLock();
 try {
 await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
+// Isolated bundle self-tests still exercise the package's self-references.
+if (testDist) {
+  await cp(resolve(here, "package.json"), resolve(dirname(dist), "package.json"));
+  const testModules = resolve(dirname(dist), "node_modules");
+  if (!existsSync(testModules)) await cp(resolve(here, "node_modules"), testModules, { recursive: true });
+}
 await cp(resolve(here, '../../unicode/17.0.0/LICENSE.txt'), resolve(dist, 'unicode-LICENSE.txt'));
 
 const externalClient = {
@@ -263,7 +285,6 @@ await writeFile(resolve(guide, "keywords.json"), `${JSON.stringify(guideKeywords
 
 const snapshot = process.env.SNAPBACK2_PACKAGE_BUILD_SNAPSHOT;
 if (snapshot) {
-  const workspace = resolve(here, "../..");
   const snapshotPath = resolve(snapshot);
   const workspaceRelative = relative(workspace, snapshotPath);
   if (!workspaceRelative
@@ -361,7 +382,7 @@ async function buildClientArms(arms, imagePlugin) {
 }
 
 async function runClientBundleSelfTest() {
-  const directory = resolve(here, "dist");
+  const directory = dist;
   const entries = ["index", "react", "expo", "react-native", "react-core", "test", "test-runner", "sqlite-test", "client-observed-test", "witness-test", "expo/witness"];
   const graphEntries = new Set(["client", "client-runtime", "internal", ...entries]);
   const bundles = await Promise.all((await readdir(directory, { recursive: true }))
@@ -415,8 +436,8 @@ async function runClientBundleSelfTest() {
   }
   console.log(`client graph self-test ok: ${implementations.size} sources occur once across ${graphEntries.size} entries; 4 declarations occur once across all ${bundles.length} packaged modules; 5 duplicate mutations refused`);
   const sqlite = await import(resolve(directory, "sqlite-test.mjs"));
-  const internal = await import("snapback2/internal");
-  const canonical = await import("snapback2/client");
+  const internal = await import(testDist ? pathToFileURL(resolve(directory, "internal.mjs")).href : "snapback2/internal");
+  const canonical = await import(testDist ? pathToFileURL(resolve(directory, "client.mjs")).href : "snapback2/client");
   assert(!Object.keys(canonical).some(key => key.startsWith("__client")), "public client must not expose forwarding aliases");
   for (const name of ["PersistentRangeStore", "Twin", "OfflineRuntime"]) {
     const key = Object.keys(internal).find(key => key.endsWith(`_${name}`));
@@ -436,7 +457,7 @@ async function runClientBundleSelfTest() {
       import { join } from 'node:path';
       import React from 'react';
       globalThis.__snapbackNative = { React, fileUris: [], fileBodies: new Map(), videoSources: [] };
-      register(new URL('./tests/native-mocks/loader.mjs', import.meta.url));
+      register(${JSON.stringify(pathToFileURL(resolve(here, "tests/native-mocks/loader.mjs")).href)});
       const paths = ${JSON.stringify(exports)}.map(path => path === '.' ? 'snapback2' : 'snapback2' + path.slice(1));
       const modules = Object.fromEntries(await Promise.all(paths.map(async path => [path, await import(path)])));
       const client = modules['snapback2/client'], internal = modules['snapback2/internal'];
@@ -462,7 +483,7 @@ async function runClientBundleSelfTest() {
           assert.equal((await store.outbox.bounds()).bundle, 1);
           await store.close();
         }
-        const { fakeOwner } = await import('./tests/fake-owner.ts');
+        const { fakeOwner } = await import(${JSON.stringify(pathToFileURL(resolve(here, "tests/fake-owner.ts")).href)});
         const clients = [client.createClient, expo.createExpoClient].map((create, i) => create({
           url: 'http://bundle.test', persona: 'alice', fetch: fakeOwner().fetch, offline: { store: factories[i] },
         }));
@@ -476,7 +497,7 @@ async function runClientBundleSelfTest() {
         } finally { await Promise.all(clients.map(client => client.close())); }
       } finally { await rm(directory, { recursive: true, force: true }); }
       console.log('${condition}: ' + paths.length + ' exports execute; web/native constructors, protocol, file/SQLite swaps and clients share identity');
-    `], { cwd: here, encoding: "utf8", timeout: 30_000 });
+    `], { cwd: testDist ? dirname(dist) : here, encoding: "utf8", timeout: 30_000 });
     console.log(result.trim());
   }
   console.log("client bundle self-test ok: client, client-runtime, internal and 11 arms share one range store, twin and offline runtime; 3 export conditions execute");

@@ -41,11 +41,36 @@ async function removeOwnedLock(lock: string, owner: LockOwner | undefined): Prom
 
 export function registerPackageRegressionChecks(test: Test, assert: Assert, crate: string): PackageBuildProof {
   let reclaimedPackageFiles: Set<string> | undefined;
+  // @ref LLP 1002#11-measured — the complete blocking run gives destructive
+  // package checks their own build, snapshot and lock generation.
+  const isolatedDist = process.env.SNAPBACK2_TEST_PACKAGE_DIST
+    ? resolve(process.env.SNAPBACK2_TEST_PACKAGE_DIST)
+    : undefined;
+  const isolatedPackage = isolatedDist ? resolve(dirname(isolatedDist), "package") : undefined;
+  const build = () => Bun.spawnSync({
+    cmd: ["node", "build.mjs"],
+    cwd: `${crate}packages/snapback2`,
+    env: isolatedDist && isolatedPackage ? {
+      ...process.env,
+      SNAPBACK2_TEST_PACKAGE_DIST: isolatedDist,
+      SNAPBACK2_PACKAGE_BUILD_SNAPSHOT: isolatedPackage,
+    } : process.env,
+    stdout: "pipe",
+    stderr: "pipe",
+  });
   const pack = (): Set<string> => {
+    if (isolatedPackage) {
+      const built = build();
+      assert(built.exitCode === 0,
+        `isolated package build failed: ${new TextDecoder().decode(built.stdout)}${new TextDecoder().decode(built.stderr)}`);
+    }
     const packed = Bun.spawnSync({
-      cmd: ["npm", "pack", "--dry-run", "--json"],
-      cwd: `${crate}packages/snapback2`,
-      env: { ...process.env, npm_config_cache: resolve(tmpdir(), "snapback2-npm-test-cache") },
+      cmd: ["npm", "pack", "--dry-run", "--json", ...(isolatedPackage ? ["--ignore-scripts"] : [])],
+      cwd: isolatedPackage ?? `${crate}packages/snapback2`,
+      env: {
+        ...process.env,
+        npm_config_cache: resolve(tmpdir(), "snapback2-npm-test-cache"),
+      },
       stdout: "pipe",
       stderr: "pipe",
     });
@@ -57,15 +82,9 @@ export function registerPackageRegressionChecks(test: Test, assert: Assert, crat
     try {
       return pack();
     } catch (failure) {
-      const rebuild = () => Bun.spawnSync({
-        cmd: ["node", "build.mjs"],
-        cwd: `${crate}packages/snapback2`,
-        stdout: "pipe",
-        stderr: "pipe",
-      });
-      let rebuilt: ReturnType<typeof rebuild>;
+      let rebuilt: ReturnType<typeof build>;
       try {
-        rebuilt = rebuild();
+        rebuilt = build();
       } catch (recoveryFailure) {
         const original = failure instanceof Error ? failure.message : String(failure);
         const recovery = recoveryFailure instanceof Error ? recoveryFailure.message : String(recoveryFailure);
@@ -87,7 +106,9 @@ export function registerPackageRegressionChecks(test: Test, assert: Assert, crat
   };
 
   test("a killed package builder leaves a lock that the next build reclaims", async () => {
-    const lock = resolve(crate, "target/b2-package-build.lock");
+    const lock = isolatedDist
+      ? resolve(dirname(isolatedDist), "b2-package-build.lock")
+      : resolve(crate, "target/b2-package-build.lock");
     const token = randomUUID();
     let owner: LockOwner | undefined;
     let ownerStopped = false;
@@ -118,7 +139,7 @@ export function registerPackageRegressionChecks(test: Test, assert: Assert, crat
       ownerStopped = stopOwnedProcess(owner.pid);
       if (holder.exitCode === null) holder.kill(9);
       await holder.exited;
-      await rm(resolve(crate, "packages/snapback2/dist"), { recursive: true, force: true });
+      await rm(isolatedDist ?? resolve(crate, "packages/snapback2/dist"), { recursive: true, force: true });
       reclaimedPackageFiles = packWithRecovery();
       assert(reclaimedPackageFiles.has("dist/compiler.mjs"), "package rebuild did not produce the compiler bundle");
       let lockRemains = true;

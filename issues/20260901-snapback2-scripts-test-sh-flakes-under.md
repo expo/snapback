@@ -426,3 +426,50 @@ The remaining acceptance is now exact: preserve the bounded package scheduling
 and post-fixture artifact boundary while reducing a complete, content-green
 canonical script below 60 seconds. Do not raise deadlines, remove inventory, or
 use focused phases as a substitute for that whole-command result.
+
+## Isolated complete-inventory overlap — 2026-09-11
+
+**Disposition:** Open — exact content-green sub-60 qualification remains.
+
+The first parallel candidate exposed a real ownership conflict rather than a
+reason to relax timing. On Silver it was stopped after 233 seconds with status
+143: native reported 1,106 passes, 13 failures and four skips in 56.710 seconds,
+the compiler had two failures, and the package inventory had not finished. On
+EPYC the corresponding candidate was stopped after 167 seconds with status
+143: native reported 1,090 passes, 28 failures and four skips in 79.678 seconds,
+the compiler reported 293 passes and nine failures, and the package inventory
+again had not finished. In both cases the compiler clean-build check and a
+native test's stale private marker could rebuild or remove the canonical
+package `dist` while other phases were consuming it. These stopped and failed
+results remain failed evidence; the raw logs are
+`/tmp/s2-fulltest-parallel-20260911-005210.log` on Silver and
+`/tmp/s2-fulltest-epyc-parallel-20260911-100311.log` on EPYC.
+
+The repaired orchestration gives every destructive package fixture explicit
+custody. The complete Node inventory runs against one target-scoped package
+copy while still using the canonical repository and prebuilt native binaries.
+Compiler package regressions build, lock and pack a separate target-scoped
+snapshot. Native tests assert the canonical package generation is complete and
+do not rebuild it during the parallel interval. All five unchanged inventories
+then overlap, and the canonical package is rebuilt only after every reader has
+finished. Focused EPYC proofs passed the copied package's repository, effect
+runner and Expo-native paths 3/3, and the native prebuilt-package proof 1/1
+without changing the canonical `dist` mtime. The isolated package build also
+passed its client graph and browser, React Native and Node export self-tests.
+
+The exact isolated EPYC command then returned status 1 with a 60-second shell
+wrapper observation; log birth-to-last-write was 60.226 seconds. Package tests
+finished in 53 seconds with 1,289 passes and 12 content failures. Native
+finished in 49 seconds (47.971 seconds inside nextest) with 1,105 passes, 13
+content failures and four skips. Compiler finished in 39 seconds: its runtime
+inventory passed 302/302, while four existing TypeScript errors kept the phase
+red. Evaluator finished in eight seconds and doctests in one second. A missing
+`metrics` link in the copied package fixture was identified from this run and
+repaired; the other reported failures belong to their respective product
+tickets. The raw run remains at
+`/tmp/s2-fulltest-epyc-isolated-20260911-101216.log` on EPYC.
+
+No test, deadline, file inventory or all-failure behavior was weakened. Because
+the exact run was red and 0.226 seconds over budget, this ticket remains open.
+Re-run the complete command after the integrated content repairs and close only
+for a content-green result below 60 seconds.
