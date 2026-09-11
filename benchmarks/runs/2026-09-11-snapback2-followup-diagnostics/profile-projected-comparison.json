@@ -1,0 +1,544 @@
+{
+  "qualification": false,
+  "scope": "One instrumented sample per version. Projected profile captures pending selection before extraction to delivery-acknowledgements.ts; exact final layout is not reprofiled.",
+  "runs": {
+    "old": {
+      "input": {
+        "variant": "integrated",
+        "host": {
+          "hostname": "expose-builder-pixel",
+          "platform": "linux",
+          "release": "6.8.0-138-generic",
+          "node": "v24.13.1",
+          "cpus": 96,
+          "load": [
+            1.25,
+            2.15,
+            2.84
+          ]
+        },
+        "browser": "151.0.7922.34",
+        "ownerSha": "73ca6fa2a56434981ad1997aa86efff15c60f0667c5fde8bada736b8e11a1763",
+        "runtimeSha": "7134ae9946e3fd7a3f0a73bd6c73ecaecb25d455e226c9119ecf3cc8c84bb86e",
+        "compilerSha": "ae432f5c70744110b305409aa2a60e9576f0d8c3abced2387ef58e1f555be82e",
+        "appSha": "d92349e8b6becc0675bac1a9c7e78f5c06a1cf6273234d1ce5f69687d163e875",
+        "size": 10008,
+        "primaryPass": true,
+        "coldSyncedMs": 70007.236597,
+        "firstInboxMs": 1141.354702,
+        "durable": {
+          "messageCount": 10008,
+          "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+          "matchesOwnerMessages": true
+        }
+      },
+      "hashes": {
+        "current-profile10008-r2.json": "bb8f0ba730459642bb16b7058c3d2b8c14d4c6e96ceb47ba65d2afdbc76f2468",
+        "current-profile10008-r2.cpuprofile": "5b8f70e36de821bc24f9fb122c52c3537ef318d2fc96b37e20a00a47a2c386b3",
+        "current-profile10008-r2-app.js": "d92349e8b6becc0675bac1a9c7e78f5c06a1cf6273234d1ce5f69687d163e875",
+        "current-profile10008-r2-app.js.map": "94c64b6ed2e5389340665b80ac6e3e60b7ad9b97102fd0219d2e31fe808fae0b"
+      }
+    },
+    "fixed": {
+      "input": {
+        "variant": "fixed",
+        "host": {
+          "hostname": "expose-builder-pixel",
+          "platform": "linux",
+          "release": "6.8.0-138-generic",
+          "node": "v24.13.1",
+          "cpus": 96,
+          "load": [
+            2.54,
+            1.76,
+            2.42
+          ]
+        },
+        "browser": "151.0.7922.34",
+        "ownerSha": "73ca6fa2a56434981ad1997aa86efff15c60f0667c5fde8bada736b8e11a1763",
+        "runtimeSha": "cf0904e09a6e8537207fbe610bc1d6d2c0f0768eba4d7a4fbf89fa1f9f8390c2",
+        "compilerSha": "ae432f5c70744110b305409aa2a60e9576f0d8c3abced2387ef58e1f555be82e",
+        "appSha": "dd083753978448cc1a46595dc79c04f7b460cd101856556c728f3204a3a78a7e",
+        "size": 10008,
+        "primaryPass": true,
+        "coldSyncedMs": 66341.626986,
+        "firstInboxMs": 1118.7408229999999,
+        "durable": {
+          "messageCount": 10008,
+          "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+          "matchesOwnerMessages": true
+        }
+      },
+      "hashes": {
+        "fixed-profile10008.json": "083be0594d7e665649d2bf715072cc6d6c1cb4e10a9d6a3d089d973e08734280",
+        "fixed-profile10008.cpuprofile": "b9b69741b4a1b217cdb3a9999ba4db88edb6b20103aae76f1d4fdaa8496429fd",
+        "fixed-profile10008-app.js": "dd083753978448cc1a46595dc79c04f7b460cd101856556c728f3204a3a78a7e",
+        "fixed-profile10008-app.js.map": "e48fd97de63db1d50415ca6e4e3e114f0c79c0c1807b347161b76f08c130dea0"
+      }
+    },
+    "projected": {
+      "input": {
+        "variant": "projected",
+        "host": {
+          "hostname": "expose-builder-pixel",
+          "platform": "linux",
+          "release": "6.8.0-138-generic",
+          "node": "v24.13.1",
+          "cpus": 96,
+          "load": [
+            0.88,
+            1.31,
+            1.98
+          ]
+        },
+        "browser": "151.0.7922.34",
+        "ownerSha": "73ca6fa2a56434981ad1997aa86efff15c60f0667c5fde8bada736b8e11a1763",
+        "runtimeSha": "337a79d6b7f04818fd70e6388d57ec3b4f4ecc6218dac00af6536f3df43c2b07",
+        "compilerSha": "ae432f5c70744110b305409aa2a60e9576f0d8c3abced2387ef58e1f555be82e",
+        "appSha": "8435da2610df5cbaa006c9e371c5454bdf5385b45cbee6f4f236e0fab7d8761a",
+        "size": 10008,
+        "primaryPass": true,
+        "coldSyncedMs": 53633.852229000004,
+        "firstInboxMs": 1135.8522249999999,
+        "durable": {
+          "messageCount": 10008,
+          "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+          "matchesOwnerMessages": true
+        }
+      },
+      "hashes": {
+        "projected-profile10008.json": "acba670ef29cdbcf4b5053829db1d86731983fac4d13eb25a293a0a58d160df3",
+        "projected-profile10008.cpuprofile": "a087ebe26e9a9427742bcefa610a573fa9c54eead73b8c311a4ba0d934d0f896",
+        "projected-profile10008-app.js": "8435da2610df5cbaa006c9e371c5454bdf5385b45cbee6f4f236e0fab7d8761a",
+        "projected-profile10008-app.js.map": "deed8eeb07906cf8ee578ea70d54761b57819b057ac9a9f921450022576e048d"
+      }
+    }
+  },
+  "comparisonMs": [
+    {
+      "cost": "Full/projected acknowledgement read",
+      "old": 15673.805999998129,
+      "fixed": 13541.597999999496,
+      "projected": 1283.1919999999907
+    },
+    {
+      "cost": "pendingAcknowledgements self",
+      "old": 2703.2030000000045,
+      "fixed": 2309.3049999999757,
+      "projected": 26.554000000000002
+    },
+    {
+      "cost": "JSON copy self",
+      "old": 15103.89999999814,
+      "fixed": 13146.488999999701,
+      "projected": 4387.016000000078
+    },
+    {
+      "cost": "Generic detached outbox reads inclusive",
+      "old": 5989.068000000218,
+      "fixed": 5340.649000000102,
+      "projected": 5960.155000000193
+    },
+    {
+      "cost": "Ack cleanup inclusive",
+      "old": 5893.070000000279,
+      "fixed": 5636.266000000125,
+      "projected": 6109.215000000187
+    },
+    {
+      "cost": "GC self",
+      "old": 9555.730000000032,
+      "fixed": 9599.686000000114,
+      "projected": 10449.419999999873
+    }
+  ],
+  "observedElapsedDifferenceMs": -12707.774757,
+  "overlap": "Inclusive parents/children overlap; GC cannot be assigned to allocations here; network and IDB lifetimes overlap CPU.",
+  "nextDominantPaths": [
+    "GC10.449s sampled self, allocation cause unresolved",
+    "applyDeliveryAcknowledgements6.109s inclusive under commits",
+    "generic readOutbox5.960s inclusive: JSON4.089s self and raw1.388s self; selector needs a labeled diagnostic before any change",
+    "React root4.874s inclusive and coverage4.751s inclusive remain visible"
+  ],
+  "relocationCheck": {
+    "selectionLoopEquivalentAfterReplacingThisStateDeliveryAcksWithParameter": true,
+    "normalizedSelectionLoopSha256": "2b4f33531ea78e89498d6284bd7f6021f518c9290ff57c4d440be9ef76bfb165",
+    "capturedRangeStoreSourceSha256": "f867d64fa1ecb69c6f64b245bf67d140287929534d960379af29073a8f8fb1cc",
+    "finalHelperFileAtAnalysisSha256": "06c23693c9252d48909c3ff81c2769bc92969a9e5a50af52a2876d8f91f68e4a",
+    "note": "Existing tail/partition/seal checks remain at range-store boundary; helper extraction preserves the selection loop. Final tests separately bind moved source."
+  },
+  "projectedNetwork": {
+    "total": {
+      "count": 613,
+      "sumMs": 14817.129894999936,
+      "unionMs": 10922.061232999935,
+      "medianMs": 16.7800129999996,
+      "p95Ms": 84.76412700000219,
+      "maxMs": 149.9026879999983,
+      "firstAtMs": 1979.773924,
+      "lastEndMs": 55623.867758
+    },
+    "byPath": [
+      {
+        "key": "/api/mutation",
+        "count": 200,
+        "sumMs": 10070.344602000005,
+        "unionMs": 10070.344602000005,
+        "medianMs": 54.02621099999942,
+        "p95Ms": 93.0688300000038,
+        "maxMs": 149.9026879999983,
+        "firstAtMs": 3051.654477,
+        "lastEndMs": 55538.956811
+      },
+      {
+        "key": "/api/query",
+        "count": 403,
+        "sumMs": 4457.449133999933,
+        "unionMs": 4395.414844999934,
+        "medianMs": 10.112431999999899,
+        "p95Ms": 27.671371000000363,
+        "maxMs": 94.32025599999997,
+        "firstAtMs": 2201.009534,
+        "lastEndMs": 55623.867758
+      },
+      {
+        "key": "/api/resume",
+        "count": 2,
+        "sumMs": 113.7080860000001,
+        "unionMs": 113.7080860000001,
+        "medianMs": 94.30030600000009,
+        "p95Ms": 94.30030600000009,
+        "maxMs": 94.30030600000009,
+        "firstAtMs": 2201.9608,
+        "lastEndMs": 2765.631792
+      },
+      {
+        "key": "/api/live/control",
+        "count": 2,
+        "sumMs": 98.84557599999971,
+        "unionMs": 98.84557599999971,
+        "medianMs": 88.97755999999936,
+        "p95Ms": 88.97755999999936,
+        "maxMs": 88.97755999999936,
+        "firstAtMs": 4192.140415,
+        "lastEndMs": 55538.999164
+      },
+      {
+        "key": "/api/manifest",
+        "count": 3,
+        "sumMs": 38.26016800000025,
+        "unionMs": 36.13359100000025,
+        "medianMs": 2.2422599999999875,
+        "p95Ms": 34.048657000000276,
+        "maxMs": 34.048657000000276,
+        "firstAtMs": 1979.773924,
+        "lastEndMs": 2158.476935
+      },
+      {
+        "key": "/api/live",
+        "count": 1,
+        "sumMs": 20.724471999999878,
+        "unionMs": 20.724471999999878,
+        "medianMs": 20.724471999999878,
+        "p95Ms": 20.724471999999878,
+        "maxMs": 20.724471999999878,
+        "firstAtMs": 4134.865517,
+        "lastEndMs": 4155.589989
+      },
+      {
+        "key": "/api/program",
+        "count": 1,
+        "sumMs": 14.460006000000021,
+        "unionMs": 14.460006000000021,
+        "medianMs": 14.460006000000021,
+        "p95Ms": 14.460006000000021,
+        "maxMs": 14.460006000000021,
+        "firstAtMs": 2023.862535,
+        "lastEndMs": 2038.322541
+      },
+      {
+        "key": "/api/auth/me",
+        "count": 1,
+        "sumMs": 3.337851000000228,
+        "unionMs": 3.337851000000228,
+        "medianMs": 3.337851000000228,
+        "p95Ms": 3.337851000000228,
+        "maxMs": 3.337851000000228,
+        "firstAtMs": 2124.539445,
+        "lastEndMs": 2127.877296
+      }
+    ],
+    "byOperation": [
+      {
+        "key": "/api/mutation _delivery.deliveries.ack",
+        "count": 200,
+        "sumMs": 10070.344602000005,
+        "unionMs": 10070.344602000005,
+        "medianMs": 54.02621099999942,
+        "p95Ms": 93.0688300000038,
+        "maxMs": 149.9026879999983,
+        "firstAtMs": 3051.654477,
+        "lastEndMs": 55538.956811
+      },
+      {
+        "key": "/api/query messages.inbox",
+        "count": 201,
+        "sumMs": 3804.9288029999675,
+        "unionMs": 3804.9288029999675,
+        "medianMs": 18.178568999999698,
+        "p95Ms": 27.65964399999939,
+        "maxMs": 42.47414199999912,
+        "firstAtMs": 2201.009534,
+        "lastEndMs": 55056.854017
+      },
+      {
+        "key": "/api/query groups.mine",
+        "count": 202,
+        "sumMs": 652.5203309999661,
+        "unionMs": 652.5203309999661,
+        "medianMs": 0.30549799999971583,
+        "p95Ms": 30.719228999999814,
+        "maxMs": 94.32025599999997,
+        "firstAtMs": 2201.766899,
+        "lastEndMs": 55623.867758
+      },
+      {
+        "key": "/api/resume",
+        "count": 2,
+        "sumMs": 113.7080860000001,
+        "unionMs": 113.7080860000001,
+        "medianMs": 94.30030600000009,
+        "p95Ms": 94.30030600000009,
+        "maxMs": 94.30030600000009,
+        "firstAtMs": 2201.9608,
+        "lastEndMs": 2765.631792
+      },
+      {
+        "key": "/api/live/control",
+        "count": 2,
+        "sumMs": 98.84557599999971,
+        "unionMs": 98.84557599999971,
+        "medianMs": 88.97755999999936,
+        "p95Ms": 88.97755999999936,
+        "maxMs": 88.97755999999936,
+        "firstAtMs": 4192.140415,
+        "lastEndMs": 55538.999164
+      },
+      {
+        "key": "/api/manifest",
+        "count": 3,
+        "sumMs": 38.26016800000025,
+        "unionMs": 36.13359100000025,
+        "medianMs": 2.2422599999999875,
+        "p95Ms": 34.048657000000276,
+        "maxMs": 34.048657000000276,
+        "firstAtMs": 1979.773924,
+        "lastEndMs": 2158.476935
+      },
+      {
+        "key": "/api/live",
+        "count": 1,
+        "sumMs": 20.724471999999878,
+        "unionMs": 20.724471999999878,
+        "medianMs": 20.724471999999878,
+        "p95Ms": 20.724471999999878,
+        "maxMs": 20.724471999999878,
+        "firstAtMs": 4134.865517,
+        "lastEndMs": 4155.589989
+      },
+      {
+        "key": "/api/program",
+        "count": 1,
+        "sumMs": 14.460006000000021,
+        "unionMs": 14.460006000000021,
+        "medianMs": 14.460006000000021,
+        "p95Ms": 14.460006000000021,
+        "maxMs": 14.460006000000021,
+        "firstAtMs": 2023.862535,
+        "lastEndMs": 2038.322541
+      },
+      {
+        "key": "/api/auth/me",
+        "count": 1,
+        "sumMs": 3.337851000000228,
+        "unionMs": 3.337851000000228,
+        "medianMs": 3.337851000000228,
+        "p95Ms": 3.337851000000228,
+        "maxMs": 3.337851000000228,
+        "firstAtMs": 2124.539445,
+        "lastEndMs": 2127.877296
+      }
+    ],
+    "statusCounts": [
+      {
+        "key": "200",
+        "count": 613,
+        "sumMs": 14817.129894999936,
+        "unionMs": 10922.061232999935,
+        "medianMs": 16.7800129999996,
+        "p95Ms": 84.76412700000219,
+        "maxMs": 149.9026879999983,
+        "firstAtMs": 1979.773924,
+        "lastEndMs": 55623.867758
+      }
+    ],
+    "navigationStartedAt": 1816.400722,
+    "browserTimeOrigin": 1789151955293.2,
+    "firstRequestAfterNavigationMs": 163.373202,
+    "clock": "Node performance.now(); subtract navigationStartedAt for elapsed time since page.goto dispatch; browser navigation has its own small dispatch offset"
+  },
+  "projectedIdb": {
+    "total": {
+      "count": 619,
+      "sumMs": 10575.799999952316,
+      "unionMs": 10548,
+      "medianMs": 11.599999904632568,
+      "p95Ms": 35.299999952316284,
+      "maxMs": 159,
+      "firstAtMs": 150.59999990463257,
+      "lastEndMs": 53704.200000047684
+    },
+    "byModeStores": [
+      {
+        "key": "readwrite answers,bytes,meta,outbox,rows",
+        "count": 612,
+        "sumMs": 10375.399999856949,
+        "unionMs": 10375.399999856949,
+        "medianMs": 11.599999904632568,
+        "p95Ms": 35.19999980926514,
+        "maxMs": 159,
+        "firstAtMs": 279.90000009536743,
+        "lastEndMs": 53704.200000047684
+      },
+      {
+        "key": "readonly inbox",
+        "count": 6,
+        "sumMs": 200,
+        "unionMs": 200,
+        "medianMs": 20.299999952316284,
+        "p95Ms": 87.59999990463257,
+        "maxMs": 87.59999990463257,
+        "firstAtMs": 153.40000009536743,
+        "lastEndMs": 30969.299999952316
+      },
+      {
+        "key": "readonly answers,meta,outbox,rows",
+        "count": 1,
+        "sumMs": 0.40000009536743164,
+        "unionMs": 0.40000009536743164,
+        "medianMs": 0.40000009536743164,
+        "p95Ms": 0.40000009536743164,
+        "maxMs": 0.40000009536743164,
+        "firstAtMs": 150.59999990463257,
+        "lastEndMs": 151
+      }
+    ],
+    "byTenSecondStart": [
+      {
+        "key": "0s",
+        "count": 193,
+        "sumMs": 3019.100000143051,
+        "unionMs": 3015.5000002384186,
+        "medianMs": 7.200000047683716,
+        "p95Ms": 35.59999990463257,
+        "maxMs": 95.39999985694885,
+        "firstAtMs": 150.59999990463257,
+        "lastEndMs": 9958.900000095367
+      },
+      {
+        "key": "10s",
+        "count": 147,
+        "sumMs": 2833.300000667572,
+        "unionMs": 2833.300000667572,
+        "medianMs": 14.099999904632568,
+        "p95Ms": 35.299999952316284,
+        "maxMs": 159,
+        "firstAtMs": 10044.200000047684,
+        "lastEndMs": 19911.599999904633
+      },
+      {
+        "key": "20s",
+        "count": 99,
+        "sumMs": 1680.2000012397766,
+        "unionMs": 1680.2000012397766,
+        "medianMs": 13.799999952316284,
+        "p95Ms": 35,
+        "maxMs": 36.80000019073486,
+        "firstAtMs": 20019,
+        "lastEndMs": 29888.700000047684
+      },
+      {
+        "key": "30s",
+        "count": 83,
+        "sumMs": 1555.2000007629395,
+        "unionMs": 1531.0000007152557,
+        "medianMs": 15.5,
+        "p95Ms": 35.299999952316284,
+        "maxMs": 87.59999990463257,
+        "firstAtMs": 30033,
+        "lastEndMs": 39605.700000047684
+      },
+      {
+        "key": "40s",
+        "count": 74,
+        "sumMs": 1120.0999977588654,
+        "unionMs": 1120.0999977588654,
+        "medianMs": 14,
+        "p95Ms": 34.40000009536743,
+        "maxMs": 36.69999980926514,
+        "firstAtMs": 40257.90000009537,
+        "lastEndMs": 49972.5
+      },
+      {
+        "key": "50s",
+        "count": 23,
+        "sumMs": 367.8999993801117,
+        "unionMs": 367.8999993801117,
+        "medianMs": 12.400000095367432,
+        "p95Ms": 37.39999985694885,
+        "maxMs": 37.60000014305115,
+        "firstAtMs": 50187.200000047684,
+        "lastEndMs": 53704.200000047684
+      }
+    ],
+    "clock": "browser performance.now(); lifetime starts after native transaction creation and ends at JS complete event"
+  },
+  "projectedMetrics": {
+    "Timestamp": 1510927.433043,
+    "AudioHandlers": 0,
+    "AudioWorkletProcessors": 0,
+    "Documents": 1,
+    "Frames": 1,
+    "JSEventListeners": 3710,
+    "LayoutObjects": 476,
+    "MediaKeySessions": 0,
+    "MediaKeys": 0,
+    "Nodes": 2228,
+    "Resources": 21,
+    "ContextLifecycleStateObservers": 232,
+    "V8PerContextDatas": 3,
+    "WorkerGlobalScopes": 0,
+    "UACSSResources": 0,
+    "RTCPeerConnections": 0,
+    "ResourceFetchers": 1,
+    "AdSubframes": 0,
+    "DetachedScriptStates": 0,
+    "ArrayBufferContents": 21242,
+    "LayoutCount": 406,
+    "RecalcStyleCount": 218,
+    "LayoutDuration": 0.065665,
+    "RecalcStyleDuration": 0.01606,
+    "DevToolsCommandDuration": 0.06286,
+    "ScriptDuration": 5.313255,
+    "V8CompileDuration": 0,
+    "TaskDuration": 47.934501,
+    "TaskOtherDuration": 42.476661,
+    "ThreadTime": 47.68705,
+    "ProcessTime": 96.74,
+    "JSHeapUsedSize": 604415620,
+    "JSHeapTotalSize": 850468864,
+    "FirstMeaningfulPaint": 0,
+    "DomContentLoaded": 1510873.680322,
+    "NavigationStart": 1510873.579544
+  }
+}

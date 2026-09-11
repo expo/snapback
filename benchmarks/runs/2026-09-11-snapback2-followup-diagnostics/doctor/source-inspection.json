@@ -1,0 +1,36 @@
+{
+  "at": "2026-09-11T18:15:58.524Z",
+  "head": "b3b063b4e2132c64ec90ef8e636052ef13b0dfe8",
+  "scopedGitStatus": "",
+  "sources": [
+    {
+      "path": "snapback2/scripts/publish.mjs",
+      "sha256": "79c9e80ba53534b27e9dd39e180fc5526193797787d181c415ef8fef857f1e5b",
+      "bytes": 35970,
+      "signingKeywords": []
+    },
+    {
+      "path": "snapback2/scripts/hermes",
+      "sha256": "6078222b562e85fb38538d628eb0d775da31dd96050f8db92342e8b890edbfea",
+      "bytes": 1477,
+      "signingKeywords": []
+    },
+    {
+      "path": "snapback2/packages/snapback2/bin/snapback2.mjs",
+      "sha256": "f97e1d0b9a9ebd3b1dbc416b7a1a6558494a3125cfb6aa05220fcaf554d8f47b",
+      "bytes": 1516,
+      "signingKeywords": []
+    },
+    {
+      "path": "snapback2/scripts/measure.mjs",
+      "sha256": "4443c76286bca65e6c9932dd64697c073b7794ec10fad7c06951a04a2cba317c",
+      "bytes": 33481,
+      "signingKeywords": []
+    }
+  ],
+  "officialReferences": [
+    "https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution",
+    "https://developer.apple.com/documentation/security/customizing-the-notarization-workflow",
+    "https://developer.apple.com/videos/play/wwdc2019/703/?time=831"
+  ]
+}

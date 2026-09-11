@@ -1,0 +1,12 @@
+✔ HTTP 401 FIFO replay expiry seals both admitted intents until sign-in resumes them in order (435.944875ms)
+✔ HTTP 401 FIFO tail expiry seals both admitted intents until sign-in resumes them in order (138.60325ms)
+✔ typed HTTP 200 FIFO replay expiry seals both admitted intents until sign-in resumes them in order (120.681292ms)
+✔ typed HTTP 200 FIFO tail expiry seals both admitted intents until sign-in resumes them in order (156.05725ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1243.761542

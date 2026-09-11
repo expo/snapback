@@ -1,0 +1,277 @@
+{
+  "kind": "four invocation identical-compiler negative control; already-launched binary, not fresh launch or aggregate-consumer qualification",
+  "at": "2026-09-11T18:50:00.985749+00:00",
+  "inputs": {
+    "A": {
+      "compiler.mjs": "9c93d2adc425eab14d977a2a8b0d1228a0a5c8c27c4e59bc889efe9863490a78",
+      "compiler-core.mjs": "ae432f5c70744110b305409aa2a60e9576f0d8c3abced2387ef58e1f555be82e",
+      "test-runner.mjs": "e51e085aa0c72a3e528efbabf333b0b5bba706579a9c15a38b80ecaa498101ca"
+    },
+    "B": {
+      "compiler.mjs": "9c93d2adc425eab14d977a2a8b0d1228a0a5c8c27c4e59bc889efe9863490a78",
+      "compiler-core.mjs": "ae432f5c70744110b305409aa2a60e9576f0d8c3abced2387ef58e1f555be82e",
+      "test-runner.mjs": "4051d3c6e1a6a5f24da68c457b3ed69678b2123f60b5522f07c3ffa4557aafe9"
+    }
+  },
+  "binary": {
+    "path": "/Users/ccheever/lanes/llp-ship-20260829T034720Z-wave4/snapback2/target/release/snapback2",
+    "sha256": "a28e12d1fb5a04fbd6ff3435e61b536f97aae38ee43a067527a1d6c89cbefce4",
+    "inode": 53447623
+  },
+  "node": "v24.18.0",
+  "fixture": {
+    "snapback/access.q": "fef59463eea4ad58b2007c400e8f3a7942f502623a12dc4620e21d2771cc7377",
+    "snapback/deliveries.q": "0fddcb979bd5c0d08fa4e70faa0f4dd598db027b6ad6dd9a2195fd89b4a3f362",
+    "snapback/delivery.ts": "ad73441f683c6a6024f8b54f0ea23dc037c01a89aa24364f2aec6d50d666a528",
+    "snapback/feeds.q": "bfe02e3eec0c441572bc2215d51eb41b8262119590e28eb4febc3cfd1d39008b",
+    "snapback/follows.q": "4e5faec00894e94c1c860bb9d21dde330c665767276bb7dc7372ef59b78c73f0",
+    "snapback/groups.q": "060397b04f283aa51bfb13221f354d7e82d0b34cdd0c36606ac0906030f1592f",
+    "snapback/messages.q": "fcecabfe73f14f2be3bddc97387c87d44d938f9b6eba910c24c76027f389afd8",
+    "snapback/notifications.q": "02cf8894ae5ed7d28ea8e56e7258dbc7e973f5ae6f253eadd7e34e94d2fa7347",
+    "snapback/posts.q": "683a4ab4e9733e88ad2f387d95d5a525725b1917dd79401ede09721b8d7a0df6",
+    "snapback/profiles.q": "dc474dc4b739bd5346efb98d4bbfbc10850a91aa1833ae911aa5adf11af03e53",
+    "snapback/schema.q": "6d907fc5753a9b3e951f2bb5d393430066b25a8fe4346667c8166e3bf6707a2e",
+    "snapback/seed.ts": "623e931f2d071f9fd115cac613ff4bc6411974b831c8418a340019df04a9cef4",
+    "snapback/tests/chat.test.ts": "9e88bb989c8c1600af4f0c7ee53417a2b251f39caee5b5c9aa09d2d2e74f6474"
+  },
+  "samples": [
+    {
+      "arm": "A",
+      "pid": 19002,
+      "startedAt": "2026-09-11T18:50:01.211386+00:00",
+      "finishedAt": "2026-09-11T18:50:02.771205+00:00",
+      "wallSeconds": 1.559761333,
+      "userSeconds": 0.051782999999999996,
+      "systemSeconds": 0.019586999999999993,
+      "status": 0,
+      "timeout": false,
+      "stdout": "ok 8d62c5d4 28 ops\n",
+      "stderr": "",
+      "before": {
+        "at": "2026-09-11T18:50:01.046509+00:00",
+        "load": [
+          16.16357421875,
+          14.24169921875,
+          12.3232421875
+        ],
+        "processes": [
+          "  PID  PPID  %CPU     ELAPSED COMM",
+          "18593 18239  99.6       00:08 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+          "91837 91781  98.7       06:18 /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+          "13309     1  92.9    08:50:48 /usr/libexec/spotlightknowledged.updater",
+          "18544     1  57.9       00:08 /System/Library/PrivateFrameworks/WorkflowKit.framework/XPCServices/BackgroundShortcutRunner.xpc/Contents/MacOS/BackgroundShortcutRunner",
+          "  597     1  39.0 22-20:58:07 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+          "18082     1  19.6       00:11 /System/Library/PrivateFrameworks/VoiceShortcuts.framework/Versions/A/Support/siriactionsd",
+          " 5127  5103  18.8 03-19:45:26 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.83/Helpers/Google Chrome Helper.app/Contents/MacOS/Google Chrome Helper",
+          "18963 41541  18.1       00:01 /Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python",
+          "76253     1   8.3 04-15:30:45 /Applications/cmux.app/Contents/MacOS/cmux",
+          " 2036  5103   8.2 03-12:29:47 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.83/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+          "22600  5103   7.8    04:31:11 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.83/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+          "55937 55893   6.9    14:36:17 /Users/ccheever/.local/share/fleet/previews/worktrees/pr-106/bin/fleet"
+        ]
+      },
+      "after": {
+        "at": "2026-09-11T18:50:02.771258+00:00",
+        "load": [
+          16.16357421875,
+          14.24169921875,
+          12.3232421875
+        ],
+        "processes": [
+          "  PID  PPID  %CPU     ELAPSED COMM",
+          "19001 18239 441.9       00:01 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+          "91837 91781  51.9       06:20 /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+          "  597     1  41.7 22-20:58:08 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+          "55937 55893  26.6    14:36:18 /Users/ccheever/.local/share/fleet/previews/worktrees/pr-106/bin/fleet",
+          " 5127  5103  20.6 03-19:45:27 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.83/Helpers/Google Chrome Helper.app/Contents/MacOS/Google Chrome Helper",
+          " 2036  5103   8.6 03-12:29:48 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.83/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+          "22600  5103   8.1    04:31:12 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.83/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+          "76253     1   7.0 04-15:30:46 /Applications/cmux.app/Contents/MacOS/cmux",
+          "26520  5103   4.7 03-16:38:45 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.83/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+          "55179  5103   4.6 03-11:49:58 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.83/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+          "13309     1   4.5    08:50:49 /usr/libexec/spotlightknowledged.updater",
+          "42671  5103   4.1    14:03:56 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.83/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)"
+        ]
+      }
+    },
+    {
+      "arm": "B",
+      "pid": 19161,
+      "startedAt": "2026-09-11T18:50:03.241258+00:00",
+      "finishedAt": "2026-09-11T18:50:05.815403+00:00",
+      "wallSeconds": 2.5740453749999994,
+      "userSeconds": 0.058109999999999995,
+      "systemSeconds": 0.016027999999999987,
+      "status": 0,
+      "timeout": false,
+      "stdout": "ok 8d62c5d4 28 ops\n",
+      "stderr": "",
+      "before": {
+        "at": "2026-09-11T18:50:03.011631+00:00",
+        "load": [
+          16.16357421875,
+          14.24169921875,
+          12.3232421875
+        ],
+        "processes": [
+          "  PID  PPID  %CPU     ELAPSED COMM",
+          "19001 18239 503.1       00:02 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+          "91837 91781  51.6       06:20 /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+          "  597     1  41.3 22-20:58:09 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+          " 5127  5103  20.5 03-19:45:28 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.83/Helpers/Google Chrome Helper.app/Contents/MacOS/Google Chrome Helper",
+          "55937 55893  10.0    14:36:19 /Users/ccheever/.local/share/fleet/previews/worktrees/pr-106/bin/fleet",
+          " 2036  5103   8.5 03-12:29:49 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.83/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+          "22600  5103   8.1    04:31:13 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.83/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+          "82600     1   6.1 18-17:01:20 /Library/SystemExtensions/F9B365CC-FCB0-4F82-98E1-41513E5E01D1/io.tailscale.ipn.macsys.network-extension.systemextension/Contents/MacOS/io.tailscale.ipn.macsys.network-extension",
+          "76253     1   5.3 04-15:30:47 /Applications/cmux.app/Contents/MacOS/cmux",
+          "12227     1   4.3    15:34:51 /System/Library/DriverExtensions/AppleCentauriAlpha.dext/AppleCentauriAlpha",
+          "42671  5103   3.7    14:03:57 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.83/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+          "59375 58456   3.7    04:45:25 /Users/ccheever/.local/bin/grok"
+        ]
+      },
+      "after": {
+        "at": "2026-09-11T18:50:05.815456+00:00",
+        "load": [
+          20.71484375,
+          15.216796875,
+          12.6787109375
+        ],
+        "processes": [
+          "  PID  PPID  %CPU     ELAPSED COMM",
+          "19001 18239 348.4       00:05 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+          "99943  5103  69.9    05:04:06 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.83/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+          "  597     1  42.6 22-20:58:12 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+          "91837 91781  40.5       06:23 /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+          "55937 55893  23.5    14:36:22 /Users/ccheever/.local/share/fleet/previews/worktrees/pr-106/bin/fleet",
+          " 5127  5103  22.2 03-19:45:31 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.83/Helpers/Google Chrome Helper.app/Contents/MacOS/Google Chrome Helper",
+          "13309     1  13.3    08:50:53 /usr/libexec/spotlightknowledged.updater",
+          "76253     1  11.3 04-15:30:50 /Applications/cmux.app/Contents/MacOS/cmux",
+          "22600  5103  10.7    04:31:16 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.83/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+          "82600     1   9.8 18-17:01:23 /Library/SystemExtensions/F9B365CC-FCB0-4F82-98E1-41513E5E01D1/io.tailscale.ipn.macsys.network-extension.systemextension/Contents/MacOS/io.tailscale.ipn.macsys.network-extension",
+          " 2036  5103   8.9 03-12:29:52 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.83/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+          "68946 68937   5.3 01-06:51:17 /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex"
+        ]
+      }
+    },
+    {
+      "arm": "B",
+      "pid": 19378,
+      "startedAt": "2026-09-11T18:50:06.334694+00:00",
+      "finishedAt": "2026-09-11T18:50:08.423257+00:00",
+      "wallSeconds": 2.088445375,
+      "userSeconds": 0.052645,
+      "systemSeconds": 0.017113999999999963,
+      "status": 0,
+      "timeout": false,
+      "stdout": "ok 8d62c5d4 28 ops\n",
+      "stderr": "",
+      "before": {
+        "at": "2026-09-11T18:50:06.069914+00:00",
+        "load": [
+          20.71484375,
+          15.216796875,
+          12.6787109375
+        ],
+        "processes": [
+          "  PID  PPID  %CPU     ELAPSED COMM",
+          "19001 18239 383.3       00:05 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+          "  597     1  43.0 22-20:58:12 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+          "91837 91781  36.8       06:23 /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+          "19347  5103  28.7       00:00 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.83/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+          "99943  5103  27.3    05:04:06 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.83/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+          " 5127  5103  21.2 03-19:45:31 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.83/Helpers/Google Chrome Helper.app/Contents/MacOS/Google Chrome Helper",
+          "19120 45019  20.4       00:04 xpcproxy_sim",
+          "68946 68937  15.4 01-06:51:17 /Users/ccheever/.volta/tools/image/packages/@openai/codex/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex",
+          " 5103     1  11.5 03-19:45:32 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+          "55937 55893  10.3    14:36:22 /Users/ccheever/.local/share/fleet/previews/worktrees/pr-106/bin/fleet",
+          "22600  5103   9.4    04:31:16 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.83/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+          "76253     1   9.3 04-15:30:50 /Applications/cmux.app/Contents/MacOS/cmux"
+        ]
+      },
+      "after": {
+        "at": "2026-09-11T18:50:08.423376+00:00",
+        "load": [
+          20.71484375,
+          15.216796875,
+          12.6787109375
+        ],
+        "processes": [
+          "  PID  PPID  %CPU     ELAPSED COMM",
+          "19001 18239 224.2       00:07 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+          "91837 91781  48.4       06:25 /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+          "  597     1  39.0 22-20:58:14 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+          " 5127  5103  20.9 03-19:45:33 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.83/Helpers/Google Chrome Helper.app/Contents/MacOS/Google Chrome Helper",
+          "76253     1  17.1 04-15:30:52 /Applications/cmux.app/Contents/MacOS/cmux",
+          "84070  5103  15.7    05:09:06 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.83/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+          "55937 55893  15.6    14:36:24 /Users/ccheever/.local/share/fleet/previews/worktrees/pr-106/bin/fleet",
+          "42671  5103  10.6    14:04:02 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.83/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+          " 2036  5103   8.5 03-12:29:54 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.83/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+          "22600  5103   8.4    04:31:18 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.83/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+          "  527     1   8.3 22-20:58:14 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd",
+          "55179  5103   5.4 03-11:50:04 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.83/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)"
+        ]
+      }
+    },
+    {
+      "arm": "A",
+      "pid": 19507,
+      "startedAt": "2026-09-11T18:50:08.931943+00:00",
+      "finishedAt": "2026-09-11T18:50:10.191848+00:00",
+      "wallSeconds": 1.2598298750000003,
+      "userSeconds": 0.05812200000000001,
+      "systemSeconds": 0.017164999999999875,
+      "status": 0,
+      "timeout": false,
+      "stdout": "ok 8d62c5d4 28 ops\n",
+      "stderr": "",
+      "before": {
+        "at": "2026-09-11T18:50:08.674693+00:00",
+        "load": [
+          20.71484375,
+          15.216796875,
+          12.6787109375
+        ],
+        "processes": [
+          "  PID  PPID  %CPU     ELAPSED COMM",
+          "19001 18239 205.6       00:07 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+          "91837 91781  73.5       06:25 /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+          "13309     1  39.8    08:50:55 /usr/libexec/spotlightknowledged.updater",
+          "  597     1  38.5 22-20:58:14 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+          "55937 55893  21.8    14:36:24 /Users/ccheever/.local/share/fleet/previews/worktrees/pr-106/bin/fleet",
+          " 5127  5103  20.4 03-19:45:33 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.83/Helpers/Google Chrome Helper.app/Contents/MacOS/Google Chrome Helper",
+          "19120 45019  15.0       00:06 /Library/Developer/CoreSimulator/Volumes/iOS_23F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/PairedSync.framework/Support/pairedsyncd",
+          "76253     1   9.7 04-15:30:52 /Applications/cmux.app/Contents/MacOS/cmux",
+          " 2036  5103   8.3 03-12:29:54 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.83/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+          "22600  5103   8.3    04:31:18 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.83/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+          "84070  5103   7.6    05:09:06 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.83/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+          "42671  5103   6.4    14:04:02 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.83/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)"
+        ]
+      },
+      "after": {
+        "at": "2026-09-11T18:50:10.191895+00:00",
+        "load": [
+          19.9365234375,
+          15.146484375,
+          12.66845703125
+        ],
+        "processes": [
+          "  PID  PPID  %CPU     ELAPSED COMM",
+          "19001 18239 186.9       00:09 /Users/ccheever/.rustup/toolchains/1.97.0-aarch64-apple-darwin/bin/rustc",
+          "91837 91781  95.4       06:27 /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+          "13309     1  72.1    08:50:57 /usr/libexec/spotlightknowledged.updater",
+          "41559  5103  46.0 03-08:11:36 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.83/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+          " 1935  1738  42.9    05:32:22 /Users/ccheever/.local/bin/claude",
+          "  597     1  41.8 22-20:58:16 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer",
+          "18544     1  32.6       00:17 /System/Library/PrivateFrameworks/WorkflowKit.framework/XPCServices/BackgroundShortcutRunner.xpc/Contents/MacOS/BackgroundShortcutRunner",
+          " 5127  5103  20.1 03-19:45:35 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.83/Helpers/Google Chrome Helper.app/Contents/MacOS/Google Chrome Helper",
+          "18082     1  12.9       00:20 /System/Library/PrivateFrameworks/VoiceShortcuts.framework/Versions/A/Support/siriactionsd",
+          "82600     1   9.1 18-17:01:27 /Library/SystemExtensions/F9B365CC-FCB0-4F82-98E1-41513E5E01D1/io.tailscale.ipn.macsys.network-extension.systemextension/Contents/MacOS/io.tailscale.ipn.macsys.network-extension",
+          " 2036  5103   8.4 03-12:29:56 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.83/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)",
+          "22600  5103   8.3    04:31:20 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/152.0.7977.83/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)"
+        ]
+      }
+    }
+  ],
+  "inputsUnchanged": true,
+  "binaryUnchanged": true
+}

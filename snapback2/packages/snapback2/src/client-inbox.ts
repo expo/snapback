@@ -136,12 +136,14 @@ export class ClientInbox {
     if (runtime?.following) return;
     if (!runtime || !runtime.principal || !runtime.coordinationScope) { this.stop(); return; }
     const scope = this.scope(runtime.principal);
-    if (this.writerScope !== scope) {
-      this.stop();
-      this.writerScope = scope;
-      this.open(scope);
-      this.unsubscribeLedger = this.host.subscribeLedger(() => this.ledgerChanged());
-    }
+    // @ref LLP 1018.004#2-the-inbox — the ledger and inbox poll
+    // own updates after activation; each validated response must not restart
+    // admission and keep a foreground caller waiting for network quiescence.
+    if (this.writerScope === scope) return;
+    this.stop();
+    this.writerScope = scope;
+    this.open(scope);
+    this.unsubscribeLedger = this.host.subscribeLedger(() => this.ledgerChanged());
     await this.announce();
     await this.admit();
     this.armWriterPoll();

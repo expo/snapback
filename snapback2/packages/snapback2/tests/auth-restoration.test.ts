@@ -1435,7 +1435,7 @@ for (const format of ["HTTP 401", "typed HTTP 200"] as const) for (const stage o
 }
 
 for (const format of ["HTTP 401", "typed HTTP 200"] as const) for (const stage of ["replay", "tail"] as const) {
-  test(`${format} FIFO ${stage} expiry reaches the new mutation before enqueue and keeps only the older intent`, async context => {
+  test(`${format} FIFO ${stage} expiry seals both admitted intents until sign-in resumes them in order`, async context => {
     const factory = offlineStore(context), owner = fakeOwner(), store = custody("dev:alice");
     await seededStore(factory);
     let mode: "transport" | "expiry" | "recovery" = "transport";
@@ -1460,7 +1460,7 @@ for (const format of ["HTTP 401", "typed HTTP 200"] as const) for (const stage o
       const queued = await client.outbox.entries();
       assert.equal(queued.length, 1); assert.equal(queued[0].state, "queued");
       mode = "expiry";
-      await assertRefused(client.mutation(api.messages.send, { conversationId: "conversation-1", body: "new unaccepted intent" }),
+      await assertRefused(client.mutation(api.messages.send, { conversationId: "conversation-1", body: "new admitted intent" }),
         (error: any) => error.code === "E_AUTH_SESSION", "FIFO session death is not an older intent's ordinary refusal");
       await assert.rejects(client.outbox.settled(), (error: any) => error.code === "E_AUTH_SESSION");
       assert.equal(client.snapshot.lastRefusal?.code, "E_AUTH_SESSION");
@@ -1471,9 +1471,9 @@ for (const format of ["HTTP 401", "typed HTTP 200"] as const) for (const stage o
       await client.auth.login({ email: "alice@example.com", password: "password" }); await client.online();
       assert.deepEqual(await client.outbox.settled(), { stopped: false, remaining: 0 });
       assert.equal(replays[2], replays[0], "recovery must retry the exact older envelope");
-      assert.deepEqual(owner.executions.map(entry => (entry.args as any).body), ["older durable intent"],
-        "the refused new call must never have entered durable custody or reached the owner");
-      assert.equal(owner.messages.size, 1, "a tail failure after commit still executes the older intent only once");
+      assert.deepEqual(owner.executions.map(entry => (entry.args as any).body), ["older durable intent", "new admitted intent"],
+        "expiry refuses the call but cannot discard admitted bytes; fresh sign-in resumes FIFO");
+      assert.equal(owner.messages.size, 2, "a tail failure after commit still executes each admitted intent only once");
       assert.equal(store.load(), "token-alice");
     } finally { await client.close(); }
   });

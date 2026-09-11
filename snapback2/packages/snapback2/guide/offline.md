@@ -15,7 +15,6 @@ Requires IndexedDB and Web Locks. Expo `<SnapbackProvider url persona
 offline>` from `snapback2/react-native` owns its client, with SQLite and secure
 token custody by default. `startOffline` on either provider/client preserves
 the startup transport cut; `online()` or explicit recovery reconnects.
-Clients share one packaged offline runtime.
 
 Expiry seals; session change wipes. One writer/account; web followers read live,
 submit inbox rows once their account is established, and inherit the writer queue on closure. Uploads,
@@ -47,15 +46,14 @@ outbox status, connection and queue. Actions share `sign-in | connect | other-ta
 means the owner is acquiring capacity/reauthorizing. Both wait; stopped work
 offers Sync. A real reconnect/auth recovery resumes durable queued work. Followers use
 inbox readiness; `detail.writer` holds announced status.
-Use the selected mutation's `can` for a composer: text, edit and media can
-need different ID slices. Render its reason; `can.action === "connect"`
+Use the composer's mutation `can`: text, edit and media need different ID slices.
+Render its reason; `can.action === "connect"`
 offers **Sync now**: await `useOutbox().recover()` (headless:
 `client.outbox.recover()`). It returns `{ settlement: { stopped, remaining } }`
 or `{ refusal }`. Keep drafts/attachments on refusal; never guess a queue count. Admission and a subscribed
 selected operation acquire missing capacity through one bounded resume flight;
-`can`/snapshot reads do no I/O. After recovery, let the user
-submit normally; do not automatically resubmit a refused write or add a
-periodic `online()` loop.
+`can`/snapshot reads do no I/O. After recovery, let the user submit;
+never auto-resubmit refusals or poll `online()`.
 One automatic attempt per opportunity, with a 10-second deadline; an explicit
 offline cut forbids automatic networking until `online()`.
 `outbox.observe(op?)` feeds hooks with `entries`, `work`, `can`, and status.
@@ -74,6 +72,9 @@ Committed does not mean shown: query `items` need the target's observation
 through commit; `arrived`/global sequence cannot substitute. Expose failures.
 
 `outbox.drain()`/`settled()`: `{ stopped, remaining }`; false is drained.
+Online writes queue before replay. Their promise resolves their result;
+`outbox.settled()` waits for the whole queue. Session expiry refuses the call
+but seals admitted bytes for replay after sign-in.
 Fence/transport/authority/offline/pending/writer-unresponsive pauses keep
 queued bytes. A real reconnect can start bounded recovery; retry stopped work
 with explicit recovery. Each recovery call owns a 10-second wait while sharing
@@ -89,8 +90,8 @@ lock or clears another tab’s offline cut.
 | Field | Meaning |
 | --- | --- |
 | `intent`, `op`, `args` | Stable intent identity and the submitted operation/arguments. Never edit queued bytes. |
-| `state` | `queued`, `committed`, `rejected`, or `expired`. Replaying is writer activity (`status.draining`), not another entry state. |
-| `issuedSeq` | Coverage sequence seen by this client at admission. It is neither a server commit nor proof of flush order. |
+| `state` | `queued`, `committed`, `rejected`, or `expired`. Replay activity: `status.draining`. |
+| `issuedSeq` | Coverage at admission; neither server commit nor flush order. |
 | `order` | Device ledger FIFO position. Other devices have their own order. |
 | `response` | The terminal result. A committed `response.seq` is the owner's commit sequence; rejection includes its refusal. |
 | `ids`, `targets` | Reserved IDs and certified semantic targets. Use `mutationTarget(op, table)` rather than indexing `ids`. |
@@ -118,8 +119,8 @@ No migration/merge; preserve old stores for queued-work recovery.
 ## Grants and bytes
 
 Signup/login/guest/resume grant 30-day principal IDs; replay needs a live session.
-The client stages each grant for its validated principal; failed carrier opens
-and account switches never install it into another partition, and wipe discards it.
+Grants belong to their validated principal: failed opens/account switches cannot
+install them elsewhere; wipe discards them.
 Identical bytes reuse terminals; changed bytes refuse
 E_OFFLINE_INTENT_REUSE; bad slices E_OFFLINE_ID_BLOCK; expiry
 E_OFFLINE_INTENT_EXPIRED; trace conflicts E_OFFLINE_CONFLICT. Read current

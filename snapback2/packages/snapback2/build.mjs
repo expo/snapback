@@ -80,12 +80,12 @@ const externalClient = {
 };
 
 // All public arms import one private nominal image module. No global brand registry or public export is needed.
-const imageModules = new Set(['row-image','range-preparation','errors','unicode'].map(name => resolve(here, `../evaluator/src/${name}`)));
+const imageModules = new Set(['row-image', 'range-preparation', 'errors', 'unicode', 'value-runtime', 'hash', 'certificate-identity', 'cursor'].map(name => resolve(here, `../evaluator/src/${name}`)));
 imageModules.add(resolve(here, 'src/query-frame'));
 const imageRuntime = (path = './image-runtime.mjs') => ({
   name: 'shared-image-runtime',
   setup(builder) {
-    builder.onResolve({ filter: /(?:row-image|range-preparation|errors|unicode|query-frame)(?:\.[jt]s)?$/ }, args => {
+    builder.onResolve({ filter: /(?:row-image|range-preparation|errors|unicode|query-frame|value-runtime|hash|certificate-identity|cursor)(?:\.[jt]s)?$/ }, args => {
       const target = resolve(dirname(args.importer), args.path.replace(/\.[jt]s$/, ''));
       if (imageModules.has(target)) return { path, external: true };
     });

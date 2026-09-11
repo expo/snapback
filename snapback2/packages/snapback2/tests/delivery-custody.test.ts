@@ -244,7 +244,7 @@ test('accepted acknowledgement marks and replay bytes survive file, SQLite and I
       indexedDbRangeStore({indexedDB:new FakeIndexedDb() as any,locks:new FakeLocks() as any})]) {
       const start=async () => { const r=new OfflineRuntime({store:factory}); await r.open('u1',true); await r.program(program); return r; };
       let r=await start(); await accept(r); await r.close();
-      r=await start(); assert.equal(Object.keys(await r.store.outbox.deliveryAcks()).length,1);
+      r=await start(); assert.equal(Object.keys(await r.store.outbox.pendingDeliveryAcks()).length,1);
       await r.outbox.adopt(grant()); await r.outbox.admitAcknowledgements();
       const intent=(await r.outbox.queued())[0]; await r.close();
       r=await start(); assert.deepEqual((await r.outbox.queued())[0],intent);
@@ -272,8 +272,28 @@ test('a long accepted tail retains compacted marks only for held log rows and su
     await accept(r,page);assert.equal((await r.outbox.queued()).length,0,'retained mark prevents duplicate acknowledgement');
   }
   await r.close();const cold=await open(c);
-  assert.equal(Object.keys(await cold.store.outbox.deliveryAcks()).length,1,'the bound survives reopen');
+  assert.equal(Object.keys(c.saved().deliveryAcks).length,1,'the bound survives reopen');
+  assert.deepEqual(await cold.store.outbox.pendingDeliveryAcks(),{},'retained bindings are not pending');
   await cold.close();
+});
+
+test('pending acknowledgement reads are detached while admitted and retry bindings remain durable', async () => {
+  const c=carrier(), r=await open(c); await accept(r);
+  const pending=await r.store.outbox.pendingDeliveryAcks(), key=Object.keys(pending)[0];
+  assert.equal(pending[key],2);
+  pending[key]=999; pending['deliveries\0foreign']=999;
+  assert.deepEqual(await r.store.outbox.pendingDeliveryAcks(),{[key]:2});
+  await r.outbox.adopt(grant()); await r.outbox.admitAcknowledgements();
+  const entry=(await r.outbox.queued())[0];
+  assert.deepEqual(await r.store.outbox.pendingDeliveryAcks(),{});
+  assert.equal(c.saved().deliveryAcks[key][1],entry.intent);
+  await r.store.commit({outbox:{put:[{...entry,state:'expired'}]}});
+  assert.deepEqual(await r.store.outbox.pendingDeliveryAcks(),{},'retry waits for accepted redelivery');
+  assert.equal(c.saved().deliveryAcks[key][2],true);
+  await accept(r);
+  assert.deepEqual(await r.store.outbox.pendingDeliveryAcks(),{[key]:2});
+  await r.close();
+  assert.deepEqual(await r.store.outbox.pendingDeliveryAcks(),{});
 });
 
 // `_delivery` is a legal module stem: an authored `_delivery.send` is an ordinary product write

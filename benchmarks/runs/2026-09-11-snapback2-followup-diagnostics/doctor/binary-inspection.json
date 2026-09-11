@@ -1,0 +1,134 @@
+[
+  {
+    "version": "0.0.22",
+    "binary": "runs/followup-diagnostics-20260911/doctor-signed-release/0.0.22/snapback2",
+    "bytes": 7797040,
+    "sha256": "1969ca63454a53e437187154b9d62484d7a7367e10443d96ebbb5e18559931b5",
+    "executed": false,
+    "gatekeeperAssessed": false,
+    "description": {
+      "exitCode": 0,
+      "stdout": "runs/followup-diagnostics-20260911/doctor-signed-release/0.0.22/snapback2: Mach-O 64-bit executable arm64\n",
+      "stderr": ""
+    },
+    "signature": {
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": "Executable=/Users/ccheever/lanes/llp-ship-20260829T034720Z-wave4/runs/followup-diagnostics-20260911/doctor-signed-release/0.0.22/snapback2\nIdentifier=snapback2-dd502ae887e9cd6b\nFormat=Mach-O thin (arm64)\nCodeDirectory v=20400 size=60568 flags=0x20002(adhoc,linker-signed) hashes=1889+0 location=embedded\nVersionPlatform=1\nVersionMin=720896\nVersionSDK=1705216\nHash type=sha256 size=32\nCandidateCDHash sha256=f0b7e400e67194343ba1949bca930cac39cb1c80\nCandidateCDHashFull sha256=f0b7e400e67194343ba1949bca930cac39cb1c8054afc895b0e4552e2a31b23e\nHash choices=sha256\nCMSDigest=f0b7e400e67194343ba1949bca930cac39cb1c8054afc895b0e4552e2a31b23e\nCMSDigestType=2\nExecutable Segment base=0\nExecutable Segment limit=7454720\nExecutable Segment flags=0x1\nPage size=4096\nCDHash=f0b7e400e67194343ba1949bca930cac39cb1c80\nSignature=adhoc\nInfo.plist=not bound\nTeamIdentifier=not set\nSealed Resources=none\nInternal requirements=none\n"
+    },
+    "signatureVerification": {
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": "runs/followup-diagnostics-20260911/doctor-signed-release/0.0.22/snapback2: valid on disk\nruns/followup-diagnostics-20260911/doctor-signed-release/0.0.22/snapback2: satisfies its Designated Requirement\n"
+    },
+    "extendedAttributes": {
+      "exitCode": 0,
+      "stdout": "com.apple.provenance: \u0001\u0002\n",
+      "stderr": ""
+    },
+    "libraries": {
+      "exitCode": 0,
+      "stdout": "runs/followup-diagnostics-20260911/doctor-signed-release/0.0.22/snapback2:\n\t/System/Library/Frameworks/Security.framework/Versions/A/Security (compatibility version 1.0.0, current version 61901.120.67)\n\t/usr/lib/libc++.1.dylib (compatibility version 1.0.0, current version 2100.43.0)\n\t/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation (compatibility version 150.0.0, current version 5026.5.4)\n\t/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation (compatibility version 300.0.0, current version 5026.5.4)\n\t/usr/lib/libiconv.2.dylib (compatibility version 7.0.0, current version 7.0.0)\n\t/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1356.0.0)\n\t/usr/lib/libobjc.A.dylib (compatibility version 1.0.0, current version 228.0.0)\n",
+      "stderr": ""
+    }
+  },
+  {
+    "version": "0.0.22",
+    "binary": "runs/followup-diagnostics-20260911/doctor-signed-release/0.0.22/snapback2-media",
+    "bytes": 2147984,
+    "sha256": "5545ac3eb3ad8ec93a44d0757dbe28c8312617ad1613353fe5aec379d9843c1a",
+    "executed": false,
+    "gatekeeperAssessed": false,
+    "description": {
+      "exitCode": 0,
+      "stdout": "runs/followup-diagnostics-20260911/doctor-signed-release/0.0.22/snapback2-media: Mach-O 64-bit executable arm64\n",
+      "stderr": ""
+    },
+    "signature": {
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": "Executable=/Users/ccheever/lanes/llp-ship-20260829T034720Z-wave4/runs/followup-diagnostics-20260911/doctor-signed-release/0.0.22/snapback2-media\nIdentifier=snapback2_media-513360486e7b8d5e\nFormat=Mach-O thin (arm64)\nCodeDirectory v=20400 size=16808 flags=0x20002(adhoc,linker-signed) hashes=521+0 location=embedded\nVersionPlatform=1\nVersionMin=720896\nVersionSDK=1705216\nHash type=sha256 size=32\nCandidateCDHash sha256=e8d3bd94f03adf21b0f96f12b623a50459b0eb5c\nCandidateCDHashFull sha256=e8d3bd94f03adf21b0f96f12b623a50459b0eb5caf67da61a5ed86afb55559be\nHash choices=sha256\nCMSDigest=e8d3bd94f03adf21b0f96f12b623a50459b0eb5caf67da61a5ed86afb55559be\nCMSDigestType=2\nExecutable Segment base=0\nExecutable Segment limit=1982464\nExecutable Segment flags=0x1\nPage size=4096\nCDHash=e8d3bd94f03adf21b0f96f12b623a50459b0eb5c\nSignature=adhoc\nInfo.plist=not bound\nTeamIdentifier=not set\nSealed Resources=none\nInternal requirements=none\n"
+    },
+    "signatureVerification": {
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": "runs/followup-diagnostics-20260911/doctor-signed-release/0.0.22/snapback2-media: valid on disk\nruns/followup-diagnostics-20260911/doctor-signed-release/0.0.22/snapback2-media: satisfies its Designated Requirement\n"
+    },
+    "extendedAttributes": {
+      "exitCode": 0,
+      "stdout": "com.apple.provenance: \u0001\u0002\n",
+      "stderr": ""
+    },
+    "libraries": {
+      "exitCode": 0,
+      "stdout": "runs/followup-diagnostics-20260911/doctor-signed-release/0.0.22/snapback2-media:\n\t/usr/lib/libc++.1.dylib (compatibility version 1.0.0, current version 2100.43.0)\n\t/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1356.0.0)\n\t/usr/lib/libiconv.2.dylib (compatibility version 7.0.0, current version 7.0.0)\n",
+      "stderr": ""
+    }
+  },
+  {
+    "version": "0.0.23",
+    "binary": "runs/followup-diagnostics-20260911/doctor-signed-release/0.0.23/snapback2",
+    "bytes": 7813744,
+    "sha256": "b6181c8535ab54d3b31bb7f12c991bcdc357b7a3751ce0f300795e779c8ae71e",
+    "executed": false,
+    "gatekeeperAssessed": false,
+    "description": {
+      "exitCode": 0,
+      "stdout": "runs/followup-diagnostics-20260911/doctor-signed-release/0.0.23/snapback2: Mach-O 64-bit executable arm64\n",
+      "stderr": ""
+    },
+    "signature": {
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": "Executable=/Users/ccheever/lanes/llp-ship-20260829T034720Z-wave4/runs/followup-diagnostics-20260911/doctor-signed-release/0.0.23/snapback2\nIdentifier=snapback2-0e910f2b50bde9fe\nFormat=Mach-O thin (arm64)\nCodeDirectory v=20400 size=60696 flags=0x20002(adhoc,linker-signed) hashes=1893+0 location=embedded\nVersionPlatform=1\nVersionMin=720896\nVersionSDK=1705216\nHash type=sha256 size=32\nCandidateCDHash sha256=65b5913bf3c28dc93c745a1ed949d09d6d31919d\nCandidateCDHashFull sha256=65b5913bf3c28dc93c745a1ed949d09d6d31919dcec7073e6464854e4e53021a\nHash choices=sha256\nCMSDigest=65b5913bf3c28dc93c745a1ed949d09d6d31919dcec7073e6464854e4e53021a\nCMSDigestType=2\nExecutable Segment base=0\nExecutable Segment limit=7471104\nExecutable Segment flags=0x1\nPage size=4096\nCDHash=65b5913bf3c28dc93c745a1ed949d09d6d31919d\nSignature=adhoc\nInfo.plist=not bound\nTeamIdentifier=not set\nSealed Resources=none\nInternal requirements=none\n"
+    },
+    "signatureVerification": {
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": "runs/followup-diagnostics-20260911/doctor-signed-release/0.0.23/snapback2: valid on disk\nruns/followup-diagnostics-20260911/doctor-signed-release/0.0.23/snapback2: satisfies its Designated Requirement\n"
+    },
+    "extendedAttributes": {
+      "exitCode": 0,
+      "stdout": "com.apple.provenance: \u0001\u0002\n",
+      "stderr": ""
+    },
+    "libraries": {
+      "exitCode": 0,
+      "stdout": "runs/followup-diagnostics-20260911/doctor-signed-release/0.0.23/snapback2:\n\t/System/Library/Frameworks/Security.framework/Versions/A/Security (compatibility version 1.0.0, current version 61901.120.67)\n\t/usr/lib/libc++.1.dylib (compatibility version 1.0.0, current version 2100.43.0)\n\t/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation (compatibility version 150.0.0, current version 5026.5.4)\n\t/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation (compatibility version 300.0.0, current version 5026.5.4)\n\t/usr/lib/libiconv.2.dylib (compatibility version 7.0.0, current version 7.0.0)\n\t/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1356.0.0)\n\t/usr/lib/libobjc.A.dylib (compatibility version 1.0.0, current version 228.0.0)\n",
+      "stderr": ""
+    }
+  },
+  {
+    "version": "0.0.23",
+    "binary": "runs/followup-diagnostics-20260911/doctor-signed-release/0.0.23/snapback2-media",
+    "bytes": 2147984,
+    "sha256": "bc559dc3d19e32f9a5a06bb0a3cc4ce88c1d55c224b357ac8742e00d2166d6eb",
+    "executed": false,
+    "gatekeeperAssessed": false,
+    "description": {
+      "exitCode": 0,
+      "stdout": "runs/followup-diagnostics-20260911/doctor-signed-release/0.0.23/snapback2-media: Mach-O 64-bit executable arm64\n",
+      "stderr": ""
+    },
+    "signature": {
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": "Executable=/Users/ccheever/lanes/llp-ship-20260829T034720Z-wave4/runs/followup-diagnostics-20260911/doctor-signed-release/0.0.23/snapback2-media\nIdentifier=snapback2_media-441be59ca00bf9cf\nFormat=Mach-O thin (arm64)\nCodeDirectory v=20400 size=16808 flags=0x20002(adhoc,linker-signed) hashes=521+0 location=embedded\nVersionPlatform=1\nVersionMin=720896\nVersionSDK=1705216\nHash type=sha256 size=32\nCandidateCDHash sha256=f52c71ed0e6c4086a2c675cda80b3f90df33742b\nCandidateCDHashFull sha256=f52c71ed0e6c4086a2c675cda80b3f90df33742b212f680591fc7921dc065cf2\nHash choices=sha256\nCMSDigest=f52c71ed0e6c4086a2c675cda80b3f90df33742b212f680591fc7921dc065cf2\nCMSDigestType=2\nExecutable Segment base=0\nExecutable Segment limit=1982464\nExecutable Segment flags=0x1\nPage size=4096\nCDHash=f52c71ed0e6c4086a2c675cda80b3f90df33742b\nSignature=adhoc\nInfo.plist=not bound\nTeamIdentifier=not set\nSealed Resources=none\nInternal requirements=none\n"
+    },
+    "signatureVerification": {
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": "runs/followup-diagnostics-20260911/doctor-signed-release/0.0.23/snapback2-media: valid on disk\nruns/followup-diagnostics-20260911/doctor-signed-release/0.0.23/snapback2-media: satisfies its Designated Requirement\n"
+    },
+    "extendedAttributes": {
+      "exitCode": 0,
+      "stdout": "com.apple.provenance: \u0001\u0002\n",
+      "stderr": ""
+    },
+    "libraries": {
+      "exitCode": 0,
+      "stdout": "runs/followup-diagnostics-20260911/doctor-signed-release/0.0.23/snapback2-media:\n\t/usr/lib/libc++.1.dylib (compatibility version 1.0.0, current version 2100.43.0)\n\t/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1356.0.0)\n\t/usr/lib/libiconv.2.dylib (compatibility version 7.0.0, current version 7.0.0)\n",
+      "stderr": ""
+    }
+  }
+]

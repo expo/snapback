@@ -1,0 +1,406 @@
+{
+  "oldInput": {
+    "variant": "integrated",
+    "host": {
+      "hostname": "expose-builder-pixel",
+      "platform": "linux",
+      "release": "6.8.0-138-generic",
+      "node": "v24.13.1",
+      "cpus": 96,
+      "load": [
+        1.25,
+        2.15,
+        2.84
+      ]
+    },
+    "browser": "151.0.7922.34",
+    "ownerSha": "73ca6fa2a56434981ad1997aa86efff15c60f0667c5fde8bada736b8e11a1763",
+    "runtimeSha": "7134ae9946e3fd7a3f0a73bd6c73ecaecb25d455e226c9119ecf3cc8c84bb86e",
+    "compilerSha": "ae432f5c70744110b305409aa2a60e9576f0d8c3abced2387ef58e1f555be82e",
+    "appSha": "d92349e8b6becc0675bac1a9c7e78f5c06a1cf6273234d1ce5f69687d163e875",
+    "size": 10008,
+    "primaryPass": true,
+    "coldSyncedMs": 70007.236597,
+    "firstInboxMs": 1141.354702,
+    "durable": {
+      "messageCount": 10008,
+      "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+      "matchesOwnerMessages": true
+    }
+  },
+  "fixedInput": {
+    "variant": "fixed",
+    "host": {
+      "hostname": "expose-builder-pixel",
+      "platform": "linux",
+      "release": "6.8.0-138-generic",
+      "node": "v24.13.1",
+      "cpus": 96,
+      "load": [
+        2.54,
+        1.76,
+        2.42
+      ]
+    },
+    "browser": "151.0.7922.34",
+    "ownerSha": "73ca6fa2a56434981ad1997aa86efff15c60f0667c5fde8bada736b8e11a1763",
+    "runtimeSha": "cf0904e09a6e8537207fbe610bc1d6d2c0f0768eba4d7a4fbf89fa1f9f8390c2",
+    "compilerSha": "ae432f5c70744110b305409aa2a60e9576f0d8c3abced2387ef58e1f555be82e",
+    "appSha": "dd083753978448cc1a46595dc79c04f7b460cd101856556c728f3204a3a78a7e",
+    "size": 10008,
+    "primaryPass": true,
+    "coldSyncedMs": 66341.626986,
+    "firstInboxMs": 1118.7408229999999,
+    "durable": {
+      "messageCount": 10008,
+      "messageSha256": "8392adf903f258391fe738b47a735aa62354e38adc650562b6b41dbf97861a80",
+      "matchesOwnerMessages": true
+    }
+  },
+  "pairedQualification": false,
+  "interpretation": "One instrumented run per source; descriptive comparison. No sustained throughput or causal speedup claim.",
+  "functionComparison": [
+    {
+      "label": "deliveryAcks inclusive",
+      "oldMs": 15673.805999998129,
+      "fixedMs": 13541.597999999496,
+      "deltaMs": -2132.2079999986327
+    },
+    {
+      "label": "jsonState self",
+      "oldMs": 15103.89999999814,
+      "fixedMs": 13146.488999999701,
+      "deltaMs": -1957.4109999984394
+    },
+    {
+      "label": "raw self",
+      "oldMs": 6241.292000000264,
+      "fixedMs": 5545.4900000001135,
+      "deltaMs": -695.8020000001507
+    },
+    {
+      "label": "pendingAcknowledgements self",
+      "oldMs": 2703.2030000000045,
+      "fixedMs": 2309.3049999999757,
+      "deltaMs": -393.8980000000288
+    },
+    {
+      "label": "ack cleanup inclusive",
+      "oldMs": 5893.070000000279,
+      "fixedMs": 5636.266000000125,
+      "deltaMs": -256.8040000001538
+    },
+    {
+      "label": "detached outbox reads inclusive",
+      "oldMs": 5989.068000000218,
+      "fixedMs": 5340.649000000102,
+      "deltaMs": -648.4190000001154
+    },
+    {
+      "label": "GC self",
+      "oldMs": 9555.730000000032,
+      "fixedMs": 9599.686000000114,
+      "deltaMs": 43.956000000081985
+    }
+  ],
+  "idbOld": {
+    "total": {
+      "count": 1035,
+      "sumMs": 29581.000000715256,
+      "unionMs": 24675.30000114441,
+      "medianMs": 24.90000009536743,
+      "p95Ms": 82.5,
+      "maxMs": 155.09999990463257,
+      "firstAtMs": 121.09999990463257,
+      "lastEndMs": 70069.5
+    },
+    "byModeStores": [
+      {
+        "key": "readonly inbox",
+        "count": 421,
+        "sumMs": 19628.500000953674,
+        "unionMs": 19628.500000953674,
+        "medianMs": 38.200000047683716,
+        "p95Ms": 92.90000009536743,
+        "maxMs": 142.29999995231628,
+        "firstAtMs": 122.70000004768372,
+        "lastEndMs": 70069.20000004768
+      },
+      {
+        "key": "readwrite answers,bytes,meta,outbox,rows",
+        "count": 613,
+        "sumMs": 9952.199999570847,
+        "unionMs": 9952.199999570847,
+        "medianMs": 8.099999904632568,
+        "p95Ms": 35.799999952316284,
+        "maxMs": 155.09999990463257,
+        "firstAtMs": 254.5,
+        "lastEndMs": 70069.5
+      },
+      {
+        "key": "readonly answers,meta,outbox,rows",
+        "count": 1,
+        "sumMs": 0.3000001907348633,
+        "unionMs": 0.3000001907348633,
+        "medianMs": 0.3000001907348633,
+        "p95Ms": 0.3000001907348633,
+        "maxMs": 0.3000001907348633,
+        "firstAtMs": 121.09999990463257,
+        "lastEndMs": 121.40000009536743
+      }
+    ],
+    "byTenSecondStart": [
+      {
+        "key": "0s",
+        "count": 300,
+        "sumMs": 7136.000000476837,
+        "unionMs": 5832.500000476837,
+        "medianMs": 17.90000009536743,
+        "p95Ms": 66.19999980926514,
+        "maxMs": 97.5,
+        "firstAtMs": 121.09999990463257,
+        "lastEndMs": 10028.700000047684
+      },
+      {
+        "key": "10s",
+        "count": 201,
+        "sumMs": 5651.899999856949,
+        "unionMs": 4726.60000038147,
+        "medianMs": 25.5,
+        "p95Ms": 70.5,
+        "maxMs": 155.09999990463257,
+        "firstAtMs": 10058.900000095367,
+        "lastEndMs": 19991.5
+      },
+      {
+        "key": "20s",
+        "count": 149,
+        "sumMs": 4298.300000429153,
+        "unionMs": 3547.7999997138977,
+        "medianMs": 23.59999990463257,
+        "p95Ms": 77.79999995231628,
+        "maxMs": 128.29999995231628,
+        "firstAtMs": 20040.299999952316,
+        "lastEndMs": 30000.5
+      },
+      {
+        "key": "30s",
+        "count": 119,
+        "sumMs": 3488,
+        "unionMs": 2954.3000004291534,
+        "medianMs": 29.299999952316284,
+        "p95Ms": 82.89999985694885,
+        "maxMs": 98.39999985694885,
+        "firstAtMs": 30074.5,
+        "lastEndMs": 40056.40000009537
+      },
+      {
+        "key": "40s",
+        "count": 98,
+        "sumMs": 3143.099999666214,
+        "unionMs": 2663.7000000476837,
+        "medianMs": 32.5,
+        "p95Ms": 89.80000019073486,
+        "maxMs": 103.5,
+        "firstAtMs": 40029.5,
+        "lastEndMs": 49924.59999990463
+      },
+      {
+        "key": "50s",
+        "count": 88,
+        "sumMs": 3006.0999994277954,
+        "unionMs": 2552.4000000953674,
+        "medianMs": 33.299999952316284,
+        "p95Ms": 93.90000009536743,
+        "maxMs": 104.89999985694885,
+        "firstAtMs": 50075.5,
+        "lastEndMs": 59944.09999990463
+      },
+      {
+        "key": "60s",
+        "count": 79,
+        "sumMs": 2828.400000810623,
+        "unionMs": 2424.600000143051,
+        "medianMs": 33,
+        "p95Ms": 101.09999990463257,
+        "maxMs": 142.29999995231628,
+        "firstAtMs": 60068.59999990463,
+        "lastEndMs": 70069.20000004768
+      },
+      {
+        "key": "70s",
+        "count": 1,
+        "sumMs": 29.200000047683716,
+        "unionMs": 29.200000047683716,
+        "medianMs": 29.200000047683716,
+        "p95Ms": 29.200000047683716,
+        "maxMs": 29.200000047683716,
+        "firstAtMs": 70040.29999995232,
+        "lastEndMs": 70069.5
+      }
+    ],
+    "clock": "browser performance.now(); lifetime starts after native transaction creation and ends at JS complete event"
+  },
+  "idbFixed": {
+    "total": {
+      "count": 622,
+      "sumMs": 10779.199996709824,
+      "unionMs": 10743.49999666214,
+      "medianMs": 8.400000095367432,
+      "p95Ms": 35.39999985694885,
+      "maxMs": 587.5999999046326,
+      "firstAtMs": 143.59999990463257,
+      "lastEndMs": 66406.29999995232
+    },
+    "byModeStores": [
+      {
+        "key": "readwrite answers,bytes,meta,outbox,rows",
+        "count": 613,
+        "sumMs": 9867.199996948242,
+        "unionMs": 9867.199996948242,
+        "medianMs": 8.399999856948853,
+        "p95Ms": 35.299999952316284,
+        "maxMs": 146.70000004768372,
+        "firstAtMs": 275,
+        "lastEndMs": 66406.29999995232
+      },
+      {
+        "key": "readonly inbox",
+        "count": 8,
+        "sumMs": 911.599999666214,
+        "unionMs": 911.599999666214,
+        "medianMs": 64.79999995231628,
+        "p95Ms": 587.5999999046326,
+        "maxMs": 587.5999999046326,
+        "firstAtMs": 146.59999990463257,
+        "lastEndMs": 61384.89999985695
+      },
+      {
+        "key": "readonly answers,meta,outbox,rows",
+        "count": 1,
+        "sumMs": 0.40000009536743164,
+        "unionMs": 0.40000009536743164,
+        "medianMs": 0.40000009536743164,
+        "p95Ms": 0.40000009536743164,
+        "maxMs": 0.40000009536743164,
+        "firstAtMs": 143.59999990463257,
+        "lastEndMs": 144
+      }
+    ],
+    "byTenSecondStart": [
+      {
+        "key": "0s",
+        "count": 178,
+        "sumMs": 2761.599998474121,
+        "unionMs": 2757.8999984264374,
+        "medianMs": 6.3999998569488525,
+        "p95Ms": 35.799999952316284,
+        "maxMs": 98.40000009536743,
+        "firstAtMs": 143.59999990463257,
+        "lastEndMs": 10002.200000047684
+      },
+      {
+        "key": "10s",
+        "count": 126,
+        "sumMs": 2137.199999332428,
+        "unionMs": 2137.199999332428,
+        "medianMs": 9.599999904632568,
+        "p95Ms": 35.299999952316284,
+        "maxMs": 146.70000004768372,
+        "firstAtMs": 10029.399999856949,
+        "lastEndMs": 19973.5
+      },
+      {
+        "key": "20s",
+        "count": 91,
+        "sumMs": 1485.599999666214,
+        "unionMs": 1485.599999666214,
+        "medianMs": 9.799999952316284,
+        "p95Ms": 35.5,
+        "maxMs": 40.59999990463257,
+        "firstAtMs": 20090.5,
+        "lastEndMs": 30001.599999904633
+      },
+      {
+        "key": "30s",
+        "count": 73,
+        "sumMs": 1332.6999988555908,
+        "unionMs": 1327.6999988555908,
+        "medianMs": 11.900000095367432,
+        "p95Ms": 35.799999952316284,
+        "maxMs": 120.39999985694885,
+        "firstAtMs": 30068.200000047684,
+        "lastEndMs": 39901.799999952316
+      },
+      {
+        "key": "60s",
+        "count": 35,
+        "sumMs": 1106.4000005722046,
+        "unionMs": 1079.4000005722046,
+        "medianMs": 5.400000095367432,
+        "p95Ms": 101.59999990463257,
+        "maxMs": 587.5999999046326,
+        "firstAtMs": 60102.299999952316,
+        "lastEndMs": 66406.29999995232
+      },
+      {
+        "key": "40s",
+        "count": 62,
+        "sumMs": 1029.4999990463257,
+        "unionMs": 1029.4999990463257,
+        "medianMs": 13.5,
+        "p95Ms": 34,
+        "maxMs": 34.700000047683716,
+        "firstAtMs": 40107.59999990463,
+        "lastEndMs": 49922.700000047684
+      },
+      {
+        "key": "50s",
+        "count": 57,
+        "sumMs": 926.2000007629395,
+        "unionMs": 926.2000007629395,
+        "medianMs": 12.700000047683716,
+        "p95Ms": 33.59999990463257,
+        "maxMs": 34.700000047683716,
+        "firstAtMs": 50006,
+        "lastEndMs": 59993.200000047684
+      }
+    ],
+    "clock": "browser performance.now(); lifetime starts after native transaction creation and ends at JS complete event"
+  },
+  "networkOld": {
+    "count": 615,
+    "sumMs": 14817.295926999974,
+    "unionMs": 10997.960000000012,
+    "medianMs": 17.674212000005355,
+    "p95Ms": 87.71834300000046,
+    "maxMs": 144.71407299999555,
+    "firstAtMs": 1868.774003,
+    "lastEndMs": 71938.698028
+  },
+  "networkFixed": {
+    "count": 615,
+    "sumMs": 14717.951121999975,
+    "unionMs": 10754.892590999982,
+    "medianMs": 17.531177999999272,
+    "p95Ms": 86.70654700000159,
+    "maxMs": 146.45865700001013,
+    "firstAtMs": 1842.468315,
+    "lastEndMs": 68218.842354
+  },
+  "pendingProjectionFinding": "Supported as next bounded experiment. Preserve retained tuple inventory and truthy-intent selection; project only key\u2192seq detached primitives under the existing tail/seal boundary. Retained-map scan remains O(total acknowledgements) unless separately changed; no index or retention change proposed.",
+  "inputHashes": {
+    "old": {
+      "current-profile10008-r2.json": "bb8f0ba730459642bb16b7058c3d2b8c14d4c6e96ceb47ba65d2afdbc76f2468",
+      "current-profile10008-r2.cpuprofile": "5b8f70e36de821bc24f9fb122c52c3537ef318d2fc96b37e20a00a47a2c386b3",
+      "current-profile10008-r2-app.js": "d92349e8b6becc0675bac1a9c7e78f5c06a1cf6273234d1ce5f69687d163e875",
+      "current-profile10008-r2-app.js.map": "94c64b6ed2e5389340665b80ac6e3e60b7ad9b97102fd0219d2e31fe808fae0b"
+    },
+    "fixed": {
+      "fixed-profile10008.json": "083be0594d7e665649d2bf715072cc6d6c1cb4e10a9d6a3d089d973e08734280",
+      "fixed-profile10008.cpuprofile": "b9b69741b4a1b217cdb3a9999ba4db88edb6b20103aae76f1d4fdaa8496429fd",
+      "fixed-profile10008-app.js": "dd083753978448cc1a46595dc79c04f7b460cd101856556c728f3204a3a78a7e",
+      "fixed-profile10008-app.js.map": "e48fd97de63db1d50415ca6e4e3e114f0c79c0c1807b347161b76f08c130dea0"
+    }
+  }
+}

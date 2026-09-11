@@ -1,0 +1,25 @@
+✔ ack admission loses custody at account while its grant read is paused (112.646833ms)
+✔ ack admission loses custody at logout while its grant read is paused (64.284917ms)
+✔ ack admission loses custody at seal while its grant read is paused (69.968833ms)
+✔ missing acknowledgement grant is visible and retries after resume without losing product writes (50.494541ms)
+✔ exhausted acknowledgement grant is visible and retries after resume without losing product writes (38.586166ms)
+✔ owner expired acknowledgement is retried only on accepted redelivery under a fresh grant (85.632667ms)
+✔ owner rejected acknowledgement is retried only on accepted redelivery under a fresh grant (151.622959ms)
+✔ receipt acknowledgement requires durable accepted content; dropped, metadata-only and arbitrary cursor requests acknowledge nothing (41.542625ms)
+✔ a stale page whose body was tombstoned cannot acknowledge receipt (18.94325ms)
+✔ pending acknowledgements and their ordinary intent survive a restart and a dropped acknowledgement response (58.751417ms)
+✔ acknowledgements never renew the fence or erase queued product writes; two clients acknowledge independently (36.04875ms)
+✔ own event reconciles with the server identity before settlement; changed and removed events survive cold custody (122.580625ms)
+✔ 51 delivery events at one sequence acknowledge only each accepted page in batches of at most 50 (235.214292ms)
+✔ accepted acknowledgement marks and replay bytes survive file, SQLite and IndexedDB reopen (247.225375ms)
+✔ a long accepted tail retains compacted marks only for held log rows and suppresses their duplicates (3068.529916ms)
+✔ pending acknowledgement reads are detached while admitted and retry bindings remain durable (29.833834ms)
+✔ an authored _delivery.* product mutation is not an acknowledgement (3.08025ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4857.595416

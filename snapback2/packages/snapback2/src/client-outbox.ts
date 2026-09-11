@@ -141,35 +141,27 @@ export async function submitMutation<Result>(options: SubmitMutationOptions): Pr
   };
   const queued = (entry: OutboxEntry): MutationResult<Result> => ({ state: "queued", intent: entry.intent, ids: entry.ids });
   if (options.offline) return queued(await enqueue());
-  if ((await runtime.queuedIntents()).length > 0) {
-    // FIFO: an intent issued behind queued ones must not overtake them. An
-    // older intent's ordinary refusal reaches `settled()` and `useOutbox()`;
-    // session death instead fences this call before it can acquire custody.
-    let stopped = true;
-    try {
-      ({ stopped } = await options.drain());
-    } catch (error) {
-      if (isRefusalError(error) && isTerminalSession(error.envelope)) throw error;
-      stopped = true;
-    }
-    if (stopped) return queued(await enqueue());
-  }
+  // @ref LLP 1012#7-writes-offline — admission appends behind older intents;
+  // replay enforces FIFO. Waiting for a drain before admission lets background
+  // acknowledgements continually move the end of the queue ahead of this write.
   const entry = await enqueue();
   const slot = openTerminal(runtime, entry.intent);
   try {
     let stopped: boolean;
     try {
-      ({ stopped } = await options.drain());
+      ({ stopped } = await Promise.race([options.drain(), slot.done.then(() => ({ stopped: false }))]));
     } catch (error) {
       // A refusal that stopped the replay belongs to the intent that drew it;
       // this one is durable and reports through its entry.
       // Session expiry sealed the store; preserve its refusal instead of reading through that seal.
       if (isRefusalError(error) && isTerminalSession(error.envelope)) throw error;
-      const own = (await runtime.store.outbox.get(entry.intent)) ?? slot.entry;
+      const own = slot.entry ?? await runtime.store.outbox.get(entry.intent);
       if (own && own.state !== "queued") return settledResult<Result>(own);
+      if (own && !own.refusal && isRefusalError(error)
+        && (error.envelope.family === "input" || error.envelope.family === "schema")) return queued(entry);
       throw error;
     }
-    const settled = (await runtime.store.outbox.get(entry.intent)) ?? slot.entry;
+    const settled = slot.entry ?? await runtime.store.outbox.get(entry.intent);
     // A transport failure mid-drain leaves the intent queued: the retry is the same envelope.
     if (!settled || settled.state === "queued") return queued(entry);
     void stopped;
@@ -186,11 +178,14 @@ export async function submitMutation<Result>(options: SubmitMutationOptions): Pr
 // Only a call that is waiting on its own intent holds a slot, and it closes the
 // slot on every exit, so the record is bounded by in-flight calls and cannot
 // outlive a partition, reset, or principal change.
-const terminalWaiters = new WeakMap<OfflineRuntime, Map<string, { entry?: OutboxEntry }>>();
-function openTerminal(runtime: OfflineRuntime, intent: string): { entry?: OutboxEntry } {
+type TerminalWaiter = { entry?: OutboxEntry; done: Promise<void>; resolve(): void };
+const terminalWaiters = new WeakMap<OfflineRuntime, Map<string, TerminalWaiter>>();
+function openTerminal(runtime: OfflineRuntime, intent: string): TerminalWaiter {
   let waiters = terminalWaiters.get(runtime);
   if (!waiters) terminalWaiters.set(runtime, (waiters = new Map()));
-  const slot: { entry?: OutboxEntry } = {};
+  let resolve!: () => void;
+  const done = new Promise<void>(yes => { resolve = yes; });
+  const slot: TerminalWaiter = { done, resolve };
   waiters.set(intent, slot);
   return slot;
 }
@@ -199,7 +194,7 @@ function closeTerminal(runtime: OfflineRuntime, intent: string): void {
 }
 function recordTerminal(runtime: OfflineRuntime, entry: OutboxEntry): void {
   const slot = terminalWaiters.get(runtime)?.get(entry.intent);
-  if (slot) slot.entry = entry;
+  if (slot) { slot.entry = entry; slot.resolve(); }
 }
 
 // @ref LLP 1018.003.000#4-observation-and-retention —
@@ -355,8 +350,9 @@ async function settle(
     const superseded = await options.runtime.commitMany(tail ? [tail] : [], undefined, { put: [settled] }, revision,
       () => !options.signal?.aborted, undefined, tail?.deliveryOrder);
     throwIfAborted(options.signal);
-    if (!superseded) recordTerminal(options.runtime, settled);
-    return !superseded && revision === options.runtime.coverageRevision;
+    const current = !superseded && revision === options.runtime.coverageRevision;
+    if (current) recordTerminal(options.runtime, settled);
+    return current;
   } catch (error) {
     throw options.failure(error);
   }

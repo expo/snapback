@@ -1,4 +1,4 @@
-# Snapback2 full acquisition remains above 30 seconds; foreground send needs diagnosis
+# Snapback2 acquisition remains above 30 seconds; foreground admission repaired
 
 Status: Open
 Date: 2026-09-11
@@ -51,3 +51,30 @@ comparison and physical checkpoint controls when a bounded remedy is proposed.
 Bearer-authenticated browser UI reopen, native timing, full-size retained heap
 and foreground responsiveness remain unqualified by this run. Successful
 public held queries after physical reopen do not close those gaps.
+
+## Follow-up diagnosis and repair — 2026-09-11
+
+The [follow-up record](../benchmarks/runs/2026-09-11-snapback2-followup-diagnostics/README.md)
+supersedes the unresolved-cause assessment above. Stage traces establish two
+waits before a send acquires custody: repeated same-scope activation prolongs
+inbox admission, then a whole-outbox drain keeps newly arriving background
+acknowledgements ahead of the unadmitted send. Both are repaired; callers also
+return their own durable terminal while newer replay continues. Three alternating
+instrumented controls had no old-source admission within 15 seconds, while the
+repaired source admitted in 148–398 ms and returned committed in 560–1,689 ms.
+Owner observation used a separate same-account query at 250 ms polling; the
+first sender rendering was a queued preview. Neither is recipient-auth or
+population-p95 qualification.
+
+The next profile attributes 13.54 seconds to acknowledgement copying. Admission
+now reads detached pending keys/sequences, retaining bound/retry history. Full
+10,008-message instrumented acquisition completed in 53.634 seconds, compared
+with 66.342 before the projection and 70.007 before the send fixes. Physical
+content hashes pass, but single instrumented profiles do not replace the earlier
+clean cohort or establish the 30-second target. Source/tests, exact sample hashes
+and diagnostic limits are retained in the linked record.
+
+**Remaining:** remove the next attributed accumulated-state work; obtain a clean
+full-size timing cohort and broader foreground/reopen/heap/native qualification.
+Keep the 30-second criterion unchanged. The concrete pre-admission stall is fixed;
+this ticket stays open for acquisition and the remaining measurement scope.

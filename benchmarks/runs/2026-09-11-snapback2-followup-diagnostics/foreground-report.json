@@ -1,0 +1,1317 @@
+{
+  "scope": "Instrumented foreground sends during and after acquisition; same owner snapshot. No clean latency qualification.",
+  "definitions": {
+    "durableAdmission": "Matching end event by ID of ledger.enqueue begin with detail.op=messages.send, minus client.mutation begin timestamp, in browser performance clock.",
+    "mutationResult": "Legacy result.admission.ms is promise settlement with committed value; its browser start is just before client.mutation.",
+    "senderPreview": "First polled thread row containing probe body; all positive first rows carry data-state=queued and Preview. Node elapsed is recorded at loop start, before page.evaluate, so it is an observation bucket, not precise DOM paint.",
+    "ownerObservation": "First separate headless same-account alice query returning the probe; Node elapsed is recorded after query. It is owner visibility, not recipient-device delivery.",
+    "pollCadence": "Actual loop sleeps250ms after page evaluation and query, so cadence is250ms plus work; legacy control string saying50ms is stale.",
+    "censoring": "The three current controls have nominal15s observation windows; exact pending mutation ages at capture are separately retained. Missing outcomes are not zero or completed15s results.",
+    "clockDomains": "Enqueue/mutation are browser clock; owner/preview are Node clock from just before page.evaluate dispatch. Do not subtract these to infer precise subphase times.",
+    "waitTotals": "Nested/overlapping async span totals cannot be summed."
+  },
+  "alternatingControls": [
+    [
+      "current-during-control02",
+      "fixed-during-trace02"
+    ],
+    [
+      "current-during-trace03",
+      "fixed-during-trace03"
+    ],
+    [
+      "current-during-trace04",
+      "fixed-during-trace04"
+    ]
+  ],
+  "sourceMapBridges": {
+    "current-profile10008-r2": {
+      "runtimeSha": "7134ae9946e3fd7a3f0a73bd6c73ecaecb25d455e226c9119ecf3cc8c84bb86e",
+      "composedSourceMapSha256": "94c64b6ed2e5389340665b80ac6e3e60b7ad9b97102fd0219d2e31fe808fae0b",
+      "sourceContents": {
+        "/src/client-outbox.ts": {
+          "sha256": "0fb4c0fc131707a27b6af61961b7e0a0a3f46acb35e4777da140ea8704c09ec7",
+          "sourceMapPath": "../../home/ccheever/lanes/clique-20260909-initial/runs/followup-diagnostics-20260911/src/client-outbox.ts"
+        },
+        "/src/client-inbox.ts": {
+          "sha256": "410f426b813ca600d63e3ac999688127a23879f931afb7c866a5b7a2256e63ed",
+          "sourceMapPath": "../../home/ccheever/lanes/clique-20260909-initial/runs/followup-diagnostics-20260911/src/client-inbox.ts"
+        }
+      }
+    },
+    "fixed-profile10008": {
+      "runtimeSha": "cf0904e09a6e8537207fbe610bc1d6d2c0f0768eba4d7a4fbf89fa1f9f8390c2",
+      "composedSourceMapSha256": "e48fd97de63db1d50415ca6e4e3e114f0c79c0c1807b347161b76f08c130dea0",
+      "sourceContents": {
+        "/src/client-outbox.ts": {
+          "sha256": "7126dccddb813ec3c16a2f9ae926691b654c70fb38079b2625f7173109a71551",
+          "sourceMapPath": "../../home/ccheever/lanes/clique-20260909-initial/runs/followup-diagnostics-20260911/src/client-outbox.ts"
+        },
+        "/src/client-inbox.ts": {
+          "sha256": "47127439d760666d6c1356a5706d9c198428b12171e000a2c47ede97533206bc",
+          "sourceMapPath": "../../home/ccheever/lanes/clique-20260909-initial/runs/followup-diagnostics-20260911/src/client-inbox.ts"
+        }
+      }
+    }
+  },
+  "harnessAtAnalysis": {
+    "foreground-trace.mjs": "c25de8e144223b39431700da77e6c48e38fa0968f74c1e7f55ea958ba6e4874a",
+    "prepare-foreground.py": "658604e1b027297d90fd5563429180dac25d6463e80649888c9dedd8ff58d72e",
+    "note": "Current retained harness digest; not asserted as exact historical harness digest for capped first run."
+  },
+  "runs": [
+    {
+      "experiment": "current-during-trace01",
+      "startedAt": "2026-09-11T18:12:40.429Z",
+      "variant": "integrated",
+      "condition": "during",
+      "instrumented": true,
+      "qualification": false,
+      "beforeMessageCount": 301,
+      "afterMessageCount": 10009,
+      "rawPass": true,
+      "errors": [],
+      "host": {
+        "hostname": "expose-builder-pixel",
+        "platform": "linux",
+        "release": "6.8.0-138-generic",
+        "node": "v24.13.1",
+        "cpus": 96,
+        "load": [
+          3.98,
+          4.91,
+          2.83
+        ]
+      },
+      "source": {
+        "ownerSha": "73ca6fa2a56434981ad1997aa86efff15c60f0667c5fde8bada736b8e11a1763",
+        "runtimeSha": "7134ae9946e3fd7a3f0a73bd6c73ecaecb25d455e226c9119ecf3cc8c84bb86e",
+        "compilerSha": "ae432f5c70744110b305409aa2a60e9576f0d8c3abced2387ef58e1f555be82e"
+      },
+      "ownerSnapshotSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+      "rawHashes": {
+        "current-during-trace01.json": "e742f6cbc1d4bc6d39339e9f59804120bfe35f04e9966c7d256191b413bc1a24",
+        "current-during-trace01-trace.json": "0ca53e8e4a2df3cb0f54328353bcd9357efc06adaceacb3204fc4bea6336501f"
+      },
+      "mutationBegin": {
+        "id": 942,
+        "name": "client.mutation",
+        "phase": "begin",
+        "relativeMutationMs": 0.0,
+        "value": null
+      },
+      "durableAdmissionMs": null,
+      "durableAdmissionEventPair": {
+        "begin": null,
+        "end": null
+      },
+      "durableAdmissionStatus": "uncaptured: trace event cap reached before completed run",
+      "mutationResultMs": 96094.89999985695,
+      "mutationResultState": "committed",
+      "legacyAdmissionFieldMeaning": "mutation-promise result; not durable admission",
+      "senderFirstPreviewObservedMs": 93647.175412,
+      "senderFirstPreviewState": "queued",
+      "ownerSameAccountObservedMs": 93867.382479,
+      "ownerMessageId": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009e88ca",
+      "traceEvents": 40000,
+      "traceTruncated": true,
+      "traceLastEventRelativeMutationMs": 20245.0,
+      "pendingMutationAtCaptureMs": null,
+      "firstInboxAdmission": {
+        "begin": null,
+        "end": null
+      },
+      "nextDrainAfterInbox": {
+        "begin": null,
+        "end": null
+      },
+      "sampleCheckpoints": [
+        {
+          "ms": 1.4947900000001937,
+          "caughtUp": false
+        },
+        {
+          "ms": 5038.4079679999995,
+          "caughtUp": false
+        },
+        {
+          "ms": 10002.055479999999,
+          "caughtUp": false
+        },
+        {
+          "ms": 15032.994798999998,
+          "caughtUp": false
+        },
+        {
+          "ms": 20160.184195,
+          "caughtUp": false
+        },
+        {
+          "ms": 25145.994136,
+          "caughtUp": false
+        },
+        {
+          "ms": 30196.963880000003,
+          "caughtUp": false
+        },
+        {
+          "ms": 35282.874749,
+          "caughtUp": false
+        },
+        {
+          "ms": 40190.045152,
+          "caughtUp": false
+        },
+        {
+          "ms": 45057.745738,
+          "caughtUp": false
+        },
+        {
+          "ms": 50287.838493,
+          "caughtUp": false
+        },
+        {
+          "ms": 55077.934671,
+          "caughtUp": false
+        },
+        {
+          "ms": 60351.081338,
+          "caughtUp": false
+        },
+        {
+          "ms": 65077.311463000005,
+          "caughtUp": false
+        },
+        {
+          "ms": 70126.707184,
+          "caughtUp": false
+        },
+        {
+          "ms": 75245.273147,
+          "caughtUp": false
+        },
+        {
+          "ms": 80462.320891,
+          "caughtUp": false
+        },
+        {
+          "ms": 85002.761701,
+          "caughtUp": false
+        },
+        {
+          "ms": 90174.670663,
+          "caughtUp": false
+        },
+        {
+          "ms": 95205.560989,
+          "caughtUp": false
+        }
+      ],
+      "fillRoundTripMs": 46.82414899999958,
+      "frameGaps": {
+        "samples": 2228,
+        "medianMs": 16.700000000000728,
+        "maximumMs": 866.5
+      }
+    },
+    {
+      "experiment": "current-during-trace02",
+      "startedAt": "2026-09-11T18:15:35.190Z",
+      "variant": "integrated",
+      "condition": "during",
+      "instrumented": true,
+      "qualification": false,
+      "beforeMessageCount": 301,
+      "afterMessageCount": 5251,
+      "rawPass": false,
+      "errors": [],
+      "host": {
+        "hostname": "expose-builder-pixel",
+        "platform": "linux",
+        "release": "6.8.0-138-generic",
+        "node": "v24.13.1",
+        "cpus": 96,
+        "load": [
+          4.99,
+          7.08,
+          4.18
+        ]
+      },
+      "source": {
+        "ownerSha": "73ca6fa2a56434981ad1997aa86efff15c60f0667c5fde8bada736b8e11a1763",
+        "runtimeSha": "7134ae9946e3fd7a3f0a73bd6c73ecaecb25d455e226c9119ecf3cc8c84bb86e",
+        "compilerSha": "ae432f5c70744110b305409aa2a60e9576f0d8c3abced2387ef58e1f555be82e"
+      },
+      "ownerSnapshotSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+      "rawHashes": {
+        "current-during-trace02.json": "61279b83d7d66d2f35f62a1b5c177339d1d8bf7e0d36dc07ccdd31cadeb3c053",
+        "current-during-trace02-trace.json": "ee4d319e7ded9e04e100d4ed4aa532b1fde06918263510c2f0f9378ca95ec970"
+      },
+      "mutationBegin": {
+        "id": 1135,
+        "name": "client.mutation",
+        "phase": "begin",
+        "relativeMutationMs": 0,
+        "value": null
+      },
+      "durableAdmissionMs": null,
+      "durableAdmissionEventPair": {
+        "begin": null,
+        "end": null
+      },
+      "durableAdmissionStatus": "censored: no messages.send enqueue at trace capture",
+      "mutationResultMs": null,
+      "mutationResultState": null,
+      "legacyAdmissionFieldMeaning": "mutation-promise result; not durable admission",
+      "senderFirstPreviewObservedMs": null,
+      "senderFirstPreviewState": null,
+      "ownerSameAccountObservedMs": null,
+      "ownerMessageId": null,
+      "traceEvents": 44753,
+      "traceTruncated": false,
+      "traceLastEventRelativeMutationMs": 25271.200000047684,
+      "pendingMutationAtCaptureMs": 25271.599999904633,
+      "firstInboxAdmission": {
+        "begin": {
+          "id": 1138,
+          "name": "inbox.admit",
+          "phase": "begin",
+          "relativeMutationMs": 0.40000009536743164,
+          "value": null
+        },
+        "end": {
+          "id": 1138,
+          "name": "inbox.admit",
+          "phase": "end",
+          "relativeMutationMs": 4096.200000047684,
+          "value": {}
+        }
+      },
+      "nextDrainAfterInbox": {
+        "begin": {
+          "id": 6069,
+          "name": "client.drainNow",
+          "phase": "begin",
+          "relativeMutationMs": 4096.599999904633,
+          "value": null
+        },
+        "end": null
+      },
+      "sampleCheckpoints": [
+        {
+          "ms": 1.7786450000003242,
+          "caughtUp": false
+        },
+        {
+          "ms": 5168.335989,
+          "caughtUp": false
+        },
+        {
+          "ms": 10064.217626000001,
+          "caughtUp": false
+        },
+        {
+          "ms": 15156.018429,
+          "caughtUp": false
+        },
+        {
+          "ms": 20019.638026,
+          "caughtUp": false
+        }
+      ],
+      "fillRoundTripMs": 48.39915999999994,
+      "frameGaps": {
+        "samples": 1045,
+        "medianMs": 16.700000000000728,
+        "maximumMs": 983.2000000000007
+      }
+    },
+    {
+      "experiment": "fixed-during-trace01",
+      "startedAt": "2026-09-11T18:26:48.374Z",
+      "variant": "fixed",
+      "condition": "during",
+      "instrumented": true,
+      "qualification": false,
+      "beforeMessageCount": 301,
+      "afterMessageCount": 901,
+      "rawPass": true,
+      "errors": [],
+      "host": {
+        "hostname": "expose-builder-pixel",
+        "platform": "linux",
+        "release": "6.8.0-138-generic",
+        "node": "v24.13.1",
+        "cpus": 96,
+        "load": [
+          0.99,
+          1.79,
+          2.62
+        ]
+      },
+      "source": {
+        "ownerSha": "73ca6fa2a56434981ad1997aa86efff15c60f0667c5fde8bada736b8e11a1763",
+        "runtimeSha": "cf0904e09a6e8537207fbe610bc1d6d2c0f0768eba4d7a4fbf89fa1f9f8390c2",
+        "compilerSha": "ae432f5c70744110b305409aa2a60e9576f0d8c3abced2387ef58e1f555be82e"
+      },
+      "ownerSnapshotSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+      "rawHashes": {
+        "fixed-during-trace01.json": "77ba9b48a563a0273bda23e5f78d46b9bb8f310059e9015f12912e22fe600a0e",
+        "fixed-during-trace01-trace.json": "7249bc0139ce59b15f0b504f5097704c74c4595b6174c671a99ae518898bd13e"
+      },
+      "mutationBegin": {
+        "id": 865,
+        "name": "client.mutation",
+        "phase": "begin",
+        "relativeMutationMs": 0,
+        "value": null
+      },
+      "durableAdmissionMs": 430.7000000476837,
+      "durableAdmissionEventPair": {
+        "begin": {
+          "id": 1425,
+          "name": "ledger.enqueue",
+          "phase": "begin",
+          "relativeMutationMs": 396.7999999523163,
+          "value": null
+        },
+        "end": {
+          "id": 1425,
+          "name": "ledger.enqueue",
+          "phase": "end",
+          "relativeMutationMs": 430.7000000476837,
+          "value": {
+            "state": "queued",
+            "intent": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009e8801:8"
+          }
+        }
+      },
+      "durableAdmissionStatus": "observed ledger.enqueue(messages.send) end",
+      "mutationResultMs": 1741,
+      "mutationResultState": "committed",
+      "legacyAdmissionFieldMeaning": "mutation-promise result; not durable admission",
+      "senderFirstPreviewObservedMs": 857.3013920000003,
+      "senderFirstPreviewState": "queued",
+      "ownerSameAccountObservedMs": 1417.0683609999996,
+      "ownerMessageId": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009e8809",
+      "traceEvents": 6671,
+      "traceTruncated": false,
+      "traceLastEventRelativeMutationMs": 2005,
+      "pendingMutationAtCaptureMs": null,
+      "firstInboxAdmission": {
+        "begin": {
+          "id": 868,
+          "name": "inbox.admit",
+          "phase": "begin",
+          "relativeMutationMs": 0.39999985694885254,
+          "value": null
+        },
+        "end": {
+          "id": 868,
+          "name": "inbox.admit",
+          "phase": "end",
+          "relativeMutationMs": 238.59999990463257,
+          "value": {}
+        }
+      },
+      "nextDrainAfterInbox": {
+        "begin": {
+          "id": 1450,
+          "name": "client.drainNow",
+          "phase": "begin",
+          "relativeMutationMs": 460.2999999523163,
+          "value": null
+        },
+        "end": null
+      },
+      "sampleCheckpoints": [
+        {
+          "ms": 1.7486300000000483,
+          "caughtUp": false
+        }
+      ],
+      "fillRoundTripMs": 46.91340300000002,
+      "frameGaps": {
+        "samples": 119,
+        "medianMs": 16.699999999999818,
+        "maximumMs": 133.4000000000001
+      }
+    },
+    {
+      "experiment": "current-during-control02",
+      "startedAt": "2026-09-11T18:28:35.284Z",
+      "variant": "current",
+      "condition": "during",
+      "instrumented": true,
+      "qualification": false,
+      "beforeMessageCount": 301,
+      "afterMessageCount": 3751,
+      "rawPass": false,
+      "errors": [],
+      "host": {
+        "hostname": "expose-builder-pixel",
+        "platform": "linux",
+        "release": "6.8.0-138-generic",
+        "node": "v24.13.1",
+        "cpus": 96,
+        "load": [
+          0.58,
+          1.39,
+          2.38
+        ]
+      },
+      "source": {
+        "ownerSha": "73ca6fa2a56434981ad1997aa86efff15c60f0667c5fde8bada736b8e11a1763",
+        "runtimeSha": "7134ae9946e3fd7a3f0a73bd6c73ecaecb25d455e226c9119ecf3cc8c84bb86e",
+        "compilerSha": "ae432f5c70744110b305409aa2a60e9576f0d8c3abced2387ef58e1f555be82e"
+      },
+      "ownerSnapshotSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+      "rawHashes": {
+        "current-during-control02.json": "f16b44bd276cacee8a9ae8387bcf99edd5f4b121541eb26a693fed9bfafec4fa",
+        "current-during-control02-trace.json": "a6605effc8282cea443054af991eeb72147317497e810ffe9601f52f467a3172"
+      },
+      "mutationBegin": {
+        "id": 1346,
+        "name": "client.mutation",
+        "phase": "begin",
+        "relativeMutationMs": 0.0,
+        "value": null
+      },
+      "durableAdmissionMs": null,
+      "durableAdmissionEventPair": {
+        "begin": null,
+        "end": null
+      },
+      "durableAdmissionStatus": "censored: no messages.send enqueue at trace capture",
+      "mutationResultMs": null,
+      "mutationResultState": null,
+      "legacyAdmissionFieldMeaning": "mutation-promise result; not durable admission",
+      "senderFirstPreviewObservedMs": null,
+      "senderFirstPreviewState": null,
+      "ownerSameAccountObservedMs": null,
+      "ownerMessageId": null,
+      "traceEvents": 32925,
+      "traceTruncated": false,
+      "traceLastEventRelativeMutationMs": 15061.0,
+      "pendingMutationAtCaptureMs": 15065.100000143051,
+      "firstInboxAdmission": {
+        "begin": {
+          "id": 1349,
+          "name": "inbox.admit",
+          "phase": "begin",
+          "relativeMutationMs": 0.5,
+          "value": null
+        },
+        "end": {
+          "id": 1349,
+          "name": "inbox.admit",
+          "phase": "end",
+          "relativeMutationMs": 14173.200000047684,
+          "value": {}
+        }
+      },
+      "nextDrainAfterInbox": {
+        "begin": {
+          "id": 15732,
+          "name": "client.drainNow",
+          "phase": "begin",
+          "relativeMutationMs": 14173.900000095367,
+          "value": null
+        },
+        "end": null
+      },
+      "sampleCheckpoints": [
+        {
+          "ms": 41.21481499999982,
+          "caughtUp": false
+        },
+        {
+          "ms": 5029.781212999999,
+          "caughtUp": false
+        },
+        {
+          "ms": 10205.837218,
+          "caughtUp": false
+        }
+      ],
+      "fillRoundTripMs": 128.92854099999977,
+      "frameGaps": {
+        "samples": 721,
+        "medianMs": 16.699999999999818,
+        "maximumMs": 683.3000000000029
+      }
+    },
+    {
+      "experiment": "fixed-during-trace02",
+      "startedAt": "2026-09-11T18:28:56.973Z",
+      "variant": "fixed",
+      "condition": "during",
+      "instrumented": true,
+      "qualification": false,
+      "beforeMessageCount": 251,
+      "afterMessageCount": 501,
+      "rawPass": true,
+      "errors": [],
+      "host": {
+        "hostname": "expose-builder-pixel",
+        "platform": "linux",
+        "release": "6.8.0-138-generic",
+        "node": "v24.13.1",
+        "cpus": 96,
+        "load": [
+          0.9,
+          1.42,
+          2.37
+        ]
+      },
+      "source": {
+        "ownerSha": "73ca6fa2a56434981ad1997aa86efff15c60f0667c5fde8bada736b8e11a1763",
+        "runtimeSha": "cf0904e09a6e8537207fbe610bc1d6d2c0f0768eba4d7a4fbf89fa1f9f8390c2",
+        "compilerSha": "ae432f5c70744110b305409aa2a60e9576f0d8c3abced2387ef58e1f555be82e"
+      },
+      "ownerSnapshotSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+      "rawHashes": {
+        "fixed-during-trace02.json": "cc9c78e2b64bcb10e0ff63f9a3b125cb68959c4b0784ecd4f6f4f16e869e90d8",
+        "fixed-during-trace02-trace.json": "0b82fdb2c7166fbc7b031f0c9f7137600fd268ad9784b95e2851ef57346b249b"
+      },
+      "mutationBegin": {
+        "id": 705,
+        "name": "client.mutation",
+        "phase": "begin",
+        "relativeMutationMs": 0.0,
+        "value": null
+      },
+      "durableAdmissionMs": 147.59999990463257,
+      "durableAdmissionEventPair": {
+        "begin": {
+          "id": 868,
+          "name": "ledger.enqueue",
+          "phase": "begin",
+          "relativeMutationMs": 131.29999995231628,
+          "value": null
+        },
+        "end": {
+          "id": 868,
+          "name": "ledger.enqueue",
+          "phase": "end",
+          "relativeMutationMs": 147.59999990463257,
+          "value": {
+            "state": "queued",
+            "intent": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009e6801:5"
+          }
+        }
+      },
+      "durableAdmissionStatus": "observed ledger.enqueue(messages.send) end",
+      "mutationResultMs": 559.5,
+      "mutationResultState": "committed",
+      "legacyAdmissionFieldMeaning": "mutation-promise result; not durable admission",
+      "senderFirstPreviewObservedMs": 532.7248810000001,
+      "senderFirstPreviewState": "queued",
+      "ownerSameAccountObservedMs": 582.7947840000002,
+      "ownerMessageId": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009e6806",
+      "traceEvents": 2518,
+      "traceTruncated": false,
+      "traceLastEventRelativeMutationMs": 613.5999999046326,
+      "pendingMutationAtCaptureMs": null,
+      "firstInboxAdmission": {
+        "begin": {
+          "id": 708,
+          "name": "inbox.admit",
+          "phase": "begin",
+          "relativeMutationMs": 0.40000009536743164,
+          "value": null
+        },
+        "end": {
+          "id": 708,
+          "name": "inbox.admit",
+          "phase": "end",
+          "relativeMutationMs": 82.70000004768372,
+          "value": {}
+        }
+      },
+      "nextDrainAfterInbox": {
+        "begin": {
+          "id": 884,
+          "name": "client.drainNow",
+          "phase": "begin",
+          "relativeMutationMs": 177.09999990463257,
+          "value": null
+        },
+        "end": null
+      },
+      "sampleCheckpoints": [
+        {
+          "ms": 1.6580039999998917,
+          "caughtUp": false
+        }
+      ],
+      "fillRoundTripMs": 43.44022899999982,
+      "frameGaps": {
+        "samples": 45,
+        "medianMs": 16.700000000000045,
+        "maximumMs": 50
+      }
+    },
+    {
+      "experiment": "current-during-trace03",
+      "startedAt": "2026-09-11T18:29:01.733Z",
+      "variant": "current",
+      "condition": "during",
+      "instrumented": true,
+      "qualification": false,
+      "beforeMessageCount": 301,
+      "afterMessageCount": 3751,
+      "rawPass": false,
+      "errors": [],
+      "host": {
+        "hostname": "expose-builder-pixel",
+        "platform": "linux",
+        "release": "6.8.0-138-generic",
+        "node": "v24.13.1",
+        "cpus": 96,
+        "load": [
+          1.07,
+          1.44,
+          2.37
+        ]
+      },
+      "source": {
+        "ownerSha": "73ca6fa2a56434981ad1997aa86efff15c60f0667c5fde8bada736b8e11a1763",
+        "runtimeSha": "7134ae9946e3fd7a3f0a73bd6c73ecaecb25d455e226c9119ecf3cc8c84bb86e",
+        "compilerSha": "ae432f5c70744110b305409aa2a60e9576f0d8c3abced2387ef58e1f555be82e"
+      },
+      "ownerSnapshotSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+      "rawHashes": {
+        "current-during-trace03.json": "66c45c6368e8ce58635a03caba0bf24cca42b39a963feee9417860612abacda2",
+        "current-during-trace03-trace.json": "3dfd4aed415b99833d2b9e006084573a772ee6eea0efe5c50c5eb2d4b8d9cc06"
+      },
+      "mutationBegin": {
+        "id": 1135,
+        "name": "client.mutation",
+        "phase": "begin",
+        "relativeMutationMs": 0.0,
+        "value": null
+      },
+      "durableAdmissionMs": null,
+      "durableAdmissionEventPair": {
+        "begin": null,
+        "end": null
+      },
+      "durableAdmissionStatus": "censored: no messages.send enqueue at trace capture",
+      "mutationResultMs": null,
+      "mutationResultState": null,
+      "legacyAdmissionFieldMeaning": "mutation-promise result; not durable admission",
+      "senderFirstPreviewObservedMs": null,
+      "senderFirstPreviewState": null,
+      "ownerSameAccountObservedMs": null,
+      "ownerMessageId": null,
+      "traceEvents": 32003,
+      "traceTruncated": false,
+      "traceLastEventRelativeMutationMs": 15170.800000190735,
+      "pendingMutationAtCaptureMs": 15171.100000143051,
+      "firstInboxAdmission": {
+        "begin": {
+          "id": 1138,
+          "name": "inbox.admit",
+          "phase": "begin",
+          "relativeMutationMs": 0.5,
+          "value": null
+        },
+        "end": {
+          "id": 1138,
+          "name": "inbox.admit",
+          "phase": "end",
+          "relativeMutationMs": 3951.300000190735,
+          "value": {}
+        }
+      },
+      "nextDrainAfterInbox": {
+        "begin": {
+          "id": 5818,
+          "name": "client.drainNow",
+          "phase": "begin",
+          "relativeMutationMs": 3951.600000143051,
+          "value": null
+        },
+        "end": null
+      },
+      "sampleCheckpoints": [
+        {
+          "ms": 1.6808780000001207,
+          "caughtUp": false
+        },
+        {
+          "ms": 5199.096609,
+          "caughtUp": false
+        },
+        {
+          "ms": 10077.523431,
+          "caughtUp": false
+        }
+      ],
+      "fillRoundTripMs": 46.20120599999973,
+      "frameGaps": {
+        "samples": 719,
+        "medianMs": 16.699999999999818,
+        "maximumMs": 666.6999999999971
+      }
+    },
+    {
+      "experiment": "fixed-during-trace03",
+      "startedAt": "2026-09-11T18:29:23.736Z",
+      "variant": "fixed",
+      "condition": "during",
+      "instrumented": true,
+      "qualification": false,
+      "beforeMessageCount": 301,
+      "afterMessageCount": 851,
+      "rawPass": true,
+      "errors": [],
+      "host": {
+        "hostname": "expose-builder-pixel",
+        "platform": "linux",
+        "release": "6.8.0-138-generic",
+        "node": "v24.13.1",
+        "cpus": 96,
+        "load": [
+          1.25,
+          1.46,
+          2.35
+        ]
+      },
+      "source": {
+        "ownerSha": "73ca6fa2a56434981ad1997aa86efff15c60f0667c5fde8bada736b8e11a1763",
+        "runtimeSha": "cf0904e09a6e8537207fbe610bc1d6d2c0f0768eba4d7a4fbf89fa1f9f8390c2",
+        "compilerSha": "ae432f5c70744110b305409aa2a60e9576f0d8c3abced2387ef58e1f555be82e"
+      },
+      "ownerSnapshotSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+      "rawHashes": {
+        "fixed-during-trace03.json": "18e17671b7b982eb412b75aa89550692aaadacdb5e8a8eaf9fe37cf0526a9475",
+        "fixed-during-trace03-trace.json": "bbda9cf35c1034d71dcc8dbd3cba35992e44b2acb13acb1d50f596722a4bb510"
+      },
+      "mutationBegin": {
+        "id": 970,
+        "name": "client.mutation",
+        "phase": "begin",
+        "relativeMutationMs": 0.0,
+        "value": null
+      },
+      "durableAdmissionMs": 398.30000019073486,
+      "durableAdmissionEventPair": {
+        "begin": {
+          "id": 1490,
+          "name": "ledger.enqueue",
+          "phase": "begin",
+          "relativeMutationMs": 363.2000000476837,
+          "value": null
+        },
+        "end": {
+          "id": 1490,
+          "name": "ledger.enqueue",
+          "phase": "end",
+          "relativeMutationMs": 398.30000019073486,
+          "value": {
+            "state": "queued",
+            "intent": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009e8801:8"
+          }
+        }
+      },
+      "durableAdmissionStatus": "observed ledger.enqueue(messages.send) end",
+      "mutationResultMs": 1688.5999999046326,
+      "mutationResultState": "committed",
+      "legacyAdmissionFieldMeaning": "mutation-promise result; not durable admission",
+      "senderFirstPreviewObservedMs": 827.6090530000001,
+      "senderFirstPreviewState": "queued",
+      "ownerSameAccountObservedMs": 1437.8266269999995,
+      "ownerMessageId": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009e8809",
+      "traceEvents": 6317,
+      "traceTruncated": false,
+      "traceLastEventRelativeMutationMs": 1741.4000000953674,
+      "pendingMutationAtCaptureMs": null,
+      "firstInboxAdmission": {
+        "begin": {
+          "id": 973,
+          "name": "inbox.admit",
+          "phase": "begin",
+          "relativeMutationMs": 0.40000009536743164,
+          "value": null
+        },
+        "end": {
+          "id": 973,
+          "name": "inbox.admit",
+          "phase": "end",
+          "relativeMutationMs": 187.0,
+          "value": {}
+        }
+      },
+      "nextDrainAfterInbox": {
+        "begin": {
+          "id": 1515,
+          "name": "client.drainNow",
+          "phase": "begin",
+          "relativeMutationMs": 427.40000009536743,
+          "value": null
+        },
+        "end": null
+      },
+      "sampleCheckpoints": [
+        {
+          "ms": 2.056420999999773,
+          "caughtUp": false
+        }
+      ],
+      "fillRoundTripMs": 46.76674299999968,
+      "frameGaps": {
+        "samples": 108,
+        "medianMs": 16.699999999999818,
+        "maximumMs": 133.4000000000001
+      }
+    },
+    {
+      "experiment": "current-during-trace04",
+      "startedAt": "2026-09-11T18:29:30.149Z",
+      "variant": "current",
+      "condition": "during",
+      "instrumented": true,
+      "qualification": false,
+      "beforeMessageCount": 301,
+      "afterMessageCount": 3801,
+      "rawPass": false,
+      "errors": [],
+      "host": {
+        "hostname": "expose-builder-pixel",
+        "platform": "linux",
+        "release": "6.8.0-138-generic",
+        "node": "v24.13.1",
+        "cpus": 96,
+        "load": [
+          1.77,
+          1.56,
+          2.38
+        ]
+      },
+      "source": {
+        "ownerSha": "73ca6fa2a56434981ad1997aa86efff15c60f0667c5fde8bada736b8e11a1763",
+        "runtimeSha": "7134ae9946e3fd7a3f0a73bd6c73ecaecb25d455e226c9119ecf3cc8c84bb86e",
+        "compilerSha": "ae432f5c70744110b305409aa2a60e9576f0d8c3abced2387ef58e1f555be82e"
+      },
+      "ownerSnapshotSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+      "rawHashes": {
+        "current-during-trace04.json": "7b2991f125125335c0aca72a9b2778a86822ed9fe31f4225da150b455982351b",
+        "current-during-trace04-trace.json": "df1771376ecc69727374f6c1ceb35d893c996a1594417450f986f1fc58ae20f0"
+      },
+      "mutationBegin": {
+        "id": 1346,
+        "name": "client.mutation",
+        "phase": "begin",
+        "relativeMutationMs": 0,
+        "value": null
+      },
+      "durableAdmissionMs": null,
+      "durableAdmissionEventPair": {
+        "begin": null,
+        "end": null
+      },
+      "durableAdmissionStatus": "censored: no messages.send enqueue at trace capture",
+      "mutationResultMs": null,
+      "mutationResultState": null,
+      "legacyAdmissionFieldMeaning": "mutation-promise result; not durable admission",
+      "senderFirstPreviewObservedMs": null,
+      "senderFirstPreviewState": null,
+      "ownerSameAccountObservedMs": null,
+      "ownerMessageId": null,
+      "traceEvents": 32275,
+      "traceTruncated": false,
+      "traceLastEventRelativeMutationMs": 15126.299999952316,
+      "pendingMutationAtCaptureMs": 15126.699999809265,
+      "firstInboxAdmission": {
+        "begin": {
+          "id": 1349,
+          "name": "inbox.admit",
+          "phase": "begin",
+          "relativeMutationMs": 0.39999985694885254,
+          "value": null
+        },
+        "end": {
+          "id": 1349,
+          "name": "inbox.admit",
+          "phase": "end",
+          "relativeMutationMs": 3680.7999999523163,
+          "value": {}
+        }
+      },
+      "nextDrainAfterInbox": {
+        "begin": {
+          "id": 5722,
+          "name": "client.drainNow",
+          "phase": "begin",
+          "relativeMutationMs": 3681,
+          "value": null
+        },
+        "end": null
+      },
+      "sampleCheckpoints": [
+        {
+          "ms": 39.89504799999986,
+          "caughtUp": false
+        },
+        {
+          "ms": 5189.135756,
+          "caughtUp": false
+        },
+        {
+          "ms": 10172.744449,
+          "caughtUp": false
+        }
+      ],
+      "fillRoundTripMs": 132.18015300000025,
+      "frameGaps": {
+        "samples": 726,
+        "medianMs": 16.699999999999818,
+        "maximumMs": 666.7000000000007
+      }
+    },
+    {
+      "experiment": "fixed-during-trace04",
+      "startedAt": "2026-09-11T18:29:52.220Z",
+      "variant": "fixed",
+      "condition": "during",
+      "instrumented": true,
+      "qualification": false,
+      "beforeMessageCount": 301,
+      "afterMessageCount": 901,
+      "rawPass": true,
+      "errors": [],
+      "host": {
+        "hostname": "expose-builder-pixel",
+        "platform": "linux",
+        "release": "6.8.0-138-generic",
+        "node": "v24.13.1",
+        "cpus": 96,
+        "load": [
+          2.5,
+          1.74,
+          2.42
+        ]
+      },
+      "source": {
+        "ownerSha": "73ca6fa2a56434981ad1997aa86efff15c60f0667c5fde8bada736b8e11a1763",
+        "runtimeSha": "cf0904e09a6e8537207fbe610bc1d6d2c0f0768eba4d7a4fbf89fa1f9f8390c2",
+        "compilerSha": "ae432f5c70744110b305409aa2a60e9576f0d8c3abced2387ef58e1f555be82e"
+      },
+      "ownerSnapshotSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+      "rawHashes": {
+        "fixed-during-trace04.json": "b154cad4c82075ae0986453d9afece74f30f5899f9fd68153291ae2469760b77",
+        "fixed-during-trace04-trace.json": "3ba4a5b6d32d84deb84790d115737989aca100e7523549cef68fd35c66bde49b"
+      },
+      "mutationBegin": {
+        "id": 1168,
+        "name": "client.mutation",
+        "phase": "begin",
+        "relativeMutationMs": 0,
+        "value": null
+      },
+      "durableAdmissionMs": 322.59999990463257,
+      "durableAdmissionEventPair": {
+        "begin": {
+          "id": 1565,
+          "name": "ledger.enqueue",
+          "phase": "begin",
+          "relativeMutationMs": 307.2000000476837,
+          "value": null
+        },
+        "end": {
+          "id": 1565,
+          "name": "ledger.enqueue",
+          "phase": "end",
+          "relativeMutationMs": 322.59999990463257,
+          "value": {
+            "state": "queued",
+            "intent": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009e8801:9"
+          }
+        }
+      },
+      "durableAdmissionStatus": "observed ledger.enqueue(messages.send) end",
+      "mutationResultMs": 1656.7999999523163,
+      "mutationResultState": "committed",
+      "legacyAdmissionFieldMeaning": "mutation-promise result; not durable admission",
+      "senderFirstPreviewObservedMs": 588.393924,
+      "senderFirstPreviewState": "queued",
+      "ownerSameAccountObservedMs": 1435.5449679999997,
+      "ownerMessageId": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009e880a",
+      "traceEvents": 6574,
+      "traceTruncated": false,
+      "traceLastEventRelativeMutationMs": 1761.2000000476837,
+      "pendingMutationAtCaptureMs": null,
+      "firstInboxAdmission": {
+        "begin": {
+          "id": 1171,
+          "name": "inbox.admit",
+          "phase": "begin",
+          "relativeMutationMs": 0.5,
+          "value": null
+        },
+        "end": {
+          "id": 1171,
+          "name": "inbox.admit",
+          "phase": "end",
+          "relativeMutationMs": 136.5,
+          "value": {}
+        }
+      },
+      "nextDrainAfterInbox": {
+        "begin": {
+          "id": 1635,
+          "name": "client.drainNow",
+          "phase": "begin",
+          "relativeMutationMs": 323.09999990463257,
+          "value": null
+        },
+        "end": null
+      },
+      "sampleCheckpoints": [
+        {
+          "ms": 17.473551000000043,
+          "caughtUp": false
+        }
+      ],
+      "fillRoundTripMs": 145.89971000000014,
+      "frameGaps": {
+        "samples": 115,
+        "medianMs": 16.699999999999818,
+        "maximumMs": 149.9000000000001
+      }
+    },
+    {
+      "experiment": "current-after-trace01",
+      "startedAt": "2026-09-11T18:31:09.624Z",
+      "variant": "current",
+      "condition": "after",
+      "instrumented": true,
+      "qualification": false,
+      "beforeMessageCount": 10008,
+      "afterMessageCount": 10009,
+      "rawPass": true,
+      "errors": [],
+      "host": {
+        "hostname": "expose-builder-pixel",
+        "platform": "linux",
+        "release": "6.8.0-138-generic",
+        "node": "v24.13.1",
+        "cpus": 96,
+        "load": [
+          1.96,
+          1.77,
+          2.37
+        ]
+      },
+      "source": {
+        "ownerSha": "73ca6fa2a56434981ad1997aa86efff15c60f0667c5fde8bada736b8e11a1763",
+        "runtimeSha": "7134ae9946e3fd7a3f0a73bd6c73ecaecb25d455e226c9119ecf3cc8c84bb86e",
+        "compilerSha": "ae432f5c70744110b305409aa2a60e9576f0d8c3abced2387ef58e1f555be82e"
+      },
+      "ownerSnapshotSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+      "rawHashes": {
+        "current-after-trace01.json": "b0138ece9b897a13d89796ef1a95c8913ee727ed87cbc71c3581bf36e829eadd",
+        "current-after-trace01-trace.json": "6ad7e9e4c6787091ca7171cca85308c90a47fabb2952be555a4962391d8ca8f4"
+      },
+      "mutationBegin": {
+        "id": 46040,
+        "name": "client.mutation",
+        "phase": "begin",
+        "relativeMutationMs": 0.0,
+        "value": null
+      },
+      "durableAdmissionMs": 205.0,
+      "durableAdmissionEventPair": {
+        "begin": {
+          "id": 46064,
+          "name": "ledger.enqueue",
+          "phase": "begin",
+          "relativeMutationMs": 74.0,
+          "value": null
+        },
+        "end": {
+          "id": 46064,
+          "name": "ledger.enqueue",
+          "phase": "end",
+          "relativeMutationMs": 205.0,
+          "value": {
+            "state": "queued",
+            "intent": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009e8801:201"
+          }
+        }
+      },
+      "durableAdmissionStatus": "observed ledger.enqueue(messages.send) end",
+      "mutationResultMs": 2768,
+      "mutationResultState": "committed",
+      "legacyAdmissionFieldMeaning": "mutation-promise result; not durable admission",
+      "senderFirstPreviewObservedMs": 311.37221699999645,
+      "senderFirstPreviewState": "queued",
+      "ownerSameAccountObservedMs": 528.7335929999972,
+      "ownerMessageId": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009e88ca",
+      "traceEvents": 92877,
+      "traceTruncated": false,
+      "traceLastEventRelativeMutationMs": 2848.7000000476837,
+      "pendingMutationAtCaptureMs": null,
+      "firstInboxAdmission": {
+        "begin": {
+          "id": 46043,
+          "name": "inbox.admit",
+          "phase": "begin",
+          "relativeMutationMs": 0.40000009536743164,
+          "value": null
+        },
+        "end": {
+          "id": 46043,
+          "name": "inbox.admit",
+          "phase": "end",
+          "relativeMutationMs": 26.799999952316284,
+          "value": {}
+        }
+      },
+      "nextDrainAfterInbox": {
+        "begin": {
+          "id": 46076,
+          "name": "client.drainNow",
+          "phase": "begin",
+          "relativeMutationMs": 216.20000004768372,
+          "value": null
+        },
+        "end": {
+          "id": 46076,
+          "name": "client.drainNow",
+          "phase": "end",
+          "relativeMutationMs": 2661.9000000953674,
+          "value": {
+            "remaining": 0,
+            "stopped": false
+          }
+        }
+      },
+      "sampleCheckpoints": [
+        {
+          "ms": 1.7795869999972638,
+          "caughtUp": true
+        }
+      ],
+      "fillRoundTripMs": 8.911963999998989,
+      "frameGaps": {
+        "samples": 228,
+        "medianMs": 16.69999999999709,
+        "maximumMs": 2049.9000000000087
+      }
+    },
+    {
+      "experiment": "fixed-after-trace01",
+      "startedAt": "2026-09-11T18:32:56.693Z",
+      "variant": "fixed",
+      "condition": "after",
+      "instrumented": true,
+      "qualification": false,
+      "beforeMessageCount": 10008,
+      "afterMessageCount": 10009,
+      "rawPass": true,
+      "errors": [],
+      "host": {
+        "hostname": "expose-builder-pixel",
+        "platform": "linux",
+        "release": "6.8.0-138-generic",
+        "node": "v24.13.1",
+        "cpus": 96,
+        "load": [
+          2.66,
+          2.14,
+          2.44
+        ]
+      },
+      "source": {
+        "ownerSha": "73ca6fa2a56434981ad1997aa86efff15c60f0667c5fde8bada736b8e11a1763",
+        "runtimeSha": "cf0904e09a6e8537207fbe610bc1d6d2c0f0768eba4d7a4fbf89fa1f9f8390c2",
+        "compilerSha": "ae432f5c70744110b305409aa2a60e9576f0d8c3abced2387ef58e1f555be82e"
+      },
+      "ownerSnapshotSha256": "c01c8286018c4823c40a1eed57a6279a498a88c31c0ae749a0315b37b8a735fa",
+      "rawHashes": {
+        "fixed-after-trace01.json": "30c56d53487e41052b39d7290f43393f2c15df85e6cd42740f406befea7838a6",
+        "fixed-after-trace01-trace.json": "2b1a91e0109c4ac98572878f7e6e9f706fc3bfaba35a0b0e562cba98fecb1076"
+      },
+      "mutationBegin": {
+        "id": 40904,
+        "name": "client.mutation",
+        "phase": "begin",
+        "relativeMutationMs": 0.0,
+        "value": null
+      },
+      "durableAdmissionMs": 198.29999995231628,
+      "durableAdmissionEventPair": {
+        "begin": {
+          "id": 40926,
+          "name": "ledger.enqueue",
+          "phase": "begin",
+          "relativeMutationMs": 68.20000004768372,
+          "value": null
+        },
+        "end": {
+          "id": 40926,
+          "name": "ledger.enqueue",
+          "phase": "end",
+          "relativeMutationMs": 198.29999995231628,
+          "value": {
+            "state": "queued",
+            "intent": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009e8801:201"
+          }
+        }
+      },
+      "durableAdmissionStatus": "observed ledger.enqueue(messages.send) end",
+      "mutationResultMs": 1840,
+      "mutationResultState": "committed",
+      "legacyAdmissionFieldMeaning": "mutation-promise result; not durable admission",
+      "senderFirstPreviewObservedMs": 306.5286699999997,
+      "senderFirstPreviewState": "queued",
+      "ownerSameAccountObservedMs": 518.8613809999952,
+      "ownerMessageId": "s2id-cb09accbfee49313b954fe6297db0ec3-00000000009e88ca",
+      "traceEvents": 82452,
+      "traceTruncated": false,
+      "traceLastEventRelativeMutationMs": 1957.2000000476837,
+      "pendingMutationAtCaptureMs": null,
+      "firstInboxAdmission": {
+        "begin": {
+          "id": 40907,
+          "name": "inbox.admit",
+          "phase": "begin",
+          "relativeMutationMs": 0.40000009536743164,
+          "value": null
+        },
+        "end": {
+          "id": 40907,
+          "name": "inbox.admit",
+          "phase": "end",
+          "relativeMutationMs": 22.299999952316284,
+          "value": {}
+        }
+      },
+      "nextDrainAfterInbox": {
+        "begin": {
+          "id": 40938,
+          "name": "client.drainNow",
+          "phase": "begin",
+          "relativeMutationMs": 201.5,
+          "value": null
+        },
+        "end": null
+      },
+      "sampleCheckpoints": [
+        {
+          "ms": 2.006926999994903,
+          "caughtUp": true
+        }
+      ],
+      "fillRoundTripMs": 32.727989000006346,
+      "frameGaps": {
+        "samples": 177,
+        "medianMs": 16.69999999999709,
+        "maximumMs": 1766.5
+      }
+    }
+  ]
+}

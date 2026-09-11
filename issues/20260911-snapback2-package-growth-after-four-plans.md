@@ -47,3 +47,31 @@ publish that measured package-size trade for this release, subject to all
 remaining native/runtime/publication qualification. It does not reset an
 accepted baseline, change the normal check, authorize later growth, or close
 this cleanup ticket. The original measurements and red verdict remain intact.
+
+## Attributed reduction — 2026-09-11
+
+Source-mapped build attribution found duplicate `value-runtime`, `hash`,
+`certificate-identity` and `cursor` code across existing package leaves. Routing
+those modules through the existing private `image-runtime` leaf removes 69
+duplicated function declarations. No algorithms, hash domains, public entry
+closure or measurement roots changed. Canonical builds reproduce all 12 earlier
+accepted/pristine/four-plan values; the isolated sharing patch reduces client,
+React and Expo by 5,807/5,864/5,865 gzip bytes with byte-identical complete runtime.
+
+The final combined source, including foreground and pending-receipt fixes,
+measures **139,450 / 149,260 / 152,792 / 88,086** gzip bytes (client / React /
+Expo / complete runtime), at `2026-09-11T18:42:07.888Z`. The net reductions from
+the four-plan source are 5,739 / 5,796 / 5,797 bytes for the public entries; runtime
+grows 33 bytes. All four still exceed the accepted 1% guard; runtime stays below
+90,000 and above the 80,000 target. `byte_baseline_accepted` remains false.
+
+The [attribution report](../benchmarks/runs/2026-09-11-snapback2-followup-diagnostics/bytes-report.md)
+and adjacent JSON/CSV preserve module and leaf contributions, source hashes,
+canonical closure definitions and all isolated experiments. Leaf gzip sums are
+additive within one deduplicated closure; overlapping public entries and
+source-module estimates must not be summed. Remaining work is further measured
+deletion/sharing or an explicit budget trade, not automatic baseline acceptance.
+
+The release lane incorporates this landed reduction without redoing its work.
+The smaller public-entry closures remain within the author's disclosed
+release-only exception; the normal guard and cleanup ticket remain open.
