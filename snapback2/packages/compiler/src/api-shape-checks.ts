@@ -328,6 +328,33 @@ journey("typed shaped ledger", async ({ as }) => {
     }
     assert(failures.length === 0, failures.join("\n"));
   });
+
+  test("journey checking binds generated root types without a consumer install", async () => {
+    await withProjectFiles("snapback2-api-root-types-", {
+      "snapback/tests/probe.test.ts": `import { api } from "snapback2/client";
+import { journey } from "snapback2/test";
+
+journey("root type probe", async ({ as }) => {
+  const after = await as("alice").query(api.probe.list, {});
+  if (!("data" in after) || !after.data.some((row) => row.id.length > 0)) throw new Error("missing row");
+});
+`,
+    }, undefined, async (root) => {
+      const apiDts = `import type { Page } from "snapback2";
+import type { Op } from "snapback2/client";
+declare module "snapback2/client" {
+  interface Api {
+    readonly probe: { readonly list: Op<{}, Page<{ id: string }>> };
+  }
+}
+export {};`;
+      const checked = await compileJourneys(root, apiDts);
+      assert(!checked.ok
+        && checked.diagnostics.some((item) => item.code === "E_OP_INVALID"
+          && item.message.includes("'after.data' is possibly 'undefined'")),
+      `unprotected Page data did not retain its root type: ${checked.ok ? "passed" : diagnosticsText(checked.diagnostics)}`);
+    });
+  });
 }
 
 async function withCliqueProbe<T>(fixtures: string, source: string, run: (root: string) => Promise<T>): Promise<T> {

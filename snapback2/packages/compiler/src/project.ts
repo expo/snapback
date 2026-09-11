@@ -177,6 +177,10 @@ export async function compileJourneys(
     moduleResolution: ts.ModuleResolutionKind.Bundler,
     noEmit: true,
     paths: {
+      // @ref LLP 1012#8-the-delivery-envelope-the-validator-and-resume — generated API declarations
+      // import public nominal/root types, so journey checks must bind the same
+      // self-contained declaration root installed consumers receive.
+      "snapback2": [join(packageDist, "index.d.ts")],
       "snapback2/client": [clientDts],
       "snapback2/test": [testDts],
       "snapback2/internal": [join(packageDist, "internal-access.d.ts")],
