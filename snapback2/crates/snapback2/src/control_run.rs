@@ -28,7 +28,7 @@ pub fn route(
     if !matches!(path, "/control/job" | "/control/execute") {
         return None;
     }
-    // @ref LLP 1016#d8--surface-and-diagnostics — every supplied mode flag is
+    // @ref LLP 1016#d8--routes-no-new-verb-no-console-yet — every supplied mode flag is
     // either honoured by this route or refused; direct owner requests never
     // acquire CLI-only polling semantics by sending `wait`.
     if path == "/control/job" {

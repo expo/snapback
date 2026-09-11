@@ -124,7 +124,10 @@ pub fn run(args: &[String]) -> ExitCode {
         )
     } else {
         let requested = positional[1];
-        let manifest = match client::api(&attached, "GET", "/api/manifest", &[], json!({})) {
+        // The public manifest omits schedule-only system targets. The same route, with
+        // the already-required loopback control credential, exposes the complete map
+        // to the operator seat without creating a second registry.
+        let manifest = match client::control(&attached, "GET", "/api/manifest", json!({})) {
             Ok(r) if r.status < 400 => r.body,
             Ok(r) => return print_response(r.status, r.body, json_output),
             Err(e) => return refused(e, json_output, 1),

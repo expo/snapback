@@ -1,6 +1,6 @@
 # LLP 1016 implementation residuals — the non-blocking items left by the last blind review rounds
 
-**Status:** open · **Filed:** 2026-09-05 · **Systems:** `snapback2/crates/snapback2-core` (`jobs.rs`, `registry_jobs.rs`), `snapback2/crates/snapback2/src/{control.rs,control_run.rs,verbs_jobs.rs}`, `snapback2/packages/snapback2/guide/{job.md,families.source.json}`, `snapback2/metrics/jobs.jsonl` · **Related:** LLP 1016 §12, `llp/reviews/1016-administrative-plane.*` (the design panel), the implementation reviews under `~/projects/snapback-1016-impl/reviews/` (not committed)
+**Status:** closed · **Filed:** 2026-09-05 · **Resolved:** 2026-09-11 · **Systems:** `snapback2/crates/snapback2-core` (`jobs.rs`, `registry_jobs.rs`), `snapback2/crates/snapback2/src/{control.rs,control_run.rs,verbs_jobs.rs}`, `snapback2/packages/snapback2/guide/{job.md,families.source.json}`, `snapback2/metrics/jobs.jsonl` · **Related:** LLP 1016 §12, `llp/reviews/1016-administrative-plane.*` (the design panel), the implementation reviews under `~/projects/snapback-1016-impl/reviews/` (not committed)
 
 Every landing of the LLP 1016 program (J1a, J1b, J2, J3, their fix rounds, and the closing
 round) was reviewed blind by grok-4.6 and Muse Spark; every verdict was LAND or LAND WITH
@@ -91,6 +91,20 @@ smuggled into this cleanup. The append-only metric relabel retains its original
 sample payload and carries the historical synthetic timestamp in the note; it
 is not rewritten.
 
-Remaining before closure: pin zero-declaration `--file`, the project-check
-rewrite, compiler-lock release after refusal, declaration-site hash across two
-compiled projects, and the small `@ref`/catalog wording controls.
+## Resolution — 2026-09-11
+
+The final controls are landed. Empty transient ad hoc modules reach the
+exactly-one-declaration check and return `E_INPUT` as CLI usage; project checks
+retain the complete checker repair beneath the authored line; watcher journey
+and seed refusals release the shared compiler worker before calling the writer;
+and a real chat project compiled on both sides of a moved schedule declaration
+has identical generation and schema certificates. The `_timers`, evaluator
+normalizer, and timer-summary decisions now carry direct LLP anchors, and §7
+records the duplicate-name repair and the schedule-specific operator refusal.
+
+The public manifest omits schedule-only targets. A loopback request to that same
+manifest route with the existing control credential receives the complete map,
+so the operator CLI can still resolve and run a target without a second registry
+or public disclosure. The schedule owner test pins both views and the actual
+operator run. Focused project-check, schedule-identity, rehearsal, timer, receipt,
+ceiling, coalescing, and control-route tests pass.

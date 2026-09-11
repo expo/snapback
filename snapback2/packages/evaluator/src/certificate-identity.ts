@@ -46,6 +46,8 @@ export function canonicalSchemaJson(schema: any): string {
   return JSON.stringify(canonical);
 }
 
+// @ref LLP 1016#d5--schedules-row-timers-and-periods-on-the-owners-clock — declaration sites
+// remain diagnostic input and are deliberately absent from evaluator-side schema identity.
 function normalizeSchedule(schedule: any): any {
   // `site` is the declaration's position, for diagnostics only: serde skips it, so it is never in
   // the hash (a blank line above a schedule is not a successor). A compiler-shaped payload still

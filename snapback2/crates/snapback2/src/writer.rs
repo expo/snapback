@@ -177,7 +177,9 @@ pub enum Action {
         plan: bool,
     },
     Status,
-    Manifest,
+    Manifest {
+        operator: bool,
+    },
     Program {
         generation: String,
         identity: Identity,
@@ -614,7 +616,7 @@ impl State {
                 plan,
             } => self.adhoc(program, source, args, identity, plan),
             Action::Status => self.status(),
-            Action::Manifest => self.manifest(),
+            Action::Manifest { operator } => self.manifest(operator),
             Action::Program {
                 generation,
                 identity,

@@ -207,6 +207,22 @@ fn rehearsal_cli_jobs_queries_mutations_receipts_and_usage_exits() {
     assert_eq!(usage.0, 2, "{usage:?}");
     assert_eq!(usage.1["code"], "E_INPUT");
     assert_eq!(usage.1["site"], "source");
+    let empty = root.join("empty.q");
+    fs::write(&empty, "-- no declarations\n").unwrap();
+    let usage = run(
+        &root,
+        &[
+            "run",
+            "--file",
+            empty.to_str().unwrap(),
+            "--as",
+            "system",
+            "--dry-run",
+        ],
+    );
+    assert_eq!(usage.0, 2, "{usage:?}");
+    assert_eq!(usage.1["code"], "E_INPUT");
+    assert_eq!(usage.1["site"], "source");
     // Admission happens on the live runtime before any copy: an unknown program or
     // untyped arguments refuse with the seat's own envelope and never pause the writer.
     for (body, code) in [

@@ -201,6 +201,7 @@ pub(crate) fn certify(
                     target_ceilings.write_rows = target_ceilings.write_rows.saturating_sub(1);
                     match Checker::new(schema, target_ceilings).check_all(target) {
                         Ok(mut target_cert) => {
+                            // @ref LLP 1016#d5--schedules-row-timers-and-periods-on-the-owners-clock —
                             // Two `_timers` sites, on purpose. `Checker::analyze` already gave
                             // the target one site per row it may write on a scheduled table (the
                             // index maintenance inside the target's own writes); this second site

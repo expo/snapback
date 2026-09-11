@@ -42,12 +42,14 @@ pub fn spawn(
                     Ok(compiled) => {
                         let generation = compiled.generation.hash();
                         if let Err(errors) = worker.journeys(&root) {
+                            drop(worker);
                             refuse(&handle, &root, generation, errors);
                             continue;
                         }
                         let seed = match worker.seed(&root) {
                             Ok(seed) => seed,
                             Err(errors) => {
+                                drop(worker);
                                 refuse(&handle, &root, generation, errors);
                                 continue;
                             }
