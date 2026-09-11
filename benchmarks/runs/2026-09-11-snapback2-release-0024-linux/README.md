@@ -2,17 +2,70 @@
 
 Status: resumed 18:03 UTC with explicit author approval for real native
 ICU-backed Intl in Ibex, followed by publication and Clique. No 0.0.24 package
-has been published. No Linux package or unified shim has been staged, and no
+has been published. A Linux package and identical two-platform shim passed
+both native consumers at Snapback `6c7f81ace` / Ibex `02cf5b12`, but final
+runtime review requires a corrective candidate before publication. No
 Clique actor has started. The earlier Mac artifacts, source commits, reviews
 and failed qualification attempts remain preserved; changed source requires
 fresh staging, not reuse of those old qualification receipts.
 
-Current frozen native candidate: Ibex
-`02cf5b12dc2f3ebe2b64327fd57457eb0ae68485`; Snapback pin/integration
-`0455433ccc8616b0a08c437f6c9e40a493152ee7`. Both are on named branches;
-main landing and npm writes remain held for final review and native consumers.
-Sol xhigh and Grok4.6 xhigh started mutually blind final-delta reviews at
-19:37 UTC. Fresh stage-only qualification overlaps those reviews.
+Reviewed native candidate: Ibex
+`02cf5b12dc2f3ebe2b64327fd57457eb0ae68485`; staged Snapback integration
+`6c7f81aceeafa98b4fd064770adc25068b9e07bc`. Both are on named branches;
+main landing and npm writes remain held for corrections and renewed native
+consumers. Sol xhigh and Grok4.6 xhigh reviewed the same final delta from
+19:37 UTC and both returned NOT READY. Their unchanged responses are retained
+under `llp/reviews/1003-native-intl-20260911.r2.*.md`.
+
+### Second native review disposition and staged checkpoint
+
+Accept unsupported calendar/numbering options retaining a supported requested
+extension; restrict time-zone matching to ASCII; make built-in non-constructor
+callables nonconstructable and correct Date method lengths. The matching
+NumberFormat callable defect is included in the same bounded correction.
+Both reviewers independently accepted deferral of primitive-newTarget fallback
+without claiming it fixed or finding a clean public-JSI alternative.
+
+The disputed hour12 case is resolved against the selected 2020 specification:
+InitializeDateTimeFormat sets the hc option to null, which is a supported
+locale-data value and clears a requested hc extension in ResolveLocale.
+Accept Sol's finding and reject Grok's advice to retain that extension.
+
+Reject the proposed case-sensitive calendar change. Root's source check found
+that the actual 2020 ResolveLocale algorithm canonicalizes string-valued
+Unicode options before membership comparison. Keep calendar canonicalization
+and correct the inconsistent NumberFormat/DateTimeFormat numbering option
+oracle instead. This differs from later-edition behavior; a modern Node
+result is not the selected-spec oracle. Sources:
+[2020 ResolveLocale](https://402.ecma-international.org/7.0/#sec-resolvelocale),
+[frozen es2020 source](https://raw.githubusercontent.com/tc39/ecma402/es2020/spec/negotiation.html),
+and [2020 DateTimeFormat locale data](https://402.ecma-international.org/7.0/#sec-intl.datetimeformat-internal-slots).
+The frozen negotiation source SHA-256 is
+`a7e43d1fbaaaafc8b6d2c6addeeb1f9250d533e4f6481e7a39643c35b6b059f6`.
+Root's initial acceptance of the calendar finding was withdrawn before the
+correction was committed. Reviews remain historical, not silently rewritten.
+
+At this superseded checkpoint, Linux B PID2227541 ran
+19:51:56–19:56:13 UTC, exit0, all19 production consumer steps passed. Silver
+A2 PID54498 ran20:11:04–20:11:39 UTC, exit0, all19 steps passed against the
+same combined shim bytes: SHA-256
+`dbb2c3ce953bc9eae903faa24997794632e4e0a47d2f609a0fb11ae71d475733`,
+SRI `sha512-4l9lsHD3I+IJyJkKGa3866SBkzD6JBc3pnO+PuXobc/0T7eXyxGNN8UB2wr1MC6O0ElSH4y4WHd+UY1DMeooWA==`.
+Linux native SRI:
+`sha512-g5aQZDKraNWhX/9FYYTE4Ef3m2SWYBDeSjbL/KwduV47lB3u95pFJtMtaekw/GwVHpxzpIY/HfYXJUMQ0BOI3Q==`.
+Darwin SRI remains the A1 value recorded below. Linux binary bytes:
+engine47,829,752, no-engine6,744,216, media3,922,184. ELF dependencies are
+ordinary system libraries only; engine maximum versions GLIBC2.39 /
+GLIBCXX3.4.30 / CXXABI1.3.9, media GLIBC2.38 / GLIBCXX3.4.31 /
+CXXABI1.3.13. No older-distribution compatibility is inferred.
+
+The earlier Linux B failure was a publisher allowlist omission of glibc's
+ordinary `ld-linux-x86-64.so.2` loader. Commit `6c7f81ace` admits only that
+exact name and extends the existing positive fixture. Self-test and all16
+publisher tests pass; independent Sol and blind Grok delta reviews are both
+READY, with no required correction. The original failed B log and all successful
+checkpoint stages remain preserved, not reused as qualification of future
+changed native bytes.
 
 ## Resumed scope and orientation
 
