@@ -91,6 +91,15 @@ fn command_guides_explain_initialization_and_successor_recovery() {
     ] {
         assert!(content.contains(needle), "{content}");
     }
+    let page = json_stdout(&project.run(&["guide", "operator", "--json"]));
+    let content = page["content"].as_str().unwrap();
+    for needle in [
+        "The project directory is the owner and store isolation boundary.",
+        "snapback2 test --project .replays/a",
+        "never copy `.snapback/`",
+    ] {
+        assert!(content.contains(needle), "{content}");
+    }
     let output = project.run(&["guide", "E_SUCCESSOR_DESTRUCTIVE", "--json"]);
     assert!(output.status.success());
     let page = json_stdout(&output);

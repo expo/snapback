@@ -365,12 +365,17 @@ query nullFirst(flag: bool):
     ]) {
       const execution = execute(values);
       const ints = (items: readonly number[]) => ({ Array: items.map((value) => ({ Int: value })) });
-      deepStrictEqual(execution.result, { Row: {
+      const expectedResult = { Row: {
         alias: ints(expected), original: ints(expected), stored: ints(expected),
-      } });
-      deepStrictEqual(execution.writes, [{ table: "records", id: "record-1", row: { Row: {
+      } } as const;
+      deepStrictEqual(canonicalValue(execution.result), canonicalValue(expectedResult));
+      const expectedRow = { Row: {
         id: { Id: "record-1" }, amounts: ints(expected),
-      } } }]);
+      } } as const;
+      deepStrictEqual(
+        execution.writes.map(({ table, id, row }) => ({ table, id, row: canonicalValue(row) })),
+        [{ table: "records", id: "record-1", row: canonicalValue(expectedRow) }],
+      );
     }
     const plain = direct("plain");
     const plainCheck = rustCheck([plain], "synthetic", schemaJson)[0]!;

@@ -3,6 +3,7 @@
 **Opened:** 2026-09-10 (LLP 1020 A7, lane `cost`)
 **Area:** certificate policy / maintained reads
 **Related:** LLP 1020 A7; LLP 1011 B2; `20260907-snapback2-quarry-gaps-from-the-m7-migration-legs.md` item 2
+**Status:** Resolved
 
 ## Finding
 
@@ -55,3 +56,12 @@ than visibility/absence authority.
 maintained-read exception is owed, or approves a specific policy amendment
 with certificate/native/twin/receipt tests. Until then this ticket is not
 eligible for closure.
+
+## Resolution — 2026-09-11
+
+The user delegated the remaining implementation and design choices for the
+Snapback 2 ticket queue. Under that authority, LLP 1020 A7 now records the
+no-exception ruling: maintained `Get` already admits, cap-equals-bound is not
+visibility evidence, and no absence authority is manufactured. The existing
+reproducer remains the executable guard. No certificate policy or runtime code
+changed for this resolution.

@@ -205,6 +205,7 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
     // cleanup is allowed to remove crash-left temporaries.
     let blobs: Arc<dyn BlobStore> = Arc::new(FileBlobStore::open(&root)?);
     let staging = Arc::new(LocalStaging::open(&root)?);
+    let media_jobs = crate::asset_http::MediaJobs::default();
     let info = OwnerInfo {
         pid: std::process::id(),
         port: server.port,
@@ -226,6 +227,7 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
         info.clone(),
         blobs.clone(),
         staging.clone(),
+        media_jobs.clone(),
         options.test_owner,
     )?;
     let _effects = crate::effects::spawn(handle.clone(), &root, stop.clone());
@@ -273,7 +275,7 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
         stop: stop.clone(),
         blobs,
         staging,
-        media_jobs: Default::default(),
+        media_jobs,
         compiler,
     });
     stop.store(true, Ordering::SeqCst);

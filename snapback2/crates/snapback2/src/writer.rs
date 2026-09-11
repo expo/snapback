@@ -443,6 +443,7 @@ struct State {
     asset_carriers: BTreeMap<String, writer_auth::AssetCarrier>,
     blobs: Arc<dyn BlobStore>,
     staging: Arc<LocalStaging>,
+    media_jobs: crate::asset_http::MediaJobs,
     pending_asset_deletes: BTreeSet<String>,
     next_asset_sweep: Instant,
 }
@@ -461,6 +462,7 @@ pub fn spawn_writer(
     owner: OwnerInfo,
     blobs: Arc<dyn BlobStore>,
     staging: Arc<LocalStaging>,
+    media_jobs: crate::asset_http::MediaJobs,
     bound_effects: bool,
 ) -> Result<OwnerHandle, Refusal> {
     let (tx, rx) = mpsc::channel();
@@ -496,6 +498,7 @@ pub fn spawn_writer(
                     asset_carriers: BTreeMap::new(),
                     blobs,
                     staging,
+                    media_jobs,
                     pending_asset_deletes: BTreeSet::new(),
                     next_asset_sweep: Instant::now() + ASSET_SWEEP_INTERVAL,
                 },

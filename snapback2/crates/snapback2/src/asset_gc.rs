@@ -7,6 +7,11 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 
+pub struct AssetSweep {
+    pub remaining: BTreeSet<String>,
+    pub refusal: Option<Refusal>,
+}
+
 /// Sweep immutable originals and variants in one enumeration. Active-ledger
 /// reclamation candidates survive only while a read-only fork still names
 /// them; keys absent from every ledger are orphans by definition. The returned
@@ -18,21 +23,27 @@ pub fn sweep_asset_blobs(
     blobs: &dyn BlobStore,
     live_ids: &BTreeSet<String>,
     reclaimed_ids: &BTreeSet<String>,
-) -> Result<BTreeSet<String>, Refusal> {
+) -> Result<AssetSweep, Refusal> {
     let fork_ids = fork_all_references(root)?;
-    let remaining = reclaimed_ids
+    let mut remaining = reclaimed_ids
         .intersection(&fork_ids)
         .cloned()
         .collect::<BTreeSet<_>>();
+    let mut refusal = None;
     blobs.enumerate("", &mut |key| {
         let id = key.split_once(".w").map_or(key, |(id, _)| id);
         let fork_referenced = fork_ids.contains(id);
         if !fork_referenced && (reclaimed_ids.contains(id) || !live_ids.contains(id)) {
-            blobs.delete(key)?;
+            if let Err(error) = blobs.delete(key) {
+                if reclaimed_ids.contains(id) {
+                    remaining.insert(id.to_owned());
+                }
+                refusal.get_or_insert(error);
+            }
         }
         Ok(())
     })?;
-    Ok(remaining)
+    Ok(AssetSweep { remaining, refusal })
 }
 
 fn fork_all_references(root: &Path) -> Result<BTreeSet<String>, Refusal> {
@@ -121,6 +132,56 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     const ID: &str = "s2id-00000000000000000000000000000006-0000000000000001";
+    const SIBLING_ID: &str = "s2id-00000000000000000000000000000006-0000000000000002";
+
+    struct FirstDeleteFails {
+        deleted: std::sync::Mutex<Vec<String>>,
+    }
+
+    impl BlobStore for FirstDeleteFails {
+        fn put(&self, _key: &str, _source: &mut dyn std::io::Read) -> Result<u64, Refusal> {
+            unreachable!("deletion test does not publish")
+        }
+
+        fn get(
+            &self,
+            _key: &str,
+            _range: Option<crate::blob_store::ByteRange>,
+        ) -> Result<crate::blob_store::BlobRead, Refusal> {
+            unreachable!("deletion test does not read")
+        }
+
+        fn delete(&self, key: &str) -> Result<(), Refusal> {
+            if key == ID {
+                return Err(asset_io("injected first deletion failure"));
+            }
+            self.deleted.lock().unwrap().push(key.to_owned());
+            Ok(())
+        }
+
+        fn enumerate(
+            &self,
+            _prefix: &str,
+            visitor: &mut dyn FnMut(&str) -> Result<(), Refusal>,
+        ) -> Result<(), Refusal> {
+            visitor(ID)?;
+            visitor(SIBLING_ID)?;
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn one_delete_failure_retains_that_id_but_settles_later_siblings() {
+        let root = std::env::temp_dir().join("snapback2-asset-gc-delete-progress");
+        let blobs = FirstDeleteFails {
+            deleted: std::sync::Mutex::new(Vec::new()),
+        };
+        let ids = BTreeSet::from([ID.to_owned(), SIBLING_ID.to_owned()]);
+        let result = sweep_asset_blobs(&root, &blobs, &BTreeSet::new(), &ids).unwrap();
+        assert_eq!(result.refusal.unwrap().code, "E_OWNER_ASSET_IO");
+        assert_eq!(result.remaining, BTreeSet::from([ID.to_owned()]));
+        assert_eq!(*blobs.deleted.lock().unwrap(), vec![SIBLING_ID.to_owned()]);
+    }
 
     /// The raw ledger mint is crate-private to core; a tableless generation is
     /// enough to open the typed `Runtime` entry over a real store file.
@@ -160,7 +221,9 @@ mod tests {
 
         let candidates = BTreeSet::from([ID.to_owned()]);
         assert_eq!(
-            sweep_asset_blobs(&root, &blobs, &candidates, &candidates).unwrap(),
+            sweep_asset_blobs(&root, &blobs, &candidates, &candidates)
+                .unwrap()
+                .remaining,
             candidates
         );
         assert!(blobs.path_for_key(ID).unwrap().exists());
@@ -170,6 +233,7 @@ mod tests {
         assert!(
             sweep_asset_blobs(&root, &blobs, &candidates, &candidates)
                 .unwrap()
+                .remaining
                 .is_empty()
         );
         assert!(!blobs.path_for_key(ID).unwrap().exists());
@@ -234,6 +298,7 @@ mod tests {
                 &BTreeSet::from([id.clone()]),
             )
             .unwrap()
+            .remaining
             .is_empty()
         );
         ledger.finish_asset_reclaims(&resumed).unwrap();

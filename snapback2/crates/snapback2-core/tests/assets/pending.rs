@@ -260,7 +260,7 @@ fn released_originals_still_exhaust_creator_and_global_byte_admission_and_growth
 }
 
 #[test]
-fn receiving_tombstones_keep_slots_but_ready_tombstones_keep_the_existing_exclusion() {
+fn physical_tombstones_keep_bytes_charged_until_reclamation_finishes() {
     let mut runtime = Runtime::open(Store::memory().unwrap(), asset_generation()).unwrap();
     let alice = user("alice");
     let receiving = runtime
@@ -298,7 +298,7 @@ fn receiving_tombstones_keep_slots_but_ready_tombstones_keep_the_existing_exclus
         runtime.asset_staging_usage(&alice).unwrap().creator,
         AssetStagingUsage {
             objects: 1,
-            bytes: 15
+            bytes: 22
         }
     );
     assert_eq!(
@@ -319,10 +319,20 @@ fn receiving_tombstones_keep_slots_but_ready_tombstones_keep_the_existing_exclus
     runtime.mark_asset_failed(&receiving).unwrap();
     assert_eq!(
         runtime.asset_staging_usage(&alice).unwrap().creator,
-        AssetStagingUsage::default()
+        AssetStagingUsage {
+            objects: 0,
+            bytes: 22
+        }
     );
-    // These are admission figures, not proof of completed blob deletion.
     assert_eq!(runtime.asset_ids().unwrap().len(), 3);
+    runtime
+        .finish_asset_reclaims(&[receiving, asset_id(&ready), released_id])
+        .unwrap();
+    assert_eq!(
+        runtime.asset_staging_usage(&alice).unwrap().creator,
+        AssetStagingUsage::default(),
+        "admission credit follows physical-reclamation settlement"
+    );
 }
 
 #[test]
@@ -732,10 +742,7 @@ fn only_unattached_list_and_optional_arguments_are_discarded() {
                     max: 4,
                 },
             ),
-            (
-                "extra".to_owned(),
-                ArgType::Optional(Box::new(image_arg())),
-            ),
+            ("extra".to_owned(), ArgType::Optional(Box::new(image_arg()))),
         ]),
         read_time_granularity_ms: None,
         body: vec![Stmt::Insert {

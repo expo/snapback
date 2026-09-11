@@ -1,6 +1,6 @@
 # snapback2: `reset` does not clear the template's static seed rows, and `dev`/`reset` have no `--help`
 
-**Status:** Open — reset/help/fixture handles resolved; parallel fresh-instance guide recipe remains
+**Status:** Resolved
 
 **Date:** 2026-09-07 · **Area:** snapback2 CLI / chat template · **Source:** Clique full run, muse-snapback2 lane (diary M1), grok-snapback2 (M1: dev seed personas occupy fixture handles)
 
@@ -51,3 +51,13 @@ card documents an isolated owner per journey run, but the guide does not yet giv
 the requested separate-project/instance recipe for parallel app/scale replays.
 `reset --empty` is not that recipe. Add the guide recipe using the supported
 isolation mechanism; no new `--store` flag or reset semantics are commissioned here.
+
+## Resolution — 2026-09-11
+
+`guide testing` now documents the supported fresh-instance boundary: one project
+directory per owner/store, selected with `--project`. Its executable recipe creates
+two independent projects, runs their proofs independently, explains free-port and
+per-project `dev-url` behavior, and warns against copying `.snapback/` state when an
+existing app is duplicated for a replay. The guide regression asserts that the
+shipped card retains the boundary, command, and state-copy warning. No new store
+selector or reset behavior was introduced.

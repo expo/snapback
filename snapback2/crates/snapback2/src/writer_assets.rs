@@ -6,8 +6,6 @@ use snapback2_core::{ArgType, ColumnType};
 
 impl State {
     pub(super) fn reset(&mut self, empty: bool) -> Result<Json, Refusal> {
-        // @ref LLP 1006#9a-where-bytes-live-author-ruling-2026-09-03 — reset clears staging and uses the fork-aware sweep, never a blob wipe.
-        self.staging.clear()?;
         let seed = self.seed.clone();
         let rows = if empty {
             Vec::new()
@@ -42,6 +40,10 @@ impl State {
         // (LLP 1006 §9a).
         let asset_ids = reset.asset_ids.clone();
         self.pending_asset_deletes.extend(reset.asset_ids);
+        // @ref LLP 1006#9a-where-bytes-live-author-ruling-2026-09-03 — only a
+        // committed reset may clear staging. Active upload custody defers that
+        // physical clear, and the fork-aware sweep below never performs a blob wipe.
+        self.staging.clear_after_reset()?;
         self.sweep_asset_blobs()?;
         let seed = if empty {
             json!("skipped")
@@ -99,7 +101,14 @@ impl State {
             .into_iter()
             .collect();
         let mut deletable = BTreeSet::new();
+        // @ref LLP 1006#9-lifecycle-finalize-off-the-writer-and-reclamation —
+        // final GC shares the media-flight guard, so a rung cannot publish and
+        // a once-view cannot record history after its ledger row disappears.
+        let active_media = self.media_jobs.active_asset_ids();
         for id in &self.pending_asset_deletes {
+            if active_media.contains(id) {
+                continue;
+            }
             // Running finalizers and failed unlinks stay pending and charged.
             // Retry next interval without stopping the writer or sibling GC;
             // explicit discard still reports the per-upload I/O refusal.
@@ -107,14 +116,14 @@ impl State {
                 deletable.insert(id.clone());
             }
         }
-        let remaining = crate::asset_gc::sweep_asset_blobs(
+        let sweep = crate::asset_gc::sweep_asset_blobs(
             &self.root,
             self.blobs.as_ref(),
             &live_ids,
             &deletable,
         )?;
         let finished = deletable
-            .difference(&remaining)
+            .difference(&sweep.remaining)
             .cloned()
             .collect::<Vec<_>>();
         self.runtime_mut()
@@ -124,7 +133,8 @@ impl State {
             self.pending_asset_deletes.remove(&id);
             self.staging.finish_upload(&id);
         }
-        Ok(())
+        self.staging.resume_reset_clear()?;
+        sweep.refusal.map_or(Ok(()), Err)
     }
 
     // @ref LLP 1006#2-authority-delivery-is-by-the-row-that-holds-it — asset
@@ -456,6 +466,7 @@ mod tests {
             asset_carriers: BTreeMap::new(),
             blobs,
             staging,
+            media_jobs: Default::default(),
             pending_asset_deletes: std::collections::BTreeSet::new(),
             next_asset_sweep: Instant::now() + ASSET_SWEEP_INTERVAL,
         }
