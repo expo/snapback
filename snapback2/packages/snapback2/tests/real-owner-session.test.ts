@@ -170,37 +170,48 @@ test("real channel membership revocation ends the subscriber with a refusal", as
   await Promise.all([alice.ready, bob.ready]);
   const channel = bob.channel(api.typing, { conversationId: "conversation-1" });
   const snapshots: any[] = [];
-  const sub = channel.subscribe(snapshot => snapshots.push(snapshot));
-  await sub.until(snapshot => snapshot.status === "ready", 2_000).catch(error => {
-    throw new Error(`channel readiness: ${JSON.stringify(snapshots)}`, { cause: error });
+  const ready = Promise.withResolvers<any>(), typing = Promise.withResolvers<any>(), revoked = Promise.withResolvers<any>();
+  const sub = channel.subscribe(snapshot => {
+    snapshots.push(snapshot);
+    if (snapshot.status === "ready") ready.resolve(snapshot);
+    if (snapshot.entries.some((entry: any) => entry.value.typing)) typing.resolve(snapshot);
+    if (snapshot.status === "unavailable" && snapshot.reason === "refused") revoked.resolve(snapshot);
   });
-  const typing = sub.until(snapshot => snapshot.entries.some((entry: any) => entry.value.typing), 2_000).catch(error => {
-    throw new Error(`channel typing: ${JSON.stringify(snapshots)}`, { cause: error });
-  });
+  context.after(() => sub.close());
+  await ready.promise;
+  const publisher = alice.channel(api.typing, { conversationId: "conversation-1" });
   assert.deepEqual(
-    await alice.channel(api.typing, { conversationId: "conversation-1" }).set({ typing: true }),
+    await publisher.set({ typing: true }),
     { ok: true },
   );
-  assert.deepEqual((await typing).entries[0].value, { typing: true });
-  const terminal = sub.until(() => false, 2_000).then(
-    () => undefined,
-    (error: unknown) => error,
-  );
+  assert.deepEqual((await typing.promise).entries[0].value, { typing: true });
+  const { readFile } = await import("node:fs/promises");
+  const info = JSON.parse(await readFile(`${owner.root}/.snapback/owner.json`, "utf8"));
+  const status = async () => fetch(`${owner.url}/control/status`, {
+    headers: { "x-snapback-control": info.secret },
+  }).then(response => response.json());
+  const before = await status();
   const removed = await bob.mutation(api.groups.memberLeave, {
     conversationId: "conversation-1",
     membershipId: "membership-2",
   });
   assert.equal(removed.state, "committed");
-  const terminalError = await terminal;
-  assert.ok(isRefusalError(terminalError));
-  assert.equal(terminalError.code, "E_RULE_CHANNEL_SUBSCRIBE");
-  assert.equal(snapshots.at(-1)?.status, "unavailable");
-  assert.equal(snapshots.at(-1)?.reason, "refused");
-  assert.deepEqual(snapshots.at(-1)?.entries, []);
-  assert.equal(snapshots.at(-1)?.key, undefined);
-  assert.equal(snapshots.at(-1)?.refusal.family, "rule");
-  assert.equal(snapshots.at(-1)?.refusal.guide, "live-query");
-  sub.close();
+  // The mutation turn readmits every touched channel before it replies. A
+  // subsequent status action is therefore an ordered owner progress witness,
+  // not a guess about how many milliseconds a loaded machine needs.
+  const after = await status();
+  assert.equal(after.channelSubscriptions, before.channelSubscriptions - 1);
+  const refused = await revoked.promise;
+  await assert.rejects(
+    sub.until(() => false),
+    (error: unknown) => isRefusalError(error) && error.code === "E_RULE_CHANNEL_SUBSCRIBE",
+  );
+  assert.strictEqual(snapshots.at(-1), refused);
+  assert.deepEqual(refused.entries, []);
+  assert.equal(refused.key, undefined);
+  assert.equal(refused.refusal.family, "rule");
+  assert.equal(refused.refusal.guide, "live-query");
+  publisher.close(); sub.close();
 });
 
 test("a real stored session restores after a cut with identical snapshot views and no mounted query", async () => {
