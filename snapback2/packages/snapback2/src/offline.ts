@@ -503,7 +503,10 @@ export class OfflineRuntime {
   }
 
   async open(principal: string, authenticated = false): Promise<void> {
-    if (this.partition !== principal) this.outbox.resetTrust();
+    // Every open starts a new lifecycle even when it reopens the same
+    // principal. A grant adoption already in a deferred carrier must not
+    // renew trust in the reopened runtime.
+    this.outbox.resetTrust();
     // The session allowance is dropped before the first await of a partition change:
     // a byte read that lands between the carrier's open and bind() must never hand
     // the previous principal's blob to the incoming partition (grok, O4-web round 2).
@@ -511,7 +514,6 @@ export class OfflineRuntime {
     await this.serial(async () => {
       await this.outbox.write(async () => {
         if (this.partition !== principal) {
-          this.outbox.resetTrust();
           this.facts = undefined;
           this.superseded = undefined;
           this.held = undefined;
@@ -643,7 +645,11 @@ export class OfflineRuntime {
     this.resumeQueries = Object.entries(this.operations).flatMap(([op, operation]) => {
       if (operation.kind !== "query" || !object(operation.args)) return [];
       if (!Object.values(operation.args).every((arg) => object(arg) && "Optional" in arg)) return [];
-      return [{ op, args: Object.fromEntries(Object.keys(operation.args).map((key) => [key, null])), drain: false }];
+      return [{
+        op,
+        args: Object.fromEntries(Object.keys(operation.args).map((key) => [key, null])),
+        drain: operation.drain !== undefined && !("reason" in operation.drain),
+      }];
     });
     // Manifest tables carry current columns: replace stale schema custody even without a full schema.
     this.schema = (value.schema?.tables ? value.schema : { tables: value.tables ?? {} }) as OfflineSchema;
@@ -918,6 +924,12 @@ export class OfflineRuntime {
     await this.commitMany([], { op, args: operationArgs(args, this.declaredCursorArg(op)), watermark, validator }, undefined, revision);
   }
 
+  /** Stop retrying a delivery-log candidate the owner has refused. */
+  async dropWatermark(op: string, args: unknown): Promise<void> {
+    if (this.partition === undefined) return;
+    await this.store.commit({ dropWatermarks: [canonicalAnswerKey(op, args, this.declaredCursorArg(op))] });
+  }
+
   /** Offline admission uses the held generation; current metadata never certifies stale coverage. */
   drainCursor(op: string): string {
     return admitDrain(op, this.held ? this.held.programs[op]?.drain : this.operations[op]?.drain);
@@ -994,21 +1006,30 @@ export class OfflineRuntime {
   }
 
   /** A real query earns the authority facts; metadata alone never renews trust. */
-  async resumeSeed(mounted: MountedQuery[]): Promise<MountedQuery | undefined> {
-    if (this.partition === undefined) return undefined;
+  async resumeSeeds(mounted: MountedQuery[]): Promise<MountedQuery[]> {
+    if (this.partition === undefined) return [];
     const held = tailWatermark((await this.storeMetadata()).watermarks);
-    // Prefer the mounted drain, then the recorded log, then the first manifest
-    // query with a Cursor and known arguments, then the first all-optional query.
-    // An ordinary mounted query must not displace the app's chosen delivery log.
-    const log = mounted.find((query) => query.drain);
-    if (log) return log;
-    if (held) return { op: held.op, args: held.args, drain: true };
+    // Try every known candidate in policy order. A retired/refused delivery
+    // log cannot strand a write when another real query can establish facts.
+    const candidates: MountedQuery[] = [];
+    const seen = new Set<string>();
+    const add = (query: MountedQuery | undefined) => {
+      if (!query) return;
+      const key = `${query.op}\u0000${canonical(query.args)}`;
+      if (seen.has(key)) return;
+      seen.add(key); candidates.push(query);
+    };
+    for (const query of mounted) if (query.drain) add(query);
+    if (held) add({ op: held.op, args: held.args, drain: true });
+    for (const query of this.resumeQueries) if (query.drain) add(query);
     for (const [op, metadata] of Object.entries(this.operations)) {
       if (!cursorArgument(metadata)) continue;
       const query = mounted.find((query) => query.op === op) ?? this.resumeQueries.find((query) => query.op === op);
-      if (query) return query;
+      add(query);
     }
-    return this.resumeQueries[0] ?? mounted[0];
+    for (const query of this.resumeQueries) add(query);
+    for (const query of mounted) add(query);
+    return candidates;
   }
 
   private async flushGrant(check?: () => void): Promise<void> {

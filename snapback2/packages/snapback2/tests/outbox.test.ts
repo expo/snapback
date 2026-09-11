@@ -147,25 +147,37 @@ test("a resume whose grant persistence crosses a seal cannot restore trust; the 
   }
 });
 
-test("no-facts recovery chooses the mounted drain ahead of another mounted candidate, then the recorded log, native cursor metadata, or optional query on both carriers", async () => {
+test("no-facts recovery orders candidates and falls back from a retired delivery log on both carriers", async () => {
   for (const carrier of await carriers()) {
     const originalNow = Date.now;
     let now = originalNow();
     Date.now = () => now;
     try {
-      for (const choice of ["mounted", "recorded", "cursor", "optional"] as const) {
+      for (const choice of ["mounted", "recorded", "cursor", "optional", "fallback", "exhausted"] as const) {
         const owner = fakeOwner();
         const queries: string[] = [];
         const manifestOps = {
-          "account.mine": { kind: "query", args: {}, planHash: "f".repeat(64) },
-          ...(choice === "optional" ? {} : {
+          ...(choice === "exhausted" ? {} : { "account.mine": { kind: "query", args: {}, planHash: "f".repeat(64) } }),
+          ...(choice === "optional" ? {} : choice === "fallback" ? {
+            "retired.log": { kind: "query", cursor: "c", drain: { cursor: "c" }, args: { c: { Optional: "Cursor" } }, planHash: "f".repeat(64) },
+            "messages.inbox": { kind: "query", cursor: "c", drain: { cursor: "c" }, args: { c: { Optional: "Cursor" } }, planHash: "f".repeat(64) },
+          } : choice === "exhausted" ? {
+            "retired.log": { kind: "query", cursor: "c", drain: { cursor: "c" }, args: { c: { Optional: "Cursor" } }, planHash: "f".repeat(64) },
+            "retired.other": { kind: "query", cursor: "c", drain: { cursor: "c" }, args: { c: { Optional: "Cursor" } }, planHash: "f".repeat(64) },
+          } : {
             "feed.global": { kind: "query", cursor: "c", args: { c: { Optional: "Cursor" } }, planHash: "f".repeat(64) },
             "messages.inbox": { kind: "query", cursor: "c", args: { c: { Optional: "Cursor" } }, planHash: "f".repeat(64) },
           }),
         };
         const fetch: typeof globalThis.fetch = async (input, init) => {
           const path = new URL(String(input)).pathname;
-          if (path === "/api/query") queries.push(JSON.parse(String(init?.body)).op);
+          if (path === "/api/query") {
+            const op = JSON.parse(String(init?.body)).op;
+            queries.push(op);
+            if (op.startsWith("retired.")) return jsonResponse({
+              code: "E_OP_UNKNOWN", family: "op", message: "operation retired", guide: "op/manifest",
+            }, 404);
+          }
           const response = await owner.fetch(input, init);
           if (path !== "/api/manifest") return response;
           return jsonResponse({ ...await response.json(), ops: manifestOps });
@@ -179,11 +191,11 @@ test("no-facts recovery chooses the mounted drain ahead of another mounted candi
           await client.mutation(api.messages.send as any, post(choice));
           await client.close();
           now += 3 * DAY;
-          if (choice === "recorded") {
+          if (choice === "recorded" || choice === "fallback" || choice === "exhausted") {
             const store = carrier.factory()();
             await store.open("dev:alice");
             // The log choice survived, but it has no generation/auth facts yet.
-            await store.commit({ watermark: { op: "messages.inbox", args: { c: null }, watermark: null, updatedAt: now } });
+            await store.commit({ watermark: { op: choice === "fallback" || choice === "exhausted" ? "retired.log" : "messages.inbox", args: { c: null }, watermark: null, updatedAt: now } });
             await store.close?.();
           }
           client = createClient({ url: "http://seed-choice.test", fetch, token: "alice-token", offline: { store: carrier.factory(), fenceDays: 1 } });
@@ -192,9 +204,12 @@ test("no-facts recovery chooses the mounted drain ahead of another mounted candi
             subscriptions.push(subscribe(client, api.messages.inbox as any, { c: null }, () => {}, { drain: true }));
           }
           await client.ready;
-          const expected = choice === "optional" ? "account.mine" : choice === "cursor" ? "feed.global" : "messages.inbox";
-          assert.equal(queries[0], expected, `${carrier.name}: ${choice}`);
-          assert.equal((await client.outbox.entries())[0]?.state, "committed");
+          const expected = choice === "optional" ? ["account.mine"] : choice === "cursor" ? ["feed.global"]
+            : choice === "fallback" ? ["retired.log", "messages.inbox"]
+            : choice === "exhausted" ? ["retired.log", "retired.other"] : ["messages.inbox"];
+          assert.deepEqual(queries.slice(0, expected.length), expected, `${carrier.name}: ${choice}`);
+          assert.equal((await client.outbox.entries())[0]?.state, choice === "exhausted" ? "queued" : "committed");
+          if (choice === "exhausted") assert.equal(client.snapshot.lastRefusal?.code, "E_OFFLINE_RESUME");
           if (choice === "mounted") await (subscriptions[1] as any).until((value: any) => value.caughtUp === true, 2_000);
         } finally {
           for (const subscription of subscriptions) subscription.close();

@@ -176,12 +176,31 @@ export class OutboxLedger {
   adopt(grant: OutboxGrant, check?: () => void): Promise<void> {
     return this.write(async () => {
       const grants = await this.store.outbox.grants();
+      const current = await this.store.outbox.grant();
       const held = grants.some(item => item.id === grant.id);
       const queued = new Set((await this.queued()).map(entry => entry.grant));
       check?.();
-      await this.commit({ grants: { current: grant.id, ...(held ? {} : {
+      // The carrier may defer after receiving the swap. Check authority both
+      // before and after persistence, and restore the exact prior grant image
+      // before releasing the ledger tail when lifecycle custody changed.
+      await this.store.commit({ grants: { current: grant.id, ...(held ? {} : {
         put: [grant], remove: grants.filter(item => !queued.has(item.id)).map(item => item.id),
       }) } });
+      try {
+        check?.();
+      } catch (authorityError) {
+        try {
+          await this.store.commit({ grants: {
+            current: current?.id ?? null,
+            put: grants,
+            ...(held ? {} : { remove: [grant.id] }),
+          } });
+        } catch (rollbackError) {
+          throw new AggregateError([authorityError, rollbackError], "grant adoption lost authority and rollback failed");
+        }
+        throw authorityError;
+      }
+      this.notify();
     });
   }
 

@@ -427,22 +427,41 @@ export async function performOfflineResume<Authority>(options: {
       return false;
     }
     check();
-    const seed = await options.runtime.resumeSeed([...options.mounted.values()]);
+    const seeds = await options.runtime.resumeSeeds([...options.mounted.values()]);
     check();
-    if (!seed) throw resumeUnavailable("no query with known arguments can establish resume facts");
-    const raw = await options.json("/api/query?receipt=1", {
-      method: "POST", body: JSON.stringify({ op: seed.op, args: seed.args }), signal: options.signal,
-    }, options.authority);
-    check();
-    const accepted = await acceptOffline(options.runtime, seed.op, seed.args, raw, options.shape, fullRead(seed.op, seed.args));
-    check();
-    wireQuery(accepted.result);
-    await commitOffline(options.runtime, seed.op, seed.args, accepted, options.failure ?? ((error) => error as Error),
-      revision, () => !options.signal?.aborted);
-    check();
-    request = await options.runtime.resumeRequest([...options.mounted.values()], { ...adjustment, demand: options.demand });
-    check();
-    if (!request) throw resumeUnavailable("the owner query did not deliver the facts required for resume");
+    if (seeds.length === 0) throw resumeUnavailable("no query with known arguments can establish resume facts");
+    for (const seed of seeds) {
+      try {
+        const raw = await options.json("/api/query?receipt=1", {
+          method: "POST", body: JSON.stringify({ op: seed.op, args: seed.args }), signal: options.signal,
+        }, options.authority);
+        check();
+        const accepted = await acceptOffline(options.runtime, seed.op, seed.args, raw, options.shape, fullRead(seed.op, seed.args));
+        check();
+        const delivered = wireQuery(accepted.result);
+        const superseded = await commitOffline(options.runtime, seed.op, seed.args, accepted, options.failure ?? ((error) => error as Error),
+          revision, () => !options.signal?.aborted);
+        check();
+        if (seed.drain && !superseded && accepted.envelope && "next" in delivered
+          && (delivered.next === null || typeof delivered.next === "string")) {
+          await options.runtime.markWatermark(seed.op, seed.args, delivered.next, accepted.envelope.validator, revision);
+          check();
+        }
+        request = await options.runtime.resumeRequest([...options.mounted.values()], { ...adjustment, demand: options.demand });
+        check();
+        if (request) break;
+      } catch (error) {
+        // Cancellation and lifecycle replacement win immediately. Query-local
+        // refusals fall through to the next known candidate.
+        check();
+        if (options.runtime.principal !== grantPrincipal || revision !== options.runtime.coverageRevision) throw error;
+        if (seed.drain) {
+          await options.runtime.dropWatermark(seed.op, seed.args);
+          check();
+        }
+      }
+    }
+    if (!request) throw resumeUnavailable("no owner query candidate delivered the facts required for resume");
   }
   const requestedEpoch = request.authEpoch;
   const rebuild = async () => {
@@ -500,7 +519,8 @@ export async function performOfflineResume<Authority>(options: {
     options.runtime.noteGrant(response, grantPrincipal);
     await options.runtime.adoptPendingGrant(() => {
       check();
-      if (options.runtime!.principal !== grantPrincipal || options.runtime!.hasCoverageFacts || options.runtime!.resetNeeded) {
+      if (options.runtime!.outbox.generation !== generation || options.runtime!.principal !== grantPrincipal
+        || options.runtime!.hasCoverageFacts || options.runtime!.resetNeeded) {
         throw resumeUnavailable("coverage changed during capacity acquisition; resume before sending");
       }
     });
@@ -561,8 +581,14 @@ export async function performOfflineResume<Authority>(options: {
   // successful re-authorization itself renews trust, then replay is FIFO.
   options.runtime.noteGrant(response, grantPrincipal);
   try {
-    await options.runtime.adoptPendingGrant(check);
-    check();
+    const grantAuthority = () => {
+      check();
+      if (options.runtime!.outbox.generation !== generation) {
+        throw resumeUnavailable("offline lifecycle changed during grant adoption; resume again before sending");
+      }
+    };
+    await options.runtime.adoptPendingGrant(grantAuthority);
+    grantAuthority();
   } catch (error) {
     throw options.failure ? options.failure(error) : error;
   }

@@ -1,8 +1,9 @@
 # Snapback 2 fence: the resume trust anchor's remaining race, and the no-facts seed's single try
 
-**Status:** Open
+**Status:** Closed
 **Systems:** snapback2 client (`packages/snapback2/src/store/outbox.ts` lifecycle generation; `src/offline.ts` open(); `src/client-offline.ts` resume completion and the no-facts seed)
 **Date:** 2026-09-04
+**Resolved:** 2026-09-10
 **Related:** LLP 1012 revision (i) and lane F's §7 record; reviews `fence-r3-astra.md` B1, `fence-r3-muse.md` M2 (the lane's third and last review round)
 
 ## Findings
@@ -40,3 +41,17 @@ barriers same-principal `open()` nor forces the first no-facts seed to refuse.
 The four findings remain live; items 2/4 are one unit. Closure needs the
 deferred-carrier same-principal race (no obsolete grant/anchor) and ordered
 seed fallback ending in typed `E_OFFLINE_RESUME` only after exhaustion.
+
+## Resolution — 2026-09-10
+
+Every `OfflineRuntime.open()` now advances the outbox lifecycle generation,
+including a same-principal reopen. Grant adoption checks lifecycle/operation
+authority before and after carrier persistence; if a deferred carrier crosses
+the fence, it restores the prior grant image before releasing the ledger tail.
+The deterministic same-principal test proves the obsolete grant is absent.
+
+No-facts recovery now enumerates mounted drains, the durable log, manifest
+delivery logs, cursor queries, and all-optional fallbacks in that order. A
+refused durable log is explicitly retired, a successful replacement log takes
+over settlement-tail custody, and exhaustion yields typed `E_OFFLINE_RESUME`.
+The all-carrier regression covers both successful fallback and exhaustion.

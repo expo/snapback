@@ -322,6 +322,8 @@ export interface StoreSwap {
   /** One validated resume response, including unchanged; never a query re-delivery. */
   resumeSeq?: number;
   dropAnswers?: string[];
+  /** Explicitly retire unusable delivery-log candidates by canonical answer key. */
+  dropWatermarks?: string[];
   outbox?: { put?: OutboxEntry[]; remove?: string[] };
   /** Inbox rows to mark or delete in this swap's carrier transaction: a per-key delta, never a store replacement (LLP 1018.004 §2). */
   inbox?: InboxDelta;
@@ -529,7 +531,7 @@ export function tailWatermark(watermarks: WatermarkRecord[]): WatermarkRecord | 
 
 function changesCoverage(swap: StoreSwap): boolean {
   return !!(swap.resetCoverage || swap.deliveries?.length || swap.refreshes?.length || swap.tombstones?.length
-    || swap.dropAnswers?.length || swap.bytes || swap.viewed?.length || swap.schema || swap.programs
+    || swap.dropAnswers?.length || swap.dropWatermarks?.length || swap.bytes || swap.viewed?.length || swap.schema || swap.programs
     || swap.outbox?.put?.some((entry) => entry.state === "committed"));
 }
 
@@ -916,6 +918,7 @@ export class PersistentRangeStore implements RangeStore {
     if (swap.facts && canonical(state.facts) !== canonical(swap.facts)) state.facts = clone(swap.facts);
     if (swap.superseded === null) delete state.superseded;
     else if (swap.superseded) state.superseded = clone(swap.superseded);
+    for (const key of swap.dropWatermarks ?? []) delete state.watermarks[key];
     const previousTail = tailWatermark(Object.values(state.watermarks));
     const clockMark = swap.watermark && (swap.deliveries ?? []).some(d => clockOnly.has(answerKey(d.op, d.args))
       && (answerKey(d.op, d.args) === answerKey(swap.watermark!.op, swap.watermark!.args)
