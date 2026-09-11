@@ -209,6 +209,9 @@ fn regroup_replaces_only_the_owned_projection_without_a_plan() {
             Stmt::Return(var("result")),
         ],
     };
+    Checker::new(rt.generation().schema(), Ceilings::default())
+        .check(&query)
+        .expect("the positional Get must certify against the successor index");
     for (who, expected) in [("dev:bob", 1), ("dev:alice", 0)] {
         let read = rt.read_operator(&query, BTreeMap::from([("who".into(), Value::Id(who.into()))]), OperatorId("alice".into()), 10).unwrap();
         assert_eq!(read.result, Value::Int(expected));

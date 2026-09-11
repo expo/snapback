@@ -607,6 +607,97 @@ mod tests {
         let paste = repair_job(&conflict(vec![]), &optional(enum_of(&["a"])), &enum_of(&["a", "b"]));
         assert!(paste.contains("job fill_items_value(value: enum('a')):"), "{paste}");
     }
+
+    /// Every A1/A2 repair family is pinned byte-for-byte to one Quarry fixture. The
+    /// compiler lowers and certifies every job in that fixture under the predecessor
+    /// schema (or, for a disjoint enum, the widening the paste explicitly requires first).
+    #[test]
+    fn every_repair_family_is_the_fixture_the_compiler_certifies() {
+        let enum_of = |cases: &[&str]| ColumnType::Enum {
+            variants: cases.iter().map(|case| (*case).to_owned()).collect(),
+        };
+        let optional = |inner: ColumnType| ColumnType::Optional(Box::new(inner));
+        let list = |inner: ColumnType, max| ColumnType::List {
+            of: Box::new(inner),
+            max,
+        };
+        let conflict = |table: &str, removed: &[&str], sample: &[&str]| NarrowingConflict {
+            table: table.into(),
+            column: "value".into(),
+            removed_cases: removed.iter().map(|case| (*case).to_owned()).collect(),
+            sample: sample.iter().map(|id| (*id).to_owned()).collect(),
+            ..NarrowingConflict::default()
+        };
+        let cases = vec![
+            (
+                conflict("enumScalar", &["a"], &[]),
+                enum_of(&["a", "b"]),
+                enum_of(&["b"]),
+            ),
+            (
+                conflict("enumOptional", &["a"], &[]),
+                optional(enum_of(&["a", "b"])),
+                enum_of(&["b"]),
+            ),
+            (
+                conflict("enumList", &["a"], &["enum-list-bad"]),
+                list(enum_of(&["a", "b"]), 4),
+                list(enum_of(&["b"]), 4),
+            ),
+            (
+                conflict("nestedOptionalList", &["a"], &["nested-list-bad"]),
+                optional(list(enum_of(&["a", "b"]), 4)),
+                list(enum_of(&["b"]), 4),
+            ),
+            (
+                conflict("textBound", &[], &[]),
+                ColumnType::Text { max: 10 },
+                ColumnType::Text { max: 5 },
+            ),
+            (
+                conflict("bytesBound", &[], &["bytes-bad"]),
+                ColumnType::Bytes { max: 10 },
+                ColumnType::Bytes { max: 5 },
+            ),
+            (
+                conflict("jsonRequired", &[], &[]),
+                optional(ColumnType::Json { max_bytes: 10 }),
+                ColumnType::Json { max_bytes: 20 },
+            ),
+            (
+                conflict("imageRequired", &[], &[]),
+                optional(ColumnType::Image { max: 10, once: false }),
+                ColumnType::Image { max: 20, once: false },
+            ),
+            (
+                conflict("videoRequired", &[], &[]),
+                optional(ColumnType::Video { max: 10 }),
+                ColumnType::Video { max: 20 },
+            ),
+            (
+                conflict("mixedEnum", &["a"], &[]),
+                optional(enum_of(&["a", "b"])),
+                enum_of(&["b", "c"]),
+            ),
+            (
+                conflict("disjointEnum", &["a"], &[]),
+                optional(enum_of(&["a"])),
+                enum_of(&["c"]),
+            ),
+        ];
+        let generated = cases
+            .iter()
+            .map(|(conflict, predecessor, successor)| {
+                repair_job(conflict, predecessor, successor)
+            })
+            .collect::<Vec<_>>()
+            .join("\n\n");
+        let fixture = include_str!(
+            "../../../packages/compiler/fixtures/quarry-jobs/snapback/exhaustive-repairs.q"
+        );
+        assert_eq!(format!("{generated}\n"), fixture);
+    }
+
     /// One conflict may need two repairs (nulls and a removed case) or a truncation; both
     /// pastes are pinned to the fixture the compiler lowers (`repairs.q`), and the enum
     /// change is mixed (a case removed, a case added, the column required) so the fill's

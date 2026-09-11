@@ -537,7 +537,7 @@ pub(crate) fn apply_additive(
     let changed_maintains = changed_maintains(current, next);
     report.backfilled_maintains = changed_maintains.len() as u64;
 
-    let mut predecessor_maintain_ids = owned;
+    let mut replaced_projection_ids = owned;
 
     // A retired projection can be the source of a new maintain. Clear its
     // engine-owned addresses before any active target reads that source;
@@ -554,7 +554,7 @@ pub(crate) fn apply_additive(
         .filter(|target| !next_targets.contains(target))
         .collect::<BTreeSet<_>>();
     for target in retired_targets {
-        if let Some(ids) = predecessor_maintain_ids.remove(target) {
+        if let Some(ids) = replaced_projection_ids.remove(target) {
             rebuild_owned_aggregate_target(transaction, next, target, &ids, vec![])?;
         }
     }
@@ -573,7 +573,7 @@ pub(crate) fn apply_additive(
             for_row_batches(transaction, table_name, |row| {
                 // Exact predecessor-owned projections will be removed/replaced below.
                 // Surviving rows still undergo scoped successor index admission.
-                if let Some(ids) = predecessor_maintain_ids.get(table_name) {
+                if let Some(ids) = replaced_projection_ids.get(table_name) {
                     if ids.contains(row.field("id")?.as_str()?) {
                         return Ok(());
                     }
@@ -610,7 +610,7 @@ pub(crate) fn apply_additive(
             transaction,
             next,
             &target,
-            predecessor_maintain_ids.remove(&target).unwrap_or_default(),
+            replaced_projection_ids.remove(&target).unwrap_or_default(),
         )?;
     }
     Ok(report)
