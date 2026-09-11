@@ -189,3 +189,15 @@ remeasured. Its explicitly retained 100-lane media-bearing/max-width, phone
 peak-resident, and full-engine scale-curve obligations also remain. Those are
 now the only live scope here; the metadata and public-projection correctness
 defects above are implemented and locally qualified.
+
+## Disposition — 2026-09-11 custody follow-through
+
+**State:** keep open; no resource claim was inferred from unit coverage. The
+follow-through at `dc8bbf74c` adds mounted/cold public-screen and 105-row
+paginated offline controls, and the four focused custody files pass 194/194.
+That is useful correctness evidence but is not the ticket's required fresh
+independent full-delta review, original canonical-suite deadline measurement,
+100-lane media/max-width measurement, phone peak-resident measurement, or
+full-engine scale curve. The Silver host did not answer a bounded SSH
+availability probe, so no fleet/device qualification was attempted or claimed.
+Those measured/review obligations remain the exact blockers to closure.
