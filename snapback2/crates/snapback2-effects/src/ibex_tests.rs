@@ -1368,15 +1368,58 @@ fn payload_json_parse_preserves_an_own_proto_key() {
 }
 
 #[test]
-fn effect_global_surface_is_exact_allowlist() {
+fn effect_global_surface_is_exact_pinned_engine_profile() {
     let decl = declaration("async () => true", vec!["http://127.0.0.1:1".to_owned()]);
     let mut runtime = build_runtime(&decl, None, Instant::now() + Duration::from_secs(10))
         .expect("build effect runtime");
-    assert_eq!(
-        runtime.runtime.global_names(),
-        EFFECT_GLOBALS
-            .iter()
-            .map(|name| (*name).to_owned())
-            .collect::<Vec<_>>()
+    let names = runtime.runtime.global_names();
+    let debugger_profile = EFFECT_GLOBALS
+        .iter()
+        .map(|name| (*name).to_owned())
+        .collect::<Vec<_>>();
+    let release_profile = debugger_profile
+        .iter()
+        .filter(|name| name.as_str() != DEBUGGER_INTERNAL)
+        .cloned()
+        .collect::<Vec<_>>();
+    assert!(
+        names == release_profile || names == debugger_profile,
+        "unexpected hardened engine profile: {names:?}"
     );
+}
+
+#[test]
+fn global_surface_allows_only_the_pinned_debugger_profile_difference() {
+    let debugger_profile = EFFECT_GLOBALS
+        .iter()
+        .map(|name| (*name).to_owned())
+        .collect::<Vec<_>>();
+    let release_profile = debugger_profile
+        .iter()
+        .filter(|name| name.as_str() != DEBUGGER_INTERNAL)
+        .cloned()
+        .collect::<Vec<_>>();
+    assert!(verify_global_names(&debugger_profile).is_ok());
+    assert!(verify_global_names(&release_profile).is_ok());
+
+    let mut unknown = release_profile.clone();
+    unknown.push("UnexpectedEngineGlobal".to_owned());
+    unknown.sort();
+    let BuildFailure::Invalid(unknown_error) = verify_global_names(&unknown).unwrap_err() else {
+        panic!("an unknown global must be an invalid engine surface");
+    };
+    assert!(unknown_error.contains("unexpected: UnexpectedEngineGlobal"));
+
+    for required in ["Intl", "fetch", "__ibex2_fire_timer"] {
+        let missing = release_profile
+            .iter()
+            .filter(|name| name.as_str() != required)
+            .cloned()
+            .collect::<Vec<_>>();
+        let BuildFailure::Invalid(missing_error) = verify_global_names(&missing).unwrap_err()
+        else {
+            panic!("a missing mandatory global must be an invalid engine surface");
+        };
+        assert!(missing_error.contains(&format!("missing: {required}")));
+    }
 }

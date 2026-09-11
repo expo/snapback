@@ -24,6 +24,7 @@ const FETCH_FACTORY: &str = include_str!("prelude/fetch.js");
 const BOUND_TRANSPORT: &str = include_str!("prelude/bound.js");
 // Public names match the compiler effect allowlist. Engine internals and globalThis
 // remain unnameable in authored source; the host needs them to harden and pump.
+const DEBUGGER_INTERNAL: &str = "DebuggerInternal";
 const EFFECT_GLOBALS: &[&str] = &[
     "$SHBuiltin",
     "Array",
@@ -34,7 +35,7 @@ const EFFECT_GLOBALS: &[&str] = &[
     "Boolean",
     "DataView",
     "Date",
-    "DebuggerInternal",
+    DEBUGGER_INTERNAL,
     "Error",
     "EvalError",
     "Float32Array",
@@ -445,8 +446,28 @@ fn bound_transport(decl: &EffectDecl, bindings: &BTreeMap<String, String>) -> St
 
 fn verify_globals(runtime: &mut Hermes) -> Result<(), BuildFailure> {
     let names = runtime.global_names();
+    verify_global_names(&names)?;
+    let frozen = runtime
+        .eval("String(Object.isFrozen(globalThis))")
+        .map_err(|error| BuildFailure::Invalid(format!("inspect hardened global: {error}")))?;
+    if frozen != "true" {
+        return Err(BuildFailure::Invalid(
+            "effect global object was not frozen".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn verify_global_names(names: &[String]) -> Result<(), BuildFailure> {
+    // @ref LLP 1003#1-authoring — debugger and release engines retain only one non-authorable, pinned profile difference
+    // Pinned debugger-enabled Hermes installs DebuggerInternal as a
+    // non-configurable global, while its release profile omits it. It is not
+    // in the compiler's authored allowlist and the host never calls it; this
+    // is the sole admitted engine-profile difference.
+    let has_debugger_internal = names.iter().any(|name| name == DEBUGGER_INTERNAL);
     let expected = EFFECT_GLOBALS
         .iter()
+        .filter(|name| **name != DEBUGGER_INTERNAL || has_debugger_internal)
         .map(|name| (*name).to_owned())
         .collect::<Vec<_>>();
     if names != expected {
@@ -457,7 +478,9 @@ fn verify_globals(runtime: &mut Hermes) -> Result<(), BuildFailure> {
             .collect::<Vec<_>>();
         let missing = EFFECT_GLOBALS
             .iter()
-            .filter(|name| !names.iter().any(|actual| actual == **name))
+            .filter(|name| {
+                **name != DEBUGGER_INTERNAL && !names.iter().any(|actual| actual == **name)
+            })
             .copied()
             .collect::<Vec<_>>();
         return Err(BuildFailure::Invalid(format!(
@@ -465,14 +488,6 @@ fn verify_globals(runtime: &mut Hermes) -> Result<(), BuildFailure> {
             unexpected.join(", "),
             missing.join(", ")
         )));
-    }
-    let frozen = runtime
-        .eval("String(Object.isFrozen(globalThis))")
-        .map_err(|error| BuildFailure::Invalid(format!("inspect hardened global: {error}")))?;
-    if frozen != "true" {
-        return Err(BuildFailure::Invalid(
-            "effect global object was not frozen".to_owned(),
-        ));
     }
     Ok(())
 }
