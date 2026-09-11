@@ -80,6 +80,18 @@ release; retain size cleanup." The existing checks, accepted baseline and
 cleanup ticket remain unchanged. This resolves only the package-size trade;
 native/runtime qualification and exact staged consumers still gate publication.
 
+Before staging, main advanced to `1917a7964700b7f29976fe6fb0406e50e477da44`:
+the other agent's foreground-admission repair, pending-receipt projection and
+shared evaluator leaves. Those completed changes were merged as
+`ab0a693f84f7cdd57d21ae720fe39db1dc28f043`; product integration was automatic.
+Only the size ticket conflicted, and both the author ruling and incoming
+attribution/reduction evidence were preserved. Its canonical measurements are
+now **139,450 / 149,260 / 152,792** public gzip bytes and **88,086** complete
+runtime bytes. These smaller public closures fit within the disclosed release
+exception; normal growth guards still fail and the cleanup ticket stays open.
+The other agent's [completed work and evidence](../2026-09-11-snapback2-followup-diagnostics/README.md)
+are reused, not reimplemented. Integrated release qualification is separate.
+
 The remainder records the initial attempt and its hold, not new qualification
 claims for the resumed candidate.
 
@@ -94,6 +106,17 @@ is bound to that nonexistent spelling. Linux full Hermes no-fail-fast passed
 19:14:44–19:15:02 UTC (PID 2013824, exit 0), the combined focused suite passed
 31/31, clippy passed, and the separate EPYC no-engine suite passed. The final
 Mac shared-code regression and production staged consumers remain pending.
+
+The subsequent Mac shared-code regression of this same `62241df63` source
+passed every affected target: 300 library passes (four ignored), embedding
+5/5, hardening 5/5, and 183 no-engine library passes (one ignored) plus all
+integration targets. Both full commands exit 101 only for the unchanged
+noninteractive Keychain test, `User interaction is not allowed`; neither full
+suite is called wholly green. Engine PID 36594 ran 19:20:19–19:20:29 UTC;
+no-engine PID 37341 ran 19:20:57–19:21:11 UTC. The complete source export has
+SHA-256 `788d0e22164ee24be2881a64400e31743643b2c105e55039634dc9f7b92a1cbc`;
+all six shared source-file hashes matched the control-plane source. Linux-only
+constructor corrections do not change those tested Mac semantic inputs.
 
 Mutually blind [Sol](../../../llp/reviews/1003-native-intl-20260911.r1.sol.md)
 and [Grok](../../../llp/reviews/1003-native-intl-20260911.r1.grok.md) reviews
