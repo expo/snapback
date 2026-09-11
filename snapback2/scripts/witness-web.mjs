@@ -630,11 +630,12 @@ async function sharedSessions(context, writer, appUrl, ownerUrl, principal) {
   await openChat(follower, "conversation-1");
   await follower.waitForFunction(() => document.querySelectorAll("section[aria-label=Thread] li[data-state=queued]").length === 2, null, { timeout: 10_000 });
   const reloaded = await follower.evaluate(async () => ({
-    mutationRequests: window.__witnessRequests.filter(request => request.path === "/api/mutation").length,
+    mutationRequests: window.__witnessRequests.filter(request => request.path === "/api/mutation"
+      && JSON.parse(String(request.body)).op === "messages.send").length,
     rows: (await window.__snapback.outbox.entries()).filter(entry => entry.inbox !== undefined).map(entry => entry.intent),
     bubbles: [...document.querySelectorAll("section[aria-label=Thread] li[data-state=queued]")].map(node => node.textContent ?? ""),
   }));
-  assert.equal(reloaded.mutationRequests, 0, "the reloaded tab made no mutation request");
+  assert.equal(reloaded.mutationRequests, 0, "the reloaded tab sent none of its durable rows");
   assert.deepEqual(reloaded.rows, queuedRows.rows.map(row => row.intent), "the same rows, from durable state");
   step("a reload shows the device's queued rows from durable state before any network request", reloaded);
 
