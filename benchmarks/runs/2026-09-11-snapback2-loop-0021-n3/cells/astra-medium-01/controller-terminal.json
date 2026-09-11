@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "snapback2-loop-cell-terminal.v1",
+  "replicate": "astra-medium-01",
+  "startedAt": "2026-09-11T07:32:20.767Z",
+  "finishedAt": "2026-09-11T08:20:37.770Z",
+  "elapsedSeconds": 2897.003,
+  "exitCode": 0,
+  "signal": null,
+  "terminationReason": null,
+  "m1GreenMarkerPresent": true,
+  "runSummaryPresent": true,
+  "finalLoad": "1:20  up 16 days,  3:36, 14 users, load averages: 1.07 1.26 2.01"
+}

@@ -1,0 +1,21 @@
+{
+  "at": "2026-09-11T08:21:31.515236+00:00",
+  "nextAction": "npx snapback2 init . --template chat --client react",
+  "retrievalCalls": [
+    {
+      "at": "2026-09-11T08:21:09Z",
+      "command": "cat node_modules/snapback2/README.md",
+      "purpose": "Package orientation and supported public interfaces"
+    },
+    {
+      "at": "2026-09-11T08:21:17Z",
+      "command": "npx snapback2 guide init && npx snapback2 guide auth && npx snapback2 guide schema && npx snapback2 guide test",
+      "purpose": "Scaffolding, authentication, schema and tests; schema was unknown so test did not run"
+    },
+    {
+      "at": "2026-09-11T08:21:26Z",
+      "command": "npx snapback2 guide quarry && npx snapback2 guide testing && npx snapback2 guide dev",
+      "purpose": "Backend language, journeys and owner port configuration"
+    }
+  ]
+}

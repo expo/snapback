@@ -1,0 +1,22 @@
+{
+  "at": "2026-09-11T08:59:07.080Z",
+  "commands": [
+    {
+      "command": "npx snapback2 test",
+      "exit": 0,
+      "log": "evidence/m1-suite.log"
+    },
+    {
+      "command": "node scripts/m1.mjs",
+      "exit": 0,
+      "log": "evidence/m1-browser.log"
+    },
+    {
+      "command": "npx tsc --noEmit",
+      "exit": 0,
+      "log": "evidence/m1-types.log"
+    }
+  ],
+  "receipt": ".snapback/receipts/1789117142979.json",
+  "browser": "evidence/m1-browser.json"
+}
