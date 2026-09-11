@@ -68,7 +68,7 @@ pub(super) fn add_enriched_page_case(cases: &mut Vec<CorpusCase>) {
                     Stmt::Const {
                         name: "profile".to_owned(),
                         value: Expr::Get(Read {
-                            site: "profiles.byId".to_owned(),
+                            site: "profiles.owner".to_owned(),
                             table: "profiles".to_owned(),
                             index: "byId".to_owned(),
                             key: vec![field(var("item"), "owner")],
@@ -107,7 +107,12 @@ pub(super) fn add_enriched_page_case(cases: &mut Vec<CorpusCase>) {
         ],
     };
     let mut engine = Engine::memory(schema.clone()).unwrap();
-    for (item, owner, at) in [("i1", "u1", 1), ("i2", "u2", 2), ("i3", "u1", 3)] {
+    for (item, owner, at) in [
+        ("hidden-before", "u1", 0),
+        ("i1", "u1", 1),
+        ("i2", "u2", 2),
+        ("i3", "u1", 3),
+    ] {
         engine
             .seed(
                 "items",
@@ -119,7 +124,7 @@ pub(super) fn add_enriched_page_case(cases: &mut Vec<CorpusCase>) {
                 ]),
             )
             .unwrap();
-        if item != "i3" {
+        if matches!(item, "i1" | "i2") {
             engine
                 .seed(
                     "shares",
@@ -189,6 +194,7 @@ pub(super) fn add_enriched_page_case(cases: &mut Vec<CorpusCase>) {
     };
     scan.opaque_cursor = true;
     scan.after = Some(Box::new(var("c")));
+    scan.take = Bound::Literal(1);
     conditional.body = vec![Stmt::If {
         condition: var("global"),
         then_body: conditional.body,
@@ -198,19 +204,22 @@ pub(super) fn add_enriched_page_case(cases: &mut Vec<CorpusCase>) {
     for page in 1..=2 {
         let served = authoritative(&mut engine, &schema, &conditional, page_context.clone());
         assert_eq!(served.state, ExecutionState::Capped);
-        if page == 1 {
-            assert_eq!(served.result, execution.result);
-            let token = served.next.as_ref().unwrap();
-            let position = snapback2_core::cursor::decode_cursor(&schema, token).unwrap();
-            assert_eq!(
-                position.values.last(),
-                Some(&id("i2")),
-                "hidden i3 is never a cursor anchor"
-            );
+        let (item, owner, at) = if page == 1 {
+            ("i1", row([("name", text("Visible"))]), 1)
         } else {
-            assert_eq!(served.result, Value::Array(vec![]));
-            assert_eq!(served.next, None);
-        }
+            ("i2", Value::Null, 2)
+        };
+        assert_eq!(
+            served.result,
+            Value::Array(vec![row([("id", id(item)), ("owner", owner)])])
+        );
+        let token = served.next.as_ref().unwrap();
+        let position = snapback2_core::cursor::decode_cursor(&schema, token).unwrap();
+        assert_eq!(position.values, vec![Value::Int(at), id(item)]);
+        assert!(
+            !format!("{position:?}").contains("hidden-before"),
+            "an unreadable row is never a cursor anchor"
+        );
         let case = case_from_parts(
             &format!("conditional-enriched-hidden-page-{page}"),
             "scenario",
@@ -225,6 +234,15 @@ pub(super) fn add_enriched_page_case(cases: &mut Vec<CorpusCase>) {
         assert_eq!(
             case.expected.next, None,
             "incomplete local authorization cannot mint a cursor"
+        );
+        assert_eq!(
+            case.expected.partial_sites,
+            if page == 1 {
+                vec!["items.page".to_owned()]
+            } else {
+                vec!["items.page".to_owned(), "profiles.owner".to_owned()]
+            },
+            "the native corpus preserves authored point sites"
         );
         cases.push(case);
         let mut composite = conditional.clone();

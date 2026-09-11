@@ -97,6 +97,27 @@ assert(queryState(enrichedPage.certificate, enrichedReplay.execution.trace) === 
 assert(canonicalValue(enrichedReplay.execution.result) === enrichedPage.expected.canonicalResult,
   "enriched capped page did not preserve the authorized shape and hidden point null");
 
+// @ref LLP 1001#3-read-and-write-states-no-silent-states — the frozen
+// two-page replay preserves authored certificate sites while partial custody
+// clears only the local cursors.
+for (const [page, canonicalResult, partialSites] of [
+  [1, '{"Array":[{"Row":{"id":{"Id":"i1"},"owner":{"Row":{"name":{"String":"Visible"}}}}}]}', ["items.page"]],
+  [2, '{"Array":[{"Row":{"id":{"Id":"i2"},"owner":"Null"}}]}', ["items.page", "profiles.owner"]],
+] as const) {
+  const fixture = cases.find((item) => item.name === `conditional-enriched-hidden-page-${page}`);
+  assert(fixture, `enriched page ${page} is absent from the corpus`);
+  const replay = new ClientStore(fixture.schema, fixture.receipt)
+    .reexecute(fixture.program, fixture.context, fixture.certificate);
+  assert(fixture.expected.canonicalResult === canonicalResult
+    && canonicalValue(replay.execution.result) === canonicalResult,
+  `enriched page ${page} changed bytes across Rust and TypeScript`);
+  assert(JSON.stringify(fixture.expected.partialSites) === JSON.stringify(partialSites)
+    && JSON.stringify(replay.partialSites) === JSON.stringify(partialSites),
+  `enriched page ${page} changed authored partial sites: ${JSON.stringify(replay.partialSites)}`);
+  assert(replay.state === "partial" && replay.execution.next === null,
+    `enriched page ${page} minted a partial local cursor`);
+}
+
 {
   const fixture = cases.find((item) => item.name === "decided-or-unheld-other-arm");
   assert(fixture, "decided Or fixture is absent");

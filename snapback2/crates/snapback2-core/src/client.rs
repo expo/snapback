@@ -136,7 +136,23 @@ impl ClientStore {
                             })
                 });
             if !held {
-                partial.insert(format!("{}.{}", absence.0, absence.1));
+                // @ref LLP 1001#3-read-and-write-states-no-silent-states —
+                // read-site names are certificate identities. Preserve every
+                // authored point site for this physical absence; only
+                // engine-synthesized absence evidence lacks one.
+                let mut authored = false;
+                for point in execution.trace.points.iter().filter(|point| {
+                    !point.examined
+                        && point.table == absence.0
+                        && point.index == absence.1
+                        && point.key == absence.2
+                }) {
+                    partial.insert(point.site.clone());
+                    authored = true;
+                }
+                if !authored {
+                    partial.insert(format!("{}.{}", absence.0, absence.1));
+                }
             }
         }
         let state = if partial.is_empty() {
