@@ -124,8 +124,27 @@ function packageVersion() {
   return version;
 }
 
-function buildAndQualifyPackage(snapshot, buildPackage, qualify) {
+function installSnapshotDependencies(snapshot) {
+  command(npm, [
+    "install",
+    "--ignore-scripts",
+    "--no-package-lock",
+    "--omit=dev",
+    "--omit=optional",
+    "--omit=peer",
+    "--no-audit",
+    "--no-fund",
+  ], { cwd: snapshot, env: npmEnvironment, stdio: "inherit" });
+}
+
+function buildAndQualifyPackage(
+  snapshot,
+  buildPackage,
+  qualify,
+  installDependencies = installSnapshotDependencies,
+) {
   buildPackage(snapshot);
+  installDependencies(snapshot);
   const compiler = resolve(snapshot, "dist/compiler.mjs");
   if (!existsSync(compiler)) throw new Error(`package build did not stage ${compiler}`);
   qualify(compiler);
@@ -639,13 +658,25 @@ function runSelfTest() {
     assert.ok(de265CmakeOptions.includes("-DCMAKE_POSITION_INDEPENDENT_CODE=ON"));
     const snapshot = resolve(directory, "shim");
     let qualified = false;
-    buildAndQualifyPackage(snapshot, (target) => {
-      mkdirSync(resolve(target, "dist"), { recursive: true });
-      writeFileSync(resolve(target, "dist/compiler.mjs"), "// built\n");
-    }, (compiler) => {
-      assert.equal(readFileSync(compiler, "utf8"), "// built\n");
-      qualified = true;
-    });
+    const packageSteps = [];
+    buildAndQualifyPackage(
+      snapshot,
+      (target) => {
+        packageSteps.push("build");
+        mkdirSync(resolve(target, "dist"), { recursive: true });
+        writeFileSync(resolve(target, "dist/compiler.mjs"), "// built\n");
+      },
+      (compiler) => {
+        packageSteps.push("qualify");
+        assert.equal(readFileSync(compiler, "utf8"), "// built\n");
+        qualified = true;
+      },
+      (target) => {
+        packageSteps.push("install");
+        assert.equal(target, snapshot);
+      },
+    );
+    assert.deepEqual(packageSteps, ["build", "install", "qualify"]);
     assert.equal(qualified, true, "doctor ran before the clean package snapshot was built");
 
     requireFullMediaHelper("snapback2-media", () => ({
