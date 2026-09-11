@@ -67,3 +67,18 @@ expect((await compileJourneys(root, apiDts)).ok).toBe(true);
 hard `E_OP_INVALID` (or map the package root to the complete maintained
 declarations), keep real package types in every harness, and add a regression
 that would pass only if a generated root type degraded to `any`.
+
+## Resolution — 2026-09-11
+
+**Status:** Closed. `compileJourneys` now maps the `snapback2` package root to
+the SDK's complete maintained `dist/index.d.ts`, alongside its existing client,
+test, and internal declaration mappings. Generated `Page`, `Money`,
+`Principal`, and other public root imports therefore resolve even when a
+scratch project has no `node_modules/snapback2` install.
+
+`journey checking binds generated root types without a consumer install`
+creates exactly that scratch-project condition and leaves a `Page` result's
+partial `data` unguarded. It is accepted only if `Page` degrades to `any`; the
+permanent check now requires the meaningful `E_OP_INVALID` optional-data
+refusal. The existing installed-declaration template checks remain the
+consumer-side proof.
