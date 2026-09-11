@@ -164,3 +164,28 @@ the candidate projection. Remaining work is the original isolation/public
 projection proof, two generic metadata gaps, first-write plus abort/retry proof
 for any repair, and the separately stated size, deadline, media-width and
 device-resource obligations.
+
+## Disposition — 2026-09-11 implementation pass
+
+**State:** keep open, narrowed to cumulative review and resource qualification.
+Commit `96516575b` lands the per-root projection repair plus the missing
+first-write gate. Metadata is normalized with JSON property-name semantics
+before splitting; undefined object children are removed, array holes and
+length survive as JSON nulls, own `__proto__` is restored safely, and callable
+root `toJSON` changes promote the serialization boundary. The first database
+write and a failed transaction retry take the full projection path until a
+committed `state` sentinel proves a complete root inventory.
+
+The focused SQLite/IndexedDB cases for generic omission, sparse arrays,
+refusal/retry, and journaled first write pass. The full current
+`twin.test.ts` and `offline-public-state.test.ts` run also passes 218/218,
+including the historical isolation, denied/partial public projection,
+movement, cold-key, extent, exhaustion, and replacement-custody controls. The
+package builds successfully.
+
+This cumulative ticket is not closed: a fresh independent full-delta review
+has not been run, nor has the original full-suite deadline/resource bar been
+remeasured. Its explicitly retained 100-lane media-bearing/max-width, phone
+peak-resident, and full-engine scale-curve obligations also remain. Those are
+now the only live scope here; the metadata and public-projection correctness
+defects above are implemented and locally qualified.

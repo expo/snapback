@@ -878,21 +878,16 @@ export class PersistentRangeStore implements RangeStore {
       let primary: unknown;
       try {
         if (this.partition !== undefined && this.touchedBytes.size > 0) {
-          const changed: ChangedRecords = new Map([
-            ['assets', new Set(this.touchedBytes)],
-            ['*', new Set(['clock'])],
-          ]);
+          const changed: ChangedRecords = new Map([['assets', new Set(this.touchedBytes)], ['*', new Set(['clock'])]]);
           await this.replace(this.state, NO_BYTES, this.persisted, changed);
-          this.persisted = this.state;
-          this.touchedBytes.clear();
+          this.persisted = this.state; this.touchedBytes.clear();
         }
       } catch (error) { primary = error; }
       this.release();
       try { await this.backend.close(); }
       catch (error) {
         if (primary !== undefined) throw new AggregateError([primary, error], 'byte touch flush and carrier close both failed');
-        throw error;
-      }
+        throw error; }
       if (primary !== undefined) throw primary;
     });
   }
