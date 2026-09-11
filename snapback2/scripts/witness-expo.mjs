@@ -172,7 +172,8 @@ const actions = [
     for (const conversationId of seed.rooms.slice(0, 3)) views.push(await command("open", { conversationId }));
     assert.ok(views.every((view) => (view.state === "complete" || view.state === "capped") && view.sameValue
       && JSON.stringify(view.consumers) === JSON.stringify([2, 1])
-      && JSON.stringify(view.next) === JSON.stringify([null, null])));
+      && JSON.stringify(view.next) === JSON.stringify([null, null])),
+    `conversation-view convergence mismatch: ${JSON.stringify(views)}`);
     const warmSearch = await command("state", { search: indexedSearchTerm });
     assert.ok(warmSearch.search.state === "complete" || warmSearch.search.state === "capped");
     assert.ok(warmSearch.search.data.some((row) => row.id === seed.doomed));
