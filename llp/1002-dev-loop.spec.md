@@ -1380,6 +1380,14 @@ closes, startup/configuration evidence and the browser-witness boundary remain.
 
 ## 11. Measured
 
+The package phase schedules Node test files at the host's available processor
+count clamped to 2–8 workers, unless `SNAPBACK_PACKAGE_TEST_THREADS` explicitly
+overrides it. Tests, their 10-second deadlines, the complete file inventory and
+all-failure reporting remain unchanged. The bound prevents many owner-heavy
+files from simultaneously starting and stopping native owners; the retained
+timing ticket records its controlled qualification rather than treating a
+single green rerun as reliability evidence.
+
 The blocking suite schedules Rust executable tests at the host's available
 processor count, clamped to 8–32 workers, unless
 `SNAPBACK_RUST_TEST_THREADS` explicitly overrides it. Tests remain separate
