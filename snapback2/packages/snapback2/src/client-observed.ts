@@ -396,6 +396,7 @@ export class ClientQueries {
     return this.shared.consumers(key) + (raw === key ? 0 : this.shared.consumers(raw));
   }
   refresh(): void { this.shared.refresh(); }
+  resumeHydrating(): void { this.shared.resumeHydrating(); }
   reproject(): void { this.shared.reproject(); }
   retireInactive(): void { this.shared.retireInactive(); }
   clear(except?: Subscription<unknown>): void {
@@ -409,9 +410,11 @@ export class ClientQueries {
 export function oneShotQuery<Result>(
   query: () => Promise<QueryResult<Result>>,
   onEvent: (event: QueryMachineEvent<Result>) => void,
-): Subscription<QueryMachineEvent<Result>> {
+): Subscription<QueryMachineEvent<Result>> & { resumeHydrating(): void } {
   const waiters = new Set<Waiter<QueryMachineEvent<Result>>>();
   let closed = false;
+  let running = false;
+  let resumeRequested = false;
   let last: QueryMachineEvent<Result> | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let wake: (() => void) | undefined;
@@ -436,7 +439,7 @@ export function oneShotQuery<Result>(
     }
   };
 
-  void (async () => {
+  const run = async () => {
     let backoff = 250;
     while (!closed) {
       try {
@@ -461,7 +464,18 @@ export function oneShotQuery<Result>(
         return;
       }
     }
-  })();
+  };
+  const start = () => {
+    if (closed || running) return;
+    running = true;
+    void run().finally(() => {
+      running = false;
+      if (!resumeRequested) return;
+      resumeRequested = false;
+      if (last?.state === "hydrating" && last.connection === "offline") start();
+    });
+  };
+  start();
 
   return {
     close: () => {
@@ -474,6 +488,14 @@ export function oneShotQuery<Result>(
         waiter.reject(closedError());
       }
       waiters.clear();
+    },
+    // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test —
+    // same-bearer confirmation retries only a no-held one-shot; a pending read
+    // finishes in place, and a held or receipted value is never refreshed.
+    resumeHydrating: () => {
+      if (closed) return;
+      if (running) { resumeRequested = true; return; }
+      if (last?.state === "hydrating" && last.connection === "offline") start();
     },
     until: (predicate, timeoutMs = 30_000) => {
       if (last !== undefined && predicate(last)) return Promise.resolve(last);
