@@ -5,13 +5,14 @@ import { mkdtemp, readFile, readdir, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import React, { act } from "react";
+import React, { act, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { api, createClient } from "../dist/client.mjs";
 import { RefusalError } from "../dist/client-observed-test.mjs";
-import { AssetImage, AssetVideo, SnapbackProvider, indexedDbRangeStore } from "../dist/react.mjs";
+import { AssetImage, AssetVideo, SnapbackProvider, indexedDbRangeStore, useSnapbackClient } from "../dist/react.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
 import { sqliteFactory, sqliteKeys } from "./sqlite-fixture.ts";
+import { ByteCache } from "../dist/sqlite-test.mjs";
 import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
 import { domEnvironment, until } from "./dom-environment.ts";
 
@@ -279,7 +280,7 @@ test("assetBlob reads the byte cache before the network, fills it after a fetch,
     await assert.rejects(client.assetBlob((await client.assetUrl(photo(A) as any, { width: 16 }))!), (error: unknown) =>
       isRefusalError(error) && error.code === "E_TRANSPORT");
     assert.equal(assetFetches, 2);
-    client.close();
+    await client.close();
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
@@ -334,13 +335,13 @@ test("a view-once row renders once: its bytes are never cached, a restart refuse
     const held = await cold.query<any, any>(api.messages.thread as any, { conversationId: "c1", c: null });
     assert.deepEqual(("data" in held ? held.data : []).map((row: any) => row?.id ?? null), ["m1", null], "the viewed row reads as absent");
     assert.equal((await cold.assetBlob(urlA)).size, 4, "the ordinary row's bytes render from the cache");
-    cold.close();
+    await cold.close();
     await cold.online().catch(() => undefined);
     const online = make();
     await online.ready;
     await assert.rejects(online.assetBlob(urlB), (error: unknown) => isRefusalError(error) && error.code === "E_ASSET_VIEWED");
     assert.equal(assetFetches, 2, "viewed is consulted before any byte is fetched, online too");
-    online.close();
+    await online.close();
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
@@ -427,8 +428,77 @@ test("a cache read stamps the LRU in memory without rewriting the carrier; the n
     for (let read = 0; read < 3; read += 1) assert.equal((await client.assetBlob(url)).size, 4);
     assert.equal(assetFetches, 1, "served from the cache");
     assert.equal(await readFile(statePath, "utf8"), written, "three cache hits wrote nothing");
-    client.close();
+    await client.close();
   } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test("clean close flushes coalesced LRU touches on every durable carrier", async () => {
+  const root = await tempRoot();
+  const database = new FakeIndexedDb();
+  const factories = [fileRangeStore(root), sqliteFactory(join(root, "touch-close.db")),
+    indexedDbRangeStore({ indexedDB: database as any, locks: new FakeLocks() as any })];
+  try {
+    for (const factory of factories) {
+      let store: any = factory();
+      await store.open("touch-close");
+      await store.commit({ deliveries: [{ op: "thread", args: {}, state: "complete", data: [], next: null, seq: 1,
+        rows: [messageRow("m1", A), messageRow("m2", B), messageRow("m3", C)], receipt: emptyReceipt() }] });
+      await store.commit({ bytes: { put: [put(A, 8, 4, 1), put(B, 8, 4, 2)], ceiling: 8 } });
+      await store.readBytes(A, 8);
+      await store.touchBytes([key(A, 8)]);
+      await store.close();
+      store = factory(); await store.open("touch-close");
+      await store.commit({ bytes: { put: [put(C, 8, 4, 3)], ceiling: 8 } });
+      assert.deepEqual((await store.bytes()).entries.map((entry: any) => entry.assetId).sort(), [A, C], factory.carrier);
+      await store.close();
+    }
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test("byte reads and revoking swaps cannot interleave across the store queue", async () => {
+  const root = await tempRoot();
+  const database = new FakeIndexedDb();
+  const factories = [fileRangeStore(root), sqliteFactory(join(root, "read-swap.db")),
+    indexedDbRangeStore({ indexedDB: database as any, locks: new FakeLocks() as any })];
+  try {
+    for (const factory of factories) {
+      const store: any = factory(); await store.open(`read-swap-${factory.carrier}`);
+      await store.commit({ deliveries: [{ op: "thread", args: {}, state: "complete", data: ref("messages", "m1"), next: null, seq: 1,
+        rows: [messageRow("m1", A)], receipt: emptyReceipt() }] });
+      await store.commit({ bytes: { put: [put(A, 8, 4, 1)], ceiling: 8 } });
+      const original = store.backend.readBytes.bind(store.backend);
+      const entered = Promise.withResolvers<void>(), release = Promise.withResolvers<void>();
+      store.backend.readBytes = async (byteKey: string) => { entered.resolve(); await release.promise; return original(byteKey); };
+      const read = store.readBytes(A, 8); await entered.promise;
+      let revoked = false;
+      const revoke = store.commit({ tombstones: [{ table: "messages", id: "m1", seq: 2 }] }).then(() => { revoked = true; });
+      await new Promise(resolve => setTimeout(resolve, 5));
+      assert.equal(revoked, false, `${factory.carrier}: revocation waits for the active byte read`);
+      release.resolve(); assert.deepEqual((await read)?.bytes, bytesOf(4, 1)); await revoke;
+      assert.equal(await store.readBytes(A, 8), undefined);
+      await store.close();
+    }
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test("view-once session bytes use rendition keys and the one device-byte ceiling", async () => {
+  const root = await tempRoot();
+  const store: any = fileRangeStore(root)();
+  const cache = new ByteCache(store, { maxAssetBytes: 5 });
+  try {
+    await store.open("dev:alice"); cache.bind("dev:alice");
+    await store.commit({ schema: { tables: { messages: { columns: { oncePhoto: { Image: { max: 100, once: true } } } } } },
+      deliveries: [{ op: "thread", args: {}, state: "complete", data: [], next: null, seq: 1,
+        rows: [messageRow("m1", A, { oncePhoto: photo(A) }), messageRow("m2", B, { oncePhoto: photo(B) })], receipt: emptyReceipt() }] });
+    const first = {}, second = {};
+    assert.equal(await cache.putBytes(A, 8, { bytes: bytesOf(4, 1), type: "image/jpeg" }, first), "viewed");
+    assert.deepEqual([...(cache as any).session.keys()], [`dev:alice\u0000${A}\u00008`]);
+    assert.equal(await cache.putBytes(B, 16, { bytes: bytesOf(4, 2), type: "image/jpeg" }, second), "viewed");
+    assert.equal((cache as any).sessionBytesHeld, 4);
+    assert.equal(await cache.getBytes(A, 8, first), undefined, "the older blob leaves at the byte ceiling");
+    assert.deepEqual((await cache.getBytes(B, 32, second))?.bytes, bytesOf(4, 2), "the mounted viewer keeps its admitted rendition across layout widths");
+    assert.deepEqual([...(cache as any).session.keys()], [`dev:alice\u0000${B}\u000016`]);
+  } finally { cache.forget(); await store.close(); await rm(root, { recursive: true, force: true }); }
 });
 
 test("AssetImage, AssetVideo, and useAssetUrl render held renditions from the byte cache offline without the network", async () => {
@@ -482,13 +552,19 @@ test("AssetImage, AssetVideo, and useAssetUrl render held renditions from the by
   }
   const document = env.dom.window.document;
   let reactRoot: Root | undefined;
+  const providerClients = new Set<any>();
+  function TrackClient() {
+    const client = useSnapbackClient();
+    useEffect(() => { providerClients.add(client); }, [client]);
+    return null;
+  }
   try {
     reactRoot = createRoot(document.getElementById("root")!);
     await act(async () => {
       reactRoot!.render(React.createElement(
         SnapbackProvider,
         { url: "http://assets.test", persona: "alice", fetch, offline: { store: onlineStore } } as any,
-        React.createElement(Harness),
+        React.createElement(React.Fragment, null, React.createElement(TrackClient), React.createElement(Harness)),
       ));
     });
     assert.ok(await until(() => Boolean(document.querySelector("img")?.getAttribute("src")) && assetFetches.length >= 2));
@@ -510,7 +586,7 @@ test("AssetImage, AssetVideo, and useAssetUrl render held renditions from the by
       reactRoot!.render(React.createElement(
         SnapbackProvider,
         { url: "http://assets.test", persona: "alice", fetch, offline: { store: fileRangeStore(root) } } as any,
-        React.createElement(Harness),
+        React.createElement(React.Fragment, null, React.createElement(TrackClient), React.createElement(Harness)),
       ));
     });
     assert.ok(await until(() => (document.querySelector("video")?.src ?? "").startsWith("blob:")));
@@ -522,6 +598,7 @@ test("AssetImage, AssetVideo, and useAssetUrl render held renditions from the by
     assert.equal(carrierCalls, carriersBefore, "no carrier minted for a held clip");
   } finally {
     if (reactRoot) await act(async () => reactRoot!.unmount());
+    await Promise.all([...providerClients].map(client => client.close()));
     env.restore();
     await rm(root, { recursive: true, force: true });
   }

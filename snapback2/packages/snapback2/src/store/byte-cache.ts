@@ -51,6 +51,9 @@ export interface AssetCache {
   /** Session custody changes revoke mounted object URLs. */
   subscribeCustody?(listener: () => void): () => void;
   getCustody?(): number;
+  /** View-once admission changes are observable so sibling consumers revoke immediately. */
+  subscribeRevision?(listener: () => void): () => void;
+  getRevision?(): number;
   getBytes(assetId: string, width: number | null, viewing?: object): Promise<AssetBytes | undefined>;
   putBytes(assetId: string, width: number | null, value: AssetBytes, viewing?: object): Promise<ByteCacheVerdict>;
   canServe(assetId: string, viewing?: object): Promise<boolean>;
@@ -66,7 +69,6 @@ export interface AssetCache {
 }
 
 export const ASSET_ID = /^s2id-[0-9a-f]{32}-[0-9a-f]{16}$/;
-const SESSION_VIEW_LIMIT = 8;
 
 export function byteKey(assetId: string, width: number | null): string {
   return width === null ? assetId : `${assetId}.w${width}`;
@@ -240,15 +242,19 @@ export class ByteCache implements AssetCache {
    * on seal, wipe, partition change, and close, and `get` serves it only under the
    * custody the carrier path applies: this partition, unsealed, the row still held.
    */
-  private readonly session = new Map<string, { viewing: object; value: AssetBytes }>();
+  private readonly session = new Map<string, { viewing: object; value: AssetBytes; size: number }>();
+  private sessionBytesHeld = 0;
   private partition?: string;
   private custody = 0;
+  private revision = 0;
   private readonly custodyListeners = new Set<() => void>();
   readonly getCustody = () => this.custody;
   readonly subscribeCustody = (listener: () => void) => {
     this.custodyListeners.add(listener);
     return () => { this.custodyListeners.delete(listener); };
   };
+  readonly getRevision = () => this.revision;
+  readonly subscribeRevision = this.subscribeCustody;
   private admissions: Promise<unknown> = Promise.resolve();
 
   constructor(
@@ -265,7 +271,9 @@ export class ByteCache implements AssetCache {
   /** Drops the session blobs: seal, close, and wipe call this. */
   forget(): void {
     this.custody++;
+    this.revision++;
     this.session.clear();
+    this.sessionBytesHeld = 0;
     for (const listener of this.custodyListeners) listener();
   }
 
@@ -329,6 +337,7 @@ export class ByteCache implements AssetCache {
     const once = await this.viewOnceRows(assetId);
     if (once.length === 0) return false;
     await store.commit({ viewed: once, viewedAssets: [assetId] });
+    this.changed();
     return true;
   }
 
@@ -369,8 +378,8 @@ export class ByteCache implements AssetCache {
       }
       if (custody !== this.custody || (await store.rowsReferencing(assetId)).length === 0
         || !await store.viewedAsset(assetId) || custody !== this.custody) return "unleased";
-      if (this.session.size >= SESSION_VIEW_LIMIT) this.session.delete(this.session.keys().next().value!);
-      if (viewing) this.session.set(this.sessionKey(assetId, null), { viewing, value: { bytes: value.bytes.slice(), type: value.type } });
+      if (viewing) this.rememberSession(assetId, width, viewing, value);
+      this.changed();
       return "viewed";
     }
     try {
@@ -402,12 +411,45 @@ export class ByteCache implements AssetCache {
   private async sessionBytes(assetId: string, width: number | null, viewing?: object): Promise<AssetBytes | undefined> {
     const store = this.carrier();
     if (!store) return undefined;
-    const key = this.sessionKey(assetId, null);
-    const blob = this.session.get(key);
+    const key = this.sessionKey(assetId, width);
+    let blob = this.session.get(key);
+    // A mounted viewer keeps the exact rendition it admitted across layout
+    // width changes, but the retained entry itself remains keyed by that width.
+    if (!blob && viewing) blob = [...this.session.entries()].find(([candidate, entry]) =>
+      candidate.startsWith(this.sessionKey(assetId)) && entry.viewing === viewing)?.[1];
     if (!viewing || blob?.viewing !== viewing) return undefined;
     if ((await store.rowsReferencing(assetId)).length > 0) return blob.value;
-    this.session.delete(key);
+    this.dropSession(blob);
     return undefined;
+  }
+
+  private rememberSession(assetId: string, width: number | null, viewing: object, value: AssetBytes): void {
+    const key = this.sessionKey(assetId, width), prior = this.session.get(key);
+    if (prior) this.sessionBytesHeld -= prior.size;
+    const held = { viewing, value: { bytes: value.bytes.slice(), type: value.type }, size: value.bytes.byteLength };
+    this.session.set(key, held);
+    this.sessionBytesHeld += held.size;
+    // `maxAssetBytes` is the one device-byte budget. An individual viewed blob
+    // may exceed it, but then it is the sole session blob (the on-screen clip).
+    while (this.sessionBytesHeld > this.options.maxAssetBytes && this.session.size > 1) {
+      const oldest = this.session.entries().next().value as [string, typeof held] | undefined;
+      if (!oldest) break;
+      this.session.delete(oldest[0]);
+      this.sessionBytesHeld -= oldest[1].size;
+    }
+  }
+
+  private dropSession(entry: { size: number }): void {
+    for (const [key, candidate] of this.session) if (candidate === entry) {
+      this.session.delete(key);
+      this.sessionBytesHeld -= candidate.size;
+      return;
+    }
+  }
+
+  private changed(): void {
+    this.revision++;
+    for (const listener of this.custodyListeners) listener();
   }
 
   private async viewOnceRows(assetId: string): Promise<RowRef[]> {

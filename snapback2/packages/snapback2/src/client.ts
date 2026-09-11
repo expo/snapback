@@ -527,8 +527,14 @@ class Client implements SnapbackClient {
       ready: this.ready,
       mounted: this.mounted,
       offline: () => this.forcedOffline,
-      cursor: async () => this.offlineRuntime && !this.offlineRuntime.following
-        ? this.offlineRuntime.drainCursor(op) : admitDrain(op, (await this.manifest()).ops[op]?.drain),
+      cursor: async () => {
+        if (!this.offlineRuntime || this.offlineRuntime.following) return admitDrain(op, (await this.manifest()).ops[op]?.drain);
+        // A bearer may have no restorable principal/program when `ready` settles.
+        // Do not file its first page under the recipe fallback `c` before the
+        // manifest reveals a custom returned-page cursor.
+        if (!this.offlineRuntime.hasOperation(op)) await this.manifest();
+        return this.offlineRuntime.drainCursor(op);
+      },
       query: (pageArgs: Args) => this.queryInternal(ref, pageArgs, true),
       subscribe: (tailArgs, onEvent) => this.subscribeRegular(ref, tailArgs, onEvent, true),
       track: (subscription) => this.track(subscription),

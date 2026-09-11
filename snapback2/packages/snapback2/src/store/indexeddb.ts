@@ -308,6 +308,7 @@ class IndexedDbBackend implements RangeStoreBackend {
       }
     } catch (error) {
       transaction.abort();
+      try { await transactionDone(transaction); } catch { /* Preserve the request/setup failure. */ }
       throw error;
     }
     await transactionDone(transaction);

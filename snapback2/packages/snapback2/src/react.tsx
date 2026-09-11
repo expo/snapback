@@ -15,8 +15,9 @@ function useAssetBlob(url: string | undefined) {
   const snapshot = useSnapbackSnapshot();
   const cache = client.assetCache;
   const custody = useSyncExternalStore(cache?.subscribeCustody ?? noSubscription, cache?.getCustody ?? noCustody, noCustody);
+  const revision = useSyncExternalStore(cache?.subscribeRevision ?? noSubscription, cache?.getRevision ?? noCustody, noCustody);
   const viewing = useRef({}).current;
-  const identity = useMemo(() => ({ client, url, auth: snapshot.authGeneration, custody }), [client, url, snapshot.authGeneration, custody]);
+  const identity = useMemo(() => ({ client, url, auth: snapshot.authGeneration, custody, revision }), [client, url, snapshot.authGeneration, custody, revision]);
   const [result, setResult] = useState<{ identity: typeof identity; url?: string; refusal?: Refusal }>();
   useEffect(() => {
     if (!url || typeof URL.createObjectURL !== "function") return;
@@ -90,7 +91,8 @@ export function AssetVideo({ asset, width, height, style, controls, onPlay, onRe
   const snapshot = useSnapbackSnapshot();
   const cache = client.assetCache;
   const custody = useSyncExternalStore(cache?.subscribeCustody ?? noSubscription, cache?.getCustody ?? noCustody, noCustody);
-  const identity = useMemo(() => ({ client, id: asset.id, auth: snapshot.authGeneration, custody }), [client, asset.id, snapshot.authGeneration, custody]);
+  const revision = useSyncExternalStore(cache?.subscribeRevision ?? noSubscription, cache?.getRevision ?? noCustody, noCustody);
+  const identity = useMemo(() => ({ client, id: asset.id, auth: snapshot.authGeneration, custody, revision }), [client, asset.id, snapshot.authGeneration, custody, revision]);
   const [policy, setPolicy] = useState<{ identity: typeof identity; once: boolean; viewed: boolean }>();
   const [started, setStarted] = useState<typeof identity>();
   const [request, setRequest] = useState<{ identity: typeof identity; url: string }>();

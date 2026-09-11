@@ -97,8 +97,8 @@ test("combined byte, file, and hook custody: seal mid-write, principal swap mid-
     const reading = deferred(), read = deferred(); gates.push(read);
     f.hooks.read = async () => { reading.resolve(); await read.promise; };
     renderer = await mount(f); await reading.promise;
-    await act(async () => { f.client.assetCache!.bind("dev:bob"); await f.store.close(); await f.store.open("dev:bob"); });
-    read.resolve(); await tick(); await tick();
+    const switching = act(async () => { f.client.assetCache!.bind("dev:bob"); await f.store.close(); await f.store.open("dev:bob"); });
+    read.resolve(); await switching; await tick(); await tick();
     assert.equal(image(renderer), undefined); assert.equal(f.data.size, 0);
     await act(async () => renderer!.unmount()); renderer = undefined; f.hooks.read = undefined;
     await f.store.commit({ deliveries: [delivery()] }); await f.client.assetCache!.putBytes(photo.id, 8, payload);
