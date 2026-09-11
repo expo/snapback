@@ -219,3 +219,159 @@ fn check_cost_reports_a_job_that_fails_analysis_as_unavailable() {
     assert!(report["results"][0]["certificate"].is_null(), "{report}");
     assert!(report["results"][0]["errors"].as_array().unwrap().iter().any(|error| error["code"] == "E_JOB_CURSOR_INDEX"), "{report}");
 }
+
+// @ref LLP 1018.008.008.000#l2--explain-width-and-multiplicity-with-the-existing-analyzer —
+// the retained day-two query and its four table declarations, with unrelated
+// writers/logs removed. The optional timestamp is not selected into the output.
+#[test]
+fn day_two_optional_timestamp_prices_full_rows_separately_from_projections() {
+    let project = poll_fixture();
+    fs::remove_file(project.path.join("snapback/todos.q")).unwrap();
+    let schema = r#"use identity password
+table profiles:
+  bucket: int ?
+  at: time ?
+  principal: principal
+  displayName: text 1..50
+  handle: text 3..20 format handle
+  avatar: image <=10000000 ?
+  bio: text <=200
+  location: text <=50
+  link: text <=2048 format url ?
+  by byNameSearchAt: wordPrefixes(displayName), at, id
+  by byHandleSearchAt: wordPrefixes(handle), at, id
+  by byNameSearch: wordPrefixes(displayName), id
+  by byHandleSearch: wordPrefixes(handle), id
+  unique byPrincipal: principal
+  unique byHandle: handle
+  immutable principal
+  public 'profiles are public'
+  insert <- .principal = viewer
+  update <- .principal = viewer
+  delete <- deny
+table conversations:
+  messageCount: int
+  bucket: int ?
+  title: text 1..50
+  description: text <=200
+  accent: text <=20 ?
+  background: image <=10000000 ?
+  disappearing: enum('off', '24h', '7d') ?
+  kind: enum('dm', 'group')
+  clientId: text <=100
+  creatorId: principal
+  unique byCreatorClient: creatorId, clientId
+  by byCreator: creatorId
+  unique byIdCreator: id, creatorId
+  read <- exists memberships[.id, viewer]
+  insert <- .creatorId = viewer
+  update <- exists memberships[.id, viewer]
+  delete <- deny
+  after insert <- exists memberships[.id, .creatorId, 'admin']
+table memberships:
+  bucket: int ?
+  conversationId: conversations
+  principal: principal
+  role: enum('member', 'admin')
+  deliveredAt: time ?
+  readAt: time ?
+  joinedAt: time
+  unique byConversationPrincipal: conversationId, principal
+  by byConversationPrincipalRole: conversationId, principal, role
+  by byPrincipalConversation: principal, conversationId, id
+  cap 50 by conversationId
+  immutable conversationId, principal, joinedAt
+  read <- exists memberships[.conversationId, viewer]
+  insert <- (exists memberships[.conversationId, viewer, 'admin'] or (.principal = viewer and .role = 'admin' and created conversations[.conversationId, viewer]))
+  update (old, next) <- (exists memberships[old.conversationId, viewer, 'admin'] and old.role = 'member' and next.role = 'admin' or (old.principal = viewer and next.role = old.role))
+  delete <- (.principal = viewer or exists memberships[.conversationId, viewer, 'admin'])
+table messages:
+  pollOptions: [text 1..50] <=4 ?
+  digestPeriodIndex: int ?
+  by byDigestPeriod: digestPeriodIndex, id
+  immutable digestPeriodIndex
+  digestEligible: bool ?
+  bucket: int ?
+  conversationId: conversations
+  authorId: principal
+  body: text <=2000 ?
+  clientId: text <=100
+  replyTo: messages ?
+  edited: bool ?
+  deleted: bool ?
+  photo: image <=10000000 ?
+  clip: video <=50000000 ?
+  viewOnce: bool ?
+  oncePhoto: image <=10000000 once ?
+  expiresAt: time ?
+  at: time
+  unique byAuthorClient: authorId, clientId
+  by byConvTime: conversationId, at, id
+  by bySearch: conversationId, wordPrefixes(body), at, id
+  immutable conversationId, authorId
+  retain delivered-history
+  read <- exists memberships[.conversationId, viewer]
+  insert <- (.authorId = viewer and exists memberships[.conversationId, viewer])
+  update <- .authorId = viewer
+  delete <- .authorId = viewer
+"#;
+    let query = "query searchAll(term: text <=128, c: cursor ?):\n  page = merge messages after c last 20 by bySearch:\n    [m.conversationId, term] for m in memberships[viewer] first 100 by byPrincipalConversation\n  return page { id, conversationId, authorId, body, at, conversation: conversations[.conversationId] { title }, sender: profiles[.authorId] { displayName, handle } }\n";
+    let pooled_query = format!("{}  return page\n", query.split("  return page").next().unwrap().replace("query searchAll(", "query search("));
+    fs::write(project.path.join("snapback/messages.q"), query).unwrap();
+    let mut previous = None;
+    for (edited, page, expected) in [(false, 20, 4_188_952), (true, 20, 4_199_688), (true, 19, 4_110_036)] {
+        fs::write(project.path.join("snapback/schema.q"), if edited {
+            schema.replace("  edited: bool ?", "  edited: bool ?\n  editedAt: time ?")
+        } else { schema.to_owned() }).unwrap();
+        fs::write(project.path.join("snapback/messages.q"), format!("{}\n{pooled_query}", query.replace("last 20", &format!("last {page}")))).unwrap();
+        let ordinary = project.run(&["check", "--json"]);
+        let inspected = project.run(&["check", "--cost", "messages.searchAll", "--json"]);
+        assert_eq!(ordinary.status.success(), !edited || page == 19);
+        assert_eq!(inspected.status.success(), ordinary.status.success());
+        let report = json_stdout(&inspected);
+        let certificate = &report["results"][0]["certificate"];
+        assert_eq!(certificate["max_closure_bytes"], expected, "{report}");
+        let terms = certificate["cost_terms"].as_array().unwrap();
+        for (meter, key) in [("closure bytes", "max_closure_bytes"), ("output bytes", "max_output_bytes")] {
+            assert_eq!(terms.iter().filter(|t| t["meter"] == meter).map(term_value).sum::<i128>(),
+                certificate[key].as_u64().unwrap().into(), "{meter}: {report}");
+        }
+        if !edited { previous = Some(certificate.clone()); }
+        if edited && page == 20 {
+            let old = previous.as_ref().unwrap();
+            assert_eq!(certificate["max_output_bytes"], old["max_output_bytes"]);
+            assert_eq!(certificate["max_steps"], old["max_steps"]);
+            assert_eq!(certificate["max_rule_probes"], old["max_rule_probes"]);
+            let field = terms.iter().find(|t| t["meter"] == "closure bytes" && t["source"].as_str().unwrap().contains("messages.editedAt")).unwrap();
+            assert_eq!(term_value(field), 244 * 44, "{field}");
+            assert!(field["source"].as_str().unwrap().contains("244 × messages.editedAt (44 bytes each; 12 field-name/framing + max(time 32, null reserve 8))"), "{field}");
+            assert_eq!(field["site"], "snapback/messages.q:2:10");
+            let prose = String::from_utf8_lossy(&project.run(&["check", "--cost", "messages.searchAll"]).stdout).into_owned();
+            assert!(prose.lines().any(|line| line.starts_with("  snapback/messages.q:2 244 × messages.editedAt")), "{prose}");
+            let refusal = &report["results"][0]["errors"][0];
+            assert!(refusal["rewrite"].as_str().unwrap().contains("valid continuation that the client follows"));
+            let pooled = json_stdout(&project.run(&["check", "--cost", "messages.search", "--json"]));
+            let certificate = &pooled["results"][0]["certificate"];
+            let terms = certificate["cost_terms"].as_array().unwrap();
+            let field = terms.iter().find(|t| t["meter"] == "closure bytes" && t["source"].as_str().unwrap().contains("messages.editedAt")).unwrap();
+            assert_eq!(term_value(field), 122 * 44, "{pooled}");
+            assert!(terms.iter().any(|t| t["source"].as_str().unwrap().contains("separately serialized rule verdict/absence envelopes")), "{pooled}");
+            assert_eq!(terms.iter().filter(|t| t["meter"] == "closure bytes").map(term_value).sum::<i128>(),
+                certificate["max_closure_bytes"].as_u64().unwrap().into());
+        }
+    }
+}
+
+#[test]
+fn cost_refusal_keeps_schedule_targets_when_certifying_other_operations() {
+    let project = poll_fixture();
+    let schema = fs::read_to_string(project.path.join("snapback/schema.q")).unwrap().replace("title: text <=20", "title: text <=200000");
+    fs::write(project.path.join("snapback/schema.q"), schema).unwrap();
+    fs::write(project.path.join("snapback/todos.q"), "query tooWide():\n  return polls[viewer] first 2 by byOwner\nmutation tick():\n  return null\nschedule recurring every 1m: tick()\n").unwrap();
+    let report = json_stdout(&project.run(&["check", "--cost", "--json"]));
+    let results = report["results"].as_array().unwrap();
+    let refused = results.iter().find(|r| r["program"] == "todos.tooWide").unwrap();
+    assert_eq!(refused["admitted"], false);
+    assert!(refused["errors"].as_array().unwrap().iter().all(|e| e["code"] == "E_BOUND"), "{report}");
+    assert!(results.iter().filter(|r| r["program"] != "todos.tooWide").all(|r| r["admitted"] == true), "{report}");
+}

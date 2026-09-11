@@ -229,9 +229,17 @@ test("Thread renders edit and unsend refusals locally and drops them when the co
     window.prompt = () => "edited text";
     const actions = () => document.querySelectorAll<HTMLButtonElement>("li[data-message=message-1] .actions button");
     await act(async () => actions()[0]!.click());
-    await waitFor(() => /Edit not sent: Join/.test(text(document.querySelector("section header"))), "edit refusal");
+    await waitFor(() => /Could not confirm edit\. Open details/.test(text(document.querySelector("section header"))), "edit refusal");
     await act(async () => actions()[1]!.click());
-    await waitFor(() => /Unsend refused: Join/.test(text(document.querySelector("section header"))), "unsend refusal");
+    await waitFor(() => /Could not confirm removal\. Open details/.test(text(document.querySelector("section header"))), "unsend refusal");
+    const details = [...document.querySelectorAll("section header details")];
+    assert.equal(details.length, 2);
+    for (const detail of details) {
+      assert.equal(detail.open, false, "structured advice is hidden by default");
+      await act(async () => detail.querySelector("summary")!.click());
+      assert.match(text(detail), /MEMBERSHIP_REQUIRED/);
+      assert.match(text(detail), /Join this conversation before sending/);
+    }
     await act(async () => root.render(render("conversation-2")));
     assert.equal(document.querySelector("[role=alert]"), null);
   } finally { await act(async () => root.unmount()); await client.close(); restore(); }

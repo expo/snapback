@@ -7,7 +7,7 @@ import { createHash } from "node:crypto";
 import { fileRangeStore } from "../dist/test.mjs";
 import { decodeDeliveryEnvelope, encodeDeliveryEnvelope } from "../dist/index.mjs";
 import { indexedDbRangeStore } from "../dist/react.mjs";
-import { PersistentRangeStore, SqliteBackend, nodeSqliteDriver, OfflineRuntime } from "../dist/sqlite-test.mjs";
+import { PersistentRangeStore, SqliteBackend, nodeSqliteDriver, OfflineRuntime, collectRefs, compactSuccesses, factAssertion } from "../dist/sqlite-test.mjs";
 import { sqliteFactory } from "./sqlite-fixture.ts";
 import { FakeIndexedDb, FakeLocks } from "./fake-indexeddb.ts";
 
@@ -26,6 +26,62 @@ async function carriers() {
     indexedDbRangeStore({ indexedDB: database as any, locks: new FakeLocks() }),
     sqliteFactory(join(root, "state.db"))] };
 }
+
+test("reference collection preserves escaped literals, encounter order and caller ownership", () => {
+  for (const empty of [null, undefined, false, 0, "", [], {}]) assert.deepEqual(collectRefs(empty), []);
+  const literal = { $row: { table: "messages", id: "literal" } };
+  const mutable = { nested: [ref("first"), { value: ref("second") }, ref("first")],
+    escaped: { $row: { $value: { ...literal, actual: ref("third") } } },
+    asset: { id: "asset", width: 10, height: 20, contentType: "image/png" },
+    null: null, otherTable: { $row: { table: "profiles", id: "first" } } };
+  const before = structuredClone(mutable);
+  assert.deepEqual(collectRefs(mutable), [
+    { table: "messages", id: "first" }, { table: "messages", id: "second" },
+    { table: "messages", id: "third" }, { table: "profiles", id: "first" },
+  ]);
+  assert.deepEqual(mutable, before);
+  mutable.nested[0] = ref("changed");
+  assert.equal(collectRefs(mutable)[0].id, "changed", "inspection neither freezes nor caches mutable caller values");
+  const sparse = []; sparse[3] = ref("sparse");
+  assert.deepEqual(collectRefs(sparse), [{ table: "messages", id: "sparse" }]);
+  // Collection has no independent depth limit; stress a deep admitted value
+  // without changing the delivery decoder's existing validation boundary.
+  let deep: unknown = ref("deep");
+  for (let depth = 0; depth < 512; depth++) deep = depth % 2 ? [deep] : { child: deep };
+  assert.deepEqual(collectRefs(deep), [{ table: "messages", id: "deep" }]);
+  assert.deepEqual(collectRefs({ $row: { table: "messages", id: 1 } }), [], "a malformed marker is still a literal to collection");
+});
+
+test("success compaction consults exact answer proofs only for an observable held image", () => {
+  const key = "messages\0one", image = row("one"), schemaHash = "s", generation = "g", planHash = "p";
+  const proof = { seq: 10, state: "complete", rowProofs: { [key]: factAssertion(image) } };
+  const variants = [
+    { label: "missing image", missing: true, scans: 0, compacted: false },
+    { label: "missing row sequence", unproven: true, scans: 0, compacted: false },
+    { label: "older negative dominates image", negative: 9, scans: 0, compacted: false },
+    { label: "authoritative removal", negative: 10, scans: 0, compacted: true },
+    { label: "exact unchanged answer", scans: 1, compacted: true },
+    ...["retained", "clockOnly", "needsFactProofs"].map(flag => ({ label: flag, answer: { [flag]: true }, scans: 1, compacted: false })),
+    { label: "denied answer", answer: { state: "denied" }, scans: 1, compacted: false },
+    { label: "different image", answer: { rowProofs: { [key]: "other" } }, scans: 1, compacted: false },
+    { label: "already observed", through: 10, scans: 0, compacted: true },
+  ];
+  for (const variant of variants) {
+    let scans = 0;
+    const state: any = { facts: { generation, schemaHash },
+      programs: { [generation]: { generation, schemaHash, programs: { edit: { planHash } } } },
+      outbox: { success: { op: "edit", state: "committed", inbox: 7,
+        response: { seq: 10, program: { schemaHash, planHash }, effects: [{ table: "messages", id: "one" }] } } },
+      rows: variant.missing ? {} : { [key]: image }, rowSeq: variant.unproven ? {} : { [key]: variant.through ?? 8 },
+      negative: variant.negative === undefined ? {} : { [key]: variant.negative },
+      answers: new Proxy({ view: { ...proof, ...variant.answer } }, { ownKeys(target) { scans++; return Reflect.ownKeys(target); } }),
+      overlay: { success: {} }, overlayMisses: {}, overlayWatermarks: {}, overlayNegatives: {} };
+    assert.deepEqual(compactSuccesses(state), variant.compacted ? [7] : [], variant.label);
+    assert.equal(state.outbox.success === undefined, variant.compacted, variant.label);
+    assert.equal(state.compactedThrough ?? 0, variant.compacted ? 10 : 0, variant.label);
+    assert.equal(scans, variant.scans, variant.label);
+  }
+});
 
 test("identical pre-program envelopes survive cold custody and install checked coverage without accepting equivocation", async (context) => {
   // Actual final native v5 certificates; these envelopes/validators are synthetic controls.

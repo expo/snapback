@@ -147,7 +147,7 @@ doctest_pid="$!"
 echo "== evaluator (IR twin vs corpus)"
 run_timed evaluator run_evaluator_checks &
 evaluator_pid="$!"
-SNAPBACK2_TEST_PACKAGE_DIST="$compiler_fixture/dist" run_timed compiler run_compiler_checks packages/compiler &
+SNAPBACK2_TEST_BINARY_PREBUILT=1 SNAPBACK2_TEST_PACKAGE_DIST="$compiler_fixture/dist" run_timed compiler run_compiler_checks packages/compiler &
 compiler_pid="$!"
 
 for phase_pid in "$package_pid" "$native_pid" "$doctest_pid" "$evaluator_pid" "$compiler_pid"; do

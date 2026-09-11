@@ -212,7 +212,9 @@ test("partial history becomes one coherent view without remounting its pending b
 test("the cold chat keeps both intents queued after a committed replay loses its response", async (t) => {
   const restore = installDom();
   const root = await mkdtemp(join(tmpdir(), "snapback2-screens-503-"));
-  const store = fileRangeStore(root);
+  const files = fileRangeStore(root);
+  let carrier: ReturnType<typeof files>;
+  const store = () => carrier = files();
   let token: string | null = null, binding: { token: string; principal: string } | null = null;
   const tokenStore = { load: () => token, save: (value: string | null) => { token = value; },
     loadPrincipalBinding: () => binding,
@@ -221,6 +223,7 @@ test("the cold chat keeps both intents queued after a committed replay loses its
   let writer: any;
   const replays: string[] = [];
   let cut = true, fault = true;
+  let replayAck: any;
   let client: any;
   const reactRoot = createRoot(document.getElementById("root")!);
   try {
@@ -233,9 +236,11 @@ test("the cold chat keeps both intents queued after a committed replay loses its
     const group: any = await writer.mutation(api.groups.groupCreate, { title: "503 transition", members: ["dev:bob"] });
     assert.equal(group.state, "committed");
     const conversationId = group.data.id;
-    await writer.mutation(api.messages.send, { conversationId, body: "held message" });
+    const held = await writer.mutation(api.messages.send, { conversationId, body: "held message" });
+    assert.equal(held.state, "committed");
     const drain = subscribe(warm, api.messages.inbox, {}, () => undefined, { drain: true });
     await drain.until((event: any) => event.live === true && event.caughtUp === true, 5_000);
+    assert.deepEqual(await warm.outbox.settled(), { stopped: false, remaining: 0 }, "initial delivery acknowledgements settle before the offline fixture");
     await warm.offline();
     const first = await warm.mutation(api.messages.send, { conversationId, body: "first durable send" });
     assert.equal(first.state, "queued");
@@ -249,7 +254,18 @@ test("the cold chat keeps both intents queued after a committed replay loses its
         const response = await globalThis.fetch(input, init);
         if (fault && path === "/api/mutation" && JSON.parse(String(init.body)).op === "messages.send") {
           fault = false;
-          assert.equal((await response.json()).state, "committed", "the 503 replaces a real commit receipt");
+          const committed = await response.json();
+          assert.equal(committed.state, "committed", "the 503 replaces a real commit receipt");
+          // Hold that response until independent live disclosure has earned its
+          // own acknowledgement. This makes the extra FIFO work deterministic.
+          await waitFor(async () => {
+            const entries = await client.outbox.entries();
+            const state = (await carrier!.changes()).snapshot!;
+            replayAck = entries.find((entry: any) => entry.op === "_delivery.deliveries.ack" && entry.state === "queued"
+              && entry.args.events.some((event: string) => state.rows[`deliveries\0${event}`]?.row.row === committed.data.id
+                && state.deliveryAcks[`deliveries\0${event}`]?.[0] >= committed.seq));
+            return !!replayAck;
+          }, "independent accepted delivery earns its acknowledgement before response loss");
           cut = true; // No genuine reconnect opportunity until the manual fallback below.
           return json({ message: "injected 503" }, 503);
         }
@@ -267,12 +283,18 @@ test("the cold chat keeps both intents queued after a committed replay loses its
     await waitFor(() => document.querySelectorAll("li[data-state=queued]").length === 2, "two queued bubbles");
     const pending = document.querySelector(`li[data-message="${first.ids[0]}"]`)!;
     const queued = (await client.outbox.entries()).filter((e: any) => e.state === "queued");
+    assert.deepEqual(queued.map((entry: any) => entry.op), ["messages.send", "messages.send"]);
     assert.equal(client.snapshot.auth.viewer, undefined, "the cold bearer is not confirmed yet");
     assert.equal(client.snapshot.auth.restoringViewer, principal, "the token-bound principal preserves the held app");
     cut = false;
     let verdict: any;
     await act(async () => { await client.online(); verdict = await client.outbox.settled(); });
-    assert.deepEqual(verdict, { stopped: "transport", remaining: 2 });
+    const stopped = (await client.outbox.entries()).filter((entry: any) => entry.state === "queued");
+    assert.deepEqual(stopped.map((entry: any) => [entry.intent, entry.op]), [
+      ...queued.map((entry: any) => [entry.intent, "messages.send"]), [replayAck.intent, "_delivery.deliveries.ack"],
+    ], "the only new queued work is the acknowledgement of the independently delivered first send");
+    assert.equal(replayAck.args.events.length, 1);
+    assert.deepEqual(verdict, { stopped: "transport", remaining: 3 });
     assert.equal(client.snapshot.auth.viewer, principal);
     const custody = (entries: any[]) => entries.filter(entry => entry.op === "messages.send").map(({ intent, state, ids, args }) => ({ intent, state, ids, args }));
     assert.deepEqual(custody(await client.outbox.entries()), custody(queued), "neither intent settled or changed after the lost receipt");
@@ -290,13 +312,18 @@ test("the cold chat keeps both intents queued after a committed replay loses its
       && queued.every((e: any) => document.querySelector(`li[data-message="${e.ids[0]}"]`)?.getAttribute("data-state") === "row"), "both sends settle through Sync");
     assert.deepEqual(replays.map(body => JSON.parse(body).replay.intent), [queued[0].intent, queued[0].intent, queued[1].intent]);
     assert.equal(replays[1], replays[0], "recovery retries byte-identical pinned intent bytes");
-    assert.equal(document.querySelector(`li[data-message="${first.ids[0]}"]`) === pending, true, "settlement retains the same bubble");
+    // @ref LLP 1018.008.005.000#page-and-history-lifecycle — settled rows can
+    // become unreadable while a newly eligible history reacquires its source.
+    // DOM continuity above covers the uninterrupted draft through auth/loss;
+    // after source requalification every original message must return once.
+    assert.deepEqual([...document.querySelectorAll("ol.bubbles li[data-message]")]
+      .map(element => element.getAttribute("data-message")).sort(), [held.data.id, ...queued.map((entry: any) => entry.ids[0])].sort());
     const thread = await writer.query(api.messages.thread, { conversationId });
     const bodies = thread.data.map((row: any) => row.message?.body);
     assert.equal(bodies.filter((body: string) => body === "first durable send").length, 1);
     assert.equal(bodies.filter((body: string) => body === "second durable send").length, 1);
     assert.ok(bodies.indexOf("second durable send") < bodies.indexOf("first durable send"), "the newest-first thread proves FIFO execution");
-    t.diagnostic("503: 2 durable queued intents, 2 queued bubbles, 1 request; Sync: 3 attempts [first, first, second], 1 owner row each, pinned node unchanged");
+    t.diagnostic("503: 2 unchanged queued sends + 1 independently earned delivery acknowledgement = 3 queued entries; 2 queued bubbles, 1 send request, same pinned node through auth/loss. Sync: 3 send attempts [first, first, second], 1 owner row each, all acknowledgements committed, exact 3 final message IDs after source requalification.");
   } finally {
     await act(async () => reactRoot.unmount());
     await warm.close(); await client?.close(); await writer?.close(); restore();

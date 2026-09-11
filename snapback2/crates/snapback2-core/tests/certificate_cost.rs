@@ -86,6 +86,10 @@ fn run_growth(mode: &str, take: u32, width: u32, body: impl Fn(u32) -> String) -
 }
 
 fn assert_dominates(mode: &str, certificate: &Certificate, execution: &Execution) {
+    for (meter, maximum) in [("closure bytes", certificate.max_closure_bytes), ("output bytes", certificate.max_output_bytes)] {
+        assert_eq!(certificate.cost_terms.iter().filter(|term| term.meter == meter).map(|term| term.value).sum::<i128>(),
+            i128::from(maximum), "{mode}: diagnostic {meter} must reconcile through branches, loops, aliases and escaping");
+    }
     let measured = canonical_json(&execution.result).len() as u64;
     let retained_payload = match &execution.result {
         Value::String(value) => canonical_json(value).len() as u64,
@@ -199,6 +203,16 @@ fn every_meter_has_an_admitted_refused_pair_with_identical_pricing() {
         }
     }
     assert_eq!(covered.len(), 8, "missing meter: {covered:?}");
+}
+
+#[test]
+fn saturated_byte_diagnostics_keep_exact_signed_adjustments() {
+    let (schema, program) = growth_fixture("twice", 65, 1);
+    let analysis = Checker::new(&schema, Ceilings::default()).inspect(&program);
+    assert!(!analysis.errors.is_empty());
+    let certificate = analysis.certificate.expect("a saturated refused bound remains inspectable");
+    assert_eq!(certificate.max_output_bytes, u64::MAX);
+    reconcile(&certificate);
 }
 
 #[test]

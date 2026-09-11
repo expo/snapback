@@ -1,7 +1,8 @@
 import type { Snapshot } from "snapback2/client";
 
 type View = Pick<Snapshot<unknown>, "receipt" | "status">;
-export function threadWitness(snapshot: View & Pick<Snapshot<unknown>, "partial" | "reason"> & { history?: View }) {
+export function threadWitness(resource: { head: View & Pick<Snapshot<unknown>, "partial" | "reason">; history?: View }) {
+  const snapshot = { ...resource.head, history: resource.history };
   const history = snapshot.partial || snapshot.reason?.code === "partial";
   const visible = history ? snapshot.history ?? snapshot : snapshot;
   const state = visible.receipt?.state ?? visible.status;

@@ -69,12 +69,22 @@ successor and account resets publish `loading` before new-authority data.
 Committed predictions, settlements, and coverage changes reevaluate mounted
 views once from the atomic store revision; bookkeeping-only commits stay silent.
 
-`useMutation` returns `{ run, inFlight, can, last }`.
+`usePage` and headless `client.observePages` keep loaded pages live. Raw arrays
+return rows; `{ items }` accepts the same item/history binding as `useQuery`.
+Render `items`, read the primary summary from `head.data`, and call `loadMore`
+when `hasMore`. Each original page keeps its own receipt. The Thread and Search
+starters include continuation controls on React and Expo; see `guide pagination`.
+
+`useMutation` returns `{ run, inFlight, can, last, work }`.
 `inFlight` marks an active call. `can.send`, `can.reason`, and `can.action`
 describe readiness and recovery. `last` is
 `queued`, `committed`, or `rejected`; every state is terminal or durable, and
 queued means saved on the device for FIFO replay after `online()`. `useOutbox()` exposes entries,
-`dismiss`, `can`, and `detail`. The client's `outbox.drain()` and `settled()`
+`work`, `dismiss`, `recover`, `can`, and `detail`.
+`work` pairs each durable entry with its label and dismissal eligibility;
+a mutation’s `work` follows its last intent, including a follower alias.
+`recover()` returns `{ settlement }` or `{ refusal }` with a fresh 10-second wait.
+Timeout keeps saved work; account changes and offline cuts end that wait. The client's `outbox.drain()` and `settled()`
 report `{ stopped, remaining }`. Transport loss during replay preserves queued writes.
 A transport failure without durable admission resolves a `rejected` refusal
 from `run` or `client.mutation`. Neither throws. `last` clears on account or operation changes.

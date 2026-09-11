@@ -315,3 +315,43 @@ Delivery latency, hydration cost, pagination, first-write custody, and the
 interaction between media admission and quotas remain material. LLP 1018's
 cold-run obligation is satisfied, but the document stays Active/current while
 the accepted client follow-up owner and these residual findings remain.
+
+
+## 2026-09-11 — engineering the shared client and starter follow-up
+
+This is a source-and-test engineering follow-up to the treatment's composition
+and recovery friction, not a new builder run or competitor score. The work is
+commissioned in LLPs 1018.008.005.000 and 1018.008.006.000.
+
+The starter now uses one paged item resource for primary conversation data and
+retained recipient history. It exposes older messages and more search results
+in both arms. The real-owner screen control loaded 105 messages through
+50/100/105, applied a middle edit and a newest insertion/removal across that
+loaded collection, and continued search from 20 to 40 results. Cold offline
+history reached the same 105 original-recipient messages while the composite
+summary stayed unavailable. A queued create appeared once across three pages.
+The source decision and each selected row's evidence stay in the client.
+
+Both composers now call the shared bounded recovery action and read the
+mutation's current durable work. The previous application-owned online/settled
+sequence, per-composer ledger search and per-device-list dismissal predicate
+are gone. Draft lifetime and product advice remain application code. Brief
+refusal labels link to explicit diagnostic details; a user need not read an
+operation name or compiler rewrite to understand that a message was not sent.
+
+The complete chat template TypeScript corpus, counting physical source once
+across both arms and shared code, changed from 27 files/1,718 lines at
+`bf8450849` to 28 files/1,751 lines. This is not a line-count reduction: the
+additional paging controls and inspectable details buy actual behavior.
+`useSnapbackClient` occurrences fell from four to zero; the two Composer
+`client.online()` calls disappeared. Two `outbox.settled()` calls remain in
+the Expo witness, which measures settlement rather than owning product recovery.
+React/Expo Thread components remain 60/43 lines.
+
+A source-level review caught two small but meaningful ownership mistakes: a
+later recovery initially waited for the first resume before starting another,
+and a headless page subscriber could lose a loadMore call made inside its
+notification. Both now have causal controls and fixes in the existing owners.
+This is the kind of application bookkeeping the shared API should prevent.
+Exact and Contract were not involved. No new Convex/Supabase timing comparison,
+native simulator run, or published-package qualification is claimed here.

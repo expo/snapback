@@ -404,12 +404,14 @@ fn check_request(request: Request) -> Vec<ResultItem> {
                 )],
                 Ok(program) => {
                     let mut single = project.clone();
-                    // Schedule bindings ride along: a schedule certifies only beside its binding.
+                    // A schedule certifies beside both its binding and its target.
+                    // Omitting targets invents E_SCHEDULE_TARGET on every otherwise
+                    // valid operation when an unrelated query exceeds a ceiling.
                     let bindings = single
                         .schema
                         .schedules
                         .iter()
-                        .map(|schedule| schedule.binding.clone())
+                        .flat_map(|schedule| [schedule.binding.clone(), schedule.target.clone()])
                         .collect::<BTreeSet<_>>();
                     single.programs = project
                         .programs

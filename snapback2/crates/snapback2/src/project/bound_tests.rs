@@ -371,7 +371,11 @@ table posts:
     assert!(
         output
             .message
-            .contains("posts row width [posts.body = 80024 bytes"),
+            .contains("posts row width [posts.body (8 field-name/framing + text max 20000 scalars: encoded value bound 80016) = 80024 bytes"),
+        "{output:?}"
+    );
+    assert!(
+        output.message.starts_with("output bytes 1607552 exceeds ceiling 1048576"),
         "{output:?}"
     );
     assert!(

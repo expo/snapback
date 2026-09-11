@@ -14,7 +14,7 @@ const client = createClient({
 Requires IndexedDB and Web Locks. Expo `<SnapbackProvider url persona
 offline>` from `snapback2/react-native` owns its client, with SQLite and secure
 token custody by default. `startOffline` on either provider/client preserves
-the startup transport cut; only `online()` reconnects.
+the startup transport cut; `online()` or explicit recovery reconnects.
 Clients share one packaged offline runtime.
 
 Expiry seals; session change wipes. One writer/account; web followers read live,
@@ -49,15 +49,19 @@ offers Sync. A real reconnect/auth recovery resumes durable queued work. Followe
 inbox readiness; `detail.writer` holds announced status.
 Use the selected mutation's `can` for a composer: text, edit and media can
 need different ID slices. Render its reason; `can.action === "connect"`
-offers a visible **Sync now** button that awaits `client.online()` and surfaces
-failure without clearing the draft or attachment. Admission and a subscribed
+offers **Sync now**: await `useOutbox().recover()` (headless:
+`client.outbox.recover()`). It returns `{ settlement: { stopped, remaining } }`
+or `{ refusal }`. Keep drafts/attachments on refusal; never guess a queue count. Admission and a subscribed
 selected operation acquire missing capacity through one bounded resume flight;
 `can`/snapshot reads do no I/O. After recovery, let the user
 submit normally; do not automatically resubmit a refused write or add a
 periodic `online()` loop.
 One automatic attempt per opportunity, with a 10-second deadline; an explicit
 offline cut forbids automatic networking until `online()`.
-`outbox.observe(op?)` feeds hooks; `intentLabel` labels entries.
+`outbox.observe(op?)` feeds hooks with `entries`, `work`, `can`, and status.
+Each `work` item has `{ entry, label, dismissible }`; `getWork(intent)` also
+resolves follower aliases. `useMutation(op).last` stays the immediate result;
+its `work` tracks that intent through replay and disappears on compaction.
 Discharged successes compact automatically; unresolved successes and failures
 stay dismissible. Queued work is dismissible only after the owner refused its
 last replay as bad input or schema; another replay durably clears that before
@@ -72,7 +76,11 @@ through commit; `arrived`/global sequence cannot substitute. Expose failures.
 `outbox.drain()`/`settled()`: `{ stopped, remaining }`; false is drained.
 Fence/transport/authority/offline/pending/writer-unresponsive pauses keep
 queued bytes. A real reconnect can start bounded recovery; retry stopped work
-with `online()` or an online drain.
+with explicit recovery. Each recovery call owns a 10-second wait while sharing
+resume/drain work. Timeout returns E_TRANSPORT; work keeps its custody. Closing,
+going offline, takeover, or changing account ends the wait before further
+partition reads. Followers refresh their inbox; recovery never takes a writer
+lock or clears another tab’s offline cut.
 
 ## Entry fields
 
@@ -89,9 +97,7 @@ with `online()` or an online drain.
 | `createdAt`, `updatedAt` | Device timestamps; never use them to enforce a server edit/expiry window. |
 | `inbox` | Follower alias key; admission and later compaction preserve it atomically with the ledger. |
 
-For completion, await `client.outbox.settled()` and check `stopped`/`remaining`.
-For visibility, read the receiving query: a committed result alone does not mean
-its row reached that view. Server edit windows use Quarry `now`.
+Server edit windows use Quarry `now`.
 
 ## Resume
 

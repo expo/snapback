@@ -255,7 +255,7 @@ test("the chat screens render the log, queue offline sends as pinned bubbles, se
         React.createElement(App),
       ));
     });
-    await waitFor(() => /log downloaded/.test(text(document.querySelector("[role=status][data-connection]")))
+    await waitFor(() => /messages available on this device/.test(text(document.querySelector("[role=status][data-connection]")))
       && document.querySelectorAll("nav[aria-label=Inbox] li").length === 2, "the current inbox drain");
     const inboxItems = [...document.querySelectorAll("nav[aria-label=Inbox] li")].map((item) => item.getAttribute("data-conversation"));
     assert.deepEqual(inboxItems, ["conversation-1", "conversation-2"], "the inbox lists every conversation in the held log");
@@ -340,11 +340,11 @@ test("the chat screens render the log, queue offline sends as pinned bubbles, se
       && ["complete", "capped"].includes(document.querySelector("section[aria-label=Search] .scope")?.getAttribute("data-state") ?? ""),
     "live indexed search hits");
     assert.ok(["complete", "capped"].includes(document.querySelector("section[aria-label=Search] .scope")?.getAttribute("data-state") ?? ""));
-    assert.match(text(document.querySelector("section[aria-label=Search] .scope")), /Live indexed results|Indexed result limit reached/);
+    assert.match(text(document.querySelector("section[aria-label=Search] .scope")), /Matching messages/);
     assert.deepEqual([...document.querySelectorAll("section[aria-label=Search] .hits li")].map((item) => item.getAttribute("data-message")), ["message-1"]);
     await type(search, "");
 
-    // Rejected: "Not sent" with the refusal rewrite, then dismissed by the user.
+    // Rejected: a brief label; the work list keeps structured diagnostics in Details.
     await act(async () => { await client.offline(); });
     await type(input, "reject me");
     await act(async () => { document.querySelector<HTMLFormElement>("form[aria-label=Composer]")!.requestSubmit(); });
@@ -352,7 +352,9 @@ test("the chat screens render the log, queue offline sends as pinned bubbles, se
     await act(async () => { await client.online(); await client.outbox.settled(); });
     await waitFor(() => document.querySelector("li[data-state=rejected]") !== null, "the rejection");
     const rejected = document.querySelector("li[data-state=rejected]")!;
-    assert.match(text(rejected), /Not sent · fix the rejected mutation input and retry/);
+    assert.match(text(rejected), /Not sent/);
+    assert.doesNotMatch(text(rejected), /fix the rejected mutation input/);
+    assert.match(text(document.querySelector("main header details")), /fix the rejected mutation input/);
     await act(async () => { rejected.querySelector<HTMLButtonElement>("button")!.click(); });
     await waitFor(() => document.querySelector("li[data-state=rejected]") === null, "dismiss");
 

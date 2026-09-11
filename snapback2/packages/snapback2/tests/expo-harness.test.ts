@@ -377,7 +377,10 @@ test("Expo Thread queues in partial history, preserves the bubble through failed
     const bubble = () => renderer.root.findAllByType("NativeView").find(node => node.props.testID === `message-${id}`);
     const pending = bubble(); assert.ok(pending);
     await act(async () => nativeButton(renderer, "Sync now").props.onPress());
-    await until(() => nativeText(renderer).includes("native sync cut"));
+    await until(() => nativeText(renderer).includes("Sync paused. Your messages are saved; try again."));
+    assert.doesNotMatch(nativeText(renderer), /native sync cut/, "transport diagnostics start behind Details");
+    await act(async () => nativeButton(renderer, "Details").props.onPress());
+    assert.match(nativeText(renderer), /native sync cut/, "the original transport refusal remains inspectable");
     assert.equal((await client.outbox.entries()).find((entry: any) => entry.op === "messages.send")!.state, "queued");
     assert.strictEqual(bubble(), pending);
     await until(() => Boolean(nativeButton(renderer, "Sync now")));

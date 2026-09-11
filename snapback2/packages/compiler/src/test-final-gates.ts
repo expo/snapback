@@ -300,8 +300,11 @@ void [created, updated, removed, wrong];`);
   });
 
   test("binary check certifies every compiler program and reads IR only from stdin or --ir", async () => {
-    const built = Bun.spawnSync({ cmd: ["cargo", "build", "-p", "snapback2"], cwd: crate, stdout: "pipe", stderr: "pipe" });
-    assert(built.exitCode === 0, `cargo build failed: ${new TextDecoder().decode(built.stderr)}`);
+    // @ref LLP 1002#11-measured — the full script owns the canonical binary before concurrent readers start.
+    if (process.env.SNAPBACK2_TEST_BINARY_PREBUILT !== "1") {
+      const built = Bun.spawnSync({ cmd: ["cargo", "build", "-p", "snapback2"], cwd: crate, stdout: "pipe", stderr: "pipe" });
+      assert(built.exitCode === 0, `cargo build failed: ${new TextDecoder().decode(built.stderr)}`);
+    }
     const quarryChat = await lowerProject(`${frontend}fixtures/quarry-chat`);
     assert(quarryChat.ok, "Quarry chat did not compile for binary check");
     const buildDir = `${frontend}fixtures/quarry-chat/.snapback/build`;

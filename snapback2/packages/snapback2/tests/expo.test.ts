@@ -1,4 +1,5 @@
 import { assertRefused } from "./live-fixture.ts";
+import { subscribe } from "../src/internal.js";
 import assert from "node:assert/strict";
 import { readFile, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { statSync, realpathSync } from "node:fs";
@@ -16,6 +17,7 @@ import { RefusalError, composeHistory } from "../dist/client-observed-test.mjs";
 import { nodeSqliteDriver } from "../dist/sqlite-test.mjs";
 import { fileRangeStore } from "../dist/test.mjs";
 import { fakeOwner, seededStore } from "./fake-owner.ts";
+import { RealOwnerHarness } from "./owner-harness.ts";
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 (globalThis as any).__snapbackNative ??= { React, fileUris: [], fileBodies: new Map(), videoSources: [] };
@@ -77,6 +79,109 @@ function observeTestOutbox(client: any) {
   client.outbox.observe = observeOutbox(() => client.outbox.entries(), (op: unknown) => client.outbox.status(op),
     (notify: () => void) => client.outbox.subscribe(notify), () => String(client.snapshot.authGeneration));
 }
+const composedPage = (snapshot: any) => ({ head: snapshot, items: snapshot.items, itemsFrom: snapshot.itemsFrom ?? "history",
+  ...(snapshot.history ? { history: snapshot.history } : {}), status: snapshot.status, reason: snapshot.reason,
+  pages: [], hasMore: false, loadMore() {} });
+
+test("mounted React and Expo Threads load 105 messages and Search follows its own continuation", async () => {
+  const owner = await RealOwnerHarness.create({ fullChat: true });
+  const client = createClient({ url: owner.url, persona: "paged-screen-alice" });
+  const late = createClient({ url: owner.url, persona: "paged-screen-late" });
+  const heldRoot = await mkdtemp(join(tmpdir(), "snapback2-held-page-screens-"));
+  let disconnected = false;
+  let recipient = createClient({ url: owner.url, persona: "paged-screen-bob", offline: { store: fileRangeStore(heldRoot) },
+    fetch: (input, init) => { assert.equal(disconnected, false, "cold paginated history attempts no transport"); return globalThis.fetch(input, init); } });
+  let renderer: TestRenderer.ReactTestRenderer | undefined;
+  const bundles: string[] = [];
+  const wait = async (predicate: () => boolean) => {
+    const deadline = Date.now() + 10_000;
+    while (!predicate()) {
+      assert.ok(Date.now() < deadline, "mounted paginated screen settles");
+      await act(async () => { await new Promise(resolve => setTimeout(resolve, 10)); });
+    }
+  };
+  try {
+    await Promise.all([client.ready, recipient.ready, late.ready]);
+    const created: any = await client.mutation(api.groups.groupCreate, { title: "Page screen", members: [(await recipient.auth.me()).viewer] });
+    assert.equal(created.state, "committed", JSON.stringify(created));
+    const conversationId = created.data.id;
+    const ids: string[] = [];
+    for (let index = 1; index <= 105; index++) {
+      const posted: any = await client.mutation(api.messages.send, { conversationId, body: `pageproof ${index}` });
+      assert.equal(posted.state, "committed"); ids.push(posted.data.id);
+    }
+    const added: any = await client.mutation(api.groups.memberAdd, { conversationId, principal: (await late.auth.me()).viewer });
+    assert.equal(added.state, "committed");
+    const drain = subscribe(recipient, api.messages.inbox, { c: null }, () => {}, { drain: true });
+    try { await drain.until(value => value.live && value.caughtUp, 10_000); } finally { drain.close(); }
+    await recipient.outbox.drain(); await recipient.offline(); disconnected = true; recipient = await recipient.restart();
+    for (const arm of ["react", "expo"]) {
+      const native = arm === "expo", prefix = native ? "./screens/" : "./";
+      const bundle = fileURLToPath(new URL(`../dist/.${arm}-page-screen.test.mjs`, import.meta.url)); bundles.push(bundle);
+      const built = await build({ stdin: { contents: `export { Thread } from "${prefix}Thread"; export { Search } from "${prefix}Search";`,
+        resolveDir: fileURLToPath(new URL(`../templates/chat/${arm}/src`, import.meta.url)), sourcefile: "pages.tsx", loader: "tsx" },
+        bundle: true, write: false, format: "esm", platform: "node", target: "es2022", jsx: "automatic",
+        external: ["react", "react/jsx-runtime", "react-native"], plugins: [{ name: "package-dist", setup(plugin) {
+          plugin.onResolve({ filter: /^snapback2\/(react|react-native|client)$/ }, args => ({ path: `./${args.path.slice("snapback2/".length)}.mjs`, external: true }));
+        } }] });
+      await writeFile(bundle, built.outputFiles[0]!.text);
+      const { Thread, Search } = await import(pathToFileURL(bundle).href);
+      const rows = () => native ? renderer!.root.findAllByType("NativeView").filter(node => node.props.testID?.startsWith("message-"))
+        : renderer!.root.findAllByType("li").filter(node => node.props["data-message"]);
+      const press = async (label: string) => { await act(async () => {
+        const button = renderer!.root.findAllByType(native ? "NativeButton" : "button")
+          .find(node => native ? node.props.title === label : node.props.children === label);
+        assert.ok(button, `${arm} has ${label}`); assert.notEqual(button.props.disabled, true);
+        (native ? button.props.onPress : button.props.onClick)();
+      }); };
+      const screenClient = native ? late : client;
+      await act(async () => { renderer = TestRenderer.create(React.createElement(SnapbackProvider, { client: screenClient }, React.createElement(Thread, { conversationId }))); });
+      await wait(() => rows().length === 50); await press("Load older messages");
+      await wait(() => rows().length === 100); await press("Load older messages");
+      await wait(() => rows().length === 105);
+      const keys = () => rows().map(node => native ? node.props.testID.slice("message-".length) : node.props["data-message"]);
+      assert.equal(new Set(keys()).size, 105); assert.deepEqual(new Set(keys()), new Set(ids));
+      assert.match(JSON.stringify(renderer!.toJSON()), /105 messages/);
+      const editedId = ids[50]!;
+      await act(async () => { const edited: any = await client.mutation(api.messages.edit, { messageId: editedId, body: "pageproof edited", baseBody: "pageproof 51" }); assert.equal(edited.state, "committed"); });
+      await wait(() => JSON.stringify(renderer!.toJSON()).includes("pageproof edited"));
+      let newestId = "";
+      await act(async () => { const sent: any = await client.mutation(api.messages.send, { conversationId, body: "pageproof newest" }); assert.equal(sent.state, "committed"); newestId = sent.data.id; });
+      await wait(() => rows().length === 106 && keys().at(-1) === newestId);
+      await act(async () => { assert.equal((await client.mutation(api.messages.unsend, { messageId: newestId })).state, "committed"); });
+      await wait(() => rows().length === 105 && !keys().includes(newestId));
+      await act(async () => { renderer!.unmount(); renderer = TestRenderer.create(React.createElement(SnapbackProvider, { client: screenClient }, React.createElement(Search, { onOpen() {} }))); });
+      await act(async () => { const input = renderer!.root.findByType(native ? "NativeTextInput" : "input");
+        if (native) input.props.onChangeText("pageproof"); else input.props.onChange({ target: { value: "pageproof" } }); });
+      const hits = () => native ? renderer!.root.findAllByType("NativePressable").filter(node => node.props.testID?.startsWith("search-"))
+        : renderer!.root.findAllByType("li").filter(node => node.props["data-message"]);
+      await wait(() => hits().length === 20); await press("Show more results"); await wait(() => hits().length === 40);
+      if (native) {
+        await act(async () => { assert.equal((await client.mutation(api.groups.memberRemove, { conversationId, membershipId: added.data.id })).state, "committed"); });
+        await wait(() => hits().length === 0);
+      }
+      await act(async () => { renderer!.unmount(); }); renderer = undefined;
+      await client.mutation(api.messages.edit, { messageId: editedId, body: "pageproof 51", baseBody: "pageproof edited" });
+      await act(async () => { renderer = TestRenderer.create(React.createElement(SnapbackProvider, { client: recipient }, React.createElement(Thread, { conversationId }))); });
+      await wait(() => rows().length === 50); await press("Load older messages");
+      await wait(() => rows().length === 100); await press("Load older messages"); await wait(() => rows().length === 105);
+      assert.deepEqual(new Set(keys()), new Set(ids));
+      assert.match(JSON.stringify(renderer!.toJSON()), /Message count unavailable/);
+      assert.match(JSON.stringify(renderer!.toJSON()), /Downloaded history/);
+      if (native) {
+        await act(async () => { const queued: any = await recipient.mutation(api.messages.send, { conversationId, body: "cold page draft" }); assert.equal(queued.state, "queued"); });
+        await wait(() => rows().length === 106);
+        assert.equal(new Set(keys()).size, 106, "the queued create appears once across three retained pages");
+      }
+      await act(async () => { renderer!.unmount(); }); renderer = undefined;
+    }
+  } finally {
+    if (renderer) await act(async () => { renderer!.unmount(); });
+    await Promise.all([client.close(), recipient.close(), late.close()]); await owner.close(); if (owner.owned) delete process.env.SNAPBACK_URL;
+    await rm(heldRoot, { recursive: true, force: true });
+    await Promise.all(bundles.map(bundle => rm(bundle, { force: true })));
+  }
+});
 
 for (const arm of ["Expo", "React"]) test(`${arm} renders real loading-history drafts and keeps the bubble into a usable composite`, async () => {
   const bundlePath = fileURLToPath(new URL("../dist/.expo-thread-history.test-bundle.mjs", import.meta.url));
@@ -114,11 +219,11 @@ for (const arm of ["Expo", "React"]) test(`${arm} renders real loading-history d
   const receipt = { state: "partial", source: "twin", seq: 1, next: null };
   const primary: any = { status: "unavailable", data: undefined, partial: false, next: null, reason, receipt, items };
   const history: any = { status: "ready", data: [message], items, receipt: { ...receipt, state: "complete" } };
-  let snapshot: any = composeHistory(primary, history);
+  let snapshot: any = composedPage(composeHistory(primary, history));
   const client: any = {
     ready: Promise.resolve(),
     snapshot: { authGeneration: 1, connection: "offline", auth: { state: "authenticated", viewer: "profile-alice" } },
-    observe(ref: any, _args: unknown, options: any) {
+    observePages(ref: any, _args: unknown, options: any) {
       observed.push(`${ref.op}${options?.items?.history ? "+history" : ""}`);
       return { getSnapshot: () => snapshot, subscribe(notify: () => void) { listeners.add(notify); return () => { listeners.delete(notify); }; } };
     },
@@ -135,7 +240,7 @@ for (const arm of ["Expo", "React"]) test(`${arm} renders real loading-history d
   observeTestOutbox(client);
   let renderer: TestRenderer.ReactTestRenderer | undefined;
   const publish = async (next: any) => {
-    snapshot = next;
+    snapshot = composedPage(next);
     await act(async () => { for (const notify of [...listeners]) notify(); });
   };
   try {
@@ -222,7 +327,8 @@ for (const arm of ["Expo", "React"]) test(`${arm} cached once-photo waits for ac
   // Keep the cached row visible even after logout: query reset must not mask a screen-owned opening.
   const held = { status: "ready", data: undefined, partial: true, next: null,
     items: [{ key: message.id, data: message, predicted: false, pending: [] }] };
-  client.observe = () => ({ getSnapshot: () => held, subscribe: () => () => undefined }) as any;
+  const heldPage = composedPage(held);
+  (client as any).observePages = () => ({ getSnapshot: () => heldPage, subscribe: () => () => undefined });
   let renderer: TestRenderer.ReactTestRenderer | undefined;
   function Screen() {
     return React.createElement(Thread, { conversationId: "conversation-1" });
@@ -325,7 +431,8 @@ test(`${arm} once-photo opening scope: ${boundary}`, async t => {
   // Keep the row across every auth transition so query invalidation cannot hide an old opening.
   const held = { status: "ready", data: undefined, partial: true, next: null,
     items: [{ key: message.id, data: message, predicted: false, pending: [] }] };
-  client.observe = () => ({ getSnapshot: () => held, subscribe: () => () => undefined }) as any;
+  const heldPage = composedPage(held);
+  (client as any).observePages = () => ({ getSnapshot: () => heldPage, subscribe: () => () => undefined });
   let renderer: TestRenderer.ReactTestRenderer | undefined;
   const commits: { account: string | null | undefined; images: number }[] = [];
   function Screen() {

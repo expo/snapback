@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Button, ScrollView, Text, View } from "react-native";
 import { api } from "snapback2/client";
-import { AssetImage, AssetVideo, useAuth, useOutbox, useQuery } from "snapback2/react-native";
+import { AssetImage, AssetVideo, useAuth, useOutbox, usePage } from "snapback2/react-native";
 import { Composer } from "../Composer";
 import { conversationItems } from "../../shared/thread";
 
@@ -10,8 +10,8 @@ export function Thread({ conversationId }: { conversationId: string }) {
   const account = auth.state === "anonymous" ? null : auth.viewer ?? auth.restoringViewer;
   const [opened, setOpened] = useState({ account, ids: [] as string[] });
   if (account !== undefined && account !== opened.account) setOpened({ account, ids: [] });
-  const snapshot = useQuery(api.messages.conversationView, { conversationId }, { items: conversationItems });
-  const composite = snapshot.data;
+  const snapshot = usePage(api.messages.conversationView, { conversationId }, { items: conversationItems });
+  const composite = snapshot.head.data;
   const { dismiss } = useOutbox();
   const preview = composite?.preview[0]?.message?.body;
   return <View style={{ flex: 1 }}><ScrollView contentContainerStyle={{ padding: 16 }}>
@@ -19,7 +19,8 @@ export function Thread({ conversationId }: { conversationId: string }) {
       ? `${composite.count} message${composite.count === 1 ? "" : "s"}${preview ? ` · Latest: ${preview}` : ""}`
       : "Message count unavailable"}</Text>
     {snapshot.status === "loading" ? <Text>Loading…</Text> : snapshot.reason ? <Text>{snapshot.reason.message}</Text> : null}
-    {snapshot.partial || snapshot.reason?.code === "partial" ? <Text testID="thread-history-state">Downloaded history · Count and preview unavailable.</Text> : null}
+    {snapshot.head.partial || snapshot.head.reason?.code === "partial" ? <Text testID="thread-history-state">Downloaded history · Count and preview unavailable.</Text> : null}
+    {snapshot.hasMore ? <Button title="Load older messages" disabled={snapshot.status === "loading"} onPress={snapshot.loadMore} /> : null}
     {snapshot.items.map((item) => {
       const message = item.data, messageId = item.key;
       const photoKey = account == null ? undefined : JSON.stringify([account, messageId]);

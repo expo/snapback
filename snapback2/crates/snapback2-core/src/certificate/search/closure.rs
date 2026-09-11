@@ -3,7 +3,7 @@ use super::*;
 use crate::bounds::{
     declared_column_value_max, declared_identity_max, declared_serialized_row_max,
 };
-use crate::collection_rewrite::ByteShape;
+use crate::collection_rewrite::{ByteShape, row_shape};
 
 pub(crate) fn estimate(
     schema: &Schema,
@@ -195,6 +195,8 @@ pub(crate) fn estimate(
         // though matching immutable row images share storage in both internal pools.
         let authority = probes.saturating_mul(widest.max(320));
         metadata = metadata.saturating_add(authority);
+        children.push(ByteShape::leaf(authority,
+            format!("{} × {probes} probes: separately serialized rule verdict/absence envelopes", scan.site)));
         if !covered_rules.contains(&scan.site) {
             for (t, _) in targets {
                 *pools.entry(t).or_default() += probes;
@@ -220,10 +222,10 @@ pub(crate) fn estimate(
                     .map(|n| declared_column_value_max(schema, &read.table, n).unwrap_or(0))
                     .sum::<u64>()
             });
-        metadata = metadata.saturating_add(
-            read.max_calls
-                .saturating_mul(key + reference_bytes(schema, &read.table) + 512),
-        );
+        let point = read.max_calls.saturating_mul(key + reference_bytes(schema, &read.table) + 512);
+        metadata = metadata.saturating_add(point);
+        children.push(ByteShape::leaf(point,
+            format!("{} × {} point reads: separately serialized keys, references and envelopes", read.site, read.max_calls)));
         let probes = read
             .max_calls
             .saturating_mul(read.rule_probes_per_candidate);
@@ -248,20 +250,26 @@ pub(crate) fn estimate(
                         })
                 })
                 .unwrap_or(0);
-            metadata = metadata.saturating_add(
-                probes.saturating_mul(width + reference_bytes(schema, &target) + 512),
-            );
+            let authority = probes.saturating_mul(width + reference_bytes(schema, &target) + 512);
+            metadata = metadata.saturating_add(authority);
+            children.push(ByteShape::leaf(authority,
+                format!("{} × {probes} probes on {target}: separately serialized authority envelopes", read.site)));
             *pools.entry(target).or_default() += probes;
         }
     }
     for (table, count) in pools {
-        let bytes = count.saturating_mul(
-            declared_serialized_row_max(schema, &table) + reference_bytes(schema, &table) + 8,
-        );
+        let row = declared_serialized_row_max(schema, &table);
+        let envelope = reference_bytes(schema, &table) + 8;
+        let bytes = count.saturating_mul(row + envelope);
         metadata = metadata.saturating_add(bytes);
-        children.push(ByteShape::leaf(
+        children.push(ByteShape::repeated(
             bytes,
             format!("{count} pooled {table} first images with table/id envelopes"),
+            count,
+            ByteShape::group(row + envelope, format!("{table} first-image custody"), vec![
+                row_shape(schema, &table),
+                ByteShape::leaf(envelope, format!("{table} table/id envelope")),
+            ]),
         ));
     }
     let args = program
@@ -277,6 +285,7 @@ pub(crate) fn estimate(
     let root = crate::value::canonical_json(&crate::engine::ClosureReceipt::default()).len() as u64
         + 66
         + args;
+    children.push(ByteShape::leaf(root, "closure root, schema hash and retained issuing arguments"));
     Some(ByteShape::group(
         metadata.saturating_add(root),
         if search {

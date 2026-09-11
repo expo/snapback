@@ -534,7 +534,7 @@ for (const carrier of ["file", "indexeddb"]) test(`${carrier}: query membership 
 test("queued refusal labels and item dismissal eligibility follow the last known attempt", () => {
   const refusal = { code: "E_INPUT", family: "input", message: "enum case removed", guide: "input/runtime" };
   const refused = attachItems(spec, args, [], inputs([entry({ refusal })]))[0]!.pending[0]!;
-  assert.equal(refused.label, "Not sent · enum case removed");
+  assert.equal(refused.label, "Not sent");
   assert.equal(refused.dismissible, true);
   const unknown = attachItems(spec, args, [], inputs([entry()]))[0]!.pending[0]!;
   assert.match(unknown.label, /Sending/);

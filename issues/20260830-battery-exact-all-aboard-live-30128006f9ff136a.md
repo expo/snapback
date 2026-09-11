@@ -13,12 +13,12 @@
 **Battery gate:** `exact-all-aboard-live`
 **Failure signature:** `sha256:30128006f9ff136a6ccbcf695061643fdd3d38e130ade7b83c6f5af4ca744162`
 **First observed run:** `local.20260830T160622Z.0fdfadbe8e67`
-**Last observed run:** `local.20260911T062045Z.15c134d056d0`
-**Last processed run:** `local.20260911T062045Z.15c134d056d0`
+**Last observed run:** `local.20260911T162046Z.dd629ae33ad8`
+**Last processed run:** `local.20260911T162046Z.dd629ae33ad8`
 **Detected at revision:** `0fdfadbe8e67a5c930d282e5efe91a633aa76e35`
-**Last observed revision:** `15c134d056d084448d7db766b03df5b47db9a40c`
-**Consecutive red runs:** `1`
-**Escalation:** `pending (1/4)`
+**Last observed revision:** `dd629ae33ad8eaad1f8fa1c35dcc4c4f7292580f`
+**Consecutive red runs:** `2`
+**Escalation:** `pending (2/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary

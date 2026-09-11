@@ -143,6 +143,18 @@ export function withHistory<Args, Result, Row extends ItemRow, Draft, HistoryArg
   return Object.freeze({ ...items, history: Object.freeze({ items: history.items, args: history.args }) });
 }
 
+const primaryDeclarations = new WeakMap<object, Items<any, any, any, any>>();
+/** Page resources own one fallback chain, while raw pages share this item projection. */
+export function withoutHistory<Args, Result, Row extends ItemRow, Draft>(items: Items<Args, Result, Row, Draft>): Items<Args, Result, Row, Draft> {
+  if (!("history" in items)) return items;
+  let primary = primaryDeclarations.get(items);
+  if (!primary) {
+    const { history: _history, ...plain } = items as ItemsWithHistory<Args, Result, Row, Draft>;
+    primary = Object.freeze(plain); primaryDeclarations.set(items, primary);
+  }
+  return primary;
+}
+
 /** An observed query whose items declare a history (LLP 1018.006 §2). */
 export type HistorySnapshot<Result, Row extends ItemRow, Draft, History = unknown> = ItemSnapshot<Result, Row, Draft> & (
   | {

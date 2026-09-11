@@ -125,9 +125,10 @@ for (const carrier of ["file", "IndexedDB"]) {
   });
 }
 
-async function mounted() {
+async function mounted(seeded = false) {
   const root = await mkdtemp(join(tmpdir(), "s2-ready-react-"));
   const store = fileRangeStore(root);
+  if (seeded) await seededStore(store);
   const owner = fakeOwner();
   let client: any, mutation: any, outbox: any, renderer: TestRenderer.ReactTestRenderer;
   const rendered: Array<{ op: string; ready: boolean }> = [];
@@ -221,3 +222,33 @@ for (const boundary of ["fence", "expiresAt"]) {
     } finally { t.mock.timers.reset(); await f.close(); }
   });
 }
+
+test("mutation work follows the durable entry while last keeps the admission result", async () => {
+  const f = await mounted(true);
+  const view = f.client.outbox.observe(api.messages.send), detach = view.subscribe(() => {});
+  try {
+    await act(async () => { await f.client.offline(); });
+    let admitted: any;
+    await act(async () => {
+      admitted = await f.mutation.run({ conversationId: engineId(10), body: "kept until recovery" });
+      await pause();
+    });
+    assert.equal(admitted.state, "queued", JSON.stringify(admitted));
+    assert.strictEqual(f.mutation.last, admitted);
+    assert.equal(f.mutation.work.entry.intent, admitted.intent);
+    assert.equal(f.mutation.work.dismissible, false);
+    assert.strictEqual(f.mutation.work, view.getWork(admitted.intent), "hooks and headless slots share one work index");
+    assert.strictEqual(f.outbox.work, view.getSnapshot().work);
+    assert.equal(Object.isFrozen(f.mutation.work), true);
+    assert.equal(Object.isFrozen(f.mutation.work.entry), true);
+    assert.strictEqual(f.mutation.can, view.getSnapshot().can);
+    await act(async () => { assert.deepEqual(await f.outbox.recover(), { settlement: { stopped: false, remaining: 0 } }); await pause(); });
+    assert.strictEqual(f.mutation.last, admitted, "recovery does not rewrite the immediate call result");
+    assert.ok(f.mutation.work === undefined || f.mutation.work.entry.state === "committed");
+    if (f.mutation.work) await act(async () => { await f.outbox.dismiss(admitted.intent); await pause(); });
+    assert.equal(f.mutation.work, undefined, "dismissal/compaction removes the derived work item");
+    await f.change("edit");
+    assert.equal(f.mutation.last, undefined);
+    assert.equal(f.mutation.work, undefined);
+  } finally { detach(); await f.close(); }
+});

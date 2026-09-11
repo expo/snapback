@@ -45,6 +45,35 @@ pub(crate) fn declared_serialized_column_max(
     )
 }
 
+/// Explain the same declared bounds used above; optional values choose a maximum,
+/// and assets price their closed record rather than the external blob's ceiling.
+pub(crate) fn declared_column_description(schema: &Schema, table: &str, column: &str) -> Option<String> {
+    fn describe(schema: &Schema, kind: &ColumnType) -> String {
+        let width = declared_type_max(schema, kind);
+        match kind {
+            ColumnType::Optional(inner) => format!("max({}, null reserve 8)", describe(schema, inner)),
+            ColumnType::List { of, max } => format!("list framing 12 + {max} × ({} + separator 1)", describe(schema, of)),
+            ColumnType::Text { max } => format!("text max {max} scalars: encoded value bound {width}"),
+            ColumnType::Bytes { max } => format!("bytes max {max}: encoded value bound {width}"),
+            ColumnType::Json { max_bytes } => format!("JSON max {max_bytes}: encoded value bound {width}"),
+            ColumnType::Enum { variants } => {
+                let escaped = variants.iter().map(|v| crate::value::canonical_json(&crate::Value::String(v.clone())).len()).max().unwrap_or(0);
+                format!("enum maximum {width} (escaped value maximum {escaped})")
+            }
+            ColumnType::Ref { table } => format!("{table} declared identity {width}"),
+            ColumnType::Image { .. } => format!("image record {width}; blob excluded"),
+            ColumnType::Video { .. } => format!("video record {width}; blob excluded"),
+            ColumnType::Time => format!("time {width}"),
+            _ => format!("{kind:?} value maximum {width}"),
+        }
+    }
+    let kind = schema.table(table)?.columns.get(column)?;
+    let value = if column == "id" {
+        format!("{table} declared identity {}", declared_identity_max(schema, table))
+    } else { describe(schema, kind) };
+    Some(format!("{} field-name/framing + {value}", column.len().saturating_add(4)))
+}
+
 pub(crate) fn declared_column_value_max(schema: &Schema, table: &str, column: &str) -> Option<u64> {
     if column == "id" {
         return Some(declared_identity_max(schema, table));

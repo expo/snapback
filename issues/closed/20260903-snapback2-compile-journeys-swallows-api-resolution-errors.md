@@ -82,3 +82,19 @@ partial `data` unguarded. It is accepted only if `Page` degrades to `any`; the
 permanent check now requires the meaningful `E_OP_INVALID` optional-data
 refusal. The existing installed-declaration template checks remain the
 consumer-side proof.
+
+## Papercut commission — 2026-09-11
+
+The author requested a ticket for this defect among the current ergonomics papercuts.
+This remains the canonical ticket, with the reproduced diagnosis and acceptance
+above; no second issue tracks the same defect. The assessment is indexed in
+[LLP 1018.008](../../llp/1018.008-elegance-after-the-corrections.research.md#11-problem-statements-and-papercuts-2026-09-11).
+
+Prioritize this bounded trust defect independently of the four architectural
+problem statements. A correctly typed journey should pass with the maintained
+package declarations, an ill-typed one should fail, and missing generated-type
+dependencies must not silently turn either check into `any`. Preserve normal
+diagnostic aggregation and use the existing compiler checks. This documentation
+update does not claim a new execution or a product fix. The later resolution
+above is the product outcome; this commission note is retained only as the
+ergonomics-index pointer.

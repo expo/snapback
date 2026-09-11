@@ -134,7 +134,7 @@ test('plain tier: run resolves rule rejections and clears last on auth or operat
       assert.equal(result.state, 'rejected'); assert.equal(result.family, 'rule', JSON.stringify(result)); assert.equal(result.code, 'NOT_MEMBER');
     });
     assert.equal(mutation.last.code, 'NOT_MEMBER');
-    assert.deepEqual(Object.keys(mutation).sort(), ['can', 'inFlight', 'last', 'run']);
+    assert.deepEqual(Object.keys(mutation).sort(), ['can', 'inFlight', 'last', 'run', 'work']);
     await act(async () => { renderer!.update(render(api.messages.edit)); });
     assert.equal(mutation.last, undefined);
     await act(async () => { await mutation.run({ messageId: 'missing', body: 'edit', baseBody: '' }); });

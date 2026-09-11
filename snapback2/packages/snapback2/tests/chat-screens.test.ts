@@ -82,14 +82,10 @@ test("shipped chat files contain no design citations or app-owned mutation fence
     assert.doesNotMatch(source, /useSnapbackSnapshot/, file);
     if (file.includes("/src/")) assert.doesNotMatch(source, /authGeneration|\b(?:visit|captured)\b/, file);
     if (file === "react/src/Composer.tsx" || file === "expo/src/Composer.tsx") {
-      const recovery = source.match(/  const client = useSnapbackClient\(\);\n  const sync = async \(\) => \{[\s\S]*?\n  \};/);
-      assert.ok(recovery, `${file}: the client hook belongs to the explicit Sync slice`);
-      assert.equal((recovery[0].match(/\bclient\b/g) ?? []).length, 3, "only declaration, online and settled");
-      assert.match(recovery[0], /await client\.online\(\);/);
-      assert.match(recovery[0], /await client\.outbox\.settled\(\);/);
-      const rest = source.replace(recovery[0], "").replace(/, useSnapbackClient(?= \} from)/, "");
-      assert.doesNotMatch(rest, /useSnapbackClient|\bclient\b/, `${file}: no client use outside Sync`);
-      const send = source.slice(source.indexOf("const send ="), source.indexOf("const client ="));
+      assert.doesNotMatch(source.replace(/^import .*;$/gm, ""), /useSnapbackClient|\bclient\b/, `${file}: recovery belongs to the outbox hook`);
+      assert.match(source, /await outbox\.recover\(\)/);
+      assert.match(source, /post\.work/, `${file}: current work comes from the shared lookup`);
+      const send = source.slice(source.indexOf("const send ="), source.indexOf("const sync ="));
       assert.doesNotMatch(send, /\b(?:try|catch|client|generation|current)\b/, file);
       assert.match(source, /post\.last/, `${file}: refusal presentation uses the hook's last result`);
     } else assert.doesNotMatch(source, /useSnapbackClient/, file);

@@ -104,6 +104,11 @@ const done: boolean = result.row.done;
 // @ts-expect-error a boolean field is not a number, even with skipLibCheck
 const wrong: number = result.row.done;
 const client = createClient({ url: "http://typed.test" });
+const observedPage = client.observePages(api.todos.customPage, {}, { cursor: "after" });
+const observedTitle: string | undefined = observedPage.getSnapshot().items[0]?.title;
+// @ts-expect-error headless raw pagination requires an array result too
+client.observePages(api.todos.add, {});
+void observedTitle;
 const typing = client.channel(api.typing, { todoId: "todo-1" });
 typing.set({ typing: true });
 const active: boolean | undefined = typing.getSnapshot().entries[0]?.value.typing;
@@ -200,6 +205,14 @@ test("generated Api rejects typos, extra query args, and wrong channel args", as
       } });
       const rawViewItems = defineItems(api.messages.rawView, { table: "messages", rows: view => view.messages });
       const rawData = client.observe(api.messages.raw, { conversationId: "general" }, { items: rawItems }).getSnapshot().items[0];
+      const rawPages = client.observePages(api.messages.raw, { conversationId: "general" }, { items: rawItems }).getSnapshot();
+      const pagedBody: string | undefined = rawPages.items[0]?.data?.body;
+      const pagedDraft: string | undefined = rawPages.items[0]?.draft?.body;
+      // @ts-expect-error item pagination does not invent a row field
+      const unknownPageField = rawPages.items[0]?.data?.unknown;
+      // @ts-expect-error a raw collection has no combined receipt
+      const combinedReceipt = client.observePages(api.messages.raw, { conversationId: "general" }).getSnapshot().receipt;
+      void [pagedBody, pagedDraft, unknownPageField, combinedReceipt];
       const rowBody: string | undefined = rawData?.data?.body;
       const draftBody: string | undefined = rawData?.draft?.body;
       const nestedBody: string | undefined = client.observe(api.messages.rawView, { conversationId: "general" }, { items: rawViewItems }).getSnapshot().items[0]?.data?.body;
@@ -221,6 +234,22 @@ test("generated Api rejects typos, extra query args, and wrong channel args", as
       const retainedBody: string | undefined = client.observe(api.messages.rawView, { conversationId: "general" }, { items: rawHistory }).getSnapshot().items[0]?.data?.body;
       void [rowBody, draftBody, nestedBody, wrongBody, guessed, retainedBody];
       const declared = withHistory(viewItems, { items: threadItems, args: ({ conversationId }) => ({ conversationId }) });
+      const pagedHistory = client.observePages(api.messages.view, { conversationId: "general" }, { items: declared }).getSnapshot();
+      const headCount: number | undefined = pagedHistory.head.data?.count;
+      if (pagedHistory.itemsFrom === "history") {
+        const historyRowBody: string | undefined = pagedHistory.pages[0]?.data?.[0]?.message?.body;
+        // @ts-expect-error history pages cannot supply the primary scalar count
+        const historyCount = pagedHistory.pages[0]?.data?.count;
+        void [historyRowBody, historyCount];
+      } else if (pagedHistory.itemsFrom === "query") {
+        const primaryCount: number | undefined = pagedHistory.pages[0]?.data?.count;
+        const releasedHistory: undefined = pagedHistory.history;
+        void [primaryCount, releasedHistory];
+      } else {
+        const noPages: readonly [] = pagedHistory.pages;
+        void noPages;
+      }
+      void headCount;
       const custody: HistorySnapshot<{ messages: { message: { id: string; body: string } | null }[]; count: number }, { id: string; body: string }, never, { message: { id: string; body: string } | null }[]>
         = client.observe(api.messages.view, { conversationId: "general" }, { items: declared }).getSnapshot();
       const from: "query" | "history" | "drafts" = custody.itemsFrom;

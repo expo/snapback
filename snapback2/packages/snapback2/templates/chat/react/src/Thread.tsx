@@ -1,22 +1,20 @@
 import { useState } from "react";
+import { refusalDetails } from "../shared/status";
 import { api } from "snapback2/client";
-import { AssetImage, useAuth, useMutation, useOutbox, useQuery, useViewer } from "snapback2/react";
+import { AssetImage, useAuth, useMutation, useOutbox, usePage, useViewer } from "snapback2/react";
 import { Composer } from "./Composer";
 import { threadWitness } from "./witness";
 import { conversationItems, messageWrites } from "../shared/thread";
-type Props = { conversationId: string };
-export function Thread(props: Props) { return <Conversation key={props.conversationId} {...props} />; }
-function Conversation({ conversationId }: Props) {
+export function Thread(props: { conversationId: string }) { return <Conversation key={props.conversationId} {...props} />; }
+function Conversation({ conversationId }: { conversationId: string }) {
   const { session: auth } = useAuth();
-  const viewer = useViewer();
-  const account = auth.state === "anonymous" ? null : auth.viewer ?? auth.restoringViewer;
-  const snapshot = useQuery(api.messages.conversationView, { conversationId }, { items: conversationItems });
+  const viewer = useViewer(), account = auth.state === "anonymous" ? null : auth.viewer ?? auth.restoringViewer;
+  const snapshot = usePage(api.messages.conversationView, { conversationId }, { items: conversationItems });
   const [opened, setOpened] = useState({ account, ids: [] as string[] });
   if (account !== undefined && account !== opened.account) setOpened({ account, ids: [] });
   const { dismiss } = useOutbox();
   const edit = useMutation(messageWrites.update), unsend = useMutation(messageWrites.remove);
-  const composite = snapshot.data, preview = composite?.preview[0]?.message?.body;
-  const witness = threadWitness(snapshot);
+  const composite = snapshot.head.data, preview = composite?.preview[0]?.message?.body, witness = threadWitness(snapshot);
   const onEdit = (messageId: string, body: string) => {
     const next = window.prompt("Edit message", body);
     if (next !== null && next !== body) void edit.run({ messageId, body: next, baseBody: body });
@@ -27,12 +25,15 @@ function Conversation({ conversationId }: Props) {
         {composite ? `${composite.count} message${composite.count === 1 ? "" : "s"}${preview ? ` · Latest: ${preview}` : ""}` : "Message count unavailable"}
       </p>
       {snapshot.status === "loading" ? <p role="status">Loading…</p> : snapshot.reason ? <p role="status">{snapshot.reason.message}</p> : null}
-      {snapshot.partial || snapshot.reason?.code === "partial" ? <p className="thread-history-note" {...witness.historyNote}>Downloaded history · Count and preview unavailable.</p> : null}
-      {edit.last?.state === "rejected" ? <p role="alert">{edit.last.reason === "conflict"
+      {snapshot.head.partial || snapshot.head.reason?.code === "partial" ? <p className="thread-history-note" {...witness.historyNote}>Downloaded history · Count and preview unavailable.</p> : null}
+      {edit.last?.state === "rejected" ? <div><p role="alert">{edit.last.reason === "conflict"
         ? typeof edit.last.current?.body === "string" ? `Edit not sent. Current message: ${edit.last.current.body}` : "Edit not sent. The message is no longer readable."
-        : `Edit not sent: ${edit.last.rewrite ?? edit.last.message}`}</p> : null}
-      {unsend.last?.state === "rejected" ? <p role="alert">Unsend refused: {unsend.last.rewrite ?? unsend.last.message}</p> : null}
+        : "Could not confirm edit. Open details for the next step."}</p>
+        <details><summary>Edit details</summary><pre>{refusalDetails(edit.last)}</pre></details></div> : null}
+      {unsend.last?.state === "rejected" ? <div><p role="alert">Could not confirm removal. Open details for the next step.</p>
+        <details><summary>Remove details</summary><pre>{refusalDetails(unsend.last)}</pre></details></div> : null}
     </header>
+    {snapshot.hasMore ? <button type="button" disabled={snapshot.status === "loading"} onClick={snapshot.loadMore}>Load older messages</button> : null}
     <ol className="bubbles" {...witness.bubbles}>
       {snapshot.items.map((item) => {
         const message = item.data, messageId = item.key;
@@ -54,7 +55,6 @@ function Conversation({ conversationId }: Props) {
           </span> : null}
         </li>;
       })}
-    </ol>
-    <Composer conversationId={conversationId} />
+    </ol><Composer conversationId={conversationId} />
   </section>;
 }

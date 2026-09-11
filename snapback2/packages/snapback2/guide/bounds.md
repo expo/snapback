@@ -30,6 +30,17 @@ index entries, rule probes, steps, heap, output, closure and write rows, with so
 lines, totals and ceilings. `--json` retains terms and partial certificates;
 these diagnostics do not authorize execution. Branches select each meter's
 maximum; jobs are priced per chunk, including the progress write.
+Byte terms show field-name/framing, declared value bounds and repetition.
+Optional values use max(value, null reserve), not an extra presence charge.
+Full-row and projected-value retention stay separate: an omitted output field
+can remain in full-row custody. For example, `editedAt: time ?` costs 44 bytes
+per full row (12 name/framing + max(32, 8)); 244 retained copies cost 10,736.
+Search pools share first images; range, point and authority envelopes are
+separately serialized and still charged. Signed adjustments reconcile exact
+integer totals, including saturated refused bounds; these are bounds, not measurements.
+Smaller pages preserve reachability only with valid continuation that the client
+follows. Smaller lane bounds narrow the population; changing field bounds changes
+the accepted data. Separate detail reads observe separate snapshots.
 `E_STEPS` refuses a step bound above the ceiling. Indexed-column updates
 are charged derivation even when equal component values skip it at runtime.
 Loop-carried scalar/object/collection values include repeated growth, aliases,
