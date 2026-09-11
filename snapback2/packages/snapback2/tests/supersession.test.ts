@@ -330,7 +330,7 @@ test("a mounted subscription cold-opens after supersession without Last-Event-ID
 });
 
 test("tracked Snapback 2 source contains no literal NUL bytes", async () => {
-  const root = resolve(import.meta.dirname, "../../../..");
+  const root = process.env.SNAPBACK2_TEST_REPOSITORY_ROOT ?? resolve(import.meta.dirname, "../../../..");
   const paths = execFileSync("git", ["ls-files", "--cached", "--others", "--exclude-standard", "-z", "--", "snapback2"], { cwd: root }).toString().split("\u0000")
     .filter(path => /\.(?:ts|tsx|js|jsx|mjs|cjs|rs|q|sh|py|json)$/.test(path));
   const bad: string[] = [];

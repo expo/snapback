@@ -193,9 +193,8 @@ fn ensure_package() {
     fs::create_dir_all(&target).expect("target directory");
     let marker = target.join("b2-package-build.marker");
     let fingerprint = package_fingerprint(&root);
-    let ready = || {
-        fs::read_to_string(&marker).ok().as_deref() == Some(&fingerprint)
-            && root.join("packages/snapback2/dist/compiler.mjs").is_file()
+    let complete = || {
+        root.join("packages/snapback2/dist/compiler.mjs").is_file()
             && root
                 .join("packages/snapback2/dist/compiler-core.mjs")
                 .is_file()
@@ -218,6 +217,14 @@ fn ensure_package() {
                 .join("packages/snapback2/dist/templates/chat/snapback/schema.q")
                 .is_file()
     };
+    // @ref LLP 1002#11-measured — the blocking script builds one complete
+    // canonical package before parallel readers and isolates every destructive
+    // package fixture; native tests must not rebuild that shared generation.
+    if std::env::var("SNAPBACK2_TEST_PACKAGE_PREBUILT").as_deref() == Ok("1") {
+        assert!(complete(), "prebuilt package fixture is incomplete");
+        return;
+    }
+    let ready = || fs::read_to_string(&marker).ok().as_deref() == Some(&fingerprint) && complete();
     if ready() {
         return;
     }
