@@ -476,6 +476,66 @@ test("positional reads compile after a regroup, report it in log/status, and abs
   }
 });
 
+// @ref LLP 1001#maintained-addresses — a day bucket is an ordinary typed
+// maintain group: the owner derives the UTC epoch day and updates its count in
+// the same source mutation rather than asking the client to assemble a chart.
+test("real owner maintains seven UTC-day insight buckets", { timeout: 60000 }, async () => {
+  const directory = await mkdtemp(join(tmpdir(), "snapback-time-buckets-"));
+  const source = join(directory, "source");
+  const previousUrl = process.env.SNAPBACK_URL;
+  let owner: RealOwnerHarness | undefined, client: ReturnType<typeof createClient> | undefined;
+  try {
+    await mkdir(source);
+    await writeFile(join(source, "schema.q"), `use identity
+
+table events:
+  author: principal
+  day: int
+  by byDay: day, id
+  read <- allow
+  insert <- allow
+
+maintain dayCounts: count events by day
+  read <- allow
+`);
+    await writeFile(join(source, "insights.q"), `mutation record():
+  day = divmod(now, 86400000).quotient
+  insert events { author: viewer, day }
+  return day
+
+query week(start: int):
+  return { d0: dayCounts[start], d1: dayCounts[start + 1], d2: dayCounts[start + 2], d3: dayCounts[start + 3], d4: dayCounts[start + 4], d5: dayCounts[start + 5], d6: dayCounts[start + 6] }
+`);
+    await writeFile(join(source, "seed.ts"), "import { seed } from 'snapback2';\nexport default seed({ personas: ['alice'], rows: {} });\n");
+    owner = await RealOwnerHarness.create({ forceOwned: true, fixture: source });
+    client = createClient({ url: owner.url, persona: "alice" });
+    await client.ready;
+    let firstDay: number | undefined;
+    const expected: Record<string, number> = {};
+    for (let offset = 0; offset < 7; offset += 1) {
+      const recorded: any = await client.mutation(api.insights.record, {});
+      assert.equal(recorded.state, "committed", JSON.stringify(recorded));
+      firstDay ??= recorded.data;
+      assert.equal(recorded.data, firstDay + offset, "owner clock advances across exact UTC-day buckets");
+      expected[`d${offset}`] = 1;
+      if (offset < 6) {
+        const info = JSON.parse(await readFile(join(owner.root!, ".snapback/owner.json"), "utf8"));
+        const advanced = await fetch(`${owner.url}/control/clock`, { method: "POST", headers: {
+          "content-type": "application/json", "x-snapback-control": info.secret,
+        }, body: JSON.stringify({ advanceMs: 86400000 }) });
+        assert.equal(advanced.status, 200, await advanced.text());
+      }
+    }
+    const week: any = await client.query(api.insights.week, { start: firstDay });
+    assert.equal(week.state, "complete", JSON.stringify(week));
+    assert.deepEqual(week.data, expected);
+  } finally {
+    await client?.close(); await owner?.close();
+    if (previousUrl === undefined) delete process.env.SNAPBACK_URL; else process.env.SNAPBACK_URL = previousUrl;
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("successor guide aliases and Quarry diagnostic rewrites compile", { timeout: 60000 }, async () => {
   const directory = await mkdtemp(join(tmpdir(), "snapback-successor-guide-"));
   try {
