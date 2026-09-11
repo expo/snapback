@@ -1053,7 +1053,7 @@ fn invalidation_blocks_when_every_intersecting_probe_is_rejected() {
 }
 
 #[test]
-fn invalidation_blocks_when_a_query_has_no_disjoint_committing_probe() {
+fn invalidation_passes_when_every_possible_commit_overlaps_a_full_range() {
     let project = Project::new();
     assert!(project.init("todos", "none").status.success());
     fs::write(
@@ -1077,16 +1077,16 @@ export default seed({ personas: ["alice"], rows: { items: [{ id: "item-1", label
     assert!(project.run(&["check", "--json"]).status.success());
 
     let output = project.run(&["test", "--derived-only", "--json"]);
-    assert_eq!(output.status.code(), Some(1));
+    assert!(output.status.success());
     let receipt = json_stdout(&output);
     let invalidation = check(&receipt, "invalidation");
-    assert_eq!(invalidation["verdict"], "blocked", "{invalidation}");
+    assert_eq!(invalidation["verdict"], "pass", "{invalidation}");
     assert!(
-        invalidation["detail"]["blocked"]
+        invalidation["detail"]["silenceInapplicable"]
             .as_array()
             .unwrap()
             .iter()
-            .any(|item| item["reason"] == "no physical concrete-disjoint probe for todos.list"),
+            .any(|item| item["query"] == "todos.list"),
         "{invalidation}"
     );
     assert!(
@@ -1095,11 +1095,10 @@ export default seed({ personas: ["alice"], rows: { items: [{ id: "item-1", label
             .unwrap()
             .iter()
             .any(|outcome| {
-                outcome["probeRole"] == "silence"
-                    && outcome["disposition"] == "physical"
+                outcome["probeRole"] == "pair"
+                    && outcome["allProbeWritesCovered"] == true
                     && outcome["overlaps"] == true
-                    && outcome["delivered"] == true
-                    && outcome["selected"] == false
+                    && outcome["selected"] == true
             }),
         "{invalidation}"
     );

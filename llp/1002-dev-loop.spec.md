@@ -741,8 +741,14 @@ read-only in the receipt, never editable):
    they do not decide concrete overlap. For each query, group mutations by
    their certificate-intersection signature (the set of shared table/index
    sites, including an empty signature). Witness one physical representative
-   per group, plus concrete-disjoint silence per query. This is representative
-   invalidation coverage, not proof of every operation pair: the receipt lists
+   per group, plus concrete-disjoint silence per query when such a commit can
+   exist. If every eligible mutation's certified write sites are confined to
+   tables covered by that query's whole-index authoritative ranges, every
+   nonzero commit necessarily overlaps; the silence proof is inapplicable and
+   the receipt names that fact instead of requiring an unrelated product
+   operation. Point/ranged reads, mixed-table writes, missing commits, and
+   incomplete write-site coverage do not qualify for this exception. This is
+   representative invalidation coverage, not proof of every operation pair: the receipt lists
    each group's candidate operations and whether it was witnessed, and each
    actual rejected, zero-write, or physical attempt with its exact oracle
    disposition. Operation-specific behavior belongs in authored journeys;
