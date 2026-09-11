@@ -137,6 +137,24 @@ async function fixture(carrier: "file" | "IndexedDB" = "file", bearer = false) {
 }
 
 for (const carrier of ["file", "IndexedDB"] as const) {
+  test(`${carrier}: successor program custody withdraws predecessor coverage in the same swap`, async () => {
+    const f = await fixture(carrier);
+    const swaps: any[] = [];
+    try {
+      const commit = f.store.commit.bind(f.store);
+      f.store.commit = async (swap: any) => { swaps.push(structuredClone(swap)); return commit(swap); };
+      f.state.generation = hex(2); f.state.schemaHash = successor.schemaHash;
+      const live: any = await f.client.query(api.messages.second, {});
+      assert.equal(live.state, "complete");
+      await f.rebuilt();
+      const adoption = swaps.find(swap => swap.programs?.[hex(2)]);
+      assert.equal(adoption?.resetCoverage, true, "new schema custody and old-row withdrawal cannot be separate carrier states");
+      assert.equal(adoption?.facts?.generation, hex(1), "predecessor facts still make the owner issue E_OFFLINE_RESET");
+      assert.equal(adoption?.superseded?.generation, hex(2), "the durable marker names the rebuild target");
+      assert.equal(f.resets(), 1);
+    } finally { await f.close(); }
+  });
+
   test(`${carrier}: query-only successor rebuilds overlapping rows at unchanged seq without a watermark`, async () => {
     const f = await fixture(carrier);
     try {

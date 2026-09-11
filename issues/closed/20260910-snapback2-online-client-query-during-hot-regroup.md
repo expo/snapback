@@ -99,9 +99,23 @@ client consumes them, without pausing or changing owner behavior:
 
 Both paths assert that no `E_SCHEMA` or `E_OFFLINE_STATE` terminal reaches the
 mounted observer. The barrier is implemented only in the private package-test
-entry; no production API or fallback was added. The production behavior under
-test is the generation fence in `OfflineRuntime.commitMany` and the existing
-bounded reset/rebuild protocol in `resumeClient` (LLP 1012 §8).
+entry; no production API or fallback was added.
+
+The complete successor-file run made the old failure deterministic once more:
+`E_SCHEMA: missing index components counts.byId`. The remaining production
+race was `/api/program` adoption committing the successor schema before the
+following coverage reset, which briefly asked `CarrierIndex` to index
+predecessor maintained rows under the successor grouping. `OfflineRuntime.program`
+now persists the new program, bounds, schema, predecessor-coverage withdrawal,
+and durable successor marker in one carrier swap. It deliberately retains the
+predecessor facts for the next `/api/resume`, so the owner still supplies the
+protocol's `E_OFFLINE_RESET`; that response advances facts and the bounded
+rebuild installs fresh successor coverage. Outbox and delivery custody retain
+the existing reset semantics (LLP 1012 §8 coverage-reset amendment).
+
+The file and IndexedDB tests named `successor program custody withdraws
+predecessor coverage in the same swap` inspect that exact atomic swap and its
+predecessor-request/successor-marker split.
 
 Focused verification:
 
@@ -114,3 +128,4 @@ node --test --test-timeout=120000 \
 ```
 
 Result: 1 passed, 0 failed, including online/live and offline/resume barriers.
+The two carrier-level atomic-swap regressions also pass.
