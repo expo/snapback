@@ -183,6 +183,34 @@ test("concurrent G2 and G3 deliveries coalesce into one reset with only G3 answe
   } finally { gate.resolve(); await f.close(); }
 });
 
+test("a delayed G2 response cannot replace the G3 supersession marker", async () => {
+  const f = await fixture();
+  const oldResponse = defer(), reset = defer();
+  try {
+    let held = true;
+    f.hooks.resume = async () => { await reset.promise; return undefined; };
+    f.state.generation = hex(2);
+    f.hooks.query = async q => {
+      if (held && q.op === "messages.second") {
+        held = false;
+        const g2 = f.envelope(q);
+        await oldResponse.promise;
+        return json(g2);
+      }
+    };
+    const g2 = f.client.query(api.messages.second, {});
+    await eventually(() => f.queries.some(q => q.op === "messages.second" && q.generation === hex(2)));
+    f.state.generation = hex(3);
+    await f.client.query(api.messages.third, {});
+    await eventually(async () => (await f.store.coverage()).superseded?.generation === hex(3));
+    oldResponse.resolve();
+    await g2;
+    assert.equal((await f.store.coverage()).superseded?.generation, hex(3));
+    reset.resolve();
+    await f.rebuilt("messages.third", hex(3));
+  } finally { oldResponse.resolve(); reset.resolve(); await f.close(); }
+});
+
 test("a predecessor response completing after reset is re-issued without reinstalling facts or resetting again", async () => {
   const f = await fixture();
   const gate = defer();
@@ -592,10 +620,55 @@ for (const carrier of ["file", "IndexedDB"] as const) {
   });
 }
 
+test("abort keeps the resume flight slot until that run settles", async () => {
+  const f = await fixture();
+  const gate = defer();
+  try {
+    f.hooks.resume = async () => { await gate.promise; return undefined; };
+    f.state.generation = hex(2);
+    await f.client.query(api.messages.second, {});
+    await eventually(() => !!(f.client as any).resumeFlight);
+    const flight = (f.client as any).resumeFlight as Promise<void>;
+    const rejected = assert.rejects(flight);
+    (f.client as any).abortSync();
+    assert.equal((f.client as any).resumeFlight, flight);
+    assert.equal((f.client as any).resumeController.signal.aborted, true);
+    gate.resolve();
+    await rejected;
+    await eventually(() => (f.client as any).resumeFlight === undefined);
+  } finally { gate.resolve(); await f.close(); }
+});
+
+test("an abort after durable program persistence re-reads the adopted generation", async () => {
+  const f = await fixture();
+  const persisted = defer(), release = defer();
+  try {
+    const runtime = (f.client as any).offlineRuntime;
+    const replacement = { generation: hex(2), schemaHash: certified.schemaHash, schema: certified.schema, programs };
+    const commit = f.store.commit.bind(f.store);
+    f.store.commit = async (swap: any) => {
+      await commit(swap);
+      if (swap.programs?.[hex(2)]) {
+        persisted.resolve();
+        await release.promise;
+      }
+    };
+    const controller = new AbortController();
+    const adoption = runtime.program(replacement, controller.signal);
+    await persisted.promise;
+    controller.abort();
+    release.resolve();
+    await assert.rejects(adoption, (error: any) => error?.name === "AbortError");
+    assert.equal(runtime.programGeneration, hex(2));
+    assert.deepEqual(Object.keys(await f.store.outbox.programs()), [hex(2)]);
+  } finally { release.resolve(); await f.close(); }
+});
+
 for (const carrier of ["file", "IndexedDB"] as const) {
   test(`${carrier}: an obsolete settlement tail stays queued and cannot supersede G3; retry settles atomically with G3 rows`, async () => {
     const f = await fixture(carrier);
     const tail = defer(), retry = defer();
+    let successorDrain: { close(): void } | undefined;
     try {
       const runtime = (f.client as any).offlineRuntime;
       f.state.generation = hex(2);
@@ -624,8 +697,10 @@ for (const carrier of ["file", "IndexedDB"] as const) {
       f.state.generation = hex(3);
       await f.client.query(api.messages.third, {});
       await eventually(async () => (await f.store.coverage()).facts?.generation === hex(3));
-      // A successor drain page restores the log before the byte-identical retry.
-      await f.store.commit({ watermark: { op: "messages.log", args: {}, watermark: null, updatedAt: 2 } });
+      successorDrain = subscribe(f.client, api.messages.log, {}, () => undefined, { drain: true });
+      await (successorDrain as any).until((value: any) => value.caughtUp === true, 2_000);
+      assert.equal((await f.store.coverage()).watermarks[0]?.generation, hex(3),
+        "the successor's real drain page restored settlement-tail custody");
       tail.resolve();
       await drain;
       await eventually(() => replays.length === 2);
@@ -640,7 +715,7 @@ for (const carrier of ["file", "IndexedDB"] as const) {
       assert.equal(settlements.length, 1);
       assert.equal(settlements[0].facts.generation, hex(3));
       assert.equal((await f.store.answer("messages.log", {})).seq, 7);
-    } finally { tail.resolve(); retry.resolve(); await f.close(); }
+    } finally { tail.resolve(); retry.resolve(); successorDrain?.close(); await f.close(); }
   });
 }
 

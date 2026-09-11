@@ -343,14 +343,14 @@ async function settle(
   entry: OutboxEntry,
   state: "committed" | "rejected" | "expired",
   response?: unknown,
-  tail?: { op: string; args: unknown; accepted: AcceptedDelivery<unknown> },
+  tail?: { op: string; args: unknown; accepted: AcceptedDelivery<unknown>; deliveryOrder: number },
   revision = options.runtime.coverageRevision,
 ): Promise<boolean> {
   const settled = options.runtime.outbox.settle(entry, state, response);
   try {
     throwIfAborted(options.signal);
     const superseded = await options.runtime.commitMany(tail ? [tail] : [], undefined, { put: [settled] }, revision,
-      () => !options.signal?.aborted);
+      () => !options.signal?.aborted, undefined, tail?.deliveryOrder);
     throwIfAborted(options.signal);
     if (!superseded) recordTerminal(options.runtime, settled);
     return !superseded && revision === options.runtime.coverageRevision;
@@ -388,6 +388,7 @@ async function logTail(options: DrainOptions, revision: number) {
   const held = await runtime.answer(watermark.op, args);
   throwIfAborted(options.signal);
   if (!current()) return undefined;
+  const deliveryOrder = runtime.beginDelivery();
   const raw = await options.json("/api/query?receipt=1", {
     method: "POST",
     body: JSON.stringify(held?.validator ? { op: watermark.op, args, validator: held.validator } : { op: watermark.op, args }),
@@ -421,7 +422,7 @@ async function logTail(options: DrainOptions, revision: number) {
   throwIfAborted(options.signal);
   if (!current()) return undefined;
   wireQuery(accepted.result);
-  return { op: watermark.op, args, accepted };
+  return { op: watermark.op, args, accepted, deliveryOrder };
 }
 
 /** The inbox role a follower's outbox API delegates to (LLP 1018.004 §§2–3). */

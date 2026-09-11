@@ -1,8 +1,9 @@
 # Snapback 2 twin: supersession and reset follow-ups from the third review round
 
-**Status:** Open
+**Status:** Closed
 **Systems:** snapback2 client (`packages/snapback2/src/{offline,client,client-offline,client-outbox,sse}.ts`)
 **Date:** 2026-09-04
+**Resolved:** 2026-09-10
 **Related:** ticket 20260904-snapback2-twin-supersession-ready-followups (closed by lane T2 after three review rounds); LLP 1012 §7/§8 (the supersession and reset record); reviews `t2-r3-{muse,grok,astra}.md`
 
 ## Findings (third round; the lane's limit)
@@ -45,3 +46,23 @@ evidence at `15c134d056`, not claims that the hot-regroup control exercised them
 
 Remaining: deterministic marker ordering, abort-unwind, persist/adopt and
 unstaged settlement-tail evidence; retain the epoch-order dependency.
+
+## Resolution — 2026-09-10
+
+Request-start delivery order now governs supersession markers, so a delayed
+predecessor response cannot overwrite the marker established by a later
+successor request. Reset markers participate in the same order. The owner's
+epoch-before-generation dependency is recorded beside both checks and remains
+covered by the actual epoch-transition regression.
+
+`abortSync` leaves the current `resumeFlight` and controller installed until
+that run's finish handler observes settlement. Program adoption re-reads the
+durably committed program while still inside the runtime/ledger critical
+section before honoring a late abort, keeping durable and in-memory generation
+identical. Deterministic tests pin both await boundaries.
+
+The settlement-tail retry test now obtains G3 log custody through a real drain
+subscription and fake-owner page. It no longer hand-commits the successor
+watermark; the original intent bytes retry unchanged and settle atomically with
+the G3 rows on both file and IndexedDB carriers. Items 6 and 7 remain covered by
+their previously cited maintained tests.
