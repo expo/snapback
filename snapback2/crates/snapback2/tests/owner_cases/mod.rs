@@ -2,6 +2,8 @@ mod jobs;
 mod jobs_queue;
 mod rehearsal;
 mod rehearsal_blobs;
+#[cfg(not(feature = "hermes"))]
+mod input_bounds;
 use super::owner_support::*;
 use super::*;
 
