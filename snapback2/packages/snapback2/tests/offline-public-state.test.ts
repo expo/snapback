@@ -168,7 +168,7 @@ test('held public query states omit denied payload and nonpage cursors through o
     });
 });
 
-test('resume rejects equivocation with the same typed refusal exposed by query and snapshot', async () => {
+test('a durable old-owner answer rejects an equal-sequence replacement with the typed resume refusal', async () => {
   const root = await tempRoot(); await seededResumeStore(root);
   let resumes = 0, conflicting = false;
   const disk = fileRangeStore(root), full = envelope(['before']); let active: any;
@@ -197,6 +197,8 @@ test('resume rejects equivocation with the same typed refusal exposed by query a
     sub.close();
   } finally {
     await client.close(); const inspect = factory(); await inspect.open('dev:alice');
+    assert.deepEqual((await inspect.answer('messages.body', {})).data, ['before'],
+      'the equal-authority, generation, and sequence disagreement never replaces old-owner custody');
     assert.deepEqual((await inspect.outbox.all()).map(({ order, ...entry }) => entry),[pending]);
     await inspect.close(); await rm(root, { recursive: true, force: true });
   }

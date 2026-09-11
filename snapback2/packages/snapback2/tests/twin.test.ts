@@ -1446,6 +1446,37 @@ test('native-certified derived page keeps its public local cursor after halo rep
   await runtime.close();
 });
 
+test('a public durable client samples read time for each native-certified timed query, including after reopen', async context => {
+  const { nativeR8: { halo } } = JSON.parse(await readFile(new URL('../../evaluator/src/test-search-v5-fixtures.json', import.meta.url), 'utf8'));
+  const root = await tempRoot();
+  const factory = fileRangeStore(root);
+  const runtime = new OfflineRuntime({ store: factory });
+  const realNow = Date.now;
+  context.after(() => { Date.now = realNow; });
+  try {
+    await runtime.open(halo.first.authority.principal, true);
+    await runtime.program(halo.program);
+    await runtime.commit('clock.fixed', {}, await runtime.accept('clock.fixed', {}, halo.first));
+    await runtime.close();
+
+    for (const sampled of [halo.first.readTime + 1_000, halo.first.readTime + 9_000]) {
+      Date.now = () => sampled;
+      const client = createClient({ url: 'http://timed-offline.test', persona: 'alice', startOffline: true,
+        offline: { store: factory }, fetch: async () => { throw new TypeError('offline transport'); } });
+      try {
+        await client.ready;
+        const answer: any = await client.query(api.clock.fixed as any, {});
+        assert.equal(answer.data.now, sampled, 'ReadTime and now share the invocation sample');
+        assert.deepEqual(answer.data.rows.map((row: any) => row.id), halo.first.data.rows.map((row: any) => row.$row.id));
+      } finally { await client.close(); }
+    }
+  } finally {
+    Date.now = realNow;
+    await runtime.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 
 test('public offline movement propagates detected partial coverage and the known halo through cold, retry and subscription', async context => {
   const { nativeR8: { halo } } = JSON.parse(await readFile(new URL('../../evaluator/src/test-search-v5-fixtures.json', import.meta.url), 'utf8'));
