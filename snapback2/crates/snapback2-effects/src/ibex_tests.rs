@@ -162,6 +162,15 @@ fn request_header<'a>(request: &'a str, name: &str) -> Option<&'a str> {
         })
 }
 
+fn assert_bodyless_wire_content_length(request: &str) {
+    // ureq emits Content-Length: 0 for an empty request on Linux and omits it
+    // on Darwin. Either proves the authored body length was removed.
+    assert!(
+        matches!(request_header(request, "content-length"), None | Some("0")),
+        "{request}"
+    );
+}
+
 fn assert_content_type(request: &str, expected: Option<&str>) {
     let block = request.split_once("\r\n\r\n").unwrap().0;
     assert!(
@@ -372,10 +381,11 @@ fn fetch_redirect_preserves_or_drops_the_default_string_content_type() {
                     Some("text/plain;charset=UTF-8")
                 },
             );
-            assert_eq!(
-                request_header(request, "content-length"),
-                if dropped { None } else { Some("5") }
-            );
+            if dropped {
+                assert_bodyless_wire_content_length(request);
+            } else {
+                assert_eq!(request_header(request, "content-length"), Some("5"));
+            }
             assert_eq!(
                 request.split_once("\r\n\r\n").unwrap().1,
                 if dropped { "" } else { "hello" }
@@ -440,21 +450,21 @@ fn fetch_redirect_matrix_preserves_or_drops_method_body_and_headers() {
                 );
             }
             let authored_body = method != "GET" && method != "HEAD";
-            assert_eq!(
-                request_header(&hits[0], "content-length"),
-                if authored_body { Some("13") } else { None },
-                "{}",
-                hits[0]
-            );
-            assert_eq!(
-                request_header(request, "content-length"),
-                if authored_body && !drop_body {
-                    Some("13")
-                } else {
-                    None
-                },
-                "{request}"
-            );
+            if authored_body {
+                assert_eq!(
+                    request_header(&hits[0], "content-length"),
+                    Some("13"),
+                    "{}",
+                    hits[0]
+                );
+            } else {
+                assert_bodyless_wire_content_length(&hits[0]);
+            }
+            if authored_body && !drop_body {
+                assert_eq!(request_header(request, "content-length"), Some("13"));
+            } else {
+                assert_bodyless_wire_content_length(request);
+            }
             for (name, value) in [
                 ("authorization", "Bearer token"),
                 ("proxy-authorization", "Basic proxy"),
@@ -552,7 +562,6 @@ fn fetch_cross_origin_redirect_strips_credentials_and_checks_each_grant() {
                     if dropped { None } else { Some("application/json") },
                 );
                 for (name, value) in [
-                    ("content-length", "14"),
                     ("content-encoding", "identity"),
                     ("content-language", "en"),
                     ("content-location", "/body"),
@@ -562,6 +571,11 @@ fn fetch_cross_origin_redirect_strips_credentials_and_checks_each_grant() {
                         if dropped { None } else { Some(value) },
                         "{request}"
                     );
+                }
+                if dropped {
+                    assert_bodyless_wire_content_length(request);
+                } else {
+                    assert_eq!(request_header(request, "content-length"), Some("14"));
                 }
                 assert_eq!(
                     request_header(request, "idempotency-key"),
