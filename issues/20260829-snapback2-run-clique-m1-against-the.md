@@ -83,3 +83,33 @@ repository caps check still reports two unrelated pre-existing over-cap files.
 Remaining acceptance is exactly the prior disposition: publish a package with
 these fixes, preregister a fresh serial same-configuration N≥3 cell, and clear
 the timing, correction, retrieval, plain-test, and pass^3 gates together.
+
+## Publication preparation — 2026-09-11 (UTC)
+
+**Disposition:** Open — production-qualified as `0.0.23`; registry authority
+and the new cold N≥3 cell remain. No package was published in this step.
+
+Commit `7a709d324` advances all Cargo, lockfile and npm version authorities from
+the already-published `0.0.22` to unclaimed `0.0.23`. The first production
+qualification exposed and `24ce0e087` repaired a release-harness dependency
+custody defect: the temporary package snapshot now installs its declared
+production dependency before its compiler doctor runs, instead of depending
+on workspace hoisting that Bun 1.4 no longer provides. The publication
+self-test passes and records build → install → qualify ordering.
+
+The exact full-engine `node scripts/publish.mjs --dry-run` on the Silver M5 Max
+then exited zero in 43.2 seconds. It qualified the image/HEIC helper, staged
+compiler doctor, immutable Darwin platform and shim tarballs, and fresh
+installed Todo and Chat consumers. Both npm dry-publish steps accepted
+`snapback2-darwin-arm64@0.0.23` and `snapback2@0.0.23`. Exact environment,
+artifact sizes, digests and the complete log are retained in the
+[0.0.23 preparation record](../benchmarks/runs/2026-09-11-snapback2-release-0023-preparation/README.md).
+
+Real publication cannot honestly proceed from any reachable host: `npm whoami`
+returned `E401` on the Apartment M1 and `ENEEDAUTH` on Silver, while the other
+candidate publisher host was unreachable. The registry names `ccheever` as
+owner. Until that account is authenticated, no immutable published pin exists
+for the required new benchmark; preregistration cannot turn a source checkout
+or dry-run tarball into the ticket's published-package cell. After npm auth,
+run the already-qualified publisher without `--dry-run`, then preregister and
+execute the fresh serial cold N≥3 cell under the unchanged gates.
