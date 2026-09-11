@@ -1334,7 +1334,14 @@ fn usage() -> ExitCode {
 // report them fails the receipt closed rather than shipping a receipt with no schedule line.
 fn attach_schedule_receipt(receipt: &mut TestReceipt, status: Option<Json>) {
     match status {
-        Some(status) if status.get("schedules").is_some_and(Json::is_object) => {
+        Some(status) if status.get("schedules").is_some_and(|schedules| {
+            schedules.as_object().is_some_and(|object| {
+                object.len() == 3
+                    && ["fired", "late", "rejected"]
+                        .iter()
+                        .all(|field| object.get(*field).is_some_and(Json::is_u64))
+            })
+        }) => {
             receipt.schedules = Some(status["schedules"].clone());
         }
         _ => {

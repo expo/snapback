@@ -601,7 +601,7 @@
   {
     "family": "job",
     "code": "E_JOB_GENERATION",
-    "site": "<job-id>",
+    "site": "<job-name>",
     "guide": "job",
     "wrong": "resume a changed job from its old cursor",
     "right": "run --cancel job_id --as system; restore the declaration or start again"

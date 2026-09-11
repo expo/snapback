@@ -198,7 +198,7 @@ impl State {
                 "op",
                 "why only executes queries; a mutation would change stored data",
                 "use a query containing the same lookup, then run snapback2 why <query> --as <persona>; see snapback2 guide auth",
-                "auth",
+                "quarry",
             ).with_site(op));
         }
         let context = if kind == ProgramKind::Mutation {
@@ -386,6 +386,13 @@ impl State {
 
     pub(super) fn manifest(&self) -> Result<Json, Refusal> {
         let runtime = self.runtime();
+        let schedule_targets = runtime
+            .generation()
+            .schema()
+            .schedules
+            .iter()
+            .map(|schedule| schedule.target.as_str())
+            .collect::<std::collections::BTreeSet<_>>();
         let tables = runtime
             .generation()
             .schema()
@@ -398,7 +405,11 @@ impl State {
             .generation()
             .programs()
             .iter()
-            .filter(|(name, _)| !name.starts_with("__owner."))
+            .filter(|(name, (program, _))| {
+                !name.starts_with("__owner.")
+                    && (program.kind == ProgramKind::Job
+                        || !schedule_targets.contains(name.as_str()))
+            })
             .map(|(name, (program, certificate))| {
                 (
                     name.clone(),

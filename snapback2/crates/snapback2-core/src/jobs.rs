@@ -483,18 +483,11 @@ fn prefix_expr(expr: &Expr, args: &BTreeMap<String, ArgType>) -> bool {
 // @ref LLP 1016#d2--a-job-is-a-sequence-of-sweeps — a job is chunk blocks and nothing else; misuse reports in the job family, not as an unbounded loop.
 fn shape_error(site: &str, detail: &str) -> CheckError {
     CheckError {
-        site: None,
+        site: Some(site.into()),
         code: "E_JOB_SHAPE".into(),
         message: format!("{site} is not a chunk: {detail}"),
         rewrite: "a job is one or more `chunk` blocks and nothing else:\njob fill():\n  chunk row in table first 100 by byId:\n    update table[row.id] { column: value }".into(),
     }
-}
-/// The site an `E_JOB_SHAPE` names — `job:statement:N`, or the job for an empty body —
-/// for envelopes whose `CheckError` carries no site of its own.
-pub fn shape_site(error: &CheckError) -> Option<&str> {
-    (error.code == "E_JOB_SHAPE")
-        .then(|| error.message.split(" is not a chunk").next())
-        .flatten()
 }
 fn columns(count: usize) -> String {
     format!("{count} column{}", if count == 1 { "" } else { "s" })

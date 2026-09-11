@@ -2,7 +2,9 @@
 
 See `guide successor` for the fill recipe and narrowing repair.
 `run <job> --as system --plan` shows counts, chunks, writes and ceilings;
-`--wait` runs to completion. `--json` prints each chunk and the final receipt.
+`--wait` runs to completion. It is CLI-side polling after the owner returns the
+enqueued id; `POST /control/job` itself refuses a `wait: true` field rather than
+silently discarding it. `--json` prints each chunk and the final receipt.
 
 `chunk` reads current rows in index order through the upper key captured
 at the start of its sweep. Later inserts between the cursor and bound are visited;

@@ -335,8 +335,9 @@ and erasure actually are.
   `sweep`, `chunk` fields, and `trace <job>` shows the underlying error on
   the chunk that hit it. An owner that stops is worse than a parked job:
   the writer's background turn (`writer_jobs.rs`) fails the owner only
-  when the park itself cannot be written, the one fault that leaves no
-  record. `--resume` reads the row through the same mapping, so a
+  when the park itself cannot be written, or before the chunk's store
+  handles (including its reserved-id block) exist — faults for which the
+  same store cannot promise a durable park. `--resume` reads the row through the same mapping, so a
   parked executable refuses `E_JOB_GENERATION` with the same cause rather
   than a second failure language. Proof:
   `tests/jobs.rs::store_fault_at_chunk_time_parks_with_its_own_envelope_and_rolls_back`.
@@ -1468,8 +1469,10 @@ serialize only when non-empty, so no engine output changed.
 Closed 2026-09-05 by Claude Fable 5.1 in `s2/admin-closing`, after every lane
 and its fix round had landed: the fourteen residual items the four second-round
 reviews (`j1b-r2-muse`, `j1b-r2-grok`, `j3-r2-muse`, `j3-r2-grok`) left as
-LAND WITH FIXES, none blocking. Two were defects, the rest were tests proving
-less than their names, labels, sites, and sentences.
+LAND WITH FIXES, none blocking. The two defects were silently conflicting
+operator mode flags and the five-second client timeout on an owner-side
+compile; the rest were tests proving less than their names, labels, sites,
+and sentences.
 
 - **Nothing a body says is ignored** (J3, muse §3.1, grok §4). `{ mode: "run",
   dryRun: true }` on `POST /control/run` ran for real while the client waited

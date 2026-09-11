@@ -64,7 +64,7 @@ pub fn live_frame(execution: Result<&Execution, Refusal>, refused_seq: u64) -> (
                     "op",
                     "a subscription query produced a mutation state",
                     "subscribe only to query operations",
-                    "op/kind",
+                    "quarry",
                 ),
                 execution.seq,
             ),

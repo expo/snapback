@@ -354,6 +354,10 @@ fn schedule_receipt_copies_the_owner_counts_and_fails_closed_without_them() {
         None,
         Some(json!({"jobs": {}})),
         Some(json!({"schedules": null})),
+        Some(json!({"schedules": {}})),
+        Some(json!({"schedules": {"fired": 1, "late": 0}})),
+        Some(json!({"schedules": {"fired": 1, "late": 0, "rejected": "0"}})),
+        Some(json!({"schedules": {"fired": 1, "late": 0, "rejected": 0, "extra": 0}})),
     ] {
         let mut closed = fresh();
         attach_schedule_receipt(&mut closed, status.clone());

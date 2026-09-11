@@ -950,7 +950,7 @@ fn a_chunk_that_names_another_chunks_binding_refuses_as_e_job_shape() {
             .starts_with("admin.fill:statement:2 is not a chunk: it names `row`"),
         "{error:?}"
     );
-    assert_eq!(jobs::shape_site(error), Some("admin.fill:statement:2"));
+    assert_eq!(error.site.as_deref(), Some("admin.fill:statement:2"));
     assert!(
         error
             .rewrite

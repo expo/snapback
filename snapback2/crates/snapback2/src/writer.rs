@@ -1232,7 +1232,7 @@ impl State {
                 "op",
                 format!("{op} is a {kind:?}, not the requested operation kind"),
                 "send queries to /api/query and mutations to /api/mutation",
-                "op/kind",
+                "quarry",
             ));
         }
         Ok(kind)
