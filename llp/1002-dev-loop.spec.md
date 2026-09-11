@@ -1404,7 +1404,7 @@ closes, startup/configuration evidence and the browser-witness boundary remain.
 ## 11. Measured
 
 The package phase schedules Node test files at the host's available processor
-count clamped to 2–8 workers, unless `SNAPBACK_PACKAGE_TEST_THREADS` explicitly
+count clamped to 2–6 workers, unless `SNAPBACK_PACKAGE_TEST_THREADS` explicitly
 overrides it. Tests, their 10-second deadlines, the complete file inventory and
 all-failure reporting remain unchanged. The bound prevents many owner-heavy
 files from simultaneously starting and stopping native owners; the retained
@@ -1429,6 +1429,14 @@ repeat `cargo build` during the concurrent interval, so a relink cannot make
 `target/debug/snapback2` transiently absent while native or package tests are
 executing it. Outside the blocking script the harness retains its standalone
 build behavior.
+
+On the warm Silver M5 integrated source, the eight-file setting exposed owner
+shutdown pressure in two complete samples (three package failures in 52.37 s,
+then one in 56.85 s) while every other inventory passed. The six-file control
+kept the original 10-second test deadline, passed all 1,307 package tests and
+the complete native/compiler/evaluator/doctest inventories, and returned in
+53.38 s. Six is therefore the measured default ceiling; the environment
+override remains diagnostic rather than release evidence.
 
 The blocking suite schedules Rust executable tests at the host's available
 processor count, clamped to 8–32 workers, unless
